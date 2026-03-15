@@ -10,7 +10,7 @@
 		"skipLibCheck": true,
 		"strict": true,
 		"target": "ES2022",
-		"types": ["vitest/globals", "node", "@wdio/globals/types"]
+		"types": ["bun-types", "mocha", "node", "@wdio/globals/types"]
 	},
-	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "tests/**/*.ts"]
+	"include": ["app/**/*.ts", "app/**/*.tsx", "app/**/*.d.ts", "test/**/*.ts"]
 }

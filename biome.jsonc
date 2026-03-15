@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.7/schema.json",
 	"assist": {
 		"actions": {
 			"source": {
@@ -11,7 +11,7 @@
 			}
 		},
 		"enabled": true,
-		"includes": ["**", "!**/modules/app_shell/test/fixtures/**"]
+		"includes": ["**"]
 	},
 	"files": {
 		"ignoreUnknown": true,
