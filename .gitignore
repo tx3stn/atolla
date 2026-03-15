@@ -1,0 +1,30 @@
+node_modules/
+modules/app_shell/test/fixtures/jellyfin/library/artwork/*.jpg
+dist/
+build/
+*.log
+.env*
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/
+
+# Bazel workspace artifacts
+bazel-*
+bazel-bin/
+bazel-out/
+bazel-testlogs/
+bazel-workspace/
+.bazel-cache/
+.bazelrc.user
+
+# Valdi local tooling artifacts
+.valdi/
+*.jpg
+*.png
+
+.opencode/
+.specify/
+IDEA.md

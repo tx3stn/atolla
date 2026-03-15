@@ -1,0 +1,70 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on",
+				"recommended": true,
+				"useSortedAttributes": "on",
+				"useSortedInterfaceMembers": "on",
+				"useSortedKeys": "on"
+			}
+		},
+		"enabled": true,
+		"includes": ["**", "!**/modules/app_shell/test/fixtures/**"]
+	},
+	"files": {
+		"ignoreUnknown": true,
+		"includes": ["**", "!**/assets", "!!**/build", "!!**/coverage", "!!**/dist"]
+	},
+	"formatter": {
+		"enabled": true,
+		"lineWidth": 100,
+		"useEditorconfig": true
+	},
+	"javascript": {
+		"formatter": {
+			"indentStyle": "tab",
+			"jsxQuoteStyle": "single",
+			"quoteStyle": "single"
+		}
+	},
+	"linter": {
+		"domains": {
+			"test": "recommended"
+		},
+		"enabled": true,
+		"rules": {
+			"complexity": {
+				"useDateNow": "warn"
+			},
+			"correctness": {
+				"noUnusedImports": "error",
+				"noUnusedVariables": "warn"
+			},
+			"nursery": {},
+			"recommended": true,
+			"style": {
+				"noYodaExpression": "warn",
+				"useConsistentArrayType": {
+					"level": "warn",
+					"options": {
+						"syntax": "generic"
+					}
+				},
+				"useNumberNamespace": "warn",
+				"useThrowNewError": "warn"
+			},
+			"suspicious": {
+				"noDebugger": "error",
+				"useAwait": "error"
+			}
+		}
+	},
+	"vcs": {
+		"clientKind": "git",
+		"defaultBranch": "main",
+		"enabled": true,
+		"useIgnoreFile": true
+	}
+}

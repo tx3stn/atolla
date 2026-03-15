@@ -1,0 +1,35 @@
+{
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.6",
+		"@snap/valdi": "^1.0.7",
+		"@types/node": "^24.5.2",
+		"@wdio/appium-service": "^9.0.0",
+		"@wdio/cli": "^9.0.0",
+		"@wdio/globals": "^9.0.0",
+		"@wdio/local-runner": "^9.0.0",
+		"@wdio/mocha-framework": "^9.25.0",
+		"@wdio/spec-reporter": "^9.26.0",
+		"appium": "^3.2.2",
+		"appium-inspector-plugin": "^2026.2.1",
+		"appium-uiautomator2-driver": "^7.0.0",
+		"typescript": "^5.9.2",
+		"vitest": "^3.2.4",
+		"webdriverio": "^9.26.0"
+	},
+	"name": "atolla",
+	"private": true,
+	"scripts": {
+		"adb:reload": "adb shell am force-stop com.snap.valdi.app_shell_app && adb shell monkey -p com.snap.valdi.app_shell_app -c android.intent.category.LAUNCHER 1",
+		"android": "./.scripts/start-android-emulator.sh",
+		"android:fast": "FAST_DEV_BUILD=1 ./.scripts/start-android-emulator.sh",
+		"appium:inspect": "./.scripts/start-appium-inspector.sh",
+		"check": "npm run format && npm run lint && npm run compile && npm run test",
+		"compile": "npx tsc --noEmit",
+		"format": "biome format --write .",
+		"lint": "biome check --write --assist-enabled=true --enforce-assist=true .",
+		"reload": "./.scripts/android-hotreload.sh",
+		"test": "vitest run",
+		"test:e2e": "E2E_APP_PATH=$PWD/bazel-bin/app_shell_app_android.apk wdio run tests/wdio.conf.ts"
+	},
+	"version": "0.0.1"
+}
