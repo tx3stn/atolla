@@ -6,27 +6,41 @@ import {
 	ConnectionModes,
 	cycleConnectionMode,
 } from 'atolla/src/transports/model';
-import { Component } from 'valdi_core/src/Component';
+import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
+import { theme } from '../../theme';
 import { FooterIcon } from './FooterIcon';
 import { type FooterTab, FooterTabs } from './FooterTab';
 
 export interface FooterNavViewModel {
 	activeTab: FooterTab;
 	onFooterTabTap: (tabId: FooterTab) => void;
-	onModeBadgeTap: () => void;
 	preferences: Preferences;
 }
 
-export class FooterNav extends Component<FooterNavViewModel> {
-	private onModeBadgeTap() {
-		const newMode = cycleConnectionMode(this.viewModels.preferences.getMode());
-		this.viewModels.preferences.setMode(newMode);
+interface FooterNavState {
+	connectionMode: ConnectionMode;
+}
+
+export class FooterNav extends StatefulComponent<FooterNavViewModel, FooterNavState> {
+	state: FooterNavState = {
+		connectionMode: ConnectionModes.mock,
+	};
+
+	async onCreate() {
+		const connectionMode = await this.viewModel.preferences.getMode();
+		this.setState({ connectionMode });
 	}
 
-	async onRender() {
-		const modeIcon = modeIcons(await this.viewModel.preferences.getMode());
+	private async onModeBadgeTap() {
+		const newMode = cycleConnectionMode(this.state.connectionMode);
+		await this.viewModel.preferences.setMode(newMode);
+		this.setState({ connectionMode: newMode });
+	}
+
+	onRender() {
+		const modeIcon = modeIcons(this.state.connectionMode);
 
 		<view style={styles.footerPinned}>
 			<FooterIcon
@@ -67,7 +81,7 @@ export class FooterNav extends Component<FooterNavViewModel> {
 const modeIcons = (mode: ConnectionMode) => {
 	switch (mode) {
 		case ConnectionModes.mock: {
-			return res.mock;
+			return res.mocked;
 		}
 		case ConnectionModes.offline: {
 			return res.wifioff;
@@ -80,13 +94,17 @@ const modeIcons = (mode: ConnectionMode) => {
 
 const styles = {
 	footerPinned: new Style({
+		backgroundColor: theme.colors.bg,
 		borderRadius: 12,
-		columnGap: 8,
+		bottom: 0,
 		flexDirection: 'row',
-		justifyContent: 'space-between',
+		left: 0,
 		marginTop: -2,
 		padding: 6,
 		paddingTop: 10,
+		position: 'absolute',
+		right: 0,
 		width: '100%',
+		zIndex: 20,
 	}),
 };

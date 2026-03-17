@@ -30,14 +30,15 @@ export class FooterIcon extends Component<FooterIconView> {
 const styles = {
 	footerTabChip: new Style({
 		alignItems: 'center',
-		flex: 1,
-		paddingBottom: 7,
-		paddingLeft: 14,
-		paddingRight: 14,
+		flexGrow: 1,
+		justifyContent: 'center',
+		paddingBottom: 10,
+		paddingLeft: 0,
+		paddingRight: 0,
 		paddingTop: 5,
 	}),
 	footerTabIconImage: new Style<ImageView>({
-		height: 17,
-		width: 17,
+		height: 20,
+		width: 20,
 	}),
 };
