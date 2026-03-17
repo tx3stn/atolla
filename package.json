@@ -19,16 +19,16 @@
 	"name": "atolla",
 	"private": true,
 	"scripts": {
-		"adb:reload": "adb shell am force-stop com.snap.valdi.app_shell_app && adb shell monkey -p com.snap.valdi.app_shell_app -c android.intent.category.LAUNCHER 1",
+		"adb:reload": "adb shell am force-stop com.snap.valdi.atolla && adb shell monkey -p com.snap.valdi.atolla -c android.intent.category.LAUNCHER 1",
 		"android": "./.scripts/start-android-emulator.sh",
 		"android:fast": "FAST_DEV_BUILD=1 ./.scripts/start-android-emulator.sh",
 		"appium:inspect": "./.scripts/start-appium-inspector.sh",
-		"check": "npm run format && npm run lint && npm run compile && npm run test",
-		"compile": "npx tsc --noEmit",
+		"check": "bun run format && bun run lint && bun run compile && bun run test",
+		"compile": "bunx tsc --noEmit",
 		"format": "biome format --write .",
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true .",
 		"reload": "./.scripts/android-hotreload.sh",
-		"test": "bun test ./app",
+		"test": "bun test ./atolla",
 		"test:e2e": "E2E_APP_PATH=$PWD/bazel-bin/app_shell_app_android.apk wdio run tests/wdio.conf.ts"
 	},
 	"version": "0.0.1"

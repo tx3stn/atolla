@@ -46,7 +46,7 @@ done
 "$(dirname "$0")/android-sync-mock-artwork.sh"
 
 env -u MACOSX_DEPLOYMENT_TARGET -u IPHONEOS_DEPLOYMENT_TARGET SDKROOT="$MACOS_SDK_PATH" \
-	bazel build //:app_shell_app_hotreload ${HOTRELOAD_BAZEL_ARGS}
+	bazel build //:atolla_hotreload ${HOTRELOAD_BAZEL_ARGS}
 
 EXECUTION_ROOT="$(bazel info execution_root)"
 HOTRELOADER_CMD="$(tail -n 1 bazel-bin/run_hotreloader.sh)"

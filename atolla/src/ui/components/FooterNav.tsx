@@ -1,11 +1,11 @@
 // @ts-nocheck
-import res from 'app/res';
-import type { Preferences } from 'app/src/stores/Preferences';
+import res from 'atolla/res';
+import type { Preferences } from 'atolla/src/stores/Preferences';
 import {
 	type ConnectionMode,
 	ConnectionModes,
 	cycleConnectionMode,
-} from 'app/src/transports/model';
+} from 'atolla/src/transports/model';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
@@ -70,7 +70,7 @@ const modeIcons = (mode: ConnectionMode) => {
 			return res.mock;
 		}
 		case ConnectionModes.offline: {
-			return res.wifiOff;
+			return res.wifioff;
 		}
 		case ConnectionModes.online: {
 			return res.wifi;

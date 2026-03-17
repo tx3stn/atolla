@@ -1,0 +1,77 @@
+load("@valdi//bzl/valdi:valdi_module.bzl", "valdi_module")
+
+package(default_visibility = ["//visibility:public"])
+
+valdi_module(
+    name = "atolla",
+    srcs = glob(
+        [
+            "src/**/*.ts",
+            "src/**/*.tsx",
+            "src/**/*.json",
+        ],
+        exclude = [
+            "src/**/*.test.ts",
+            "src/**/*.test.tsx",
+        ],
+    ),
+    exclude_patterns = [
+        ".*\\.test\\.ts$",
+        ".*\\.test\\.tsx$",
+        ".*/test/.*",
+    ],
+    res = glob([
+        "res/**/*.jpeg",
+        "res/**/*.jpg",
+        "res/**/*.png",
+        "res/**/*.svg",
+        "res/**/*.webp",
+    ]),
+    test_target_name = "valdi_test",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@valdi//src/valdi_modules/src/valdi/persistence",
+        "@valdi//src/valdi_modules/src/valdi/valdi_core",
+        "@valdi//src/valdi_modules/src/valdi/valdi_tsx",
+    ],
+)
+
+filegroup(
+    name = "srcs",
+    srcs = glob([
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "src/**/*.json",
+    ]),
+)
+
+filegroup(
+    name = "test_files",
+    srcs = glob([
+        "src/**/*.test.ts",
+    ]),
+)
+
+alias(
+    name = "app_kt",
+    actual = ":atolla_kt",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "app_native",
+    actual = ":atolla_native",
+    visibility = ["//visibility:public"],
+)
+
+sh_test(
+    name = "test",
+    srcs = ["test/run_module_tests.sh"],
+    data = [
+        ":srcs",
+        ":test_files",
+        "//:package_json",
+        "//:package_lock_json",
+        "//:tsconfig_json",
+    ],
+)

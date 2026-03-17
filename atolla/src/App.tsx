@@ -25,7 +25,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	onRender(): void {
 		<view>
 			<FooterNav
-				activeFooterTab={view.activeFooterTab}
+				activeFooterTab={this.state.activeFooterTab}
 				isPlaying={this.state.isPlaying}
 				onFooterTabTap={this.handleFooterTabTap}
 			/>

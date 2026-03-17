@@ -6,17 +6,17 @@ valdi_application(
     name = "atolla",
     ios_bundle_id = "com.tx3stn.atolla",
     ios_families = ["iphone"],
-    root_component_path = "App@/src/App",
+    root_component_path = "App@atolla/src/App",
     title = "atolla",
     version = "0.0.1",
-    deps = ["//src"],
+    deps = ["//atolla"],
 )
 
 filegroup(
-    name = "android_app_shell_sources",
+    name = "app_sources",
     srcs = glob([
-        "src/**/*.ts",
-        "src/**/*.tsx",
+        "atolla/src/**/*.ts",
+        "atolla/src/**/*.tsx",
     ]),
 )
 
@@ -26,16 +26,11 @@ filegroup(
 )
 
 filegroup(
-    name = "package_lock_json",
-    srcs = ["package-lock.json"],
+    name = "bun.lock",
+    srcs = ["bun.lock"],
 )
 
 filegroup(
     name = "tsconfig_json",
     srcs = ["tsconfig.json"],
-)
-
-filegroup(
-    name = "vitest_config_ts",
-    srcs = ["vitest.config.ts"],
 )
