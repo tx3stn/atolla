@@ -6,6 +6,7 @@ import { theme } from './theme';
 import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { HomeView } from './ui/views/HomeView';
+import { SearchView } from './ui/views/SearchView';
 
 export type AppViewModel = Record<string, never>;
 
@@ -35,7 +36,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	onRender(): void {
 		<view style={styles.root}>
 			{this.state.activeFooterTab === FooterTabs.home && <HomeView />}
-			{/* {this.state.activeFooterTab === FooterTabs.search && <SearchView />} */}
+			{this.state.activeFooterTab === FooterTabs.search && <SearchView />}
 			{/* {this.state.activeFooterTab === FooterTabs.settings && <SettingsView />} */}
 
 			<FooterNav
