@@ -21,6 +21,12 @@ export const theme = {
 			letterSpacing: 0.5,
 			paddingBottom: 2,
 		},
+		mainBold: {
+			color: colors.white,
+			font: systemBoldFont(15),
+			letterSpacing: 0.5,
+			paddingBottom: 2,
+		},
 		sub: {
 			color: colors.muted,
 			font: systemFont(13),
