@@ -28,22 +28,24 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					value={this.state.query}
 				/>
 			</view>
+
+			{/* Recent searches */}
 		</view>;
 	}
 }
 
 const styles = {
 	root: new Style({
-		padding: 16,
+		padding: 20,
 		width: '100%',
 	}),
 	searchBar: new Style({
 		alignItems: 'center',
 		borderColor: theme.colors.muted,
 		borderRadius: 999,
-		borderWidth: 1,
+		borderWidth: 2,
 		flexDirection: 'row',
-		padding: 16,
+		padding: 18,
 	}),
 	searchIcon: new Style({
 		height: 20,

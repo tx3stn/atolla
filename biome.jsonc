@@ -35,6 +35,9 @@
 		},
 		"enabled": true,
 		"rules": {
+			"a11y": {
+				"noLabelWithoutControl": "off"
+			},
 			"complexity": {
 				"useDateNow": "warn"
 			},

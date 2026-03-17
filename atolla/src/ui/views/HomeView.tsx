@@ -22,6 +22,10 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	onRender(): void {
 		<view style={styles.root}>
 			<HomeHeaderNav activeTab={this.state.activeTab} onTabTap={this.handleHeaderTabTap} />
+
+			{/* {this.state.activeTab === HeaderTabs.artists && <ArtistsView />} */}
+			{/* {this.state.activeTab === HeaderTabs.albums && <AlbumsView />} */}
+			{/* {this.state.activeTab === HeaderTabs.playlists && <PlaylistsView />} */}
 		</view>;
 	}
 }

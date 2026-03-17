@@ -23,7 +23,6 @@ export class HomeHeaderTab extends Component<HomeHeaderViewModel> {
 			})}
 			style={styles.header}
 		>
-			{/* biome-ignore lint/a11y/noLabelWithoutControl: Valdi native label */}
 			<label
 				style={this.viewModel.active ? styles.activeTab : styles.nonActiveTab}
 				value={this.viewModel.tab}
