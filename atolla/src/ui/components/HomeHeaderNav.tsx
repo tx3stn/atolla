@@ -43,6 +43,7 @@ const styles = {
 		columnGap: 1,
 		flexDirection: 'row',
 		marginBottom: 8,
+		marginTop: 8,
 		width: '100%',
 	}),
 };
