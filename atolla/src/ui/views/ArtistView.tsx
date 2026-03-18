@@ -73,7 +73,10 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 
 				{albums.length > 0 && (
 					<layout style={styles.section}>
-						<label style={styles.sectionHeader} value='Albums' />
+						<layout style={styles.sectionHeaderRow}>
+							<label style={styles.sectionHeader} value='ALBUMS' />
+							<label style={styles.sectionCount} value={`[ ${albums.length} ]`} />
+						</layout>
 						<CardGrid
 							accessibilityLabel='artist-albums-grid'
 							cards={albumCards}
@@ -88,14 +91,14 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 
 				{trackEntries.length > 0 && (
 					<layout style={styles.section}>
-						<label style={styles.sectionHeader} value='Top Tracks' />
+						<label style={styles.sectionHeader} value='TOP TRACKS' />
 						<TrackList tracks={trackEntries} />
 					</layout>
 				)}
 
 				{artist.bio && (
 					<layout style={styles.section}>
-						<label style={styles.sectionHeader} value='About' />
+						<label style={styles.sectionHeader} value='BIO' />
 						<view onTap={() => this.setState({ showBioModal: true })} style={styles.bioContainer}>
 							<label
 								ellipsizeMode='tail'
@@ -174,9 +177,18 @@ const styles = {
 		marginBottom: 16,
 		width: '100%',
 	}),
+	sectionCount: new Style<Label>({
+		...theme.text.mutedHeader,
+		margin: 8,
+	}),
 	sectionHeader: new Style<Label>({
-		...theme.text.title,
-		marginBottom: 8,
-		paddingLeft: 4,
+		...theme.text.mutedHeader,
+		margin: 8,
+	}),
+	sectionHeaderRow: new Style({
+		alignItems: 'center',
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		width: '100%',
 	}),
 };

@@ -35,6 +35,11 @@ export const theme = {
 			letterSpacing: 0.5,
 			paddingBottom: 2,
 		},
+		mutedHeader: {
+			color: colors.grey,
+			font: systemBoldFont(18),
+			letterSpacing: 0.9,
+		},
 		sub: {
 			color: colors.muted,
 			font: systemFont(13),
