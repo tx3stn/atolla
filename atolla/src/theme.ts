@@ -17,6 +17,12 @@ export const theme = {
 	footerHeight: 80,
 	scrollPaddingBottom: 80 * 2.4,
 	text: {
+		display: {
+			color: colors.white,
+			font: systemBoldFont(28),
+			letterSpacing: 0.6,
+			paddingBottom: 2,
+		},
 		main: {
 			color: colors.white,
 			font: systemFont(15),

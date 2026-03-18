@@ -14,14 +14,14 @@ export interface AlbumsViewModel {
 
 interface AlbumsState {
 	albums: Array<Album>;
-	selectedAlbumId: string | null;
+	selectedAlbum: Album | null;
 	sort: AlbumSort;
 }
 
 export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> {
 	state: AlbumsState = {
 		albums: [],
-		selectedAlbumId: null,
+		selectedAlbum: null,
 		sort: AlbumSorts.alphabetical,
 	};
 
@@ -32,8 +32,8 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	onRender(): void {
-		if (this.state.selectedAlbumId) {
-			<AlbumView albumId={this.state.selectedAlbumId} transport={this.viewModel.transport} />;
+		if (this.state.selectedAlbum) {
+			<AlbumView album={this.state.selectedAlbum} transport={this.viewModel.transport} />;
 			return;
 		}
 
@@ -50,7 +50,8 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				accessibilityLabel='home-albums-grid'
 				cards={cards}
 				onCardTap={(card) => {
-					this.setState({ selectedAlbumId: card.id });
+					const album = this.state.albums.find((a) => a.id === card.id) ?? null;
+					this.setState({ selectedAlbum: album });
 				}}
 				resolveArtworkSource={(key) => key || null}
 			/>

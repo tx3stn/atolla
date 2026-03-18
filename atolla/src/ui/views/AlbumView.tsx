@@ -1,13 +1,15 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { DetailHeader } from '../components/DetailHeader';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 
 export interface AlbumViewModel {
-	albumId: string;
+	album: Album;
 	transport: Transport;
 }
 
@@ -21,7 +23,7 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 	};
 
 	onCreate(): void {
-		this.viewModel.transport.getTracksByAlbum(this.viewModel.albumId).then((tracks) => {
+		this.viewModel.transport.getTracksByAlbum(this.viewModel.album.id).then((tracks) => {
 			this.setState({ tracks });
 		});
 	}
@@ -35,6 +37,10 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 		}));
 
 		<scroll style={styles.root}>
+			<DetailHeader
+				artworkSource={this.viewModel.album.imageUrl ?? null}
+				fallbackText={this.viewModel.album.artistName}
+			/>
 			<TrackList tracks={entries} />
 		</scroll>;
 	}

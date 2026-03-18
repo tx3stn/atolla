@@ -14,14 +14,14 @@ export interface PlaylistsViewModel {
 
 interface PlaylistsState {
 	playlists: Array<Playlist>;
-	selectedPlaylistId: string | null;
+	selectedPlaylist: Playlist | null;
 	sort: PlaylistSort;
 }
 
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
 	state: PlaylistsState = {
 		playlists: [],
-		selectedPlaylistId: null,
+		selectedPlaylist: null,
 		sort: PlaylistSorts.alphabetical,
 	};
 
@@ -32,11 +32,8 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	onRender(): void {
-		if (this.state.selectedPlaylistId) {
-			<PlaylistView
-				playlistId={this.state.selectedPlaylistId}
-				transport={this.viewModel.transport}
-			/>;
+		if (this.state.selectedPlaylist) {
+			<PlaylistView playlist={this.state.selectedPlaylist} transport={this.viewModel.transport} />;
 			return;
 		}
 
@@ -55,7 +52,8 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				accessibilityLabel='home-playlists-grid'
 				cards={cards}
 				onCardTap={(card) => {
-					this.setState({ selectedPlaylistId: card.id });
+					const playlist = this.state.playlists.find((p) => p.id === card.id) ?? null;
+					this.setState({ selectedPlaylist: playlist });
 				}}
 				resolveArtworkSource={(key) => key || null}
 			/>

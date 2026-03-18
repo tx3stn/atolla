@@ -10,7 +10,7 @@ export const config = {
 	maxInstances: 1,
 	reporters: ['spec'],
 	runner: 'local',
-	services: ['appium'],
+	services: [['appium', { args: { logLevel: 'warn' } }]],
 	specs: ['./**/*.test.ts'],
 	waitforTimeout: 10_000,
 };
