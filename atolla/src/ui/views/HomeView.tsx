@@ -4,6 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import { MockTransport } from '../../transports/Mock';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
 import { HomeHeaderNav } from '../components/HomeHeaderNav';
+import { AlbumsView } from './AlbumsView';
 import { ArtistsView } from './ArtistsView';
 
 export type HomeViewModel = Record<string, never>;
@@ -28,7 +29,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			<HomeHeaderNav activeTab={this.state.activeTab} onTabTap={this.handleHeaderTabTap} />
 
 			{this.state.activeTab === HeaderTabs.artists && <ArtistsView transport={this.transport} />}
-			{/* {this.state.activeTab === HeaderTabs.albums && <AlbumsView transport={this.transport} />} */}
+			{this.state.activeTab === HeaderTabs.albums && <AlbumsView transport={this.transport} />}
 			{/* {this.state.activeTab === HeaderTabs.playlists && <PlaylistsView transport={this.transport} />} */}
 		</view>;
 	}

@@ -14,6 +14,7 @@ const colors = {
 export const theme = {
 	borderRadius: 12,
 	colors: colors,
+	footerHeight: 80,
 	text: {
 		main: {
 			color: colors.white,

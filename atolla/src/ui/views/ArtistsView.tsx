@@ -2,6 +2,7 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Artist } from '../../models/Artist';
+import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type ArtistSort, ArtistSorts, sortArtists } from './ArtistsSort';
@@ -51,6 +52,7 @@ const styles = {
 	root: new Style({
 		flexGrow: 1,
 		padding: 8,
+		paddingBottom: theme.footerHeight * 2.4,
 		width: '100%',
 	}),
 };
