@@ -4,6 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { Artist } from '../../models/Artist';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { type ArtistSort, ArtistSorts, sortArtists } from './ArtistsSort';
 
 export interface ArtistsViewModel {
 	transport: Transport;
@@ -11,11 +12,13 @@ export interface ArtistsViewModel {
 
 interface ArtistsState {
 	artists: Array<Artist>;
+	sort: ArtistSort;
 }
 
 export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsState> {
 	state: ArtistsState = {
 		artists: [],
+		sort: ArtistSorts.alphabetical,
 	};
 
 	onCreate(): void {
@@ -25,7 +28,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	onRender(): void {
-		const cards: Array<Card> = this.state.artists.map((artist) => ({
+		const cards: Array<Card> = sortArtists(this.state.artists, this.state.sort).map((artist) => ({
 			artworkKey: artist.imageUrl ?? '',
 			id: artist.id,
 			kind: 'artist',
