@@ -47,6 +47,7 @@ export class TrackList extends Component<TrackListViewModel> {
 								<label style={styles.leadingLabelText} value={track.leadingLabel} />
 							</view>
 						) : null}
+
 						<layout style={styles.textBlock}>
 							<label
 								ellipsizeMode='tail'
@@ -122,7 +123,7 @@ const styles = {
 	}),
 	textBlock: new Style({
 		flex: 1,
-		paddingLeft: 6,
+		paddingLeft: 10,
 	}),
 	title: new Style<Label>({
 		...theme.text.main,
