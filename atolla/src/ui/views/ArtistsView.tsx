@@ -6,6 +6,7 @@ import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type ArtistSort, ArtistSorts, sortArtists } from './ArtistsSort';
+import { ArtistView } from './ArtistView';
 
 export interface ArtistsViewModel {
 	transport: Transport;
@@ -13,12 +14,14 @@ export interface ArtistsViewModel {
 
 interface ArtistsState {
 	artists: Array<Artist>;
+	selectedArtist: Artist | null;
 	sort: ArtistSort;
 }
 
 export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsState> {
 	state: ArtistsState = {
 		artists: [],
+		selectedArtist: null,
 		sort: ArtistSorts.alphabetical,
 	};
 
@@ -29,6 +32,11 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	onRender(): void {
+		if (this.state.selectedArtist) {
+			<ArtistView artist={this.state.selectedArtist} transport={this.viewModel.transport} />;
+			return;
+		}
+
 		const cards: Array<Card> = sortArtists(this.state.artists, this.state.sort).map((artist) => ({
 			artworkKey: artist.imageUrl ?? '',
 			id: artist.id,
@@ -41,7 +49,10 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			<CardGrid
 				accessibilityLabel='home-artists-grid'
 				cards={cards}
-				onCardTap={() => {}}
+				onCardTap={(card) => {
+					const artist = this.state.artists.find((a) => a.id === card.id) ?? null;
+					this.setState({ selectedArtist: artist });
+				}}
 				resolveArtworkSource={(key) => key || null}
 			/>
 		</scroll>;

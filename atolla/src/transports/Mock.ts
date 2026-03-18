@@ -44,6 +44,26 @@ export class MockTransport implements Transport {
 		}));
 	}
 
+	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
+		const artist = mockArtists.find((a) => a.id === artistId);
+		if (!artist) return [];
+		const allTracks: Array<Track> = mockRawAlbums
+			.filter((raw) => raw.albumArtist === artist.name)
+			.flatMap((album) =>
+				album.tracks.map((t) => ({
+					albumId: album.id,
+					albumImageUrl: album.artwork,
+					albumName: album.title,
+					artistName: album.albumArtist,
+					duration: t.durationSeconds,
+					id: t.id,
+					name: t.title,
+					trackNumber: t.trackNumber,
+				})),
+			);
+		return allTracks.sort(() => Math.random() - 0.5).slice(0, 5);
+	}
+
 	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
 		const playlist = mockRawPlaylists.find((p) => p.id === playlistId);
 		if (!playlist) return [];
