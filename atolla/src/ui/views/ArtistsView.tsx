@@ -39,7 +39,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 		<scroll style={styles.root}>
 			<CardGrid
-				accessibilityLabel='artists-grid'
+				accessibilityLabel='home-artists-grid'
 				cards={cards}
 				onCardTap={() => {}}
 				resolveArtworkSource={(key) => key || null}

@@ -11,6 +11,6 @@ export const config = {
 	reporters: ['spec'],
 	runner: 'local',
 	services: ['appium'],
-	specs: ['./smoke.test.ts'],
+	specs: ['./**/*.test.ts'],
 	waitforTimeout: 10_000,
 };

@@ -15,8 +15,8 @@ interface HomeHeaderViewModel {
 export class HomeHeaderTab extends Component<HomeHeaderViewModel> {
 	onRender() {
 		<view
-			accessibilityLabel={`header-tab-${this.viewModel.tab}`}
-			contentDescription={`header-tab-${this.viewModel.tab}`}
+			accessibilityLabel={`header-tab-${this.viewModel.tab.toLowerCase()}`}
+			contentDescription={`header-tab-${this.viewModel.tab.toLowerCase()}`}
 			key={this.viewModel.tab}
 			onTap={createReusableCallback(() => {
 				this.viewModel.onTap();

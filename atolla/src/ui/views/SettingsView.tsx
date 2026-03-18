@@ -14,7 +14,7 @@ export class SettingsView extends Component<SettingsViewModel> {
 		<view style={styles.root}>
 			<label style={styles.sectionTitle} value='CACHE' />
 			<view style={styles.section}>
-				<view onTap={createReusableCallback(() => {})} style={styles.button}>
+				<view accessibilityLabel='settings-cache-clear-btn' contentDescription='settings-cache-clear-btn' onTap={createReusableCallback(() => {})} style={styles.button}>
 					<label style={styles.buttonLabel} value='Clear Cache' />
 				</view>
 			</view>

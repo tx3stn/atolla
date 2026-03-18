@@ -17,7 +17,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	onRender(): void {
 		<view style={styles.root}>
-			<view style={styles.searchBar}>
+			<view accessibilityLabel='search-bar' contentDescription='search-bar' style={styles.searchBar}>
 				<image src={res.search} style={styles.searchIcon} tint={theme.colors.grey} />
 				<textfield
 					onChange={(text) => {

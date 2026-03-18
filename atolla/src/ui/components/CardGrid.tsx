@@ -29,7 +29,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 			rows.push(cards.slice(i, i + 3));
 		}
 
-		<layout accessibilityLabel={accessibilityLabel} style={styles.grid}>
+		<layout accessibilityLabel={accessibilityLabel} contentDescription={accessibilityLabel} style={styles.grid}>
 			{rows.map((row, rowIndex) => (
 				<layout
 					key={`row-${rowIndex}`}

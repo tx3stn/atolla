@@ -15,6 +15,7 @@ export class FooterIcon extends Component<FooterIconView> {
 	onRender() {
 		<view
 			accessibilityLabel={this.viewModel.accessibilityLabel}
+			contentDescription={this.viewModel.accessibilityLabel}
 			onTap={this.viewModel.action}
 			style={styles.footerTabChip}
 		>

@@ -47,7 +47,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 		<scroll style={styles.root}>
 			<CardGrid
-				accessibilityLabel='albums-grid'
+				accessibilityLabel='home-albums-grid'
 				cards={cards}
 				onCardTap={(card) => {
 					this.setState({ selectedAlbumId: card.id });

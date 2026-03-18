@@ -52,7 +52,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 		<scroll style={styles.root}>
 			<CardGrid
-				accessibilityLabel='playlists-grid'
+				accessibilityLabel='home-playlists-grid'
 				cards={cards}
 				onCardTap={(card) => {
 					this.setState({ selectedPlaylistId: card.id });
