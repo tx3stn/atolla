@@ -6,6 +6,7 @@ import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type PlaylistSort, PlaylistSorts, sortPlaylists } from './PlaylistsSort';
+import { PlaylistView } from './PlaylistView';
 
 export interface PlaylistsViewModel {
 	transport: Transport;
@@ -13,12 +14,14 @@ export interface PlaylistsViewModel {
 
 interface PlaylistsState {
 	playlists: Array<Playlist>;
+	selectedPlaylistId: string | null;
 	sort: PlaylistSort;
 }
 
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
 	state: PlaylistsState = {
 		playlists: [],
+		selectedPlaylistId: null,
 		sort: PlaylistSorts.alphabetical,
 	};
 
@@ -29,6 +32,14 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	onRender(): void {
+		if (this.state.selectedPlaylistId) {
+			<PlaylistView
+				playlistId={this.state.selectedPlaylistId}
+				transport={this.viewModel.transport}
+			/>;
+			return;
+		}
+
 		const cards: Array<Card> = sortPlaylists(this.state.playlists, this.state.sort).map(
 			(playlist) => ({
 				artworkKey: playlist.imageUrl ?? '',
@@ -43,7 +54,9 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			<CardGrid
 				accessibilityLabel='playlists-grid'
 				cards={cards}
-				onCardTap={() => {}}
+				onCardTap={(card) => {
+					this.setState({ selectedPlaylistId: card.id });
+				}}
 				resolveArtworkSource={(key) => key || null}
 			/>
 		</scroll>;

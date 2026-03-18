@@ -1,5 +1,6 @@
 export interface Track {
 	albumId?: string;
+	albumImageUrl?: string;
 	albumName?: string;
 	artistName?: string;
 	duration: number; // seconds

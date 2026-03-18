@@ -34,6 +34,7 @@ export class MockTransport implements Transport {
 		if (!album) return [];
 		return album.tracks.map((t) => ({
 			albumId: album.id,
+			albumImageUrl: album.artwork,
 			albumName: album.title,
 			artistName: album.albumArtist,
 			duration: t.durationSeconds,
@@ -53,6 +54,7 @@ export class MockTransport implements Transport {
 					return [
 						{
 							albumId: album.id,
+							albumImageUrl: album.artwork,
 							albumName: album.title,
 							artistName: album.albumArtist,
 							duration: track.durationSeconds,
