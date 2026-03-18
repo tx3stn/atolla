@@ -11,35 +11,53 @@ export interface DetailHeaderViewModel {
 	logoSource?: string | null;
 	onPlay?: () => void;
 	onShuffle?: () => void;
+	subheaderLeft?: string | null;
+	subheaderRight?: string | null;
 }
 
 export class DetailHeader extends Component<DetailHeaderViewModel> {
 	onRender() {
-		const { artworkSource, fallbackText, logoSource, onPlay, onShuffle } = this.viewModel;
+		const {
+			artworkSource,
+			fallbackText,
+			logoSource,
+			onPlay,
+			onShuffle,
+			subheaderLeft,
+			subheaderRight,
+		} = this.viewModel;
 
 		<layout style={styles.root}>
-			<view style={styles.artworkTile}>
-				{artworkSource && (
-					<image objectFit='cover' src={artworkSource} style={styles.artworkImage} />
-				)}
-			</view>
-			<layout style={styles.rightColumn}>
-				<view style={styles.logoArea}>
-					{logoSource ? (
-						<image objectFit='contain' src={logoSource} style={styles.logoImage} />
-					) : fallbackText ? (
-						<label numberOfLines={0} style={styles.fallbackText} value={fallbackText} />
-					) : null}
+			<layout style={styles.headerRow}>
+				<view style={styles.artworkTile}>
+					{artworkSource && (
+						<image objectFit='cover' src={artworkSource} style={styles.artworkImage} />
+					)}
 				</view>
-				<layout style={styles.buttonsRow}>
-					<view onTap={onShuffle} style={styles.button}>
-						<image src={res.shuffle} style={styles.buttonIcon} tint={theme.colors.white} />
+				<layout style={styles.rightColumn}>
+					<view style={styles.logoArea}>
+						{logoSource ? (
+							<image objectFit='contain' src={logoSource} style={styles.logoImage} />
+						) : fallbackText ? (
+							<label numberOfLines={0} style={styles.fallbackText} value={fallbackText} />
+						) : null}
 					</view>
-					<view onTap={onPlay} style={styles.button}>
-						<image src={res.play} style={styles.buttonIcon} tint={theme.colors.white} />
-					</view>
+					<layout style={styles.buttonsRow}>
+						<view onTap={onShuffle} style={styles.button}>
+							<image src={res.shuffle} style={styles.buttonIcon} tint={theme.colors.white} />
+						</view>
+						<view onTap={onPlay} style={styles.button}>
+							<image src={res.play} style={styles.buttonIcon} tint={theme.colors.white} />
+						</view>
+					</layout>
 				</layout>
 			</layout>
+			{(subheaderLeft || subheaderRight) && (
+				<layout style={styles.subheaderRow}>
+					<label style={styles.subheaderLeftText} value={subheaderLeft ?? ''} />
+					{subheaderRight && <label style={styles.subheaderRightText} value={subheaderRight} />}
+				</layout>
+			)}
 		</layout>;
 	}
 }
@@ -77,6 +95,11 @@ const styles = {
 		...theme.text.display,
 		padding: 12,
 	}),
+	headerRow: new Style({
+		alignItems: 'stretch',
+		flexDirection: 'row',
+		width: '100%',
+	}),
 	logoArea: new Style({
 		overflow: 'hidden',
 		width: '100%',
@@ -92,10 +115,25 @@ const styles = {
 		width: '46%',
 	}),
 	root: new Style({
-		alignItems: 'stretch',
-		flexDirection: 'row',
 		marginBottom: 12,
 		padding: 4,
+		width: '100%',
+	}),
+	subheaderLeftText: new Style<Label>({
+		...theme.text.display,
+		marginLeft: 12,
+		marginTop: 12,
+		padding: 4,
+	}),
+	subheaderRightText: new Style<Label>({
+		...theme.text.sub,
+		padding: 4,
+	}),
+	subheaderRow: new Style({
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		marginTop: 8,
+		paddingHorizontal: 4,
 		width: '100%',
 	}),
 };

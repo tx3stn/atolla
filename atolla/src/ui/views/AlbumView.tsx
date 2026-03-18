@@ -36,10 +36,14 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 			title: track.name,
 		}));
 
+		const totalDuration = this.state.tracks.reduce((sum, t) => sum + t.duration, 0);
+
 		<scroll style={styles.root}>
 			<DetailHeader
 				artworkSource={this.viewModel.album.imageUrl ?? null}
 				fallbackText={this.viewModel.album.artistName}
+				subheaderLeft={this.viewModel.album.name}
+				subheaderRight={this.state.tracks.length > 0 ? formatDuration(totalDuration) : null}
 			/>
 			<TrackList tracks={entries} />
 		</scroll>;
