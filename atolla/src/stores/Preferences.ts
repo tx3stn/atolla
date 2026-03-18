@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { PersistentStore } from 'persistence/src/PersistentStore';
-import { type ConnectionMode, ConnectionModes } from '../transports/model';
+import { type ConnectionMode, ConnectionModes } from '../transports/Model';
 
 export class Preferences {
 	private store = new PersistentStore('preferences', { deviceGlobal: true });

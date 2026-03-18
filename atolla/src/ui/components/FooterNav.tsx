@@ -5,7 +5,7 @@ import {
 	type ConnectionMode,
 	ConnectionModes,
 	cycleConnectionMode,
-} from 'atolla/src/transports/model';
+} from 'atolla/src/transports/Model';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
