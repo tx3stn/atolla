@@ -52,7 +52,7 @@ const styles = {
 	root: new Style({
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: theme.footerHeight * 2.4,
+		paddingBottom: theme.scrollPaddingBottom,
 		width: '100%',
 	}),
 };
