@@ -9,6 +9,7 @@ import { type AlbumSort, AlbumSorts, sortAlbums } from './AlbumsSort';
 import { AlbumView } from './AlbumView';
 
 export interface AlbumsViewModel {
+	onNowPlayingVisibilityChange?: (isVisible: boolean) => void;
 	transport: Transport;
 }
 
@@ -33,7 +34,11 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 	onRender(): void {
 		if (this.state.selectedAlbum) {
-			<AlbumView album={this.state.selectedAlbum} transport={this.viewModel.transport} />;
+			<AlbumView
+				album={this.state.selectedAlbum}
+				onNowPlayingVisibilityChange={this.viewModel.onNowPlayingVisibilityChange}
+				transport={this.viewModel.transport}
+			/>;
 			return;
 		}
 

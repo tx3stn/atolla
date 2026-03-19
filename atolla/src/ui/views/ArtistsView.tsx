@@ -9,6 +9,7 @@ import { type ArtistSort, ArtistSorts, sortArtists } from './ArtistsSort';
 import { ArtistView } from './ArtistView';
 
 export interface ArtistsViewModel {
+	onNowPlayingVisibilityChange?: (isVisible: boolean) => void;
 	transport: Transport;
 }
 
@@ -33,7 +34,11 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 	onRender(): void {
 		if (this.state.selectedArtist) {
-			<ArtistView artist={this.state.selectedArtist} transport={this.viewModel.transport} />;
+			<ArtistView
+				artist={this.state.selectedArtist}
+				onNowPlayingVisibilityChange={this.viewModel.onNowPlayingVisibilityChange}
+				transport={this.viewModel.transport}
+			/>;
 			return;
 		}
 

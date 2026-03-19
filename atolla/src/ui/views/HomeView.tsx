@@ -12,6 +12,7 @@ export type HomeViewModel = Record<string, never>;
 
 interface HomeState {
 	activeTab: HeaderTab;
+	hideHeaderNav: boolean;
 	tabKeys: Record<HeaderTab, number>;
 }
 
@@ -20,11 +21,20 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	state: HomeState = {
 		activeTab: HeaderTabs.artists,
+		hideHeaderNav: false,
 		tabKeys: {
 			[HeaderTabs.artists]: 0,
 			[HeaderTabs.albums]: 0,
 			[HeaderTabs.playlists]: 0,
 		},
+	};
+
+	handleNowPlayingVisibilityChange = (isVisible: boolean): void => {
+		if (this.state.hideHeaderNav === isVisible) {
+			return;
+		}
+
+		this.setState({ hideHeaderNav: isVisible });
 	};
 
 	handleHeaderTabTap = (tab: HeaderTab): void => {
@@ -37,13 +47,23 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	onRender(): void {
 		<view style={styles.root}>
-			<HomeHeaderNav activeTab={this.state.activeTab} onTabTap={this.handleHeaderTabTap} />
+			{!this.state.hideHeaderNav && (
+				<HomeHeaderNav activeTab={this.state.activeTab} onTabTap={this.handleHeaderTabTap} />
+			)}
 
 			{this.state.activeTab === HeaderTabs.artists && (
-				<ArtistsView key={this.state.tabKeys[HeaderTabs.artists]} transport={this.transport} />
+				<ArtistsView
+					key={this.state.tabKeys[HeaderTabs.artists]}
+					onNowPlayingVisibilityChange={this.handleNowPlayingVisibilityChange}
+					transport={this.transport}
+				/>
 			)}
 			{this.state.activeTab === HeaderTabs.albums && (
-				<AlbumsView key={this.state.tabKeys[HeaderTabs.albums]} transport={this.transport} />
+				<AlbumsView
+					key={this.state.tabKeys[HeaderTabs.albums]}
+					onNowPlayingVisibilityChange={this.handleNowPlayingVisibilityChange}
+					transport={this.transport}
+				/>
 			)}
 			{this.state.activeTab === HeaderTabs.playlists && (
 				<PlaylistsView key={this.state.tabKeys[HeaderTabs.playlists]} transport={this.transport} />

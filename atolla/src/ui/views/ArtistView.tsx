@@ -16,6 +16,7 @@ import { AlbumView } from './AlbumView';
 
 export interface ArtistViewModel {
 	artist: Artist;
+	onNowPlayingVisibilityChange?: (isVisible: boolean) => void;
 	transport: Transport;
 }
 
@@ -46,14 +47,20 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 
 	onRender(): void {
 		if (this.state.selectedAlbum) {
-			<AlbumView album={this.state.selectedAlbum} transport={this.viewModel.transport} />;
+			<AlbumView
+				album={this.state.selectedAlbum}
+				onNowPlayingVisibilityChange={this.viewModel.onNowPlayingVisibilityChange}
+				transport={this.viewModel.transport}
+			/>;
 			return;
 		}
 
 		const { artist } = this.viewModel;
 		const { albums, topTracks } = this.state;
 
-		const sortedAlbums = [...albums].sort((a, b) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''));
+		const sortedAlbums = [...albums].sort((a, b) =>
+			(b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''),
+		);
 		const albumCards: Array<Card> = sortedAlbums.map((album) => ({
 			artworkKey: album.imageUrl ?? '',
 			id: album.id,
