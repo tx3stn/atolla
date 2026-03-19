@@ -94,6 +94,7 @@ export class MockTransport implements Transport {
 		return {
 			artistId: artist?.id ?? '',
 			artistName: raw.albumArtist,
+			bio: raw.bio,
 			id: raw.id,
 			imageUrl: raw.artwork,
 			name: raw.title,

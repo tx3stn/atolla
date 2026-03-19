@@ -1,10 +1,13 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 
@@ -18,6 +21,8 @@ interface AlbumState {
 }
 
 export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
+	private modalSlot = new DetachedSlot();
+
 	state: AlbumState = {
 		tracks: [],
 	};
@@ -36,17 +41,22 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 			title: track.name,
 		}));
 
+		const { album } = this.viewModel;
 		const totalDuration = this.state.tracks.reduce((sum, t) => sum + t.duration, 0);
 
-		<scroll style={styles.root}>
-			<DetailHeader
-				artworkSource={this.viewModel.album.imageUrl ?? null}
-				fallbackText={this.viewModel.album.artistName}
-				subheaderLeft={this.viewModel.album.name}
-				subheaderRight={this.state.tracks.length > 0 ? formatDuration(totalDuration) : null}
-			/>
-			<TrackList tracks={entries} />
-		</scroll>;
+		<layout style={styles.root}>
+			<scroll style={styles.scroll}>
+				<DetailHeader
+					artworkSource={album.imageUrl ?? null}
+					fallbackText={album.artistName}
+					subheaderLeft={album.name}
+					subheaderRight={this.state.tracks.length > 0 ? formatDuration(totalDuration) : null}
+				/>
+				<TrackList tracks={entries} />
+				{album.bio && <BioSection bio={album.bio} modalSlot={this.modalSlot} title={album.name} />}
+			</scroll>
+			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+		</layout>;
 	}
 }
 
@@ -60,6 +70,10 @@ function formatDuration(seconds: number): string {
 
 const styles = {
 	root: new Style({
+		flexGrow: 1,
+		width: '100%',
+	}),
+	scroll: new Style({
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: theme.scrollPaddingBottom,

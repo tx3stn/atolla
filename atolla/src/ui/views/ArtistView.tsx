@@ -1,12 +1,14 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Track } from '../../models/Track';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { BioSection } from '../components/BioSection';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { DetailHeader } from '../components/DetailHeader';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
@@ -20,15 +22,15 @@ export interface ArtistViewModel {
 interface ArtistState {
 	albums: Array<Album>;
 	selectedAlbum: Album | null;
-	showBioModal: boolean;
 	topTracks: Array<Track>;
 }
 
 export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> {
+	private modalSlot = new DetachedSlot();
+
 	state: ArtistState = {
 		albums: [],
 		selectedAlbum: null,
-		showBioModal: false,
 		topTracks: [],
 	};
 
@@ -49,7 +51,7 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 		}
 
 		const { artist } = this.viewModel;
-		const { albums, showBioModal, topTracks } = this.state;
+		const { albums, topTracks } = this.state;
 
 		const sortedAlbums = [...albums].sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
 		const albumCards: Array<Card> = sortedAlbums.map((album) => ({
@@ -97,72 +99,15 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 				)}
 
 				{artist.bio && (
-					<layout style={styles.section}>
-						<label style={styles.sectionHeader} value='BIO' />
-						<view onTap={() => this.setState({ showBioModal: true })} style={styles.bioContainer}>
-							<label
-								ellipsizeMode='tail'
-								numberOfLines={3}
-								style={styles.bioText}
-								value={artist.bio}
-							/>
-						</view>
-					</layout>
+					<BioSection bio={artist.bio} modalSlot={this.modalSlot} title={artist.name} />
 				)}
 			</scroll>
-
-			{showBioModal && (
-				<view onTap={() => this.setState({ showBioModal: false })} style={styles.modalOverlay}>
-					<view onTap={() => {}} style={styles.modalCard}>
-						<label style={styles.modalTitle} value={artist.name} />
-						<scroll style={styles.modalScroll}>
-							<label numberOfLines={0} style={styles.modalBioText} value={artist.bio ?? ''} />
-						</scroll>
-					</view>
-				</view>
-			)}
+			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 		</layout>;
 	}
 }
 
 const styles = {
-	bioContainer: new Style({
-		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.borderRadius,
-		padding: 12,
-	}),
-	bioText: new Style<Label>({
-		...theme.text.main,
-		color: theme.colors.grey,
-	}),
-	modalBioText: new Style<Label>({
-		...theme.text.main,
-		color: theme.colors.grey,
-	}),
-	modalCard: new Style({
-		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.borderRadius,
-		maxHeight: '80%',
-		padding: 20,
-		width: '90%',
-	}),
-	modalOverlay: new Style({
-		alignItems: 'center',
-		backgroundColor: 'rgba(0,0,0,0.75)',
-		bottom: 0,
-		justifyContent: 'center',
-		left: 0,
-		position: 'absolute',
-		right: 0,
-		top: 0,
-	}),
-	modalScroll: new Style({
-		flexGrow: 1,
-		marginTop: 12,
-	}),
-	modalTitle: new Style<Label>({
-		...theme.text.title,
-	}),
 	root: new Style({
 		flexGrow: 1,
 		width: '100%',
