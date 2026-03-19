@@ -22,7 +22,12 @@ export class BioSection extends Component<BioSectionViewModel> {
 			<view
 				onTap={() => {
 					modalSlot.slotted(() => {
-						<Modal body={bio} logoUrl={logoUrl} onClose={() => modalSlot.slotted(() => {})} title={title} />;
+						<Modal
+							body={bio}
+							logoUrl={logoUrl}
+							onClose={() => modalSlot.slotted(() => {})}
+							title={title}
+						/>;
 					});
 				}}
 			>

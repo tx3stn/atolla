@@ -5,9 +5,12 @@ const colors = {
 	active: '#3b82f6',
 	bg: '#000000',
 	bgAccent: '#111a2b',
+	bgDeep: '#101828',
 	dim: '273244',
 	grey: '#98a2b3',
 	muted: '#667085',
+	overlay: 'rgba(0,0,0,0.6)',
+	separator: 'rgba(255,255,255,0.08)',
 	white: '#d8dee9',
 };
 

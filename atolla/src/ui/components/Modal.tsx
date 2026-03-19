@@ -31,7 +31,7 @@ export class Modal extends Component<ModalViewModel> {
 const styles = {
 	backdrop: new Style<BlurView>({
 		alignItems: 'center',
-		backgroundColor: 'rgba(0,0,0,0.6)',
+		backgroundColor: theme.colors.overlay,
 		bottom: 0,
 		height: '100%',
 		justifyContent: 'center',
@@ -48,7 +48,7 @@ const styles = {
 	}),
 	card: new Style({
 		backgroundColor: theme.colors.bg,
-		borderColor: 'rgba(255,255,255,0.08)',
+		borderColor: theme.colors.separator,
 		borderRadius: theme.borderRadius,
 		borderWidth: 1,
 		maxHeight: '80%',
@@ -57,7 +57,7 @@ const styles = {
 		width: '90%',
 	}),
 	divider: new Style({
-		backgroundColor: 'rgba(255,255,255,0.08)',
+		backgroundColor: theme.colors.separator,
 		height: 1,
 		marginBottom: 14,
 		marginTop: 12,

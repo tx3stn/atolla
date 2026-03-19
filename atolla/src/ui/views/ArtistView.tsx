@@ -71,7 +71,11 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 
 		<layout style={styles.root}>
 			<scroll style={styles.scroll}>
-				<DetailHeader artworkSource={artist.imageUrl ?? null} fallbackText={artist.name} logoSource={artist.logoUrl || null} />
+				<DetailHeader
+					artworkSource={artist.imageUrl ?? null}
+					fallbackText={artist.name}
+					logoSource={artist.logoUrl || null}
+				/>
 
 				{albums.length > 0 && (
 					<layout style={styles.section}>
@@ -99,7 +103,12 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 				)}
 
 				{artist.bio && (
-					<BioSection bio={artist.bio} logoUrl={artist.logoUrl} modalSlot={this.modalSlot} title={artist.name} />
+					<BioSection
+						bio={artist.bio}
+						logoUrl={artist.logoUrl}
+						modalSlot={this.modalSlot}
+						title={artist.name}
+					/>
 				)}
 			</scroll>
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />

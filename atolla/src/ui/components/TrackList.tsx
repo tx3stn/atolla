@@ -77,7 +77,7 @@ const styles = {
 	}),
 	artworkTile: new Style({
 		aspectRatio: 1,
-		backgroundColor: '#101828',
+		backgroundColor: theme.colors.bgDeep,
 		borderRadius: theme.borderRadius,
 		overflow: 'hidden',
 		width: 38,
