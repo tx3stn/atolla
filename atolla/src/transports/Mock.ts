@@ -102,7 +102,7 @@ export class MockTransport implements Transport {
 			id: raw.id,
 			imageUrl: raw.artwork,
 			name: raw.title,
-			year: raw.releaseYear,
+			releaseDate: raw.releaseDate,
 		};
 	}
 }

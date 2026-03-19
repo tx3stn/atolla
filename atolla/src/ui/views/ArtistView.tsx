@@ -53,13 +53,13 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 		const { artist } = this.viewModel;
 		const { albums, topTracks } = this.state;
 
-		const sortedAlbums = [...albums].sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+		const sortedAlbums = [...albums].sort((a, b) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''));
 		const albumCards: Array<Card> = sortedAlbums.map((album) => ({
 			artworkKey: album.imageUrl ?? '',
 			id: album.id,
 			kind: 'album',
 			primaryText: album.name,
-			secondaryText: String(album.year ?? ''),
+			secondaryText: album.releaseDate?.slice(0, 4) ?? '',
 		}));
 
 		const trackEntries: Array<TrackListEntry> = topTracks.slice(0, 5).map((track) => ({

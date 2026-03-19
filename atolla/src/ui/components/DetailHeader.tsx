@@ -7,6 +7,7 @@ import { theme } from '../../theme';
 
 export interface DetailHeaderViewModel {
 	artworkSource: string | null;
+	buttonText: string | null;
 	fallbackText?: string | null;
 	logoSource?: string | null;
 	onPlay?: () => void;
@@ -19,6 +20,7 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 	onRender() {
 		const {
 			artworkSource,
+			buttonText,
 			fallbackText,
 			logoSource,
 			onPlay,
@@ -43,6 +45,7 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 						) : null}
 					</view>
 					<layout style={styles.buttonsRow}>
+						<label style={styles.buttonText} value={buttonText ?? ''} />
 						<view onTap={onShuffle} style={styles.button}>
 							<image src={res.shuffle} style={styles.buttonIcon} tint={theme.colors.white} />
 						</view>
@@ -87,9 +90,15 @@ const styles = {
 	buttonsRow: new Style({
 		bottom: 0,
 		flexDirection: 'row',
+		left: 0,
 		padding: 6,
 		position: 'absolute',
 		right: 0,
+	}),
+	buttonText: new Style<Label>({
+		...theme.text.sub,
+		flexGrow: 1,
+		textAlign: 'left',
 	}),
 	fallbackText: new Style<Label>({
 		...theme.text.display,

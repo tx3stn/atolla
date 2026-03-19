@@ -5,5 +5,5 @@ export interface Album {
 	id: string;
 	imageUrl?: string;
 	name: string;
-	year?: number;
+	releaseDate?: string;
 }

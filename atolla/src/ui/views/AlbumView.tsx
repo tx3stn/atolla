@@ -55,6 +55,7 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 			<scroll style={styles.scroll}>
 				<DetailHeader
 					artworkSource={album.imageUrl ?? null}
+					buttonText={album.releaseDate}
 					fallbackText={album.artistName}
 					logoSource={artistLogoUrl}
 					subheaderLeft={album.name}
