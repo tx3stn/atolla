@@ -1,13 +1,12 @@
 // @ts-nocheck
 import res from 'atolla/res';
-import { StatefulComponent } from 'valdi_core/src/Component';
+import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { TouchEventState } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { theme } from '../../theme';
-import { extractAccentColor } from '../../utils/colorExtractor';
 
 export interface NowPlayingViewModel {
 	album: Album;
@@ -21,43 +20,11 @@ export interface NowPlayingViewModel {
 	track: Track;
 }
 
-interface NowPlayingState {
-	accentColor: string;
-}
-
-export class NowPlayingView extends StatefulComponent<NowPlayingViewModel, NowPlayingState> {
+export class NowPlayingView extends Component<NowPlayingViewModel> {
 	private readonly closeDragDistance = 36;
 	private readonly closeDragVelocity = 550;
 	private touchStartX = 0;
 	private touchStartY = 0;
-
-	state: NowPlayingState = {
-		accentColor: theme.colors.active,
-	};
-
-	private colorUnsubscribe: (() => void) | null = null;
-
-	onCreate(): void {
-		this.refreshAccentColor();
-	}
-
-	onViewModelUpdate(): void {
-		this.refreshAccentColor();
-	}
-
-	onDestroy(): void {
-		this.colorUnsubscribe?.();
-	}
-
-	private refreshAccentColor(): void {
-		this.colorUnsubscribe?.();
-		this.colorUnsubscribe = null;
-		if (this.viewModel.album.imageUrl) {
-			this.colorUnsubscribe = extractAccentColor(this.viewModel.album.imageUrl, (hex) => {
-				this.setState({ accentColor: hex });
-			});
-		}
-	}
 
 	private handleDismissDrag = (event): void => {
 		const { onClose } = this.viewModel;
@@ -124,7 +91,7 @@ export class NowPlayingView extends StatefulComponent<NowPlayingViewModel, NowPl
 			progressSeconds,
 			track,
 		} = this.viewModel;
-		const { accentColor } = this.state;
+		const accentColor = '#ffffff';
 
 		const progressRatio = track.duration > 0 ? Math.min(progressSeconds / track.duration, 1) : 0;
 		const elapsedText = formatDuration(progressSeconds);
@@ -215,13 +182,16 @@ const styles = {
 		width: '100%',
 	}),
 	artworkContainer: new Style({
+		alignItems: 'center',
 		aspectRatio: 1,
+		justifyContent: 'center',
 		overflow: 'hidden',
 		width: '100%',
 	}),
 	artworkImage: new Style<ImageView>({
-		height: '100%',
-		width: '100%',
+		borderRadius: theme.borderRadius,
+		height: '98%',
+		width: '98%',
 	}),
 	content: new Style({
 		flexGrow: 1,
@@ -261,7 +231,8 @@ const styles = {
 	}),
 	progressSection: new Style({
 		marginTop: 24,
-		paddingHorizontal: 24,
+		paddingLeft: 30,
+		paddingRight: 30,
 		width: '100%',
 	}),
 	progressTrack: new Style({
@@ -285,7 +256,7 @@ const styles = {
 		width: '100%',
 	}),
 	trackName: new Style<Label>({
-		...theme.text.display,
+		...theme.text.main,
 		marginTop: 8,
 		textAlign: 'center',
 		width: '100%',
