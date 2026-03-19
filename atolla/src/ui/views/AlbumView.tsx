@@ -64,6 +64,15 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 		this.setState({ isPlaying: !this.state.isPlaying });
 	};
 
+	handleNowPlayingClose = (): void => {
+		this.viewModel.onNowPlayingVisibilityChange?.(false);
+		this.setState({
+			isPlaying: false,
+			nowPlayingTrackIndex: null,
+			progressSeconds: 0,
+		});
+	};
+
 	handleNowPlayingPrevious = (): void => {
 		if (this.state.nowPlayingTrackIndex == null) {
 			return;
@@ -98,6 +107,7 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 				album={album}
 				artistLogoUrl={artistLogoUrl}
 				isPlaying={isPlaying}
+				onClose={this.handleNowPlayingClose}
 				onNext={this.handleNowPlayingNext}
 				onPlayPause={this.handleNowPlayingPlayPause}
 				onPrevious={this.handleNowPlayingPrevious}

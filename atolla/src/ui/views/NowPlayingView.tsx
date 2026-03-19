@@ -2,6 +2,7 @@
 import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import { TouchEventState } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
@@ -12,6 +13,7 @@ export interface NowPlayingViewModel {
 	album: Album;
 	artistLogoUrl?: string | null;
 	isPlaying: boolean;
+	onClose?: () => void;
 	onNext: () => void;
 	onPlayPause: () => void;
 	onPrevious: () => void;
@@ -24,6 +26,11 @@ interface NowPlayingState {
 }
 
 export class NowPlayingView extends StatefulComponent<NowPlayingViewModel, NowPlayingState> {
+	private readonly closeDragDistance = 36;
+	private readonly closeDragVelocity = 550;
+	private touchStartX = 0;
+	private touchStartY = 0;
+
 	state: NowPlayingState = {
 		accentColor: theme.colors.active,
 	};
@@ -52,6 +59,60 @@ export class NowPlayingView extends StatefulComponent<NowPlayingViewModel, NowPl
 		}
 	}
 
+	private handleDismissDrag = (event): void => {
+		const { onClose } = this.viewModel;
+		if (!onClose) {
+			return;
+		}
+
+		if (event.state !== TouchEventState.Ended) {
+			return;
+		}
+
+		if (Math.abs(event.deltaY) < Math.abs(event.deltaX)) {
+			return;
+		}
+
+		const isDownwardDistance = event.deltaY >= this.closeDragDistance;
+		const isDownwardFlick = event.deltaY > 8 && event.velocityY >= this.closeDragVelocity;
+
+		if (!isDownwardDistance && !isDownwardFlick) {
+			return;
+		}
+
+		onClose();
+	};
+
+	private handleDismissTouch = (event): void => {
+		if (event.state === TouchEventState.Started) {
+			this.touchStartX = event.absoluteX;
+			this.touchStartY = event.absoluteY;
+			return;
+		}
+
+		if (event.state !== TouchEventState.Ended) {
+			return;
+		}
+
+		const { onClose } = this.viewModel;
+		if (!onClose) {
+			return;
+		}
+
+		const deltaX = event.absoluteX - this.touchStartX;
+		const deltaY = event.absoluteY - this.touchStartY;
+
+		if (Math.abs(deltaY) < Math.abs(deltaX)) {
+			return;
+		}
+
+		if (deltaY < this.closeDragDistance) {
+			return;
+		}
+
+		onClose();
+	};
+
 	onRender(): void {
 		const {
 			album,
@@ -78,9 +139,14 @@ export class NowPlayingView extends StatefulComponent<NowPlayingViewModel, NowPl
 			height: '100%',
 			width: `${Math.round(progressRatio * 100)}%`,
 		});
-
-		<layout style={styles.root}>
-			<scroll style={styles.scroll}>
+		// biome-ignore lint/a11y/noStaticElementInteractions: Intentional swipe-down gesture handler for dismiss.
+		<view
+			id={`now-playing-${track.id}`}
+			onDrag={this.handleDismissDrag}
+			onTouch={this.handleDismissTouch}
+			style={styles.root}
+		>
+			<layout style={styles.content}>
 				<view style={styles.artworkContainer}>
 					{album.imageUrl && (
 						<image objectFit='cover' src={album.imageUrl} style={styles.artworkImage} />
@@ -118,8 +184,8 @@ export class NowPlayingView extends StatefulComponent<NowPlayingViewModel, NowPl
 						<image src={res.next} style={styles.controlIcon} tint={accentColor} />
 					</view>
 				</layout>
-			</scroll>
-		</layout>;
+			</layout>
+		</view>;
 	}
 }
 
@@ -155,6 +221,11 @@ const styles = {
 	}),
 	artworkImage: new Style<ImageView>({
 		height: '100%',
+		width: '100%',
+	}),
+	content: new Style({
+		flexGrow: 1,
+		paddingBottom: theme.scrollPaddingBottom,
 		width: '100%',
 	}),
 	controlButton: new Style({
@@ -202,11 +273,6 @@ const styles = {
 	}),
 	root: new Style({
 		flexGrow: 1,
-		width: '100%',
-	}),
-	scroll: new Style({
-		flexGrow: 1,
-		paddingBottom: theme.scrollPaddingBottom,
 		width: '100%',
 	}),
 	timeLabel: new Style<Label>({
