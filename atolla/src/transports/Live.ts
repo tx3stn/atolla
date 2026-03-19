@@ -23,6 +23,10 @@ export class LiveTransport implements Transport {
 		throw new Error('LiveTransport not yet implemented');
 	}
 
+	async getArtist(_artistId: string): Promise<Artist | null> {
+		throw new Error('LiveTransport not yet implemented');
+	}
+
 	async getArtistTopTracks(_artistId: string): Promise<Array<Track>> {
 		throw new Error('LiveTransport not yet implemented');
 	}

@@ -13,6 +13,10 @@ export class MockTransport implements Transport {
 		return mockArtists;
 	}
 
+	async getArtist(artistId: string): Promise<Artist | null> {
+		return mockArtists.find((a) => a.id === artistId) ?? null;
+	}
+
 	async getAllAlbums(): Promise<Array<Album>> {
 		return mockRawAlbums.map((raw) => this.mapAlbum(raw));
 	}

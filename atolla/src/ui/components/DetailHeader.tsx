@@ -127,6 +127,7 @@ const styles = {
 	}),
 	subheaderRightText: new Style<Label>({
 		...theme.text.sub,
+		marginTop: 10,
 		padding: 4,
 	}),
 	subheaderRow: new Style({

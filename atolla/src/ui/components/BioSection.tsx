@@ -8,20 +8,21 @@ import { Modal } from './Modal';
 
 export interface BioSectionViewModel {
 	bio: string;
+	logoUrl?: string;
 	modalSlot: DetachedSlot;
 	title: string;
 }
 
 export class BioSection extends Component<BioSectionViewModel> {
 	onRender(): void {
-		const { bio, modalSlot, title } = this.viewModel;
+		const { bio, logoUrl, modalSlot, title } = this.viewModel;
 
 		<layout style={styles.section}>
 			<label style={styles.sectionHeader} value='BIO' />
 			<view
 				onTap={() => {
 					modalSlot.slotted(() => {
-						<Modal body={bio} onClose={() => modalSlot.slotted(() => {})} title={title} />;
+						<Modal body={bio} logoUrl={logoUrl} onClose={() => modalSlot.slotted(() => {})} title={title} />;
 					});
 				}}
 			>

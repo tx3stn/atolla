@@ -1,27 +1,29 @@
 // @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { BlurView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { BlurView, Image, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 export interface ModalViewModel {
 	body: string;
+	logoUrl?: string;
 	onClose: () => void;
 	title: string;
 }
 
 export class Modal extends Component<ModalViewModel> {
 	onRender(): void {
-		const { body, onClose, title } = this.viewModel;
+		const { body, logoUrl, onClose, title } = this.viewModel;
 
-		<blur blurStyle='systemUltraThinMaterialDark' onTap={onClose} style={styles.backdrop}>
-			<blur blurStyle='systemChromeMaterialDark' onTap={() => {}} style={styles.card}>
-				<label style={styles.title} value={title} />
+		<blur blurStyle='systemThickMaterialDark' onTap={onClose} style={styles.backdrop}>
+			<view onTap={() => {}} style={styles.card}>
+				{logoUrl && <image source={logoUrl} style={styles.logo} />}
+				{!logoUrl && <label style={styles.title} value={title} />}
 				<view style={styles.divider} />
 				<scroll style={styles.scroll}>
 					<label numberOfLines={0} style={styles.body} value={body} />
 				</scroll>
-			</blur>
+			</view>
 		</blur>;
 	}
 }
@@ -29,19 +31,23 @@ export class Modal extends Component<ModalViewModel> {
 const styles = {
 	backdrop: new Style<BlurView>({
 		alignItems: 'center',
+		backgroundColor: 'rgba(0,0,0,0.6)',
 		bottom: 0,
+		height: '100%',
 		justifyContent: 'center',
 		left: 0,
 		position: 'absolute',
 		right: 0,
 		top: 0,
+		width: '100%',
+		zIndex: 100,
 	}),
 	body: new Style<Label>({
 		...theme.text.main,
 		color: theme.colors.grey,
 	}),
-	card: new Style<BlurView>({
-		backgroundColor: theme.colors.bgAccent,
+	card: new Style({
+		backgroundColor: theme.colors.bg,
 		borderColor: 'rgba(255,255,255,0.08)',
 		borderRadius: theme.borderRadius,
 		borderWidth: 1,
@@ -55,6 +61,11 @@ const styles = {
 		height: 1,
 		marginBottom: 14,
 		marginTop: 12,
+		width: '100%',
+	}),
+	logo: new Style<Image>({
+		height: 40,
+		objectFit: 'contain',
 		width: '100%',
 	}),
 	scroll: new Style({

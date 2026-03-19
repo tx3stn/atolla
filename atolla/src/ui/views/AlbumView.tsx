@@ -17,6 +17,7 @@ export interface AlbumViewModel {
 }
 
 interface AlbumState {
+	artistLogoUrl: string | null;
 	tracks: Array<Track>;
 }
 
@@ -24,17 +25,23 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 	private modalSlot = new DetachedSlot();
 
 	state: AlbumState = {
+		artistLogoUrl: null,
 		tracks: [],
 	};
 
 	onCreate(): void {
-		this.viewModel.transport.getTracksByAlbum(this.viewModel.album.id).then((tracks) => {
+		const { album, transport } = this.viewModel;
+		transport.getTracksByAlbum(album.id).then((tracks) => {
 			this.setState({ tracks });
+		});
+		transport.getArtist(album.artistId).then((artist) => {
+			this.setState({ artistLogoUrl: artist?.logoUrl || null });
 		});
 	}
 
 	onRender(): void {
-		const entries: Array<TrackListEntry> = this.state.tracks.map((track) => ({
+		const { artistLogoUrl, tracks } = this.state;
+		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			id: track.id,
 			leadingLabel: track.trackNumber != null ? String(track.trackNumber) : null,
 			meta: formatDuration(track.duration),
@@ -42,15 +49,16 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 		}));
 
 		const { album } = this.viewModel;
-		const totalDuration = this.state.tracks.reduce((sum, t) => sum + t.duration, 0);
+		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 
 		<layout style={styles.root}>
 			<scroll style={styles.scroll}>
 				<DetailHeader
 					artworkSource={album.imageUrl ?? null}
 					fallbackText={album.artistName}
+					logoSource={artistLogoUrl}
 					subheaderLeft={album.name}
-					subheaderRight={this.state.tracks.length > 0 ? formatDuration(totalDuration) : null}
+					subheaderRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
 				/>
 				<TrackList tracks={entries} />
 				{album.bio && <BioSection bio={album.bio} modalSlot={this.modalSlot} title={album.name} />}
