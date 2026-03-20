@@ -1,15 +1,13 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import { PlaybackStore } from './stores/Playback';
 import { Preferences } from './stores/Preferences';
 import { theme } from './theme';
 import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
-import { NowPlayingBar } from './ui/components/NowPlayingBar';
+import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { HomeView } from './ui/views/HomeView';
-import { NowPlayingView } from './ui/views/NowPlayingView';
 import { SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
 
@@ -21,7 +19,6 @@ interface AppState {
 }
 
 export class App extends StatefulComponent<AppViewModel, AppState> {
-	private overlayRef = new ElementRef();
 	private playbackStore = new PlaybackStore();
 	private preferences = new Preferences();
 	private unsubscribePlayback?: () => void;
@@ -45,28 +42,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({ activeFooterTab: tab });
 	};
 
-	handleBarTap = (): void => {
-		this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.42 }, () => {
-			this.overlayRef.setAttribute('top', 0);
-		});
-	};
-
-	handleNowPlayingClose = (): void => {
-		this.animate({ beginFromCurrentState: true, curve: 'easeIn', duration: 0.36 }, () => {
-			this.overlayRef.setAttribute('top', 2000);
-		});
-	};
-
-	handleNowPlayingDragUpdate = (deltaY: number): void => {
-		this.overlayRef.setAttribute('top', deltaY);
-	};
-
-	handleNowPlayingDragCancel = (): void => {
-		this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.32 }, () => {
-			this.overlayRef.setAttribute('top', 0);
-		});
-	};
-
 	onRender(): void {
 		const { track, album, isPlaying, progressSeconds, artistLogoUrl } = this.playbackStore;
 
@@ -86,46 +61,23 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			/>
 
 			{track && album && (
-				<NowPlayingBar
+				<NowPlayingSurface
 					album={album}
+					artistLogoUrl={artistLogoUrl}
 					isPlaying={isPlaying}
 					onDismiss={() => this.playbackStore.stop()}
-					onTap={this.handleBarTap}
+					onNext={() => this.playbackStore.next()}
+					onPlayPause={() => this.playbackStore.playPause()}
+					onPrevious={() => this.playbackStore.previous()}
 					progressSeconds={progressSeconds}
 					track={track}
 				/>
-			)}
-
-			{track && album && (
-				<view ref={this.overlayRef} style={styles.nowPlayingOverlay}>
-					<NowPlayingView
-						album={album}
-						artistLogoUrl={artistLogoUrl}
-						isPlaying={isPlaying}
-						onClose={this.handleNowPlayingClose}
-						onDragCancel={this.handleNowPlayingDragCancel}
-						onDragUpdate={this.handleNowPlayingDragUpdate}
-						onNext={() => this.playbackStore.next()}
-						onPlayPause={() => this.playbackStore.playPause()}
-						onPrevious={() => this.playbackStore.previous()}
-						progressSeconds={progressSeconds}
-						track={track}
-					/>
-				</view>
 			)}
 		</view>;
 	}
 }
 
 const styles = {
-	nowPlayingOverlay: new Style({
-		height: '100%',
-		left: 0,
-		position: 'absolute',
-		right: 0,
-		top: 2000,
-		zIndex: 30,
-	}),
 	root: new Style({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bg,
