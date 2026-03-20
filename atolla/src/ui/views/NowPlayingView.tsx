@@ -13,6 +13,8 @@ export interface NowPlayingViewModel {
 	artistLogoUrl?: string | null;
 	isPlaying: boolean;
 	onClose?: () => void;
+	onDragCancel?: () => void;
+	onDragUpdate?: (deltaY: number) => void;
 	onNext: () => void;
 	onPlayPause: () => void;
 	onPrevious: () => void;
@@ -27,8 +29,12 @@ export class NowPlayingView extends Component<NowPlayingViewModel> {
 	private touchStartY = 0;
 
 	private handleDismissDrag = (event): void => {
-		const { onClose } = this.viewModel;
-		if (!onClose) {
+		const { onClose, onDragUpdate, onDragCancel } = this.viewModel;
+
+		if (event.state === TouchEventState.Changed) {
+			if (event.deltaY > 0 && Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+				onDragUpdate?.(event.deltaY);
+			}
 			return;
 		}
 
@@ -37,6 +43,7 @@ export class NowPlayingView extends Component<NowPlayingViewModel> {
 		}
 
 		if (Math.abs(event.deltaY) < Math.abs(event.deltaX)) {
+			onDragCancel?.();
 			return;
 		}
 
@@ -44,10 +51,11 @@ export class NowPlayingView extends Component<NowPlayingViewModel> {
 		const isDownwardFlick = event.deltaY > 8 && event.velocityY >= this.closeDragVelocity;
 
 		if (!isDownwardDistance && !isDownwardFlick) {
+			onDragCancel?.();
 			return;
 		}
 
-		onClose();
+		onClose?.();
 	};
 
 	private handleDismissTouch = (event): void => {
@@ -279,6 +287,7 @@ const styles = {
 		width: '100%',
 	}),
 	root: new Style({
+		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		height: '100%',
 		position: 'relative',

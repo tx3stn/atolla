@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
+import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import { PlaybackStore } from './stores/Playback';
 import { Preferences } from './stores/Preferences';
@@ -16,18 +17,17 @@ export type AppViewModel = Record<string, never>;
 
 interface AppState {
 	activeFooterTab: FooterTab;
-	nowPlayingOpen: boolean;
 	version: number;
 }
 
 export class App extends StatefulComponent<AppViewModel, AppState> {
+	private overlayRef = new ElementRef();
 	private playbackStore = new PlaybackStore();
 	private preferences = new Preferences();
 	private unsubscribePlayback?: () => void;
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
-		nowPlayingOpen: false,
 		version: 0,
 	};
 
@@ -46,11 +46,25 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	handleBarTap = (): void => {
-		this.setState({ nowPlayingOpen: true });
+		this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.42 }, () => {
+			this.overlayRef.setAttribute('top', 0);
+		});
 	};
 
 	handleNowPlayingClose = (): void => {
-		this.setState({ nowPlayingOpen: false });
+		this.animate({ beginFromCurrentState: true, curve: 'easeIn', duration: 0.36 }, () => {
+			this.overlayRef.setAttribute('top', 2000);
+		});
+	};
+
+	handleNowPlayingDragUpdate = (deltaY: number): void => {
+		this.overlayRef.setAttribute('top', deltaY);
+	};
+
+	handleNowPlayingDragCancel = (): void => {
+		this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.32 }, () => {
+			this.overlayRef.setAttribute('top', 0);
+		});
 	};
 
 	onRender(): void {
@@ -82,13 +96,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				/>
 			)}
 
-			{track && album && this.state.nowPlayingOpen && (
-				<view style={styles.nowPlayingOverlay}>
+			{track && album && (
+				<view ref={this.overlayRef} style={styles.nowPlayingOverlay}>
 					<NowPlayingView
 						album={album}
 						artistLogoUrl={artistLogoUrl}
 						isPlaying={isPlaying}
 						onClose={this.handleNowPlayingClose}
+						onDragCancel={this.handleNowPlayingDragCancel}
+						onDragUpdate={this.handleNowPlayingDragUpdate}
 						onNext={() => this.playbackStore.next()}
 						onPlayPause={() => this.playbackStore.playPause()}
 						onPrevious={() => this.playbackStore.previous()}
@@ -107,7 +123,7 @@ const styles = {
 		left: 0,
 		position: 'absolute',
 		right: 0,
-		top: 0,
+		top: 2000,
 		zIndex: 30,
 	}),
 	root: new Style({
