@@ -105,6 +105,6 @@ const styles = {
 		position: 'absolute',
 		right: 0,
 		width: '100%',
-		zIndex: 20,
+		zIndex: 60,
 	}),
 };

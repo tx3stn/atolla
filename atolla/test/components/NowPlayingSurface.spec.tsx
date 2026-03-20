@@ -27,6 +27,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			collapseSignal: 0,
 			isPlaying: true,
 			onDismiss: () => {},
 			onNext: () => {},
@@ -52,6 +53,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			collapseSignal: 0,
 			isPlaying: true,
 			onDismiss: () => {},
 			onNext: () => {},
@@ -69,5 +71,42 @@ describe('NowPlayingSurface', () => {
 		expect(overlay?.getAttribute('top')).not.toBe(0);
 		compactBar?.getAttribute('onTap')?.();
 		expect(overlay?.getAttribute('top')).toBe(0);
+	});
+
+	valdiIt('handles collapse signal update while expanded', () => {
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 0,
+			isPlaying: true,
+			onDismiss: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			progressSeconds: 90,
+			track,
+		});
+		const component = instrumented.getComponent();
+
+		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+
+		compactBar?.getAttribute('onTap')?.();
+		instrumented.setViewModel({
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 1,
+			isPlaying: true,
+			onDismiss: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			progressSeconds: 90,
+			track,
+		});
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const overlay = views.find((view) => view.getAttribute('id') === 'now-playing-surface-overlay');
+		expect(overlay).toBeDefined();
 	});
 });

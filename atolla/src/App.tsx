@@ -15,6 +15,7 @@ export type AppViewModel = Record<string, never>;
 
 interface AppState {
 	activeFooterTab: FooterTab;
+	nowPlayingCollapseSignal: number;
 	version: number;
 }
 
@@ -25,6 +26,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
+		nowPlayingCollapseSignal: 0,
 		version: 0,
 	};
 
@@ -39,7 +41,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	handleFooterTabTap = (tab: FooterTab): void => {
-		this.setState({ activeFooterTab: tab });
+		this.setState({
+			activeFooterTab: tab,
+			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
+		});
 	};
 
 	onRender(): void {
@@ -64,6 +69,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				<NowPlayingSurface
 					album={album}
 					artistLogoUrl={artistLogoUrl}
+					collapseSignal={this.state.nowPlayingCollapseSignal}
 					isPlaying={isPlaying}
 					onDismiss={() => this.playbackStore.stop()}
 					onNext={() => this.playbackStore.next()}

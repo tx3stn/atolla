@@ -12,6 +12,7 @@ import { theme } from '../../theme';
 export interface NowPlayingSurfaceViewModel {
 	album: Album;
 	artistLogoUrl?: string | null;
+	collapseSignal: number;
 	isPlaying: boolean;
 	onDismiss: () => void;
 	onNext: () => void;
@@ -88,6 +89,22 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.isTransitioning = false;
 			});
 	};
+
+	onViewModelUpdate(prevViewModel: NowPlayingSurfaceViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		if (this.viewModel.collapseSignal === prevViewModel.collapseSignal) {
+			return;
+		}
+
+		if (!this.state.isExpanded) {
+			return;
+		}
+
+		this.closeSurface();
+	}
 
 	private closeSurface = (): void => {
 		if (!this.state.isExpanded || this.isTransitioning) {
