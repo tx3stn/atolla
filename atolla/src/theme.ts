@@ -47,6 +47,10 @@ export const theme = {
 			color: colors.muted,
 			font: systemFont(13),
 		},
+		subLarger: {
+			color: colors.muted,
+			font: systemFont(16),
+		},
 		title: {
 			color: colors.white,
 			font: systemBoldFont(18),

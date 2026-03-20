@@ -445,8 +445,9 @@ const styles = {
 		zIndex: 25,
 	}),
 	expandedAlbumLine: new Style<Label>({
-		...theme.text.sub,
+		...theme.text.subLarger,
 		marginTop: 4,
+		paddingTop: 12,
 		textAlign: 'center',
 		width: '100%',
 	}),
@@ -547,6 +548,7 @@ const styles = {
 		borderTopColor: theme.colors.bgAccent,
 		borderTopWidth: 1,
 		flexDirection: 'row',
+		padding: 10,
 		width: '100%',
 	}),
 	expandedTimeLabel: new Style<Label>({
@@ -565,7 +567,7 @@ const styles = {
 		width: '100%',
 	}),
 	expandedTrackName: new Style<Label>({
-		...theme.text.main,
+		...theme.text.title,
 		textAlign: 'center',
 		width: '100%',
 	}),
@@ -615,7 +617,7 @@ const styles = {
 		paddingRight: 10,
 	}),
 	trackName: new Style<Label>({
-		...theme.text.mainBold,
+		...theme.text.title,
 	}),
 	transitionArtwork: new Style<ImageView>({
 		aspectRatio: 1,
