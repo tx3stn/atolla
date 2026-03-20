@@ -124,32 +124,44 @@ export class NowPlayingView extends Component<NowPlayingViewModel> {
 						<image objectFit='contain' src={artistLogoUrl} style={styles.artistLogo} />
 					)}
 					{!artistLogoUrl && <label style={styles.artistName} value={album.artistName} />}
-					<label numberOfLines={2} style={styles.trackName} value={track.name} />
-					<label numberOfLines={1} style={styles.albumLine} value={albumLine} />
 				</layout>
-				<layout style={styles.progressSection}>
-					<view style={styles.progressTrack}>
-						<view style={progressFillStyle} />
-					</view>
-					<layout style={styles.timeRow}>
-						<label style={styles.timeLabel} value={elapsedText} />
-						<label style={styles.timeLabel} value={remainingText} />
+				<layout style={styles.bottomSection}>
+					<layout style={styles.trackMetaSection}>
+						<label numberOfLines={2} style={styles.trackName} value={track.name} />
+						<label numberOfLines={1} style={styles.albumLine} value={albumLine} />
 					</layout>
-				</layout>
-				<layout style={styles.controlsRow}>
-					<view onTap={onPrevious} style={styles.controlButton}>
-						<image src={res.previous} style={styles.controlIcon} tint={accentColor} />
-					</view>
-					<view onTap={onPlayPause} style={styles.playButton}>
-						<image
-							src={isPlaying ? res.pause : res.play}
-							style={styles.playIcon}
-							tint={accentColor}
-						/>
-					</view>
-					<view onTap={onNext} style={styles.controlButton}>
-						<image src={res.next} style={styles.controlIcon} tint={accentColor} />
-					</view>
+					<layout style={styles.progressSection}>
+						<view style={styles.progressTrack}>
+							<view style={progressFillStyle} />
+						</view>
+						<layout style={styles.timeRow}>
+							<label style={styles.timeLabel} value={elapsedText} />
+							<label style={styles.timeLabel} value={remainingText} />
+						</layout>
+					</layout>
+					<layout style={styles.controlsRow}>
+						<view onTap={onPrevious} style={styles.controlButton}>
+							<image src={res.previous} style={styles.controlIcon} tint={accentColor} />
+						</view>
+						<view onTap={onPlayPause} style={styles.playButton}>
+							<image
+								src={isPlaying ? res.pause : res.play}
+								style={styles.playIcon}
+								tint={accentColor}
+							/>
+						</view>
+						<view onTap={onNext} style={styles.controlButton}>
+							<image src={res.next} style={styles.controlIcon} tint={accentColor} />
+						</view>
+					</layout>
+					<layout style={styles.queueTabsRow}>
+						<view style={styles.queueTabButton}>
+							<label style={styles.queueTabLabel} value='BACK TO' />
+						</view>
+						<view style={styles.queueTabButton}>
+							<label style={styles.queueTabLabel} value='UP NEXT' />
+						</view>
+					</layout>
 				</layout>
 			</layout>
 		</view>;
@@ -193,9 +205,14 @@ const styles = {
 		height: '98%',
 		width: '98%',
 	}),
+	bottomSection: new Style({
+		marginBottom: theme.footerHeight,
+		marginTop: 'auto',
+		width: '100%',
+	}),
 	content: new Style({
 		flexGrow: 1,
-		paddingBottom: theme.scrollPaddingBottom,
+		height: '100%',
 		width: '100%',
 	}),
 	controlButton: new Style({
@@ -211,12 +228,13 @@ const styles = {
 		alignItems: 'center',
 		flexDirection: 'row',
 		justifyContent: 'center',
-		marginTop: 8,
+		marginTop: 12,
 		width: '100%',
 	}),
 	infoSection: new Style({
 		alignItems: 'center',
-		marginTop: 20,
+		flexGrow: 1,
+		justifyContent: 'center',
 		paddingHorizontal: 24,
 		width: '100%',
 	}),
@@ -230,7 +248,7 @@ const styles = {
 		width: 40,
 	}),
 	progressSection: new Style({
-		marginTop: 24,
+		marginTop: 4,
 		paddingLeft: 30,
 		paddingRight: 30,
 		width: '100%',
@@ -242,8 +260,26 @@ const styles = {
 		overflow: 'hidden',
 		width: '100%',
 	}),
+	queueTabButton: new Style({
+		alignItems: 'center',
+		flexGrow: 1,
+		justifyContent: 'center',
+		paddingTop: 12,
+	}),
+	queueTabLabel: new Style<Label>({
+		...theme.text.sub,
+		textAlign: 'center',
+	}),
+	queueTabsRow: new Style({
+		borderTopColor: theme.colors.bgAccent,
+		borderTopWidth: 1,
+		flexDirection: 'row',
+		width: '100%',
+	}),
 	root: new Style({
 		flexGrow: 1,
+		height: '100%',
+		position: 'relative',
 		width: '100%',
 	}),
 	timeLabel: new Style<Label>({
@@ -255,9 +291,14 @@ const styles = {
 		marginTop: 6,
 		width: '100%',
 	}),
+	trackMetaSection: new Style({
+		alignItems: 'center',
+		marginBottom: 10,
+		paddingHorizontal: 24,
+		width: '100%',
+	}),
 	trackName: new Style<Label>({
 		...theme.text.main,
-		marginTop: 8,
 		textAlign: 'center',
 		width: '100%',
 	}),
