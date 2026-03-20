@@ -42,7 +42,6 @@ const styles = {
 	homeTabs: new Style({
 		columnGap: 1,
 		flexDirection: 'row',
-		marginBottom: 2,
 		marginTop: 8,
 		width: '100%',
 	}),

@@ -37,7 +37,7 @@ const styles = {
 		color: theme.colors.active,
 	}),
 	header: new Style({
-		padding: 15,
+		padding: 12,
 	}),
 	nonActiveTab: new Style<Label>({
 		...theme.text.main,

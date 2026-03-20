@@ -24,13 +24,13 @@
 		"android": "./.scripts/start-android-emulator.sh",
 		"android:fast": "FAST_DEV_BUILD=1 ./.scripts/start-android-emulator.sh",
 		"appium:inspect": "./.scripts/start-appium-inspector.sh",
-		"check": "bun run format && bun run lint && bun run compile && bun run test",
+		"check": "bun run format && bun run lint && bun run compile && bun run test && bun run test:components",
 		"compile": "bunx tsc --noEmit",
 		"format": "biome format --write .",
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true --unsafe .",
 		"reload": "./.scripts/android-hotreload.sh",
-		"test": "bun test ./atolla",
-		"test:components": "bazel test //atolla:test --test_output=all --cache_test_results=no --test_summary=short --noshow_progress --noshow_loading_progress --show_result=0",
+		"test": "bun test ./atolla/src",
+		"test:components": "bazel test //atolla:test --test_output=all --test_summary=short --noshow_loading_progress --show_result=0",
 		"test:e2e": "E2E_APP_PATH=$PWD/bazel-bin/atolla_android.apk wdio run ./test/wdio.conf.ts"
 	},
 	"version": "0.0.1"

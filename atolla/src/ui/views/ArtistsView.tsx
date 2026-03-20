@@ -70,6 +70,7 @@ const styles = {
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: theme.scrollPaddingBottom,
+		paddingTop: 0,
 		width: '100%',
 	}),
 };
