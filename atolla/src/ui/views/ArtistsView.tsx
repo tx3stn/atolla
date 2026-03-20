@@ -21,7 +21,7 @@ interface ArtistsState {
 }
 
 export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsState> {
-	private isDestroyed = false;
+	private hasBeenDestroyed = false;
 
 	state: ArtistsState = {
 		artists: [],
@@ -30,9 +30,9 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	};
 
 	onCreate(): void {
-		this.isDestroyed = false;
+		this.hasBeenDestroyed = false;
 		this.viewModel.transport.getAllArtists().then((artists) => {
-			if (this.isDestroyed) {
+			if (this.hasBeenDestroyed) {
 				return;
 			}
 			this.setState({ artists });
@@ -40,7 +40,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	onDestroy(): void {
-		this.isDestroyed = true;
+		this.hasBeenDestroyed = true;
 	}
 
 	onRender(): void {

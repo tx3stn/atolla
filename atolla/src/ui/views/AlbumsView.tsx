@@ -21,7 +21,7 @@ interface AlbumsState {
 }
 
 export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> {
-	private isDestroyed = false;
+	private hasBeenDestroyed = false;
 
 	state: AlbumsState = {
 		albums: [],
@@ -30,9 +30,9 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	};
 
 	onCreate(): void {
-		this.isDestroyed = false;
+		this.hasBeenDestroyed = false;
 		this.viewModel.transport.getAllAlbums().then((albums) => {
-			if (this.isDestroyed) {
+			if (this.hasBeenDestroyed) {
 				return;
 			}
 			this.setState({ albums });
@@ -40,7 +40,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	onDestroy(): void {
-		this.isDestroyed = true;
+		this.hasBeenDestroyed = true;
 	}
 
 	onRender(): void {

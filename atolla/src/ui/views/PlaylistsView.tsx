@@ -19,7 +19,7 @@ interface PlaylistsState {
 }
 
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
-	private isDestroyed = false;
+	private hasBeenDestroyed = false;
 
 	state: PlaylistsState = {
 		playlists: [],
@@ -28,9 +28,9 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	};
 
 	onCreate(): void {
-		this.isDestroyed = false;
+		this.hasBeenDestroyed = false;
 		this.viewModel.transport.getAllPlaylists().then((playlists) => {
-			if (this.isDestroyed) {
+			if (this.hasBeenDestroyed) {
 				return;
 			}
 			this.setState({ playlists });
@@ -38,7 +38,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	onDestroy(): void {
-		this.isDestroyed = true;
+		this.hasBeenDestroyed = true;
 	}
 
 	onRender(): void {
