@@ -21,22 +21,35 @@ export class NowPlayingBar extends Component<NowPlayingBarViewModel> {
 	private barRef = new ElementRef();
 
 	handleDrag = (event): void => {
+		if (event.state === TouchEventState.Changed) {
+			this.barRef.setAttribute('left', 8 + event.deltaX);
+			this.barRef.setAttribute('right', 8 - event.deltaX);
+			return;
+		}
+
 		if (event.state !== TouchEventState.Ended) return;
-		if (Math.abs(event.deltaX) < Math.abs(event.deltaY)) return;
 
-		const hasEnoughDistance = Math.abs(event.deltaX) >= 60;
-		const hasEnoughVelocity = Math.abs(event.velocityX) >= 400;
-		if (!hasEnoughDistance && !hasEnoughVelocity) return;
+		const hasMoved = Math.abs(event.deltaX) > 5 || Math.abs(event.deltaY) > 5;
+		if (!hasMoved) return;
 
-		const offset = event.deltaX > 0 ? 500 : -500;
+		const isHorizontal = Math.abs(event.deltaX) >= Math.abs(event.deltaY);
+		const hasEnoughDistance = Math.abs(event.deltaX) >= 120;
+		const hasEnoughVelocity = Math.abs(event.velocityX) >= 600;
 
-		this.animatePromise({ curve: 'easeIn', duration: 0.25 }, () => {
-			this.barRef.setAttribute('left', 8 + offset);
-			this.barRef.setAttribute('right', 8 - offset);
-			this.barRef.setAttribute('opacity', 0);
-		}).then(() => {
-			this.viewModel.onDismiss();
-		});
+		if (isHorizontal && (hasEnoughDistance || hasEnoughVelocity)) {
+			const offset = event.deltaX > 0 ? 500 : -500;
+			this.animatePromise({ damping: 30, stiffness: 300 }, () => {
+				this.barRef.setAttribute('left', 8 + offset);
+				this.barRef.setAttribute('right', 8 - offset);
+			}).then(() => {
+				this.viewModel.onDismiss();
+			});
+		} else {
+			this.animate({ damping: 18, stiffness: 280 }, () => {
+				this.barRef.setAttribute('left', 8);
+				this.barRef.setAttribute('right', 8);
+			});
+		}
 	};
 
 	onRender(): void {
