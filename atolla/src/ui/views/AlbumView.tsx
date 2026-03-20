@@ -25,6 +25,7 @@ interface AlbumState {
 
 export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 	private modalSlot = new DetachedSlot();
+	private isDestroyed = false;
 
 	state: AlbumState = {
 		artistLogoUrl: null,
@@ -42,14 +43,25 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 	};
 
 	onCreate(): void {
+		this.isDestroyed = false;
 		const { album, transport } = this.viewModel;
 		transport.getTracksByAlbum(album.id).then((tracks) => {
+			if (this.isDestroyed) {
+				return;
+			}
 			this.setState({ tracks });
 		});
 		transport.getArtist(album.artistId).then((artist) => {
+			if (this.isDestroyed) {
+				return;
+			}
 			const logoUrl = artist?.logoUrl || null;
 			this.setState({ artistLogoUrl: logoUrl });
 		});
+	}
+
+	onDestroy(): void {
+		this.isDestroyed = true;
 	}
 
 	onRender(): void {

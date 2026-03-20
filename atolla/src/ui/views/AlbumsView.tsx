@@ -21,6 +21,8 @@ interface AlbumsState {
 }
 
 export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> {
+	private isDestroyed = false;
+
 	state: AlbumsState = {
 		albums: [],
 		selectedAlbum: null,
@@ -28,9 +30,17 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	};
 
 	onCreate(): void {
+		this.isDestroyed = false;
 		this.viewModel.transport.getAllAlbums().then((albums) => {
+			if (this.isDestroyed) {
+				return;
+			}
 			this.setState({ albums });
 		});
+	}
+
+	onDestroy(): void {
+		this.isDestroyed = true;
 	}
 
 	onRender(): void {

@@ -29,6 +29,7 @@ interface ArtistState {
 
 export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> {
 	private modalSlot = new DetachedSlot();
+	private isDestroyed = false;
 
 	state: ArtistState = {
 		albums: [],
@@ -37,13 +38,24 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 	};
 
 	onCreate(): void {
+		this.isDestroyed = false;
 		const { artist, transport } = this.viewModel;
 		transport.getAlbumsByArtist(artist.id).then((albums) => {
+			if (this.isDestroyed) {
+				return;
+			}
 			this.setState({ albums });
 		});
 		transport.getArtistTopTracks(artist.id).then((topTracks) => {
+			if (this.isDestroyed) {
+				return;
+			}
 			this.setState({ topTracks });
 		});
+	}
+
+	onDestroy(): void {
+		this.isDestroyed = true;
 	}
 
 	onRender(): void {
