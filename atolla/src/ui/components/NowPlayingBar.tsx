@@ -114,7 +114,7 @@ const styles = {
 		overflow: 'hidden',
 		position: 'absolute',
 		right: 8,
-		zIndex: 15,
+		zIndex: 25,
 	}),
 	info: new Style({
 		flexGrow: 1,

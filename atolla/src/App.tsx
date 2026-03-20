@@ -119,7 +119,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 const styles = {
 	nowPlayingOverlay: new Style({
-		bottom: 0,
+		height: '100%',
 		left: 0,
 		position: 'absolute',
 		right: 0,

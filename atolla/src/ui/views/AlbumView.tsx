@@ -14,6 +14,7 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 
 export interface AlbumViewModel {
 	album: Album;
+	isFooterVisible?: boolean;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -66,7 +67,7 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 
 	onRender(): void {
 		const { artistLogoUrl, tracks } = this.state;
-		const { album } = this.viewModel;
+		const { album, isFooterVisible = true } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			id: track.id,
@@ -77,8 +78,10 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 
+		const scrollStyle = createScrollStyle(isFooterVisible);
+
 		<layout style={styles.root}>
-			<scroll style={styles.scroll}>
+			<scroll style={scrollStyle}>
 				<DetailHeader
 					artworkSource={album.imageUrl ?? null}
 					buttonText={album.releaseDate}
@@ -116,3 +119,14 @@ const styles = {
 		width: '100%',
 	}),
 };
+
+function createScrollStyle(isFooterVisible: boolean): Style {
+	return new Style({
+		flexGrow: 1,
+		padding: 8,
+		paddingBottom: isFooterVisible
+			? theme.scrollPaddingBottom + theme.footerHeight
+			: theme.scrollPaddingBottom,
+		width: '100%',
+	});
+}

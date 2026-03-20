@@ -17,6 +17,7 @@ import { AlbumView } from './AlbumView';
 
 export interface ArtistViewModel {
 	artist: Artist;
+	isFooterVisible?: boolean;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -59,9 +60,12 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 	}
 
 	onRender(): void {
+		const { isFooterVisible = true } = this.viewModel;
+
 		if (this.state.selectedAlbum) {
 			<AlbumView
 				album={this.state.selectedAlbum}
+				isFooterVisible={isFooterVisible}
 				playbackStore={this.viewModel.playbackStore}
 				transport={this.viewModel.transport}
 			/>;
@@ -89,8 +93,10 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 			title: track.name,
 		}));
 
+		const scrollStyle = createScrollStyle(isFooterVisible);
+
 		<layout style={styles.root}>
-			<scroll style={styles.scroll}>
+			<scroll style={scrollStyle}>
 				<DetailHeader
 					artworkSource={artist.imageUrl ?? null}
 					fallbackText={artist.name}
@@ -166,3 +172,14 @@ const styles = {
 		width: '100%',
 	}),
 };
+
+function createScrollStyle(isFooterVisible: boolean): Style {
+	return new Style({
+		flexGrow: 1,
+		padding: 8,
+		paddingBottom: isFooterVisible
+			? theme.scrollPaddingBottom + theme.footerHeight
+			: theme.scrollPaddingBottom,
+		width: '100%',
+	});
+}
