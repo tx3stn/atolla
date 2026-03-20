@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { PlaybackStore } from '../../stores/Playback';
 import { MockTransport } from '../../transports/Mock';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
 import { HomeHeaderNav } from '../components/HomeHeaderNav';
@@ -8,11 +9,12 @@ import { AlbumsView } from './AlbumsView';
 import { ArtistsView } from './ArtistsView';
 import { PlaylistsView } from './PlaylistsView';
 
-export type HomeViewModel = Record<string, never>;
+export interface HomeViewModel {
+	playbackStore: PlaybackStore;
+}
 
 interface HomeState {
 	activeTab: HeaderTab;
-	hideHeaderNav: boolean;
 	tabKeys: Record<HeaderTab, number>;
 }
 
@@ -21,20 +23,11 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	state: HomeState = {
 		activeTab: HeaderTabs.artists,
-		hideHeaderNav: false,
 		tabKeys: {
 			[HeaderTabs.artists]: 0,
 			[HeaderTabs.albums]: 0,
 			[HeaderTabs.playlists]: 0,
 		},
-	};
-
-	handleNowPlayingVisibilityChange = (isVisible: boolean): void => {
-		if (this.state.hideHeaderNav === isVisible) {
-			return;
-		}
-
-		this.setState({ hideHeaderNav: isVisible });
 	};
 
 	handleHeaderTabTap = (tab: HeaderTab): void => {
@@ -46,22 +39,22 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	onRender(): void {
+		const { playbackStore } = this.viewModel;
+
 		<view style={styles.root}>
-			{!this.state.hideHeaderNav && (
-				<HomeHeaderNav activeTab={this.state.activeTab} onTabTap={this.handleHeaderTabTap} />
-			)}
+			<HomeHeaderNav activeTab={this.state.activeTab} onTabTap={this.handleHeaderTabTap} />
 
 			{this.state.activeTab === HeaderTabs.artists && (
 				<ArtistsView
 					key={this.state.tabKeys[HeaderTabs.artists]}
-					onNowPlayingVisibilityChange={this.handleNowPlayingVisibilityChange}
+					playbackStore={playbackStore}
 					transport={this.transport}
 				/>
 			)}
 			{this.state.activeTab === HeaderTabs.albums && (
 				<AlbumsView
 					key={this.state.tabKeys[HeaderTabs.albums]}
-					onNowPlayingVisibilityChange={this.handleNowPlayingVisibilityChange}
+					playbackStore={playbackStore}
 					transport={this.transport}
 				/>
 			)}

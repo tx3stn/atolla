@@ -28,13 +28,13 @@ export const theme = {
 		},
 		main: {
 			color: colors.white,
-			font: systemFont(15),
+			font: systemFont(16),
 			letterSpacing: 0.5,
 			paddingBottom: 2,
 		},
 		mainBold: {
 			color: colors.white,
-			font: systemBoldFont(15),
+			font: systemBoldFont(16),
 			letterSpacing: 0.5,
 			paddingBottom: 2,
 		},

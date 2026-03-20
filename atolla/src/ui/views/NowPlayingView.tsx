@@ -91,7 +91,7 @@ export class NowPlayingView extends Component<NowPlayingViewModel> {
 			progressSeconds,
 			track,
 		} = this.viewModel;
-		const accentColor = '#ffffff';
+		const accentColor = theme.colors.white;
 
 		const progressRatio = track.duration > 0 ? Math.min(progressSeconds / track.duration, 1) : 0;
 		const elapsedText = formatDuration(progressSeconds);
@@ -128,7 +128,7 @@ export class NowPlayingView extends Component<NowPlayingViewModel> {
 				<layout style={styles.bottomSection}>
 					<layout style={styles.trackMetaSection}>
 						<label numberOfLines={2} style={styles.trackName} value={track.name} />
-						<label numberOfLines={1} style={styles.albumLine} value={albumLine} />
+						<label numberOfLines={2} style={styles.albumLine} value={albumLine} />
 					</layout>
 					<layout style={styles.progressSection}>
 						<view style={styles.progressTrack}>
@@ -221,8 +221,8 @@ const styles = {
 		padding: 16,
 	}),
 	controlIcon: new Style<ImageView>({
-		height: 28,
-		width: 28,
+		height: 35,
+		width: 35,
 	}),
 	controlsRow: new Style({
 		alignItems: 'center',
@@ -245,8 +245,8 @@ const styles = {
 		padding: 16,
 	}),
 	playIcon: new Style<ImageView>({
-		height: 40,
-		width: 40,
+		height: 45,
+		width: 45,
 	}),
 	progressSection: new Style({
 		marginTop: 4,
@@ -258,6 +258,7 @@ const styles = {
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: 2,
 		height: 4,
+		marginTop: 10,
 		overflow: 'hidden',
 		width: '100%',
 	}),

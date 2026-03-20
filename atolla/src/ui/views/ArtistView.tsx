@@ -6,6 +6,7 @@ import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Track } from '../../models/Track';
+import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
@@ -16,7 +17,7 @@ import { AlbumView } from './AlbumView';
 
 export interface ArtistViewModel {
 	artist: Artist;
-	onNowPlayingVisibilityChange?: (isVisible: boolean) => void;
+	playbackStore: PlaybackStore;
 	transport: Transport;
 }
 
@@ -49,7 +50,7 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 		if (this.state.selectedAlbum) {
 			<AlbumView
 				album={this.state.selectedAlbum}
-				onNowPlayingVisibilityChange={this.viewModel.onNowPlayingVisibilityChange}
+				playbackStore={this.viewModel.playbackStore}
 				transport={this.viewModel.transport}
 			/>;
 			return;

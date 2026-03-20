@@ -5,24 +5,21 @@ import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
+import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
-import { NowPlayingView } from './NowPlayingView';
 
 export interface AlbumViewModel {
 	album: Album;
-	onNowPlayingVisibilityChange?: (isVisible: boolean) => void;
+	playbackStore: PlaybackStore;
 	transport: Transport;
 }
 
 interface AlbumState {
 	artistLogoUrl: string | null;
-	isPlaying: boolean;
-	nowPlayingTrackIndex: number | null;
-	progressSeconds: number;
 	tracks: Array<Track>;
 }
 
@@ -31,9 +28,6 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 
 	state: AlbumState = {
 		artistLogoUrl: null,
-		isPlaying: false,
-		nowPlayingTrackIndex: null,
-		progressSeconds: 0,
 		tracks: [],
 	};
 
@@ -42,80 +36,25 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 			return;
 		}
 
-		this.viewModel.onNowPlayingVisibilityChange?.(true);
-
-		this.setState({
-			isPlaying: true,
-			nowPlayingTrackIndex: 0,
-			progressSeconds: 0,
-		});
-	};
-
-	handleNowPlayingNext = (): void => {
-		if (this.state.nowPlayingTrackIndex == null) {
-			return;
-		}
-
-		const nextIndex = Math.min(this.state.nowPlayingTrackIndex + 1, this.state.tracks.length - 1);
-		this.setState({ nowPlayingTrackIndex: nextIndex, progressSeconds: 0 });
-	};
-
-	handleNowPlayingPlayPause = (): void => {
-		this.setState({ isPlaying: !this.state.isPlaying });
-	};
-
-	handleNowPlayingClose = (): void => {
-		this.viewModel.onNowPlayingVisibilityChange?.(false);
-		this.setState({
-			isPlaying: false,
-			nowPlayingTrackIndex: null,
-			progressSeconds: 0,
-		});
-	};
-
-	handleNowPlayingPrevious = (): void => {
-		if (this.state.nowPlayingTrackIndex == null) {
-			return;
-		}
-
-		const previousIndex = Math.max(this.state.nowPlayingTrackIndex - 1, 0);
-		this.setState({ nowPlayingTrackIndex: previousIndex, progressSeconds: 0 });
+		const { album, playbackStore } = this.viewModel;
+		playbackStore.play(this.state.tracks, album);
+		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 	};
 
 	onCreate(): void {
-		this.viewModel.onNowPlayingVisibilityChange?.(false);
-
 		const { album, transport } = this.viewModel;
 		transport.getTracksByAlbum(album.id).then((tracks) => {
 			this.setState({ tracks });
 		});
 		transport.getArtist(album.artistId).then((artist) => {
-			this.setState({ artistLogoUrl: artist?.logoUrl || null });
+			const logoUrl = artist?.logoUrl || null;
+			this.setState({ artistLogoUrl: logoUrl });
 		});
 	}
 
-	onDestroy(): void {
-		this.viewModel.onNowPlayingVisibilityChange?.(false);
-	}
-
 	onRender(): void {
-		const { artistLogoUrl, isPlaying, nowPlayingTrackIndex, progressSeconds, tracks } = this.state;
+		const { artistLogoUrl, tracks } = this.state;
 		const { album } = this.viewModel;
-
-		if (nowPlayingTrackIndex != null && tracks[nowPlayingTrackIndex]) {
-			<NowPlayingView
-				album={album}
-				artistLogoUrl={artistLogoUrl}
-				isPlaying={isPlaying}
-				onClose={this.handleNowPlayingClose}
-				onNext={this.handleNowPlayingNext}
-				onPlayPause={this.handleNowPlayingPlayPause}
-				onPrevious={this.handleNowPlayingPrevious}
-				progressSeconds={progressSeconds}
-				track={tracks[nowPlayingTrackIndex]}
-			/>;
-			return;
-		}
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			id: track.id,

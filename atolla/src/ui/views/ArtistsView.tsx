@@ -2,6 +2,7 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Artist } from '../../models/Artist';
+import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
@@ -9,7 +10,7 @@ import { type ArtistSort, ArtistSorts, sortArtists } from './ArtistsSort';
 import { ArtistView } from './ArtistView';
 
 export interface ArtistsViewModel {
-	onNowPlayingVisibilityChange?: (isVisible: boolean) => void;
+	playbackStore: PlaybackStore;
 	transport: Transport;
 }
 
@@ -36,7 +37,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		if (this.state.selectedArtist) {
 			<ArtistView
 				artist={this.state.selectedArtist}
-				onNowPlayingVisibilityChange={this.viewModel.onNowPlayingVisibilityChange}
+				playbackStore={this.viewModel.playbackStore}
 				transport={this.viewModel.transport}
 			/>;
 			return;
