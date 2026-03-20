@@ -262,4 +262,180 @@ describe('PlaybackStore', () => {
 			expect(store.track).toBe(track2);
 		});
 	});
+
+	describe('playTracks()', () => {
+		it('sets tracks and starts playing from index 0 by default', () => {
+			const store = new PlaybackStore();
+			store.playTracks(tracks);
+			expect(store.tracks).toBe(tracks);
+			expect(store.trackIndex).toBe(0);
+			expect(store.track).toBe(track1);
+			expect(store.isPlaying).toBe(true);
+			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('sets album to null', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			store.playTracks(tracks);
+			expect(store.album).toBeNull();
+		});
+
+		it('starts from a given index', () => {
+			const store = new PlaybackStore();
+			store.playTracks(tracks, 2);
+			expect(store.trackIndex).toBe(2);
+			expect(store.track).toBe(track3);
+		});
+
+		it('resets artistLogoUrl', () => {
+			const store = new PlaybackStore();
+			store.setArtistLogoUrl('https://example.com/logo.png');
+			store.playTracks(tracks);
+			expect(store.artistLogoUrl).toBeNull();
+		});
+
+		it('notifies listeners', () => {
+			const store = new PlaybackStore();
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.playTracks(tracks);
+			expect(calls).toBe(1);
+		});
+	});
+
+	describe('addToQueue()', () => {
+		it('appends tracks to the end of the queue', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			const extra: Track = { duration: 120, id: 'track-4', name: 'Track Four' };
+			store.addToQueue([extra]);
+			expect(store.tracks).toEqual([...tracks, extra]);
+		});
+
+		it('does not change the current track index', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			const extra: Track = { duration: 120, id: 'track-4', name: 'Track Four' };
+			store.addToQueue([extra]);
+			expect(store.trackIndex).toBe(1);
+			expect(store.track).toBe(track2);
+		});
+
+		it('does not change isPlaying', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			store.playPause();
+			store.addToQueue([track1]);
+			expect(store.isPlaying).toBe(false);
+		});
+
+		it('can append multiple tracks at once', () => {
+			const store = new PlaybackStore();
+			store.play([track1], album);
+			store.addToQueue([track2, track3]);
+			expect(store.tracks).toEqual([track1, track2, track3]);
+		});
+
+		it('notifies listeners', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.addToQueue([track1]);
+			expect(calls).toBe(1);
+		});
+	});
+
+	describe('playNext()', () => {
+		it('inserts tracks immediately after the current track', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			const extra: Track = { duration: 120, id: 'track-4', name: 'Track Four' };
+			store.playNext([extra]);
+			expect(store.tracks).toEqual([track1, extra, track2, track3]);
+		});
+
+		it('does not change the current track index', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.playNext([track1]);
+			expect(store.trackIndex).toBe(1);
+			expect(store.track).toBe(track2);
+		});
+
+		it('inserts multiple tracks in order after current', () => {
+			const store = new PlaybackStore();
+			const extra1: Track = { duration: 120, id: 'track-4', name: 'Track Four' };
+			const extra2: Track = { duration: 120, id: 'track-5', name: 'Track Five' };
+			store.play([track1, track3], album, 0);
+			store.playNext([extra1, extra2]);
+			expect(store.tracks).toEqual([track1, extra1, extra2, track3]);
+		});
+
+		it('inserts at end when on the last track', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			const extra: Track = { duration: 120, id: 'track-4', name: 'Track Four' };
+			store.playNext([extra]);
+			expect(store.tracks).toEqual([...tracks, extra]);
+		});
+
+		it('notifies listeners', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.playNext([track1]);
+			expect(calls).toBe(1);
+		});
+	});
+
+	describe('shuffle()', () => {
+		it('shuffles tracks after the current index', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.shuffle();
+			expect(store.tracks[0]).toBe(track1);
+			expect(store.tracks).toHaveLength(3);
+			expect(store.tracks).toEqual(expect.arrayContaining([track1, track2, track3]));
+		});
+
+		it('keeps the current track at the current index', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.shuffle();
+			expect(store.track).toBe(track2);
+			expect(store.trackIndex).toBe(1);
+		});
+
+		it('does not change isPlaying', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			store.shuffle();
+			expect(store.isPlaying).toBe(true);
+		});
+
+		it('is a no-op when there are no tracks after the current', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			store.shuffle();
+			expect(store.tracks).toEqual(tracks);
+		});
+
+		it('is a no-op when the queue is empty', () => {
+			const store = new PlaybackStore();
+			store.shuffle();
+			expect(store.tracks).toEqual([]);
+		});
+
+		it('notifies listeners', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.shuffle();
+			expect(calls).toBe(1);
+		});
+	});
 });

@@ -59,6 +59,38 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	playTracks(tracks: Array<Track>, startIndex = 0): void {
+		this.tracks = tracks;
+		this.album = null;
+		this.trackIndex = startIndex;
+		this.isPlaying = true;
+		this.progressSeconds = 0;
+		this.artistLogoUrl = null;
+		this.notify();
+	}
+
+	addToQueue(tracks: Array<Track>): void {
+		this.tracks = [...this.tracks, ...tracks];
+		this.notify();
+	}
+
+	playNext(tracks: Array<Track>): void {
+		const insertAt = this.trackIndex + 1;
+		this.tracks = [...this.tracks.slice(0, insertAt), ...tracks, ...this.tracks.slice(insertAt)];
+		this.notify();
+	}
+
+	shuffle(): void {
+		const start = this.trackIndex + 1;
+		const tail = this.tracks.slice(start);
+		for (let i = tail.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[tail[i], tail[j]] = [tail[j], tail[i]];
+		}
+		this.tracks = [...this.tracks.slice(0, start), ...tail];
+		this.notify();
+	}
+
 	setArtistLogoUrl(url: string | null): void {
 		this.artistLogoUrl = url;
 		this.notify();

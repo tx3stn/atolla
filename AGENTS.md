@@ -13,8 +13,8 @@ This project uses Valdi, Typescript, biome.js (for linting/formatting) and webdr
 
 ## Commands
 
-* `npm run check` - run linting, formatting, compile and unit tests
-* `npm run test:e2e` - run end to end tests
+* `bun run check` - run linting, formatting, compile and unit tests
+* `bun run test:e2e` - run end to end tests
 
 ## 🚨 Critical: Valdi is NOT React
 

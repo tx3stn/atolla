@@ -7,6 +7,18 @@ describe('footer navigation', () => {
 	let footer: FooterPage;
 	let home: HomePage;
 
+	before(async () => {
+		const packageName = await browser.execute('mobile: getCurrentPackage') as string;
+		const state = await browser.execute('mobile: queryAppState', { appId: packageName }) as number;
+		if (state > 1) {
+			await browser.terminateApp(packageName);
+		}
+		await browser.activateApp(packageName);
+
+		home = new HomePage(browser);
+		await home.waitForLoad();
+	});
+
 	beforeEach(async () => {
 		footer = new FooterPage(browser);
 		await footer.tapHome();
