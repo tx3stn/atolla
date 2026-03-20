@@ -206,7 +206,7 @@ const styles = {
 		width: '98%',
 	}),
 	bottomSection: new Style({
-		marginBottom: theme.footerHeight,
+		marginBottom: theme.footerHeight - 24,
 		marginTop: 'auto',
 		width: '100%',
 	}),
@@ -228,6 +228,7 @@ const styles = {
 		alignItems: 'center',
 		flexDirection: 'row',
 		justifyContent: 'center',
+		marginBottom: 12,
 		marginTop: 12,
 		width: '100%',
 	}),
@@ -263,8 +264,8 @@ const styles = {
 	queueTabButton: new Style({
 		alignItems: 'center',
 		flexGrow: 1,
-		justifyContent: 'center',
-		paddingTop: 12,
+		justifyContent: 'flex-end',
+		paddingTop: 4,
 	}),
 	queueTabLabel: new Style<Label>({
 		...theme.text.sub,
