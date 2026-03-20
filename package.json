@@ -30,6 +30,7 @@
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true --unsafe .",
 		"reload": "./.scripts/android-hotreload.sh",
 		"test": "bun test ./atolla",
+		"test:components": "bazel test //atolla:test --test_output=all --cache_test_results=no --test_summary=short --noshow_progress --noshow_loading_progress --show_result=0",
 		"test:e2e": "E2E_APP_PATH=$PWD/bazel-bin/atolla_android.apk wdio run ./test/wdio.conf.ts"
 	},
 	"version": "0.0.1"
