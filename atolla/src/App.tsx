@@ -90,7 +90,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	onRender(): void {
-		const { track, album, isPlaying, progressSeconds, artistLogoUrl } = this.playbackStore;
+		const { track, album, isPlaying, progressSeconds, artistLogoUrl, tracks, trackIndex } =
+			this.playbackStore;
 
 		<view style={styles.root}>
 			{this.state.activeFooterTab === FooterTabs.home && (
@@ -138,6 +139,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onPrevious={() => this.playbackStore.previous()}
 					progressSeconds={progressSeconds}
 					track={track}
+					trackIndex={trackIndex}
+					tracks={tracks}
 				/>
 			)}
 		</view>;

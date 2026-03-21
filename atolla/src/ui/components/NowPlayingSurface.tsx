@@ -8,6 +8,7 @@ import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { theme } from '../../theme';
+import { TrackList, type TrackListEntry } from './TrackList';
 
 export interface NowPlayingSurfaceViewModel {
 	album: Album;
@@ -21,9 +22,14 @@ export interface NowPlayingSurfaceViewModel {
 	onPrevious: () => void;
 	progressSeconds: number;
 	track: Track;
+	trackIndex: number;
+	tracks: Array<Track>;
 }
 
+type QueueTab = 'backTo' | 'upNext';
+
 interface NowPlayingSurfaceState {
+	activeQueueTab: QueueTab;
 	isExpanded: boolean;
 }
 
@@ -36,6 +42,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private compactBarRef = new ElementRef();
 	private expandedContentRef = new ElementRef();
 	private transitionArtworkRef = new ElementRef();
+	private scrollArtworkRef = new ElementRef();
 	private touchStartX = 0;
 	private touchStartY = 0;
 	private isTransitioning = false;
@@ -47,6 +54,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private readonly collapsedHeight = 84;
 
 	state: NowPlayingSurfaceState = {
+		activeQueueTab: 'upNext',
 		isExpanded: false,
 	};
 
@@ -89,7 +97,6 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.expandedContentRef.setAttribute('left', 0);
 				this.expandedContentRef.setAttribute('opacity', 0.92);
 				this.expandedContentRef.setAttribute('right', 0);
-				this.expandedContentRef.setAttribute('top', 0);
 				this.transitionArtworkRef.setAttribute('left', '1%');
 				this.transitionArtworkRef.setAttribute('marginTop', 0);
 				this.transitionArtworkRef.setAttribute('top', 2);
@@ -106,6 +113,8 @@ export class NowPlayingSurface extends StatefulComponent<
 				);
 			})
 			.then(() => {
+				this.transitionArtworkRef.setAttribute('opacity', 0);
+				this.scrollArtworkRef.setAttribute('opacity', 1);
 				this.isTransitioning = false;
 			});
 	};
@@ -132,37 +141,29 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		this.isTransitioning = true;
+		this.scrollArtworkRef.setAttribute('opacity', 0);
+		this.transitionArtworkRef.setAttribute('opacity', 1);
 
-		this.runAnimatePromise({ beginFromCurrentState: true, curve: 'easeIn', duration: 0.04 }, () => {
-			this.transitionArtworkRef.setAttribute('opacity', 1);
-		})
-			.then(() => {
-				return this.runAnimatePromise(
-					{ beginFromCurrentState: true, curve: 'easeIn', duration: 0.26 },
-					() => {
-						this.overlayRef.setAttribute('top', 0);
-						this.compactBarRef.setAttribute('opacity', 1);
-						this.overlayCardRef.setAttribute('bottom', this.collapsedBottom);
-						this.overlayCardRef.setAttribute('borderRadius', theme.borderRadius);
-						this.overlayCardRef.setAttribute('height', this.collapsedHeight);
-						this.overlayCardRef.setAttribute('left', this.collapsedInset);
-						this.overlayCardRef.setAttribute('right', this.collapsedInset);
-						this.expandedContentRef.setAttribute('left', 14);
-						this.expandedContentRef.setAttribute('opacity', 0);
-						this.expandedContentRef.setAttribute('right', 14);
-						this.expandedContentRef.setAttribute('top', 52);
-						this.transitionArtworkRef.setAttribute('left', 12);
-						this.transitionArtworkRef.setAttribute('marginTop', 0);
-						this.transitionArtworkRef.setAttribute('top', 10);
-						this.transitionArtworkRef.setAttribute('width', 65);
-					},
-				);
-			})
-			.then(() => {
-				this.overlayRef.setAttribute('top', 2000);
-				this.setState({ isExpanded: false });
-				this.isTransitioning = false;
-			});
+		this.runAnimatePromise({ beginFromCurrentState: true, curve: 'easeIn', duration: 0.26 }, () => {
+			this.overlayRef.setAttribute('top', 0);
+			this.compactBarRef.setAttribute('opacity', 1);
+			this.overlayCardRef.setAttribute('bottom', this.collapsedBottom);
+			this.overlayCardRef.setAttribute('borderRadius', theme.borderRadius);
+			this.overlayCardRef.setAttribute('height', this.collapsedHeight);
+			this.overlayCardRef.setAttribute('left', this.collapsedInset);
+			this.overlayCardRef.setAttribute('right', this.collapsedInset);
+			this.expandedContentRef.setAttribute('left', 14);
+			this.expandedContentRef.setAttribute('opacity', 0);
+			this.expandedContentRef.setAttribute('right', 14);
+			this.transitionArtworkRef.setAttribute('left', 12);
+			this.transitionArtworkRef.setAttribute('marginTop', 0);
+			this.transitionArtworkRef.setAttribute('top', 10);
+			this.transitionArtworkRef.setAttribute('width', 65);
+		}).then(() => {
+			this.overlayRef.setAttribute('top', 2000);
+			this.setState({ isExpanded: false });
+			this.isTransitioning = false;
+		});
 	};
 
 	private setCollapsedGeometry(): void {
@@ -175,9 +176,11 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.expandedContentRef.setAttribute('left', 14);
 		this.expandedContentRef.setAttribute('opacity', 0);
 		this.expandedContentRef.setAttribute('right', 14);
-		this.expandedContentRef.setAttribute('top', 52);
+		this.expandedContentRef.setAttribute('top', 0);
+		this.scrollArtworkRef.setAttribute('opacity', 0);
 		this.transitionArtworkRef.setAttribute('left', 12);
 		this.transitionArtworkRef.setAttribute('marginTop', 0);
+		this.transitionArtworkRef.setAttribute('opacity', 1);
 		this.transitionArtworkRef.setAttribute('top', 10);
 		this.transitionArtworkRef.setAttribute('width', 65);
 	}
@@ -290,6 +293,10 @@ export class NowPlayingSurface extends StatefulComponent<
 		});
 	};
 
+	private handleQueueTabTap = (tab: QueueTab): void => {
+		this.setState({ activeQueueTab: tab });
+	};
+
 	onRender(): void {
 		const {
 			album,
@@ -300,7 +307,31 @@ export class NowPlayingSurface extends StatefulComponent<
 			onPrevious,
 			progressSeconds,
 			track,
+			trackIndex,
+			tracks,
 		} = this.viewModel;
+
+		const toEntry = (t: Track): TrackListEntry => ({
+			artworkSource: t.albumImageUrl ?? album.imageUrl,
+			id: t.id,
+			meta: t.artistName ?? album.artistName,
+			title: t.name,
+		});
+
+		const upNextEntries = tracks.slice(trackIndex + 1).map(toEntry);
+		const backToEntries = tracks.slice(0, trackIndex).map(toEntry);
+		const activeTab = this.state.activeQueueTab;
+
+		const backToLabelStyle = new Style<Label>({
+			...theme.text.sub,
+			opacity: activeTab === 'backTo' ? 1 : 0.4,
+			textAlign: 'center',
+		});
+		const upNextLabelStyle = new Style<Label>({
+			...theme.text.sub,
+			opacity: activeTab === 'upNext' ? 1 : 0.4,
+			textAlign: 'center',
+		});
 
 		const accentColor = theme.colors.white;
 		const progressRatio = track.duration > 0 ? Math.min(progressSeconds / track.duration, 1) : 0;
@@ -368,63 +399,81 @@ export class NowPlayingSurface extends StatefulComponent<
 						/>
 					)}
 					<view ref={this.expandedContentRef} style={styles.expandedContent}>
-						<layout style={styles.expandedInner}>
-							<layout style={styles.expandedArtworkSpacer} />
-							<layout style={styles.expandedInfoSection}>
-								{artistLogoUrl && (
+						<scroll style={styles.expandedInner}>
+							<layout style={styles.expandedFirstPage}>
+								{album.imageUrl && (
 									<image
-										objectFit='contain'
-										src={artistLogoUrl}
-										style={styles.expandedArtistLogo}
+										objectFit='cover'
+										ref={this.scrollArtworkRef}
+										src={album.imageUrl}
+										style={styles.expandedScrollArtwork}
 									/>
 								)}
-								{!artistLogoUrl && (
-									<label style={styles.expandedArtistName} value={album.artistName} />
-								)}
-							</layout>
-							<layout style={styles.expandedBottomSection}>
-								<layout style={styles.expandedTrackMetaSection}>
-									<label numberOfLines={2} style={styles.expandedTrackName} value={track.name} />
-									<label numberOfLines={2} style={styles.expandedAlbumLine} value={albumLine} />
+								<layout style={styles.expandedInfoSection}>
+									{artistLogoUrl && (
+										<image
+											objectFit='contain'
+											src={artistLogoUrl}
+											style={styles.expandedArtistLogo}
+										/>
+									)}
+									{!artistLogoUrl && (
+										<label style={styles.expandedArtistName} value={album.artistName} />
+									)}
 								</layout>
-								<layout style={styles.expandedProgressSection}>
-									<view style={styles.expandedProgressTrack}>
-										<view style={expandedProgressFillStyle} />
-									</view>
-									<layout style={styles.expandedTimeRow}>
-										<label style={styles.expandedTimeLabel} value={elapsedText} />
-										<label style={styles.expandedTimeLabel} value={remainingText} />
+								<layout style={styles.expandedBottomSection}>
+									<layout style={styles.expandedTrackMetaSection}>
+										<label numberOfLines={2} style={styles.expandedTrackName} value={track.name} />
+										<label numberOfLines={2} style={styles.expandedAlbumLine} value={albumLine} />
+									</layout>
+									<layout style={styles.expandedProgressSection}>
+										<view style={styles.expandedProgressTrack}>
+											<view style={expandedProgressFillStyle} />
+										</view>
+										<layout style={styles.expandedTimeRow}>
+											<label style={styles.expandedTimeLabel} value={elapsedText} />
+											<label style={styles.expandedTimeLabel} value={remainingText} />
+										</layout>
+									</layout>
+									<layout style={styles.expandedControlsRow}>
+										<view onTap={onPrevious} style={styles.expandedControlButton}>
+											<image
+												src={res.previous}
+												style={styles.expandedControlIcon}
+												tint={accentColor}
+											/>
+										</view>
+										<view onTap={onPlayPause} style={styles.expandedPlayButton}>
+											<image
+												src={isPlaying ? res.pause : res.play}
+												style={styles.expandedPlayIcon}
+												tint={accentColor}
+											/>
+										</view>
+										<view onTap={onNext} style={styles.expandedControlButton}>
+											<image src={res.next} style={styles.expandedControlIcon} tint={accentColor} />
+										</view>
+									</layout>
+									<layout style={styles.expandedQueueTabsRow}>
+										<view
+											onTap={() => this.handleQueueTabTap('backTo')}
+											style={styles.expandedQueueTabButton}
+										>
+											<label style={backToLabelStyle} value='BACK TO' />
+										</view>
+										<view
+											onTap={() => this.handleQueueTabTap('upNext')}
+											style={styles.expandedQueueTabButton}
+										>
+											<label style={upNextLabelStyle} value='UP NEXT' />
+										</view>
 									</layout>
 								</layout>
-								<layout style={styles.expandedControlsRow}>
-									<view onTap={onPrevious} style={styles.expandedControlButton}>
-										<image
-											src={res.previous}
-											style={styles.expandedControlIcon}
-											tint={accentColor}
-										/>
-									</view>
-									<view onTap={onPlayPause} style={styles.expandedPlayButton}>
-										<image
-											src={isPlaying ? res.pause : res.play}
-											style={styles.expandedPlayIcon}
-											tint={accentColor}
-										/>
-									</view>
-									<view onTap={onNext} style={styles.expandedControlButton}>
-										<image src={res.next} style={styles.expandedControlIcon} tint={accentColor} />
-									</view>
-								</layout>
-								<layout style={styles.expandedQueueTabsRow}>
-									<view style={styles.expandedQueueTabButton}>
-										<label style={styles.expandedQueueTabLabel} value='BACK TO' />
-									</view>
-									<view style={styles.expandedQueueTabButton}>
-										<label style={styles.expandedQueueTabLabel} value='UP NEXT' />
-									</view>
-								</layout>
 							</layout>
-						</layout>
+							<layout style={styles.expandedQueueList}>
+								<TrackList tracks={activeTab === 'upNext' ? upNextEntries : backToEntries} />
+							</layout>
+						</scroll>
 					</view>
 				</view>
 			</view>
@@ -483,10 +532,6 @@ const styles = {
 		textAlign: 'center',
 		width: '100%',
 	}),
-	expandedArtworkSpacer: new Style({
-		aspectRatio: 1,
-		width: '100%',
-	}),
 	expandedBottomSection: new Style({
 		marginBottom: theme.footerHeight - 24,
 		marginTop: 'auto',
@@ -500,7 +545,7 @@ const styles = {
 		opacity: 0,
 		position: 'absolute',
 		right: 14,
-		top: 52,
+		top: 0,
 	}),
 	expandedControlButton: new Style({
 		alignItems: 'center',
@@ -519,6 +564,10 @@ const styles = {
 		marginTop: 12,
 		width: '100%',
 	}),
+	expandedFirstPage: new Style({
+		minHeight: '100%',
+		width: '100%',
+	}),
 	expandedInfoSection: new Style({
 		alignItems: 'center',
 		flexGrow: 1,
@@ -527,8 +576,7 @@ const styles = {
 		width: '100%',
 	}),
 	expandedInner: new Style({
-		flexGrow: 1,
-		height: '100%',
+		flex: 1,
 		width: '100%',
 	}),
 	expandedPlayButton: new Style({
@@ -554,21 +602,28 @@ const styles = {
 		overflow: 'hidden',
 		width: '100%',
 	}),
+	expandedQueueList: new Style({
+		marginTop: -(theme.footerHeight - 24),
+		paddingBottom: theme.footerHeight,
+		paddingHorizontal: 14,
+		width: '100%',
+	}),
 	expandedQueueTabButton: new Style({
 		alignItems: 'center',
 		flexGrow: 1,
 		justifyContent: 'flex-end',
 		paddingTop: 4,
 	}),
-	expandedQueueTabLabel: new Style<Label>({
-		...theme.text.sub,
-		textAlign: 'center',
-	}),
 	expandedQueueTabsRow: new Style({
 		borderTopColor: theme.colors.bgAccent,
 		borderTopWidth: 1,
 		flexDirection: 'row',
 		padding: 10,
+		width: '100%',
+	}),
+	expandedScrollArtwork: new Style<ImageView>({
+		aspectRatio: 1,
+		opacity: 0,
 		width: '100%',
 	}),
 	expandedTimeLabel: new Style<Label>({

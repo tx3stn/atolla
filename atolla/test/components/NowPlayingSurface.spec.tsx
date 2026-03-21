@@ -35,6 +35,8 @@ describe('NowPlayingSurface', () => {
 			onPrevious: () => {},
 			progressSeconds: 90,
 			track,
+			trackIndex: 0,
+			tracks: [track],
 		});
 		const component = instrumented.getComponent();
 
@@ -61,6 +63,8 @@ describe('NowPlayingSurface', () => {
 			onPrevious: () => {},
 			progressSeconds: 90,
 			track,
+			trackIndex: 0,
+			tracks: [track],
 		});
 		const component = instrumented.getComponent();
 
@@ -85,6 +89,8 @@ describe('NowPlayingSurface', () => {
 			onPrevious: () => {},
 			progressSeconds: 90,
 			track,
+			trackIndex: 0,
+			tracks: [track],
 		});
 		const component = instrumented.getComponent();
 
@@ -103,6 +109,8 @@ describe('NowPlayingSurface', () => {
 			onPrevious: () => {},
 			progressSeconds: 90,
 			track,
+			trackIndex: 0,
+			tracks: [track],
 		});
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
