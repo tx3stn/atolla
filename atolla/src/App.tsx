@@ -15,6 +15,7 @@ export type AppViewModel = Record<string, never>;
 
 interface AppState {
 	activeFooterTab: FooterTab;
+	animationsEnabled: boolean;
 	imageCacheMaxBytes: number;
 	nowPlayingCollapseSignal: number;
 	version: number;
@@ -27,6 +28,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
+		animationsEnabled: true,
 		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
 		nowPlayingCollapseSignal: 0,
 		version: 0,
@@ -36,6 +38,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.preferences.getImageCacheMaxBytes().then((bytes) => {
 			setImageCacheSize(bytes);
 			this.setState({ imageCacheMaxBytes: bytes });
+		});
+		this.preferences.getAnimationsEnabled().then((enabled) => {
+			this.setState({ animationsEnabled: enabled });
 		});
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
 			this.setState({ version: this.state.version + 1 });
@@ -59,17 +64,28 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({ imageCacheMaxBytes: bytes });
 	};
 
+	handleAnimationsChange = (enabled: boolean): void => {
+		this.preferences.setAnimationsEnabled(enabled);
+		this.setState({ animationsEnabled: enabled });
+	};
+
 	onRender(): void {
 		const { track, album, isPlaying, progressSeconds, artistLogoUrl } = this.playbackStore;
 
 		<view style={styles.root}>
 			{this.state.activeFooterTab === FooterTabs.home && (
-				<HomeView key={this.state.imageCacheMaxBytes} playbackStore={this.playbackStore} />
+				<HomeView
+					animationsEnabled={this.state.animationsEnabled}
+					key={this.state.imageCacheMaxBytes}
+					playbackStore={this.playbackStore}
+				/>
 			)}
 			{this.state.activeFooterTab === FooterTabs.search && <SearchView />}
 			{this.state.activeFooterTab === FooterTabs.settings && (
 				<SettingsView
+					animationsEnabled={this.state.animationsEnabled}
 					imageCacheMaxBytes={this.state.imageCacheMaxBytes}
+					onAnimationsChange={this.handleAnimationsChange}
 					onCacheSizeChange={this.handleCacheSizeChange}
 					preferences={this.preferences}
 				/>

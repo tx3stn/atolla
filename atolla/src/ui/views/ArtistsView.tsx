@@ -12,6 +12,7 @@ import { type ArtistSort, ArtistSorts, sortArtists } from './ArtistsSort';
 import { ArtistView } from './ArtistView';
 
 export interface ArtistsViewModel {
+	animationsEnabled: boolean;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
 	playbackStore: PlaybackStore;
@@ -62,7 +63,8 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	onRender(): void {
-		const { imageCache, navigationController, playbackStore, transport } = this.viewModel;
+		const { imageCache, animationsEnabled, navigationController, playbackStore, transport } =
+			this.viewModel;
 
 		const cards: Array<Card> = sortArtists(this.state.artists, this.state.sort).map((artist) => ({
 			artworkKey: artist.imageUrl ?? '',
@@ -79,7 +81,12 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				onCardTap={(card) => {
 					const artist = this.state.artists.find((a) => a.id === card.id);
 					if (artist) {
-						navigationController.push(ArtistView, { artist, playbackStore, transport }, {});
+						navigationController.push(
+							ArtistView,
+							{ animationsEnabled, artist, playbackStore, transport },
+							{},
+							{ animated: animationsEnabled },
+						);
 					}
 				}}
 				resolveArtworkSource={(key) => imageCache.get(key) ?? (key || null)}

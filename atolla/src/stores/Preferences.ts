@@ -31,4 +31,16 @@ export class Preferences {
 	async setImageCacheMaxBytes(bytes: number): Promise<void> {
 		await this.store.storeString('image_cache_max_bytes', String(bytes));
 	}
+
+	async getAnimationsEnabled(): Promise<boolean> {
+		try {
+			return (await this.store.fetchString('navigation_animations_enabled')) !== 'false';
+		} catch {
+			return true;
+		}
+	}
+
+	async setAnimationsEnabled(enabled: boolean): Promise<void> {
+		await this.store.storeString('navigation_animations_enabled', String(enabled));
+	}
 }

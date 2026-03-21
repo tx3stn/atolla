@@ -11,6 +11,7 @@ import { type PlaylistSort, PlaylistSorts, sortPlaylists } from './PlaylistsSort
 import { PlaylistView } from './PlaylistView';
 
 export interface PlaylistsViewModel {
+	animationsEnabled: boolean;
 	navigationController: NavigationController;
 	playbackStore: PlaybackStore;
 	transport: Transport;
@@ -52,7 +53,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	onRender(): void {
-		const { navigationController, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, navigationController, playbackStore, transport } = this.viewModel;
 
 		const cards: Array<Card> = sortPlaylists(this.state.playlists, this.state.sort).map(
 			(playlist) => ({
@@ -71,7 +72,12 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				onCardTap={(card) => {
 					const playlist = this.state.playlists.find((p) => p.id === card.id);
 					if (playlist) {
-						navigationController.push(PlaylistView, { playbackStore, playlist, transport }, {});
+						navigationController.push(
+							PlaylistView,
+							{ playbackStore, playlist, transport },
+							{},
+							{ animated: animationsEnabled },
+						);
 					}
 				}}
 				resolveArtworkSource={(key) => key || null}

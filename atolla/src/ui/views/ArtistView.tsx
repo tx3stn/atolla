@@ -17,6 +17,7 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { AlbumView } from './AlbumView';
 
 export interface ArtistViewModel {
+	animationsEnabled: boolean;
 	artist: Artist;
 	playbackStore: PlaybackStore;
 	transport: Transport;
@@ -67,7 +68,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	}
 
 	onRender(): void {
-		const { artist, playbackStore, transport } = this.viewModel;
+		const { artist, animationsEnabled, playbackStore, transport } = this.viewModel;
 		const { albums, isFooterVisible, topTracks } = this.state;
 
 		const sortedAlbums = [...albums].sort((a, b) =>
@@ -114,6 +115,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 										AlbumView,
 										{ album, playbackStore, transport },
 										{},
+										{ animated: animationsEnabled },
 									);
 								}
 							}}

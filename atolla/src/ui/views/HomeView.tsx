@@ -23,6 +23,7 @@ export function setImageCacheSize(bytes: number): void {
 }
 
 export interface HomeViewModel {
+	animationsEnabled: boolean;
 	playbackStore: PlaybackStore;
 }
 
@@ -73,7 +74,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	onRender(): void {
-		const { playbackStore } = this.viewModel;
+		const { animationsEnabled, playbackStore } = this.viewModel;
 
 		<view style={styles.root}>
 			<HomeHeaderNav activeTab={this.state.activeTab} onTabTap={this.handleHeaderTabTap} />
@@ -83,6 +84,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				<NavigationRoot key={this.state.tabKeys[HeaderTabs.artists]}>
 					{$slot((navigationController) => {
 						<ArtistsView
+							animationsEnabled={animationsEnabled}
 							imageCache={this.imageCache}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
@@ -95,6 +97,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				<NavigationRoot key={this.state.tabKeys[HeaderTabs.albums]}>
 					{$slot((navigationController) => {
 						<AlbumsView
+							animationsEnabled={animationsEnabled}
 							imageCache={this.imageCache}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
@@ -107,6 +110,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				<NavigationRoot key={this.state.tabKeys[HeaderTabs.playlists]}>
 					{$slot((navigationController) => {
 						<PlaylistsView
+							animationsEnabled={animationsEnabled}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
 							transport={this.transport}
@@ -119,10 +123,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 }
 
 const styles = {
-	root: new Style({
-		flexGrow: 1,
-		width: '100%',
-	}),
 	navigationOverlay: new Style({
 		backgroundColor: theme.colors.bg,
 		bottom: 0,
@@ -130,5 +130,9 @@ const styles = {
 		position: 'absolute',
 		right: 0,
 		top: 0,
+	}),
+	root: new Style({
+		flexGrow: 1,
+		width: '100%',
 	}),
 };

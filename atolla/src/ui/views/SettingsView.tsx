@@ -5,6 +5,7 @@ import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Preferences } from '../../stores/Preferences';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
 import { theme } from '../../theme';
+import { Toggle } from '../components/Toggle';
 
 const GB = 1024 * 1024 * 1024;
 
@@ -18,7 +19,9 @@ function gbToBytes(gb: string): number | null {
 }
 
 export interface SettingsViewModel {
+	animationsEnabled: boolean;
 	imageCacheMaxBytes?: number;
+	onAnimationsChange?: (enabled: boolean) => void;
 	onCacheSizeChange?: (bytes: number) => void;
 	preferences: Preferences;
 }
@@ -47,7 +50,21 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 	};
 
 	onRender(): void {
+		const { animationsEnabled, onAnimationsChange } = this.viewModel;
+
 		<view style={styles.root}>
+			<label style={styles.sectionTitle} value='APPEARANCE' />
+			<view style={styles.section}>
+				<view style={styles.settingRow}>
+					<label style={styles.settingLabel} value='Animations' />
+					<Toggle
+						accessibilityLabel='settings-animations-toggle'
+						enabled={animationsEnabled}
+						onToggle={(enabled) => onAnimationsChange?.(enabled)}
+					/>
+				</view>
+			</view>
+
 			<label style={styles.sectionTitle} value='CACHE' />
 			<view style={styles.section}>
 				<view style={styles.settingRow}>
@@ -103,6 +120,7 @@ const styles = {
 		width: '100%',
 	}),
 	section: new Style({
+		marginBottom: 16,
 		marginTop: 8,
 	}),
 	sectionTitle: new Style({
@@ -113,8 +131,8 @@ const styles = {
 	}),
 	settingLabel: new Style({
 		...theme.text.sub,
+		flexGrow: 1,
 		marginLeft: 4,
-		marginRight: 12,
 	}),
 	settingRow: new Style({
 		alignItems: 'center',
