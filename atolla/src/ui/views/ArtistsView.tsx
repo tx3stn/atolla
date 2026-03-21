@@ -4,7 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { Artist } from '../../models/Artist';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
-import { scrollPaddingBottom, theme } from '../../theme';
+import { scrollPaddingBottom } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type ArtistSort, ArtistSorts, sortArtists } from './ArtistsSort';

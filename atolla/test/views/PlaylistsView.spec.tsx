@@ -6,6 +6,11 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
+const playbackStore = {
+	subscribe: () => () => {},
+	track: null,
+};
+
 describe('PlaylistsView', () => {
 	valdiIt('renders playlist names from state', () => {
 		const playlists = [
@@ -17,6 +22,7 @@ describe('PlaylistsView', () => {
 		};
 
 		const instrumented = createComponent(PlaylistsView, {
+			playbackStore,
 			transport,
 		});
 		const component = instrumented.getComponent();
@@ -40,6 +46,7 @@ describe('PlaylistsView', () => {
 		};
 
 		const instrumented = createComponent(PlaylistsView, {
+			playbackStore,
 			transport,
 		});
 		const component = instrumented.getComponent();
