@@ -4,7 +4,7 @@ set -euo pipefail
 HOST="${E2E_APPIUM_HOST:-127.0.0.1}"
 PORT="${E2E_APPIUM_PORT:-4723}"
 STATUS_URL="http://${HOST}:${PORT}/status"
-APP_PATH="${E2E_APP_PATH:-$PWD/bazel-bin/app_shell_app_android.apk}"
+APP_PATH="${E2E_APP_PATH:-$PWD/bazel-bin/atolla_android.apk}"
 PLATFORM_NAME="${E2E_PLATFORM_NAME:-Android}"
 AUTOMATION_NAME="${E2E_AUTOMATION_NAME:-UiAutomator2}"
 DEVICE_NAME="${E2E_DEVICE_NAME:-Android Emulator}"
@@ -53,7 +53,7 @@ if curl --silent --show-error --fail "$STATUS_URL" >/dev/null 2>&1; then
 fi
 
 echo "Starting Appium Inspector server at http://${HOST}:${PORT}/inspector"
-npx appium --use-plugins=inspector --allow-cors --allow-insecure='*:session_discovery' --address "$HOST" --port "$PORT" --default-capabilities "$DEFAULT_CAPABILITIES" &
+bunx appium --use-plugins=inspector --allow-cors --allow-insecure='*:session_discovery' --address "$HOST" --port "$PORT" --default-capabilities "$DEFAULT_CAPABILITIES" &
 APPIUM_PID=$!
 
 cleanup() {

@@ -130,4 +130,28 @@ describe('footer navigation', () => {
 
 		expect(await home.playlistsGridIsVisible()).toBe(true);
 	});
+
+	it('should keep playlists back navigation working after artist and album navigation', async () => {
+		const artistDetailPage = new ArtistDetailPage(browser);
+		const albumDetailPage = new AlbumDetailPage(browser);
+		const playlistDetailPage = new PlaylistDetailPage(browser);
+
+		await home.tapHeaderArtists();
+		await home.waitForArtistsTab();
+		await home.tapRandomCardByPrefix('artist-');
+		await artistDetailPage.waitForLoad();
+
+		await home.tapRandomCardByPrefix('album-');
+		await albumDetailPage.waitForLoad();
+
+		await home.tapHeaderPlaylists();
+		await home.waitForPlaylistsTab();
+		await home.tapRandomCardByPrefix('playlist-');
+		await playlistDetailPage.waitForLoad();
+
+		await home.swipeBack();
+		await home.waitForPlaylistsTab();
+
+		expect(await home.playlistsGridIsVisible()).toBe(true);
+	});
 });

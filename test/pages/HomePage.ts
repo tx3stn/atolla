@@ -20,7 +20,7 @@ export class HomePage extends BasePage {
 	}
 
 	async albumsGridIsVisible(): Promise<boolean> {
-		return await this.elementByID(this.albumsGrid).isDisplayed();
+		return await this.hasVisibleElementByID(this.albumsGrid);
 	}
 
 	async albumsTabIsVisible(): Promise<boolean> {
@@ -28,11 +28,11 @@ export class HomePage extends BasePage {
 	}
 
 	async artistGridIsVisible(): Promise<boolean> {
-		return await this.elementByID(this.artistsGrid).isDisplayed();
+		return await this.hasVisibleElementByID(this.artistsGrid);
 	}
 
 	async playlistsGridIsVisible(): Promise<boolean> {
-		return await this.elementByID(this.playlistsGrid).isDisplayed();
+		return await this.hasVisibleElementByID(this.playlistsGrid);
 	}
 
 	async tapHeaderAlbums(): Promise<void> {
@@ -48,24 +48,59 @@ export class HomePage extends BasePage {
 	}
 
 	async waitForAlbumsTab(): Promise<void> {
-		await this.elementByID(this.albumsGrid).waitForDisplayed();
+		await this.waitForVisibleElementByID('card-album-27');
 	}
 
 	async waitForArtistsTab(): Promise<void> {
-		await this.elementByID(this.artistsGrid).waitForDisplayed();
+		await this.waitForVisibleElementByID(this.artistsGrid);
 	}
 
 	async waitForPlaylistsTab(): Promise<void> {
-		await this.elementByID(this.playlistsGrid).waitForDisplayed();
+		await this.waitForVisibleElementByID(this.playlistsGrid);
 	}
 
 	async tapCardByID(cardID: string): Promise<void> {
 		await this.elementByID(`card-${cardID}`).click();
 	}
 
+	async tapRandomCardByPrefix(prefix: string): Promise<void> {
+		const candidates = this.driver.$$(
+			`//*[starts-with(@name, "card-${prefix}") or starts-with(@content-desc, "card-${prefix}")]`,
+		);
+		const visibleCandidates: Array<WebdriverIO.Element> = [];
+
+		for (const candidate of candidates) {
+			if (await candidate.isDisplayed()) {
+				visibleCandidates.push(candidate);
+			}
+		}
+
+		if (visibleCandidates.length === 0) {
+			throw new Error(`No visible cards found for prefix: ${prefix}`);
+		}
+
+		const randomIndex = Math.floor(Math.random() * visibleCandidates.length);
+		await visibleCandidates[randomIndex].click();
+	}
+
 	async waitForLoad(): Promise<void> {
 		await this.elementByID(this.artistsTab).waitForDisplayed();
 		await this.elementByID(this.albumsTab).waitForDisplayed();
 		await this.elementByID(this.playlistsTab).waitForDisplayed();
+	}
+
+	private async hasVisibleElementByID(id: string): Promise<boolean> {
+		const element = this.elementByID(id);
+		if (!(await element.isExisting())) {
+			return false;
+		}
+
+		return await element.isDisplayed();
+	}
+
+	private async waitForVisibleElementByID(id: string): Promise<void> {
+		await this.elementByID(id).waitForDisplayed({
+			timeoutMsg: `Timed out waiting for visible element: ${id}`,
+		});
 	}
 }
