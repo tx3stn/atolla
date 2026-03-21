@@ -6,6 +6,8 @@ import { DEFAULT_IMAGE_CACHE_MAX_BYTES, Preferences } from './stores/Preferences
 import { theme } from './theme';
 import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
+import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
+import { HomeHeaderNav } from './ui/components/HomeHeaderNav';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { HomeView, setImageCacheSize } from './ui/views/HomeView';
 import { SearchView } from './ui/views/SearchView';
@@ -15,7 +17,9 @@ export type AppViewModel = Record<string, never>;
 
 interface AppState {
 	activeFooterTab: FooterTab;
+	activeHomeTab: HeaderTab;
 	animationsEnabled: boolean;
+	homeResetNonce: number;
 	imageCacheMaxBytes: number;
 	nowPlayingCollapseSignal: number;
 	version: number;
@@ -28,7 +32,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
+		activeHomeTab: HeaderTabs.artists,
 		animationsEnabled: true,
+		homeResetNonce: 0,
 		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
 		nowPlayingCollapseSignal: 0,
 		version: 0,
@@ -58,6 +64,20 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 	};
 
+	handleHomeHeaderTabTap = (tab: HeaderTab): void => {
+		if (tab === this.state.activeHomeTab) {
+			this.setState({
+				homeResetNonce: this.state.homeResetNonce + 1,
+			});
+			return;
+		}
+
+		this.setState({
+			activeHomeTab: tab,
+			homeResetNonce: this.state.homeResetNonce + 1,
+		});
+	};
+
 	handleCacheSizeChange = (bytes: number): void => {
 		this.preferences.setImageCacheMaxBytes(bytes);
 		setImageCacheSize(bytes);
@@ -74,10 +94,18 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		<view style={styles.root}>
 			{this.state.activeFooterTab === FooterTabs.home && (
+				<HomeHeaderNav
+					activeTab={this.state.activeHomeTab}
+					onTabTap={this.handleHomeHeaderTabTap}
+				/>
+			)}
+
+			{this.state.activeFooterTab === FooterTabs.home && (
 				<HomeView
+					activeTab={this.state.activeHomeTab}
 					animationsEnabled={this.state.animationsEnabled}
-					key={this.state.imageCacheMaxBytes}
 					playbackStore={this.playbackStore}
+					resetSignal={this.state.homeResetNonce}
 				/>
 			)}
 			{this.state.activeFooterTab === FooterTabs.search && <SearchView />}

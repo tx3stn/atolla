@@ -11,7 +11,6 @@ import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { MockTransport } from '../../transports/Mock';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
-import { HomeHeaderNav } from '../components/HomeHeaderNav';
 import { AlbumsView } from './AlbumsView';
 import { ArtistsView } from './ArtistsView';
 import { PlaylistsView } from './PlaylistsView';
@@ -23,14 +22,15 @@ export function setImageCacheSize(bytes: number): void {
 }
 
 export interface HomeViewModel {
+	activeTab: HeaderTab;
 	animationsEnabled: boolean;
 	playbackStore: PlaybackStore;
+	resetSignal: number;
 }
 
 interface HomeState {
-	activeTab: HeaderTab;
+	isNavigationMounted: boolean;
 	navigationOverlayVisible: boolean;
-	tabKeys: Record<HeaderTab, number>;
 }
 
 const noopStore: ImageStore = {
@@ -41,6 +41,7 @@ const noopStore: ImageStore = {
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private transport = new MockTransport();
+	private resetVersion = 0;
 	private imageCache = (() => {
 		try {
 			return new ImageCache(new PersistentStore('image_cache', { maxWeight: _imageCacheMaxBytes }));
@@ -50,72 +51,97 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	})();
 
 	state: HomeState = {
-		activeTab: HeaderTabs.artists,
+		isNavigationMounted: false,
 		navigationOverlayVisible: true,
-		tabKeys: {
-			[HeaderTabs.artists]: 0,
-			[HeaderTabs.albums]: 0,
-			[HeaderTabs.playlists]: 0,
-		},
 	};
 
 	onCreate(): void {
+		this.resetNavigationRoot();
+	}
+
+	onViewModelUpdate(prevViewModel?: HomeViewModel): void {
+		if (!prevViewModel) {
+			this.resetNavigationRoot();
+			return;
+		}
+
+		if (
+			this.viewModel.resetSignal === prevViewModel.resetSignal &&
+			this.viewModel.activeTab === prevViewModel.activeTab
+		) {
+			return;
+		}
+
+		this.resetNavigationRoot();
+	}
+
+	private resetNavigationRoot(): void {
+		const nextResetVersion = this.resetVersion + 1;
+		this.resetVersion = nextResetVersion;
+
+		this.setState({
+			isNavigationMounted: false,
+			navigationOverlayVisible: true,
+		});
+
 		Promise.resolve().then(() => {
-			this.setState({ navigationOverlayVisible: false });
+			if (this.resetVersion !== nextResetVersion) {
+				return;
+			}
+
+			this.setState({
+				isNavigationMounted: true,
+				navigationOverlayVisible: false,
+			});
 		});
 	}
 
-	handleHeaderTabTap = (tab: HeaderTab): void => {
-		if (tab === this.state.activeTab) {
-			this.setState({ tabKeys: { ...this.state.tabKeys, [tab]: this.state.tabKeys[tab] + 1 } });
-		} else {
-			this.setState({ activeTab: tab });
-		}
-	};
-
 	onRender(): void {
-		const { animationsEnabled, playbackStore } = this.viewModel;
-		const activeTabKey = this.state.tabKeys[this.state.activeTab];
+		const { activeTab, animationsEnabled, playbackStore } = this.viewModel;
 
 		<view style={styles.root}>
-			<HomeHeaderNav activeTab={this.state.activeTab} onTabTap={this.handleHeaderTabTap} />
 			{this.state.navigationOverlayVisible && <view style={styles.navigationOverlay} />}
 
-			<NavigationRoot>
-				{$slot((navigationController) => {
-					if (this.state.activeTab === HeaderTabs.artists) {
+			{this.state.isNavigationMounted && activeTab === HeaderTabs.artists && (
+				<NavigationRoot>
+					{$slot((navigationController) => {
 						<ArtistsView
 							animationsEnabled={animationsEnabled}
 							imageCache={this.imageCache}
-							key={`${HeaderTabs.artists}-${activeTabKey}`}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
 							transport={this.transport}
 						/>;
-						return;
-					}
+					})}
+				</NavigationRoot>
+			)}
 
-					if (this.state.activeTab === HeaderTabs.albums) {
+			{this.state.isNavigationMounted && activeTab === HeaderTabs.albums && (
+				<NavigationRoot>
+					{$slot((navigationController) => {
 						<AlbumsView
 							animationsEnabled={animationsEnabled}
 							imageCache={this.imageCache}
-							key={`${HeaderTabs.albums}-${activeTabKey}`}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
 							transport={this.transport}
 						/>;
-						return;
-					}
+					})}
+				</NavigationRoot>
+			)}
 
-					<PlaylistsView
-						animationsEnabled={animationsEnabled}
-						key={`${HeaderTabs.playlists}-${activeTabKey}`}
-						navigationController={navigationController}
-						playbackStore={playbackStore}
-						transport={this.transport}
-					/>;
-				})}
-			</NavigationRoot>
+			{this.state.isNavigationMounted && activeTab === HeaderTabs.playlists && (
+				<NavigationRoot>
+					{$slot((navigationController) => {
+						<PlaylistsView
+							animationsEnabled={animationsEnabled}
+							navigationController={navigationController}
+							playbackStore={playbackStore}
+							transport={this.transport}
+						/>;
+					})}
+				</NavigationRoot>
+			)}
 		</view>;
 	}
 }

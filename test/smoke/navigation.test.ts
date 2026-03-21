@@ -56,6 +56,36 @@ describe('footer navigation', () => {
 		expect(await home.albumsGridIsVisible()).toBe(true);
 	});
 
+	it('should close open detail view when tapping the matching header tab', async () => {
+		const artistDetailPage = new ArtistDetailPage(browser);
+		const albumDetailPage = new AlbumDetailPage(browser);
+		const playlistDetailPage = new PlaylistDetailPage(browser);
+
+		await home.tapHeaderArtists();
+		await home.waitForArtistsTab();
+		await home.tapCardByID('artist-1');
+		await artistDetailPage.waitForLoad();
+		await home.tapHeaderArtists();
+		await home.waitForArtistsTab();
+		expect(await home.artistGridIsVisible()).toBe(true);
+
+		await home.tapHeaderAlbums();
+		await home.waitForAlbumsTab();
+		await home.tapCardByID('album-1');
+		await albumDetailPage.waitForLoad();
+		await home.tapHeaderAlbums();
+		await home.waitForAlbumsTab();
+		expect(await home.albumsGridIsVisible()).toBe(true);
+
+		await home.tapHeaderPlaylists();
+		await home.waitForPlaylistsTab();
+		await home.tapCardByID('playlist-1');
+		await playlistDetailPage.waitForLoad();
+		await home.tapHeaderPlaylists();
+		await home.waitForPlaylistsTab();
+		expect(await home.playlistsGridIsVisible()).toBe(true);
+	});
+
 	it('should swipe back to artists grid after opening artist via header tab', async () => {
 		const artistDetailPage = new ArtistDetailPage(browser);
 

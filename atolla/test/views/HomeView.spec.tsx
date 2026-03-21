@@ -6,36 +6,27 @@ import { HomeView } from 'atolla/src/ui/views/HomeView';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('HomeView', () => {
-	valdiIt('starts on ARTISTS tab', () => {
+	valdiIt('uses active tab from view model', () => {
 		const instrumented = createComponent(HomeView, {
+			activeTab: HeaderTabs.albums,
+			animationsEnabled: true,
 			playbackStore: new PlaybackStore(),
+			resetSignal: 0,
 		});
 		const component = instrumented.getComponent();
 
-		expect(component.state.activeTab).toBe(HeaderTabs.artists);
+		expect(component.viewModel.activeTab).toBe(HeaderTabs.albums);
 	});
 
-	valdiIt('switches active tab when a different tab is tapped', () => {
+	valdiIt('starts with navigation overlay visible', () => {
 		const instrumented = createComponent(HomeView, {
+			activeTab: HeaderTabs.artists,
+			animationsEnabled: true,
 			playbackStore: new PlaybackStore(),
+			resetSignal: 0,
 		});
 		const component = instrumented.getComponent();
 
-		component.handleHeaderTabTap(HeaderTabs.albums);
-
-		expect(component.state.activeTab).toBe(HeaderTabs.albums);
-	});
-
-	valdiIt('increments tab key when tapping the active tab', () => {
-		const instrumented = createComponent(HomeView, {
-			playbackStore: new PlaybackStore(),
-		});
-		const component = instrumented.getComponent();
-		const before = component.state.tabKeys[HeaderTabs.artists];
-
-		component.handleHeaderTabTap(HeaderTabs.artists);
-
-		expect(component.state.tabKeys[HeaderTabs.artists]).toBe(before + 1);
-		expect(component.state.activeTab).toBe(HeaderTabs.artists);
+		expect(component.state.navigationOverlayVisible).toBe(true);
 	});
 });
