@@ -8,8 +8,10 @@ describe('footer navigation', () => {
 	let home: HomePage;
 
 	before(async () => {
-		const packageName = await browser.execute('mobile: getCurrentPackage') as string;
-		const state = await browser.execute('mobile: queryAppState', { appId: packageName }) as number;
+		const packageName = (await browser.execute('mobile: getCurrentPackage')) as string;
+		const state = (await browser.execute('mobile: queryAppState', {
+			appId: packageName,
+		})) as number;
 		if (state > 1) {
 			await browser.terminateApp(packageName);
 		}

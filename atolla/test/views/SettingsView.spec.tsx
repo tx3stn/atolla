@@ -10,6 +10,8 @@ import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 describe('SettingsView', () => {
 	valdiIt('renders cache section title and clear cache label', () => {
 		const instrumented = createComponent(SettingsView, {
+			imageCacheMaxBytes: 2 * 1024 * 1024 * 1024,
+			onCacheSizeChange: () => {},
 			preferences: new Preferences(),
 		});
 		const component = instrumented.getComponent();
@@ -25,6 +27,8 @@ describe('SettingsView', () => {
 
 	valdiIt('renders clear cache button with accessibility labels', () => {
 		const instrumented = createComponent(SettingsView, {
+			imageCacheMaxBytes: 2 * 1024 * 1024 * 1024,
+			onCacheSizeChange: () => {},
 			preferences: new Preferences(),
 		});
 		const component = instrumented.getComponent();

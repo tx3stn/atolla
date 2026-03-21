@@ -7,6 +7,12 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
+const stubImageCache = {
+	get: () => null,
+	prefetch: () => Promise.resolve(),
+	subscribe: () => () => {},
+};
+
 describe('AlbumsView', () => {
 	valdiIt('renders album titles from state', () => {
 		const albums = [
@@ -18,6 +24,7 @@ describe('AlbumsView', () => {
 		};
 
 		const instrumented = createComponent(AlbumsView, {
+			imageCache: stubImageCache,
 			playbackStore: new PlaybackStore(),
 			transport,
 		});
@@ -45,6 +52,7 @@ describe('AlbumsView', () => {
 		};
 
 		const instrumented = createComponent(AlbumsView, {
+			imageCache: stubImageCache,
 			playbackStore: new PlaybackStore(),
 			transport,
 		});
