@@ -11,6 +11,7 @@ import { theme } from '../../theme';
 
 export interface NowPlayingSurfaceViewModel {
 	album: Album;
+	animationsEnabled: boolean;
 	artistLogoUrl?: string | null;
 	collapseSignal: number;
 	isPlaying: boolean;
@@ -49,6 +50,22 @@ export class NowPlayingSurface extends StatefulComponent<
 		isExpanded: false,
 	};
 
+	private runAnimate(options: object, callback: () => void): void {
+		if (this.viewModel.animationsEnabled) {
+			this.animate(options, callback);
+		} else {
+			callback();
+		}
+	}
+
+	private runAnimatePromise(options: object, callback: () => void): Promise<void> {
+		if (this.viewModel.animationsEnabled) {
+			return this.animatePromise(options, callback);
+		}
+		callback();
+		return Promise.resolve();
+	}
+
 	private openSurface = (): void => {
 		if (this.state.isExpanded || this.isTransitioning) {
 			return;
@@ -60,24 +77,27 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.setCollapsedGeometry();
 		this.transitionArtworkRef.setAttribute('opacity', 1);
 
-		this.animatePromise({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.34 }, () => {
-			this.compactBarRef.setAttribute('opacity', 0);
-			this.overlayCardRef.setAttribute('bottom', 0);
-			this.overlayCardRef.setAttribute('borderRadius', 0);
-			this.overlayCardRef.setAttribute('height', '100%');
-			this.overlayCardRef.setAttribute('left', 0);
-			this.overlayCardRef.setAttribute('right', 0);
-			this.expandedContentRef.setAttribute('left', 0);
-			this.expandedContentRef.setAttribute('opacity', 0.92);
-			this.expandedContentRef.setAttribute('right', 0);
-			this.expandedContentRef.setAttribute('top', 0);
-			this.transitionArtworkRef.setAttribute('left', '1%');
-			this.transitionArtworkRef.setAttribute('marginTop', 0);
-			this.transitionArtworkRef.setAttribute('top', 2);
-			this.transitionArtworkRef.setAttribute('width', '98%');
-		})
+		this.runAnimatePromise(
+			{ beginFromCurrentState: true, curve: 'easeOut', duration: 0.34 },
+			() => {
+				this.compactBarRef.setAttribute('opacity', 0);
+				this.overlayCardRef.setAttribute('bottom', 0);
+				this.overlayCardRef.setAttribute('borderRadius', 0);
+				this.overlayCardRef.setAttribute('height', '100%');
+				this.overlayCardRef.setAttribute('left', 0);
+				this.overlayCardRef.setAttribute('right', 0);
+				this.expandedContentRef.setAttribute('left', 0);
+				this.expandedContentRef.setAttribute('opacity', 0.92);
+				this.expandedContentRef.setAttribute('right', 0);
+				this.expandedContentRef.setAttribute('top', 0);
+				this.transitionArtworkRef.setAttribute('left', '1%');
+				this.transitionArtworkRef.setAttribute('marginTop', 0);
+				this.transitionArtworkRef.setAttribute('top', 2);
+				this.transitionArtworkRef.setAttribute('width', '98%');
+			},
+		)
 			.then(() => {
-				return this.animatePromise(
+				return this.runAnimatePromise(
 					{ beginFromCurrentState: true, curve: 'easeOut', duration: 0.08 },
 					() => {
 						this.expandedContentRef.setAttribute('opacity', 1);
@@ -113,11 +133,11 @@ export class NowPlayingSurface extends StatefulComponent<
 
 		this.isTransitioning = true;
 
-		this.animatePromise({ beginFromCurrentState: true, curve: 'easeIn', duration: 0.04 }, () => {
+		this.runAnimatePromise({ beginFromCurrentState: true, curve: 'easeIn', duration: 0.04 }, () => {
 			this.transitionArtworkRef.setAttribute('opacity', 1);
 		})
 			.then(() => {
-				return this.animatePromise(
+				return this.runAnimatePromise(
 					{ beginFromCurrentState: true, curve: 'easeIn', duration: 0.26 },
 					() => {
 						this.overlayRef.setAttribute('top', 0);
@@ -188,7 +208,7 @@ export class NowPlayingSurface extends StatefulComponent<
 
 		if (isHorizontal && (hasEnoughDistance || hasEnoughVelocity)) {
 			const offset = event.deltaX > 0 ? 500 : -500;
-			this.animatePromise({ damping: 30, stiffness: 300 }, () => {
+			this.runAnimatePromise({ damping: 30, stiffness: 300 }, () => {
 				this.compactBarRef.setAttribute('left', 8 + offset);
 				this.compactBarRef.setAttribute('right', 8 - offset);
 			}).then(() => {
@@ -197,7 +217,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			return;
 		}
 
-		this.animate({ damping: 18, stiffness: 280 }, () => {
+		this.runAnimate({ damping: 18, stiffness: 280 }, () => {
 			this.compactBarRef.setAttribute('left', 8);
 			this.compactBarRef.setAttribute('right', 8);
 		});
@@ -265,7 +285,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	};
 
 	private handleExpandedDragCancel = (): void => {
-		this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.2 }, () => {
+		this.runAnimate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.2 }, () => {
 			this.overlayRef.setAttribute('top', 0);
 		});
 	};

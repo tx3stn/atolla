@@ -100,6 +100,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			{track && album && (
 				<NowPlayingSurface
 					album={album}
+					animationsEnabled={this.state.animationsEnabled}
 					artistLogoUrl={artistLogoUrl}
 					collapseSignal={this.state.nowPlayingCollapseSignal}
 					isPlaying={isPlaying}
