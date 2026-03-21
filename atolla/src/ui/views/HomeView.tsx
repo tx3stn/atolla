@@ -75,49 +75,47 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	onRender(): void {
 		const { animationsEnabled, playbackStore } = this.viewModel;
+		const activeTabKey = this.state.tabKeys[this.state.activeTab];
 
 		<view style={styles.root}>
 			<HomeHeaderNav activeTab={this.state.activeTab} onTabTap={this.handleHeaderTabTap} />
 			{this.state.navigationOverlayVisible && <view style={styles.navigationOverlay} />}
 
-			{this.state.activeTab === HeaderTabs.artists && (
-				<NavigationRoot key={this.state.tabKeys[HeaderTabs.artists]}>
-					{$slot((navigationController) => {
+			<NavigationRoot>
+				{$slot((navigationController) => {
+					if (this.state.activeTab === HeaderTabs.artists) {
 						<ArtistsView
 							animationsEnabled={animationsEnabled}
 							imageCache={this.imageCache}
+							key={`${HeaderTabs.artists}-${activeTabKey}`}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
 							transport={this.transport}
 						/>;
-					})}
-				</NavigationRoot>
-			)}
-			{this.state.activeTab === HeaderTabs.albums && (
-				<NavigationRoot key={this.state.tabKeys[HeaderTabs.albums]}>
-					{$slot((navigationController) => {
+						return;
+					}
+
+					if (this.state.activeTab === HeaderTabs.albums) {
 						<AlbumsView
 							animationsEnabled={animationsEnabled}
 							imageCache={this.imageCache}
+							key={`${HeaderTabs.albums}-${activeTabKey}`}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
 							transport={this.transport}
 						/>;
-					})}
-				</NavigationRoot>
-			)}
-			{this.state.activeTab === HeaderTabs.playlists && (
-				<NavigationRoot key={this.state.tabKeys[HeaderTabs.playlists]}>
-					{$slot((navigationController) => {
-						<PlaylistsView
-							animationsEnabled={animationsEnabled}
-							navigationController={navigationController}
-							playbackStore={playbackStore}
-							transport={this.transport}
-						/>;
-					})}
-				</NavigationRoot>
-			)}
+						return;
+					}
+
+					<PlaylistsView
+						animationsEnabled={animationsEnabled}
+						key={`${HeaderTabs.playlists}-${activeTabKey}`}
+						navigationController={navigationController}
+						playbackStore={playbackStore}
+						transport={this.transport}
+					/>;
+				})}
+			</NavigationRoot>
 		</view>;
 	}
 }

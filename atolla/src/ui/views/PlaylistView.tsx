@@ -1,5 +1,7 @@
 // @ts-nocheck
 import { Style } from 'valdi_core/src/Style';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Playlist } from '../../models/Playlist';
@@ -26,6 +28,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	PlaylistViewModel,
 	PlaylistState
 > {
+	private modalSlot = new DetachedSlot();
 	private hasBeenDestroyed = false;
 	private unsubscribePlayback?: () => void;
 
@@ -66,17 +69,28 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 
-		<scroll style={createScrollStyle(isFooterVisible)}>
-			<DetailHeader
-				artworkSource={this.viewModel.playlist.imageUrl ?? null}
-				fallbackText={this.viewModel.playlist.name}
-				subheaderLineOneLeft={tracks.length > 0 ? `${tracks.length} tracks` : null}
-				subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
-			/>
-			<TrackList tracks={entries} />
-		</scroll>;
+		<layout style={styles.root}>
+			<scroll style={createScrollStyle(isFooterVisible)}>
+				<DetailHeader
+					artworkSource={this.viewModel.playlist.imageUrl ?? null}
+					fallbackText={this.viewModel.playlist.name}
+					subheaderLineOneLeft={tracks.length > 0 ? `${tracks.length} tracks` : null}
+					subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
+				/>
+				<TrackList tracks={entries} />
+			</scroll>
+			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+		</layout>;
 	}
 }
+
+const styles = {
+	root: new Style({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		width: '100%',
+	}),
+};
 
 function formatDuration(seconds: number): string {
 	const h = Math.floor(seconds / 3600);

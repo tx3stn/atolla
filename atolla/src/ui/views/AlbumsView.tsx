@@ -1,4 +1,5 @@
 // @ts-nocheck
+
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
