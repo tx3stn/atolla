@@ -70,8 +70,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			<DetailHeader
 				artworkSource={this.viewModel.playlist.imageUrl ?? null}
 				fallbackText={this.viewModel.playlist.name}
-				subheaderLeft={tracks.length > 0 ? `${tracks.length} tracks` : null}
-				subheaderRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
+				subheaderLineOneLeft={tracks.length > 0 ? `${tracks.length} tracks` : null}
+				subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
 			/>
 			<TrackList tracks={entries} />
 		</scroll>;

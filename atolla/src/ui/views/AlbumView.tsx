@@ -86,6 +86,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		}));
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
+		const releaseDateText = album.releaseDate ?? null;
+		const durationText = tracks.length > 0 ? formatDuration(totalDuration) : null;
 
 		const scrollStyle = createScrollStyle(isFooterVisible);
 
@@ -97,8 +99,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					fallbackText={album.artistName}
 					logoSource={artistLogoUrl}
 					onPlay={this.handleHeaderPlayTap}
-					subheaderLeft={album.name}
-					subheaderRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
+					subheaderLineOneLeft={album.name}
+					subheaderLineTwoLeft={releaseDateText}
+					subheaderLineTwoRight={durationText}
 				/>
 				<TrackList tracks={entries} />
 				{album.bio && <BioSection bio={album.bio} modalSlot={this.modalSlot} title={album.name} />}

@@ -7,26 +7,30 @@ import { theme } from '../../theme';
 
 export interface DetailHeaderViewModel {
 	artworkSource: string | null;
-	buttonText: string | null;
 	fallbackText?: string | null;
 	logoSource?: string | null;
+	onDownload?: () => void;
 	onPlay?: () => void;
 	onShuffle?: () => void;
-	subheaderLeft?: string | null;
-	subheaderRight?: string | null;
+	subheaderLineOneLeft?: string | null;
+	subheaderLineOneRight?: string | null;
+	subheaderLineTwoLeft?: string | null;
+	subheaderLineTwoRight?: string | null;
 }
 
 export class DetailHeader extends Component<DetailHeaderViewModel> {
 	onRender() {
 		const {
 			artworkSource,
-			buttonText,
 			fallbackText,
 			logoSource,
+			onDownload,
 			onPlay,
 			onShuffle,
-			subheaderLeft,
-			subheaderRight,
+			subheaderLineOneLeft,
+			subheaderLineOneRight,
+			subheaderLineTwoLeft,
+			subheaderLineTwoRight,
 		} = this.viewModel;
 
 		<layout style={styles.root}>
@@ -45,20 +49,42 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 						) : null}
 					</view>
 					<layout style={styles.buttonsRow}>
-						<label style={styles.buttonText} value={buttonText ?? ''} />
+						{/* download */}
+						<view onTap={onDownload} style={styles.button}>
+							<image src={res.download} style={styles.buttonIcon} tint={theme.colors.white} />
+						</view>
+						{/* shuffle */}
 						<view onTap={onShuffle} style={styles.button}>
 							<image src={res.shuffle} style={styles.buttonIcon} tint={theme.colors.white} />
 						</view>
+						{/* play */}
 						<view onTap={onPlay} style={styles.button}>
 							<image src={res.play} style={styles.buttonIcon} tint={theme.colors.white} />
 						</view>
 					</layout>
 				</layout>
 			</layout>
-			{(subheaderLeft || subheaderRight) && (
-				<layout style={styles.subheaderRow}>
-					<label style={styles.subheaderLeftText} value={subheaderLeft ?? ''} />
-					{subheaderRight && <label style={styles.subheaderRightText} value={subheaderRight} />}
+			{(subheaderLineOneLeft ||
+				subheaderLineOneRight ||
+				subheaderLineTwoLeft ||
+				subheaderLineTwoRight) && (
+				<layout style={styles.subheaderLines}>
+					{(subheaderLineOneLeft || subheaderLineOneRight) && (
+						<layout style={styles.subheaderLineRow}>
+							<label style={styles.subheaderLineOneLeftText} value={subheaderLineOneLeft ?? ''} />
+							{subheaderLineOneRight && (
+								<label style={styles.subheaderLineOneRightText} value={subheaderLineOneRight} />
+							)}
+						</layout>
+					)}
+					{(subheaderLineTwoLeft || subheaderLineTwoRight) && (
+						<layout style={styles.subheaderLineRowTwo}>
+							<label style={styles.subheaderLineTwoLeftText} value={subheaderLineTwoLeft ?? ''} />
+							{subheaderLineTwoRight && (
+								<label style={styles.subheaderLineTwoRightText} value={subheaderLineTwoRight} />
+							)}
+						</layout>
+					)}
 				</layout>
 			)}
 		</layout>;
@@ -82,23 +108,22 @@ const styles = {
 		alignItems: 'center',
 		justifyContent: 'center',
 		padding: 8,
+		paddingLeft: 12,
 	}),
 	buttonIcon: new Style<ImageView>({
 		height: 24,
 		width: 24,
 	}),
 	buttonsRow: new Style({
+		alignItems: 'center',
 		bottom: 0,
+		columnGap: 4,
 		flexDirection: 'row',
-		left: 0,
+		justifyContent: 'flex-end',
 		padding: 6,
 		position: 'absolute',
 		right: 0,
-	}),
-	buttonText: new Style<Label>({
-		...theme.text.sub,
-		flexGrow: 1,
-		textAlign: 'left',
+		width: '100%',
 	}),
 	fallbackText: new Style<Label>({
 		...theme.text.display,
@@ -128,22 +153,46 @@ const styles = {
 		padding: 4,
 		width: '100%',
 	}),
-	subheaderLeftText: new Style<Label>({
+	subheaderLineOneLeftText: new Style<Label>({
 		...theme.text.display,
 		marginLeft: 12,
-		marginTop: 12,
-		padding: 4,
-	}),
-	subheaderRightText: new Style<Label>({
-		...theme.text.sub,
 		marginTop: 10,
-		padding: 4,
+		paddingHorizontal: 4,
 	}),
-	subheaderRow: new Style({
+	subheaderLineOneRightText: new Style<Label>({
+		...theme.text.sub,
+		marginRight: 12,
+		marginTop: 10,
+		paddingHorizontal: 4,
+	}),
+	subheaderLineRow: new Style({
+		alignItems: 'center',
 		flexDirection: 'row',
 		justifyContent: 'space-between',
-		marginTop: 8,
-		paddingHorizontal: 4,
 		width: '100%',
+	}),
+	subheaderLineRowTwo: new Style({
+		alignItems: 'center',
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		marginTop: 3,
+		width: '100%',
+	}),
+	subheaderLines: new Style({
+		flexDirection: 'column',
+		marginTop: 8,
+		width: '100%',
+	}),
+	subheaderLineTwoLeftText: new Style<Label>({
+		...theme.text.sub,
+		marginLeft: 12,
+		marginTop: 2,
+		paddingHorizontal: 4,
+	}),
+	subheaderLineTwoRightText: new Style<Label>({
+		...theme.text.sub,
+		marginRight: 12,
+		marginTop: 2,
+		paddingHorizontal: 4,
 	}),
 };

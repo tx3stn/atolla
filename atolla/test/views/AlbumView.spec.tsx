@@ -129,47 +129,52 @@ describe('AlbumView', () => {
 		expect(playCalls).toBe(0);
 	});
 
-	valdiIt('renders total duration in subheader when tracks are loaded', () => {
-		const album = {
-			artistId: 'artist-1',
-			artistName: 'Artist One',
-			id: 'album-1',
-			name: 'First Album',
-		};
-		const transport = {
-			getArtist: async () => null,
-			getTracksByAlbum: async () => [
-				{ duration: 60, id: 'track-1', name: 'Song One', trackNumber: 1 },
-				{ duration: 75, id: 'track-2', name: 'Song Two', trackNumber: 2 },
-			],
-		};
-		const playbackStore = {
-			play: () => {},
-			setArtistLogoUrl: () => {},
-			subscribe: () => () => {},
-			track: null,
-		};
+	valdiIt(
+		'renders release date and total duration in separate subheader columns when tracks are loaded',
+		() => {
+			const album = {
+				artistId: 'artist-1',
+				artistName: 'Artist One',
+				id: 'album-1',
+				name: 'First Album',
+				releaseDate: '2024-01-01',
+			};
+			const transport = {
+				getArtist: async () => null,
+				getTracksByAlbum: async () => [
+					{ duration: 60, id: 'track-1', name: 'Song One', trackNumber: 1 },
+					{ duration: 75, id: 'track-2', name: 'Song Two', trackNumber: 2 },
+				],
+			};
+			const playbackStore = {
+				play: () => {},
+				setArtistLogoUrl: () => {},
+				subscribe: () => () => {},
+				track: null,
+			};
 
-		const instrumented = createComponent(
-			AlbumView,
-			{ album, playbackStore, transport },
-			{ navigator: mockNavigator },
-		);
-		const component = instrumented.getComponent();
+			const instrumented = createComponent(
+				AlbumView,
+				{ album, playbackStore, transport },
+				{ navigator: mockNavigator },
+			);
+			const component = instrumented.getComponent();
 
-		component.setState({
-			artistLogoUrl: null,
-			tracks: [
-				{ duration: 60, id: 'track-1', name: 'Song One', trackNumber: 1 },
-				{ duration: 75, id: 'track-2', name: 'Song Two', trackNumber: 2 },
-			],
-		});
+			component.setState({
+				artistLogoUrl: null,
+				tracks: [
+					{ duration: 60, id: 'track-1', name: 'Song One', trackNumber: 1 },
+					{ duration: 75, id: 'track-2', name: 'Song Two', trackNumber: 2 },
+				],
+			});
 
-		const labels = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.Label,
-		);
-		const values = labels.map((label) => label.getAttribute('value'));
-		expect(values).toContain('2:15');
-	});
+			const labels = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.Label,
+			);
+			const values = labels.map((label) => label.getAttribute('value'));
+			expect(values).toContain('2024-01-01');
+			expect(values).toContain('2:15');
+		},
+	);
 });
