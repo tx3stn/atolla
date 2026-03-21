@@ -91,7 +91,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 		const scrollStyle = createScrollStyle(isFooterVisible);
 
-		<layout style={styles.root}>
+		<layout accessibilityLabel='artist-view' contentDescription='artist-view' style={styles.root}>
 			<scroll style={scrollStyle}>
 				<DetailHeader
 					artworkSource={artist.imageUrl ?? null}

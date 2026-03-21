@@ -1,28 +1,36 @@
 import type { Browser } from 'webdriverio';
+import { BasePage } from './Base';
 
-export class NowPlayingFooterPage {
-	constructor(private readonly driver: Browser) {}
+export class NowPlayingFooterPage extends BasePage {
+	private readonly next: string;
+	private readonly summary: string;
+	private readonly togglePlayback: string;
+	private readonly bar: string;
+
+	constructor(driver: Browser) {
+		super(driver);
+		this.next = 'now-playing-next';
+		this.summary = 'now-playing-summary';
+		this.togglePlayback = 'now-playing-toggle';
+		this.bar = 'now-playing-bar';
+	}
 
 	async waitForVisible(): Promise<void> {
-		const bar = await this.driver.$('~now-playing-bar');
-		await bar.waitForExist({ timeout: 15_000 });
+		await this.elementByID(this.bar).waitForDisplayed();
 	}
 
 	async tapTogglePlayback(): Promise<void> {
-		const toggle = await this.driver.$('~now-playing-toggle');
-		await toggle.waitForExist({ timeout: 15_000 });
-		await toggle.click();
+		await this.elementByID(this.togglePlayback).waitForDisplayed();
+		await this.elementByID(this.togglePlayback).click();
 	}
 
 	async tapNext(): Promise<void> {
-		const next = await this.driver.$('~now-playing-next');
-		await next.waitForExist({ timeout: 15_000 });
-		await next.click();
+		await this.elementByID(this.next).waitForDisplayed();
+		await this.elementByID(this.next).click();
 	}
 
 	async tapSummaryArea(): Promise<void> {
-		const summary = await this.driver.$('~now-playing-summary');
-		await summary.waitForExist({ timeout: 15_000 });
-		await summary.click();
+		await this.elementByID(this.summary).waitForDisplayed();
+		await this.elementByID(this.summary).click();
 	}
 }

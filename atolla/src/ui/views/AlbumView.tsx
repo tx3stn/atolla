@@ -91,7 +91,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 		const scrollStyle = createScrollStyle(isFooterVisible);
 
-		<layout style={styles.root}>
+		<layout accessibilityLabel='album-view' contentDescription='album-view' style={styles.root}>
 			<scroll style={scrollStyle}>
 				<DetailHeader
 					artworkSource={album.imageUrl ?? null}

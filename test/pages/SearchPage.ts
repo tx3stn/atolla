@@ -1,19 +1,19 @@
 import type { Browser } from 'webdriverio';
+import { BasePage } from './Base';
 
-export class SearchPage {
-	constructor(private readonly driver: Browser) {}
+export class SearchPage extends BasePage {
+	private readonly searchBar: string;
 
-	private readonly selectors = {
-		searchBar: '~search-bar',
-	};
-
-	async waitForLoad(): Promise<void> {
-		const element = this.driver.$(this.selectors.searchBar);
-		await element.waitForExist({ timeout: 15_000 });
+	constructor(driver: Browser) {
+		super(driver);
+		this.searchBar = 'search-bar';
 	}
 
-	async isVisisble(): Promise<boolean> {
-		const element = this.driver.$(this.selectors.searchBar);
-		return await element.isExisting();
+	async waitForLoad(): Promise<void> {
+		await this.elementByID(this.searchBar).waitForDisplayed();
+	}
+
+	async isVisible(): Promise<boolean> {
+		return await this.elementByID(this.searchBar).isDisplayed();
 	}
 }

@@ -69,7 +69,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 
-		<layout style={styles.root}>
+		<layout
+			accessibilityLabel='playlist-view'
+			contentDescription='playlist-view'
+			style={styles.root}
+		>
 			<scroll style={createScrollStyle(isFooterVisible)}>
 				<DetailHeader
 					artworkSource={this.viewModel.playlist.imageUrl ?? null}

@@ -1,17 +1,19 @@
 import type { Browser } from 'webdriverio';
+import { BasePage } from './Base';
 
-export class SettingsPage {
-	constructor(private readonly driver: Browser) {}
+export class SettingsPage extends BasePage {
+	private readonly clearCacheButton: string;
 
-	private readonly selectors = {
-		clearCacheButton: '~settings-cache-clear-btn',
-	};
+	constructor(driver: Browser) {
+		super(driver);
+		this.clearCacheButton = 'settings-cache-clear-btn';
+	}
 
 	async waitForLoad(): Promise<void> {
-		await this.driver.$(this.selectors.clearCacheButton).waitForExist();
+		await this.elementByID(this.clearCacheButton).waitForDisplayed();
 	}
 
 	async isVisible(): Promise<boolean> {
-		return await this.driver.$(this.selectors.clearCacheButton).isExisting();
+		return await this.elementByID(this.clearCacheButton).isDisplayed();
 	}
 }
