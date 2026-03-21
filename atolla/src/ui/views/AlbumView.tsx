@@ -6,7 +6,7 @@ import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import type { PlaybackStore } from '../../stores/Playback';
-import { theme } from '../../theme';
+import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
@@ -124,9 +124,7 @@ function createScrollStyle(isFooterVisible: boolean): Style {
 	return new Style({
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: isFooterVisible
-			? theme.scrollPaddingBottom + theme.footerHeight
-			: theme.scrollPaddingBottom,
+		paddingBottom: scrollPaddingBottom(isFooterVisible),
 		width: '100%',
 	});
 }

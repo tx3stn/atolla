@@ -4,7 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { Artist } from '../../models/Artist';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
-import { theme } from '../../theme';
+import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type ArtistSort, ArtistSorts, sortArtists } from './ArtistsSort';
@@ -19,6 +19,7 @@ export interface ArtistsViewModel {
 interface ArtistsState {
 	artists: Array<Artist>;
 	cacheVersion: number;
+	isFooterVisible: boolean;
 	selectedArtist: Artist | null;
 	sort: ArtistSort;
 }
@@ -26,10 +27,12 @@ interface ArtistsState {
 export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsState> {
 	private hasBeenDestroyed = false;
 	private unsubscribeCache?: () => void;
+	private unsubscribePlayback?: () => void;
 
 	state: ArtistsState = {
 		artists: [],
 		cacheVersion: 0,
+		isFooterVisible: false,
 		selectedArtist: null,
 		sort: ArtistSorts.alphabetical,
 	};
@@ -39,6 +42,10 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		this.unsubscribeCache = this.viewModel.imageCache.subscribe(() => {
 			this.setState({ cacheVersion: this.state.cacheVersion + 1 });
 		});
+		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
+			this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
+		});
+		this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
 		this.viewModel.transport.getAllArtists().then((artists) => {
 			if (this.hasBeenDestroyed) {
 				return;
@@ -51,12 +58,14 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribeCache?.();
+		this.unsubscribePlayback?.();
 	}
 
 	onRender(): void {
 		if (this.state.selectedArtist) {
 			<ArtistView
 				artist={this.state.selectedArtist}
+				isFooterVisible={this.state.isFooterVisible}
 				playbackStore={this.viewModel.playbackStore}
 				transport={this.viewModel.transport}
 			/>;
@@ -71,7 +80,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			secondaryText: '',
 		}));
 
-		<scroll style={styles.root}>
+		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
 				accessibilityLabel='home-artists-grid'
 				cards={cards}
@@ -85,12 +94,12 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 }
 
-const styles = {
-	root: new Style({
+function createScrollStyle(isFooterVisible: boolean): Style {
+	return new Style({
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: theme.scrollPaddingBottom,
+		paddingBottom: scrollPaddingBottom(isFooterVisible),
 		paddingTop: 0,
 		width: '100%',
-	}),
-};
+	});
+}

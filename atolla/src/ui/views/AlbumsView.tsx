@@ -4,7 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { Album } from '../../models/Album';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
-import { theme } from '../../theme';
+import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type AlbumSort, AlbumSorts, sortAlbums } from './AlbumsSort';
@@ -19,6 +19,7 @@ export interface AlbumsViewModel {
 interface AlbumsState {
 	albums: Array<Album>;
 	cacheVersion: number;
+	isFooterVisible: boolean;
 	selectedAlbum: Album | null;
 	sort: AlbumSort;
 }
@@ -26,10 +27,12 @@ interface AlbumsState {
 export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> {
 	private hasBeenDestroyed = false;
 	private unsubscribeCache?: () => void;
+	private unsubscribePlayback?: () => void;
 
 	state: AlbumsState = {
 		albums: [],
 		cacheVersion: 0,
+		isFooterVisible: false,
 		selectedAlbum: null,
 		sort: AlbumSorts.alphabetical,
 	};
@@ -39,6 +42,10 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		this.unsubscribeCache = this.viewModel.imageCache.subscribe(() => {
 			this.setState({ cacheVersion: this.state.cacheVersion + 1 });
 		});
+		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
+			this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
+		});
+		this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
 		this.viewModel.transport.getAllAlbums().then((albums) => {
 			if (this.hasBeenDestroyed) {
 				return;
@@ -51,12 +58,14 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribeCache?.();
+		this.unsubscribePlayback?.();
 	}
 
 	onRender(): void {
 		if (this.state.selectedAlbum) {
 			<AlbumView
 				album={this.state.selectedAlbum}
+				isFooterVisible={this.state.isFooterVisible}
 				playbackStore={this.viewModel.playbackStore}
 				transport={this.viewModel.transport}
 			/>;
@@ -71,7 +80,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			secondaryText: album.artistName,
 		}));
 
-		<scroll style={styles.root}>
+		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
 				accessibilityLabel='home-albums-grid'
 				cards={cards}
@@ -85,11 +94,11 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 }
 
-const styles = {
-	root: new Style({
+function createScrollStyle(isFooterVisible: boolean): Style {
+	return new Style({
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: theme.scrollPaddingBottom,
+		paddingBottom: scrollPaddingBottom(isFooterVisible),
 		width: '100%',
-	}),
-};
+	});
+}

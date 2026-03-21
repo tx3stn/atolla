@@ -2,17 +2,20 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Playlist } from '../../models/Playlist';
-import { theme } from '../../theme';
+import type { PlaybackStore } from '../../stores/Playback';
+import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type PlaylistSort, PlaylistSorts, sortPlaylists } from './PlaylistsSort';
 import { PlaylistView } from './PlaylistView';
 
 export interface PlaylistsViewModel {
+	playbackStore: PlaybackStore;
 	transport: Transport;
 }
 
 interface PlaylistsState {
+	isFooterVisible: boolean;
 	playlists: Array<Playlist>;
 	selectedPlaylist: Playlist | null;
 	sort: PlaylistSort;
@@ -20,8 +23,10 @@ interface PlaylistsState {
 
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
 	private hasBeenDestroyed = false;
+	private unsubscribePlayback?: () => void;
 
 	state: PlaylistsState = {
+		isFooterVisible: false,
 		playlists: [],
 		selectedPlaylist: null,
 		sort: PlaylistSorts.alphabetical,
@@ -29,6 +34,10 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
+		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
+			this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
+		});
+		this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
 		this.viewModel.transport.getAllPlaylists().then((playlists) => {
 			if (this.hasBeenDestroyed) {
 				return;
@@ -39,6 +48,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
+		this.unsubscribePlayback?.();
 	}
 
 	onRender(): void {
@@ -57,7 +67,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			}),
 		);
 
-		<scroll style={styles.root}>
+		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
 				accessibilityLabel='home-playlists-grid'
 				cards={cards}
@@ -71,11 +81,11 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 }
 
-const styles = {
-	root: new Style({
+function createScrollStyle(isFooterVisible: boolean): Style {
+	return new Style({
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: theme.scrollPaddingBottom,
+		paddingBottom: scrollPaddingBottom(isFooterVisible),
 		width: '100%',
-	}),
-};
+	});
+}

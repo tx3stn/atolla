@@ -59,3 +59,9 @@ export const theme = {
 		},
 	},
 } as const;
+
+export function scrollPaddingBottom(isFooterVisible: boolean): number {
+	return isFooterVisible
+		? theme.scrollPaddingBottom + theme.footerHeight
+		: theme.scrollPaddingBottom;
+}

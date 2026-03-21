@@ -84,7 +84,11 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				/>
 			)}
 			{this.state.activeTab === HeaderTabs.playlists && (
-				<PlaylistsView key={this.state.tabKeys[HeaderTabs.playlists]} transport={this.transport} />
+				<PlaylistsView
+					key={this.state.tabKeys[HeaderTabs.playlists]}
+					playbackStore={playbackStore}
+					transport={this.transport}
+				/>
 			)}
 		</view>;
 	}
