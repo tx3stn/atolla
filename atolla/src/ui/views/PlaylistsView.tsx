@@ -1,15 +1,17 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { Playlist } from '../../models/Playlist';
 import type { PlaybackStore } from '../../stores/Playback';
-import { scrollPaddingBottom } from '../../theme';
+import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type PlaylistSort, PlaylistSorts, sortPlaylists } from './PlaylistsSort';
 import { PlaylistView } from './PlaylistView';
 
 export interface PlaylistsViewModel {
+	navigationController: NavigationController;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -17,7 +19,6 @@ export interface PlaylistsViewModel {
 interface PlaylistsState {
 	isFooterVisible: boolean;
 	playlists: Array<Playlist>;
-	selectedPlaylist: Playlist | null;
 	sort: PlaylistSort;
 }
 
@@ -28,7 +29,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	state: PlaylistsState = {
 		isFooterVisible: false,
 		playlists: [],
-		selectedPlaylist: null,
 		sort: PlaylistSorts.alphabetical,
 	};
 
@@ -52,10 +52,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	onRender(): void {
-		if (this.state.selectedPlaylist) {
-			<PlaylistView playlist={this.state.selectedPlaylist} transport={this.viewModel.transport} />;
-			return;
-		}
+		const { navigationController, playbackStore, transport } = this.viewModel;
 
 		const cards: Array<Card> = sortPlaylists(this.state.playlists, this.state.sort).map(
 			(playlist) => ({
@@ -72,8 +69,10 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				accessibilityLabel='home-playlists-grid'
 				cards={cards}
 				onCardTap={(card) => {
-					const playlist = this.state.playlists.find((p) => p.id === card.id) ?? null;
-					this.setState({ selectedPlaylist: playlist });
+					const playlist = this.state.playlists.find((p) => p.id === card.id);
+					if (playlist) {
+						navigationController.push(PlaylistView, { playbackStore, playlist, transport }, {});
+					}
 				}}
 				resolveArtworkSource={(key) => key || null}
 			/>
@@ -83,6 +82,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 function createScrollStyle(isFooterVisible: boolean): Style {
 	return new Style({
+		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),

@@ -1,10 +1,11 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { Album } from '../../models/Album';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
-import { scrollPaddingBottom } from '../../theme';
+import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type AlbumSort, AlbumSorts, sortAlbums } from './AlbumsSort';
@@ -12,6 +13,7 @@ import { AlbumView } from './AlbumView';
 
 export interface AlbumsViewModel {
 	imageCache: ImageCache;
+	navigationController: NavigationController;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -20,7 +22,6 @@ interface AlbumsState {
 	albums: Array<Album>;
 	cacheVersion: number;
 	isFooterVisible: boolean;
-	selectedAlbum: Album | null;
 	sort: AlbumSort;
 }
 
@@ -33,7 +34,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		albums: [],
 		cacheVersion: 0,
 		isFooterVisible: false,
-		selectedAlbum: null,
 		sort: AlbumSorts.alphabetical,
 	};
 
@@ -62,15 +62,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	onRender(): void {
-		if (this.state.selectedAlbum) {
-			<AlbumView
-				album={this.state.selectedAlbum}
-				isFooterVisible={this.state.isFooterVisible}
-				playbackStore={this.viewModel.playbackStore}
-				transport={this.viewModel.transport}
-			/>;
-			return;
-		}
+		const { imageCache, navigationController, playbackStore, transport } = this.viewModel;
 
 		const cards: Array<Card> = sortAlbums(this.state.albums, this.state.sort).map((album) => ({
 			artworkKey: album.imageUrl ?? '',
@@ -85,10 +77,12 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				accessibilityLabel='home-albums-grid'
 				cards={cards}
 				onCardTap={(card) => {
-					const album = this.state.albums.find((a) => a.id === card.id) ?? null;
-					this.setState({ selectedAlbum: album });
+					const album = this.state.albums.find((a) => a.id === card.id);
+					if (album) {
+						navigationController.push(AlbumView, { album, playbackStore, transport }, {});
+					}
 				}}
-				resolveArtworkSource={(key) => this.viewModel.imageCache.get(key) ?? (key || null)}
+				resolveArtworkSource={(key) => imageCache.get(key) ?? (key || null)}
 			/>
 		</scroll>;
 	}
@@ -96,6 +90,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 function createScrollStyle(isFooterVisible: boolean): Style {
 	return new Style({
+		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),

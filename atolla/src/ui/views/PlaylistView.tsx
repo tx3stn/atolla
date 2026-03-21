@@ -1,32 +1,47 @@
 // @ts-nocheck
-import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
+import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
-import { theme } from '../../theme';
+import type { PlaybackStore } from '../../stores/Playback';
+import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { DetailHeader } from '../components/DetailHeader';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 
 export interface PlaylistViewModel {
+	playbackStore: PlaybackStore;
 	playlist: Playlist;
 	transport: Transport;
 }
 
 interface PlaylistState {
+	isFooterVisible: boolean;
 	tracks: Array<Track>;
 }
 
-export class PlaylistView extends StatefulComponent<PlaylistViewModel, PlaylistState> {
+@NavigationPage(module)
+export class PlaylistView extends NavigationPageStatefulComponent<
+	PlaylistViewModel,
+	PlaylistState
+> {
 	private hasBeenDestroyed = false;
+	private unsubscribePlayback?: () => void;
 
 	state: PlaylistState = {
+		isFooterVisible: false,
 		tracks: [],
 	};
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		this.viewModel.transport.getTracksByPlaylist(this.viewModel.playlist.id).then((tracks) => {
+		const { playbackStore, transport, playlist } = this.viewModel;
+		this.unsubscribePlayback = playbackStore.subscribe(() => {
+			this.setState({ isFooterVisible: playbackStore.track !== null });
+		});
+		this.setState({ isFooterVisible: playbackStore.track !== null });
+		transport.getTracksByPlaylist(playlist.id).then((tracks) => {
 			if (this.hasBeenDestroyed) {
 				return;
 			}
@@ -36,20 +51,22 @@ export class PlaylistView extends StatefulComponent<PlaylistViewModel, PlaylistS
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
+		this.unsubscribePlayback?.();
 	}
 
 	onRender(): void {
-		const entries: Array<TrackListEntry> = this.state.tracks.map((track) => ({
+		const { isFooterVisible, tracks } = this.state;
+
+		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
 			id: track.id,
 			meta: track.artistName,
 			title: track.name,
 		}));
 
-		const { tracks } = this.state;
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 
-		<scroll style={styles.root}>
+		<scroll style={createScrollStyle(isFooterVisible)}>
 			<DetailHeader
 				artworkSource={this.viewModel.playlist.imageUrl ?? null}
 				fallbackText={this.viewModel.playlist.name}
@@ -69,11 +86,12 @@ function formatDuration(seconds: number): string {
 	return h > 0 ? `${h}:${mm}:${String(s).padStart(2, '0')}` : `${mm}:${String(s).padStart(2, '0')}`;
 }
 
-const styles = {
-	root: new Style({
+function createScrollStyle(isFooterVisible: boolean): Style {
+	return new Style({
+		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: theme.scrollPaddingBottom,
+		paddingBottom: scrollPaddingBottom(isFooterVisible),
 		width: '100%',
-	}),
-};
+	});
+}

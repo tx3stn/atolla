@@ -1,10 +1,11 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { Artist } from '../../models/Artist';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
-import { scrollPaddingBottom } from '../../theme';
+import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type ArtistSort, ArtistSorts, sortArtists } from './ArtistsSort';
@@ -12,6 +13,7 @@ import { ArtistView } from './ArtistView';
 
 export interface ArtistsViewModel {
 	imageCache: ImageCache;
+	navigationController: NavigationController;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -20,7 +22,6 @@ interface ArtistsState {
 	artists: Array<Artist>;
 	cacheVersion: number;
 	isFooterVisible: boolean;
-	selectedArtist: Artist | null;
 	sort: ArtistSort;
 }
 
@@ -33,7 +34,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		artists: [],
 		cacheVersion: 0,
 		isFooterVisible: false,
-		selectedArtist: null,
 		sort: ArtistSorts.alphabetical,
 	};
 
@@ -62,15 +62,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	onRender(): void {
-		if (this.state.selectedArtist) {
-			<ArtistView
-				artist={this.state.selectedArtist}
-				isFooterVisible={this.state.isFooterVisible}
-				playbackStore={this.viewModel.playbackStore}
-				transport={this.viewModel.transport}
-			/>;
-			return;
-		}
+		const { imageCache, navigationController, playbackStore, transport } = this.viewModel;
 
 		const cards: Array<Card> = sortArtists(this.state.artists, this.state.sort).map((artist) => ({
 			artworkKey: artist.imageUrl ?? '',
@@ -85,10 +77,12 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				accessibilityLabel='home-artists-grid'
 				cards={cards}
 				onCardTap={(card) => {
-					const artist = this.state.artists.find((a) => a.id === card.id) ?? null;
-					this.setState({ selectedArtist: artist });
+					const artist = this.state.artists.find((a) => a.id === card.id);
+					if (artist) {
+						navigationController.push(ArtistView, { artist, playbackStore, transport }, {});
+					}
 				}}
-				resolveArtworkSource={(key) => this.viewModel.imageCache.get(key) ?? (key || null)}
+				resolveArtworkSource={(key) => imageCache.get(key) ?? (key || null)}
 			/>
 		</scroll>;
 	}
@@ -96,6 +90,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 function createScrollStyle(isFooterVisible: boolean): Style {
 	return new Style({
+		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),

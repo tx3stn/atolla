@@ -1,6 +1,7 @@
 // @ts-nocheck
 import 'jasmine/src/jasmine';
 import { PlaylistsView } from 'atolla/src/ui/views/PlaylistsView';
+import { PlaylistView } from 'atolla/src/ui/views/PlaylistView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
@@ -10,6 +11,19 @@ const playbackStore = {
 	subscribe: () => () => {},
 	track: null,
 };
+
+function makeNavigationController() {
+	let pushedComponent = null;
+	let pushedViewModel = null;
+	const navigationController = {
+		getPushed: () => ({ component: pushedComponent, viewModel: pushedViewModel }),
+		push: (component, viewModel) => {
+			pushedComponent = component;
+			pushedViewModel = viewModel;
+		},
+	};
+	return navigationController;
+}
 
 describe('PlaylistsView', () => {
 	valdiIt('renders playlist names from state', () => {
@@ -22,6 +36,7 @@ describe('PlaylistsView', () => {
 		};
 
 		const instrumented = createComponent(PlaylistsView, {
+			navigationController: makeNavigationController(),
 			playbackStore,
 			transport,
 		});
@@ -38,14 +53,15 @@ describe('PlaylistsView', () => {
 		expect(values).toContain('Night Run');
 	});
 
-	valdiIt('selects playlist when card is tapped', () => {
+	valdiIt('pushes PlaylistView when card is tapped', () => {
 		const playlists = [{ id: 'playlist-1', name: 'Roadtrip' }];
 		const transport = {
 			getAllPlaylists: async () => playlists,
-			getTracksByPlaylist: async () => [],
 		};
 
+		const navigationController = makeNavigationController();
 		const instrumented = createComponent(PlaylistsView, {
+			navigationController,
 			playbackStore,
 			transport,
 		});
@@ -58,6 +74,9 @@ describe('PlaylistsView', () => {
 		);
 		firstCard?.getAttribute('onTap')?.();
 
-		expect(component.state.selectedPlaylist?.id).toBe('playlist-1');
+		const { component: pushedComponent, viewModel: pushedViewModel } =
+			navigationController.getPushed();
+		expect(pushedComponent).toBe(PlaylistView);
+		expect(pushedViewModel?.playlist?.id).toBe('playlist-1');
 	});
 });

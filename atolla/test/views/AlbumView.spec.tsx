@@ -1,6 +1,17 @@
 // @ts-nocheck
 import 'jasmine/src/jasmine';
 import { AlbumView } from 'atolla/src/ui/views/AlbumView';
+
+const mockNavigator = {
+	dismiss: () => {},
+	forceDisableDismissalGesture: () => {},
+	pop: () => {},
+	popToRoot: () => {},
+	popToSelf: () => {},
+	presentComponent: () => {},
+	pushComponent: () => {},
+};
+
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
@@ -25,13 +36,15 @@ describe('AlbumView', () => {
 		const playbackStore = {
 			play: () => {},
 			setArtistLogoUrl: () => {},
+			subscribe: () => () => {},
+			track: null,
 		};
 
-		const instrumented = createComponent(AlbumView, {
-			album,
-			playbackStore,
-			transport,
-		});
+		const instrumented = createComponent(
+			AlbumView,
+			{ album, playbackStore, transport },
+			{ navigator: mockNavigator },
+		);
 		const component = instrumented.getComponent();
 
 		component.setState({ artistLogoUrl: 'https://logo.png', tracks });
@@ -64,13 +77,15 @@ describe('AlbumView', () => {
 			setArtistLogoUrl: (inputLogo) => {
 				logo = inputLogo;
 			},
+			subscribe: () => () => {},
+			track: null,
 		};
 
-		const instrumented = createComponent(AlbumView, {
-			album,
-			playbackStore,
-			transport,
-		});
+		const instrumented = createComponent(
+			AlbumView,
+			{ album, playbackStore, transport },
+			{ navigator: mockNavigator },
+		);
 		const component = instrumented.getComponent();
 
 		component.setState({ artistLogoUrl: 'https://logo.png', tracks });
@@ -94,17 +109,19 @@ describe('AlbumView', () => {
 				playCalls += 1;
 			},
 			setArtistLogoUrl: () => {},
+			subscribe: () => () => {},
+			track: null,
 		};
 		const transport = {
 			getArtist: async () => null,
 			getTracksByAlbum: async () => [],
 		};
 
-		const instrumented = createComponent(AlbumView, {
-			album,
-			playbackStore,
-			transport,
-		});
+		const instrumented = createComponent(
+			AlbumView,
+			{ album, playbackStore, transport },
+			{ navigator: mockNavigator },
+		);
 		const component = instrumented.getComponent();
 
 		component.handleHeaderPlayTap();
@@ -129,13 +146,15 @@ describe('AlbumView', () => {
 		const playbackStore = {
 			play: () => {},
 			setArtistLogoUrl: () => {},
+			subscribe: () => () => {},
+			track: null,
 		};
 
-		const instrumented = createComponent(AlbumView, {
-			album,
-			playbackStore,
-			transport,
-		});
+		const instrumented = createComponent(
+			AlbumView,
+			{ album, playbackStore, transport },
+			{ navigator: mockNavigator },
+		);
 		const component = instrumented.getComponent();
 
 		component.setState({

@@ -2,6 +2,7 @@
 import 'jasmine/src/jasmine';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { ArtistsView } from 'atolla/src/ui/views/ArtistsView';
+import { ArtistView } from 'atolla/src/ui/views/ArtistView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
@@ -12,6 +13,19 @@ const stubImageCache = {
 	prefetch: () => Promise.resolve(),
 	subscribe: () => () => {},
 };
+
+function makeNavigationController() {
+	let pushedComponent = null;
+	let pushedViewModel = null;
+	const navigationController = {
+		getPushed: () => ({ component: pushedComponent, viewModel: pushedViewModel }),
+		push: (component, viewModel) => {
+			pushedComponent = component;
+			pushedViewModel = viewModel;
+		},
+	};
+	return navigationController;
+}
 
 describe('ArtistsView', () => {
 	valdiIt('renders artist names from state', () => {
@@ -25,6 +39,7 @@ describe('ArtistsView', () => {
 
 		const instrumented = createComponent(ArtistsView, {
 			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			transport,
 		});
@@ -41,16 +56,16 @@ describe('ArtistsView', () => {
 		expect(values).toContain('Artist Two');
 	});
 
-	valdiIt('selects artist when card is tapped', () => {
+	valdiIt('pushes ArtistView when card is tapped', () => {
 		const artists = [{ id: 'artist-1', name: 'Artist One' }];
 		const transport = {
-			getAlbumsByArtist: async () => [],
 			getAllArtists: async () => artists,
-			getArtistTopTracks: async () => [],
 		};
 
+		const navigationController = makeNavigationController();
 		const instrumented = createComponent(ArtistsView, {
 			imageCache: stubImageCache,
+			navigationController,
 			playbackStore: new PlaybackStore(),
 			transport,
 		});
@@ -63,6 +78,9 @@ describe('ArtistsView', () => {
 		);
 		firstCard?.getAttribute('onTap')?.();
 
-		expect(component.state.selectedArtist?.id).toBe('artist-1');
+		const { component: pushedComponent, viewModel: pushedViewModel } =
+			navigationController.getPushed();
+		expect(pushedComponent).toBe(ArtistView);
+		expect(pushedViewModel?.artist?.id).toBe('artist-1');
 	});
 });

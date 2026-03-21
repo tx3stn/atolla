@@ -1,8 +1,9 @@
 // @ts-nocheck
-import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
+import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
+import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Track } from '../../models/Track';
@@ -17,30 +18,35 @@ import { AlbumView } from './AlbumView';
 
 export interface ArtistViewModel {
 	artist: Artist;
-	isFooterVisible?: boolean;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
 
 interface ArtistState {
 	albums: Array<Album>;
-	selectedAlbum: Album | null;
+	isFooterVisible: boolean;
 	topTracks: Array<Track>;
 }
 
-export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> {
+@NavigationPage(module)
+export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel, ArtistState> {
 	private modalSlot = new DetachedSlot();
 	private hasBeenDestroyed = false;
+	private unsubscribePlayback?: () => void;
 
 	state: ArtistState = {
 		albums: [],
-		selectedAlbum: null,
+		isFooterVisible: false,
 		topTracks: [],
 	};
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		const { artist, transport } = this.viewModel;
+		const { artist, playbackStore, transport } = this.viewModel;
+		this.unsubscribePlayback = playbackStore.subscribe(() => {
+			this.setState({ isFooterVisible: playbackStore.track !== null });
+		});
+		this.setState({ isFooterVisible: playbackStore.track !== null });
 		transport.getAlbumsByArtist(artist.id).then((albums) => {
 			if (this.hasBeenDestroyed) {
 				return;
@@ -57,23 +63,12 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
+		this.unsubscribePlayback?.();
 	}
 
 	onRender(): void {
-		const { isFooterVisible = true } = this.viewModel;
-
-		if (this.state.selectedAlbum) {
-			<AlbumView
-				album={this.state.selectedAlbum}
-				isFooterVisible={isFooterVisible}
-				playbackStore={this.viewModel.playbackStore}
-				transport={this.viewModel.transport}
-			/>;
-			return;
-		}
-
-		const { artist } = this.viewModel;
-		const { albums, topTracks } = this.state;
+		const { artist, playbackStore, transport } = this.viewModel;
+		const { albums, isFooterVisible, topTracks } = this.state;
 
 		const sortedAlbums = [...albums].sort((a, b) =>
 			(b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''),
@@ -113,8 +108,14 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 							accessibilityLabel='artist-albums-grid'
 							cards={albumCards}
 							onCardTap={(card) => {
-								const album = this.state.albums.find((a) => a.id === card.id) ?? null;
-								this.setState({ selectedAlbum: album });
+								const album = this.state.albums.find((a) => a.id === card.id);
+								if (album) {
+									this.navigationController.push(
+										AlbumView,
+										{ album, playbackStore, transport },
+										{},
+									);
+								}
 							}}
 							resolveArtworkSource={(key) => key || null}
 						/>
@@ -144,13 +145,8 @@ export class ArtistView extends StatefulComponent<ArtistViewModel, ArtistState> 
 
 const styles = {
 	root: new Style({
+		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
-		width: '100%',
-	}),
-	scroll: new Style({
-		flexGrow: 1,
-		padding: 8,
-		paddingBottom: theme.scrollPaddingBottom,
 		width: '100%',
 	}),
 	section: new Style({
@@ -175,6 +171,7 @@ const styles = {
 
 function createScrollStyle(isFooterVisible: boolean): Style {
 	return new Style({
+		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),

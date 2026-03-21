@@ -1,11 +1,14 @@
 // @ts-nocheck
 
 import { PersistentStore } from 'persistence/src/PersistentStore';
+import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import { ImageCache, type ImageStore } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
+import { theme } from '../../theme';
 import { MockTransport } from '../../transports/Mock';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
 import { HomeHeaderNav } from '../components/HomeHeaderNav';
@@ -25,6 +28,7 @@ export interface HomeViewModel {
 
 interface HomeState {
 	activeTab: HeaderTab;
+	navigationOverlayVisible: boolean;
 	tabKeys: Record<HeaderTab, number>;
 }
 
@@ -46,12 +50,19 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	state: HomeState = {
 		activeTab: HeaderTabs.artists,
+		navigationOverlayVisible: true,
 		tabKeys: {
 			[HeaderTabs.artists]: 0,
 			[HeaderTabs.albums]: 0,
 			[HeaderTabs.playlists]: 0,
 		},
 	};
+
+	onCreate(): void {
+		Promise.resolve().then(() => {
+			this.setState({ navigationOverlayVisible: false });
+		});
+	}
 
 	handleHeaderTabTap = (tab: HeaderTab): void => {
 		if (tab === this.state.activeTab) {
@@ -66,29 +77,42 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 		<view style={styles.root}>
 			<HomeHeaderNav activeTab={this.state.activeTab} onTabTap={this.handleHeaderTabTap} />
+			{this.state.navigationOverlayVisible && <view style={styles.navigationOverlay} />}
 
 			{this.state.activeTab === HeaderTabs.artists && (
-				<ArtistsView
-					imageCache={this.imageCache}
-					key={this.state.tabKeys[HeaderTabs.artists]}
-					playbackStore={playbackStore}
-					transport={this.transport}
-				/>
+				<NavigationRoot key={this.state.tabKeys[HeaderTabs.artists]}>
+					{$slot((navigationController) => {
+						<ArtistsView
+							imageCache={this.imageCache}
+							navigationController={navigationController}
+							playbackStore={playbackStore}
+							transport={this.transport}
+						/>;
+					})}
+				</NavigationRoot>
 			)}
 			{this.state.activeTab === HeaderTabs.albums && (
-				<AlbumsView
-					imageCache={this.imageCache}
-					key={this.state.tabKeys[HeaderTabs.albums]}
-					playbackStore={playbackStore}
-					transport={this.transport}
-				/>
+				<NavigationRoot key={this.state.tabKeys[HeaderTabs.albums]}>
+					{$slot((navigationController) => {
+						<AlbumsView
+							imageCache={this.imageCache}
+							navigationController={navigationController}
+							playbackStore={playbackStore}
+							transport={this.transport}
+						/>;
+					})}
+				</NavigationRoot>
 			)}
 			{this.state.activeTab === HeaderTabs.playlists && (
-				<PlaylistsView
-					key={this.state.tabKeys[HeaderTabs.playlists]}
-					playbackStore={playbackStore}
-					transport={this.transport}
-				/>
+				<NavigationRoot key={this.state.tabKeys[HeaderTabs.playlists]}>
+					{$slot((navigationController) => {
+						<PlaylistsView
+							navigationController={navigationController}
+							playbackStore={playbackStore}
+							transport={this.transport}
+						/>;
+					})}
+				</NavigationRoot>
 			)}
 		</view>;
 	}
@@ -98,5 +122,13 @@ const styles = {
 	root: new Style({
 		flexGrow: 1,
 		width: '100%',
+	}),
+	navigationOverlay: new Style({
+		backgroundColor: theme.colors.bg,
+		bottom: 0,
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
 	}),
 };

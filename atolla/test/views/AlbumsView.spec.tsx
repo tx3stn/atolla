@@ -2,6 +2,7 @@
 import 'jasmine/src/jasmine';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { AlbumsView } from 'atolla/src/ui/views/AlbumsView';
+import { AlbumView } from 'atolla/src/ui/views/AlbumView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
@@ -12,6 +13,19 @@ const stubImageCache = {
 	prefetch: () => Promise.resolve(),
 	subscribe: () => () => {},
 };
+
+function makeNavigationController() {
+	let pushedComponent = null;
+	let pushedViewModel = null;
+	const navigationController = {
+		getPushed: () => ({ component: pushedComponent, viewModel: pushedViewModel }),
+		push: (component, viewModel) => {
+			pushedComponent = component;
+			pushedViewModel = viewModel;
+		},
+	};
+	return navigationController;
+}
 
 describe('AlbumsView', () => {
 	valdiIt('renders album titles from state', () => {
@@ -25,6 +39,7 @@ describe('AlbumsView', () => {
 
 		const instrumented = createComponent(AlbumsView, {
 			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			transport,
 		});
@@ -41,18 +56,18 @@ describe('AlbumsView', () => {
 		expect(values).toContain('Second Album');
 	});
 
-	valdiIt('selects album when card is tapped', () => {
+	valdiIt('pushes AlbumView when card is tapped', () => {
 		const albums = [
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
 		];
 		const transport = {
 			getAllAlbums: async () => albums,
-			getArtist: async () => null,
-			getTracksByAlbum: async () => [],
 		};
 
+		const navigationController = makeNavigationController();
 		const instrumented = createComponent(AlbumsView, {
 			imageCache: stubImageCache,
+			navigationController,
 			playbackStore: new PlaybackStore(),
 			transport,
 		});
@@ -65,6 +80,9 @@ describe('AlbumsView', () => {
 		);
 		firstCard?.getAttribute('onTap')?.();
 
-		expect(component.state.selectedAlbum?.id).toBe('album-1');
+		const { component: pushedComponent, viewModel: pushedViewModel } =
+			navigationController.getPushed();
+		expect(pushedComponent).toBe(AlbumView);
+		expect(pushedViewModel?.album?.id).toBe('album-1');
 	});
 });

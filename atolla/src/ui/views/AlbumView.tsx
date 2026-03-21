@@ -1,8 +1,9 @@
 // @ts-nocheck
-import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
+import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
+import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import type { PlaybackStore } from '../../stores/Playback';
@@ -14,22 +15,25 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 
 export interface AlbumViewModel {
 	album: Album;
-	isFooterVisible?: boolean;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
 
 interface AlbumState {
 	artistLogoUrl: string | null;
+	isFooterVisible: boolean;
 	tracks: Array<Track>;
 }
 
-export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
+@NavigationPage(module)
+export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, AlbumState> {
 	private modalSlot = new DetachedSlot();
 	private hasBeenDestroyed = false;
+	private unsubscribePlayback?: () => void;
 
 	state: AlbumState = {
 		artistLogoUrl: null,
+		isFooterVisible: false,
 		tracks: [],
 	};
 
@@ -45,7 +49,11 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		const { album, transport } = this.viewModel;
+		const { album, playbackStore, transport } = this.viewModel;
+		this.unsubscribePlayback = playbackStore.subscribe(() => {
+			this.setState({ isFooterVisible: playbackStore.track !== null });
+		});
+		this.setState({ isFooterVisible: playbackStore.track !== null });
 		transport.getTracksByAlbum(album.id).then((tracks) => {
 			if (this.hasBeenDestroyed) {
 				return;
@@ -63,11 +71,12 @@ export class AlbumView extends StatefulComponent<AlbumViewModel, AlbumState> {
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
+		this.unsubscribePlayback?.();
 	}
 
 	onRender(): void {
-		const { artistLogoUrl, tracks } = this.state;
-		const { album, isFooterVisible = true } = this.viewModel;
+		const { artistLogoUrl, isFooterVisible, tracks } = this.state;
+		const { album } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			id: track.id,
@@ -109,19 +118,15 @@ function formatDuration(seconds: number): string {
 
 const styles = {
 	root: new Style({
+		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
-		width: '100%',
-	}),
-	scroll: new Style({
-		flexGrow: 1,
-		padding: 8,
-		paddingBottom: theme.scrollPaddingBottom,
 		width: '100%',
 	}),
 };
 
 function createScrollStyle(isFooterVisible: boolean): Style {
 	return new Style({
+		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),
