@@ -1,11 +1,10 @@
 // @ts-nocheck
 
-import { PersistentStore } from 'persistence/src/PersistentStore';
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
-import { ImageCache, type ImageStore } from '../../services/ImageCache';
+import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -24,6 +23,7 @@ export function setImageCacheSize(bytes: number): void {
 export interface HomeViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
+	imageCache: ImageCache;
 	playbackStore: PlaybackStore;
 	resetSignal: number;
 }
@@ -33,22 +33,9 @@ interface HomeState {
 	navigationOverlayVisible: boolean;
 }
 
-const noopStore: ImageStore = {
-	exists: () => Promise.resolve(false),
-	fetch: () => Promise.reject(new Error()),
-	store: () => Promise.resolve(),
-};
-
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private transport = new MockTransport();
 	private resetVersion = 0;
-	private imageCache = (() => {
-		try {
-			return new ImageCache(new PersistentStore('image_cache', { maxWeight: _imageCacheMaxBytes }));
-		} catch {
-			return new ImageCache(noopStore);
-		}
-	})();
 
 	state: HomeState = {
 		isNavigationMounted: false,
@@ -97,7 +84,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	onRender(): void {
-		const { activeTab, animationsEnabled, playbackStore } = this.viewModel;
+		const { activeTab, animationsEnabled, imageCache, playbackStore } = this.viewModel;
 
 		<view style={styles.root}>
 			{this.state.navigationOverlayVisible && <view style={styles.navigationOverlay} />}
@@ -107,7 +94,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					{$slot((navigationController) => {
 						<ArtistsView
 							animationsEnabled={animationsEnabled}
-							imageCache={this.imageCache}
+							imageCache={imageCache}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
 							transport={this.transport}
@@ -121,7 +108,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					{$slot((navigationController) => {
 						<AlbumsView
 							animationsEnabled={animationsEnabled}
-							imageCache={this.imageCache}
+							imageCache={imageCache}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
 							transport={this.transport}

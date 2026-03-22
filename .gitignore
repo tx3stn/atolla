@@ -29,3 +29,4 @@ bazel-workspace/
 .specify/
 IDEA.md
 CLAUDE.md
+specs/

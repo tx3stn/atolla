@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'bun:test';
-import { ImageCache, type ImageStore } from './ImageCache';
+// @ts-nocheck
+import 'jasmine/src/jasmine';
+import { ImageCache, type ImageLoaderFn, type ImageStore } from 'atolla/src/services/ImageCache';
 
 const imageBytes = new Uint8Array([1, 2, 3, 4]);
 const imageUrl = 'https://example.com/image.jpg';
@@ -7,21 +8,21 @@ const imageUrl = 'https://example.com/image.jpg';
 describe('ImageCache', () => {
 	describe('get()', () => {
 		it('returns null when url has not been cached', () => {
-			const cache = new ImageCache(new MockImageStore(), failingFetch());
+			const cache = new ImageCache(new MockImageStore(), failingLoader());
 			expect(cache.get(imageUrl)).toBeNull();
 		});
 
 		it('returns a data URI after prefetch resolves', async () => {
-			const cache = new ImageCache(new MockImageStore(), mockFetch(imageUrl, imageBytes));
+			const cache = new ImageCache(new MockImageStore(), mockLoader(imageUrl, imageBytes));
 			await cache.prefetch([imageUrl]);
 			expect(cache.get(imageUrl)).toMatch(/^data:image\/jpeg;base64,/);
 		});
 	});
 
 	describe('prefetch()', () => {
-		it('fetches from network and stores in persistent store', async () => {
+		it('fetches from loader and stores in persistent store', async () => {
 			const store = new MockImageStore();
-			const cache = new ImageCache(store, mockFetch(imageUrl, imageBytes));
+			const cache = new ImageCache(store, mockLoader(imageUrl, imageBytes));
 			await cache.prefetch([imageUrl]);
 			expect(await store.exists(imageUrl)).toBe(true);
 		});
@@ -29,45 +30,45 @@ describe('ImageCache', () => {
 		it('loads from persistent store when image is already stored', async () => {
 			const store = new MockImageStore();
 			store.seed(imageUrl, imageBytes.buffer);
-			let networkCalls = 0;
-			const fetchFn = () => {
-				networkCalls++;
-				return Promise.reject(new Error('Should not fetch from network'));
+			let loaderCalls = 0;
+			const loaderFn: ImageLoaderFn = () => {
+				loaderCalls++;
+				return Promise.reject(new Error('Should not call loader'));
 			};
-			const cache = new ImageCache(store, fetchFn);
+			const cache = new ImageCache(store, loaderFn);
 			await cache.prefetch([imageUrl]);
-			expect(networkCalls).toBe(0);
+			expect(loaderCalls).toBe(0);
 			expect(cache.get(imageUrl)).toMatch(/^data:image\//);
 		});
 
 		it('skips urls already in memory', async () => {
-			let fetchCount = 0;
-			const countingFetch = (url: string) => {
-				fetchCount++;
-				return mockFetch(url, imageBytes)(url);
+			let loadCount = 0;
+			const countingLoader: ImageLoaderFn = (url) => {
+				loadCount++;
+				return mockLoader(url, imageBytes)(url);
 			};
-			const cache = new ImageCache(new MockImageStore(), countingFetch);
+			const cache = new ImageCache(new MockImageStore(), countingLoader);
 			await cache.prefetch([imageUrl]);
 			await cache.prefetch([imageUrl]);
-			expect(fetchCount).toBe(1);
+			expect(loadCount).toBe(1);
 		});
 
 		it('skips urls with no value', async () => {
-			const cache = new ImageCache(new MockImageStore(), failingFetch());
+			const cache = new ImageCache(new MockImageStore(), failingLoader());
 			await cache.prefetch(['']);
 			expect(cache.get('')).toBeNull();
 		});
 
-		it('handles network errors silently', async () => {
-			const cache = new ImageCache(new MockImageStore(), failingFetch());
-			await expect(cache.prefetch([imageUrl])).resolves.toBeUndefined();
+		it('handles loader errors silently', async () => {
+			const cache = new ImageCache(new MockImageStore(), failingLoader());
+			await cache.prefetch([imageUrl]);
 			expect(cache.get(imageUrl)).toBeNull();
 		});
 
-		it('uses content-type from response headers for data URI', async () => {
+		it('uses mimeType from loader for data URI', async () => {
 			const cache = new ImageCache(
 				new MockImageStore(),
-				mockFetch(imageUrl, imageBytes, 'image/webp'),
+				mockLoader(imageUrl, imageBytes, 'image/webp'),
 			);
 			await cache.prefetch([imageUrl]);
 			expect(cache.get(imageUrl)).toMatch(/^data:image\/webp;base64,/);
@@ -75,8 +76,8 @@ describe('ImageCache', () => {
 
 		it('prefetches multiple urls', async () => {
 			const url2 = 'https://example.com/image2.jpg';
-			const fetchFn = async (url: string) => mockFetch(url, imageBytes)(url);
-			const cache = new ImageCache(new MockImageStore(), fetchFn);
+			const loaderFn: ImageLoaderFn = async (url) => mockLoader(url, imageBytes)(url);
+			const cache = new ImageCache(new MockImageStore(), loaderFn);
 			await cache.prefetch([imageUrl, url2]);
 			expect(cache.get(imageUrl)).not.toBeNull();
 			expect(cache.get(url2)).not.toBeNull();
@@ -84,8 +85,8 @@ describe('ImageCache', () => {
 	});
 
 	describe('subscribe()', () => {
-		it('notifies listener when an image is cached from network', async () => {
-			const cache = new ImageCache(new MockImageStore(), mockFetch(imageUrl, imageBytes));
+		it('notifies listener when an image is cached from loader', async () => {
+			const cache = new ImageCache(new MockImageStore(), mockLoader(imageUrl, imageBytes));
 			let calls = 0;
 			cache.subscribe(() => calls++);
 			await cache.prefetch([imageUrl]);
@@ -95,23 +96,24 @@ describe('ImageCache', () => {
 		it('notifies listener when an image is loaded from persistent store', async () => {
 			const store = new MockImageStore();
 			store.seed(imageUrl, imageBytes.buffer);
-			const cache = new ImageCache(store, failingFetch());
+			const cache = new ImageCache(store, failingLoader());
 			let calls = 0;
 			cache.subscribe(() => calls++);
 			await cache.prefetch([imageUrl]);
 			expect(calls).toBe(1);
 		});
 
-		it('does not notify listener on network error', async () => {
-			const cache = new ImageCache(new MockImageStore(), failingFetch());
+		it('notifies listener on loader error so lastError can be displayed', async () => {
+			const cache = new ImageCache(new MockImageStore(), failingLoader());
 			let calls = 0;
 			cache.subscribe(() => calls++);
 			await cache.prefetch([imageUrl]);
-			expect(calls).toBe(0);
+			expect(calls).toBe(1);
+			expect(cache.lastError).not.toBeNull();
 		});
 
 		it('returns an unsubscribe function that stops notifications', async () => {
-			const cache = new ImageCache(new MockImageStore(), mockFetch(imageUrl, imageBytes));
+			const cache = new ImageCache(new MockImageStore(), mockLoader(imageUrl, imageBytes));
 			let calls = 0;
 			const unsubscribe = cache.subscribe(() => calls++);
 			unsubscribe();
@@ -144,20 +146,13 @@ class MockImageStore implements ImageStore {
 	}
 }
 
-function mockFetch(
-	url: string,
-	data: Uint8Array,
-	contentType = 'image/jpeg',
-): (fetchUrl: string) => Promise<Response> {
-	return (fetchUrl: string) => {
-		if (fetchUrl !== url) return Promise.reject(new Error(`Unexpected URL: ${fetchUrl}`));
-		return Promise.resolve({
-			arrayBuffer: () => Promise.resolve(data.buffer),
-			headers: { get: (h: string) => (h === 'content-type' ? contentType : null) },
-		} as unknown as Response);
+function mockLoader(url: string, data: Uint8Array, mimeType = 'image/jpeg'): ImageLoaderFn {
+	return (loaderUrl: string) => {
+		if (loaderUrl !== url) return Promise.reject(new Error(`Unexpected URL: ${loaderUrl}`));
+		return Promise.resolve({ buffer: data.buffer as ArrayBuffer, mimeType });
 	};
 }
 
-function failingFetch(): (url: string) => Promise<Response> {
-	return () => Promise.reject(new Error('Network error'));
+function failingLoader(): ImageLoaderFn {
+	return () => Promise.reject(new Error('Loader error'));
 }

@@ -10,6 +10,7 @@ import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 const stubImageCache = {
 	get: () => null,
+	getOrLoad: () => null,
 	prefetch: () => Promise.resolve(),
 	subscribe: () => () => {},
 };

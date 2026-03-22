@@ -1,9 +1,14 @@
 // @ts-nocheck
+import { PersistentStore } from 'persistence/src/PersistentStore';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import { ArtworkPaletteService } from './services/ArtworkPaletteService';
+import { ImageCache } from './services/ImageCache';
+import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PlaybackStore } from './stores/Playback';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES, Preferences } from './stores/Preferences';
 import { theme } from './theme';
+import { MockTransport } from './transports/Mock';
 import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
@@ -22,13 +27,34 @@ interface AppState {
 	homeResetNonce: number;
 	imageCacheMaxBytes: number;
 	nowPlayingCollapseSignal: number;
+	paletteFailureCount: number;
+	// null = not yet triggered; number = total artwork URLs queued for generation
+	paletteTotalCount: number | null;
 	version: number;
 }
 
 export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playbackStore = new PlaybackStore();
 	private preferences = new Preferences();
+	private transport = new MockTransport();
+	private imageCache = (() => {
+		try {
+			return new ImageCache(
+				new PersistentStore('image_cache', { maxWeight: DEFAULT_IMAGE_CACHE_MAX_BYTES }),
+			);
+		} catch {
+			return new ImageCache({
+				exists: () => Promise.resolve(false),
+				fetch: () => Promise.reject(new Error()),
+				store: () => Promise.resolve(),
+			});
+		}
+	})();
+	private paletteService = new ArtworkPaletteService(new PersistentPaletteStore());
 	private unsubscribePlayback?: () => void;
+	private unsubscribePalette?: () => void;
+	private unsubscribeImageCache?: () => void;
+	private lastArtworkUrl: string | null = null;
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
@@ -37,6 +63,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		homeResetNonce: 0,
 		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
 		nowPlayingCollapseSignal: 0,
+		paletteFailureCount: 0,
+		paletteTotalCount: null,
 		version: 0,
 	};
 
@@ -49,13 +77,63 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.setState({ animationsEnabled: enabled });
 		});
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
+			this.handleAlbumChange();
 			this.setState({ version: this.state.version + 1 });
 		});
+		this.unsubscribePalette = this.paletteService.subscribe(() => {
+			this.setState({ version: this.state.version + 1 });
+		});
+		this.unsubscribeImageCache = this.imageCache.subscribe(() => {
+			this.setState({ version: this.state.version + 1 });
+		});
+		// Handle any track already playing at startup
+		this.handleAlbumChange();
 	}
 
 	onDestroy(): void {
 		this.unsubscribePlayback?.();
+		this.unsubscribePalette?.();
+		this.unsubscribeImageCache?.();
 	}
+
+	// Called whenever the playback store changes. Loads the persisted palette
+	// immediately (warmUp) and prefetches the image for display. If no persisted
+	// palette exists, generates one from the fetched buffer.
+	private handleAlbumChange(): void {
+		const imageUrl = this.playbackStore.album?.imageUrl ?? null;
+		if (!imageUrl || imageUrl === this.lastArtworkUrl) return;
+		this.lastArtworkUrl = imageUrl;
+		void (async () => {
+			await this.paletteService.warmUp([imageUrl]);
+			if (this.paletteService.getPalette(imageUrl).primary.hex !== '#d8dee9') return;
+			await this.generatePaletteForUrl(imageUrl);
+		})();
+	}
+
+	// Extract palette from a URL that is already in the image buffer cache.
+	// If the image hasn't been loaded into the buffer cache yet, skips silently.
+	private async generatePaletteForUrl(url: string): Promise<void> {
+		const entry = this.imageCache.getBuffer(url);
+		if (!entry) return;
+		await this.paletteService.generatePalette(url, entry.buffer, entry.mimeType);
+	}
+
+	handleGeneratePalettes = (): void => {
+		void (async () => {
+			const albums = await this.transport.getAllAlbums();
+			const urls = [...new Set(albums.map((a) => a.imageUrl).filter(Boolean))];
+			this.setState({ paletteFailureCount: 0, paletteTotalCount: urls.length });
+			await this.paletteService.warmUp(urls);
+			await this.imageCache.prefetch(urls);
+			for (const url of urls) {
+				try {
+					await this.generatePaletteForUrl(url);
+				} catch {
+					this.setState({ paletteFailureCount: this.state.paletteFailureCount + 1 });
+				}
+			}
+		})();
+	};
 
 	handleFooterTabTap = (tab: FooterTab): void => {
 		this.setState({
@@ -92,6 +170,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	onRender(): void {
 		const { track, album, isPlaying, progressSeconds, artistLogoUrl, tracks, trackIndex } =
 			this.playbackStore;
+		const palette = this.paletteService.getPalette(album?.imageUrl);
 
 		<view style={styles.root}>
 			{this.state.activeFooterTab === FooterTabs.home && (
@@ -105,6 +184,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				<HomeView
 					activeTab={this.state.activeHomeTab}
 					animationsEnabled={this.state.animationsEnabled}
+					imageCache={this.imageCache}
 					playbackStore={this.playbackStore}
 					resetSignal={this.state.homeResetNonce}
 				/>
@@ -113,9 +193,17 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			{this.state.activeFooterTab === FooterTabs.settings && (
 				<SettingsView
 					animationsEnabled={this.state.animationsEnabled}
+					imageCacheBufferedBytes={this.imageCache.bufferedBytes}
+					imageCacheBufferedCount={this.imageCache.bufferedCount}
+					imageCacheError={this.imageCache.lastError}
 					imageCacheMaxBytes={this.state.imageCacheMaxBytes}
 					onAnimationsChange={this.handleAnimationsChange}
 					onCacheSizeChange={this.handleCacheSizeChange}
+					onGeneratePalettes={this.handleGeneratePalettes}
+					paletteCount={this.paletteService.cacheSize}
+					paletteError={this.paletteService.lastError}
+					paletteFailureCount={this.state.paletteFailureCount}
+					paletteTotalCount={this.state.paletteTotalCount}
 					preferences={this.preferences}
 				/>
 			)}
@@ -137,6 +225,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onNext={() => this.playbackStore.next()}
 					onPlayPause={() => this.playbackStore.playPause()}
 					onPrevious={() => this.playbackStore.previous()}
+					palette={palette}
 					progressSeconds={progressSeconds}
 					track={track}
 					trackIndex={trackIndex}

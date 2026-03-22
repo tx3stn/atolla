@@ -7,6 +7,7 @@ import { TouchEventState } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
+import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
 import { theme } from '../../theme';
 import { TrackList, type TrackListEntry } from './TrackList';
 
@@ -20,6 +21,7 @@ export interface NowPlayingSurfaceViewModel {
 	onNext: () => void;
 	onPlayPause: () => void;
 	onPrevious: () => void;
+	palette?: Palette;
 	progressSeconds: number;
 	track: Track;
 	trackIndex: number;
@@ -305,6 +307,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			onNext,
 			onPlayPause,
 			onPrevious,
+			palette = NEUTRAL_PALETTE,
 			progressSeconds,
 			track,
 			trackIndex,
@@ -322,18 +325,24 @@ export class NowPlayingSurface extends StatefulComponent<
 		const backToEntries = tracks.slice(0, trackIndex).map(toEntry);
 		const activeTab = this.state.activeQueueTab;
 
+		// ── Palette-derived colours ──────────────────────────────────────────────
+		const accentColor = palette.primary.hex;
+		const surfaceColor = palette.surface.hex;
+		const onSurfaceColor = palette.on_surface.hex;
+
 		const backToLabelStyle = new Style<Label>({
 			...theme.text.sub,
+			color: onSurfaceColor,
 			opacity: activeTab === 'backTo' ? 1 : 0.4,
 			textAlign: 'center',
 		});
 		const upNextLabelStyle = new Style<Label>({
 			...theme.text.sub,
+			color: onSurfaceColor,
 			opacity: activeTab === 'upNext' ? 1 : 0.4,
 			textAlign: 'center',
 		});
 
-		const accentColor = theme.colors.white;
 		const progressRatio = track.duration > 0 ? Math.min(progressSeconds / track.duration, 1) : 0;
 		const elapsedText = formatDuration(progressSeconds);
 		const remainingText = `-${formatDuration(Math.max(0, track.duration - progressSeconds))}`;
@@ -342,8 +351,24 @@ export class NowPlayingSurface extends StatefulComponent<
 			? `${album.name} (${album.releaseDate.slice(0, 4)})`
 			: album.name;
 
+		// Mini-player bar: surface bg, primary progress fill
+		const barStyle = new Style({
+			alignItems: 'center',
+			backgroundColor: surfaceColor,
+			borderRadius: theme.borderRadius,
+			bottom: theme.footerHeight * 0.8,
+			flexDirection: 'row',
+			left: 8,
+			marginLeft: 12,
+			marginRight: 12,
+			overflow: 'hidden',
+			position: 'absolute',
+			right: 8,
+			zIndex: 25,
+		});
+
 		const progressFillStyle = new Style({
-			backgroundColor: theme.colors.bgAccent,
+			backgroundColor: accentColor,
 			bottom: 0,
 			left: 0,
 			position: 'absolute',
@@ -358,6 +383,68 @@ export class NowPlayingSurface extends StatefulComponent<
 			width: `${Math.round(progressRatio * 100)}%`,
 		});
 
+		// Expanded overlay card + content: surface bg
+		const overlayCardStyle = new Style({
+			backgroundColor: surfaceColor,
+			borderRadius: theme.borderRadius,
+			bottom: theme.footerHeight * 0.8,
+			height: 84,
+			left: 20,
+			overflow: 'hidden',
+			position: 'absolute',
+			right: 20,
+		});
+
+		const expandedContentStyle = new Style({
+			backgroundColor: surfaceColor,
+			bottom: 0,
+			height: '100%',
+			left: 14,
+			opacity: 0,
+			position: 'absolute',
+			right: 14,
+			top: 0,
+		});
+
+		// Palette-tinted text styles
+		const trackNameStyle = new Style<Label>({ ...theme.text.title, color: onSurfaceColor });
+		const artistNameStyle = new Style<Label>({
+			...theme.text.sub,
+			color: onSurfaceColor,
+			paddingTop: 4,
+		});
+		const timeStyle = new Style<Label>({
+			...theme.text.sub,
+			color: onSurfaceColor,
+			flexShrink: 0,
+			paddingRight: 10,
+		});
+		const expandedTrackNameStyle = new Style<Label>({
+			...theme.text.title,
+			color: onSurfaceColor,
+			textAlign: 'center',
+			width: '100%',
+		});
+		const expandedAlbumLineStyle = new Style<Label>({
+			...theme.text.subLarger,
+			color: onSurfaceColor,
+			marginTop: 4,
+			paddingTop: 12,
+			textAlign: 'center',
+			width: '100%',
+		});
+		const expandedArtistNameStyle = new Style<Label>({
+			...theme.text.mutedHeader,
+			color: onSurfaceColor,
+			marginBottom: 8,
+			textAlign: 'center',
+			width: '100%',
+		});
+		const expandedTimeLabelStyle = new Style<Label>({
+			...theme.text.sub,
+			color: onSurfaceColor,
+		});
+
 		const rootStyle = this.state.isExpanded ? styles.rootExpanded : styles.rootCollapsed;
 
 		<view style={rootStyle}>
@@ -367,19 +454,19 @@ export class NowPlayingSurface extends StatefulComponent<
 				onDrag={this.handleCompactDrag}
 				onTap={this.openSurface}
 				ref={this.compactBarRef}
-				style={styles.bar}
+				style={barStyle}
 			>
 				<view style={progressFillStyle} />
 				{album.imageUrl && <image objectFit='cover' src={album.imageUrl} style={styles.artwork} />}
 				<layout style={styles.info}>
-					<label numberOfLines={1} style={styles.trackName} value={track.name} />
+					<label numberOfLines={1} style={trackNameStyle} value={track.name} />
 					<label
 						numberOfLines={1}
-						style={styles.artistName}
+						style={artistNameStyle}
 						value={track.artistName ?? album.artistName}
 					/>
 				</layout>
-				<label style={styles.time} value={`${elapsedText} / ${totalText}`} />
+				<label style={timeStyle} value={`${elapsedText} / ${totalText}`} />
 			</view>
 
 			<view id='now-playing-surface-overlay' ref={this.overlayRef} style={styles.overlayRoot}>
@@ -388,7 +475,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					onDrag={this.handleExpandedDrag}
 					onTouch={this.handleExpandedTouch}
 					ref={this.overlayCardRef}
-					style={styles.overlayCard}
+					style={overlayCardStyle}
 				>
 					{album.imageUrl && (
 						<image
@@ -398,7 +485,7 @@ export class NowPlayingSurface extends StatefulComponent<
 							style={styles.transitionArtwork}
 						/>
 					)}
-					<view ref={this.expandedContentRef} style={styles.expandedContent}>
+					<view ref={this.expandedContentRef} style={expandedContentStyle}>
 						<scroll style={styles.expandedInner}>
 							<layout style={styles.expandedFirstPage}>
 								{album.imageUrl && (
@@ -418,21 +505,21 @@ export class NowPlayingSurface extends StatefulComponent<
 										/>
 									)}
 									{!artistLogoUrl && (
-										<label style={styles.expandedArtistName} value={album.artistName} />
+										<label style={expandedArtistNameStyle} value={album.artistName} />
 									)}
 								</layout>
 								<layout style={styles.expandedBottomSection}>
 									<layout style={styles.expandedTrackMetaSection}>
-										<label numberOfLines={2} style={styles.expandedTrackName} value={track.name} />
-										<label numberOfLines={2} style={styles.expandedAlbumLine} value={albumLine} />
+										<label numberOfLines={2} style={expandedTrackNameStyle} value={track.name} />
+										<label numberOfLines={2} style={expandedAlbumLineStyle} value={albumLine} />
 									</layout>
 									<layout style={styles.expandedProgressSection}>
 										<view style={styles.expandedProgressTrack}>
 											<view style={expandedProgressFillStyle} />
 										</view>
 										<layout style={styles.expandedTimeRow}>
-											<label style={styles.expandedTimeLabel} value={elapsedText} />
-											<label style={styles.expandedTimeLabel} value={remainingText} />
+											<label style={expandedTimeLabelStyle} value={elapsedText} />
+											<label style={expandedTimeLabelStyle} value={remainingText} />
 										</layout>
 									</layout>
 									<layout style={styles.expandedControlsRow}>
@@ -488,10 +575,6 @@ function formatDuration(seconds: number): string {
 }
 
 const styles = {
-	artistName: new Style<Label>({
-		...theme.text.sub,
-		paddingTop: 4,
-	}),
 	artwork: new Style<ImageView>({
 		borderRadius: 8,
 		flexShrink: 0,
@@ -499,53 +582,16 @@ const styles = {
 		marginRight: 14,
 		width: 65,
 	}),
-	bar: new Style({
-		alignItems: 'center',
-		backgroundColor: theme.colors.bgDeep,
-		borderRadius: theme.borderRadius,
-		bottom: theme.footerHeight * 0.8,
-		flexDirection: 'row',
-		left: 8,
-		marginLeft: 12,
-		marginRight: 12,
-		overflow: 'hidden',
-		position: 'absolute',
-		right: 8,
-		zIndex: 25,
-	}),
-	expandedAlbumLine: new Style<Label>({
-		...theme.text.subLarger,
-		marginTop: 4,
-		paddingTop: 12,
-		textAlign: 'center',
-		width: '100%',
-	}),
 	expandedArtistLogo: new Style<ImageView>({
 		height: 48,
 		marginBottom: 8,
 		objectFit: 'contain',
 		width: '100%',
 	}),
-	expandedArtistName: new Style<Label>({
-		...theme.text.mutedHeader,
-		marginBottom: 8,
-		textAlign: 'center',
-		width: '100%',
-	}),
 	expandedBottomSection: new Style({
 		marginBottom: theme.footerHeight - 24,
 		marginTop: 'auto',
 		width: '100%',
-	}),
-	expandedContent: new Style({
-		backgroundColor: theme.colors.bgDeep,
-		bottom: 0,
-		height: '100%',
-		left: 14,
-		opacity: 0,
-		position: 'absolute',
-		right: 14,
-		top: 0,
 	}),
 	expandedControlButton: new Style({
 		alignItems: 'center',
@@ -623,11 +669,9 @@ const styles = {
 	}),
 	expandedScrollArtwork: new Style<ImageView>({
 		aspectRatio: 1,
+		borderRadius: theme.borderRadius,
 		opacity: 0,
 		width: '100%',
-	}),
-	expandedTimeLabel: new Style<Label>({
-		...theme.text.sub,
 	}),
 	expandedTimeRow: new Style({
 		flexDirection: 'row',
@@ -641,26 +685,11 @@ const styles = {
 		paddingHorizontal: 24,
 		width: '100%',
 	}),
-	expandedTrackName: new Style<Label>({
-		...theme.text.title,
-		textAlign: 'center',
-		width: '100%',
-	}),
 	info: new Style({
 		flexGrow: 1,
 		flexShrink: 1,
 		justifyContent: 'center',
 		marginRight: 12,
-	}),
-	overlayCard: new Style({
-		backgroundColor: theme.colors.bgDeep,
-		borderRadius: theme.borderRadius,
-		bottom: theme.footerHeight * 0.8,
-		height: 84,
-		left: 20,
-		overflow: 'hidden',
-		position: 'absolute',
-		right: 20,
 	}),
 	overlayRoot: new Style({
 		height: '100%',
@@ -686,17 +715,9 @@ const styles = {
 		top: 0,
 		width: '100%',
 	}),
-	time: new Style<Label>({
-		...theme.text.sub,
-		flexShrink: 0,
-		paddingRight: 10,
-	}),
-	trackName: new Style<Label>({
-		...theme.text.title,
-	}),
 	transitionArtwork: new Style<ImageView>({
 		aspectRatio: 1,
-		borderRadius: 8,
+		borderRadius: theme.borderRadius,
 		left: 12,
 		position: 'absolute',
 		top: 10,

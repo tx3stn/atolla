@@ -18,11 +18,26 @@ function gbToBytes(gb: string): number | null {
 	return Number.isFinite(n) && n > 0 ? Math.round(n * GB) : null;
 }
 
+function formatBytes(bytes: number): string {
+	if (bytes === 0) return '0 MB';
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+	if (bytes < GB) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+	return `${(bytes / GB).toFixed(2)} GB`;
+}
+
 export interface SettingsViewModel {
 	animationsEnabled: boolean;
+	imageCacheBufferedBytes?: number;
+	imageCacheBufferedCount?: number;
+	imageCacheError?: string | null;
 	imageCacheMaxBytes?: number;
 	onAnimationsChange?: (enabled: boolean) => void;
 	onCacheSizeChange?: (bytes: number) => void;
+	onGeneratePalettes?: () => void;
+	paletteCount?: number;
+	paletteError?: string | null;
+	paletteFailureCount?: number;
+	paletteTotalCount?: number | null;
 	preferences: Preferences;
 }
 
@@ -50,7 +65,28 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 	};
 
 	onRender(): void {
-		const { animationsEnabled, onAnimationsChange } = this.viewModel;
+		const {
+			animationsEnabled,
+			imageCacheBufferedBytes,
+			imageCacheBufferedCount,
+			onAnimationsChange,
+			onGeneratePalettes,
+			paletteCount,
+			paletteError,
+			paletteFailureCount,
+			paletteTotalCount,
+		} = this.viewModel;
+
+		const processed = (paletteCount ?? 0) + (paletteFailureCount ?? 0);
+		const isDone = paletteTotalCount != null && processed >= paletteTotalCount;
+		const failureSuffix = (paletteFailureCount ?? 0) > 0 ? `, ${paletteFailureCount} failed` : '';
+
+		const paletteStatusLabel = (() => {
+			if (paletteTotalCount === null || paletteTotalCount === undefined)
+				return 'Generate palettes from artwork';
+			if (isDone) return `Processing complete — ${paletteCount} palettes ready${failureSuffix}`;
+			return `Processing… ${processed} / ${paletteTotalCount}${failureSuffix}`;
+		})();
 
 		<view style={styles.root}>
 			<label style={styles.sectionTitle} value='APPEARANCE' />
@@ -63,6 +99,30 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						onToggle={(enabled) => onAnimationsChange?.(enabled)}
 					/>
 				</view>
+			</view>
+
+			<label style={styles.sectionTitle} value='ARTWORK PALETTES' />
+			<view style={styles.section}>
+				<view
+					accessibilityLabel='settings-generate-palettes-btn'
+					contentDescription='settings-generate-palettes-btn'
+					onTap={createReusableCallback(() => onGeneratePalettes?.())}
+					style={styles.button}
+				>
+					<label style={styles.buttonLabel} value='Generate Palettes' />
+				</view>
+				{paletteTotalCount !== null && paletteTotalCount !== undefined && (
+					<label style={styles.paletteStatus} value={paletteStatusLabel} />
+				)}
+				{paletteTotalCount != null && paletteError != null && (
+					<label style={styles.paletteError} value={paletteError} />
+				)}
+				{paletteTotalCount != null && imageCacheBufferedCount != null && (
+					<label
+						style={styles.paletteStatus}
+						value={`${imageCacheBufferedCount} images buffered`}
+					/>
+				)}
 			</view>
 
 			<label style={styles.sectionTitle} value='CACHE' />
@@ -80,6 +140,13 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						/>
 					</view>
 				</view>
+				{imageCacheBufferedCount != null && imageCacheBufferedBytes != null && (
+					<label
+						accessibilityLabel='settings-cache-usage'
+						style={styles.paletteStatus}
+						value={`${imageCacheBufferedCount} images in memory (${formatBytes(imageCacheBufferedBytes)})`}
+					/>
+				)}
 				<view
 					accessibilityLabel='settings-cache-clear-btn'
 					contentDescription='settings-cache-clear-btn'
@@ -114,6 +181,17 @@ const styles = {
 		borderRadius: theme.borderRadius,
 		padding: 14,
 		width: '50%',
+	}),
+	paletteError: new Style({
+		...theme.text.sub,
+		color: '#ff6b6b',
+		marginLeft: 4,
+		marginTop: 8,
+	}),
+	paletteStatus: new Style({
+		...theme.text.sub,
+		marginLeft: 4,
+		marginTop: 8,
 	}),
 	root: new Style({
 		padding: 20,

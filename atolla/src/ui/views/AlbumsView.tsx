@@ -90,7 +90,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 						);
 					}
 				}}
-				resolveArtworkSource={(key) => imageCache.get(key) ?? (key || null)}
+				resolveArtworkSource={(key) => imageCache.getOrLoad(key)}
 			/>
 		</scroll>;
 	}
