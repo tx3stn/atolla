@@ -102,10 +102,10 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.expandedContentRef.setAttribute('left', 0);
 				this.expandedContentRef.setAttribute('opacity', 0.92);
 				this.expandedContentRef.setAttribute('right', 0);
-				this.transitionArtworkRef.setAttribute('left', '1%');
+				this.transitionArtworkRef.setAttribute('left', 0);
 				this.transitionArtworkRef.setAttribute('marginTop', 0);
-				this.transitionArtworkRef.setAttribute('top', 2);
-				this.transitionArtworkRef.setAttribute('width', '98%');
+				this.transitionArtworkRef.setAttribute('top', 0);
+				this.transitionArtworkRef.setAttribute('width', '100%');
 			},
 		)
 			.then(() => {
