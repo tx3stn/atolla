@@ -12,7 +12,9 @@ import com.snap.valdi.utils.ValdiImageLoadCompletion
 import com.snap.valdi.utils.ValdiImageLoadOptions
 import com.snap.valdi.utils.ValdiImageLoader
 import com.snap.valdi.utils.ValdiImageWithContent
+import java.io.File
 import java.net.URL
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 
@@ -23,11 +25,41 @@ data class AtollaCacheRequestPayload(
 
 class AtollaCacheImageLoader : ValdiImageLoader {
 	private val tag = "AtollaCacheLoader"
+	private val diskCacheFolder = "atolla-image-cache"
 	private val memory = ConcurrentHashMap<String, ByteArray>()
+	private val diskCacheDir: File? by lazy {
+		val appCacheDir = resolveAppCacheDir() ?: return@lazy null
+		val dir = File(appCacheDir, diskCacheFolder)
+		try {
+			if (!dir.exists()) {
+				dir.mkdirs()
+			}
+			if (!dir.isDirectory) {
+				Log.e(tag, "Disk cache path is not a directory: ${dir.absolutePath}")
+				return@lazy null
+			}
+			dir
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed to initialize disk cache directory", error)
+			null
+		}
+	}
 
-	fun getEntryCount(): Int = memory.size
+	fun getEntryCount(): Int {
+		val diskStats = getDiskStats()
+		if (diskStats != null) {
+			return diskStats.first
+		}
+		return memory.size
+	}
 
-	fun getTotalBytes(): Long = memory.values.sumOf { it.size.toLong() }
+	fun getTotalBytes(): Long {
+		val diskStats = getDiskStats()
+		if (diskStats != null) {
+			return diskStats.second
+		}
+		return memory.values.sumOf { it.size.toLong() }
+	}
 
 	override fun getSupportedURLSchemes(): List<String> {
 		Log.d(tag, "getSupportedURLSchemes")
@@ -64,11 +96,19 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			return null
 		}
 
+		readFromDisk(key)?.let { bytes ->
+			memory[key] = bytes
+			Log.d(tag, "disk cache hit key=$key bytes=${bytes.size}")
+			completeFromBytes(bytes, options, completion)
+			return null
+		}
+
 		val worker = thread(start = true) {
 			try {
 				val bytes = URL(payload.sourceUrl).readBytes()
 				Log.d(tag, "network fetch success key=$key bytes=${bytes.size}")
 				memory[key] = bytes
+				writeToDisk(key, bytes)
 				completeFromBytes(bytes, options, completion)
 			} catch (error: Throwable) {
 				Log.e(tag, "network fetch failed key=$key", error)
@@ -103,5 +143,71 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 
 		completion.onImageLoadComplete(0, 0, image, null)
+	}
+
+	private fun resolveAppCacheDir(): File? {
+		return try {
+			val activityThreadClass = Class.forName("android.app.ActivityThread")
+			val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)
+			val app = currentApplication as? android.app.Application ?: return null
+			app.cacheDir
+		} catch (error: Throwable) {
+			Log.e(tag, "Unable to resolve application cache directory", error)
+			null
+		}
+	}
+
+	private fun cacheFileForKey(key: String): File? {
+		val dir = diskCacheDir ?: return null
+		return File(dir, sha256Hex(key))
+	}
+
+	private fun readFromDisk(key: String): ByteArray? {
+		val file = cacheFileForKey(key) ?: return null
+		if (!file.exists()) {
+			return null
+		}
+		return try {
+			file.readBytes()
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed reading disk cache key=$key", error)
+			null
+		}
+	}
+
+	private fun writeToDisk(key: String, bytes: ByteArray) {
+		val file = cacheFileForKey(key) ?: return
+		try {
+			file.writeBytes(bytes)
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed writing disk cache key=$key", error)
+		}
+	}
+
+	private fun sha256Hex(value: String): String {
+		val digest = MessageDigest.getInstance("SHA-256")
+		return digest.digest(value.toByteArray(Charsets.UTF_8)).joinToString("") { byte ->
+			"%02x".format(byte)
+		}
+	}
+
+	private fun getDiskStats(): Pair<Int, Long>? {
+		val dir = diskCacheDir ?: return null
+		val files = try {
+			dir.listFiles()
+		} catch (_: Throwable) {
+			null
+		} ?: return 0 to 0L
+
+		var count = 0
+		var bytes = 0L
+		for (file in files) {
+			if (!file.isFile) {
+				continue
+			}
+			count += 1
+			bytes += file.length()
+		}
+		return count to bytes
 	}
 }
