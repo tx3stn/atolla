@@ -22,28 +22,22 @@ export interface ArtistsViewModel {
 
 interface ArtistsState {
 	artists: Array<Artist>;
-	cacheVersion: number;
 	isFooterVisible: boolean;
 	sort: ArtistSort;
 }
 
 export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsState> {
 	private hasBeenDestroyed = false;
-	private unsubscribeCache?: () => void;
 	private unsubscribePlayback?: () => void;
 
 	state: ArtistsState = {
 		artists: [],
-		cacheVersion: 0,
 		isFooterVisible: false,
 		sort: ArtistSorts.alphabetical,
 	};
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		this.unsubscribeCache = this.viewModel.imageCache.subscribe(() => {
-			this.setState({ cacheVersion: this.state.cacheVersion + 1 });
-		});
 		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
 		});
@@ -53,16 +47,11 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				return;
 			}
 			this.setState({ artists });
-			this.viewModel.imageCache.prefetch(
-				artists.map((a) => a.imageUrl ?? ''),
-				'artist_image',
-			);
 		});
 	}
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
-		this.unsubscribeCache?.();
 		this.unsubscribePlayback?.();
 	}
 

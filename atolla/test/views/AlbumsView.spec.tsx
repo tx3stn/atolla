@@ -8,12 +8,29 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
+const pageSize = 24;
+
 const stubImageCache = {
 	get: () => null,
 	getOrLoad: () => null,
 	prefetch: () => Promise.resolve(),
 	subscribe: () => () => {},
 };
+
+function makeAlbums(count: number) {
+	return Array.from({ length: count }, (_, index) => ({
+		artistId: `artist-${index}`,
+		artistName: `Artist ${index}`,
+		id: `album-${index}`,
+		imageUrl: `https://example.com/album-${index}.jpg`,
+		name: `Album ${String(index).padStart(3, '0')}`,
+	}));
+}
+
+async function flushAsyncWork() {
+	await Promise.resolve();
+	await Promise.resolve();
+}
 
 function makeNavigationController() {
 	let pushedComponent = null;
@@ -29,6 +46,136 @@ function makeNavigationController() {
 }
 
 describe('AlbumsView', () => {
+	valdiIt('loads first page only on create', async () => {
+		const allAlbums = makeAlbums(70);
+		const prefetchCalls: Array<Array<string>> = [];
+		const imageCache = {
+			...stubImageCache,
+			prefetch: (urls: Array<string>) => {
+				prefetchCalls.push(urls);
+				return Promise.resolve();
+			},
+		};
+		const transport = {
+			getAlbumsPage: (page: number, size: number) => {
+				const start = (page - 1) * size;
+				const end = start + size;
+				return Promise.resolve({
+					hasMore: end < allAlbums.length,
+					items: allAlbums.slice(start, end),
+				});
+			},
+		};
+
+		const instrumented = createComponent(AlbumsView, {
+			imageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			transport,
+		});
+		const component = instrumented.getComponent();
+
+		await flushAsyncWork();
+		await flushAsyncWork();
+
+		expect(component.state.albums.length).toBe(pageSize);
+		expect(prefetchCalls.length).toBe(1);
+		expect(prefetchCalls[0]?.length).toBe(pageSize);
+	});
+
+	valdiIt('loads next page when load-more is requested', async () => {
+		const allAlbums = makeAlbums(80);
+		const transport = {
+			getAlbumsPage: (page: number, size: number) => {
+				const start = (page - 1) * size;
+				const end = start + size;
+				return Promise.resolve({
+					hasMore: end < allAlbums.length,
+					items: allAlbums.slice(start, end),
+				});
+			},
+		};
+
+		const instrumented = createComponent(AlbumsView, {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			transport,
+		});
+		const component = instrumented.getComponent();
+
+		await flushAsyncWork();
+		await flushAsyncWork();
+		expect(component.state.albums.length).toBe(pageSize);
+
+		component.loadMore();
+		await flushAsyncWork();
+
+		expect(component.state.albums.length).toBe(pageSize * 2);
+
+		component.loadMore();
+		await flushAsyncWork();
+
+		expect(component.state.albums.length).toBe(pageSize * 3);
+
+		component.loadMore();
+		await flushAsyncWork();
+
+		expect(component.state.albums.length).toBe(80);
+	});
+
+	valdiIt('shows retry state when next page fails and recovers on retry', async () => {
+		const allAlbums = makeAlbums(90);
+		let shouldFailThirdPage = true;
+		const transport = {
+			getAlbumsPage: (page: number, size: number) => {
+				if (page === 3 && shouldFailThirdPage) {
+					return Promise.reject(new Error('load more failed'));
+				}
+				const start = (page - 1) * size;
+				const end = start + size;
+				return Promise.resolve({
+					hasMore: end < allAlbums.length,
+					items: allAlbums.slice(start, end),
+				});
+			},
+		};
+
+		const instrumented = createComponent(AlbumsView, {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			transport,
+		});
+		const component = instrumented.getComponent();
+
+		await flushAsyncWork();
+		await flushAsyncWork();
+		expect(component.state.albums.length).toBe(pageSize);
+
+		component.loadMore();
+		await flushAsyncWork();
+
+		expect(component.state.albums.length).toBe(pageSize * 2);
+
+		component.loadMore();
+		await flushAsyncWork();
+
+		expect(component.state.nextPageFailed).toBeTrue();
+		expect(component.state.albums.length).toBe(pageSize * 2);
+
+		shouldFailThirdPage = false;
+		component.retryLoadMore();
+		await flushAsyncWork();
+
+		expect(component.state.nextPageFailed).toBeFalse();
+		expect(component.state.albums.length).toBe(pageSize * 3);
+
+		component.loadMore();
+		await flushAsyncWork();
+		expect(component.state.albums.length).toBe(90);
+	});
+
 	valdiIt('renders album titles from state', () => {
 		const albums = [
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },

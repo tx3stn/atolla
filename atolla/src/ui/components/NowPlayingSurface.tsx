@@ -9,6 +9,7 @@ import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
+import { buildImageSource } from '../../services/ImageSource';
 import { theme } from '../../theme';
 import { TrackList, type TrackListEntry } from './TrackList';
 
@@ -328,17 +329,9 @@ export class NowPlayingSurface extends StatefulComponent<
 		const backToEntries = tracks.slice(0, trackIndex).map(toEntry);
 		const activeTab = this.state.activeQueueTab;
 		const albumArtworkSource =
-			album.imageUrl == null
-				? null
-				: imageCache
-					? imageCache.getOrLoad(album.imageUrl, 'album_art')
-					: album.imageUrl;
+			album.imageUrl == null ? null : buildImageSource(album.imageUrl, 'album_art');
 		const artistLogoSource =
-			artistLogoUrl == null
-				? null
-				: imageCache
-					? imageCache.getOrLoad(artistLogoUrl, 'artist_logo')
-					: artistLogoUrl;
+			artistLogoUrl == null ? null : buildImageSource(artistLogoUrl, 'artist_logo');
 
 		// ── Palette-derived colours ──────────────────────────────────────────────
 		const accentColor = palette.primary.hex;

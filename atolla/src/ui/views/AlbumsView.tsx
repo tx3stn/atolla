@@ -11,6 +11,7 @@ import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type AlbumSort, AlbumSorts, sortAlbums } from './AlbumsSort';
 import { AlbumView } from './AlbumView';
+import { gridPaginationConfig } from './GridPagination';
 
 export interface AlbumsViewModel {
 	animationsEnabled: boolean;
@@ -22,55 +23,128 @@ export interface AlbumsViewModel {
 
 interface AlbumsState {
 	albums: Array<Album>;
-	cacheVersion: number;
+	hasMore: boolean;
 	isFooterVisible: boolean;
+	isLoadingNextPage: boolean;
+	nextPageFailed: boolean;
+	page: number;
 	sort: AlbumSort;
 }
 
+interface AlbumPageResult {
+	hasMore: boolean;
+	items: Array<Album>;
+}
+
+interface PagedAlbumsTransport {
+	getAlbumsPage: (page: number, pageSize: number) => Promise<AlbumPageResult>;
+}
+
 export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> {
+	private allAlbums: Array<Album> | null = null;
 	private hasBeenDestroyed = false;
-	private unsubscribeCache?: () => void;
+	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
 
 	state: AlbumsState = {
 		albums: [],
-		cacheVersion: 0,
+		hasMore: true,
 		isFooterVisible: false,
+		isLoadingNextPage: false,
+		nextPageFailed: false,
+		page: 0,
 		sort: AlbumSorts.alphabetical,
 	};
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		this.unsubscribeCache = this.viewModel.imageCache.subscribe(() => {
-			this.setState({ cacheVersion: this.state.cacheVersion + 1 });
-		});
 		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
 		});
 		this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
-		this.viewModel.transport.getAllAlbums().then((albums) => {
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-			this.setState({ albums });
-			this.viewModel.imageCache.prefetch(
-				albums.map((a) => a.imageUrl ?? ''),
-				'album_art',
-			);
-		});
+		void this.loadInitialPages();
 	}
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
-		this.unsubscribeCache?.();
 		this.unsubscribePlayback?.();
+	}
+
+	private async loadInitialPages(): Promise<void> {
+		await this.loadNextPage();
+	}
+
+	private async loadNextPage(): Promise<void> {
+		if (this.hasBeenDestroyed || this.isLoadingPage || !this.state.hasMore) {
+			return;
+		}
+
+		const nextPage = this.state.page + 1;
+		const isFirstPage = nextPage === 1;
+		this.isLoadingPage = true;
+		if (!isFirstPage) {
+			this.setState({ isLoadingNextPage: true, nextPageFailed: false });
+		}
+
+		try {
+			const page = await this.fetchPage(nextPage);
+			if (this.hasBeenDestroyed) {
+				return;
+			}
+
+			const albums = isFirstPage ? page.items : [...this.state.albums, ...page.items];
+			this.setState({
+				albums,
+				hasMore: page.hasMore,
+				isLoadingNextPage: false,
+				nextPageFailed: false,
+				page: nextPage,
+			});
+		} catch {
+			if (this.hasBeenDestroyed) {
+				return;
+			}
+
+			if (!isFirstPage) {
+				this.setState({ isLoadingNextPage: false, nextPageFailed: true });
+			}
+		} finally {
+			this.isLoadingPage = false;
+		}
+	}
+
+	private async fetchPage(page: number): Promise<AlbumPageResult> {
+		const transport = this.viewModel.transport as Transport & Partial<PagedAlbumsTransport>;
+		if (transport.getAlbumsPage) {
+			return transport.getAlbumsPage(page, gridPaginationConfig.pageSize);
+		}
+
+		if (!this.allAlbums) {
+			this.allAlbums = await this.viewModel.transport.getAllAlbums();
+		}
+
+		const sorted = sortAlbums(this.allAlbums, this.state.sort);
+		const start = (page - 1) * gridPaginationConfig.pageSize;
+		const end = start + gridPaginationConfig.pageSize;
+		return {
+			hasMore: end < sorted.length,
+			items: sorted.slice(start, end),
+		};
+	}
+
+	private retryLoadMore(): void {
+		void this.loadNextPage();
+	}
+
+	private loadMore(): void {
+		void this.loadNextPage();
 	}
 
 	onRender(): void {
 		const { imageCache, animationsEnabled, navigationController, playbackStore, transport } =
 			this.viewModel;
 
-		const cards: Array<Card> = sortAlbums(this.state.albums, this.state.sort).map((album) => ({
+		const cards: Array<Card> = this.state.albums.map((album) => ({
 			artworkKey: album.imageUrl ?? '',
 			id: album.id,
 			kind: 'album',
@@ -83,6 +157,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				accessibilityLabel='home-albums-grid'
 				cards={cards}
 				imageCache={imageCache}
+				isLoadingMore={this.state.isLoadingNextPage}
 				onCardTap={(card) => {
 					const album = this.state.albums.find((a) => a.id === card.id);
 					if (album) {
@@ -94,6 +169,12 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 						);
 					}
 				}}
+				onLoadMore={
+					this.state.hasMore && !this.state.nextPageFailed && !this.state.isLoadingNextPage
+						? () => this.loadMore()
+						: undefined
+				}
+				onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 			/>
 		</scroll>;
 	}

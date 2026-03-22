@@ -46,10 +46,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				return;
 			}
 			this.setState({ playlists });
-			this.viewModel.imageCache.prefetch(
-				playlists.map((p) => p.imageUrl ?? ''),
-				'playlist_image',
-			);
 		});
 	}
 

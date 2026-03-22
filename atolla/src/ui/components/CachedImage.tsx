@@ -3,8 +3,10 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { ImageCache, ImageCategory } from '../../services/ImageCache';
+import { buildImageSource } from '../../services/ImageSource';
 
 export interface CachedImageViewModel {
+	cacheVersion?: number;
 	category: ImageCategory;
 	imageCache?: ImageCache;
 	objectFit?: 'cover' | 'contain';
@@ -14,18 +16,13 @@ export interface CachedImageViewModel {
 
 export class CachedImage extends Component<CachedImageViewModel> {
 	onRender(): void {
-		const { category, imageCache, objectFit = 'cover', style, url } = this.viewModel;
-		if (!url) return;
-		const imageStyle = style ?? styles.defaultImage;
-
-		if (!imageCache) {
-			<image objectFit={objectFit} src={url} style={imageStyle} />;
+		const { category, objectFit = 'cover', style, url } = this.viewModel;
+		if (!url) {
 			return;
 		}
 
-		const source = imageCache.getOrLoad(url, category);
-		if (!source) return;
-
+		const imageStyle = style ?? styles.defaultImage;
+		const source = buildImageSource(url, category);
 		<image objectFit={objectFit} src={source} style={imageStyle} />;
 	}
 }

@@ -25,6 +25,7 @@ export interface ClearCacheSelection {
 
 type ImageListener = () => void;
 type ImageStoredListener = (url: string, buffer: ArrayBuffer, mimeType: string) => void;
+type ImageKeyListener = () => void;
 
 function defaultLoader(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
 	return new Promise((resolve) => {
@@ -46,8 +47,12 @@ function defaultLoader(url: string): Promise<{ buffer: ArrayBuffer; mimeType: st
 export class ImageCache {
 	private memory = new Map<string, string>();
 	private buffers = new Map<string, { buffer: ArrayBuffer; mimeType: string }>();
+	private queue: Array<{ category: ImageCategory; url: string }> = [];
+	private activeLoads = 0;
+	private readonly maxConcurrentLoads = 4;
 	private pending = new Set<string>();
 	private listeners = new Set<ImageListener>();
+	private keyListeners = new Map<string, Set<ImageKeyListener>>();
 	private storedListeners = new Set<ImageStoredListener>();
 	lastError: string | null = null;
 
@@ -78,8 +83,8 @@ export class ImageCache {
 	}
 
 	// Returns the cached data URI if available, otherwise kicks off a load and
-	// returns the raw URL as a temporary fallback. When the load completes,
-	// subscribers are notified so callers can re-render with the cached value.
+	// returns the raw URL as a temporary fallback. This preserves existing
+	// behavior for callers while the cache load happens in the background.
 	getOrLoad(url: string, category: ImageCategory): string | null {
 		if (!url) return null;
 		const key = this.memoryKey(url, category);
@@ -87,24 +92,21 @@ export class ImageCache {
 		if (cached) return cached;
 
 		if (!this.pending.has(key)) {
-			this.pending.add(key);
-			void this.loadUrl(url, category);
+			this.enqueueLoad(url, category);
 		}
 		return url;
 	}
 
 	prefetch(urls: Array<string>, category: ImageCategory): Promise<void> {
-		const loads = urls
-			.filter((url) => {
-				const key = this.memoryKey(url, category);
-				return url && !this.memory.has(key) && !this.pending.has(key);
-			})
-			.map((url) => {
-				const key = this.memoryKey(url, category);
-				this.pending.add(key);
-				return this.loadUrl(url, category);
-			});
-		return Promise.allSettled(loads).then(() => undefined);
+		const requestedKeys: Array<string> = [];
+		for (const url of urls) {
+			if (!url) continue;
+			const key = this.memoryKey(url, category);
+			requestedKeys.push(key);
+			if (this.memory.has(key) || this.pending.has(key)) continue;
+			this.enqueueLoad(url, category);
+		}
+		return this.waitForKeys(requestedKeys);
 	}
 
 	async clearSelected(selection: ClearCacheSelection): Promise<void> {
@@ -121,6 +123,27 @@ export class ImageCache {
 	subscribe(listener: ImageListener): () => void {
 		this.listeners.add(listener);
 		return () => this.listeners.delete(listener);
+	}
+
+	subscribeTo(url: string, category: ImageCategory, listener: ImageKeyListener): () => void {
+		const key = this.memoryKey(url, category);
+		let listeners = this.keyListeners.get(key);
+		if (!listeners) {
+			listeners = new Set<ImageKeyListener>();
+			this.keyListeners.set(key, listeners);
+		}
+		listeners.add(listener);
+
+		return () => {
+			const current = this.keyListeners.get(key);
+			if (!current) {
+				return;
+			}
+			current.delete(listener);
+			if (current.size === 0) {
+				this.keyListeners.delete(key);
+			}
+		};
 	}
 
 	// Force-fires onImageStored for a URL that is already in the in-memory
@@ -144,6 +167,47 @@ export class ImageCache {
 		return () => this.storedListeners.delete(listener);
 	}
 
+	private enqueueLoad(url: string, category: ImageCategory): void {
+		const key = this.memoryKey(url, category);
+		if (this.pending.has(key) || this.memory.has(key)) {
+			return;
+		}
+
+		this.pending.add(key);
+		this.queue.push({ category, url });
+		this.drainQueue();
+	}
+
+	private drainQueue(): void {
+		while (this.activeLoads < this.maxConcurrentLoads && this.queue.length > 0) {
+			const next = this.queue.shift();
+			if (!next) {
+				return;
+			}
+
+			this.activeLoads += 1;
+			void this.loadUrl(next.url, next.category).finally(() => {
+				this.activeLoads -= 1;
+				this.drainQueue();
+			});
+		}
+	}
+
+	private waitForKeys(keys: Array<string>): Promise<void> {
+		if (keys.every((key) => !this.pending.has(key))) {
+			return Promise.resolve();
+		}
+
+		return new Promise((resolve) => {
+			const unsubscribe = this.subscribe(() => {
+				if (keys.every((key) => !this.pending.has(key))) {
+					unsubscribe();
+					resolve();
+				}
+			});
+		});
+	}
+
 	private async loadUrl(url: string, category: ImageCategory): Promise<void> {
 		const memoryKey = this.memoryKey(url, category);
 		const storeKey = this.storeKey(url, category);
@@ -156,7 +220,6 @@ export class ImageCache {
 					this.memory.set(memoryKey, toDataUri(buffer, mimeType));
 					this.buffers.set(memoryKey, { buffer, mimeType });
 					this.notifyStored(url, buffer, mimeType);
-					this.notify();
 					return;
 				}
 			} catch {
@@ -166,7 +229,6 @@ export class ImageCache {
 			const result = await this.loaderFn(url, category);
 			if (!result) {
 				this.lastError = `load failed for ${url.slice(0, 60)}: loader returned null`;
-				this.notify();
 				return;
 			}
 
@@ -184,12 +246,12 @@ export class ImageCache {
 			}
 
 			this.notifyStored(url, buffer, mimeType);
-			this.notify();
 		} catch (err) {
 			this.lastError = `load failed for ${url.slice(0, 60)}: ${String(err)}`;
-			this.notify();
 		} finally {
 			this.pending.delete(memoryKey);
+			this.notify();
+			this.notifyKey(memoryKey);
 		}
 	}
 
@@ -235,6 +297,16 @@ export class ImageCache {
 
 	private notify(): void {
 		for (const listener of this.listeners) {
+			listener();
+		}
+	}
+
+	private notifyKey(key: string): void {
+		const listeners = this.keyListeners.get(key);
+		if (!listeners) {
+			return;
+		}
+		for (const listener of listeners) {
 			listener();
 		}
 	}

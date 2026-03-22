@@ -17,16 +17,29 @@ export interface Card {
 
 export interface CardGridViewModel {
 	accessibilityLabel: string;
+	cacheVersion?: number;
 	cards: Array<Card>;
 	imageCache?: ImageCache;
+	isLoadingMore?: boolean;
 	onCardTap: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
+	onLoadMore?: () => void;
+	onRetryLoadMore?: () => void;
 	resolveArtworkSource?: (artworkKey: string) => string | null;
 }
 
 export class CardGrid extends Component<CardGridViewModel> {
 	onRender() {
-		const { accessibilityLabel, cards, imageCache, onCardTap, resolveArtworkSource } =
-			this.viewModel;
+		const {
+			accessibilityLabel,
+			cacheVersion,
+			cards,
+			imageCache,
+			isLoadingMore,
+			onCardTap,
+			onLoadMore,
+			onRetryLoadMore,
+			resolveArtworkSource,
+		} = this.viewModel;
 
 		const rows: Array<Array<Card>> = [];
 		for (let i = 0; i < cards.length; i += 3) {
@@ -61,6 +74,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 								>
 									{artworkKey ? (
 										<CachedImage
+											cacheVersion={cacheVersion}
 											category={category}
 											imageCache={imageCache}
 											objectFit='cover'
@@ -78,6 +92,33 @@ export class CardGrid extends Component<CardGridViewModel> {
 					})}
 				</layout>
 			))}
+			{isLoadingMore ? (
+				<label style={styles.loadMoreLabel} value='Loading more...' />
+			) : onRetryLoadMore ? (
+				<view
+					accessibilityLabel='grid-load-more-retry'
+					contentDescription='grid-load-more-retry'
+					onTap={createReusableCallback(() => {
+						onRetryLoadMore();
+					})}
+					style={styles.loadMoreRetryContainer}
+					testID='grid-load-more-retry'
+				>
+					<label style={styles.loadMoreRetryLabel} value='Failed to load more. Tap to retry.' />
+				</view>
+			) : onLoadMore ? (
+				<view
+					accessibilityLabel='grid-load-more'
+					contentDescription='grid-load-more'
+					onTap={createReusableCallback(() => {
+						onLoadMore();
+					})}
+					style={styles.loadMoreRetryContainer}
+					testID='grid-load-more'
+				>
+					<label style={styles.loadMoreRetryLabel} value='Load more' />
+				</view>
+			) : null}
 		</layout>;
 	}
 }
@@ -140,5 +181,19 @@ const styles = {
 	}),
 	grid: new Style({
 		width: '100%',
+	}),
+	loadMoreLabel: new Style<Label>({
+		...theme.text.sub,
+		marginTop: 12,
+		textAlign: 'center',
+	}),
+	loadMoreRetryContainer: new Style({
+		alignItems: 'center',
+		marginTop: 12,
+		paddingVertical: 8,
+	}),
+	loadMoreRetryLabel: new Style<Label>({
+		...theme.text.main,
+		textAlign: 'center',
 	}),
 };

@@ -2,6 +2,7 @@
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import { ensureAtollaImageLoaderBootstrap } from './ImageLoaderBootstrap';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { ImageCache } from './services/ImageCache';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
@@ -53,7 +54,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private paletteService = new ArtworkPaletteService(new PersistentPaletteStore());
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
-	private unsubscribeImageCache?: () => void;
 	private lastArtworkUrl: string | null = null;
 
 	state: AppState = {
@@ -69,6 +69,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	onCreate(): void {
+		try {
+			ensureAtollaImageLoaderBootstrap();
+		} catch {
+			// Android native bootstrap may be unavailable on non-Android targets.
+		}
 		this.preferences.getImageCacheMaxBytes().then((bytes) => {
 			setImageCacheSize(bytes);
 			this.setState({ imageCacheMaxBytes: bytes });
@@ -83,9 +88,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
 			this.setState({ version: this.state.version + 1 });
 		});
-		this.unsubscribeImageCache = this.imageCache.subscribe(() => {
-			this.setState({ version: this.state.version + 1 });
-		});
 		// Handle any track already playing at startup
 		this.handleAlbumChange();
 	}
@@ -93,7 +95,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	onDestroy(): void {
 		this.unsubscribePlayback?.();
 		this.unsubscribePalette?.();
-		this.unsubscribeImageCache?.();
 	}
 
 	// Called whenever the playback store changes. Loads the persisted palette

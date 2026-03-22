@@ -1,0 +1,29 @@
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+load("@rules_kotlin//kotlin:android.bzl", "kt_android_library")
+
+package(default_visibility = ["//visibility:public"])
+
+swift_library(
+	name = "atolla_cache_image_loader_ios",
+	srcs = ["ios/AtollaCacheImageLoader.swift"],
+	deps = [],
+)
+
+kt_android_library(
+	name = "atolla_cache_image_loader_android",
+	assets = [
+		"android/assets/valdi_native_modules/atolla.native.android.AtollaImageLoaderBootstrapModuleFactory",
+	],
+	assets_dir = "android/assets",
+	custom_package = "atolla.native.android",
+	srcs = [
+		"android/AtollaCacheImageLoader.kt",
+		"android/AtollaImageLoaderAutoBootstrap.kt",
+		"android/AtollaImageLoaderBootstrapModuleFactory.kt",
+		"android/AtollaImageLoaderRegistration.kt",
+	],
+	deps = [
+		"//atolla:atolla_api_kt",
+		"@valdi//valdi:valdi_java",
+	],
+)
