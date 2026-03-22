@@ -53,7 +53,10 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				return;
 			}
 			this.setState({ albums });
-			this.viewModel.imageCache.prefetch(albums.map((a) => a.imageUrl ?? ''));
+			this.viewModel.imageCache.prefetch(
+				albums.map((a) => a.imageUrl ?? ''),
+				'album_art',
+			);
 		});
 	}
 
@@ -79,18 +82,18 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			<CardGrid
 				accessibilityLabel='home-albums-grid'
 				cards={cards}
+				imageCache={imageCache}
 				onCardTap={(card) => {
 					const album = this.state.albums.find((a) => a.id === card.id);
 					if (album) {
 						navigationController.push(
 							AlbumView,
-							{ album, playbackStore, transport },
+							{ album, imageCache, playbackStore, transport },
 							{},
 							{ animated: animationsEnabled },
 						);
 					}
 				}}
-				resolveArtworkSource={(key) => imageCache.getOrLoad(key)}
 			/>
 		</scroll>;
 	}

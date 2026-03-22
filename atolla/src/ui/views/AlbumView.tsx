@@ -6,6 +6,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
+import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -15,6 +16,7 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 
 export interface AlbumViewModel {
 	album: Album;
+	imageCache: ImageCache;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -76,7 +78,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 	onRender(): void {
 		const { artistLogoUrl, isFooterVisible, tracks } = this.state;
-		const { album } = this.viewModel;
+		const { album, imageCache } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			id: track.id,
@@ -94,16 +96,18 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		<layout accessibilityLabel='album-view' contentDescription='album-view' style={styles.root}>
 			<scroll style={scrollStyle}>
 				<DetailHeader
+					artworkCategory='album_art'
 					artworkSource={album.imageUrl ?? null}
 					buttonText={album.releaseDate}
 					fallbackText={album.artistName}
+					imageCache={imageCache}
 					logoSource={artistLogoUrl}
 					onPlay={this.handleHeaderPlayTap}
 					subheaderLineOneLeft={album.name}
 					subheaderLineTwoLeft={releaseDateText}
 					subheaderLineTwoRight={durationText}
 				/>
-				<TrackList tracks={entries} />
+				<TrackList imageCache={imageCache} tracks={entries} />
 				{album.bio && <BioSection bio={album.bio} modalSlot={this.modalSlot} title={album.name} />}
 			</scroll>
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />

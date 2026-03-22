@@ -122,6 +122,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					{$slot((navigationController) => {
 						<PlaylistsView
 							animationsEnabled={animationsEnabled}
+							imageCache={imageCache}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
 							transport={this.transport}

@@ -3,7 +3,9 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageCache, ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
+import { CachedImage } from './CachedImage';
 
 export interface Card {
 	artworkKey: string;
@@ -16,13 +18,15 @@ export interface Card {
 export interface CardGridViewModel {
 	accessibilityLabel: string;
 	cards: Array<Card>;
+	imageCache?: ImageCache;
 	onCardTap: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
-	resolveArtworkSource: (artworkKey: string) => string | null;
+	resolveArtworkSource?: (artworkKey: string) => string | null;
 }
 
 export class CardGrid extends Component<CardGridViewModel> {
 	onRender() {
-		const { accessibilityLabel, cards, onCardTap, resolveArtworkSource } = this.viewModel;
+		const { accessibilityLabel, cards, imageCache, onCardTap, resolveArtworkSource } =
+			this.viewModel;
 
 		const rows: Array<Array<Card>> = [];
 		for (let i = 0; i < cards.length; i += 3) {
@@ -40,7 +44,10 @@ export class CardGrid extends Component<CardGridViewModel> {
 					style={row.length === 3 ? styles.cardGridRowFull : styles.cardGridRowPartial}
 				>
 					{row.map((entry) => {
-						const artworkSource = resolveArtworkSource(entry.artworkKey);
+						const artworkKey = resolveArtworkSource
+							? resolveArtworkSource(entry.artworkKey)
+							: entry.artworkKey;
+						const category = cardKindToCategory(entry.kind);
 						return (
 							<layout key={entry.id} style={styles.browseCard}>
 								<view
@@ -52,8 +59,14 @@ export class CardGrid extends Component<CardGridViewModel> {
 									style={styles.artworkTile}
 									testID={`card-${entry.id}`}
 								>
-									{artworkSource ? (
-										<image objectFit='cover' src={artworkSource} style={styles.artworkImage} />
+									{artworkKey ? (
+										<CachedImage
+											category={category}
+											imageCache={imageCache}
+											objectFit='cover'
+											style={styles.artworkImage}
+											url={artworkKey}
+										/>
 									) : (
 										<label style={styles.artworkFallbackLabel} value={entry.kind.toUpperCase()} />
 									)}
@@ -67,6 +80,12 @@ export class CardGrid extends Component<CardGridViewModel> {
 			))}
 		</layout>;
 	}
+}
+
+function cardKindToCategory(kind: Card['kind']): ImageCategory {
+	if (kind === 'artist') return 'artist_image';
+	if (kind === 'playlist') return 'playlist_image';
+	return 'album_art';
 }
 
 const styles = {

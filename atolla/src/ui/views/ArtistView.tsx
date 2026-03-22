@@ -7,6 +7,7 @@ import { NavigationPageStatefulComponent } from 'valdi_navigation/src/Navigation
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Track } from '../../models/Track';
+import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -19,6 +20,7 @@ import { AlbumView } from './AlbumView';
 export interface ArtistViewModel {
 	animationsEnabled: boolean;
 	artist: Artist;
+	imageCache: ImageCache;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -68,7 +70,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	}
 
 	onRender(): void {
-		const { artist, animationsEnabled, playbackStore, transport } = this.viewModel;
+		const { artist, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 		const { albums, isFooterVisible, topTracks } = this.state;
 
 		const sortedAlbums = [...albums].sort((a, b) =>
@@ -94,8 +96,10 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		<layout accessibilityLabel='artist-view' contentDescription='artist-view' style={styles.root}>
 			<scroll style={scrollStyle}>
 				<DetailHeader
+					artworkCategory='artist_image'
 					artworkSource={artist.imageUrl ?? null}
 					fallbackText={artist.name}
+					imageCache={imageCache}
 					logoSource={artist.logoUrl || null}
 				/>
 
@@ -108,18 +112,18 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						<CardGrid
 							accessibilityLabel='artist-albums-grid'
 							cards={albumCards}
+							imageCache={imageCache}
 							onCardTap={(card) => {
 								const album = this.state.albums.find((a) => a.id === card.id);
 								if (album) {
 									this.navigationController.push(
 										AlbumView,
-										{ album, playbackStore, transport },
+										{ album, imageCache, playbackStore, transport },
 										{},
 										{ animated: animationsEnabled },
 									);
 								}
 							}}
-							resolveArtworkSource={(key) => key || null}
 						/>
 					</layout>
 				)}
@@ -127,7 +131,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				{trackEntries.length > 0 && (
 					<layout style={styles.section}>
 						<label style={styles.sectionHeader} value='TOP TRACKS' />
-						<TrackList tracks={trackEntries} />
+						<TrackList imageCache={imageCache} tracks={trackEntries} />
 					</layout>
 				)}
 

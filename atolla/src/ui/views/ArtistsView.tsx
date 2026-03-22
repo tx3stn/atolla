@@ -53,7 +53,10 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				return;
 			}
 			this.setState({ artists });
-			this.viewModel.imageCache.prefetch(artists.map((a) => a.imageUrl ?? ''));
+			this.viewModel.imageCache.prefetch(
+				artists.map((a) => a.imageUrl ?? ''),
+				'artist_image',
+			);
 		});
 	}
 
@@ -79,18 +82,18 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			<CardGrid
 				accessibilityLabel='home-artists-grid'
 				cards={cards}
+				imageCache={imageCache}
 				onCardTap={(card) => {
 					const artist = this.state.artists.find((a) => a.id === card.id);
 					if (artist) {
 						navigationController.push(
 							ArtistView,
-							{ animationsEnabled, artist, playbackStore, transport },
+							{ animationsEnabled, artist, imageCache, playbackStore, transport },
 							{},
 							{ animated: animationsEnabled },
 						);
 					}
 				}}
-				resolveArtworkSource={(key) => imageCache.getOrLoad(key)}
 			/>
 		</scroll>;
 	}

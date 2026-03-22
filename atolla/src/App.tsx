@@ -113,7 +113,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	// Extract palette from a URL that is already in the image buffer cache.
 	// If the image hasn't been loaded into the buffer cache yet, skips silently.
 	private async generatePaletteForUrl(url: string): Promise<void> {
-		const entry = this.imageCache.getBuffer(url);
+		const entry = this.imageCache.getBuffer(url, 'album_art');
 		if (!entry) return;
 		await this.paletteService.generatePalette(url, entry.buffer, entry.mimeType);
 	}
@@ -124,7 +124,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			const urls = [...new Set(albums.map((a) => a.imageUrl).filter(Boolean))];
 			this.setState({ paletteFailureCount: 0, paletteTotalCount: urls.length });
 			await this.paletteService.warmUp(urls);
-			await this.imageCache.prefetch(urls);
+			await this.imageCache.prefetch(urls, 'album_art');
 			for (const url of urls) {
 				try {
 					await this.generatePaletteForUrl(url);
@@ -220,6 +220,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					animationsEnabled={this.state.animationsEnabled}
 					artistLogoUrl={artistLogoUrl}
 					collapseSignal={this.state.nowPlayingCollapseSignal}
+					imageCache={this.imageCache}
 					isPlaying={isPlaying}
 					onDismiss={() => this.playbackStore.stop()}
 					onNext={() => this.playbackStore.next()}

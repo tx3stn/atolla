@@ -3,6 +3,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { Playlist } from '../../models/Playlist';
+import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -12,6 +13,7 @@ import { PlaylistView } from './PlaylistView';
 
 export interface PlaylistsViewModel {
 	animationsEnabled: boolean;
+	imageCache: ImageCache;
 	navigationController: NavigationController;
 	playbackStore: PlaybackStore;
 	transport: Transport;
@@ -44,6 +46,10 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				return;
 			}
 			this.setState({ playlists });
+			this.viewModel.imageCache.prefetch(
+				playlists.map((p) => p.imageUrl ?? ''),
+				'playlist_image',
+			);
 		});
 	}
 
@@ -53,7 +59,8 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	onRender(): void {
-		const { animationsEnabled, navigationController, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
+			this.viewModel;
 
 		const cards: Array<Card> = sortPlaylists(this.state.playlists, this.state.sort).map(
 			(playlist) => ({
@@ -69,18 +76,18 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			<CardGrid
 				accessibilityLabel='home-playlists-grid'
 				cards={cards}
+				imageCache={imageCache}
 				onCardTap={(card) => {
 					const playlist = this.state.playlists.find((p) => p.id === card.id);
 					if (playlist) {
 						navigationController.push(
 							PlaylistView,
-							{ playbackStore, playlist, transport },
+							{ imageCache, playbackStore, playlist, transport },
 							{},
 							{ animated: animationsEnabled },
 						);
 					}
 				}}
-				resolveArtworkSource={(key) => key || null}
 			/>
 		</scroll>;
 	}

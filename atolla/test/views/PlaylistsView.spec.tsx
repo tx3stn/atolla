@@ -12,6 +12,11 @@ const playbackStore = {
 	track: null,
 };
 
+const stubImageCache = {
+	prefetch: () => Promise.resolve(),
+	subscribe: () => () => {},
+};
+
 function makeNavigationController() {
 	let pushedComponent = null;
 	let pushedViewModel = null;
@@ -36,6 +41,7 @@ describe('PlaylistsView', () => {
 		};
 
 		const instrumented = createComponent(PlaylistsView, {
+			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
 			transport,
@@ -61,6 +67,7 @@ describe('PlaylistsView', () => {
 
 		const navigationController = makeNavigationController();
 		const instrumented = createComponent(PlaylistsView, {
+			imageCache: stubImageCache,
 			navigationController,
 			playbackStore,
 			transport,

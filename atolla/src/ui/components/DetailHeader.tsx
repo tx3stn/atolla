@@ -3,11 +3,15 @@ import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageCache, ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
+import { CachedImage } from './CachedImage';
 
 export interface DetailHeaderViewModel {
+	artworkCategory: ImageCategory;
 	artworkSource: string | null;
 	fallbackText?: string | null;
+	imageCache?: ImageCache;
 	logoSource?: string | null;
 	onDownload?: () => void;
 	onPlay?: () => void;
@@ -37,13 +41,25 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 			<layout style={styles.headerRow}>
 				<view style={styles.artworkTile}>
 					{artworkSource && (
-						<image objectFit='cover' src={artworkSource} style={styles.artworkImage} />
+						<CachedImage
+							category={this.viewModel.artworkCategory}
+							imageCache={this.viewModel.imageCache}
+							objectFit='cover'
+							style={styles.artworkImage}
+							url={artworkSource}
+						/>
 					)}
 				</view>
 				<layout style={styles.rightColumn}>
 					<view style={styles.logoArea}>
 						{logoSource ? (
-							<image objectFit='contain' src={logoSource} style={styles.logoImage} />
+							<CachedImage
+								category='artist_logo'
+								imageCache={this.viewModel.imageCache}
+								objectFit='contain'
+								style={styles.logoImage}
+								url={logoSource}
+							/>
 						) : fallbackText ? (
 							<label numberOfLines={0} style={styles.fallbackText} value={fallbackText} />
 						) : null}

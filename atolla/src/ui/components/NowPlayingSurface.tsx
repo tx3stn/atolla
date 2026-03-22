@@ -8,6 +8,7 @@ import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
+import type { ImageCache } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { TrackList, type TrackListEntry } from './TrackList';
 
@@ -16,6 +17,7 @@ export interface NowPlayingSurfaceViewModel {
 	animationsEnabled: boolean;
 	artistLogoUrl?: string | null;
 	collapseSignal: number;
+	imageCache?: ImageCache;
 	isPlaying: boolean;
 	onDismiss: () => void;
 	onNext: () => void;
@@ -304,6 +306,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			album,
 			artistLogoUrl,
 			isPlaying,
+			imageCache,
 			onNext,
 			onPlayPause,
 			onPrevious,
@@ -324,6 +327,18 @@ export class NowPlayingSurface extends StatefulComponent<
 		const upNextEntries = tracks.slice(trackIndex + 1).map(toEntry);
 		const backToEntries = tracks.slice(0, trackIndex).map(toEntry);
 		const activeTab = this.state.activeQueueTab;
+		const albumArtworkSource =
+			album.imageUrl == null
+				? null
+				: imageCache
+					? imageCache.getOrLoad(album.imageUrl, 'album_art')
+					: album.imageUrl;
+		const artistLogoSource =
+			artistLogoUrl == null
+				? null
+				: imageCache
+					? imageCache.getOrLoad(artistLogoUrl, 'artist_logo')
+					: artistLogoUrl;
 
 		// ── Palette-derived colours ──────────────────────────────────────────────
 		const accentColor = palette.primary.hex;
@@ -457,7 +472,9 @@ export class NowPlayingSurface extends StatefulComponent<
 				style={barStyle}
 			>
 				<view style={progressFillStyle} />
-				{album.imageUrl && <image objectFit='cover' src={album.imageUrl} style={styles.artwork} />}
+				{albumArtworkSource && (
+					<image objectFit='cover' src={albumArtworkSource} style={styles.artwork} />
+				)}
 				<layout style={styles.info}>
 					<label numberOfLines={1} style={trackNameStyle} value={track.name} />
 					<label
@@ -477,30 +494,30 @@ export class NowPlayingSurface extends StatefulComponent<
 					ref={this.overlayCardRef}
 					style={overlayCardStyle}
 				>
-					{album.imageUrl && (
+					{albumArtworkSource && (
 						<image
 							objectFit='cover'
 							ref={this.transitionArtworkRef}
-							src={album.imageUrl}
+							src={albumArtworkSource}
 							style={styles.transitionArtwork}
 						/>
 					)}
 					<view ref={this.expandedContentRef} style={expandedContentStyle}>
 						<scroll style={styles.expandedInner}>
 							<layout style={styles.expandedFirstPage}>
-								{album.imageUrl && (
+								{albumArtworkSource && (
 									<image
 										objectFit='cover'
 										ref={this.scrollArtworkRef}
-										src={album.imageUrl}
+										src={albumArtworkSource}
 										style={styles.expandedScrollArtwork}
 									/>
 								)}
 								<layout style={styles.expandedInfoSection}>
-									{artistLogoUrl && (
+									{artistLogoSource && (
 										<image
 											objectFit='contain'
-											src={artistLogoUrl}
+											src={artistLogoSource}
 											style={styles.expandedArtistLogo}
 										/>
 									)}
@@ -558,7 +575,10 @@ export class NowPlayingSurface extends StatefulComponent<
 								</layout>
 							</layout>
 							<layout style={styles.expandedQueueList}>
-								<TrackList tracks={activeTab === 'upNext' ? upNextEntries : backToEntries} />
+								<TrackList
+									imageCache={imageCache}
+									tracks={activeTab === 'upNext' ? upNextEntries : backToEntries}
+								/>
 							</layout>
 						</scroll>
 					</view>

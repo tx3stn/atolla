@@ -6,6 +6,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
+import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -13,6 +14,7 @@ import { DetailHeader } from '../components/DetailHeader';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 
 export interface PlaylistViewModel {
+	imageCache: ImageCache;
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
 	transport: Transport;
@@ -76,12 +78,14 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		>
 			<scroll style={createScrollStyle(isFooterVisible)}>
 				<DetailHeader
+					artworkCategory='playlist_image'
 					artworkSource={this.viewModel.playlist.imageUrl ?? null}
 					fallbackText={this.viewModel.playlist.name}
+					imageCache={this.viewModel.imageCache}
 					subheaderLineOneLeft={tracks.length > 0 ? `${tracks.length} tracks` : null}
 					subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
 				/>
-				<TrackList tracks={entries} />
+				<TrackList imageCache={this.viewModel.imageCache} tracks={entries} />
 			</scroll>
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 		</layout>;

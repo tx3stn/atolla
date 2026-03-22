@@ -2,8 +2,9 @@
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
-import type { Track } from '../../models/Track';
+import type { ImageCache } from '../../services/ImageCache';
 import { theme } from '../../theme';
+import { CachedImage } from './CachedImage';
 
 export interface TrackListEntry {
 	artworkSource?: string | null;
@@ -14,6 +15,7 @@ export interface TrackListEntry {
 }
 
 interface TrackListViewModel {
+	imageCache?: ImageCache;
 	onTrackTap?: (trackId: string) => void;
 	tracks: Array<TrackListEntry>;
 }
@@ -26,7 +28,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		}
 
 		<layout style={styles.list}>
-			{this.viewModel.tracks.map((track: Track) => (
+			{this.viewModel.tracks.map((track: TrackListEntry) => (
 				<view
 					accessibilityLabel={`track-row-${track.id}`}
 					contentDescription={`track-row-${track.id}`}
@@ -40,7 +42,13 @@ export class TrackList extends Component<TrackListViewModel> {
 					<layout style={styles.rowContent}>
 						{track.artworkSource ? (
 							<view style={styles.artworkTile}>
-								<image objectFit='cover' src={track.artworkSource} style={styles.artwork} />
+								<CachedImage
+									category='album_art'
+									imageCache={this.viewModel.imageCache}
+									objectFit='cover'
+									style={styles.artwork}
+									url={track.artworkSource}
+								/>
 							</view>
 						) : track.leadingLabel ? (
 							<view style={styles.leadingLabelTile}>
