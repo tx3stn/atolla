@@ -11,6 +11,14 @@ class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactor
 			override fun ensureAtollaImageLoaderBootstrap() {
 				AtollaImageLoaderAutoBootstrap.registerForAllRuntimes()
 			}
+
+			override fun getAtollaImageLoaderCacheEntryCount(): Double {
+				return AtollaImageLoaderAutoBootstrap.getCacheEntryCount().toDouble()
+			}
+
+			override fun getAtollaImageLoaderCacheByteSize(): Double {
+				return AtollaImageLoaderAutoBootstrap.getCacheByteSize().toDouble()
+			}
 		}
 	}
 }

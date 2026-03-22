@@ -25,6 +25,10 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	private val tag = "AtollaCacheLoader"
 	private val memory = ConcurrentHashMap<String, ByteArray>()
 
+	fun getEntryCount(): Int = memory.size
+
+	fun getTotalBytes(): Long = memory.values.sumOf { it.size.toLong() }
+
 	override fun getSupportedURLSchemes(): List<String> {
 		Log.d(tag, "getSupportedURLSchemes")
 		return listOf("atolla-cache")

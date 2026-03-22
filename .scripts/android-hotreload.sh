@@ -43,8 +43,6 @@ for companion_cache in bazel-out/*/bin/.valdi_build/hotreload/caches/companion; 
 	fi
 done
 
-"$(dirname "$0")/android-sync-mock-artwork.sh"
-
 env -u MACOSX_DEPLOYMENT_TARGET -u IPHONEOS_DEPLOYMENT_TARGET SDKROOT="$MACOS_SDK_PATH" \
 	bazel build //:atolla_hotreload ${HOTRELOAD_BAZEL_ARGS}
 

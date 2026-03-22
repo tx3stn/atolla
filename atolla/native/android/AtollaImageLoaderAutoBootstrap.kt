@@ -20,7 +20,7 @@ class AtollaImageLoaderBootstrapHandle internal constructor(
 
 object AtollaImageLoaderAutoBootstrap {
 	private const val tag = "AtollaLoaderBootstrap"
-	private val registeredManagers = Collections.newSetFromMap(WeakHashMap<Any, Boolean>())
+	private val registeredLoaders = Collections.synchronizedMap(WeakHashMap<Any, AtollaCacheImageLoader>())
 
 	@JvmStatic
 	fun registerForAllRuntimes(): Int {
@@ -28,17 +28,33 @@ object AtollaImageLoaderAutoBootstrap {
 		var registered = 0
 		for (runtime in runtimes) {
 			val manager = runtimeToManager(runtime) ?: continue
-			if (registeredManagers.contains(manager)) {
+			if (registeredLoaders.containsKey(manager)) {
 				continue
 			}
-			AtollaImageLoaderRegistration.registerAtollaImageLoaders(manager)
-			registeredManagers.add(manager)
+			val loader = AtollaImageLoaderRegistration.registerAtollaImageLoaders(manager)
+			registeredLoaders[manager] = loader
 			registered += 1
 		}
 		if (registered > 0) {
 			Log.i(tag, "Registered loader on $registered runtime manager(s)")
 		}
 		return registered
+	}
+
+	@JvmStatic
+	fun getCacheEntryCount(): Int {
+		registerForAllRuntimes()
+		return synchronized(registeredLoaders) {
+			registeredLoaders.values.sumOf { it.getEntryCount() }
+		}
+	}
+
+	@JvmStatic
+	fun getCacheByteSize(): Long {
+		registerForAllRuntimes()
+		return synchronized(registeredLoaders) {
+			registeredLoaders.values.sumOf { it.getTotalBytes() }
+		}
 	}
 
 	@JvmStatic

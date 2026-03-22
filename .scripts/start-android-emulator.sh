@@ -84,7 +84,7 @@ MACOS_SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS:-} --macos_sdk_version=${MACOS_SDK_VERSION} --host_macos_minimum_os=12.0 --macos_minimum_os=12.0"
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --java_runtime_version=remotejdk_21 --tool_java_runtime_version=remotejdk_21"
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --cxxopt=-std=gnu++20 --host_cxxopt=-std=gnu++20"
-VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --remote_download_outputs=all"
+VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --remote_download_outputs=toplevel"
 
 if [[ "$FAST_DEV_BUILD" == "1" ]]; then
 	VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --spawn_strategy=local --strategy=ValdiCompile=local --compilation_mode=fastbuild --keep_going"
@@ -105,9 +105,20 @@ echo "Waiting for emulator device..."
 adb wait-for-device
 adb devices
 
-"$(dirname "$0")/android-sync-mock-artwork.sh"
+ANDROID_DEVICE_ID="${ANDROID_DEVICE_ID:-$(adb devices | awk '/\tdevice$/ {print $1; exit}')}"
+if [[ -z "$ANDROID_DEVICE_ID" ]]; then
+	echo "No Android device detected after adb wait-for-device."
+	exit 1
+fi
+
+VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//:atolla_android}"
+echo "Using Android device: $ANDROID_DEVICE_ID"
+echo "Using application target: $VALDI_APPLICATION_TARGET"
 
 echo "Installing app with Valdi..."
-valdi install android --bazel_args="$VALDI_BAZEL_ARGS"
+valdi install android \
+	--application="$VALDI_APPLICATION_TARGET" \
+	--device_id="$ANDROID_DEVICE_ID" \
+	--bazel_args="$VALDI_BAZEL_ARGS"
 
 echo "Done."

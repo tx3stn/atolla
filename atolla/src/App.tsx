@@ -2,7 +2,11 @@
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import { ensureAtollaImageLoaderBootstrap } from './ImageLoaderBootstrap';
+import {
+	ensureAtollaImageLoaderBootstrap,
+	getAtollaImageLoaderCacheByteSize,
+	getAtollaImageLoaderCacheEntryCount,
+} from './ImageLoaderBootstrap';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { ImageCache } from './services/ImageCache';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
@@ -27,6 +31,8 @@ interface AppState {
 	animationsEnabled: boolean;
 	homeResetNonce: number;
 	imageCacheMaxBytes: number;
+	nativeImageCacheBufferedBytes: number | null;
+	nativeImageCacheBufferedCount: number | null;
 	nowPlayingCollapseSignal: number;
 	paletteFailureCount: number;
 	// null = not yet triggered; number = total artwork URLs queued for generation
@@ -54,6 +60,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private paletteService = new ArtworkPaletteService(new PersistentPaletteStore());
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
+	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
 
 	state: AppState = {
@@ -62,6 +69,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		animationsEnabled: true,
 		homeResetNonce: 0,
 		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
+		nativeImageCacheBufferedBytes: null,
+		nativeImageCacheBufferedCount: null,
 		nowPlayingCollapseSignal: 0,
 		paletteFailureCount: 0,
 		paletteTotalCount: null,
@@ -71,6 +80,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	onCreate(): void {
 		try {
 			ensureAtollaImageLoaderBootstrap();
+			this.refreshNativeCacheStats();
+			this.nativeCacheStatsInterval = setInterval(() => {
+				this.refreshNativeCacheStats();
+			}, 1000);
 		} catch {
 			// Android native bootstrap may be unavailable on non-Android targets.
 		}
@@ -95,6 +108,28 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	onDestroy(): void {
 		this.unsubscribePlayback?.();
 		this.unsubscribePalette?.();
+		if (this.nativeCacheStatsInterval) {
+			clearInterval(this.nativeCacheStatsInterval);
+		}
+	}
+
+	private refreshNativeCacheStats(): void {
+		try {
+			const nativeImageCacheBufferedCount = getAtollaImageLoaderCacheEntryCount();
+			const nativeImageCacheBufferedBytes = getAtollaImageLoaderCacheByteSize();
+			if (
+				this.state.nativeImageCacheBufferedCount === nativeImageCacheBufferedCount &&
+				this.state.nativeImageCacheBufferedBytes === nativeImageCacheBufferedBytes
+			) {
+				return;
+			}
+			this.setState({
+				nativeImageCacheBufferedBytes,
+				nativeImageCacheBufferedCount,
+			});
+		} catch {
+			// Native cache stats unavailable on non-Android targets.
+		}
 	}
 
 	// Called whenever the playback store changes. Loads the persisted palette
@@ -194,8 +229,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			{this.state.activeFooterTab === FooterTabs.settings && (
 				<SettingsView
 					animationsEnabled={this.state.animationsEnabled}
-					imageCacheBufferedBytes={this.imageCache.bufferedBytes}
-					imageCacheBufferedCount={this.imageCache.bufferedCount}
+					imageCacheBufferedBytes={
+						this.state.nativeImageCacheBufferedBytes ?? this.imageCache.bufferedBytes
+					}
+					imageCacheBufferedCount={
+						this.state.nativeImageCacheBufferedCount ?? this.imageCache.bufferedCount
+					}
 					imageCacheError={this.imageCache.lastError}
 					imageCacheMaxBytes={this.state.imageCacheMaxBytes}
 					onAnimationsChange={this.handleAnimationsChange}
