@@ -1,14 +1,20 @@
 // @ts-nocheck
 import { PersistentStore } from 'persistence/src/PersistentStore';
+import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import { ErrorConst } from './errors/Const';
+import { PaletteGenerationErrors } from './errors/PaletteGenerationErrors';
 import {
 	ensureAtollaImageLoaderBootstrap,
+	extractAtollaPaletteFromCache,
 	getAtollaImageLoaderCacheByteSize,
 	getAtollaImageLoaderCacheEntryCount,
 } from './ImageLoaderBootstrap';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
+import type { Palette } from './services/color/types';
 import { ImageCache } from './services/ImageCache';
+import { buildImageSource } from './services/ImageSource';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PlaybackStore } from './stores/Playback';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES, Preferences } from './stores/Preferences';
@@ -35,6 +41,9 @@ interface AppState {
 	nativeImageCacheBufferedCount: number | null;
 	nowPlayingCollapseSignal: number;
 	paletteFailureCount: number;
+	paletteFailureDetails: Array<string>;
+	paletteFailureSummary: string | null;
+	paletteProcessedCount: number;
 	// null = not yet triggered; number = total artwork URLs queued for generation
 	paletteTotalCount: number | null;
 	version: number;
@@ -73,6 +82,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		nativeImageCacheBufferedCount: null,
 		nowPlayingCollapseSignal: 0,
 		paletteFailureCount: 0,
+		paletteFailureDetails: [],
+		paletteFailureSummary: null,
+		paletteProcessedCount: 0,
 		paletteTotalCount: null,
 		version: 0,
 	};
@@ -142,30 +154,240 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		void (async () => {
 			await this.paletteService.warmUp([imageUrl]);
 			if (this.paletteService.getPalette(imageUrl).primary.hex !== '#d8dee9') return;
-			await this.generatePaletteForUrl(imageUrl);
+			try {
+				await this.generatePaletteForUrl(imageUrl);
+			} catch {
+				// Best effort on playback change.
+			}
 		})();
 	}
 
-	// Extract palette from a URL that is already in the image buffer cache.
-	// If the image hasn't been loaded into the buffer cache yet, skips silently.
-	private async generatePaletteForUrl(url: string): Promise<void> {
-		const entry = this.imageCache.getBuffer(url, 'album_art');
-		if (!entry) return;
+	// Extract palette from native atolla-cache loader in cache-only mode.
+	// Throws a typed palette generation error when bytes are unavailable or decode/persist fails.
+	private async generatePaletteForUrl(url: string): Promise<boolean> {
+		const nativePalette = this.extractNativePalette(url, 'album_art');
+		if (nativePalette) {
+			await this.paletteService.persistPalette(url, nativePalette);
+			return true;
+		}
+
+		const entry = await this.loadCachedNativeBuffer(url, 'album_art');
+		if (!entry) {
+			throw PaletteGenerationErrors.CACHE_MISS;
+		}
 		await this.paletteService.generatePalette(url, entry.buffer, entry.mimeType);
+		if (!this.paletteService.hasPalette(url)) {
+			throw {
+				detail: this.paletteService.lastError ?? PaletteGenerationErrors.EXTRACTION_FAILED.msg(),
+				error: PaletteGenerationErrors.EXTRACTION_FAILED,
+			};
+		}
+		return true;
+	}
+
+	private extractNativePalette(
+		url: string,
+		category: 'album_art' | 'artist_image' | 'artist_logo' | 'playlist_image',
+	): Palette | null {
+		try {
+			const raw = extractAtollaPaletteFromCache(url, category);
+			if (!raw) return null;
+			const parsed = JSON.parse(raw) as Partial<Palette>;
+			if (!parsed.primary?.hex || !parsed.surface?.hex || !parsed.on_surface?.hex) {
+				return null;
+			}
+			return {
+				on_surface: { hex: parsed.on_surface.hex },
+				primary: { hex: parsed.primary.hex },
+				surface: { hex: parsed.surface.hex },
+			};
+		} catch {
+			return null;
+		}
+	}
+
+	private loadCachedNativeBuffer(
+		url: string,
+		category: 'album_art' | 'artist_image' | 'artist_logo' | 'playlist_image',
+	): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
+		const source = buildImageSource(url, category, { cacheOnly: true });
+		return new Promise((resolve) => {
+			let subscription: { unsubscribe(): void } | undefined;
+			subscription = addAssetLoadObserver(
+				source,
+				(loadedAsset: unknown, error: string | undefined) => {
+					subscription?.unsubscribe();
+					if (error || !loadedAsset) {
+						resolve(null);
+						return;
+					}
+					const bytes = loadedAsset as Uint8Array;
+					const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+					resolve({ buffer, mimeType: this.detectMimeType(bytes, url) });
+				},
+				AssetOutputType.BYTES,
+			);
+		});
+	}
+
+	private detectMimeType(bytes: Uint8Array, url: string): string {
+		if (
+			bytes.length >= 8 &&
+			bytes[0] === 0x89 &&
+			bytes[1] === 0x50 &&
+			bytes[2] === 0x4e &&
+			bytes[3] === 0x47 &&
+			bytes[4] === 0x0d &&
+			bytes[5] === 0x0a &&
+			bytes[6] === 0x1a &&
+			bytes[7] === 0x0a
+		)
+			return 'image/png';
+
+		if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff)
+			return 'image/jpeg';
+
+		if (
+			bytes.length >= 12 &&
+			bytes[0] === 0x52 &&
+			bytes[1] === 0x49 &&
+			bytes[2] === 0x46 &&
+			bytes[3] === 0x46 &&
+			bytes[8] === 0x57 &&
+			bytes[9] === 0x45 &&
+			bytes[10] === 0x42 &&
+			bytes[11] === 0x50
+		)
+			return 'image/webp';
+
+		if (
+			bytes.length >= 4 &&
+			bytes[0] === 0x47 &&
+			bytes[1] === 0x49 &&
+			bytes[2] === 0x46 &&
+			bytes[3] === 0x38
+		)
+			return 'image/gif';
+
+		const lower = url.toLowerCase();
+		if (lower.includes('.png')) return 'image/png';
+		if (lower.includes('.webp')) return 'image/webp';
+		if (lower.includes('.gif')) return 'image/gif';
+		return 'image/jpeg';
+	}
+
+	private withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+		return new Promise((resolve, reject) => {
+			const timer = setTimeout(() => {
+				reject({
+					detail: `timeout after ${timeoutMs}ms`,
+					error: PaletteGenerationErrors.TIMEOUT,
+				});
+			}, timeoutMs);
+			promise.then(
+				(value) => {
+					clearTimeout(timer);
+					resolve(value);
+				},
+				(error) => {
+					clearTimeout(timer);
+					reject(error);
+				},
+			);
+		});
+	}
+
+	private paletteFailureCode(error: unknown): string {
+		if (error instanceof ErrorConst) {
+			return error.err;
+		}
+		if (error && typeof error === 'object') {
+			const withError = error as { error?: unknown };
+			if (withError.error instanceof ErrorConst) {
+				return withError.error.err;
+			}
+		}
+		return PaletteGenerationErrors.UNKNOWN.err;
+	}
+
+	private paletteFailureDetail(error: unknown): string {
+		if (error instanceof ErrorConst) {
+			return error.msg();
+		}
+		if (error && typeof error === 'object') {
+			const withError = error as { detail?: unknown; error?: unknown };
+			if (typeof withError.detail === 'string') {
+				return withError.detail;
+			}
+			if (withError.error instanceof ErrorConst) {
+				return withError.error.msg();
+			}
+		}
+		if (error instanceof Error) {
+			return error.message;
+		}
+		return PaletteGenerationErrors.UNKNOWN.msg();
+	}
+
+	private buildPaletteFailureSummary(
+		failureCounts: Map<string, number>,
+		failureDetails: Map<string, string>,
+	): string | null {
+		if (failureCounts.size === 0) {
+			return null;
+		}
+		const parts = Array.from(failureCounts.entries())
+			.sort((a, b) => b[1] - a[1])
+			.map(([code, count]) => {
+				const detail = failureDetails.get(code);
+				if (!detail) {
+					return `${code}: ${count}`;
+				}
+				return `${code}: ${count} (${detail})`;
+			});
+		return `Failures by reason -> ${parts.join(' | ')}`;
 	}
 
 	handleGeneratePalettes = (): void => {
 		void (async () => {
 			const albums = await this.transport.getAllAlbums();
 			const urls = [...new Set(albums.map((a) => a.imageUrl).filter(Boolean))];
-			this.setState({ paletteFailureCount: 0, paletteTotalCount: urls.length });
+			let processed = 0;
+			let failures = 0;
+			const failureDetailsList: Array<string> = [];
+			const failureCounts = new Map<string, number>();
+			const failureDetails = new Map<string, string>();
+			this.setState({
+				paletteFailureCount: failures,
+				paletteFailureDetails: [],
+				paletteFailureSummary: null,
+				paletteProcessedCount: 0,
+				paletteTotalCount: urls.length,
+			});
 			await this.paletteService.warmUp(urls);
-			await this.imageCache.prefetch(urls, 'album_art');
 			for (const url of urls) {
 				try {
-					await this.generatePaletteForUrl(url);
-				} catch {
-					this.setState({ paletteFailureCount: this.state.paletteFailureCount + 1 });
+					if (this.paletteService.hasPalette(url)) {
+						continue;
+					}
+					await this.withTimeout(this.generatePaletteForUrl(url), 12000);
+				} catch (error) {
+					failures += 1;
+					const code = this.paletteFailureCode(error);
+					const detail = this.paletteFailureDetail(error);
+					failureDetailsList.push(`${code} | ${detail} | ${url}`);
+					failureCounts.set(code, (failureCounts.get(code) ?? 0) + 1);
+					if (!failureDetails.has(code)) {
+						failureDetails.set(code, detail);
+					}
+				} finally {
+					processed += 1;
+					this.setState({
+						paletteFailureCount: failures,
+						paletteFailureDetails: failureDetailsList,
+						paletteFailureSummary: this.buildPaletteFailureSummary(failureCounts, failureDetails),
+						paletteProcessedCount: processed,
+					});
 				}
 			}
 		})();
@@ -243,6 +465,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					paletteCount={this.paletteService.cacheSize}
 					paletteError={this.paletteService.lastError}
 					paletteFailureCount={this.state.paletteFailureCount}
+					paletteFailureDetails={this.state.paletteFailureDetails}
+					paletteFailureSummary={this.state.paletteFailureSummary}
+					paletteProcessedCount={this.state.paletteProcessedCount}
 					paletteTotalCount={this.state.paletteTotalCount}
 					preferences={this.preferences}
 				/>

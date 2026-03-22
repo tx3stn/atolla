@@ -41,6 +41,11 @@ export class ArtworkPaletteService {
 		return this.cache.get(imageUrl) ?? NEUTRAL_PALETTE;
 	}
 
+	hasPalette(imageUrl: string | null | undefined): boolean {
+		if (!imageUrl) return false;
+		return this.cache.has(imageUrl);
+	}
+
 	// Subscribe to palette updates. Returns an unsubscribe function.
 	subscribe(listener: () => void): () => void {
 		this.listeners.add(listener);
@@ -80,14 +85,17 @@ export class ArtworkPaletteService {
 				primary,
 				surface,
 			};
-
-			this.cache.set(url, palette);
-			await this.store.savePalette(url, palette);
-			this.notify();
+			await this.persistPalette(url, palette);
 		} catch (err) {
 			this.lastError = String(err);
 			this.notify();
 		}
+	}
+
+	async persistPalette(url: string, palette: Palette): Promise<void> {
+		this.cache.set(url, palette);
+		await this.store.savePalette(url, palette);
+		this.notify();
 	}
 
 	// Fallback chain: most prominent non-dark colour → second non-dark → neutral white

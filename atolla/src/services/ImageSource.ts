@@ -4,12 +4,22 @@ export const atollaCacheScheme = 'atolla-cache';
 export const atollaCacheHost = 'image';
 
 export interface AtollaCacheSource {
+	cacheOnly?: boolean;
 	category: ImageCategory;
 	url: string;
 }
 
-export function buildImageSource(url: string, category: ImageCategory): string {
-	return `${atollaCacheScheme}://${atollaCacheHost}?c=${encodeURIComponent(category)}&u=${encodeURIComponent(url)}`;
+interface BuildImageSourceOptions {
+	cacheOnly?: boolean;
+}
+
+export function buildImageSource(
+	url: string,
+	category: ImageCategory,
+	options?: BuildImageSourceOptions,
+): string {
+	const cacheOnlyParam = options?.cacheOnly ? '&co=1' : '';
+	return `${atollaCacheScheme}://${atollaCacheHost}?c=${encodeURIComponent(category)}&u=${encodeURIComponent(url)}${cacheOnlyParam}`;
 }
 
 export function parseImageSource(src: string): AtollaCacheSource | null {
@@ -25,6 +35,7 @@ export function parseImageSource(src: string): AtollaCacheSource | null {
 
 		const category = parsed.searchParams.get('c');
 		const url = parsed.searchParams.get('u');
+		const cacheOnly = parsed.searchParams.get('co') === '1';
 		if (!category || !url) {
 			return null;
 		}
@@ -34,6 +45,7 @@ export function parseImageSource(src: string): AtollaCacheSource | null {
 		}
 
 		return {
+			cacheOnly,
 			category,
 			url,
 		};

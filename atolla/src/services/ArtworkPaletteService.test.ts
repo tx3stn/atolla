@@ -214,6 +214,15 @@ describe('ArtworkPaletteService', () => {
 			expect(service.getPalette('https://example.com/art.png')).toEqual(NEUTRAL_PALETTE);
 		});
 
+		it('reports whether a palette is cached for a url', async () => {
+			const service = new ArtworkPaletteService(new MockPaletteStore());
+			const url = 'https://example.com/art.png';
+
+			expect(service.hasPalette(url)).toBe(false);
+			await service.generatePalette(url, buildWhitePng(), 'image/png');
+			expect(service.hasPalette(url)).toBe(true);
+		});
+
 		it('returns NEUTRAL_PALETTE for null url', () => {
 			const service = new ArtworkPaletteService(new MockPaletteStore());
 			expect(service.getPalette(null)).toEqual(NEUTRAL_PALETTE);

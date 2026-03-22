@@ -19,6 +19,10 @@ class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactor
 			override fun getAtollaImageLoaderCacheByteSize(): Double {
 				return AtollaImageLoaderAutoBootstrap.getCacheByteSize().toDouble()
 			}
+
+			override fun extractAtollaPaletteFromCache(url: String, category: String): String {
+				return AtollaImageLoaderAutoBootstrap.extractPaletteFromCache(url, category) ?: ""
+			}
 		}
 	}
 }

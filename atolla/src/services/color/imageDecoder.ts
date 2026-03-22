@@ -10,12 +10,22 @@ export function decodePixelSamples(
 	mimeType: string,
 ): Promise<Uint8Array | null> {
 	const type = mimeType.toLowerCase().split(';')[0].trim();
-	try {
-		if (type === 'image/png') return Promise.resolve(decodePng(buffer));
-		if (type === 'image/jpeg' || type === 'image/jpg') return Promise.resolve(decodeJpeg(buffer));
-	} catch {
-		return Promise.resolve(null);
+	if (type === 'image/png') {
+		try {
+			return Promise.resolve(decodePng(buffer));
+		} catch {
+			return decodeViaCanvas(buffer, mimeType);
+		}
 	}
+
+	if (type === 'image/jpeg' || type === 'image/jpg') {
+		try {
+			return Promise.resolve(decodeJpeg(buffer));
+		} catch {
+			return decodeViaCanvas(buffer, mimeType);
+		}
+	}
+
 	return decodeViaCanvas(buffer, mimeType);
 }
 

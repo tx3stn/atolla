@@ -19,7 +19,20 @@ describe('ImageSource', () => {
 		const source = buildImageSource('https://example.com/image.jpg', 'artist_image');
 		const parsed = parseImageSource(source);
 		expect(parsed).toEqual({
+			cacheOnly: false,
 			category: 'artist_image',
+			url: 'https://example.com/image.jpg',
+		});
+	});
+
+	it('builds cache-only source when requested', () => {
+		const source = buildImageSource('https://example.com/image.jpg', 'album_art', {
+			cacheOnly: true,
+		});
+		expect(source).toContain('&co=1');
+		expect(parseImageSource(source)).toEqual({
+			cacheOnly: true,
+			category: 'album_art',
 			url: 'https://example.com/image.jpg',
 		});
 	});

@@ -5,6 +5,7 @@ import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Preferences } from '../../stores/Preferences';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
 import { theme } from '../../theme';
+import { Modal } from '../components/Modal';
 import { Toggle } from '../components/Toggle';
 
 const GB = 1024 * 1024 * 1024;
@@ -37,17 +38,22 @@ export interface SettingsViewModel {
 	paletteCount?: number;
 	paletteError?: string | null;
 	paletteFailureCount?: number;
+	paletteFailureDetails?: Array<string>;
+	paletteFailureSummary?: string | null;
+	paletteProcessedCount?: number;
 	paletteTotalCount?: number | null;
 	preferences: Preferences;
 }
 
 interface SettingsState {
 	cacheSizeInput: string;
+	showPaletteFailureModal: boolean;
 }
 
 export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsState> {
 	state: SettingsState = {
 		cacheSizeInput: bytesToGb(this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES),
+		showPaletteFailureModal: false,
 	};
 
 	onViewModelUpdate(): void {
@@ -74,18 +80,22 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			paletteCount,
 			paletteError,
 			paletteFailureCount,
+			paletteFailureDetails,
+			paletteFailureSummary,
+			paletteProcessedCount,
 			paletteTotalCount,
 		} = this.viewModel;
 
-		const processed = (paletteCount ?? 0) + (paletteFailureCount ?? 0);
+		const processed = paletteProcessedCount ?? (paletteCount ?? 0) + (paletteFailureCount ?? 0);
 		const isDone = paletteTotalCount != null && processed >= paletteTotalCount;
 		const failureSuffix = (paletteFailureCount ?? 0) > 0 ? `, ${paletteFailureCount} failed` : '';
+		const hasFailureDetails = (paletteFailureDetails?.length ?? 0) > 0;
 
 		const paletteStatusLabel = (() => {
 			if (paletteTotalCount === null || paletteTotalCount === undefined)
 				return 'Generate palettes from artwork';
 			if (isDone) return `Processing complete — ${paletteCount} palettes ready${failureSuffix}`;
-			return `Processing… ${processed} / ${paletteTotalCount}${failureSuffix}`;
+			return `Processing ${processed} / ${paletteTotalCount}${failureSuffix}`;
 		})();
 
 		<view style={styles.root}>
@@ -116,6 +126,25 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 				)}
 				{paletteTotalCount != null && paletteError != null && (
 					<label style={styles.paletteError} value={paletteError} />
+				)}
+				{paletteTotalCount != null && paletteFailureSummary != null && (
+					<label
+						accessibilityLabel='settings-palette-failure-summary'
+						style={styles.paletteError}
+						value={paletteFailureSummary}
+					/>
+				)}
+				{isDone && hasFailureDetails && (
+					<view
+						accessibilityLabel='settings-palette-failure-details-btn'
+						contentDescription='settings-palette-failure-details-btn'
+						onTap={createReusableCallback(() => {
+							this.setState({ showPaletteFailureModal: true });
+						})}
+						style={styles.button}
+					>
+						<label style={styles.buttonLabel} value='View Failure Details' />
+					</view>
 				)}
 				{paletteTotalCount != null && imageCacheBufferedCount != null && (
 					<label
@@ -156,6 +185,14 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 					<label style={styles.buttonLabel} value='Clear Cache' />
 				</view>
 			</view>
+
+			{this.state.showPaletteFailureModal && hasFailureDetails && (
+				<Modal
+					body={(paletteFailureDetails ?? []).join('\n')}
+					onClose={() => this.setState({ showPaletteFailureModal: false })}
+					title='Palette Failure Details'
+				/>
+			)}
 		</view>;
 	}
 }

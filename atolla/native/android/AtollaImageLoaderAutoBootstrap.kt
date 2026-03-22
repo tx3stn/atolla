@@ -58,6 +58,16 @@ object AtollaImageLoaderAutoBootstrap {
 	}
 
 	@JvmStatic
+	fun extractPaletteFromCache(sourceUrl: String, category: String): String? {
+		registerForAllRuntimes()
+		return synchronized(registeredLoaders) {
+			registeredLoaders.values.firstNotNullOfOrNull { loader ->
+				loader.extractPalette(category, sourceUrl)
+			}
+		}
+	}
+
+	@JvmStatic
 	fun startPolling(intervalMs: Long = 500): AtollaImageLoaderBootstrapHandle {
 		val executor = Executors.newSingleThreadScheduledExecutor()
 		val task = executor.scheduleWithFixedDelay(
