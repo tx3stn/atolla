@@ -95,7 +95,6 @@ const modeIcons = (mode: ConnectionMode) => {
 const styles = {
 	footerPinned: new Style({
 		backgroundColor: theme.colors.bg,
-		borderRadius: 12,
 		bottom: 0,
 		flexDirection: 'row',
 		left: 0,

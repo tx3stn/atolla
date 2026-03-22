@@ -15,7 +15,7 @@ const colors = {
 };
 
 export const theme = {
-	borderRadius: 12,
+	borderRadius: 15,
 	colors: colors,
 	footerHeight: 80,
 	scrollPaddingBottom: 80 * 2.4,

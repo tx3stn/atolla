@@ -79,7 +79,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 const styles = {
 	artwork: new Style<ImageView>({
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.borderRadius / 2,
 		height: '100%',
 		width: '100%',
 	}),
@@ -88,7 +88,7 @@ const styles = {
 		backgroundColor: theme.colors.bgDeep,
 		borderRadius: theme.borderRadius,
 		overflow: 'hidden',
-		width: 38,
+		width: 42,
 	}),
 	emptyState: new Style<Label>({
 		...theme.text.sub,

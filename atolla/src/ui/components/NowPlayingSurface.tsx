@@ -365,6 +365,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			backgroundColor: surfaceColor,
 			borderRadius: theme.borderRadius,
 			bottom: theme.footerHeight * 0.8,
+			elevation: 18,
 			flexDirection: 'row',
 			left: 8,
 			marginLeft: 12,
@@ -372,6 +373,10 @@ export class NowPlayingSurface extends StatefulComponent<
 			overflow: 'hidden',
 			position: 'absolute',
 			right: 8,
+			shadowColor: '#000000',
+			shadowOffset: { height: 10, width: 0 },
+			shadowOpacity: 0.35,
+			shadowRadius: 18,
 			zIndex: 25,
 		});
 
@@ -682,7 +687,7 @@ const styles = {
 	}),
 	expandedScrollArtwork: new Style<ImageView>({
 		aspectRatio: 1,
-		borderRadius: theme.borderRadius,
+		// borderRadius: theme.borderRadius,
 		opacity: 0,
 		width: '100%',
 	}),
