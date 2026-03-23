@@ -393,7 +393,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			backgroundColor: accentColor,
 			bottom: 0,
 			left: 0,
-			opacity: 0.24,
+			opacity: 0.38,
 			position: 'absolute',
 			right: 'auto',
 			top: 0,
