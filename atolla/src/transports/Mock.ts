@@ -36,16 +36,23 @@ export class MockTransport implements Transport {
 	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
 		const album = mockRawAlbums.find((a) => a.id === albumId);
 		if (!album) return [];
+		const artist = mockArtists.find((a) => a.name === album.albumArtist);
 		return album.tracks.map((t) => ({
 			albumId: album.id,
 			albumImageUrl: album.artwork,
 			albumName: album.title,
+			artistId: artist?.id,
 			artistName: album.albumArtist,
 			duration: t.durationSeconds,
 			id: t.id,
 			name: t.title,
 			trackNumber: t.trackNumber,
 		}));
+	}
+
+	async getArtistLogoUrl(artistId: string): Promise<string | null> {
+		const artist = mockArtists.find((a) => a.id === artistId);
+		return artist?.logoUrl || null;
 	}
 
 	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
@@ -58,6 +65,7 @@ export class MockTransport implements Transport {
 					albumId: album.id,
 					albumImageUrl: album.artwork,
 					albumName: album.title,
+					artistId: artist.id,
 					artistName: album.albumArtist,
 					duration: t.durationSeconds,
 					id: t.id,
@@ -68,6 +76,27 @@ export class MockTransport implements Transport {
 		return allTracks.sort(() => Math.random() - 0.5).slice(0, 5);
 	}
 
+	async getTracksByArtist(artistId: string): Promise<Array<Track>> {
+		const artist = mockArtists.find((a) => a.id === artistId);
+		if (!artist) return [];
+		return mockRawAlbums
+			.filter((raw) => raw.albumArtist === artist.name)
+			.sort((a, b) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''))
+			.flatMap((album) =>
+				album.tracks.map((t) => ({
+					albumId: album.id,
+					albumImageUrl: album.artwork,
+					albumName: album.title,
+					artistId: artist.id,
+					artistName: album.albumArtist,
+					duration: t.durationSeconds,
+					id: t.id,
+					name: t.title,
+					trackNumber: t.trackNumber,
+				})),
+			);
+	}
+
 	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
 		const playlist = mockRawPlaylists.find((p) => p.id === playlistId);
 		if (!playlist) return [];
@@ -75,11 +104,13 @@ export class MockTransport implements Transport {
 			for (const album of mockRawAlbums) {
 				const track = album.tracks.find((t) => t.id === trackId);
 				if (track) {
+					const artist = mockArtists.find((a) => a.name === album.albumArtist);
 					return [
 						{
 							albumId: album.id,
 							albumImageUrl: album.artwork,
 							albumName: album.title,
+							artistId: artist?.id,
 							artistName: album.albumArtist,
 							duration: track.durationSeconds,
 							id: track.id,

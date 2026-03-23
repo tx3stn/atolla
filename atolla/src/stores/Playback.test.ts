@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { Album } from '../models/Album';
 import type { Track } from '../models/Track';
-import { PlaybackStore } from './Playback';
+import { PlaybackStore, shuffleArray } from './Playback';
 
 const album: Album = {
 	artistId: 'artist-1',
@@ -388,6 +388,78 @@ describe('PlaybackStore', () => {
 			store.subscribe(() => calls++);
 			store.playNext([track1]);
 			expect(calls).toBe(1);
+		});
+	});
+
+	describe('playWithArtistLogos()', () => {
+		it('sets tracks and starts playing from index 0 by default', () => {
+			const store = new PlaybackStore();
+			const logoUrls = ['logo1', 'logo2', null];
+			store.playWithArtistLogos(tracks, logoUrls);
+			expect(store.tracks).toBe(tracks);
+			expect(store.trackIndex).toBe(0);
+			expect(store.track).toBe(track1);
+			expect(store.isPlaying).toBe(true);
+			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('sets album to null', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			store.playWithArtistLogos(tracks, []);
+			expect(store.album).toBeNull();
+		});
+
+		it('returns the logo url for the current track', () => {
+			const store = new PlaybackStore();
+			store.playWithArtistLogos(tracks, ['logo1', 'logo2', 'logo3']);
+			expect(store.artistLogoUrl).toBe('logo1');
+		});
+
+		it('returns the correct logo url as track index advances', () => {
+			const store = new PlaybackStore();
+			store.playWithArtistLogos(tracks, ['logo1', 'logo2', 'logo3']);
+			store.next();
+			expect(store.artistLogoUrl).toBe('logo2');
+			store.next();
+			expect(store.artistLogoUrl).toBe('logo3');
+		});
+
+		it('returns null for tracks with no logo url', () => {
+			const store = new PlaybackStore();
+			store.playWithArtistLogos(tracks, [null, 'logo2', null]);
+			expect(store.artistLogoUrl).toBeNull();
+			store.next();
+			expect(store.artistLogoUrl).toBe('logo2');
+		});
+
+		it('notifies listeners', () => {
+			const store = new PlaybackStore();
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.playWithArtistLogos(tracks, []);
+			expect(calls).toBe(1);
+		});
+	});
+
+	describe('shuffleArray()', () => {
+		it('returns a new array with the same elements', () => {
+			const arr = [1, 2, 3, 4, 5];
+			const result = shuffleArray(arr);
+			expect(result).toHaveLength(arr.length);
+			expect(result).toEqual(expect.arrayContaining(arr));
+		});
+
+		it('does not mutate the original array', () => {
+			const arr = [1, 2, 3, 4, 5];
+			const copy = [...arr];
+			shuffleArray(arr);
+			expect(arr).toEqual(copy);
+		});
+
+		it('returns a new array reference', () => {
+			const arr = [1, 2, 3];
+			expect(shuffleArray(arr)).not.toBe(arr);
 		});
 	});
 

@@ -11,7 +11,9 @@ export interface Transport {
 	getAllArtists(): Promise<Array<Artist>>;
 	getAllPlaylists(): Promise<Array<Playlist>>;
 	getArtist(artistId: string): Promise<Artist | null>;
+	getArtistLogoUrl(artistId: string): Promise<string | null>;
 	getArtistTopTracks(artistId: string): Promise<Array<Track>>;
 	getTracksByAlbum(albumId: string): Promise<Array<Track>>;
+	getTracksByArtist(artistId: string): Promise<Array<Track>>;
 	getTracksByPlaylist(playlistId: string): Promise<Array<Track>>;
 }

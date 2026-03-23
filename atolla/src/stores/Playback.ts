@@ -3,15 +3,29 @@ import type { Track } from '../models/Track';
 
 type PlaybackListener = () => void;
 
+export function shuffleArray<T>(arr: Array<T>): Array<T> {
+	const copy = [...arr];
+	for (let i = copy.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[copy[i], copy[j]] = [copy[j], copy[i]];
+	}
+	return copy;
+}
+
 export class PlaybackStore {
 	private listeners = new Set<PlaybackListener>();
+	private _artistLogoUrl: string | null = null;
+	private _artistLogoUrls: Array<string | null> = [];
 
 	album: Album | null = null;
-	artistLogoUrl: string | null = null;
 	isPlaying: boolean = false;
 	progressSeconds: number = 0;
 	trackIndex: number = 0;
 	tracks: Array<Track> = [];
+
+	get artistLogoUrl(): string | null {
+		return this._artistLogoUrls[this.trackIndex] ?? this._artistLogoUrl ?? null;
+	}
 
 	get track(): Track | null {
 		return this.tracks[this.trackIndex] ?? null;
@@ -28,7 +42,8 @@ export class PlaybackStore {
 		this.trackIndex = startIndex;
 		this.isPlaying = true;
 		this.progressSeconds = 0;
-		this.artistLogoUrl = null;
+		this._artistLogoUrl = null;
+		this._artistLogoUrls = [];
 		this.notify();
 	}
 
@@ -52,7 +67,8 @@ export class PlaybackStore {
 	stop(): void {
 		this.tracks = [];
 		this.album = null;
-		this.artistLogoUrl = null;
+		this._artistLogoUrl = null;
+		this._artistLogoUrls = [];
 		this.isPlaying = false;
 		this.progressSeconds = 0;
 		this.trackIndex = 0;
@@ -65,7 +81,19 @@ export class PlaybackStore {
 		this.trackIndex = startIndex;
 		this.isPlaying = true;
 		this.progressSeconds = 0;
-		this.artistLogoUrl = null;
+		this._artistLogoUrl = null;
+		this._artistLogoUrls = [];
+		this.notify();
+	}
+
+	playWithArtistLogos(tracks: Array<Track>, logoUrls: Array<string | null>, startIndex = 0): void {
+		this.tracks = tracks;
+		this.album = null;
+		this.trackIndex = startIndex;
+		this.isPlaying = true;
+		this.progressSeconds = 0;
+		this._artistLogoUrl = null;
+		this._artistLogoUrls = logoUrls;
 		this.notify();
 	}
 
@@ -92,7 +120,8 @@ export class PlaybackStore {
 	}
 
 	setArtistLogoUrl(url: string | null): void {
-		this.artistLogoUrl = url;
+		this._artistLogoUrl = url;
+		this._artistLogoUrls = [];
 		this.notify();
 	}
 

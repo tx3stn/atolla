@@ -7,7 +7,7 @@ import { NavigationPageStatefulComponent } from 'valdi_navigation/src/Navigation
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
-import type { PlaybackStore } from '../../stores/Playback';
+import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
@@ -40,12 +40,16 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	handleHeaderPlayTap = (): void => {
-		if (this.state.tracks.length === 0) {
-			return;
-		}
-
+		if (this.state.tracks.length === 0) return;
 		const { album, playbackStore } = this.viewModel;
 		playbackStore.play(this.state.tracks, album);
+		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
+	};
+
+	handleHeaderShuffleTap = (): void => {
+		if (this.state.tracks.length === 0) return;
+		const { album, playbackStore } = this.viewModel;
+		playbackStore.play(shuffleArray(this.state.tracks), album);
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 	};
 
@@ -102,7 +106,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					fallbackText={album.artistName}
 					imageCache={imageCache}
 					logoSource={artistLogoUrl}
-					onPlay={this.handleHeaderPlayTap}
+					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 					subheaderLineOneLeft={album.name}
 					subheaderLineTwoLeft={releaseDateText}
 					subheaderLineTwoRight={durationText}

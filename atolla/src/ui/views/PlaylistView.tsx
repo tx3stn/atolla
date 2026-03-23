@@ -7,7 +7,7 @@ import { NavigationPageStatefulComponent } from 'valdi_navigation/src/Navigation
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
-import type { PlaybackStore } from '../../stores/Playback';
+import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { DetailHeader } from '../components/DetailHeader';
@@ -21,6 +21,7 @@ export interface PlaylistViewModel {
 }
 
 interface PlaylistState {
+	artistLogoUrls: Array<string | null>;
 	isFooterVisible: boolean;
 	tracks: Array<Track>;
 }
@@ -35,8 +36,25 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private unsubscribePlayback?: () => void;
 
 	state: PlaylistState = {
+		artistLogoUrls: [],
 		isFooterVisible: false,
 		tracks: [],
+	};
+
+	handleHeaderPlayTap = (): void => {
+		const { playbackStore } = this.viewModel;
+		const { artistLogoUrls, tracks } = this.state;
+		playbackStore.playWithArtistLogos(tracks, artistLogoUrls);
+	};
+
+	handleHeaderShuffleTap = (): void => {
+		const { playbackStore } = this.viewModel;
+		const { artistLogoUrls, tracks } = this.state;
+		const indices = shuffleArray(tracks.map((_, i) => i));
+		playbackStore.playWithArtistLogos(
+			indices.map((i) => tracks[i]),
+			indices.map((i) => artistLogoUrls[i] ?? null),
+		);
 	};
 
 	onCreate(): void {
@@ -46,11 +64,17 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			this.setState({ isFooterVisible: playbackStore.track !== null });
 		});
 		this.setState({ isFooterVisible: playbackStore.track !== null });
-		transport.getTracksByPlaylist(playlist.id).then((tracks) => {
+		transport.getTracksByPlaylist(playlist.id).then(async (tracks) => {
 			if (this.hasBeenDestroyed) {
 				return;
 			}
-			this.setState({ tracks });
+			const artistLogoUrls = await Promise.all(
+				tracks.map((t) => (t.artistId ? transport.getArtistLogoUrl(t.artistId) : null)),
+			);
+			if (this.hasBeenDestroyed) {
+				return;
+			}
+			this.setState({ artistLogoUrls, tracks });
 		});
 	}
 
@@ -82,6 +106,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					artworkSource={this.viewModel.playlist.imageUrl ?? null}
 					fallbackText={this.viewModel.playlist.name}
 					imageCache={this.viewModel.imageCache}
+					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 					subheaderLineOneLeft={tracks.length > 0 ? `${tracks.length} tracks` : null}
 					subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
 				/>

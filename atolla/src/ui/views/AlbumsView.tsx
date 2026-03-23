@@ -42,6 +42,7 @@ interface PagedAlbumsTransport {
 
 export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> {
 	private allAlbums: Array<Album> | null = null;
+	private currentPage = 0;
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
@@ -79,7 +80,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			return;
 		}
 
-		const nextPage = this.state.page + 1;
+		const nextPage = this.currentPage + 1;
 		const isFirstPage = nextPage === 1;
 		this.isLoadingPage = true;
 		if (!isFirstPage) {
@@ -93,6 +94,11 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			}
 
 			const albums = isFirstPage ? page.items : [...this.state.albums, ...page.items];
+			this.currentPage = nextPage;
+			this.isLoadingPage = false;
+			void this.viewModel.imageCache.prefetch(
+				page.items.map((a) => a.imageUrl).filter((url): url is string => url != null),
+			);
 			this.setState({
 				albums,
 				hasMore: page.hasMore,
@@ -105,38 +111,40 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				return;
 			}
 
+			this.isLoadingPage = false;
 			if (!isFirstPage) {
 				this.setState({ isLoadingNextPage: false, nextPageFailed: true });
 			}
-		} finally {
-			this.isLoadingPage = false;
 		}
 	}
 
-	private async fetchPage(page: number): Promise<AlbumPageResult> {
+	private fetchPage(page: number): Promise<AlbumPageResult> {
 		const transport = this.viewModel.transport as Transport & Partial<PagedAlbumsTransport>;
 		if (transport.getAlbumsPage) {
 			return transport.getAlbumsPage(page, gridPaginationConfig.pageSize);
 		}
 
 		if (!this.allAlbums) {
-			this.allAlbums = await this.viewModel.transport.getAllAlbums();
+			return this.viewModel.transport.getAllAlbums().then((albums) => {
+				this.allAlbums = albums;
+				const sorted = sortAlbums(this.allAlbums, this.state.sort);
+				const start = (page - 1) * gridPaginationConfig.pageSize;
+				const end = start + gridPaginationConfig.pageSize;
+				return { hasMore: end < sorted.length, items: sorted.slice(start, end) };
+			});
 		}
 
 		const sorted = sortAlbums(this.allAlbums, this.state.sort);
 		const start = (page - 1) * gridPaginationConfig.pageSize;
 		const end = start + gridPaginationConfig.pageSize;
-		return {
-			hasMore: end < sorted.length,
-			items: sorted.slice(start, end),
-		};
+		return Promise.resolve({ hasMore: end < sorted.length, items: sorted.slice(start, end) });
 	}
 
-	private retryLoadMore(): void {
+	retryLoadMore(): void {
 		void this.loadNextPage();
 	}
 
-	private loadMore(): void {
+	loadMore(): void {
 		void this.loadNextPage();
 	}
 

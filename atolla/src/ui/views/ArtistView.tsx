@@ -8,7 +8,7 @@ import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
-import type { PlaybackStore } from '../../stores/Playback';
+import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
@@ -27,6 +27,7 @@ export interface ArtistViewModel {
 
 interface ArtistState {
 	albums: Array<Album>;
+	allTracks: Array<Track>;
 	isFooterVisible: boolean;
 	topTracks: Array<Track>;
 }
@@ -39,8 +40,21 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	state: ArtistState = {
 		albums: [],
+		allTracks: [],
 		isFooterVisible: false,
 		topTracks: [],
+	};
+
+	handleHeaderPlayTap = (): void => {
+		const { artist, playbackStore } = this.viewModel;
+		playbackStore.playTracks(this.state.allTracks);
+		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
+	};
+
+	handleHeaderShuffleTap = (): void => {
+		const { artist, playbackStore } = this.viewModel;
+		playbackStore.playTracks(shuffleArray(this.state.allTracks));
+		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
 	};
 
 	onCreate(): void {
@@ -55,6 +69,12 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				return;
 			}
 			this.setState({ albums });
+		});
+		transport.getTracksByArtist(artist.id).then((allTracks) => {
+			if (this.hasBeenDestroyed) {
+				return;
+			}
+			this.setState({ allTracks });
 		});
 		transport.getArtistTopTracks(artist.id).then((topTracks) => {
 			if (this.hasBeenDestroyed) {
@@ -71,7 +91,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	onRender(): void {
 		const { artist, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
-		const { albums, isFooterVisible, topTracks } = this.state;
+		const { albums, allTracks, isFooterVisible, topTracks } = this.state;
 
 		const sortedAlbums = [...albums].sort((a, b) =>
 			(b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''),
@@ -101,6 +121,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					fallbackText={artist.name}
 					imageCache={imageCache}
 					logoSource={artist.logoUrl || null}
+					onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+					onShuffle={allTracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 				/>
 
 				{albums.length > 0 && (

@@ -14,7 +14,7 @@ import { theme } from '../../theme';
 import { TrackList, type TrackListEntry } from './TrackList';
 
 export interface NowPlayingSurfaceViewModel {
-	album: Album;
+	album: Album | null;
 	animationsEnabled: boolean;
 	artistLogoUrl?: string | null;
 	collapseSignal: number;
@@ -319,17 +319,18 @@ export class NowPlayingSurface extends StatefulComponent<
 		} = this.viewModel;
 
 		const toEntry = (t: Track): TrackListEntry => ({
-			artworkSource: t.albumImageUrl ?? album.imageUrl,
+			artworkSource: t.albumImageUrl ?? album?.imageUrl ?? null,
 			id: t.id,
-			meta: t.artistName ?? album.artistName,
+			meta: t.artistName ?? album?.artistName ?? null,
 			title: t.name,
 		});
 
 		const upNextEntries = tracks.slice(trackIndex + 1).map(toEntry);
 		const backToEntries = tracks.slice(0, trackIndex).map(toEntry);
 		const activeTab = this.state.activeQueueTab;
+		const albumImageUrl = album?.imageUrl ?? track.albumImageUrl ?? null;
 		const albumArtworkSource =
-			album.imageUrl == null ? null : buildImageSource(album.imageUrl, 'album_art');
+			albumImageUrl == null ? null : buildImageSource(albumImageUrl, 'album_art');
 		const artistLogoSource =
 			artistLogoUrl == null ? null : buildImageSource(artistLogoUrl, 'artist_logo');
 
@@ -355,9 +356,12 @@ export class NowPlayingSurface extends StatefulComponent<
 		const elapsedText = formatDuration(progressSeconds);
 		const remainingText = `-${formatDuration(Math.max(0, track.duration - progressSeconds))}`;
 		const totalText = formatDuration(track.duration);
-		const albumLine = album.releaseDate
-			? `${album.name} (${album.releaseDate.slice(0, 4)})`
-			: album.name;
+		const albumLine =
+			album != null
+				? album.releaseDate
+					? `${album.name} (${album.releaseDate.slice(0, 4)})`
+					: album.name
+				: (track.albumName ?? '');
 
 		// Mini-player bar: surface bg, primary progress fill
 		const barStyle = new Style({
@@ -478,7 +482,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					<label
 						numberOfLines={1}
 						style={artistNameStyle}
-						value={track.artistName ?? album.artistName}
+						value={track.artistName ?? album?.artistName ?? ''}
 					/>
 				</layout>
 				<label style={timeStyle} value={`${elapsedText} / ${totalText}`} />
@@ -520,7 +524,10 @@ export class NowPlayingSurface extends StatefulComponent<
 										/>
 									)}
 									{!artistLogoUrl && (
-										<label style={expandedArtistNameStyle} value={album.artistName} />
+										<label
+											style={expandedArtistNameStyle}
+											value={album?.artistName ?? track.artistName ?? ''}
+										/>
 									)}
 								</layout>
 								<layout style={styles.expandedBottomSection}>

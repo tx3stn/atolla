@@ -27,11 +27,19 @@ export class OfflineTransport implements Transport {
 		throw new Error('OfflineTransport not yet implemented');
 	}
 
+	async getArtistLogoUrl(_artistId: string): Promise<string | null> {
+		throw new Error('OfflineTransport not yet implemented');
+	}
+
 	async getArtistTopTracks(_artistId: string): Promise<Array<Track>> {
 		throw new Error('OfflineTransport not yet implemented');
 	}
 
 	async getTracksByAlbum(_albumId: string): Promise<Array<Track>> {
+		throw new Error('OfflineTransport not yet implemented');
+	}
+
+	async getTracksByArtist(_artistId: string): Promise<Array<Track>> {
 		throw new Error('OfflineTransport not yet implemented');
 	}
 

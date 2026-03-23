@@ -67,15 +67,27 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 					<layout style={styles.buttonsRow}>
 						{/* download */}
 						<view onTap={onDownload} style={styles.button}>
-							<image src={res.download} style={styles.buttonIcon} tint={theme.colors.white} />
+							<image
+								src={res.download}
+								style={styles.buttonIcon}
+								tint={onDownload ? theme.colors.white : theme.colors.muted}
+							/>
 						</view>
 						{/* shuffle */}
 						<view onTap={onShuffle} style={styles.button}>
-							<image src={res.shuffle} style={styles.buttonIcon} tint={theme.colors.white} />
+							<image
+								src={res.shuffle}
+								style={styles.buttonIcon}
+								tint={onShuffle ? theme.colors.white : theme.colors.muted}
+							/>
 						</view>
 						{/* play */}
 						<view onTap={onPlay} style={styles.button}>
-							<image src={res.play} style={styles.buttonIcon} tint={theme.colors.white} />
+							<image
+								src={res.play}
+								style={styles.buttonIcon}
+								tint={onPlay ? theme.colors.white : theme.colors.muted}
+							/>
 						</view>
 					</layout>
 				</layout>

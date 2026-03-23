@@ -148,7 +148,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	// immediately (warmUp) and prefetches the image for display. If no persisted
 	// palette exists, generates one from the fetched buffer.
 	private handleAlbumChange(): void {
-		const imageUrl = this.playbackStore.album?.imageUrl ?? null;
+		const imageUrl = this.playbackStore.album?.imageUrl ?? this.playbackStore.track?.albumImageUrl ?? null;
 		if (!imageUrl || imageUrl === this.lastArtworkUrl) return;
 		this.lastArtworkUrl = imageUrl;
 		void (async () => {
@@ -428,7 +428,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	onRender(): void {
 		const { track, album, isPlaying, progressSeconds, artistLogoUrl, tracks, trackIndex } =
 			this.playbackStore;
-		const palette = this.paletteService.getPalette(album?.imageUrl);
+		const palette = this.paletteService.getPalette(album?.imageUrl ?? track?.albumImageUrl);
 
 		<view style={styles.root}>
 			{this.state.activeFooterTab === FooterTabs.home && (
@@ -479,7 +479,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				preferences={this.preferences}
 			/>
 
-			{track && album && (
+			{track && (
 				<NowPlayingSurface
 					album={album}
 					animationsEnabled={this.state.animationsEnabled}
