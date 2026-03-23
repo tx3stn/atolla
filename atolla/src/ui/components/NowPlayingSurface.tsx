@@ -400,6 +400,15 @@ export class NowPlayingSurface extends StatefulComponent<
 			width: `${Math.round(progressRatio * 100)}%`,
 		});
 
+		const expandedProgressTrackStyle = new Style({
+			backgroundColor: withAlpha(onSurfaceColor, 0.28),
+			borderRadius: 2,
+			height: 4,
+			marginTop: 10,
+			overflow: 'hidden',
+			width: '100%',
+		});
+
 		// Expanded overlay card + content: surface bg
 		const overlayCardStyle = new Style({
 			backgroundColor: surfaceColor,
@@ -536,7 +545,7 @@ export class NowPlayingSurface extends StatefulComponent<
 										<label numberOfLines={2} style={expandedAlbumLineStyle} value={albumLine} />
 									</layout>
 									<layout style={styles.expandedProgressSection}>
-										<view style={styles.expandedProgressTrack}>
+										<view style={expandedProgressTrackStyle}>
 											<view style={expandedProgressFillStyle} />
 										</view>
 										<layout style={styles.expandedTimeRow}>
@@ -549,18 +558,22 @@ export class NowPlayingSurface extends StatefulComponent<
 											<image
 												src={res.previous}
 												style={styles.expandedControlIcon}
-												tint={accentColor}
+												tint={onSurfaceColor}
 											/>
 										</view>
 										<view onTap={onPlayPause} style={styles.expandedPlayButton}>
 											<image
 												src={isPlaying ? res.pause : res.play}
 												style={styles.expandedPlayIcon}
-												tint={accentColor}
+												tint={onSurfaceColor}
 											/>
 										</view>
 										<view onTap={onNext} style={styles.expandedControlButton}>
-											<image src={res.next} style={styles.expandedControlIcon} tint={accentColor} />
+											<image
+												src={res.next}
+												style={styles.expandedControlIcon}
+												tint={onSurfaceColor}
+											/>
 										</view>
 									</layout>
 									<layout style={styles.expandedQueueTabsRow}>
@@ -598,6 +611,15 @@ function formatDuration(seconds: number): string {
 	const m = Math.floor(seconds / 60);
 	const s = Math.floor(seconds % 60);
 	return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function withAlpha(hexColor: string, alpha: number): string {
+	const hex = hexColor.replace('#', '');
+	const r = Number.parseInt(hex.slice(0, 2), 16);
+	const g = Number.parseInt(hex.slice(2, 4), 16);
+	const b = Number.parseInt(hex.slice(4, 6), 16);
+	const normalizedAlpha = Math.max(0, Math.min(1, alpha));
+	return `rgba(${r},${g},${b},${normalizedAlpha})`;
 }
 
 const styles = {
@@ -664,14 +686,6 @@ const styles = {
 		marginTop: 4,
 		paddingLeft: 30,
 		paddingRight: 30,
-		width: '100%',
-	}),
-	expandedProgressTrack: new Style({
-		backgroundColor: theme.colors.bgAccent,
-		borderRadius: 2,
-		height: 4,
-		marginTop: 10,
-		overflow: 'hidden',
 		width: '100%',
 	}),
 	expandedQueueList: new Style({

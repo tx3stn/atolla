@@ -50,7 +50,7 @@ export class TrackList extends Component<TrackListViewModel> {
 			textAlign: 'center',
 		});
 		const titleStyle = new Style<Label>({
-			...theme.text.main,
+			...theme.text.mainBold,
 			color: colors.title,
 		});
 		const metaStyle = new Style<Label>({
