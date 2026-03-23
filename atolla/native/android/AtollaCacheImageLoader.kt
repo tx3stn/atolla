@@ -30,6 +30,13 @@ data class AtollaCacheRequestPayload(
 	val sourceUrl: String,
 )
 
+data class QuantizedColorCandidate(
+	val b: Int,
+	val count: Long,
+	val g: Int,
+	val r: Int,
+)
+
 class AtollaCacheImageLoader : ValdiImageLoader {
 	private val tag = "AtollaCacheLoader"
 	private val diskCacheFolder = "atolla-image-cache"
@@ -79,11 +86,12 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		} ?: return null
 
 		return try {
-			val primary = dominantColorHex(bitmap)
+			val (primary, accent) = dominantAndAccentColorHex(bitmap)
 			val surface = mutedVariant(primary)
 			val onSurface = legibleTextColor(surface)
 			val mutedOnSurface = mutedTextColor(onSurface, surface)
 			JSONObject()
+				.put("accent", JSONObject().put("hex", accent))
 				.put("primary", JSONObject().put("hex", primary))
 				.put("surface", JSONObject().put("hex", surface))
 				.put("on_surface", JSONObject().put("hex", onSurface))
@@ -238,11 +246,11 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 	}
 
-	private fun dominantColorHex(bitmap: android.graphics.Bitmap): String {
+	private fun dominantAndAccentColorHex(bitmap: android.graphics.Bitmap): Pair<String, String> {
 		val width = bitmap.width
 		val height = bitmap.height
 		if (width <= 0 || height <= 0) {
-			return "#d8dee9"
+			return "#d8dee9" to "#3b82f6"
 		}
 
 		val step = max(1, max(width, height) / 64)
@@ -273,19 +281,25 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 
 		if (bins.isEmpty()) {
-			return "#d8dee9"
+			return "#d8dee9" to "#3b82f6"
 		}
 
 		val sorted = bins.entries.sortedByDescending { it.value }
-		var bestHex: String? = null
-		var bestScore = Double.NEGATIVE_INFINITY
-		for (entry in sorted) {
+		val candidates = sorted.map { entry ->
 			val key = entry.key
 			val count = entry.value.coerceAtLeast(1L)
-			val r = ((sumsR[key] ?: 0L) / count).toInt()
-			val g = ((sumsG[key] ?: 0L) / count).toInt()
-			val b = ((sumsB[key] ?: 0L) / count).toInt()
-			val (_, s, l) = rgbToHsl(r, g, b)
+			QuantizedColorCandidate(
+				r = ((sumsR[key] ?: 0L) / count).toInt(),
+				g = ((sumsG[key] ?: 0L) / count).toInt(),
+				b = ((sumsB[key] ?: 0L) / count).toInt(),
+				count = count,
+			)
+		}
+
+		var bestHex: String? = null
+		var bestScore = Double.NEGATIVE_INFINITY
+		for (candidate in candidates) {
+			val (_, s, l) = rgbToHsl(candidate.r, candidate.g, candidate.b)
 			if (l <= 0.15) {
 				continue
 			}
@@ -293,35 +307,75 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			val saturationWeight = 0.45 + s * 1.15
 			val lightnessWeight = clamp(1.0 - abs(l - 0.55) * 1.7, 0.35, 1.0)
 			val neutralPenalty = if (s < 0.12) 0.55 else 1.0
-			val score = count.toDouble() * saturationWeight * lightnessWeight * neutralPenalty
+			val score = candidate.count.toDouble() * saturationWeight * lightnessWeight * neutralPenalty
 			if (score > bestScore) {
 				bestScore = score
-				bestHex = enhancePrimaryColor(r, g, b)
-			}
-		}
-		if (bestHex != null) {
-			return bestHex
-		}
-
-		for (entry in sorted) {
-			val key = entry.key
-			val count = entry.value.coerceAtLeast(1L)
-			val r = ((sumsR[key] ?: 0L) / count).toInt()
-			val g = ((sumsG[key] ?: 0L) / count).toInt()
-			val b = ((sumsB[key] ?: 0L) / count).toInt()
-			if (rgbLightness(r, g, b) > 0.15) {
-				return rgbToHex(r, g, b)
+				bestHex = enhancePrimaryColor(candidate.r, candidate.g, candidate.b)
 			}
 		}
 
-		val top = sorted.first()
-		val topCount = top.value.coerceAtLeast(1L)
-		val tr = ((sumsR[top.key] ?: 0L) / topCount).toInt()
-		val tg = ((sumsG[top.key] ?: 0L) / topCount).toInt()
-		val tb = ((sumsB[top.key] ?: 0L) / topCount).toInt()
-		return rgbToHex(tr, tg, tb)
+		val primaryHex =
+			if (bestHex != null) {
+				bestHex
+			} else {
+				var fallbackHex: String? = null
+				for (candidate in candidates) {
+					if (rgbLightness(candidate.r, candidate.g, candidate.b) > 0.15) {
+						fallbackHex = rgbToHex(candidate.r, candidate.g, candidate.b)
+						break
+					}
+				}
+				fallbackHex ?: run {
+					val top = candidates.first()
+					rgbToHex(top.r, top.g, top.b)
+				}
+			}
+
+		val accentHex = selectAccentColorHex(candidates, primaryHex)
+		return primaryHex to accentHex
 	}
 
+	private fun selectAccentColorHex(
+		candidates: List<QuantizedColorCandidate>,
+		primaryHex: String,
+	): String {
+		if (candidates.isEmpty()) {
+			return primaryHex
+		}
+
+		val totalPopulation = candidates.sumOf { it.count }
+		if (totalPopulation <= 0L) {
+			return primaryHex
+		}
+
+		val (pr, pg, pb) = hexToRgb(primaryHex)
+		val (primaryHue, _, primaryLightness) = rgbToHsl(pr, pg, pb)
+
+		var bestHex: String? = null
+		var bestScore = Double.NEGATIVE_INFINITY
+		for (candidate in candidates) {
+			val (h, s, l) = rgbToHsl(candidate.r, candidate.g, candidate.b)
+			if (l <= 0.15 || l >= 0.88) continue
+			if (s < 0.2) continue
+
+			val share = candidate.count.toDouble() / totalPopulation.toDouble()
+			if (share < 0.01 || share > 0.35) continue
+
+			val hueDistance = normalizedHueDistance(primaryHue, h)
+			if (hueDistance < 0.12) continue
+
+			val lightnessDistance = abs(l - primaryLightness)
+			val rarityWeight = clamp(1.0 - abs(share - 0.12) / 0.12, 0.0, 1.0)
+			val score =
+				(hueDistance * 1.4 + lightnessDistance * 0.35) * (0.35 + s) * (0.2 + rarityWeight)
+			if (score > bestScore) {
+				bestScore = score
+				bestHex = enhanceAccentColor(candidate.r, candidate.g, candidate.b)
+			}
+		}
+
+		return bestHex ?: primaryHex
+	}
 	private fun mutedVariant(hex: String): String {
 		val (r, g, b) = hexToRgb(hex)
 		val (h, s, l) = rgbToHsl(r, g, b)
@@ -339,6 +393,14 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 		val boostedS = clamp(max(s, 0.28) * 1.05, 0.0, 0.92)
 		val clampedL = clamp(l, 0.2, 0.78)
+		val (nr, ng, nb) = hslToRgb(h, boostedS, clampedL)
+		return rgbToHex(nr, ng, nb)
+	}
+
+	private fun enhanceAccentColor(r: Int, g: Int, b: Int): String {
+		val (h, s, l) = rgbToHsl(r, g, b)
+		val boostedS = clamp(max(s, 0.34) * 1.08, 0.0, 0.95)
+		val clampedL = clamp(l, 0.24, 0.74)
 		val (nr, ng, nb) = hslToRgb(h, boostedS, clampedL)
 		return rgbToHex(nr, ng, nb)
 	}
@@ -393,6 +455,11 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 	private fun clamp(value: Double, minValue: Double, maxValue: Double): Double {
 		return max(minValue, min(maxValue, value))
+	}
+
+	private fun normalizedHueDistance(a: Double, b: Double): Double {
+		val delta = abs(a - b)
+		return min(delta, 360.0 - delta) / 180.0
 	}
 
 	private fun rgbToHsl(r: Int, g: Int, b: Int): Triple<Double, Double, Double> {

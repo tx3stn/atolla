@@ -201,7 +201,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			const mutedOnSurfaceHex =
 				parsed.muted_on_surface?.hex ??
 				mutedTextColor({ hex: parsed.on_surface.hex }, { hex: parsed.surface.hex }).hex;
+			const accentHex = parsed.accent?.hex ?? parsed.primary.hex;
 			return {
+				accent: { hex: accentHex },
 				muted_on_surface: { hex: mutedOnSurfaceHex },
 				on_surface: { hex: parsed.on_surface.hex },
 				primary: { hex: parsed.primary.hex },

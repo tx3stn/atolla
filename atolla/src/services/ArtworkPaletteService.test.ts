@@ -245,6 +245,7 @@ describe('ArtworkPaletteService', () => {
 
 			const palette = service.getPalette(url);
 			expect(palette).not.toEqual(NEUTRAL_PALETTE);
+			expect(palette.accent.hex).toBeDefined();
 			expect(palette.primary.hex).toBeDefined();
 			expect(palette.surface.hex).toBeDefined();
 			expect(palette.on_surface.hex).toBeDefined();
@@ -308,6 +309,18 @@ describe('ArtworkPaletteService', () => {
 			const { isDark: checkDark } = await import('./color/colorUtils');
 			expect(checkDark(palette.primary, 0.15)).toBe(false);
 		});
+
+		it('extracts a distinct accent when a minority vivid color is present', async () => {
+			const service = new ArtworkPaletteService(new MockPaletteStore());
+			const url = 'https://example.com/blue-with-red-accent.png';
+
+			await service.generatePalette(url, buildBlueDominantPng(), 'image/png');
+
+			const palette = service.getPalette(url);
+			expect(palette.accent.hex).not.toBe(palette.primary.hex);
+			const red = Number.parseInt(palette.accent.hex.slice(1, 3), 16);
+			expect(red).toBeGreaterThan(120);
+		});
 	});
 
 	describe('fallback chain', () => {
@@ -346,6 +359,7 @@ describe('ArtworkPaletteService', () => {
 		it('loads persisted palettes from the store', async () => {
 			const mockStore = new MockPaletteStore();
 			const storedPalette: Palette = {
+				accent: { hex: '#ff6b6b' },
 				muted_on_surface: { hex: '#f4b7b7' },
 				on_surface: { hex: '#ffe0e0' },
 				primary: { hex: '#ff0000' },
@@ -375,6 +389,22 @@ describe('ArtworkPaletteService', () => {
 			expect(service.getPalette(url).muted_on_surface.hex).toBeDefined();
 		});
 
+		it('backfills accent for persisted palettes from older schema', async () => {
+			const mockStore = new MockPaletteStore();
+			const url = 'https://example.com/art-legacy-accent.png';
+			mockStore.seed(url, {
+				muted_on_surface: { hex: '#9aa3b2' },
+				on_surface: { hex: '#d8dee9' },
+				primary: { hex: '#8899aa' },
+				surface: { hex: '#111a2b' },
+			} as unknown as Palette);
+
+			const service = new ArtworkPaletteService(mockStore);
+			await service.warmUp([url]);
+
+			expect(service.getPalette(url).accent.hex).toBe('#8899aa');
+		});
+
 		it('notifies subscribers after warm-up loads a palette', async () => {
 			const mockStore = new MockPaletteStore();
 			const url = 'https://example.com/art.png';
@@ -392,6 +422,7 @@ describe('ArtworkPaletteService', () => {
 			const mockStore = new MockPaletteStore();
 			const url = 'https://example.com/art.png';
 			mockStore.seed(url, {
+				accent: { hex: '#7f87ff' },
 				muted_on_surface: { hex: '#2b2b2b' },
 				on_surface: { hex: '#333333' },
 				primary: { hex: '#111111' },

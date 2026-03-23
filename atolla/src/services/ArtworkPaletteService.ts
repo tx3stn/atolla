@@ -91,11 +91,13 @@ export class ArtworkPaletteService {
 				return;
 			}
 
-			const candidates = extractDominantColorCandidates(pixels, 4);
+			const candidates = extractDominantColorCandidates(pixels, 8);
 			const primary = this.selectPrimary(candidates);
+			const accent = this.selectAccent(candidates, primary);
 			const surface = mutedVariant(primary);
 			const onSurface = legibleTextColor(surface);
 			const palette: Palette = {
+				accent,
 				muted_on_surface: mutedTextColor(onSurface, surface),
 				on_surface: onSurface,
 				primary,
@@ -158,6 +160,48 @@ export class ArtworkPaletteService {
 		return { hex: rgbToHex(nr, ng, nb) };
 	}
 
+	private selectAccent(candidates: Array<DominantColorCandidate>, primary: Color): Color {
+		const totalPopulation = candidates.reduce((sum, item) => sum + item.population, 0);
+		if (totalPopulation <= 0) return primary;
+
+		const [pr, pg, pb] = hexToRgb(primary.hex);
+		const [primaryHue, , primaryLightness] = rgbToHsl(pr, pg, pb);
+
+		let best: { color: Color; score: number } | null = null;
+		for (const candidate of candidates) {
+			const [r, g, b] = hexToRgb(candidate.color.hex);
+			const [h, s, l] = rgbToHsl(r, g, b);
+			if (l <= this.config.darknessThreshold || l >= 0.88) continue;
+			if (s < 0.2) continue;
+
+			const share = candidate.population / totalPopulation;
+			if (share < 0.01 || share > 0.35) continue;
+
+			const hueDistance = normalizedHueDistance(primaryHue, h);
+			if (hueDistance < 0.12) continue;
+
+			const lightnessDistance = Math.abs(l - primaryLightness);
+			const rarityWeight = clamp(1 - Math.abs(share - 0.12) / 0.12, 0, 1);
+			const score =
+				(hueDistance * 1.4 + lightnessDistance * 0.35) * (0.35 + s) * (0.2 + rarityWeight);
+			if (!best || score > best.score) {
+				best = { color: candidate.color, score };
+			}
+		}
+
+		if (!best) return primary;
+		return this.enhanceAccent(best.color);
+	}
+
+	private enhanceAccent(color: Color): Color {
+		const [r, g, b] = hexToRgb(color.hex);
+		const [h, s, l] = rgbToHsl(r, g, b);
+		const boostedSaturation = clamp(Math.max(s, 0.34) * 1.08, 0, 0.95);
+		const clampedLightness = clamp(l, 0.24, 0.74);
+		const [nr, ng, nb] = hslToRgb(h, boostedSaturation, clampedLightness);
+		return { hex: rgbToHex(nr, ng, nb) };
+	}
+
 	private notify(): void {
 		for (const listener of this.listeners) {
 			listener();
@@ -165,16 +209,22 @@ export class ArtworkPaletteService {
 	}
 
 	private normalizePalette(palette: Palette): Palette {
-		if (palette.muted_on_surface?.hex) {
-			return palette;
-		}
+		const accentHex = palette.accent?.hex ?? palette.primary.hex;
+		const mutedOnSurfaceHex =
+			palette.muted_on_surface?.hex ?? mutedTextColor(palette.on_surface, palette.surface).hex;
 		return {
 			...palette,
-			muted_on_surface: mutedTextColor(palette.on_surface, palette.surface),
+			accent: { hex: accentHex },
+			muted_on_surface: { hex: mutedOnSurfaceHex },
 		};
 	}
 }
 
 function clamp(value: number, min: number, max: number): number {
 	return Math.max(min, Math.min(max, value));
+}
+
+function normalizedHueDistance(a: number, b: number): number {
+	const delta = Math.abs(a - b);
+	return Math.min(delta, 360 - delta) / 180;
 }

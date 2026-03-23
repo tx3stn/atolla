@@ -91,6 +91,7 @@ describe('TrackList', () => {
 
 	valdiIt('applies palette colors to row and labels when palette is provided', () => {
 		const palette = {
+			accent: { hex: '#f43f5e' },
 			muted_on_surface: { hex: '#d8cc99' },
 			on_surface: { hex: '#ffeeaa' },
 			primary: { hex: '#ff6600' },

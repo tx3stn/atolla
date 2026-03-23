@@ -335,7 +335,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			artistLogoUrl == null ? null : buildImageSource(artistLogoUrl, 'artist_logo');
 
 		// ── Palette-derived colours ──────────────────────────────────────────────
-		const accentColor = palette.primary.hex;
+		const accentColor = palette.accent.hex;
 		const surfaceColor = palette.surface.hex;
 		const onSurfaceColor = palette.on_surface.hex;
 		const mutedOnSurfaceColor = palette.muted_on_surface.hex;
@@ -364,7 +364,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					: album.name
 				: (track.albumName ?? '');
 
-		// Mini-player bar: surface bg, primary progress fill
+		// Mini-player bar: surface bg, accent progress fill
 		const barStyle = new Style({
 			alignItems: 'center',
 			backgroundColor: surfaceColor,
