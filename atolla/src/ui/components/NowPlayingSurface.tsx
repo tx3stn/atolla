@@ -388,8 +388,17 @@ export class NowPlayingSurface extends StatefulComponent<
 			zIndex: 25,
 		});
 
-		const compactTrackColor = withAlpha(accentColor, 0.28);
 		const expandedTrackColor = withAlpha(accentColor, 0.24);
+		const compactProgressFillStyle = new Style({
+			backgroundColor: accentColor,
+			bottom: 0,
+			left: 0,
+			opacity: 0.24,
+			position: 'absolute',
+			right: 'auto',
+			top: 0,
+			width: `${Math.round(progressRatio * 100)}%`,
+		});
 
 		// Expanded overlay card + content: surface bg
 		const overlayCardStyle = new Style({
@@ -465,12 +474,7 @@ export class NowPlayingSurface extends StatefulComponent<
 				style={barStyle}
 			>
 				<view style={styles.compactProgressContainer}>
-					<PlaybackProgressBar
-						accentColor={accentColor}
-						progressRatio={progressRatio}
-						thickness={3}
-						trackColor={compactTrackColor}
-					/>
+					<view style={compactProgressFillStyle} />
 				</view>
 				{albumArtworkSource && (
 					<image objectFit='cover' src={albumArtworkSource} style={styles.artwork} />
@@ -629,6 +633,7 @@ const styles = {
 		left: 0,
 		position: 'absolute',
 		right: 0,
+		top: 0,
 		zIndex: 5,
 	}),
 	expandedArtistLogo: new Style<ImageView>({
