@@ -582,6 +582,7 @@ export class NowPlayingSurface extends StatefulComponent<
 							<layout style={styles.expandedQueueList}>
 								<TrackList
 									imageCache={imageCache}
+									palette={palette}
 									tracks={activeTab === 'upNext' ? upNextEntries : backToEntries}
 								/>
 							</layout>

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import 'jasmine/src/jasmine';
+import { theme } from 'atolla/src/theme';
 import { TrackList } from 'atolla/src/ui/components/TrackList';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
@@ -86,5 +87,39 @@ describe('TrackList', () => {
 		labels = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Label);
 		const values = labels.map((l) => l.getAttribute('value'));
 		expect(values).toContain('New Track');
+	});
+
+	valdiIt('applies palette colors to row and labels when palette is provided', () => {
+		const palette = {
+			on_surface: { hex: '#ffeeaa' },
+			primary: { hex: '#ff6600' },
+			surface: { hex: '#223344' },
+		};
+		const tracks = [{ id: 'a', meta: '2:15', title: 'Track Name' }];
+		const instrumented = createComponent(TrackList, { palette, tracks });
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const row = views.find((view) => view.getAttribute('testID') === 'track-row-a');
+		expect(row?.getAttribute('style').attributes.backgroundColor).toBe('#223344');
+
+		const labels = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Label,
+		);
+		const title = labels.find((label) => label.getAttribute('value') === 'Track Name');
+		const meta = labels.find((label) => label.getAttribute('value') === '2:15');
+		expect(title?.getAttribute('style').attributes.color).toBe('#ffeeaa');
+		expect(meta?.getAttribute('style').attributes.color).toBe('#ffeeaa');
+	});
+
+	valdiIt('falls back to theme colors when palette is not provided', () => {
+		const tracks = [{ id: 'a', meta: '2:15', title: 'Track Name' }];
+		const instrumented = createComponent(TrackList, { tracks });
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const row = views.find((view) => view.getAttribute('testID') === 'track-row-a');
+		expect(row?.getAttribute('style').attributes.backgroundColor).toBe(theme.colors.bg);
 	});
 });

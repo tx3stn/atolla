@@ -148,7 +148,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	// immediately (warmUp) and prefetches the image for display. If no persisted
 	// palette exists, generates one from the fetched buffer.
 	private handleAlbumChange(): void {
-		const imageUrl = this.playbackStore.album?.imageUrl ?? this.playbackStore.track?.albumImageUrl ?? null;
+		const imageUrl =
+			this.playbackStore.album?.imageUrl ?? this.playbackStore.track?.albumImageUrl ?? null;
 		if (!imageUrl || imageUrl === this.lastArtworkUrl) return;
 		this.lastArtworkUrl = imageUrl;
 		void (async () => {

@@ -2,6 +2,7 @@
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
@@ -17,13 +18,65 @@ export interface TrackListEntry {
 interface TrackListViewModel {
 	imageCache?: ImageCache;
 	onTrackTap?: (trackId: string) => void;
+	palette?: Palette;
 	tracks: Array<TrackListEntry>;
 }
 
+interface TrackListColors {
+	meta: string;
+	rowBackground: string;
+	tileBackground: string;
+	title: string;
+}
+
+const defaultColors: TrackListColors = {
+	meta: theme.text.sub.color,
+	rowBackground: theme.colors.bg,
+	tileBackground: theme.colors.bgDeep,
+	title: theme.text.main.color,
+};
+
 export class TrackList extends Component<TrackListViewModel> {
 	onRender() {
+		const colors = resolveColors(this.viewModel.palette);
+		const emptyStateStyle = new Style<Label>({
+			...theme.text.sub,
+			color: colors.meta,
+			padding: 8,
+		});
+		const leadingLabelTextStyle = new Style<Label>({
+			...theme.text.main,
+			color: colors.title,
+			textAlign: 'center',
+		});
+		const titleStyle = new Style<Label>({
+			...theme.text.main,
+			color: colors.title,
+		});
+		const metaStyle = new Style<Label>({
+			...theme.text.sub,
+			color: colors.meta,
+			marginTop: 3,
+		});
+		const rowStyle = new Style({
+			backgroundColor: colors.rowBackground,
+			borderRadius: theme.borderRadius,
+			paddingBottom: 8,
+			paddingLeft: 10,
+			paddingRight: 10,
+			paddingTop: 8,
+			rowGap: 4,
+		});
+		const artworkTileStyle = new Style({
+			aspectRatio: 1,
+			backgroundColor: colors.tileBackground,
+			borderRadius: theme.borderRadius,
+			overflow: 'hidden',
+			width: 42,
+		});
+
 		if (this.viewModel.tracks.length === 0) {
-			<label key='track-list-empty' style={styles.emptyState} value='No tracks found.' />;
+			<label key='track-list-empty' style={emptyStateStyle} value='No tracks found.' />;
 			return;
 		}
 
@@ -36,12 +89,12 @@ export class TrackList extends Component<TrackListViewModel> {
 					onTap={() => {
 						this.viewModel.onTrackTap?.(track.id);
 					}}
-					style={styles.row}
+					style={rowStyle}
 					testID={`track-row-${track.id}`}
 				>
 					<layout style={styles.rowContent}>
 						{track.artworkSource ? (
-							<view style={styles.artworkTile}>
+							<view style={artworkTileStyle}>
 								<CachedImage
 									category='album_art'
 									imageCache={this.viewModel.imageCache}
@@ -52,7 +105,7 @@ export class TrackList extends Component<TrackListViewModel> {
 							</view>
 						) : track.leadingLabel ? (
 							<view style={styles.leadingLabelTile}>
-								<label style={styles.leadingLabelText} value={track.leadingLabel} />
+								<label style={leadingLabelTextStyle} value={track.leadingLabel} />
 							</view>
 						) : null}
 
@@ -60,15 +113,10 @@ export class TrackList extends Component<TrackListViewModel> {
 							<label
 								ellipsizeMode='tail'
 								numberOfLines={1}
-								style={styles.title}
+								style={titleStyle}
 								value={track.title}
 							/>
-							<label
-								ellipsizeMode='tail'
-								numberOfLines={1}
-								style={styles.meta}
-								value={track.meta}
-							/>
+							<label ellipsizeMode='tail' numberOfLines={1} style={metaStyle} value={track.meta} />
 						</layout>
 					</layout>
 				</view>
@@ -77,26 +125,24 @@ export class TrackList extends Component<TrackListViewModel> {
 	}
 }
 
+function resolveColors(palette?: Palette): TrackListColors {
+	if (!palette) {
+		return defaultColors;
+	}
+
+	return {
+		meta: palette.on_surface.hex,
+		rowBackground: palette.surface.hex,
+		tileBackground: palette.surface.hex,
+		title: palette.on_surface.hex,
+	};
+}
+
 const styles = {
 	artwork: new Style<ImageView>({
 		borderRadius: theme.borderRadius / 2,
 		height: '100%',
 		width: '100%',
-	}),
-	artworkTile: new Style({
-		aspectRatio: 1,
-		backgroundColor: theme.colors.bgDeep,
-		borderRadius: theme.borderRadius,
-		overflow: 'hidden',
-		width: 42,
-	}),
-	emptyState: new Style<Label>({
-		...theme.text.sub,
-		padding: 8,
-	}),
-	leadingLabelText: new Style<Label>({
-		...theme.text.main,
-		textAlign: 'center',
 	}),
 	leadingLabelTile: new Style({
 		alignItems: 'center',
@@ -110,19 +156,6 @@ const styles = {
 		rowGap: 8,
 		width: '100%',
 	}),
-	meta: new Style<Label>({
-		...theme.text.sub,
-		marginTop: 3,
-	}),
-	row: new Style({
-		backgroundColor: theme.colors.bg,
-		borderRadius: theme.borderRadius,
-		paddingBottom: 8,
-		paddingLeft: 10,
-		paddingRight: 10,
-		paddingTop: 8,
-		rowGap: 4,
-	}),
 	rowContent: new Style({
 		alignItems: 'center',
 		columnGap: 18,
@@ -132,8 +165,5 @@ const styles = {
 	textBlock: new Style({
 		flex: 1,
 		paddingLeft: 10,
-	}),
-	title: new Style<Label>({
-		...theme.text.main,
 	}),
 };
