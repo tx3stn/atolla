@@ -1,5 +1,17 @@
-import { extractDominantColors } from './color/colorQuantization';
-import { isDark, legibleTextColor, mutedTextColor, mutedVariant } from './color/colorUtils';
+import {
+	type DominantColorCandidate,
+	extractDominantColorCandidates,
+} from './color/colorQuantization';
+import {
+	hexToRgb,
+	hslToRgb,
+	isDark,
+	legibleTextColor,
+	mutedTextColor,
+	mutedVariant,
+	rgbToHex,
+	rgbToHsl,
+} from './color/colorUtils';
 import { decodePixelSamples } from './color/imageDecoder';
 import type { Color, Palette } from './color/types';
 import { NEUTRAL_PALETTE } from './color/types';
@@ -79,7 +91,7 @@ export class ArtworkPaletteService {
 				return;
 			}
 
-			const candidates = extractDominantColors(pixels, 2);
+			const candidates = extractDominantColorCandidates(pixels, 4);
 			const primary = this.selectPrimary(candidates);
 			const surface = mutedVariant(primary);
 			const onSurface = legibleTextColor(surface);
@@ -104,11 +116,46 @@ export class ArtworkPaletteService {
 	}
 
 	// Fallback chain: most prominent non-dark colour → second non-dark → neutral white
-	private selectPrimary(candidates: Array<Color>): Color {
-		for (const color of candidates) {
-			if (!isDark(color, this.config.darknessThreshold)) return color;
+	private selectPrimary(candidates: Array<DominantColorCandidate>): Color {
+		let best: { color: Color; score: number } | null = null;
+		for (const candidate of candidates) {
+			if (isDark(candidate.color, this.config.darknessThreshold)) continue;
+
+			const score = this.candidateScore(candidate);
+			if (!best || score > best.score) {
+				best = { color: candidate.color, score };
+			}
+		}
+
+		if (best) {
+			return this.enhancePrimary(best.color);
+		}
+
+		for (const candidate of candidates) {
+			if (!isDark(candidate.color, this.config.darknessThreshold)) return candidate.color;
 		}
 		return NEUTRAL_PALETTE.primary;
+	}
+
+	private candidateScore(candidate: DominantColorCandidate): number {
+		const [r, g, b] = hexToRgb(candidate.color.hex);
+		const [, s, l] = rgbToHsl(r, g, b);
+		const saturationWeight = 0.45 + s * 1.15;
+		const lightnessDistance = Math.abs(l - 0.55);
+		const lightnessWeight = clamp(1 - lightnessDistance * 1.7, 0.35, 1);
+		const neutralPenalty = s < 0.12 ? 0.55 : 1;
+		return candidate.population * saturationWeight * lightnessWeight * neutralPenalty;
+	}
+
+	private enhancePrimary(color: Color): Color {
+		const [r, g, b] = hexToRgb(color.hex);
+		const [h, s, l] = rgbToHsl(r, g, b);
+		if (s < 0.08) return color;
+
+		const boostedSaturation = clamp(Math.max(s, 0.28) * 1.05, 0, 0.92);
+		const clampedLightness = clamp(l, 0.2, 0.78);
+		const [nr, ng, nb] = hslToRgb(h, boostedSaturation, clampedLightness);
+		return { hex: rgbToHex(nr, ng, nb) };
 	}
 
 	private notify(): void {
@@ -126,4 +173,8 @@ export class ArtworkPaletteService {
 			muted_on_surface: mutedTextColor(palette.on_surface, palette.surface),
 		};
 	}
+}
+
+function clamp(value: number, min: number, max: number): number {
+	return Math.max(min, Math.min(max, value));
 }

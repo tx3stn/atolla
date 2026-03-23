@@ -90,4 +90,14 @@ describe('extractDominantColors', () => {
 		expect(colors.length).toBe(1);
 		expect(colors[0].hex).toBe('#7b2d43');
 	});
+
+	it('leans toward saturated hues instead of muddy averages', () => {
+		const data = rgbaMany([
+			{ color: [120, 120, 120], count: 6 },
+			{ color: [20, 90, 220], count: 4 },
+		]);
+		const [primary] = extractDominantColors(data, 1);
+		const blue = Number.parseInt(primary.hex.slice(5, 7), 16);
+		expect(blue).toBeGreaterThan(150);
+	});
 });

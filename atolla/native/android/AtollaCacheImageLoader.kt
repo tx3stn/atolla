@@ -277,14 +277,39 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 
 		val sorted = bins.entries.sortedByDescending { it.value }
+		var bestHex: String? = null
+		var bestScore = Double.NEGATIVE_INFINITY
 		for (entry in sorted) {
 			val key = entry.key
 			val count = entry.value.coerceAtLeast(1L)
 			val r = ((sumsR[key] ?: 0L) / count).toInt()
 			val g = ((sumsG[key] ?: 0L) / count).toInt()
 			val b = ((sumsB[key] ?: 0L) / count).toInt()
-			val l = rgbLightness(r, g, b)
-			if (l > 0.15) {
+			val (_, s, l) = rgbToHsl(r, g, b)
+			if (l <= 0.15) {
+				continue
+			}
+
+			val saturationWeight = 0.45 + s * 1.15
+			val lightnessWeight = clamp(1.0 - abs(l - 0.55) * 1.7, 0.35, 1.0)
+			val neutralPenalty = if (s < 0.12) 0.55 else 1.0
+			val score = count.toDouble() * saturationWeight * lightnessWeight * neutralPenalty
+			if (score > bestScore) {
+				bestScore = score
+				bestHex = enhancePrimaryColor(r, g, b)
+			}
+		}
+		if (bestHex != null) {
+			return bestHex
+		}
+
+		for (entry in sorted) {
+			val key = entry.key
+			val count = entry.value.coerceAtLeast(1L)
+			val r = ((sumsR[key] ?: 0L) / count).toInt()
+			val g = ((sumsG[key] ?: 0L) / count).toInt()
+			val b = ((sumsB[key] ?: 0L) / count).toInt()
+			if (rgbLightness(r, g, b) > 0.15) {
 				return rgbToHex(r, g, b)
 			}
 		}
@@ -300,9 +325,21 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	private fun mutedVariant(hex: String): String {
 		val (r, g, b) = hexToRgb(hex)
 		val (h, s, l) = rgbToHsl(r, g, b)
-		val newS = s * 0.5
+		val newS = max(0.22, s * 0.6)
 		val newL = max(0.08, l * 0.8)
 		val (nr, ng, nb) = hslToRgb(h, newS, newL)
+		return rgbToHex(nr, ng, nb)
+	}
+
+	private fun enhancePrimaryColor(r: Int, g: Int, b: Int): String {
+		val (h, s, l) = rgbToHsl(r, g, b)
+		if (s < 0.08) {
+			return rgbToHex(r, g, b)
+		}
+
+		val boostedS = clamp(max(s, 0.28) * 1.05, 0.0, 0.92)
+		val clampedL = clamp(l, 0.2, 0.78)
+		val (nr, ng, nb) = hslToRgb(h, boostedS, clampedL)
 		return rgbToHex(nr, ng, nb)
 	}
 
@@ -352,6 +389,10 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	private fun rgbToHex(r: Int, g: Int, b: Int): String {
 		fun clamped(v: Int): Int = min(255, max(0, v))
 		return "#%02x%02x%02x".format(clamped(r), clamped(g), clamped(b))
+	}
+
+	private fun clamp(value: Double, minValue: Double, maxValue: Double): Double {
+		return max(minValue, min(maxValue, value))
 	}
 
 	private fun rgbToHsl(r: Int, g: Int, b: Int): Triple<Double, Double, Double> {

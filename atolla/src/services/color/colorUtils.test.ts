@@ -188,6 +188,13 @@ describe('mutedVariant', () => {
 		const [, , l] = rgbToHsl(...hexToRgb(muted.hex));
 		expect(l).toBeGreaterThanOrEqual(0.08);
 	});
+
+	it('keeps a minimum saturation so surfaces do not wash out', () => {
+		const nearGrey = { hex: rgbToHex(...hslToRgb(210, 0.05, 0.5)) };
+		const muted = mutedVariant(nearGrey);
+		const [, s] = rgbToHsl(...hexToRgb(muted.hex));
+		expect(s).toBeGreaterThanOrEqual(0.2);
+	});
 });
 
 describe('legibleTextColor', () => {

@@ -92,7 +92,7 @@ export function isDark(color: Color, threshold = 0.15): boolean {
 export function mutedVariant(color: Color): Color {
 	const [r, g, b] = hexToRgb(color.hex);
 	const [h, s, l] = rgbToHsl(r, g, b);
-	const newS = s * 0.5;
+	const newS = Math.max(0.22, s * 0.6);
 	const newL = Math.max(0.08, l * 0.8);
 	const [nr, ng, nb] = hslToRgb(h, newS, newL);
 	return { hex: rgbToHex(nr, ng, nb) };

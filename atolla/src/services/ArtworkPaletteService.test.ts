@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { ArtworkPaletteService, type PaletteStore } from './ArtworkPaletteService';
+import type { DominantColorCandidate } from './color/colorQuantization';
 import type { Palette } from './color/types';
 import { NEUTRAL_PALETTE } from './color/types';
 
@@ -320,6 +321,24 @@ describe('ArtworkPaletteService', () => {
 
 			const palette = service.getPalette(url);
 			expect(palette.primary.hex).toBe(NEUTRAL_PALETTE.primary.hex);
+		});
+	});
+
+	describe('primary scoring', () => {
+		it('prefers a more saturated candidate when prominence is close', () => {
+			const service = new ArtworkPaletteService(new MockPaletteStore());
+			const candidates: Array<DominantColorCandidate> = [
+				{ color: { hex: '#7f7f7f' }, population: 60 },
+				{ color: { hex: '#2a82f6' }, population: 40 },
+			];
+
+			const primary = (
+				service as unknown as {
+					selectPrimary: (items: Array<DominantColorCandidate>) => { hex: string };
+				}
+			).selectPrimary(candidates);
+
+			expect(primary.hex).not.toBe('#7f7f7f');
 		});
 	});
 

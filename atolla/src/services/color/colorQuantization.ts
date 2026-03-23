@@ -1,10 +1,22 @@
 import { rgbToHex } from './colorUtils';
 import type { Color } from './types';
 
+export interface DominantColorCandidate {
+	color: Color;
+	population: number;
+}
+
 // Returns up to `count` dominant colours from an RGBA pixel array,
 // ordered by the size of the colour region they represent (most prominent first).
 // Transparent pixels (alpha < 128) are excluded.
 export function extractDominantColors(rgba: Uint8Array, count: number): Array<Color> {
+	return extractDominantColorCandidates(rgba, count).map((candidate) => candidate.color);
+}
+
+export function extractDominantColorCandidates(
+	rgba: Uint8Array,
+	count: number,
+): Array<DominantColorCandidate> {
 	if (count < 1) return [];
 
 	// Collect opaque pixels as [r, g, b] tuples
@@ -36,7 +48,10 @@ export function extractDominantColors(rgba: Uint8Array, count: number): Array<Co
 	// Average each bucket → dominant colour, sort by bucket size (largest first)
 	return buckets
 		.sort((a, b) => b.length - a.length)
-		.map((bucket) => ({ hex: rgbToHex(...averageColor(bucket)) }));
+		.map((bucket) => ({
+			color: { hex: rgbToHex(...averageColor(bucket)) },
+			population: bucket.length,
+		}));
 }
 
 function bucketRange(bucket: Array<[number, number, number]>): number {
@@ -91,12 +106,18 @@ function splitBucket(
 function averageColor(bucket: Array<[number, number, number]>): [number, number, number] {
 	let r = 0,
 		g = 0,
-		b = 0;
+		b = 0,
+		totalWeight = 0;
 	for (const [pr, pg, pb] of bucket) {
-		r += pr;
-		g += pg;
-		b += pb;
+		const max = Math.max(pr, pg, pb);
+		const min = Math.min(pr, pg, pb);
+		const saturation = max === 0 ? 0 : (max - min) / max;
+		const weight = 1 + saturation * 0.75;
+		r += pr * weight;
+		g += pg * weight;
+		b += pb * weight;
+		totalWeight += weight;
 	}
-	const n = bucket.length;
-	return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+	if (totalWeight <= 0) return [0, 0, 0];
+	return [Math.round(r / totalWeight), Math.round(g / totalWeight), Math.round(b / totalWeight)];
 }
