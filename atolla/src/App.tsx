@@ -499,6 +499,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onNext={() => this.playbackStore.next()}
 					onPlayPause={() => this.playbackStore.playPause()}
 					onPrevious={() => this.playbackStore.previous()}
+					onProgressTap={() => this.playbackStore.skipForward(10)}
 					palette={palette}
 					progressSeconds={progressSeconds}
 					track={track}

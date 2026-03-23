@@ -11,6 +11,7 @@ import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
 import { theme } from '../../theme';
+import { PlaybackProgressBar } from './PlaybackProgressBar';
 import { TrackList, type TrackListEntry } from './TrackList';
 
 export interface NowPlayingSurfaceViewModel {
@@ -24,6 +25,7 @@ export interface NowPlayingSurfaceViewModel {
 	onNext: () => void;
 	onPlayPause: () => void;
 	onPrevious: () => void;
+	onProgressTap?: () => void;
 	palette?: Palette;
 	progressSeconds: number;
 	track: Track;
@@ -310,6 +312,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			imageCache,
 			onNext,
 			onPlayPause,
+			onProgressTap,
 			onPrevious,
 			palette = NEUTRAL_PALETTE,
 			progressSeconds,
@@ -385,30 +388,8 @@ export class NowPlayingSurface extends StatefulComponent<
 			zIndex: 25,
 		});
 
-		const progressFillStyle = new Style({
-			backgroundColor: accentColor,
-			bottom: 0,
-			left: 0,
-			position: 'absolute',
-			top: 0,
-			width: `${Math.round(progressRatio * 100)}%`,
-		});
-
-		const expandedProgressFillStyle = new Style({
-			backgroundColor: accentColor,
-			borderRadius: 2,
-			height: '100%',
-			width: `${Math.round(progressRatio * 100)}%`,
-		});
-
-		const expandedProgressTrackStyle = new Style({
-			backgroundColor: withAlpha(onSurfaceColor, 0.28),
-			borderRadius: 2,
-			height: 4,
-			marginTop: 10,
-			overflow: 'hidden',
-			width: '100%',
-		});
+		const compactTrackColor = withAlpha(accentColor, 0.28);
+		const expandedTrackColor = withAlpha(accentColor, 0.24);
 
 		// Expanded overlay card + content: surface bg
 		const overlayCardStyle = new Style({
@@ -483,7 +464,14 @@ export class NowPlayingSurface extends StatefulComponent<
 				ref={this.compactBarRef}
 				style={barStyle}
 			>
-				<view style={progressFillStyle} />
+				<view style={styles.compactProgressContainer}>
+					<PlaybackProgressBar
+						accentColor={accentColor}
+						progressRatio={progressRatio}
+						thickness={3}
+						trackColor={compactTrackColor}
+					/>
+				</view>
 				{albumArtworkSource && (
 					<image objectFit='cover' src={albumArtworkSource} style={styles.artwork} />
 				)}
@@ -499,13 +487,13 @@ export class NowPlayingSurface extends StatefulComponent<
 			</view>
 
 			<view id='now-playing-surface-overlay' ref={this.overlayRef} style={styles.overlayRoot}>
-				{/* biome-ignore lint/a11y/noStaticElementInteractions: Intentional swipe-down gesture handler for collapse. */}
-				<view
-					onDrag={this.handleExpandedDrag}
-					onTouch={this.handleExpandedTouch}
-					ref={this.overlayCardRef}
-					style={overlayCardStyle}
-				>
+				<view ref={this.overlayCardRef} style={overlayCardStyle}>
+					{/* biome-ignore lint/a11y/noStaticElementInteractions: Dedicated gesture zone for swipe-down collapse. */}
+					<view
+						onDrag={this.handleExpandedDrag}
+						onTouch={this.handleExpandedTouch}
+						style={styles.expandedGestureZone}
+					/>
 					{albumArtworkSource && (
 						<image
 							objectFit='cover'
@@ -546,9 +534,14 @@ export class NowPlayingSurface extends StatefulComponent<
 										<label numberOfLines={2} style={expandedAlbumLineStyle} value={albumLine} />
 									</layout>
 									<layout style={styles.expandedProgressSection}>
-										<view style={expandedProgressTrackStyle}>
-											<view style={expandedProgressFillStyle} />
-										</view>
+										<PlaybackProgressBar
+											accentColor={accentColor}
+											accessibilityLabel='now-playing-progress'
+											onProgressTap={onProgressTap}
+											progressRatio={progressRatio}
+											thickness={4}
+											trackColor={expandedTrackColor}
+										/>
 										<layout style={styles.expandedTimeRow}>
 											<label style={expandedTimeLabelStyle} value={elapsedText} />
 											<label style={expandedTimeLabelStyle} value={remainingText} />
@@ -631,6 +624,13 @@ const styles = {
 		marginRight: 14,
 		width: 65,
 	}),
+	compactProgressContainer: new Style({
+		bottom: 0,
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		zIndex: 5,
+	}),
 	expandedArtistLogo: new Style<ImageView>({
 		height: 48,
 		marginBottom: 8,
@@ -662,6 +662,14 @@ const styles = {
 	expandedFirstPage: new Style({
 		minHeight: '100%',
 		width: '100%',
+	}),
+	expandedGestureZone: new Style({
+		height: 170,
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
+		zIndex: 90,
 	}),
 	expandedInfoSection: new Style({
 		alignItems: 'center',

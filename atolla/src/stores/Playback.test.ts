@@ -166,6 +166,47 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('seekTo()', () => {
+		it('sets progress to requested second within track duration', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			store.seekTo(42);
+			expect(store.progressSeconds).toBe(42);
+		});
+
+		it('clamps progress to track duration', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			store.seekTo(999);
+			expect(store.progressSeconds).toBe(track1.duration);
+		});
+
+		it('clamps progress to zero for negative values', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			store.seekTo(-10);
+			expect(store.progressSeconds).toBe(0);
+		});
+	});
+
+	describe('skipForward()', () => {
+		it('moves progress forward by 10 seconds by default', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			store.seekTo(20);
+			store.skipForward();
+			expect(store.progressSeconds).toBe(30);
+		});
+
+		it('clamps to track duration', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			store.seekTo(track1.duration - 1);
+			store.skipForward(10);
+			expect(store.progressSeconds).toBe(track1.duration);
+		});
+	});
+
 	describe('stop()', () => {
 		it('clears all playback state', () => {
 			const store = new PlaybackStore();

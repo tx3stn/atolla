@@ -64,6 +64,21 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	seekTo(seconds: number): void {
+		const activeTrack = this.track;
+		if (!activeTrack) {
+			return;
+		}
+
+		const clamped = Math.max(0, Math.min(activeTrack.duration, seconds));
+		this.progressSeconds = clamped;
+		this.notify();
+	}
+
+	skipForward(seconds = 10): void {
+		this.seekTo(this.progressSeconds + seconds);
+	}
+
 	stop(): void {
 		this.tracks = [];
 		this.album = null;
