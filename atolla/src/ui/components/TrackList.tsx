@@ -131,7 +131,7 @@ function resolveColors(palette?: Palette): TrackListColors {
 	}
 
 	return {
-		meta: palette.on_surface.hex,
+		meta: palette.muted_on_surface.hex,
 		rowBackground: palette.surface.hex,
 		tileBackground: palette.surface.hex,
 		title: palette.on_surface.hex,

@@ -117,3 +117,15 @@ export function legibleTextColor(surface: Color): Color {
 		return { hex: rgbToHex(nr, ng, nb) };
 	}
 }
+
+// Returns a softer variant of on-surface text by blending toward the surface.
+// Useful for secondary metadata text while staying in the same palette family.
+export function mutedTextColor(onSurface: Color, surface: Color): Color {
+	const [tr, tg, tb] = hexToRgb(onSurface.hex);
+	const [sr, sg, sb] = hexToRgb(surface.hex);
+	const factor = 0.22;
+	const mix = (text: number, base: number) => text + (base - text) * factor;
+	return {
+		hex: rgbToHex(mix(tr, sr), mix(tg, sg), mix(tb, sb)),
+	};
+}

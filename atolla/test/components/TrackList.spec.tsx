@@ -91,6 +91,7 @@ describe('TrackList', () => {
 
 	valdiIt('applies palette colors to row and labels when palette is provided', () => {
 		const palette = {
+			muted_on_surface: { hex: '#d8cc99' },
 			on_surface: { hex: '#ffeeaa' },
 			primary: { hex: '#ff6600' },
 			surface: { hex: '#223344' },
@@ -110,7 +111,7 @@ describe('TrackList', () => {
 		const title = labels.find((label) => label.getAttribute('value') === 'Track Name');
 		const meta = labels.find((label) => label.getAttribute('value') === '2:15');
 		expect(title?.getAttribute('style').attributes.color).toBe('#ffeeaa');
-		expect(meta?.getAttribute('style').attributes.color).toBe('#ffeeaa');
+		expect(meta?.getAttribute('style').attributes.color).toBe('#d8cc99');
 	});
 
 	valdiIt('falls back to theme colors when palette is not provided', () => {

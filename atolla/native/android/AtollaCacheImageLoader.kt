@@ -82,10 +82,12 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			val primary = dominantColorHex(bitmap)
 			val surface = mutedVariant(primary)
 			val onSurface = legibleTextColor(surface)
+			val mutedOnSurface = mutedTextColor(onSurface, surface)
 			JSONObject()
 				.put("primary", JSONObject().put("hex", primary))
 				.put("surface", JSONObject().put("hex", surface))
 				.put("on_surface", JSONObject().put("hex", onSurface))
+				.put("muted_on_surface", JSONObject().put("hex", mutedOnSurface))
 				.toString()
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed to extract palette for key=$key", error)
@@ -318,6 +320,15 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			val (nr, ng, nb) = hslToRgb(h, textS, textL)
 			rgbToHex(nr, ng, nb)
 		}
+	}
+
+	private fun mutedTextColor(textHex: String, surfaceHex: String): String {
+		val (tr, tg, tb) = hexToRgb(textHex)
+		val (sr, sg, sb) = hexToRgb(surfaceHex)
+		fun mix(text: Int, surface: Int): Int {
+			return text + ((surface - text) * 0.22).toInt()
+		}
+		return rgbToHex(mix(tr, sr), mix(tg, sg), mix(tb, sb))
 	}
 
 	private fun rgbLightness(r: Int, g: Int, b: Int): Double {

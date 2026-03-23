@@ -247,6 +247,7 @@ describe('ArtworkPaletteService', () => {
 			expect(palette.primary.hex).toBeDefined();
 			expect(palette.surface.hex).toBeDefined();
 			expect(palette.on_surface.hex).toBeDefined();
+			expect(palette.muted_on_surface.hex).toBeDefined();
 		});
 
 		it('persists the extracted palette to the store', async () => {
@@ -326,6 +327,7 @@ describe('ArtworkPaletteService', () => {
 		it('loads persisted palettes from the store', async () => {
 			const mockStore = new MockPaletteStore();
 			const storedPalette: Palette = {
+				muted_on_surface: { hex: '#f4b7b7' },
 				on_surface: { hex: '#ffe0e0' },
 				primary: { hex: '#ff0000' },
 				surface: { hex: '#800000' },
@@ -337,6 +339,21 @@ describe('ArtworkPaletteService', () => {
 			await service.warmUp([url]);
 
 			expect(service.getPalette(url)).toEqual(storedPalette);
+		});
+
+		it('backfills muted_on_surface for persisted palettes from older schema', async () => {
+			const mockStore = new MockPaletteStore();
+			const url = 'https://example.com/art-legacy.png';
+			mockStore.seed(url, {
+				on_surface: { hex: '#d8dee9' },
+				primary: { hex: '#ff0000' },
+				surface: { hex: '#111a2b' },
+			} as unknown as Palette);
+
+			const service = new ArtworkPaletteService(mockStore);
+			await service.warmUp([url]);
+
+			expect(service.getPalette(url).muted_on_surface.hex).toBeDefined();
 		});
 
 		it('notifies subscribers after warm-up loads a palette', async () => {
@@ -356,6 +373,7 @@ describe('ArtworkPaletteService', () => {
 			const mockStore = new MockPaletteStore();
 			const url = 'https://example.com/art.png';
 			mockStore.seed(url, {
+				muted_on_surface: { hex: '#2b2b2b' },
 				on_surface: { hex: '#333333' },
 				primary: { hex: '#111111' },
 				surface: { hex: '#222222' },

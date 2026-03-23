@@ -5,6 +5,7 @@ import {
 	hslToRgb,
 	isDark,
 	legibleTextColor,
+	mutedTextColor,
 	mutedVariant,
 	rgbToHex,
 	rgbToHsl,
@@ -214,5 +215,14 @@ describe('legibleTextColor', () => {
 		const lightSurface = { hex: '#e0e8f0' };
 		const text = legibleTextColor(lightSurface);
 		expect(text.hex).not.toBe('#000000');
+	});
+});
+
+describe('mutedTextColor', () => {
+	it('returns a colour between on_surface and surface', () => {
+		const onSurface = { hex: '#d8dee9' };
+		const surface = { hex: '#111a2b' };
+		const muted = mutedTextColor(onSurface, surface);
+		expect(muted.hex).toBe('#acb3bf');
 	});
 });

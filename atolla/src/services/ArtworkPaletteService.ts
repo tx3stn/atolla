@@ -1,5 +1,5 @@
 import { extractDominantColors } from './color/colorQuantization';
-import { isDark, legibleTextColor, mutedVariant } from './color/colorUtils';
+import { isDark, legibleTextColor, mutedTextColor, mutedVariant } from './color/colorUtils';
 import { decodePixelSamples } from './color/imageDecoder';
 import type { Color, Palette } from './color/types';
 import { NEUTRAL_PALETTE } from './color/types';
@@ -38,7 +38,9 @@ export class ArtworkPaletteService {
 	// if extraction has not yet completed. Always returns synchronously.
 	getPalette(imageUrl: string | null | undefined): Palette {
 		if (!imageUrl) return NEUTRAL_PALETTE;
-		return this.cache.get(imageUrl) ?? NEUTRAL_PALETTE;
+		const cached = this.cache.get(imageUrl);
+		if (!cached) return NEUTRAL_PALETTE;
+		return this.normalizePalette(cached);
 	}
 
 	hasPalette(imageUrl: string | null | undefined): boolean {
@@ -59,7 +61,7 @@ export class ArtworkPaletteService {
 				if (this.cache.has(url)) return;
 				const palette = await this.store.loadPalette(url);
 				if (palette) {
-					this.cache.set(url, palette);
+					this.cache.set(url, this.normalizePalette(palette));
 					this.notify();
 				}
 			}),
@@ -80,8 +82,10 @@ export class ArtworkPaletteService {
 			const candidates = extractDominantColors(pixels, 2);
 			const primary = this.selectPrimary(candidates);
 			const surface = mutedVariant(primary);
+			const onSurface = legibleTextColor(surface);
 			const palette: Palette = {
-				on_surface: legibleTextColor(surface),
+				muted_on_surface: mutedTextColor(onSurface, surface),
+				on_surface: onSurface,
 				primary,
 				surface,
 			};
@@ -93,8 +97,9 @@ export class ArtworkPaletteService {
 	}
 
 	async persistPalette(url: string, palette: Palette): Promise<void> {
-		this.cache.set(url, palette);
-		await this.store.savePalette(url, palette);
+		const normalized = this.normalizePalette(palette);
+		this.cache.set(url, normalized);
+		await this.store.savePalette(url, normalized);
 		this.notify();
 	}
 
@@ -110,5 +115,15 @@ export class ArtworkPaletteService {
 		for (const listener of this.listeners) {
 			listener();
 		}
+	}
+
+	private normalizePalette(palette: Palette): Palette {
+		if (palette.muted_on_surface?.hex) {
+			return palette;
+		}
+		return {
+			...palette,
+			muted_on_surface: mutedTextColor(palette.on_surface, palette.surface),
+		};
 	}
 }

@@ -12,6 +12,7 @@ import {
 	getAtollaImageLoaderCacheEntryCount,
 } from './ImageLoaderBootstrap';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
+import { mutedTextColor } from './services/color/colorUtils';
 import type { Palette } from './services/color/types';
 import { ImageCache } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
@@ -197,7 +198,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			if (!parsed.primary?.hex || !parsed.surface?.hex || !parsed.on_surface?.hex) {
 				return null;
 			}
+			const mutedOnSurfaceHex =
+				parsed.muted_on_surface?.hex ??
+				mutedTextColor({ hex: parsed.on_surface.hex }, { hex: parsed.surface.hex }).hex;
 			return {
+				muted_on_surface: { hex: mutedOnSurfaceHex },
 				on_surface: { hex: parsed.on_surface.hex },
 				primary: { hex: parsed.primary.hex },
 				surface: { hex: parsed.surface.hex },

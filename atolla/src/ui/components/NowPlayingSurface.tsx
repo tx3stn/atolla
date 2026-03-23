@@ -338,16 +338,17 @@ export class NowPlayingSurface extends StatefulComponent<
 		const accentColor = palette.primary.hex;
 		const surfaceColor = palette.surface.hex;
 		const onSurfaceColor = palette.on_surface.hex;
+		const mutedOnSurfaceColor = palette.muted_on_surface.hex;
 
 		const backToLabelStyle = new Style<Label>({
 			...theme.text.sub,
-			color: onSurfaceColor,
+			color: mutedOnSurfaceColor,
 			opacity: activeTab === 'backTo' ? 1 : 0.4,
 			textAlign: 'center',
 		});
 		const upNextLabelStyle = new Style<Label>({
 			...theme.text.sub,
-			color: onSurfaceColor,
+			color: mutedOnSurfaceColor,
 			opacity: activeTab === 'upNext' ? 1 : 0.4,
 			textAlign: 'center',
 		});
@@ -436,12 +437,12 @@ export class NowPlayingSurface extends StatefulComponent<
 		const trackNameStyle = new Style<Label>({ ...theme.text.title, color: onSurfaceColor });
 		const artistNameStyle = new Style<Label>({
 			...theme.text.sub,
-			color: onSurfaceColor,
+			color: mutedOnSurfaceColor,
 			paddingTop: 4,
 		});
 		const timeStyle = new Style<Label>({
 			...theme.text.sub,
-			color: onSurfaceColor,
+			color: mutedOnSurfaceColor,
 			flexShrink: 0,
 			paddingRight: 10,
 		});
@@ -453,7 +454,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		});
 		const expandedAlbumLineStyle = new Style<Label>({
 			...theme.text.subLarger,
-			color: onSurfaceColor,
+			color: mutedOnSurfaceColor,
 			marginTop: 4,
 			paddingTop: 12,
 			textAlign: 'center',
@@ -461,14 +462,14 @@ export class NowPlayingSurface extends StatefulComponent<
 		});
 		const expandedArtistNameStyle = new Style<Label>({
 			...theme.text.mutedHeader,
-			color: onSurfaceColor,
+			color: mutedOnSurfaceColor,
 			marginBottom: 8,
 			textAlign: 'center',
 			width: '100%',
 		});
 		const expandedTimeLabelStyle = new Style<Label>({
 			...theme.text.sub,
-			color: onSurfaceColor,
+			color: mutedOnSurfaceColor,
 		});
 
 		const rootStyle = this.state.isExpanded ? styles.rootExpanded : styles.rootCollapsed;
