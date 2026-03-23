@@ -393,7 +393,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			backgroundColor: accentColor,
 			bottom: 0,
 			left: 0,
-			opacity: 0.38,
+			opacity: 0.45,
 			position: 'absolute',
 			right: 'auto',
 			top: 0,
@@ -634,7 +634,6 @@ const styles = {
 		position: 'absolute',
 		right: 0,
 		top: 0,
-		zIndex: 5,
 	}),
 	expandedArtistLogo: new Style<ImageView>({
 		height: 48,
