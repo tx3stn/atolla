@@ -2,10 +2,13 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
+import type { ClearCacheSelection } from '../../services/ImageCache';
 import type { Preferences } from '../../stores/Preferences';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
 import { theme } from '../../theme';
+import { CacheClearModal } from '../components/CacheClearModal';
 import { Modal } from '../components/Modal';
+import { Toast } from '../components/Toast';
 import { Toggle } from '../components/Toggle';
 
 const GB = 1024 * 1024 * 1024;
@@ -34,6 +37,7 @@ export interface SettingsViewModel {
 	imageCacheMaxBytes?: number;
 	onAnimationsChange?: (enabled: boolean) => void;
 	onCacheSizeChange?: (bytes: number) => void;
+	onClearCache?: (selection: ClearCacheSelection) => void;
 	onGeneratePalettes?: () => void;
 	paletteCount?: number;
 	paletteError?: string | null;
@@ -47,13 +51,44 @@ export interface SettingsViewModel {
 
 interface SettingsState {
 	cacheSizeInput: string;
+	showCacheClearModal: boolean;
+	showCacheToast: boolean;
 	showPaletteFailureModal: boolean;
 }
 
 export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsState> {
 	state: SettingsState = {
 		cacheSizeInput: bytesToGb(this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES),
+		showCacheClearModal: false,
+		showCacheToast: false,
 		showPaletteFailureModal: false,
+	};
+
+	private toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+	onDestroy(): void {
+		if (this.toastTimer != null) {
+			clearTimeout(this.toastTimer);
+		}
+	}
+
+	private handleClearCachePress = () => {
+		this.setState({ showCacheClearModal: true });
+	};
+
+	private handleCacheClearConfirm = (selection: ClearCacheSelection) => {
+		this.viewModel.onClearCache?.(selection);
+		if (this.toastTimer != null) {
+			clearTimeout(this.toastTimer);
+		}
+		this.setState({ showCacheClearModal: false, showCacheToast: true });
+		this.toastTimer = setTimeout(() => {
+			this.setState({ showCacheToast: false });
+		}, 2500);
+	};
+
+	private handleCacheClearCancel = () => {
+		this.setState({ showCacheClearModal: false });
 	};
 
 	onViewModelUpdate(): void {
@@ -179,12 +214,21 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 				<view
 					accessibilityLabel='settings-cache-clear-btn'
 					contentDescription='settings-cache-clear-btn'
-					onTap={createReusableCallback(() => {})}
+					onTap={this.handleClearCachePress}
 					style={styles.button}
 				>
 					<label style={styles.buttonLabel} value='Clear Cache' />
 				</view>
 			</view>
+
+			{this.state.showCacheClearModal && (
+				<CacheClearModal
+					onCancel={this.handleCacheClearCancel}
+					onConfirm={this.handleCacheClearConfirm}
+				/>
+			)}
+
+			{this.state.showCacheToast && <Toast message='Cache cleared' />}
 
 			{this.state.showPaletteFailureModal && hasFailureDetails && (
 				<Modal
@@ -231,6 +275,7 @@ const styles = {
 		marginTop: 8,
 	}),
 	root: new Style({
+		height: '100%',
 		padding: 20,
 		width: '100%',
 	}),
