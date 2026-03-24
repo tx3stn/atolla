@@ -30,3 +30,4 @@ bazel-workspace/
 IDEA.md
 CLAUDE.md
 specs/
+openapi.json

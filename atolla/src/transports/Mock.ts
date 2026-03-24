@@ -1,139 +1,148 @@
 // biome-ignore-all lint/suspicious/useAwait: async used for Transport interface conformance
-import { type MockRawAlbum, mockRawAlbums } from '../__mocks__/Albums';
-import { mockArtists } from '../__mocks__/Artists';
-import { mockRawPlaylists } from '../__mocks__/Playlists';
+import {
+	mockAlbumPrimaryImageUrls,
+	mockJellyfinAlbums,
+	mockJellyfinTracks,
+} from '../__mocks__/Albums';
+import {
+	mockArtistLogoUrls,
+	mockArtistPrimaryImageUrls,
+	mockJellyfinArtists,
+} from '../__mocks__/Artists';
+import { mockJellyfinPlaylists } from '../__mocks__/Playlists';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
+import type { JellyfinBaseItemDto, JellyfinListEnvelope } from '../models/jellyfin/Types';
+import { JellyfinMusicItemTypes } from '../models/jellyfin/Types';
 import type { Playlist } from '../models/Playlist';
 import type { Track } from '../models/Track';
+import {
+	mapJellyfinAlbumToAlbum,
+	mapJellyfinArtistToArtist,
+	mapJellyfinPlaylistToPlaylist,
+	mapJellyfinTrackToTrack,
+} from './Live';
 import type { Transport } from './Transport';
 
 export class MockTransport implements Transport {
+	async getAlbumsPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Album> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const sortedAlbums = [...mockJellyfinAlbums].sort((a, b) => a.Name.localeCompare(b.Name));
+		const pageItems = sortedAlbums.slice(startIndex, startIndex + pageSize);
+
+		return {
+			hasMore: startIndex + pageItems.length < sortedAlbums.length,
+			items: pageItems.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers)),
+		};
+	}
+
 	async getAllArtists(): Promise<Array<Artist>> {
-		return mockArtists;
+		return mockJellyfinArtists.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers));
 	}
 
 	async getArtist(artistId: string): Promise<Artist | null> {
-		return mockArtists.find((a) => a.id === artistId) ?? null;
+		const item = mockJellyfinArtists.find((artist) => artist.Id === artistId);
+		return item ? mapJellyfinArtistToArtist(item, this.imageResolvers) : null;
 	}
 
 	async getAllAlbums(): Promise<Array<Album>> {
-		return mockRawAlbums.map((raw) => this.mapAlbum(raw));
+		return mockJellyfinAlbums.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
-		const artist = mockArtists.find((a) => a.id === artistId);
-		if (!artist) return [];
-		return mockRawAlbums
-			.filter((raw) => raw.albumArtist === artist.name)
-			.map((raw) => this.mapAlbum(raw));
+		return mockJellyfinAlbums
+			.filter((album) => (album.ArtistItems ?? []).some((artist) => artist.Id === artistId))
+			.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
 	async getAllPlaylists(): Promise<Array<Playlist>> {
-		return mockRawPlaylists.map(({ id, name }) => ({ id, name }));
+		return mockJellyfinPlaylists.map((item) =>
+			mapJellyfinPlaylistToPlaylist(item, this.imageResolvers),
+		);
 	}
 
 	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
-		const album = mockRawAlbums.find((a) => a.id === albumId);
-		if (!album) return [];
-		const artist = mockArtists.find((a) => a.name === album.albumArtist);
-		return album.tracks.map((t) => ({
-			albumId: album.id,
-			albumImageUrl: album.artwork,
-			albumName: album.title,
-			artistId: artist?.id,
-			artistName: album.albumArtist,
-			duration: t.durationSeconds,
-			id: t.id,
-			name: t.title,
-			trackNumber: t.trackNumber,
-		}));
+		return mockJellyfinTracks
+			.filter((track) => track.AlbumId === albumId)
+			.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
 	async getArtistLogoUrl(artistId: string): Promise<string | null> {
-		const artist = mockArtists.find((a) => a.id === artistId);
-		return artist?.logoUrl || null;
+		return mockArtistLogoUrls[artistId] ?? null;
 	}
 
 	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
-		const artist = mockArtists.find((a) => a.id === artistId);
-		if (!artist) return [];
-		const allTracks: Array<Track> = mockRawAlbums
-			.filter((raw) => raw.albumArtist === artist.name)
-			.flatMap((album) =>
-				album.tracks.map((t) => ({
-					albumId: album.id,
-					albumImageUrl: album.artwork,
-					albumName: album.title,
-					artistId: artist.id,
-					artistName: album.albumArtist,
-					duration: t.durationSeconds,
-					id: t.id,
-					name: t.title,
-					trackNumber: t.trackNumber,
-				})),
-			);
+		const allTracks = await this.getTracksByArtist(artistId);
 		return allTracks.sort(() => Math.random() - 0.5).slice(0, 5);
 	}
 
 	async getTracksByArtist(artistId: string): Promise<Array<Track>> {
-		const artist = mockArtists.find((a) => a.id === artistId);
-		if (!artist) return [];
-		return mockRawAlbums
-			.filter((raw) => raw.albumArtist === artist.name)
-			.sort((a, b) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''))
-			.flatMap((album) =>
-				album.tracks.map((t) => ({
-					albumId: album.id,
-					albumImageUrl: album.artwork,
-					albumName: album.title,
-					artistId: artist.id,
-					artistName: album.albumArtist,
-					duration: t.durationSeconds,
-					id: t.id,
-					name: t.title,
-					trackNumber: t.trackNumber,
-				})),
-			);
+		const albumsById = new Map(mockJellyfinAlbums.map((album) => [album.Id, album]));
+
+		return mockJellyfinTracks
+			.filter((track) => (track.ArtistItems ?? []).some((artist) => artist.Id === artistId))
+			.sort((a, b) => {
+				const aRelease = (a.AlbumId ? albumsById.get(a.AlbumId)?.PremiereDate : undefined) ?? '';
+				const bRelease = (b.AlbumId ? albumsById.get(b.AlbumId)?.PremiereDate : undefined) ?? '';
+				return bRelease.localeCompare(aRelease);
+			})
+			.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
 	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
-		const playlist = mockRawPlaylists.find((p) => p.id === playlistId);
-		if (!playlist) return [];
-		return playlist.trackIds.flatMap((trackId) => {
-			for (const album of mockRawAlbums) {
-				const track = album.tracks.find((t) => t.id === trackId);
-				if (track) {
-					const artist = mockArtists.find((a) => a.name === album.albumArtist);
-					return [
-						{
-							albumId: album.id,
-							albumImageUrl: album.artwork,
-							albumName: album.title,
-							artistId: artist?.id,
-							artistName: album.albumArtist,
-							duration: track.durationSeconds,
-							id: track.id,
-							name: track.title,
-							trackNumber: track.trackNumber,
-						},
-					];
-				}
-			}
+		const playlist = mockJellyfinPlaylists.find((candidate) => candidate.Id === playlistId);
+		if (!playlist) {
 			return [];
+		}
+
+		const trackIds = playlist.ItemIds ?? [];
+		const tracksById = new Map(mockJellyfinTracks.map((track) => [track.Id, track]));
+
+		return trackIds.flatMap((trackId) => {
+			const item = tracksById.get(trackId);
+			return item ? [mapJellyfinTrackToTrack(item, this.imageResolvers)] : [];
 		});
 	}
 
-	private mapAlbum(raw: MockRawAlbum): Album {
-		const artist = mockArtists.find((a) => a.name === raw.albumArtist);
+	private readonly imageResolvers = {
+		albumPrimaryImageUrl: (albumId: string): string | undefined =>
+			mockAlbumPrimaryImageUrls[albumId],
+		itemLogoImageUrl: (itemId: string): string | undefined => mockArtistLogoUrls[itemId],
+		itemPrimaryImageUrl: (itemId: string): string | undefined =>
+			mockArtistPrimaryImageUrls[itemId] ?? mockAlbumPrimaryImageUrls[itemId],
+	};
+
+	private queryItems(query: {
+		IncludeItemTypes: Array<(typeof JellyfinMusicItemTypes)[keyof typeof JellyfinMusicItemTypes]>;
+		Limit: number;
+		StartIndex: number;
+	}): JellyfinListEnvelope<JellyfinBaseItemDto> {
+		const items: Array<JellyfinBaseItemDto> = [];
+
+		for (const type of query.IncludeItemTypes) {
+			switch (type) {
+				case JellyfinMusicItemTypes.MusicArtist:
+					items.push(...mockJellyfinArtists);
+					break;
+				case JellyfinMusicItemTypes.MusicAlbum:
+					items.push(...mockJellyfinAlbums);
+					break;
+				case JellyfinMusicItemTypes.Audio:
+					items.push(...mockJellyfinTracks);
+					break;
+				case JellyfinMusicItemTypes.Playlist:
+					items.push(...mockJellyfinPlaylists);
+					break;
+			}
+		}
+
 		return {
-			artistId: artist?.id ?? '',
-			artistName: raw.albumArtist,
-			bio: raw.bio,
-			id: raw.id,
-			imageUrl: raw.artwork,
-			name: raw.title,
-			releaseDate: raw.releaseDate,
+			Items: items.slice(query.StartIndex, query.StartIndex + query.Limit),
+			StartIndex: query.StartIndex,
+			TotalRecordCount: items.length,
 		};
 	}
 }

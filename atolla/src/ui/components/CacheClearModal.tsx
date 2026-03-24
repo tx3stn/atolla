@@ -54,66 +54,70 @@ export class CacheClearModal extends StatefulComponent<
 			style={styles.backdrop}
 		>
 			<view onTap={this.viewModel.onCancel} style={styles.centeredContainer}>
-			<view onTap={this.stopPropagation} style={styles.card} testID='cache-clear-modal'>
-				<label style={styles.title} value='Clear Cache' />
-				<view style={styles.divider} />
+				<view onTap={this.stopPropagation} style={styles.card} testID='cache-clear-modal'>
+					<label style={styles.title} value='Clear Cache' />
+					<view style={styles.divider} />
 
-				<view onTap={this.toggleAlbumArt} style={styles.row} testID='cache-clear-album-art-row'>
-					<view style={albumArt ? styles.checkboxChecked : styles.checkboxUnchecked}>
-						{albumArt && <label style={styles.checkmark} value='✓' />}
+					<view onTap={this.toggleAlbumArt} style={styles.row} testID='cache-clear-album-art-row'>
+						<view style={albumArt ? styles.checkboxChecked : styles.checkboxUnchecked}>
+							{albumArt && <label style={styles.checkmark} value='✓' />}
+						</view>
+						<label style={styles.rowLabel} value='Album Art' />
 					</view>
-					<label style={styles.rowLabel} value='Album Art' />
-				</view>
 
-				<view
-					onTap={this.toggleArtistImage}
-					style={styles.row}
-					testID='cache-clear-artist-image-row'
-				>
-					<view style={artistImage ? styles.checkboxChecked : styles.checkboxUnchecked}>
-						{artistImage && <label style={styles.checkmark} value='✓' />}
-					</view>
-					<label style={styles.rowLabel} value='Artist Images' />
-				</view>
-
-				<view onTap={this.toggleArtistLogo} style={styles.row} testID='cache-clear-artist-logo-row'>
-					<view style={artistLogo ? styles.checkboxChecked : styles.checkboxUnchecked}>
-						{artistLogo && <label style={styles.checkmark} value='✓' />}
-					</view>
-					<label style={styles.rowLabel} value='Artist Logos' />
-				</view>
-
-				<view
-					onTap={this.togglePlaylistImage}
-					style={styles.row}
-					testID='cache-clear-playlist-image-row'
-				>
-					<view style={playlistImage ? styles.checkboxChecked : styles.checkboxUnchecked}>
-						{playlistImage && <label style={styles.checkmark} value='✓' />}
-					</view>
-					<label style={styles.rowLabel} value='Playlist Images' />
-				</view>
-
-				<view style={styles.divider} />
-
-				<view style={styles.actions}>
 					<view
-						onTap={anySelected ? this.handleConfirm : undefined}
-						style={anySelected ? styles.confirmButton : styles.confirmButtonDisabled}
-						testID='cache-clear-confirm-btn'
+						onTap={this.toggleArtistImage}
+						style={styles.row}
+						testID='cache-clear-artist-image-row'
 					>
-						<label style={styles.actionLabel} value='Yes' />
+						<view style={artistImage ? styles.checkboxChecked : styles.checkboxUnchecked}>
+							{artistImage && <label style={styles.checkmark} value='✓' />}
+						</view>
+						<label style={styles.rowLabel} value='Artist Images' />
 					</view>
-					<view style={styles.actionSeparator} />
+
 					<view
-						onTap={this.viewModel.onCancel}
-						style={styles.cancelButton}
-						testID='cache-clear-cancel-btn'
+						onTap={this.toggleArtistLogo}
+						style={styles.row}
+						testID='cache-clear-artist-logo-row'
 					>
-						<label style={styles.actionLabel} value='No' />
+						<view style={artistLogo ? styles.checkboxChecked : styles.checkboxUnchecked}>
+							{artistLogo && <label style={styles.checkmark} value='✓' />}
+						</view>
+						<label style={styles.rowLabel} value='Artist Logos' />
+					</view>
+
+					<view
+						onTap={this.togglePlaylistImage}
+						style={styles.row}
+						testID='cache-clear-playlist-image-row'
+					>
+						<view style={playlistImage ? styles.checkboxChecked : styles.checkboxUnchecked}>
+							{playlistImage && <label style={styles.checkmark} value='✓' />}
+						</view>
+						<label style={styles.rowLabel} value='Playlist Images' />
+					</view>
+
+					<view style={styles.divider} />
+
+					<view style={styles.actions}>
+						<view
+							onTap={anySelected ? this.handleConfirm : undefined}
+							style={anySelected ? styles.confirmButton : styles.confirmButtonDisabled}
+							testID='cache-clear-confirm-btn'
+						>
+							<label style={styles.actionLabel} value='Yes' />
+						</view>
+						<view style={styles.actionSeparator} />
+						<view
+							onTap={this.viewModel.onCancel}
+							style={styles.cancelButton}
+							testID='cache-clear-cancel-btn'
+						>
+							<label style={styles.actionLabel} value='No' />
+						</view>
 					</view>
 				</view>
-			</view>
 			</view>
 		</blur>;
 	}
@@ -142,13 +146,6 @@ const styles = {
 		top: 0,
 		zIndex: 100,
 	}),
-	centeredContainer: new Style({
-		alignItems: 'center',
-		flex: 1,
-		height: '100%',
-		justifyContent: 'center',
-		width: '100%',
-	}),
 	cancelButton: new Style({
 		alignItems: 'center',
 		padding: 14,
@@ -161,6 +158,13 @@ const styles = {
 		borderWidth: 1,
 		padding: 20,
 		width: '90%',
+	}),
+	centeredContainer: new Style({
+		alignItems: 'center',
+		flex: 1,
+		height: '100%',
+		justifyContent: 'center',
+		width: '100%',
 	}),
 	checkboxChecked: new Style({
 		alignItems: 'center',
