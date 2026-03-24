@@ -3,6 +3,7 @@ import { PersistentStore } from 'persistence/src/PersistentStore';
 import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { ErrorConst } from './errors/Const';
 import { PaletteGenerationErrors } from './errors/PaletteGenerationErrors';
 import {
@@ -11,6 +12,7 @@ import {
 	getAtollaImageLoaderCacheByteSize,
 	getAtollaImageLoaderCacheEntryCount,
 } from './ImageLoaderBootstrap';
+import type { Artist } from './models/Artist';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { mutedTextColor } from './services/color/colorUtils';
 import type { Palette } from './services/color/types';
@@ -26,6 +28,7 @@ import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
 import { HomeHeaderNav } from './ui/components/HomeHeaderNav';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
+import { ArtistView } from './ui/views/ArtistView';
 import { HomeView, setImageCacheSize } from './ui/views/HomeView';
 import { SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
@@ -72,6 +75,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private unsubscribePalette?: () => void;
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
+	private homeNavigationController?: NavigationController;
+	private pendingArtistId: string | null = null;
+	private pendingArtistFallbackName: string = 'Unknown Artist';
+	private pendingArtistFallbackLogoUrl: string | null = null;
+	private isResolvingArtistNavigation = false;
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
@@ -433,6 +441,79 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({ animationsEnabled: enabled });
 	};
 
+	handleHomeNavigationControllerChange = (navigationController: NavigationController): void => {
+		this.homeNavigationController = navigationController;
+		this.tryNavigatePendingArtist();
+	};
+
+	handleNowPlayingArtistTap = (): void => {
+		const { album, artistLogoUrl, track } = this.playbackStore;
+		const artistId = track?.artistId ?? album?.artistId;
+		if (!artistId) {
+			return;
+		}
+
+		this.pendingArtistId = artistId;
+		this.pendingArtistFallbackName = track?.artistName ?? album?.artistName ?? 'Unknown Artist';
+		this.pendingArtistFallbackLogoUrl = artistLogoUrl ?? null;
+		this.setState({
+			activeFooterTab: FooterTabs.home,
+			activeHomeTab: HeaderTabs.artists,
+			homeResetNonce: this.state.homeResetNonce + 1,
+		});
+
+		this.tryNavigatePendingArtist();
+	};
+
+	private tryNavigatePendingArtist(): void {
+		if (
+			!this.pendingArtistId ||
+			!this.homeNavigationController ||
+			this.isResolvingArtistNavigation
+		) {
+			return;
+		}
+
+		this.isResolvingArtistNavigation = true;
+		const pendingArtistId = this.pendingArtistId;
+		this.transport
+			.getArtist(pendingArtistId)
+			.then((artist) => {
+				if (this.pendingArtistId !== pendingArtistId) {
+					this.isResolvingArtistNavigation = false;
+					return;
+				}
+
+				const resolvedArtist: Artist =
+					artist ??
+					({
+						id: pendingArtistId,
+						logoUrl: this.pendingArtistFallbackLogoUrl ?? null,
+						name: this.pendingArtistFallbackName,
+					} as Artist);
+				this.homeNavigationController?.push(
+					ArtistView,
+					{
+						animationsEnabled: this.state.animationsEnabled,
+						artist: resolvedArtist,
+						imageCache: this.imageCache,
+						playbackStore: this.playbackStore,
+						transport: this.transport,
+					},
+					{},
+					{ animated: this.state.animationsEnabled },
+				);
+
+				this.pendingArtistId = null;
+				this.pendingArtistFallbackName = 'Unknown Artist';
+				this.pendingArtistFallbackLogoUrl = null;
+				this.isResolvingArtistNavigation = false;
+			})
+			.catch(() => {
+				this.isResolvingArtistNavigation = false;
+			});
+	}
+
 	onRender(): void {
 		const { track, album, isPlaying, progressSeconds, artistLogoUrl, tracks, trackIndex } =
 			this.playbackStore;
@@ -451,6 +532,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					activeTab={this.state.activeHomeTab}
 					animationsEnabled={this.state.animationsEnabled}
 					imageCache={this.imageCache}
+					onNavigationControllerChange={this.handleHomeNavigationControllerChange}
 					playbackStore={this.playbackStore}
 					resetSignal={this.state.homeResetNonce}
 				/>
@@ -495,6 +577,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					collapseSignal={this.state.nowPlayingCollapseSignal}
 					imageCache={this.imageCache}
 					isPlaying={isPlaying}
+					onArtistTap={this.handleNowPlayingArtistTap}
 					onDismiss={() => this.playbackStore.stop()}
 					onNext={() => this.playbackStore.next()}
 					onPlayPause={() => this.playbackStore.playPause()}

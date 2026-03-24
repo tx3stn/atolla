@@ -11,6 +11,7 @@ import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
 import { theme } from '../../theme';
+import { ArtistLogo } from './ArtistLogo';
 import { PlaybackProgressBar } from './PlaybackProgressBar';
 import { TrackList, type TrackListEntry } from './TrackList';
 
@@ -21,6 +22,7 @@ export interface NowPlayingSurfaceViewModel {
 	collapseSignal: number;
 	imageCache?: ImageCache;
 	isPlaying: boolean;
+	onArtistTap?: () => void;
 	onDismiss: () => void;
 	onNext: () => void;
 	onPlayPause: () => void;
@@ -142,34 +144,43 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.closeSurface();
 	}
 
-	private closeSurface = (): void => {
+	private closeSurface = (): Promise<void> => {
 		if (!this.state.isExpanded || this.isTransitioning) {
-			return;
+			return Promise.resolve();
 		}
 
 		this.isTransitioning = true;
 		this.scrollArtworkRef.setAttribute('opacity', 0);
 		this.transitionArtworkRef.setAttribute('opacity', 1);
 
-		this.runAnimatePromise({ beginFromCurrentState: true, curve: 'easeIn', duration: 0.26 }, () => {
-			this.overlayRef.setAttribute('top', 0);
-			this.compactBarRef.setAttribute('opacity', 1);
-			this.overlayCardRef.setAttribute('bottom', this.collapsedBottom);
-			this.overlayCardRef.setAttribute('borderRadius', theme.borderRadius);
-			this.overlayCardRef.setAttribute('height', this.collapsedHeight);
-			this.overlayCardRef.setAttribute('left', this.collapsedInset);
-			this.overlayCardRef.setAttribute('right', this.collapsedInset);
-			this.expandedContentRef.setAttribute('left', 14);
-			this.expandedContentRef.setAttribute('opacity', 0);
-			this.expandedContentRef.setAttribute('right', 14);
-			this.transitionArtworkRef.setAttribute('left', 12);
-			this.transitionArtworkRef.setAttribute('marginTop', 0);
-			this.transitionArtworkRef.setAttribute('top', 10);
-			this.transitionArtworkRef.setAttribute('width', 65);
-		}).then(() => {
+		return this.runAnimatePromise(
+			{ beginFromCurrentState: true, curve: 'easeIn', duration: 0.26 },
+			() => {
+				this.overlayRef.setAttribute('top', 0);
+				this.compactBarRef.setAttribute('opacity', 1);
+				this.overlayCardRef.setAttribute('bottom', this.collapsedBottom);
+				this.overlayCardRef.setAttribute('borderRadius', theme.borderRadius);
+				this.overlayCardRef.setAttribute('height', this.collapsedHeight);
+				this.overlayCardRef.setAttribute('left', this.collapsedInset);
+				this.overlayCardRef.setAttribute('right', this.collapsedInset);
+				this.expandedContentRef.setAttribute('left', 14);
+				this.expandedContentRef.setAttribute('opacity', 0);
+				this.expandedContentRef.setAttribute('right', 14);
+				this.transitionArtworkRef.setAttribute('left', 12);
+				this.transitionArtworkRef.setAttribute('marginTop', 0);
+				this.transitionArtworkRef.setAttribute('top', 10);
+				this.transitionArtworkRef.setAttribute('width', 65);
+			},
+		).then(() => {
 			this.overlayRef.setAttribute('top', 2000);
 			this.setState({ isExpanded: false });
 			this.isTransitioning = false;
+		});
+	};
+
+	private handleArtistLogoTap = (): void => {
+		this.closeSurface().then(() => {
+			this.viewModel.onArtistTap?.();
 		});
 	};
 
@@ -518,19 +529,16 @@ export class NowPlayingSurface extends StatefulComponent<
 									/>
 								)}
 								<layout style={styles.expandedInfoSection}>
-									{artistLogoSource && (
-										<image
-											objectFit='contain'
-											src={artistLogoSource}
-											style={styles.expandedArtistLogo}
-										/>
-									)}
-									{!artistLogoUrl && (
-										<label
-											style={expandedArtistNameStyle}
-											value={album?.artistName ?? track.artistName ?? ''}
-										/>
-									)}
+									<ArtistLogo
+										containerStyle={styles.expandedArtistLogoArea}
+										fallbackText={album?.artistName ?? track.artistName ?? ''}
+										fallbackTextStyle={expandedArtistNameStyle}
+										imageCache={imageCache}
+										logoSource={artistLogoSource}
+										logoStyle={styles.expandedArtistLogo}
+										onTap={this.handleArtistLogoTap}
+										testID='now-playing-artist-logo'
+									/>
 								</layout>
 								<layout style={styles.expandedBottomSection}>
 									<layout style={styles.expandedTrackMetaSection}>
@@ -639,6 +647,9 @@ const styles = {
 		height: 48,
 		marginBottom: 8,
 		objectFit: 'contain',
+		width: '100%',
+	}),
+	expandedArtistLogoArea: new Style({
 		width: '100%',
 	}),
 	expandedBottomSection: new Style({

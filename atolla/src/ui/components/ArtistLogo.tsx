@@ -7,21 +7,32 @@ import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
 
 export interface ArtistLogoViewModel {
+	containerStyle?: Style;
 	fallbackText?: string | null;
+	fallbackTextStyle?: Style<Label>;
 	imageCache?: ImageCache;
 	logoSource?: string | null;
+	logoStyle?: Style<ImageView>;
 	onTap?: () => void;
 	testID?: string;
 }
 
 export class ArtistLogo extends Component<ArtistLogoViewModel> {
 	onRender() {
-		const { fallbackText, logoSource, onTap, testID } = this.viewModel;
+		const {
+			containerStyle,
+			fallbackText,
+			fallbackTextStyle,
+			logoSource,
+			logoStyle,
+			onTap,
+			testID,
+		} = this.viewModel;
 
 		<view
 			accessibilityLabel={testID ?? 'artist-logo'}
 			onTap={onTap}
-			style={styles.logoArea}
+			style={containerStyle ?? styles.logoArea}
 			testID={testID ?? 'artist-logo'}
 		>
 			{logoSource ? (
@@ -29,11 +40,15 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 					category='artist_logo'
 					imageCache={this.viewModel.imageCache}
 					objectFit='contain'
-					style={styles.logoImage}
+					style={logoStyle ?? styles.logoImage}
 					url={logoSource}
 				/>
 			) : fallbackText ? (
-				<label numberOfLines={0} style={styles.fallbackText} value={fallbackText} />
+				<label
+					numberOfLines={0}
+					style={fallbackTextStyle ?? styles.fallbackText}
+					value={fallbackText}
+				/>
 			) : null}
 		</view>;
 	}

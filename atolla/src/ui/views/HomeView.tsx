@@ -3,6 +3,7 @@
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
@@ -24,6 +25,7 @@ export interface HomeViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
 	imageCache: ImageCache;
+	onNavigationControllerChange?: (navigationController: NavigationController) => void;
 	playbackStore: PlaybackStore;
 	resetSignal: number;
 }
@@ -92,6 +94,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			{this.state.isNavigationMounted && activeTab === HeaderTabs.artists && (
 				<NavigationRoot>
 					{$slot((navigationController) => {
+						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<ArtistsView
 							animationsEnabled={animationsEnabled}
 							imageCache={imageCache}
@@ -106,6 +109,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			{this.state.isNavigationMounted && activeTab === HeaderTabs.albums && (
 				<NavigationRoot>
 					{$slot((navigationController) => {
+						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<AlbumsView
 							animationsEnabled={animationsEnabled}
 							imageCache={imageCache}
@@ -120,6 +124,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			{this.state.isNavigationMounted && activeTab === HeaderTabs.playlists && (
 				<NavigationRoot>
 					{$slot((navigationController) => {
+						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<PlaylistsView
 							animationsEnabled={animationsEnabled}
 							imageCache={imageCache}
