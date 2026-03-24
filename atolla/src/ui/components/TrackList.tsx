@@ -52,11 +52,15 @@ export class TrackList extends Component<TrackListViewModel> {
 		const titleStyle = new Style<Label>({
 			...theme.text.mainBold,
 			color: colors.title,
+			flexShrink: 1,
+			width: '100%',
 		});
 		const metaStyle = new Style<Label>({
 			...theme.text.sub,
 			color: colors.meta,
+			flexShrink: 1,
 			marginTop: 3,
+			width: '100%',
 		});
 		const rowStyle = new Style({
 			backgroundColor: colors.rowBackground,
@@ -112,7 +116,7 @@ export class TrackList extends Component<TrackListViewModel> {
 						<layout style={styles.textBlock}>
 							<label
 								ellipsizeMode='tail'
-								numberOfLines={1}
+								numberOfLines={2}
 								style={titleStyle}
 								value={track.title}
 							/>
@@ -164,6 +168,7 @@ const styles = {
 	}),
 	textBlock: new Style({
 		flex: 1,
+		flexShrink: 1,
 		paddingLeft: 10,
 	}),
 };

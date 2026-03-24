@@ -46,6 +46,24 @@ describe('TrackList', () => {
 		expect(values).toContain('2:15');
 	});
 
+	valdiIt('uses tail ellipsis for truncated title and meta text', () => {
+		const tracks = [{ id: 'a', meta: 'Very long metadata line', title: 'Very long track title' }];
+		const instrumented = createComponent(TrackList, { tracks });
+		const component = instrumented.getComponent();
+
+		const labels = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Label,
+		);
+		const title = labels.find((label) => label.getAttribute('value') === 'Very long track title');
+		const meta = labels.find((label) => label.getAttribute('value') === 'Very long metadata line');
+
+		expect(title?.getAttribute('ellipsizeMode')).toBe('tail');
+		expect(title?.getAttribute('numberOfLines')).toBe(2);
+		expect(meta?.getAttribute('ellipsizeMode')).toBe('tail');
+		expect(meta?.getAttribute('numberOfLines')).toBe(1);
+	});
+
 	valdiIt('calls onTrackTap with track id when row is tapped', () => {
 		const tracks = [{ id: 'track-1', meta: '1:00', title: 'Tap Me' }];
 		let tappedId = '';
