@@ -25,7 +25,7 @@ export interface NowPlayingSurfaceViewModel {
 	onNext: () => void;
 	onPlayPause: () => void;
 	onPrevious: () => void;
-	onProgressTap?: () => void;
+	onProgressTap?: (ratio?: number) => void;
 	palette?: Palette;
 	progressSeconds: number;
 	track: Track;
@@ -388,7 +388,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			zIndex: 25,
 		});
 
-		const expandedTrackColor = withAlpha(accentColor, 0.24);
+		const expandedTrackColor = withAlpha(onSurfaceColor, 0.34);
 		const compactProgressFillStyle = new Style({
 			backgroundColor: accentColor,
 			bottom: 0,
