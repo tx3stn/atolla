@@ -5,6 +5,7 @@ import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Album } from '../../models/Album';
+import type { Artist } from '../../models/Artist';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
@@ -13,6 +14,7 @@ import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { ArtistView } from './ArtistView';
 
 export interface AlbumViewModel {
 	album: Album;
@@ -22,6 +24,7 @@ export interface AlbumViewModel {
 }
 
 interface AlbumState {
+	artist: Artist | null;
 	artistLogoUrl: string | null;
 	isFooterVisible: boolean;
 	tracks: Array<Track>;
@@ -34,9 +37,40 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	private unsubscribePlayback?: () => void;
 
 	state: AlbumState = {
+		artist: null,
 		artistLogoUrl: null,
 		isFooterVisible: false,
 		tracks: [],
+	};
+
+	handleArtistLogoTap = (): void => {
+		const { album, imageCache, playbackStore, transport } = this.viewModel;
+		const navigationController = this.viewModel.navigationController ?? this.navigationController;
+		const pushArtistView = (artist: Artist) => {
+			navigationController.push(
+				ArtistView,
+				{ animationsEnabled: this.animationsEnabled, artist, imageCache, playbackStore, transport },
+				{},
+				{ animated: this.animationsEnabled },
+			);
+		};
+
+		if (this.state.artist) {
+			pushArtistView(this.state.artist);
+			return;
+		}
+
+		transport.getArtist(album.artistId).then((artist) => {
+			const resolvedArtist =
+				artist ??
+				({
+					id: album.artistId,
+					logoUrl: this.state.artistLogoUrl ?? null,
+					name: album.artistName,
+				} as Artist);
+			this.setState({ artist: resolvedArtist, artistLogoUrl: resolvedArtist.logoUrl ?? null });
+			pushArtistView(resolvedArtist);
+		});
 	};
 
 	handleHeaderPlayTap = (): void => {
@@ -71,7 +105,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				return;
 			}
 			const logoUrl = artist?.logoUrl || null;
-			this.setState({ artistLogoUrl: logoUrl });
+			this.setState({ artist: artist ?? null, artistLogoUrl: logoUrl });
 		});
 	}
 
@@ -106,6 +140,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					fallbackText={album.artistName}
 					imageCache={imageCache}
 					logoSource={artistLogoUrl}
+					onArtistTap={this.handleArtistLogoTap}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 					subheaderLineOneLeft={album.name}

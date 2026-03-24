@@ -5,6 +5,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { ImageCache, ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
+import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
 
 export interface DetailHeaderViewModel {
@@ -13,6 +14,7 @@ export interface DetailHeaderViewModel {
 	fallbackText?: string | null;
 	imageCache?: ImageCache;
 	logoSource?: string | null;
+	onArtistTap?: () => void;
 	onDownload?: () => void;
 	onPlay?: () => void;
 	onShuffle?: () => void;
@@ -28,6 +30,7 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 			artworkSource,
 			fallbackText,
 			logoSource,
+			onArtistTap,
 			onDownload,
 			onPlay,
 			onShuffle,
@@ -51,19 +54,13 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 					)}
 				</view>
 				<layout style={styles.rightColumn}>
-					<view style={styles.logoArea}>
-						{logoSource ? (
-							<CachedImage
-								category='artist_logo'
-								imageCache={this.viewModel.imageCache}
-								objectFit='contain'
-								style={styles.logoImage}
-								url={logoSource}
-							/>
-						) : fallbackText ? (
-							<label numberOfLines={0} style={styles.fallbackText} value={fallbackText} />
-						) : null}
-					</view>
+					<ArtistLogo
+						fallbackText={fallbackText}
+						imageCache={this.viewModel.imageCache}
+						logoSource={logoSource}
+						onTap={onArtistTap}
+						testID='detail-header-artist-logo'
+					/>
 					<layout style={styles.buttonsRow}>
 						{/* download */}
 						<view onTap={onDownload} style={styles.button}>
@@ -153,21 +150,9 @@ const styles = {
 		right: 0,
 		width: '100%',
 	}),
-	fallbackText: new Style<Label>({
-		...theme.text.display,
-		padding: 12,
-	}),
 	headerRow: new Style({
 		alignItems: 'stretch',
 		flexDirection: 'row',
-		width: '100%',
-	}),
-	logoArea: new Style({
-		overflow: 'hidden',
-		width: '100%',
-	}),
-	logoImage: new Style<ImageView>({
-		height: '100%',
 		width: '100%',
 	}),
 	rightColumn: new Style({

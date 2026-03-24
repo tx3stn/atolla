@@ -1,6 +1,7 @@
 // @ts-nocheck
 import 'jasmine/src/jasmine';
 import { AlbumView } from 'atolla/src/ui/views/AlbumView';
+import { ArtistView } from 'atolla/src/ui/views/ArtistView';
 
 const mockNavigator = {
 	dismiss: () => {},
@@ -11,6 +12,19 @@ const mockNavigator = {
 	presentComponent: () => {},
 	pushComponent: () => {},
 };
+
+function makeNavigationController() {
+	let pushedComponent = null;
+	let pushedViewModel = null;
+	const navigationController = {
+		getPushed: () => ({ component: pushedComponent, viewModel: pushedViewModel }),
+		push: (component, viewModel) => {
+			pushedComponent = component;
+			pushedViewModel = viewModel;
+		},
+	};
+	return navigationController;
+}
 
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
@@ -127,6 +141,48 @@ describe('AlbumView', () => {
 		component.handleHeaderPlayTap();
 
 		expect(playCalls).toBe(0);
+	});
+
+	valdiIt('pushes ArtistView when detail header artist logo is tapped', () => {
+		const album = {
+			artistId: 'artist-1',
+			artistName: 'Artist One',
+			id: 'album-1',
+			name: 'First Album',
+		};
+		const transport = {
+			getArtist: async () => ({ id: 'artist-1', logoUrl: 'https://logo.png', name: 'Artist One' }),
+			getTracksByAlbum: async () => [],
+		};
+		const playbackStore = {
+			play: () => {},
+			setArtistLogoUrl: () => {},
+			subscribe: () => () => {},
+			track: null,
+		};
+
+		const navigationController = makeNavigationController();
+		const instrumented = createComponent(
+			AlbumView,
+			{ album, navigationController, playbackStore, transport },
+			{ navigator: mockNavigator },
+		);
+		const component = instrumented.getComponent();
+		component.setState({
+			artist: { id: 'artist-1', logoUrl: 'https://logo.png', name: 'Artist One' },
+			artistLogoUrl: 'https://logo.png',
+		});
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const artistLogo = views.find(
+			(view) => view.getAttribute('testID') === 'detail-header-artist-logo',
+		);
+		artistLogo?.getAttribute('onTap')?.();
+
+		const { component: pushedComponent, viewModel: pushedViewModel } =
+			navigationController.getPushed();
+		expect(pushedComponent).toBe(ArtistView);
+		expect(pushedViewModel?.artist?.id).toBe('artist-1');
 	});
 
 	valdiIt(

@@ -12,8 +12,6 @@ import {
 import { mockJellyfinPlaylists } from '../__mocks__/Playlists';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
-import type { JellyfinBaseItemDto, JellyfinListEnvelope } from '../models/jellyfin/Types';
-import { JellyfinMusicItemTypes } from '../models/jellyfin/Types';
 import type { Playlist } from '../models/Playlist';
 import type { Track } from '../models/Track';
 import {
@@ -114,35 +112,4 @@ export class MockTransport implements Transport {
 		itemPrimaryImageUrl: (itemId: string): string | undefined =>
 			mockArtistPrimaryImageUrls[itemId] ?? mockAlbumPrimaryImageUrls[itemId],
 	};
-
-	private queryItems(query: {
-		IncludeItemTypes: Array<(typeof JellyfinMusicItemTypes)[keyof typeof JellyfinMusicItemTypes]>;
-		Limit: number;
-		StartIndex: number;
-	}): JellyfinListEnvelope<JellyfinBaseItemDto> {
-		const items: Array<JellyfinBaseItemDto> = [];
-
-		for (const type of query.IncludeItemTypes) {
-			switch (type) {
-				case JellyfinMusicItemTypes.MusicArtist:
-					items.push(...mockJellyfinArtists);
-					break;
-				case JellyfinMusicItemTypes.MusicAlbum:
-					items.push(...mockJellyfinAlbums);
-					break;
-				case JellyfinMusicItemTypes.Audio:
-					items.push(...mockJellyfinTracks);
-					break;
-				case JellyfinMusicItemTypes.Playlist:
-					items.push(...mockJellyfinPlaylists);
-					break;
-			}
-		}
-
-		return {
-			Items: items.slice(query.StartIndex, query.StartIndex + query.Limit),
-			StartIndex: query.StartIndex,
-			TotalRecordCount: items.length,
-		};
-	}
 }
