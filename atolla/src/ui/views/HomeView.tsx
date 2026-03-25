@@ -8,6 +8,7 @@ import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
+import { theme } from '../../theme';
 import { MockTransport } from '../../transports/Mock';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
 import { AlbumsView } from './AlbumsView';
@@ -32,23 +33,37 @@ export interface HomeViewModel {
 interface HomeState {
 	albumsNavKey: number;
 	artistsNavKey: number;
+	isTabTransitionOverlayVisible: boolean;
 	playlistsNavKey: number;
 }
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private transport = new MockTransport();
+	private tabTransitionTimer?: ReturnType<typeof setTimeout>;
+	private transitionVersion = 0;
 
 	state: HomeState = {
 		albumsNavKey: 0,
 		artistsNavKey: 0,
+		isTabTransitionOverlayVisible: false,
 		playlistsNavKey: 0,
 	};
 
 	onCreate(): void {}
 
+	onDestroy(): void {
+		if (this.tabTransitionTimer) {
+			clearTimeout(this.tabTransitionTimer);
+		}
+	}
+
 	onViewModelUpdate(prevViewModel?: HomeViewModel): void {
 		if (!prevViewModel) {
 			return;
+		}
+
+		if (this.viewModel.activeTab !== prevViewModel.activeTab) {
+			this.startTabTransitionOverlay();
 		}
 
 		if (this.viewModel.resetSignal === prevViewModel.resetSignal) {
@@ -66,6 +81,37 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		if (this.viewModel.activeTab === HeaderTabs.playlists) {
 			this.setState({ playlistsNavKey: this.state.playlistsNavKey + 1 });
 		}
+	}
+
+	private startTabTransitionOverlay(): void {
+		this.transitionVersion += 1;
+		const version = this.transitionVersion;
+		if (this.tabTransitionTimer) {
+			clearTimeout(this.tabTransitionTimer);
+		}
+
+		if (!this.state.isTabTransitionOverlayVisible) {
+			this.setState({ isTabTransitionOverlayVisible: true });
+		}
+
+		Promise.resolve().then(() => {
+			if (version !== this.transitionVersion) {
+				return;
+			}
+
+			this.tabTransitionTimer = setTimeout(
+				() => {
+					if (version !== this.transitionVersion) {
+						return;
+					}
+
+					if (this.state.isTabTransitionOverlayVisible) {
+						this.setState({ isTabTransitionOverlayVisible: false });
+					}
+				},
+				this.viewModel.animationsEnabled ? 100 : 0,
+			);
+		});
 	}
 
 	onRender(): void {
@@ -116,6 +162,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					})}
 				</NavigationRoot>
 			)}
+
+			{this.state.isTabTransitionOverlayVisible && <view style={styles.tabTransitionOverlay} />}
 		</view>;
 	}
 }
@@ -124,5 +172,14 @@ const styles = {
 	root: new Style({
 		flexGrow: 1,
 		width: '100%',
+	}),
+	tabTransitionOverlay: new Style({
+		backgroundColor: theme.colors.bg,
+		bottom: 0,
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
+		zIndex: 20,
 	}),
 };
