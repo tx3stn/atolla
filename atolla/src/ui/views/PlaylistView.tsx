@@ -58,6 +58,17 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		);
 	};
 
+	handleTrackTap = (trackId: string): void => {
+		const { playbackStore } = this.viewModel;
+		const { artistLogoUrls, tracks } = this.state;
+		const trackIndex = this.state.tracks.findIndex((track) => track.id === trackId);
+		if (trackIndex < 0) {
+			return;
+		}
+
+		playbackStore.playWithArtistLogos(tracks, artistLogoUrls, trackIndex);
+	};
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
 		const { playbackStore, transport, playlist } = this.viewModel;
@@ -113,7 +124,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					subheaderLineOneLeft={tracks.length > 0 ? `${tracks.length} tracks` : null}
 					subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
 				/>
-				<TrackList imageCache={this.viewModel.imageCache} tracks={entries} />
+				<TrackList
+					imageCache={this.viewModel.imageCache}
+					onTrackTap={this.handleTrackTap}
+					tracks={entries}
+				/>
 			</scroll>
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 		</layout>;

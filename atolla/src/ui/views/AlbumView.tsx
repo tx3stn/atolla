@@ -74,6 +74,19 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		});
 	};
 
+	handleTrackTap = (trackId: string): void => {
+		if (this.state.tracks.length === 0) return;
+
+		const trackIndex = this.state.tracks.findIndex((track) => track.id === trackId);
+		if (trackIndex < 0) {
+			return;
+		}
+
+		const { album, playbackStore } = this.viewModel;
+		playbackStore.play(this.state.tracks, album, trackIndex);
+		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
+	};
+
 	handleHeaderPlayTap = (): void => {
 		if (this.state.tracks.length === 0) return;
 		const { album, playbackStore } = this.viewModel;
@@ -149,7 +162,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					subheaderLineTwoLeft={releaseDateText}
 					subheaderLineTwoRight={durationText}
 				/>
-				<TrackList imageCache={imageCache} tracks={entries} />
+				<TrackList imageCache={imageCache} onTrackTap={this.handleTrackTap} tracks={entries} />
 				{album.bio && <BioSection bio={album.bio} modalSlot={this.modalSlot} title={album.name} />}
 			</scroll>
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />

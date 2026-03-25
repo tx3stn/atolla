@@ -58,6 +58,17 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
 	};
 
+	handleTopTrackTap = (trackId: string): void => {
+		const { artist, playbackStore } = this.viewModel;
+		const trackIndex = this.state.topTracks.findIndex((track) => track.id === trackId);
+		if (trackIndex < 0) {
+			return;
+		}
+
+		playbackStore.playTracks(this.state.topTracks, trackIndex);
+		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
+	};
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
 		const { artist, playbackStore, transport } = this.viewModel;
@@ -155,7 +166,11 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				{trackEntries.length > 0 && (
 					<layout style={styles.section}>
 						<label style={styles.sectionHeader} value='TOP TRACKS' />
-						<TrackList imageCache={imageCache} tracks={trackEntries} />
+						<TrackList
+							imageCache={imageCache}
+							onTrackTap={this.handleTopTrackTap}
+							tracks={trackEntries}
+						/>
 					</layout>
 				)}
 
