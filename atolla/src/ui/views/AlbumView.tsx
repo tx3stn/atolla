@@ -19,6 +19,7 @@ import { ArtistView } from './ArtistView';
 export interface AlbumViewModel {
 	album: Album;
 	imageCache: ImageCache;
+	onExitFromSearchNavigation?: () => void;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -112,6 +113,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		this.viewModel.onExitFromSearchNavigation?.();
 	}
 
 	onRender(): void {

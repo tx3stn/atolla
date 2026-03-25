@@ -1,9 +1,11 @@
 // @ts-nocheck
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
+import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
+import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import { ErrorConst } from './errors/Const';
 import { PaletteGenerationErrors } from './errors/PaletteGenerationErrors';
 import {
@@ -12,7 +14,9 @@ import {
 	getAtollaImageLoaderCacheByteSize,
 	getAtollaImageLoaderCacheEntryCount,
 } from './ImageLoaderBootstrap';
+import type { Album } from './models/Album';
 import type { Artist } from './models/Artist';
+import type { Playlist } from './models/Playlist';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { mutedTextColor } from './services/color/colorUtils';
 import type { Palette } from './services/color/types';
@@ -21,6 +25,7 @@ import { buildImageSource } from './services/ImageSource';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PlaybackStore } from './stores/Playback';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES, Preferences } from './stores/Preferences';
+import { SearchStore } from './stores/Search';
 import { theme } from './theme';
 import { MockTransport } from './transports/Mock';
 import { FooterNav } from './ui/components/FooterNav';
@@ -28,9 +33,11 @@ import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
 import { HomeHeaderNav } from './ui/components/HomeHeaderNav';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
+import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
 import { HomeView, setImageCacheSize } from './ui/views/HomeView';
-import { SearchView } from './ui/views/SearchView';
+import { PlaylistView } from './ui/views/PlaylistView';
+import { type SearchHomeNavigationTarget, SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
 
 export type AppViewModel = Record<string, never>;
@@ -56,6 +63,11 @@ interface AppState {
 export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playbackStore = new PlaybackStore();
 	private preferences = new Preferences();
+	private searchStore = new SearchStore(
+		new PersistentStore('search_history', {
+			deviceGlobal: true,
+		}),
+	);
 	private transport = new MockTransport();
 	private imageCache = (() => {
 		try {
@@ -80,6 +92,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private pendingArtistFallbackName: string = 'Unknown Artist';
 	private pendingArtistFallbackLogoUrl: string | null = null;
 	private isResolvingArtistNavigation = false;
+	private pendingSearchNavigation: SearchHomeNavigationTarget | null = null;
+	private isResolvingSearchNavigation = false;
+	private returnToSearchOnDetailClose = false;
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
@@ -410,6 +425,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	handleFooterTabTap = (tab: FooterTab): void => {
+		this.returnToSearchOnDetailClose = false;
 		this.setState({
 			activeFooterTab: tab,
 			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
@@ -417,6 +433,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	handleHomeHeaderTabTap = (tab: HeaderTab): void => {
+		this.returnToSearchOnDetailClose = false;
 		if (tab === this.state.activeHomeTab) {
 			this.setState({
 				homeResetNonce: this.state.homeResetNonce + 1,
@@ -444,7 +461,118 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	handleHomeNavigationControllerChange = (navigationController: NavigationController): void => {
 		this.homeNavigationController = navigationController;
 		this.tryNavigatePendingArtist();
+		this.tryNavigatePendingSearchResult();
 	};
+
+	handleSearchResultNavigation = (target: SearchHomeNavigationTarget): void => {
+		this.pendingSearchNavigation = target;
+		this.returnToSearchOnDetailClose = true;
+
+		const activeHomeTab =
+			target.kind === 'album'
+				? HeaderTabs.albums
+				: target.kind === 'artist'
+					? HeaderTabs.artists
+					: HeaderTabs.playlists;
+
+		this.setState({
+			activeFooterTab: FooterTabs.home,
+			activeHomeTab,
+			homeResetNonce: this.state.homeResetNonce + 1,
+		});
+
+		this.tryNavigatePendingSearchResult();
+	};
+
+	private handleSearchNavigationDetailExit = (): void => {
+		if (!this.returnToSearchOnDetailClose) {
+			return;
+		}
+
+		if (this.state.activeFooterTab !== FooterTabs.home) {
+			return;
+		}
+
+		this.returnToSearchOnDetailClose = false;
+		this.setState({
+			activeFooterTab: FooterTabs.search,
+			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
+		});
+	};
+
+	private tryNavigatePendingSearchResult(): void {
+		if (
+			!this.pendingSearchNavigation ||
+			!this.homeNavigationController ||
+			this.isResolvingSearchNavigation
+		) {
+			return;
+		}
+
+		this.isResolvingSearchNavigation = true;
+		const target = this.pendingSearchNavigation;
+
+		Promise.resolve().then(() => {
+			if (this.pendingSearchNavigation !== target) {
+				this.isResolvingSearchNavigation = false;
+				return;
+			}
+
+			if (!this.homeNavigationController) {
+				this.isResolvingSearchNavigation = false;
+				return;
+			}
+
+			if (target.kind === 'artist') {
+				this.homeNavigationController.push(
+					ArtistView,
+					{
+						animationsEnabled: this.state.animationsEnabled,
+						artist: target.artist,
+						imageCache: this.imageCache,
+						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
+						playbackStore: this.playbackStore,
+						transport: this.transport,
+					},
+					{},
+					{ animated: this.state.animationsEnabled },
+				);
+			}
+
+			if (target.kind === 'album') {
+				this.homeNavigationController.push(
+					AlbumView,
+					{
+						album: target.album as Album,
+						imageCache: this.imageCache,
+						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
+						playbackStore: this.playbackStore,
+						transport: this.transport,
+					},
+					{},
+					{ animated: this.state.animationsEnabled },
+				);
+			}
+
+			if (target.kind === 'playlist') {
+				this.homeNavigationController.push(
+					PlaylistView,
+					{
+						imageCache: this.imageCache,
+						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
+						playbackStore: this.playbackStore,
+						playlist: target.playlist as Playlist,
+						transport: this.transport,
+					},
+					{},
+					{ animated: this.state.animationsEnabled },
+				);
+			}
+
+			this.pendingSearchNavigation = null;
+			this.isResolvingSearchNavigation = false;
+		});
+	}
 
 	handleNowPlayingArtistTap = (): void => {
 		const { album, artistLogoUrl, track } = this.playbackStore;
@@ -537,7 +665,21 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					resetSignal={this.state.homeResetNonce}
 				/>
 			)}
-			{this.state.activeFooterTab === FooterTabs.search && <SearchView />}
+			{this.state.activeFooterTab === FooterTabs.search && (
+				<NavigationRoot>
+					{$slot((navigationController) => {
+						<SearchView
+							animationsEnabled={this.state.animationsEnabled}
+							imageCache={this.imageCache}
+							navigationController={navigationController}
+							onNavigateToHomeResult={this.handleSearchResultNavigation}
+							playbackStore={this.playbackStore}
+							searchStore={this.searchStore}
+							transport={this.transport}
+						/>;
+					})}
+				</NavigationRoot>
+			)}
 			{this.state.activeFooterTab === FooterTabs.settings && (
 				<SettingsView
 					animationsEnabled={this.state.animationsEnabled}

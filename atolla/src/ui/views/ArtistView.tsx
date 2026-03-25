@@ -21,6 +21,7 @@ export interface ArtistViewModel {
 	animationsEnabled: boolean;
 	artist: Artist;
 	imageCache: ImageCache;
+	onExitFromSearchNavigation?: () => void;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -87,6 +88,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		this.viewModel.onExitFromSearchNavigation?.();
 	}
 
 	onRender(): void {

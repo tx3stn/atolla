@@ -2,6 +2,7 @@
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
 import type { Playlist } from '../models/Playlist';
+import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 import type { Transport } from './Transport';
 
@@ -32,6 +33,10 @@ export class OfflineTransport implements Transport {
 	}
 
 	async getArtistTopTracks(_artistId: string): Promise<Array<Track>> {
+		throw new Error('OfflineTransport not yet implemented');
+	}
+
+	async search(_query: string): Promise<SearchResults> {
 		throw new Error('OfflineTransport not yet implemented');
 	}
 

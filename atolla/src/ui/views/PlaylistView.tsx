@@ -15,6 +15,7 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 
 export interface PlaylistViewModel {
 	imageCache: ImageCache;
+	onExitFromSearchNavigation?: () => void;
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
 	transport: Transport;
@@ -81,6 +82,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		this.viewModel.onExitFromSearchNavigation?.();
 	}
 
 	onRender(): void {

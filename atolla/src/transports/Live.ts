@@ -10,6 +10,7 @@ import type {
 	JellyfinTrackItem,
 } from '../models/jellyfin/Types';
 import type { Playlist } from '../models/Playlist';
+import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 import type { Transport } from './Transport';
 
@@ -40,6 +41,10 @@ export class LiveTransport implements Transport {
 	}
 
 	async getArtistTopTracks(_artistId: string): Promise<Array<Track>> {
+		throw new Error('LiveTransport not yet implemented');
+	}
+
+	async search(_query: string): Promise<SearchResults> {
 		throw new Error('LiveTransport not yet implemented');
 	}
 

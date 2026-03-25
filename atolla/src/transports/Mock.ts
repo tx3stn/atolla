@@ -13,6 +13,7 @@ import { mockJellyfinPlaylists } from '../__mocks__/Playlists';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
 import type { Playlist } from '../models/Playlist';
+import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 import {
 	mapJellyfinAlbumToAlbum,
@@ -60,6 +61,41 @@ export class MockTransport implements Transport {
 		return mockJellyfinPlaylists.map((item) =>
 			mapJellyfinPlaylistToPlaylist(item, this.imageResolvers),
 		);
+	}
+
+	async search(query: string): Promise<SearchResults> {
+		const normalizedQuery = query.trim().toLowerCase();
+		if (!normalizedQuery) {
+			return {
+				albums: [],
+				artists: [],
+				playlists: [],
+				tracks: [],
+			};
+		}
+
+		const artists = mockJellyfinArtists
+			.filter((artist) => artist.Name.toLowerCase().includes(normalizedQuery))
+			.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers));
+
+		const albums = mockJellyfinAlbums
+			.filter((album) => album.Name.toLowerCase().includes(normalizedQuery))
+			.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+
+		const playlists = mockJellyfinPlaylists
+			.filter((playlist) => playlist.Name.toLowerCase().includes(normalizedQuery))
+			.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers));
+
+		const tracks = mockJellyfinTracks
+			.filter((track) => track.Name.toLowerCase().includes(normalizedQuery))
+			.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+
+		return {
+			albums,
+			artists,
+			playlists,
+			tracks,
+		};
 	}
 
 	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
