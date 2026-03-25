@@ -57,6 +57,7 @@ interface AppState {
 	paletteProcessedCount: number;
 	// null = not yet triggered; number = total artwork URLs queued for generation
 	paletteTotalCount: number | null;
+	searchFocusSignal: number;
 	version: number;
 }
 
@@ -110,6 +111,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		paletteFailureSummary: null,
 		paletteProcessedCount: 0,
 		paletteTotalCount: null,
+		searchFocusSignal: 0,
 		version: 0,
 	};
 
@@ -429,6 +431,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({
 			activeFooterTab: tab,
 			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
+			searchFocusSignal:
+				tab === FooterTabs.search ? this.state.searchFocusSignal + 1 : this.state.searchFocusSignal,
 		});
 	};
 
@@ -670,6 +674,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					{$slot((navigationController) => {
 						<SearchView
 							animationsEnabled={this.state.animationsEnabled}
+							focusSignal={this.state.searchFocusSignal}
 							imageCache={this.imageCache}
 							navigationController={navigationController}
 							onNavigateToHomeResult={this.handleSearchResultNavigation}

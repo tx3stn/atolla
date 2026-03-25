@@ -1,8 +1,10 @@
 // @ts-nocheck
+import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
+import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
-import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Playlist } from '../../models/Playlist';
@@ -29,6 +31,7 @@ type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 
 export interface SearchViewModel {
 	animationsEnabled: boolean;
+	focusSignal?: number;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
 	onNavigateToHomeResult?: (target: SearchHomeNavigationTarget) => void;
@@ -88,6 +91,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private hasBeenDestroyed = false;
 	private noResultTimer?: ReturnType<typeof setInterval>;
 	private requestVersion = 0;
+	private searchInputRef = new ElementRef();
 	private unsubscribePlayback?: () => void;
 
 	state: SearchState = {
@@ -108,6 +112,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
+		this.focusSearchInput();
 		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
 		});
@@ -129,6 +134,43 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				noResultFrameIndex: (this.state.noResultFrameIndex + 1) % noResultFrames.length,
 			});
 		}, 420);
+	}
+
+	onViewModelUpdate(prevViewModel?: SearchViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		const nextFocusSignal = this.viewModel.focusSignal ?? 0;
+		const prevFocusSignal = prevViewModel.focusSignal ?? 0;
+		if (nextFocusSignal === prevFocusSignal) {
+			return;
+		}
+
+		this.focusSearchInput();
+	}
+
+	private focusSearchInput(): void {
+		Promise.resolve().then(() => {
+			if (this.hasBeenDestroyed) {
+				return;
+			}
+			this.searchInputRef.setAttribute('focused', true);
+			this.searchInputRef.setAttribute('selection', [
+				this.state.query.length,
+				this.state.query.length,
+			]);
+			setTimeout(() => {
+				if (this.hasBeenDestroyed) {
+					return;
+				}
+				this.searchInputRef.setAttribute('focused', true);
+				this.searchInputRef.setAttribute('selection', [
+					this.state.query.length,
+					this.state.query.length,
+				]);
+			}, 32);
+		});
 	}
 
 	onDestroy(): void {
@@ -229,6 +271,11 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				this.viewModel.playbackStore.setArtistLogoUrl(logoUrl);
 			});
 		}
+	};
+
+	handleSearchKeyboardSubmit = (value?: unknown): void => {
+		const submittedQuery = normalizeSearchInput(value);
+		this.handleSubmitSearch(submittedQuery || this.state.query);
 	};
 
 	handleAlbumTap = (albumId: string): void => {
@@ -357,24 +404,22 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					contentDescription='search-bar'
 					style={styles.searchBar}
 				>
+					<image src={res.search} style={styles.searchIcon} tint={theme.colors.white} />
 					<textfield
+						autocapitalization='none'
+						keyboardAppearance='dark'
 						onChange={(text) => {
 							this.setState({ query: normalizeSearchInput(text) });
 						}}
-						placeholder='Search artists, albums, tracks, playlists'
+						onDone={this.handleSearchKeyboardSubmit}
+						onReturn={this.handleSearchKeyboardSubmit}
+						onSubmit={this.handleSearchKeyboardSubmit}
+						placeholder='search'
+						ref={this.searchInputRef}
+						returnKeyText='search'
 						style={styles.searchInput}
 						value={query}
 					/>
-					<view
-						accessibilityLabel='search-submit'
-						contentDescription='search-submit'
-						onTap={() => {
-							this.handleSubmitSearch(this.state.query);
-						}}
-						style={styles.searchButton}
-					>
-						<label style={styles.searchButtonText} value='Go' />
-					</view>
 				</view>
 
 				{status === 'loading' && (
@@ -475,6 +520,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 								}}
 								style={styles.recentSearchChip}
 							>
+								<image src={res.search} style={styles.recentSearchIcon} tint={theme.colors.grey} />
 								<label style={styles.recentSearchText} value={term} />
 							</view>
 						))
@@ -525,14 +571,21 @@ const styles = {
 		marginTop: 8,
 	}),
 	recentSearchChip: new Style({
-		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.borderRadius,
+		...theme.text.subLarger,
+		flexDirection: 'row',
+		flexGrow: 1,
 		marginTop: 8,
 		paddingHorizontal: 12,
 		paddingVertical: 10,
+		width: '100%',
+	}),
+	recentSearchIcon: new Style<ImageView>({
+		height: 18,
+		margin: 10,
+		width: 18,
 	}),
 	recentSearchText: new Style<Label>({
-		...theme.text.main,
+		...theme.text.subLarger,
 	}),
 	recentSection: new Style({
 		marginTop: 8,
@@ -559,27 +612,24 @@ const styles = {
 	}),
 	searchBar: new Style({
 		alignItems: 'center',
-		backgroundColor: theme.colors.bgAccent,
+		backgroundColor: 'transparent',
+		borderColor: theme.colors.white,
 		borderRadius: 999,
+		borderWidth: 1,
+		columnGap: 10,
 		flexDirection: 'row',
-		padding: 6,
+		marginBottom: 20,
+		padding: 12,
 	}),
-	searchButton: new Style({
-		alignItems: 'center',
-		backgroundColor: theme.colors.active,
-		borderRadius: 999,
-		justifyContent: 'center',
-		paddingHorizontal: 14,
-		paddingVertical: 10,
-	}),
-	searchButtonText: new Style<Label>({
-		...theme.text.mainBold,
-		color: '#0b1220',
+	searchIcon: new Style<ImageView>({
+		height: 24,
+		width: 24,
 	}),
 	searchInput: new Style({
 		...theme.text.main,
 		flexGrow: 1,
-		paddingHorizontal: 12,
+		marginLeft: 20,
+		padding: 8,
 	}),
 	section: new Style({
 		marginBottom: 18,

@@ -153,6 +153,34 @@ describe('SearchView', () => {
 		expect(component.state.recentSearches[0]).toBe('jane');
 	});
 
+	valdiIt('submits search from keyboard return', async () => {
+		const searchCalls = [];
+		const instrumented = createComponent(SearchView, {
+			animationsEnabled: true,
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: (query: string) => {
+					searchCalls.push(query);
+					return Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] });
+				},
+			},
+		});
+		const component = instrumented.getComponent();
+		component.setState({ query: 'burial' });
+		const textField = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.TextField,
+		)[0];
+
+		textField.getAttribute('onReturn')?.();
+		await flushAsyncWork();
+
+		expect(searchCalls).toEqual(['burial']);
+	});
+
 	valdiIt('accepts event-shaped submit payloads', async () => {
 		const searchCalls = [];
 		const instrumented = createComponent(SearchView, {
