@@ -271,7 +271,7 @@ describe('SearchView', () => {
 		expect(routed.map((entry) => entry.kind)).toEqual(['album', 'artist', 'playlist']);
 	});
 
-	valdiIt('plays tapped track from track list results', () => {
+	valdiIt('plays only the tapped track from track list results', () => {
 		const playbackStore = new PlaybackStore();
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
@@ -301,6 +301,7 @@ describe('SearchView', () => {
 		component.handleTrackTap('track-2');
 
 		expect(playbackStore.track?.id).toBe('track-2');
+		expect(playbackStore.tracks.map((track) => track.id)).toEqual(['track-2']);
 		expect(playbackStore.isPlaying).toBe(true);
 	});
 

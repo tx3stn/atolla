@@ -275,7 +275,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		}
 
 		const track = this.state.results.tracks[trackIndex];
-		this.viewModel.playbackStore.playTracks(this.state.results.tracks, trackIndex);
+		this.viewModel.playbackStore.playTracks([track]);
 		if (track.artistId) {
 			this.viewModel.transport.getArtistLogoUrl(track.artistId).then((logoUrl) => {
 				this.viewModel.playbackStore.setArtistLogoUrl(logoUrl);
