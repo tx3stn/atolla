@@ -402,6 +402,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		const expandedTrackColor = withAlpha(onSurfaceColor, 0.34);
 		const compactProgressFillStyle = new Style({
 			backgroundColor: accentColor,
+			borderRadius: theme.borderRadius,
 			bottom: 0,
 			left: 0,
 			opacity: 0.45,
