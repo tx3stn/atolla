@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
+import { guessMimeType } from '../images/MimeType';
 
 export interface ImageStore {
 	exists(key: string): Promise<boolean>;
@@ -325,12 +326,4 @@ function toDataUri(buffer: ArrayBuffer, mimeType: string): string {
 		binary += String.fromCharCode(bytes[i]);
 	}
 	return `data:${mimeType};base64,${btoa(binary)}`;
-}
-
-function guessMimeType(url: string): string {
-	const lower = url.toLowerCase();
-	if (lower.includes('.png')) return 'image/png';
-	if (lower.includes('.webp')) return 'image/webp';
-	if (lower.includes('.gif')) return 'image/gif';
-	return 'image/jpeg';
 }
