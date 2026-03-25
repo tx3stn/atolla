@@ -173,6 +173,10 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		});
 	}
 
+	private blurSearchInput(): void {
+		this.searchInputRef.setAttribute('focused', false);
+	}
+
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
@@ -515,6 +519,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 								contentDescription={`recent-search-${term}`}
 								key={term}
 								onTap={() => {
+									this.blurSearchInput();
 									this.setState({ query: term });
 									this.handleSubmitSearch(term);
 								}}
