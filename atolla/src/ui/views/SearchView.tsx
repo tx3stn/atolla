@@ -114,9 +114,15 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.hasBeenDestroyed = false;
 		this.focusSearchInput();
 		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
-			this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
+			const isFooterVisible = this.viewModel.playbackStore.track !== null;
+			if (isFooterVisible !== this.state.isFooterVisible) {
+				this.setState({ isFooterVisible });
+			}
 		});
-		this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
+		const isFooterVisible = this.viewModel.playbackStore.track !== null;
+		if (isFooterVisible !== this.state.isFooterVisible) {
+			this.setState({ isFooterVisible });
+		}
 
 		this.viewModel.searchStore.getRecentSearches().then((recentSearches) => {
 			if (this.hasBeenDestroyed) {

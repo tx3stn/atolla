@@ -38,9 +38,15 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
 		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
-			this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
+			const isFooterVisible = this.viewModel.playbackStore.track !== null;
+			if (isFooterVisible !== this.state.isFooterVisible) {
+				this.setState({ isFooterVisible });
+			}
 		});
-		this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
+		const isFooterVisible = this.viewModel.playbackStore.track !== null;
+		if (isFooterVisible !== this.state.isFooterVisible) {
+			this.setState({ isFooterVisible });
+		}
 		this.viewModel.transport.getAllPlaylists().then((playlists) => {
 			if (this.hasBeenDestroyed) {
 				return;

@@ -8,7 +8,6 @@ import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
-import { theme } from '../../theme';
 import { MockTransport } from '../../transports/Mock';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
 import { AlbumsView } from './AlbumsView';
@@ -31,68 +30,50 @@ export interface HomeViewModel {
 }
 
 interface HomeState {
-	isNavigationMounted: boolean;
-	navigationOverlayVisible: boolean;
+	albumsNavKey: number;
+	artistsNavKey: number;
+	playlistsNavKey: number;
 }
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private transport = new MockTransport();
-	private resetVersion = 0;
 
 	state: HomeState = {
-		isNavigationMounted: false,
-		navigationOverlayVisible: true,
+		albumsNavKey: 0,
+		artistsNavKey: 0,
+		playlistsNavKey: 0,
 	};
 
-	onCreate(): void {
-		this.resetNavigationRoot();
-	}
+	onCreate(): void {}
 
 	onViewModelUpdate(prevViewModel?: HomeViewModel): void {
 		if (!prevViewModel) {
-			this.resetNavigationRoot();
 			return;
 		}
 
-		if (
-			this.viewModel.resetSignal === prevViewModel.resetSignal &&
-			this.viewModel.activeTab === prevViewModel.activeTab
-		) {
+		if (this.viewModel.resetSignal === prevViewModel.resetSignal) {
 			return;
 		}
 
-		this.resetNavigationRoot();
-	}
+		if (this.viewModel.activeTab === HeaderTabs.albums) {
+			this.setState({ albumsNavKey: this.state.albumsNavKey + 1 });
+		}
 
-	private resetNavigationRoot(): void {
-		const nextResetVersion = this.resetVersion + 1;
-		this.resetVersion = nextResetVersion;
+		if (this.viewModel.activeTab === HeaderTabs.artists) {
+			this.setState({ artistsNavKey: this.state.artistsNavKey + 1 });
+		}
 
-		this.setState({
-			isNavigationMounted: false,
-			navigationOverlayVisible: true,
-		});
-
-		Promise.resolve().then(() => {
-			if (this.resetVersion !== nextResetVersion) {
-				return;
-			}
-
-			this.setState({
-				isNavigationMounted: true,
-				navigationOverlayVisible: false,
-			});
-		});
+		if (this.viewModel.activeTab === HeaderTabs.playlists) {
+			this.setState({ playlistsNavKey: this.state.playlistsNavKey + 1 });
+		}
 	}
 
 	onRender(): void {
 		const { activeTab, animationsEnabled, imageCache, playbackStore } = this.viewModel;
 
 		<view style={styles.root}>
-			{this.state.navigationOverlayVisible && <view style={styles.navigationOverlay} />}
-
-			{this.state.isNavigationMounted && activeTab === HeaderTabs.artists && (
-				<NavigationRoot>
+			{activeTab === HeaderTabs.artists && (
+				<NavigationRoot key={`artists-nav-${this.state.artistsNavKey}`}>
 					{$slot((navigationController) => {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<ArtistsView
@@ -106,8 +87,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				</NavigationRoot>
 			)}
 
-			{this.state.isNavigationMounted && activeTab === HeaderTabs.albums && (
-				<NavigationRoot>
+			{activeTab === HeaderTabs.albums && (
+				<NavigationRoot key={`albums-nav-${this.state.albumsNavKey}`}>
 					{$slot((navigationController) => {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<AlbumsView
@@ -121,8 +102,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				</NavigationRoot>
 			)}
 
-			{this.state.isNavigationMounted && activeTab === HeaderTabs.playlists && (
-				<NavigationRoot>
+			{activeTab === HeaderTabs.playlists && (
+				<NavigationRoot key={`playlists-nav-${this.state.playlistsNavKey}`}>
 					{$slot((navigationController) => {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<PlaylistsView
@@ -140,14 +121,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 }
 
 const styles = {
-	navigationOverlay: new Style({
-		backgroundColor: theme.colors.bg,
-		bottom: 0,
-		left: 0,
-		position: 'absolute',
-		right: 0,
-		top: 0,
-	}),
 	root: new Style({
 		flexGrow: 1,
 		width: '100%',

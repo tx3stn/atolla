@@ -40,6 +40,12 @@ import { PlaylistView } from './ui/views/PlaylistView';
 import { type SearchHomeNavigationTarget, SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
 
+try {
+	ensureAtollaImageLoaderBootstrap();
+} catch {
+	// Android native bootstrap may be unavailable on non-Android targets.
+}
+
 export type AppViewModel = Record<string, never>;
 
 interface AppState {
@@ -48,6 +54,7 @@ interface AppState {
 	animationsEnabled: boolean;
 	homeResetNonce: number;
 	imageCacheMaxBytes: number;
+	isBootstrapped: boolean;
 	nativeImageCacheBufferedBytes: number | null;
 	nativeImageCacheBufferedCount: number | null;
 	nowPlayingCollapseSignal: number;
@@ -103,6 +110,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		animationsEnabled: true,
 		homeResetNonce: 0,
 		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
+		isBootstrapped: false,
 		nativeImageCacheBufferedBytes: null,
 		nativeImageCacheBufferedCount: null,
 		nowPlayingCollapseSignal: 0,
@@ -116,22 +124,25 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	onCreate(): void {
-		try {
-			ensureAtollaImageLoaderBootstrap();
-			this.refreshNativeCacheStats();
-			this.nativeCacheStatsInterval = setInterval(() => {
+		this.nativeCacheStatsInterval = setInterval(() => {
+			if (this.state.activeFooterTab === FooterTabs.settings) {
 				this.refreshNativeCacheStats();
-			}, 1000);
-		} catch {
-			// Android native bootstrap may be unavailable on non-Android targets.
-		}
-		this.preferences.getImageCacheMaxBytes().then((bytes) => {
-			setImageCacheSize(bytes);
-			this.setState({ imageCacheMaxBytes: bytes });
-		});
-		this.preferences.getAnimationsEnabled().then((enabled) => {
-			this.setState({ animationsEnabled: enabled });
-		});
+			}
+		}, 1000);
+		Promise.all([this.preferences.getImageCacheMaxBytes(), this.preferences.getAnimationsEnabled()])
+			.then(([imageCacheMaxBytes, animationsEnabled]) => {
+				setImageCacheSize(imageCacheMaxBytes);
+				this.setState({
+					animationsEnabled,
+					imageCacheMaxBytes,
+					isBootstrapped: true,
+				});
+			})
+			.catch(() => {
+				if (!this.state.isBootstrapped) {
+					this.setState({ isBootstrapped: true });
+				}
+			});
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
 			this.handleAlbumChange();
 			this.setState({ version: this.state.version + 1 });
@@ -434,6 +445,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			searchFocusSignal:
 				tab === FooterTabs.search ? this.state.searchFocusSignal + 1 : this.state.searchFocusSignal,
 		});
+
+		if (tab === FooterTabs.settings) {
+			this.refreshNativeCacheStats();
+		}
 	};
 
 	handleHomeHeaderTabTap = (tab: HeaderTab): void => {
@@ -447,7 +462,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		this.setState({
 			activeHomeTab: tab,
-			homeResetNonce: this.state.homeResetNonce + 1,
 		});
 	};
 
@@ -647,6 +661,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	onRender(): void {
+		if (!this.state.isBootstrapped) {
+			<view style={styles.root} />;
+			return;
+		}
+
 		const { track, album, isPlaying, progressSeconds, artistLogoUrl, tracks, trackIndex } =
 			this.playbackStore;
 		const palette = this.paletteService.getPalette(album?.imageUrl ?? track?.albumImageUrl);
