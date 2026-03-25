@@ -31,25 +31,24 @@ export interface HomeViewModel {
 }
 
 interface HomeState {
-	albumsNavKey: number;
-	artistsNavKey: number;
+	isNavigationMounted: boolean;
 	isTabTransitionOverlayVisible: boolean;
-	playlistsNavKey: number;
 }
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private transport = new MockTransport();
+	private resetVersion = 0;
 	private tabTransitionTimer?: ReturnType<typeof setTimeout>;
 	private transitionVersion = 0;
 
 	state: HomeState = {
-		albumsNavKey: 0,
-		artistsNavKey: 0,
-		isTabTransitionOverlayVisible: false,
-		playlistsNavKey: 0,
+		isNavigationMounted: false,
+		isTabTransitionOverlayVisible: true,
 	};
 
-	onCreate(): void {}
+	onCreate(): void {
+		this.resetNavigationRoot();
+	}
 
 	onDestroy(): void {
 		if (this.tabTransitionTimer) {
@@ -59,28 +58,41 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	onViewModelUpdate(prevViewModel?: HomeViewModel): void {
 		if (!prevViewModel) {
+			this.resetNavigationRoot();
 			return;
 		}
 
-		if (this.viewModel.activeTab !== prevViewModel.activeTab) {
+		const activeTabChanged = this.viewModel.activeTab !== prevViewModel.activeTab;
+		if (activeTabChanged) {
 			this.startTabTransitionOverlay();
 		}
 
-		if (this.viewModel.resetSignal === prevViewModel.resetSignal) {
+		if (!activeTabChanged && this.viewModel.resetSignal === prevViewModel.resetSignal) {
 			return;
 		}
 
-		if (this.viewModel.activeTab === HeaderTabs.albums) {
-			this.setState({ albumsNavKey: this.state.albumsNavKey + 1 });
-		}
+		this.resetNavigationRoot();
+	}
 
-		if (this.viewModel.activeTab === HeaderTabs.artists) {
-			this.setState({ artistsNavKey: this.state.artistsNavKey + 1 });
-		}
+	private resetNavigationRoot(): void {
+		const nextResetVersion = this.resetVersion + 1;
+		this.resetVersion = nextResetVersion;
 
-		if (this.viewModel.activeTab === HeaderTabs.playlists) {
-			this.setState({ playlistsNavKey: this.state.playlistsNavKey + 1 });
-		}
+		this.setState({
+			isNavigationMounted: false,
+			isTabTransitionOverlayVisible: true,
+		});
+
+		Promise.resolve().then(() => {
+			if (this.resetVersion !== nextResetVersion) {
+				return;
+			}
+
+			this.setState({
+				isNavigationMounted: true,
+				isTabTransitionOverlayVisible: false,
+			});
+		});
 	}
 
 	private startTabTransitionOverlay(): void {
@@ -118,8 +130,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const { activeTab, animationsEnabled, imageCache, playbackStore } = this.viewModel;
 
 		<view style={styles.root}>
-			{activeTab === HeaderTabs.artists && (
-				<NavigationRoot key={`artists-nav-${this.state.artistsNavKey}`}>
+			{this.state.isNavigationMounted && activeTab === HeaderTabs.artists && (
+				<NavigationRoot>
 					{$slot((navigationController) => {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<ArtistsView
@@ -133,8 +145,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				</NavigationRoot>
 			)}
 
-			{activeTab === HeaderTabs.albums && (
-				<NavigationRoot key={`albums-nav-${this.state.albumsNavKey}`}>
+			{this.state.isNavigationMounted && activeTab === HeaderTabs.albums && (
+				<NavigationRoot>
 					{$slot((navigationController) => {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<AlbumsView
@@ -148,8 +160,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				</NavigationRoot>
 			)}
 
-			{activeTab === HeaderTabs.playlists && (
-				<NavigationRoot key={`playlists-nav-${this.state.playlistsNavKey}`}>
+			{this.state.isNavigationMounted && activeTab === HeaderTabs.playlists && (
+				<NavigationRoot>
 					{$slot((navigationController) => {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<PlaylistsView

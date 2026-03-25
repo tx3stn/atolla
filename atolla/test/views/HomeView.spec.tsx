@@ -26,7 +26,7 @@ describe('HomeView', () => {
 		expect(component.viewModel.activeTab).toBe(HeaderTabs.albums);
 	});
 
-	valdiIt('starts with tab transition overlay hidden', () => {
+	valdiIt('starts with navigation overlay visible', () => {
 		const instrumented = createComponent(HomeView, {
 			activeTab: HeaderTabs.artists,
 			animationsEnabled: true,
@@ -36,6 +36,7 @@ describe('HomeView', () => {
 		});
 		const component = instrumented.getComponent();
 
-		expect(component.state.isTabTransitionOverlayVisible).toBe(false);
+		expect(component.state.isNavigationMounted).toBe(false);
+		expect(component.state.isTabTransitionOverlayVisible).toBe(true);
 	});
 });
