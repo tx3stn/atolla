@@ -363,12 +363,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				paletteProcessedCount: 0,
 				paletteTotalCount: urls.length,
 			});
-			await this.paletteService.warmUp(urls);
 			for (const url of urls) {
 				try {
-					if (this.paletteService.hasPalette(url)) {
-						continue;
-					}
 					await this.withTimeout(this.generatePaletteForUrl(url), 12000);
 				} catch (error) {
 					failures += 1;
