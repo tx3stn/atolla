@@ -96,7 +96,11 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 				<layout style={styles.subheaderLines}>
 					{(subheaderLineOneLeft || subheaderLineOneRight) && (
 						<layout style={styles.subheaderLineRow}>
-							<label style={styles.subheaderLineOneLeftText} value={subheaderLineOneLeft ?? ''} />
+							<label
+								numberOfLines={2}
+								style={styles.subheaderLineOneLeftText}
+								value={subheaderLineOneLeft ?? ''}
+							/>
 							{subheaderLineOneRight && (
 								<label style={styles.subheaderLineOneRightText} value={subheaderLineOneRight} />
 							)}
