@@ -5,7 +5,6 @@ import {
 import {
 	hexToRgb,
 	hslToRgb,
-	isDark,
 	legibleTextColor,
 	mutedTextColor,
 	mutedVariant,
@@ -21,25 +20,12 @@ export interface PaletteStore {
 	savePalette(imageUrl: string, palette: Palette): Promise<void>;
 }
 
-export interface ArtworkPaletteConfig {
-	// Colours with HSL lightness at or below this value are considered too dark
-	// to distinguish from the OLED black app background.
-	darknessThreshold: number;
-}
-
-const DEFAULT_CONFIG: ArtworkPaletteConfig = {
-	darknessThreshold: 0.15,
-};
-
 export class ArtworkPaletteService {
 	private cache = new Map<string, Palette>();
 	private listeners = new Set<() => void>();
 	lastError: string | null = null;
 
-	constructor(
-		private store: PaletteStore,
-		private config: ArtworkPaletteConfig = DEFAULT_CONFIG,
-	) {}
+	constructor(private store: PaletteStore) {}
 
 	// Number of palettes currently held in the in-memory cache.
 	get cacheSize(): number {
@@ -117,47 +103,9 @@ export class ArtworkPaletteService {
 		this.notify();
 	}
 
-	// Fallback chain: most prominent non-dark colour → second non-dark → neutral white
+	// Returns the most dominant colour — the histogram bin with the highest pixel count.
 	private selectPrimary(candidates: Array<DominantColorCandidate>): Color {
-		let best: { color: Color; score: number } | null = null;
-		for (const candidate of candidates) {
-			if (isDark(candidate.color, this.config.darknessThreshold)) continue;
-
-			const score = this.candidateScore(candidate);
-			if (!best || score > best.score) {
-				best = { color: candidate.color, score };
-			}
-		}
-
-		if (best) {
-			return this.enhancePrimary(best.color);
-		}
-
-		for (const candidate of candidates) {
-			if (!isDark(candidate.color, this.config.darknessThreshold)) return candidate.color;
-		}
-		return NEUTRAL_PALETTE.primary;
-	}
-
-	private candidateScore(candidate: DominantColorCandidate): number {
-		const [r, g, b] = hexToRgb(candidate.color.hex);
-		const [, s, l] = rgbToHsl(r, g, b);
-		const saturationWeight = 0.45 + s * 1.15;
-		const lightnessDistance = Math.abs(l - 0.55);
-		const lightnessWeight = clamp(1 - lightnessDistance * 1.7, 0.35, 1);
-		const neutralPenalty = s < 0.12 ? 0.55 : 1;
-		return candidate.population * saturationWeight * lightnessWeight * neutralPenalty;
-	}
-
-	private enhancePrimary(color: Color): Color {
-		const [r, g, b] = hexToRgb(color.hex);
-		const [h, s, l] = rgbToHsl(r, g, b);
-		if (s < 0.08) return color;
-
-		const boostedSaturation = clamp(Math.max(s, 0.28) * 1.05, 0, 0.92);
-		const clampedLightness = clamp(l, 0.2, 0.78);
-		const [nr, ng, nb] = hslToRgb(h, boostedSaturation, clampedLightness);
-		return { hex: rgbToHex(nr, ng, nb) };
+		return candidates[0]?.color ?? NEUTRAL_PALETTE.primary;
 	}
 
 	private selectAccent(candidates: Array<DominantColorCandidate>, primary: Color): Color {
@@ -171,8 +119,8 @@ export class ArtworkPaletteService {
 		for (const candidate of candidates) {
 			const [r, g, b] = hexToRgb(candidate.color.hex);
 			const [h, s, l] = rgbToHsl(r, g, b);
-			if (l <= this.config.darknessThreshold || l >= 0.88) continue;
-			if (s < 0.2) continue;
+			if (l <= 0.15 || l >= 0.88) continue;
+			if (s < 0.25) continue;
 
 			const share = candidate.population / totalPopulation;
 			if (share < 0.01 || share > 0.35) continue;

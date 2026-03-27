@@ -88,12 +88,22 @@ export function isDark(color: Color, threshold = 0.15): boolean {
 	return colorLightness(color) <= threshold;
 }
 
-// Returns a less saturated, slightly darker variant suitable as a background surface.
+// Returns a gently softened variant suitable as a background surface —
+// slightly darker and slightly less saturated than the raw primary.
 export function mutedVariant(color: Color): Color {
 	const [r, g, b] = hexToRgb(color.hex);
 	const [h, s, l] = rgbToHsl(r, g, b);
-	const newS = Math.max(0.22, s * 0.6);
-	const newL = Math.max(0.08, l * 0.8);
+	const newL = Math.max(l * 0.82, 0.08);
+
+	const isNearNeutral = s < 0.18;
+	if (isNearNeutral) {
+		const grey = Math.round(newL * 255);
+		return { hex: rgbToHex(grey, grey, grey) };
+	}
+
+	// Light/pastel colours have deceptively high HSL saturation, so scale down
+	// more aggressively to avoid cream→yellow or blush→pink shifts.
+	const newS = l > 0.65 ? s * 0.45 : Math.max(s * 0.85, 0.2);
 	const [nr, ng, nb] = hslToRgb(h, newS, newL);
 	return { hex: rgbToHex(nr, ng, nb) };
 }

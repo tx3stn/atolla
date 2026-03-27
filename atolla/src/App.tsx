@@ -19,7 +19,7 @@ import type { Album } from './models/Album';
 import type { Artist } from './models/Artist';
 import type { Playlist } from './models/Playlist';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
-import { mutedTextColor } from './services/color/colorUtils';
+import { legibleTextColor, mutedTextColor, mutedVariant } from './services/color/colorUtils';
 import type { Palette } from './services/color/types';
 import { ImageCache } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
@@ -232,19 +232,20 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			const raw = extractAtollaPaletteFromCache(url, category);
 			if (!raw) return null;
 			const parsed = JSON.parse(raw) as Partial<Palette>;
-			if (!parsed.primary?.hex || !parsed.surface?.hex || !parsed.on_surface?.hex) {
+			if (!parsed.primary?.hex) {
 				return null;
 			}
-			const mutedOnSurfaceHex =
-				parsed.muted_on_surface?.hex ??
-				mutedTextColor({ hex: parsed.on_surface.hex }, { hex: parsed.surface.hex }).hex;
+			const primary = { hex: parsed.primary.hex };
+			const surface = mutedVariant(primary);
+			const onSurface = legibleTextColor(surface);
+			const mutedOnSurfaceHex = mutedTextColor(onSurface, surface).hex;
 			const accentHex = parsed.accent?.hex ?? parsed.primary.hex;
 			return {
 				accent: { hex: accentHex },
 				muted_on_surface: { hex: mutedOnSurfaceHex },
-				on_surface: { hex: parsed.on_surface.hex },
-				primary: { hex: parsed.primary.hex },
-				surface: { hex: parsed.surface.hex },
+				on_surface: onSurface,
+				primary,
+				surface,
 			};
 		} catch {
 			return null;
