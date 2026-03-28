@@ -589,14 +589,25 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		return try {
 			val original = BitmapFactory.decodeByteArray(originalBytes, 0, originalBytes.size)
 				?: return null
-			// Two-pass downsample: first to 4×4 (extreme detail loss), then back up to
-			// 96×96 with bilinear filtering. The large upscale step smooths block edges
-			// into a soft gradient wash. Valdi bilinearly upscales the 96×96 to full-
-			// screen, keeping the result smooth throughout.
-			val tiny = Bitmap.createScaledBitmap(original, 4, 4, true)
-			original.recycle()
-			val smooth = Bitmap.createScaledBitmap(tiny, 96, 96, true)
-			tiny.recycle()
+			// Repeatedly halve with bilinear filtering down to ~8px on the short edge.
+			// Each halving is a box-blur pass that averages 4 pixels into 1; many passes
+			// together approximate a Gaussian blur, smoothing colour zones without the
+			// hard linear ramps you get from a single large downsample step.
+			var current = original
+			while (current.width > 8 && current.height > 8) {
+				val nextW = maxOf(8, current.width / 2)
+				val nextH = maxOf(8, current.height / 2)
+				val next = Bitmap.createScaledBitmap(current, nextW, nextH, true)
+				current.recycle()
+				current = next
+			}
+			// Two-step upsample: jumping directly from 8px to 200px lets bilinear
+			// interpolation show as linear ramps between samples. The intermediate
+			// step at 48px smooths those transitions before the final upscale.
+			val mid = Bitmap.createScaledBitmap(current, 48, 48, true)
+			current.recycle()
+			val smooth = Bitmap.createScaledBitmap(mid, 200, 200, true)
+			mid.recycle()
 			val out = ByteArrayOutputStream()
 			smooth.compress(Bitmap.CompressFormat.JPEG, 90, out)
 			smooth.recycle()

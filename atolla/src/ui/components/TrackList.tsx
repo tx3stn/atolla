@@ -17,6 +17,7 @@ export interface TrackListEntry {
 
 interface TrackListViewModel {
 	imageCache?: ImageCache;
+	noRowBackground?: boolean;
 	onTrackTap?: (trackId: string) => void;
 	palette?: Palette;
 	tracks: Array<TrackListEntry>;
@@ -38,7 +39,7 @@ const defaultColors: TrackListColors = {
 
 export class TrackList extends Component<TrackListViewModel> {
 	onRender() {
-		const colors = resolveColors(this.viewModel.palette);
+		const colors = resolveColors(this.viewModel.palette, this.viewModel.noRowBackground);
 		const emptyStateStyle = new Style<Label>({
 			...theme.text.sub,
 			color: colors.meta,
@@ -129,14 +130,14 @@ export class TrackList extends Component<TrackListViewModel> {
 	}
 }
 
-function resolveColors(palette?: Palette): TrackListColors {
+function resolveColors(palette?: Palette, noRowBackground?: boolean): TrackListColors {
 	if (!palette) {
 		return defaultColors;
 	}
 
 	return {
 		meta: palette.muted_on_surface.hex,
-		rowBackground: palette.surface.hex,
+		rowBackground: noRowBackground ? 'transparent' : palette.surface.hex,
 		tileBackground: palette.surface.hex,
 		title: palette.on_surface.hex,
 	};

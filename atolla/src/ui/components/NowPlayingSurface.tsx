@@ -187,7 +187,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private setCollapsedGeometry(): void {
 		this.compactBarRef.setAttribute('opacity', 1);
 		this.overlayCardRef.setAttribute('bottom', this.collapsedBottom);
-		this.overlayCardRef.setAttribute('borderRadius', theme.borderRadius);
+		this.overlayCardRef.setAttribute('borderRadius', theme.borderRadius / 2);
 		this.overlayCardRef.setAttribute('height', this.collapsedHeight);
 		this.overlayCardRef.setAttribute('left', this.collapsedInset);
 		this.overlayCardRef.setAttribute('right', this.collapsedInset);
@@ -382,11 +382,10 @@ export class NowPlayingSurface extends StatefulComponent<
 					: album.name
 				: (track.albumName ?? '');
 
-		// Mini-player bar: surface bg, accent progress fill
+		// Mini-player bar: blurred artwork bg + tint overlay, accent progress fill
 		const barStyle = new Style({
 			alignItems: 'center',
-			backgroundColor: surfaceColor,
-			borderRadius: theme.borderRadius,
+			borderRadius: theme.borderRadius / 2,
 			bottom: theme.footerHeight * 0.8,
 			elevation: 18,
 			flexDirection: 'row',
@@ -406,25 +405,33 @@ export class NowPlayingSurface extends StatefulComponent<
 		const expandedTrackColor = withAlpha(onSurfaceColor, 0.34);
 		const compactProgressFillStyle = new Style({
 			backgroundColor: accentColor,
-			borderRadius: theme.borderRadius,
+			borderRadius: theme.borderRadius / 2,
 			bottom: 0,
 			left: 0,
-			opacity: 0.45,
+			opacity: 0.72,
 			position: 'absolute',
 			right: 'auto',
 			top: 0,
 			width: `${Math.round(progressRatio * 100)}%`,
 		});
 
-		// Semi-transparent surface tint over the full-bleed artwork.
-		// High opacity gives the frosted-glass effect even without pixel-level blur.
-		const expandedBgOverlayStyle = new Style({
-			backgroundColor: withAlpha(surfaceColor, 0.68),
+		const bgOverlay = {
+			borderRadius: theme.borderRadius / 2,
 			bottom: 0,
 			left: 0,
-			position: 'absolute',
+			position: 'absolute' as const,
 			right: 0,
 			top: 0,
+		};
+		// Semi-transparent surface tint over the full-bleed artwork.
+		// Lower opacity lets the blurred background dominate the look.
+		const expandedBgOverlayStyle = new Style({
+			...bgOverlay,
+			backgroundColor: withAlpha(surfaceColor, 0.45),
+		});
+		const compactBgOverlayStyle = new Style({
+			...bgOverlay,
+			backgroundColor: withAlpha(surfaceColor, 0.6),
 		});
 
 		// Expanded overlay card + content: frosted album art background
@@ -498,6 +505,13 @@ export class NowPlayingSurface extends StatefulComponent<
 				ref={this.compactBarRef}
 				style={barStyle}
 			>
+				{albumArtworkSource && (
+					<image objectFit='cover' src={albumArtworkSource} style={styles.compactBgArtwork} />
+				)}
+				{blurredBgSource && (
+					<image objectFit='cover' src={blurredBgSource} style={styles.compactBgArtwork} />
+				)}
+				<view style={compactBgOverlayStyle} />
 				<view style={styles.compactProgressContainer}>
 					<view style={compactProgressFillStyle} />
 				</view>
@@ -624,6 +638,7 @@ export class NowPlayingSurface extends StatefulComponent<
 							<layout style={styles.expandedQueueList}>
 								<TrackList
 									imageCache={imageCache}
+									noRowBackground
 									palette={palette}
 									tracks={activeTab === 'upNext' ? upNextEntries : backToEntries}
 								/>
@@ -653,13 +668,22 @@ function withAlpha(hexColor: string, alpha: number): string {
 
 const styles = {
 	artwork: new Style<ImageView>({
-		borderRadius: 8,
+		borderRadius: theme.borderRadius / 2,
 		flexShrink: 0,
 		height: 65,
 		marginRight: 14,
 		width: 65,
 	}),
+	compactBgArtwork: new Style<ImageView>({
+		borderRadius: theme.borderRadius / 2,
+		bottom: 0,
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
+	}),
 	compactProgressContainer: new Style({
+		borderRadius: theme.borderRadius / 2,
 		bottom: 0,
 		left: 0,
 		position: 'absolute',
@@ -763,7 +787,6 @@ const styles = {
 	}),
 	expandedScrollArtwork: new Style<ImageView>({
 		aspectRatio: 1,
-		// borderRadius: theme.borderRadius,
 		opacity: 0,
 		width: '100%',
 	}),
