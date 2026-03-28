@@ -12,6 +12,7 @@ export interface CacheClearModalViewModel {
 
 interface CacheClearModalState {
 	albumArt: boolean;
+	albumArtBlurred: boolean;
 	artistImage: boolean;
 	artistLogo: boolean;
 	playlistImage: boolean;
@@ -23,6 +24,7 @@ export class CacheClearModal extends StatefulComponent<
 > {
 	state: CacheClearModalState = {
 		albumArt: true,
+		albumArtBlurred: true,
 		artistImage: true,
 		artistLogo: true,
 		playlistImage: true,
@@ -33,11 +35,13 @@ export class CacheClearModal extends StatefulComponent<
 	private toggleArtistImage = () => this.setState({ artistImage: !this.state.artistImage });
 	private toggleArtistLogo = () => this.setState({ artistLogo: !this.state.artistLogo });
 	private toggleAlbumArt = () => this.setState({ albumArt: !this.state.albumArt });
+	private toggleAlbumArtBlurred = () => this.setState({ albumArtBlurred: !this.state.albumArtBlurred });
 	private togglePlaylistImage = () => this.setState({ playlistImage: !this.state.playlistImage });
 
 	private handleConfirm = () => {
 		this.viewModel.onConfirm({
 			albumArt: this.state.albumArt,
+			albumArtBlurred: this.state.albumArtBlurred,
 			artistImage: this.state.artistImage,
 			artistLogo: this.state.artistLogo,
 			playlistImage: this.state.playlistImage,
@@ -45,8 +49,8 @@ export class CacheClearModal extends StatefulComponent<
 	};
 
 	onRender(): void {
-		const { albumArt, artistImage, artistLogo, playlistImage } = this.state;
-		const anySelected = albumArt || artistImage || artistLogo || playlistImage;
+		const { albumArt, albumArtBlurred, artistImage, artistLogo, playlistImage } = this.state;
+		const anySelected = albumArt || albumArtBlurred || artistImage || artistLogo || playlistImage;
 
 		<blur
 			blurStyle='systemThickMaterialDark'
@@ -63,6 +67,13 @@ export class CacheClearModal extends StatefulComponent<
 							{albumArt && <label style={styles.checkmark} value='✓' />}
 						</view>
 						<label style={styles.rowLabel} value='Album Art' />
+					</view>
+
+					<view onTap={this.toggleAlbumArtBlurred} style={styles.row} testID='cache-clear-album-art-blurred-row'>
+						<view style={albumArtBlurred ? styles.checkboxChecked : styles.checkboxUnchecked}>
+							{albumArtBlurred && <label style={styles.checkmark} value='✓' />}
+						</view>
+						<label style={styles.rowLabel} value='Blurred Album Art' />
 					</view>
 
 					<view

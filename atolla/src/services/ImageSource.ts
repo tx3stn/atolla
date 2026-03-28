@@ -61,6 +61,7 @@ export function imageCacheKey(url: string, category: ImageCategory): string {
 function isImageCategory(value: string): value is ImageCategory {
 	return (
 		value === 'album_art' ||
+		value === 'album_art_blurred' ||
 		value === 'artist_image' ||
 		value === 'artist_logo' ||
 		value === 'playlist_image'

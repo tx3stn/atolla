@@ -128,6 +128,18 @@ export function legibleTextColor(surface: Color): Color {
 	}
 }
 
+// Tints a near-neutral surface with the hue of tintColor.
+// Useful when the primary is grey but the artwork has a dominant accent hue.
+// Strength scales with lightness: light surfaces need more saturation to show colour.
+export function applyHueTint(surface: Color, tint: Color): Color {
+	const [, , l] = rgbToHsl(...hexToRgb(surface.hex));
+	const [h] = rgbToHsl(...hexToRgb(tint.hex));
+	// At l=0.5 (mid grey) → s≈0.22; at l=0.85 (near-white) → s≈0.35
+	const strength = 0.15 + l * 0.24;
+	const [nr, ng, nb] = hslToRgb(h, strength, l);
+	return { hex: rgbToHex(nr, ng, nb) };
+}
+
 // Returns a softer variant of on-surface text by blending toward the surface.
 // Useful for secondary metadata text while staying in the same palette family.
 export function mutedTextColor(onSurface: Color, surface: Color): Color {

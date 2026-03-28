@@ -9,6 +9,7 @@ import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import { ErrorConst } from './errors/Const';
 import { PaletteGenerationErrors } from './errors/PaletteGenerationErrors';
 import {
+	clearAtollaNativeCacheCategories,
 	ensureAtollaImageLoaderBootstrap,
 	extractAtollaPaletteFromCache,
 	getAtollaImageLoaderCacheByteSize,
@@ -21,7 +22,7 @@ import type { Playlist } from './models/Playlist';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { legibleTextColor, mutedTextColor, mutedVariant } from './services/color/colorUtils';
 import type { Palette } from './services/color/types';
-import { ImageCache } from './services/ImageCache';
+import { type ClearCacheSelection, ImageCache } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PlaybackStore } from './stores/Playback';
@@ -417,6 +418,23 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 	};
 
+	handleClearCache = (selection: ClearCacheSelection): void => {
+		const categories: Array<string> = [];
+		if (selection.albumArt) categories.push('album_art');
+		if (selection.albumArtBlurred) categories.push('album_art_blurred');
+		if (selection.artistImage) categories.push('artist_image');
+		if (selection.artistLogo) categories.push('artist_logo');
+		if (selection.playlistImage) categories.push('playlist_image');
+		void this.imageCache.clearSelected(selection);
+		try {
+			clearAtollaNativeCacheCategories(categories);
+		} catch {
+			// Native clear unavailable on non-Android targets.
+		}
+		this.refreshNativeCacheStats();
+		this.setState({ version: this.state.version + 1 });
+	};
+
 	handleCacheSizeChange = (bytes: number): void => {
 		this.preferences.setImageCacheMaxBytes(bytes);
 		setImageCacheSize(bytes);
@@ -669,6 +687,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					imageCacheMaxBytes={this.state.imageCacheMaxBytes}
 					onAnimationsChange={this.handleAnimationsChange}
 					onCacheSizeChange={this.handleCacheSizeChange}
+					onClearCache={this.handleClearCache}
 					onGeneratePalettes={this.handleGeneratePalettes}
 					paletteCount={this.paletteService.cacheSize}
 					paletteError={this.paletteService.lastError}

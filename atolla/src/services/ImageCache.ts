@@ -15,10 +15,16 @@ export type ImageLoaderFn = (
 	category?: ImageCategory,
 ) => Promise<{ buffer: ArrayBuffer; mimeType: string } | null>;
 
-export type ImageCategory = 'artist_image' | 'artist_logo' | 'album_art' | 'playlist_image';
+export type ImageCategory =
+	| 'artist_image'
+	| 'artist_logo'
+	| 'album_art'
+	| 'album_art_blurred'
+	| 'playlist_image';
 
 export interface ClearCacheSelection {
 	albumArt: boolean;
+	albumArtBlurred: boolean;
 	artistImage: boolean;
 	artistLogo: boolean;
 	playlistImage: boolean;
@@ -115,6 +121,7 @@ export class ImageCache {
 		if (selection.artistImage) categories.push('artist_image');
 		if (selection.artistLogo) categories.push('artist_logo');
 		if (selection.albumArt) categories.push('album_art');
+		if (selection.albumArtBlurred) categories.push('album_art_blurred');
 		if (selection.playlistImage) categories.push('playlist_image');
 
 		await Promise.all(categories.map((category) => this.clearCategory(category)));
@@ -256,6 +263,46 @@ export class ImageCache {
 		}
 	}
 
+	// Called by App after it loads album art bytes from the native bootstrap.
+	async storeBlurred(url: string, buffer: ArrayBuffer, mimeType: string): Promise<void> {
+		if (this.memory.has(this.memoryKey(url, 'album_art_blurred'))) return;
+		await this.generateAndStoreBlurred(url, buffer, mimeType);
+	}
+
+	// Downscales the image to 24×24 via OffscreenCanvas, encodes to PNG using
+	// pure JS (avoids convertToBlob which is unavailable in native runtimes),
+	// and stores the result in the persistent store so it can be served via the
+	// atolla-cache:// URL scheme. When rendered full-screen the GPU upscale
+	// produces a very heavy blur. Also stores a data URI in memory as fallback.
+	private async generateAndStoreBlurred(
+		url: string,
+		buffer: ArrayBuffer,
+		mimeType: string,
+	): Promise<void> {
+		try {
+			const SIZE = 24;
+			const blob = new Blob([buffer], { type: mimeType });
+			const bitmap = await createImageBitmap(blob);
+			const canvas = new OffscreenCanvas(SIZE, SIZE);
+			const ctx = canvas.getContext('2d');
+			if (!ctx) return;
+			ctx.drawImage(bitmap, 0, 0, SIZE, SIZE);
+			const { data } = ctx.getImageData(0, 0, SIZE, SIZE);
+			const png = encodePng(new Uint8Array(data.buffer), SIZE, SIZE);
+			const storeKey = this.storeKey(url, 'album_art_blurred');
+			// Persist so the atolla-cache:// handler can serve it as an image URL.
+			try {
+				await this.store.store(storeKey, png, undefined, png.byteLength);
+			} catch {
+				// Persistence failed — data URI fallback still set below.
+			}
+			this.memory.set(this.memoryKey(url, 'album_art_blurred'), toDataUri(png, 'image/png'));
+			this.notify();
+		} catch {
+			// Non-critical — blur generation is best-effort
+		}
+	}
+
 	private memoryKey(url: string, category: ImageCategory): string {
 		return `${category}:${url}`;
 	}
@@ -317,6 +364,90 @@ export class ImageCache {
 			listener(url, buffer, mimeType);
 		}
 	}
+}
+
+// Encodes raw RGBA pixel data (w×h) into a valid PNG ArrayBuffer using only
+// pure JS — no convertToBlob, no browser DOM required. Uses an uncompressed
+// deflate stored block so there's no zlib implementation needed.
+function encodePng(rgba: Uint8Array, w: number, h: number): ArrayBuffer {
+	const crc32 = (d: Uint8Array): number => {
+		let c = 0xffffffff;
+		for (const b of d) {
+			c ^= b;
+			for (let i = 0; i < 8; i++) c = (c >>> 1) ^ (c & 1 ? 0xedb88320 : 0);
+		}
+		return (c ^ 0xffffffff) >>> 0;
+	};
+	const adler32 = (d: Uint8Array): number => {
+		let a = 1,
+			b = 0;
+		for (const v of d) {
+			a = (a + v) % 65521;
+			b = (b + a) % 65521;
+		}
+		return (b << 16) | a;
+	};
+	const mkChunk = (type: string, data: Uint8Array): Uint8Array => {
+		const out = new Uint8Array(12 + data.length);
+		const dv = new DataView(out.buffer);
+		dv.setUint32(0, data.length);
+		for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+		out.set(data, 8);
+		const forCrc = new Uint8Array(4 + data.length);
+		for (let i = 0; i < 4; i++) forCrc[i] = type.charCodeAt(i);
+		forCrc.set(data, 4);
+		dv.setUint32(8 + data.length, crc32(forCrc));
+		return out;
+	};
+
+	// IHDR: 8-bit RGB
+	const ihdr = new Uint8Array(13);
+	const ihdrDv = new DataView(ihdr.buffer);
+	ihdrDv.setUint32(0, w);
+	ihdrDv.setUint32(4, h);
+	ihdr[8] = 8;
+	ihdr[9] = 2; // colour type: RGB
+
+	// Raw scanlines: filter byte 0 (None) + R G B per pixel
+	const sl = 1 + w * 3;
+	const raw = new Uint8Array(h * sl);
+	for (let y = 0; y < h; y++) {
+		raw[y * sl] = 0;
+		for (let x = 0; x < w; x++) {
+			const s = (y * w + x) * 4;
+			const d = y * sl + 1 + x * 3;
+			raw[d] = rgba[s];
+			raw[d + 1] = rgba[s + 1];
+			raw[d + 2] = rgba[s + 2];
+		}
+	}
+
+	// IDAT: zlib header + uncompressed deflate block + adler32
+	const idat = new Uint8Array(2 + 5 + raw.length + 4);
+	const idatDv = new DataView(idat.buffer);
+	idat[0] = 0x78;
+	idat[1] = 0x01; // zlib CMF+FLG (check: (0x78*256+0x01)%31 === 0 ✓)
+	idat[2] = 0x01; // BFINAL=1, BTYPE=00 (stored, no compression)
+	idatDv.setUint16(3, raw.length, true);
+	idatDv.setUint16(5, ~raw.length & 0xffff, true);
+	idat.set(raw, 7);
+	idatDv.setUint32(7 + raw.length, adler32(raw)); // big-endian adler32
+
+	const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+	const parts = [
+		sig,
+		mkChunk('IHDR', ihdr),
+		mkChunk('IDAT', idat),
+		mkChunk('IEND', new Uint8Array(0)),
+	];
+	const total = parts.reduce((s, p) => s + p.length, 0);
+	const out = new Uint8Array(total);
+	let off = 0;
+	for (const p of parts) {
+		out.set(p, off);
+		off += p.length;
+	}
+	return out.buffer;
 }
 
 function toDataUri(buffer: ArrayBuffer, mimeType: string): string {

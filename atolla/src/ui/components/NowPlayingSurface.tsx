@@ -345,6 +345,10 @@ export class NowPlayingSurface extends StatefulComponent<
 		const albumImageUrl = album?.imageUrl ?? track.albumImageUrl ?? null;
 		const albumArtworkSource =
 			albumImageUrl == null ? null : buildImageSource(albumImageUrl, 'album_art');
+		// The native loader generates this on demand by downscaling the cached
+		// album_art to 24×24; GPU upscale to full-screen produces heavy blur.
+		const blurredBgSource =
+			albumImageUrl != null ? buildImageSource(albumImageUrl, 'album_art_blurred') : null;
 		const artistLogoSource =
 			artistLogoUrl == null ? null : buildImageSource(artistLogoUrl, 'artist_logo');
 
@@ -412,9 +416,19 @@ export class NowPlayingSurface extends StatefulComponent<
 			width: `${Math.round(progressRatio * 100)}%`,
 		});
 
-		// Expanded overlay card + content: surface bg
+		// Semi-transparent surface tint over the full-bleed artwork.
+		// High opacity gives the frosted-glass effect even without pixel-level blur.
+		const expandedBgOverlayStyle = new Style({
+			backgroundColor: withAlpha(surfaceColor, 0.68),
+			bottom: 0,
+			left: 0,
+			position: 'absolute',
+			right: 0,
+			top: 0,
+		});
+
+		// Expanded overlay card + content: frosted album art background
 		const overlayCardStyle = new Style({
-			backgroundColor: surfaceColor,
 			borderRadius: theme.borderRadius,
 			bottom: theme.footerHeight * 0.8,
 			height: 84,
@@ -425,7 +439,6 @@ export class NowPlayingSurface extends StatefulComponent<
 		});
 
 		const expandedContentStyle = new Style({
-			backgroundColor: surfaceColor,
 			bottom: 0,
 			height: '100%',
 			left: 14,
@@ -504,6 +517,15 @@ export class NowPlayingSurface extends StatefulComponent<
 
 			<view id='now-playing-surface-overlay' ref={this.overlayRef} style={styles.overlayRoot}>
 				<view ref={this.overlayCardRef} style={overlayCardStyle}>
+					{/* Layer 1: regular artwork — always visible as fallback. */}
+					{albumArtworkSource && (
+						<image objectFit='cover' src={albumArtworkSource} style={styles.expandedBgArtwork} />
+					)}
+					{/* Layer 2: 24x24 blurred PNG served via atolla-cache — GPU upscale gives heavy blur. */}
+					{blurredBgSource && (
+						<image objectFit='cover' src={blurredBgSource} style={styles.expandedBgArtwork} />
+					)}
+					<view style={expandedBgOverlayStyle} />
 					{/* biome-ignore lint/a11y/noStaticElementInteractions: Dedicated gesture zone for swipe-down collapse. */}
 					<view
 						onDrag={this.handleExpandedDrag}
@@ -652,6 +674,13 @@ const styles = {
 	}),
 	expandedArtistLogoArea: new Style({
 		width: '100%',
+	}),
+	expandedBgArtwork: new Style<ImageView>({
+		bottom: 0,
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
 	}),
 	expandedBottomSection: new Style({
 		marginBottom: theme.footerHeight - 24,

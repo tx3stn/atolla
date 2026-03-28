@@ -58,6 +58,14 @@ object AtollaImageLoaderAutoBootstrap {
 	}
 
 	@JvmStatic
+	fun clearNativeCacheCategories(categories: List<String>) {
+		registerForAllRuntimes()
+		synchronized(registeredLoaders) {
+			registeredLoaders.values.forEach { it.clearCategories(categories) }
+		}
+	}
+
+	@JvmStatic
 	fun extractPaletteFromCache(sourceUrl: String, category: String): String? {
 		registerForAllRuntimes()
 		return synchronized(registeredLoaders) {

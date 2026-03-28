@@ -1,5 +1,6 @@
 package atolla.native.android
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
@@ -14,6 +15,7 @@ import com.snap.valdi.utils.ValdiImageLoadCompletion
 import com.snap.valdi.utils.ValdiImageLoadOptions
 import com.snap.valdi.utils.ValdiImageLoader
 import com.snap.valdi.utils.ValdiImageWithContent
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.URL
 import java.security.MessageDigest
@@ -52,6 +54,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				Log.e(tag, "Disk cache path is not a directory: ${dir.absolutePath}")
 				return@lazy null
 			}
+			migrateOldDiskCacheFiles(dir)
 			dir
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed to initialize disk cache directory", error)
@@ -73,6 +76,27 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			return diskStats.second
 		}
 		return memory.values.sumOf { it.size.toLong() }
+	}
+
+	fun clearCategories(categories: List<String>) {
+		// Always clear blurred art alongside album art.
+		val expanded = categories.toMutableSet()
+		if (expanded.contains("album_art")) expanded.add("album_art_blurred")
+		val prefixes = expanded.map { "$it:" }
+
+		// Clear matching entries from memory.
+		val memKeys = memory.keys().toList().filter { k -> prefixes.any { k.startsWith(it) } }
+		for (k in memKeys) memory.remove(k)
+
+		// Disk filenames are "${category}_${sha256(key)}", so filter by prefix.
+		val dir = diskCacheDir ?: return
+		val files = try { dir.listFiles() } catch (_: Throwable) { null } ?: return
+		val diskPrefixes = expanded.map { "${it}_" }
+		var deleted = 0
+		for (file in files) {
+			if (file.isFile && diskPrefixes.any { file.name.startsWith(it) } && file.delete()) deleted++
+		}
+		Log.d(tag, "clearCategories: removed ${memKeys.size} memory entries, deleted $deleted disk files for $expanded")
 	}
 
 	fun extractPalette(category: String, sourceUrl: String): String? {
@@ -148,6 +172,48 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			return null
 		}
 
+		// For blurred requests: generate from the cached original, fetching from
+		// network on a background thread if the original isn't cached yet.
+		if (payload.category == "album_art_blurred") {
+			val originalKey = "album_art:${payload.sourceUrl}"
+			val cachedOriginal = memory[originalKey] ?: readFromDisk(originalKey)
+			if (cachedOriginal != null) {
+				val blurredBytes = generateBlurredBytes(cachedOriginal)
+				if (blurredBytes != null) {
+					memory[key] = blurredBytes
+					writeToDisk(key, blurredBytes)
+					Log.d(tag, "blur generated from cache key=$key bytes=${blurredBytes.size}")
+					completeFromBytes(blurredBytes, options, completion)
+					return null
+				}
+				completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed"))
+				return null
+			}
+			// Original not in cache yet — fetch from network then generate.
+			val worker = thread(start = true) {
+				try {
+					val originalBytes = URL(payload.sourceUrl).readBytes()
+					memory[originalKey] = originalBytes
+					writeToDisk(originalKey, originalBytes)
+					val blurredBytes = generateBlurredBytes(originalBytes)
+					if (blurredBytes != null) {
+						memory[key] = blurredBytes
+						writeToDisk(key, blurredBytes)
+						Log.d(tag, "blur generated after fetch key=$key bytes=${blurredBytes.size}")
+						completeFromBytes(blurredBytes, options, completion)
+					} else {
+						completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed after fetch"))
+					}
+				} catch (error: Throwable) {
+					Log.e(tag, "blur fetch failed key=$key", error)
+					completion.onImageLoadComplete(0, 0, null, error)
+				}
+			}
+			return object : Disposable {
+				override fun dispose() { worker.interrupt() }
+			}
+		}
+
 		if (payload.cacheOnly) {
 			completion.onImageLoadComplete(
 				0,
@@ -214,7 +280,8 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 	private fun cacheFileForKey(key: String): File? {
 		val dir = diskCacheDir ?: return null
-		return File(dir, sha256Hex(key))
+		val category = key.substringBefore(':')
+		return File(dir, "${category}_${sha256Hex(key)}")
 	}
 
 	private fun readFromDisk(key: String): ByteArray? {
@@ -503,6 +570,41 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		val g = (hue2rgb(p, q, hk) * 255.0).toInt()
 		val b = (hue2rgb(p, q, hk - 1.0 / 3.0) * 255.0).toInt()
 		return Triple(r, g, b)
+	}
+
+	private fun migrateOldDiskCacheFiles(dir: File) {
+		val migrationFlag = File(dir, ".migrated_v1")
+		if (migrationFlag.exists()) return
+		val oldNamePattern = Regex("^[0-9a-f]{64}$")
+		val files = try { dir.listFiles() } catch (_: Throwable) { null } ?: return
+		var deleted = 0
+		for (file in files) {
+			if (file.isFile && oldNamePattern.matches(file.name) && file.delete()) deleted++
+		}
+		migrationFlag.createNewFile()
+		Log.i(tag, "migrateOldDiskCacheFiles: deleted $deleted legacy files")
+	}
+
+	private fun generateBlurredBytes(originalBytes: ByteArray): ByteArray? {
+		return try {
+			val original = BitmapFactory.decodeByteArray(originalBytes, 0, originalBytes.size)
+				?: return null
+			// Two-pass downsample: first to 4×4 (extreme detail loss), then back up to
+			// 96×96 with bilinear filtering. The large upscale step smooths block edges
+			// into a soft gradient wash. Valdi bilinearly upscales the 96×96 to full-
+			// screen, keeping the result smooth throughout.
+			val tiny = Bitmap.createScaledBitmap(original, 4, 4, true)
+			original.recycle()
+			val smooth = Bitmap.createScaledBitmap(tiny, 96, 96, true)
+			tiny.recycle()
+			val out = ByteArrayOutputStream()
+			smooth.compress(Bitmap.CompressFormat.JPEG, 90, out)
+			smooth.recycle()
+			out.toByteArray()
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed to generate blurred bytes", error)
+			null
+		}
 	}
 
 	private fun getDiskStats(): Pair<Int, Long>? {

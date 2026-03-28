@@ -20,6 +20,10 @@ class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactor
 				return AtollaImageLoaderAutoBootstrap.getCacheByteSize().toDouble()
 			}
 
+			override fun clearAtollaNativeCacheCategories(categories: List<String>) {
+				AtollaImageLoaderAutoBootstrap.clearNativeCacheCategories(categories)
+			}
+
 			override fun extractAtollaPaletteFromCache(url: String, category: String): String {
 				return AtollaImageLoaderAutoBootstrap.extractPaletteFromCache(url, category) ?: ""
 			}

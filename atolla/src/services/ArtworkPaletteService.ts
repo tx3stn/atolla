@@ -3,6 +3,7 @@ import {
 	extractDominantColorCandidates,
 } from './color/colorQuantization';
 import {
+	applyHueTint,
 	hexToRgb,
 	hslToRgb,
 	legibleTextColor,
@@ -79,8 +80,10 @@ export class ArtworkPaletteService {
 
 			const candidates = extractDominantColorCandidates(pixels, 8);
 			const primary = this.selectPrimary(candidates);
+			const tint = this.selectTint(candidates, primary);
 			const accent = this.selectAccent(candidates, primary);
-			const surface = mutedVariant(primary);
+			const rawSurface = mutedVariant(primary);
+			const surface = tint ? applyHueTint(rawSurface, tint) : rawSurface;
 			const onSurface = legibleTextColor(surface);
 			const palette: Palette = {
 				accent,
@@ -106,6 +109,26 @@ export class ArtworkPaletteService {
 	// Returns the most dominant colour — the histogram bin with the highest pixel count.
 	private selectPrimary(candidates: Array<DominantColorCandidate>): Color {
 		return candidates[0]?.color ?? NEUTRAL_PALETTE.primary;
+	}
+
+	// If the primary is near-neutral, finds the most saturated candidate to use
+	// as a hue hint for tinting the surface. Returns null when the primary is
+	// already colourful enough that no tint is needed.
+	private selectTint(candidates: Array<DominantColorCandidate>, primary: Color): Color | null {
+		const [pr, pg, pb] = hexToRgb(primary.hex);
+		const [, primaryS] = rgbToHsl(pr, pg, pb);
+		if (primaryS >= 0.18) return null;
+
+		let best: { color: Color; saturation: number } | null = null;
+		for (const candidate of candidates) {
+			const [r, g, b] = hexToRgb(candidate.color.hex);
+			const [, s, l] = rgbToHsl(r, g, b);
+			if (s < 0.2 || l <= 0.12 || l >= 0.92) continue;
+			if (!best || s > best.saturation) {
+				best = { color: candidate.color, saturation: s };
+			}
+		}
+		return best?.color ?? null;
 	}
 
 	private selectAccent(candidates: Array<DominantColorCandidate>, primary: Color): Color {
