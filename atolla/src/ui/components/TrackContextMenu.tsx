@@ -2,7 +2,7 @@
 import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { BlurView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { BlurView, ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
@@ -107,7 +107,7 @@ export class TrackContextMenu extends StatefulComponent<
 					style={styles.actionRow}
 					testID='track-context-play-next'
 				>
-					<image src={res.play} style={styles.icon} tint={theme.colors.grey} />
+					<image src={res.playnext} style={styles.icon} tint={theme.colors.muted} />
 					<label style={styles.actionLabel} value='Play Next' />
 				</view>
 				<view
@@ -117,7 +117,7 @@ export class TrackContextMenu extends StatefulComponent<
 					style={styles.actionRow}
 					testID='track-context-add-to-queue'
 				>
-					<image src={res.search} style={styles.icon} tint={theme.colors.grey} />
+					<image src={res.addtoqueue} style={styles.icon} tint={theme.colors.muted} />
 					<label style={styles.actionLabel} value='Add to Queue' />
 				</view>
 				<view
@@ -127,7 +127,7 @@ export class TrackContextMenu extends StatefulComponent<
 					style={styles.actionRow}
 					testID='track-context-add-to-playlist'
 				>
-					<image src={res.search} style={styles.icon} tint={theme.colors.grey} />
+					<image src={res.addtoplaylist} style={styles.icon} tint={theme.colors.muted} />
 					<label style={styles.actionLabel} value='Add to Playlist' />
 				</view>
 			</view>
