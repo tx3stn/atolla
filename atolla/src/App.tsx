@@ -562,6 +562,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 	}
 
+	handleNowPlayingTrackTap = (trackId: string): void => {
+		const index = this.playbackStore.tracks.findIndex((t) => t.id === trackId);
+		if (index !== -1) {
+			this.playbackStore.jumpToIndex(index);
+		}
+	};
+
 	handleNowPlayingArtistTap = (): void => {
 		const { album, artistLogoUrl, track } = this.playbackStore;
 		const artistId = track?.artistId ?? album?.artistId;
@@ -726,6 +733,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						}
 						this.playbackStore.skipForward(10);
 					}}
+					onTrackTap={this.handleNowPlayingTrackTap}
 					palette={palette}
 					progressSeconds={progressSeconds}
 					track={track}

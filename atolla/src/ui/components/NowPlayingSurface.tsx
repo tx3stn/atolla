@@ -28,6 +28,7 @@ export interface NowPlayingSurfaceViewModel {
 	onPlayPause: () => void;
 	onPrevious: () => void;
 	onProgressTap?: (ratio?: number) => void;
+	onTrackTap?: (trackId: string) => void;
 	palette?: Palette;
 	progressSeconds: number;
 	track: Track;
@@ -325,6 +326,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			onPlayPause,
 			onProgressTap,
 			onPrevious,
+			onTrackTap,
 			palette = NEUTRAL_PALETTE,
 			progressSeconds,
 			track,
@@ -639,6 +641,7 @@ export class NowPlayingSurface extends StatefulComponent<
 								<TrackList
 									imageCache={imageCache}
 									noRowBackground
+									onTrackTap={onTrackTap}
 									palette={palette}
 									tracks={activeTab === 'upNext' ? upNextEntries : backToEntries}
 								/>

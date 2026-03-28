@@ -284,7 +284,7 @@ const styles = {
 		marginTop: 8,
 	}),
 	sectionTitle: new Style({
-		...theme.text.sub,
+		...theme.text.mutedHeader,
 		letterSpacing: 1,
 		marginBottom: 4,
 		marginLeft: 4,

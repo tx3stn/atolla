@@ -47,6 +47,14 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	jumpToIndex(index: number): void {
+		const clamped = Math.max(0, Math.min(this.tracks.length - 1, index));
+		this.trackIndex = clamped;
+		this.progressSeconds = 0;
+		this.isPlaying = true;
+		this.notify();
+	}
+
 	next(): void {
 		this.trackIndex = Math.min(this.trackIndex + 1, this.tracks.length - 1);
 		this.progressSeconds = 0;

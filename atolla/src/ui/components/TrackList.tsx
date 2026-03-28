@@ -44,6 +44,7 @@ export class TrackList extends Component<TrackListViewModel> {
 			...theme.text.sub,
 			color: colors.meta,
 			padding: 8,
+			textAlign: 'center',
 		});
 		const leadingLabelTextStyle = new Style<Label>({
 			...theme.text.main,
@@ -81,7 +82,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		});
 
 		if (this.viewModel.tracks.length === 0) {
-			<label key='track-list-empty' style={emptyStateStyle} value='No tracks found.' />;
+			<label key='track-list-empty' style={emptyStateStyle} value='nothing else lined up' />;
 			return;
 		}
 
