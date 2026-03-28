@@ -38,6 +38,15 @@ interface TrackListState {
 	longPressTimerId: ReturnType<typeof setTimeout> | null;
 }
 
+interface TrackListResolvedStyles {
+	artworkTileStyle: Style;
+	emptyStateStyle: Style<Label>;
+	leadingLabelTextStyle: Style<Label>;
+	metaStyle: Style<Label>;
+	rowStyle: Style;
+	titleStyle: Style<Label>;
+}
+
 const defaultColors: TrackListColors = {
 	meta: theme.text.sub.color,
 	rowBackground: theme.colors.bg,
@@ -46,6 +55,7 @@ const defaultColors: TrackListColors = {
 };
 
 const LONG_PRESS_DELAY_MS = 500;
+const resolvedStylesCache = new Map<string, TrackListResolvedStyles>();
 
 export class TrackList extends StatefulComponent<TrackListViewModel, TrackListState> {
 	private suppressNextTap = false;
@@ -56,49 +66,14 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 
 	onRender() {
 		const colors = resolveColors(this.viewModel.palette, this.viewModel.noRowBackground);
-		const emptyStateStyle = new Style<Label>({
-			...theme.text.sub,
-			color: colors.meta,
-			padding: 8,
-			textAlign: 'center',
-		});
-		const leadingLabelTextStyle = new Style<Label>({
-			...theme.text.main,
-			color: colors.title,
-			textAlign: 'center',
-		});
-		const titleStyle = new Style<Label>({
-			...theme.text.mainBold,
-			color: colors.title,
-			flexShrink: 1,
-			width: '100%',
-		});
-		const metaStyle = new Style<Label>({
-			...theme.text.sub,
-			color: colors.meta,
-			flexShrink: 1,
-			marginTop: 3,
-			width: '100%',
-		});
-		const rowStyle = new Style({
-			backgroundColor: colors.rowBackground,
-			borderRadius: theme.borderRadius,
-			paddingBottom: 8,
-			paddingLeft: 10,
-			paddingRight: 10,
-			paddingTop: 8,
-			rowGap: 4,
-		});
-		const artworkTileStyle = new Style({
-			aspectRatio: 1,
-			backgroundColor: colors.tileBackground,
-			borderRadius: theme.borderRadius,
-			overflow: 'hidden',
-			width: 42,
-		});
+		const resolvedStyles = getResolvedTrackListStyles(colors);
 
 		if (this.viewModel.tracks.length === 0) {
-			<label key='track-list-empty' style={emptyStateStyle} value='nothing else lined up' />;
+			<label
+				key='track-list-empty'
+				style={resolvedStyles.emptyStateStyle}
+				value='nothing else lined up'
+			/>;
 			return;
 		}
 
@@ -122,12 +97,12 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 								})(entry.track)
 							: undefined
 					}
-					style={rowStyle}
+					style={resolvedStyles.rowStyle}
 					testID={`track-row-${entry.id}`}
 				>
 					<layout style={styles.rowContent}>
 						{entry.artworkSource ? (
-							<view style={artworkTileStyle}>
+							<view style={resolvedStyles.artworkTileStyle}>
 								<CachedImage
 									category='album_art'
 									imageCache={this.viewModel.imageCache}
@@ -138,7 +113,7 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 							</view>
 						) : entry.leadingLabel ? (
 							<view style={styles.leadingLabelTile}>
-								<label style={leadingLabelTextStyle} value={entry.leadingLabel} />
+								<label style={resolvedStyles.leadingLabelTextStyle} value={entry.leadingLabel} />
 							</view>
 						) : null}
 
@@ -146,10 +121,15 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 							<label
 								ellipsizeMode='tail'
 								numberOfLines={2}
-								style={titleStyle}
+								style={resolvedStyles.titleStyle}
 								value={entry.title}
 							/>
-							<label ellipsizeMode='tail' numberOfLines={1} style={metaStyle} value={entry.meta} />
+							<label
+								ellipsizeMode='tail'
+								numberOfLines={1}
+								style={resolvedStyles.metaStyle}
+								value={entry.meta}
+							/>
 						</layout>
 					</layout>
 				</view>
@@ -179,6 +159,62 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 			}
 		}
 	}
+}
+
+function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedStyles {
+	const cacheKey = [colors.meta, colors.rowBackground, colors.tileBackground, colors.title].join(
+		'|',
+	);
+	const cached = resolvedStylesCache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+
+	const created: TrackListResolvedStyles = {
+		artworkTileStyle: new Style({
+			aspectRatio: 1,
+			backgroundColor: colors.tileBackground,
+			borderRadius: theme.borderRadius,
+			overflow: 'hidden',
+			width: 42,
+		}),
+		emptyStateStyle: new Style<Label>({
+			...theme.text.sub,
+			color: colors.meta,
+			padding: 8,
+			textAlign: 'center',
+		}),
+		leadingLabelTextStyle: new Style<Label>({
+			...theme.text.main,
+			color: colors.title,
+			textAlign: 'center',
+		}),
+		metaStyle: new Style<Label>({
+			...theme.text.sub,
+			color: colors.meta,
+			flexShrink: 1,
+			marginTop: 3,
+			width: '100%',
+		}),
+		rowStyle: new Style({
+			backgroundColor: colors.rowBackground,
+			borderRadius: theme.borderRadius,
+			paddingBottom: 8,
+			paddingLeft: 10,
+			paddingRight: 10,
+			paddingTop: 8,
+			rowGap: 4,
+		}),
+		titleStyle: new Style<Label>({
+			...theme.text.mainBold,
+			color: colors.title,
+			flexShrink: 1,
+			width: '100%',
+		}),
+	};
+
+	resolvedStylesCache.set(cacheKey, created);
+	return created;
 }
 
 function resolveColors(palette?: Palette, noRowBackground?: boolean): TrackListColors {

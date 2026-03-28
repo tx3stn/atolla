@@ -67,8 +67,16 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 	}
 }
 
+const buttonStyleCache = new Map<number, Style>();
+const iconStyleCache = new Map<number, Style<ImageView>>();
+
 function getButtonStyle(hitSize: number): Style {
-	return new Style({
+	const existingStyle = buttonStyleCache.get(hitSize);
+	if (existingStyle) {
+		return existingStyle;
+	}
+
+	const createdStyle = new Style({
 		alignItems: 'center',
 		height: hitSize,
 		justifyContent: 'center',
@@ -76,11 +84,20 @@ function getButtonStyle(hitSize: number): Style {
 		position: 'relative',
 		width: hitSize,
 	});
+	buttonStyleCache.set(hitSize, createdStyle);
+	return createdStyle;
 }
 
 function getIconStyle(iconSize: number): Style<ImageView> {
-	return new Style({
+	const existingStyle = iconStyleCache.get(iconSize);
+	if (existingStyle) {
+		return existingStyle;
+	}
+
+	const createdStyle = new Style({
 		height: iconSize,
 		width: iconSize,
 	});
+	iconStyleCache.set(iconSize, createdStyle);
+	return createdStyle;
 }

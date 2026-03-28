@@ -386,18 +386,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		const onSurfaceColor = palette.on_surface.hex;
 		const mutedOnSurfaceColor = palette.muted_on_surface.hex;
 
-		const backToLabelStyle = new Style<Label>({
-			...theme.text.sub,
-			color: mutedOnSurfaceColor,
-			opacity: activeTab === 'backTo' ? 1 : 0.4,
-			textAlign: 'center',
-		});
-		const upNextLabelStyle = new Style<Label>({
-			...theme.text.sub,
-			color: mutedOnSurfaceColor,
-			opacity: activeTab === 'upNext' ? 1 : 0.4,
-			textAlign: 'center',
-		});
+		const backToLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, activeTab === 'backTo');
+		const upNextLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, activeTab === 'upNext');
 
 		const progressRatio = track.duration > 0 ? Math.min(progressSeconds / track.duration, 1) : 0;
 		const elapsedText = formatDuration(progressSeconds);
@@ -417,117 +407,11 @@ export class NowPlayingSurface extends StatefulComponent<
 						: track.albumName
 					: '';
 
-		// Mini-player bar: blurred artwork bg + tint overlay, accent progress fill
-		const barStyle = new Style({
-			alignItems: 'center',
-			borderRadius: theme.borderRadius / 2,
-			bottom: theme.footerHeight * 0.8,
-			elevation: 18,
-			flexDirection: 'row',
-			left: 8,
-			marginLeft: 12,
-			marginRight: 12,
-			overflow: 'hidden',
-			position: 'absolute',
-			right: 8,
-			shadowColor: '#000000',
-			shadowOffset: { height: 10, width: 0 },
-			shadowOpacity: 0.35,
-			shadowRadius: 18,
-			zIndex: 25,
-		});
-
 		const expandedTrackColor = withAlpha(onSurfaceColor, 0.34);
-		const compactProgressFillStyle = new Style({
-			backgroundColor: accentColor,
-			borderRadius: theme.borderRadius / 2,
-			bottom: 0,
-			left: 0,
-			opacity: 0.68,
-			position: 'absolute',
-			right: 'auto',
-			top: 0,
-			width: `${Math.round(progressRatio * 100)}%`,
-		});
-
-		const bgOverlay = {
-			borderRadius: theme.borderRadius / 2,
-			bottom: 0,
-			left: 0,
-			position: 'absolute' as const,
-			right: 0,
-			top: 0,
-		};
-		// Semi-transparent surface tint over the full-bleed artwork.
-		// Lower opacity lets the blurred background dominate the look.
-		const expandedBgOverlayStyle = new Style({
-			...bgOverlay,
-			backgroundColor: withAlpha(surfaceColor, 0.45),
-		});
-		const compactBgOverlayStyle = new Style({
-			...bgOverlay,
-			backgroundColor: withAlpha(surfaceColor, 0.6),
-		});
-
-		// Expanded overlay card + content: frosted album art background
-		const overlayCardStyle = new Style({
-			borderRadius: theme.borderRadius,
-			bottom: theme.footerHeight * 0.8,
-			height: 84,
-			left: 20,
-			overflow: 'hidden',
-			position: 'absolute',
-			right: 20,
-		});
-
-		const expandedContentStyle = new Style({
-			bottom: 0,
-			height: '100%',
-			left: 14,
-			opacity: 0,
-			position: 'absolute',
-			right: 14,
-			top: 0,
-		});
-
-		// Palette-tinted text styles
-		const trackNameStyle = new Style<Label>({ ...theme.text.title, color: onSurfaceColor });
-		const artistNameStyle = new Style<Label>({
-			...theme.text.sub,
-			color: mutedOnSurfaceColor,
-			paddingTop: 4,
-		});
-		const timeStyle = new Style<Label>({
-			...theme.text.sub,
-			color: mutedOnSurfaceColor,
-			flexShrink: 0,
-			paddingRight: 10,
-		});
-		const expandedTrackNameStyle = new Style<Label>({
-			...theme.text.title,
-			color: onSurfaceColor,
-			textAlign: 'center',
-			width: '100%',
-		});
-		const expandedAlbumLineStyle = new Style<Label>({
-			...theme.text.subLarger,
-			color: mutedOnSurfaceColor,
-			marginTop: 4,
-			paddingTop: 12,
-			textAlign: 'center',
-			width: '100%',
-		});
-		const expandedArtistNameStyle = new Style<Label>({
-			...theme.text.mutedHeader,
-			color: mutedOnSurfaceColor,
-			marginBottom: 8,
-			textAlign: 'center',
-			width: '100%',
-		});
-		const expandedTimeLabelStyle = new Style<Label>({
-			...theme.text.sub,
-			color: mutedOnSurfaceColor,
-		});
+		const compactProgressFillStyle = createCompactProgressFillStyle(accentColor, progressRatio);
+		const compactBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.6);
+		const expandedBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.45);
+		const paletteStyles = getPaletteStyles(onSurfaceColor, mutedOnSurfaceColor);
 
 		const rootStyle = this.state.isExpanded ? styles.rootExpanded : styles.rootCollapsed;
 
@@ -538,7 +422,7 @@ export class NowPlayingSurface extends StatefulComponent<
 				onDrag={this.handleCompactDrag}
 				onTap={this.openSurface}
 				ref={this.compactBarRef}
-				style={barStyle}
+				style={styles.compactBar}
 			>
 				{albumArtworkSource && (
 					<image objectFit='cover' src={albumArtworkSource} style={styles.compactBgArtwork} />
@@ -554,18 +438,18 @@ export class NowPlayingSurface extends StatefulComponent<
 					<image objectFit='cover' src={albumArtworkSource} style={styles.artwork} />
 				)}
 				<layout style={styles.info}>
-					<label numberOfLines={1} style={trackNameStyle} value={track.name} />
+					<label numberOfLines={1} style={paletteStyles.trackNameStyle} value={track.name} />
 					<label
 						numberOfLines={1}
-						style={artistNameStyle}
+						style={paletteStyles.artistNameStyle}
 						value={track.artistName ?? album?.artistName ?? ''}
 					/>
 				</layout>
-				<label style={timeStyle} value={`${elapsedText} / ${totalText}`} />
+				<label style={paletteStyles.timeStyle} value={`${elapsedText} / ${totalText}`} />
 			</view>
 
 			<view id='now-playing-surface-overlay' ref={this.overlayRef} style={styles.overlayRoot}>
-				<view ref={this.overlayCardRef} style={overlayCardStyle}>
+				<view ref={this.overlayCardRef} style={styles.overlayCard}>
 					{/* Layer 1: regular artwork — always visible as fallback. */}
 					{albumArtworkSource && (
 						<image objectFit='cover' src={albumArtworkSource} style={styles.expandedBgArtwork} />
@@ -589,7 +473,7 @@ export class NowPlayingSurface extends StatefulComponent<
 							style={styles.transitionArtwork}
 						/>
 					)}
-					<view ref={this.expandedContentRef} style={expandedContentStyle}>
+					<view ref={this.expandedContentRef} style={styles.expandedContent}>
 						<scroll style={styles.expandedInner}>
 							<layout style={styles.expandedFirstPage}>
 								{albumArtworkSource && (
@@ -604,7 +488,7 @@ export class NowPlayingSurface extends StatefulComponent<
 									<ArtistLogo
 										containerStyle={styles.expandedArtistLogoArea}
 										fallbackText={album?.artistName ?? track.artistName ?? ''}
-										fallbackTextStyle={expandedArtistNameStyle}
+										fallbackTextStyle={paletteStyles.expandedArtistNameStyle}
 										imageCache={imageCache}
 										logoSource={artistLogoSource}
 										logoStyle={styles.expandedArtistLogo}
@@ -614,8 +498,16 @@ export class NowPlayingSurface extends StatefulComponent<
 								</layout>
 								<layout style={styles.expandedBottomSection}>
 									<layout style={styles.expandedTrackMetaSection}>
-										<label numberOfLines={2} style={expandedTrackNameStyle} value={track.name} />
-										<label numberOfLines={2} style={expandedAlbumLineStyle} value={albumLine} />
+										<label
+											numberOfLines={2}
+											style={paletteStyles.expandedTrackNameStyle}
+											value={track.name}
+										/>
+										<label
+											numberOfLines={2}
+											style={paletteStyles.expandedAlbumLineStyle}
+											value={albumLine}
+										/>
 									</layout>
 									<layout style={styles.expandedProgressSection}>
 										<PlaybackProgressBar
@@ -627,8 +519,8 @@ export class NowPlayingSurface extends StatefulComponent<
 											trackColor={expandedTrackColor}
 										/>
 										<layout style={styles.expandedTimeRow}>
-											<label style={expandedTimeLabelStyle} value={elapsedText} />
-											<label style={expandedTimeLabelStyle} value={remainingText} />
+											<label style={paletteStyles.expandedTimeLabelStyle} value={elapsedText} />
+											<label style={paletteStyles.expandedTimeLabelStyle} value={remainingText} />
 										</layout>
 									</layout>
 									<layout style={styles.expandedControlsRow}>
@@ -747,6 +639,136 @@ function extractYearFromDateString(dateString: string): number | null {
 	return yearCandidate;
 }
 
+interface PaletteStyles {
+	artistNameStyle: Style<Label>;
+	expandedAlbumLineStyle: Style<Label>;
+	expandedArtistNameStyle: Style<Label>;
+	expandedTimeLabelStyle: Style<Label>;
+	expandedTrackNameStyle: Style<Label>;
+	timeStyle: Style<Label>;
+	trackNameStyle: Style<Label>;
+}
+
+const compactProgressFillStyleCache = new Map<string, Style>();
+const overlayTintStyleCache = new Map<string, Style>();
+const paletteStylesCache = new Map<string, PaletteStyles>();
+const queueTabLabelStyleCache = new Map<string, Style<Label>>();
+
+function createCompactProgressFillStyle(accentColor: string, progressRatio: number): Style {
+	const progressPercent = Math.round(progressRatio * 100);
+	const key = `${accentColor}|${progressPercent}`;
+	const cachedStyle = compactProgressFillStyleCache.get(key);
+	if (cachedStyle) {
+		return cachedStyle;
+	}
+
+	const createdStyle = new Style({
+		backgroundColor: accentColor,
+		borderRadius: theme.borderRadius / 2,
+		bottom: 0,
+		left: 0,
+		opacity: 0.68,
+		position: 'absolute',
+		right: 'auto',
+		top: 0,
+		width: `${progressPercent}%`,
+	});
+	compactProgressFillStyleCache.set(key, createdStyle);
+	return createdStyle;
+}
+
+function getOverlayTintStyle(surfaceColor: string, opacity: number): Style {
+	const key = `${surfaceColor}|${opacity}`;
+	const cachedStyle = overlayTintStyleCache.get(key);
+	if (cachedStyle) {
+		return cachedStyle;
+	}
+
+	const createdStyle = new Style({
+		backgroundColor: withAlpha(surfaceColor, opacity),
+		borderRadius: theme.borderRadius / 2,
+		bottom: 0,
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
+	});
+	overlayTintStyleCache.set(key, createdStyle);
+	return createdStyle;
+}
+
+function getQueueTabLabelStyle(color: string, isActive: boolean): Style<Label> {
+	const opacity = isActive ? 1 : 0.4;
+	const key = `${color}|${opacity}`;
+	const cachedStyle = queueTabLabelStyleCache.get(key);
+	if (cachedStyle) {
+		return cachedStyle;
+	}
+
+	const createdStyle = new Style<Label>({
+		...theme.text.sub,
+		color,
+		opacity,
+		textAlign: 'center',
+	});
+	queueTabLabelStyleCache.set(key, createdStyle);
+	return createdStyle;
+}
+
+function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): PaletteStyles {
+	const key = `${onSurfaceColor}|${mutedOnSurfaceColor}`;
+	const cachedStyles = paletteStylesCache.get(key);
+	if (cachedStyles) {
+		return cachedStyles;
+	}
+
+	const createdStyles: PaletteStyles = {
+		artistNameStyle: new Style<Label>({
+			...theme.text.sub,
+			color: mutedOnSurfaceColor,
+			paddingTop: 4,
+		}),
+		expandedAlbumLineStyle: new Style<Label>({
+			...theme.text.subLarger,
+			color: mutedOnSurfaceColor,
+			marginTop: 4,
+			paddingTop: 12,
+			textAlign: 'center',
+			width: '100%',
+		}),
+		expandedArtistNameStyle: new Style<Label>({
+			...theme.text.mutedHeader,
+			color: mutedOnSurfaceColor,
+			marginBottom: 8,
+			textAlign: 'center',
+			width: '100%',
+		}),
+		expandedTimeLabelStyle: new Style<Label>({
+			...theme.text.sub,
+			color: mutedOnSurfaceColor,
+		}),
+		expandedTrackNameStyle: new Style<Label>({
+			...theme.text.title,
+			color: onSurfaceColor,
+			textAlign: 'center',
+			width: '100%',
+		}),
+		timeStyle: new Style<Label>({
+			...theme.text.sub,
+			color: mutedOnSurfaceColor,
+			flexShrink: 0,
+			paddingRight: 10,
+		}),
+		trackNameStyle: new Style<Label>({
+			...theme.text.title,
+			color: onSurfaceColor,
+		}),
+	};
+
+	paletteStylesCache.set(key, createdStyles);
+	return createdStyles;
+}
+
 const styles = {
 	artwork: new Style<ImageView>({
 		borderRadius: theme.borderRadius / 2,
@@ -754,6 +776,24 @@ const styles = {
 		height: 65,
 		marginRight: 14,
 		width: 65,
+	}),
+	compactBar: new Style({
+		alignItems: 'center',
+		borderRadius: theme.borderRadius / 2,
+		bottom: theme.footerHeight * 0.8,
+		elevation: 18,
+		flexDirection: 'row',
+		left: 8,
+		marginLeft: 12,
+		marginRight: 12,
+		overflow: 'hidden',
+		position: 'absolute',
+		right: 8,
+		shadowColor: '#000000',
+		shadowOffset: { height: 10, width: 0 },
+		shadowOpacity: 0.35,
+		shadowRadius: 18,
+		zIndex: 25,
 	}),
 	compactBgArtwork: new Style<ImageView>({
 		borderRadius: theme.borderRadius / 2,
@@ -791,6 +831,15 @@ const styles = {
 		marginBottom: theme.footerHeight - 24,
 		marginTop: 'auto',
 		width: '100%',
+	}),
+	expandedContent: new Style({
+		bottom: 0,
+		height: '100%',
+		left: 14,
+		opacity: 0,
+		position: 'absolute',
+		right: 14,
+		top: 0,
 	}),
 	expandedControlsRow: new Style({
 		alignItems: 'center',
@@ -870,6 +919,15 @@ const styles = {
 		flexShrink: 1,
 		justifyContent: 'center',
 		marginRight: 12,
+	}),
+	overlayCard: new Style({
+		borderRadius: theme.borderRadius,
+		bottom: theme.footerHeight * 0.8,
+		height: 84,
+		left: 20,
+		overflow: 'hidden',
+		position: 'absolute',
+		right: 20,
 	}),
 	overlayRoot: new Style({
 		height: '100%',

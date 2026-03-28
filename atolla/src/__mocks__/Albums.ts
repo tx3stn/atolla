@@ -806,8 +806,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -818,6 +816,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-1',
 		IndexNumber: 1,
 		Name: 'Concubine',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 790000000,
 		Type: 'Audio',
 	},
@@ -831,8 +831,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -843,6 +841,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-81',
 		IndexNumber: 2,
 		Name: 'Fault and Fracture',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 1850000000,
 		Type: 'Audio',
 	},
@@ -856,8 +856,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -868,6 +866,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-82',
 		IndexNumber: 3,
 		Name: 'Distance and Meaning',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 2580000000,
 		Type: 'Audio',
 	},
@@ -881,8 +881,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -893,6 +891,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-83',
 		IndexNumber: 4,
 		Name: 'Hell to Pay',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 2720000000,
 		Type: 'Audio',
 	},
@@ -906,8 +906,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -918,6 +916,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-84',
 		IndexNumber: 5,
 		Name: 'Homewrecker',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 2310000000,
 		Type: 'Audio',
 	},
@@ -931,8 +931,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -943,6 +941,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-85',
 		IndexNumber: 6,
 		Name: 'The Broken Vow',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 1330000000,
 		Type: 'Audio',
 	},
@@ -956,8 +956,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -968,6 +966,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-86',
 		IndexNumber: 7,
 		Name: 'Bitter and Then Some',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 880000000,
 		Type: 'Audio',
 	},
@@ -981,8 +981,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -993,6 +991,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-87',
 		IndexNumber: 8,
 		Name: 'Heaven in Her Arms',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 2410000000,
 		Type: 'Audio',
 	},
@@ -1006,8 +1006,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1018,6 +1016,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-88',
 		IndexNumber: 9,
 		Name: 'Phoenix in Flight',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 2290000000,
 		Type: 'Audio',
 	},
@@ -1031,8 +1031,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1043,6 +1041,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-89',
 		IndexNumber: 10,
 		Name: 'Phoenix in Flames',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 420000000,
 		Type: 'Audio',
 	},
@@ -1056,8 +1056,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1068,6 +1066,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-234',
 		IndexNumber: 11,
 		Name: 'Thaw',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 2700000000,
 		Type: 'Audio',
 	},
@@ -1081,8 +1081,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-1',
-		PremiereDate: '2001-09-04',
-		ProductionYear: 2001,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1093,6 +1091,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-2',
 		IndexNumber: 12,
 		Name: 'Jane Doe',
+		PremiereDate: '2001-09-04',
+		ProductionYear: 2001,
 		RunTimeTicks: 6940000000,
 		Type: 'Audio',
 	},
@@ -1106,8 +1106,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1118,6 +1116,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-3',
 		IndexNumber: 1,
 		Name: 'Dark Horse',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 1750000000,
 		Type: 'Audio',
 	},
@@ -1131,8 +1131,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1143,6 +1141,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-90',
 		IndexNumber: 2,
 		Name: 'Reap What You Sow',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 1590000000,
 		Type: 'Audio',
 	},
@@ -1156,8 +1156,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1168,6 +1166,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-4',
 		IndexNumber: 3,
 		Name: 'Axe to Fall',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 1010000000,
 		Type: 'Audio',
 	},
@@ -1181,8 +1181,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1193,6 +1191,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-235',
 		IndexNumber: 4,
 		Name: 'Effigy',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 1030000000,
 		Type: 'Audio',
 	},
@@ -1206,8 +1206,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1218,6 +1216,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-236',
 		IndexNumber: 5,
 		Name: 'Worms Will Feed / Rats Will Feast',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 3530000000,
 		Type: 'Audio',
 	},
@@ -1231,8 +1231,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1243,6 +1241,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-237',
 		IndexNumber: 6,
 		Name: 'Wishing Well',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 1700000000,
 		Type: 'Audio',
 	},
@@ -1256,8 +1256,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1268,6 +1266,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-238',
 		IndexNumber: 7,
 		Name: 'Damages',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 2660000000,
 		Type: 'Audio',
 	},
@@ -1281,8 +1281,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1293,6 +1291,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-239',
 		IndexNumber: 8,
 		Name: 'Losing Battle',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 1070000000,
 		Type: 'Audio',
 	},
@@ -1306,8 +1306,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1318,6 +1316,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-240',
 		IndexNumber: 9,
 		Name: 'Dead Beat',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 1560000000,
 		Type: 'Audio',
 	},
@@ -1331,8 +1331,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1343,6 +1341,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-241',
 		IndexNumber: 10,
 		Name: 'Cutter',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 1000000000,
 		Type: 'Audio',
 	},
@@ -1356,8 +1356,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1368,6 +1366,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-242',
 		IndexNumber: 11,
 		Name: 'Slave Driver',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 1680000000,
 		Type: 'Audio',
 	},
@@ -1381,8 +1381,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1393,6 +1391,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-243',
 		IndexNumber: 12,
 		Name: 'Cruel Bloom',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 2420000000,
 		Type: 'Audio',
 	},
@@ -1406,8 +1406,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-2',
-		PremiereDate: '2009-10-20',
-		ProductionYear: 2009,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1418,6 +1416,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-244',
 		IndexNumber: 13,
 		Name: 'Wretched World',
+		PremiereDate: '2009-10-20',
+		ProductionYear: 2009,
 		RunTimeTicks: 4310000000,
 		Type: 'Audio',
 	},
@@ -1431,8 +1431,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-3',
-		PremiereDate: '2025-10-03',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1443,6 +1441,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-5',
 		IndexNumber: 1,
 		Name: 'My Garden',
+		PremiereDate: '2025-10-03',
+		ProductionYear: 2025,
 		RunTimeTicks: 3130000000,
 		Type: 'Audio',
 	},
@@ -1456,8 +1456,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-3',
-		PremiereDate: '2025-10-03',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1468,6 +1466,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-69',
 		IndexNumber: 2,
 		Name: 'Flea',
+		PremiereDate: '2025-10-03',
+		ProductionYear: 2025,
 		RunTimeTicks: 2350000000,
 		Type: 'Audio',
 	},
@@ -1481,8 +1481,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-3',
-		PremiereDate: '2025-10-03',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1493,6 +1491,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-70',
 		IndexNumber: 3,
 		Name: 'Micah (5:15am)',
+		PremiereDate: '2025-10-03',
+		ProductionYear: 2025,
 		RunTimeTicks: 2620000000,
 		Type: 'Audio',
 	},
@@ -1506,8 +1506,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-3',
-		PremiereDate: '2025-10-03',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1518,6 +1516,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-6',
 		IndexNumber: 4,
 		Name: 'The Weight',
+		PremiereDate: '2025-10-03',
+		ProductionYear: 2025,
 		RunTimeTicks: 3430000000,
 		Type: 'Audio',
 	},
@@ -1531,8 +1531,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-3',
-		PremiereDate: '2025-10-03',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1543,6 +1541,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-327',
 		IndexNumber: 5,
 		Name: 'Serenity',
+		PremiereDate: '2025-10-03',
+		ProductionYear: 2025,
 		RunTimeTicks: 1870000000,
 		Type: 'Audio',
 	},
@@ -1556,8 +1556,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-3',
-		PremiereDate: '2025-10-03',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1568,6 +1566,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-328',
 		IndexNumber: 6,
 		Name: 'The Spiritual Sound',
+		PremiereDate: '2025-10-03',
+		ProductionYear: 2025,
 		RunTimeTicks: 290000000,
 		Type: 'Audio',
 	},
@@ -1581,8 +1581,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-3',
-		PremiereDate: '2025-10-03',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1593,6 +1591,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-329',
 		IndexNumber: 7,
 		Name: "Dan's Love Song",
+		PremiereDate: '2025-10-03',
+		ProductionYear: 2025,
 		RunTimeTicks: 2910000000,
 		Type: 'Audio',
 	},
@@ -1606,8 +1606,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-3',
-		PremiereDate: '2025-10-03',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1618,6 +1616,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-330',
 		IndexNumber: 8,
 		Name: 'Bodhidharma',
+		PremiereDate: '2025-10-03',
+		ProductionYear: 2025,
 		RunTimeTicks: 3830000000,
 		Type: 'Audio',
 	},
@@ -1631,8 +1631,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-3',
-		PremiereDate: '2025-10-03',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1643,6 +1641,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-331',
 		IndexNumber: 9,
 		Name: 'Hallelujah',
+		PremiereDate: '2025-10-03',
+		ProductionYear: 2025,
 		RunTimeTicks: 2100000000,
 		Type: 'Audio',
 	},
@@ -1656,8 +1656,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-3',
-		PremiereDate: '2025-10-03',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1668,6 +1666,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-332',
 		IndexNumber: 10,
 		Name: 'The Reply',
+		PremiereDate: '2025-10-03',
+		ProductionYear: 2025,
 		RunTimeTicks: 3890000000,
 		Type: 'Audio',
 	},
@@ -1681,8 +1681,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-4',
-		PremiereDate: '2022-07-29',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1693,6 +1691,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-7',
 		IndexNumber: 1,
 		Name: 'Slaughterhouse',
+		PremiereDate: '2022-07-29',
+		ProductionYear: 2022,
 		RunTimeTicks: 1920000000,
 		Type: 'Audio',
 	},
@@ -1706,8 +1706,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-4',
-		PremiereDate: '2022-07-29',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1718,6 +1716,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-71',
 		IndexNumber: 2,
 		Name: 'Wicked Puppet Dance',
+		PremiereDate: '2022-07-29',
+		ProductionYear: 2022,
 		RunTimeTicks: 1710000000,
 		Type: 'Audio',
 	},
@@ -1731,8 +1731,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-4',
-		PremiereDate: '2022-07-29',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1743,6 +1741,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-72',
 		IndexNumber: 3,
 		Name: 'Grimace_Smoking_Weed.jpeg',
+		PremiereDate: '2022-07-29',
+		ProductionYear: 2022,
 		RunTimeTicks: 2620000000,
 		Type: 'Audio',
 	},
@@ -1756,8 +1756,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-4',
-		PremiereDate: '2022-07-29',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1768,6 +1766,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-91',
 		IndexNumber: 4,
 		Name: 'Tropical Beaches, Inc.',
+		PremiereDate: '2022-07-29',
+		ProductionYear: 2022,
 		RunTimeTicks: 2080000000,
 		Type: 'Audio',
 	},
@@ -1781,8 +1781,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-4',
-		PremiereDate: '2022-07-29',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1793,6 +1791,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-92',
 		IndexNumber: 5,
 		Name: 'The Mask',
+		PremiereDate: '2022-07-29',
+		ProductionYear: 2022,
 		RunTimeTicks: 1980000000,
 		Type: 'Audio',
 	},
@@ -1806,8 +1806,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-4',
-		PremiereDate: '2022-07-29',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1818,6 +1816,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-93',
 		IndexNumber: 6,
 		Name: 'Shame',
+		PremiereDate: '2022-07-29',
+		ProductionYear: 2022,
 		RunTimeTicks: 2040000000,
 		Type: 'Audio',
 	},
@@ -1831,8 +1831,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-4',
-		PremiereDate: '2022-07-29',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1843,6 +1841,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-94',
 		IndexNumber: 7,
 		Name: 'Pamela',
+		PremiereDate: '2022-07-29',
+		ProductionYear: 2022,
 		RunTimeTicks: 2010000000,
 		Type: 'Audio',
 	},
@@ -1856,8 +1856,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-4',
-		PremiereDate: '2022-07-29',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1868,6 +1866,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-8',
 		IndexNumber: 8,
 		Name: 'Why',
+		PremiereDate: '2022-07-29',
+		ProductionYear: 2022,
 		RunTimeTicks: 2740000000,
 		Type: 'Audio',
 	},
@@ -1881,8 +1881,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-5',
-		PremiereDate: '2023-12-07',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1893,6 +1891,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-73',
 		IndexNumber: 1,
 		Name: 'RAT WARS',
+		PremiereDate: '2023-12-07',
+		ProductionYear: 2023,
 		RunTimeTicks: 1900000000,
 		Type: 'Audio',
 	},
@@ -1906,8 +1906,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-5',
-		PremiereDate: '2023-12-07',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1918,6 +1916,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-9',
 		IndexNumber: 2,
 		Name: 'HATEFUL',
+		PremiereDate: '2023-12-07',
+		ProductionYear: 2023,
 		RunTimeTicks: 2090000000,
 		Type: 'Audio',
 	},
@@ -1931,8 +1931,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-5',
-		PremiereDate: '2023-12-07',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1943,6 +1941,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-95',
 		IndexNumber: 3,
 		Name: 'CHILDREN OF SORROW',
+		PremiereDate: '2023-12-07',
+		ProductionYear: 2023,
 		RunTimeTicks: 2320000000,
 		Type: 'Audio',
 	},
@@ -1956,8 +1956,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-5',
-		PremiereDate: '2023-12-07',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1968,6 +1966,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-74',
 		IndexNumber: 4,
 		Name: 'CRACK METAL',
+		PremiereDate: '2023-12-07',
+		ProductionYear: 2023,
 		RunTimeTicks: 2010000000,
 		Type: 'Audio',
 	},
@@ -1981,8 +1981,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-5',
-		PremiereDate: '2023-12-07',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -1993,6 +1991,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-96',
 		IndexNumber: 5,
 		Name: 'UNLOVED',
+		PremiereDate: '2023-12-07',
+		ProductionYear: 2023,
 		RunTimeTicks: 2150000000,
 		Type: 'Audio',
 	},
@@ -2006,8 +2006,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-5',
-		PremiereDate: '2023-12-07',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2018,6 +2016,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-10',
 		IndexNumber: 6,
 		Name: 'DEMIGODS',
+		PremiereDate: '2023-12-07',
+		ProductionYear: 2023,
 		RunTimeTicks: 2240000000,
 		Type: 'Audio',
 	},
@@ -2031,8 +2031,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-6',
-		PremiereDate: '2014-10-07',
-		ProductionYear: 2014,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2043,6 +2041,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-11',
 		IndexNumber: 1,
 		Name: 'Overdose',
+		PremiereDate: '2014-10-07',
+		ProductionYear: 2014,
 		RunTimeTicks: 1190000000,
 		Type: 'Audio',
 	},
@@ -2056,8 +2056,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-6',
-		PremiereDate: '2014-10-07',
-		ProductionYear: 2014,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2068,6 +2066,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-97',
 		IndexNumber: 2,
 		Name: 'Half-Lit (Intro)',
+		PremiereDate: '2014-10-07',
+		ProductionYear: 2014,
 		RunTimeTicks: 1330000000,
 		Type: 'Audio',
 	},
@@ -2081,8 +2081,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-6',
-		PremiereDate: '2014-10-07',
-		ProductionYear: 2014,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2093,6 +2091,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-75',
 		IndexNumber: 3,
 		Name: 'Marbles',
+		PremiereDate: '2014-10-07',
+		ProductionYear: 2014,
 		RunTimeTicks: 1420000000,
 		Type: 'Audio',
 	},
@@ -2106,8 +2106,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-6',
-		PremiereDate: '2014-10-07',
-		ProductionYear: 2014,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2118,6 +2116,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-76',
 		IndexNumber: 4,
 		Name: 'Ketamine',
+		PremiereDate: '2014-10-07',
+		ProductionYear: 2014,
 		RunTimeTicks: 1360000000,
 		Type: 'Audio',
 	},
@@ -2131,8 +2131,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-6',
-		PremiereDate: '2014-10-07',
-		ProductionYear: 2014,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2143,6 +2141,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-12',
 		IndexNumber: 5,
 		Name: 'Half-Lit',
+		PremiereDate: '2014-10-07',
+		ProductionYear: 2014,
 		RunTimeTicks: 1460000000,
 		Type: 'Audio',
 	},
@@ -2156,8 +2156,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2168,6 +2166,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-13',
 		IndexNumber: 1,
 		Name: 'First Light',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 600000000,
 		Type: 'Audio',
 	},
@@ -2181,8 +2181,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2193,6 +2191,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-245',
 		IndexNumber: 2,
 		Name: 'Last Light',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 2140000000,
 		Type: 'Audio',
 	},
@@ -2206,8 +2206,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2218,6 +2216,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-246',
 		IndexNumber: 3,
 		Name: 'Black Cloud',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 1390000000,
 		Type: 'Audio',
 	},
@@ -2231,8 +2231,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2243,6 +2241,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-247',
 		IndexNumber: 4,
 		Name: 'Drop Out',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 1520000000,
 		Type: 'Audio',
 	},
@@ -2256,8 +2256,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2268,6 +2266,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-248',
 		IndexNumber: 5,
 		Name: 'Hope Street',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 670000000,
 		Type: 'Audio',
 	},
@@ -2281,8 +2281,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2293,6 +2291,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-249',
 		IndexNumber: 6,
 		Name: 'Heartless',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 1480000000,
 		Type: 'Audio',
 	},
@@ -2306,8 +2306,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2318,6 +2316,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-250',
 		IndexNumber: 7,
 		Name: 'You Fail Me',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 3370000000,
 		Type: 'Audio',
 	},
@@ -2331,8 +2331,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2343,6 +2341,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-251',
 		IndexNumber: 8,
 		Name: 'In Her Shadow',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 3860000000,
 		Type: 'Audio',
 	},
@@ -2356,8 +2356,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2368,6 +2366,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-14',
 		IndexNumber: 9,
 		Name: 'Eagles Become Vultures',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 1320000000,
 		Type: 'Audio',
 	},
@@ -2381,8 +2381,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2393,6 +2391,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-252',
 		IndexNumber: 10,
 		Name: 'Wolves at My Door',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 1530000000,
 		Type: 'Audio',
 	},
@@ -2406,8 +2406,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2418,6 +2416,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-253',
 		IndexNumber: 11,
 		Name: 'Death King',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 1280000000,
 		Type: 'Audio',
 	},
@@ -2431,8 +2431,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2443,6 +2441,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-254',
 		IndexNumber: 12,
 		Name: 'In Her Blood',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 2470000000,
 		Type: 'Audio',
 	},
@@ -2456,8 +2456,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-7',
-		PremiereDate: '2004-09-20',
-		ProductionYear: 2004,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2468,6 +2466,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-255',
 		IndexNumber: 13,
 		Name: 'Hanging Moon',
+		PremiereDate: '2004-09-20',
+		ProductionYear: 2004,
 		RunTimeTicks: 1240000000,
 		Type: 'Audio',
 	},
@@ -2481,8 +2481,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-8',
-		PremiereDate: '2012-10-08',
-		ProductionYear: 2012,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2493,6 +2491,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-15',
 		IndexNumber: 1,
 		Name: 'Aimless Arrow',
+		PremiereDate: '2012-10-08',
+		ProductionYear: 2012,
 		RunTimeTicks: 1740000000,
 		Type: 'Audio',
 	},
@@ -2506,8 +2506,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-8',
-		PremiereDate: '2012-10-08',
-		ProductionYear: 2012,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2518,6 +2516,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-98',
 		IndexNumber: 2,
 		Name: 'Trespasses',
+		PremiereDate: '2012-10-08',
+		ProductionYear: 2012,
 		RunTimeTicks: 1980000000,
 		Type: 'Audio',
 	},
@@ -2531,8 +2531,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-8',
-		PremiereDate: '2012-10-08',
-		ProductionYear: 2012,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2543,6 +2541,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-99',
 		IndexNumber: 3,
 		Name: 'Tender Abuse',
+		PremiereDate: '2012-10-08',
+		ProductionYear: 2012,
 		RunTimeTicks: 1660000000,
 		Type: 'Audio',
 	},
@@ -2556,8 +2556,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-8',
-		PremiereDate: '2012-10-08',
-		ProductionYear: 2012,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2568,6 +2566,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-16',
 		IndexNumber: 4,
 		Name: 'Sadness Comes Home',
+		PremiereDate: '2012-10-08',
+		ProductionYear: 2012,
 		RunTimeTicks: 2000000000,
 		Type: 'Audio',
 	},
@@ -2581,8 +2581,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2593,6 +2591,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-17',
 		IndexNumber: 1,
 		Name: 'The Saddest Day',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 4250000000,
 		Type: 'Audio',
 	},
@@ -2606,8 +2606,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2618,6 +2616,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-100',
 		IndexNumber: 2,
 		Name: 'Forsaken',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 1400000000,
 		Type: 'Audio',
 	},
@@ -2631,8 +2631,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2643,6 +2641,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-101',
 		IndexNumber: 3,
 		Name: 'Albatross',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 1090000000,
 		Type: 'Audio',
 	},
@@ -2656,8 +2656,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2668,6 +2666,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-102',
 		IndexNumber: 4,
 		Name: 'Dead',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 1860000000,
 		Type: 'Audio',
 	},
@@ -2681,8 +2681,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2693,6 +2691,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-256',
 		IndexNumber: 5,
 		Name: 'Shingles',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 2540000000,
 		Type: 'Audio',
 	},
@@ -2706,8 +2706,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2718,6 +2716,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-257',
 		IndexNumber: 6,
 		Name: 'Buried but Breathing',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 710000000,
 		Type: 'Audio',
 	},
@@ -2731,8 +2731,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2743,6 +2741,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-258',
 		IndexNumber: 7,
 		Name: 'Farewell Note to This City',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 3200000000,
 		Type: 'Audio',
 	},
@@ -2756,8 +2756,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2768,6 +2766,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-18',
 		IndexNumber: 8,
 		Name: 'Color Me Blood Red',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 2370000000,
 		Type: 'Audio',
 	},
@@ -2781,8 +2781,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2793,6 +2791,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-259',
 		IndexNumber: 9,
 		Name: 'For You (live)',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 1640000000,
 		Type: 'Audio',
 	},
@@ -2806,8 +2806,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2818,6 +2816,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-260',
 		IndexNumber: 10,
 		Name: 'Antithesis (live)',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 3400000000,
 		Type: 'Audio',
 	},
@@ -2831,8 +2831,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2843,6 +2841,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-261',
 		IndexNumber: 11,
 		Name: 'Homesong (live)',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 4260000000,
 		Type: 'Audio',
 	},
@@ -2856,8 +2856,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-9',
-		PremiereDate: '1996',
-		ProductionYear: 1996,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2868,6 +2866,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-262',
 		IndexNumber: 12,
 		Name: 'Love as Arson (alternate version)',
+		PremiereDate: '1996',
+		ProductionYear: 1996,
 		RunTimeTicks: 1830000000,
 		Type: 'Audio',
 	},
@@ -2881,8 +2881,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2893,6 +2891,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-263',
 		IndexNumber: 1,
 		Name: 'My Unsaid Everything',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 2040000000,
 		Type: 'Audio',
 	},
@@ -2906,8 +2906,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2918,6 +2916,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-19',
 		IndexNumber: 2,
 		Name: 'The High Cost of Playing God',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 2570000000,
 		Type: 'Audio',
 	},
@@ -2931,8 +2931,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2943,6 +2941,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-103',
 		IndexNumber: 3,
 		Name: 'In Harms Way',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 2600000000,
 		Type: 'Audio',
 	},
@@ -2956,8 +2956,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2968,6 +2966,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-104',
 		IndexNumber: 4,
 		Name: 'Conduit',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 2500000000,
 		Type: 'Audio',
 	},
@@ -2981,8 +2981,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -2993,6 +2991,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-105',
 		IndexNumber: 5,
 		Name: 'The Lowest Common Denominator',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 2340000000,
 		Type: 'Audio',
 	},
@@ -3006,8 +3006,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3018,6 +3016,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-106',
 		IndexNumber: 6,
 		Name: 'Towing Jehovah',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 1410000000,
 		Type: 'Audio',
 	},
@@ -3031,8 +3031,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3043,6 +3041,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-264',
 		IndexNumber: 7,
 		Name: 'When Forever Comes Crashing',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 1940000000,
 		Type: 'Audio',
 	},
@@ -3056,8 +3056,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3068,6 +3066,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-265',
 		IndexNumber: 8,
 		Name: 'Ten Cents',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 1400000000,
 		Type: 'Audio',
 	},
@@ -3081,8 +3081,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3093,6 +3091,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-266',
 		IndexNumber: 9,
 		Name: 'Year of the Swine',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 2270000000,
 		Type: 'Audio',
 	},
@@ -3106,8 +3106,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3118,6 +3116,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-20',
 		IndexNumber: 10,
 		Name: 'Letterbomb',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 2620000000,
 		Type: 'Audio',
 	},
@@ -3131,8 +3131,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3143,6 +3141,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-267',
 		IndexNumber: 11,
 		Name: 'Love as Arson',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 2030000000,
 		Type: 'Audio',
 	},
@@ -3156,8 +3156,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-10',
-		PremiereDate: '1998-04-14',
-		ProductionYear: 1998,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3168,6 +3166,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-268',
 		IndexNumber: 12,
 		Name: 'Bitter and Then Some (demo version)',
+		PremiereDate: '1998-04-14',
+		ProductionYear: 1998,
 		RunTimeTicks: 890000000,
 		Type: 'Audio',
 	},
@@ -3181,8 +3181,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3193,6 +3191,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-21',
 		IndexNumber: 1,
 		Name: 'A Single Tear',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 2000000000,
 		Type: 'Audio',
 	},
@@ -3206,8 +3206,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3218,6 +3216,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-109',
 		IndexNumber: 2,
 		Name: 'Eye of the Quarrel',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 1350000000,
 		Type: 'Audio',
 	},
@@ -3231,8 +3231,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3243,6 +3241,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-110',
 		IndexNumber: 3,
 		Name: 'Under Duress',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 2230000000,
 		Type: 'Audio',
 	},
@@ -3256,8 +3256,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3268,6 +3266,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-111',
 		IndexNumber: 4,
 		Name: 'Arkhipov Calm',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 1730000000,
 		Type: 'Audio',
 	},
@@ -3281,8 +3281,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3293,6 +3291,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-112',
 		IndexNumber: 5,
 		Name: 'I Can Tell You About Pain',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 1440000000,
 		Type: 'Audio',
 	},
@@ -3306,8 +3306,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3318,6 +3316,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-22',
 		IndexNumber: 6,
 		Name: 'The Dusk in Us',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 4430000000,
 		Type: 'Audio',
 	},
@@ -3331,8 +3331,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3343,6 +3341,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-190',
 		IndexNumber: 7,
 		Name: 'Wildlife',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 1490000000,
 		Type: 'Audio',
 	},
@@ -3356,8 +3356,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3368,6 +3366,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-191',
 		IndexNumber: 8,
 		Name: 'Murk & Marrow',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 1810000000,
 		Type: 'Audio',
 	},
@@ -3381,8 +3381,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3393,6 +3391,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-192',
 		IndexNumber: 9,
 		Name: 'Trigger',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 2140000000,
 		Type: 'Audio',
 	},
@@ -3406,8 +3406,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3418,6 +3416,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-193',
 		IndexNumber: 10,
 		Name: 'Broken by Light',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 1070000000,
 		Type: 'Audio',
 	},
@@ -3431,8 +3431,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3443,6 +3441,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-194',
 		IndexNumber: 11,
 		Name: 'Cannibals',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 760000000,
 		Type: 'Audio',
 	},
@@ -3456,8 +3456,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3468,6 +3466,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-195',
 		IndexNumber: 12,
 		Name: 'Thousands of Miles Between Us',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 2830000000,
 		Type: 'Audio',
 	},
@@ -3481,8 +3481,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-11',
-		PremiereDate: '2017-11-03',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3493,6 +3491,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-196',
 		IndexNumber: 13,
 		Name: 'Reptilian',
+		PremiereDate: '2017-11-03',
+		ProductionYear: 2017,
 		RunTimeTicks: 2730000000,
 		Type: 'Audio',
 	},
@@ -3506,8 +3506,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-12',
-		PremiereDate: '2021-11-19',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3518,6 +3516,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-23',
 		IndexNumber: 1,
 		Name: 'Blood Moon',
+		PremiereDate: '2021-11-19',
+		ProductionYear: 2021,
 		RunTimeTicks: 4710000000,
 		Type: 'Audio',
 	},
@@ -3531,8 +3531,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-12',
-		PremiereDate: '2021-11-19',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3543,6 +3541,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-269',
 		IndexNumber: 2,
 		Name: 'Viscera of Men',
+		PremiereDate: '2021-11-19',
+		ProductionYear: 2021,
 		RunTimeTicks: 3290000000,
 		Type: 'Audio',
 	},
@@ -3556,8 +3556,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-12',
-		PremiereDate: '2021-11-19',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3568,6 +3566,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-270',
 		IndexNumber: 3,
 		Name: 'Coil',
+		PremiereDate: '2021-11-19',
+		ProductionYear: 2021,
 		RunTimeTicks: 3680000000,
 		Type: 'Audio',
 	},
@@ -3581,8 +3581,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-12',
-		PremiereDate: '2021-11-19',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3593,6 +3591,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-24',
 		IndexNumber: 4,
 		Name: 'Flower Moon',
+		PremiereDate: '2021-11-19',
+		ProductionYear: 2021,
 		RunTimeTicks: 2780000000,
 		Type: 'Audio',
 	},
@@ -3606,8 +3606,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-12',
-		PremiereDate: '2021-11-19',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3618,6 +3616,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-271',
 		IndexNumber: 5,
 		Name: 'Tongues Playing Dead',
+		PremiereDate: '2021-11-19',
+		ProductionYear: 2021,
 		RunTimeTicks: 2520000000,
 		Type: 'Audio',
 	},
@@ -3631,8 +3631,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-12',
-		PremiereDate: '2021-11-19',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3643,6 +3641,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-272',
 		IndexNumber: 6,
 		Name: 'Lord of Liars',
+		PremiereDate: '2021-11-19',
+		ProductionYear: 2021,
 		RunTimeTicks: 2010000000,
 		Type: 'Audio',
 	},
@@ -3656,8 +3656,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-12',
-		PremiereDate: '2021-11-19',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3668,6 +3666,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-273',
 		IndexNumber: 7,
 		Name: 'Failure Forever',
+		PremiereDate: '2021-11-19',
+		ProductionYear: 2021,
 		RunTimeTicks: 2430000000,
 		Type: 'Audio',
 	},
@@ -3681,8 +3681,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-12',
-		PremiereDate: '2021-11-19',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3693,6 +3691,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-274',
 		IndexNumber: 8,
 		Name: "Scorpion's Sting",
+		PremiereDate: '2021-11-19',
+		ProductionYear: 2021,
 		RunTimeTicks: 3480000000,
 		Type: 'Audio',
 	},
@@ -3706,8 +3706,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-12',
-		PremiereDate: '2021-11-19',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3718,6 +3716,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-275',
 		IndexNumber: 9,
 		Name: 'Daimon',
+		PremiereDate: '2021-11-19',
+		ProductionYear: 2021,
 		RunTimeTicks: 4190000000,
 		Type: 'Audio',
 	},
@@ -3731,8 +3731,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-12',
-		PremiereDate: '2021-11-19',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3743,6 +3741,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-276',
 		IndexNumber: 10,
 		Name: 'Crimson Stone',
+		PremiereDate: '2021-11-19',
+		ProductionYear: 2021,
 		RunTimeTicks: 4070000000,
 		Type: 'Audio',
 	},
@@ -3756,8 +3756,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-12',
-		PremiereDate: '2021-11-19',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3768,6 +3766,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-277',
 		IndexNumber: 11,
 		Name: 'Blood Dawn',
+		PremiereDate: '2021-11-19',
+		ProductionYear: 2021,
 		RunTimeTicks: 2110000000,
 		Type: 'Audio',
 	},
@@ -3781,8 +3781,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-13',
-		PremiereDate: '2016-09-16',
-		ProductionYear: 2016,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3793,6 +3791,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-25',
 		IndexNumber: 1,
 		Name: 'Flowers and You',
+		PremiereDate: '2016-09-16',
+		ProductionYear: 2016,
 		RunTimeTicks: 2140000000,
 		Type: 'Audio',
 	},
@@ -3806,8 +3806,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-13',
-		PremiereDate: '2016-09-16',
-		ProductionYear: 2016,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3818,6 +3816,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-115',
 		IndexNumber: 2,
 		Name: 'New Halloween',
+		PremiereDate: '2016-09-16',
+		ProductionYear: 2016,
 		RunTimeTicks: 2080000000,
 		Type: 'Audio',
 	},
@@ -3831,8 +3831,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-13',
-		PremiereDate: '2016-09-16',
-		ProductionYear: 2016,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3843,6 +3841,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-116',
 		IndexNumber: 3,
 		Name: 'Rapture',
+		PremiereDate: '2016-09-16',
+		ProductionYear: 2016,
 		RunTimeTicks: 1920000000,
 		Type: 'Audio',
 	},
@@ -3856,8 +3856,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-13',
-		PremiereDate: '2016-09-16',
-		ProductionYear: 2016,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3868,6 +3866,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-117',
 		IndexNumber: 4,
 		Name: 'Displacement',
+		PremiereDate: '2016-09-16',
+		ProductionYear: 2016,
 		RunTimeTicks: 1310000000,
 		Type: 'Audio',
 	},
@@ -3881,8 +3881,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-13',
-		PremiereDate: '2016-09-16',
-		ProductionYear: 2016,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3893,6 +3891,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-278',
 		IndexNumber: 5,
 		Name: 'Benediction',
+		PremiereDate: '2016-09-16',
+		ProductionYear: 2016,
 		RunTimeTicks: 2200000000,
 		Type: 'Audio',
 	},
@@ -3906,8 +3906,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-13',
-		PremiereDate: '2016-09-16',
-		ProductionYear: 2016,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3918,6 +3916,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-279',
 		IndexNumber: 6,
 		Name: 'Eight Seconds',
+		PremiereDate: '2016-09-16',
+		ProductionYear: 2016,
 		RunTimeTicks: 920000000,
 		Type: 'Audio',
 	},
@@ -3931,8 +3931,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-13',
-		PremiereDate: '2016-09-16',
-		ProductionYear: 2016,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3943,6 +3941,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-26',
 		IndexNumber: 7,
 		Name: 'Palm Dreams',
+		PremiereDate: '2016-09-16',
+		ProductionYear: 2016,
 		RunTimeTicks: 1470000000,
 		Type: 'Audio',
 	},
@@ -3956,8 +3956,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-13',
-		PremiereDate: '2016-09-16',
-		ProductionYear: 2016,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3968,6 +3966,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-280',
 		IndexNumber: 8,
 		Name: 'Softer Spoken',
+		PremiereDate: '2016-09-16',
+		ProductionYear: 2016,
 		RunTimeTicks: 1160000000,
 		Type: 'Audio',
 	},
@@ -3981,8 +3981,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-13',
-		PremiereDate: '2016-09-16',
-		ProductionYear: 2016,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -3993,6 +3991,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-281',
 		IndexNumber: 9,
 		Name: 'Posing Holy',
+		PremiereDate: '2016-09-16',
+		ProductionYear: 2016,
 		RunTimeTicks: 1680000000,
 		Type: 'Audio',
 	},
@@ -4006,8 +4006,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-13',
-		PremiereDate: '2016-09-16',
-		ProductionYear: 2016,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4018,6 +4016,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-282',
 		IndexNumber: 10,
 		Name: 'Water Damage',
+		PremiereDate: '2016-09-16',
+		ProductionYear: 2016,
 		RunTimeTicks: 2330000000,
 		Type: 'Audio',
 	},
@@ -4031,8 +4031,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-13',
-		PremiereDate: '2016-09-16',
-		ProductionYear: 2016,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4043,6 +4041,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-283',
 		IndexNumber: 11,
 		Name: 'Skyscraper',
+		PremiereDate: '2016-09-16',
+		ProductionYear: 2016,
 		RunTimeTicks: 2330000000,
 		Type: 'Audio',
 	},
@@ -4056,8 +4056,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-14',
-		PremiereDate: '2020-10-09',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4068,6 +4066,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-27',
 		IndexNumber: 1,
 		Name: 'Come Heroine',
+		PremiereDate: '2020-10-09',
+		ProductionYear: 2020,
 		RunTimeTicks: 1700000000,
 		Type: 'Audio',
 	},
@@ -4081,8 +4081,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-14',
-		PremiereDate: '2020-10-09',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4093,6 +4091,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-118',
 		IndexNumber: 2,
 		Name: 'Lament',
+		PremiereDate: '2020-10-09',
+		ProductionYear: 2020,
 		RunTimeTicks: 2000000000,
 		Type: 'Audio',
 	},
@@ -4106,8 +4106,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-14',
-		PremiereDate: '2020-10-09',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4118,6 +4116,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-119',
 		IndexNumber: 3,
 		Name: 'Feign',
+		PremiereDate: '2020-10-09',
+		ProductionYear: 2020,
 		RunTimeTicks: 1680000000,
 		Type: 'Audio',
 	},
@@ -4131,8 +4131,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-14',
-		PremiereDate: '2020-10-09',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4143,6 +4141,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-120',
 		IndexNumber: 4,
 		Name: 'Reminders',
+		PremiereDate: '2020-10-09',
+		ProductionYear: 2020,
 		RunTimeTicks: 1830000000,
 		Type: 'Audio',
 	},
@@ -4156,8 +4156,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-14',
-		PremiereDate: '2020-10-09',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4168,6 +4166,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-28',
 		IndexNumber: 5,
 		Name: 'Limelight',
+		PremiereDate: '2020-10-09',
+		ProductionYear: 2020,
 		RunTimeTicks: 3020000000,
 		Type: 'Audio',
 	},
@@ -4181,8 +4181,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-14',
-		PremiereDate: '2020-10-09',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4193,6 +4191,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-284',
 		IndexNumber: 6,
 		Name: 'Exit Row',
+		PremiereDate: '2020-10-09',
+		ProductionYear: 2020,
 		RunTimeTicks: 1360000000,
 		Type: 'Audio',
 	},
@@ -4206,8 +4206,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-14',
-		PremiereDate: '2020-10-09',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4218,6 +4216,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-285',
 		IndexNumber: 7,
 		Name: 'Savoring',
+		PremiereDate: '2020-10-09',
+		ProductionYear: 2020,
 		RunTimeTicks: 1760000000,
 		Type: 'Audio',
 	},
@@ -4231,8 +4231,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-14',
-		PremiereDate: '2020-10-09',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4243,6 +4241,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-286',
 		IndexNumber: 8,
 		Name: 'A Broadcast',
+		PremiereDate: '2020-10-09',
+		ProductionYear: 2020,
 		RunTimeTicks: 1810000000,
 		Type: 'Audio',
 	},
@@ -4256,8 +4256,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-14',
-		PremiereDate: '2020-10-09',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4268,6 +4266,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-287',
 		IndexNumber: 9,
 		Name: "I'll Be Your Host",
+		PremiereDate: '2020-10-09',
+		ProductionYear: 2020,
 		RunTimeTicks: 2070000000,
 		Type: 'Audio',
 	},
@@ -4281,8 +4281,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-14',
-		PremiereDate: '2020-10-09',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4293,6 +4291,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-288',
 		IndexNumber: 10,
 		Name: 'Deflector',
+		PremiereDate: '2020-10-09',
+		ProductionYear: 2020,
 		RunTimeTicks: 2110000000,
 		Type: 'Audio',
 	},
@@ -4306,8 +4306,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-14',
-		PremiereDate: '2020-10-09',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4318,6 +4316,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-289',
 		IndexNumber: 11,
 		Name: 'A Forecast',
+		PremiereDate: '2020-10-09',
+		ProductionYear: 2020,
 		RunTimeTicks: 2180000000,
 		Type: 'Audio',
 	},
@@ -4331,8 +4331,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4343,6 +4341,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-29',
 		IndexNumber: 1,
 		Name: 'ULTRAPOP',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 1630000000,
 		Type: 'Audio',
 	},
@@ -4356,8 +4356,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4368,6 +4366,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-30',
 		IndexNumber: 2,
 		Name: 'ALL FUTURES',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 1850000000,
 		Type: 'Audio',
 	},
@@ -4381,8 +4381,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4393,6 +4391,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-290',
 		IndexNumber: 3,
 		Name: 'MASUNAGA VAPORS',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 1500000000,
 		Type: 'Audio',
 	},
@@ -4406,8 +4406,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4418,6 +4416,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-291',
 		IndexNumber: 4,
 		Name: 'A LIFE SO WONDERFUL',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 1870000000,
 		Type: 'Audio',
 	},
@@ -4431,8 +4431,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4443,6 +4441,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-292',
 		IndexNumber: 5,
 		Name: 'AN ITERATION',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 1730000000,
 		Type: 'Audio',
 	},
@@ -4456,8 +4456,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4468,6 +4466,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-293',
 		IndexNumber: 6,
 		Name: 'BIG SHELL',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 1970000000,
 		Type: 'Audio',
 	},
@@ -4481,8 +4481,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4493,6 +4491,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-294',
 		IndexNumber: 7,
 		Name: 'AVERAGE DEATH',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 2720000000,
 		Type: 'Audio',
 	},
@@ -4506,8 +4506,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4518,6 +4516,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-295',
 		IndexNumber: 8,
 		Name: 'FAITH IN MEDICATION',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 2260000000,
 		Type: 'Audio',
 	},
@@ -4531,8 +4531,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4543,6 +4541,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-296',
 		IndexNumber: 9,
 		Name: 'WHERE MAN KNOWS WANT',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 1760000000,
 		Type: 'Audio',
 	},
@@ -4556,8 +4556,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4568,6 +4566,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-297',
 		IndexNumber: 10,
 		Name: 'REAL FOLK BLUES',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 2190000000,
 		Type: 'Audio',
 	},
@@ -4581,8 +4581,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4593,6 +4591,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-298',
 		IndexNumber: 11,
 		Name: 'BAD SELECTION',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 2250000000,
 		Type: 'Audio',
 	},
@@ -4606,8 +4606,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-15',
-		PremiereDate: '2021-04-16',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4618,6 +4616,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-299',
 		IndexNumber: 12,
 		Name: 'THE MUSIC BECOMES A SKULL',
+		PremiereDate: '2021-04-16',
+		ProductionYear: 2021,
 		RunTimeTicks: 1580000000,
 		Type: 'Audio',
 	},
@@ -4631,8 +4631,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4643,6 +4641,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-31',
 		IndexNumber: 1,
 		Name: 'Sport of Measure',
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 1650000000,
 		Type: 'Audio',
 	},
@@ -4656,8 +4656,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4668,6 +4666,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-121',
 		IndexNumber: 2,
 		Name: 'FKA World',
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 1890000000,
 		Type: 'Audio',
 	},
@@ -4681,8 +4681,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4693,6 +4691,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-122',
 		IndexNumber: 3,
 		Name: 'Clone',
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 1810000000,
 		Type: 'Audio',
 	},
@@ -4706,8 +4706,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4718,6 +4716,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-123',
 		IndexNumber: 4,
 		Name: 'Modern Vanity',
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 2280000000,
 		Type: 'Audio',
 	},
@@ -4731,8 +4731,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4743,6 +4741,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-32',
 		IndexNumber: 5,
 		Name: "Everything's Glitter",
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 2300000000,
 		Type: 'Audio',
 	},
@@ -4756,8 +4756,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4768,6 +4766,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-197',
 		IndexNumber: 6,
 		Name: 'Burned Mind',
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 2510000000,
 		Type: 'Audio',
 	},
@@ -4781,8 +4781,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4793,6 +4791,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-198',
 		IndexNumber: 7,
 		Name: 'Sport of Form',
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 2060000000,
 		Type: 'Audio',
 	},
@@ -4806,8 +4806,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4818,6 +4816,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-199',
 		IndexNumber: 8,
 		Name: 'Patient Mind',
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 1550000000,
 		Type: 'Audio',
 	},
@@ -4831,8 +4831,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4843,6 +4841,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-200',
 		IndexNumber: 9,
 		Name: 'Vatican Under Construction',
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 2120000000,
 		Type: 'Audio',
 	},
@@ -4856,8 +4856,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4868,6 +4866,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-201',
 		IndexNumber: 10,
 		Name: 'Liar 2',
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 1800000000,
 		Type: 'Audio',
 	},
@@ -4881,8 +4881,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4893,6 +4891,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-202',
 		IndexNumber: 11,
 		Name: 'In Heaven',
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 2040000000,
 		Type: 'Audio',
 	},
@@ -4906,8 +4906,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-16',
-		PremiereDate: '2023-08-25',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4918,6 +4916,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-203',
 		IndexNumber: 12,
 		Name: 'Public Grieving',
+		PremiereDate: '2023-08-25',
+		ProductionYear: 2023,
 		RunTimeTicks: 2970000000,
 		Type: 'Audio',
 	},
@@ -4931,8 +4931,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-17',
-		PremiereDate: '2022-10-14',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4943,6 +4941,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-33',
 		IndexNumber: 1,
 		Name: 'Water Wings',
+		PremiereDate: '2022-10-14',
+		ProductionYear: 2022,
 		RunTimeTicks: 1450000000,
 		Type: 'Audio',
 	},
@@ -4956,8 +4956,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-17',
-		PremiereDate: '2022-10-14',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4968,6 +4966,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-125',
 		IndexNumber: 2,
 		Name: 'Daltonians',
+		PremiereDate: '2022-10-14',
+		ProductionYear: 2022,
 		RunTimeTicks: 1440000000,
 		Type: 'Audio',
 	},
@@ -4981,8 +4981,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-17',
-		PremiereDate: '2022-10-14',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -4993,6 +4991,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-129',
 		IndexNumber: 3,
 		Name: 'Confettis',
+		PremiereDate: '2022-10-14',
+		ProductionYear: 2022,
 		RunTimeTicks: 1970000000,
 		Type: 'Audio',
 	},
@@ -5006,8 +5006,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-17',
-		PremiereDate: '2022-10-14',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5018,6 +5016,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-127',
 		IndexNumber: 4,
 		Name: 'Noah',
+		PremiereDate: '2022-10-14',
+		ProductionYear: 2022,
 		RunTimeTicks: 3980000000,
 		Type: 'Audio',
 	},
@@ -5031,8 +5031,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-17',
-		PremiereDate: '2022-10-14',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5043,6 +5041,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-130',
 		IndexNumber: 5,
 		Name: 'Cathedrals',
+		PremiereDate: '2022-10-14',
+		ProductionYear: 2022,
 		RunTimeTicks: 1920000000,
 		Type: 'Audio',
 	},
@@ -5056,8 +5056,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-17',
-		PremiereDate: '2022-10-14',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5068,6 +5066,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-126',
 		IndexNumber: 6,
 		Name: 'Nympheas',
+		PremiereDate: '2022-10-14',
+		ProductionYear: 2022,
 		RunTimeTicks: 2050000000,
 		Type: 'Audio',
 	},
@@ -5081,8 +5081,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-17',
-		PremiereDate: '2022-10-14',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5093,6 +5091,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-204',
 		IndexNumber: 7,
 		Name: 'Grisaille',
+		PremiereDate: '2022-10-14',
+		ProductionYear: 2022,
 		RunTimeTicks: 2030000000,
 		Type: 'Audio',
 	},
@@ -5106,8 +5106,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-17',
-		PremiereDate: '2022-10-14',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5118,6 +5116,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-34',
 		IndexNumber: 8,
 		Name: "Trompe l'oeil",
+		PremiereDate: '2022-10-14',
+		ProductionYear: 2022,
 		RunTimeTicks: 3640000000,
 		Type: 'Audio',
 	},
@@ -5131,8 +5131,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-17',
-		PremiereDate: '2022-10-14',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5143,6 +5141,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-205',
 		IndexNumber: 9,
 		Name: 'Rodin',
+		PremiereDate: '2022-10-14',
+		ProductionYear: 2022,
 		RunTimeTicks: 1850000000,
 		Type: 'Audio',
 	},
@@ -5156,8 +5156,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-17',
-		PremiereDate: '2022-10-14',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5168,6 +5166,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-206',
 		IndexNumber: 10,
 		Name: 'Winter, Yet',
+		PremiereDate: '2022-10-14',
+		ProductionYear: 2022,
 		RunTimeTicks: 1820000000,
 		Type: 'Audio',
 	},
@@ -5181,8 +5181,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-17',
-		PremiereDate: '2022-10-14',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5193,6 +5191,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-128',
 		IndexNumber: 11,
 		Name: 'Secession',
+		PremiereDate: '2022-10-14',
+		ProductionYear: 2022,
 		RunTimeTicks: 2870000000,
 		Type: 'Audio',
 	},
@@ -5206,8 +5206,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-18',
-		PremiereDate: '2018-07-13',
-		ProductionYear: 2018,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5218,6 +5216,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-131',
 		IndexNumber: 1,
 		Name: "We Count So We Don't Have to Listen",
+		PremiereDate: '2018-07-13',
+		ProductionYear: 2018,
 		RunTimeTicks: 1910000000,
 		Type: 'Audio',
 	},
@@ -5231,8 +5231,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-18',
-		PremiereDate: '2018-07-13',
-		ProductionYear: 2018,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5243,6 +5241,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-132',
 		IndexNumber: 2,
 		Name: 'Love Is Political',
+		PremiereDate: '2018-07-13',
+		ProductionYear: 2018,
 		RunTimeTicks: 1670000000,
 		Type: 'Audio',
 	},
@@ -5256,8 +5256,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-18',
-		PremiereDate: '2018-07-13',
-		ProductionYear: 2018,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5268,6 +5266,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-207',
 		IndexNumber: 3,
 		Name: 'We vs. Us',
+		PremiereDate: '2018-07-13',
+		ProductionYear: 2018,
 		RunTimeTicks: 2920000000,
 		Type: 'Audio',
 	},
@@ -5281,8 +5281,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-18',
-		PremiereDate: '2018-07-13',
-		ProductionYear: 2018,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5293,6 +5291,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-208',
 		IndexNumber: 4,
 		Name: 'Remember Us Better Than We Are',
+		PremiereDate: '2018-07-13',
+		ProductionYear: 2018,
 		RunTimeTicks: 3090000000,
 		Type: 'Audio',
 	},
@@ -5306,8 +5306,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-18',
-		PremiereDate: '2018-07-13',
-		ProductionYear: 2018,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5318,6 +5316,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-36',
 		IndexNumber: 5,
 		Name: "I Don't Dance",
+		PremiereDate: '2018-07-13',
+		ProductionYear: 2018,
 		RunTimeTicks: 1830000000,
 		Type: 'Audio',
 	},
@@ -5331,8 +5331,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-18',
-		PremiereDate: '2018-07-13',
-		ProductionYear: 2018,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5343,6 +5341,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-35',
 		IndexNumber: 6,
 		Name: '15-38',
+		PremiereDate: '2018-07-13',
+		ProductionYear: 2018,
 		RunTimeTicks: 1990000000,
 		Type: 'Audio',
 	},
@@ -5356,8 +5356,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-18',
-		PremiereDate: '2018-07-13',
-		ProductionYear: 2018,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5368,6 +5366,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-209',
 		IndexNumber: 7,
 		Name: 'Triste Sire',
+		PremiereDate: '2018-07-13',
+		ProductionYear: 2018,
 		RunTimeTicks: 980000000,
 		Type: 'Audio',
 	},
@@ -5381,8 +5381,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-18',
-		PremiereDate: '2018-07-13',
-		ProductionYear: 2018,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5393,6 +5391,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-210',
 		IndexNumber: 8,
 		Name: 'Morning',
+		PremiereDate: '2018-07-13',
+		ProductionYear: 2018,
 		RunTimeTicks: 2670000000,
 		Type: 'Audio',
 	},
@@ -5406,8 +5406,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-18',
-		PremiereDate: '2018-07-13',
-		ProductionYear: 2018,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5418,6 +5416,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-134',
 		IndexNumber: 9,
 		Name: 'Fossils',
+		PremiereDate: '2018-07-13',
+		ProductionYear: 2018,
 		RunTimeTicks: 3510000000,
 		Type: 'Audio',
 	},
@@ -5431,8 +5431,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-19',
-		PremiereDate: '2015-08-21',
-		ProductionYear: 2015,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5443,6 +5441,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-37',
 		IndexNumber: 1,
 		Name: 'Run Away with Me',
+		PremiereDate: '2015-08-21',
+		ProductionYear: 2015,
 		RunTimeTicks: 2500000000,
 		Type: 'Audio',
 	},
@@ -5456,8 +5456,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-19',
-		PremiereDate: '2015-08-21',
-		ProductionYear: 2015,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5468,6 +5466,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-135',
 		IndexNumber: 2,
 		Name: 'Emotion',
+		PremiereDate: '2015-08-21',
+		ProductionYear: 2015,
 		RunTimeTicks: 2380000000,
 		Type: 'Audio',
 	},
@@ -5481,8 +5481,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-19',
-		PremiereDate: '2015-08-21',
-		ProductionYear: 2015,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5493,6 +5491,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-136',
 		IndexNumber: 3,
 		Name: 'I Really Like You',
+		PremiereDate: '2015-08-21',
+		ProductionYear: 2015,
 		RunTimeTicks: 2460000000,
 		Type: 'Audio',
 	},
@@ -5506,8 +5506,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-19',
-		PremiereDate: '2015-08-21',
-		ProductionYear: 2015,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5518,6 +5516,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-137',
 		IndexNumber: 4,
 		Name: 'Gimmie Love',
+		PremiereDate: '2015-08-21',
+		ProductionYear: 2015,
 		RunTimeTicks: 2310000000,
 		Type: 'Audio',
 	},
@@ -5531,8 +5531,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-19',
-		PremiereDate: '2015-08-21',
-		ProductionYear: 2015,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5543,6 +5541,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-138',
 		IndexNumber: 5,
 		Name: 'All That',
+		PremiereDate: '2015-08-21',
+		ProductionYear: 2015,
 		RunTimeTicks: 2340000000,
 		Type: 'Audio',
 	},
@@ -5556,8 +5556,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-19',
-		PremiereDate: '2015-08-21',
-		ProductionYear: 2015,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5568,6 +5566,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-139',
 		IndexNumber: 6,
 		Name: 'Boy Problems',
+		PremiereDate: '2015-08-21',
+		ProductionYear: 2015,
 		RunTimeTicks: 2280000000,
 		Type: 'Audio',
 	},
@@ -5581,8 +5581,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-19',
-		PremiereDate: '2015-08-21',
-		ProductionYear: 2015,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5593,6 +5591,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-140',
 		IndexNumber: 7,
 		Name: 'Making the Most of the Night',
+		PremiereDate: '2015-08-21',
+		ProductionYear: 2015,
 		RunTimeTicks: 2420000000,
 		Type: 'Audio',
 	},
@@ -5606,8 +5606,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-19',
-		PremiereDate: '2015-08-21',
-		ProductionYear: 2015,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5618,6 +5616,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-38',
 		IndexNumber: 8,
 		Name: 'Your Type',
+		PremiereDate: '2015-08-21',
+		ProductionYear: 2015,
 		RunTimeTicks: 2500000000,
 		Type: 'Audio',
 	},
@@ -5631,8 +5631,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5643,6 +5641,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-39',
 		IndexNumber: 1,
 		Name: 'Surrender My Heart',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 1680000000,
 		Type: 'Audio',
 	},
@@ -5656,8 +5656,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5668,6 +5666,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-141',
 		IndexNumber: 2,
 		Name: 'Joshua Tree',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 1490000000,
 		Type: 'Audio',
 	},
@@ -5681,8 +5681,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5693,6 +5691,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-142',
 		IndexNumber: 3,
 		Name: 'Talking to Yourself',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 1730000000,
 		Type: 'Audio',
 	},
@@ -5706,8 +5706,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5718,6 +5716,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-143',
 		IndexNumber: 4,
 		Name: 'Far Away',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 1790000000,
 		Type: 'Audio',
 	},
@@ -5731,8 +5731,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5743,6 +5741,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-144',
 		IndexNumber: 5,
 		Name: 'Sideways',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 1360000000,
 		Type: 'Audio',
 	},
@@ -5756,8 +5756,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5768,6 +5766,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-145',
 		IndexNumber: 6,
 		Name: 'Beach House',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 1490000000,
 		Type: 'Audio',
 	},
@@ -5781,8 +5781,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5793,6 +5791,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-146',
 		IndexNumber: 7,
 		Name: 'Bends',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 1950000000,
 		Type: 'Audio',
 	},
@@ -5806,8 +5806,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5818,6 +5816,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-147',
 		IndexNumber: 8,
 		Name: 'Western Wind',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 2250000000,
 		Type: 'Audio',
 	},
@@ -5831,8 +5831,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5843,6 +5841,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-211',
 		IndexNumber: 9,
 		Name: 'So Nice',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 2190000000,
 		Type: 'Audio',
 	},
@@ -5856,8 +5856,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5868,6 +5866,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-212',
 		IndexNumber: 10,
 		Name: 'Bad Thing Twice',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 1930000000,
 		Type: 'Audio',
 	},
@@ -5881,8 +5881,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5893,6 +5891,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-213',
 		IndexNumber: 11,
 		Name: 'Shooting Star',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 1990000000,
 		Type: 'Audio',
 	},
@@ -5906,8 +5906,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5918,6 +5916,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-148',
 		IndexNumber: 12,
 		Name: 'Go Find Yourself or Whatever',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 2840000000,
 		Type: 'Audio',
 	},
@@ -5931,8 +5931,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-20',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5943,6 +5941,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-40',
 		IndexNumber: 13,
 		Name: 'The Loneliest Time',
+		PremiereDate: '2022-10-21',
+		ProductionYear: 2022,
 		RunTimeTicks: 2740000000,
 		Type: 'Audio',
 	},
@@ -5956,8 +5956,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-21',
-		PremiereDate: '2025-02-14',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5968,6 +5966,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-41',
 		IndexNumber: 1,
 		Name: 'Recoil',
+		PremiereDate: '2025-02-14',
+		ProductionYear: 2025,
 		RunTimeTicks: 2170000000,
 		Type: 'Audio',
 	},
@@ -5981,8 +5981,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-21',
-		PremiereDate: '2025-02-14',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -5993,6 +5991,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-77',
 		IndexNumber: 2,
 		Name: 'Wallflower',
+		PremiereDate: '2025-02-14',
+		ProductionYear: 2025,
 		RunTimeTicks: 2310000000,
 		Type: 'Audio',
 	},
@@ -6006,8 +6006,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-21',
-		PremiereDate: '2025-02-14',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6018,6 +6016,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-78',
 		IndexNumber: 3,
 		Name: 'Liminal Room',
+		PremiereDate: '2025-02-14',
+		ProductionYear: 2025,
 		RunTimeTicks: 2050000000,
 		Type: 'Audio',
 	},
@@ -6031,8 +6031,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-21',
-		PremiereDate: '2025-02-14',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6043,6 +6041,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-149',
 		IndexNumber: 4,
 		Name: 'Pale Hallway',
+		PremiereDate: '2025-02-14',
+		ProductionYear: 2025,
 		RunTimeTicks: 2140000000,
 		Type: 'Audio',
 	},
@@ -6056,8 +6056,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-21',
-		PremiereDate: '2025-02-14',
-		ProductionYear: 2025,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6068,6 +6066,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-42',
 		IndexNumber: 5,
 		Name: 'No Ending',
+		PremiereDate: '2025-02-14',
+		ProductionYear: 2025,
 		RunTimeTicks: 2860000000,
 		Type: 'Audio',
 	},
@@ -6081,8 +6081,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6093,6 +6091,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-214',
 		IndexNumber: 1,
 		Name: 'California',
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 2760000000,
 		Type: 'Audio',
 	},
@@ -6106,8 +6106,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6118,6 +6116,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-46',
 		IndexNumber: 2,
 		Name: 'Apple TV Remote',
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 1760000000,
 		Type: 'Audio',
 	},
@@ -6131,8 +6131,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6143,6 +6141,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-215',
 		IndexNumber: 3,
 		Name: 'Pitch a Fit!',
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 2620000000,
 		Type: 'Audio',
 	},
@@ -6156,8 +6156,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6168,6 +6166,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-216',
 		IndexNumber: 4,
 		Name: "DON'T TELL THE BOYS",
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 2370000000,
 		Type: 'Audio',
 	},
@@ -6181,8 +6181,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6193,6 +6191,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-217',
 		IndexNumber: 5,
 		Name: 'Microwave Dinner',
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 2820000000,
 		Type: 'Audio',
 	},
@@ -6206,8 +6206,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6218,6 +6216,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-218',
 		IndexNumber: 6,
 		Name: 'Oh Nice',
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 1170000000,
 		Type: 'Audio',
 	},
@@ -6231,8 +6231,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6243,6 +6241,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-219',
 		IndexNumber: 7,
 		Name: 'We Go On Walks',
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 1650000000,
 		Type: 'Audio',
 	},
@@ -6256,8 +6256,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6268,6 +6266,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-220',
 		IndexNumber: 8,
 		Name: "We Don't Need to Talk About It",
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 3010000000,
 		Type: 'Audio',
 	},
@@ -6281,8 +6281,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6293,6 +6291,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-221',
 		IndexNumber: 9,
 		Name: 'Hey Man',
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 1580000000,
 		Type: 'Audio',
 	},
@@ -6306,8 +6306,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6318,6 +6316,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-222',
 		IndexNumber: 10,
 		Name: 'Comfort in the Clutter',
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 2110000000,
 		Type: 'Audio',
 	},
@@ -6331,8 +6331,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6343,6 +6341,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-45',
 		IndexNumber: 11,
 		Name: 'Lean Into Life',
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 3270000000,
 		Type: 'Audio',
 	},
@@ -6356,8 +6356,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6368,6 +6366,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-223',
 		IndexNumber: 12,
 		Name: 'Tell the Boys',
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 1260000000,
 		Type: 'Audio',
 	},
@@ -6381,8 +6381,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-23',
-		PremiereDate: '2021-09-03',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6393,6 +6391,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-224',
 		IndexNumber: 13,
 		Name: 'Perfect Teeth',
+		PremiereDate: '2021-09-03',
+		ProductionYear: 2021,
 		RunTimeTicks: 2020000000,
 		Type: 'Audio',
 	},
@@ -6406,8 +6406,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6418,6 +6416,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-155',
 		IndexNumber: 1,
 		Name: 'Bags Theme',
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 940000000,
 		Type: 'Audio',
 	},
@@ -6431,8 +6431,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6443,6 +6441,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-333',
 		IndexNumber: 2,
 		Name: "I'll Wait",
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 1720000000,
 		Type: 'Audio',
 	},
@@ -6456,8 +6456,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6468,6 +6466,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-156',
 		IndexNumber: 3,
 		Name: 'I Tried to Draw a Straight Line',
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 2330000000,
 		Type: 'Audio',
 	},
@@ -6481,8 +6481,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6493,6 +6491,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-48',
 		IndexNumber: 4,
 		Name: 'Home Alone House',
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 1820000000,
 		Type: 'Audio',
 	},
@@ -6506,8 +6506,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6518,6 +6516,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-334',
 		IndexNumber: 5,
 		Name: 'Skip This One',
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 2140000000,
 		Type: 'Audio',
 	},
@@ -6531,8 +6531,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6543,6 +6541,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-157',
 		IndexNumber: 6,
 		Name: "Did I Mention I'm Sorry",
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 1970000000,
 		Type: 'Audio',
 	},
@@ -6556,8 +6556,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6568,6 +6566,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-335',
 		IndexNumber: 7,
 		Name: 'Birds of a Feather',
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 1440000000,
 		Type: 'Audio',
 	},
@@ -6581,8 +6581,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6593,6 +6591,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-336',
 		IndexNumber: 8,
 		Name: 'Living Like This',
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 2140000000,
 		Type: 'Audio',
 	},
@@ -6606,8 +6606,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6618,6 +6616,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-47',
 		IndexNumber: 9,
 		Name: 'Family of Six',
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 3000000000,
 		Type: 'Audio',
 	},
@@ -6631,8 +6631,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6643,6 +6641,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-337',
 		IndexNumber: 10,
 		Name: 'The Freedom to Fuck Off',
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 2430000000,
 		Type: 'Audio',
 	},
@@ -6656,8 +6656,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6668,6 +6666,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-338',
 		IndexNumber: 11,
 		Name: 'How Bout That',
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 2730000000,
 		Type: 'Audio',
 	},
@@ -6681,8 +6681,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-24',
-		PremiereDate: '2023-09-22',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6693,6 +6691,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-339',
 		IndexNumber: 12,
 		Name: 'Goodnight Nurse',
+		PremiereDate: '2023-09-22',
+		ProductionYear: 2023,
 		RunTimeTicks: 3050000000,
 		Type: 'Audio',
 	},
@@ -6706,8 +6706,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6718,6 +6716,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-159',
 		IndexNumber: 1,
 		Name: 'Goldfish',
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 1810000000,
 		Type: 'Audio',
 	},
@@ -6731,8 +6731,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6743,6 +6741,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-160',
 		IndexNumber: 2,
 		Name: 'Your Clothes',
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 2550000000,
 		Type: 'Audio',
 	},
@@ -6756,8 +6756,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6768,6 +6766,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-164',
 		IndexNumber: 3,
 		Name: 'Misplace',
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 2340000000,
 		Type: 'Audio',
 	},
@@ -6781,8 +6781,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6793,6 +6791,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-161',
 		IndexNumber: 4,
 		Name: 'Pretender',
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 2210000000,
 		Type: 'Audio',
 	},
@@ -6806,8 +6806,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6818,6 +6816,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-49',
 		IndexNumber: 5,
 		Name: 'Search Party',
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 2980000000,
 		Type: 'Audio',
 	},
@@ -6831,8 +6831,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6843,6 +6841,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-162',
 		IndexNumber: 6,
 		Name: 'Buzzcut, Daisy',
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 1510000000,
 		Type: 'Audio',
 	},
@@ -6856,8 +6856,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6868,6 +6866,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-50',
 		IndexNumber: 7,
 		Name: 'Movies For Guys',
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 3460000000,
 		Type: 'Audio',
 	},
@@ -6881,8 +6881,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6893,6 +6891,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-163',
 		IndexNumber: 8,
 		Name: 'Kodak Moment',
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 3670000000,
 		Type: 'Audio',
 	},
@@ -6906,8 +6906,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6918,6 +6916,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-165',
 		IndexNumber: 9,
 		Name: 'Can You Tell?',
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 2090000000,
 		Type: 'Audio',
 	},
@@ -6931,8 +6931,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6943,6 +6941,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-340',
 		IndexNumber: 10,
 		Name: 'How To Lie',
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 2250000000,
 		Type: 'Audio',
 	},
@@ -6956,8 +6956,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6968,6 +6966,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-341',
 		IndexNumber: 11,
 		Name: 'Champ',
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 3770000000,
 		Type: 'Audio',
 	},
@@ -6981,8 +6981,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -6993,6 +6991,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-342',
 		IndexNumber: 12,
 		Name: "Eyes Off the Wheel, I'm a Star",
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 2340000000,
 		Type: 'Audio',
 	},
@@ -7006,8 +7006,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-25',
-		PremiereDate: '2021-11-12',
-		ProductionYear: 2021,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7018,6 +7016,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-343',
 		IndexNumber: 13,
 		Name: "Let's Go Home",
+		PremiereDate: '2021-11-12',
+		ProductionYear: 2021,
 		RunTimeTicks: 3330000000,
 		Type: 'Audio',
 	},
@@ -7031,8 +7031,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-26',
-		PremiereDate: '2023-10-20',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7043,6 +7041,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-166',
 		IndexNumber: 1,
 		Name: 'Cage Girl / Camgirl',
+		PremiereDate: '2023-10-20',
+		ProductionYear: 2023,
 		RunTimeTicks: 3440000000,
 		Type: 'Audio',
 	},
@@ -7056,8 +7056,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-26',
-		PremiereDate: '2023-10-20',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7068,6 +7066,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-51',
 		IndexNumber: 2,
 		Name: 'Lips',
+		PremiereDate: '2023-10-20',
+		ProductionYear: 2023,
 		RunTimeTicks: 3110000000,
 		Type: 'Audio',
 	},
@@ -7081,8 +7081,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-26',
-		PremiereDate: '2023-10-20',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7093,6 +7091,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-168',
 		IndexNumber: 3,
 		Name: 'Fling',
+		PremiereDate: '2023-10-20',
+		ProductionYear: 2023,
 		RunTimeTicks: 2940000000,
 		Type: 'Audio',
 	},
@@ -7106,8 +7106,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-26',
-		PremiereDate: '2023-10-20',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7118,6 +7116,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-170',
 		IndexNumber: 4,
 		Name: 'Holding a Leech',
+		PremiereDate: '2023-10-20',
+		ProductionYear: 2023,
 		RunTimeTicks: 2760000000,
 		Type: 'Audio',
 	},
@@ -7131,8 +7131,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-26',
-		PremiereDate: '2023-10-20',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7143,6 +7141,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-171',
 		IndexNumber: 5,
 		Name: 'Backseat Girl',
+		PremiereDate: '2023-10-20',
+		ProductionYear: 2023,
 		RunTimeTicks: 3610000000,
 		Type: 'Audio',
 	},
@@ -7156,8 +7156,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-26',
-		PremiereDate: '2023-10-20',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7168,6 +7166,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-167',
 		IndexNumber: 6,
 		Name: 'Idling Somewhere',
+		PremiereDate: '2023-10-20',
+		ProductionYear: 2023,
 		RunTimeTicks: 4430000000,
 		Type: 'Audio',
 	},
@@ -7181,8 +7181,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-26',
-		PremiereDate: '2023-10-20',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7193,6 +7191,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-344',
 		IndexNumber: 7,
 		Name: 'Always Have Always Will',
+		PremiereDate: '2023-10-20',
+		ProductionYear: 2023,
 		RunTimeTicks: 3910000000,
 		Type: 'Audio',
 	},
@@ -7206,8 +7206,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-26',
-		PremiereDate: '2023-10-20',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7218,6 +7216,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-169',
 		IndexNumber: 8,
 		Name: 'Census Designated',
+		PremiereDate: '2023-10-20',
+		ProductionYear: 2023,
 		RunTimeTicks: 3610000000,
 		Type: 'Audio',
 	},
@@ -7231,8 +7231,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-26',
-		PremiereDate: '2023-10-20',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7243,6 +7241,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-52',
 		IndexNumber: 9,
 		Name: 'Video',
+		PremiereDate: '2023-10-20',
+		ProductionYear: 2023,
 		RunTimeTicks: 5230000000,
 		Type: 'Audio',
 	},
@@ -7256,8 +7256,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-26',
-		PremiereDate: '2023-10-20',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7268,6 +7266,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-345',
 		IndexNumber: 10,
 		Name: 'Contingency Song (Album Version)',
+		PremiereDate: '2023-10-20',
+		ProductionYear: 2023,
 		RunTimeTicks: 3870000000,
 		Type: 'Audio',
 	},
@@ -7281,8 +7281,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-27',
-		PremiereDate: '2023-03-24',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7293,6 +7291,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-53',
 		IndexNumber: 1,
 		Name: '93696',
+		PremiereDate: '2023-03-24',
+		ProductionYear: 2023,
 		RunTimeTicks: 4510000000,
 		Type: 'Audio',
 	},
@@ -7306,8 +7306,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-27',
-		PremiereDate: '2023-03-24',
-		ProductionYear: 2023,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7318,6 +7316,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-54',
 		IndexNumber: 2,
 		Name: 'Angel of Sovereignty',
+		PremiereDate: '2023-03-24',
+		ProductionYear: 2023,
 		RunTimeTicks: 3490000000,
 		Type: 'Audio',
 	},
@@ -7331,8 +7331,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-28',
-		PremiereDate: '2020-09-25',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7343,6 +7341,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-55',
 		IndexNumber: 1,
 		Name: 'Murmur of Chalices',
+		PremiereDate: '2020-09-25',
+		ProductionYear: 2020,
 		RunTimeTicks: 3150000000,
 		Type: 'Audio',
 	},
@@ -7356,8 +7356,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-28',
-		PremiereDate: '2020-09-25',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7368,6 +7366,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-172',
 		IndexNumber: 2,
 		Name: 'Acqua',
+		PremiereDate: '2020-09-25',
+		ProductionYear: 2020,
 		RunTimeTicks: 3280000000,
 		Type: 'Audio',
 	},
@@ -7381,8 +7381,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-28',
-		PremiereDate: '2020-09-25',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7393,6 +7391,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-173',
 		IndexNumber: 3,
 		Name: 'Orrery',
+		PremiereDate: '2020-09-25',
+		ProductionYear: 2020,
 		RunTimeTicks: 3410000000,
 		Type: 'Audio',
 	},
@@ -7406,8 +7406,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-28',
-		PremiereDate: '2020-09-25',
-		ProductionYear: 2020,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7418,6 +7416,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-56',
 		IndexNumber: 4,
 		Name: 'Angel of Hierarchy',
+		PremiereDate: '2020-09-25',
+		ProductionYear: 2020,
 		RunTimeTicks: 3720000000,
 		Type: 'Audio',
 	},
@@ -7431,8 +7431,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-29',
-		PremiereDate: '2003-07-21',
-		ProductionYear: 2003,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7443,6 +7441,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-57',
 		IndexNumber: 1,
 		Name: 'Let Them Drown',
+		PremiereDate: '2003-07-21',
+		ProductionYear: 2003,
 		RunTimeTicks: 1730000000,
 		Type: 'Audio',
 	},
@@ -7456,8 +7456,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-29',
-		PremiereDate: '2003-07-21',
-		ProductionYear: 2003,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7468,6 +7466,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-174',
 		IndexNumber: 2,
 		Name: 'Dead for Weeks',
+		PremiereDate: '2003-07-21',
+		ProductionYear: 2003,
 		RunTimeTicks: 2290000000,
 		Type: 'Audio',
 	},
@@ -7481,8 +7481,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-29',
-		PremiereDate: '2003-07-21',
-		ProductionYear: 2003,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7493,6 +7491,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-175',
 		IndexNumber: 3,
 		Name: 'Burning Surface',
+		PremiereDate: '2003-07-21',
+		ProductionYear: 2003,
 		RunTimeTicks: 2340000000,
 		Type: 'Audio',
 	},
@@ -7506,8 +7506,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-29',
-		PremiereDate: '2003-07-21',
-		ProductionYear: 2003,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7518,6 +7516,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-176',
 		IndexNumber: 4,
 		Name: 'Arrow Flies',
+		PremiereDate: '2003-07-21',
+		ProductionYear: 2003,
 		RunTimeTicks: 1430000000,
 		Type: 'Audio',
 	},
@@ -7531,8 +7531,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-29',
-		PremiereDate: '2003-07-21',
-		ProductionYear: 2003,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7543,6 +7541,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-177',
 		IndexNumber: 5,
 		Name: 'Mercury Switch',
+		PremiereDate: '2003-07-21',
+		ProductionYear: 2003,
 		RunTimeTicks: 810000000,
 		Type: 'Audio',
 	},
@@ -7556,8 +7556,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-29',
-		PremiereDate: '2003-07-21',
-		ProductionYear: 2003,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7568,6 +7566,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-178',
 		IndexNumber: 6,
 		Name: 'Floating Point',
+		PremiereDate: '2003-07-21',
+		ProductionYear: 2003,
 		RunTimeTicks: 1230000000,
 		Type: 'Audio',
 	},
@@ -7581,8 +7581,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-29',
-		PremiereDate: '2003-07-21',
-		ProductionYear: 2003,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7593,6 +7591,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-58',
 		IndexNumber: 7,
 		Name: 'The Only One I Know',
+		PremiereDate: '2003-07-21',
+		ProductionYear: 2003,
 		RunTimeTicks: 2380000000,
 		Type: 'Audio',
 	},
@@ -7606,8 +7606,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-29',
-		PremiereDate: '2003-07-21',
-		ProductionYear: 2003,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7618,6 +7616,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-225',
 		IndexNumber: 8,
 		Name: 'Red Diesel',
+		PremiereDate: '2003-07-21',
+		ProductionYear: 2003,
 		RunTimeTicks: 2050000000,
 		Type: 'Audio',
 	},
@@ -7631,8 +7631,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-29',
-		PremiereDate: '2003-07-21',
-		ProductionYear: 2003,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7643,6 +7641,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-226',
 		IndexNumber: 9,
 		Name: 'Cabin Boy Jumped Ship',
+		PremiereDate: '2003-07-21',
+		ProductionYear: 2003,
 		RunTimeTicks: 1430000000,
 		Type: 'Audio',
 	},
@@ -7656,8 +7656,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-29',
-		PremiereDate: '2003-07-21',
-		ProductionYear: 2003,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7668,6 +7666,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-227',
 		IndexNumber: 10,
 		Name: 'An Important Letter',
+		PremiereDate: '2003-07-21',
+		ProductionYear: 2003,
 		RunTimeTicks: 3510000000,
 		Type: 'Audio',
 	},
@@ -7681,8 +7681,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-29',
-		PremiereDate: '2003-07-21',
-		ProductionYear: 2003,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7693,6 +7691,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-228',
 		IndexNumber: 11,
 		Name: 'Ladder Theory / Crack Fiend',
+		PremiereDate: '2003-07-21',
+		ProductionYear: 2003,
 		RunTimeTicks: 8660000000,
 		Type: 'Audio',
 	},
@@ -7706,8 +7706,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7718,6 +7716,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-179',
 		IndexNumber: 1,
 		Name: "It's Good Weather for Black Leather",
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 1560000000,
 		Type: 'Audio',
 	},
@@ -7731,8 +7731,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7743,6 +7741,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-59',
 		IndexNumber: 2,
 		Name: 'Function! Function!',
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 1240000000,
 		Type: 'Audio',
 	},
@@ -7756,8 +7756,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7768,6 +7766,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-180',
 		IndexNumber: 3,
 		Name: 'The Womaniser & the Alcoholic',
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 640000000,
 		Type: 'Audio',
 	},
@@ -7781,8 +7781,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7793,6 +7791,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-181',
 		IndexNumber: 4,
 		Name: 'Knight the Arsonist',
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 1030000000,
 		Type: 'Audio',
 	},
@@ -7806,8 +7806,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7818,6 +7816,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-182',
 		IndexNumber: 5,
 		Name: 'Not Guilty',
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 2460000000,
 		Type: 'Audio',
 	},
@@ -7831,8 +7831,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7843,6 +7841,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-183',
 		IndexNumber: 6,
 		Name: 'And on the Day That He Became a Human Plumb-Line',
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 2420000000,
 		Type: 'Audio',
 	},
@@ -7856,8 +7856,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7868,6 +7866,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-184',
 		IndexNumber: 7,
 		Name: 'Psycho Galvanic Skin Response',
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 2560000000,
 		Type: 'Audio',
 	},
@@ -7881,8 +7881,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7893,6 +7891,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-60',
 		IndexNumber: 8,
 		Name: 'Man the Traps',
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 1610000000,
 		Type: 'Audio',
 	},
@@ -7906,8 +7906,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7918,6 +7916,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-229',
 		IndexNumber: 9,
 		Name: 'Brown Eyes (No Name)',
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 1340000000,
 		Type: 'Audio',
 	},
@@ -7931,8 +7931,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7943,6 +7941,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-230',
 		IndexNumber: 10,
 		Name: 'The Biting Cold',
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 820000000,
 		Type: 'Audio',
 	},
@@ -7956,8 +7956,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7968,6 +7966,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-231',
 		IndexNumber: 11,
 		Name: "I Won't Miss or Be Missed",
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 2470000000,
 		Type: 'Audio',
 	},
@@ -7981,8 +7981,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -7993,6 +7991,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-232',
 		IndexNumber: 12,
 		Name: 'Happiness',
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 1520000000,
 		Type: 'Audio',
 	},
@@ -8006,8 +8006,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-30',
-		PremiereDate: '2005-09-12',
-		ProductionYear: 2005,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8018,6 +8016,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-233',
 		IndexNumber: 13,
 		Name: 'Reach Up to the Gods',
+		PremiereDate: '2005-09-12',
+		ProductionYear: 2005,
 		RunTimeTicks: 5050000000,
 		Type: 'Audio',
 	},
@@ -8031,8 +8031,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-31',
-		PremiereDate: '2024-06-07',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8043,6 +8041,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-61',
 		IndexNumber: 1,
 		Name: '360',
+		PremiereDate: '2024-06-07',
+		ProductionYear: 2024,
 		RunTimeTicks: 1310000000,
 		Type: 'Audio',
 	},
@@ -8056,8 +8056,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-31',
-		PremiereDate: '2024-06-07',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8068,6 +8066,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-62',
 		IndexNumber: 2,
 		Name: 'Von dutch',
+		PremiereDate: '2024-06-07',
+		ProductionYear: 2024,
 		RunTimeTicks: 1450000000,
 		Type: 'Audio',
 	},
@@ -8081,8 +8081,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8093,6 +8091,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-63',
 		IndexNumber: 1,
 		Name: 'Crash',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1510000000,
 		Type: 'Audio',
 	},
@@ -8106,8 +8106,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8118,6 +8116,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-300',
 		IndexNumber: 2,
 		Name: 'New Shapes',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 2010000000,
 		Type: 'Audio',
 	},
@@ -8131,8 +8131,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8143,6 +8141,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-64',
 		IndexNumber: 3,
 		Name: 'Good Ones',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1370000000,
 		Type: 'Audio',
 	},
@@ -8156,8 +8156,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8168,6 +8166,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-301',
 		IndexNumber: 4,
 		Name: 'Constant Repeat',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1890000000,
 		Type: 'Audio',
 	},
@@ -8181,8 +8181,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8193,6 +8191,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-302',
 		IndexNumber: 5,
 		Name: 'Beg for You',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1680000000,
 		Type: 'Audio',
 	},
@@ -8206,8 +8206,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8218,6 +8216,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-303',
 		IndexNumber: 6,
 		Name: 'Move Me',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1470000000,
 		Type: 'Audio',
 	},
@@ -8231,8 +8231,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8243,6 +8241,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-304',
 		IndexNumber: 7,
 		Name: 'Baby',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1600000000,
 		Type: 'Audio',
 	},
@@ -8256,8 +8256,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8268,6 +8266,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-305',
 		IndexNumber: 8,
 		Name: 'Lightning',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 2370000000,
 		Type: 'Audio',
 	},
@@ -8281,8 +8281,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8293,6 +8291,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-306',
 		IndexNumber: 9,
 		Name: 'Every Rule',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1830000000,
 		Type: 'Audio',
 	},
@@ -8306,8 +8306,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8318,6 +8316,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-307',
 		IndexNumber: 10,
 		Name: 'Yuck',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1390000000,
 		Type: 'Audio',
 	},
@@ -8331,8 +8331,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8343,6 +8341,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-308',
 		IndexNumber: 11,
 		Name: 'Used to Know Me',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1460000000,
 		Type: 'Audio',
 	},
@@ -8356,8 +8356,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8368,6 +8366,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-309',
 		IndexNumber: 12,
 		Name: 'Twice',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1950000000,
 		Type: 'Audio',
 	},
@@ -8381,8 +8381,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8393,6 +8391,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-310',
 		IndexNumber: 13,
 		Name: 'Selfish Girl',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1940000000,
 		Type: 'Audio',
 	},
@@ -8406,8 +8406,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8418,6 +8416,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-311',
 		IndexNumber: 14,
 		Name: 'How Can I Not Know What I Need Right Now',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1570000000,
 		Type: 'Audio',
 	},
@@ -8431,8 +8431,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8443,6 +8441,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-312',
 		IndexNumber: 15,
 		Name: 'Sorry If I Hurt You',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1610000000,
 		Type: 'Audio',
 	},
@@ -8456,8 +8456,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-32',
-		PremiereDate: '2022-03-25',
-		ProductionYear: 2022,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8468,6 +8466,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-313',
 		IndexNumber: 16,
 		Name: 'What You Think About Me',
+		PremiereDate: '2022-03-25',
+		ProductionYear: 2022,
 		RunTimeTicks: 1840000000,
 		Type: 'Audio',
 	},
@@ -8481,8 +8481,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8493,6 +8491,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-65',
 		IndexNumber: 1,
 		Name: 'Spun',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 3290000000,
 		Type: 'Audio',
 	},
@@ -8506,8 +8506,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8518,6 +8516,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-66',
 		IndexNumber: 2,
 		Name: '16 Psyche',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 2590000000,
 		Type: 'Audio',
 	},
@@ -8531,8 +8531,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8543,6 +8541,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-185',
 		IndexNumber: 3,
 		Name: 'Vex',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 1830000000,
 		Type: 'Audio',
 	},
@@ -8556,8 +8556,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8568,6 +8566,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-314',
 		IndexNumber: 4,
 		Name: 'Strain',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 740000000,
 		Type: 'Audio',
 	},
@@ -8581,8 +8581,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8593,6 +8591,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-315',
 		IndexNumber: 5,
 		Name: 'The Culling',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 3620000000,
 		Type: 'Audio',
 	},
@@ -8606,8 +8606,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8618,6 +8616,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-316',
 		IndexNumber: 6,
 		Name: 'Particle Flux',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 2930000000,
 		Type: 'Audio',
 	},
@@ -8631,8 +8631,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8643,6 +8641,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-317',
 		IndexNumber: 7,
 		Name: 'Twin Fawn',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 3680000000,
 		Type: 'Audio',
 	},
@@ -8656,8 +8656,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8668,6 +8666,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-318',
 		IndexNumber: 8,
 		Name: 'Offering',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 1710000000,
 		Type: 'Audio',
 	},
@@ -8681,8 +8681,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8693,6 +8691,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-319',
 		IndexNumber: 9,
 		Name: 'Static Hum',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 2620000000,
 		Type: 'Audio',
 	},
@@ -8706,8 +8706,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8718,6 +8716,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-320',
 		IndexNumber: 10,
 		Name: 'Welt',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 1150000000,
 		Type: 'Audio',
 	},
@@ -8731,8 +8731,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8743,6 +8741,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-321',
 		IndexNumber: 11,
 		Name: 'Two Spirit',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 3050000000,
 		Type: 'Audio',
 	},
@@ -8756,8 +8756,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-33',
-		PremiereDate: '2017-09-22',
-		ProductionYear: 2017,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8768,6 +8766,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-322',
 		IndexNumber: 12,
 		Name: 'Scrape',
+		PremiereDate: '2017-09-22',
+		ProductionYear: 2017,
 		RunTimeTicks: 1840000000,
 		Type: 'Audio',
 	},
@@ -8781,8 +8781,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-34',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8793,6 +8791,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-67',
 		IndexNumber: 1,
 		Name: 'Whispers in the Echo Chamber',
+		PremiereDate: '2024-02-23',
+		ProductionYear: 2024,
 		RunTimeTicks: 2410000000,
 		Type: 'Audio',
 	},
@@ -8806,8 +8806,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-34',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8818,6 +8816,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-186',
 		IndexNumber: 2,
 		Name: 'House of Self-Undoing',
+		PremiereDate: '2024-02-23',
+		ProductionYear: 2024,
 		RunTimeTicks: 2630000000,
 		Type: 'Audio',
 	},
@@ -8831,8 +8831,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-34',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8843,6 +8841,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-187',
 		IndexNumber: 3,
 		Name: 'Everything Turns Blue',
+		PremiereDate: '2024-02-23',
+		ProductionYear: 2024,
 		RunTimeTicks: 2660000000,
 		Type: 'Audio',
 	},
@@ -8856,8 +8856,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-34',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8868,6 +8866,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-68',
 		IndexNumber: 4,
 		Name: 'Tunnel Lights',
+		PremiereDate: '2024-02-23',
+		ProductionYear: 2024,
 		RunTimeTicks: 2480000000,
 		Type: 'Audio',
 	},
@@ -8881,8 +8881,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-34',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8893,6 +8891,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-323',
 		IndexNumber: 5,
 		Name: 'The Liminal',
+		PremiereDate: '2024-02-23',
+		ProductionYear: 2024,
 		RunTimeTicks: 2920000000,
 		Type: 'Audio',
 	},
@@ -8906,8 +8906,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-34',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8918,6 +8916,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-324',
 		IndexNumber: 6,
 		Name: 'Eyes Like Nightshade',
+		PremiereDate: '2024-02-23',
+		ProductionYear: 2024,
 		RunTimeTicks: 2740000000,
 		Type: 'Audio',
 	},
@@ -8931,8 +8931,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-34',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8943,6 +8941,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-325',
 		IndexNumber: 7,
 		Name: 'Salt',
+		PremiereDate: '2024-02-23',
+		ProductionYear: 2024,
 		RunTimeTicks: 2640000000,
 		Type: 'Audio',
 	},
@@ -8956,8 +8956,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-34',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8968,6 +8966,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-189',
 		IndexNumber: 8,
 		Name: 'Unseen World',
+		PremiereDate: '2024-02-23',
+		ProductionYear: 2024,
 		RunTimeTicks: 2070000000,
 		Type: 'Audio',
 	},
@@ -8981,8 +8981,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-34',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -8993,6 +8991,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-326',
 		IndexNumber: 9,
 		Name: 'Place in the Sun',
+		PremiereDate: '2024-02-23',
+		ProductionYear: 2024,
 		RunTimeTicks: 2500000000,
 		Type: 'Audio',
 	},
@@ -9006,8 +9006,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 			},
 		],
 		AlbumId: 'album-34',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
 		AlbumPrimaryImageTag: 'mock',
 		ArtistItems: [
 			{
@@ -9018,6 +9016,8 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Id: 'track-188',
 		IndexNumber: 10,
 		Name: 'Dusk',
+		PremiereDate: '2024-02-23',
+		ProductionYear: 2024,
 		RunTimeTicks: 2740000000,
 		Type: 'Audio',
 	},
