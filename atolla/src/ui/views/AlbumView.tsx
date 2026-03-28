@@ -20,6 +20,7 @@ import { ArtistView } from './ArtistView';
 
 export interface AlbumViewModel {
 	album: Album;
+	animationsEnabled: boolean;
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
 	playbackStore: PlaybackStore;
@@ -51,14 +52,14 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	handleArtistLogoTap = (): void => {
-		const { album, imageCache, playbackStore, transport } = this.viewModel;
+		const { album, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 		const navigationController = this.viewModel.navigationController ?? this.navigationController;
 		const pushArtistView = (artist: Artist) => {
 			navigationController.push(
 				ArtistView,
-				{ animationsEnabled: this.animationsEnabled, artist, imageCache, playbackStore, transport },
+				{ animationsEnabled, artist, imageCache, playbackStore, transport },
 				{},
-				{ animated: this.animationsEnabled },
+				{ animated: animationsEnabled },
 			);
 		};
 
@@ -160,7 +161,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 	onRender(): void {
 		const { artistLogoUrl, contextMenuTrack, isFooterVisible, toastMessage, tracks } = this.state;
-		const { album, imageCache, playbackStore, transport } = this.viewModel;
+		const { album, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			id: track.id,
@@ -179,7 +180,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		<layout accessibilityLabel='album-view' contentDescription='album-view' style={styles.root}>
 			<scroll style={scrollStyle}>
 				<DetailHeader
-					animationsEnabled={this.animationsEnabled}
+					animationsEnabled={animationsEnabled}
 					artworkCategory='album_art'
 					artworkSource={album.imageUrl ?? null}
 					buttonText={album.releaseDate}

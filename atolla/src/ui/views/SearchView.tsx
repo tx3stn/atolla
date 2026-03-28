@@ -323,6 +323,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			AlbumView,
 			{
 				album,
+				animationsEnabled: this.viewModel.animationsEnabled,
 				imageCache: this.viewModel.imageCache,
 				playbackStore: this.viewModel.playbackStore,
 				transport: this.viewModel.transport,

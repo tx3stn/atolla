@@ -532,6 +532,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					AlbumView,
 					{
 						album: target.album as Album,
+						animationsEnabled: this.state.animationsEnabled,
 						imageCache: this.imageCache,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						playbackStore: this.playbackStore,
