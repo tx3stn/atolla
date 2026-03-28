@@ -78,6 +78,10 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
 	};
 
+	handleHeaderAddToQueueTap = (): void => {
+		this.viewModel.playbackStore.addToQueue(this.state.allTracks);
+	};
+
 	handleTopTrackTap = (trackId: string): void => {
 		const { artist, playbackStore } = this.viewModel;
 		const trackIndex = this.state.topTracks.findIndex((track) => track.id === trackId);
@@ -156,6 +160,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					fallbackText={artist.name}
 					imageCache={imageCache}
 					logoSource={artist.logoUrl || null}
+					onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onShuffle={allTracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 				/>

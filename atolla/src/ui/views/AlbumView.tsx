@@ -121,6 +121,11 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 	};
 
+	handleHeaderAddToQueueTap = (): void => {
+		if (this.state.tracks.length === 0) return;
+		this.viewModel.playbackStore.addToQueue(this.state.tracks);
+	};
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
 		const { album, playbackStore, transport } = this.viewModel;
@@ -176,6 +181,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					fallbackText={album.artistName}
 					imageCache={imageCache}
 					logoSource={artistLogoUrl}
+					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onArtistTap={this.handleArtistLogoTap}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}

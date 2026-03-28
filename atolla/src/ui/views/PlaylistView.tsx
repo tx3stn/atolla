@@ -92,6 +92,10 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		);
 	};
 
+	handleHeaderAddToQueueTap = (): void => {
+		this.viewModel.playbackStore.addToQueue(this.state.tracks);
+	};
+
 	handleTrackTap = (trackId: string): void => {
 		const { playbackStore } = this.viewModel;
 		const { artistLogoUrls, tracks } = this.state;
@@ -155,6 +159,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					artworkSource={this.viewModel.playlist.imageUrl ?? null}
 					fallbackText={this.viewModel.playlist.name}
 					imageCache={this.viewModel.imageCache}
+					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 					subheaderLineOneLeft={tracks.length > 0 ? `${tracks.length} tracks` : null}

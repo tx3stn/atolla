@@ -14,6 +14,7 @@ export interface DetailHeaderViewModel {
 	fallbackText?: string | null;
 	imageCache?: ImageCache;
 	logoSource?: string | null;
+	onAddToQueue?: () => void;
 	onArtistTap?: () => void;
 	onDownload?: () => void;
 	onPlay?: () => void;
@@ -30,6 +31,7 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 			artworkSource,
 			fallbackText,
 			logoSource,
+			onAddToQueue,
 			onArtistTap,
 			onDownload,
 			onPlay,
@@ -77,6 +79,10 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 								style={styles.buttonIcon}
 								tint={onShuffle ? theme.colors.white : theme.colors.muted}
 							/>
+						</view>
+						{/* add to queue */}
+						<view onTap={onAddToQueue} style={styles.button}>
+							<image src={res.addtoqueue} style={styles.buttonIcon} tint={theme.colors.white} />
 						</view>
 						{/* play */}
 						<view onTap={onPlay} style={styles.button}>
