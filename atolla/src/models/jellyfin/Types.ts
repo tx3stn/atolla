@@ -33,6 +33,7 @@ export interface JellyfinBaseItemDto extends JellyfinBaseItemIdentity {
 	ParentLogoImageTag?: string;
 	ParentLogoItemId?: string;
 	PremiereDate?: string;
+	ProductionYear?: number;
 	RunTimeTicks?: number;
 }
 

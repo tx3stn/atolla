@@ -149,6 +149,8 @@ export function mapJellyfinTrackToTrack(
 		duration: runTimeTicksToSeconds(item.RunTimeTicks),
 		id: item.Id,
 		name: item.Name,
+		productionYear: item.ProductionYear,
+		releaseDate: item.PremiereDate,
 		trackNumber: item.IndexNumber,
 	};
 }

@@ -403,12 +403,19 @@ export class NowPlayingSurface extends StatefulComponent<
 		const elapsedText = formatDuration(progressSeconds);
 		const remainingText = `-${formatDuration(Math.max(0, track.duration - progressSeconds))}`;
 		const totalText = formatDuration(track.duration);
+		const trackReleaseYear =
+			track.productionYear ??
+			(track.releaseDate ? extractYearFromDateString(track.releaseDate) : null);
 		const albumLine =
 			album != null
 				? album.releaseDate
 					? `${album.name} (${album.releaseDate.slice(0, 4)})`
 					: album.name
-				: (track.albumName ?? '');
+				: track.albumName
+					? trackReleaseYear
+						? `${track.albumName} (${trackReleaseYear})`
+						: track.albumName
+					: '';
 
 		// Mini-player bar: blurred artwork bg + tint overlay, accent progress fill
 		const barStyle = new Style({
@@ -725,6 +732,19 @@ function withAlpha(hexColor: string, alpha: number): string {
 	const b = Number.parseInt(hex.slice(4, 6), 16);
 	const normalizedAlpha = Math.max(0, Math.min(1, alpha));
 	return `rgba(${r},${g},${b},${normalizedAlpha})`;
+}
+
+function extractYearFromDateString(dateString: string): number | null {
+	if (dateString.length < 4) {
+		return null;
+	}
+
+	const yearCandidate = Number.parseInt(dateString.slice(0, 4), 10);
+	if (Number.isNaN(yearCandidate)) {
+		return null;
+	}
+
+	return yearCandidate;
 }
 
 const styles = {

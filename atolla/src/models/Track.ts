@@ -7,5 +7,7 @@ export interface Track {
 	duration: number; // seconds
 	id: string;
 	name: string;
+	productionYear?: number;
+	releaseDate?: string;
 	trackNumber?: number;
 }
