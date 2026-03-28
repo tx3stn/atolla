@@ -17,7 +17,7 @@ describe('TrackList', () => {
 			IRenderedElementViewClass.Label,
 		);
 		expect(labels.length).toBe(1);
-		expect(labels[0].getAttribute('value')).toBe('No tracks found.');
+		expect(labels[0].getAttribute('value')).toBe('nothing else lined up');
 	});
 
 	valdiIt('renders a row for each track', () => {
@@ -99,7 +99,7 @@ describe('TrackList', () => {
 		const component = instrumented.getComponent();
 
 		let labels = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Label);
-		expect(labels[0].getAttribute('value')).toBe('No tracks found.');
+		expect(labels[0].getAttribute('value')).toBe('nothing else lined up');
 
 		instrumented.setViewModel({ tracks: [{ id: 'x', meta: '5:00', title: 'New Track' }] });
 		labels = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Label);

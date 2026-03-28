@@ -7,7 +7,7 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('CacheClearModal', () => {
-	valdiIt('renders title and all four cache type rows', () => {
+	valdiIt('renders title and all cache type rows', () => {
 		const instrumented = createComponent(CacheClearModal, {
 			onCancel: () => {},
 			onConfirm: () => {},
@@ -24,6 +24,7 @@ describe('CacheClearModal', () => {
 		expect(values).toContain('Artist Images');
 		expect(values).toContain('Artist Logos');
 		expect(values).toContain('Album Art');
+		expect(values).toContain('Blurred Album Art');
 		expect(values).toContain('Playlist Images');
 	});
 
@@ -58,6 +59,9 @@ describe('CacheClearModal', () => {
 			.find((v) => v.getAttribute('testID') === 'cache-clear-album-art-row')
 			?.getAttribute('onTap')?.();
 		views
+			.find((v) => v.getAttribute('testID') === 'cache-clear-album-art-blurred-row')
+			?.getAttribute('onTap')?.();
+		views
 			.find((v) => v.getAttribute('testID') === 'cache-clear-playlist-image-row')
 			?.getAttribute('onTap')?.();
 
@@ -89,6 +93,7 @@ describe('CacheClearModal', () => {
 
 		expect(received).toEqual({
 			albumArt: true,
+			albumArtBlurred: true,
 			artistImage: true,
 			artistLogo: true,
 			playlistImage: true,
@@ -120,6 +125,7 @@ describe('CacheClearModal', () => {
 
 		expect(received).toEqual({
 			albumArt: false,
+			albumArtBlurred: true,
 			artistImage: true,
 			artistLogo: true,
 			playlistImage: true,

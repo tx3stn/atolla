@@ -104,6 +104,7 @@ describe('SettingsView', () => {
 
 		expect(received).toEqual({
 			albumArt: true,
+			albumArtBlurred: true,
 			artistImage: true,
 			artistLogo: true,
 			playlistImage: true,
