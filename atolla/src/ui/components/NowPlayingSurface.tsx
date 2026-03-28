@@ -408,7 +408,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			borderRadius: theme.borderRadius / 2,
 			bottom: 0,
 			left: 0,
-			opacity: 0.72,
+			opacity: 0.68,
 			position: 'absolute',
 			right: 'auto',
 			top: 0,
