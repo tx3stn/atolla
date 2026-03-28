@@ -96,6 +96,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private hasBeenDestroyed = false;
 	private noResultTimer?: ReturnType<typeof setInterval>;
 	private requestVersion = 0;
+	private recentSearchTapHandlers = new Map<string, () => void>();
 	private searchInputRef = new ElementRef();
 	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
@@ -314,6 +315,60 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.handleSubmitSearch(submittedQuery || this.state.query);
 	};
 
+	handleQueryChange = (value: unknown): void => {
+		this.setState({ query: normalizeSearchInput(value) });
+	};
+
+	handleRetryTap = (): void => {
+		this.handleSubmitSearch(this.state.lastSubmittedQuery);
+	};
+
+	handleAlbumCardTap = (card: Card): void => {
+		this.handleAlbumTap(card.id);
+	};
+
+	handleArtistCardTap = (card: Card): void => {
+		this.handleArtistTap(card.id);
+	};
+
+	handlePlaylistCardTap = (card: Card): void => {
+		this.handlePlaylistTap(card.id);
+	};
+
+	handleContextMenuArtistTap = (): void => {
+		const artistId = this.state.contextMenuTrack?.artistId;
+		if (!artistId) {
+			return;
+		}
+
+		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
+			this.viewModel;
+		transport.getArtist(artistId).then((artist) => {
+			if (!artist) return;
+			navigationController.push(
+				ArtistView,
+				{ animationsEnabled, artist, imageCache, playbackStore, transport },
+				{},
+				{ animated: animationsEnabled },
+			);
+		});
+	};
+
+	private getRecentSearchTapHandler(term: string): () => void {
+		const existingHandler = this.recentSearchTapHandlers.get(term);
+		if (existingHandler) {
+			return existingHandler;
+		}
+
+		const createdHandler = (): void => {
+			this.blurSearchInput();
+			this.setState({ query: term });
+			this.handleSubmitSearch(term);
+		};
+		this.recentSearchTapHandlers.set(term, createdHandler);
+		return createdHandler;
+	}
+
 	handleAlbumTap = (albumId: string): void => {
 		const album = this.state.results.albums.find((candidate) => candidate.id === albumId);
 		if (!album) {
@@ -462,9 +517,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 						<textfield
 							autocapitalization='none'
 							keyboardAppearance='dark'
-							onChange={(text) => {
-								this.setState({ query: normalizeSearchInput(text) });
-							}}
+							onChange={this.handleQueryChange}
 							onDone={this.handleSearchKeyboardSubmit}
 							onReturn={this.handleSearchKeyboardSubmit}
 							onSubmit={this.handleSearchKeyboardSubmit}
@@ -493,9 +546,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 							<view
 								accessibilityLabel='search-retry'
 								contentDescription='search-retry'
-								onTap={() => {
-									this.handleSubmitSearch(this.state.lastSubmittedQuery);
-								}}
+								onTap={this.handleRetryTap}
 								style={styles.retryButton}
 							>
 								<label style={styles.retryButtonText} value='Retry' />
@@ -534,7 +585,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 										accessibilityLabel='search-albums-grid'
 										cards={this.createAlbumCards(results.albums)}
 										imageCache={this.viewModel.imageCache}
-										onCardTap={(card) => this.handleAlbumTap(card.id)}
+										onCardTap={this.handleAlbumCardTap}
 									/>
 								</layout>
 							)}
@@ -546,7 +597,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 										accessibilityLabel='search-artists-grid'
 										cards={this.createArtistCards(results.artists)}
 										imageCache={this.viewModel.imageCache}
-										onCardTap={(card) => this.handleArtistTap(card.id)}
+										onCardTap={this.handleArtistCardTap}
 									/>
 								</layout>
 							)}
@@ -558,7 +609,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 										accessibilityLabel='search-playlists-grid'
 										cards={this.createPlaylistCards(results.playlists)}
 										imageCache={this.viewModel.imageCache}
-										onCardTap={(card) => this.handlePlaylistTap(card.id)}
+										onCardTap={this.handlePlaylistCardTap}
 									/>
 								</layout>
 							)}
@@ -575,11 +626,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 									accessibilityLabel={`recent-search-${term}`}
 									contentDescription={`recent-search-${term}`}
 									key={term}
-									onTap={() => {
-										this.blurSearchInput();
-										this.setState({ query: term });
-										this.handleSubmitSearch(term);
-									}}
+									onTap={this.getRecentSearchTapHandler(term)}
 									style={styles.recentSearchChip}
 								>
 									<image
@@ -597,34 +644,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			{contextMenuTrack && (
 				<TrackContextMenu
 					imageCache={imageCache}
-					onArtistTap={
-						contextMenuTrack.artistId
-							? ((artistId) => () => {
-									const {
-										animationsEnabled,
-										imageCache: ic,
-										navigationController,
-										playbackStore: ps,
-										transport: t,
-									} = this.viewModel;
-									t.getArtist(artistId).then((artist) => {
-										if (!artist) return;
-										navigationController.push(
-											ArtistView,
-											{
-												animationsEnabled,
-												artist,
-												imageCache: ic,
-												playbackStore: ps,
-												transport: t,
-											},
-											{},
-											{ animated: animationsEnabled },
-										);
-									});
-								})(contextMenuTrack.artistId)
-							: undefined
-					}
+					onArtistTap={contextMenuTrack.artistId ? this.handleContextMenuArtistTap : undefined}
 					onDismiss={this.handleContextMenuDismiss}
 					playbackStore={playbackStore}
 					track={contextMenuTrack}
@@ -637,13 +657,23 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 }
 
 function createScrollStyle(isFooterVisible: boolean): Style {
-	return new Style({
+	return isFooterVisible ? scrollStyles.withFooter : scrollStyles.withoutFooter;
+}
+
+const scrollStyles = {
+	withFooter: new Style({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
-		paddingBottom: scrollPaddingBottom(isFooterVisible),
+		paddingBottom: scrollPaddingBottom(true),
 		width: '100%',
-	});
-}
+	}),
+	withoutFooter: new Style({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		paddingBottom: scrollPaddingBottom(false),
+		width: '100%',
+	}),
+};
 
 const styles = {
 	emptyText: new Style<Label>({

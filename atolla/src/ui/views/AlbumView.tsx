@@ -245,11 +245,22 @@ const styles = {
 };
 
 function createScrollStyle(isFooterVisible: boolean): Style {
-	return new Style({
+	return isFooterVisible ? scrollStyles.withFooter : scrollStyles.withoutFooter;
+}
+
+const scrollStyles = {
+	withFooter: new Style({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: scrollPaddingBottom(isFooterVisible),
+		paddingBottom: scrollPaddingBottom(true),
 		width: '100%',
-	});
-}
+	}),
+	withoutFooter: new Style({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		padding: 8,
+		paddingBottom: scrollPaddingBottom(false),
+		width: '100%',
+	}),
+};

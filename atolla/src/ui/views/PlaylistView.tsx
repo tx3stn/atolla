@@ -120,6 +120,15 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		playbackStore.playWithArtistLogos(tracks, artistLogoUrls, trackIndex);
 	};
 
+	handleContextMenuArtistTap = (): void => {
+		const artistId = this.state.contextMenuTrack?.artistId;
+		if (!artistId) {
+			return;
+		}
+
+		this.viewModel.onNavigateToArtist?.(artistId);
+	};
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
 		const { playbackStore, transport, playlist } = this.viewModel;
@@ -192,10 +201,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					imageCache={imageCache}
 					onArtistTap={
 						onNavigateToArtist && contextMenuTrack.artistId
-							? (
-									(id) => () =>
-										onNavigateToArtist(id)
-								)(contextMenuTrack.artistId)
+							? this.handleContextMenuArtistTap
 							: undefined
 					}
 					onDismiss={this.handleContextMenuDismiss}
@@ -227,11 +233,22 @@ function formatDuration(seconds: number): string {
 }
 
 function createScrollStyle(isFooterVisible: boolean): Style {
-	return new Style({
+	return isFooterVisible ? scrollStyles.withFooter : scrollStyles.withoutFooter;
+}
+
+const scrollStyles = {
+	withFooter: new Style({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: scrollPaddingBottom(isFooterVisible),
+		paddingBottom: scrollPaddingBottom(true),
 		width: '100%',
-	});
-}
+	}),
+	withoutFooter: new Style({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		padding: 8,
+		paddingBottom: scrollPaddingBottom(false),
+		width: '100%',
+	}),
+};

@@ -16,6 +16,7 @@ import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 import {
+	type JellyfinImageResolvers,
 	mapJellyfinAlbumToAlbum,
 	mapJellyfinArtistToArtist,
 	mapJellyfinPlaylistToPlaylist,
@@ -141,7 +142,7 @@ export class MockTransport implements Transport {
 		});
 	}
 
-	private readonly imageResolvers = {
+	private readonly imageResolvers: JellyfinImageResolvers = {
 		albumPrimaryImageUrl: (albumId: string): string | undefined =>
 			mockAlbumPrimaryImageUrls[albumId],
 		itemLogoImageUrl: (itemId: string): string | undefined => mockArtistLogoUrls[itemId],

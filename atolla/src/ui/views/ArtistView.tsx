@@ -105,6 +105,21 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
 	};
 
+	handleAlbumCardTap = (card: Card): void => {
+		const album = this.state.albums.find((candidate) => candidate.id === card.id);
+		if (!album) {
+			return;
+		}
+
+		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		this.navigationController.push(
+			AlbumView,
+			{ album, animationsEnabled, imageCache, playbackStore, transport },
+			{},
+			{ animated: animationsEnabled },
+		);
+	};
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
 		const { artist, playbackStore, transport } = this.viewModel;
@@ -189,17 +204,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 							accessibilityLabel='artist-albums-grid'
 							cards={albumCards}
 							imageCache={imageCache}
-							onCardTap={(card) => {
-								const album = this.state.albums.find((a) => a.id === card.id);
-								if (album) {
-									this.navigationController.push(
-										AlbumView,
-										{ album, animationsEnabled, imageCache, playbackStore, transport },
-										{},
-										{ animated: animationsEnabled },
-									);
-								}
-							}}
+							onCardTap={this.handleAlbumCardTap}
 						/>
 					</layout>
 				)}
@@ -267,11 +272,22 @@ const styles = {
 };
 
 function createScrollStyle(isFooterVisible: boolean): Style {
-	return new Style({
+	return isFooterVisible ? scrollStyles.withFooter : scrollStyles.withoutFooter;
+}
+
+const scrollStyles = {
+	withFooter: new Style({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: scrollPaddingBottom(isFooterVisible),
+		paddingBottom: scrollPaddingBottom(true),
 		width: '100%',
-	});
-}
+	}),
+	withoutFooter: new Style({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		padding: 8,
+		paddingBottom: scrollPaddingBottom(false),
+		width: '100%',
+	}),
+};

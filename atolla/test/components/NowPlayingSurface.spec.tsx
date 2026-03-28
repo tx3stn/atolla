@@ -79,20 +79,7 @@ describe('NowPlayingSurface', () => {
 	});
 
 	valdiIt('shows expanded now-playing view when compact bar is tapped', () => {
-		const instrumented = createComponent(NowPlayingSurface, {
-			album,
-			artistLogoUrl: null,
-			collapseSignal: 0,
-			isPlaying: true,
-			onDismiss: () => {},
-			onNext: () => {},
-			onPlayPause: () => {},
-			onPrevious: () => {},
-			progressSeconds: 90,
-			track,
-			trackIndex: 0,
-			tracks: [track],
-		});
+		const instrumented = createNowPlayingComponent();
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
@@ -102,6 +89,53 @@ describe('NowPlayingSurface', () => {
 		expect(overlay?.getAttribute('top')).not.toBe(0);
 		compactBar?.getAttribute('onTap')?.();
 		expect(overlay?.getAttribute('top')).toBe(0);
+	});
+
+	valdiIt('shows add-to-queue toast when context menu action is tapped', () => {
+		let addToQueueCalls = 0;
+		const playbackStore = {
+			addToQueue: () => {
+				addToQueueCalls += 1;
+			},
+		};
+		const transport = {
+			getArtistLogoUrl: () => Promise.resolve(null),
+		};
+
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 0,
+			isPlaying: true,
+			onDismiss: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore,
+			progressSeconds: 90,
+			track,
+			trackIndex: 0,
+			tracks: [track],
+			transport,
+		});
+		const component = instrumented.getComponent();
+
+		component.setState({ contextMenuTrack: track });
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const addToQueueAction = views.find(
+			(view) => view.getAttribute('testID') === 'track-context-add-to-queue',
+		);
+		addToQueueAction?.getAttribute('onTap')?.();
+
+		const labels = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Label,
+		);
+		const values = labels.map((label) => label.getAttribute('value'));
+
+		expect(addToQueueCalls).toBe(1);
+		expect(values).toContain('added to queue');
 	});
 
 	valdiIt('handles collapse signal update while expanded', () => {
