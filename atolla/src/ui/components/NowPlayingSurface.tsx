@@ -10,9 +10,13 @@ import type { Track } from '../../models/Track';
 import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
+import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
+import type { Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
 import { PlaybackProgressBar } from './PlaybackProgressBar';
+import { Toast } from './Toast';
+import { TrackContextMenu } from './TrackContextMenu';
 import { TrackList, type TrackListEntry } from './TrackList';
 
 export interface NowPlayingSurfaceViewModel {
@@ -30,17 +34,21 @@ export interface NowPlayingSurfaceViewModel {
 	onProgressTap?: (ratio?: number) => void;
 	onTrackTap?: (trackId: string) => void;
 	palette?: Palette;
+	playbackStore?: PlaybackStore;
 	progressSeconds: number;
 	track: Track;
 	trackIndex: number;
 	tracks: Array<Track>;
+	transport?: Transport;
 }
 
 type QueueTab = 'backTo' | 'upNext';
 
 interface NowPlayingSurfaceState {
 	activeQueueTab: QueueTab;
+	contextMenuTrack: Track | null;
 	isExpanded: boolean;
+	toastMessage: string | null;
 }
 
 export class NowPlayingSurface extends StatefulComponent<
@@ -65,7 +73,9 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	state: NowPlayingSurfaceState = {
 		activeQueueTab: 'upNext',
+		contextMenuTrack: null,
 		isExpanded: false,
+		toastMessage: null,
 	};
 
 	private runAnimate(options: object, callback: () => void): void {
@@ -316,6 +326,20 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.setState({ activeQueueTab: tab });
 	};
 
+	private handleTrackLongPress = (track: Track): void => {
+		this.setState({ contextMenuTrack: track });
+	};
+
+	private handleContextMenuDismiss = (toastMessage?: string): void => {
+		this.setState({ contextMenuTrack: null });
+		if (toastMessage) {
+			this.setState({ toastMessage });
+			setTimeout(() => {
+				this.setState({ toastMessage: null });
+			}, 2000);
+		}
+	};
+
 	onRender(): void {
 		const {
 			album,
@@ -339,6 +363,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			id: t.id,
 			meta: t.artistName ?? album?.artistName ?? null,
 			title: t.name,
+			track: t,
 		});
 
 		const upNextEntries = tracks.slice(trackIndex + 1).map(toEntry);
@@ -641,6 +666,11 @@ export class NowPlayingSurface extends StatefulComponent<
 								<TrackList
 									imageCache={imageCache}
 									noRowBackground
+									onTrackLongPress={
+										this.viewModel.playbackStore && this.viewModel.transport
+											? this.handleTrackLongPress
+											: undefined
+									}
 									onTrackTap={onTrackTap}
 									palette={palette}
 									tracks={activeTab === 'upNext' ? upNextEntries : backToEntries}
@@ -650,6 +680,16 @@ export class NowPlayingSurface extends StatefulComponent<
 					</view>
 				</view>
 			</view>
+			{this.state.contextMenuTrack && this.viewModel.playbackStore && this.viewModel.transport && (
+				<TrackContextMenu
+					imageCache={imageCache}
+					onDismiss={this.handleContextMenuDismiss}
+					playbackStore={this.viewModel.playbackStore}
+					track={this.state.contextMenuTrack}
+					transport={this.viewModel.transport}
+				/>
+			)}
+			{this.state.toastMessage && <Toast message={this.state.toastMessage} />}
 		</view>;
 	}
 }

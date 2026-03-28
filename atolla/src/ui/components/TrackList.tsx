@@ -1,7 +1,9 @@
 // @ts-nocheck
-import { Component } from 'valdi_core/src/Component';
+import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import { TouchEventState } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Track } from '../../models/Track';
 import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { theme } from '../../theme';
@@ -13,11 +15,13 @@ export interface TrackListEntry {
 	leadingLabel?: string | null;
 	meta: string;
 	title: string;
+	track?: Track;
 }
 
-interface TrackListViewModel {
+export interface TrackListViewModel {
 	imageCache?: ImageCache;
 	noRowBackground?: boolean;
+	onTrackLongPress?: (track: Track) => void;
 	onTrackTap?: (trackId: string) => void;
 	palette?: Palette;
 	tracks: Array<TrackListEntry>;
@@ -30,6 +34,10 @@ interface TrackListColors {
 	title: string;
 }
 
+interface TrackListState {
+	longPressTimerId: ReturnType<typeof setTimeout> | null;
+}
+
 const defaultColors: TrackListColors = {
 	meta: theme.text.sub.color,
 	rowBackground: theme.colors.bg,
@@ -37,7 +45,15 @@ const defaultColors: TrackListColors = {
 	title: theme.text.main.color,
 };
 
-export class TrackList extends Component<TrackListViewModel> {
+const LONG_PRESS_DELAY_MS = 500;
+
+export class TrackList extends StatefulComponent<TrackListViewModel, TrackListState> {
+	private suppressNextTap = false;
+
+	state: TrackListState = {
+		longPressTimerId: null,
+	};
+
 	onRender() {
 		const colors = resolveColors(this.viewModel.palette, this.viewModel.noRowBackground);
 		const emptyStateStyle = new Style<Label>({
@@ -87,31 +103,42 @@ export class TrackList extends Component<TrackListViewModel> {
 		}
 
 		<layout style={styles.list}>
-			{this.viewModel.tracks.map((track: TrackListEntry) => (
+			{this.viewModel.tracks.map((entry: TrackListEntry) => (
 				<view
-					accessibilityLabel={`track-row-${track.id}`}
-					contentDescription={`track-row-${track.id}`}
-					key={track.id}
+					accessibilityLabel={`track-row-${entry.id}`}
+					contentDescription={`track-row-${entry.id}`}
+					key={entry.id}
 					onTap={() => {
-						this.viewModel.onTrackTap?.(track.id);
+						if (this.suppressNextTap) {
+							this.suppressNextTap = false;
+							return;
+						}
+						this.viewModel.onTrackTap?.(entry.id);
 					}}
+					onTouch={
+						this.viewModel.onTrackLongPress && entry.track
+							? (event) => {
+									this.handleTouch(event, entry.track!);
+								}
+							: undefined
+					}
 					style={rowStyle}
-					testID={`track-row-${track.id}`}
+					testID={`track-row-${entry.id}`}
 				>
 					<layout style={styles.rowContent}>
-						{track.artworkSource ? (
+						{entry.artworkSource ? (
 							<view style={artworkTileStyle}>
 								<CachedImage
 									category='album_art'
 									imageCache={this.viewModel.imageCache}
 									objectFit='cover'
 									style={styles.artwork}
-									url={track.artworkSource}
+									url={entry.artworkSource}
 								/>
 							</view>
-						) : track.leadingLabel ? (
+						) : entry.leadingLabel ? (
 							<view style={styles.leadingLabelTile}>
-								<label style={leadingLabelTextStyle} value={track.leadingLabel} />
+								<label style={leadingLabelTextStyle} value={entry.leadingLabel} />
 							</view>
 						) : null}
 
@@ -120,20 +147,43 @@ export class TrackList extends Component<TrackListViewModel> {
 								ellipsizeMode='tail'
 								numberOfLines={2}
 								style={titleStyle}
-								value={track.title}
+								value={entry.title}
 							/>
-							<label ellipsizeMode='tail' numberOfLines={1} style={metaStyle} value={track.meta} />
+							<label ellipsizeMode='tail' numberOfLines={1} style={metaStyle} value={entry.meta} />
 						</layout>
 					</layout>
 				</view>
 			))}
 		</layout>;
 	}
+
+	private handleTouch(event: { state: TouchEventState }, track: Track): void {
+		if (event.state === TouchEventState.Started) {
+			const timerId = setTimeout(() => {
+				this.suppressNextTap = true;
+				this.setState({ longPressTimerId: null });
+				this.viewModel.onTrackLongPress?.(track);
+			}, LONG_PRESS_DELAY_MS);
+			this.setState({ longPressTimerId: timerId });
+			return;
+		}
+
+		if (
+			event.state === TouchEventState.Changed ||
+			event.state === TouchEventState.Ended ||
+			event.state === TouchEventState.Cancelled
+		) {
+			if (this.state.longPressTimerId !== null) {
+				clearTimeout(this.state.longPressTimerId);
+				this.setState({ longPressTimerId: null });
+			}
+		}
+	}
 }
 
 function resolveColors(palette?: Palette, noRowBackground?: boolean): TrackListColors {
 	if (!palette) {
-		return defaultColors;
+		return noRowBackground ? { ...defaultColors, rowBackground: 'transparent' } : defaultColors;
 	}
 
 	return {

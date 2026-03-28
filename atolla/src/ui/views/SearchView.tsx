@@ -16,6 +16,8 @@ import { scrollPaddingBottom, theme } from '../../theme';
 import type { SearchResults, Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { Spinner } from '../components/Spinner';
+import { Toast } from '../components/Toast';
+import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
@@ -46,6 +48,7 @@ export type SearchHomeNavigationTarget =
 	| { kind: 'playlist'; playlist: Playlist };
 
 interface SearchState {
+	contextMenuTrack: Track | null;
 	errorMessage: string | null;
 	isFooterVisible: boolean;
 	lastSubmittedQuery: string;
@@ -54,6 +57,7 @@ interface SearchState {
 	recentSearches: Array<string>;
 	results: SearchResults;
 	status: SearchStatus;
+	toastMessage: string | null;
 }
 
 function normalizeSearchInput(value: unknown): string {
@@ -95,6 +99,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private unsubscribePlayback?: () => void;
 
 	state: SearchState = {
+		contextMenuTrack: null,
 		errorMessage: null,
 		isFooterVisible: false,
 		lastSubmittedQuery: '',
@@ -108,6 +113,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			tracks: [],
 		},
 		status: 'idle',
+		toastMessage: null,
 	};
 
 	onCreate(): void {
@@ -268,6 +274,20 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			});
 	};
 
+	handleTrackLongPress = (track: Track): void => {
+		this.setState({ contextMenuTrack: track });
+	};
+
+	handleContextMenuDismiss = (toastMessage?: string): void => {
+		this.setState({ contextMenuTrack: null });
+		if (toastMessage) {
+			this.setState({ toastMessage });
+			setTimeout(() => {
+				this.setState({ toastMessage: null });
+			}, 2000);
+		}
+	};
+
 	handleTrackTap = (trackId: string): void => {
 		const trackIndex = this.state.results.tracks.findIndex((track) => track.id === trackId);
 		if (trackIndex < 0) {
@@ -371,6 +391,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			id: track.id,
 			meta: track.artistName ?? track.albumName ?? '',
 			title: track.name,
+			track,
 		}));
 	}
 
@@ -405,140 +426,164 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	}
 
 	onRender(): void {
-		const { query, recentSearches, results, status } = this.state;
+		const { contextMenuTrack, query, recentSearches, results, status, toastMessage } = this.state;
+		const { imageCache, playbackStore, transport } = this.viewModel;
 
-		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
-			<view style={styles.root}>
-				<view
-					accessibilityLabel='search-bar'
-					contentDescription='search-bar'
-					style={styles.searchBar}
-				>
-					<image src={res.search} style={styles.searchIcon} tint={theme.colors.white} />
-					<textfield
-						autocapitalization='none'
-						keyboardAppearance='dark'
-						onChange={(text) => {
-							this.setState({ query: normalizeSearchInput(text) });
-						}}
-						onDone={this.handleSearchKeyboardSubmit}
-						onReturn={this.handleSearchKeyboardSubmit}
-						onSubmit={this.handleSearchKeyboardSubmit}
-						placeholder='search'
-						ref={this.searchInputRef}
-						returnKeyText='search'
-						style={styles.searchInput}
-						value={query}
-					/>
-				</view>
-
-				{status === 'loading' && (
-					<Spinner accessibilityLabel='search-loading-spinner' label='Searching your library...' />
-				)}
-
-				{status === 'error' && (
-					<view style={styles.infoContainer}>
-						<label style={styles.errorTitle} value='Search failed' />
-						<label
-							style={styles.errorText}
-							value={this.state.errorMessage ?? 'Could not search right now.'}
-						/>
-						<view
-							accessibilityLabel='search-retry'
-							contentDescription='search-retry'
-							onTap={() => {
-								this.handleSubmitSearch(this.state.lastSubmittedQuery);
+		<layout style={styles.searchRoot}>
+			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
+				<view style={styles.root}>
+					<view
+						accessibilityLabel='search-bar'
+						contentDescription='search-bar'
+						style={styles.searchBar}
+					>
+						<image src={res.search} style={styles.searchIcon} tint={theme.colors.white} />
+						<textfield
+							autocapitalization='none'
+							keyboardAppearance='dark'
+							onChange={(text) => {
+								this.setState({ query: normalizeSearchInput(text) });
 							}}
-							style={styles.retryButton}
-						>
-							<label style={styles.retryButtonText} value='Retry' />
+							onDone={this.handleSearchKeyboardSubmit}
+							onReturn={this.handleSearchKeyboardSubmit}
+							onSubmit={this.handleSearchKeyboardSubmit}
+							placeholder='search'
+							ref={this.searchInputRef}
+							returnKeyText='search'
+							style={styles.searchInput}
+							value={query}
+						/>
+					</view>
+
+					{status === 'loading' && (
+						<Spinner
+							accessibilityLabel='search-loading-spinner'
+							label='Searching your library...'
+						/>
+					)}
+
+					{status === 'error' && (
+						<view style={styles.infoContainer}>
+							<label style={styles.errorTitle} value='Search failed' />
+							<label
+								style={styles.errorText}
+								value={this.state.errorMessage ?? 'Could not search right now.'}
+							/>
+							<view
+								accessibilityLabel='search-retry'
+								contentDescription='search-retry'
+								onTap={() => {
+									this.handleSubmitSearch(this.state.lastSubmittedQuery);
+								}}
+								style={styles.retryButton}
+							>
+								<label style={styles.retryButtonText} value='Retry' />
+							</view>
 						</view>
-					</view>
-				)}
+					)}
 
-				{status === 'empty' && (
-					<view style={styles.infoContainer}>
-						<label style={styles.emptyTitle} value='No matches found' />
-						<label style={styles.emptyText} value={noResultFrames[this.state.noResultFrameIndex]} />
-					</view>
-				)}
+					{status === 'empty' && (
+						<view style={styles.infoContainer}>
+							<label style={styles.emptyTitle} value='No matches found' />
+							<label
+								style={styles.emptyText}
+								value={noResultFrames[this.state.noResultFrameIndex]}
+							/>
+						</view>
+					)}
 
-				{status === 'success' && (
-					<layout style={styles.resultsContainer}>
-						{results.tracks.length > 0 && (
-							<layout style={styles.section}>
-								{this.renderSectionTitle('TRACKS')}
-								<TrackList
-									imageCache={this.viewModel.imageCache}
-									onTrackTap={this.handleTrackTap}
-									tracks={this.createTrackEntries(results.tracks)}
-								/>
-							</layout>
-						)}
+					{status === 'success' && (
+						<layout style={styles.resultsContainer}>
+							{results.tracks.length > 0 && (
+								<layout style={styles.section}>
+									{this.renderSectionTitle('TRACKS')}
+									<TrackList
+										imageCache={imageCache}
+										onTrackLongPress={this.handleTrackLongPress}
+										onTrackTap={this.handleTrackTap}
+										tracks={this.createTrackEntries(results.tracks)}
+									/>
+								</layout>
+							)}
 
-						{results.albums.length > 0 && (
-							<layout style={styles.section}>
-								{this.renderSectionTitle('ALBUMS')}
-								<CardGrid
-									accessibilityLabel='search-albums-grid'
-									cards={this.createAlbumCards(results.albums)}
-									imageCache={this.viewModel.imageCache}
-									onCardTap={(card) => this.handleAlbumTap(card.id)}
-								/>
-							</layout>
-						)}
+							{results.albums.length > 0 && (
+								<layout style={styles.section}>
+									{this.renderSectionTitle('ALBUMS')}
+									<CardGrid
+										accessibilityLabel='search-albums-grid'
+										cards={this.createAlbumCards(results.albums)}
+										imageCache={this.viewModel.imageCache}
+										onCardTap={(card) => this.handleAlbumTap(card.id)}
+									/>
+								</layout>
+							)}
 
-						{results.artists.length > 0 && (
-							<layout style={styles.section}>
-								{this.renderSectionTitle('ARTISTS')}
-								<CardGrid
-									accessibilityLabel='search-artists-grid'
-									cards={this.createArtistCards(results.artists)}
-									imageCache={this.viewModel.imageCache}
-									onCardTap={(card) => this.handleArtistTap(card.id)}
-								/>
-							</layout>
-						)}
+							{results.artists.length > 0 && (
+								<layout style={styles.section}>
+									{this.renderSectionTitle('ARTISTS')}
+									<CardGrid
+										accessibilityLabel='search-artists-grid'
+										cards={this.createArtistCards(results.artists)}
+										imageCache={this.viewModel.imageCache}
+										onCardTap={(card) => this.handleArtistTap(card.id)}
+									/>
+								</layout>
+							)}
 
-						{results.playlists.length > 0 && (
-							<layout style={styles.section}>
-								{this.renderSectionTitle('PLAYLISTS')}
-								<CardGrid
-									accessibilityLabel='search-playlists-grid'
-									cards={this.createPlaylistCards(results.playlists)}
-									imageCache={this.viewModel.imageCache}
-									onCardTap={(card) => this.handlePlaylistTap(card.id)}
-								/>
-							</layout>
+							{results.playlists.length > 0 && (
+								<layout style={styles.section}>
+									{this.renderSectionTitle('PLAYLISTS')}
+									<CardGrid
+										accessibilityLabel='search-playlists-grid'
+										cards={this.createPlaylistCards(results.playlists)}
+										imageCache={this.viewModel.imageCache}
+										onCardTap={(card) => this.handlePlaylistTap(card.id)}
+									/>
+								</layout>
+							)}
+						</layout>
+					)}
+
+					<layout style={styles.recentSection}>
+						<label style={styles.sectionTitle} value='RECENT SEARCHES' />
+						{recentSearches.length === 0 ? (
+							<label style={styles.recentEmpty} value='No recent searches yet.' />
+						) : (
+							recentSearches.map((term) => (
+								<view
+									accessibilityLabel={`recent-search-${term}`}
+									contentDescription={`recent-search-${term}`}
+									key={term}
+									onTap={() => {
+										this.blurSearchInput();
+										this.setState({ query: term });
+										this.handleSubmitSearch(term);
+									}}
+									style={styles.recentSearchChip}
+								>
+									<image
+										src={res.search}
+										style={styles.recentSearchIcon}
+										tint={theme.colors.grey}
+									/>
+									<label style={styles.recentSearchText} value={term} />
+								</view>
+							))
 						)}
 					</layout>
-				)}
-
-				<layout style={styles.recentSection}>
-					<label style={styles.sectionTitle} value='RECENT SEARCHES' />
-					{recentSearches.length === 0 ? (
-						<label style={styles.recentEmpty} value='No recent searches yet.' />
-					) : (
-						recentSearches.map((term) => (
-							<view
-								accessibilityLabel={`recent-search-${term}`}
-								contentDescription={`recent-search-${term}`}
-								key={term}
-								onTap={() => {
-									this.blurSearchInput();
-									this.setState({ query: term });
-									this.handleSubmitSearch(term);
-								}}
-								style={styles.recentSearchChip}
-							>
-								<image src={res.search} style={styles.recentSearchIcon} tint={theme.colors.grey} />
-								<label style={styles.recentSearchText} value={term} />
-							</view>
-						))
-					)}
-				</layout>
-			</view>
-		</scroll>;
+				</view>
+			</scroll>
+			{contextMenuTrack && (
+				<TrackContextMenu
+					imageCache={imageCache}
+					onDismiss={this.handleContextMenuDismiss}
+					playbackStore={playbackStore}
+					track={contextMenuTrack}
+					transport={transport}
+				/>
+			)}
+			{toastMessage && <Toast message={toastMessage} />}
+		</layout>;
 	}
 }
 
@@ -641,6 +686,10 @@ const styles = {
 		flexGrow: 1,
 		marginLeft: 20,
 		padding: 8,
+	}),
+	searchRoot: new Style({
+		flexGrow: 1,
+		width: '100%',
 	}),
 	section: new Style({
 		marginBottom: 18,

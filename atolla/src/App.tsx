@@ -735,10 +735,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					}}
 					onTrackTap={this.handleNowPlayingTrackTap}
 					palette={palette}
+					playbackStore={this.playbackStore}
 					progressSeconds={progressSeconds}
 					track={track}
 					trackIndex={trackIndex}
 					tracks={tracks}
+					transport={this.transport}
 				/>
 			)}
 		</view>;

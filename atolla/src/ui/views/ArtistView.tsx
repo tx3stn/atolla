@@ -14,6 +14,8 @@ import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { DetailHeader } from '../components/DetailHeader';
+import { Toast } from '../components/Toast';
+import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { AlbumView } from './AlbumView';
 
@@ -29,7 +31,9 @@ export interface ArtistViewModel {
 interface ArtistState {
 	albums: Array<Album>;
 	allTracks: Array<Track>;
+	contextMenuTrack: Track | null;
 	isFooterVisible: boolean;
+	toastMessage: string | null;
 	topTracks: Array<Track>;
 }
 
@@ -42,8 +46,24 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	state: ArtistState = {
 		albums: [],
 		allTracks: [],
+		contextMenuTrack: null,
 		isFooterVisible: false,
+		toastMessage: null,
 		topTracks: [],
+	};
+
+	handleTrackLongPress = (track: Track): void => {
+		this.setState({ contextMenuTrack: track });
+	};
+
+	handleContextMenuDismiss = (toastMessage?: string): void => {
+		this.setState({ contextMenuTrack: null });
+		if (toastMessage) {
+			this.setState({ toastMessage });
+			setTimeout(() => {
+				this.setState({ toastMessage: null });
+			}, 2000);
+		}
 	};
 
 	handleHeaderPlayTap = (): void => {
@@ -104,7 +124,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	onRender(): void {
 		const { artist, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
-		const { albums, allTracks, isFooterVisible, topTracks } = this.state;
+		const { albums, allTracks, contextMenuTrack, isFooterVisible, toastMessage, topTracks } =
+			this.state;
 
 		const sortedAlbums = [...albums].sort((a, b) =>
 			(b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''),
@@ -122,6 +143,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			id: track.id,
 			meta: track.albumName ?? '',
 			title: track.name,
+			track,
 		}));
 
 		const scrollStyle = createScrollStyle(isFooterVisible);
@@ -168,6 +190,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						<label style={styles.sectionHeader} value='TOP TRACKS' />
 						<TrackList
 							imageCache={imageCache}
+							onTrackLongPress={this.handleTrackLongPress}
 							onTrackTap={this.handleTopTrackTap}
 							tracks={trackEntries}
 						/>
@@ -183,6 +206,16 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					/>
 				)}
 			</scroll>
+			{contextMenuTrack && (
+				<TrackContextMenu
+					imageCache={imageCache}
+					onDismiss={this.handleContextMenuDismiss}
+					playbackStore={playbackStore}
+					track={contextMenuTrack}
+					transport={transport}
+				/>
+			)}
+			{toastMessage && <Toast message={toastMessage} />}
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 		</layout>;
 	}

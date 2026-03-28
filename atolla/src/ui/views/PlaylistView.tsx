@@ -11,6 +11,8 @@ import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { DetailHeader } from '../components/DetailHeader';
+import { Toast } from '../components/Toast';
+import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 
 export interface PlaylistViewModel {
@@ -23,7 +25,9 @@ export interface PlaylistViewModel {
 
 interface PlaylistState {
 	artistLogoUrls: Array<string | null>;
+	contextMenuTrack: Track | null;
 	isFooterVisible: boolean;
+	toastMessage: string | null;
 	tracks: Array<Track>;
 }
 
@@ -38,8 +42,24 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	state: PlaylistState = {
 		artistLogoUrls: [],
+		contextMenuTrack: null,
 		isFooterVisible: false,
+		toastMessage: null,
 		tracks: [],
+	};
+
+	handleTrackLongPress = (track: Track): void => {
+		this.setState({ contextMenuTrack: track });
+	};
+
+	handleContextMenuDismiss = (toastMessage?: string): void => {
+		this.setState({ contextMenuTrack: null });
+		if (toastMessage) {
+			this.setState({ toastMessage });
+			setTimeout(() => {
+				this.setState({ toastMessage: null });
+			}, 2000);
+		}
 	};
 
 	handleHeaderPlayTap = (): void => {
@@ -97,13 +117,15 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	}
 
 	onRender(): void {
-		const { isFooterVisible, tracks } = this.state;
+		const { contextMenuTrack, isFooterVisible, toastMessage, tracks } = this.state;
+		const { imageCache, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
 			id: track.id,
 			meta: track.artistName,
 			title: track.name,
+			track,
 		}));
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
@@ -125,11 +147,22 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
 				/>
 				<TrackList
-					imageCache={this.viewModel.imageCache}
+					imageCache={imageCache}
+					onTrackLongPress={this.handleTrackLongPress}
 					onTrackTap={this.handleTrackTap}
 					tracks={entries}
 				/>
 			</scroll>
+			{contextMenuTrack && (
+				<TrackContextMenu
+					imageCache={imageCache}
+					onDismiss={this.handleContextMenuDismiss}
+					playbackStore={playbackStore}
+					track={contextMenuTrack}
+					transport={transport}
+				/>
+			)}
+			{toastMessage && <Toast message={toastMessage} />}
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 		</layout>;
 	}

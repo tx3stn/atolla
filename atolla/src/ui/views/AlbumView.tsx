@@ -13,6 +13,8 @@ import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
+import { Toast } from '../components/Toast';
+import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ArtistView } from './ArtistView';
 
@@ -27,7 +29,9 @@ export interface AlbumViewModel {
 interface AlbumState {
 	artist: Artist | null;
 	artistLogoUrl: string | null;
+	contextMenuTrack: Track | null;
 	isFooterVisible: boolean;
+	toastMessage: string | null;
 	tracks: Array<Track>;
 }
 
@@ -40,7 +44,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	state: AlbumState = {
 		artist: null,
 		artistLogoUrl: null,
+		contextMenuTrack: null,
 		isFooterVisible: false,
+		toastMessage: null,
 		tracks: [],
 	};
 
@@ -94,6 +100,20 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 	};
 
+	handleTrackLongPress = (track: Track): void => {
+		this.setState({ contextMenuTrack: track });
+	};
+
+	handleContextMenuDismiss = (toastMessage?: string): void => {
+		this.setState({ contextMenuTrack: null });
+		if (toastMessage) {
+			this.setState({ toastMessage });
+			setTimeout(() => {
+				this.setState({ toastMessage: null });
+			}, 2000);
+		}
+	};
+
 	handleHeaderShuffleTap = (): void => {
 		if (this.state.tracks.length === 0) return;
 		const { album, playbackStore } = this.viewModel;
@@ -130,14 +150,15 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	onRender(): void {
-		const { artistLogoUrl, isFooterVisible, tracks } = this.state;
-		const { album, imageCache } = this.viewModel;
+		const { artistLogoUrl, contextMenuTrack, isFooterVisible, toastMessage, tracks } = this.state;
+		const { album, imageCache, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			id: track.id,
 			leadingLabel: track.trackNumber != null ? String(track.trackNumber) : null,
 			meta: formatDuration(track.duration),
 			title: track.name,
+			track,
 		}));
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
@@ -162,9 +183,24 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					subheaderLineTwoLeft={releaseDateText}
 					subheaderLineTwoRight={durationText}
 				/>
-				<TrackList imageCache={imageCache} onTrackTap={this.handleTrackTap} tracks={entries} />
+				<TrackList
+					imageCache={imageCache}
+					onTrackLongPress={this.handleTrackLongPress}
+					onTrackTap={this.handleTrackTap}
+					tracks={entries}
+				/>
 				{album.bio && <BioSection bio={album.bio} modalSlot={this.modalSlot} title={album.name} />}
 			</scroll>
+			{contextMenuTrack && (
+				<TrackContextMenu
+					imageCache={imageCache}
+					onDismiss={this.handleContextMenuDismiss}
+					playbackStore={playbackStore}
+					track={contextMenuTrack}
+					transport={transport}
+				/>
+			)}
+			{toastMessage && <Toast message={toastMessage} />}
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 		</layout>;
 	}
