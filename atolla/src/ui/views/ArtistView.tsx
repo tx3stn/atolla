@@ -159,6 +159,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		<layout accessibilityLabel='artist-view' contentDescription='artist-view' style={styles.root}>
 			<scroll style={scrollStyle}>
 				<DetailHeader
+					animationsEnabled={animationsEnabled}
 					artworkCategory='artist_image'
 					artworkSource={artist.imageUrl ?? null}
 					fallbackText={artist.name}

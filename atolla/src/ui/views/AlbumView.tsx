@@ -179,6 +179,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		<layout accessibilityLabel='album-view' contentDescription='album-view' style={styles.root}>
 			<scroll style={scrollStyle}>
 				<DetailHeader
+					animationsEnabled={this.animationsEnabled}
 					artworkCategory='album_art'
 					artworkSource={album.imageUrl ?? null}
 					buttonText={album.releaseDate}

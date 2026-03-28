@@ -159,6 +159,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		>
 			<scroll style={createScrollStyle(isFooterVisible)}>
 				<DetailHeader
+					animationsEnabled={this.animationsEnabled}
 					artworkCategory='playlist_image'
 					artworkSource={this.viewModel.playlist.imageUrl ?? null}
 					fallbackText={this.viewModel.playlist.name}

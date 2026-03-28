@@ -1,14 +1,17 @@
 // @ts-nocheck
 import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
+import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { ImageCache, ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
+import { animateRipple, createRippleStyle } from '../animations/Icons';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
 
 export interface DetailHeaderViewModel {
+	animationsEnabled: boolean;
 	artworkCategory: ImageCategory;
 	artworkSource: string | null;
 	fallbackText?: string | null;
@@ -26,6 +29,31 @@ export interface DetailHeaderViewModel {
 }
 
 export class DetailHeader extends Component<DetailHeaderViewModel> {
+	private downloadRippleRef = new ElementRef();
+	private shuffleRippleRef = new ElementRef();
+	private addToQueueRippleRef = new ElementRef();
+	private playRippleRef = new ElementRef();
+
+	private handleDownloadTap = (): void => {
+		this.viewModel.onDownload?.();
+		if (this.viewModel.animationsEnabled) animateRipple(this, this.downloadRippleRef);
+	};
+
+	private handleShuffleTap = (): void => {
+		this.viewModel.onShuffle?.();
+		if (this.viewModel.animationsEnabled) animateRipple(this, this.shuffleRippleRef);
+	};
+
+	private handleAddToQueueTap = (): void => {
+		this.viewModel.onAddToQueue?.();
+		if (this.viewModel.animationsEnabled) animateRipple(this, this.addToQueueRippleRef);
+	};
+
+	private handlePlayTap = (): void => {
+		this.viewModel.onPlay?.();
+		if (this.viewModel.animationsEnabled) animateRipple(this, this.playRippleRef);
+	};
+
 	onRender() {
 		const {
 			artworkSource,
@@ -41,6 +69,8 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 			subheaderLineTwoLeft,
 			subheaderLineTwoRight,
 		} = this.viewModel;
+
+		const rippleStyle = createRippleStyle(theme.colors.white);
 
 		<layout style={styles.root}>
 			<layout style={styles.headerRow}>
@@ -64,28 +94,32 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 						testID='detail-header-artist-logo'
 					/>
 					<layout style={styles.buttonsRow}>
-						{/* download */}
-						<view onTap={onDownload} style={styles.button}>
+						<view onTap={onDownload ? this.handleDownloadTap : undefined} style={styles.button}>
+							<view ref={this.downloadRippleRef} style={rippleStyle} />
 							<image
 								src={res.download}
 								style={styles.buttonIcon}
 								tint={onDownload ? theme.colors.white : theme.colors.muted}
 							/>
 						</view>
-						{/* shuffle */}
-						<view onTap={onShuffle} style={styles.button}>
+						<view onTap={onShuffle ? this.handleShuffleTap : undefined} style={styles.button}>
+							<view ref={this.shuffleRippleRef} style={rippleStyle} />
 							<image
 								src={res.shuffle}
 								style={styles.buttonIcon}
 								tint={onShuffle ? theme.colors.white : theme.colors.muted}
 							/>
 						</view>
-						{/* add to queue */}
-						<view onTap={onAddToQueue} style={styles.button}>
-							<image src={res.addtoqueue} style={styles.buttonIcon} tint={theme.colors.white} />
+						<view onTap={onAddToQueue ? this.handleAddToQueueTap : undefined} style={styles.button}>
+							<view ref={this.addToQueueRippleRef} style={rippleStyle} />
+							<image
+								src={res.addtoqueue}
+								style={styles.buttonIcon}
+								tint={onAddToQueue ? theme.colors.white : theme.colors.muted}
+							/>
 						</view>
-						{/* play */}
-						<view onTap={onPlay} style={styles.button}>
+						<view onTap={onPlay ? this.handlePlayTap : undefined} style={styles.button}>
+							<view ref={this.playRippleRef} style={rippleStyle} />
 							<image
 								src={res.play}
 								style={styles.buttonIcon}
@@ -141,9 +175,11 @@ const styles = {
 	}),
 	button: new Style({
 		alignItems: 'center',
+		height: 40,
 		justifyContent: 'center',
-		padding: 8,
-		paddingLeft: 12,
+		overflow: 'visible',
+		position: 'relative',
+		width: 40,
 	}),
 	buttonIcon: new Style<ImageView>({
 		height: 24,
