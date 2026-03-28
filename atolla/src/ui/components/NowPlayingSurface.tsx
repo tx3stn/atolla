@@ -15,6 +15,7 @@ import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
 import { PlaybackProgressBar } from './PlaybackProgressBar';
+import { TappableIcon } from './TappableIcon';
 import { Toast } from './Toast';
 import { TrackContextMenu } from './TrackContextMenu';
 import { TrackList, type TrackListEntry } from './TrackList';
@@ -624,27 +625,36 @@ export class NowPlayingSurface extends StatefulComponent<
 										</layout>
 									</layout>
 									<layout style={styles.expandedControlsRow}>
-										<view onTap={onPrevious} style={styles.expandedControlButton}>
-											<image
-												src={res.previous}
-												style={styles.expandedControlIcon}
-												tint={onSurfaceColor}
-											/>
-										</view>
-										<view onTap={onPlayPause} style={styles.expandedPlayButton}>
-											<image
-												src={isPlaying ? res.pause : res.play}
-												style={styles.expandedPlayIcon}
-												tint={onSurfaceColor}
-											/>
-										</view>
-										<view onTap={onNext} style={styles.expandedControlButton}>
-											<image
-												src={res.next}
-												style={styles.expandedControlIcon}
-												tint={onSurfaceColor}
-											/>
-										</view>
+										<TappableIcon
+											accessibilityLabel='now-playing-previous'
+											animationsEnabled={this.viewModel.animationsEnabled}
+											hitSize={68}
+											icon={res.previous}
+											iconSize={35}
+											onTap={onPrevious}
+											rippleTint={withAlpha(onSurfaceColor, 0.42)}
+											tint={onSurfaceColor}
+										/>
+										<TappableIcon
+											accessibilityLabel='now-playing-play-pause'
+											animationsEnabled={this.viewModel.animationsEnabled}
+											hitSize={78}
+											icon={isPlaying ? res.pause : res.play}
+											iconSize={45}
+											onTap={onPlayPause}
+											rippleTint={withAlpha(onSurfaceColor, 0.48)}
+											tint={onSurfaceColor}
+										/>
+										<TappableIcon
+											accessibilityLabel='now-playing-next'
+											animationsEnabled={this.viewModel.animationsEnabled}
+											hitSize={68}
+											icon={res.next}
+											iconSize={35}
+											onTap={onNext}
+											rippleTint={withAlpha(onSurfaceColor, 0.42)}
+											tint={onSurfaceColor}
+										/>
 									</layout>
 									<layout style={styles.expandedQueueTabsRow}>
 										<view
@@ -759,15 +769,6 @@ const styles = {
 		marginTop: 'auto',
 		width: '100%',
 	}),
-	expandedControlButton: new Style({
-		alignItems: 'center',
-		justifyContent: 'center',
-		padding: 16,
-	}),
-	expandedControlIcon: new Style<ImageView>({
-		height: 35,
-		width: 35,
-	}),
 	expandedControlsRow: new Style({
 		alignItems: 'center',
 		flexDirection: 'row',
@@ -798,15 +799,6 @@ const styles = {
 	expandedInner: new Style({
 		flex: 1,
 		width: '100%',
-	}),
-	expandedPlayButton: new Style({
-		alignItems: 'center',
-		justifyContent: 'center',
-		padding: 16,
-	}),
-	expandedPlayIcon: new Style<ImageView>({
-		height: 45,
-		width: 45,
 	}),
 	expandedProgressSection: new Style({
 		marginTop: 4,

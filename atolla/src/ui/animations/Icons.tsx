@@ -2,6 +2,14 @@
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView } from 'valdi_tsx/src/NativeTemplateElements';
 
+interface RippleAnimator {
+	animatePromise(options: object, callback: () => void): Promise<void>;
+}
+
+interface RippleElementRef {
+	setAttribute(name: string, value: unknown): void;
+}
+
 export const iconButtonStyle = new Style({
 	alignItems: 'center',
 	height: 40,
@@ -30,7 +38,11 @@ export function createRippleStyle(tint: string, hitSize = 40): Style {
 	});
 }
 
-export function animateRipple(component: any, ref: any, hitSize = 40): void {
+export function animateRipple(
+	component: RippleAnimator,
+	ref: RippleElementRef,
+	hitSize = 40,
+): void {
 	const center = hitSize / 2;
 	const impactSize = hitSize * 0.5;
 	const impactOffset = center - impactSize / 2;
