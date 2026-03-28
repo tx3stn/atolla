@@ -15,6 +15,7 @@ export interface TappableIconViewModel {
 	icon: unknown;
 	iconSize?: number;
 	onTap?: () => void;
+	rippleScale?: number;
 	rippleTint?: string;
 	tint?: string;
 }
@@ -30,7 +31,12 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 
 		this.viewModel.onTap?.();
 		if (this.viewModel.animationsEnabled) {
-			animateRipple(this, this.rippleRef, this.viewModel.hitSize ?? 40);
+			animateRipple(
+				this,
+				this.rippleRef,
+				this.viewModel.hitSize ?? 40,
+				this.viewModel.rippleScale ?? 1.55,
+			);
 		}
 	};
 

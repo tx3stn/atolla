@@ -632,6 +632,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											icon={res.previous}
 											iconSize={35}
 											onTap={onPrevious}
+											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
 											tint={onSurfaceColor}
 										/>
@@ -642,6 +643,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											icon={isPlaying ? res.pause : res.play}
 											iconSize={45}
 											onTap={onPlayPause}
+											rippleScale={1.26}
 											rippleTint={withAlpha(onSurfaceColor, 0.48)}
 											tint={onSurfaceColor}
 										/>
@@ -652,6 +654,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											icon={res.next}
 											iconSize={35}
 											onTap={onNext}
+											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
 											tint={onSurfaceColor}
 										/>

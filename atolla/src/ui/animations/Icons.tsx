@@ -42,11 +42,12 @@ export function animateRipple(
 	component: RippleAnimator,
 	ref: RippleElementRef,
 	hitSize = 40,
+	rippleScale = 1.55,
 ): void {
 	const center = hitSize / 2;
 	const impactSize = hitSize * 0.5;
 	const impactOffset = center - impactSize / 2;
-	const rippleSize = hitSize * 1.55;
+	const rippleSize = hitSize * rippleScale;
 	const rippleOffset = center - rippleSize / 2;
 
 	ref.setAttribute('left', center);
