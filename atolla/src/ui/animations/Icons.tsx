@@ -16,24 +16,25 @@ export const iconImageStyle = new Style<ImageView>({
 	width: 24,
 });
 
-export function createRippleStyle(tint: string): Style {
+export function createRippleStyle(tint: string, hitSize = 40): Style {
+	const center = hitSize / 2;
 	return new Style({
 		backgroundColor: tint,
 		borderRadius: 0,
-		height: 24,
-		left: 20,
+		height: 0,
+		left: center,
 		opacity: 0,
 		position: 'absolute',
-		top: 20,
-		width: 24,
+		top: center,
+		width: 0,
 	});
 }
 
-export function animateRipple(component: any, ref: any): void {
-	const center = 20;
-	const impactSize = 20;
+export function animateRipple(component: any, ref: any, hitSize = 40): void {
+	const center = hitSize / 2;
+	const impactSize = hitSize * 0.5;
 	const impactOffset = center - impactSize / 2;
-	const rippleSize = 62;
+	const rippleSize = hitSize * 1.55;
 	const rippleOffset = center - rippleSize / 2;
 
 	ref.setAttribute('left', center);

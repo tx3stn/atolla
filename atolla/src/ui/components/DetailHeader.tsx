@@ -1,14 +1,13 @@
 // @ts-nocheck
 import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
-import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { ImageCache, ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
-import { animateRipple, createRippleStyle } from '../animations/Icons';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
+import { TappableIcon } from './TappableIcon';
 
 export interface DetailHeaderViewModel {
 	animationsEnabled: boolean;
@@ -29,31 +28,6 @@ export interface DetailHeaderViewModel {
 }
 
 export class DetailHeader extends Component<DetailHeaderViewModel> {
-	private downloadRippleRef = new ElementRef();
-	private shuffleRippleRef = new ElementRef();
-	private addToQueueRippleRef = new ElementRef();
-	private playRippleRef = new ElementRef();
-
-	private handleDownloadTap = (): void => {
-		this.viewModel.onDownload?.();
-		if (this.viewModel.animationsEnabled) animateRipple(this, this.downloadRippleRef);
-	};
-
-	private handleShuffleTap = (): void => {
-		this.viewModel.onShuffle?.();
-		if (this.viewModel.animationsEnabled) animateRipple(this, this.shuffleRippleRef);
-	};
-
-	private handleAddToQueueTap = (): void => {
-		this.viewModel.onAddToQueue?.();
-		if (this.viewModel.animationsEnabled) animateRipple(this, this.addToQueueRippleRef);
-	};
-
-	private handlePlayTap = (): void => {
-		this.viewModel.onPlay?.();
-		if (this.viewModel.animationsEnabled) animateRipple(this, this.playRippleRef);
-	};
-
 	onRender() {
 		const {
 			artworkSource,
@@ -69,8 +43,6 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 			subheaderLineTwoLeft,
 			subheaderLineTwoRight,
 		} = this.viewModel;
-
-		const rippleStyle = createRippleStyle(theme.colors.white);
 
 		<layout style={styles.root}>
 			<layout style={styles.headerRow}>
@@ -94,38 +66,30 @@ export class DetailHeader extends Component<DetailHeaderViewModel> {
 						testID='detail-header-artist-logo'
 					/>
 					<layout style={styles.buttonsRow}>
-						<view onTap={onDownload ? this.handleDownloadTap : undefined} style={styles.button}>
-							<view ref={this.downloadRippleRef} style={rippleStyle} />
-							<image
-								src={res.download}
-								style={styles.buttonIcon}
-								tint={onDownload ? theme.colors.white : theme.colors.muted}
-							/>
-						</view>
-						<view onTap={onShuffle ? this.handleShuffleTap : undefined} style={styles.button}>
-							<view ref={this.shuffleRippleRef} style={rippleStyle} />
-							<image
-								src={res.shuffle}
-								style={styles.buttonIcon}
-								tint={onShuffle ? theme.colors.white : theme.colors.muted}
-							/>
-						</view>
-						<view onTap={onAddToQueue ? this.handleAddToQueueTap : undefined} style={styles.button}>
-							<view ref={this.addToQueueRippleRef} style={rippleStyle} />
-							<image
-								src={res.addtoqueue}
-								style={styles.buttonIcon}
-								tint={onAddToQueue ? theme.colors.white : theme.colors.muted}
-							/>
-						</view>
-						<view onTap={onPlay ? this.handlePlayTap : undefined} style={styles.button}>
-							<view ref={this.playRippleRef} style={rippleStyle} />
-							<image
-								src={res.play}
-								style={styles.buttonIcon}
-								tint={onPlay ? theme.colors.white : theme.colors.muted}
-							/>
-						</view>
+						<TappableIcon
+							accessibilityLabel='detail-header-download-button'
+							animationsEnabled={this.viewModel.animationsEnabled}
+							icon={res.download}
+							onTap={onDownload}
+						/>
+						<TappableIcon
+							accessibilityLabel='detail-header-shuffle-button'
+							animationsEnabled={this.viewModel.animationsEnabled}
+							icon={res.shuffle}
+							onTap={onShuffle}
+						/>
+						<TappableIcon
+							accessibilityLabel='detail-header-add-to-queue-button'
+							animationsEnabled={this.viewModel.animationsEnabled}
+							icon={res.addtoqueue}
+							onTap={onAddToQueue}
+						/>
+						<TappableIcon
+							accessibilityLabel='detail-header-play-button'
+							animationsEnabled={this.viewModel.animationsEnabled}
+							icon={res.play}
+							onTap={onPlay}
+						/>
 					</layout>
 				</layout>
 			</layout>
@@ -172,18 +136,6 @@ const styles = {
 		borderRadius: theme.borderRadius,
 		overflow: 'hidden',
 		width: '50%',
-	}),
-	button: new Style({
-		alignItems: 'center',
-		height: 40,
-		justifyContent: 'center',
-		overflow: 'visible',
-		position: 'relative',
-		width: 40,
-	}),
-	buttonIcon: new Style<ImageView>({
-		height: 24,
-		width: 24,
 	}),
 	buttonsRow: new Style({
 		alignItems: 'center',
