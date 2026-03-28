@@ -20,7 +20,7 @@ import {
 	mapJellyfinArtistToArtist,
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
-} from './Live';
+} from './JellyfinMappers';
 import type { Transport } from './Transport';
 
 export class MockTransport implements Transport {
