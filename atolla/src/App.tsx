@@ -188,7 +188,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	// palette exists, generates one from the fetched buffer.
 	private handleAlbumChange(): void {
 		const imageUrl =
-			this.playbackStore.album?.imageUrl ?? this.playbackStore.track?.albumImageUrl ?? null;
+			this.playbackStore.track?.albumImageUrl ?? this.playbackStore.album?.imageUrl ?? null;
 		if (!imageUrl || imageUrl === this.lastArtworkUrl) return;
 		this.lastArtworkUrl = imageUrl;
 		void (async () => {
@@ -667,7 +667,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		const { track, album, isPlaying, progressSeconds, artistLogoUrl, tracks, trackIndex } =
 			this.playbackStore;
-		const palette = this.paletteService.getPalette(album?.imageUrl ?? track?.albumImageUrl);
+		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
 
 		<view style={styles.root}>
 			{this.state.activeFooterTab === FooterTabs.home && (

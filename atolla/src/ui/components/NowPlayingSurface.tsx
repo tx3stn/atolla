@@ -369,7 +369,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		const upNextEntries = tracks.slice(trackIndex + 1).map(toEntry);
 		const backToEntries = tracks.slice(0, trackIndex).map(toEntry);
 		const activeTab = this.state.activeQueueTab;
-		const albumImageUrl = album?.imageUrl ?? track.albumImageUrl ?? null;
+		const albumImageUrl = track.albumImageUrl ?? album?.imageUrl ?? null;
 		const albumArtworkSource =
 			albumImageUrl == null ? null : buildImageSource(albumImageUrl, 'album_art');
 		// The native loader generates this on demand by downscaling the cached

@@ -80,6 +80,10 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	handleHeaderAddToQueueTap = (): void => {
 		this.viewModel.playbackStore.addToQueue(this.state.allTracks);
+		this.setState({ toastMessage: 'added to queue' });
+		setTimeout(() => {
+			this.setState({ toastMessage: null });
+		}, 2000);
 	};
 
 	handleTopTrackTap = (trackId: string): void => {

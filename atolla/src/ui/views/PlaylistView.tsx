@@ -94,6 +94,10 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	handleHeaderAddToQueueTap = (): void => {
 		this.viewModel.playbackStore.addToQueue(this.state.tracks);
+		this.setState({ toastMessage: 'added to queue' });
+		setTimeout(() => {
+			this.setState({ toastMessage: null });
+		}, 2000);
 	};
 
 	handleTrackTap = (trackId: string): void => {

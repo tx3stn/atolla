@@ -124,6 +124,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	handleHeaderAddToQueueTap = (): void => {
 		if (this.state.tracks.length === 0) return;
 		this.viewModel.playbackStore.addToQueue(this.state.tracks);
+		this.setState({ toastMessage: 'added to queue' });
+		setTimeout(() => {
+			this.setState({ toastMessage: null });
+		}, 2000);
 	};
 
 	onCreate(): void {

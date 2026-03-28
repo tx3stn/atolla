@@ -52,12 +52,12 @@ export class TrackContextMenu extends StatefulComponent<
 
 	handlePlayNext = (): void => {
 		this.viewModel.playbackStore.playNext([this.viewModel.track]);
-		this.viewModel.onDismiss('Playing next');
+		this.viewModel.onDismiss('playing next');
 	};
 
 	handleAddToQueue = (): void => {
 		this.viewModel.playbackStore.addToQueue([this.viewModel.track]);
-		this.viewModel.onDismiss('Added to queue');
+		this.viewModel.onDismiss('added to queue');
 	};
 
 	handleAddToPlaylist = (): void => {
@@ -108,7 +108,7 @@ export class TrackContextMenu extends StatefulComponent<
 					testID='track-context-play-next'
 				>
 					<image src={res.playnext} style={styles.icon} tint={theme.colors.muted} />
-					<label style={styles.actionLabel} value='Play Next' />
+					<label style={styles.actionLabel} value='play next' />
 				</view>
 				<view
 					accessibilityLabel='track-context-add-to-queue'
@@ -118,7 +118,7 @@ export class TrackContextMenu extends StatefulComponent<
 					testID='track-context-add-to-queue'
 				>
 					<image src={res.addtoqueue} style={styles.icon} tint={theme.colors.muted} />
-					<label style={styles.actionLabel} value='Add to Queue' />
+					<label style={styles.actionLabel} value='add to queue' />
 				</view>
 				<view
 					accessibilityLabel='track-context-add-to-playlist'
@@ -128,7 +128,7 @@ export class TrackContextMenu extends StatefulComponent<
 					testID='track-context-add-to-playlist'
 				>
 					<image src={res.addtoplaylist} style={styles.icon} tint={theme.colors.muted} />
-					<label style={styles.actionLabel} value='Add to Playlist' />
+					<label style={styles.actionLabel} value='add to playlist' />
 				</view>
 			</view>
 		</blur>;
