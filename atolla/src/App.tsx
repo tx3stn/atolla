@@ -547,6 +547,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.homeNavigationController.push(
 					PlaylistView,
 					{
+						animationsEnabled: this.state.animationsEnabled,
 						imageCache: this.imageCache,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						playbackStore: this.playbackStore,

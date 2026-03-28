@@ -91,7 +91,14 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					if (playlist) {
 						navigationController.push(
 							PlaylistView,
-							{ imageCache, onNavigateToArtist, playbackStore, playlist, transport },
+							{
+								animationsEnabled,
+								imageCache,
+								onNavigateToArtist,
+								playbackStore,
+								playlist,
+								transport,
+							},
 							{},
 							{ animated: animationsEnabled },
 						);

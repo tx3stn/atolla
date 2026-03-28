@@ -16,6 +16,7 @@ import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 
 export interface PlaylistViewModel {
+	animationsEnabled: boolean;
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -50,14 +51,14 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	navigateToArtist = (artistId: string): void => {
-		const { imageCache, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 		transport.getArtist(artistId).then((artist) => {
 			if (!artist) return;
 			this.navigationController.push(
 				ArtistView,
-				{ animationsEnabled: this.animationsEnabled, artist, imageCache, playbackStore, transport },
+				{ animationsEnabled, artist, imageCache, playbackStore, transport },
 				{},
-				{ animated: this.animationsEnabled },
+				{ animated: animationsEnabled },
 			);
 		});
 	};
@@ -159,7 +160,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		>
 			<scroll style={createScrollStyle(isFooterVisible)}>
 				<DetailHeader
-					animationsEnabled={this.animationsEnabled}
+					animationsEnabled={this.viewModel.animationsEnabled}
 					artworkCategory='playlist_image'
 					artworkSource={this.viewModel.playlist.imageUrl ?? null}
 					fallbackText={this.viewModel.playlist.name}

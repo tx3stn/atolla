@@ -374,6 +374,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		navigationController.push(
 			PlaylistView,
 			{
+				animationsEnabled,
 				imageCache,
 				onNavigateToArtist: (artistId) => {
 					transport.getArtist(artistId).then((artist) => {
