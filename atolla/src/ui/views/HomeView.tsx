@@ -25,6 +25,7 @@ export interface HomeViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
 	imageCache: ImageCache;
+	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationControllerChange?: (navigationController: NavigationController) => void;
 	playbackStore: PlaybackStore;
 	resetSignal: number;
@@ -127,7 +128,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	onRender(): void {
-		const { activeTab, animationsEnabled, imageCache, playbackStore } = this.viewModel;
+		const { activeTab, animationsEnabled, imageCache, onNavigateToArtist, playbackStore } =
+			this.viewModel;
 
 		<view style={styles.root}>
 			{this.state.isNavigationMounted && activeTab === HeaderTabs.artists && (
@@ -168,6 +170,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							animationsEnabled={animationsEnabled}
 							imageCache={imageCache}
 							navigationController={navigationController}
+							onNavigateToArtist={onNavigateToArtist}
 							playbackStore={playbackStore}
 							transport={this.transport}
 						/>;

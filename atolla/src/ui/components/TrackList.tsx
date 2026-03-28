@@ -117,9 +117,9 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 					}}
 					onTouch={
 						this.viewModel.onTrackLongPress && entry.track
-							? (event) => {
-									this.handleTouch(event, entry.track!);
-								}
+							? ((track) => (event) => {
+									this.handleTouch(event, track);
+								})(entry.track)
 							: undefined
 					}
 					style={rowStyle}

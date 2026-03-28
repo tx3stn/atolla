@@ -368,13 +368,26 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			return;
 		}
 
-		this.viewModel.navigationController.push(
+		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
+			this.viewModel;
+		navigationController.push(
 			PlaylistView,
 			{
-				imageCache: this.viewModel.imageCache,
-				playbackStore: this.viewModel.playbackStore,
+				imageCache,
+				onNavigateToArtist: (artistId) => {
+					transport.getArtist(artistId).then((artist) => {
+						if (!artist) return;
+						navigationController.push(
+							ArtistView,
+							{ animationsEnabled, artist, imageCache, playbackStore, transport },
+							{},
+							{ animated: animationsEnabled },
+						);
+					});
+				},
+				playbackStore,
 				playlist,
-				transport: this.viewModel.transport,
+				transport,
 			},
 			{},
 			{ animated: this.viewModel.animationsEnabled },
@@ -576,6 +589,34 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			{contextMenuTrack && (
 				<TrackContextMenu
 					imageCache={imageCache}
+					onArtistTap={
+						contextMenuTrack.artistId
+							? ((artistId) => () => {
+									const {
+										animationsEnabled,
+										imageCache: ic,
+										navigationController,
+										playbackStore: ps,
+										transport: t,
+									} = this.viewModel;
+									t.getArtist(artistId).then((artist) => {
+										if (!artist) return;
+										navigationController.push(
+											ArtistView,
+											{
+												animationsEnabled,
+												artist,
+												imageCache: ic,
+												playbackStore: ps,
+												transport: t,
+											},
+											{},
+											{ animated: animationsEnabled },
+										);
+									});
+								})(contextMenuTrack.artistId)
+							: undefined
+					}
 					onDismiss={this.handleContextMenuDismiss}
 					playbackStore={playbackStore}
 					track={contextMenuTrack}

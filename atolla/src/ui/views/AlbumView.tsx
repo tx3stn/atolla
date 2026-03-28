@@ -194,6 +194,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			{contextMenuTrack && (
 				<TrackContextMenu
 					imageCache={imageCache}
+					onArtistTap={this.handleArtistLogoTap}
 					onDismiss={this.handleContextMenuDismiss}
 					playbackStore={playbackStore}
 					track={contextMenuTrack}

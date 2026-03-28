@@ -18,6 +18,7 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 export interface PlaylistViewModel {
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
+	onNavigateToArtist?: (artistId: string) => void;
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
 	transport: Transport;
@@ -46,6 +47,19 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		isFooterVisible: false,
 		toastMessage: null,
 		tracks: [],
+	};
+
+	navigateToArtist = (artistId: string): void => {
+		const { imageCache, playbackStore, transport } = this.viewModel;
+		transport.getArtist(artistId).then((artist) => {
+			if (!artist) return;
+			this.navigationController.push(
+				ArtistView,
+				{ animationsEnabled: this.animationsEnabled, artist, imageCache, playbackStore, transport },
+				{},
+				{ animated: this.animationsEnabled },
+			);
+		});
 	};
 
 	handleTrackLongPress = (track: Track): void => {
@@ -118,7 +132,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	onRender(): void {
 		const { contextMenuTrack, isFooterVisible, toastMessage, tracks } = this.state;
-		const { imageCache, playbackStore, transport } = this.viewModel;
+		const { imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
@@ -156,6 +170,14 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			{contextMenuTrack && (
 				<TrackContextMenu
 					imageCache={imageCache}
+					onArtistTap={
+						onNavigateToArtist && contextMenuTrack.artistId
+							? (
+									(id) => () =>
+										onNavigateToArtist(id)
+								)(contextMenuTrack.artistId)
+							: undefined
+					}
 					onDismiss={this.handleContextMenuDismiss}
 					playbackStore={playbackStore}
 					track={contextMenuTrack}

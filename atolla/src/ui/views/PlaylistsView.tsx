@@ -15,6 +15,7 @@ export interface PlaylistsViewModel {
 	animationsEnabled: boolean;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
+	onNavigateToArtist?: (artistId: string) => void;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -61,8 +62,14 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	onRender(): void {
-		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
-			this.viewModel;
+		const {
+			animationsEnabled,
+			imageCache,
+			navigationController,
+			onNavigateToArtist,
+			playbackStore,
+			transport,
+		} = this.viewModel;
 
 		const cards: Array<Card> = sortPlaylists(this.state.playlists, this.state.sort).map(
 			(playlist) => ({
@@ -84,7 +91,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					if (playlist) {
 						navigationController.push(
 							PlaylistView,
-							{ imageCache, playbackStore, playlist, transport },
+							{ imageCache, onNavigateToArtist, playbackStore, playlist, transport },
 							{},
 							{ animated: animationsEnabled },
 						);

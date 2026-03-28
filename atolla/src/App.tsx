@@ -569,6 +569,28 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	};
 
+	handleNavigateToArtist = (artistId: string): void => {
+		if (!this.homeNavigationController) {
+			return;
+		}
+		const navigationController = this.homeNavigationController;
+		this.transport.getArtist(artistId).then((artist) => {
+			if (!artist) return;
+			navigationController.push(
+				ArtistView,
+				{
+					animationsEnabled: this.state.animationsEnabled,
+					artist,
+					imageCache: this.imageCache,
+					playbackStore: this.playbackStore,
+					transport: this.transport,
+				},
+				{},
+				{ animated: this.state.animationsEnabled },
+			);
+		});
+	};
+
 	handleNowPlayingArtistTap = (): void => {
 		const { album, artistLogoUrl, track } = this.playbackStore;
 		const artistId = track?.artistId ?? album?.artistId;
@@ -660,6 +682,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					activeTab={this.state.activeHomeTab}
 					animationsEnabled={this.state.animationsEnabled}
 					imageCache={this.imageCache}
+					onNavigateToArtist={this.handleNavigateToArtist}
 					onNavigationControllerChange={this.handleHomeNavigationControllerChange}
 					playbackStore={this.playbackStore}
 					resetSignal={this.state.homeResetNonce}

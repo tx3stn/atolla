@@ -683,6 +683,11 @@ export class NowPlayingSurface extends StatefulComponent<
 			{this.state.contextMenuTrack && this.viewModel.playbackStore && this.viewModel.transport && (
 				<TrackContextMenu
 					imageCache={imageCache}
+					onArtistTap={
+						this.state.contextMenuTrack.artistId && this.viewModel.onArtistTap
+							? this.viewModel.onArtistTap
+							: undefined
+					}
 					onDismiss={this.handleContextMenuDismiss}
 					playbackStore={this.viewModel.playbackStore}
 					track={this.state.contextMenuTrack}

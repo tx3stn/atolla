@@ -1,4 +1,5 @@
 // @ts-nocheck
+import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { BlurView, Label } from 'valdi_tsx/src/NativeTemplateElements';
@@ -8,9 +9,11 @@ import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
+import { TrackList } from './TrackList';
 
 export interface TrackContextMenuViewModel {
 	imageCache?: ImageCache;
+	onArtistTap?: () => void;
 	onDismiss: (toastMessage?: string) => void;
 	playbackStore: PlaybackStore;
 	track: Track;
@@ -62,38 +65,40 @@ export class TrackContextMenu extends StatefulComponent<
 	};
 
 	onRender(): void {
-		const { imageCache, track, onDismiss } = this.viewModel;
+		const { imageCache, track, onArtistTap, onDismiss } = this.viewModel;
 		const { artistLogoUrl } = this.state;
+
+		const previewEntry = [
+			{
+				artworkSource: track.albumImageUrl ?? null,
+				id: track.id,
+				meta: track.artistName ?? track.albumName ?? '',
+				title: track.name,
+			},
+		];
 
 		<blur blurStyle='systemThickMaterialDark' onTap={() => onDismiss()} style={styles.backdrop}>
 			<view onTap={() => {}} style={styles.card} testID='track-context-menu'>
-				<ArtistLogo
-					containerStyle={styles.logoContainer}
-					fallbackText={track.artistName ?? null}
-					imageCache={imageCache}
-					logoSource={artistLogoUrl}
-					logoStyle={styles.logoImage}
-				/>
-				<view style={styles.trackRow}>
-					<layout style={styles.trackRowContent}>
-						<layout style={styles.trackText}>
-							<label
-								ellipsizeMode='tail'
-								numberOfLines={2}
-								style={styles.trackTitle}
-								value={track.name}
-							/>
-							{(track.artistName ?? track.albumName) && (
-								<label
-									ellipsizeMode='tail'
-									numberOfLines={1}
-									style={styles.trackMeta}
-									value={track.artistName ?? track.albumName ?? ''}
-								/>
-							)}
-						</layout>
-					</layout>
+				<view
+					onTap={
+						onArtistTap
+							? () => {
+									onArtistTap();
+									onDismiss();
+								}
+							: () => onDismiss()
+					}
+					style={styles.logoTapArea}
+				>
+					<ArtistLogo
+						containerStyle={styles.logoContainer}
+						fallbackText={track.artistName ?? null}
+						imageCache={imageCache}
+						logoSource={artistLogoUrl}
+						logoStyle={styles.logoImage}
+					/>
 				</view>
+				<TrackList imageCache={imageCache} tracks={previewEntry} />
 				<view style={styles.divider} />
 				<view
 					accessibilityLabel='track-context-play-next'
@@ -102,6 +107,7 @@ export class TrackContextMenu extends StatefulComponent<
 					style={styles.actionRow}
 					testID='track-context-play-next'
 				>
+					<image src={res.play} style={styles.icon} tint={theme.colors.grey} />
 					<label style={styles.actionLabel} value='Play Next' />
 				</view>
 				<view
@@ -111,6 +117,7 @@ export class TrackContextMenu extends StatefulComponent<
 					style={styles.actionRow}
 					testID='track-context-add-to-queue'
 				>
+					<image src={res.search} style={styles.icon} tint={theme.colors.grey} />
 					<label style={styles.actionLabel} value='Add to Queue' />
 				</view>
 				<view
@@ -120,6 +127,7 @@ export class TrackContextMenu extends StatefulComponent<
 					style={styles.actionRow}
 					testID='track-context-add-to-playlist'
 				>
+					<image src={res.search} style={styles.icon} tint={theme.colors.grey} />
 					<label style={styles.actionLabel} value='Add to Playlist' />
 				</view>
 			</view>
@@ -129,11 +137,12 @@ export class TrackContextMenu extends StatefulComponent<
 
 const styles = {
 	actionLabel: new Style<Label>({
-		...theme.text.main,
+		...theme.text.subLarger,
 		paddingVertical: 4,
 	}),
 	actionRow: new Style({
-		borderRadius: theme.borderRadius / 2,
+		...theme.text.subLarger,
+		flexDirection: 'row',
 		paddingHorizontal: 4,
 		paddingVertical: 12,
 		width: '100%',
@@ -152,7 +161,7 @@ const styles = {
 		zIndex: 100,
 	}),
 	card: new Style({
-		backgroundColor: theme.colors.bgDeep,
+		backgroundColor: theme.colors.bg,
 		borderColor: theme.colors.separator,
 		borderRadius: theme.borderRadius,
 		borderWidth: 1,
@@ -167,6 +176,11 @@ const styles = {
 		marginTop: 8,
 		width: '100%',
 	}),
+	icon: new Style<ImageView>({
+		height: 18,
+		margin: 10,
+		width: 18,
+	}),
 	logoContainer: new Style({
 		alignItems: 'center',
 		height: 60,
@@ -179,27 +193,7 @@ const styles = {
 		objectFit: 'contain',
 		width: '100%',
 	}),
-	trackMeta: new Style<Label>({
-		...theme.text.sub,
-		marginTop: 2,
-	}),
-	trackRow: new Style({
-		backgroundColor: theme.colors.bg,
-		borderRadius: theme.borderRadius / 2,
-		marginBottom: 4,
-		paddingHorizontal: 10,
-		paddingVertical: 8,
+	logoTapArea: new Style({
 		width: '100%',
-	}),
-	trackRowContent: new Style({
-		flexDirection: 'row',
-		width: '100%',
-	}),
-	trackText: new Style({
-		flex: 1,
-		flexShrink: 1,
-	}),
-	trackTitle: new Style<Label>({
-		...theme.text.mainBold,
 	}),
 };
