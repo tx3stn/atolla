@@ -19,6 +19,7 @@ import { TappableIcon } from './TappableIcon';
 import { Toast } from './Toast';
 import { TrackContextMenu } from './TrackContextMenu';
 import { TrackList, type TrackListEntry } from './TrackList';
+import { clearScheduledToast, scheduleToastDismiss } from './toastTimer';
 
 export interface NowPlayingSurfaceViewModel {
 	album: Album | null;
@@ -65,6 +66,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private touchStartX = 0;
 	private touchStartY = 0;
 	private isTransitioning = false;
+	private toastTimerId?: ReturnType<typeof setTimeout>;
 
 	private readonly closeDragDistance = 36;
 	private readonly closeDragVelocity = 550;
@@ -154,6 +156,10 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		this.closeSurface();
+	}
+
+	onDestroy(): void {
+		this.toastTimerId = clearScheduledToast(this.toastTimerId);
 	}
 
 	private closeSurface = (): Promise<void> => {
@@ -342,10 +348,13 @@ export class NowPlayingSurface extends StatefulComponent<
 	private handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuTrack: null });
 		if (toastMessage) {
-			this.setState({ toastMessage });
-			setTimeout(() => {
-				this.setState({ toastMessage: null });
-			}, 2000);
+			this.toastTimerId = scheduleToastDismiss(
+				this.toastTimerId,
+				(message) => {
+					this.setState({ toastMessage: message });
+				},
+				toastMessage,
+			);
 		}
 	};
 

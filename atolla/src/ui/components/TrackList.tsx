@@ -64,6 +64,12 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 		longPressTimerId: null,
 	};
 
+	onDestroy(): void {
+		if (this.state.longPressTimerId !== null) {
+			clearTimeout(this.state.longPressTimerId);
+		}
+	}
+
 	onRender() {
 		const colors = resolveColors(this.viewModel.palette, this.viewModel.noRowBackground);
 		const resolvedStyles = getResolvedTrackListStyles(colors);

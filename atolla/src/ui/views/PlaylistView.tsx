@@ -14,6 +14,7 @@ import { DetailHeader } from '../components/DetailHeader';
 import { Toast } from '../components/Toast';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { clearScheduledToast, scheduleToastDismiss } from '../components/toastTimer';
 
 export interface PlaylistViewModel {
 	animationsEnabled: boolean;
@@ -41,6 +42,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private modalSlot = new DetachedSlot();
 	private hasBeenDestroyed = false;
 	private unsubscribePlayback?: () => void;
+	private toastTimerId?: ReturnType<typeof setTimeout>;
 
 	state: PlaylistState = {
 		artistLogoUrls: [],
@@ -70,10 +72,13 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuTrack: null });
 		if (toastMessage) {
-			this.setState({ toastMessage });
-			setTimeout(() => {
-				this.setState({ toastMessage: null });
-			}, 2000);
+			this.toastTimerId = scheduleToastDismiss(
+				this.toastTimerId,
+				(message) => {
+					this.setState({ toastMessage: message });
+				},
+				toastMessage,
+			);
 		}
 	};
 
@@ -95,10 +100,13 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	handleHeaderAddToQueueTap = (): void => {
 		this.viewModel.playbackStore.addToQueue(this.state.tracks);
-		this.setState({ toastMessage: 'added to queue' });
-		setTimeout(() => {
-			this.setState({ toastMessage: null });
-		}, 2000);
+		this.toastTimerId = scheduleToastDismiss(
+			this.toastTimerId,
+			(message) => {
+				this.setState({ toastMessage: message });
+			},
+			'added to queue',
+		);
 	};
 
 	handleTrackTap = (trackId: string): void => {
@@ -136,6 +144,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		this.toastTimerId = clearScheduledToast(this.toastTimerId);
 		this.viewModel.onExitFromSearchNavigation?.();
 	}
 

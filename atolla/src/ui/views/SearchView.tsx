@@ -19,6 +19,7 @@ import { Spinner } from '../components/Spinner';
 import { Toast } from '../components/Toast';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { clearScheduledToast, scheduleToastDismiss } from '../components/toastTimer';
 import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
 import { PlaylistView } from './PlaylistView';
@@ -96,6 +97,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private noResultTimer?: ReturnType<typeof setInterval>;
 	private requestVersion = 0;
 	private searchInputRef = new ElementRef();
+	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 
 	state: SearchState = {
@@ -192,6 +194,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		this.toastTimerId = clearScheduledToast(this.toastTimerId);
 		if (this.noResultTimer) {
 			clearInterval(this.noResultTimer);
 		}
@@ -281,10 +284,13 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuTrack: null });
 		if (toastMessage) {
-			this.setState({ toastMessage });
-			setTimeout(() => {
-				this.setState({ toastMessage: null });
-			}, 2000);
+			this.toastTimerId = scheduleToastDismiss(
+				this.toastTimerId,
+				(message) => {
+					this.setState({ toastMessage: message });
+				},
+				toastMessage,
+			);
 		}
 	};
 

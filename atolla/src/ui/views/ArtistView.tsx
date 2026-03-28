@@ -17,6 +17,7 @@ import { DetailHeader } from '../components/DetailHeader';
 import { Toast } from '../components/Toast';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { clearScheduledToast, scheduleToastDismiss } from '../components/toastTimer';
 import { AlbumView } from './AlbumView';
 
 export interface ArtistViewModel {
@@ -42,6 +43,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	private modalSlot = new DetachedSlot();
 	private hasBeenDestroyed = false;
 	private unsubscribePlayback?: () => void;
+	private toastTimerId?: ReturnType<typeof setTimeout>;
 
 	state: ArtistState = {
 		albums: [],
@@ -59,10 +61,13 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuTrack: null });
 		if (toastMessage) {
-			this.setState({ toastMessage });
-			setTimeout(() => {
-				this.setState({ toastMessage: null });
-			}, 2000);
+			this.toastTimerId = scheduleToastDismiss(
+				this.toastTimerId,
+				(message) => {
+					this.setState({ toastMessage: message });
+				},
+				toastMessage,
+			);
 		}
 	};
 
@@ -80,10 +85,13 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	handleHeaderAddToQueueTap = (): void => {
 		this.viewModel.playbackStore.addToQueue(this.state.allTracks);
-		this.setState({ toastMessage: 'added to queue' });
-		setTimeout(() => {
-			this.setState({ toastMessage: null });
-		}, 2000);
+		this.toastTimerId = scheduleToastDismiss(
+			this.toastTimerId,
+			(message) => {
+				this.setState({ toastMessage: message });
+			},
+			'added to queue',
+		);
 	};
 
 	handleTopTrackTap = (trackId: string): void => {
@@ -127,6 +135,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		this.toastTimerId = clearScheduledToast(this.toastTimerId);
 		this.viewModel.onExitFromSearchNavigation?.();
 	}
 
