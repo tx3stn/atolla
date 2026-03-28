@@ -571,6 +571,36 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	};
 
+	handleNowPlayingDismiss = (): void => {
+		this.playbackStore.stop();
+	};
+
+	handleNowPlayingNext = (): void => {
+		this.playbackStore.next();
+	};
+
+	handleNowPlayingPlayPause = (): void => {
+		this.playbackStore.playPause();
+	};
+
+	handleNowPlayingPrevious = (): void => {
+		this.playbackStore.previous();
+	};
+
+	handleNowPlayingProgressTap = (ratio?: number): void => {
+		const activeTrack = this.playbackStore.track;
+		if (!activeTrack) {
+			return;
+		}
+
+		if (typeof ratio === 'number') {
+			this.playbackStore.seekTo(activeTrack.duration * ratio);
+			return;
+		}
+
+		this.playbackStore.skipForward(10);
+	};
+
 	handleNavigateToArtist = (artistId: string): void => {
 		if (!this.homeNavigationController) {
 			return;
@@ -747,17 +777,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					imageCache={this.imageCache}
 					isPlaying={isPlaying}
 					onArtistTap={this.handleNowPlayingArtistTap}
-					onDismiss={() => this.playbackStore.stop()}
-					onNext={() => this.playbackStore.next()}
-					onPlayPause={() => this.playbackStore.playPause()}
-					onPrevious={() => this.playbackStore.previous()}
-					onProgressTap={(ratio) => {
-						if (typeof ratio === 'number') {
-							this.playbackStore.seekTo(track.duration * ratio);
-							return;
-						}
-						this.playbackStore.skipForward(10);
-					}}
+					onDismiss={this.handleNowPlayingDismiss}
+					onNext={this.handleNowPlayingNext}
+					onPlayPause={this.handleNowPlayingPlayPause}
+					onPrevious={this.handleNowPlayingPrevious}
+					onProgressTap={this.handleNowPlayingProgressTap}
 					onTrackTap={this.handleNowPlayingTrackTap}
 					palette={palette}
 					playbackStore={this.playbackStore}

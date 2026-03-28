@@ -327,6 +327,14 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.setState({ activeQueueTab: tab });
 	};
 
+	private handleBackToTabTap = (): void => {
+		this.handleQueueTabTap('backTo');
+	};
+
+	private handleUpNextTabTap = (): void => {
+		this.handleQueueTabTap('upNext');
+	};
+
 	private handleTrackLongPress = (track: Track): void => {
 		this.setState({ contextMenuTrack: track });
 	};
@@ -559,16 +567,10 @@ export class NowPlayingSurface extends StatefulComponent<
 										/>
 									</layout>
 									<layout style={styles.expandedQueueTabsRow}>
-										<view
-											onTap={() => this.handleQueueTabTap('backTo')}
-											style={styles.expandedQueueTabButton}
-										>
+										<view onTap={this.handleBackToTabTap} style={styles.expandedQueueTabButton}>
 											<label style={backToLabelStyle} value='BACK TO' />
 										</view>
-										<view
-											onTap={() => this.handleQueueTabTap('upNext')}
-											style={styles.expandedQueueTabButton}
-										>
+										<view onTap={this.handleUpNextTabTap} style={styles.expandedQueueTabButton}>
 											<label style={upNextLabelStyle} value='UP NEXT' />
 										</view>
 									</layout>

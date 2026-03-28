@@ -64,8 +64,21 @@ export class TrackContextMenu extends StatefulComponent<
 		this.viewModel.onDismiss();
 	};
 
+	handleBackdropTap = (): void => {
+		this.viewModel.onDismiss();
+	};
+
+	handleCardTap = (): void => {};
+
+	handleArtistTap = (): void => {
+		if (this.viewModel.onArtistTap) {
+			this.viewModel.onArtistTap();
+		}
+		this.viewModel.onDismiss();
+	};
+
 	onRender(): void {
-		const { imageCache, track, onArtistTap, onDismiss } = this.viewModel;
+		const { imageCache, track } = this.viewModel;
 		const { artistLogoUrl } = this.state;
 
 		const previewEntry = [
@@ -77,19 +90,13 @@ export class TrackContextMenu extends StatefulComponent<
 			},
 		];
 
-		<blur blurStyle='systemThickMaterialDark' onTap={() => onDismiss()} style={styles.backdrop}>
-			<view onTap={() => {}} style={styles.card} testID='track-context-menu'>
-				<view
-					onTap={
-						onArtistTap
-							? () => {
-									onArtistTap();
-									onDismiss();
-								}
-							: () => onDismiss()
-					}
-					style={styles.logoTapArea}
-				>
+		<blur
+			blurStyle='systemThickMaterialDark'
+			onTap={this.handleBackdropTap}
+			style={styles.backdrop}
+		>
+			<view onTap={this.handleCardTap} style={styles.card} testID='track-context-menu'>
+				<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
 					<ArtistLogo
 						containerStyle={styles.logoContainer}
 						fallbackText={track.artistName ?? null}
