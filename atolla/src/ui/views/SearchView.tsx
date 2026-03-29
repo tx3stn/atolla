@@ -505,7 +505,11 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		const { contextMenuTrack, query, recentSearches, results, status, toastMessage } = this.state;
 		const { imageCache, playbackStore, transport } = this.viewModel;
 
-		<layout style={styles.searchRoot}>
+		<layout
+			accessibilityLabel='search-view'
+			contentDescription='search-view'
+			style={styles.searchRoot}
+		>
 			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 				<view style={styles.root}>
 					<view
@@ -515,7 +519,9 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					>
 						<image src={res.search} style={styles.searchIcon} tint={theme.colors.white} />
 						<textfield
+							accessibilityLabel='search-input'
 							autocapitalization='none'
+							contentDescription='search-input'
 							keyboardAppearance='dark'
 							onChange={this.handleQueryChange}
 							onDone={this.handleSearchKeyboardSubmit}

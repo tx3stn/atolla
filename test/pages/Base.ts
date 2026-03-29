@@ -7,6 +7,70 @@ export class BasePage {
 		return this.driver.$(`~${id}`);
 	}
 
+	public elementByAccessibilityPrefix(prefix: string): ChainablePromiseElement {
+		return this.driver.$(
+			`//*[starts-with(@name, "${prefix}") or starts-with(@content-desc, "${prefix}")]`,
+		);
+	}
+
+	public async waitForVisibleAccessibilityPrefix(prefix: string): Promise<void> {
+		await this.driver.waitUntil(
+			async () => {
+				const elements = await this.driver.$$(
+					`//*[starts-with(@name, "${prefix}") or starts-with(@content-desc, "${prefix}")]`,
+				);
+
+				for (const element of elements) {
+					if (await element.isDisplayed()) {
+						return true;
+					}
+				}
+
+				return false;
+			},
+			{ timeoutMsg: `Timed out waiting for visible accessibility prefix: ${prefix}` },
+		);
+	}
+
+	public async firstVisibleByAccessibilityPrefix(prefix: string): Promise<WebdriverIO.Element> {
+		await this.waitForVisibleAccessibilityPrefix(prefix);
+		const elements = await this.driver.$$(
+			`//*[starts-with(@name, "${prefix}") or starts-with(@content-desc, "${prefix}")]`,
+		);
+
+		for (const element of elements) {
+			if (await element.isDisplayed()) {
+				return element;
+			}
+		}
+
+		throw new Error(`No visible elements found for accessibility prefix: ${prefix}`);
+	}
+
+	public async tapFirstVisibleByAccessibilityPrefix(prefix: string): Promise<void> {
+		const element = await this.firstVisibleByAccessibilityPrefix(prefix);
+		await element.click();
+	}
+
+	public async longPressElement(
+		element: ChainablePromiseElement | WebdriverIO.Element,
+		durationMs = 800,
+	): Promise<void> {
+		const resolvedElement = (await element) as WebdriverIO.Element;
+		await this.driver.execute('mobile: longClickGesture', {
+			duration: durationMs,
+			elementId: resolvedElement.elementId,
+		});
+	}
+
+	public async longPressFirstVisibleByAccessibilityPrefix(
+		prefix: string,
+		durationMs = 800,
+	): Promise<void> {
+		const element = await this.firstVisibleByAccessibilityPrefix(prefix);
+		await this.longPressElement(element, durationMs);
+	}
+
 	public async swipeBack(): Promise<void> {
 		const rect = await this.driver.getWindowRect();
 		const y = Math.floor(rect.height * 0.45);

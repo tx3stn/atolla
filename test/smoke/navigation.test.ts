@@ -10,20 +10,6 @@ describe('footer navigation', () => {
 	let footer: FooterPage;
 	let home: HomePage;
 
-	before(async () => {
-		const packageName = (await browser.execute('mobile: getCurrentPackage')) as string;
-		const state = (await browser.execute('mobile: queryAppState', {
-			appId: packageName,
-		})) as number;
-		if (state > 1) {
-			await browser.terminateApp(packageName);
-		}
-		await browser.activateApp(packageName);
-
-		home = new HomePage(browser);
-		await home.waitForLoad();
-	});
-
 	beforeEach(async () => {
 		footer = new FooterPage(browser);
 		await footer.tapHome();
@@ -35,10 +21,15 @@ describe('footer navigation', () => {
 	it('should load search view when tapping search tab', async () => {
 		const searchPage = new SearchPage(browser);
 
-		await footer.tapSearch();
+		await footer.tapSearchAndWaitForLoad();
 		await searchPage.waitForLoad();
 
 		expect(await searchPage.isVisible()).toBe(true);
+		try {
+			await browser.hideKeyboard();
+		} catch {
+			// keyboard already closed / unsupported in this context
+		}
 	});
 
 	it('should load settings view when tapping settings tab', async () => {
@@ -51,9 +42,8 @@ describe('footer navigation', () => {
 	});
 
 	it('should load the albums grid on the albums tab', async () => {
-		await home.tapHeaderAlbums();
-		await home.waitForAlbumsTab();
-		expect(await home.albumsGridIsVisible()).toBe(true);
+		await home.openAlbumsTab();
+		expect(await home.tabs.albums.isVisible()).toBe(true);
 	});
 
 	it('should close open detail view when tapping the matching header tab', async () => {
@@ -61,74 +51,62 @@ describe('footer navigation', () => {
 		const albumDetailPage = new AlbumDetailPage(browser);
 		const playlistDetailPage = new PlaylistDetailPage(browser);
 
-		await home.tapHeaderArtists();
-		await home.waitForArtistsTab();
-		await home.tapCardByID('artist-1');
+		await home.openArtistsTab();
+		await home.tabs.artists.tapFirstVisibleCard();
 		await artistDetailPage.waitForLoad();
-		await home.tapHeaderArtists();
-		await home.waitForArtistsTab();
-		expect(await home.artistGridIsVisible()).toBe(true);
+		await home.openArtistsTab();
+		expect(await home.tabs.artists.isVisible()).toBe(true);
 
-		await home.tapHeaderAlbums();
-		await home.waitForAlbumsTab();
-		await home.tapCardByID('album-1');
+		await home.openAlbumsTab();
+		await home.tabs.albums.tapFirstVisibleCard();
 		await albumDetailPage.waitForLoad();
-		await home.tapHeaderAlbums();
-		await home.waitForAlbumsTab();
-		expect(await home.albumsGridIsVisible()).toBe(true);
+		await home.openAlbumsTab();
+		expect(await home.tabs.albums.isVisible()).toBe(true);
 
-		await home.tapHeaderPlaylists();
-		await home.waitForPlaylistsTab();
-		await home.tapCardByID('playlist-1');
+		await home.openPlaylistsTab();
+		await home.tabs.playlists.tapFirstVisibleCard();
 		await playlistDetailPage.waitForLoad();
-		await home.tapHeaderPlaylists();
-		await home.waitForPlaylistsTab();
-		expect(await home.playlistsGridIsVisible()).toBe(true);
+		await home.openPlaylistsTab();
+		expect(await home.tabs.playlists.isVisible()).toBe(true);
 	});
 
 	it('should swipe back to artists grid after opening artist via header tab', async () => {
 		const artistDetailPage = new ArtistDetailPage(browser);
 
-		await home.tapHeaderArtists();
-		await home.waitForArtistsTab();
-
-		await home.tapCardByID('artist-1');
+		await home.openArtistsTab();
+		await home.tabs.artists.tapFirstVisibleCard();
 		await artistDetailPage.waitForLoad();
 
 		await home.swipeBack();
-		await home.waitForArtistsTab();
+		await home.tabs.artists.waitForLoad();
 
-		expect(await home.artistGridIsVisible()).toBe(true);
+		expect(await home.tabs.artists.isVisible()).toBe(true);
 	});
 
 	it('should swipe back to albums grid after opening album via header tab', async () => {
 		const albumDetailPage = new AlbumDetailPage(browser);
 
-		await home.tapHeaderAlbums();
-		await home.waitForAlbumsTab();
-
-		await home.tapCardByID('album-1');
+		await home.openAlbumsTab();
+		await home.tabs.albums.tapFirstVisibleCard();
 		await albumDetailPage.waitForLoad();
 
 		await home.swipeBack();
-		await home.waitForAlbumsTab();
+		await home.tabs.albums.waitForLoad();
 
-		expect(await home.albumsGridIsVisible()).toBe(true);
+		expect(await home.tabs.albums.isVisible()).toBe(true);
 	});
 
 	it('should swipe back to playlists grid after opening playlist via header tab', async () => {
 		const playlistDetailPage = new PlaylistDetailPage(browser);
 
-		await home.tapHeaderPlaylists();
-		await home.waitForPlaylistsTab();
-
-		await home.tapCardByID('playlist-1');
+		await home.openPlaylistsTab();
+		await home.tabs.playlists.tapFirstVisibleCard();
 		await playlistDetailPage.waitForLoad();
 
 		await home.swipeBack();
-		await home.waitForPlaylistsTab();
+		await home.tabs.playlists.waitForLoad();
 
-		expect(await home.playlistsGridIsVisible()).toBe(true);
+		expect(await home.tabs.playlists.isVisible()).toBe(true);
 	});
 
 	it('should keep playlists back navigation working after artist and album navigation', async () => {
@@ -136,22 +114,20 @@ describe('footer navigation', () => {
 		const albumDetailPage = new AlbumDetailPage(browser);
 		const playlistDetailPage = new PlaylistDetailPage(browser);
 
-		await home.tapHeaderArtists();
-		await home.waitForArtistsTab();
-		await home.tapRandomCardByPrefix('artist-');
+		await home.openArtistsTab();
+		await home.tabs.artists.tapFirstVisibleCard();
 		await artistDetailPage.waitForLoad();
 
-		await home.tapRandomCardByPrefix('album-');
+		await home.tabs.albums.tapFirstVisibleCard();
 		await albumDetailPage.waitForLoad();
 
-		await home.tapHeaderPlaylists();
-		await home.waitForPlaylistsTab();
-		await home.tapRandomCardByPrefix('playlist-');
+		await home.openPlaylistsTab();
+		await home.tabs.playlists.tapFirstVisibleCard();
 		await playlistDetailPage.waitForLoad();
 
 		await home.swipeBack();
-		await home.waitForPlaylistsTab();
+		await home.tabs.playlists.waitForLoad();
 
-		expect(await home.playlistsGridIsVisible()).toBe(true);
+		expect(await home.tabs.playlists.isVisible()).toBe(true);
 	});
 });

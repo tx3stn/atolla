@@ -435,6 +435,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		<view style={rootStyle}>
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: Intentional interactive compact now-playing surface. */}
 			<view
+				accessibilityLabel='now-playing-surface-bar'
+				contentDescription='now-playing-surface-bar'
 				id='now-playing-surface-bar'
 				onDrag={this.handleCompactDrag}
 				onTap={this.openSurface}
@@ -576,16 +578,30 @@ export class NowPlayingSurface extends StatefulComponent<
 										/>
 									</layout>
 									<layout style={styles.expandedQueueTabsRow}>
-										<view onTap={this.handleBackToTabTap} style={styles.expandedQueueTabButton}>
+										<view
+											accessibilityLabel='now-playing-tab-back-to'
+											contentDescription='now-playing-tab-back-to'
+											onTap={this.handleBackToTabTap}
+											style={styles.expandedQueueTabButton}
+										>
 											<label style={backToLabelStyle} value='BACK TO' />
 										</view>
-										<view onTap={this.handleUpNextTabTap} style={styles.expandedQueueTabButton}>
+										<view
+											accessibilityLabel='now-playing-tab-up-next'
+											contentDescription='now-playing-tab-up-next'
+											onTap={this.handleUpNextTabTap}
+											style={styles.expandedQueueTabButton}
+										>
 											<label style={upNextLabelStyle} value='UP NEXT' />
 										</view>
 									</layout>
 								</layout>
 							</layout>
-							<layout style={styles.expandedQueueList}>
+							<layout
+								accessibilityLabel='now-playing-queue-list'
+								contentDescription='now-playing-queue-list'
+								style={styles.expandedQueueList}
+							>
 								<TrackList
 									imageCache={imageCache}
 									noRowBackground
