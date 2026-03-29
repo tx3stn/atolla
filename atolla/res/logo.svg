@@ -9,7 +9,7 @@
     </linearGradient>
   </defs>
   <g id="icon-tentacles" fill="url(#atolla-gradient)" transform="rotate(-45 512 512)">
-    <path d="M500 522L636 552L356 586L654 620L336 654L642 690L350 726L664 764L330 804L626 842L404 872L500 892" fill="none" stroke="url(#atolla-gradient)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M484 522L584 522L624 550L404 594L694 646L344 706L634 762L414 830L484 892" fill="none" stroke="url(#atolla-gradient)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
   </g>
   <g id="icon-bell" fill="url(#atolla-gradient)" transform="rotate(-45 512 512)">
     <path d="M512 150C360 150 238 272 238 404C238 434 254 460 284 480C308 496 334 508 360 517C388 526 418 533 448 538C468 541 490 543 512 543C534 543 556 541 576 538C606 533 636 526 664 517C690 508 716 496 740 480C770 460 786 434 786 404C786 272 664 150 512 150Z" />

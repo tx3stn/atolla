@@ -32,3 +32,5 @@ CLAUDE.md
 specs/
 openapi.json
 .planning/
+
+generated/

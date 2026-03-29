@@ -14,6 +14,7 @@
 		"appium": "^3.2.2",
 		"appium-inspector-plugin": "^2026.2.1",
 		"appium-uiautomator2-driver": "^7.0.0",
+		"sharp": "^0.34.5",
 		"typescript": "^5.9.2",
 		"webdriverio": "^9.26.0"
 	},
@@ -27,6 +28,7 @@
 		"check": "bun run format && bun run lint && bun run compile && bun run test && bun run test:components",
 		"compile": "bunx tsc --noEmit",
 		"format": "biome format --write .",
+		"icons:generate": "bun ./.scripts/generate-icons.ts",
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true --unsafe .",
 		"reload": "./.scripts/android-hotreload.sh",
 		"test": "bun test ./atolla/src",
