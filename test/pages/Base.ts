@@ -57,10 +57,26 @@ export class BasePage {
 		durationMs = 800,
 	): Promise<void> {
 		const resolvedElement = (await element) as WebdriverIO.Element;
-		await this.driver.execute('mobile: longClickGesture', {
-			duration: durationMs,
-			elementId: resolvedElement.elementId,
-		});
+		await resolvedElement.waitForDisplayed();
+		const location = await resolvedElement.getLocation();
+		const size = await resolvedElement.getSize();
+		const centerX = Math.floor(location.x + size.width / 2);
+		const centerY = Math.floor(location.y + size.height / 2);
+
+		await this.driver.performActions([
+			{
+				actions: [
+					{ duration: 0, type: 'pointerMove', x: centerX, y: centerY },
+					{ button: 0, type: 'pointerDown' },
+					{ duration: durationMs, type: 'pause' },
+					{ button: 0, type: 'pointerUp' },
+				],
+				id: 'long-press-finger',
+				parameters: { pointerType: 'touch' },
+				type: 'pointer',
+			},
+		]);
+		await this.driver.releaseActions();
 	}
 
 	public async longPressFirstVisibleByAccessibilityPrefix(

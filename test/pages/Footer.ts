@@ -17,12 +17,16 @@ export class FooterPage extends BasePage {
 	}
 
 	async tapHome(): Promise<void> {
-		await this.elementByID(this.home).waitForDisplayed();
+		await this.elementByID(this.home).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for footer home button',
+		});
 		await this.elementByID(this.home).click();
 	}
 
 	async tapSearch(): Promise<void> {
-		await this.elementByID(this.search).waitForDisplayed();
+		await this.elementByID(this.search).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for footer search button',
+		});
 		await this.elementByID(this.search).click();
 	}
 
@@ -43,7 +47,9 @@ export class FooterPage extends BasePage {
 	}
 
 	async tapSettings(): Promise<void> {
-		await this.elementByID(this.settings).waitForDisplayed();
+		await this.elementByID(this.settings).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for footer settings button',
+		});
 		await this.elementByID(this.settings).click();
 	}
 

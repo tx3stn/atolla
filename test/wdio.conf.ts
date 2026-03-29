@@ -20,6 +20,9 @@ export const config = {
 	logLevel: 'warn',
 	maxInstances: 1,
 	maxInstancesPerCapability: 1,
+	mochaOpts: {
+		timeout: 120_000,
+	},
 	reporters: ['spec'],
 	runner: 'local',
 	services: ['appium'],

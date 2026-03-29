@@ -14,7 +14,9 @@ export class HomeAlbumsTabPage extends BasePage {
 	}
 
 	async tapCardByID(albumId: string): Promise<void> {
-		await this.elementByID(`card-${albumId}`).waitForDisplayed();
+		await this.elementByID(`card-${albumId}`).waitForDisplayed({
+			timeoutMsg: `Timed out waiting for album card: card-${albumId}`,
+		});
 		await this.elementByID(`card-${albumId}`).click();
 	}
 
@@ -23,7 +25,21 @@ export class HomeAlbumsTabPage extends BasePage {
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.grid).waitForDisplayed();
-		await this.waitForVisibleAccessibilityPrefix(this.cardPrefix);
+		await this.driver.waitUntil(
+			async () => {
+				const cards = await this.driver.$$(
+					`//*[starts-with(@name, "${this.cardPrefix}") or starts-with(@content-desc, "${this.cardPrefix}")]`,
+				);
+
+				for (const card of cards) {
+					if (await card.isDisplayed()) {
+						return true;
+					}
+				}
+
+				return false;
+			},
+			{ timeoutMsg: 'Timed out waiting for visible album cards' },
+		);
 	}
 }

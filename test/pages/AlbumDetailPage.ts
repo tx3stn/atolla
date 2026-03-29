@@ -6,8 +6,7 @@ export class AlbumDetailPage extends BasePage {
 	private readonly contextMenu: string;
 	private readonly playAction: string;
 	private readonly playNextAction: string;
-	private readonly root: string;
-	private readonly toast: string;
+	private readonly trackRowPrefix: string;
 
 	constructor(driver: Browser) {
 		super(driver);
@@ -15,12 +14,13 @@ export class AlbumDetailPage extends BasePage {
 		this.contextMenu = 'track-context-menu';
 		this.playAction = 'detail-header-play-button';
 		this.playNextAction = 'track-context-play-next';
-		this.root = 'album-view';
-		this.toast = 'toast';
+		this.trackRowPrefix = 'track-row-';
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.root).waitForDisplayed();
+		await this.elementByID(this.playAction).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for album detail play button',
+		});
 	}
 
 	async tapPlayButton(): Promise<void> {
@@ -29,21 +29,63 @@ export class AlbumDetailPage extends BasePage {
 	}
 
 	async openTrackContextMenuOnFirstVisibleRow(): Promise<void> {
-		await this.longPressFirstVisibleByAccessibilityPrefix('track-row-');
+		const firstVisibleRow = await this.firstVisibleTrackRow();
+		await this.longPressElement(firstVisibleRow);
+		await this.waitForTrackContextMenuVisible();
+	}
+
+	async waitForTrackContextMenuVisible(): Promise<void> {
 		await this.elementByID(this.contextMenu).waitForDisplayed();
 	}
 
+	async waitForTrackRowsVisible(): Promise<void> {
+		await this.waitForLoad();
+
+		await this.driver.waitUntil(
+			async () => {
+				const rows = await this.driver.$$(
+					`//*[starts-with(@name, "${this.trackRowPrefix}") or starts-with(@content-desc, "${this.trackRowPrefix}")]`,
+				);
+				for (const row of rows) {
+					if (await row.isDisplayed()) {
+						return true;
+					}
+				}
+
+				return false;
+			},
+			{ timeoutMsg: 'Timed out waiting for visible album track rows' },
+		);
+	}
+
 	async tapTrackAddToQueueAction(): Promise<void> {
-		await this.elementByID(this.addToQueueAction).waitForDisplayed();
-		await this.elementByID(this.addToQueueAction).click();
+		const menu = this.elementByID(this.contextMenu);
+		await menu.waitForDisplayed();
+		const action = menu.$(`~${this.addToQueueAction}`);
+		await action.waitForDisplayed();
+		await action.click();
 	}
 
 	async tapTrackPlayNextAction(): Promise<void> {
-		await this.elementByID(this.playNextAction).waitForDisplayed();
-		await this.elementByID(this.playNextAction).click();
+		const menu = this.elementByID(this.contextMenu);
+		await menu.waitForDisplayed();
+		const action = menu.$(`~${this.playNextAction}`);
+		await action.waitForDisplayed();
+		await action.click();
 	}
 
-	async waitForToastVisible(): Promise<void> {
-		await this.elementByID(this.toast).waitForDisplayed();
+	private async firstVisibleTrackRow(): Promise<WebdriverIO.Element> {
+		await this.waitForTrackRowsVisible();
+		const rows = await this.driver.$$(
+			`//*[starts-with(@name, "${this.trackRowPrefix}") or starts-with(@content-desc, "${this.trackRowPrefix}")]`,
+		);
+
+		for (const row of rows) {
+			if (await row.isDisplayed()) {
+				return row;
+			}
+		}
+
+		throw new Error('No visible track rows found inside album view');
 	}
 }
