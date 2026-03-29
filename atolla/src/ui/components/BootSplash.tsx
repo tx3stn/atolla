@@ -22,15 +22,15 @@ const styles = {
 	logoContainer: new Style({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bg,
-		borderRadius: 30,
-		height: 200,
+		borderRadius: 16,
+		height: 112,
 		justifyContent: 'center',
 		marginBottom: 16,
-		width: 200,
+		width: 112,
 	}),
 	logoImage: new Style({
-		height: 200,
-		width: 200,
+		height: 112,
+		width: 112,
 	}),
 	root: new Style({
 		alignItems: 'center',

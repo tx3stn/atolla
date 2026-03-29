@@ -5,7 +5,12 @@ package(default_visibility = ["//visibility:public"])
 
 filegroup(
     name = "android_launcher_icons",
-    srcs = glob(["android/res/mipmap-*/ic_launcher.png"]),
+    srcs = glob([
+        "android/res/drawable/*.xml",
+        "android/res/mipmap-*/ic_launcher.png",
+        "android/res/values/*.xml",
+        "android/res/values-v31/*.xml",
+    ]),
 )
 
 swift_library(
