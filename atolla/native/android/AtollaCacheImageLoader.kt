@@ -54,7 +54,6 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				Log.e(tag, "Disk cache path is not a directory: ${dir.absolutePath}")
 				return@lazy null
 			}
-			migrateOldDiskCacheFiles(dir)
 			dir
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed to initialize disk cache directory", error)
@@ -570,19 +569,6 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		val g = (hue2rgb(p, q, hk) * 255.0).toInt()
 		val b = (hue2rgb(p, q, hk - 1.0 / 3.0) * 255.0).toInt()
 		return Triple(r, g, b)
-	}
-
-	private fun migrateOldDiskCacheFiles(dir: File) {
-		val migrationFlag = File(dir, ".migrated_v1")
-		if (migrationFlag.exists()) return
-		val oldNamePattern = Regex("^[0-9a-f]{64}$")
-		val files = try { dir.listFiles() } catch (_: Throwable) { null } ?: return
-		var deleted = 0
-		for (file in files) {
-			if (file.isFile && oldNamePattern.matches(file.name) && file.delete()) deleted++
-		}
-		migrationFlag.createNewFile()
-		Log.i(tag, "migrateOldDiskCacheFiles: deleted $deleted legacy files")
 	}
 
 	private fun generateBlurredBytes(originalBytes: ByteArray): ByteArray? {
