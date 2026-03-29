@@ -30,6 +30,7 @@ import { DEFAULT_IMAGE_CACHE_MAX_BYTES, Preferences } from './stores/Preferences
 import { SearchStore } from './stores/Search';
 import { theme } from './theme';
 import { MockTransport } from './transports/Mock';
+import { BootSplash } from './ui/components/BootSplash';
 import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
@@ -105,6 +106,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private pendingSearchNavigation: SearchHomeNavigationTarget | null = null;
 	private isResolvingSearchNavigation = false;
 	private returnToSearchOnDetailClose = false;
+	private readonly minimumBootSplashMs = 450;
+	private bootstrapStartedAt = Date.now();
+	private bootstrapCommitTimer?: ReturnType<typeof setTimeout>;
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
@@ -126,6 +130,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	onCreate(): void {
+		this.bootstrapStartedAt = Date.now();
 		this.nativeCacheStatsInterval = setInterval(() => {
 			if (this.state.activeFooterTab === FooterTabs.settings) {
 				this.refreshNativeCacheStats();
@@ -134,15 +139,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		Promise.all([this.preferences.getImageCacheMaxBytes(), this.preferences.getAnimationsEnabled()])
 			.then(([imageCacheMaxBytes, animationsEnabled]) => {
 				setImageCacheSize(imageCacheMaxBytes);
-				this.setState({
+				this.completeBootstrap({
 					animationsEnabled,
 					imageCacheMaxBytes,
-					isBootstrapped: true,
 				});
 			})
 			.catch(() => {
 				if (!this.state.isBootstrapped) {
-					this.setState({ isBootstrapped: true });
+					this.completeBootstrap({});
 				}
 			});
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
@@ -157,6 +161,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	onDestroy(): void {
+		if (this.bootstrapCommitTimer) {
+			clearTimeout(this.bootstrapCommitTimer);
+		}
 		this.unsubscribePlayback?.();
 		this.unsubscribePalette?.();
 		if (this.nativeCacheStatsInterval) {
@@ -691,9 +698,22 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			});
 	}
 
+	private completeBootstrap(
+		partialState: Partial<Pick<AppState, 'animationsEnabled' | 'imageCacheMaxBytes'>>,
+	): void {
+		const elapsed = Date.now() - this.bootstrapStartedAt;
+		const remaining = Math.max(0, this.minimumBootSplashMs - elapsed);
+		if (this.bootstrapCommitTimer) {
+			clearTimeout(this.bootstrapCommitTimer);
+		}
+		this.bootstrapCommitTimer = setTimeout(() => {
+			this.setState({ ...partialState, isBootstrapped: true });
+		}, remaining);
+	}
+
 	onRender(): void {
 		if (!this.state.isBootstrapped) {
-			<view style={styles.root} />;
+			<BootSplash message='loading your library' />;
 			return;
 		}
 
