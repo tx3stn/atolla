@@ -31,6 +31,8 @@ export class TrackContextMenu extends StatefulComponent<
 	TrackContextMenuState
 > {
 	private hasBeenDestroyed = false;
+	private actionRowHeight = 48;
+	private actionRowWidth = 280;
 	private playNextRippleRef = new ElementRef();
 	private addToQueueRippleRef = new ElementRef();
 	private addToPlaylistRippleRef = new ElementRef();
@@ -85,6 +87,15 @@ export class TrackContextMenu extends StatefulComponent<
 		this.viewModel.onDismiss();
 	};
 
+	handleActionRowLayout = (frame: { height: number; width: number }): void => {
+		if (frame?.width > 0) {
+			this.actionRowWidth = frame.width;
+		}
+		if (frame?.height > 0) {
+			this.actionRowHeight = frame.height;
+		}
+	};
+
 	handleArtistTap = (): void => {
 		if (this.viewModel.onArtistTap) {
 			this.viewModel.onArtistTap();
@@ -98,10 +109,13 @@ export class TrackContextMenu extends StatefulComponent<
 			return;
 		}
 
-		animateRowPressOverlay(this, rippleRef);
-		setTimeout(() => {
-			action();
-		}, 80);
+		animateRowPressOverlay(this, rippleRef, this.actionRowWidth, this.actionRowHeight)
+			.then(() => {
+				action();
+			})
+			.catch(() => {
+				action();
+			});
 	}
 
 	onRender(): void {
@@ -141,6 +155,7 @@ export class TrackContextMenu extends StatefulComponent<
 				<view
 					accessibilityLabel='track-context-play-next'
 					contentDescription='track-context-play-next'
+					onLayout={this.handleActionRowLayout}
 					onTap={this.handlePlayNextTap}
 					style={styles.actionRow}
 				>
@@ -151,6 +166,7 @@ export class TrackContextMenu extends StatefulComponent<
 				<view
 					accessibilityLabel='track-context-add-to-queue'
 					contentDescription='track-context-add-to-queue'
+					onLayout={this.handleActionRowLayout}
 					onTap={this.handleAddToQueueTap}
 					style={styles.actionRow}
 				>
@@ -161,6 +177,7 @@ export class TrackContextMenu extends StatefulComponent<
 				<view
 					accessibilityLabel='track-context-add-to-playlist'
 					contentDescription='track-context-add-to-playlist'
+					onLayout={this.handleActionRowLayout}
 					onTap={this.handleAddToPlaylistTap}
 					style={styles.actionRow}
 				>
@@ -176,15 +193,39 @@ export class TrackContextMenu extends StatefulComponent<
 function animateRowPressOverlay(
 	component: { animatePromise: (options: object, callback: () => void) => Promise<void> },
 	ref: ElementRef,
-): void {
+	rowWidth: number,
+	rowHeight: number,
+): Promise<void> {
+	const safeWidth = Math.max(1, rowWidth);
+	const safeHeight = Math.max(1, rowHeight);
+	const centerX = safeWidth / 2;
+	const centerY = safeHeight / 2;
+	const impactWidth = safeWidth * 0.2;
+	const impactHeight = safeHeight * 0.45;
+
+	ref.setAttribute('left', centerX);
+	ref.setAttribute('top', centerY);
+	ref.setAttribute('width', 0);
+	ref.setAttribute('height', 0);
+	ref.setAttribute('borderRadius', Math.max(2, safeHeight * 0.16));
 	ref.setAttribute('opacity', 0);
 
-	component
-		.animatePromise({ curve: 'easeOut', duration: 0.07 }, () => {
-			ref.setAttribute('opacity', 0.18);
+	return component
+		.animatePromise({ curve: 'easeOut', duration: 0.04 }, () => {
+			ref.setAttribute('left', centerX - impactWidth / 2);
+			ref.setAttribute('top', centerY - impactHeight / 2);
+			ref.setAttribute('width', impactWidth);
+			ref.setAttribute('height', impactHeight);
+			ref.setAttribute('borderRadius', Math.max(2, impactHeight * 0.25));
+			ref.setAttribute('opacity', 0.26);
 		})
 		.then(() => {
-			return component.animatePromise({ curve: 'easeOut', duration: 0.28 }, () => {
+			return component.animatePromise({ curve: 'easeOut', duration: 0.14 }, () => {
+				ref.setAttribute('left', 0);
+				ref.setAttribute('top', 0);
+				ref.setAttribute('width', safeWidth);
+				ref.setAttribute('height', safeHeight);
+				ref.setAttribute('borderRadius', 0);
 				ref.setAttribute('opacity', 0);
 			});
 		});
@@ -202,16 +243,16 @@ const styles = {
 		paddingHorizontal: 4,
 		paddingVertical: 12,
 		position: 'relative',
-		width: '100%',
+		width: '40%',
 	}),
 	actionRowRipple: new Style({
 		backgroundColor: theme.colors.white,
-		bottom: 0,
+		height: 0,
 		left: 0,
 		opacity: 0,
 		position: 'absolute',
-		right: 0,
 		top: 0,
+		width: 0,
 		zIndex: 2,
 	}),
 	backdrop: new Style<BlurView>({
