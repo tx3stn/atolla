@@ -21,6 +21,7 @@ export const config = {
 	maxInstances: 1,
 	maxInstancesPerCapability: 1,
 	mochaOpts: {
+		bail: 1,
 		timeout: 120_000,
 	},
 	reporters: ['spec'],

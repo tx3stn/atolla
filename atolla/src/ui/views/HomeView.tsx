@@ -43,12 +43,13 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private transitionVersion = 0;
 
 	state: HomeState = {
-		isNavigationMounted: false,
-		isTabTransitionOverlayVisible: true,
+		isNavigationMounted: true,
+		isTabTransitionOverlayVisible: false,
 	};
 
 	onCreate(): void {
-		this.resetNavigationRoot();
+		// No-op: keep the initial navigation tree mounted to avoid
+		// a delayed post-load remount that can override quick tab changes.
 	}
 
 	onDestroy(): void {
@@ -59,16 +60,16 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	onViewModelUpdate(prevViewModel?: HomeViewModel): void {
 		if (!prevViewModel) {
-			this.resetNavigationRoot();
 			return;
 		}
 
 		const activeTabChanged = this.viewModel.activeTab !== prevViewModel.activeTab;
 		if (activeTabChanged) {
 			this.startTabTransitionOverlay();
+			return;
 		}
 
-		if (!activeTabChanged && this.viewModel.resetSignal === prevViewModel.resetSignal) {
+		if (this.viewModel.resetSignal === prevViewModel.resetSignal) {
 			return;
 		}
 

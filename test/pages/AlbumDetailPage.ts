@@ -2,18 +2,12 @@ import type { Browser } from 'webdriverio';
 import { BasePage } from './Base';
 
 export class AlbumDetailPage extends BasePage {
-	private readonly addToQueueAction: string;
-	private readonly contextMenu: string;
 	private readonly playAction: string;
-	private readonly playNextAction: string;
 	private readonly trackRowPrefix: string;
 
 	constructor(driver: Browser) {
 		super(driver);
-		this.addToQueueAction = 'track-context-add-to-queue';
-		this.contextMenu = 'track-context-menu';
 		this.playAction = 'detail-header-play-button';
-		this.playNextAction = 'track-context-play-next';
 		this.trackRowPrefix = 'track-row-';
 	}
 
@@ -31,11 +25,6 @@ export class AlbumDetailPage extends BasePage {
 	async openTrackContextMenuOnFirstVisibleRow(): Promise<void> {
 		const firstVisibleRow = await this.firstVisibleTrackRow();
 		await this.longPressElement(firstVisibleRow);
-		await this.waitForTrackContextMenuVisible();
-	}
-
-	async waitForTrackContextMenuVisible(): Promise<void> {
-		await this.elementByID(this.contextMenu).waitForDisplayed();
 	}
 
 	async waitForTrackRowsVisible(): Promise<void> {
@@ -56,22 +45,6 @@ export class AlbumDetailPage extends BasePage {
 			},
 			{ timeoutMsg: 'Timed out waiting for visible album track rows' },
 		);
-	}
-
-	async tapTrackAddToQueueAction(): Promise<void> {
-		const menu = this.elementByID(this.contextMenu);
-		await menu.waitForDisplayed();
-		const action = menu.$(`~${this.addToQueueAction}`);
-		await action.waitForDisplayed();
-		await action.click();
-	}
-
-	async tapTrackPlayNextAction(): Promise<void> {
-		const menu = this.elementByID(this.contextMenu);
-		await menu.waitForDisplayed();
-		const action = menu.$(`~${this.playNextAction}`);
-		await action.waitForDisplayed();
-		await action.click();
 	}
 
 	private async firstVisibleTrackRow(): Promise<WebdriverIO.Element> {

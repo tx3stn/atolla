@@ -10,6 +10,7 @@ export class NowPlayingFooterPage extends BasePage {
 	private readonly queueTabUpNext: string;
 	private readonly togglePlayback: string;
 	private readonly bar: string;
+	private readonly queueRowsInListXPath: string;
 
 	constructor(driver: Browser) {
 		super(driver);
@@ -21,10 +22,25 @@ export class NowPlayingFooterPage extends BasePage {
 		this.queueTabUpNext = 'now-playing-tab-up-next';
 		this.togglePlayback = 'now-playing-play-pause';
 		this.bar = 'now-playing-surface-bar';
+		this.queueRowsInListXPath =
+			`//*[@name="${this.queueList}" or @content-desc="${this.queueList}"]` +
+			`//*[starts-with(@name, "${this.queueTrackRowPrefix}") or ` +
+			`starts-with(@content-desc, "${this.queueTrackRowPrefix}") or ` +
+			`starts-with(@resource-id, "${this.queueTrackRowPrefix}") or ` +
+			`contains(@resource-id, "/${this.queueTrackRowPrefix}")]`;
 	}
 
 	async waitForVisible(): Promise<void> {
 		await this.elementByID(this.bar).waitForDisplayed();
+	}
+
+	async isVisible(): Promise<boolean> {
+		const bar = this.elementByID(this.bar);
+		if (!(await bar.isExisting())) {
+			return false;
+		}
+
+		return await bar.isDisplayed();
 	}
 
 	async tapTogglePlayback(): Promise<void> {
@@ -58,18 +74,94 @@ export class NowPlayingFooterPage extends BasePage {
 	}
 
 	async waitForQueueList(): Promise<void> {
-		await this.elementByID(this.queueList).waitForDisplayed();
+		await this.scrollToQueueList();
+		await this.elementByID(this.queueList).waitForExist({
+			timeoutMsg: 'Timed out waiting for now playing queue list to exist',
+		});
+	}
+
+	async isQueueListVisible(): Promise<boolean> {
+		const queueList = this.elementByID(this.queueList);
+		if (!(await queueList.isExisting())) {
+			return false;
+		}
+
+		return await queueList.isDisplayed();
+	}
+
+	async collapseExpandedIfVisible(): Promise<void> {
+		if (!(await this.isQueueListVisible())) {
+			return;
+		}
+
+		const rect = await this.driver.getWindowRect();
+		const x = Math.floor(rect.width * 0.5);
+		const startY = Math.floor(rect.height * 0.12);
+		const endY = Math.floor(rect.height * 0.45);
+
+		await this.driver.performActions([
+			{
+				actions: [
+					{ duration: 0, type: 'pointerMove', x, y: startY },
+					{ button: 0, type: 'pointerDown' },
+					{ duration: 50, type: 'pause' },
+					{ duration: 250, type: 'pointerMove', x, y: endY },
+					{ button: 0, type: 'pointerUp' },
+				],
+				id: 'collapse-now-playing-finger',
+				parameters: { pointerType: 'touch' },
+				type: 'pointer',
+			},
+		]);
+		await this.driver.releaseActions();
+
+		await this.driver.waitUntil(async () => !(await this.isQueueListVisible()), {
+			timeoutMsg: 'Timed out collapsing expanded now playing surface',
+		});
+	}
+
+	async swipeAwayIfVisible(): Promise<void> {
+		await this.collapseExpandedIfVisible();
+
+		if (!(await this.isVisible())) {
+			return;
+		}
+
+		const bar = this.elementByID(this.bar);
+		await bar.waitForDisplayed();
+		const location = await bar.getLocation();
+		const size = await bar.getSize();
+		const y = Math.floor(location.y + size.height * 0.5);
+		const startX = Math.floor(location.x + size.width * 0.8);
+		const endX = Math.floor(location.x + size.width * 0.1);
+
+		await this.driver.performActions([
+			{
+				actions: [
+					{ duration: 0, type: 'pointerMove', x: startX, y },
+					{ button: 0, type: 'pointerDown' },
+					{ duration: 50, type: 'pause' },
+					{ duration: 250, type: 'pointerMove', x: endX, y },
+					{ button: 0, type: 'pointerUp' },
+				],
+				id: 'dismiss-now-playing-finger',
+				parameters: { pointerType: 'touch' },
+				type: 'pointer',
+			},
+		]);
+		await this.driver.releaseActions();
+
+		await this.driver.waitUntil(async () => !(await this.isVisible()), {
+			timeoutMsg: 'Timed out swiping away now playing bar',
+		});
 	}
 
 	async waitForQueueRowsVisible(): Promise<void> {
-		const queueList = this.elementByID(this.queueList);
-		await queueList.waitForDisplayed();
+		await this.waitForQueueList();
 
 		await this.driver.waitUntil(
 			async () => {
-				const rows = await queueList.$$(
-					`//*[starts-with(@name, "${this.queueTrackRowPrefix}") or starts-with(@content-desc, "${this.queueTrackRowPrefix}")]`,
-				);
+				const rows = await this.driver.$$(this.queueRowsInListXPath);
 
 				for (const row of rows) {
 					if (await row.isDisplayed()) {
@@ -83,12 +175,38 @@ export class NowPlayingFooterPage extends BasePage {
 		);
 	}
 
+	private async scrollToQueueList(maxSwipes = 6): Promise<void> {
+		for (let attempt = 0; attempt < maxSwipes; attempt += 1) {
+			const rect = await this.driver.getWindowRect();
+			const x = Math.floor(rect.width * 0.5);
+			const startY = Math.floor(rect.height * 0.78);
+			const endY = Math.floor(rect.height * 0.28);
+
+			await this.driver.performActions([
+				{
+					actions: [
+						{ duration: 0, type: 'pointerMove', x, y: startY },
+						{ button: 0, type: 'pointerDown' },
+						{ duration: 40, type: 'pause' },
+						{ duration: 260, type: 'pointerMove', x, y: endY },
+						{ button: 0, type: 'pointerUp' },
+					],
+					id: `queue-scroll-finger-${attempt}`,
+					parameters: { pointerType: 'touch' },
+					type: 'pointer',
+				},
+			]);
+			await this.driver.releaseActions();
+
+			if (await this.isQueueListVisible()) {
+				return;
+			}
+		}
+	}
+
 	async firstVisibleQueueTrackRowId(): Promise<string> {
 		await this.waitForQueueRowsVisible();
-		const queueList = this.elementByID(this.queueList);
-		const rows = await queueList.$$(
-			`//*[starts-with(@name, "${this.queueTrackRowPrefix}") or starts-with(@content-desc, "${this.queueTrackRowPrefix}")]`,
-		);
+		const rows = await this.driver.$$(this.queueRowsInListXPath);
 
 		for (const row of rows) {
 			if (!(await row.isDisplayed())) {
@@ -103,6 +221,17 @@ export class NowPlayingFooterPage extends BasePage {
 			const contentDesc = (await row.getAttribute('content-desc')) ?? '';
 			if (contentDesc.startsWith(this.queueTrackRowPrefix)) {
 				return contentDesc;
+			}
+
+			const resourceId = (await row.getAttribute('resource-id')) ?? '';
+			if (resourceId.startsWith(this.queueTrackRowPrefix)) {
+				return resourceId;
+			}
+
+			const resourceIdSuffix = `/${this.queueTrackRowPrefix}`;
+			const suffixIndex = resourceId.indexOf(resourceIdSuffix);
+			if (suffixIndex !== -1) {
+				return resourceId.slice(suffixIndex + 1);
 			}
 		}
 

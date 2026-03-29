@@ -95,7 +95,12 @@ export class TrackContextMenu extends StatefulComponent<
 			onTap={this.handleBackdropTap}
 			style={styles.backdrop}
 		>
-			<view onTap={this.handleCardTap} style={styles.card} testID='track-context-menu'>
+			<view
+				accessibilityLabel='track-context-menu'
+				contentDescription='track-context-menu'
+				onTap={this.handleCardTap}
+				style={styles.card}
+			>
 				<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
 					<ArtistLogo
 						containerStyle={styles.logoContainer}
@@ -112,7 +117,6 @@ export class TrackContextMenu extends StatefulComponent<
 					contentDescription='track-context-play-next'
 					onTap={this.handlePlayNext}
 					style={styles.actionRow}
-					testID='track-context-play-next'
 				>
 					<image src={res.playnext} style={styles.icon} tint={theme.colors.muted} />
 					<label style={styles.actionLabel} value='play next' />
@@ -122,7 +126,6 @@ export class TrackContextMenu extends StatefulComponent<
 					contentDescription='track-context-add-to-queue'
 					onTap={this.handleAddToQueue}
 					style={styles.actionRow}
-					testID='track-context-add-to-queue'
 				>
 					<image src={res.addtoqueue} style={styles.icon} tint={theme.colors.muted} />
 					<label style={styles.actionLabel} value='add to queue' />
@@ -132,7 +135,6 @@ export class TrackContextMenu extends StatefulComponent<
 					contentDescription='track-context-add-to-playlist'
 					onTap={this.handleAddToPlaylist}
 					style={styles.actionRow}
-					testID='track-context-add-to-playlist'
 				>
 					<image src={res.addtoplaylist} style={styles.icon} tint={theme.colors.muted} />
 					<label style={styles.actionLabel} value='add to playlist' />
