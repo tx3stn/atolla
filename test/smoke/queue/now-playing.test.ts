@@ -35,6 +35,7 @@ describe('now playing queue', () => {
 
 	it('shows queue list when now playing is expanded', async () => {
 		await nowPlaying.waitForQueueList();
+		await nowPlaying.waitForQueueList();
 		await nowPlaying.waitForQueueRowsVisible();
 	});
 

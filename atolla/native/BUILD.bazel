@@ -3,6 +3,11 @@ load("@rules_kotlin//kotlin:android.bzl", "kt_android_library")
 
 package(default_visibility = ["//visibility:public"])
 
+filegroup(
+    name = "android_launcher_icons",
+    srcs = glob(["android/res/mipmap-*/ic_launcher.png"]),
+)
+
 swift_library(
     name = "atolla_cache_image_loader_ios",
     srcs = ["ios/AtollaCacheImageLoader.swift"],

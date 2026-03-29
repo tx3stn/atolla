@@ -42,6 +42,26 @@ const outputs: Array<IconOutput> = [
 	{ path: resolve(process.cwd(), 'generated/icons/web/icon-192.png'), size: 192 },
 	{ path: resolve(process.cwd(), 'generated/icons/web/icon-256.png'), size: 256 },
 	{ path: resolve(process.cwd(), 'generated/icons/web/icon-512.png'), size: 512 },
+	{
+		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-mdpi/ic_launcher.png'),
+		size: 48,
+	},
+	{
+		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-hdpi/ic_launcher.png'),
+		size: 72,
+	},
+	{
+		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xhdpi/ic_launcher.png'),
+		size: 96,
+	},
+	{
+		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xxhdpi/ic_launcher.png'),
+		size: 144,
+	},
+	{
+		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xxxhdpi/ic_launcher.png'),
+		size: 192,
+	},
 ];
 
 async function generateIcons(): Promise<void> {
