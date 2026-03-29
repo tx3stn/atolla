@@ -66,10 +66,9 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const activeTabChanged = this.viewModel.activeTab !== prevViewModel.activeTab;
 		if (activeTabChanged) {
 			this.startTabTransitionOverlay();
-			return;
 		}
 
-		if (this.viewModel.resetSignal === prevViewModel.resetSignal) {
+		if (!activeTabChanged && this.viewModel.resetSignal === prevViewModel.resetSignal) {
 			return;
 		}
 
