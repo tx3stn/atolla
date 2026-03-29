@@ -27,6 +27,33 @@ export class AlbumDetailPage extends BasePage {
 		await this.longPressElement(firstVisibleRow);
 	}
 
+	async firstVisibleTrackRowId(): Promise<string> {
+		const firstVisibleRow = await this.firstVisibleTrackRow();
+
+		const name = (await firstVisibleRow.getAttribute('name')) ?? '';
+		if (name.startsWith(this.trackRowPrefix)) {
+			return name;
+		}
+
+		const contentDesc = (await firstVisibleRow.getAttribute('content-desc')) ?? '';
+		if (contentDesc.startsWith(this.trackRowPrefix)) {
+			return contentDesc;
+		}
+
+		const resourceId = (await firstVisibleRow.getAttribute('resource-id')) ?? '';
+		if (resourceId.startsWith(this.trackRowPrefix)) {
+			return resourceId;
+		}
+
+		const resourceIdSuffix = `/${this.trackRowPrefix}`;
+		const suffixIndex = resourceId.indexOf(resourceIdSuffix);
+		if (suffixIndex !== -1) {
+			return resourceId.slice(suffixIndex + 1);
+		}
+
+		throw new Error('Unable to determine first visible track row id');
+	}
+
 	async waitForTrackRowsVisible(): Promise<void> {
 		await this.waitForLoad();
 

@@ -20,6 +20,20 @@ export class TrackContextMenu extends BasePage {
 		});
 	}
 
+	async waitForHidden(): Promise<void> {
+		await this.driver.waitUntil(
+			async () => {
+				const root = this.elementByID(this.root);
+				if (!(await root.isExisting())) {
+					return true;
+				}
+
+				return !(await root.isDisplayed());
+			},
+			{ timeoutMsg: 'Track context menu did not dismiss' },
+		);
+	}
+
 	async tapAddToQueue(): Promise<void> {
 		const button = this.elementByID(this.addToQueue);
 		await button.waitForDisplayed({ timeoutMsg: 'Add to queue button not displayed' });

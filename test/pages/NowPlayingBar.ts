@@ -237,4 +237,59 @@ export class NowPlayingFooterPage extends BasePage {
 
 		throw new Error('No visible queue track rows found');
 	}
+
+	async countQueueRowsById(trackRowId: string): Promise<number> {
+		await this.waitForQueueList();
+		const targetId = this.normalizeTrackRowId(trackRowId);
+		const rows = await this.driver.$$(this.queueRowsInListXPath);
+
+		let count = 0;
+		for (const row of rows) {
+			const rowId = await this.extractTrackRowId(row);
+			if (rowId === targetId) {
+				count += 1;
+			}
+		}
+
+		return count;
+	}
+
+	private normalizeTrackRowId(trackRowId: string): string {
+		if (trackRowId.startsWith(this.queueTrackRowPrefix)) {
+			return trackRowId;
+		}
+
+		const resourceIdSuffix = `/${this.queueTrackRowPrefix}`;
+		const suffixIndex = trackRowId.indexOf(resourceIdSuffix);
+		if (suffixIndex !== -1) {
+			return trackRowId.slice(suffixIndex + 1);
+		}
+
+		return `${this.queueTrackRowPrefix}${trackRowId}`;
+	}
+
+	private async extractTrackRowId(row: WebdriverIO.Element): Promise<string | null> {
+		const name = (await row.getAttribute('name')) ?? '';
+		if (name.startsWith(this.queueTrackRowPrefix)) {
+			return name;
+		}
+
+		const contentDesc = (await row.getAttribute('content-desc')) ?? '';
+		if (contentDesc.startsWith(this.queueTrackRowPrefix)) {
+			return contentDesc;
+		}
+
+		const resourceId = (await row.getAttribute('resource-id')) ?? '';
+		if (resourceId.startsWith(this.queueTrackRowPrefix)) {
+			return resourceId;
+		}
+
+		const resourceIdSuffix = `/${this.queueTrackRowPrefix}`;
+		const suffixIndex = resourceId.indexOf(resourceIdSuffix);
+		if (suffixIndex !== -1) {
+			return resourceId.slice(suffixIndex + 1);
+		}
+
+		return null;
+	}
 }

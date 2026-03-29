@@ -1,8 +1,7 @@
-import { Toast } from 'test/pages/Toast';
+import { TrackContextMenu } from 'test/pages/TrackContextModal';
 import { AlbumDetailPage } from '../../pages/AlbumDetailPage';
 import { FooterPage } from '../../pages/Footer';
 import { HomePage } from '../../pages/HomePage';
-import { TrackContextMenu } from 'test/pages/TrackContextModal';
 
 describe('add to queue', () => {
 	before(async () => {
@@ -29,16 +28,14 @@ describe('add to queue', () => {
 		await menu.waitForVisible();
 	});
 
-	it('shows toast when adding a track to queue from track context menu', async () => {
+	it('dismisses track context menu when adding a track to queue', async () => {
 		const menu = new TrackContextMenu(driver);
 		await menu.waitForVisible();
 		await menu.tapAddToQueue();
-
-		const toast = new Toast(browser);
-		expect(await toast.isVisible()).toBe(true);
+		await menu.waitForHidden();
 	});
 
-	it('shows toast when sending a track to play next from track context menu', async () => {
+	it('dismisses track context menu when sending a track to play next', async () => {
 		const albumDetail = new AlbumDetailPage(browser);
 		await albumDetail.waitForLoad();
 		await albumDetail.waitForTrackRowsVisible();
@@ -47,8 +44,6 @@ describe('add to queue', () => {
 		const menu = new TrackContextMenu(driver);
 		await menu.waitForVisible();
 		await menu.tapPlayNext();
-
-		const toast = new Toast(browser);
-		expect(await toast.isVisible()).toBe(true);
+		await menu.waitForHidden();
 	});
 });

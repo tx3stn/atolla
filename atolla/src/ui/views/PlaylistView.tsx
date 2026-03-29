@@ -11,10 +11,8 @@ import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { DetailHeader } from '../components/DetailHeader';
-import { Toast } from '../components/Toast';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
-import { clearScheduledToast, scheduleToastDismiss } from '../components/toastTimer';
 
 export interface PlaylistViewModel {
 	animationsEnabled: boolean;
@@ -30,7 +28,6 @@ interface PlaylistState {
 	artistLogoUrls: Array<string | null>;
 	contextMenuTrack: Track | null;
 	isFooterVisible: boolean;
-	toastMessage: string | null;
 	tracks: Array<Track>;
 }
 
@@ -42,13 +39,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private modalSlot = new DetachedSlot();
 	private hasBeenDestroyed = false;
 	private unsubscribePlayback?: () => void;
-	private toastTimerId?: ReturnType<typeof setTimeout>;
 
 	state: PlaylistState = {
 		artistLogoUrls: [],
 		contextMenuTrack: null,
 		isFooterVisible: false,
-		toastMessage: null,
 		tracks: [],
 	};
 
@@ -69,17 +64,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.setState({ contextMenuTrack: track });
 	};
 
-	handleContextMenuDismiss = (toastMessage?: string): void => {
+	handleContextMenuDismiss = (): void => {
 		this.setState({ contextMenuTrack: null });
-		if (toastMessage) {
-			this.toastTimerId = scheduleToastDismiss(
-				this.toastTimerId,
-				(message) => {
-					this.setState({ toastMessage: message });
-				},
-				toastMessage,
-			);
-		}
 	};
 
 	handleHeaderPlayTap = (): void => {
@@ -100,13 +86,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	handleHeaderAddToQueueTap = (): void => {
 		this.viewModel.playbackStore.addToQueue(this.state.tracks);
-		this.toastTimerId = scheduleToastDismiss(
-			this.toastTimerId,
-			(message) => {
-				this.setState({ toastMessage: message });
-			},
-			'added to queue',
-		);
 	};
 
 	handleTrackTap = (trackId: string): void => {
@@ -153,12 +132,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
-		this.toastTimerId = clearScheduledToast(this.toastTimerId);
 		this.viewModel.onExitFromSearchNavigation?.();
 	}
 
 	onRender(): void {
-		const { contextMenuTrack, isFooterVisible, toastMessage, tracks } = this.state;
+		const { contextMenuTrack, isFooterVisible, tracks } = this.state;
 		const { imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
@@ -198,6 +176,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			</scroll>
 			{contextMenuTrack && (
 				<TrackContextMenu
+					animationsEnabled={this.viewModel.animationsEnabled}
 					imageCache={imageCache}
 					onArtistTap={
 						onNavigateToArtist && contextMenuTrack.artistId
@@ -210,7 +189,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					transport={transport}
 				/>
 			)}
-			{toastMessage && <Toast message={toastMessage} />}
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 		</layout>;
 	}

@@ -649,6 +649,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			</scroll>
 			{contextMenuTrack && (
 				<TrackContextMenu
+					animationsEnabled={this.viewModel.animationsEnabled}
 					imageCache={imageCache}
 					onArtistTap={contextMenuTrack.artistId ? this.handleContextMenuArtistTap : undefined}
 					onDismiss={this.handleContextMenuDismiss}
