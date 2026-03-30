@@ -23,7 +23,7 @@
 	"scripts": {
 		"adb:reload": "adb shell am force-stop com.snap.valdi.atolla && adb shell monkey -p com.snap.valdi.atolla -c android.intent.category.LAUNCHER 1",
 		"android": "./.scripts/start-android-emulator.sh",
-		"android:fast": "FAST_DEV_BUILD=1 ./.scripts/start-android-emulator.sh",
+		"android:fast": "bun run icons:generate && FAST_DEV_BUILD=1 ./.scripts/start-android-emulator.sh",
 		"appium:inspect": "./.scripts/start-appium-inspector.sh",
 		"check": "bun run format && bun run lint && bun run compile && bun run test && bun run test:components",
 		"compile": "bunx tsc --noEmit",

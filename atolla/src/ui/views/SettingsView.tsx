@@ -134,6 +134,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		})();
 
 		<view style={styles.root}>
+			<label style={styles.sectionTitle} value='SETTINGS' />
 			<label style={styles.sectionTitle} value='APPEARANCE' />
 			<view style={styles.section}>
 				<view style={styles.settingRow}>
