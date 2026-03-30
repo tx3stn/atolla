@@ -31,6 +31,7 @@ interface ArtistState {
 	albums: Array<Album>;
 	allTracks: Array<Track>;
 	contextMenuTrack: Track | null;
+	isDownloaded: boolean;
 	isFooterVisible: boolean;
 	topTracks: Array<Track>;
 }
@@ -45,6 +46,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		albums: [],
 		allTracks: [],
 		contextMenuTrack: null,
+		isDownloaded: false,
 		isFooterVisible: false,
 		topTracks: [],
 	};
@@ -67,6 +69,10 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		const { artist, playbackStore } = this.viewModel;
 		playbackStore.playTracks(shuffleArray(this.state.allTracks));
 		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
+	};
+
+	handleDownloadTap = (): void => {
+		this.setState({ isDownloaded: !this.state.isDownloaded });
 	};
 
 	handleHeaderAddToQueueTap = (): Promise<void> => {
@@ -135,7 +141,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	onRender(): void {
 		const { artist, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
-		const { albums, allTracks, contextMenuTrack, isFooterVisible, topTracks } = this.state;
+		const { albums, allTracks, contextMenuTrack, isDownloaded, isFooterVisible, topTracks } = this.state;
 
 		const sortedAlbums = [...albums].sort((a, b) =>
 			(b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''),
@@ -167,7 +173,9 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					fallbackText={artist.name}
 					imageCache={imageCache}
 					logoSource={artist.logoUrl || null}
+					isDownloaded={isDownloaded}
 					onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+					onDownload={this.handleDownloadTap}
 					onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onShuffle={allTracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 				/>

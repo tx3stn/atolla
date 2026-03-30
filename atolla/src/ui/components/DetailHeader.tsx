@@ -19,6 +19,7 @@ export interface DetailHeaderViewModel {
 	artworkSource: string | null;
 	fallbackText?: string | null;
 	imageCache?: ImageCache;
+	isDownloaded?: boolean;
 	logoSource?: string | null;
 	onAddToQueue?: () => Promise<void>;
 	onArtistTap?: () => void;
@@ -93,6 +94,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		const {
 			artworkSource,
 			fallbackText,
+			isDownloaded,
 			logoSource,
 			onArtistTap,
 			onDownload,
@@ -131,8 +133,8 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 						<TappableIcon
 							accessibilityLabel='detail-header-download-button'
 							animationsEnabled={this.viewModel.animationsEnabled}
-							icon={res.download}
-							onTap={onDownload}
+							icon={isDownloaded ? res.downloaded : res.download}
+							onTap={isDownloaded ? () => {} : onDownload}
 						/>
 						<TappableIcon
 							accessibilityLabel='detail-header-shuffle-button'

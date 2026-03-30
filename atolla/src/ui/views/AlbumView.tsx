@@ -30,6 +30,7 @@ interface AlbumState {
 	artist: Artist | null;
 	artistLogoUrl: string | null;
 	contextMenuTrack: Track | null;
+	isDownloaded: boolean;
 	isFooterVisible: boolean;
 	tracks: Array<Track>;
 }
@@ -44,6 +45,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		artist: null,
 		artistLogoUrl: null,
 		contextMenuTrack: null,
+		isDownloaded: false,
 		isFooterVisible: false,
 		tracks: [],
 	};
@@ -113,6 +115,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 	};
 
+	handleDownloadTap = (): void => {
+		this.setState({ isDownloaded: !this.state.isDownloaded });
+	};
+
 	handleHeaderAddToQueueTap = (): Promise<void> => {
 		if (this.state.tracks.length === 0) return Promise.resolve();
 		this.viewModel.playbackStore.addToQueue(this.state.tracks);
@@ -148,7 +154,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	onRender(): void {
-		const { artistLogoUrl, contextMenuTrack, isFooterVisible, tracks } = this.state;
+		const { artistLogoUrl, contextMenuTrack, isDownloaded, isFooterVisible, tracks } = this.state;
 		const { album, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
@@ -175,8 +181,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					fallbackText={album.artistName}
 					imageCache={imageCache}
 					logoSource={artistLogoUrl}
+					isDownloaded={isDownloaded}
 					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onArtistTap={this.handleArtistLogoTap}
+					onDownload={this.handleDownloadTap}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 					subheaderLineOneLeft={album.name}

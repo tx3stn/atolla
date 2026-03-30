@@ -48,8 +48,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	onCreate(): void {
-		// No-op: keep the initial navigation tree mounted to avoid
-		// a delayed post-load remount that can override quick tab changes.
+		this.resetNavigationRoot();
 	}
 
 	onDestroy(): void {
