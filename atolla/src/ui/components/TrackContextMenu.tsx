@@ -59,12 +59,12 @@ export class TrackContextMenu extends StatefulComponent<
 
 	handlePlayNext = (): void => {
 		this.viewModel.playbackStore.playNext([this.viewModel.track]);
-		this.viewModel.onDismiss();
+		this.viewModel.onDismiss('playing next');
 	};
 
 	handleAddToQueue = (): void => {
 		this.viewModel.playbackStore.addToQueue([this.viewModel.track]);
-		this.viewModel.onDismiss();
+		this.viewModel.onDismiss('added to queue');
 	};
 
 	handleAddToPlaylist = (): void => {
@@ -104,7 +104,7 @@ export class TrackContextMenu extends StatefulComponent<
 	};
 
 	private runActionWithTapFeedback(action: () => void, rippleRef: ElementRef): void {
-		if (this.viewModel.animationsEnabled === false) {
+		if (!this.viewModel.animationsEnabled) {
 			action();
 			return;
 		}

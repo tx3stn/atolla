@@ -124,7 +124,7 @@ describe('NowPlayingSurface', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const addToQueueAction = views.find(
-			(view) => view.getAttribute('testID') === 'track-context-add-to-queue',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-context-add-to-queue',
 		);
 		addToQueueAction?.getAttribute('onTap')?.();
 

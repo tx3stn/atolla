@@ -113,9 +113,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 	};
 
-	handleHeaderAddToQueueTap = (): void => {
-		if (this.state.tracks.length === 0) return;
+	handleHeaderAddToQueueTap = (): Promise<void> => {
+		if (this.state.tracks.length === 0) return Promise.resolve();
 		this.viewModel.playbackStore.addToQueue(this.state.tracks);
+		return Promise.resolve();
 	};
 
 	onCreate(): void {

@@ -106,7 +106,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private pendingSearchNavigation: SearchHomeNavigationTarget | null = null;
 	private isResolvingSearchNavigation = false;
 	private returnToSearchOnDetailClose = false;
-	private readonly minimumBootSplashMs = 700;
+	private readonly minimumBootSplashMs = 750;
 	private bootstrapStartedAt = Date.now();
 	private bootstrapCommitTimer?: ReturnType<typeof setTimeout>;
 

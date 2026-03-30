@@ -52,7 +52,7 @@ describe('TrackContextMenu', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const addToQueueAction = views.find(
-			(view) => view.getAttribute('testID') === 'track-context-add-to-queue',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-context-add-to-queue',
 		);
 
 		addToQueueAction?.getAttribute('onTap')?.();
@@ -68,7 +68,7 @@ describe('TrackContextMenu', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const playNextAction = views.find(
-			(view) => view.getAttribute('testID') === 'track-context-play-next',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-context-play-next',
 		);
 
 		playNextAction?.getAttribute('onTap')?.();

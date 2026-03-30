@@ -69,8 +69,9 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
 	};
 
-	handleHeaderAddToQueueTap = (): void => {
+	handleHeaderAddToQueueTap = (): Promise<void> => {
 		this.viewModel.playbackStore.addToQueue(this.state.allTracks);
+		return Promise.resolve();
 	};
 
 	handleTopTrackTap = (trackId: string): void => {

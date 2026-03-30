@@ -43,8 +43,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private transitionVersion = 0;
 
 	state: HomeState = {
-		isNavigationMounted: true,
-		isTabTransitionOverlayVisible: false,
+		isNavigationMounted: false,
+		isTabTransitionOverlayVisible: true,
 	};
 
 	onCreate(): void {
