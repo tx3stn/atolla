@@ -141,7 +141,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	onRender(): void {
 		const { artist, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
-		const { albums, allTracks, contextMenuTrack, isDownloaded, isFooterVisible, topTracks } = this.state;
+		const { albums, allTracks, contextMenuTrack, isDownloaded, isFooterVisible, topTracks } =
+			this.state;
 
 		const sortedAlbums = [...albums].sort((a, b) =>
 			(b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''),
@@ -172,8 +173,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					artworkSource={artist.imageUrl ?? null}
 					fallbackText={artist.name}
 					imageCache={imageCache}
-					logoSource={artist.logoUrl || null}
 					isDownloaded={isDownloaded}
+					logoSource={artist.logoUrl || null}
 					onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onDownload={this.handleDownloadTap}
 					onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}

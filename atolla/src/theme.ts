@@ -2,7 +2,7 @@
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 
 const colors = {
-	active: '#3b82f6',
+	active: '#2D78CE',
 	bg: '#000000',
 	bgAccent: '#111a2b',
 	bgDeep: '#101828',

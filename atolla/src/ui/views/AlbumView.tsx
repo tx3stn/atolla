@@ -180,8 +180,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					buttonText={album.releaseDate}
 					fallbackText={album.artistName}
 					imageCache={imageCache}
-					logoSource={artistLogoUrl}
 					isDownloaded={isDownloaded}
+					logoSource={artistLogoUrl}
 					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onArtistTap={this.handleArtistLogoTap}
 					onDownload={this.handleDownloadTap}
