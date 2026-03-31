@@ -43,6 +43,24 @@ describe('SettingsView', () => {
 		expect(typeof clearCacheButton?.getAttribute('onTap')).toBe('function');
 	});
 
+	valdiIt('calls onLogout when logout button is tapped', () => {
+		let called = false;
+		const instrumented = createComponent(SettingsView, {
+			onLogout: () => {
+				called = true;
+			},
+			preferences: new Preferences(),
+		});
+		const component = instrumented.getComponent();
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+
+		views
+			.find((view) => view.getAttribute('accessibilityLabel') === 'settings-logout-btn')
+			?.getAttribute('onTap')?.();
+
+		expect(called).toBe(true);
+	});
+
 	valdiIt('renders palette failure summary when provided', () => {
 		const instrumented = createComponent(SettingsView, {
 			paletteFailureSummary: 'Failures by reason -> palette_cache_miss: 9',

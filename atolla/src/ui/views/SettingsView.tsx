@@ -1,4 +1,5 @@
 // @ts-nocheck
+import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
@@ -39,6 +40,7 @@ export interface SettingsViewModel {
 	onCacheSizeChange?: (bytes: number) => void;
 	onClearCache?: (selection: ClearCacheSelection) => void;
 	onGeneratePalettes?: () => void;
+	onLogout?: () => void;
 	paletteCount?: number;
 	paletteError?: string | null;
 	paletteFailureCount?: number;
@@ -134,7 +136,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		})();
 
 		<view style={styles.root}>
-			<label style={styles.sectionTitle} value='SETTINGS' />
+			<view style={styles.pageHeaderRow}>
+				<label style={styles.pageTitle} value='SETTINGS' />
+				<image src={res.logo} style={styles.pageHeaderLogo} />
+			</view>
 			<label style={styles.sectionTitle} value='APPEARANCE' />
 			<view style={styles.section}>
 				<view style={styles.settingRow}>
@@ -222,6 +227,18 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 				</view>
 			</view>
 
+			<label style={styles.sectionTitle} value='AUTH' />
+			<view style={styles.section}>
+				<view
+					accessibilityLabel='settings-logout-btn'
+					contentDescription='settings-logout-btn'
+					onTap={createReusableCallback(() => this.viewModel.onLogout?.())}
+					style={styles.button}
+				>
+					<label style={styles.buttonLabel} value='Logout' />
+				</view>
+			</view>
+
 			{this.state.showCacheClearModal && (
 				<CacheClearModal
 					onCancel={this.handleCacheClearCancel}
@@ -263,6 +280,20 @@ const styles = {
 		borderRadius: theme.borderRadius,
 		padding: 14,
 		width: '50%',
+	}),
+	pageHeaderLogo: new Style({
+		height: 65,
+		width: 65,
+	}),
+	pageHeaderRow: new Style({
+		alignItems: 'flex-start',
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		marginBottom: 15,
+	}),
+	pageTitle: new Style({
+		...theme.text.display,
+		marginLeft: 4,
 	}),
 	paletteError: new Style({
 		...theme.text.sub,

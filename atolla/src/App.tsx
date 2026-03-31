@@ -275,6 +275,23 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		})();
 	};
 
+	handleLogout = (): void => {
+		void (async () => {
+			try {
+				await this.authService.clearSession();
+				this.setState({
+					authErrorMessage: null,
+					isAuthenticating: false,
+					isAuthRequired: true,
+					quickConnectCode: null,
+				});
+				this.showAuthToast('logged out');
+			} catch {
+				this.showAuthToast('failed to logout');
+			}
+		})();
+	};
+
 	private refreshNativeCacheStats(): void {
 		try {
 			const nativeImageCacheBufferedCount = getAtollaImageLoaderCacheEntryCount();
@@ -899,6 +916,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onCacheSizeChange={this.handleCacheSizeChange}
 					onClearCache={this.handleClearCache}
 					onGeneratePalettes={this.handleGeneratePalettes}
+					onLogout={this.handleLogout}
 					paletteCount={this.paletteService.cacheSize}
 					paletteError={this.paletteService.lastError}
 					paletteFailureCount={this.state.paletteFailureCount}

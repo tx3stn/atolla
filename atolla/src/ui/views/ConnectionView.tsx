@@ -191,7 +191,6 @@ const styles = {
 	}),
 	title: new Style({
 		...theme.text.display,
-		fontSize: 24,
 		marginBottom: 6,
 		textAlign: 'center',
 	}),
