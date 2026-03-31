@@ -1,14 +1,14 @@
 // @ts-nocheck
 import 'jasmine/src/jasmine';
-import { Spinner } from 'atolla/src/ui/components/Spinner';
+import { LoopingArrowSpinner } from 'atolla/src/ui/components/LoopingArrowSpinner';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
-describe('Spinner', () => {
+describe('LoopingArrowSpinner', () => {
 	valdiIt('renders default accessibility label', () => {
-		const instrumented = createComponent(Spinner, {});
+		const instrumented = createComponent(LoopingArrowSpinner, {});
 		const component = instrumented.getComponent();
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const root = views.find((view) => view.getAttribute('accessibilityLabel') === 'spinner');
@@ -16,7 +16,9 @@ describe('Spinner', () => {
 	});
 
 	valdiIt('renders provided label text', () => {
-		const instrumented = createComponent(Spinner, { label: 'Searching library...' });
+		const instrumented = createComponent(LoopingArrowSpinner, {
+			label: 'Searching library...',
+		});
 		const component = instrumented.getComponent();
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -27,15 +29,13 @@ describe('Spinner', () => {
 		expect(values).toContain('Searching library...');
 	});
 
-	valdiIt('renders one of the spinner frames', () => {
-		const instrumented = createComponent(Spinner, {});
+	valdiIt('renders spinner image', () => {
+		const instrumented = createComponent(LoopingArrowSpinner, {});
 		const component = instrumented.getComponent();
-		const labels = elementTypeFind(
+		const images = elementTypeFind(
 			componentGetElements(component),
-			IRenderedElementViewClass.Label,
+			IRenderedElementViewClass.Image,
 		);
-		const glyph = labels[0]?.getAttribute('value');
-
-		expect(['|', '/', '-', '\\']).toContain(glyph);
+		expect(images.length).toBe(1);
 	});
 });

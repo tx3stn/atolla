@@ -18,15 +18,18 @@ export class Toast extends Component<ToastViewModel> {
 const styles = {
 	container: new Style({
 		alignItems: 'center',
-		backgroundColor: theme.colors.bgAccent,
+		backgroundColor: theme.colors.toastGlassBg,
 		borderRadius: 999,
-		borderWidth: 1,
 		bottom: 40,
-		left: 20,
+		left: '20%',
 		marginBottom: 14,
 		padding: 12,
 		position: 'absolute',
-		right: 20,
+		right: '20%',
+		shadowColor: theme.colors.bg,
+		shadowOffset: { height: 6, width: 0 },
+		shadowOpacity: 0.2,
+		shadowRadius: 12,
 		zIndex: 200,
 	}),
 	message: new Style({

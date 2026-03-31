@@ -15,7 +15,7 @@ import type { SearchStore } from '../../stores/Search';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { SearchResults, Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
-import { Spinner } from '../components/Spinner';
+import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { Toast } from '../components/Toast';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
@@ -536,9 +536,11 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					</view>
 
 					{status === 'loading' && (
-						<Spinner
+						<LoopingArrowSpinner
 							accessibilityLabel='search-loading-spinner'
+							durationSeconds={0.9}
 							label='Searching your library...'
+							size={20}
 						/>
 					)}
 

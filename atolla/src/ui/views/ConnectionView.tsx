@@ -4,7 +4,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import { theme } from '../../theme';
-import { Spinner } from '../components/Spinner';
+import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 
 export interface ConnectionViewModel {
 	errorMessage: string | null;
@@ -108,10 +108,26 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				<label style={styles.connectButtonLabel} value='Connect' />
 			</view>
 
-			{this.viewModel.isConnecting && <Spinner label='waiting for quick connect approval' />}
-			{this.viewModel.quickConnectCode && (
-				<label style={styles.quickConnectCode} value={`Code: ${this.viewModel.quickConnectCode}`} />
-			)}
+			<view style={styles.quickConnectContainer}>
+				<view style={styles.quickConnectCodeSlot}>
+					{this.viewModel.quickConnectCode && (
+						<label
+							style={styles.quickConnectCode}
+							value={`code: ${this.viewModel.quickConnectCode}`}
+						/>
+					)}
+				</view>
+				<view style={styles.quickConnectSpinnerSlot}>
+					{this.viewModel.isConnecting && this.viewModel.quickConnectCode && (
+						<LoopingArrowSpinner
+							accessibilityLabel='waiting for quick connect'
+							durationSeconds={0.9}
+							size={45}
+							tint={theme.colors.active}
+						/>
+					)}
+				</view>
+			</view>
 			{this.viewModel.errorMessage && (
 				<label style={styles.errorMessage} value={this.viewModel.errorMessage} />
 			)}
@@ -174,8 +190,22 @@ const styles = {
 	quickConnectCode: new Style({
 		...theme.text.mainBold,
 		color: theme.colors.active,
-		marginTop: 10,
 		textAlign: 'center',
+	}),
+	quickConnectCodeSlot: new Style({
+		alignItems: 'center',
+		height: 28,
+		justifyContent: 'center',
+	}),
+	quickConnectContainer: new Style({
+		alignItems: 'center',
+		marginTop: 10,
+	}),
+	quickConnectSpinnerSlot: new Style({
+		alignItems: 'center',
+		height: 46,
+		justifyContent: 'center',
+		marginTop: 10,
 	}),
 	root: new Style({
 		alignItems: 'center',
