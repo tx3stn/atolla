@@ -18,6 +18,36 @@ interface ConnectionState {
 	serverUrlInput: string;
 }
 
+function normalizeInputValue(value: unknown): string {
+	if (typeof value === 'string') {
+		return value;
+	}
+
+	if (typeof value === 'number') {
+		return String(value);
+	}
+
+	if (value && typeof value === 'object') {
+		const candidate = value as {
+			nativeEvent?: { text?: unknown; value?: unknown };
+			text?: unknown;
+			value?: unknown;
+		};
+
+		const direct = candidate.text ?? candidate.value;
+		if (typeof direct === 'string') {
+			return direct;
+		}
+
+		const native = candidate.nativeEvent?.text ?? candidate.nativeEvent?.value;
+		if (typeof native === 'string') {
+			return native;
+		}
+	}
+
+	return '';
+}
+
 export class ConnectionView extends StatefulComponent<ConnectionViewModel, ConnectionState> {
 	state: ConnectionState = {
 		serverUrlInput: this.viewModel.serverUrl,
@@ -36,7 +66,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 	}
 
 	private onConnectTap = (): void => {
-		const input = this.state.serverUrlInput.trim();
+		const input = normalizeInputValue(this.state.serverUrlInput).trim();
 		if (!input || this.viewModel.isConnecting) {
 			return;
 		}
@@ -45,7 +75,8 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 
 	onRender(): void {
 		const canConnect =
-			this.state.serverUrlInput.trim().length > 0 && this.viewModel.isConnecting === false;
+			normalizeInputValue(this.state.serverUrlInput).length > 0 &&
+			this.viewModel.isConnecting === false;
 
 		<view style={styles.root}>
 			<view style={styles.logoContainer}>
@@ -59,8 +90,8 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				<textfield
 					accessibilityLabel='connection-server-url-input'
 					contentDescription='connection-server-url-input'
-					onChange={(text: string) => {
-						this.setState({ serverUrlInput: text });
+					onChange={(value: unknown) => {
+						this.setState({ serverUrlInput: normalizeInputValue(value) });
 					}}
 					placeholder='https://jellyfin.example.com'
 					style={styles.input}

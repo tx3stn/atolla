@@ -161,9 +161,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					setImageCacheSize(imageCacheMaxBytes);
 
 					const isAuthRequired = mode !== ConnectionModes.offline && existingSession == null;
-					if (mode !== ConnectionModes.offline && existingSession) {
-						void this.validateSessionInBackground(existingSession);
-					}
 
 					this.completeBootstrap({
 						animationsEnabled,
