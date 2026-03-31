@@ -170,12 +170,18 @@ describe('JellyfinAuthService', () => {
 
 	it('returns mock responses in mock mode without network access', async () => {
 		let factoryCalls = 0;
+		const sleepCalls: Array<number> = [];
 		const service = new JellyfinAuthService({
 			httpClientFactory: () => {
 				factoryCalls += 1;
 				throw new Error('network should not be used in mock mode');
 			},
 			isMockMode: true,
+			mockApprovalDelayMs: 1_500,
+			sleep: (ms: number) => {
+				sleepCalls.push(ms);
+				return Promise.resolve();
+			},
 			store: createStore(),
 		});
 
@@ -186,6 +192,7 @@ describe('JellyfinAuthService', () => {
 		});
 
 		await service.waitForQuickConnectApproval('demo.jellyfin.local', quickConnect.secret);
+		expect(sleepCalls).toEqual([1_500]);
 
 		const session = await service.authenticateWithQuickConnect(
 			'demo.jellyfin.local',

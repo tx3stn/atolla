@@ -47,6 +47,7 @@ interface HTTPClientLike {
 interface JellyfinAuthServiceOptions {
 	httpClientFactory?: (baseUrl: string) => HTTPClientLike;
 	isMockMode?: boolean;
+	mockApprovalDelayMs?: number;
 	now?: NowFn;
 	sleep?: SleepFn;
 	store?: JellyfinAuthStoreLike;
@@ -74,6 +75,7 @@ function createClientHeader(): string {
 export class JellyfinAuthService {
 	private readonly store: JellyfinAuthStoreLike;
 	private readonly httpClientFactory: (baseUrl: string) => HTTPClientLike;
+	private readonly mockApprovalDelayMs: number;
 	private readonly sleep: SleepFn;
 	private readonly now: NowFn;
 	private isMockMode: boolean;
@@ -87,6 +89,7 @@ export class JellyfinAuthService {
 				return new HTTPClient(baseUrl) as unknown as HTTPClientLike;
 			});
 		this.isMockMode = options.isMockMode ?? false;
+		this.mockApprovalDelayMs = options.mockApprovalDelayMs ?? 3_000;
 		this.sleep = options.sleep ?? defaultSleep;
 		this.now = options.now ?? (() => Date.now());
 	}
@@ -180,6 +183,13 @@ export class JellyfinAuthService {
 	): Promise<void> {
 		const normalizedUrl = normalizeServerUrl(serverUrl);
 		if (this.isMockMode) {
+			const delayMs = Math.max(0, this.mockApprovalDelayMs);
+			if (timeoutMs < delayMs) {
+				await this.sleep(timeoutMs);
+				throw AuthErrors.QUICK_CONNECT_TIMED_OUT;
+			}
+
+			await this.sleep(delayMs);
 			return;
 		}
 
