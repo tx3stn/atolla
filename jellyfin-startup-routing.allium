@@ -1,0 +1,67 @@
+-- allium: 2
+-- jellyfin-startup-routing.allium
+
+-- Scope: App startup routing for online/offline entry and initial home behavior
+-- Includes: Launch routing decisions, background session validation trigger, initial home data fetch behavior
+-- Excludes:
+--   - Quick Connect request lifecycle
+--   - Connection check and quick connect availability rules
+-- Dependencies:
+--   - Session, Remembered, and validation outcomes from jellyfin-quick-connect-auth.allium
+
+entity AppMode {
+    value: enum { online, offline }
+}
+
+entity Session {
+    state: enum {
+        none,
+        active,
+        invalid
+    }
+}
+
+entity Remembered {
+    server_url: Url?
+}
+
+rule StartupPrefersOfflineMode {
+    when:
+        AppMode.value == offline
+    ensures:
+        Home.opened(transport: offline)
+}
+
+rule StartupUsesExistingSessionWhenOnline {
+    when:
+        AppMode.value == online
+        and Session.state == active
+    ensures:
+        Home.opened(transport: online)
+        SessionValidation.started(background: true)
+}
+
+rule StartupRequiresConnectionWhenNoSession {
+    when:
+        AppMode.value == online
+        and Session.state == none
+    ensures:
+        ConnectionForm.opened(prefill_server_url: Remembered.server_url)
+}
+
+rule InitialDataFetchFailureAfterAuth {
+    when:
+        Session.state == active
+        and Home.is_open == true
+        and Albums.initial_fetch_failed == true
+    ensures:
+        Home.remains_open
+        Toast.shown(message: "failed to fetch data")
+}
+
+rule InvalidSessionFallsBackToOfflineHome {
+    when:
+        Session.state == invalid
+    ensures:
+        Home.opened(transport: offline)
+}

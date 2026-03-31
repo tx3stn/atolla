@@ -9,7 +9,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
 import { theme } from '../../theme';
-import { MockTransport } from '../../transports/Mock';
+import type { Transport } from '../../transports/Transport';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
 import { AlbumsView } from './AlbumsView';
 import { ArtistsView } from './ArtistsView';
@@ -29,6 +29,7 @@ export interface HomeViewModel {
 	onNavigationControllerChange?: (navigationController: NavigationController) => void;
 	playbackStore: PlaybackStore;
 	resetSignal: number;
+	transport: Transport;
 }
 
 interface HomeState {
@@ -37,7 +38,6 @@ interface HomeState {
 }
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
-	private transport = new MockTransport();
 	private resetVersion = 0;
 	private tabTransitionTimer?: ReturnType<typeof setTimeout>;
 	private transitionVersion = 0;
@@ -129,6 +129,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	onRender(): void {
 		const { activeTab, animationsEnabled, imageCache, onNavigateToArtist, playbackStore } =
 			this.viewModel;
+		const transport = this.viewModel.transport;
 
 		<view style={styles.root}>
 			{this.state.isNavigationMounted && activeTab === HeaderTabs.artists && (
@@ -140,7 +141,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							imageCache={imageCache}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
-							transport={this.transport}
+							transport={transport}
 						/>;
 					})}
 				</NavigationRoot>
@@ -155,7 +156,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							imageCache={imageCache}
 							navigationController={navigationController}
 							playbackStore={playbackStore}
-							transport={this.transport}
+							transport={transport}
 						/>;
 					})}
 				</NavigationRoot>
@@ -171,7 +172,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							navigationController={navigationController}
 							onNavigateToArtist={onNavigateToArtist}
 							playbackStore={playbackStore}
-							transport={this.transport}
+							transport={transport}
 						/>;
 					})}
 				</NavigationRoot>

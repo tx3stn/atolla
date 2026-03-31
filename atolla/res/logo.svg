@@ -19,14 +19,14 @@
     </mask>
   </defs>
 
-  <g id="icon-tentacles" fill="none" stroke="url(#atolla-tentacle-gradient)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" transform="translate(-245.76 -205.76) scale(1.50)">
+  <g id="icon-tentacles" fill="none" stroke="url(#atolla-tentacle-gradient)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" transform="translate(-245.76 -205.76) scale(1.52)">
     <path d="M350 546C326 586 374 626 346 668C322 706 350 744 372 776" />
     <path d="M456 548C430 590 482 632 450 678C424 716 456 754 484 788" />
     <path d="M568 548C596 592 540 636 574 682C602 718 568 758 538 792" />
     <path d="M674 546C702 588 646 628 680 672C706 708 678 744 650 776" />
   </g>
 
-  <g id="icon-bell" fill="url(#atolla-gradient)" mask="url(#wave-cutout-mask)" transform="translate(-245.76 -205.76) scale(1.50)">
+  <g id="icon-bell" fill="url(#atolla-gradient)" mask="url(#wave-cutout-mask)" transform="translate(-245.76 -205.76) scale(1.52)">
     <path d="M512 164C349 164 232 282 232 416C232 468 265 505 316 528C365 549 436 562 512 562C588 562 659 549 708 528C759 505 792 468 792 416C792 282 675 164 512 164Z" />
   </g>
 </svg>

@@ -1,0 +1,139 @@
+-- allium: 2
+-- jellyfin-quick-connect-auth.allium
+
+-- Scope: Jellyfin server connection and Quick Connect authentication
+-- Includes: Server URL submission, connection checks, Quick Connect availability, polling, timeout, auth success, encrypted persistence
+-- Excludes:
+--   - App startup routing decisions
+--   - Post-home browsing and playback behavior
+--   - Username/password authentication
+
+actor EndUser
+
+config {
+    quick_connect_timeout: Duration = 60.seconds
+}
+
+entity Connection {
+    server_url: Url?
+    state: enum {
+        unconfigured,
+        checking,
+        ready_for_quick_connect,
+        unavailable,
+        failed
+    }
+}
+
+entity QuickConnect {
+    state: enum {
+        idle,
+        initiated,
+        awaiting_approval,
+        approved,
+        timed_out,
+        unavailable
+    }
+}
+
+entity Session {
+    state: enum {
+        none,
+        active,
+        invalid
+    }
+    access_token: string?
+    server_id: string?
+    user_id: string?
+}
+
+entity Remembered {
+    server_url: Url?
+}
+
+invariant PersistedConnectionAndSessionDataEncrypted {
+    Persistence.encrypted(data: { Remembered.server_url, Session.access_token, Session.server_id, Session.user_id })
+}
+
+rule SubmitServerUrlBeginsConnectionCheck {
+    when:
+        EndUser.submits(Connection.server_url)
+    ensures:
+        Connection.state == checking
+}
+
+rule ConnectionCheckFailure {
+    when:
+        Connection.state == checking
+        and Server.reachable == false
+    ensures:
+        Connection.state == failed
+        Error.shown(message: "connection error")
+}
+
+rule ConnectionCheckSuccessWithQuickConnectEnabled {
+    when:
+        Connection.state == checking
+        and Server.reachable == true
+        and Server.quick_connect_enabled == true
+    ensures:
+        Connection.state == ready_for_quick_connect
+        QuickConnect.state == initiated
+}
+
+rule QuickConnectNotAvailable {
+    when:
+        Connection.state == checking
+        and Server.reachable == true
+        and Server.quick_connect_enabled == false
+    ensures:
+        Connection.state == unavailable
+        QuickConnect.state == unavailable
+        Error.shown(message: "quick connect not available")
+        ConnectionForm.opened(prefill_server_url: Remembered.server_url)
+}
+
+rule QuickConnectAwaitingApproval {
+    when:
+        QuickConnect.state == initiated
+    ensures:
+        QuickConnect.state == awaiting_approval
+        Loading.shown
+        QuickConnectPolling.started
+}
+
+rule QuickConnectApprovedWithinTimeout {
+    when:
+        QuickConnect.state == awaiting_approval
+        and QuickConnectPolling.elapsed < config.quick_connect_timeout
+        and QuickConnect.approved == true
+    ensures:
+        QuickConnect.state == approved
+        Session.state == active
+        Session.persisted(encrypted: true)
+        Remembered.server_url.persisted(encrypted: true)
+        Toast.shown
+}
+
+rule QuickConnectTimeoutReturnsToConnection {
+    when:
+        QuickConnect.state == awaiting_approval
+        and QuickConnectPolling.elapsed >= config.quick_connect_timeout
+        and QuickConnect.approved == false
+    ensures:
+        QuickConnectPolling.stopped
+        QuickConnect.state == timed_out
+        Error.shown(message: "quick connect timed out")
+        Connection.state == unconfigured
+        ConnectionForm.opened(prefill_server_url: Remembered.server_url)
+}
+
+rule BackgroundSessionValidationFailure {
+    when:
+        SessionValidation.failed(first_failure: true)
+    ensures:
+        Session.state == invalid
+        Session.cleared
+        Remembered.server_url.preserved
+        Toast.shown(message: "session expired")
+}

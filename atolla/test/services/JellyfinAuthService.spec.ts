@@ -1,0 +1,199 @@
+// @ts-nocheck
+import 'jasmine/src/jasmine';
+import { AuthErrors } from 'atolla/src/errors/AuthErrors';
+import { JellyfinAuthService } from 'atolla/src/services/JellyfinAuthService';
+
+interface MockHTTPResponse {
+	body?: Uint8Array;
+	headers: Record<string, string>;
+	statusCode: number;
+}
+
+function jsonResponse(statusCode: number, body?: unknown): MockHTTPResponse {
+	return {
+		body: body === undefined ? undefined : new TextEncoder().encode(JSON.stringify(body)),
+		headers: {},
+		statusCode,
+	};
+}
+
+function createHTTPClientFactory(responses: Array<MockHTTPResponse | Error>) {
+	const calls: Array<{
+		baseUrl: string;
+		body?: ArrayBuffer | Uint8Array;
+		headers?: Record<string, string>;
+		method: 'GET' | 'POST';
+		pathOrUrl: string;
+	}> = [];
+
+	const nextResponse = (): Promise<MockHTTPResponse> => {
+		const next = responses.shift();
+		if (!next) {
+			throw new Error('no queued response');
+		}
+		if (next instanceof Error) {
+			throw next;
+		}
+		return Promise.resolve(next);
+	};
+
+	return {
+		calls,
+		factory: (baseUrl: string) => ({
+			get: (pathOrUrl: string, headers?: Record<string, string>) => {
+				calls.push({
+					baseUrl,
+					headers,
+					method: 'GET',
+					pathOrUrl,
+				});
+				return nextResponse();
+			},
+			post: (
+				pathOrUrl: string,
+				body?: ArrayBuffer | Uint8Array,
+				headers?: Record<string, string>,
+			) => {
+				calls.push({
+					baseUrl,
+					body,
+					headers,
+					method: 'POST',
+					pathOrUrl,
+				});
+				return nextResponse();
+			},
+		}),
+	};
+}
+
+function createStore() {
+	return {
+		clearSession: () => Promise.resolve(),
+		loadRememberedServerUrl: () => Promise.resolve(''),
+		loadSession: () => Promise.resolve(null),
+		rememberServerUrl: () => Promise.resolve(),
+		saveSession: () => Promise.resolve(),
+	};
+}
+
+describe('JellyfinAuthService', () => {
+	it('starts quick connect through valdi_http client', async () => {
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, true),
+			jsonResponse(200, { Code: 'ABCD', Secret: 'secret-1' }),
+		]);
+		const service = new JellyfinAuthService({ httpClientFactory: factory, store: createStore() });
+
+		const result = await service.startQuickConnect('demo.jellyfin.local');
+
+		expect(result).toEqual({ code: 'ABCD', secret: 'secret-1' });
+		expect(calls[0]).toEqual(
+			jasmine.objectContaining({
+				baseUrl: 'https://demo.jellyfin.local',
+				method: 'GET',
+				pathOrUrl: '/QuickConnect/Enabled',
+			}),
+		);
+		expect(calls[1]).toEqual(
+			jasmine.objectContaining({
+				baseUrl: 'https://demo.jellyfin.local',
+				method: 'POST',
+				pathOrUrl: '/QuickConnect/Initiate',
+			}),
+		);
+	});
+
+	it('throws quick-connect unavailable when server reports disabled', async () => {
+		const { factory } = createHTTPClientFactory([jsonResponse(200, false)]);
+		const service = new JellyfinAuthService({ httpClientFactory: factory, store: createStore() });
+
+		let thrown: unknown;
+		try {
+			await service.startQuickConnect('https://demo.jellyfin.local');
+		} catch (error) {
+			thrown = error;
+		}
+
+		expect(thrown).toBe(AuthErrors.QUICK_CONNECT_NOT_AVAILABLE);
+	});
+
+	it('polls for quick-connect approval until authenticated', async () => {
+		const { factory } = createHTTPClientFactory([
+			jsonResponse(200, { Authenticated: false }),
+			jsonResponse(200, { Authenticated: true }),
+		]);
+		let nowMs = 0;
+		const service = new JellyfinAuthService({
+			httpClientFactory: factory,
+			now: () => nowMs,
+			sleep: (ms: number) => {
+				nowMs += ms;
+				return Promise.resolve();
+			},
+			store: createStore(),
+		});
+
+		await service.waitForQuickConnectApproval(
+			'https://demo.jellyfin.local',
+			'secret-1',
+			30_000,
+			1_000,
+		);
+	});
+
+	it('authenticates with quick connect using valdi_http post body', async () => {
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, {
+				AccessToken: 'token-1',
+				ServerId: 'server-1',
+				User: { Id: 'user-1' },
+			}),
+		]);
+		const service = new JellyfinAuthService({ httpClientFactory: factory, store: createStore() });
+
+		const session = await service.authenticateWithQuickConnect(
+			'https://demo.jellyfin.local',
+			's3cr3t',
+		);
+
+		expect(session).toEqual({
+			accessToken: 'token-1',
+			serverId: 'server-1',
+			serverUrl: 'https://demo.jellyfin.local',
+			userId: 'user-1',
+		});
+		expect(calls[0].method).toBe('POST');
+		expect(calls[0].pathOrUrl).toBe('/Users/AuthenticateWithQuickConnect');
+		expect(new TextDecoder().decode(calls[0].body as Uint8Array)).toContain('"Secret":"s3cr3t"');
+	});
+
+	it('returns mock responses in mock mode without network access', async () => {
+		let factoryCalls = 0;
+		const service = new JellyfinAuthService({
+			httpClientFactory: () => {
+				factoryCalls += 1;
+				throw new Error('network should not be used in mock mode');
+			},
+			isMockMode: true,
+			store: createStore(),
+		});
+
+		const quickConnect = await service.startQuickConnect('demo.jellyfin.local');
+		expect(quickConnect).toEqual({
+			code: 'ATOLLA-MOCK',
+			secret: 'atolla-mock-secret',
+		});
+
+		await service.waitForQuickConnectApproval('demo.jellyfin.local', quickConnect.secret);
+
+		const session = await service.authenticateWithQuickConnect(
+			'demo.jellyfin.local',
+			quickConnect.secret,
+		);
+		expect(session.serverId).toBe('mock-server-id');
+		expect(await service.validateSession(session)).toBe(true);
+		await service.probeInitialAlbums(session);
+		expect(factoryCalls).toBe(0);
+	});
+});

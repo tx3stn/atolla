@@ -6,11 +6,11 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
+import { AuthErrors } from './errors/AuthErrors';
 import { ErrorConst } from './errors/Const';
 import { PaletteGenerationErrors } from './errors/PaletteGenerationErrors';
 import {
 	clearAtollaNativeCacheCategories,
-	ensureAtollaImageLoaderBootstrap,
 	extractAtollaPaletteFromCache,
 	getAtollaImageLoaderCacheByteSize,
 	getAtollaImageLoaderCacheEntryCount,
@@ -24,30 +24,28 @@ import { legibleTextColor, mutedTextColor, mutedVariant } from './services/color
 import type { Palette } from './services/color/types';
 import { type ClearCacheSelection, ImageCache } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
+import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PlaybackStore } from './stores/Playback';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES, Preferences } from './stores/Preferences';
 import { SearchStore } from './stores/Search';
 import { theme } from './theme';
 import { MockTransport } from './transports/Mock';
+import { ConnectionModes } from './transports/Model';
 import { BootSplash } from './ui/components/BootSplash';
 import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
 import { HomeHeaderNav } from './ui/components/HomeHeaderNav';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
+import { Toast } from './ui/components/Toast';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
+import { ConnectionView } from './ui/views/ConnectionView';
 import { HomeView, setImageCacheSize } from './ui/views/HomeView';
 import { PlaylistView } from './ui/views/PlaylistView';
 import { type SearchHomeNavigationTarget, SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
-
-try {
-	ensureAtollaImageLoaderBootstrap();
-} catch {
-	// Android native bootstrap may be unavailable on non-Android targets.
-}
 
 export type AppViewModel = Record<string, never>;
 
@@ -55,8 +53,12 @@ interface AppState {
 	activeFooterTab: FooterTab;
 	activeHomeTab: HeaderTab;
 	animationsEnabled: boolean;
+	authErrorMessage: string | null;
+	authToastMessage: string | null;
 	homeResetNonce: number;
 	imageCacheMaxBytes: number;
+	isAuthenticating: boolean;
+	isAuthRequired: boolean;
 	isBootstrapped: boolean;
 	nativeImageCacheBufferedBytes: number | null;
 	nativeImageCacheBufferedCount: number | null;
@@ -67,7 +69,9 @@ interface AppState {
 	paletteProcessedCount: number;
 	// null = not yet triggered; number = total artwork URLs queued for generation
 	paletteTotalCount: number | null;
+	quickConnectCode: string | null;
 	searchFocusSignal: number;
+	serverUrlPrefill: string;
 	version: number;
 }
 
@@ -94,8 +98,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	})();
 	private paletteService = new ArtworkPaletteService(new PersistentPaletteStore());
+	private authService = new JellyfinAuthService();
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
+	private authToastTimer?: ReturnType<typeof setTimeout>;
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
 	private homeNavigationController?: NavigationController;
@@ -114,8 +120,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		activeFooterTab: FooterTabs.home,
 		activeHomeTab: HeaderTabs.artists,
 		animationsEnabled: true,
+		authErrorMessage: null,
+		authToastMessage: null,
 		homeResetNonce: 0,
 		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
+		isAuthenticating: false,
+		isAuthRequired: false,
 		isBootstrapped: false,
 		nativeImageCacheBufferedBytes: null,
 		nativeImageCacheBufferedCount: null,
@@ -125,7 +135,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		paletteFailureSummary: null,
 		paletteProcessedCount: 0,
 		paletteTotalCount: null,
+		quickConnectCode: null,
 		searchFocusSignal: 0,
+		serverUrlPrefill: '',
 		version: 0,
 	};
 
@@ -136,14 +148,32 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.refreshNativeCacheStats();
 			}
 		}, 1000);
-		Promise.all([this.preferences.getImageCacheMaxBytes(), this.preferences.getAnimationsEnabled()])
-			.then(([imageCacheMaxBytes, animationsEnabled]) => {
-				setImageCacheSize(imageCacheMaxBytes);
-				this.completeBootstrap({
-					animationsEnabled,
-					imageCacheMaxBytes,
-				});
-			})
+		Promise.all([
+			this.preferences.getImageCacheMaxBytes(),
+			this.preferences.getAnimationsEnabled(),
+			this.preferences.getMode(),
+			this.authService.loadSession(),
+			this.authService.loadRememberedServerUrl(),
+		])
+			.then(
+				([imageCacheMaxBytes, animationsEnabled, mode, existingSession, rememberedServerUrl]) => {
+					this.authService.setMockMode(mode === ConnectionModes.mock);
+					setImageCacheSize(imageCacheMaxBytes);
+
+					const isAuthRequired = mode !== ConnectionModes.offline && existingSession == null;
+					if (mode !== ConnectionModes.offline && existingSession) {
+						void this.validateSessionInBackground(existingSession);
+					}
+
+					this.completeBootstrap({
+						animationsEnabled,
+						authErrorMessage: null,
+						imageCacheMaxBytes,
+						isAuthRequired,
+						serverUrlPrefill: rememberedServerUrl,
+					});
+				},
+			)
 			.catch(() => {
 				if (!this.state.isBootstrapped) {
 					this.completeBootstrap({});
@@ -164,12 +194,89 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.bootstrapCommitTimer) {
 			clearTimeout(this.bootstrapCommitTimer);
 		}
+		if (this.authToastTimer) {
+			clearTimeout(this.authToastTimer);
+		}
 		this.unsubscribePlayback?.();
 		this.unsubscribePalette?.();
 		if (this.nativeCacheStatsInterval) {
 			clearInterval(this.nativeCacheStatsInterval);
 		}
 	}
+
+	private showAuthToast(message: string): void {
+		if (this.authToastTimer) {
+			clearTimeout(this.authToastTimer);
+		}
+		this.setState({ authToastMessage: message });
+		this.authToastTimer = setTimeout(() => {
+			this.setState({ authToastMessage: null });
+		}, 2500);
+	}
+
+	private async validateSessionInBackground(session: AuthSession): Promise<void> {
+		const isValid = await this.authService.validateSession(session);
+		if (isValid) {
+			return;
+		}
+
+		await this.authService.clearSession();
+		await this.preferences.setMode(ConnectionModes.offline);
+		this.setState({
+			authErrorMessage: null,
+			isAuthRequired: false,
+			quickConnectCode: null,
+		});
+		this.showAuthToast(AuthErrors.SESSION_EXPIRED.msg());
+	}
+
+	handleConnect = (serverUrl: string): void => {
+		void (async () => {
+			this.setState({
+				authErrorMessage: null,
+				isAuthenticating: true,
+				quickConnectCode: null,
+				serverUrlPrefill: serverUrl,
+			});
+
+			await this.authService.rememberServerUrl(serverUrl);
+
+			try {
+				const quickConnect = await this.authService.startQuickConnect(serverUrl);
+				this.setState({ quickConnectCode: quickConnect.code });
+
+				await this.authService.waitForQuickConnectApproval(serverUrl, quickConnect.secret, 60_000);
+				const session = await this.authService.authenticateWithQuickConnect(
+					serverUrl,
+					quickConnect.secret,
+				);
+				await this.authService.saveSession(session);
+
+				this.setState({
+					authErrorMessage: null,
+					isAuthenticating: false,
+					isAuthRequired: false,
+					quickConnectCode: null,
+				});
+				this.showAuthToast('connected');
+
+				try {
+					await this.authService.probeInitialAlbums(session);
+				} catch {
+					this.showAuthToast(AuthErrors.FAILED_TO_FETCH_DATA.msg());
+				}
+
+				void this.validateSessionInBackground(session);
+			} catch (error) {
+				this.setState({
+					authErrorMessage: this.authService.errorMessage(error),
+					isAuthenticating: false,
+					isAuthRequired: true,
+					quickConnectCode: null,
+				});
+			}
+		})();
+	};
 
 	private refreshNativeCacheStats(): void {
 		try {
@@ -699,7 +806,16 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	private completeBootstrap(
-		partialState: Partial<Pick<AppState, 'animationsEnabled' | 'imageCacheMaxBytes'>>,
+		partialState: Partial<
+			Pick<
+				AppState,
+				| 'animationsEnabled'
+				| 'authErrorMessage'
+				| 'imageCacheMaxBytes'
+				| 'isAuthRequired'
+				| 'serverUrlPrefill'
+			>
+		>,
 	): void {
 		const elapsed = Date.now() - this.bootstrapStartedAt;
 		const remaining = Math.max(0, this.minimumBootSplashMs - elapsed);
@@ -714,6 +830,20 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	onRender(): void {
 		if (!this.state.isBootstrapped) {
 			<BootSplash message='loading your library' />;
+			return;
+		}
+
+		if (this.state.isAuthRequired) {
+			<view style={styles.root}>
+				<ConnectionView
+					errorMessage={this.state.authErrorMessage}
+					isConnecting={this.state.isAuthenticating}
+					onConnect={this.handleConnect}
+					quickConnectCode={this.state.quickConnectCode}
+					serverUrl={this.state.serverUrlPrefill}
+				/>
+				{this.state.authToastMessage && <Toast message={this.state.authToastMessage} />}
+			</view>;
 			return;
 		}
 
@@ -738,6 +868,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onNavigationControllerChange={this.handleHomeNavigationControllerChange}
 					playbackStore={this.playbackStore}
 					resetSignal={this.state.homeResetNonce}
+					transport={this.transport}
 				/>
 			)}
 			{this.state.activeFooterTab === FooterTabs.search && (
@@ -812,6 +943,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					transport={this.transport}
 				/>
 			)}
+
+			{this.state.authToastMessage && <Toast message={this.state.authToastMessage} />}
 		</view>;
 	}
 }

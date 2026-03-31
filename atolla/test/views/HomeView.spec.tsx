@@ -12,6 +12,20 @@ const stubImageCache = {
 	subscribe: () => () => {},
 };
 
+const stubTransport = {
+	getAlbumsByArtist: () => Promise.resolve([]),
+	getAllAlbums: () => Promise.resolve([]),
+	getAllArtists: () => Promise.resolve([]),
+	getAllPlaylists: () => Promise.resolve([]),
+	getArtist: () => Promise.resolve(null),
+	getArtistLogoUrl: () => Promise.resolve(null),
+	getArtistTopTracks: () => Promise.resolve([]),
+	getTracksByAlbum: () => Promise.resolve([]),
+	getTracksByArtist: () => Promise.resolve([]),
+	getTracksByPlaylist: () => Promise.resolve([]),
+	search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+};
+
 describe('HomeView', () => {
 	valdiIt('uses active tab from view model', () => {
 		const instrumented = createComponent(HomeView, {
@@ -20,6 +34,7 @@ describe('HomeView', () => {
 			imageCache: stubImageCache,
 			playbackStore: new PlaybackStore(),
 			resetSignal: 0,
+			transport: stubTransport,
 		});
 		const component = instrumented.getComponent();
 
@@ -33,6 +48,7 @@ describe('HomeView', () => {
 			imageCache: stubImageCache,
 			playbackStore: new PlaybackStore(),
 			resetSignal: 0,
+			transport: stubTransport,
 		});
 		const component = instrumented.getComponent();
 
