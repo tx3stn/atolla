@@ -2,10 +2,12 @@
 <h1 align="center">atolla</h1>
 
 <p align="center">
-  <em>Jellfin music player focssed on images and offline playback</em>
+  <em>beautiful Jellyfin music player with an offline first playback experience</em>
 </p>
 
-![logo](./atolla/res/logo.svg)
+<p align="center">
+ <img src="./atolla/res/logo.svg" alt="logo" width="200" />
+</p>
 
 ## Screenshots
 
