@@ -90,7 +90,9 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 			<view style={styles.inputContainer}>
 				<textfield
 					accessibilityLabel='connection-server-url-input'
+					autocapitalization='none'
 					contentDescription='connection-server-url-input'
+					keyboardAppearance='dark'
 					onChange={(value: unknown) => {
 						this.setState({ serverUrlInput: normalizeInputValue(value) });
 					}}

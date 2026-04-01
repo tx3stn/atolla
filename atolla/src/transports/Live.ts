@@ -20,6 +20,11 @@ export {
 
 // Live transport makes requests to the Jellyfin server (not yet implemented).
 export class LiveTransport implements Transport {
+	constructor(
+		readonly serverUrl: string,
+		readonly accessToken: string,
+		readonly userId: string,
+	) {}
 	async getAllArtists(): Promise<Array<Artist>> {
 		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
 	}

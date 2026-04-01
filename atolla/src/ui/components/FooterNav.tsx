@@ -1,12 +1,11 @@
 // @ts-nocheck
 import res from 'atolla/res';
-import type { Preferences } from 'atolla/src/stores/Preferences';
 import {
 	type ConnectionMode,
 	ConnectionModes,
 	cycleConnectionMode,
 } from 'atolla/src/transports/Model';
-import { StatefulComponent } from 'valdi_core/src/Component';
+import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import { theme } from '../../theme';
@@ -15,32 +14,18 @@ import { type FooterTab, FooterTabs } from './FooterTab';
 
 export interface FooterNavViewModel {
 	activeTab: FooterTab;
-	onFooterTabTap: (tabId: FooterTab) => void;
-	preferences: Preferences;
-}
-
-interface FooterNavState {
 	connectionMode: ConnectionMode;
+	onFooterTabTap: (tabId: FooterTab) => void;
+	onModeChange: (mode: ConnectionMode) => void;
 }
 
-export class FooterNav extends StatefulComponent<FooterNavViewModel, FooterNavState> {
-	state: FooterNavState = {
-		connectionMode: ConnectionModes.mock,
+export class FooterNav extends Component<FooterNavViewModel> {
+	private onModeBadgeTap = () => {
+		this.viewModel.onModeChange(cycleConnectionMode(this.viewModel.connectionMode));
 	};
 
-	async onCreate() {
-		const connectionMode = await this.viewModel.preferences.getMode();
-		this.setState({ connectionMode });
-	}
-
-	private async onModeBadgeTap() {
-		const newMode = cycleConnectionMode(this.state.connectionMode);
-		await this.viewModel.preferences.setMode(newMode);
-		this.setState({ connectionMode: newMode });
-	}
-
 	onRender() {
-		const modeIcon = modeIcons(this.state.connectionMode);
+		const modeIcon = modeIcons(this.viewModel.connectionMode);
 
 		<view style={styles.footerPinned}>
 			<FooterIcon

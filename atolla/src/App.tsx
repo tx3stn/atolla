@@ -31,8 +31,10 @@ import { PlaybackStore } from './stores/Playback';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES, Preferences } from './stores/Preferences';
 import { SearchStore } from './stores/Search';
 import { theme } from './theme';
+import { LiveTransport } from './transports/Live';
 import { MockTransport } from './transports/Mock';
-import { ConnectionModes } from './transports/Model';
+import { type ConnectionMode, ConnectionModes } from './transports/Model';
+import type { Transport } from './transports/Transport';
 import { BootSplash } from './ui/components/BootSplash';
 import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
@@ -57,6 +59,7 @@ interface AppState {
 	animationsEnabled: boolean;
 	authErrorMessage: string | null;
 	authToastMessage: string | null;
+	connectionMode: ConnectionMode;
 	homeResetNonce: number;
 	imageCacheMaxBytes: number;
 	isAuthenticating: boolean;
@@ -85,7 +88,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			deviceGlobal: true,
 		}),
 	);
-	private transport = new MockTransport();
+	private transport: Transport = new MockTransport();
 	private imageCache = (() => {
 		try {
 			return new ImageCache(
@@ -124,6 +127,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		animationsEnabled: true,
 		authErrorMessage: null,
 		authToastMessage: null,
+		connectionMode: ConnectionModes.mock,
 		homeResetNonce: 0,
 		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
 		isAuthenticating: false,
@@ -167,11 +171,20 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					this.authService.setMockMode(mode === ConnectionModes.mock);
 					setImageCacheSize(imageCacheMaxBytes);
 
+					if (mode === ConnectionModes.online && existingSession != null) {
+						this.transport = new LiveTransport(
+							existingSession.serverUrl,
+							existingSession.accessToken,
+							existingSession.userId,
+						);
+					}
+
 					const isAuthRequired = mode !== ConnectionModes.offline && existingSession == null;
 
 					this.completeBootstrap({
 						animationsEnabled,
 						authErrorMessage: null,
+						connectionMode: mode,
 						imageCacheMaxBytes,
 						isAuthRequired,
 						serverUrlPrefill: rememberedServerUrl,
@@ -235,9 +248,28 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	handleConnect = (serverUrl: string): void => {
+		if (serverUrl.trim().toLowerCase() === 'mock') {
+			void (async () => {
+				await this.preferences.setMode(ConnectionModes.mock);
+				this.authService.setMockMode(true);
+				this.transport = new MockTransport();
+				this.setState({
+					authErrorMessage: null,
+					connectionMode: ConnectionModes.mock,
+					isAuthenticating: false,
+					isAuthRequired: false,
+					quickConnectCode: null,
+				});
+			})();
+			return;
+		}
+
 		void (async () => {
+			this.authService.setMockMode(false);
+			await this.preferences.setMode(ConnectionModes.online);
 			this.setState({
 				authErrorMessage: null,
+				connectionMode: ConnectionModes.online,
 				isAuthenticating: true,
 				quickConnectCode: null,
 				serverUrlPrefill: serverUrl,
@@ -256,8 +288,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				);
 				await this.authService.saveSession(session);
 
+				this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId);
+
+				await this.preferences.setMode(ConnectionModes.online);
+
 				this.setState({
 					authErrorMessage: null,
+					connectionMode: ConnectionModes.online,
 					isAuthenticating: false,
 					isAuthRequired: false,
 					quickConnectCode: null,
@@ -282,20 +319,49 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		})();
 	};
 
+	handleModeChange = (mode: ConnectionMode): void => {
+		void (async () => {
+			await this.preferences.setMode(mode);
+			this.authService.setMockMode(mode === ConnectionModes.mock);
+
+			if (mode === ConnectionModes.online) {
+				const session = await this.authService.loadSession();
+				if (session != null) {
+					this.transport = new LiveTransport(
+						session.serverUrl,
+						session.accessToken,
+						session.userId,
+					);
+				} else {
+					this.setState({ connectionMode: mode, isAuthRequired: true });
+					return;
+				}
+			} else {
+				this.transport = new MockTransport();
+			}
+
+			this.setState({ connectionMode: mode, isAuthRequired: false });
+		})();
+	};
+
 	handleLogout = (): void => {
 		void (async () => {
 			try {
 				await this.authService.clearSession();
-				this.setState({
-					authErrorMessage: null,
-					isAuthenticating: false,
-					isAuthRequired: true,
-					quickConnectCode: null,
-				});
-				this.showAuthToast('logged out');
 			} catch {
-				this.showAuthToast('failed to logout');
+				// best effort — clear what we can
 			}
+			this.transport = new MockTransport();
+			this.playbackStore.stop();
+			this.setState({
+				authErrorMessage: null,
+				connectionMode: ConnectionModes.mock,
+				isAuthenticating: false,
+				isAuthRequired: true,
+				quickConnectCode: null,
+				serverUrlPrefill: '',
+			});
+			this.showAuthToast('logged out');
 		})();
 	};
 
@@ -832,6 +898,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				AppState,
 				| 'animationsEnabled'
 				| 'authErrorMessage'
+				| 'connectionMode'
 				| 'imageCacheMaxBytes'
 				| 'isAuthRequired'
 				| 'serverUrlPrefill'
@@ -938,8 +1005,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 			<FooterNav
 				activeTab={this.state.activeFooterTab}
+				connectionMode={this.state.connectionMode}
 				onFooterTabTap={this.handleFooterTabTap}
-				preferences={this.preferences}
+				onModeChange={this.handleModeChange}
 			/>
 
 			{track && (
