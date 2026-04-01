@@ -27,6 +27,7 @@ export interface PlaylistViewModel {
 interface PlaylistState {
 	artistLogoUrls: Array<string | null>;
 	contextMenuTrack: Track | null;
+	isDownloaded: boolean;
 	isFooterVisible: boolean;
 	tracks: Array<Track>;
 }
@@ -43,6 +44,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	state: PlaylistState = {
 		artistLogoUrls: [],
 		contextMenuTrack: null,
+		isDownloaded: false,
 		isFooterVisible: false,
 		tracks: [],
 	};
@@ -66,6 +68,10 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	handleContextMenuDismiss = (): void => {
 		this.setState({ contextMenuTrack: null });
+	};
+
+	handleDownloadTap = (): void => {
+		this.setState({ isDownloaded: !this.state.isDownloaded });
 	};
 
 	handleHeaderPlayTap = (): void => {
@@ -137,7 +143,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	}
 
 	onRender(): void {
-		const { contextMenuTrack, isFooterVisible, tracks } = this.state;
+		const { contextMenuTrack, isDownloaded, isFooterVisible, tracks } = this.state;
 		const { imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
@@ -162,7 +168,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					artworkSource={this.viewModel.playlist.imageUrl ?? null}
 					fallbackText={this.viewModel.playlist.name}
 					imageCache={this.viewModel.imageCache}
+					isDownloaded={isDownloaded}
 					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+					onDownload={this.handleDownloadTap}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 					subheaderLineOneLeft={tracks.length > 0 ? `${tracks.length} tracks` : null}
