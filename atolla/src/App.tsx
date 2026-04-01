@@ -38,6 +38,7 @@ import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
 import { HomeHeaderNav } from './ui/components/HomeHeaderNav';
+import { MockPlayer } from './ui/components/MockPlayer';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { Toast } from './ui/components/Toast';
 import { AlbumView } from './ui/views/AlbumView';
@@ -872,6 +873,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
 
 		<view style={styles.root}>
+			<MockPlayer playbackStore={this.playbackStore} />
 			{this.state.activeFooterTab === FooterTabs.home && (
 				<HomeHeaderNav
 					activeTab={this.state.activeHomeTab}
