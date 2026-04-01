@@ -16,6 +16,7 @@ export class PlaybackStore {
 	private listeners = new Set<PlaybackListener>();
 	private _artistLogoUrl: string | null = null;
 	private _artistLogoUrls: Array<string | null> = [];
+	private _tickInterval: ReturnType<typeof setInterval> | null = null;
 
 	album: Album | null = null;
 	isPlaying: boolean = false;
@@ -44,6 +45,7 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this._artistLogoUrl = null;
 		this._artistLogoUrls = [];
+		this._syncTimer();
 		this.notify();
 	}
 
@@ -52,6 +54,7 @@ export class PlaybackStore {
 		this.trackIndex = clamped;
 		this.progressSeconds = 0;
 		this.isPlaying = true;
+		this._syncTimer();
 		this.notify();
 	}
 
@@ -69,6 +72,7 @@ export class PlaybackStore {
 
 	playPause(): void {
 		this.isPlaying = !this.isPlaying;
+		this._syncTimer();
 		this.notify();
 	}
 
@@ -95,6 +99,7 @@ export class PlaybackStore {
 		this.isPlaying = false;
 		this.progressSeconds = 0;
 		this.trackIndex = 0;
+		this._syncTimer();
 		this.notify();
 	}
 
@@ -106,6 +111,7 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this._artistLogoUrl = null;
 		this._artistLogoUrls = [];
+		this._syncTimer();
 		this.notify();
 	}
 
@@ -117,6 +123,7 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this._artistLogoUrl = null;
 		this._artistLogoUrls = logoUrls;
+		this._syncTimer();
 		this.notify();
 	}
 
@@ -146,6 +153,51 @@ export class PlaybackStore {
 		this._artistLogoUrl = url;
 		this._artistLogoUrls = [];
 		this.notify();
+	}
+
+	destroy(): void {
+		this._stopTimer();
+	}
+
+	private _syncTimer(): void {
+		if (this.isPlaying && this.tracks.length > 0) {
+			this._startTimer();
+		} else {
+			this._stopTimer();
+		}
+	}
+
+	private _startTimer(): void {
+		if (this._tickInterval !== null) return;
+		this._tickInterval = setInterval(() => this._tick(), 1000);
+	}
+
+	private _stopTimer(): void {
+		if (this._tickInterval === null) return;
+		clearInterval(this._tickInterval);
+		this._tickInterval = null;
+	}
+
+	private _tick(): void {
+		const activeTrack = this.track;
+		if (!activeTrack) return;
+
+		const next = this.progressSeconds + 1;
+		if (next >= activeTrack.duration) {
+			if (this.trackIndex >= this.tracks.length - 1) {
+				this.progressSeconds = activeTrack.duration;
+				this.isPlaying = false;
+				this._stopTimer();
+				this.notify();
+			} else {
+				this.trackIndex += 1;
+				this.progressSeconds = 0;
+				this.notify();
+			}
+		} else {
+			this.progressSeconds = next;
+			this.notify();
+		}
 	}
 
 	private notify(): void {
