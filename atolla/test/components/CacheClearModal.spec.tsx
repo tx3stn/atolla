@@ -20,12 +20,12 @@ describe('CacheClearModal', () => {
 		);
 		const values = labels.map((label) => label.getAttribute('value'));
 
-		expect(values).toContain('Clear Cache');
-		expect(values).toContain('Artist Images');
-		expect(values).toContain('Artist Logos');
-		expect(values).toContain('Album Art');
-		expect(values).toContain('Blurred Album Art');
-		expect(values).toContain('Playlist Images');
+		expect(values).toContain('CLEAR CACHE');
+		expect(values).toContain('artist images');
+		expect(values).toContain('artist logos');
+		expect(values).toContain('album art');
+		expect(values).toContain('blurred album art');
+		expect(values).toContain('playlist images');
 	});
 
 	valdiIt('confirm button is enabled when all checkboxes are checked by default', () => {
@@ -36,7 +36,9 @@ describe('CacheClearModal', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const confirmBtn = views.find((v) => v.getAttribute('testID') === 'cache-clear-confirm-btn');
+		const confirmBtn = views.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn',
+		);
 
 		expect(typeof confirmBtn?.getAttribute('onTap')).toBe('function');
 	});
@@ -50,19 +52,19 @@ describe('CacheClearModal', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
-			.find((v) => v.getAttribute('testID') === 'cache-clear-artist-image-row')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-artist-image-row')
 			?.getAttribute('onTap')?.();
 		views
-			.find((v) => v.getAttribute('testID') === 'cache-clear-artist-logo-row')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-artist-logo-row')
 			?.getAttribute('onTap')?.();
 		views
-			.find((v) => v.getAttribute('testID') === 'cache-clear-album-art-row')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-album-art-row')
 			?.getAttribute('onTap')?.();
 		views
-			.find((v) => v.getAttribute('testID') === 'cache-clear-album-art-blurred-row')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-album-art-blurred-row')
 			?.getAttribute('onTap')?.();
 		views
-			.find((v) => v.getAttribute('testID') === 'cache-clear-playlist-image-row')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-playlist-image-row')
 			?.getAttribute('onTap')?.();
 
 		const updatedViews = elementTypeFind(
@@ -70,7 +72,7 @@ describe('CacheClearModal', () => {
 			IRenderedElementViewClass.View,
 		);
 		const confirmBtn = updatedViews.find(
-			(v) => v.getAttribute('testID') === 'cache-clear-confirm-btn',
+			(v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn',
 		);
 
 		expect(confirmBtn?.getAttribute('onTap')).toBeUndefined();
@@ -88,7 +90,7 @@ describe('CacheClearModal', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
-			.find((v) => v.getAttribute('testID') === 'cache-clear-confirm-btn')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
 			?.getAttribute('onTap')?.();
 
 		expect(received).toEqual({
@@ -112,7 +114,7 @@ describe('CacheClearModal', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
-			.find((v) => v.getAttribute('testID') === 'cache-clear-album-art-row')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-album-art-row')
 			?.getAttribute('onTap')?.();
 
 		const updatedViews = elementTypeFind(
@@ -120,7 +122,7 @@ describe('CacheClearModal', () => {
 			IRenderedElementViewClass.View,
 		);
 		updatedViews
-			.find((v) => v.getAttribute('testID') === 'cache-clear-confirm-btn')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
 			?.getAttribute('onTap')?.();
 
 		expect(received).toEqual({
@@ -144,7 +146,7 @@ describe('CacheClearModal', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
-			.find((v) => v.getAttribute('testID') === 'cache-clear-cancel-btn')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-cancel-btn')
 			?.getAttribute('onTap')?.();
 
 		expect(cancelled).toBe(true);

@@ -23,7 +23,7 @@ describe('SettingsView', () => {
 		const values = labels.map((label) => label.getAttribute('value'));
 
 		expect(values).toContain('CACHE');
-		expect(values).toContain('Clear Cache');
+		expect(values).toContain('clear cache');
 	});
 
 	valdiIt('renders clear cache button with accessibility labels', () => {
@@ -92,7 +92,9 @@ describe('SettingsView', () => {
 			componentGetElements(component),
 			IRenderedElementViewClass.View,
 		);
-		const modal = updatedViews.find((v) => v.getAttribute('testID') === 'cache-clear-modal');
+		const modal = updatedViews.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'cache-clear-modal',
+		);
 
 		expect(modal).toBeTruthy();
 	});
@@ -117,7 +119,7 @@ describe('SettingsView', () => {
 			IRenderedElementViewClass.View,
 		);
 		modalViews
-			.find((v) => v.getAttribute('testID') === 'cache-clear-confirm-btn')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
 			?.getAttribute('onTap')?.();
 
 		expect(received).toEqual({
@@ -146,14 +148,14 @@ describe('SettingsView', () => {
 			IRenderedElementViewClass.View,
 		);
 		modalViews
-			.find((v) => v.getAttribute('testID') === 'cache-clear-confirm-btn')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
 			?.getAttribute('onTap')?.();
 
 		const updatedViews = elementTypeFind(
 			componentGetElements(component),
 			IRenderedElementViewClass.View,
 		);
-		const toast = updatedViews.find((v) => v.getAttribute('testID') === 'toast');
+		const toast = updatedViews.find((v) => v.getAttribute('accessibilityLabel') === 'toast');
 
 		expect(toast).toBeTruthy();
 	});
@@ -178,7 +180,7 @@ describe('SettingsView', () => {
 			IRenderedElementViewClass.View,
 		);
 		modalViews
-			.find((v) => v.getAttribute('testID') === 'cache-clear-cancel-btn')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-cancel-btn')
 			?.getAttribute('onTap')?.();
 
 		expect(called).toBe(false);

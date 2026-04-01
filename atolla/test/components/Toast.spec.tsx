@@ -20,12 +20,12 @@ describe('Toast', () => {
 		expect(values).toContain('Cache cleared');
 	});
 
-	valdiIt('renders with testID toast', () => {
+	valdiIt('renders with accessibilityLabel toast', () => {
 		const instrumented = createComponent(Toast, { message: 'Cache cleared' });
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const toast = views.find((view) => view.getAttribute('testID') === 'toast');
+		const toast = views.find((view) => view.getAttribute('accessibilityLabel') === 'toast');
 
 		expect(toast).toBeTruthy();
 	});

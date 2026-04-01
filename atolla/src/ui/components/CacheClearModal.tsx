@@ -59,78 +59,94 @@ export class CacheClearModal extends StatefulComponent<
 			style={styles.backdrop}
 		>
 			<view onTap={this.viewModel.onCancel} style={styles.centeredContainer}>
-				<view onTap={this.stopPropagation} style={styles.card} testID='cache-clear-modal'>
-					<label style={styles.title} value='Clear Cache' />
+				<view
+					accessibilityLabel='cache-clear-modal'
+					contentDescription='cache-clear-modal'
+					onTap={this.stopPropagation}
+					style={styles.card}
+				>
+					<label style={styles.title} value='CLEAR CACHE' />
 					<view style={styles.divider} />
 
-					<view onTap={this.toggleAlbumArt} style={styles.row} testID='cache-clear-album-art-row'>
+					<view
+						accessibilityLabel='cache-clear-album-art-row'
+						contentDescription='cache-clear-album-art-row'
+						onTap={this.toggleAlbumArt}
+						style={styles.row}
+					>
 						<view style={albumArt ? styles.checkboxChecked : styles.checkboxUnchecked}>
 							{albumArt && <label style={styles.checkmark} value='✓' />}
 						</view>
-						<label style={styles.rowLabel} value='Album Art' />
+						<label style={styles.rowLabel} value='album art' />
 					</view>
 
 					<view
+						accessibilityLabel='cache-clear-album-art-blurred-row'
+						contentDescription='cache-clear-album-art-blurred-row'
 						onTap={this.toggleAlbumArtBlurred}
 						style={styles.row}
-						testID='cache-clear-album-art-blurred-row'
 					>
 						<view style={albumArtBlurred ? styles.checkboxChecked : styles.checkboxUnchecked}>
 							{albumArtBlurred && <label style={styles.checkmark} value='✓' />}
 						</view>
-						<label style={styles.rowLabel} value='Blurred Album Art' />
+						<label style={styles.rowLabel} value='blurred album art' />
 					</view>
 
 					<view
+						accessibilityLabel='cache-clear-artist-image-row'
+						contentDescription='cache-clear-artist-image-row'
 						onTap={this.toggleArtistImage}
 						style={styles.row}
-						testID='cache-clear-artist-image-row'
 					>
 						<view style={artistImage ? styles.checkboxChecked : styles.checkboxUnchecked}>
 							{artistImage && <label style={styles.checkmark} value='✓' />}
 						</view>
-						<label style={styles.rowLabel} value='Artist Images' />
+						<label style={styles.rowLabel} value='artist images' />
 					</view>
 
 					<view
+						accessibilityLabel='cache-clear-artist-logo-row'
+						contentDescription='cache-clear-artist-logo-row'
 						onTap={this.toggleArtistLogo}
 						style={styles.row}
-						testID='cache-clear-artist-logo-row'
 					>
 						<view style={artistLogo ? styles.checkboxChecked : styles.checkboxUnchecked}>
 							{artistLogo && <label style={styles.checkmark} value='✓' />}
 						</view>
-						<label style={styles.rowLabel} value='Artist Logos' />
+						<label style={styles.rowLabel} value='artist logos' />
 					</view>
 
 					<view
+						accessibilityLabel='cache-clear-playlist-image-row'
+						contentDescription='cache-clear-playlist-image-row'
 						onTap={this.togglePlaylistImage}
 						style={styles.row}
-						testID='cache-clear-playlist-image-row'
 					>
 						<view style={playlistImage ? styles.checkboxChecked : styles.checkboxUnchecked}>
 							{playlistImage && <label style={styles.checkmark} value='✓' />}
 						</view>
-						<label style={styles.rowLabel} value='Playlist Images' />
+						<label style={styles.rowLabel} value='playlist images' />
 					</view>
 
 					<view style={styles.divider} />
 
 					<view style={styles.actions}>
 						<view
+							accessibilityLabel='cache-clear-confirm-btn'
+							contentDescription='cache-clear-confirm-btn'
 							onTap={anySelected ? this.handleConfirm : undefined}
 							style={anySelected ? styles.confirmButton : styles.confirmButtonDisabled}
-							testID='cache-clear-confirm-btn'
 						>
-							<label style={styles.actionLabel} value='Yes' />
+							<label style={styles.actionLabel} value='yes' />
 						</view>
 						<view style={styles.actionSeparator} />
 						<view
+							accessibilityLabel='cache-clear-cancel-btn'
+							contentDescription='cache-clear-cancel-btn'
 							onTap={this.viewModel.onCancel}
 							style={styles.cancelButton}
-							testID='cache-clear-cancel-btn'
 						>
-							<label style={styles.actionLabel} value='No' />
+							<label style={styles.actionLabel} value='no' />
 						</view>
 					</view>
 				</view>
