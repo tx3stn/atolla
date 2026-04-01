@@ -1,3 +1,14 @@
-# atolla
+<!-- markdownlint-disable MD033 -->
+<h1 align="center">atolla</h1>
 
-Jellyfin music amp with a focus on offline playback, inspired by plexamp.
+<p align="center">
+  <em>Jellfin music player focssed on images and offline playback</em>
+</p>
+
+![logo](./atolla/res/logo.svg)
+
+## Screenshots
+
+## Features
+
+## Why?
