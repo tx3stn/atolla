@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD033 -->
 <p align="center">
  <img src="./atolla/res/logo.svg" alt="logo" width="200" />
- <h1>atolla</h1>
+ <h1 align="center">atolla</h1>
 </p>
 
 <p align="center">
