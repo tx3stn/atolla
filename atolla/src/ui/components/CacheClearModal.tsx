@@ -4,6 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { BlurView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { ClearCacheSelection } from '../../services/ImageCache';
 import { theme } from '../../theme';
+import { Checkbox } from './Checkbox';
 
 export interface CacheClearModalViewModel {
 	onCancel: () => void;
@@ -68,65 +69,36 @@ export class CacheClearModal extends StatefulComponent<
 					<label style={styles.title} value='CLEAR CACHE' />
 					<view style={styles.divider} />
 
-					<view
+					<Checkbox
 						accessibilityLabel='cache-clear-album-art-row'
-						contentDescription='cache-clear-album-art-row'
-						onTap={this.toggleAlbumArt}
-						style={styles.row}
-					>
-						<view style={albumArt ? styles.checkboxChecked : styles.checkboxUnchecked}>
-							{albumArt && <label style={styles.checkmark} value='✓' />}
-						</view>
-						<label style={styles.rowLabel} value='album art' />
-					</view>
-
-					<view
+						checked={albumArt}
+						label='album art'
+						onToggle={this.toggleAlbumArt}
+					/>
+					<Checkbox
 						accessibilityLabel='cache-clear-album-art-blurred-row'
-						contentDescription='cache-clear-album-art-blurred-row'
-						onTap={this.toggleAlbumArtBlurred}
-						style={styles.row}
-					>
-						<view style={albumArtBlurred ? styles.checkboxChecked : styles.checkboxUnchecked}>
-							{albumArtBlurred && <label style={styles.checkmark} value='✓' />}
-						</view>
-						<label style={styles.rowLabel} value='blurred album art' />
-					</view>
-
-					<view
+						checked={albumArtBlurred}
+						label='blurred album art'
+						onToggle={this.toggleAlbumArtBlurred}
+					/>
+					<Checkbox
 						accessibilityLabel='cache-clear-artist-image-row'
-						contentDescription='cache-clear-artist-image-row'
-						onTap={this.toggleArtistImage}
-						style={styles.row}
-					>
-						<view style={artistImage ? styles.checkboxChecked : styles.checkboxUnchecked}>
-							{artistImage && <label style={styles.checkmark} value='✓' />}
-						</view>
-						<label style={styles.rowLabel} value='artist images' />
-					</view>
-
-					<view
+						checked={artistImage}
+						label='artist images'
+						onToggle={this.toggleArtistImage}
+					/>
+					<Checkbox
 						accessibilityLabel='cache-clear-artist-logo-row'
-						contentDescription='cache-clear-artist-logo-row'
-						onTap={this.toggleArtistLogo}
-						style={styles.row}
-					>
-						<view style={artistLogo ? styles.checkboxChecked : styles.checkboxUnchecked}>
-							{artistLogo && <label style={styles.checkmark} value='✓' />}
-						</view>
-						<label style={styles.rowLabel} value='artist logos' />
-					</view>
-
-					<view
+						checked={artistLogo}
+						label='artist logos'
+						onToggle={this.toggleArtistLogo}
+					/>
+					<Checkbox
 						accessibilityLabel='cache-clear-playlist-image-row'
-						contentDescription='cache-clear-playlist-image-row'
-						onTap={this.togglePlaylistImage}
-						style={styles.row}
-					>
-						<view style={playlistImage ? styles.checkboxChecked : styles.checkboxUnchecked}>
-							{playlistImage && <label style={styles.checkmark} value='✓' />}
-						</view>
-						<label style={styles.rowLabel} value='playlist images' />
-					</view>
+						checked={playlistImage}
+						label='playlist images'
+						onToggle={this.togglePlaylistImage}
+					/>
 
 					<view style={styles.divider} />
 
@@ -154,8 +126,6 @@ export class CacheClearModal extends StatefulComponent<
 		</blur>;
 	}
 }
-
-const CHECKBOX_SIZE = 20;
 
 const styles = {
 	actionLabel: new Style({
@@ -198,29 +168,6 @@ const styles = {
 		justifyContent: 'center',
 		width: '100%',
 	}),
-	checkboxChecked: new Style({
-		alignItems: 'center',
-		backgroundColor: theme.colors.active,
-		borderRadius: 4,
-		height: CHECKBOX_SIZE,
-		justifyContent: 'center',
-		marginRight: 12,
-		width: CHECKBOX_SIZE,
-	}),
-	checkboxUnchecked: new Style({
-		backgroundColor: theme.colors.bgAccent,
-		borderColor: theme.colors.separator,
-		borderRadius: 4,
-		borderWidth: 1,
-		height: CHECKBOX_SIZE,
-		marginRight: 12,
-		width: CHECKBOX_SIZE,
-	}),
-	checkmark: new Style({
-		color: theme.colors.white,
-		font: theme.text.sub.font,
-		textAlign: 'center',
-	}),
 	confirmButton: new Style({
 		alignItems: 'center',
 		padding: 14,
@@ -238,15 +185,6 @@ const styles = {
 		marginBottom: 14,
 		marginTop: 12,
 		width: '100%',
-	}),
-	row: new Style({
-		alignItems: 'center',
-		flexDirection: 'row',
-		paddingBottom: 10,
-		paddingTop: 10,
-	}),
-	rowLabel: new Style<Label>({
-		...theme.text.main,
 	}),
 	title: new Style<Label>({
 		...theme.text.title,
