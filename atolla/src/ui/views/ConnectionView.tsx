@@ -4,6 +4,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import { theme } from '../../theme';
+import { Button } from '../components/Button';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 
 export interface ConnectionViewModel {
@@ -84,7 +85,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 			</view>
 
 			<label style={styles.title} value='connect to jellyfin' />
-			<label style={styles.subtitle} value='enter server URL to continue' />
+			<label style={styles.subtitle} value='enter server URL' />
 
 			<view style={styles.inputContainer}>
 				<textfield
@@ -99,14 +100,12 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				/>
 			</view>
 
-			<view
-				accessibilityLabel='connection-connect-button'
-				contentDescription='connection-connect-button'
-				onTap={canConnect ? createReusableCallback(this.onConnectTap) : undefined}
-				style={canConnect ? styles.connectButton : styles.connectButtonDisabled}
-			>
-				<label style={styles.connectButtonLabel} value='Connect' />
-			</view>
+			<Button
+				accessibilityLabel='connection-connect'
+				enabled={canConnect}
+				label='connect'
+				onTap={createReusableCallback(this.onConnectTap)}
+			/>
 
 			<view style={styles.quickConnectContainer}>
 				<view style={styles.quickConnectCodeSlot}>
@@ -136,27 +135,6 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 }
 
 const styles = {
-	connectButton: new Style({
-		alignItems: 'center',
-		backgroundColor: theme.colors.bgAccent,
-		borderRadius: 999,
-		marginTop: 12,
-		padding: 14,
-		width: '100%',
-	}),
-	connectButtonDisabled: new Style({
-		alignItems: 'center',
-		backgroundColor: '#0b1320',
-		borderRadius: 999,
-		marginTop: 12,
-		opacity: 0.5,
-		padding: 14,
-		width: '100%',
-	}),
-	connectButtonLabel: new Style({
-		...theme.text.mainBold,
-		color: theme.colors.active,
-	}),
 	errorMessage: new Style({
 		...theme.text.sub,
 		color: '#ff6b6b',

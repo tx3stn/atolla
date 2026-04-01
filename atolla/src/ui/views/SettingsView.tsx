@@ -7,6 +7,7 @@ import type { ClearCacheSelection } from '../../services/ImageCache';
 import type { Preferences } from '../../stores/Preferences';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
 import { theme } from '../../theme';
+import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
 import { Modal } from '../components/Modal';
 import { Toast } from '../components/Toast';
@@ -154,14 +155,11 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 			<label style={styles.sectionTitle} value='ARTWORK PALETTES' />
 			<view style={styles.section}>
-				<view
-					accessibilityLabel='settings-generate-palettes-btn'
-					contentDescription='settings-generate-palettes-btn'
+				<Button
+					accessibilityLabel='settings-generate-palettes'
+					label='generate'
 					onTap={createReusableCallback(() => onGeneratePalettes?.())}
-					style={styles.button}
-				>
-					<label style={styles.buttonLabel} value='Generate Palettes' />
-				</view>
+				/>
 				{paletteTotalCount !== null && paletteTotalCount !== undefined && (
 					<label style={styles.paletteStatus} value={paletteStatusLabel} />
 				)}
@@ -176,16 +174,13 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 					/>
 				)}
 				{isDone && hasFailureDetails && (
-					<view
-						accessibilityLabel='settings-palette-failure-details-btn'
-						contentDescription='settings-palette-failure-details-btn'
+					<Button
+						accessibilityLabel='settings-palette-failure-details'
+						label='view failure details'
 						onTap={createReusableCallback(() => {
 							this.setState({ showPaletteFailureModal: true });
 						})}
-						style={styles.button}
-					>
-						<label style={styles.buttonLabel} value='View Failure Details' />
-					</view>
+					/>
 				)}
 				{paletteTotalCount != null && imageCacheBufferedCount != null && (
 					<label
@@ -217,26 +212,21 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						value={`${imageCacheBufferedCount} images in memory (${formatBytes(imageCacheBufferedBytes)})`}
 					/>
 				)}
-				<view
-					accessibilityLabel='settings-cache-clear-btn'
-					contentDescription='settings-cache-clear-btn'
+				<Button
+					accessibilityLabel='settings-cache-clear'
+					label='clear cache'
 					onTap={this.handleClearCachePress}
 					style={styles.button}
-				>
-					<label style={styles.buttonLabel} value='Clear Cache' />
-				</view>
+				/>
 			</view>
 
 			<label style={styles.sectionTitle} value='AUTH' />
 			<view style={styles.section}>
-				<view
-					accessibilityLabel='settings-logout-btn'
-					contentDescription='settings-logout-btn'
+				<Button
+					accessibilityLabel='settings-logout'
+					label='logout'
 					onTap={createReusableCallback(() => this.viewModel.onLogout?.())}
-					style={styles.button}
-				>
-					<label style={styles.buttonLabel} value='Logout' />
-				</view>
+				/>
 			</view>
 
 			{this.state.showCacheClearModal && (
@@ -246,7 +236,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 				/>
 			)}
 
-			{this.state.showCacheToast && <Toast message='Cache cleared' />}
+			{this.state.showCacheToast && <Toast message='cache cleared' />}
 
 			{this.state.showPaletteFailureModal && hasFailureDetails && (
 				<Modal
@@ -260,17 +250,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 }
 
 const styles = {
-	button: new Style({
-		alignItems: 'center',
-		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.borderRadius,
-		marginTop: 8,
-		padding: 14,
-	}),
-	buttonLabel: new Style({
-		...theme.text.main,
-		color: theme.colors.active,
-	}),
 	input: new Style({
 		...theme.text.main,
 		flexGrow: 1,
@@ -303,8 +282,9 @@ const styles = {
 	}),
 	paletteStatus: new Style({
 		...theme.text.sub,
+		marginBottom: 10,
 		marginLeft: 4,
-		marginTop: 8,
+		marginTop: 12,
 	}),
 	root: new Style({
 		height: '100%',
