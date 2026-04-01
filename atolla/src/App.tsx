@@ -11,6 +11,7 @@ import { ErrorConst } from './errors/Const';
 import { PaletteGenerationErrors } from './errors/PaletteGenerationErrors';
 import {
 	clearAtollaNativeCacheCategories,
+	ensureAtollaImageLoaderBootstrap,
 	extractAtollaPaletteFromCache,
 	getAtollaImageLoaderCacheByteSize,
 	getAtollaImageLoaderCacheEntryCount,
@@ -143,6 +144,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	onCreate(): void {
 		this.bootstrapStartedAt = Date.now();
+		try {
+			ensureAtollaImageLoaderBootstrap();
+		} catch {
+			// Android native bootstrap may be unavailable on non-Android targets.
+		}
 		this.nativeCacheStatsInterval = setInterval(() => {
 			if (this.state.activeFooterTab === FooterTabs.settings) {
 				this.refreshNativeCacheStats();
