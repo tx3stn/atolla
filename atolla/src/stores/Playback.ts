@@ -20,6 +20,7 @@ export class PlaybackStore {
 	album: Album | null = null;
 	isPlaying: boolean = false;
 	progressSeconds: number = 0;
+	seekTarget: number | null = null;
 	trackIndex: number = 0;
 	tracks: Array<Track> = [];
 
@@ -42,6 +43,7 @@ export class PlaybackStore {
 		this.trackIndex = startIndex;
 		this.isPlaying = true;
 		this.progressSeconds = 0;
+		this.seekTarget = null;
 		this._artistLogoUrl = null;
 		this._artistLogoUrls = [];
 		this.notify();
@@ -51,6 +53,7 @@ export class PlaybackStore {
 		const clamped = Math.max(0, Math.min(this.tracks.length - 1, index));
 		this.trackIndex = clamped;
 		this.progressSeconds = 0;
+		this.seekTarget = null;
 		this.isPlaying = true;
 		this.notify();
 	}
@@ -58,12 +61,14 @@ export class PlaybackStore {
 	next(): void {
 		this.trackIndex = Math.min(this.trackIndex + 1, this.tracks.length - 1);
 		this.progressSeconds = 0;
+		this.seekTarget = null;
 		this.notify();
 	}
 
 	previous(): void {
 		this.trackIndex = Math.max(this.trackIndex - 1, 0);
 		this.progressSeconds = 0;
+		this.seekTarget = null;
 		this.notify();
 	}
 
@@ -75,6 +80,8 @@ export class PlaybackStore {
 	updateProgress(seconds: number): void {
 		const activeTrack = this.track;
 		if (!activeTrack) return;
+
+		this.seekTarget = null;
 
 		if (seconds >= activeTrack.duration) {
 			if (this.trackIndex >= this.tracks.length - 1) {
@@ -92,11 +99,10 @@ export class PlaybackStore {
 
 	seekTo(seconds: number): void {
 		const activeTrack = this.track;
-		if (!activeTrack) {
-			return;
-		}
+		if (!activeTrack) return;
 
 		const clamped = Math.max(0, Math.min(activeTrack.duration, seconds));
+		this.seekTarget = clamped;
 		this.progressSeconds = clamped;
 		this.notify();
 	}

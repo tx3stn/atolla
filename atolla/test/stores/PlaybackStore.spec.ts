@@ -14,6 +14,28 @@ describe('PlaybackStore', () => {
 		store = new PlaybackStore();
 	});
 
+	describe('seekTo()', () => {
+		it('sets progressSeconds and seekTarget', () => {
+			store.playTracks([makeTrack('a', 60)]);
+			store.seekTo(30);
+
+			expect(store.progressSeconds).toBe(30);
+			expect(store.seekTarget).toBe(30);
+		});
+
+		it('clamps to track duration', () => {
+			store.playTracks([makeTrack('a', 60)]);
+			store.seekTo(999);
+
+			expect(store.seekTarget).toBe(60);
+		});
+
+		it('does nothing with no active track', () => {
+			store.seekTo(10);
+			expect(store.seekTarget).toBeNull();
+		});
+	});
+
 	describe('updateProgress()', () => {
 		it('updates progressSeconds', () => {
 			store.playTracks([makeTrack('a', 60)]);
@@ -32,6 +54,14 @@ describe('PlaybackStore', () => {
 			store.updateProgress(5);
 
 			expect(count).toBe(1);
+		});
+
+		it('clears seekTarget', () => {
+			store.playTracks([makeTrack('a', 60)]);
+			store.seekTo(30);
+			store.updateProgress(31);
+
+			expect(store.seekTarget).toBeNull();
 		});
 
 		it('does nothing when there is no active track', () => {
