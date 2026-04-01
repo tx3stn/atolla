@@ -4,9 +4,9 @@ package(default_visibility = ["//visibility:public"])
 
 valdi_application(
     name = "atolla",
-    android_app_icon_name = "ic_launcher",
+    android_app_manifest = "//atolla/native:android_manifest",
+    android_package = "com.tx3stn.atolla",
     android_resource_files = ["//atolla/native:android_launcher_icons"],
-    android_round_app_icon_name = "ic_launcher",
     ios_bundle_id = "com.tx3stn.atolla",
     ios_families = ["iphone"],
     root_component_path = "App@atolla/src/App",
