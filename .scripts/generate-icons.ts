@@ -68,10 +68,21 @@ async function generateIcons(): Promise<void> {
 	for (const output of outputs) {
 		await mkdir(dirname(output.path), { recursive: true });
 
+		const padding = Math.round(output.size * 0.02);
+		const contentSize = output.size - padding * 2;
+
 		await sharp(sourceSvgPath, { density: 512, limitInputPixels: false })
-			.resize(output.size, output.size, {
+			.trim()
+			.resize(contentSize, contentSize, {
 				background: { alpha: 0, b: 0, g: 0, r: 0 },
 				fit: 'contain',
+			})
+			.extend({
+				background: { alpha: 0, b: 0, g: 0, r: 0 },
+				bottom: padding,
+				left: padding,
+				right: padding,
+				top: padding,
 			})
 			.png({ compressionLevel: 9 })
 			.toFile(output.path);
