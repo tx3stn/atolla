@@ -5,6 +5,8 @@
         <item name="windowNoTitle">true</item>
         <item name="android:windowBackground">@color/atolla_launch_background</item>
         <item name="android:colorBackground">@color/atolla_launch_background</item>
+        <item name="android:statusBarColor">@color/atolla_launch_background</item>
+        <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowSplashScreenBackground">@color/atolla_launch_background</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/atolla_launch_background</item>
