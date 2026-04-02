@@ -93,15 +93,17 @@ fi
 
 echo "Using macOS SDK version: $MACOS_SDK_VERSION"
 
-if adb devices | grep -q "emulator-"; then
+if adb devices | awk '/\tdevice$/ {print $1; exit}' | grep -q .; then
+	echo "Physical device or emulator already connected, skipping emulator launch."
+elif adb devices | grep -q "emulator-"; then
 	echo "Android emulator already running."
 else
 	echo "Starting Android emulator '$AVD_NAME' in background..."
-	emulator -avd "$AVD_NAME" -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot >"$EMULATOR_LOG" 2>&1 &
+	emulator -avd "$AVD_NAME" -no-boot-anim -gpu swiftshader_indirect -no-snapshot -dns-server 8.8.8.8 >"$EMULATOR_LOG" 2>&1 &
 	echo "Emulator log: $EMULATOR_LOG"
 fi
 
-echo "Waiting for emulator device..."
+echo "Waiting for device..."
 adb wait-for-device
 adb devices
 
