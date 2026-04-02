@@ -11,6 +11,14 @@ This project uses Valdi, Typescript, biome.js (for linting/formatting) and webdr
 * use dependency injection to pass stores/services to components so they are easy to test and logic is kept simple
 * styling should always use the theme so things can be easily tweaked
 
+## Tests
+
+Unit tests should live next to the files they are testing and are written with bun. Run with `bun run test`
+
+Component tests are required when the thing being tested imports valdi as these need to be run with bazel. They are written with jasmine & valid and live in `atolla/test`. Do not run these, the bazel build is slow and will time out, prompt the user to run them.
+
+End to end tests are required for core end to end flows to ensure things work cross platform. They are written with webdriverio and live in the test directory. They should all use the page objects. Components need an accessibilityLabel value to use these, not a testId.
+
 ## Commands
 
 * `bun run check` - run linting, formatting, compile and unit tests

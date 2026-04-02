@@ -31,11 +31,12 @@ function normalizeInputValue(value: unknown): string {
 	if (value && typeof value === 'object') {
 		const candidate = value as {
 			nativeEvent?: { text?: unknown; value?: unknown };
+			query?: unknown;
 			text?: unknown;
 			value?: unknown;
 		};
 
-		const direct = candidate.text ?? candidate.value;
+		const direct = candidate.text ?? candidate.value ?? candidate.query;
 		if (typeof direct === 'string') {
 			return direct;
 		}
@@ -76,7 +77,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 
 	onRender(): void {
 		const canConnect =
-			normalizeInputValue(this.state.serverUrlInput).length > 0 &&
+			normalizeInputValue(this.state.serverUrlInput).trim().length > 0 &&
 			this.viewModel.isConnecting === false;
 
 		<view style={styles.root}>
