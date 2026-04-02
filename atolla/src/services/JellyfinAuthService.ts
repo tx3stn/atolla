@@ -49,6 +49,7 @@ interface JellyfinAuthServiceOptions {
 	isMockMode?: boolean;
 	mockApprovalDelayMs?: number;
 	now?: NowFn;
+	requestTimeoutMs?: number;
 	sleep?: SleepFn;
 	store?: JellyfinAuthStoreLike;
 }
@@ -78,6 +79,7 @@ export class JellyfinAuthService {
 	private readonly mockApprovalDelayMs: number;
 	private readonly sleep: SleepFn;
 	private readonly now: NowFn;
+	private readonly requestTimeoutMs: number;
 	private isMockMode: boolean;
 
 	constructor(options: JellyfinAuthServiceOptions = {}) {
@@ -92,6 +94,7 @@ export class JellyfinAuthService {
 		this.mockApprovalDelayMs = options.mockApprovalDelayMs ?? 3_000;
 		this.sleep = options.sleep ?? defaultSleep;
 		this.now = options.now ?? (() => Date.now());
+		this.requestTimeoutMs = options.requestTimeoutMs ?? 10_000;
 	}
 
 	setMockMode(enabled: boolean): void {
@@ -148,10 +151,12 @@ export class JellyfinAuthService {
 
 		let response: HTTPResponseLike;
 		try {
-			response = await this.createHttpClient(normalizedUrl).post(
+			response = await this.runWithRequestTimeout(
+				this.createHttpClient(normalizedUrl).post(
 				'/QuickConnect/Initiate',
 				undefined,
 				this.createHeaders(),
+				),
 			);
 		} catch {
 			throw AuthErrors.CONNECTION_ERROR;
@@ -198,9 +203,11 @@ export class JellyfinAuthService {
 		while (this.now() - start < timeoutMs) {
 			let response: HTTPResponseLike;
 			try {
-				response = await this.createHttpClient(normalizedUrl).get(
-					`/QuickConnect/Connect?secret=${encodeURIComponent(secret)}`,
-					this.createHeaders(),
+				response = await this.runWithRequestTimeout(
+					this.createHttpClient(normalizedUrl).get(
+						`/QuickConnect/Connect?secret=${encodeURIComponent(secret)}`,
+						this.createHeaders(),
+					),
 				);
 			} catch {
 				throw AuthErrors.CONNECTION_ERROR;
@@ -235,10 +242,12 @@ export class JellyfinAuthService {
 
 		let response: HTTPResponseLike;
 		try {
-			response = await this.createHttpClient(normalizedUrl).post(
-				'/Users/AuthenticateWithQuickConnect',
-				new TextEncoder().encode(JSON.stringify({ Secret: secret })),
-				this.createHeaders(),
+			response = await this.runWithRequestTimeout(
+				this.createHttpClient(normalizedUrl).post(
+					'/Users/AuthenticateWithQuickConnect',
+					new TextEncoder().encode(JSON.stringify({ Secret: secret })),
+					this.createHeaders(),
+				),
 			);
 		} catch {
 			throw AuthErrors.CONNECTION_ERROR;
@@ -271,9 +280,11 @@ export class JellyfinAuthService {
 		}
 
 		try {
-			const response = await this.createHttpClient(session.serverUrl).get(
-				'/Users/Me',
-				this.createHeaders(session.accessToken),
+			const response = await this.runWithRequestTimeout(
+				this.createHttpClient(session.serverUrl).get(
+					'/Users/Me',
+					this.createHeaders(session.accessToken),
+				),
 			);
 			return this.isSuccessStatus(response.statusCode);
 		} catch {
@@ -293,9 +304,11 @@ export class JellyfinAuthService {
 		const path = `/Users/${encodeURIComponent(session.userId)}/Items?IncludeItemTypes=MusicAlbum&Recursive=true&Limit=1`;
 		let response: HTTPResponseLike;
 		try {
-			response = await this.createHttpClient(session.serverUrl).get(
-				path,
-				this.createHeaders(session.accessToken),
+			response = await this.runWithRequestTimeout(
+				this.createHttpClient(session.serverUrl).get(
+					path,
+					this.createHeaders(session.accessToken),
+				),
 			);
 		} catch {
 			throw AuthErrors.FAILED_TO_FETCH_DATA;
@@ -323,7 +336,9 @@ export class JellyfinAuthService {
 	): Promise<boolean> {
 		let response: HTTPResponseLike;
 		try {
-			response = await this.createHttpClient(baseUrl).get(path, headers);
+			response = await this.runWithRequestTimeout(
+				this.createHttpClient(baseUrl).get(path, headers),
+			);
 		} catch {
 			throw AuthErrors.CONNECTION_ERROR;
 		}
@@ -351,6 +366,25 @@ export class JellyfinAuthService {
 
 	private createHttpClient(baseUrl: string): HTTPClientLike {
 		return this.httpClientFactory(baseUrl);
+	}
+
+	private runWithRequestTimeout<T>(promise: Promise<T>): Promise<T> {
+		return new Promise((resolve, reject) => {
+			const timer = setTimeout(() => {
+				reject(AuthErrors.CONNECTION_ERROR);
+			}, this.requestTimeoutMs);
+
+			promise.then(
+				(value) => {
+					clearTimeout(timer);
+					resolve(value);
+				},
+				(error) => {
+					clearTimeout(timer);
+					reject(error);
+				},
+			);
+		});
 	}
 
 	private isSuccessStatus(statusCode: number): boolean {

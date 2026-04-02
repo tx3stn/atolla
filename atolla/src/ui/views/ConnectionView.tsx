@@ -60,7 +60,23 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 			return;
 		}
 
-		if (this.viewModel.serverUrl !== prevViewModel.serverUrl) {
+		const nextServerUrl = normalizeInputValue(this.viewModel.serverUrl).trim();
+		const prevServerUrl = normalizeInputValue(prevViewModel.serverUrl).trim();
+		const currentInput = normalizeInputValue(this.state.serverUrlInput).trim();
+
+		if (nextServerUrl === prevServerUrl) {
+			return;
+		}
+
+		if (nextServerUrl.length === 0 && currentInput.length > 0) {
+			return;
+		}
+
+		if (currentInput.length > 0 && currentInput !== prevServerUrl) {
+			return;
+		}
+
+		if (this.viewModel.serverUrl !== this.state.serverUrlInput) {
 			this.setState({
 				serverUrlInput: this.viewModel.serverUrl,
 			});
@@ -69,7 +85,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 
 	private onConnectTap = (): void => {
 		const input = normalizeInputValue(this.state.serverUrlInput).trim();
-		if (!input || this.viewModel.isConnecting) {
+		if (!input || (this.viewModel.isConnecting && !this.viewModel.errorMessage)) {
 			return;
 		}
 		this.viewModel.onConnect(input);
@@ -78,7 +94,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 	onRender(): void {
 		const canConnect =
 			normalizeInputValue(this.state.serverUrlInput).trim().length > 0 &&
-			this.viewModel.isConnecting === false;
+			(this.viewModel.isConnecting === false || Boolean(this.viewModel.errorMessage));
 
 		<view style={styles.root}>
 			<view style={styles.logoContainer}>
@@ -120,7 +136,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 					)}
 				</view>
 				<view style={styles.quickConnectSpinnerSlot}>
-					{this.viewModel.isConnecting && this.viewModel.quickConnectCode && (
+					{this.viewModel.isConnecting && (
 						<LoopingArrowSpinner
 							accessibilityLabel='waiting for quick connect'
 							durationSeconds={0.9}

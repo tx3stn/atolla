@@ -266,7 +266,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		void (async () => {
 			this.authService.setMockMode(false);
-			await this.preferences.setMode(ConnectionModes.online);
 			this.setState({
 				authErrorMessage: null,
 				connectionMode: ConnectionModes.online,
@@ -275,9 +274,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				serverUrlPrefill: serverUrl,
 			});
 
-			await this.authService.rememberServerUrl(serverUrl);
-
 			try {
+				await this.preferences.setMode(ConnectionModes.online);
+				await this.authService.rememberServerUrl(serverUrl);
+
 				const quickConnect = await this.authService.startQuickConnect(serverUrl);
 				this.setState({ quickConnectCode: quickConnect.code });
 
@@ -289,8 +289,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				await this.authService.saveSession(session);
 
 				this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId);
-
-				await this.preferences.setMode(ConnectionModes.online);
 
 				this.setState({
 					authErrorMessage: null,
@@ -311,10 +309,16 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			} catch (error) {
 				this.setState({
 					authErrorMessage: this.authService.errorMessage(error),
+					connectionMode: ConnectionModes.online,
 					isAuthenticating: false,
 					isAuthRequired: true,
 					quickConnectCode: null,
+					serverUrlPrefill: serverUrl,
 				});
+			} finally {
+				if (this.state.isAuthenticating) {
+					this.setState({ isAuthenticating: false });
+				}
 			}
 		})();
 	};
