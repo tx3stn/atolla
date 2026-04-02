@@ -1,4 +1,4 @@
-# atola development guidlines
+# atolla development guidelines
 
 This project uses Valdi, Typescript, biome.js (for linting/formatting) and webdriver.io for end to end tests.
 
@@ -6,10 +6,10 @@ This project uses Valdi, Typescript, biome.js (for linting/formatting) and webdr
 
 * test driven development using red green refactor approach
 * create unit tests for all new functionality
-* error should use the error constants defined in `atolla/src/errors`, so packages can define consistent errors, and tests can verify the correct error is thrown
+* errors should use the error constants defined in `atolla/src/errors`, so packages can define consistent errors, and tests can verify the correct error is thrown
 * components should be kept simple
 * use dependency injection to pass stores/services to components so they are easy to test and logic is kept simple
-* styling should use the theme so thigns can be easily tweaked
+* styling should always use the theme so things can be easily tweaked
 
 ## Commands
 
