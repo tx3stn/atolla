@@ -6,6 +6,10 @@ import type { Track } from '../models/Track';
 
 export interface Transport {
 	getAlbumsByArtist(artistId: string): Promise<Array<Album>>;
+	getAlbumsPage?: (
+		page: number,
+		pageSize: number,
+	) => Promise<{ hasMore: boolean; items: Array<Album> }>;
 	getAllAlbums(): Promise<Array<Album>>;
 	getAllArtists(): Promise<Array<Artist>>;
 	getAllPlaylists(): Promise<Array<Playlist>>;

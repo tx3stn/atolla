@@ -1,12 +1,29 @@
-// biome-ignore-all lint/suspicious/useAwait: async used for Transport interface conformance
-
 import { TransportErrors } from '../errors/TransportErrors';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
+import type {
+	JellyfinAlbumItem,
+	JellyfinArtistItem,
+	JellyfinListEnvelope,
+	JellyfinPlaylistItem,
+	JellyfinTrackItem,
+} from '../models/jellyfin/Types';
+import { JellyfinMusicItemTypes } from '../models/jellyfin/Types';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
+import {
+	type JellyfinImageResolvers,
+	mapJellyfinAlbumToAlbum,
+	mapJellyfinArtistToArtist,
+	mapJellyfinPlaylistToPlaylist,
+	mapJellyfinTrackToTrack,
+} from './JellyfinMappers';
 import type { Transport } from './Transport';
+
+declare const require: (moduleName: string) => {
+	HTTPClient: new (baseUrl: string) => HTTPClientLike;
+};
 
 export {
 	type JellyfinImageResolvers,
@@ -18,54 +35,366 @@ export {
 	runTimeTicksToSeconds,
 } from './JellyfinMappers';
 
-// Live transport makes requests to the Jellyfin server (not yet implemented).
+interface HTTPResponseLike {
+	body?: Uint8Array;
+	headers: Record<string, string>;
+	statusCode: number;
+}
+
+interface HTTPClientLike {
+	get(pathOrUrl: string, headers?: Record<string, string>): Promise<HTTPResponseLike>;
+}
+
+interface LiveTransportOptions {
+	httpClientFactory?: (baseUrl: string) => HTTPClientLike;
+	requestTimeoutMs?: number;
+}
+
+interface AlbumsPageResult {
+	hasMore: boolean;
+	items: Array<Album>;
+}
+
+const defaultPageSize = 100;
+const defaultSearchLimit = 100;
+
+function createClientHeader(): string {
+	return 'MediaBrowser Client="Atolla", Device="Atolla", DeviceId="atolla", Version="0.0.1"';
+}
+
 export class LiveTransport implements Transport {
+	private readonly baseUrl: string;
+	private readonly httpClientFactory: (baseUrl: string) => HTTPClientLike;
+	private readonly requestTimeoutMs: number;
+
 	constructor(
 		readonly serverUrl: string,
 		readonly accessToken: string,
 		readonly userId: string,
-	) {}
+		options: LiveTransportOptions = {},
+	) {
+		this.baseUrl = this.normalizeBaseUrl(serverUrl);
+		this.httpClientFactory =
+			options.httpClientFactory ??
+			((baseUrl: string) => {
+				const { HTTPClient } = require('valdi_http/src/HTTPClient');
+				return new HTTPClient(baseUrl) as unknown as HTTPClientLike;
+			});
+		this.requestTimeoutMs = options.requestTimeoutMs ?? 10_000;
+	}
+
+	async getAlbumsPage(page: number, pageSize: number): Promise<AlbumsPageResult> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
+			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+			limit: Math.max(1, pageSize),
+			recursive: true,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+			startIndex,
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers)),
+		};
+	}
+
 	async getAllArtists(): Promise<Array<Artist>> {
-		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+		const items = await this.fetchAllItems<JellyfinArtistItem>({
+			includeItemTypes: JellyfinMusicItemTypes.MusicArtist,
+			recursive: true,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+		});
+
+		return items.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers));
 	}
 
 	async getAllAlbums(): Promise<Array<Album>> {
-		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+		const items = await this.fetchAllItems<JellyfinAlbumItem>({
+			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+			recursive: true,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+		});
+
+		return items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
-	async getAlbumsByArtist(_artistId: string): Promise<Array<Album>> {
-		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
+		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
+			albumArtistIds: artistId,
+			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+			limit: defaultSearchLimit,
+			recursive: true,
+			sortBy: 'PremiereDate,SortName',
+			sortOrder: 'Descending,Ascending',
+			startIndex: 0,
+		});
+
+		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
 	async getAllPlaylists(): Promise<Array<Playlist>> {
-		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+		const items = await this.fetchAllItems<JellyfinPlaylistItem>({
+			includeItemTypes: JellyfinMusicItemTypes.Playlist,
+			recursive: true,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+		});
+
+		return items.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers));
 	}
 
-	async getArtist(_artistId: string): Promise<Artist | null> {
-		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+	async getArtist(artistId: string): Promise<Artist | null> {
+		const item = await this.getItem<JellyfinArtistItem>(artistId);
+		if (!item || item.Type !== JellyfinMusicItemTypes.MusicArtist) {
+			return null;
+		}
+
+		return mapJellyfinArtistToArtist(item, this.imageResolvers);
 	}
 
-	async getArtistLogoUrl(_artistId: string): Promise<string | null> {
-		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+	getArtistLogoUrl(artistId: string): Promise<string | null> {
+		return Promise.resolve(this.buildItemImageUrl(artistId, 'Logo'));
 	}
 
-	async getArtistTopTracks(_artistId: string): Promise<Array<Track>> {
-		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
+		const tracks = await this.getTracksByArtist(artistId);
+		return tracks.slice(0, 5);
 	}
 
-	async search(_query: string): Promise<SearchResults> {
-		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+	async search(query: string): Promise<SearchResults> {
+		const normalizedQuery = query.trim();
+		if (!normalizedQuery) {
+			return {
+				albums: [],
+				artists: [],
+				playlists: [],
+				tracks: [],
+			};
+		}
+
+		const list = await this.fetchItemsPage<
+			JellyfinAlbumItem | JellyfinArtistItem | JellyfinPlaylistItem | JellyfinTrackItem
+		>({
+			includeItemTypes: [
+				JellyfinMusicItemTypes.MusicArtist,
+				JellyfinMusicItemTypes.MusicAlbum,
+				JellyfinMusicItemTypes.Playlist,
+				JellyfinMusicItemTypes.Audio,
+			].join(','),
+			limit: defaultSearchLimit,
+			recursive: true,
+			searchTerm: normalizedQuery,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+			startIndex: 0,
+		});
+
+		const albums: Array<Album> = [];
+		const artists: Array<Artist> = [];
+		const playlists: Array<Playlist> = [];
+		const tracks: Array<Track> = [];
+
+		for (const item of list.Items) {
+			switch (item.Type) {
+				case JellyfinMusicItemTypes.MusicAlbum:
+					albums.push(mapJellyfinAlbumToAlbum(item as JellyfinAlbumItem, this.imageResolvers));
+					break;
+				case JellyfinMusicItemTypes.MusicArtist:
+					artists.push(mapJellyfinArtistToArtist(item as JellyfinArtistItem, this.imageResolvers));
+					break;
+				case JellyfinMusicItemTypes.Playlist:
+					playlists.push(
+						mapJellyfinPlaylistToPlaylist(item as JellyfinPlaylistItem, this.imageResolvers),
+					);
+					break;
+				case JellyfinMusicItemTypes.Audio:
+					tracks.push(mapJellyfinTrackToTrack(item as JellyfinTrackItem, this.imageResolvers));
+					break;
+			}
+		}
+
+		return { albums, artists, playlists, tracks };
 	}
 
-	async getTracksByAlbum(_albumId: string): Promise<Array<Track>> {
-		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
+		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			includeItemTypes: JellyfinMusicItemTypes.Audio,
+			limit: 500,
+			parentId: albumId,
+			recursive: true,
+			sortBy: 'IndexNumber,SortName',
+			sortOrder: 'Ascending,Ascending',
+			startIndex: 0,
+		});
+
+		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
-	async getTracksByArtist(_artistId: string): Promise<Array<Track>> {
-		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+	async getTracksByArtist(artistId: string): Promise<Array<Track>> {
+		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			artistIds: artistId,
+			includeItemTypes: JellyfinMusicItemTypes.Audio,
+			limit: 500,
+			recursive: true,
+			sortBy: 'PremiereDate,SortName',
+			sortOrder: 'Descending,Ascending',
+			startIndex: 0,
+		});
+
+		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
-	async getTracksByPlaylist(_playlistId: string): Promise<Array<Track>> {
-		throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
+		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
+			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
+			{
+				fields:
+					'Overview,PremiereDate,ProductionYear,IndexNumber,ImageTags,AlbumPrimaryImageTag,ArtistItems,AlbumArtists,AlbumArtist',
+				limit: 500,
+				startIndex: 0,
+				userId: this.userId,
+			},
+		);
+
+		return (list.Items ?? []).map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
+
+	private async fetchAllItems<TItem>(
+		params: Record<string, string | number | boolean | undefined>,
+	): Promise<Array<TItem>> {
+		const items: Array<TItem> = [];
+		let startIndex = 0;
+
+		while (true) {
+			const list = await this.fetchItemsPage<TItem>({
+				...params,
+				limit: defaultPageSize,
+				startIndex,
+			});
+
+			items.push(...list.Items);
+			startIndex += list.Items.length;
+
+			if (startIndex >= list.TotalRecordCount || list.Items.length === 0) {
+				break;
+			}
+		}
+
+		return items;
+	}
+
+	private fetchItemsPage<TItem>(
+		params: Record<string, string | number | boolean | undefined>,
+	): Promise<JellyfinListEnvelope<TItem>> {
+		return this.requestJson<JellyfinListEnvelope<TItem>>('/Items', {
+			...params,
+			recursive: params.recursive ?? true,
+			userId: this.userId,
+		});
+	}
+
+	private getItem<TItem>(itemId: string): Promise<TItem | null> {
+		return this.requestJson<TItem>(`/Items/${encodeURIComponent(itemId)}`, {
+			userId: this.userId,
+		}).catch((error) => {
+			if (error === TransportErrors.LIVE_REQUEST_FAILED) {
+				return null;
+			}
+			throw error;
+		});
+	}
+
+	private requestJson<T>(
+		path: string,
+		query: Record<string, string | number | boolean | undefined> = {},
+	): Promise<T> {
+		const client = this.httpClientFactory(this.baseUrl);
+		const requestPath = this.buildPath(path, query);
+
+		return this.runWithRequestTimeout(client.get(requestPath, this.createHeaders())).then(
+			(response) => {
+				if (response.statusCode < 200 || response.statusCode >= 300) {
+					throw TransportErrors.LIVE_REQUEST_FAILED;
+				}
+
+				if (!response.body) {
+					throw TransportErrors.LIVE_INVALID_RESPONSE;
+				}
+
+				try {
+					return JSON.parse(new TextDecoder().decode(response.body)) as T;
+				} catch {
+					throw TransportErrors.LIVE_INVALID_RESPONSE;
+				}
+			},
+		);
+	}
+
+	private buildPath(
+		path: string,
+		query: Record<string, string | number | boolean | undefined>,
+	): string {
+		const params: Array<string> = [];
+		for (const [key, value] of Object.entries(query)) {
+			if (value === undefined || value === null || value === '') {
+				continue;
+			}
+			params.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+		}
+		const queryString = params.join('&');
+		return queryString.length > 0 ? `${path}?${queryString}` : path;
+	}
+
+	private buildItemImageUrl(itemId: string, imageType: 'Logo' | 'Primary', tag?: string): string {
+		const query: Record<string, string | undefined> = {
+			api_key: this.accessToken,
+			tag,
+		};
+		const path = this.buildPath(`/Items/${encodeURIComponent(itemId)}/Images/${imageType}`, query);
+		return `${this.baseUrl}${path}`;
+	}
+
+	private createHeaders(): Record<string, string> {
+		return {
+			Accept: 'application/json',
+			'X-Emby-Authorization': createClientHeader(),
+			'X-Emby-Token': this.accessToken,
+		};
+	}
+
+	private normalizeBaseUrl(url: string): string {
+		return url.replace(/\/+$/, '');
+	}
+
+	private runWithRequestTimeout<T>(promise: Promise<T>): Promise<T> {
+		return new Promise((resolve, reject) => {
+			const timer = setTimeout(() => {
+				reject(TransportErrors.LIVE_REQUEST_FAILED);
+			}, this.requestTimeoutMs);
+
+			promise.then(
+				(value) => {
+					clearTimeout(timer);
+					resolve(value);
+				},
+				(error) => {
+					clearTimeout(timer);
+					reject(error);
+				},
+			);
+		});
+	}
+
+	private readonly imageResolvers: JellyfinImageResolvers = {
+		albumPrimaryImageUrl: (albumId: string, imageTag?: string): string =>
+			this.buildItemImageUrl(albumId, 'Primary', imageTag),
+		itemLogoImageUrl: (itemId: string, imageTag?: string): string =>
+			this.buildItemImageUrl(itemId, 'Logo', imageTag),
+		itemPrimaryImageUrl: (itemId: string, imageTag?: string): string =>
+			this.buildItemImageUrl(itemId, 'Primary', imageTag),
+	};
 }

@@ -118,9 +118,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			}
 
 			this.isLoadingPage = false;
-			if (!isFirstPage) {
-				this.setState({ isLoadingNextPage: false, nextPageFailed: true });
-			}
+			this.setState({ isLoadingNextPage: false, nextPageFailed: true });
 		}
 	}
 
