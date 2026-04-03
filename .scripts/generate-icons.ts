@@ -72,7 +72,6 @@ async function generateIcons(): Promise<void> {
 		const contentSize = output.size - padding * 2;
 
 		await sharp(sourceSvgPath, { density: 512, limitInputPixels: false })
-			.trim()
 			.resize(contentSize, contentSize, {
 				background: { alpha: 0, b: 0, g: 0, r: 0 },
 				fit: 'contain',

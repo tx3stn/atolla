@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="92 25 880 880" fill="none">
   <defs>
     <linearGradient id="atolla-gradient" x1="590" y1="84" x2="478" y2="914" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#AA5CC3" />
@@ -7,7 +7,7 @@
       <stop offset="76%" stop-color="#2D78CE" />
       <stop offset="100%" stop-color="#57B3E8" />
     </linearGradient>
-    <linearGradient id="atolla-tentacle-gradient" x1="512" y1="536" x2="512" y2="804" gradientUnits="userSpaceOnUse">
+    <linearGradient id="atolla-tentacle-gradient" x1="512" y1="536" x2="512" y2="720" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#0F2A66" />
       <stop offset="58%" stop-color="#2E62C6" />
       <stop offset="94%" stop-color="#2B8DD8" />
@@ -20,10 +20,10 @@
   </defs>
 
   <g id="icon-tentacles" fill="none" stroke="url(#atolla-tentacle-gradient)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" transform="translate(-245.76 -205.76) scale(1.52)">
-    <path d="M350 546C326 586 374 626 346 668C322 706 350 744 372 776" />
-    <path d="M456 548C430 590 482 632 450 678C424 716 456 754 484 788" />
-    <path d="M568 548C596 592 540 636 574 682C602 718 568 758 538 792" />
-    <path d="M674 546C702 588 646 628 680 672C706 708 678 744 650 776" />
+    <path d="M350 546C326 574 374 602 346 631C322 658 350 685 372 707" />
+    <path d="M456 548C430 577 482 607 450 639C424 666 456 692 484 716" />
+    <path d="M568 548C596 579 540 610 574 642C602 667 568 695 538 719" />
+    <path d="M674 546C702 575 646 603 680 634C706 659 678 685 650 707" />
   </g>
 
   <g id="icon-bell" fill="url(#atolla-gradient)" mask="url(#wave-cutout-mask)" transform="translate(-245.76 -205.76) scale(1.52)">
