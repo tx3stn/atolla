@@ -1,8 +1,9 @@
 // @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { BlurView, Image, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { BlurView, ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
+import { CachedImage } from './CachedImage';
 
 export interface ModalViewModel {
 	body: string;
@@ -17,7 +18,14 @@ export class Modal extends Component<ModalViewModel> {
 
 		<blur blurStyle='systemThickMaterialDark' onTap={onClose} style={styles.backdrop}>
 			<view onTap={() => {}} style={styles.card}>
-				{logoUrl && <image source={logoUrl} style={styles.logo} />}
+				{logoUrl && (
+					<CachedImage
+						category='artist_logo'
+						objectFit='contain'
+						style={styles.logo}
+						url={logoUrl}
+					/>
+				)}
 				{!logoUrl && <label style={styles.title} value={title} />}
 				<view style={styles.divider} />
 				<scroll style={styles.scroll}>
@@ -63,9 +71,8 @@ const styles = {
 		marginTop: 12,
 		width: '100%',
 	}),
-	logo: new Style<Image>({
+	logo: new Style<ImageView>({
 		height: 40,
-		objectFit: 'contain',
 		width: '100%',
 	}),
 	scroll: new Style({

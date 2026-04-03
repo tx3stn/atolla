@@ -52,13 +52,14 @@ export function mapJellyfinArtistToArtist(
 	imageResolvers: JellyfinImageResolvers = {},
 ): Artist {
 	const primaryTag = item.ImageTags?.Primary;
+	const logoTag = item.ParentLogoImageTag ?? item.ImageTags?.Logo;
 	const logoItemId = item.ParentLogoItemId ?? item.Id;
 
 	return {
 		bio: item.Overview,
 		id: item.Id,
 		imageUrl: imageResolvers.itemPrimaryImageUrl?.(item.Id, primaryTag),
-		logoUrl: imageResolvers.itemLogoImageUrl?.(logoItemId, item.ParentLogoImageTag),
+		logoUrl: logoTag ? imageResolvers.itemLogoImageUrl?.(logoItemId, logoTag) : undefined,
 		name: item.Name,
 	};
 }

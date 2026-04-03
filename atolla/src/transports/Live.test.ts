@@ -6,7 +6,7 @@ import type {
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
 } from '../models/jellyfin/Types';
-import { LiveTransport, mapJellyfinTrackToTrack } from './Live';
+import { LiveTransport, mapJellyfinArtistToArtist, mapJellyfinTrackToTrack } from './Live';
 
 interface MockHTTPResponse {
 	body?: Uint8Array;
@@ -78,6 +78,23 @@ describe('mapJellyfinTrackToTrack', () => {
 
 		expect(track.releaseDate).toBe('2020-04-20T00:00:00.0000000Z');
 		expect(track.productionYear).toBe(2020);
+	});
+});
+
+describe('mapJellyfinArtistToArtist', () => {
+	it('omits logoUrl when artist has no logo metadata', () => {
+		const item: JellyfinArtistItem = {
+			Id: 'artist-1',
+			Name: 'Artist A',
+			Type: 'MusicArtist',
+		};
+
+		const artist = mapJellyfinArtistToArtist(item, {
+			itemLogoImageUrl: (itemId: string, imageTag?: string): string =>
+				`https://img/${itemId}/logo?tag=${imageTag ?? ''}`,
+		});
+
+		expect(artist.logoUrl).toBeUndefined();
 	});
 });
 
@@ -223,5 +240,41 @@ describe('LiveTransport core collections', () => {
 		expect(page.hasMore).toBe(false);
 		expect(page.items).toHaveLength(1);
 		expect(page.items[0].id).toBe('playlist-1');
+	});
+
+	it('returns null artist logo url when no logo metadata exists', async () => {
+		const artist: JellyfinArtistItem = {
+			Id: 'artist-1',
+			Name: 'Artist A',
+			Type: 'MusicArtist',
+		};
+		const { calls, factory } = createHTTPClientFactory([jsonResponse(200, artist)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const logoUrl = await transport.getArtistLogoUrl('artist-1');
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0].pathOrUrl).toContain('/Items/artist-1?');
+		expect(logoUrl).toBeNull();
+	});
+
+	it('returns artist logo url when logo metadata exists', async () => {
+		const artist: JellyfinArtistItem = {
+			Id: 'artist-1',
+			ImageTags: { Logo: 'logo-tag-1' },
+			Name: 'Artist A',
+			Type: 'MusicArtist',
+		};
+		const { factory } = createHTTPClientFactory([jsonResponse(200, artist)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const logoUrl = await transport.getArtistLogoUrl('artist-1');
+
+		expect(logoUrl).toContain('/Items/artist-1/Images/Logo');
+		expect(logoUrl).toContain('tag=logo-tag-1');
 	});
 });

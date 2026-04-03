@@ -196,8 +196,19 @@ export class LiveTransport implements Transport {
 		return mapJellyfinArtistToArtist(item, this.imageResolvers);
 	}
 
-	getArtistLogoUrl(artistId: string): Promise<string | null> {
-		return Promise.resolve(this.buildItemImageUrl(artistId, 'Logo'));
+	async getArtistLogoUrl(artistId: string): Promise<string | null> {
+		const item = await this.getItem<JellyfinArtistItem>(artistId);
+		if (!item || item.Type !== JellyfinMusicItemTypes.MusicArtist) {
+			return null;
+		}
+
+		const logoTag = item.ParentLogoImageTag ?? item.ImageTags?.Logo;
+		if (!logoTag) {
+			return null;
+		}
+
+		const logoItemId = item.ParentLogoItemId ?? item.Id;
+		return this.buildItemImageUrl(logoItemId, 'Logo', logoTag);
 	}
 
 	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {

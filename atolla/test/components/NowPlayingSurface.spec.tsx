@@ -196,6 +196,38 @@ describe('NowPlayingSurface', () => {
 		expect(values).toContain('Release Date Album (2004)');
 	});
 
+	valdiIt('renders artist logo without double-wrapping cache uri', () => {
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: 'https://example.com/logo.png',
+			collapseSignal: 0,
+			isPlaying: true,
+			onDismiss: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			progressSeconds: 90,
+			track,
+			trackIndex: 0,
+			tracks: [track],
+		});
+		const component = instrumented.getComponent();
+
+		const images = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		);
+		const artistLogoImage = images.find((image) => {
+			const src = image.getAttribute('src');
+			return typeof src === 'string' && src.includes('c=artist_logo');
+		});
+
+		expect(artistLogoImage).toBeDefined();
+		const src = artistLogoImage?.getAttribute('src') ?? '';
+		expect(src).toContain('u=https%3A%2F%2Fexample.com%2Flogo.png');
+		expect(src).not.toContain('u=atolla-cache%3A%2F%2Fimage');
+	});
+
 	valdiIt('shows album name without year when playlist track has no valid date metadata', () => {
 		const instrumented = createNowPlayingComponent(
 			{

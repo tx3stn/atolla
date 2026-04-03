@@ -365,8 +365,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		// album_art to 24×24; GPU upscale to full-screen produces heavy blur.
 		const blurredBgSource =
 			albumImageUrl != null ? buildImageSource(albumImageUrl, 'album_art_blurred') : null;
-		const artistLogoSource =
-			artistLogoUrl == null ? null : buildImageSource(artistLogoUrl, 'artist_logo');
+		const artistLogoSource = artistLogoUrl ?? null;
 
 		// ── Palette-derived colours ──────────────────────────────────────────────
 		const accentColor = palette.accent.hex;
@@ -806,8 +805,8 @@ const styles = {
 		top: 0,
 	}),
 	expandedArtistLogo: new Style<ImageView>({
-		height: 48,
-		marginBottom: 8,
+		height: 70,
+		marginBottom: -4,
 		objectFit: 'contain',
 		width: '100%',
 	}),
