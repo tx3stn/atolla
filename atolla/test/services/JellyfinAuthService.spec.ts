@@ -203,4 +203,32 @@ describe('JellyfinAuthService', () => {
 		await service.probeInitialAlbums(session);
 		expect(factoryCalls).toBe(0);
 	});
+
+	it('includes HTTP status detail in connection error message', async () => {
+		const { factory } = createHTTPClientFactory([jsonResponse(200, true), jsonResponse(503, {})]);
+		const service = new JellyfinAuthService({ httpClientFactory: factory, store: createStore() });
+
+		let thrown: unknown;
+		try {
+			await service.startQuickConnect('https://demo.jellyfin.local');
+		} catch (error) {
+			thrown = error;
+		}
+
+		expect(service.errorMessage(thrown)).toBe('connection error: HTTP 503');
+	});
+
+	it('includes generic error message detail for unknown errors', () => {
+		const service = new JellyfinAuthService({ store: createStore() });
+
+		expect(service.errorMessage(new Error('socket hang up'))).toBe(
+			'connection error: socket hang up',
+		);
+	});
+
+	it('does not duplicate connection error detail when message is identical', () => {
+		const service = new JellyfinAuthService({ store: createStore() });
+
+		expect(service.errorMessage(new Error('connection error'))).toBe('connection error');
+	});
 });
