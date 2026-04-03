@@ -292,8 +292,7 @@ export class LiveTransport implements Transport {
 		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
 			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
 			{
-				fields:
-					'Overview,PremiereDate,ProductionYear,IndexNumber,ImageTags,AlbumPrimaryImageTag,ArtistItems,AlbumArtists,AlbumArtist',
+				fields: 'Overview',
 				limit: 500,
 				startIndex: 0,
 				userId: this.userId,
@@ -332,6 +331,7 @@ export class LiveTransport implements Transport {
 	): Promise<JellyfinListEnvelope<TItem>> {
 		return this.requestJson<JellyfinListEnvelope<TItem>>('/Items', {
 			...params,
+			fields: 'Overview',
 			recursive: params.recursive ?? true,
 			userId: this.userId,
 		});
@@ -339,6 +339,7 @@ export class LiveTransport implements Transport {
 
 	private getItem<TItem>(itemId: string): Promise<TItem | null> {
 		return this.requestJson<TItem>(`/Items/${encodeURIComponent(itemId)}`, {
+			fields: 'Overview',
 			userId: this.userId,
 		}).catch((error) => {
 			if (error === TransportErrors.LIVE_REQUEST_FAILED) {
