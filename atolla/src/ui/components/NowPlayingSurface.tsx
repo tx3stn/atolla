@@ -949,6 +949,7 @@ const styles = {
 		right: 0,
 		top: 0,
 		width: '100%',
+		zIndex: 20,
 	}),
 	transitionArtwork: new Style<ImageView>({
 		aspectRatio: 1,

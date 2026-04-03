@@ -229,6 +229,7 @@ const scrollStyles = {
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(true),
+		paddingTop: theme.headerHeight,
 		width: '100%',
 	}),
 	withoutFooter: new Style({
@@ -236,6 +237,7 @@ const scrollStyles = {
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(false),
+		paddingTop: theme.headerHeight,
 		width: '100%',
 	}),
 };

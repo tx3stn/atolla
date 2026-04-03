@@ -2,6 +2,7 @@
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
+import { theme } from '../../theme';
 import { HomeHeaderTab } from './HeaderTab';
 import { type HeaderTab, HeaderTabs } from './HeaderTabs';
 
@@ -12,7 +13,7 @@ interface HomeHeaderViewModel {
 
 export class HomeHeaderNav extends Component<HomeHeaderViewModel> {
 	onRender() {
-		<layout style={styles.homeTabs}>
+		<view style={styles.homeTabs}>
 			<HomeHeaderTab
 				active={this.viewModel.activeTab === HeaderTabs.artists}
 				onTap={createReusableCallback(() => {
@@ -34,15 +35,20 @@ export class HomeHeaderNav extends Component<HomeHeaderViewModel> {
 				})}
 				tab={HeaderTabs.playlists}
 			/>
-		</layout>;
+		</view>;
 	}
 }
 
 const styles = {
 	homeTabs: new Style({
+		backgroundColor: theme.colors.bgFrosted,
 		columnGap: 1,
 		flexDirection: 'row',
-		marginTop: 8,
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
 		width: '100%',
+		zIndex: 10,
 	}),
 };

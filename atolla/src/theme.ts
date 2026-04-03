@@ -10,6 +10,7 @@ const colors = {
 	dim: '#273244',
 	grey: '#98a2b3',
 	muted: '#667085',
+	bgFrosted: 'rgba(0,0,0,0.8)',
 	overlay: 'rgba(0,0,0,0.6)',
 	separator: 'rgba(255,255,255,0.08)',
 	toastGlassBg: 'rgba(16,24,40,0.85)',
@@ -20,6 +21,7 @@ export const theme = {
 	borderRadius: 18,
 	colors: colors,
 	footerHeight: 80,
+	headerHeight: 52,
 	scrollPaddingBottom: 80 * 2.4,
 	text: {
 		display: {

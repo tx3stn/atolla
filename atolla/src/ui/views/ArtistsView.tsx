@@ -100,7 +100,7 @@ function createScrollStyle(isFooterVisible: boolean): Style {
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: 0,
+		paddingTop: theme.headerHeight,
 		width: '100%',
 	});
 }
