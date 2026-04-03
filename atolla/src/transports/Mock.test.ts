@@ -35,3 +35,17 @@ describe('MockTransport.search', () => {
 		expect(results.tracks.some((track) => track.name === 'RAT WARS')).toBe(true);
 	});
 });
+
+describe('MockTransport pagination', () => {
+	it('paginates artists and playlists', async () => {
+		const transport = new MockTransport();
+
+		const artistsPage = await transport.getArtistsPage(1, 2);
+		const playlistsPage = await transport.getPlaylistsPage(1, 1);
+
+		expect(artistsPage.items.length).toBe(2);
+		expect(artistsPage.hasMore).toBe(true);
+		expect(playlistsPage.items.length).toBe(1);
+		expect(typeof playlistsPage.hasMore).toBe('boolean');
+	});
+});

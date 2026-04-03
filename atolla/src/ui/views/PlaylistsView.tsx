@@ -8,6 +8,7 @@ import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { gridPaginationConfig } from './GridPagination';
 import { type PlaylistSort, PlaylistSorts, sortPlaylists } from './PlaylistsSort';
 import { PlaylistView } from './PlaylistView';
 
@@ -21,17 +22,37 @@ export interface PlaylistsViewModel {
 }
 
 interface PlaylistsState {
+	hasMore: boolean;
 	isFooterVisible: boolean;
+	isLoadingNextPage: boolean;
+	nextPageFailed: boolean;
+	page: number;
 	playlists: Array<Playlist>;
 	sort: PlaylistSort;
 }
 
+interface PlaylistPageResult {
+	hasMore: boolean;
+	items: Array<Playlist>;
+}
+
+interface PagedPlaylistsTransport {
+	getPlaylistsPage: (page: number, pageSize: number) => Promise<PlaylistPageResult>;
+}
+
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
+	private allPlaylists: Array<Playlist> | null = null;
+	private currentPage = 0;
 	private hasBeenDestroyed = false;
+	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
 
 	state: PlaylistsState = {
+		hasMore: true,
 		isFooterVisible: false,
+		isLoadingNextPage: false,
+		nextPageFailed: false,
+		page: 0,
 		playlists: [],
 		sort: PlaylistSorts.alphabetical,
 	};
@@ -48,17 +69,88 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		if (isFooterVisible !== this.state.isFooterVisible) {
 			this.setState({ isFooterVisible });
 		}
-		this.viewModel.transport.getAllPlaylists().then((playlists) => {
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-			this.setState({ playlists });
-		});
+		void this.loadInitialPages();
 	}
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+	}
+
+	private async loadInitialPages(): Promise<void> {
+		await this.loadNextPage();
+	}
+
+	private async loadNextPage(): Promise<void> {
+		if (this.hasBeenDestroyed || this.isLoadingPage || !this.state.hasMore) {
+			return;
+		}
+
+		const nextPage = this.currentPage + 1;
+		const isFirstPage = nextPage === 1;
+		this.isLoadingPage = true;
+		if (!isFirstPage) {
+			this.setState({ isLoadingNextPage: true, nextPageFailed: false });
+		}
+
+		try {
+			const page = await this.fetchPage(nextPage);
+			if (this.hasBeenDestroyed) {
+				return;
+			}
+
+			const playlists = isFirstPage ? page.items : [...this.state.playlists, ...page.items];
+			this.currentPage = nextPage;
+			this.isLoadingPage = false;
+			void this.viewModel.imageCache.prefetch(
+				page.items.map((p) => p.imageUrl).filter((url): url is string => url != null),
+				'playlist_image',
+			);
+			this.setState({
+				hasMore: page.hasMore,
+				isLoadingNextPage: false,
+				nextPageFailed: false,
+				page: nextPage,
+				playlists,
+			});
+		} catch {
+			if (this.hasBeenDestroyed) {
+				return;
+			}
+
+			this.isLoadingPage = false;
+			this.setState({ isLoadingNextPage: false, nextPageFailed: true });
+		}
+	}
+
+	private fetchPage(page: number): Promise<PlaylistPageResult> {
+		const transport = this.viewModel.transport as Transport & Partial<PagedPlaylistsTransport>;
+		if (transport.getPlaylistsPage) {
+			return transport.getPlaylistsPage(page, gridPaginationConfig.pageSize);
+		}
+
+		if (!this.allPlaylists) {
+			return this.viewModel.transport.getAllPlaylists().then((playlists) => {
+				this.allPlaylists = playlists;
+				const sorted = sortPlaylists(this.allPlaylists, this.state.sort);
+				const start = (page - 1) * gridPaginationConfig.pageSize;
+				const end = start + gridPaginationConfig.pageSize;
+				return { hasMore: end < sorted.length, items: sorted.slice(start, end) };
+			});
+		}
+
+		const sorted = sortPlaylists(this.allPlaylists, this.state.sort);
+		const start = (page - 1) * gridPaginationConfig.pageSize;
+		const end = start + gridPaginationConfig.pageSize;
+		return Promise.resolve({ hasMore: end < sorted.length, items: sorted.slice(start, end) });
+	}
+
+	retryLoadMore(): void {
+		void this.loadNextPage();
+	}
+
+	loadMore(): void {
+		void this.loadNextPage();
 	}
 
 	onRender(): void {
@@ -86,6 +178,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				accessibilityLabel='home-playlists-grid'
 				cards={cards}
 				imageCache={imageCache}
+				isLoadingMore={this.state.isLoadingNextPage}
 				onCardTap={(card) => {
 					const playlist = this.state.playlists.find((p) => p.id === card.id);
 					if (playlist) {
@@ -104,6 +197,12 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 						);
 					}
 				}}
+				onLoadMore={
+					this.state.hasMore && !this.state.nextPageFailed && !this.state.isLoadingNextPage
+						? () => this.loadMore()
+						: undefined
+				}
+				onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 			/>
 		</scroll>;
 	}

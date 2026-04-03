@@ -111,6 +111,26 @@ export class LiveTransport implements Transport {
 		return items.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers));
 	}
 
+	async getArtistsPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Artist> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.fetchItemsPage<JellyfinArtistItem>({
+			includeItemTypes: JellyfinMusicItemTypes.MusicArtist,
+			limit: Math.max(1, pageSize),
+			recursive: true,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+			startIndex,
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers)),
+		};
+	}
+
 	async getAllAlbums(): Promise<Array<Album>> {
 		const items = await this.fetchAllItems<JellyfinAlbumItem>({
 			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
@@ -145,6 +165,26 @@ export class LiveTransport implements Transport {
 		});
 
 		return items.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers));
+	}
+
+	async getPlaylistsPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Playlist> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.fetchItemsPage<JellyfinPlaylistItem>({
+			includeItemTypes: JellyfinMusicItemTypes.Playlist,
+			limit: Math.max(1, pageSize),
+			recursive: true,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+			startIndex,
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers)),
+		};
 	}
 
 	async getArtist(artistId: string): Promise<Artist | null> {

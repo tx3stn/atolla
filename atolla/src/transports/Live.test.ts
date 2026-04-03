@@ -176,4 +176,52 @@ describe('LiveTransport core collections', () => {
 		);
 		expect(playlists[0].imageUrl).toContain('/Items/playlist-1/Images/Primary');
 	});
+
+	it('fetches artists page with paging query and hasMore', async () => {
+		const artist: JellyfinArtistItem = {
+			Id: 'artist-1',
+			Name: 'Artist A',
+			Type: 'MusicArtist',
+		};
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([artist], 10, 3)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const page = await transport.getArtistsPage(2, 3);
+
+		expect(calls).toHaveLength(1);
+		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('3');
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('3');
+		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('MusicArtist');
+		expect(page.hasMore).toBe(true);
+		expect(page.items).toHaveLength(1);
+		expect(page.items[0].id).toBe('artist-1');
+	});
+
+	it('fetches playlists page with paging query and hasMore', async () => {
+		const playlist: JellyfinPlaylistItem = {
+			Id: 'playlist-1',
+			Name: 'Playlist A',
+			Type: 'Playlist',
+		};
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([playlist], 3, 2)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const page = await transport.getPlaylistsPage(2, 2);
+
+		expect(calls).toHaveLength(1);
+		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('2');
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('2');
+		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('Playlist');
+		expect(page.hasMore).toBe(false);
+		expect(page.items).toHaveLength(1);
+		expect(page.items[0].id).toBe('playlist-1');
+	});
 });

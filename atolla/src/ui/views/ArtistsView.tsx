@@ -11,6 +11,7 @@ import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type ArtistSort, ArtistSorts, sortArtists } from './ArtistsSort';
 import { ArtistView } from './ArtistView';
+import { gridPaginationConfig } from './GridPagination';
 
 export interface ArtistsViewModel {
 	animationsEnabled: boolean;
@@ -22,17 +23,37 @@ export interface ArtistsViewModel {
 
 interface ArtistsState {
 	artists: Array<Artist>;
+	hasMore: boolean;
 	isFooterVisible: boolean;
+	isLoadingNextPage: boolean;
+	nextPageFailed: boolean;
+	page: number;
 	sort: ArtistSort;
 }
 
+interface ArtistPageResult {
+	hasMore: boolean;
+	items: Array<Artist>;
+}
+
+interface PagedArtistsTransport {
+	getArtistsPage: (page: number, pageSize: number) => Promise<ArtistPageResult>;
+}
+
 export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsState> {
+	private allArtists: Array<Artist> | null = null;
+	private currentPage = 0;
 	private hasBeenDestroyed = false;
+	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
 
 	state: ArtistsState = {
 		artists: [],
+		hasMore: true,
 		isFooterVisible: false,
+		isLoadingNextPage: false,
+		nextPageFailed: false,
+		page: 0,
 		sort: ArtistSorts.alphabetical,
 	};
 
@@ -48,17 +69,88 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		if (isFooterVisible !== this.state.isFooterVisible) {
 			this.setState({ isFooterVisible });
 		}
-		this.viewModel.transport.getAllArtists().then((artists) => {
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-			this.setState({ artists });
-		});
+		void this.loadInitialPages();
 	}
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+	}
+
+	private async loadInitialPages(): Promise<void> {
+		await this.loadNextPage();
+	}
+
+	private async loadNextPage(): Promise<void> {
+		if (this.hasBeenDestroyed || this.isLoadingPage || !this.state.hasMore) {
+			return;
+		}
+
+		const nextPage = this.currentPage + 1;
+		const isFirstPage = nextPage === 1;
+		this.isLoadingPage = true;
+		if (!isFirstPage) {
+			this.setState({ isLoadingNextPage: true, nextPageFailed: false });
+		}
+
+		try {
+			const page = await this.fetchPage(nextPage);
+			if (this.hasBeenDestroyed) {
+				return;
+			}
+
+			const artists = isFirstPage ? page.items : [...this.state.artists, ...page.items];
+			this.currentPage = nextPage;
+			this.isLoadingPage = false;
+			void this.viewModel.imageCache.prefetch(
+				page.items.map((a) => a.imageUrl).filter((url): url is string => url != null),
+				'artist_image',
+			);
+			this.setState({
+				artists,
+				hasMore: page.hasMore,
+				isLoadingNextPage: false,
+				nextPageFailed: false,
+				page: nextPage,
+			});
+		} catch {
+			if (this.hasBeenDestroyed) {
+				return;
+			}
+
+			this.isLoadingPage = false;
+			this.setState({ isLoadingNextPage: false, nextPageFailed: true });
+		}
+	}
+
+	private fetchPage(page: number): Promise<ArtistPageResult> {
+		const transport = this.viewModel.transport as Transport & Partial<PagedArtistsTransport>;
+		if (transport.getArtistsPage) {
+			return transport.getArtistsPage(page, gridPaginationConfig.pageSize);
+		}
+
+		if (!this.allArtists) {
+			return this.viewModel.transport.getAllArtists().then((artists) => {
+				this.allArtists = artists;
+				const sorted = sortArtists(this.allArtists, this.state.sort);
+				const start = (page - 1) * gridPaginationConfig.pageSize;
+				const end = start + gridPaginationConfig.pageSize;
+				return { hasMore: end < sorted.length, items: sorted.slice(start, end) };
+			});
+		}
+
+		const sorted = sortArtists(this.allArtists, this.state.sort);
+		const start = (page - 1) * gridPaginationConfig.pageSize;
+		const end = start + gridPaginationConfig.pageSize;
+		return Promise.resolve({ hasMore: end < sorted.length, items: sorted.slice(start, end) });
+	}
+
+	retryLoadMore(): void {
+		void this.loadNextPage();
+	}
+
+	loadMore(): void {
+		void this.loadNextPage();
 	}
 
 	onRender(): void {
@@ -78,6 +170,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				accessibilityLabel='home-artists-grid'
 				cards={cards}
 				imageCache={imageCache}
+				isLoadingMore={this.state.isLoadingNextPage}
 				onCardTap={(card) => {
 					const artist = this.state.artists.find((a) => a.id === card.id);
 					if (artist) {
@@ -89,6 +182,12 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 						);
 					}
 				}}
+				onLoadMore={
+					this.state.hasMore && !this.state.nextPageFailed && !this.state.isLoadingNextPage
+						? () => this.loadMore()
+						: undefined
+				}
+				onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 			/>
 		</scroll>;
 	}

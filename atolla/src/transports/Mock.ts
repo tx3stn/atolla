@@ -39,6 +39,20 @@ export class MockTransport implements Transport {
 		};
 	}
 
+	async getArtistsPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Artist> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const sortedArtists = [...mockJellyfinArtists].sort((a, b) => a.Name.localeCompare(b.Name));
+		const pageItems = sortedArtists.slice(startIndex, startIndex + pageSize);
+
+		return {
+			hasMore: startIndex + pageItems.length < sortedArtists.length,
+			items: pageItems.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers)),
+		};
+	}
+
 	async getAllArtists(): Promise<Array<Artist>> {
 		return mockJellyfinArtists.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers));
 	}
@@ -62,6 +76,20 @@ export class MockTransport implements Transport {
 		return mockJellyfinPlaylists.map((item) =>
 			mapJellyfinPlaylistToPlaylist(item, this.imageResolvers),
 		);
+	}
+
+	async getPlaylistsPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Playlist> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const sortedPlaylists = [...mockJellyfinPlaylists].sort((a, b) => a.Name.localeCompare(b.Name));
+		const pageItems = sortedPlaylists.slice(startIndex, startIndex + pageSize);
+
+		return {
+			hasMore: startIndex + pageItems.length < sortedPlaylists.length,
+			items: pageItems.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers)),
+		};
 	}
 
 	async search(query: string): Promise<SearchResults> {
