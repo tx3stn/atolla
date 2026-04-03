@@ -166,7 +166,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		}));
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
-		const releaseDateText = album.releaseDate ?? null;
+		const releaseDateText = formatReleaseDate(album.releaseDate);
 		const durationText = tracks.length > 0 ? formatDuration(totalDuration) : null;
 
 		const scrollStyle = createScrollStyle(isFooterVisible);
@@ -221,6 +221,20 @@ function formatDuration(seconds: number): string {
 	const s = seconds % 60;
 	const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
 	return h > 0 ? `${h}:${mm}:${String(s).padStart(2, '0')}` : `${mm}:${String(s).padStart(2, '0')}`;
+}
+
+function formatReleaseDate(value?: string | null): string | null {
+	if (!value) return null;
+	const trimmed = value.trim();
+	if (trimmed.length === 0) return null;
+	const tIndex = trimmed.indexOf('T');
+	if (tIndex > 0) {
+		return trimmed.slice(0, tIndex);
+	}
+	if (/^\d{4}-\d{2}-\d{2}/.test(trimmed) && trimmed.length > 10) {
+		return trimmed.slice(0, 10);
+	}
+	return trimmed;
 }
 
 const styles = {

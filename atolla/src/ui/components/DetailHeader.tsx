@@ -122,13 +122,17 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					)}
 				</view>
 				<layout style={styles.rightColumn}>
-					<ArtistLogo
-						fallbackText={fallbackText}
-						imageCache={this.viewModel.imageCache}
-						logoSource={logoSource}
-						onTap={onArtistTap}
-						testID='detail-header-artist-logo'
-					/>
+					<view style={styles.logoArea}>
+						<ArtistLogo
+							containerStyle={styles.artistLogoContainer}
+							fallbackText={fallbackText}
+							imageCache={this.viewModel.imageCache}
+							logoSource={logoSource}
+							logoStyle={styles.artistLogoImage}
+							onTap={onArtistTap}
+							testID='detail-header-artist-logo'
+						/>
+					</view>
 					<layout style={styles.buttonsRow}>
 						<TappableIcon
 							accessibilityLabel='detail-header-download-button'
@@ -210,6 +214,16 @@ const styles = {
 		position: 'relative',
 		width: 40,
 	}),
+	artistLogoContainer: new Style({
+		alignItems: 'center',
+		height: '100%',
+		justifyContent: 'flex-start',
+		width: '100%',
+	}),
+	artistLogoImage: new Style<ImageView>({
+		height: '100%',
+		width: '88%',
+	}),
 	artworkImage: new Style<ImageView>({
 		borderRadius: theme.borderRadius,
 		height: '100%',
@@ -236,6 +250,7 @@ const styles = {
 		bottom: 0,
 		columnGap: 4,
 		flexDirection: 'row',
+		height: '25%',
 		justifyContent: 'flex-end',
 		padding: 6,
 		position: 'absolute',
@@ -247,10 +262,21 @@ const styles = {
 		flexDirection: 'row',
 		width: '100%',
 	}),
+	logoArea: new Style({
+		height: '75%',
+		justifyContent: 'flex-start',
+		left: 0,
+		position: 'absolute',
+		top: 0,
+		width: '100%',
+	}),
 	rightColumn: new Style({
 		alignSelf: 'stretch',
 		flexDirection: 'column',
+		height: '100%',
 		marginLeft: 12,
+		overflow: 'hidden',
+		position: 'relative',
 		width: '46%',
 	}),
 	root: new Style({

@@ -186,14 +186,14 @@ describe('AlbumView', () => {
 	});
 
 	valdiIt(
-		'renders release date and total duration in separate subheader columns when tracks are loaded',
+		'renders date-only release date and total duration in separate subheader columns when tracks are loaded',
 		() => {
 			const album = {
 				artistId: 'artist-1',
 				artistName: 'Artist One',
 				id: 'album-1',
 				name: 'First Album',
-				releaseDate: '2024-01-01',
+				releaseDate: '2024-01-01T12:34:56.0000000Z',
 			};
 			const transport = {
 				getArtist: async () => null,
@@ -230,6 +230,7 @@ describe('AlbumView', () => {
 			);
 			const values = labels.map((label) => label.getAttribute('value'));
 			expect(values).toContain('2024-01-01');
+			expect(values).not.toContain('2024-01-01T12:34:56.0000000Z');
 			expect(values).toContain('2:15');
 		},
 	);
