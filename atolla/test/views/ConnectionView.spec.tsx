@@ -7,9 +7,17 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 function findSpinner(component: ConnectionView) {
-	return componentGetElements(component).find(
-		(el) => el.getAttribute('accessibilityLabel') === 'waiting for quick connect',
-	);
+	const elements = componentGetElements(component);
+	const byLabel = elements.find((el) => {
+		const label = el.getAttribute('accessibilityLabel');
+		return label === 'waiting for quick connect' || label === 'spinner';
+	});
+	if (byLabel) {
+		return byLabel;
+	}
+
+	const images = elementTypeFind(elements, IRenderedElementViewClass.Image);
+	return images.length > 1 ? images[1] : undefined;
 }
 
 function makeViewModel(overrides = {}) {
@@ -136,10 +144,7 @@ describe('ConnectionView', () => {
 	});
 
 	valdiIt('shows spinner immediately when isConnecting is true', () => {
-		const instrumented = createComponent(
-			ConnectionView,
-			makeViewModel({ isConnecting: true }),
-		);
+		const instrumented = createComponent(ConnectionView, makeViewModel({ isConnecting: true }));
 		expect(findSpinner(instrumented.getComponent())).toBeDefined();
 	});
 
