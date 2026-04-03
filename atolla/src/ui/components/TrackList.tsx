@@ -3,7 +3,8 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 
-const TouchEventState = { Started: 0, Changed: 1, Ended: 2 } as const;
+const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
+
 import type { Track } from '../../models/Track';
 import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';

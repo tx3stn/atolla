@@ -14,7 +14,6 @@ export function shuffleArray<T>(arr: Array<T>): Array<T> {
 
 export class PlaybackStore {
 	private listeners = new Set<PlaybackListener>();
-	private _artistLogoUrl: string | null = null;
 	private _artistLogoUrls: Array<string | null> = [];
 
 	album: Album | null = null;
@@ -25,7 +24,7 @@ export class PlaybackStore {
 	tracks: Array<Track> = [];
 
 	get artistLogoUrl(): string | null {
-		return this._artistLogoUrls[this.trackIndex] ?? this._artistLogoUrl ?? null;
+		return this._artistLogoUrls[this.trackIndex] ?? null;
 	}
 
 	get track(): Track | null {
@@ -44,7 +43,6 @@ export class PlaybackStore {
 		this.isPlaying = true;
 		this.progressSeconds = 0;
 		this.seekTarget = null;
-		this._artistLogoUrl = null;
 		this._artistLogoUrls = [];
 		this.notify();
 	}
@@ -114,7 +112,6 @@ export class PlaybackStore {
 	stop(): void {
 		this.tracks = [];
 		this.album = null;
-		this._artistLogoUrl = null;
 		this._artistLogoUrls = [];
 		this.isPlaying = false;
 		this.progressSeconds = 0;
@@ -128,7 +125,6 @@ export class PlaybackStore {
 		this.trackIndex = startIndex;
 		this.isPlaying = true;
 		this.progressSeconds = 0;
-		this._artistLogoUrl = null;
 		this._artistLogoUrls = [];
 		this.notify();
 	}
@@ -139,36 +135,62 @@ export class PlaybackStore {
 		this.trackIndex = startIndex;
 		this.isPlaying = true;
 		this.progressSeconds = 0;
-		this._artistLogoUrl = null;
-		this._artistLogoUrls = logoUrls;
+		this._artistLogoUrls = tracks.map((_, index) => logoUrls[index] ?? null);
 		this.notify();
 	}
 
 	addToQueue(tracks: Array<Track>): void {
 		this.tracks = [...this.tracks, ...tracks];
+		this._artistLogoUrls = [...this._artistLogoUrls, ...tracks.map(() => null)];
 		this.notify();
 	}
 
 	playNext(tracks: Array<Track>): void {
 		const insertAt = this.trackIndex + 1;
 		this.tracks = [...this.tracks.slice(0, insertAt), ...tracks, ...this.tracks.slice(insertAt)];
+		this._artistLogoUrls = [
+			...this._artistLogoUrls.slice(0, insertAt),
+			...tracks.map(() => null),
+			...this._artistLogoUrls.slice(insertAt),
+		];
 		this.notify();
 	}
 
 	shuffle(): void {
 		const start = this.trackIndex + 1;
 		const tail = this.tracks.slice(start);
+		const tailLogoUrls = this._artistLogoUrls.slice(start);
 		for (let i = tail.length - 1; i > 0; i--) {
 			const j = Math.floor(Math.random() * (i + 1));
 			[tail[i], tail[j]] = [tail[j], tail[i]];
+			[tailLogoUrls[i], tailLogoUrls[j]] = [tailLogoUrls[j], tailLogoUrls[i]];
 		}
 		this.tracks = [...this.tracks.slice(0, start), ...tail];
+		this._artistLogoUrls = [...this._artistLogoUrls.slice(0, start), ...tailLogoUrls];
 		this.notify();
 	}
 
 	setArtistLogoUrl(url: string | null): void {
-		this._artistLogoUrl = url;
-		this._artistLogoUrls = [];
+		if (this.tracks.length === 0) {
+			this._artistLogoUrls = [];
+			this.notify();
+			return;
+		}
+
+		const currentTrack = this.track;
+		const currentArtistId = currentTrack?.artistId ?? this.album?.artistId ?? null;
+
+		this._artistLogoUrls = this.tracks.map((track, index) => {
+			if (index === this.trackIndex) {
+				return url;
+			}
+
+			if (currentArtistId != null && track.artistId === currentArtistId) {
+				return url;
+			}
+
+			return this._artistLogoUrls[index] ?? null;
+		});
 		this.notify();
 	}
 

@@ -153,9 +153,9 @@ export class JellyfinAuthService {
 		try {
 			response = await this.runWithRequestTimeout(
 				this.createHttpClient(normalizedUrl).post(
-				'/QuickConnect/Initiate',
-				undefined,
-				this.createHeaders(),
+					'/QuickConnect/Initiate',
+					undefined,
+					this.createHeaders(),
 				),
 			);
 		} catch {
@@ -305,10 +305,7 @@ export class JellyfinAuthService {
 		let response: HTTPResponseLike;
 		try {
 			response = await this.runWithRequestTimeout(
-				this.createHttpClient(session.serverUrl).get(
-					path,
-					this.createHeaders(session.accessToken),
-				),
+				this.createHttpClient(session.serverUrl).get(path, this.createHeaders(session.accessToken)),
 			);
 		} catch {
 			throw AuthErrors.FAILED_TO_FETCH_DATA;

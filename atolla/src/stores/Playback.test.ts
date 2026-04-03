@@ -233,16 +233,45 @@ describe('PlaybackStore', () => {
 	});
 
 	describe('setArtistLogoUrl()', () => {
-		it('sets the artist logo url', () => {
+		it('sets the artist logo url for the current track', () => {
 			const store = new PlaybackStore();
+			store.play(tracks, album);
 			store.setArtistLogoUrl('https://example.com/logo.png');
 			expect(store.artistLogoUrl).toBe('https://example.com/logo.png');
 		});
 
 		it('accepts null', () => {
 			const store = new PlaybackStore();
+			store.play(tracks, album);
 			store.setArtistLogoUrl('https://example.com/logo.png');
 			store.setArtistLogoUrl(null);
+			expect(store.artistLogoUrl).toBeNull();
+		});
+
+		it('does not leak a logo to play-next tracks from a different artist', () => {
+			const store = new PlaybackStore();
+			const openingTrack: Track = {
+				artistId: 'artist-1',
+				artistName: 'Artist One',
+				duration: 120,
+				id: 'track-opening',
+				name: 'Opening Track',
+			};
+			const queuedTrack: Track = {
+				artistId: 'artist-2',
+				artistName: 'Artist Two',
+				duration: 160,
+				id: 'track-queued',
+				name: 'Queued Track',
+			};
+
+			store.play([openingTrack], album);
+			store.setArtistLogoUrl('https://example.com/artist-one-logo.png');
+			store.playNext([queuedTrack]);
+
+			store.updateProgress(openingTrack.duration);
+
+			expect(store.track).toBe(queuedTrack);
 			expect(store.artistLogoUrl).toBeNull();
 		});
 

@@ -5,7 +5,8 @@ import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 
-const TouchEventState = { Started: 0, Changed: 1, Ended: 2 } as const;
+const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
+
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
@@ -349,7 +350,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		const toEntry = (t: Track): TrackListEntry => ({
 			artworkSource: t.albumImageUrl ?? album?.imageUrl ?? null,
 			id: t.id,
-			meta: t.artistName ?? album?.artistName ?? null,
+			meta: t.artistName ?? null,
 			title: t.name,
 			track: t,
 		});
@@ -384,15 +385,11 @@ export class NowPlayingSurface extends StatefulComponent<
 			track.productionYear ??
 			(track.releaseDate ? extractYearFromDateString(track.releaseDate) : null);
 		const albumLine =
-			album != null
-				? album.releaseDate
-					? `${album.name} (${album.releaseDate.slice(0, 4)})`
-					: album.name
-				: track.albumName
-					? trackReleaseYear
-						? `${track.albumName} (${trackReleaseYear})`
-						: track.albumName
-					: '';
+			track.albumName != null
+				? trackReleaseYear
+					? `${track.albumName} (${trackReleaseYear})`
+					: track.albumName
+				: '';
 
 		const expandedTrackColor = withAlpha(onSurfaceColor, 0.34);
 		const compactProgressFillStyle = createCompactProgressFillStyle(accentColor, progressRatio);
@@ -431,7 +428,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					<label
 						numberOfLines={1}
 						style={paletteStyles.artistNameStyle}
-						value={track.artistName ?? album?.artistName ?? ''}
+						value={track.artistName ?? ''}
 					/>
 				</layout>
 				<label style={paletteStyles.timeStyle} value={`${elapsedText} / ${totalText}`} />
@@ -476,7 +473,7 @@ export class NowPlayingSurface extends StatefulComponent<
 								<layout style={styles.expandedInfoSection}>
 									<ArtistLogo
 										containerStyle={styles.expandedArtistLogoArea}
-										fallbackText={album?.artistName ?? track.artistName ?? ''}
+										fallbackText={track.artistName ?? ''}
 										fallbackTextStyle={paletteStyles.expandedArtistNameStyle}
 										imageCache={imageCache}
 										logoSource={artistLogoSource}
