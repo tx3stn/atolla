@@ -3,8 +3,9 @@ import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
-import { TouchEventState } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+
+const TouchEventState = { Started: 0, Changed: 1, Ended: 2 } as const;
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
@@ -63,8 +64,6 @@ export class NowPlayingSurface extends StatefulComponent<
 	private expandedContentRef = new ElementRef();
 	private transitionArtworkRef = new ElementRef();
 	private scrollArtworkRef = new ElementRef();
-	private touchStartX = 0;
-	private touchStartY = 0;
 	private isTransitioning = false;
 	private toastTimerId?: ReturnType<typeof setTimeout>;
 
@@ -294,35 +293,6 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.closeSurface();
 	};
 
-	private handleExpandedTouch = (event): void => {
-		if (!this.state.isExpanded) {
-			return;
-		}
-
-		if (event.state === TouchEventState.Started) {
-			this.touchStartX = event.absoluteX;
-			this.touchStartY = event.absoluteY;
-			return;
-		}
-
-		if (event.state !== TouchEventState.Ended) {
-			return;
-		}
-
-		const deltaX = event.absoluteX - this.touchStartX;
-		const deltaY = event.absoluteY - this.touchStartY;
-
-		if (Math.abs(deltaY) < Math.abs(deltaX)) {
-			return;
-		}
-
-		if (deltaY < this.closeDragDistance) {
-			return;
-		}
-
-		this.closeSurface();
-	};
-
 	private handleExpandedDragCancel = (): void => {
 		this.runAnimate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.2 }, () => {
 			this.overlayRef.setAttribute('top', 0);
@@ -481,7 +451,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					{/* biome-ignore lint/a11y/noStaticElementInteractions: Dedicated gesture zone for swipe-down collapse. */}
 					<view
 						onDrag={this.handleExpandedDrag}
-						onTouch={this.handleExpandedTouch}
+						onDragEnabled={this.state.isExpanded}
 						style={styles.expandedGestureZone}
 					/>
 					{albumArtworkSource && (
@@ -881,7 +851,7 @@ const styles = {
 		width: '100%',
 	}),
 	expandedGestureZone: new Style({
-		height: 170,
+		aspectRatio: 1,
 		left: 0,
 		position: 'absolute',
 		right: 0,

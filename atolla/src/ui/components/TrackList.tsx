@@ -1,8 +1,9 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import { TouchEventState } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+
+const TouchEventState = { Started: 0, Changed: 1, Ended: 2 } as const;
 import type { Track } from '../../models/Track';
 import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
@@ -154,11 +155,7 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 			return;
 		}
 
-		if (
-			event.state === TouchEventState.Changed ||
-			event.state === TouchEventState.Ended ||
-			event.state === TouchEventState.Cancelled
-		) {
+		if (event.state === TouchEventState.Ended) {
 			if (this.state.longPressTimerId !== null) {
 				clearTimeout(this.state.longPressTimerId);
 				this.setState({ longPressTimerId: null });
