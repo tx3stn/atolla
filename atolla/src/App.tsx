@@ -179,7 +179,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						);
 					}
 
-					const isAuthRequired = mode !== ConnectionModes.offline && existingSession == null;
+					const isAuthRequired = mode === ConnectionModes.online && existingSession == null;
 
 					this.completeBootstrap({
 						animationsEnabled,
