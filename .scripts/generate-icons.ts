@@ -68,13 +68,16 @@ async function generateIcons(): Promise<void> {
 	for (const output of outputs) {
 		await mkdir(dirname(output.path), { recursive: true });
 
-		const padding = Math.round(output.size * 0.02);
+		const isAndroidOutput = output.path.includes('/android/');
+		const padding = isAndroidOutput ? 0 : Math.round(output.size * 0.01);
 		const contentSize = output.size - padding * 2;
+		const fitMode = isAndroidOutput ? 'cover' : 'contain';
 
 		await sharp(sourceSvgPath, { density: 512, limitInputPixels: false })
+			.trim({ threshold: 0 })
 			.resize(contentSize, contentSize, {
 				background: { alpha: 0, b: 0, g: 0, r: 0 },
-				fit: 'contain',
+				fit: fitMode,
 			})
 			.extend({
 				background: { alpha: 0, b: 0, g: 0, r: 0 },
