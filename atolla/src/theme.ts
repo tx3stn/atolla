@@ -8,6 +8,7 @@ const colors = {
 	bgDeep: '#101828',
 	bgDim: '#0b1320',
 	bgFrosted: 'rgba(0,0,0,0.8)',
+	destructive: '#ef4444',
 	dim: '#273244',
 	grey: '#98a2b3',
 	muted: '#667085',

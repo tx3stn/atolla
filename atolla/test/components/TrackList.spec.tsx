@@ -217,6 +217,38 @@ describe('TrackList', () => {
 		expect(removedEntryIndex).toBe(0);
 	});
 
+	valdiIt('reveals a destructive remove icon as row is swiped', () => {
+		const tracks = [{ id: 'track-1', meta: '1:00', title: 'Swipe Me' }];
+		const instrumented = createComponent(TrackList, {
+			onTrackSwipeRemove: () => {},
+			showDragHandles: true,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const removeAction = views.find(
+			(view) => view.getAttribute('testID') === 'track-row-remove-action-track-1-0',
+		);
+		expect(removeAction?.getAttribute('style').attributes.opacity).toBe(0);
+
+		const swipeRegion = views.find(
+			(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
+		);
+		swipeRegion?.getAttribute('onDrag')?.({ deltaX: -44, deltaY: 0, state: 1, velocityX: -100 });
+		expect(removeAction?.getAttribute('opacity')).toBeGreaterThan(0);
+
+		const images = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		);
+		const removeIcon = images.find(
+			(image) => image.getAttribute('testID') === 'track-row-remove-icon-track-1-0',
+		);
+
+		expect(removeIcon).toBeDefined();
+		expect(removeIcon?.getAttribute('tint')).toBe(theme.colors.destructive);
+	});
+
 	valdiIt('renders leading label when no artwork is provided', () => {
 		const tracks = [{ id: 'a', leadingLabel: '1', meta: '1:00', title: 'Track' }];
 		const instrumented = createComponent(TrackList, { tracks });

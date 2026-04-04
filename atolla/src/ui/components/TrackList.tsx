@@ -65,6 +65,7 @@ const resolvedStylesCache = new Map<string, TrackListResolvedStyles>();
 
 export class TrackList extends Component<TrackListViewModel> {
 	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
+	private removeActionRefByIdentity = new Map<string, ElementRef>();
 	private suppressNextTap = false;
 	private rowOffsetByIdentity = new Map<string, number>();
 	private rowRefByIdentity = new Map<string, ElementRef>();
@@ -89,6 +90,20 @@ export class TrackList extends Component<TrackListViewModel> {
 
 				return (
 					<view key={rowIdentity} style={styles.swipeContainer}>
+						{canSwipe && this.viewModel.showDragHandles ? (
+							<view
+								ref={this.getRemoveActionRef(rowIdentity)}
+								style={styles.swipeRemoveActionContainer}
+								testID={`track-row-remove-action-${rowIdentity}`}
+							>
+								<image
+									src={res.trash}
+									style={styles.swipeRemoveActionIcon}
+									testID={`track-row-remove-icon-${rowIdentity}`}
+									tint={theme.colors.destructive}
+								/>
+							</view>
+						) : null}
 						<view
 							ref={this.getRowRef(rowIdentity)}
 							style={resolvedStyles.rowStyle}
@@ -214,6 +229,33 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.rowOffsetByIdentity.set(identity, offset);
 		rowRef.setAttribute('left', offset);
 		rowRef.setAttribute('right', -offset);
+		this.setRemoveActionProgress(identity, offset);
+	}
+
+	private getRemoveActionRef(identity: string): ElementRef {
+		const existing = this.removeActionRefByIdentity.get(identity);
+		if (existing) {
+			return existing;
+		}
+		const created = new ElementRef();
+		this.removeActionRefByIdentity.set(identity, created);
+		return created;
+	}
+
+	private setRemoveActionProgress(identity: string, offset: number): void {
+		const removeActionRef = this.removeActionRefByIdentity.get(identity);
+		if (!removeActionRef) {
+			return;
+		}
+
+		const clampedOffset = Math.max(-MAX_SWIPE_DISTANCE, Math.min(0, offset));
+		const progress = Math.min(1, Math.abs(clampedOffset) / MAX_SWIPE_DISTANCE);
+		const hiddenRight = -10;
+		const visibleRight = 12;
+		const animatedRight = hiddenRight + (visibleRight - hiddenRight) * progress;
+
+		removeActionRef.setAttribute('opacity', progress);
+		removeActionRef.setAttribute('right', animatedRight);
 	}
 
 	private resetRowOffset(identity: string): void {
@@ -405,6 +447,19 @@ const styles = {
 		flex: 1,
 		flexGrow: 1,
 		width: 0,
+	}),
+	swipeRemoveActionContainer: new Style({
+		alignItems: 'center',
+		bottom: 0,
+		justifyContent: 'center',
+		opacity: 0,
+		position: 'absolute',
+		right: -10,
+		top: 0,
+	}),
+	swipeRemoveActionIcon: new Style<ImageView>({
+		height: 20,
+		width: 20,
 	}),
 	textBlock: new Style({
 		flex: 1,
