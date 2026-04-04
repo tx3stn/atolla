@@ -138,6 +138,59 @@ describe('NowPlayingSurface', () => {
 		expect(values).toContain('added to queue');
 	});
 
+	valdiIt('removes a queued track by swipe after entering queue edit mode', () => {
+		jasmine.clock().install();
+		try {
+			const playbackStore = {
+				removeFromQueueAt: jasmine.createSpy('removeFromQueueAt'),
+			};
+			const tracks = [
+				{ ...track, id: 'track-1', name: 'Track One' },
+				{ ...track, id: 'track-2', name: 'Track Two' },
+				{ ...track, id: 'track-3', name: 'Track Three' },
+			];
+
+			const instrumented = createComponent(NowPlayingSurface, {
+				album,
+				artistLogoUrl: null,
+				collapseSignal: 0,
+				isPlaying: true,
+				onDismiss: () => {},
+				onNext: () => {},
+				onPlayPause: () => {},
+				onPrevious: () => {},
+				playbackStore,
+				progressSeconds: 90,
+				track: tracks[1],
+				trackIndex: 1,
+				tracks,
+			});
+			const component = instrumented.getComponent();
+
+			let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+			const compactBar = views.find(
+				(view) => view.getAttribute('id') === 'now-playing-surface-bar',
+			);
+			compactBar?.getAttribute('onTap')?.();
+
+			views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+			const artworkTouch = views.find(
+				(view) => view.getAttribute('testID') === 'track-artwork-touch-track-3-0',
+			);
+			artworkTouch?.getAttribute('onTouch')?.({ state: 0 });
+			jasmine.clock().tick(500);
+
+			views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+			const upNextRow = views.find((view) => view.getAttribute('testID') === 'track-row-track-3-0');
+			upNextRow?.getAttribute('onDrag')?.({ deltaX: -72, deltaY: 0, state: 1, velocityX: -100 });
+			upNextRow?.getAttribute('onDrag')?.({ deltaX: -72, deltaY: 0, state: 2, velocityX: -100 });
+
+			expect(playbackStore.removeFromQueueAt).toHaveBeenCalledWith(2);
+		} finally {
+			jasmine.clock().uninstall();
+		}
+	});
+
 	valdiIt('handles collapse signal update while expanded', () => {
 		const instrumented = createNowPlayingComponent();
 		const component = instrumented.getComponent();

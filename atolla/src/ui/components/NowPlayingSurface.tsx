@@ -316,6 +316,17 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.setState({ contextMenuTrack: track });
 	};
 
+	private handleQueueTrackSwipeRemove = (_trackId: string, entryIndex: number): void => {
+		const { playbackStore, trackIndex } = this.viewModel;
+		if (!playbackStore || !playbackStore.removeFromQueueAt) {
+			return;
+		}
+
+		const removeIndex =
+			this.state.activeQueueTab === 'upNext' ? trackIndex + 1 + entryIndex : entryIndex;
+		playbackStore.removeFromQueueAt(removeIndex);
+	};
+
 	private handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuTrack: null });
 		if (toastMessage) {
@@ -358,6 +369,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		const upNextEntries = tracks.slice(trackIndex + 1).map(toEntry);
 		const backToEntries = tracks.slice(0, trackIndex).map(toEntry);
 		const activeTab = this.state.activeQueueTab;
+		const canEditQueue = Boolean(this.viewModel.playbackStore);
 		const albumImageUrl = track.albumImageUrl ?? album?.imageUrl ?? null;
 		const albumArtworkSource =
 			albumImageUrl == null ? null : buildImageSource(albumImageUrl, 'album_art');
@@ -576,6 +588,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											? this.handleTrackLongPress
 											: undefined
 									}
+									onTrackSwipeRemove={canEditQueue ? this.handleQueueTrackSwipeRemove : undefined}
 									onTrackTap={onTrackTap}
 									palette={palette}
 									tracks={activeTab === 'upNext' ? upNextEntries : backToEntries}

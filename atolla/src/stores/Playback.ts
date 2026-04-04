@@ -156,6 +156,35 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	removeFromQueueAt(index: number): void {
+		if (index < 0 || index >= this.tracks.length) {
+			return;
+		}
+
+		if (this.tracks.length === 1) {
+			this.stop();
+			return;
+		}
+
+		this.tracks = [...this.tracks.slice(0, index), ...this.tracks.slice(index + 1)];
+		this._artistLogoUrls = [
+			...this._artistLogoUrls.slice(0, index),
+			...this._artistLogoUrls.slice(index + 1),
+		];
+
+		if (index < this.trackIndex) {
+			this.trackIndex -= 1;
+		}
+
+		if (this.trackIndex >= this.tracks.length) {
+			this.trackIndex = Math.max(0, this.tracks.length - 1);
+			this.progressSeconds = 0;
+			this.seekTarget = null;
+		}
+
+		this.notify();
+	}
+
 	shuffle(): void {
 		const start = this.trackIndex + 1;
 		const tail = this.tracks.slice(start);

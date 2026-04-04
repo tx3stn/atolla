@@ -284,6 +284,50 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('removeFromQueueAt()', () => {
+		it('removes the track at the provided index', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+
+			store.removeFromQueueAt(2);
+
+			expect(store.tracks).toEqual([track1, track2]);
+			expect(store.trackIndex).toBe(0);
+		});
+
+		it('adjusts trackIndex when removing a track before current one', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+
+			store.removeFromQueueAt(0);
+
+			expect(store.trackIndex).toBe(1);
+			expect(store.track).toBe(track3);
+		});
+
+		it('stops playback when removing the last remaining track', () => {
+			const store = new PlaybackStore();
+			store.play([track1], album, 0);
+
+			store.removeFromQueueAt(0);
+
+			expect(store.tracks).toEqual([]);
+			expect(store.track).toBeNull();
+			expect(store.isPlaying).toBe(false);
+		});
+
+		it('ignores out of bounds indices', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+
+			store.removeFromQueueAt(-1);
+			store.removeFromQueueAt(10);
+
+			expect(store.tracks).toEqual(tracks);
+			expect(store.trackIndex).toBe(1);
+		});
+	});
+
 	describe('subscribe()', () => {
 		it('calls the listener on each state change', () => {
 			const store = new PlaybackStore();

@@ -69,3 +69,12 @@ export function scrollPaddingBottom(isFooterVisible: boolean): number {
 		? theme.scrollPaddingBottom + theme.footerHeight
 		: theme.scrollPaddingBottom;
 }
+
+export function withAlpha(hexColor: string, alpha: number): string {
+	const hex = hexColor.replace('#', '');
+	const r = Number.parseInt(hex.slice(0, 2), 16);
+	const g = Number.parseInt(hex.slice(2, 4), 16);
+	const b = Number.parseInt(hex.slice(4, 6), 16);
+	const normalizedAlpha = Math.max(0, Math.min(1, alpha));
+	return `rgba(${r},${g},${b},${normalizedAlpha})`;
+}
