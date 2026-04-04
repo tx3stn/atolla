@@ -115,10 +115,10 @@ describe('TrackList', () => {
 				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
-			const artworkTouch = views.find(
-				(view) => view.getAttribute('testID') === 'track-artwork-touch-track-1-0',
+			const swipeRegion = views.find(
+				(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
 			);
-			artworkTouch?.getAttribute('onTouch')?.({ state: 0 });
+			swipeRegion?.getAttribute('onTouch')?.({ state: 0 });
 			jasmine.clock().tick(500);
 
 			expect(longPressedTrackId).toBe('track-1');
@@ -157,10 +157,10 @@ describe('TrackList', () => {
 				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
-			const nonArtworkTouchTarget = views.find(
-				(view) => view.getAttribute('testID') === 'track-row-non-artwork-touch-track-1-0',
+			const swipeRegion = views.find(
+				(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
 			);
-			nonArtworkTouchTarget?.getAttribute('onTouch')?.({ state: 0 });
+			swipeRegion?.getAttribute('onTouch')?.({ state: 0 });
 			jasmine.clock().tick(500);
 
 			expect(longPressedTrackId).toBe('track-1');

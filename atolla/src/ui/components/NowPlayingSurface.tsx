@@ -458,12 +458,6 @@ export class NowPlayingSurface extends StatefulComponent<
 						<image objectFit='cover' src={blurredBgSource} style={styles.expandedBgArtwork} />
 					)}
 					<view style={expandedBgOverlayStyle} />
-					{/* biome-ignore lint/a11y/noStaticElementInteractions: Dedicated gesture zone for swipe-down collapse. */}
-					<view
-						onDrag={this.handleExpandedDrag}
-						onDragEnabled={this.state.isExpanded}
-						style={styles.expandedGestureZone}
-					/>
 					{albumArtworkSource && (
 						<image
 							objectFit='cover'
@@ -476,12 +470,19 @@ export class NowPlayingSurface extends StatefulComponent<
 						<scroll ref={this.expandedScrollRef} style={styles.expandedInner}>
 							<layout style={styles.expandedFirstPage}>
 								{albumArtworkSource && (
-									<image
-										objectFit='cover'
-										ref={this.scrollArtworkRef}
-										src={albumArtworkSource}
-										style={styles.expandedScrollArtwork}
-									/>
+									/* biome-ignore lint/a11y/noStaticElementInteractions: Collapse gesture should only be active over artwork. */
+									<view
+										onDrag={this.handleExpandedDrag}
+										onDragEnabled={this.state.isExpanded}
+										style={styles.expandedArtworkGestureZone}
+									>
+										<image
+											objectFit='cover'
+											ref={this.scrollArtworkRef}
+											src={albumArtworkSource}
+											style={styles.expandedScrollArtwork}
+										/>
+									</view>
 								)}
 								<layout style={styles.expandedInfoSection}>
 									<ArtistLogo
@@ -825,6 +826,10 @@ const styles = {
 	expandedArtistLogoArea: new Style({
 		width: '100%',
 	}),
+	expandedArtworkGestureZone: new Style({
+		aspectRatio: 1,
+		width: '100%',
+	}),
 	expandedBgArtwork: new Style<ImageView>({
 		bottom: 0,
 		left: 0,
@@ -857,14 +862,6 @@ const styles = {
 	expandedFirstPage: new Style({
 		minHeight: '100%',
 		width: '100%',
-	}),
-	expandedGestureZone: new Style({
-		aspectRatio: 1,
-		left: 0,
-		position: 'absolute',
-		right: 0,
-		top: 0,
-		zIndex: 90,
 	}),
 	expandedInfoSection: new Style({
 		alignItems: 'center',

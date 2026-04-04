@@ -115,19 +115,19 @@ export class TrackList extends Component<TrackListViewModel> {
 										}
 										this.viewModel.onTrackTap?.(entry.id);
 									}}
+									onTouch={
+										entry.track && this.viewModel.onTrackLongPress
+											? ((track) => (event) => {
+													this.handleTrackTouch(event, track);
+												})(entry.track)
+											: undefined
+									}
 									style={styles.swipeGestureRegion}
 									testID={`track-row-swipe-region-${rowIdentity}`}
 								>
 									<layout style={styles.rowContent}>
 										{entry.artworkSource ? (
 											<view
-												onTouch={
-													entry.track && this.viewModel.onTrackLongPress
-														? ((track) => (event) => {
-																this.handleTrackTouch(event, track);
-															})(entry.track)
-														: undefined
-												}
 												style={resolvedStyles.artworkTileStyle}
 												testID={`track-artwork-touch-${rowIdentity}`}
 											>
@@ -141,13 +141,6 @@ export class TrackList extends Component<TrackListViewModel> {
 											</view>
 										) : entry.leadingLabel ? (
 											<view
-												onTouch={
-													entry.track && this.viewModel.onTrackLongPress
-														? ((track) => (event) => {
-																this.handleTrackTouch(event, track);
-															})(entry.track)
-														: undefined
-												}
 												style={styles.leadingLabelTile}
 												testID={`track-row-non-artwork-touch-${rowIdentity}`}
 											>
@@ -180,9 +173,7 @@ export class TrackList extends Component<TrackListViewModel> {
 										onTap={
 											entry.track && this.viewModel.onTrackLongPress
 												? ((track) => () => {
-														if (DeviceHapticFeedbackType?.SELECTION !== undefined) {
-															Device.performHapticFeedback(DeviceHapticFeedbackType.SELECTION);
-														}
+														this.performSelectionHaptic();
 														this.viewModel.onTrackLongPress?.(track);
 													})(entry.track)
 												: undefined
@@ -264,13 +255,21 @@ export class TrackList extends Component<TrackListViewModel> {
 		}
 
 		this.longPressTimeout = setTimeout(() => {
-			if (DeviceHapticFeedbackType?.SELECTION !== undefined) {
-				Device.performHapticFeedback(DeviceHapticFeedbackType.SELECTION);
-			}
+			this.performSelectionHaptic();
 			this.suppressNextTap = true;
 			this.viewModel.onTrackLongPress?.(track);
 			this.longPressTimeout = null;
 		}, 500);
+	}
+
+	private performSelectionHaptic(): void {
+		try {
+			const selectionType =
+				DeviceHapticFeedbackType?.SELECTION ?? DeviceHapticFeedbackType?.Selection ?? 'selection';
+			Device.performHapticFeedback(selectionType);
+		} catch {
+			// Ignore haptic failures so menu actions still proceed.
+		}
 	}
 
 	private cancelLongPress(): void {
