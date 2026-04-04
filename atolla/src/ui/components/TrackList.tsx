@@ -1,7 +1,8 @@
 // @ts-nocheck
 
 import res from 'atolla/res';
-import { StatefulComponent } from 'valdi_core/src/Component';
+import { Component } from 'valdi_core/src/Component';
+import { Device, DeviceHapticFeedbackType } from 'valdi_core/src/Device';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
@@ -25,13 +26,12 @@ export interface TrackListEntry {
 
 export interface TrackListViewModel {
 	imageCache?: ImageCache;
-	isEditMode?: boolean;
 	noRowBackground?: boolean;
-	onEnterEditMode?: () => void;
 	onTrackLongPress?: (track: Track) => void;
 	onTrackSwipeRemove?: (trackId: string, entryIndex: number) => void;
 	onTrackTap?: (trackId: string) => void;
 	palette?: Palette;
+	showDragHandles?: boolean;
 	tracks: Array<TrackListEntry>;
 }
 
@@ -40,10 +40,6 @@ interface TrackListColors {
 	rowBackground: string;
 	tileBackground: string;
 	title: string;
-}
-
-interface TrackListState {
-	isEditMode: boolean;
 }
 
 interface TrackListResolvedStyles {
@@ -62,31 +58,19 @@ const defaultColors: TrackListColors = {
 	title: theme.text.main.color,
 };
 
-const LONG_PRESS_DELAY_MS = 500;
 const MAX_SWIPE_DISTANCE = 88;
 const REMOVE_SWIPE_DISTANCE = 64;
 const REMOVE_SWIPE_VELOCITY = 700;
 const resolvedStylesCache = new Map<string, TrackListResolvedStyles>();
 
-export class TrackList extends StatefulComponent<TrackListViewModel, TrackListState> {
+export class TrackList extends Component<TrackListViewModel> {
 	private suppressNextTap = false;
-	private longPressTimerId: ReturnType<typeof setTimeout> | null = null;
 	private rowOffsetByIdentity = new Map<string, number>();
 	private rowRefByIdentity = new Map<string, ElementRef>();
-	private artworkTouchActive = false;
-
-	state: TrackListState = {
-		isEditMode: false,
-	};
-
-	onDestroy(): void {
-		this.clearLongPressTimer();
-	}
 
 	onRender() {
 		const colors = resolveColors(this.viewModel.palette, this.viewModel.noRowBackground);
 		const resolvedStyles = getResolvedTrackListStyles(colors);
-		const isEditMode = this.viewModel.isEditMode ?? this.state.isEditMode;
 
 		if (this.viewModel.tracks.length === 0) {
 			<label
@@ -100,6 +84,7 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 		<layout style={styles.list}>
 			{this.viewModel.tracks.map((entry: TrackListEntry, index: number) => {
 				const rowIdentity = `${entry.id}-${index}`;
+				const canSwipe = Boolean(this.viewModel.onTrackSwipeRemove);
 
 				return (
 					<view key={rowIdentity} style={styles.swipeContainer}>
@@ -108,13 +93,14 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 							accessibilityLabel={`track-row-${rowIdentity}`}
 							contentDescription={`track-row-${rowIdentity}`}
 							onDrag={
-								isEditMode
+								canSwipe
 									? ((trackId, entryIndex, identity) => (event) => {
 											this.handleRowDrag(event, trackId, entryIndex, identity);
 										})(entry.id, index, rowIdentity)
 									: undefined
 							}
-							onDragEnabled={isEditMode}
+							onDragDisabled={!canSwipe}
+							onDragPredicate={(event) => Math.abs(event.deltaX) > Math.abs(event.deltaY)}
 							onTap={() => {
 								if (this.suppressNextTap) {
 									this.suppressNextTap = false;
@@ -129,13 +115,6 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 							<layout style={styles.rowContent}>
 								{entry.artworkSource ? (
 									<view
-										onTouch={
-											entry.track
-												? ((track) => (event) => {
-														this.handleArtworkTouch(event, track);
-													})(entry.track)
-												: undefined
-										}
 										style={resolvedStyles.artworkTileStyle}
 										testID={`track-artwork-touch-${rowIdentity}`}
 									>
@@ -149,13 +128,6 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 									</view>
 								) : entry.leadingLabel ? (
 									<view
-										onTouch={
-											this.viewModel.onTrackLongPress && entry.track
-												? ((track) => (event) => {
-														this.handleRowTouch(event, track);
-													})(entry.track)
-												: undefined
-										}
 										style={styles.leadingLabelTile}
 										testID={`track-row-non-artwork-touch-${rowIdentity}`}
 									>
@@ -166,17 +138,7 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 									</view>
 								) : null}
 
-								<layout
-									onTouch={
-										this.viewModel.onTrackLongPress && entry.track
-											? ((track) => (event) => {
-													this.handleRowTouch(event, track);
-												})(entry.track)
-											: undefined
-									}
-									style={styles.textBlock}
-									testID={`track-row-non-artwork-touch-${rowIdentity}`}
-								>
+								<layout style={styles.textBlock}>
 									<label
 										ellipsizeMode='tail'
 										numberOfLines={2}
@@ -191,12 +153,13 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 									/>
 								</layout>
 
-								{isEditMode ? (
+								{this.viewModel.showDragHandles ? (
 									<view
-										onTouch={
-											this.viewModel.onTrackLongPress && entry.track
-												? ((track) => (event) => {
-														this.handleRowTouch(event, track);
+										onLongPress={
+											entry.track && this.viewModel.onTrackLongPress
+												? ((track) => () => {
+														Device.performHapticFeedback(DeviceHapticFeedbackType.SELECTION);
+														this.viewModel.onTrackLongPress?.(track);
 													})(entry.track)
 												: undefined
 										}
@@ -216,58 +179,6 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 				);
 			})}
 		</layout>;
-	}
-
-	private clearLongPressTimer(): void {
-		if (this.longPressTimerId === null) {
-			return;
-		}
-		clearTimeout(this.longPressTimerId);
-		this.longPressTimerId = null;
-	}
-
-	private startLongPressTimer(action: () => void): void {
-		this.clearLongPressTimer();
-		this.longPressTimerId = setTimeout(() => {
-			this.suppressNextTap = true;
-			this.longPressTimerId = null;
-			action();
-		}, LONG_PRESS_DELAY_MS);
-	}
-
-	private handleArtworkTouch(event: { state: TouchEventState }, _track: Track): void {
-		if (event.state === TouchEventState.Started) {
-			this.artworkTouchActive = true;
-			this.startLongPressTimer(() => {
-				if (this.viewModel.onEnterEditMode) {
-					this.viewModel.onEnterEditMode();
-				} else {
-					this.setState({ isEditMode: true });
-				}
-			});
-			return;
-		}
-
-		if (event.state === TouchEventState.Ended) {
-			this.artworkTouchActive = false;
-			this.clearLongPressTimer();
-		}
-	}
-
-	private handleRowTouch(event: { state: TouchEventState }, track: Track): void {
-		if (event.state === TouchEventState.Started) {
-			if (this.artworkTouchActive) {
-				return;
-			}
-			this.startLongPressTimer(() => {
-				this.viewModel.onTrackLongPress?.(track);
-			});
-			return;
-		}
-
-		if (event.state === TouchEventState.Ended) {
-			this.clearLongPressTimer();
-		}
 	}
 
 	private getRowRef(identity: string): ElementRef {
@@ -295,26 +206,13 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 	}
 
 	private handleRowDrag(event, trackId: string, entryIndex: number, rowIdentity: string): void {
-		const isEditMode = this.viewModel.isEditMode ?? this.state.isEditMode;
-		if (!isEditMode) {
-			return;
-		}
-
 		if (event.state === TouchEventState.Changed) {
-			if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-				return;
-			}
 			const offset = Math.max(-MAX_SWIPE_DISTANCE, Math.min(0, event.deltaX));
 			this.setRowOffset(rowIdentity, offset);
 			return;
 		}
 
 		if (event.state !== TouchEventState.Ended) {
-			return;
-		}
-
-		if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-			this.resetRowOffset(rowIdentity);
 			return;
 		}
 

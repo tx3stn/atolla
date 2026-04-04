@@ -52,7 +52,6 @@ interface NowPlayingSurfaceState {
 	activeQueueTab: QueueTab;
 	contextMenuTrack: Track | null;
 	isExpanded: boolean;
-	isQueueEditMode: boolean;
 	toastMessage: string | null;
 }
 
@@ -80,7 +79,6 @@ export class NowPlayingSurface extends StatefulComponent<
 		activeQueueTab: 'upNext',
 		contextMenuTrack: null,
 		isExpanded: false,
-		isQueueEditMode: false,
 		toastMessage: null,
 	};
 
@@ -195,7 +193,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			},
 		).then(() => {
 			this.overlayRef.setAttribute('top', 2000);
-			this.setState({ isExpanded: false, isQueueEditMode: false });
+			this.setState({ isExpanded: false });
 			this.isTransitioning = false;
 		});
 	};
@@ -306,10 +304,6 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	private handleQueueTabTap = (tab: QueueTab): void => {
 		this.setState({ activeQueueTab: tab });
-	};
-
-	private handleEnterQueueEditMode = (): void => {
-		this.setState({ isQueueEditMode: true });
 	};
 
 	private handleBackToTabTap = (): void => {
@@ -590,17 +584,11 @@ export class NowPlayingSurface extends StatefulComponent<
 							>
 								<TrackList
 									imageCache={imageCache}
-									isEditMode={canEditQueue ? this.state.isQueueEditMode : undefined}
 									noRowBackground
-									onEnterEditMode={canEditQueue ? this.handleEnterQueueEditMode : undefined}
-									onTrackLongPress={
-										this.viewModel.playbackStore && this.viewModel.transport
-											? this.handleTrackLongPress
-											: undefined
-									}
 									onTrackSwipeRemove={canEditQueue ? this.handleQueueTrackSwipeRemove : undefined}
 									onTrackTap={onTrackTap}
 									palette={palette}
+									showDragHandles
 									tracks={activeTab === 'upNext' ? upNextEntries : backToEntries}
 								/>
 							</layout>

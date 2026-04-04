@@ -181,7 +181,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					{(subheaderLineOneLeft || subheaderLineOneRight) && (
 						<layout style={styles.subheaderLineRow}>
 							<label
-								numberOfLines={2}
+								numberOfLines={7}
 								style={styles.subheaderLineOneLeftText}
 								value={subheaderLineOneLeft ?? ''}
 							/>
