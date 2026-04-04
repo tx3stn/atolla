@@ -203,6 +203,106 @@ describe('NowPlayingSurface', () => {
 		}
 	});
 
+	valdiIt('reorders up-next tracks when a queue row is dragged vertically', () => {
+		const playbackStore = {
+			moveQueueTrack: jasmine.createSpy('moveQueueTrack'),
+			removeFromQueueAt: jasmine.createSpy('removeFromQueueAt'),
+		};
+		const tracks = [
+			{ ...track, id: 'track-1', name: 'Track One' },
+			{ ...track, id: 'track-2', name: 'Track Two' },
+			{ ...track, id: 'track-3', name: 'Track Three' },
+			{ ...track, id: 'track-4', name: 'Track Four' },
+		];
+
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 0,
+			isPlaying: true,
+			onDismiss: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore,
+			progressSeconds: 90,
+			track: tracks[1],
+			trackIndex: 1,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+		compactBar?.getAttribute('onTap')?.();
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const firstUpNextHandle = views.find(
+			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-3-0',
+		);
+		firstUpNextHandle?.getAttribute('onDrag')?.({
+			deltaX: 0,
+			deltaY: 90,
+			state: 2,
+			velocityY: 120,
+		});
+
+		expect(playbackStore.moveQueueTrack).toHaveBeenCalledWith(2, 3);
+	});
+
+	valdiIt('reorders back-to tracks when a queue row is dragged vertically', () => {
+		const playbackStore = {
+			moveQueueTrack: jasmine.createSpy('moveQueueTrack'),
+			removeFromQueueAt: jasmine.createSpy('removeFromQueueAt'),
+		};
+		const tracks = [
+			{ ...track, id: 'track-1', name: 'Track One' },
+			{ ...track, id: 'track-2', name: 'Track Two' },
+			{ ...track, id: 'track-3', name: 'Track Three' },
+			{ ...track, id: 'track-4', name: 'Track Four' },
+		];
+
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 0,
+			isPlaying: true,
+			onDismiss: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore,
+			progressSeconds: 90,
+			track: tracks[2],
+			trackIndex: 2,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+		compactBar?.getAttribute('onTap')?.();
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const backToTab = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'now-playing-tab-back-to',
+		);
+		backToTab?.getAttribute('onTap')?.();
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const firstBackToHandle = views.find(
+			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-1-0',
+		);
+		firstBackToHandle?.getAttribute('onDrag')?.({
+			deltaX: 0,
+			deltaY: 90,
+			state: 2,
+			velocityY: 120,
+		});
+
+		expect(playbackStore.moveQueueTrack).toHaveBeenCalledWith(0, 1);
+	});
+
 	valdiIt('handles collapse signal update while expanded', () => {
 		const instrumented = createNowPlayingComponent();
 		const component = instrumented.getComponent();

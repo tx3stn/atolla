@@ -249,6 +249,90 @@ describe('TrackList', () => {
 		expect(removeIcon?.getAttribute('tint')).toBe(theme.colors.destructive);
 	});
 
+	valdiIt('calls onTrackReorder when dragging handle vertically', () => {
+		const reordered: Array<number> = [];
+		const tracks = [
+			{ id: 'track-1', meta: '1:00', title: 'One' },
+			{ id: 'track-2', meta: '1:10', title: 'Two' },
+			{ id: 'track-3', meta: '1:20', title: 'Three' },
+		];
+		const instrumented = createComponent(TrackList, {
+			onTrackReorder: (fromIndex, toIndex) => {
+				reordered.push(fromIndex, toIndex);
+			},
+			showDragHandles: true,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const handle = views.find(
+			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-1-0',
+		);
+		handle?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 70, state: 2, velocityY: 120 });
+
+		expect(reordered).toEqual([0, 1]);
+	});
+
+	valdiIt('moves the row visually while dragging the reorder handle', () => {
+		const tracks = [
+			{ id: 'track-1', meta: '1:00', title: 'One' },
+			{ id: 'track-2', meta: '1:10', title: 'Two' },
+		];
+		const instrumented = createComponent(TrackList, {
+			onTrackReorder: () => {},
+			showDragHandles: true,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const handle = views.find(
+			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-1-0',
+		);
+		const row = views.find((view) => view.getAttribute('testID') === 'track-row-track-1-0');
+
+		handle?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 42, state: 1, velocityY: 0 });
+		expect(row?.getAttribute('top')).toBe(42);
+		expect(row?.getAttribute('bottom')).toBe(-42);
+		expect(row?.getAttribute('zIndex')).toBe(20);
+		expect(row?.getAttribute('backgroundColor')).toBe('rgba(45,120,206,0.28)');
+
+		handle?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 42, state: 2, velocityY: 90 });
+		expect(row?.getAttribute('top')).toBe(0);
+		expect(row?.getAttribute('bottom')).toBe(0);
+		expect(row?.getAttribute('zIndex')).toBe(0);
+		expect(row?.getAttribute('backgroundColor')).toBe(theme.colors.bg);
+	});
+
+	valdiIt('clamps handle drag reorder to list boundaries', () => {
+		let fromIndex: number | null = null;
+		let toIndex: number | null = null;
+		const tracks = [
+			{ id: 'track-1', meta: '1:00', title: 'One' },
+			{ id: 'track-2', meta: '1:10', title: 'Two' },
+			{ id: 'track-3', meta: '1:20', title: 'Three' },
+		];
+		const instrumented = createComponent(TrackList, {
+			onTrackReorder: (from, to) => {
+				fromIndex = from;
+				toIndex = to;
+			},
+			showDragHandles: true,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const handle = views.find(
+			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-2-1',
+		);
+		handle?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: -300, state: 2, velocityY: -800 });
+
+		expect(fromIndex).toBe(1);
+		expect(toIndex).toBe(0);
+	});
+
 	valdiIt('renders leading label when no artwork is provided', () => {
 		const tracks = [{ id: 'a', leadingLabel: '1', meta: '1:00', title: 'Track' }];
 		const instrumented = createComponent(TrackList, { tracks });

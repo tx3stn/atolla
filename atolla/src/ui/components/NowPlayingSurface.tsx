@@ -329,6 +329,18 @@ export class NowPlayingSurface extends StatefulComponent<
 		playbackStore.removeFromQueueAt(removeIndex);
 	};
 
+	private handleQueueTrackReorder = (fromEntryIndex: number, toEntryIndex: number): void => {
+		const { playbackStore, trackIndex } = this.viewModel;
+		if (!playbackStore || !playbackStore.moveQueueTrack) {
+			return;
+		}
+
+		const tabOffset = this.state.activeQueueTab === 'upNext' ? trackIndex + 1 : 0;
+		const fromIndex = tabOffset + fromEntryIndex;
+		const toIndex = tabOffset + toEntryIndex;
+		playbackStore.moveQueueTrack(fromIndex, toIndex);
+	};
+
 	private handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuTrack: null });
 		if (toastMessage) {
@@ -587,6 +599,7 @@ export class NowPlayingSurface extends StatefulComponent<
 									imageCache={imageCache}
 									noRowBackground
 									onTrackLongPress={this.handleTrackLongPress}
+									onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}
 									onTrackSwipeRemove={canEditQueue ? this.handleQueueTrackSwipeRemove : undefined}
 									onTrackTap={onTrackTap}
 									palette={palette}

@@ -185,6 +185,41 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	moveQueueTrack(fromIndex: number, toIndex: number): void {
+		if (
+			fromIndex < 0 ||
+			fromIndex >= this.tracks.length ||
+			toIndex < 0 ||
+			toIndex >= this.tracks.length ||
+			fromIndex === toIndex
+		) {
+			return;
+		}
+
+		const movedTrack = this.tracks[fromIndex];
+		const movedLogoUrl = this._artistLogoUrls[fromIndex] ?? null;
+
+		const nextTracks = [...this.tracks];
+		nextTracks.splice(fromIndex, 1);
+		nextTracks.splice(toIndex, 0, movedTrack);
+		this.tracks = nextTracks;
+
+		const nextLogoUrls = [...this._artistLogoUrls];
+		nextLogoUrls.splice(fromIndex, 1);
+		nextLogoUrls.splice(toIndex, 0, movedLogoUrl);
+		this._artistLogoUrls = nextLogoUrls;
+
+		if (this.trackIndex === fromIndex) {
+			this.trackIndex = toIndex;
+		} else if (fromIndex < this.trackIndex && toIndex >= this.trackIndex) {
+			this.trackIndex -= 1;
+		} else if (fromIndex > this.trackIndex && toIndex <= this.trackIndex) {
+			this.trackIndex += 1;
+		}
+
+		this.notify();
+	}
+
 	shuffle(): void {
 		const start = this.trackIndex + 1;
 		const tail = this.tracks.slice(start);

@@ -328,6 +328,60 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('moveQueueTrack()', () => {
+		it('moves a track from one index to another', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+
+			store.moveQueueTrack(2, 1);
+
+			expect(store.tracks).toEqual([track1, track3, track2]);
+		});
+
+		it('moves current track index with the track when current track is moved', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+
+			store.moveQueueTrack(1, 2);
+
+			expect(store.trackIndex).toBe(2);
+			expect(store.track).toBe(track2);
+		});
+
+		it('adjusts current track index when another track crosses over it', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+
+			store.moveQueueTrack(0, 2);
+
+			expect(store.trackIndex).toBe(0);
+			expect(store.track).toBe(track2);
+		});
+
+		it('ignores out of bounds and no-op moves', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+
+			store.moveQueueTrack(-1, 0);
+			store.moveQueueTrack(0, 99);
+			store.moveQueueTrack(1, 1);
+
+			expect(store.tracks).toEqual(tracks);
+			expect(store.trackIndex).toBe(1);
+		});
+
+		it('notifies listeners', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			let calls = 0;
+			store.subscribe(() => calls++);
+
+			store.moveQueueTrack(2, 1);
+
+			expect(calls).toBe(1);
+		});
+	});
+
 	describe('subscribe()', () => {
 		it('calls the listener on each state change', () => {
 			const store = new PlaybackStore();

@@ -28,6 +28,7 @@ export interface TrackListViewModel {
 	imageCache?: ImageCache;
 	noRowBackground?: boolean;
 	onTrackLongPress?: (track: Track) => void;
+	onTrackReorder?: (fromEntryIndex: number, toEntryIndex: number) => void;
 	onTrackSwipeRemove?: (trackId: string, entryIndex: number) => void;
 	onTrackTap?: (trackId: string) => void;
 	palette?: Palette;
@@ -61,9 +62,12 @@ const defaultColors: TrackListColors = {
 const MAX_SWIPE_DISTANCE = 88;
 const REMOVE_SWIPE_DISTANCE = 64;
 const REMOVE_SWIPE_VELOCITY = 700;
+const REORDER_STEP_HEIGHT = 64;
+const MAX_REORDER_PREVIEW_OFFSET = 96;
 const resolvedStylesCache = new Map<string, TrackListResolvedStyles>();
 
 export class TrackList extends Component<TrackListViewModel> {
+	private draggingRowIdentities = new Set<string>();
 	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
 	private removeActionRefByIdentity = new Map<string, ElementRef>();
 	private suppressNextTap = false;
@@ -72,6 +76,10 @@ export class TrackList extends Component<TrackListViewModel> {
 
 	onRender() {
 		const colors = resolveColors(this.viewModel.palette, this.viewModel.noRowBackground);
+		const dragHighlightColor = withAlpha(
+			this.viewModel.palette?.accent.hex ?? theme.colors.active,
+			0.28,
+		);
 		const resolvedStyles = getResolvedTrackListStyles(colors);
 
 		if (this.viewModel.tracks.length === 0) {
@@ -184,10 +192,33 @@ export class TrackList extends Component<TrackListViewModel> {
 								</view>
 
 								{this.viewModel.showDragHandles ? (
+									/* biome-ignore lint/a11y/noStaticElementInteractions: Edit handle intentionally supports tap and vertical drag. */
 									<view
+										onDrag={
+											this.viewModel.onTrackReorder
+												? (
+														(entryIndex, identity, rowBackgroundColor, activeDragColor) =>
+														(event) => {
+															this.handleHandleDrag(
+																event,
+																entryIndex,
+																identity,
+																rowBackgroundColor,
+																activeDragColor,
+															);
+														}
+													)(index, rowIdentity, colors.rowBackground, dragHighlightColor)
+												: undefined
+										}
+										onDragDisabled={!this.viewModel.onTrackReorder}
+										onDragPredicate={(event) => Math.abs(event.deltaY) > Math.abs(event.deltaX)}
 										onTap={
 											entry.track && this.viewModel.onTrackLongPress
 												? ((track) => () => {
+														if (this.suppressNextTap) {
+															this.suppressNextTap = false;
+															return;
+														}
 														this.performSelectionHaptic();
 														this.viewModel.onTrackLongPress?.(track);
 													})(entry.track)
@@ -230,6 +261,41 @@ export class TrackList extends Component<TrackListViewModel> {
 		rowRef.setAttribute('left', offset);
 		rowRef.setAttribute('right', -offset);
 		this.setRemoveActionProgress(identity, offset);
+	}
+
+	private setRowVerticalOffset(identity: string, offset: number): void {
+		const rowRef = this.rowRefByIdentity.get(identity);
+		if (!rowRef) {
+			return;
+		}
+
+		rowRef.setAttribute('top', offset);
+		rowRef.setAttribute('bottom', -offset);
+	}
+
+	private setRowDraggingAppearance(
+		identity: string,
+		isDragging: boolean,
+		defaultBackgroundColor: string,
+		dragBackgroundColor: string,
+	): void {
+		const rowRef = this.rowRefByIdentity.get(identity);
+		if (!rowRef) {
+			return;
+		}
+
+		if (isDragging) {
+			this.draggingRowIdentities.add(identity);
+			rowRef.setAttribute('zIndex', 20);
+			rowRef.setAttribute('elevation', 12);
+			rowRef.setAttribute('backgroundColor', dragBackgroundColor);
+			return;
+		}
+
+		this.draggingRowIdentities.delete(identity);
+		rowRef.setAttribute('zIndex', 0);
+		rowRef.setAttribute('elevation', 0);
+		rowRef.setAttribute('backgroundColor', defaultBackgroundColor);
 	}
 
 	private getRemoveActionRef(identity: string): ElementRef {
@@ -285,6 +351,69 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.setRowOffset(rowIdentity, -MAX_SWIPE_DISTANCE);
 		this.suppressNextTap = true;
 		this.viewModel.onTrackSwipeRemove?.(trackId, entryIndex);
+	}
+
+	private handleHandleDrag(
+		event,
+		entryIndex: number,
+		rowIdentity: string,
+		defaultBackgroundColor: string,
+		dragBackgroundColor: string,
+	): void {
+		if (!this.viewModel.onTrackReorder) {
+			return;
+		}
+
+		if (event.state === TouchEventState.Started) {
+			this.setRowDraggingAppearance(rowIdentity, true, defaultBackgroundColor, dragBackgroundColor);
+			return;
+		}
+
+		if (event.state === TouchEventState.Changed) {
+			if (!this.draggingRowIdentities.has(rowIdentity)) {
+				this.setRowDraggingAppearance(
+					rowIdentity,
+					true,
+					defaultBackgroundColor,
+					dragBackgroundColor,
+				);
+			}
+			const previewOffset = Math.max(
+				-MAX_REORDER_PREVIEW_OFFSET,
+				Math.min(MAX_REORDER_PREVIEW_OFFSET, event.deltaY),
+			);
+			this.setRowVerticalOffset(rowIdentity, previewOffset);
+			return;
+		}
+
+		if (event.state !== TouchEventState.Ended) {
+			this.setRowVerticalOffset(rowIdentity, 0);
+			this.setRowDraggingAppearance(
+				rowIdentity,
+				false,
+				defaultBackgroundColor,
+				dragBackgroundColor,
+			);
+			return;
+		}
+
+		this.setRowVerticalOffset(rowIdentity, 0);
+		this.setRowDraggingAppearance(rowIdentity, false, defaultBackgroundColor, dragBackgroundColor);
+
+		const movementSteps = Math.round(event.deltaY / REORDER_STEP_HEIGHT);
+		if (movementSteps === 0) {
+			return;
+		}
+
+		const lastIndex = this.viewModel.tracks.length - 1;
+		const targetIndex = Math.max(0, Math.min(lastIndex, entryIndex + movementSteps));
+		if (targetIndex === entryIndex) {
+			return;
+		}
+
+		this.resetRowOffset(rowIdentity);
+		this.suppressNextTap = true;
+		this.viewModel.onTrackReorder(entryIndex, targetIndex);
 	}
 
 	private scheduleLongPress(track?: Track): void {
