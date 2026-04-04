@@ -84,4 +84,34 @@ describe('ArtistsView', () => {
 		expect(pushedComponent).toBe(ArtistView);
 		expect(pushedViewModel?.artist?.id).toBe('artist-1');
 	});
+
+	valdiIt('plays artist tracks when card is long pressed', async () => {
+		const artists = [
+			{ id: 'artist-1', logoUrl: 'https://example.com/logo.jpg', name: 'Artist One' },
+		];
+		const artistTracks = [{ duration: 210, id: 'track-1', name: 'Track One' }];
+		const transport = {
+			getAllArtists: async () => artists,
+			getTracksByArtist: async () => artistTracks,
+		};
+
+		const playbackStore = new PlaybackStore();
+		spyOn(playbackStore, 'playTracks');
+		spyOn(playbackStore, 'setArtistLogoUrl');
+
+		const instrumented = createComponent(ArtistsView, {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore,
+			transport,
+		});
+		const component = instrumented.getComponent();
+		component.setState({ artists });
+
+		component.handleArtistCardLongPress({ id: 'artist-1', kind: 'artist' });
+		await Promise.resolve();
+
+		expect(playbackStore.playTracks).toHaveBeenCalledWith(artistTracks);
+		expect(playbackStore.setArtistLogoUrl).toHaveBeenCalledWith('https://example.com/logo.jpg');
+	});
 });

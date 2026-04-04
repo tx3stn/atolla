@@ -153,6 +153,22 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		void this.loadNextPage();
 	}
 
+	handleArtistCardLongPress = (card: Card): void => {
+		const artist = this.state.artists.find((candidate) => candidate.id === card.id);
+		if (!artist) {
+			return;
+		}
+
+		this.viewModel.transport.getTracksByArtist(artist.id).then((tracks) => {
+			if (tracks.length === 0) {
+				return;
+			}
+
+			this.viewModel.playbackStore.playTracks(tracks);
+			this.viewModel.playbackStore.setArtistLogoUrl(artist.logoUrl ?? null);
+		});
+	};
+
 	onRender(): void {
 		const { imageCache, animationsEnabled, navigationController, playbackStore, transport } =
 			this.viewModel;
@@ -171,6 +187,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				cards={cards}
 				imageCache={imageCache}
 				isLoadingMore={this.state.isLoadingNextPage}
+				onCardLongPress={this.handleArtistCardLongPress}
 				onCardTap={(card) => {
 					const artist = this.state.artists.find((a) => a.id === card.id);
 					if (artist) {

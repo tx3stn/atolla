@@ -152,6 +152,24 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		void this.loadNextPage();
 	}
 
+	handleAlbumCardLongPress = (card: Card): void => {
+		const album = this.state.albums.find((candidate) => candidate.id === card.id);
+		if (!album) {
+			return;
+		}
+
+		this.viewModel.transport.getTracksByAlbum(album.id).then((tracks) => {
+			if (tracks.length === 0) {
+				return;
+			}
+
+			this.viewModel.playbackStore.play(tracks, album);
+			this.viewModel.transport.getArtistLogoUrl(album.artistId).then((logoUrl) => {
+				this.viewModel.playbackStore.setArtistLogoUrl(logoUrl);
+			});
+		});
+	};
+
 	onRender(): void {
 		const { imageCache, animationsEnabled, navigationController, playbackStore, transport } =
 			this.viewModel;
@@ -170,6 +188,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				cards={cards}
 				imageCache={imageCache}
 				isLoadingMore={this.state.isLoadingNextPage}
+				onCardLongPress={this.handleAlbumCardLongPress}
 				onCardTap={(card) => {
 					const album = this.state.albums.find((a) => a.id === card.id);
 					if (album) {

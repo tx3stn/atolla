@@ -86,4 +86,39 @@ describe('PlaylistsView', () => {
 		expect(pushedComponent).toBe(PlaylistView);
 		expect(pushedViewModel?.playlist?.id).toBe('playlist-1');
 	});
+
+	valdiIt('plays playlist tracks when card is long pressed', async () => {
+		const playlists = [{ id: 'playlist-1', name: 'Roadtrip' }];
+		const playlistTracks = [
+			{ artistId: 'artist-1', duration: 200, id: 'track-1', name: 'Track One' },
+		];
+		const transport = {
+			getAllPlaylists: async () => playlists,
+			getArtistLogoUrl: async () => 'https://example.com/artist-logo.jpg',
+			getTracksByPlaylist: async () => playlistTracks,
+		};
+		const playbackStoreWithLongPress = {
+			playWithArtistLogos: () => {},
+			subscribe: () => () => {},
+			track: null,
+		};
+		spyOn(playbackStoreWithLongPress, 'playWithArtistLogos');
+
+		const instrumented = createComponent(PlaylistsView, {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: playbackStoreWithLongPress,
+			transport,
+		});
+		const component = instrumented.getComponent();
+		component.setState({ playlists });
+
+		component.handlePlaylistCardLongPress({ id: 'playlist-1', kind: 'playlist' });
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(playbackStoreWithLongPress.playWithArtistLogos).toHaveBeenCalledWith(playlistTracks, [
+			'https://example.com/artist-logo.jpg',
+		]);
+	});
 });

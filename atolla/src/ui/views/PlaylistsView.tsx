@@ -153,6 +153,26 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		void this.loadNextPage();
 	}
 
+	handlePlaylistCardLongPress = (card: Card): void => {
+		const playlist = this.state.playlists.find((candidate) => candidate.id === card.id);
+		if (!playlist) {
+			return;
+		}
+
+		this.viewModel.transport.getTracksByPlaylist(playlist.id).then(async (tracks) => {
+			if (tracks.length === 0) {
+				return;
+			}
+
+			const artistLogoUrls = await Promise.all(
+				tracks.map((track) =>
+					track.artistId ? this.viewModel.transport.getArtistLogoUrl(track.artistId) : null,
+				),
+			);
+			this.viewModel.playbackStore.playWithArtistLogos(tracks, artistLogoUrls);
+		});
+	};
+
 	onRender(): void {
 		const {
 			animationsEnabled,
@@ -179,6 +199,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				cards={cards}
 				imageCache={imageCache}
 				isLoadingMore={this.state.isLoadingNextPage}
+				onCardLongPress={this.handlePlaylistCardLongPress}
 				onCardTap={(card) => {
 					const playlist = this.state.playlists.find((p) => p.id === card.id);
 					if (playlist) {

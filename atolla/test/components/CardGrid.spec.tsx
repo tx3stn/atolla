@@ -69,6 +69,42 @@ describe('CardGrid', () => {
 		expect(tapped?.kind).toBe('album');
 	});
 
+	valdiIt('calls onCardLongPress after hold and suppresses tap', () => {
+		jasmine.clock().install();
+		try {
+			const cards = [makeCard('album-42', 'Long Press Target', '2020')];
+			let tapped = false;
+			let longPressed: { id: string; kind: string } | null = null;
+			const instrumented = createComponent(CardGrid, {
+				accessibilityLabel: 'grid',
+				cards,
+				onCardLongPress: (card) => {
+					longPressed = card;
+				},
+				onCardTap: () => {
+					tapped = true;
+				},
+				resolveArtworkSource: () => null,
+			});
+			const component = instrumented.getComponent();
+
+			const tiles = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			);
+			tiles[0].getAttribute('onTouch')?.({ state: 0 });
+			jasmine.clock().tick(500);
+			tiles[0].getAttribute('onTap')?.();
+
+			expect(longPressed).not.toBeNull();
+			expect(longPressed?.id).toBe('album-42');
+			expect(longPressed?.kind).toBe('album');
+			expect(tapped).toBe(false);
+		} finally {
+			jasmine.clock().uninstall();
+		}
+	});
+
 	valdiIt('shows fallback label when no artwork source is resolved', () => {
 		const cards = [makeCard('1', 'Title', '2021')];
 		const instrumented = createComponent(CardGrid, {

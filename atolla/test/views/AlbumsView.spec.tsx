@@ -233,4 +233,38 @@ describe('AlbumsView', () => {
 		expect(pushedComponent).toBe(AlbumView);
 		expect(pushedViewModel?.album?.id).toBe('album-1');
 	});
+
+	valdiIt('plays album tracks when card is long pressed', async () => {
+		const albums = [
+			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
+		];
+		const albumTracks = [{ albumId: 'album-1', duration: 180, id: 'track-1', name: 'Track One' }];
+		const transport = {
+			getAllAlbums: async () => albums,
+			getArtistLogoUrl: async () => 'https://example.com/artist-logo.jpg',
+			getTracksByAlbum: async () => albumTracks,
+		};
+
+		const playbackStore = new PlaybackStore();
+		spyOn(playbackStore, 'play');
+		spyOn(playbackStore, 'setArtistLogoUrl');
+
+		const instrumented = createComponent(AlbumsView, {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore,
+			transport,
+		});
+		const component = instrumented.getComponent();
+		component.setState({ albums });
+
+		component.handleAlbumCardLongPress({ id: 'album-1', kind: 'album' });
+		await flushAsyncWork();
+		await flushAsyncWork();
+
+		expect(playbackStore.play).toHaveBeenCalledWith(albumTracks, albums[0]);
+		expect(playbackStore.setArtistLogoUrl).toHaveBeenCalledWith(
+			'https://example.com/artist-logo.jpg',
+		);
+	});
 });

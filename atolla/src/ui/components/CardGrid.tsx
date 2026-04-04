@@ -21,13 +21,24 @@ export interface CardGridViewModel {
 	cards: Array<Card>;
 	imageCache?: ImageCache;
 	isLoadingMore?: boolean;
+	onCardLongPress?: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
 	onCardTap: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
 	onLoadMore?: () => void;
 	onRetryLoadMore?: () => void;
 	resolveArtworkSource?: (artworkKey: string) => string | null;
 }
 
+const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
+const CARD_LONG_PRESS_DELAY_MS = 500;
+
 export class CardGrid extends Component<CardGridViewModel> {
+	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
+	private suppressNextTap = false;
+
+	onDestroy(): void {
+		this.cancelCardLongPress();
+	}
+
 	onRender() {
 		const {
 			accessibilityLabel,
@@ -35,6 +46,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 			cards,
 			imageCache,
 			isLoadingMore,
+			onCardLongPress,
 			onCardTap,
 			onLoadMore,
 			onRetryLoadMore,
@@ -67,8 +79,19 @@ export class CardGrid extends Component<CardGridViewModel> {
 									accessibilityLabel={`card-${entry.id}`}
 									contentDescription={`card-${entry.id}`}
 									onTap={createReusableCallback(() => {
+										if (this.suppressNextTap) {
+											this.suppressNextTap = false;
+											return;
+										}
 										onCardTap({ id: entry.id, kind: entry.kind });
 									})}
+									onTouch={
+										onCardLongPress
+											? createReusableCallback((event) => {
+													this.handleCardTouch(event, entry.id, entry.kind);
+												})
+											: undefined
+									}
 									style={styles.artworkTile}
 									testID={`card-${entry.id}`}
 								>
@@ -120,6 +143,41 @@ export class CardGrid extends Component<CardGridViewModel> {
 				</view>
 			) : null}
 		</layout>;
+	}
+
+	private handleCardTouch(event, cardId: string, kind: Card['kind']): void {
+		if (event.state === TouchEventState.Started) {
+			this.scheduleCardLongPress(cardId, kind);
+			return;
+		}
+
+		if (event.state === TouchEventState.Changed) {
+			return;
+		}
+
+		this.cancelCardLongPress();
+	}
+
+	private scheduleCardLongPress(cardId: string, kind: Card['kind']): void {
+		if (!this.viewModel.onCardLongPress) {
+			return;
+		}
+
+		this.cancelCardLongPress();
+		this.longPressTimeout = setTimeout(() => {
+			this.longPressTimeout = null;
+			this.suppressNextTap = true;
+			this.viewModel.onCardLongPress?.({ id: cardId, kind });
+		}, CARD_LONG_PRESS_DELAY_MS);
+	}
+
+	private cancelCardLongPress(): void {
+		if (!this.longPressTimeout) {
+			return;
+		}
+
+		clearTimeout(this.longPressTimeout);
+		this.longPressTimeout = null;
 	}
 }
 

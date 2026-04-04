@@ -106,6 +106,22 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		);
 	};
 
+	handleAlbumCardLongPress = (card: Card): void => {
+		const album = this.state.albums.find((candidate) => candidate.id === card.id);
+		if (!album) {
+			return;
+		}
+
+		this.viewModel.transport.getTracksByAlbum(album.id).then((tracks) => {
+			if (tracks.length === 0) {
+				return;
+			}
+
+			this.viewModel.playbackStore.play(tracks, album);
+			this.viewModel.playbackStore.setArtistLogoUrl(this.viewModel.artist.logoUrl || null);
+		});
+	};
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
 		const { artist, playbackStore, transport } = this.viewModel;
@@ -191,6 +207,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 							accessibilityLabel='artist-albums-grid'
 							cards={albumCards}
 							imageCache={imageCache}
+							onCardLongPress={this.handleAlbumCardLongPress}
 							onCardTap={this.handleAlbumCardTap}
 						/>
 					</layout>
