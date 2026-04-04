@@ -76,14 +76,16 @@ describe('TrackList', () => {
 		});
 		const component = instrumented.getComponent();
 
-		const rows = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const row = rows.find((view) => view.getAttribute('testID') === 'track-row-track-1-0');
-		row?.getAttribute('onTap')?.();
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const swipeRegion = views.find(
+			(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
+		);
+		swipeRegion?.getAttribute('onTap')?.();
 
 		expect(tappedId).toBe('track-1');
 	});
 
-	valdiIt('enters edit mode when artwork is long pressed', () => {
+	valdiIt('calls onTrackLongPress when artwork is long pressed', () => {
 		jasmine.clock().install();
 		try {
 			const track = {
@@ -92,8 +94,11 @@ describe('TrackList', () => {
 				id: 'track-1',
 				name: 'Track One',
 			};
+			let longPressedTrackId: string | null = null;
 			const instrumented = createComponent(TrackList, {
-				onTrackLongPress: () => {},
+				onTrackLongPress: (pressedTrack) => {
+					longPressedTrackId = pressedTrack.id;
+				},
 				tracks: [
 					{
 						artworkSource: 'https://example.com/art.jpg',
@@ -116,15 +121,7 @@ describe('TrackList', () => {
 			artworkTouch?.getAttribute('onTouch')?.({ state: 0 });
 			jasmine.clock().tick(500);
 
-			const refreshedViews = elementTypeFind(
-				componentGetElements(component),
-				IRenderedElementViewClass.View,
-			);
-			expect(
-				refreshedViews.some(
-					(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-1-0',
-				),
-			).toBe(true);
+			expect(longPressedTrackId).toBe('track-1');
 		} finally {
 			jasmine.clock().uninstall();
 		}
@@ -172,55 +169,52 @@ describe('TrackList', () => {
 		}
 	});
 
-	valdiIt('only allows swipe remove while in edit mode', () => {
-		jasmine.clock().install();
-		try {
-			const track = {
-				artistName: 'Artist',
-				duration: 180,
-				id: 'track-1',
-				name: 'Track One',
-			};
-			let removedTrackId: string | null = null;
-			let removedEntryIndex: number | null = null;
-			const instrumented = createComponent(TrackList, {
-				onTrackLongPress: () => {},
-				onTrackSwipeRemove: (trackId: string, entryIndex: number) => {
-					removedTrackId = trackId;
-					removedEntryIndex = entryIndex;
+	valdiIt('keeps handle tap active while swipe remove is enabled', () => {
+		const track = {
+			artistName: 'Artist',
+			duration: 180,
+			id: 'track-1',
+			name: 'Track One',
+		};
+		let removedTrackId: string | null = null;
+		let removedEntryIndex: number | null = null;
+		let longPressedTrackId: string | null = null;
+		const instrumented = createComponent(TrackList, {
+			onTrackLongPress: (pressedTrack) => {
+				longPressedTrackId = pressedTrack.id;
+			},
+			onTrackSwipeRemove: (trackId: string, entryIndex: number) => {
+				removedTrackId = trackId;
+				removedEntryIndex = entryIndex;
+			},
+			showDragHandles: true,
+			tracks: [
+				{
+					artworkSource: 'https://example.com/art.jpg',
+					id: track.id,
+					meta: 'Artist',
+					title: track.name,
+					track,
 				},
-				tracks: [
-					{
-						artworkSource: 'https://example.com/art.jpg',
-						id: track.id,
-						meta: 'Artist',
-						title: track.name,
-						track,
-					},
-				],
-			});
-			const component = instrumented.getComponent();
+			],
+		});
+		const component = instrumented.getComponent();
 
-			let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-			let row = views.find((view) => view.getAttribute('testID') === 'track-row-track-1-0');
-			expect(row?.getAttribute('onDrag')).toBeUndefined();
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const handle = views.find(
+			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-1-0',
+		);
+		handle?.getAttribute('onTap')?.();
 
-			const artworkTouch = views.find(
-				(view) => view.getAttribute('testID') === 'track-artwork-touch-track-1-0',
-			);
-			artworkTouch?.getAttribute('onTouch')?.({ state: 0 });
-			jasmine.clock().tick(500);
+		const swipeRegion = views.find(
+			(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
+		);
+		swipeRegion?.getAttribute('onDrag')?.({ deltaX: -70, deltaY: 0, state: 1, velocityX: -100 });
+		swipeRegion?.getAttribute('onDrag')?.({ deltaX: -70, deltaY: 0, state: 2, velocityX: -100 });
 
-			views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-			row = views.find((view) => view.getAttribute('testID') === 'track-row-track-1-0');
-			row?.getAttribute('onDrag')?.({ deltaX: -70, deltaY: 0, state: 1, velocityX: -100 });
-			row?.getAttribute('onDrag')?.({ deltaX: -70, deltaY: 0, state: 2, velocityX: -100 });
-
-			expect(removedTrackId).toBe('track-1');
-			expect(removedEntryIndex).toBe(0);
-		} finally {
-			jasmine.clock().uninstall();
-		}
+		expect(longPressedTrackId).toBe('track-1');
+		expect(removedTrackId).toBe('track-1');
+		expect(removedEntryIndex).toBe(0);
 	});
 
 	valdiIt('renders leading label when no artwork is provided', () => {

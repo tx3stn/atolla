@@ -585,6 +585,7 @@ export class NowPlayingSurface extends StatefulComponent<
 								<TrackList
 									imageCache={imageCache}
 									noRowBackground
+									onTrackLongPress={this.handleTrackLongPress}
 									onTrackSwipeRemove={canEditQueue ? this.handleQueueTrackSwipeRemove : undefined}
 									onTrackTap={onTrackTap}
 									palette={palette}

@@ -181,9 +181,21 @@ describe('NowPlayingSurface', () => {
 			jasmine.clock().tick(500);
 
 			views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-			const upNextRow = views.find((view) => view.getAttribute('testID') === 'track-row-track-3-0');
-			upNextRow?.getAttribute('onDrag')?.({ deltaX: -72, deltaY: 0, state: 1, velocityX: -100 });
-			upNextRow?.getAttribute('onDrag')?.({ deltaX: -72, deltaY: 0, state: 2, velocityX: -100 });
+			const upNextRowSwipeRegion = views.find(
+				(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-3-0',
+			);
+			upNextRowSwipeRegion?.getAttribute('onDrag')?.({
+				deltaX: -72,
+				deltaY: 0,
+				state: 1,
+				velocityX: -100,
+			});
+			upNextRowSwipeRegion?.getAttribute('onDrag')?.({
+				deltaX: -72,
+				deltaY: 0,
+				state: 2,
+				velocityX: -100,
+			});
 
 			expect(playbackStore.removeFromQueueAt).toHaveBeenCalledWith(2);
 		} finally {

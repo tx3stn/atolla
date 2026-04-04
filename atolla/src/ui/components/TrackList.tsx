@@ -64,6 +64,7 @@ const REMOVE_SWIPE_VELOCITY = 700;
 const resolvedStylesCache = new Map<string, TrackListResolvedStyles>();
 
 export class TrackList extends Component<TrackListViewModel> {
+	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
 	private suppressNextTap = false;
 	private rowOffsetByIdentity = new Map<string, number>();
 	private rowRefByIdentity = new Map<string, ElementRef>();
@@ -88,77 +89,100 @@ export class TrackList extends Component<TrackListViewModel> {
 
 				return (
 					<view key={rowIdentity} style={styles.swipeContainer}>
-						{/* biome-ignore lint/a11y/noStaticElementInteractions: Track rows are intentionally interactive. */}
 						<view
-							accessibilityLabel={`track-row-${rowIdentity}`}
-							contentDescription={`track-row-${rowIdentity}`}
-							onDrag={
-								canSwipe
-									? ((trackId, entryIndex, identity) => (event) => {
-											this.handleRowDrag(event, trackId, entryIndex, identity);
-										})(entry.id, index, rowIdentity)
-									: undefined
-							}
-							onDragDisabled={!canSwipe}
-							onDragPredicate={(event) => Math.abs(event.deltaX) > Math.abs(event.deltaY)}
-							onTap={() => {
-								if (this.suppressNextTap) {
-									this.suppressNextTap = false;
-									return;
-								}
-								this.viewModel.onTrackTap?.(entry.id);
-							}}
 							ref={this.getRowRef(rowIdentity)}
 							style={resolvedStyles.rowStyle}
 							testID={`track-row-${rowIdentity}`}
 						>
-							<layout style={styles.rowContent}>
-								{entry.artworkSource ? (
-									<view
-										style={resolvedStyles.artworkTileStyle}
-										testID={`track-artwork-touch-${rowIdentity}`}
-									>
-										<CachedImage
-											category='album_art'
-											imageCache={this.viewModel.imageCache}
-											objectFit='cover'
-											style={styles.artwork}
-											url={entry.artworkSource}
-										/>
-									</view>
-								) : entry.leadingLabel ? (
-									<view
-										style={styles.leadingLabelTile}
-										testID={`track-row-non-artwork-touch-${rowIdentity}`}
-									>
-										<label
-											style={resolvedStyles.leadingLabelTextStyle}
-											value={entry.leadingLabel}
-										/>
-									</view>
-								) : null}
+							<layout style={styles.rowInteractiveLayout}>
+								{/* biome-ignore lint/a11y/noStaticElementInteractions: Track rows are intentionally interactive. */}
+								<view
+									accessibilityLabel={`track-row-swipe-region-${rowIdentity}`}
+									contentDescription={`track-row-swipe-region-${rowIdentity}`}
+									onDrag={
+										canSwipe
+											? ((trackId, entryIndex, identity) => (event) => {
+													this.handleRowDrag(event, trackId, entryIndex, identity);
+												})(entry.id, index, rowIdentity)
+											: undefined
+									}
+									onDragDisabled={!canSwipe}
+									onDragPredicate={(event) => Math.abs(event.deltaX) > Math.abs(event.deltaY)}
+									onTap={() => {
+										if (this.suppressNextTap) {
+											this.suppressNextTap = false;
+											return;
+										}
+										this.viewModel.onTrackTap?.(entry.id);
+									}}
+									style={styles.swipeGestureRegion}
+									testID={`track-row-swipe-region-${rowIdentity}`}
+								>
+									<layout style={styles.rowContent}>
+										{entry.artworkSource ? (
+											<view
+												onTouch={
+													entry.track && this.viewModel.onTrackLongPress
+														? ((track) => (event) => {
+																this.handleTrackTouch(event, track);
+															})(entry.track)
+														: undefined
+												}
+												style={resolvedStyles.artworkTileStyle}
+												testID={`track-artwork-touch-${rowIdentity}`}
+											>
+												<CachedImage
+													category='album_art'
+													imageCache={this.viewModel.imageCache}
+													objectFit='cover'
+													style={styles.artwork}
+													url={entry.artworkSource}
+												/>
+											</view>
+										) : entry.leadingLabel ? (
+											<view
+												onTouch={
+													entry.track && this.viewModel.onTrackLongPress
+														? ((track) => (event) => {
+																this.handleTrackTouch(event, track);
+															})(entry.track)
+														: undefined
+												}
+												style={styles.leadingLabelTile}
+												testID={`track-row-non-artwork-touch-${rowIdentity}`}
+											>
+												<label
+													style={resolvedStyles.leadingLabelTextStyle}
+													value={entry.leadingLabel}
+												/>
+											</view>
+										) : null}
 
-								<layout style={styles.textBlock}>
-									<label
-										ellipsizeMode='tail'
-										numberOfLines={2}
-										style={resolvedStyles.titleStyle}
-										value={entry.title}
-									/>
-									<label
-										ellipsizeMode='tail'
-										numberOfLines={1}
-										style={resolvedStyles.metaStyle}
-										value={entry.meta}
-									/>
-								</layout>
+										<layout style={styles.textBlock}>
+											<label
+												ellipsizeMode='tail'
+												numberOfLines={2}
+												style={resolvedStyles.titleStyle}
+												value={entry.title}
+											/>
+											<label
+												ellipsizeMode='tail'
+												numberOfLines={1}
+												style={resolvedStyles.metaStyle}
+												value={entry.meta}
+											/>
+										</layout>
+									</layout>
+								</view>
 
 								{this.viewModel.showDragHandles ? (
 									<view
-										onLongPress={
+										onTap={
 											entry.track && this.viewModel.onTrackLongPress
 												? ((track) => () => {
-														Device.performHapticFeedback(DeviceHapticFeedbackType.SELECTION);
+														if (DeviceHapticFeedbackType?.SELECTION !== undefined) {
+															Device.performHapticFeedback(DeviceHapticFeedbackType.SELECTION);
+														}
 														this.viewModel.onTrackLongPress?.(track);
 													})(entry.track)
 												: undefined
@@ -229,6 +253,42 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.suppressNextTap = true;
 		this.viewModel.onTrackSwipeRemove?.(trackId, entryIndex);
 	}
+
+	private scheduleLongPress(track?: Track): void {
+		if (!track || !this.viewModel.onTrackLongPress) {
+			return;
+		}
+
+		if (this.longPressTimeout) {
+			clearTimeout(this.longPressTimeout);
+		}
+
+		this.longPressTimeout = setTimeout(() => {
+			if (DeviceHapticFeedbackType?.SELECTION !== undefined) {
+				Device.performHapticFeedback(DeviceHapticFeedbackType.SELECTION);
+			}
+			this.suppressNextTap = true;
+			this.viewModel.onTrackLongPress?.(track);
+			this.longPressTimeout = null;
+		}, 500);
+	}
+
+	private cancelLongPress(): void {
+		if (!this.longPressTimeout) {
+			return;
+		}
+		clearTimeout(this.longPressTimeout);
+		this.longPressTimeout = null;
+	}
+
+	private handleTrackTouch(event, track?: Track): void {
+		if (event.state === TouchEventState.Started) {
+			this.scheduleLongPress(track);
+			return;
+		}
+
+		this.cancelLongPress();
+	}
 }
 
 function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedStyles {
@@ -264,7 +324,6 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 			color: colors.meta,
 			flexShrink: 1,
 			marginTop: 3,
-			width: '100%',
 		}),
 		rowStyle: new Style({
 			backgroundColor: colors.rowBackground,
@@ -279,7 +338,6 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 			...theme.text.mainBold,
 			color: colors.title,
 			flexShrink: 1,
-			width: '100%',
 		}),
 	};
 
@@ -309,7 +367,6 @@ const styles = {
 	editHandleContainer: new Style({
 		alignItems: 'center',
 		justifyContent: 'center',
-		marginLeft: 'auto',
 		paddingLeft: 8,
 		paddingRight: 2,
 	}),
@@ -332,6 +389,11 @@ const styles = {
 	rowContent: new Style({
 		alignItems: 'center',
 		columnGap: 18,
+		flex: 1,
+		flexDirection: 'row',
+	}),
+	rowInteractiveLayout: new Style({
+		alignItems: 'center',
 		flexDirection: 'row',
 		width: '100%',
 	}),
@@ -339,6 +401,11 @@ const styles = {
 		overflow: 'hidden',
 		position: 'relative',
 		width: '100%',
+	}),
+	swipeGestureRegion: new Style({
+		flex: 1,
+		flexGrow: 1,
+		width: 0,
 	}),
 	textBlock: new Style({
 		flex: 1,
