@@ -52,6 +52,7 @@ interface NowPlayingSurfaceState {
 	activeQueueTab: QueueTab;
 	contextMenuTrack: Track | null;
 	isExpanded: boolean;
+	isQueueEditMode: boolean;
 	toastMessage: string | null;
 }
 
@@ -63,6 +64,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private overlayCardRef = new ElementRef();
 	private compactBarRef = new ElementRef();
 	private expandedContentRef = new ElementRef();
+	private expandedScrollRef = new ElementRef();
 	private transitionArtworkRef = new ElementRef();
 	private scrollArtworkRef = new ElementRef();
 	private isTransitioning = false;
@@ -78,6 +80,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		activeQueueTab: 'upNext',
 		contextMenuTrack: null,
 		isExpanded: false,
+		isQueueEditMode: false,
 		toastMessage: null,
 	};
 
@@ -104,6 +107,7 @@ export class NowPlayingSurface extends StatefulComponent<
 
 		this.isTransitioning = true;
 		this.setState({ isExpanded: true });
+		this.expandedScrollRef.setAttribute('contentOffsetY', 0);
 		this.overlayRef.setAttribute('top', 0);
 		this.setCollapsedGeometry();
 		this.transitionArtworkRef.setAttribute('opacity', 1);
@@ -191,7 +195,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			},
 		).then(() => {
 			this.overlayRef.setAttribute('top', 2000);
-			this.setState({ isExpanded: false });
+			this.setState({ isExpanded: false, isQueueEditMode: false });
 			this.isTransitioning = false;
 		});
 	};
@@ -302,6 +306,10 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	private handleQueueTabTap = (tab: QueueTab): void => {
 		this.setState({ activeQueueTab: tab });
+	};
+
+	private handleEnterQueueEditMode = (): void => {
+		this.setState({ isQueueEditMode: true });
 	};
 
 	private handleBackToTabTap = (): void => {
@@ -471,7 +479,7 @@ export class NowPlayingSurface extends StatefulComponent<
 						/>
 					)}
 					<view ref={this.expandedContentRef} style={styles.expandedContent}>
-						<scroll style={styles.expandedInner}>
+						<scroll ref={this.expandedScrollRef} style={styles.expandedInner}>
 							<layout style={styles.expandedFirstPage}>
 								{albumArtworkSource && (
 									<image
@@ -582,7 +590,9 @@ export class NowPlayingSurface extends StatefulComponent<
 							>
 								<TrackList
 									imageCache={imageCache}
+									isEditMode={canEditQueue ? this.state.isQueueEditMode : undefined}
 									noRowBackground
+									onEnterEditMode={canEditQueue ? this.handleEnterQueueEditMode : undefined}
 									onTrackLongPress={
 										this.viewModel.playbackStore && this.viewModel.transport
 											? this.handleTrackLongPress

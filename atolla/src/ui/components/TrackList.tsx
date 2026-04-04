@@ -1,4 +1,6 @@
 // @ts-nocheck
+
+import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
@@ -23,7 +25,9 @@ export interface TrackListEntry {
 
 export interface TrackListViewModel {
 	imageCache?: ImageCache;
+	isEditMode?: boolean;
 	noRowBackground?: boolean;
+	onEnterEditMode?: () => void;
 	onTrackLongPress?: (track: Track) => void;
 	onTrackSwipeRemove?: (trackId: string, entryIndex: number) => void;
 	onTrackTap?: (trackId: string) => void;
@@ -82,6 +86,7 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 	onRender() {
 		const colors = resolveColors(this.viewModel.palette, this.viewModel.noRowBackground);
 		const resolvedStyles = getResolvedTrackListStyles(colors);
+		const isEditMode = this.viewModel.isEditMode ?? this.state.isEditMode;
 
 		if (this.viewModel.tracks.length === 0) {
 			<label
@@ -103,13 +108,13 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 							accessibilityLabel={`track-row-${rowIdentity}`}
 							contentDescription={`track-row-${rowIdentity}`}
 							onDrag={
-								this.state.isEditMode
+								isEditMode
 									? ((trackId, entryIndex, identity) => (event) => {
 											this.handleRowDrag(event, trackId, entryIndex, identity);
 										})(entry.id, index, rowIdentity)
 									: undefined
 							}
-							onDragEnabled={this.state.isEditMode}
+							onDragEnabled={isEditMode}
 							onTap={() => {
 								if (this.suppressNextTap) {
 									this.suppressNextTap = false;
@@ -186,7 +191,7 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 									/>
 								</layout>
 
-								{this.state.isEditMode ? (
+								{isEditMode ? (
 									<view
 										onTouch={
 											this.viewModel.onTrackLongPress && entry.track
@@ -198,14 +203,11 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 										style={styles.editHandleContainer}
 										testID={`track-row-edit-handle-${rowIdentity}`}
 									>
-										<layout style={styles.editHandleColumn}>
-											<view style={styles.editHandleDot} />
-											<view style={styles.editHandleDot} />
-										</layout>
-										<layout style={styles.editHandleColumn}>
-											<view style={styles.editHandleDot} />
-											<view style={styles.editHandleDot} />
-										</layout>
+										<image
+											src={res.draghandle}
+											style={styles.editHandleIcon}
+											tint={withAlpha(theme.colors.white, 0.58)}
+										/>
 									</view>
 								) : null}
 							</layout>
@@ -237,7 +239,11 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 		if (event.state === TouchEventState.Started) {
 			this.artworkTouchActive = true;
 			this.startLongPressTimer(() => {
-				this.setState({ isEditMode: true });
+				if (this.viewModel.onEnterEditMode) {
+					this.viewModel.onEnterEditMode();
+				} else {
+					this.setState({ isEditMode: true });
+				}
 			});
 			return;
 		}
@@ -289,7 +295,8 @@ export class TrackList extends StatefulComponent<TrackListViewModel, TrackListSt
 	}
 
 	private handleRowDrag(event, trackId: string, entryIndex: number, rowIdentity: string): void {
-		if (!this.state.isEditMode) {
+		const isEditMode = this.viewModel.isEditMode ?? this.state.isEditMode;
+		if (!isEditMode) {
 			return;
 		}
 
@@ -401,23 +408,16 @@ const styles = {
 		height: '100%',
 		width: '100%',
 	}),
-	editHandleColumn: new Style({
-		rowGap: 4,
-	}),
 	editHandleContainer: new Style({
-		columnGap: 4,
-		flexDirection: 'row',
-		marginLeft: 8,
-		paddingBottom: 4,
-		paddingLeft: 6,
+		alignItems: 'center',
+		justifyContent: 'center',
+		marginLeft: 'auto',
+		paddingLeft: 8,
 		paddingRight: 2,
-		paddingTop: 4,
 	}),
-	editHandleDot: new Style({
-		backgroundColor: withAlpha(theme.colors.white, 0.58),
-		borderRadius: 2,
-		height: 4,
-		width: 4,
+	editHandleIcon: new Style<ImageView>({
+		height: 24,
+		width: 24,
 	}),
 	leadingLabelTile: new Style({
 		alignItems: 'center',
