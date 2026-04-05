@@ -30,6 +30,7 @@ export interface NowPlayingSurfaceViewModel {
 	collapseSignal: number;
 	imageCache?: ImageCache;
 	isPlaying: boolean;
+	onAlbumTap?: () => void;
 	onArtistTap?: () => void;
 	onDismiss: () => void;
 	onNext: () => void;
@@ -201,6 +202,12 @@ export class NowPlayingSurface extends StatefulComponent<
 	private handleArtistLogoTap = (): void => {
 		this.closeSurface().then(() => {
 			this.viewModel.onArtistTap?.();
+		});
+	};
+
+	private handleAlbumNameTap = (): void => {
+		this.closeSurface().then(() => {
+			this.viewModel.onAlbumTap?.();
 		});
 	};
 
@@ -509,7 +516,7 @@ export class NowPlayingSurface extends StatefulComponent<
 									/>
 								</layout>
 								<layout style={styles.expandedBottomSection}>
-									<layout style={styles.expandedTrackMetaSection}>
+									<view style={styles.expandedTrackMetaSection}>
 										<label
 											numberOfLines={2}
 											style={paletteStyles.expandedTrackNameStyle}
@@ -517,10 +524,11 @@ export class NowPlayingSurface extends StatefulComponent<
 										/>
 										<label
 											numberOfLines={2}
+											onTap={this.handleAlbumNameTap}
 											style={paletteStyles.expandedAlbumLineStyle}
 											value={albumLine}
 										/>
-									</layout>
+									</view>
 									<layout style={styles.expandedProgressSection}>
 										<PlaybackProgressBar
 											accentColor={accentColor}

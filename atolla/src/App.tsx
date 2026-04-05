@@ -114,6 +114,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private pendingArtistFallbackName: string = 'Unknown Artist';
 	private pendingArtistFallbackLogoUrl: string | null = null;
 	private isResolvingArtistNavigation = false;
+	private pendingAlbum: Album | null = null;
+	private isResolvingAlbumNavigation = false;
 	private pendingSearchNavigation: SearchHomeNavigationTarget | null = null;
 	private isResolvingSearchNavigation = false;
 	private returnToSearchOnDetailClose = false;
@@ -654,6 +656,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	handleHomeNavigationControllerChange = (navigationController: NavigationController): void => {
 		this.homeNavigationController = navigationController;
 		this.tryNavigatePendingArtist();
+		this.tryNavigatePendingAlbum();
 		this.tryNavigatePendingSearchResult();
 	};
 
@@ -896,6 +899,66 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			});
 	}
 
+	handleNowPlayingAlbumTap = (): void => {
+		const { album, track } = this.playbackStore;
+		const resolvedAlbum: Album | null =
+			album ??
+			(track?.albumId
+				? {
+						artistId: track.artistId ?? '',
+						artistName: track.artistName ?? '',
+						id: track.albumId,
+						imageUrl: track.albumImageUrl,
+						name: track.albumName ?? '',
+					}
+				: null);
+		if (!resolvedAlbum) {
+			return;
+		}
+
+		this.pendingAlbum = resolvedAlbum;
+		this.setState({
+			activeFooterTab: FooterTabs.home,
+			activeHomeTab: HeaderTabs.albums,
+			homeResetNonce: this.state.homeResetNonce + 1,
+		});
+
+		this.tryNavigatePendingAlbum();
+	};
+
+	private tryNavigatePendingAlbum(): void {
+		if (!this.pendingAlbum || !this.homeNavigationController || this.isResolvingAlbumNavigation) {
+			return;
+		}
+
+		this.isResolvingAlbumNavigation = true;
+		const album = this.pendingAlbum;
+		Promise.resolve().then(() => {
+			if (this.pendingAlbum !== album) {
+				this.isResolvingAlbumNavigation = false;
+				return;
+			}
+			if (!this.homeNavigationController) {
+				this.isResolvingAlbumNavigation = false;
+				return;
+			}
+			this.homeNavigationController.push(
+				AlbumView,
+				{
+					album,
+					animationsEnabled: this.state.animationsEnabled,
+					imageCache: this.imageCache,
+					playbackStore: this.playbackStore,
+					transport: this.transport,
+				},
+				{},
+				{ animated: this.state.animationsEnabled },
+			);
+			this.pendingAlbum = null;
+			this.isResolvingAlbumNavigation = false;
+		});
+	}
+
 	private completeBootstrap(
 		partialState: Partial<
 			Pick<
@@ -1022,6 +1085,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					collapseSignal={this.state.nowPlayingCollapseSignal}
 					imageCache={this.imageCache}
 					isPlaying={isPlaying}
+					onAlbumTap={this.handleNowPlayingAlbumTap}
 					onArtistTap={this.handleNowPlayingArtistTap}
 					onDismiss={this.handleNowPlayingDismiss}
 					onNext={this.handleNowPlayingNext}
