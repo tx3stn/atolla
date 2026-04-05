@@ -524,17 +524,19 @@ export class NowPlayingSurface extends StatefulComponent<
 								</layout>
 								<layout style={styles.expandedBottomSection}>
 									<view style={styles.expandedTrackMetaSection}>
-										<label
-											numberOfLines={2}
-											style={paletteStyles.expandedTrackNameStyle}
-											value={track.name}
-										/>
-										<label
-											numberOfLines={2}
-											onTap={this.handleAlbumNameTap}
-											style={paletteStyles.expandedAlbumLineStyle}
-											value={albumLine}
-										/>
+										<layout style={styles.expandedTrackMetaTextInset}>
+											<label
+												numberOfLines={2}
+												style={paletteStyles.expandedTrackNameStyle}
+												value={track.name}
+											/>
+											<label
+												numberOfLines={2}
+												onTap={this.handleAlbumNameTap}
+												style={paletteStyles.expandedAlbumLineStyle}
+												value={albumLine}
+											/>
+										</layout>
 									</view>
 									<layout style={styles.expandedProgressSection}>
 										<PlaybackProgressBar
@@ -766,6 +768,8 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 			...theme.text.subLarger,
 			color: mutedOnSurfaceColor,
 			marginTop: 4,
+			paddingLeft: 12,
+			paddingRight: 12,
 			paddingTop: 12,
 			textAlign: 'center',
 			width: '100%',
@@ -784,6 +788,8 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 		expandedTrackNameStyle: new Style<Label>({
 			...theme.text.title,
 			color: onSurfaceColor,
+			paddingLeft: 12,
+			paddingRight: 12,
 			textAlign: 'center',
 			width: '100%',
 		}),
@@ -941,7 +947,11 @@ const styles = {
 	expandedTrackMetaSection: new Style({
 		alignItems: 'center',
 		marginBottom: 10,
-		paddingHorizontal: 24,
+		width: '100%',
+	}),
+	expandedTrackMetaTextInset: new Style({
+		paddingLeft: 28,
+		paddingRight: 28,
 		width: '100%',
 	}),
 	info: new Style({
