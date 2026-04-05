@@ -291,7 +291,7 @@ describe('NowPlayingSurface', () => {
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const firstBackToHandle = views.find(
-			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-1-0',
+			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-2-0',
 		);
 		firstBackToHandle?.getAttribute('onDrag')?.({
 			deltaX: 0,
@@ -300,7 +300,53 @@ describe('NowPlayingSurface', () => {
 			velocityY: 120,
 		});
 
-		expect(playbackStore.moveQueueTrack).toHaveBeenCalledWith(0, 1);
+		expect(playbackStore.moveQueueTrack).toHaveBeenCalledWith(1, 0);
+	});
+
+	valdiIt('shows bypassed up-next tracks in back-to after jumping ahead in queue', () => {
+		const tracks = [
+			{ ...track, id: 'track-1', name: 'Track One' },
+			{ ...track, id: 'track-2', name: 'Track Two' },
+			{ ...track, id: 'track-3', name: 'Track Three' },
+			{ ...track, id: 'track-4', name: 'Track Four' },
+		];
+
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 0,
+			isPlaying: true,
+			onDismiss: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			progressSeconds: 90,
+			track: tracks[3],
+			trackIndex: 3,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+		compactBar?.getAttribute('onTap')?.();
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const backToTab = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'now-playing-tab-back-to',
+		);
+		backToTab?.getAttribute('onTap')?.();
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const backToRows = views
+			.map((view) => view.getAttribute('testID'))
+			.filter((testID) => typeof testID === 'string' && testID.startsWith('track-row-track-'));
+
+		expect(backToRows).toEqual([
+			'track-row-track-3-0',
+			'track-row-track-2-1',
+			'track-row-track-1-2',
+		]);
 	});
 
 	valdiIt('handles collapse signal update while expanded', () => {

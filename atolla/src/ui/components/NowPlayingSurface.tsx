@@ -332,7 +332,9 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		const removeIndex =
-			this.state.activeQueueTab === 'upNext' ? trackIndex + 1 + entryIndex : entryIndex;
+			this.state.activeQueueTab === 'upNext'
+				? trackIndex + 1 + entryIndex
+				: trackIndex - 1 - entryIndex;
 		playbackStore.removeFromQueueAt(removeIndex);
 	};
 
@@ -342,9 +344,14 @@ export class NowPlayingSurface extends StatefulComponent<
 			return;
 		}
 
-		const tabOffset = this.state.activeQueueTab === 'upNext' ? trackIndex + 1 : 0;
-		const fromIndex = tabOffset + fromEntryIndex;
-		const toIndex = tabOffset + toEntryIndex;
+		const fromIndex =
+			this.state.activeQueueTab === 'upNext'
+				? trackIndex + 1 + fromEntryIndex
+				: trackIndex - 1 - fromEntryIndex;
+		const toIndex =
+			this.state.activeQueueTab === 'upNext'
+				? trackIndex + 1 + toEntryIndex
+				: trackIndex - 1 - toEntryIndex;
 		playbackStore.moveQueueTrack(fromIndex, toIndex);
 	};
 
@@ -388,7 +395,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		});
 
 		const upNextEntries = tracks.slice(trackIndex + 1).map(toEntry);
-		const backToEntries = tracks.slice(0, trackIndex).map(toEntry);
+		const backToEntries = tracks.slice(0, trackIndex).reverse().map(toEntry);
 		const activeTab = this.state.activeQueueTab;
 		const canEditQueue = Boolean(this.viewModel.playbackStore);
 		const albumImageUrl = track.albumImageUrl ?? album?.imageUrl ?? null;
