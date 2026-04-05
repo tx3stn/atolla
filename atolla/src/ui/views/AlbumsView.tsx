@@ -195,6 +195,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				accessibilityLabel='home-albums-grid'
 				cards={cards}
 				imageCache={imageCache}
+				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 				isLoadingMore={this.state.isLoadingNextPage}
 				onCardLongPress={this.handleAlbumCardLongPress}
 				onCardTap={(card) => {
@@ -209,9 +210,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 					}
 				}}
 				onLoadMore={
-					this.state.hasMore && !this.state.nextPageFailed && !this.state.isLoadingNextPage
-						? () => this.loadMore()
-						: undefined
+					this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
 				}
 				onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 			/>

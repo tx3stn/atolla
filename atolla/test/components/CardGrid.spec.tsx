@@ -140,4 +140,50 @@ describe('CardGrid', () => {
 		expect(images.length).toBe(1);
 		expect(images[0].getAttribute('src')).toContain('atolla-cache://image?c=album_art&u=');
 	});
+
+	valdiIt('auto-loads more when prefetch trigger is laid out', () => {
+		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
+		let loadMoreCalls = 0;
+		const instrumented = createComponent(CardGrid, {
+			accessibilityLabel: 'grid',
+			cards,
+			onCardTap: () => {},
+			onLoadMore: () => {
+				loadMoreCalls += 1;
+			},
+			resolveArtworkSource: () => null,
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const trigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
+		);
+		expect(trigger).toBeDefined();
+
+		trigger?.getAttribute('onLayout')?.();
+		trigger?.getAttribute('onLayout')?.();
+
+		expect(loadMoreCalls).toBe(1);
+	});
+
+	valdiIt('shows loading spinner label while loading next page', () => {
+		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
+		const instrumented = createComponent(CardGrid, {
+			accessibilityLabel: 'grid',
+			cards,
+			isLoadingMore: true,
+			onCardTap: () => {},
+			onLoadMore: () => {},
+			resolveArtworkSource: () => null,
+		});
+		const component = instrumented.getComponent();
+
+		const labels = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Label,
+		);
+		const values = labels.map((label) => label.getAttribute('value'));
+		expect(values).toContain('Loading more...');
+	});
 });

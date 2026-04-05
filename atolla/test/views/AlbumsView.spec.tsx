@@ -83,7 +83,7 @@ describe('AlbumsView', () => {
 		expect(prefetchCalls[0]?.length).toBe(pageSize);
 	});
 
-	valdiIt('loads next page when load-more is requested', async () => {
+	valdiIt('loads next page when prefetch trigger is laid out', async () => {
 		const allAlbums = makeAlbums(80);
 		const transport = {
 			getAlbumsPage: (page: number, size: number) => {
@@ -108,17 +108,29 @@ describe('AlbumsView', () => {
 		await flushAsyncWork();
 		expect(component.state.albums.length).toBe(pageSize);
 
-		component.loadMore();
+		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		let prefetchTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
+		);
+		prefetchTrigger?.getAttribute('onLayout')?.();
 		await flushAsyncWork();
 
 		expect(component.state.albums.length).toBe(pageSize * 2);
 
-		component.loadMore();
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		prefetchTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
+		);
+		prefetchTrigger?.getAttribute('onLayout')?.();
 		await flushAsyncWork();
 
 		expect(component.state.albums.length).toBe(pageSize * 3);
 
-		component.loadMore();
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		prefetchTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
+		);
+		prefetchTrigger?.getAttribute('onLayout')?.();
 		await flushAsyncWork();
 
 		expect(component.state.albums.length).toBe(80);
@@ -153,12 +165,20 @@ describe('AlbumsView', () => {
 		await flushAsyncWork();
 		expect(component.state.albums.length).toBe(pageSize);
 
-		component.loadMore();
+		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		let prefetchTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
+		);
+		prefetchTrigger?.getAttribute('onLayout')?.();
 		await flushAsyncWork();
 
 		expect(component.state.albums.length).toBe(pageSize * 2);
 
-		component.loadMore();
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		prefetchTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
+		);
+		prefetchTrigger?.getAttribute('onLayout')?.();
 		await flushAsyncWork();
 
 		expect(component.state.nextPageFailed).toBeTrue();
@@ -171,7 +191,11 @@ describe('AlbumsView', () => {
 		expect(component.state.nextPageFailed).toBeFalse();
 		expect(component.state.albums.length).toBe(pageSize * 3);
 
-		component.loadMore();
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		prefetchTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
+		);
+		prefetchTrigger?.getAttribute('onLayout')?.();
 		await flushAsyncWork();
 		expect(component.state.albums.length).toBe(90);
 	});

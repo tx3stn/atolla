@@ -20,6 +20,7 @@ export interface CardGridViewModel {
 	cacheVersion?: number;
 	cards: Array<Card>;
 	imageCache?: ImageCache;
+	infiniteScrollTriggerRatio?: number;
 	isLoadingMore?: boolean;
 	onCardLongPress?: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
 	onCardTap: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
@@ -33,6 +34,7 @@ const CARD_LONG_PRESS_DELAY_MS = 500;
 
 export class CardGrid extends Component<CardGridViewModel> {
 	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
+	private triggeredAutoLoadForCardCount: number | null = null;
 	private suppressNextTap = false;
 
 	onDestroy(): void {
@@ -44,6 +46,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 			accessibilityLabel,
 			cacheVersion,
 			cards,
+			infiniteScrollTriggerRatio,
 			imageCache,
 			isLoadingMore,
 			onCardLongPress,
@@ -57,6 +60,14 @@ export class CardGrid extends Component<CardGridViewModel> {
 		for (let i = 0; i < cards.length; i += 3) {
 			rows.push(cards.slice(i, i + 3));
 		}
+
+		const triggerRowIndex =
+			onLoadMore && rows.length > 0
+				? Math.min(
+						rows.length - 1,
+						Math.max(0, Math.floor((rows.length - 1) * (infiniteScrollTriggerRatio ?? 0.7))),
+					)
+				: -1;
 
 		<layout
 			accessibilityLabel={accessibilityLabel}
@@ -113,6 +124,17 @@ export class CardGrid extends Component<CardGridViewModel> {
 							</layout>
 						);
 					})}
+					{rowIndex === triggerRowIndex && (
+						<view
+							accessibilityLabel='grid-prefetch-trigger'
+							contentDescription='grid-prefetch-trigger'
+							onLayout={createReusableCallback(() => {
+								this.handleAutoLoadTriggerLayout();
+							})}
+							style={styles.prefetchTrigger}
+							testID='grid-prefetch-trigger'
+						/>
+					)}
 				</layout>
 			))}
 			{isLoadingMore ? (
@@ -129,20 +151,22 @@ export class CardGrid extends Component<CardGridViewModel> {
 				>
 					<label style={styles.loadMoreRetryLabel} value='Failed to load more. Tap to retry.' />
 				</view>
-			) : onLoadMore ? (
-				<view
-					accessibilityLabel='grid-load-more'
-					contentDescription='grid-load-more'
-					onTap={createReusableCallback(() => {
-						onLoadMore();
-					})}
-					style={styles.loadMoreRetryContainer}
-					testID='grid-load-more'
-				>
-					<label style={styles.loadMoreRetryLabel} value='Load more' />
-				</view>
 			) : null}
 		</layout>;
+	}
+
+	private handleAutoLoadTriggerLayout(): void {
+		const { cards, onLoadMore } = this.viewModel;
+		if (!onLoadMore) {
+			return;
+		}
+
+		if (this.triggeredAutoLoadForCardCount === cards.length) {
+			return;
+		}
+
+		this.triggeredAutoLoadForCardCount = cards.length;
+		onLoadMore();
 	}
 
 	private handleCardTouch(event, cardId: string, kind: Card['kind']): void {
@@ -253,5 +277,9 @@ const styles = {
 	loadMoreRetryLabel: new Style<Label>({
 		...theme.text.main,
 		textAlign: 'center',
+	}),
+	prefetchTrigger: new Style({
+		height: 1,
+		width: '100%',
 	}),
 };

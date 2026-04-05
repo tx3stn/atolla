@@ -192,6 +192,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				accessibilityLabel='home-artists-grid'
 				cards={cards}
 				imageCache={imageCache}
+				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 				isLoadingMore={this.state.isLoadingNextPage}
 				onCardLongPress={this.handleArtistCardLongPress}
 				onCardTap={(card) => {
@@ -206,9 +207,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					}
 				}}
 				onLoadMore={
-					this.state.hasMore && !this.state.nextPageFailed && !this.state.isLoadingNextPage
-						? () => this.loadMore()
-						: undefined
+					this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
 				}
 				onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 			/>

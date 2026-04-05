@@ -7,6 +7,8 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
+const pageSize = 24;
+
 const playbackStore = {
 	subscribe: () => () => {},
 	track: null,
@@ -28,6 +30,19 @@ function makeNavigationController() {
 		},
 	};
 	return navigationController;
+}
+
+function makePlaylists(count: number) {
+	return Array.from({ length: count }, (_, index) => ({
+		id: `playlist-${index}`,
+		imageUrl: `https://example.com/playlist-${index}.jpg`,
+		name: `Playlist ${String(index).padStart(3, '0')}`,
+	}));
+}
+
+async function flushAsyncWork() {
+	await Promise.resolve();
+	await Promise.resolve();
 }
 
 describe('PlaylistsView', () => {
@@ -120,5 +135,40 @@ describe('PlaylistsView', () => {
 		expect(playbackStoreWithLongPress.playWithArtistLogos).toHaveBeenCalledWith(playlistTracks, [
 			'https://example.com/artist-logo.jpg',
 		]);
+	});
+
+	valdiIt('loads next playlist page when prefetch trigger is laid out', async () => {
+		const allPlaylists = makePlaylists(60);
+		const transport = {
+			getPlaylistsPage: (page: number, size: number) => {
+				const start = (page - 1) * size;
+				const end = start + size;
+				return Promise.resolve({
+					hasMore: end < allPlaylists.length,
+					items: allPlaylists.slice(start, end),
+				});
+			},
+		};
+
+		const instrumented = createComponent(PlaylistsView, {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore,
+			transport,
+		});
+		const component = instrumented.getComponent();
+
+		await flushAsyncWork();
+		await flushAsyncWork();
+		expect(component.state.playlists.length).toBe(pageSize);
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const prefetchTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
+		);
+		prefetchTrigger?.getAttribute('onLayout')?.();
+		await flushAsyncWork();
+
+		expect(component.state.playlists.length).toBe(pageSize * 2);
 	});
 });

@@ -8,6 +8,8 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
+const pageSize = 24;
+
 const stubImageCache = {
 	get: () => null,
 	getOrLoad: () => null,
@@ -26,6 +28,19 @@ function makeNavigationController() {
 		},
 	};
 	return navigationController;
+}
+
+function makeArtists(count: number) {
+	return Array.from({ length: count }, (_, index) => ({
+		id: `artist-${index}`,
+		imageUrl: `https://example.com/artist-${index}.jpg`,
+		name: `Artist ${String(index).padStart(3, '0')}`,
+	}));
+}
+
+async function flushAsyncWork() {
+	await Promise.resolve();
+	await Promise.resolve();
 }
 
 describe('ArtistsView', () => {
@@ -113,5 +128,40 @@ describe('ArtistsView', () => {
 
 		expect(playbackStore.playTracks).toHaveBeenCalledWith(artistTracks);
 		expect(playbackStore.setArtistLogoUrl).toHaveBeenCalledWith('https://example.com/logo.jpg');
+	});
+
+	valdiIt('loads next artist page when prefetch trigger is laid out', async () => {
+		const allArtists = makeArtists(60);
+		const transport = {
+			getArtistsPage: (page: number, size: number) => {
+				const start = (page - 1) * size;
+				const end = start + size;
+				return Promise.resolve({
+					hasMore: end < allArtists.length,
+					items: allArtists.slice(start, end),
+				});
+			},
+		};
+
+		const instrumented = createComponent(ArtistsView, {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			transport,
+		});
+		const component = instrumented.getComponent();
+
+		await flushAsyncWork();
+		await flushAsyncWork();
+		expect(component.state.artists.length).toBe(pageSize);
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const prefetchTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
+		);
+		prefetchTrigger?.getAttribute('onLayout')?.();
+		await flushAsyncWork();
+
+		expect(component.state.artists.length).toBe(pageSize * 2);
 	});
 });

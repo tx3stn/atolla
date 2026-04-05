@@ -201,6 +201,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				accessibilityLabel='home-playlists-grid'
 				cards={cards}
 				imageCache={imageCache}
+				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 				isLoadingMore={this.state.isLoadingNextPage}
 				onCardLongPress={this.handlePlaylistCardLongPress}
 				onCardTap={(card) => {
@@ -223,9 +224,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					}
 				}}
 				onLoadMore={
-					this.state.hasMore && !this.state.nextPageFailed && !this.state.isLoadingNextPage
-						? () => this.loadMore()
-						: undefined
+					this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
 				}
 				onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 			/>
