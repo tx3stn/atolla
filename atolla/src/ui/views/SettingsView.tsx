@@ -5,7 +5,11 @@ import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ClearCacheSelection } from '../../services/ImageCache';
 import type { Preferences } from '../../stores/Preferences';
-import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
+import {
+	DEFAULT_IMAGE_CACHE_MAX_BYTES,
+	DEFAULT_TRACK_CACHE_MAX_TRACKS,
+	TRACK_CACHE_LIMIT_OPTIONS,
+} from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
@@ -40,13 +44,16 @@ export interface SettingsViewModel {
 	onCacheSizeChange?: (bytes: number) => void;
 	onClearCache?: (selection: ClearCacheSelection) => void;
 	onLogout?: () => void;
+	onTrackCacheMaxTracksChange?: (count: number) => void;
 	preferences: Preferences;
+	trackCacheMaxTracks?: number;
 }
 
 interface SettingsState {
 	cacheSizeInput: string;
 	showCacheClearModal: boolean;
 	showCacheToast: boolean;
+	showTrackCacheLimitOptions: boolean;
 }
 
 export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsState> {
@@ -54,6 +61,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		cacheSizeInput: bytesToGb(this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES),
 		showCacheClearModal: false,
 		showCacheToast: false,
+		showTrackCacheLimitOptions: false,
 	};
 
 	private toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -83,6 +91,15 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		this.setState({ showCacheClearModal: false });
 	};
 
+	private handleTrackCacheLimitToggle = () => {
+		this.setState({ showTrackCacheLimitOptions: !this.state.showTrackCacheLimitOptions });
+	};
+
+	private handleTrackCacheLimitSelect = (count: number) => {
+		this.viewModel.onTrackCacheMaxTracksChange?.(count);
+		this.setState({ showTrackCacheLimitOptions: false });
+	};
+
 	onViewModelUpdate(): void {
 		this.setState({
 			cacheSizeInput: bytesToGb(this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES),
@@ -103,7 +120,9 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			imageCacheBufferedBytes,
 			imageCacheBufferedCount,
 			onAnimationsChange,
+			trackCacheMaxTracks,
 		} = this.viewModel;
+		const selectedTrackCacheLimit = trackCacheMaxTracks ?? DEFAULT_TRACK_CACHE_MAX_TRACKS;
 
 		<view style={styles.root}>
 			<view style={styles.pageHeaderRow}>
@@ -113,7 +132,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			<label style={styles.sectionTitle} value='APPEARANCE' />
 			<view style={styles.section}>
 				<view style={styles.settingRow}>
-					<label style={styles.settingLabel} value='Animations' />
+					<label style={styles.settingLabel} value='animations' />
 					<Toggle
 						accessibilityLabel='settings-animations-toggle'
 						enabled={animationsEnabled}
@@ -125,7 +144,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			<label style={styles.sectionTitle} value='CACHE' />
 			<view style={styles.section}>
 				<view style={styles.settingRow}>
-					<label style={styles.settingLabel} value='Cache Size (GB)' />
+					<label style={styles.settingLabel} value='cache size (GB)' />
 					<view style={styles.inputContainer}>
 						<textfield
 							accessibilityLabel='settings-cache-size-input'
@@ -137,6 +156,35 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						/>
 					</view>
 				</view>
+				<view style={styles.trackCacheLimitContainer}>
+					<label style={styles.settingLabel} value='cached tracks' />
+					<view
+						accessibilityLabel='settings-track-cache-limit-dropdown'
+						contentDescription='settings-track-cache-limit-dropdown'
+						onTap={this.handleTrackCacheLimitToggle}
+						style={styles.trackCacheLimitButton}
+					>
+						<label style={styles.trackCacheLimitButtonLabel} value={`${selectedTrackCacheLimit}`} />
+					</view>
+				</view>
+				{this.state.showTrackCacheLimitOptions && (
+					<view style={styles.trackCacheLimitOptionsList}>
+						{TRACK_CACHE_LIMIT_OPTIONS.map((option) => (
+							<view
+								accessibilityLabel={`settings-track-cache-limit-option-${option}`}
+								contentDescription={`settings-track-cache-limit-option-${option}`}
+								onTap={() => this.handleTrackCacheLimitSelect(option)}
+								style={
+									option === selectedTrackCacheLimit
+										? styles.trackCacheLimitOptionSelected
+										: styles.trackCacheLimitOption
+								}
+							>
+								<label style={styles.trackCacheLimitOptionLabel} value={`${option}`} />
+							</view>
+						))}
+					</view>
+				)}
 				{imageCacheBufferedCount != null && imageCacheBufferedBytes != null && (
 					<label
 						accessibilityLabel='settings-cache-usage'
@@ -233,5 +281,49 @@ const styles = {
 	settingRow: new Style({
 		alignItems: 'center',
 		flexDirection: 'row',
+	}),
+	trackCacheLimitButton: new Style({
+		alignItems: 'center',
+		backgroundColor: theme.colors.bgAccent,
+		borderRadius: theme.borderRadius,
+		minWidth: 84,
+		paddingBottom: 12,
+		paddingLeft: 18,
+		paddingRight: 18,
+		paddingTop: 12,
+	}),
+	trackCacheLimitButtonLabel: new Style({
+		...theme.text.main,
+	}),
+	trackCacheLimitContainer: new Style({
+		alignItems: 'center',
+		flexDirection: 'row',
+		marginTop: 10,
+	}),
+	trackCacheLimitOption: new Style({
+		alignItems: 'center',
+		backgroundColor: theme.colors.bgAccent,
+		borderRadius: theme.borderRadius,
+		flexGrow: 1,
+		marginRight: 8,
+		paddingBottom: 8,
+		paddingTop: 8,
+	}),
+	trackCacheLimitOptionLabel: new Style({
+		...theme.text.sub,
+	}),
+	trackCacheLimitOptionSelected: new Style({
+		alignItems: 'center',
+		backgroundColor: theme.colors.active,
+		borderRadius: theme.borderRadius,
+		flexGrow: 1,
+		marginRight: 8,
+		paddingBottom: 8,
+		paddingTop: 8,
+	}),
+	trackCacheLimitOptionsList: new Style({
+		flexDirection: 'row',
+		marginTop: 10,
+		width: '100%',
 	}),
 };

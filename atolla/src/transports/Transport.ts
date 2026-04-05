@@ -24,6 +24,7 @@ export interface Transport {
 		page: number,
 		pageSize: number,
 	) => Promise<{ hasMore: boolean; items: Array<Playlist> }>;
+	getTrackCacheUrl?(trackId: string): string | null;
 	getTracksByAlbum(albumId: string): Promise<Array<Track>>;
 	getTracksByArtist(artistId: string): Promise<Array<Track>>;
 	getTracksByPlaylist(playlistId: string): Promise<Array<Track>>;

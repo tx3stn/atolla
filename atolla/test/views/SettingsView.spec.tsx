@@ -144,6 +144,56 @@ describe('SettingsView', () => {
 		expect(toast).toBeTruthy();
 	});
 
+	valdiIt('shows cached tracks dropdown options when tapped', () => {
+		const instrumented = createComponent(SettingsView, {
+			preferences: new Preferences(),
+			trackCacheMaxTracks: 20,
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-track-cache-limit-dropdown')
+			?.getAttribute('onTap')?.();
+
+		const updatedViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		const option = updatedViews.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'settings-track-cache-limit-option-25',
+		);
+
+		expect(option).toBeTruthy();
+	});
+
+	valdiIt('calls onTrackCacheMaxTracksChange when selecting a cached tracks option', () => {
+		let selected = 0;
+		const instrumented = createComponent(SettingsView, {
+			onTrackCacheMaxTracksChange: (count) => {
+				selected = count;
+			},
+			preferences: new Preferences(),
+			trackCacheMaxTracks: 20,
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-track-cache-limit-dropdown')
+			?.getAttribute('onTap')?.();
+
+		const updatedViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		updatedViews
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-track-cache-limit-option-30')
+			?.getAttribute('onTap')?.();
+
+		expect(selected).toBe(30);
+	});
+
 	valdiIt('does not call onClearCache when modal is cancelled', () => {
 		let called = false;
 		const instrumented = createComponent(SettingsView, {

@@ -310,4 +310,17 @@ describe('LiveTransport core collections', () => {
 		expect(logoUrl).toContain('/Items/artist-1/Images/Logo');
 		expect(logoUrl).toContain('tag=logo-tag-1');
 	});
+
+	it('builds a downloadable track cache url', () => {
+		const { factory } = createHTTPClientFactory([]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const cacheUrl = transport.getTrackCacheUrl('track-123');
+
+		expect(cacheUrl).toContain('/Items/track-123/Download?');
+		expect(cacheUrl).toContain('api_key=token-1');
+		expect(cacheUrl).toContain('userId=user-1');
+	});
 });

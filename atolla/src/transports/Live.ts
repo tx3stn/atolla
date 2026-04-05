@@ -322,6 +322,18 @@ export class LiveTransport implements Transport {
 		return (list.Items ?? []).map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
+	getTrackCacheUrl(trackId: string): string | null {
+		if (!trackId) {
+			return null;
+		}
+
+		const path = this.buildPath(`/Items/${encodeURIComponent(trackId)}/Download`, {
+			api_key: this.accessToken,
+			userId: this.userId,
+		});
+		return `${this.baseUrl}${path}`;
+	}
+
 	private async fetchAllItems<TItem>(
 		params: Record<string, string | number | boolean | undefined>,
 	): Promise<Array<TItem>> {

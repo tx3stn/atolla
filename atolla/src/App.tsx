@@ -20,8 +20,14 @@ import { type ClearCacheSelection, ImageCache } from './services/ImageCache';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
+import { TrackPlaybackCache } from './services/TrackPlaybackCache';
+import { TrackPlaybackPrefetchQueue } from './services/TrackPlaybackPrefetchQueue';
 import { PlaybackStore } from './stores/Playback';
-import { DEFAULT_IMAGE_CACHE_MAX_BYTES, Preferences } from './stores/Preferences';
+import {
+	DEFAULT_IMAGE_CACHE_MAX_BYTES,
+	DEFAULT_TRACK_CACHE_MAX_TRACKS,
+	Preferences,
+} from './stores/Preferences';
 import { SearchStore } from './stores/Search';
 import { theme } from './theme';
 import { LiveTransport } from './transports/Live';
@@ -64,6 +70,7 @@ interface AppState {
 	quickConnectCode: string | null;
 	searchFocusSignal: number;
 	serverUrlPrefill: string;
+	trackCacheMaxTracks: number;
 	version: number;
 }
 
@@ -91,6 +98,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	})();
 	private paletteService = new ArtworkPaletteService(new PersistentPaletteStore());
 	private paletteQueue = new PaletteGenerationQueue(this.paletteService);
+	private trackPlaybackCache = new TrackPlaybackCache();
+	private trackPlaybackPrefetchQueue = new TrackPlaybackPrefetchQueue(
+		this.trackPlaybackCache,
+		(track) => this.transport.getTrackCacheUrl?.(track.id) ?? null,
+	);
 	private authService = new JellyfinAuthService();
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
@@ -110,6 +122,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private readonly minimumBootSplashMs = 750;
 	private bootstrapStartedAt = Date.now();
 	private bootstrapCommitTimer?: ReturnType<typeof setTimeout>;
+	private lastTrackCacheQueueKey = '';
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
@@ -129,6 +142,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		quickConnectCode: null,
 		searchFocusSignal: 0,
 		serverUrlPrefill: '',
+		trackCacheMaxTracks: DEFAULT_TRACK_CACHE_MAX_TRACKS,
 		version: 0,
 	};
 
@@ -148,13 +162,22 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.preferences.getImageCacheMaxBytes(),
 			this.preferences.getAnimationsEnabled(),
 			this.preferences.getMode(),
+			this.preferences.getTrackCacheMaxTracks(),
 			this.authService.loadSession(),
 			this.authService.loadRememberedServerUrl(),
 		])
 			.then(
-				([imageCacheMaxBytes, animationsEnabled, mode, existingSession, rememberedServerUrl]) => {
+				([
+					imageCacheMaxBytes,
+					animationsEnabled,
+					mode,
+					trackCacheMaxTracks,
+					existingSession,
+					rememberedServerUrl,
+				]) => {
 					this.authService.setMockMode(mode === ConnectionModes.mock);
 					setImageCacheSize(imageCacheMaxBytes);
+					this.trackPlaybackCache.configureMaxTracks(trackCacheMaxTracks);
 
 					if (mode === ConnectionModes.online && existingSession != null) {
 						this.transport = new LiveTransport(
@@ -173,6 +196,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						imageCacheMaxBytes,
 						isAuthRequired,
 						serverUrlPrefill: rememberedServerUrl,
+						trackCacheMaxTracks,
 					});
 				},
 			)
@@ -183,6 +207,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			});
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
 			this.handleAlbumChange();
+			this.handleTrackCacheQueueChange();
 			this.setState({ version: this.state.version + 1 });
 		});
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
@@ -205,6 +230,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			clearInterval(this.nativeCacheStatsInterval);
 		}
 		this.paletteQueue.dispose();
+		this.trackPlaybackPrefetchQueue.clearQueue();
 	}
 
 	private showAuthToast(message: string): void {
@@ -389,6 +415,25 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 	}
 
+	private handleTrackCacheQueueChange(): void {
+		const { track, trackIndex, tracks } = this.playbackStore;
+
+		if (!track || tracks.length === 0) {
+			this.lastTrackCacheQueueKey = '';
+			this.trackPlaybackPrefetchQueue.clearQueue();
+			return;
+		}
+
+		const queueKey = tracks.map((item) => item.id).join('|');
+		if (queueKey !== this.lastTrackCacheQueueKey) {
+			this.lastTrackCacheQueueKey = queueKey;
+			this.trackPlaybackPrefetchQueue.replaceQueue(tracks, trackIndex);
+			return;
+		}
+
+		this.trackPlaybackPrefetchQueue.prioritize(track);
+	}
+
 	handleFooterTabTap = (tab: FooterTab): void => {
 		this.returnToSearchOnDetailClose = false;
 		this.setState({
@@ -443,6 +488,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	handleAnimationsChange = (enabled: boolean): void => {
 		this.preferences.setAnimationsEnabled(enabled);
 		this.setState({ animationsEnabled: enabled });
+	};
+
+	handleTrackCacheMaxTracksChange = (count: number): void => {
+		this.preferences.setTrackCacheMaxTracks(count);
+		this.trackPlaybackCache.configureMaxTracks(count);
+		this.setState({ trackCacheMaxTracks: count });
 	};
 
 	handleHomeNavigationControllerChange = (navigationController: NavigationController): void => {
@@ -858,7 +909,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onCacheSizeChange={this.handleCacheSizeChange}
 					onClearCache={this.handleClearCache}
 					onLogout={this.handleLogout}
+					onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
 					preferences={this.preferences}
+					trackCacheMaxTracks={this.state.trackCacheMaxTracks}
 				/>
 			)}
 
