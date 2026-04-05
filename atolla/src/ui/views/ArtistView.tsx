@@ -15,6 +15,7 @@ import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { DetailHeader } from '../components/DetailHeader';
+import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { AlbumView } from './AlbumView';
@@ -31,11 +32,13 @@ export interface ArtistViewModel {
 
 interface ArtistState {
 	albums: Array<Album>;
+	albumsLoaded: boolean;
 	allTracks: Array<Track>;
 	contextMenuTrack: Track | null;
 	isDownloaded: boolean;
 	isFooterVisible: boolean;
 	topTracks: Array<Track>;
+	topTracksLoaded: boolean;
 }
 
 @NavigationPage(module)
@@ -46,11 +49,13 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	state: ArtistState = {
 		albums: [],
+		albumsLoaded: false,
 		allTracks: [],
 		contextMenuTrack: null,
 		isDownloaded: false,
 		isFooterVisible: false,
 		topTracks: [],
+		topTracksLoaded: false,
 	};
 
 	handleTrackLongPress = (track: Track): void => {
@@ -136,7 +141,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			if (this.hasBeenDestroyed) {
 				return;
 			}
-			this.setState({ albums });
+			this.setState({ albums, albumsLoaded: true });
 			this.viewModel.paletteQueue?.enqueueAlbums(albums);
 		});
 		transport.getTracksByArtist(artist.id).then((allTracks) => {
@@ -149,7 +154,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			if (this.hasBeenDestroyed) {
 				return;
 			}
-			this.setState({ topTracks });
+			this.setState({ topTracks, topTracksLoaded: true });
 		});
 	}
 
@@ -161,8 +166,16 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	onRender(): void {
 		const { artist, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
-		const { albums, allTracks, contextMenuTrack, isDownloaded, isFooterVisible, topTracks } =
-			this.state;
+		const {
+			albums,
+			albumsLoaded,
+			allTracks,
+			contextMenuTrack,
+			isDownloaded,
+			isFooterVisible,
+			topTracks,
+			topTracksLoaded,
+		} = this.state;
 
 		const sortedAlbums = [...albums].sort((a, b) =>
 			(b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''),
@@ -184,6 +197,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		}));
 
 		const scrollStyle = createScrollStyle(isFooterVisible);
+		const isLoading = !albumsLoaded || !topTracksLoaded;
 
 		<layout accessibilityLabel='artist-view' contentDescription='artist-view' style={styles.root}>
 			<scroll style={scrollStyle}>
@@ -201,41 +215,47 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					onShuffle={allTracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 				/>
 
-				{albums.length > 0 && (
-					<layout style={styles.section}>
-						<layout style={styles.sectionHeaderRow}>
-							<label style={styles.sectionHeader} value='ALBUMS' />
-							<label style={styles.sectionCount} value={`[ ${albums.length} ]`} />
-						</layout>
-						<CardGrid
-							accessibilityLabel='artist-albums-grid'
-							cards={albumCards}
-							imageCache={imageCache}
-							onCardLongPress={this.handleAlbumCardLongPress}
-							onCardTap={this.handleAlbumCardTap}
-						/>
-					</layout>
-				)}
+				{isLoading ? (
+					<LoadingView />
+				) : (
+					<layout style={styles.content}>
+						{albums.length > 0 && (
+							<layout style={styles.section}>
+								<layout style={styles.sectionHeaderRow}>
+									<label style={styles.sectionHeader} value='ALBUMS' />
+									<label style={styles.sectionCount} value={`[ ${albums.length} ]`} />
+								</layout>
+								<CardGrid
+									accessibilityLabel='artist-albums-grid'
+									cards={albumCards}
+									imageCache={imageCache}
+									onCardLongPress={this.handleAlbumCardLongPress}
+									onCardTap={this.handleAlbumCardTap}
+								/>
+							</layout>
+						)}
 
-				{trackEntries.length > 0 && (
-					<layout style={styles.section}>
-						<label style={styles.sectionHeader} value='TOP TRACKS' />
-						<TrackList
-							imageCache={imageCache}
-							onTrackLongPress={this.handleTrackLongPress}
-							onTrackTap={this.handleTopTrackTap}
-							tracks={trackEntries}
-						/>
-					</layout>
-				)}
+						{trackEntries.length > 0 && (
+							<layout style={styles.section}>
+								<label style={styles.sectionHeader} value='TOP TRACKS' />
+								<TrackList
+									imageCache={imageCache}
+									onTrackLongPress={this.handleTrackLongPress}
+									onTrackTap={this.handleTopTrackTap}
+									tracks={trackEntries}
+								/>
+							</layout>
+						)}
 
-				{artist.bio && (
-					<BioSection
-						bio={artist.bio}
-						logoUrl={artist.logoUrl}
-						modalSlot={this.modalSlot}
-						title={artist.name}
-					/>
+						{artist.bio && (
+							<BioSection
+								bio={artist.bio}
+								logoUrl={artist.logoUrl}
+								modalSlot={this.modalSlot}
+								title={artist.name}
+							/>
+						)}
+					</layout>
 				)}
 			</scroll>
 			{contextMenuTrack && (
@@ -254,6 +274,9 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 }
 
 const styles = {
+	content: new Style({
+		width: '100%',
+	}),
 	root: new Style({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,

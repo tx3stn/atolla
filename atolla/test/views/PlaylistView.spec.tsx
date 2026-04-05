@@ -38,7 +38,7 @@ describe('PlaylistView', () => {
 			{ navigator: mockNavigator },
 		);
 		const component = instrumented.getComponent();
-		component.setState({ tracks });
+		component.setState({ isLoading: false, tracks });
 
 		expect(component.state.tracks.length).toBe(2);
 		const labels = elementTypeFind(
@@ -66,6 +66,7 @@ describe('PlaylistView', () => {
 		);
 		const component = instrumented.getComponent();
 		component.setState({
+			isLoading: false,
 			tracks: [
 				{ artistName: 'Artist One', duration: 60, id: 'track-1', name: 'Song One' },
 				{ artistName: 'Artist Two', duration: 75, id: 'track-2', name: 'Song Two' },

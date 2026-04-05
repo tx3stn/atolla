@@ -61,7 +61,7 @@ describe('AlbumView', () => {
 		);
 		const component = instrumented.getComponent();
 
-		component.setState({ artistLogoUrl: 'https://logo.png', tracks });
+		component.setState({ artistLogoUrl: 'https://logo.png', isLoading: false, tracks });
 
 		expect(component.state.tracks.length).toBe(2);
 		expect(component.state.artistLogoUrl).toBe('https://logo.png');
@@ -102,7 +102,7 @@ describe('AlbumView', () => {
 		);
 		const component = instrumented.getComponent();
 
-		component.setState({ artistLogoUrl: 'https://logo.png', tracks });
+		component.setState({ artistLogoUrl: 'https://logo.png', isLoading: false, tracks });
 		component.handleHeaderPlayTap();
 
 		expect(playedTracks).toEqual(tracks);
@@ -218,6 +218,7 @@ describe('AlbumView', () => {
 
 			component.setState({
 				artistLogoUrl: null,
+				isLoading: false,
 				tracks: [
 					{ duration: 60, id: 'track-1', name: 'Song One', trackNumber: 1 },
 					{ duration: 75, id: 'track-2', name: 'Song Two', trackNumber: 2 },

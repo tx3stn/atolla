@@ -14,6 +14,7 @@ import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
+import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ArtistView } from './ArtistView';
@@ -34,6 +35,7 @@ interface AlbumState {
 	contextMenuTrack: Track | null;
 	isDownloaded: boolean;
 	isFooterVisible: boolean;
+	isLoading: boolean;
 	tracks: Array<Track>;
 }
 
@@ -49,6 +51,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		contextMenuTrack: null,
 		isDownloaded: false,
 		isFooterVisible: false,
+		isLoading: true,
 		tracks: [],
 	};
 
@@ -140,7 +143,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			if (this.hasBeenDestroyed) {
 				return;
 			}
-			this.setState({ tracks });
+			this.setState({ isLoading: false, tracks });
 		});
 		transport.getArtist(album.artistId).then((artist) => {
 			if (this.hasBeenDestroyed) {
@@ -158,7 +161,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	onRender(): void {
-		const { artistLogoUrl, contextMenuTrack, isDownloaded, isFooterVisible, tracks } = this.state;
+		const { artistLogoUrl, contextMenuTrack, isDownloaded, isFooterVisible, isLoading, tracks } =
+			this.state;
 		const { album, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
@@ -195,12 +199,16 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					subheaderLineTwoLeft={releaseDateText}
 					subheaderLineTwoRight={durationText}
 				/>
-				<TrackList
-					imageCache={imageCache}
-					onTrackLongPress={this.handleTrackLongPress}
-					onTrackTap={this.handleTrackTap}
-					tracks={entries}
-				/>
+				{isLoading ? (
+					<LoadingView />
+				) : (
+					<TrackList
+						imageCache={imageCache}
+						onTrackLongPress={this.handleTrackLongPress}
+						onTrackTap={this.handleTrackTap}
+						tracks={entries}
+					/>
+				)}
 				{album.bio && <BioSection bio={album.bio} modalSlot={this.modalSlot} title={album.name} />}
 			</scroll>
 			{contextMenuTrack && (

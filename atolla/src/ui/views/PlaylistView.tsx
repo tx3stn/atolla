@@ -12,6 +12,7 @@ import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { DetailHeader } from '../components/DetailHeader';
+import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 
@@ -31,6 +32,7 @@ interface PlaylistState {
 	contextMenuTrack: Track | null;
 	isDownloaded: boolean;
 	isFooterVisible: boolean;
+	isLoading: boolean;
 	tracks: Array<Track>;
 }
 
@@ -48,6 +50,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		contextMenuTrack: null,
 		isDownloaded: false,
 		isFooterVisible: false,
+		isLoading: true,
 		tracks: [],
 	};
 
@@ -135,7 +138,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			if (this.hasBeenDestroyed) {
 				return;
 			}
-			this.setState({ artistLogoUrls, tracks });
+			this.setState({ artistLogoUrls, isLoading: false, tracks });
 			this.viewModel.paletteQueue?.enqueuePlaylistTracks(tracks);
 		});
 	}
@@ -147,7 +150,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	}
 
 	onRender(): void {
-		const { contextMenuTrack, isDownloaded, isFooterVisible, tracks } = this.state;
+		const { contextMenuTrack, isDownloaded, isFooterVisible, isLoading, tracks } = this.state;
 		const { imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
@@ -180,12 +183,16 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					subheaderLineOneLeft={tracks.length > 0 ? `${tracks.length} tracks` : null}
 					subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
 				/>
-				<TrackList
-					imageCache={imageCache}
-					onTrackLongPress={this.handleTrackLongPress}
-					onTrackTap={this.handleTrackTap}
-					tracks={entries}
-				/>
+				{isLoading ? (
+					<LoadingView />
+				) : (
+					<TrackList
+						imageCache={imageCache}
+						onTrackLongPress={this.handleTrackLongPress}
+						onTrackTap={this.handleTrackTap}
+						tracks={entries}
+					/>
+				)}
 			</scroll>
 			{contextMenuTrack && (
 				<TrackContextMenu
