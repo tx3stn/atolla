@@ -41,6 +41,7 @@ valdi_module(
         "@valdi//src/valdi_modules/src/valdi/valdi_navigation",
         "@valdi//src/valdi_modules/src/valdi/valdi_test",
         "@valdi//src/valdi_modules/src/valdi/valdi_tsx",
+        "@valdi//src/valdi_modules/src/valdi/worker",
     ],
 )
 

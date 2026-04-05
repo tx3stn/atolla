@@ -5,6 +5,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { Artist } from '../../models/Artist';
 import type { ImageCache } from '../../services/ImageCache';
+import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -17,6 +18,7 @@ export interface ArtistsViewModel {
 	animationsEnabled: boolean;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
+	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -170,8 +172,14 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	};
 
 	onRender(): void {
-		const { imageCache, animationsEnabled, navigationController, playbackStore, transport } =
-			this.viewModel;
+		const {
+			imageCache,
+			animationsEnabled,
+			navigationController,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
 
 		const cards: Array<Card> = sortArtists(this.state.artists, this.state.sort).map((artist) => ({
 			artworkKey: artist.imageUrl ?? '',
@@ -193,7 +201,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					if (artist) {
 						navigationController.push(
 							ArtistView,
-							{ animationsEnabled, artist, imageCache, playbackStore, transport },
+							{ animationsEnabled, artist, imageCache, paletteQueue, playbackStore, transport },
 							{},
 							{ animated: animationsEnabled },
 						);

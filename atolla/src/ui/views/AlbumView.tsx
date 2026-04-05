@@ -8,6 +8,7 @@ import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
+import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -22,6 +23,7 @@ export interface AlbumViewModel {
 	animationsEnabled: boolean;
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
+	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -51,12 +53,13 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	handleArtistLogoTap = (): void => {
-		const { album, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		const { album, animationsEnabled, imageCache, paletteQueue, playbackStore, transport } =
+			this.viewModel;
 		const navigationController = this.viewModel.navigationController ?? this.navigationController;
 		const pushArtistView = (artist: Artist) => {
 			navigationController.push(
 				ArtistView,
-				{ animationsEnabled, artist, imageCache, playbackStore, transport },
+				{ animationsEnabled, artist, imageCache, paletteQueue, playbackStore, transport },
 				{},
 				{ animated: animationsEnabled },
 			);
@@ -127,7 +130,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		const { album, playbackStore, transport } = this.viewModel;
+		const { album, paletteQueue, playbackStore, transport } = this.viewModel;
+		paletteQueue?.prioritize(album.imageUrl);
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: playbackStore.track !== null });
 		});

@@ -8,6 +8,7 @@ import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
+import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -23,6 +24,7 @@ export interface ArtistViewModel {
 	artist: Artist;
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
+	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -97,10 +99,11 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			return;
 		}
 
-		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, imageCache, paletteQueue, playbackStore, transport } =
+			this.viewModel;
 		this.navigationController.push(
 			AlbumView,
-			{ album, animationsEnabled, imageCache, playbackStore, transport },
+			{ album, animationsEnabled, imageCache, paletteQueue, playbackStore, transport },
 			{},
 			{ animated: animationsEnabled },
 		);
@@ -134,6 +137,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				return;
 			}
 			this.setState({ albums });
+			this.viewModel.paletteQueue?.enqueueAlbums(albums);
 		});
 		transport.getTracksByArtist(artist.id).then((allTracks) => {
 			if (this.hasBeenDestroyed) {

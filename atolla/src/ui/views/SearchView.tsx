@@ -10,6 +10,7 @@ import type { Artist } from '../../models/Artist';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
+import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { SearchStore } from '../../stores/Search';
 import { scrollPaddingBottom, theme } from '../../theme';
@@ -38,6 +39,7 @@ export interface SearchViewModel {
 	imageCache: ImageCache;
 	navigationController: NavigationController;
 	onNavigateToHomeResult?: (target: SearchHomeNavigationTarget) => void;
+	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	searchStore: SearchStore;
 	transport: Transport;
@@ -341,13 +343,19 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			return;
 		}
 
-		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
-			this.viewModel;
+		const {
+			animationsEnabled,
+			imageCache,
+			navigationController,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
 		transport.getArtist(artistId).then((artist) => {
 			if (!artist) return;
 			navigationController.push(
 				ArtistView,
-				{ animationsEnabled, artist, imageCache, playbackStore, transport },
+				{ animationsEnabled, artist, imageCache, paletteQueue, playbackStore, transport },
 				{},
 				{ animated: animationsEnabled },
 			);
@@ -386,6 +394,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				album,
 				animationsEnabled: this.viewModel.animationsEnabled,
 				imageCache: this.viewModel.imageCache,
+				paletteQueue: this.viewModel.paletteQueue,
 				playbackStore: this.viewModel.playbackStore,
 				transport: this.viewModel.transport,
 			},
@@ -411,6 +420,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				animationsEnabled: this.viewModel.animationsEnabled,
 				artist,
 				imageCache: this.viewModel.imageCache,
+				paletteQueue: this.viewModel.paletteQueue,
 				playbackStore: this.viewModel.playbackStore,
 				transport: this.viewModel.transport,
 			},
@@ -430,8 +440,14 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			return;
 		}
 
-		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
-			this.viewModel;
+		const {
+			animationsEnabled,
+			imageCache,
+			navigationController,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
 		navigationController.push(
 			PlaylistView,
 			{
@@ -442,12 +458,13 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 						if (!artist) return;
 						navigationController.push(
 							ArtistView,
-							{ animationsEnabled, artist, imageCache, playbackStore, transport },
+							{ animationsEnabled, artist, imageCache, paletteQueue, playbackStore, transport },
 							{},
 							{ animated: animationsEnabled },
 						);
 					});
 				},
+				paletteQueue,
 				playbackStore,
 				playlist,
 				transport,

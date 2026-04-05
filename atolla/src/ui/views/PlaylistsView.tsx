@@ -4,6 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { Playlist } from '../../models/Playlist';
 import type { ImageCache } from '../../services/ImageCache';
+import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -17,6 +18,7 @@ export interface PlaylistsViewModel {
 	imageCache: ImageCache;
 	navigationController: NavigationController;
 	onNavigateToArtist?: (artistId: string) => void;
+	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -179,6 +181,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			imageCache,
 			navigationController,
 			onNavigateToArtist,
+			paletteQueue,
 			playbackStore,
 			transport,
 		} = this.viewModel;
@@ -209,6 +212,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 								animationsEnabled,
 								imageCache,
 								onNavigateToArtist,
+								paletteQueue,
 								playbackStore,
 								playlist,
 								transport,

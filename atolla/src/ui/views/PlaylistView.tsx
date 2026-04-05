@@ -7,6 +7,7 @@ import { NavigationPageStatefulComponent } from 'valdi_navigation/src/Navigation
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
+import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -19,6 +20,7 @@ export interface PlaylistViewModel {
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
 	onNavigateToArtist?: (artistId: string) => void;
+	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
 	transport: Transport;
@@ -50,12 +52,13 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	navigateToArtist = (artistId: string): void => {
-		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, imageCache, paletteQueue, playbackStore, transport } =
+			this.viewModel;
 		transport.getArtist(artistId).then((artist) => {
 			if (!artist) return;
 			this.navigationController.push(
 				ArtistView,
-				{ animationsEnabled, artist, imageCache, playbackStore, transport },
+				{ animationsEnabled, artist, imageCache, paletteQueue, playbackStore, transport },
 				{},
 				{ animated: animationsEnabled },
 			);
@@ -133,6 +136,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				return;
 			}
 			this.setState({ artistLogoUrls, tracks });
+			this.viewModel.paletteQueue?.enqueuePlaylistTracks(tracks);
 		});
 	}
 

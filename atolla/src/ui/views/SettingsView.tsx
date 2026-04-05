@@ -9,7 +9,6 @@ import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
-import { Modal } from '../components/Modal';
 import { Toast } from '../components/Toast';
 import { Toggle } from '../components/Toggle';
 
@@ -40,15 +39,7 @@ export interface SettingsViewModel {
 	onAnimationsChange?: (enabled: boolean) => void;
 	onCacheSizeChange?: (bytes: number) => void;
 	onClearCache?: (selection: ClearCacheSelection) => void;
-	onGeneratePalettes?: () => void;
 	onLogout?: () => void;
-	paletteCount?: number;
-	paletteError?: string | null;
-	paletteFailureCount?: number;
-	paletteFailureDetails?: Array<string>;
-	paletteFailureSummary?: string | null;
-	paletteProcessedCount?: number;
-	paletteTotalCount?: number | null;
 	preferences: Preferences;
 }
 
@@ -56,7 +47,6 @@ interface SettingsState {
 	cacheSizeInput: string;
 	showCacheClearModal: boolean;
 	showCacheToast: boolean;
-	showPaletteFailureModal: boolean;
 }
 
 export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsState> {
@@ -64,7 +54,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		cacheSizeInput: bytesToGb(this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES),
 		showCacheClearModal: false,
 		showCacheToast: false,
-		showPaletteFailureModal: false,
 	};
 
 	private toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -114,27 +103,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			imageCacheBufferedBytes,
 			imageCacheBufferedCount,
 			onAnimationsChange,
-			onGeneratePalettes,
-			paletteCount,
-			paletteError,
-			paletteFailureCount,
-			paletteFailureDetails,
-			paletteFailureSummary,
-			paletteProcessedCount,
-			paletteTotalCount,
 		} = this.viewModel;
-
-		const processed = paletteProcessedCount ?? (paletteCount ?? 0) + (paletteFailureCount ?? 0);
-		const isDone = paletteTotalCount != null && processed >= paletteTotalCount;
-		const failureSuffix = (paletteFailureCount ?? 0) > 0 ? `, ${paletteFailureCount} failed` : '';
-		const hasFailureDetails = (paletteFailureDetails?.length ?? 0) > 0;
-
-		const paletteStatusLabel = (() => {
-			if (paletteTotalCount === null || paletteTotalCount === undefined)
-				return 'Generate palettes from artwork';
-			if (isDone) return `Processing complete — ${paletteCount} palettes ready${failureSuffix}`;
-			return `Processing ${processed} / ${paletteTotalCount}${failureSuffix}`;
-		})();
 
 		<view style={styles.root}>
 			<view style={styles.pageHeaderRow}>
@@ -151,43 +120,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						onToggle={(enabled) => onAnimationsChange?.(enabled)}
 					/>
 				</view>
-			</view>
-
-			<label style={styles.sectionTitle} value='ARTWORK PALETTES' />
-			<view style={styles.section}>
-				<Button
-					accessibilityLabel='settings-generate-palettes'
-					label='generate'
-					onTap={createReusableCallback(() => onGeneratePalettes?.())}
-				/>
-				{paletteTotalCount !== null && paletteTotalCount !== undefined && (
-					<label style={styles.paletteStatus} value={paletteStatusLabel} />
-				)}
-				{paletteTotalCount != null && paletteError != null && (
-					<label style={styles.paletteError} value={paletteError} />
-				)}
-				{paletteTotalCount != null && paletteFailureSummary != null && (
-					<label
-						accessibilityLabel='settings-palette-failure-summary'
-						style={styles.paletteError}
-						value={paletteFailureSummary}
-					/>
-				)}
-				{isDone && hasFailureDetails && (
-					<Button
-						accessibilityLabel='settings-palette-failure-details'
-						label='view failure details'
-						onTap={createReusableCallback(() => {
-							this.setState({ showPaletteFailureModal: true });
-						})}
-					/>
-				)}
-				{paletteTotalCount != null && imageCacheBufferedCount != null && (
-					<label
-						style={styles.paletteStatus}
-						value={`${imageCacheBufferedCount} images buffered`}
-					/>
-				)}
 			</view>
 
 			<label style={styles.sectionTitle} value='CACHE' />
@@ -237,14 +169,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			)}
 
 			{this.state.showCacheToast && <Toast message='cache cleared' />}
-
-			{this.state.showPaletteFailureModal && hasFailureDetails && (
-				<Modal
-					body={(paletteFailureDetails ?? []).join('\n')}
-					onClose={() => this.setState({ showPaletteFailureModal: false })}
-					title='Palette Failure Details'
-				/>
-			)}
 		</view>;
 	}
 }

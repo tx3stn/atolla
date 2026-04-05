@@ -61,22 +61,6 @@ describe('SettingsView', () => {
 		expect(called).toBe(true);
 	});
 
-	valdiIt('renders palette failure summary when provided', () => {
-		const instrumented = createComponent(SettingsView, {
-			paletteFailureSummary: 'Failures by reason -> palette_cache_miss: 9',
-			paletteTotalCount: 33,
-			preferences: new Preferences(),
-		});
-		const component = instrumented.getComponent();
-		const labels = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.Label,
-		);
-		const values = labels.map((label) => label.getAttribute('value'));
-
-		expect(values).toContain('Failures by reason -> palette_cache_miss: 9');
-	});
-
 	valdiIt('tapping clear cache button shows the cache clear modal', () => {
 		const instrumented = createComponent(SettingsView, {
 			preferences: new Preferences(),
@@ -184,25 +168,5 @@ describe('SettingsView', () => {
 			?.getAttribute('onTap')?.();
 
 		expect(called).toBe(false);
-	});
-
-	valdiIt('renders failure details button after completion with failures', () => {
-		const instrumented = createComponent(SettingsView, {
-			paletteFailureCount: 1,
-			paletteFailureDetails: ['palette_cache_miss | image is not present in cache | https://x'],
-			paletteProcessedCount: 33,
-			paletteTotalCount: 33,
-			preferences: new Preferences(),
-		});
-		const component = instrumented.getComponent();
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const detailsButton = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'settings-palette-failure-details-btn',
-		);
-
-		expect(detailsButton).toBeTruthy();
-		expect(detailsButton?.getAttribute('contentDescription')).toBe(
-			'settings-palette-failure-details-btn',
-		);
 	});
 });

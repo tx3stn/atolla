@@ -5,6 +5,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { Album } from '../../models/Album';
 import type { ImageCache } from '../../services/ImageCache';
+import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -17,6 +18,7 @@ export interface AlbumsViewModel {
 	animationsEnabled: boolean;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
+	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -171,8 +173,14 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	};
 
 	onRender(): void {
-		const { imageCache, animationsEnabled, navigationController, playbackStore, transport } =
-			this.viewModel;
+		const {
+			imageCache,
+			animationsEnabled,
+			navigationController,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
 
 		const cards: Array<Card> = this.state.albums.map((album) => ({
 			artworkKey: album.imageUrl ?? '',
@@ -194,7 +202,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 					if (album) {
 						navigationController.push(
 							AlbumView,
-							{ album, animationsEnabled, imageCache, playbackStore, transport },
+							{ album, animationsEnabled, imageCache, paletteQueue, playbackStore, transport },
 							{},
 							{ animated: animationsEnabled },
 						);

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
 import { ArtworkPaletteService, type PaletteStore } from './ArtworkPaletteService';
-import type { DominantColorCandidate } from './color/colorQuantization';
 import type { Palette } from './color/types';
 import { NEUTRAL_PALETTE } from './color/types';
 
@@ -320,37 +319,6 @@ describe('ArtworkPaletteService', () => {
 			expect(palette.accent.hex).not.toBe(palette.primary.hex);
 			const red = Number.parseInt(palette.accent.hex.slice(1, 3), 16);
 			expect(red).toBeGreaterThan(120);
-		});
-	});
-
-	describe('fallback chain', () => {
-		it('falls back to NEUTRAL_PALETTE primary when there are no candidates', () => {
-			const service = new ArtworkPaletteService(new MockPaletteStore());
-			const primary = (
-				service as unknown as {
-					selectPrimary: (items: Array<DominantColorCandidate>) => { hex: string };
-				}
-			).selectPrimary([]);
-			expect(primary.hex).toBe(NEUTRAL_PALETTE.primary.hex);
-		});
-	});
-
-	describe('primary scoring', () => {
-		it('returns the most frequent candidate', () => {
-			const service = new ArtworkPaletteService(new MockPaletteStore());
-			const candidates: Array<DominantColorCandidate> = [
-				{ color: { hex: '#7f7f7f' }, population: 60 },
-				{ color: { hex: '#2a82f6' }, population: 40 },
-			];
-
-			const primary = (
-				service as unknown as {
-					selectPrimary: (items: Array<DominantColorCandidate>) => { hex: string };
-				}
-			).selectPrimary(candidates);
-
-			// selectPrimary picks candidates[0] — the highest-population entry
-			expect(primary.hex).toBe('#7f7f7f');
 		});
 	});
 

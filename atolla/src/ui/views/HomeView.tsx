@@ -6,6 +6,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { ImageCache } from '../../services/ImageCache';
+import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -27,6 +28,7 @@ export interface HomeViewModel {
 	imageCache: ImageCache;
 	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationControllerChange?: (navigationController: NavigationController) => void;
+	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	resetSignal: number;
 	transport: Transport;
@@ -127,8 +129,14 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	onRender(): void {
-		const { activeTab, animationsEnabled, imageCache, onNavigateToArtist, playbackStore } =
-			this.viewModel;
+		const {
+			activeTab,
+			animationsEnabled,
+			imageCache,
+			onNavigateToArtist,
+			paletteQueue,
+			playbackStore,
+		} = this.viewModel;
 		const transport = this.viewModel.transport;
 
 		<view style={styles.root}>
@@ -140,6 +148,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							animationsEnabled={animationsEnabled}
 							imageCache={imageCache}
 							navigationController={navigationController}
+							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
 							transport={transport}
 						/>;
@@ -155,6 +164,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							animationsEnabled={animationsEnabled}
 							imageCache={imageCache}
 							navigationController={navigationController}
+							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
 							transport={transport}
 						/>;
@@ -171,6 +181,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							imageCache={imageCache}
 							navigationController={navigationController}
 							onNavigateToArtist={onNavigateToArtist}
+							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
 							transport={transport}
 						/>;
