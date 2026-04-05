@@ -122,7 +122,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					)}
 				</view>
 				<layout style={styles.rightColumn}>
-					<view style={styles.logoArea}>
+					<layout style={styles.logoArea}>
 						<ArtistLogo
 							containerStyle={styles.artistLogoContainer}
 							fallbackText={fallbackText}
@@ -132,7 +132,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 							onTap={onArtistTap}
 							testID='detail-header-artist-logo'
 						/>
-					</view>
+					</layout>
 					<layout style={styles.buttonsRow}>
 						<TappableIcon
 							accessibilityLabel='detail-header-download-button'
@@ -216,12 +216,12 @@ const styles = {
 	}),
 	artistLogoContainer: new Style({
 		alignItems: 'center',
-		height: '100%',
 		justifyContent: 'flex-start',
 		width: '100%',
 	}),
 	artistLogoImage: new Style<ImageView>({
-		height: '100%',
+		height: 64,
+		objectFit: 'contain',
 		width: '88%',
 	}),
 	artworkImage: new Style<ImageView>({
@@ -263,6 +263,7 @@ const styles = {
 		width: '100%',
 	}),
 	logoArea: new Style({
+		alignItems: 'center',
 		height: '75%',
 		justifyContent: 'flex-start',
 		left: 0,
