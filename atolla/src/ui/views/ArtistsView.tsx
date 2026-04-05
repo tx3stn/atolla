@@ -10,7 +10,6 @@ import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
-import { type ArtistSort, ArtistSorts, sortArtists } from './ArtistsSort';
 import { ArtistView } from './ArtistView';
 import { gridPaginationConfig } from './GridPagination';
 
@@ -30,7 +29,6 @@ interface ArtistsState {
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
-	sort: ArtistSort;
 }
 
 interface ArtistPageResult {
@@ -56,7 +54,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
-		sort: ArtistSorts.alphabetical,
 	};
 
 	onCreate(): void {
@@ -134,17 +131,18 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		if (!this.allArtists) {
 			return this.viewModel.transport.getAllArtists().then((artists) => {
 				this.allArtists = artists;
-				const sorted = sortArtists(this.allArtists, this.state.sort);
 				const start = (page - 1) * gridPaginationConfig.pageSize;
 				const end = start + gridPaginationConfig.pageSize;
-				return { hasMore: end < sorted.length, items: sorted.slice(start, end) };
+				return { hasMore: end < this.allArtists.length, items: this.allArtists.slice(start, end) };
 			});
 		}
 
-		const sorted = sortArtists(this.allArtists, this.state.sort);
 		const start = (page - 1) * gridPaginationConfig.pageSize;
 		const end = start + gridPaginationConfig.pageSize;
-		return Promise.resolve({ hasMore: end < sorted.length, items: sorted.slice(start, end) });
+		return Promise.resolve({
+			hasMore: end < this.allArtists.length,
+			items: this.allArtists.slice(start, end),
+		});
 	}
 
 	retryLoadMore(): void {
@@ -181,7 +179,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			transport,
 		} = this.viewModel;
 
-		const cards: Array<Card> = sortArtists(this.state.artists, this.state.sort).map((artist) => ({
+		const cards: Array<Card> = this.state.artists.map((artist) => ({
 			artworkKey: artist.imageUrl ?? '',
 			id: artist.id,
 			kind: 'artist',
