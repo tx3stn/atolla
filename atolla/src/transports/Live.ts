@@ -212,8 +212,17 @@ export class LiveTransport implements Transport {
 	}
 
 	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
-		const tracks = await this.getTracksByArtist(artistId);
-		return tracks.slice(0, 5);
+		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			artistIds: artistId,
+			includeItemTypes: JellyfinMusicItemTypes.Audio,
+			limit: 5,
+			recursive: true,
+			sortBy: 'PlayCount,SortName',
+			sortOrder: 'Descending,Ascending',
+			startIndex: 0,
+		});
+
+		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
 	async search(query: string): Promise<SearchResults> {

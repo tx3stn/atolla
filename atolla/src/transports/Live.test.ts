@@ -242,6 +242,39 @@ describe('LiveTransport core collections', () => {
 		expect(page.items[0].id).toBe('playlist-1');
 	});
 
+	it('fetches artist top tracks sorted by play count', async () => {
+		const firstTrack: JellyfinTrackItem = {
+			ArtistItems: [{ Id: 'artist-1', Name: 'Artist A' }],
+			Id: 'track-1',
+			Name: 'Track One',
+			RunTimeTicks: 120_000_000,
+			Type: 'Audio',
+		};
+		const secondTrack: JellyfinTrackItem = {
+			ArtistItems: [{ Id: 'artist-1', Name: 'Artist A' }],
+			Id: 'track-2',
+			Name: 'Track Two',
+			RunTimeTicks: 180_000_000,
+			Type: 'Audio',
+		};
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([firstTrack, secondTrack], 2, 0)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const tracks = await transport.getArtistTopTracks('artist-1');
+
+		expect(calls).toHaveLength(1);
+		expect(queryParam(calls[0].pathOrUrl, 'artistIds')).toBe('artist-1');
+		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('Audio');
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('5');
+		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('PlayCount,SortName');
+		expect(queryParam(calls[0].pathOrUrl, 'sortOrder')).toBe('Descending,Ascending');
+		expect(tracks.map((track) => track.id)).toEqual(['track-1', 'track-2']);
+	});
+
 	it('returns null artist logo url when no logo metadata exists', async () => {
 		const artist: JellyfinArtistItem = {
 			Id: 'artist-1',

@@ -139,7 +139,7 @@ export class MockTransport implements Transport {
 
 	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
 		const allTracks = await this.getTracksByArtist(artistId);
-		return allTracks.sort(() => Math.random() - 0.5).slice(0, 5);
+		return allTracks.slice(0, 5);
 	}
 
 	async getTracksByArtist(artistId: string): Promise<Array<Track>> {
