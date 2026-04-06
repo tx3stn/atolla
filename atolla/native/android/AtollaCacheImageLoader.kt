@@ -3,8 +3,15 @@ package atolla.native.android
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.view.View
+import com.snap.valdi.callable.safePerform
 import com.snap.valdi.exceptions.ValdiException
 import com.snap.valdi.utils.Disposable
 import com.snap.valdi.utils.ValdiAssetLoadOutputType
@@ -15,6 +22,10 @@ import com.snap.valdi.utils.ValdiImageLoadCompletion
 import com.snap.valdi.utils.ValdiImageLoadOptions
 import com.snap.valdi.utils.ValdiImageLoader
 import com.snap.valdi.utils.ValdiImageWithContent
+import com.snap.valdi.utils.ValdiMarshaller
+import com.snap.valdi.utils.ValdiVideoLoader
+import com.snap.valdi.utils.ValdiVideoPlayer
+import com.snap.valdi.utils.ValdiVideoPlayerCreatedCompletion
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.URL
@@ -32,6 +43,10 @@ data class AtollaCacheRequestPayload(
 	val sourceUrl: String,
 )
 
+data class AtollaTrackVideoRequestPayload(
+	val sourceUrl: String,
+)
+
 data class QuantizedColorCandidate(
 	val b: Int,
 	val count: Long,
@@ -39,7 +54,7 @@ data class QuantizedColorCandidate(
 	val r: Int,
 )
 
-class AtollaCacheImageLoader : ValdiImageLoader {
+class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 	private val tag = "AtollaCacheLoader"
 	private val diskCacheFolder = "atolla-image-cache"
 	private val memory = ConcurrentHashMap<String, ByteArray>()
@@ -130,16 +145,28 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 	override fun getSupportedURLSchemes(): List<String> {
 		Log.d(tag, "getSupportedURLSchemes")
-		return listOf("atolla-cache")
+		return listOf("atolla-cache", "atolla-track")
 	}
 
 	override fun getSupportedOutputTypes(): Int {
-		return ValdiAssetLoadOutputType.BITMAP.value or ValdiAssetLoadOutputType.RAW_CONTENT.value
+		return (
+			ValdiAssetLoadOutputType.BITMAP.value or
+				ValdiAssetLoadOutputType.RAW_CONTENT.value or
+				ValdiAssetLoadOutputType.VIDEO.value
+			)
 	}
 
 	@Throws(ValdiException::class)
 	override fun getRequestPayload(url: Uri): Any {
 		Log.d(tag, "getRequestPayload url=$url")
+		if (url.scheme == "atolla-track" && url.host == "audio") {
+			val source = url.getQueryParameter("u")
+			if (source.isNullOrBlank()) {
+				throw ValdiException("Invalid atolla-track video URL")
+			}
+			return AtollaTrackVideoRequestPayload(sourceUrl = source)
+		}
+
 		val category = url.getQueryParameter("c")
 		val cacheOnly = url.getQueryParameter("co") == "1"
 		val source = url.getQueryParameter("u")
@@ -149,7 +176,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		return AtollaCacheRequestPayload(cacheOnly = cacheOnly, category = category, sourceUrl = source)
 	}
 
-	override fun loadImage(
+		override fun loadImage(
 		requetPayload: Any,
 		options: ValdiImageLoadOptions,
 		completion: ValdiImageLoadCompletion,
@@ -243,6 +270,27 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 	}
 
+	override fun loadVideo(
+		requestPayload: Any,
+		completion: ValdiVideoPlayerCreatedCompletion,
+	): Disposable? {
+		val payload = requestPayload as? AtollaTrackVideoRequestPayload
+		if (payload == null) {
+			Log.e(tag, "Invalid video payload: ${requestPayload::class.java.name}")
+			return null
+		}
+
+		val context = resolveApplicationContext()
+		if (context == null) {
+			Log.e(tag, "Unable to resolve application context for video load")
+			return null
+		}
+
+		val player = AtollaTrackValdiVideoPlayer(context, payload.sourceUrl)
+		completion.onVideoPlayerCreated(player, null)
+		return player
+	}
+
 	private fun completeFromBytes(
 		bytes: ByteArray,
 		options: ValdiImageLoadOptions,
@@ -273,6 +321,17 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			app.cacheDir
 		} catch (error: Throwable) {
 			Log.e(tag, "Unable to resolve application cache directory", error)
+			null
+		}
+	}
+
+	private fun resolveApplicationContext(): android.app.Application? {
+		return try {
+			val activityThreadClass = Class.forName("android.app.ActivityThread")
+			val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)
+			currentApplication as? android.app.Application
+		} catch (error: Throwable) {
+			Log.e(tag, "Unable to resolve application context", error)
 			null
 		}
 	}
@@ -622,5 +681,245 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			bytes += file.length()
 		}
 		return count to bytes
+	}
+}
+
+private class AtollaTrackValdiVideoPlayer(
+	private val context: android.content.Context,
+	initialSourceUrl: String,
+) : ValdiVideoPlayer, Disposable {
+	private val mainHandler = Handler(Looper.getMainLooper())
+	private val view = View(context)
+	private val progressIntervalMs = 300L
+
+	@Volatile private var callbacks: ValdiVideoPlayer.Callbacks? = null
+	@Volatile private var disposed = false
+	@Volatile private var isPrepared = false
+	@Volatile private var mediaPlayer: MediaPlayer? = null
+	@Volatile private var pendingSeekToMs: Int? = null
+	@Volatile private var playbackRate: Float = 0f
+	@Volatile private var sourceUrl: String = initialSourceUrl
+	@Volatile private var volume: Float = 1f
+
+	private val progressRunnable = object : Runnable {
+		override fun run() {
+			if (disposed) {
+				return
+			}
+
+			val player = mediaPlayer
+			if (player != null && isPrepared) {
+				try {
+					val positionMs = player.currentPosition.toDouble()
+					val durationMs = player.duration.toDouble().coerceAtLeast(0.0)
+					callbacks?.onProgressUpdated?.let { callback ->
+						ValdiMarshaller.use { marshaller ->
+							marshaller.pushDouble(positionMs)
+							marshaller.pushDouble(durationMs)
+							callback.safePerform(marshaller)
+						}
+					}
+				} catch (_: Throwable) {
+					// best effort progress callback
+				}
+			}
+
+			mainHandler.postDelayed(this, progressIntervalMs)
+		}
+	}
+
+	init {
+		mainHandler.post {
+			if (disposed) {
+				return@post
+			}
+			initializePlayer()
+			mainHandler.post(progressRunnable)
+		}
+	}
+
+	override fun getView(): View = view
+
+	override fun setRequestPayload(payload: Any?) {
+		val typedPayload = payload as? AtollaTrackVideoRequestPayload ?: return
+		if (typedPayload.sourceUrl == sourceUrl) {
+			return
+		}
+
+		sourceUrl = typedPayload.sourceUrl
+		mainHandler.post {
+			if (disposed) {
+				return@post
+			}
+			initializePlayer()
+		}
+	}
+
+	override fun setVolume(volume: Float) {
+		this.volume = volume
+		mainHandler.post {
+			mediaPlayer?.setVolume(volume, volume)
+		}
+	}
+
+	override fun setPlaybackRate(rate: Float) {
+		playbackRate = rate
+		mainHandler.post {
+			applyPlaybackRate()
+		}
+	}
+
+	override fun setSeekToTime(time: Float) {
+		val seekMs = time.toInt().coerceAtLeast(0)
+		pendingSeekToMs = seekMs
+		mainHandler.post {
+			val player = mediaPlayer ?: return@post
+			if (!isPrepared) {
+				return@post
+			}
+
+			try {
+				player.seekTo(seekMs)
+				pendingSeekToMs = null
+			} catch (_: Throwable) {
+				// ignored
+			}
+		}
+	}
+
+	override fun setCallbacks(callbacks: ValdiVideoPlayer.Callbacks?) {
+		this.callbacks = callbacks
+	}
+
+	override fun dispose() {
+		disposed = true
+		mainHandler.removeCallbacks(progressRunnable)
+		mainHandler.post {
+			releasePlayer()
+		}
+	}
+
+	private fun initializePlayer() {
+		releasePlayer()
+		isPrepared = false
+
+		val player = MediaPlayer()
+		player.setAudioAttributes(
+			AudioAttributes.Builder()
+				.setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+				.setUsage(AudioAttributes.USAGE_MEDIA)
+				.build(),
+		)
+
+		player.setOnPreparedListener { preparedPlayer ->
+			if (disposed) {
+				return@setOnPreparedListener
+			}
+
+			isPrepared = true
+			preparedPlayer.setVolume(volume, volume)
+			pendingSeekToMs?.let { seekMs ->
+				try {
+					preparedPlayer.seekTo(seekMs)
+					pendingSeekToMs = null
+				} catch (_: Throwable) {
+					// ignored
+				}
+			}
+
+			callbacks?.onVideoLoaded?.let { callback ->
+				ValdiMarshaller.use { marshaller ->
+					marshaller.pushDouble(preparedPlayer.duration.toDouble())
+					callback.safePerform(marshaller)
+				}
+			}
+
+			applyPlaybackRate()
+		}
+
+		player.setOnCompletionListener {
+			callbacks?.onCompleted?.let { callback ->
+				ValdiMarshaller.use { marshaller ->
+					callback.safePerform(marshaller)
+				}
+			}
+		}
+
+		player.setOnErrorListener { _, what, extra ->
+			callbacks?.onError?.let { callback ->
+				ValdiMarshaller.use { marshaller ->
+					marshaller.pushString("MediaPlayer error what=$what extra=$extra")
+					callback.safePerform(marshaller)
+				}
+			}
+			true
+		}
+
+		try {
+			player.setDataSource(context, Uri.parse(sourceUrl))
+			player.prepareAsync()
+			mediaPlayer = player
+		} catch (error: Throwable) {
+			callbacks?.onError?.let { callback ->
+				ValdiMarshaller.use { marshaller ->
+					marshaller.pushString(error.message ?: "setDataSource failed")
+					callback.safePerform(marshaller)
+				}
+			}
+			releasePlayer()
+		}
+	}
+
+	private fun applyPlaybackRate() {
+		val player = mediaPlayer ?: return
+		if (!isPrepared) {
+			return
+		}
+
+		if (playbackRate <= 0f) {
+			if (player.isPlaying) {
+				player.pause()
+			}
+			return
+		}
+
+		if (!player.isPlaying) {
+			try {
+				player.start()
+				callbacks?.onBeginPlayback?.let { callback ->
+					ValdiMarshaller.use { marshaller ->
+						callback.safePerform(marshaller)
+					}
+				}
+			} catch (_: Throwable) {
+				// ignored
+			}
+		}
+
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+			try {
+				player.playbackParams = player.playbackParams.setSpeed(playbackRate)
+			} catch (_: Throwable) {
+				// ignored
+			}
+		}
+	}
+
+	private fun releasePlayer() {
+		val player = mediaPlayer
+		mediaPlayer = null
+		isPrepared = false
+		if (player != null) {
+			try {
+				player.stop()
+			} catch (_: Throwable) {
+				// ignored
+			}
+			try {
+				player.release()
+			} catch (_: Throwable) {
+				// ignored
+			}
+		}
 	}
 }

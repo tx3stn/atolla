@@ -25,11 +25,16 @@ object AtollaImageLoaderRegistration {
 	}
 
 	private fun invokeSingleArgMethod(target: Any, methodNames: List<String>, arg: Any) {
-		val method = target::class.java.methods.firstOrNull {
-			methodNames.contains(it.name) && it.parameterTypes.size == 1
+		val methods = target::class.java.methods
+		val method = methodNames.firstNotNullOfOrNull { preferredName ->
+			methods.firstOrNull {
+				it.name == preferredName && it.parameterTypes.size == 1
+			}
 		} ?: throw IllegalStateException(
 			"Missing method ${methodNames.joinToString("/")}(arg) on ${target::class.java.name}",
 		)
+
+		Log.i(tag, "Invoking ${method.name} on ${target::class.java.name}")
 
 		method.invoke(target, arg)
 	}

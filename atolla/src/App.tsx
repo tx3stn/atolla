@@ -44,9 +44,9 @@ import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
 import { HomeHeaderNav } from './ui/components/HomeHeaderNav';
 import { MockPlayer } from './ui/components/MockPlayer';
-import { NativeAudioPlayer } from './ui/components/NativeAudioPlayer';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { Toast } from './ui/components/Toast';
+import { VideoAudioPlayer } from './ui/components/VideoAudioPlayer';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
 import { ConnectionView } from './ui/views/ConnectionView';
@@ -1137,7 +1137,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			{this.state.connectionMode === ConnectionModes.mock ? (
 				<MockPlayer playbackStore={this.playbackStore} />
 			) : (
-				<NativeAudioPlayer
+				<VideoAudioPlayer
 					onPlaybackError={this.handlePlaybackError}
 					onPlaybackEvent={this.handleNativePlayerEvent}
 					playbackSourceUrl={this.state.trackPlaybackSourceUrl}
