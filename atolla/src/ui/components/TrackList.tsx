@@ -457,6 +457,10 @@ export class TrackList extends Component<TrackListViewModel> {
 			return;
 		}
 
+		if (event.state === TouchEventState.Changed) {
+			return;
+		}
+
 		this.cancelLongPress();
 	}
 }

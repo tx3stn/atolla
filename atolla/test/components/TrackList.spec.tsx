@@ -169,6 +169,49 @@ describe('TrackList', () => {
 		}
 	});
 
+	valdiIt('keeps long press active while touch state changes', () => {
+		jasmine.clock().install();
+		try {
+			const track = {
+				artistName: 'Artist',
+				duration: 180,
+				id: 'track-1',
+				name: 'Track One',
+			};
+			let longPressedTrackId: string | null = null;
+			const instrumented = createComponent(TrackList, {
+				onTrackLongPress: (pressedTrack) => {
+					longPressedTrackId = pressedTrack.id;
+				},
+				tracks: [
+					{
+						id: track.id,
+						leadingLabel: '1',
+						meta: 'Artist',
+						title: track.name,
+						track,
+					},
+				],
+			});
+			const component = instrumented.getComponent();
+
+			const views = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			);
+			const swipeRegion = views.find(
+				(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
+			);
+			swipeRegion?.getAttribute('onTouch')?.({ state: 0 });
+			swipeRegion?.getAttribute('onTouch')?.({ state: 1 });
+			jasmine.clock().tick(500);
+
+			expect(longPressedTrackId).toBe('track-1');
+		} finally {
+			jasmine.clock().uninstall();
+		}
+	});
+
 	valdiIt('keeps handle tap active while swipe remove is enabled', () => {
 		const track = {
 			artistName: 'Artist',
