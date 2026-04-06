@@ -12,6 +12,7 @@ export interface VideoAudioPlayerViewModel {
 }
 
 interface VideoAudioPlayerState {
+	playbackRate: number;
 	seekToTimeMs?: number;
 }
 
@@ -19,18 +20,41 @@ export class VideoAudioPlayer extends StatefulComponent<
 	VideoAudioPlayerViewModel,
 	VideoAudioPlayerState
 > {
-	state: VideoAudioPlayerState = {};
+	state: VideoAudioPlayerState = {
+		playbackRate: 0,
+		seekToTimeMs: 0,
+	};
+
+	private unsubscribePlaybackStore?: () => void;
 
 	private loadTimeout: ReturnType<typeof setTimeout> | null = null;
 	private lastSourceUrl = '';
-	private lastSeekTarget: number | null = null;
 	private hasReportedLoadedForSource = false;
 	private hasReportedProgressForSource = false;
 	private resolvedSourceAsset: unknown = null;
 	private resolvedSourceString = '';
 
 	onDestroy(): void {
+		this.unsubscribePlaybackStore?.();
 		this.clearLoadTimeout();
+	}
+
+	onCreate(): void {
+		this.setState({ playbackRate: this.viewModel.playbackStore.isPlaying ? 1 : 0 });
+
+		this.unsubscribePlaybackStore = this.viewModel.playbackStore.subscribe(() => {
+			const nextPlaybackRate = this.viewModel.playbackStore.isPlaying ? 1 : 0;
+			const seekTarget = this.viewModel.playbackStore.seekTarget;
+			const nextSeekToTimeMs =
+				seekTarget != null ? Math.max(0, seekTarget * 1000) : this.state.seekToTimeMs;
+
+			if (
+				nextPlaybackRate !== this.state.playbackRate ||
+				nextSeekToTimeMs !== this.state.seekToTimeMs
+			) {
+				this.setState({ playbackRate: nextPlaybackRate, seekToTimeMs: nextSeekToTimeMs });
+			}
+		});
 	}
 
 	onViewModelUpdate(): void {
@@ -38,33 +62,28 @@ export class VideoAudioPlayer extends StatefulComponent<
 
 		if (!playbackSourceUrl || !playbackStore.track) {
 			this.lastSourceUrl = '';
-			this.lastSeekTarget = null;
 			this.hasReportedLoadedForSource = false;
 			this.hasReportedProgressForSource = false;
 			this.resolvedSourceAsset = null;
 			this.resolvedSourceString = '';
 			this.clearLoadTimeout();
-			if (this.state.seekToTimeMs != null) {
-				this.setState({ seekToTimeMs: undefined });
+			if (this.state.playbackRate !== 0 || this.state.seekToTimeMs !== 0) {
+				this.setState({ playbackRate: 0, seekToTimeMs: 0 });
 			}
 			return;
 		}
 
 		if (playbackSourceUrl !== this.lastSourceUrl) {
 			this.lastSourceUrl = playbackSourceUrl;
-			this.lastSeekTarget = null;
 			this.hasReportedLoadedForSource = false;
 			this.hasReportedProgressForSource = false;
 			this.resolveVideoSource(playbackSourceUrl);
+			if (this.state.seekToTimeMs !== 0) {
+				this.setState({ seekToTimeMs: 0 });
+			}
 			this.clearLoadTimeout();
 			this.viewModel.onPlaybackEvent?.('source-bound');
 			this.startLoadTimeout(this.describeResolvedSource());
-		}
-
-		const seekTarget = playbackStore.seekTarget;
-		if (seekTarget != null && seekTarget !== this.lastSeekTarget) {
-			this.lastSeekTarget = seekTarget;
-			this.setState({ seekToTimeMs: seekTarget * 1000 });
 		}
 	}
 
@@ -83,7 +102,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 			onError={this.handleError}
 			onProgressUpdated={this.handleProgressUpdated}
 			onVideoLoaded={this.handleVideoLoaded}
-			playbackRate={playbackStore.isPlaying ? 1 : 0}
+			playbackRate={this.state.playbackRate}
 			seekToTime={this.state.seekToTimeMs}
 			src={source}
 			style={styles.hiddenAudioVideo}
@@ -135,10 +154,6 @@ export class VideoAudioPlayer extends StatefulComponent<
 
 		if (timeMs >= 0) {
 			this.viewModel.playbackStore.updateProgress(timeMs / 1000);
-		}
-
-		if (this.state.seekToTimeMs != null) {
-			this.setState({ seekToTimeMs: undefined });
 		}
 	};
 
