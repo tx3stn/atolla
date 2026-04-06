@@ -319,8 +319,8 @@ describe('LiveTransport core collections', () => {
 
 		const cacheUrl = transport.getTrackCacheUrl('track-123');
 
-		expect(cacheUrl).toContain('/Items/track-123/Download?');
+		expect(cacheUrl).toContain('/Audio/track-123/stream.mp3?');
 		expect(cacheUrl).toContain('api_key=token-1');
-		expect(cacheUrl).toContain('userId=user-1');
+		expect(cacheUrl).toContain('deviceId=atolla');
 	});
 });

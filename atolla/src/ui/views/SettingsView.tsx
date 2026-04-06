@@ -46,6 +46,7 @@ export interface SettingsViewModel {
 	onLogout?: () => void;
 	onTrackCacheMaxTracksChange?: (count: number) => void;
 	preferences: Preferences;
+	trackCacheCachedCount?: number;
 	trackCacheMaxTracks?: number;
 }
 
@@ -120,6 +121,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			imageCacheBufferedBytes,
 			imageCacheBufferedCount,
 			onAnimationsChange,
+			trackCacheCachedCount,
 			trackCacheMaxTracks,
 		} = this.viewModel;
 		const selectedTrackCacheLimit = trackCacheMaxTracks ?? DEFAULT_TRACK_CACHE_MAX_TRACKS;
@@ -144,7 +146,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			<label style={styles.sectionTitle} value='CACHE' />
 			<view style={styles.section}>
 				<view style={styles.settingRow}>
-					<label style={styles.settingLabel} value='cache size (GB)' />
+					<label style={styles.settingLabel} value='image cache (GB)' />
 					<view style={styles.inputContainer}>
 						<textfield
 							accessibilityLabel='settings-cache-size-input'
@@ -156,6 +158,13 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						/>
 					</view>
 				</view>
+				{imageCacheBufferedCount != null && imageCacheBufferedBytes != null && (
+					<label
+						accessibilityLabel='settings-cache-usage'
+						style={styles.paletteStatus}
+						value={`${imageCacheBufferedCount} images in memory (${formatBytes(imageCacheBufferedBytes)})`}
+					/>
+				)}
 				<view style={styles.trackCacheLimitContainer}>
 					<label style={styles.settingLabel} value='cached tracks' />
 					<view
@@ -167,6 +176,11 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						<label style={styles.trackCacheLimitButtonLabel} value={`${selectedTrackCacheLimit}`} />
 					</view>
 				</view>
+				<label
+					accessibilityLabel='settings-track-cache-count'
+					style={styles.trackCacheCountLabel}
+					value={`${trackCacheCachedCount ?? 0} tracks currently cached`}
+				/>
 				{this.state.showTrackCacheLimitOptions && (
 					<view style={styles.trackCacheLimitOptionsList}>
 						{TRACK_CACHE_LIMIT_OPTIONS.map((option) => (
@@ -184,13 +198,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							</view>
 						))}
 					</view>
-				)}
-				{imageCacheBufferedCount != null && imageCacheBufferedBytes != null && (
-					<label
-						accessibilityLabel='settings-cache-usage'
-						style={styles.paletteStatus}
-						value={`${imageCacheBufferedCount} images in memory (${formatBytes(imageCacheBufferedBytes)})`}
-					/>
 				)}
 				<Button
 					accessibilityLabel='settings-cache-clear'
@@ -281,6 +288,11 @@ const styles = {
 	settingRow: new Style({
 		alignItems: 'center',
 		flexDirection: 'row',
+	}),
+	trackCacheCountLabel: new Style({
+		...theme.text.sub,
+		marginLeft: 4,
+		marginTop: 8,
 	}),
 	trackCacheLimitButton: new Style({
 		alignItems: 'center',

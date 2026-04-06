@@ -214,7 +214,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private setCollapsedGeometry(): void {
 		this.compactBarRef.setAttribute('opacity', 1);
 		this.overlayCardRef.setAttribute('bottom', this.collapsedBottom);
-		this.overlayCardRef.setAttribute('borderRadius', theme.borderRadius / 2);
+		this.overlayCardRef.setAttribute('borderRadius', theme.borderRadius);
 		this.overlayCardRef.setAttribute('height', this.collapsedHeight);
 		this.overlayCardRef.setAttribute('left', this.collapsedInset);
 		this.overlayCardRef.setAttribute('right', this.collapsedInset);
@@ -700,7 +700,7 @@ function createCompactProgressFillStyle(accentColor: string, progressRatio: numb
 
 	const createdStyle = new Style({
 		backgroundColor: accentColor,
-		borderRadius: theme.borderRadius / 2,
+		borderRadius: theme.borderRadius,
 		bottom: 0,
 		left: 0,
 		opacity: 0.68,
@@ -722,7 +722,7 @@ function getOverlayTintStyle(surfaceColor: string, opacity: number): Style {
 
 	const createdStyle = new Style({
 		backgroundColor: withAlpha(surfaceColor, opacity),
-		borderRadius: theme.borderRadius / 2,
+		borderRadius: theme.borderRadius,
 		bottom: 0,
 		left: 0,
 		position: 'absolute',
@@ -811,15 +811,15 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 
 const styles = {
 	artwork: new Style<ImageView>({
-		borderRadius: theme.borderRadius / 2,
+		borderRadius: theme.borderRadius,
 		flexShrink: 0,
-		height: 65,
+		height: 70,
 		marginRight: 14,
-		width: 65,
+		width: 70,
 	}),
 	compactBar: new Style({
 		alignItems: 'center',
-		borderRadius: theme.borderRadius / 2,
+		borderRadius: theme.borderRadius,
 		bottom: theme.footerHeight * 0.8,
 		elevation: 18,
 		flexDirection: 'row',
@@ -836,7 +836,7 @@ const styles = {
 		zIndex: 25,
 	}),
 	compactBgArtwork: new Style<ImageView>({
-		borderRadius: theme.borderRadius / 2,
+		borderRadius: theme.borderRadius,
 		bottom: 0,
 		left: 0,
 		position: 'absolute',
@@ -844,7 +844,7 @@ const styles = {
 		top: 0,
 	}),
 	compactProgressContainer: new Style({
-		borderRadius: theme.borderRadius / 2,
+		borderRadius: theme.borderRadius,
 		bottom: 0,
 		left: 50,
 		position: 'absolute',
@@ -996,7 +996,7 @@ const styles = {
 	}),
 	transitionArtwork: new Style<ImageView>({
 		aspectRatio: 1,
-		borderRadius: theme.borderRadius,
+		// borderRadius: theme.borderRadius,
 		left: 12,
 		position: 'absolute',
 		top: 10,

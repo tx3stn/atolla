@@ -25,6 +25,9 @@ import {
 import type { Transport } from './Transport';
 
 export class MockTransport implements Transport {
+	private static readonly sampleAudioUrl =
+		'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+
 	async getAlbumsPage(
 		page: number,
 		pageSize: number,
@@ -168,6 +171,10 @@ export class MockTransport implements Transport {
 			const item = tracksById.get(trackId);
 			return item ? [mapJellyfinTrackToTrack(item, this.imageResolvers)] : [];
 		});
+	}
+
+	getTrackCacheUrl(_trackId: string): string | null {
+		return MockTransport.sampleAudioUrl;
 	}
 
 	private readonly imageResolvers: JellyfinImageResolvers = {

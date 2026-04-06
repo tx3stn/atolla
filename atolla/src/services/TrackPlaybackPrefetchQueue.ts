@@ -1,8 +1,23 @@
 // @ts-nocheck
 import type { Track } from '../models/Track';
 
+declare const require: (moduleName: string) => {
+	HTTPClient: new (
+		baseUrl?: string,
+	) => {
+		get: (
+			pathOrUrl: string,
+			headers?: Record<string, string>,
+		) => PromiseLike<{
+			body?: Uint8Array;
+			headers: Record<string, string>;
+			statusCode: number;
+		}> & { cancel?: () => void };
+	};
+};
+
 type TrackUrlResolver = (track: Track) => string | null;
-type TrackFetcher = (url: string, signal?: AbortSignal) => Promise<ArrayBuffer | null>;
+type TrackFetcher = (url: string) => Promise<{ buffer: ArrayBuffer; mimeType: string } | null>;
 
 interface QueueEntry {
 	track: Track;
@@ -11,35 +26,63 @@ interface QueueEntry {
 
 interface TrackPlaybackCacheLike {
 	hasTrack(trackId: string): Promise<boolean>;
-	storeTrack(trackId: string, value: ArrayBuffer): Promise<void>;
+	storeTrack(trackId: string, value: ArrayBuffer, mimeType?: string): Promise<void>;
 }
 
-function defaultFetcher(url: string, signal?: AbortSignal): Promise<ArrayBuffer | null> {
-	return fetch(url, { signal })
-		.then((response) => {
-			if (!response.ok) {
-				return null;
-			}
-			return response.arrayBuffer();
-		})
-		.catch(() => null);
+function defaultFetcher(url: string): Promise<{
+	buffer: ArrayBuffer;
+	mimeType: string;
+} | null> {
+	try {
+		const { HTTPClient } = require('valdi_http/src/HTTPClient');
+		const client = new HTTPClient();
+		const request = client.get(url);
+
+		return request
+			.then((response) => {
+				if (response.statusCode < 200 || response.statusCode >= 300 || !response.body) {
+					return null;
+				}
+
+				const mimeType = getHeaderValue(response.headers, 'content-type') ?? 'audio/mpeg';
+				const bytes = response.body;
+				const buffer = bytes.buffer.slice(
+					bytes.byteOffset,
+					bytes.byteOffset + bytes.byteLength,
+				) as ArrayBuffer;
+				return { buffer, mimeType };
+			})
+			.catch(() => null);
+	} catch {
+		return Promise.resolve(null);
+	}
+}
+
+function getHeaderValue(headers: Record<string, string>, key: string): string | null {
+	const lower = key.toLowerCase();
+	for (const [headerKey, headerValue] of Object.entries(headers)) {
+		if (headerKey.toLowerCase() === lower) {
+			return headerValue;
+		}
+	}
+	return null;
 }
 
 export class TrackPlaybackPrefetchQueue {
 	private queue: Array<QueueEntry> = [];
 	private inProgress = false;
 	private generation = 0;
-	private activeAbortController: AbortController | null = null;
 
 	constructor(
 		private readonly cache: TrackPlaybackCacheLike,
 		private readonly resolveTrackUrl: TrackUrlResolver,
 		private readonly fetchTrack: TrackFetcher = defaultFetcher,
+		private readonly onTrackStored?: (trackId: string) => void,
+		private readonly onTrackFetchFailed?: (trackId: string) => void,
 	) {}
 
 	replaceQueue(tracks: Array<Track>, startIndex: number): void {
 		this.generation += 1;
-		this.activeAbortController?.abort();
 
 		if (tracks.length === 0) {
 			this.queue = [];
@@ -48,10 +91,7 @@ export class TrackPlaybackPrefetchQueue {
 		}
 
 		const normalizedStartIndex = Math.max(0, Math.min(startIndex, tracks.length - 1));
-		const orderedTracks = [
-			...tracks.slice(normalizedStartIndex),
-			...tracks.slice(0, normalizedStartIndex),
-		];
+		const orderedTracks = tracks.slice(normalizedStartIndex);
 
 		const seen = new Set<string>();
 		this.queue = orderedTracks.flatMap((track) => {
@@ -78,7 +118,6 @@ export class TrackPlaybackPrefetchQueue {
 	clearQueue(): void {
 		this.generation += 1;
 		this.queue = [];
-		this.activeAbortController?.abort();
 		this.inProgress = false;
 	}
 
@@ -115,15 +154,19 @@ export class TrackPlaybackPrefetchQueue {
 			return;
 		}
 
-		const abortController = new AbortController();
-		this.activeAbortController = abortController;
-		const buffer = await this.fetchTrack(url, abortController.signal);
-		this.activeAbortController = null;
+		const payload = await this.fetchTrack(url);
 
-		if (!buffer || generation !== this.generation) {
+		if (!payload || generation !== this.generation) {
+			this.onTrackFetchFailed?.(entry.trackId);
 			return;
 		}
 
-		await this.cache.storeTrack(entry.trackId, buffer);
+		await this.cache.storeTrack(entry.trackId, payload.buffer, payload.mimeType);
+		if (await this.cache.hasTrack(entry.trackId)) {
+			this.onTrackStored?.(entry.trackId);
+			return;
+		}
+
+		this.onTrackFetchFailed?.(entry.trackId);
 	}
 }

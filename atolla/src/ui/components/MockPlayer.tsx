@@ -7,10 +7,10 @@ export interface MockPlayerViewModel {
 }
 
 export class MockPlayer extends Component<MockPlayerViewModel> {
-	private _interval: ReturnType<typeof setInterval> | null = null;
+	private interval: ReturnType<typeof setInterval> | null = null;
 
 	onCreate(): void {
-		this._interval = setInterval(() => {
+		this.interval = setInterval(() => {
 			const store = this.viewModel.playbackStore;
 			if (store.isPlaying) {
 				store.updateProgress(store.progressSeconds + 1);
@@ -19,9 +19,9 @@ export class MockPlayer extends Component<MockPlayerViewModel> {
 	}
 
 	onDestroy(): void {
-		if (this._interval !== null) {
-			clearInterval(this._interval);
-			this._interval = null;
+		if (this.interval != null) {
+			clearInterval(this.interval);
+			this.interval = null;
 		}
 	}
 

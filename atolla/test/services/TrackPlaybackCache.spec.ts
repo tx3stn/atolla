@@ -4,6 +4,7 @@ import { TrackPlaybackCache } from 'atolla/src/services/TrackPlaybackCache';
 
 class InMemoryTrackStore {
 	private data = new Map<string, ArrayBuffer>();
+	private strings = new Map<string, string>();
 	stored: Array<{ key: string; weight?: number }> = [];
 
 	exists(key: string): Promise<boolean> {
@@ -22,6 +23,18 @@ class InMemoryTrackStore {
 		this.stored.push({ key, weight });
 		return Promise.resolve();
 	}
+
+	fetchString(key: string): Promise<string> {
+		if (!this.strings.has(key)) {
+			return Promise.reject(new Error('missing key'));
+		}
+		return Promise.resolve(this.strings.get(key) as string);
+	}
+
+	storeString(key: string, value: string): Promise<void> {
+		this.strings.set(key, value);
+		return Promise.resolve();
+	}
 }
 
 describe('TrackPlaybackCache', () => {
@@ -32,7 +45,43 @@ describe('TrackPlaybackCache', () => {
 
 		await cache.storeTrack('track-1', buffer);
 
-		expect(store.stored).toEqual([{ key: 'track_file:track-1', weight: 1 }]);
+		if (store.stored.length > 0) {
+			expect(store.stored).toEqual([{ key: 'track_file:track-1', weight: 1 }]);
+			expect(await store.fetchString('track_file_mime:track-1')).toBe('audio/mpeg');
+			return;
+		}
+
+		expect(await store.fetchString('track_file_path:track-1')).toContain('file://');
+	});
+
+	it('returns fallback source when track is not cached', async () => {
+		const cache = new TrackPlaybackCache(() => new InMemoryTrackStore(), 20);
+
+		expect(await cache.getPlayableSource('missing', 'https://fallback/track.mp3')).toBe(
+			'https://fallback/track.mp3',
+		);
+	});
+
+	it('prefers file cache source over fallback stream url when both are available', async () => {
+		const store = new InMemoryTrackStore();
+		const cache = new TrackPlaybackCache(() => store, 20);
+		const buffer = new Uint8Array([1, 2, 3]).buffer;
+
+		await cache.storeTrack('track-3', buffer, 'audio/aac');
+		const source = await cache.getPlayableSource('track-3', 'https://fallback/track.mp3');
+
+		expect(source?.startsWith('file://')).toBe(true);
+	});
+
+	it('returns cached file source when no stream url is available', async () => {
+		const store = new InMemoryTrackStore();
+		const cache = new TrackPlaybackCache(() => store, 20);
+		const buffer = new Uint8Array([1, 2, 3]).buffer;
+
+		await cache.storeTrack('track-3', buffer, 'audio/aac');
+		const source = await cache.getPlayableSource('track-3', null);
+
+		expect(source?.startsWith('file://')).toBe(true);
 	});
 
 	it('returns false for missing tracks', async () => {

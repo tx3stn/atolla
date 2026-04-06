@@ -18,7 +18,7 @@ class FakeTrackCache {
 		return Promise.resolve(this.existing.has(trackId));
 	}
 
-	storeTrack(trackId: string, _value: ArrayBuffer): Promise<void> {
+	storeTrack(trackId: string, _value: ArrayBuffer, _mimeType?: string): Promise<void> {
 		this.existing.add(trackId);
 		this.stored.push(trackId);
 		return Promise.resolve();
@@ -44,15 +44,15 @@ describe('TrackPlaybackPrefetchQueue', () => {
 			(track) => `https://audio/${track.id}`,
 			(url) => {
 				fetchedUrls.push(url);
-				return Promise.resolve(new Uint8Array([1]).buffer);
+				return Promise.resolve({ buffer: new Uint8Array([1]).buffer, mimeType: 'audio/mpeg' });
 			},
 		);
 
 		queue.replaceQueue([createTrack('a'), createTrack('b'), createTrack('c')], 1);
-		await waitFor(() => fetchedUrls.length === 3);
+		await waitFor(() => fetchedUrls.length === 2);
 
-		expect(fetchedUrls).toEqual(['https://audio/b', 'https://audio/c', 'https://audio/a']);
-		expect(cache.stored).toEqual(['b', 'c', 'a']);
+		expect(fetchedUrls).toEqual(['https://audio/b', 'https://audio/c']);
+		expect(cache.stored).toEqual(['b', 'c']);
 	});
 
 	it('replaces existing queue when a new queue is provided', async () => {
@@ -63,10 +63,13 @@ describe('TrackPlaybackPrefetchQueue', () => {
 			(url) => {
 				if (url.endsWith('/a')) {
 					return new Promise((resolve) =>
-						setTimeout(() => resolve(new Uint8Array([1]).buffer), 20),
+						setTimeout(
+							() => resolve({ buffer: new Uint8Array([1]).buffer, mimeType: 'audio/mpeg' }),
+							20,
+						),
 					);
 				}
-				return Promise.resolve(new Uint8Array([1]).buffer);
+				return Promise.resolve({ buffer: new Uint8Array([1]).buffer, mimeType: 'audio/mpeg' });
 			},
 		);
 
@@ -87,10 +90,13 @@ describe('TrackPlaybackPrefetchQueue', () => {
 				fetchedUrls.push(url);
 				if (url.endsWith('/a')) {
 					return new Promise((resolve) =>
-						setTimeout(() => resolve(new Uint8Array([1]).buffer), 10),
+						setTimeout(
+							() => resolve({ buffer: new Uint8Array([1]).buffer, mimeType: 'audio/mpeg' }),
+							10,
+						),
 					);
 				}
-				return Promise.resolve(new Uint8Array([1]).buffer);
+				return Promise.resolve({ buffer: new Uint8Array([1]).buffer, mimeType: 'audio/mpeg' });
 			},
 		);
 

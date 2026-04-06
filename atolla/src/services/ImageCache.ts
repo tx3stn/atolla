@@ -28,6 +28,7 @@ export interface ClearCacheSelection {
 	artistImage: boolean;
 	artistLogo: boolean;
 	playlistImage: boolean;
+	tracks: boolean;
 }
 
 type ImageListener = () => void;

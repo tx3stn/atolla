@@ -20,8 +20,6 @@ import { type ClearCacheSelection, ImageCache } from './services/ImageCache';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
-import { TrackPlaybackCache } from './services/TrackPlaybackCache';
-import { TrackPlaybackPrefetchQueue } from './services/TrackPlaybackPrefetchQueue';
 import { PlaybackStore } from './stores/Playback';
 import {
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
@@ -29,6 +27,12 @@ import {
 	Preferences,
 } from './stores/Preferences';
 import { SearchStore } from './stores/Search';
+import {
+	cacheAtollaTrackFromUrl,
+	clearAtollaTrackCache,
+	getAtollaCachedTrackFileUrl,
+	getAtollaTrackCacheEntryCount,
+} from './TrackPlaybackNative';
 import { theme } from './theme';
 import { LiveTransport } from './transports/Live';
 import { MockTransport } from './transports/Mock';
@@ -40,6 +44,7 @@ import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
 import { HomeHeaderNav } from './ui/components/HomeHeaderNav';
 import { MockPlayer } from './ui/components/MockPlayer';
+import { NativeAudioPlayer } from './ui/components/NativeAudioPlayer';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { Toast } from './ui/components/Toast';
 import { AlbumView } from './ui/views/AlbumView';
@@ -67,10 +72,13 @@ interface AppState {
 	nativeImageCacheBufferedBytes: number | null;
 	nativeImageCacheBufferedCount: number | null;
 	nowPlayingCollapseSignal: number;
+	playbackToastMessage: string | null;
 	quickConnectCode: string | null;
 	searchFocusSignal: number;
 	serverUrlPrefill: string;
 	trackCacheMaxTracks: number;
+	trackPlaybackCachedCount: number;
+	trackPlaybackSourceUrl: string | null;
 	version: number;
 }
 
@@ -98,15 +106,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	})();
 	private paletteService = new ArtworkPaletteService(new PersistentPaletteStore());
 	private paletteQueue = new PaletteGenerationQueue(this.paletteService);
-	private trackPlaybackCache = new TrackPlaybackCache();
-	private trackPlaybackPrefetchQueue = new TrackPlaybackPrefetchQueue(
-		this.trackPlaybackCache,
-		(track) => this.transport.getTrackCacheUrl?.(track.id) ?? null,
-	);
 	private authService = new JellyfinAuthService();
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
 	private authToastTimer?: ReturnType<typeof setTimeout>;
+	private playbackToastTimer?: ReturnType<typeof setTimeout>;
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
 	private homeNavigationController?: NavigationController;
@@ -122,7 +126,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private readonly minimumBootSplashMs = 750;
 	private bootstrapStartedAt = Date.now();
 	private bootstrapCommitTimer?: ReturnType<typeof setTimeout>;
-	private lastTrackCacheQueueKey = '';
+	private lastTrackSourceTrackId: string | null = null;
+	private lastTrackFetchErrorTrackId: string | null = null;
+	private playbackSourceRequestId = 0;
+	private inFlightTrackDownloadIds = new Set<string>();
+	private lastPlaybackDebugProbeKey = '';
+	private lastNativePlayerEvent = '';
+	private playerSourceBoundTimeout?: ReturnType<typeof setTimeout>;
+	private playerReadySource = '';
+	private playerSourceRetryKeys = new Set<string>();
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
@@ -139,10 +151,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		nativeImageCacheBufferedBytes: null,
 		nativeImageCacheBufferedCount: null,
 		nowPlayingCollapseSignal: 0,
+		playbackToastMessage: null,
 		quickConnectCode: null,
 		searchFocusSignal: 0,
 		serverUrlPrefill: '',
 		trackCacheMaxTracks: DEFAULT_TRACK_CACHE_MAX_TRACKS,
+		trackPlaybackCachedCount: 0,
+		trackPlaybackSourceUrl: null,
 		version: 0,
 	};
 
@@ -177,8 +192,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				]) => {
 					this.authService.setMockMode(mode === ConnectionModes.mock);
 					setImageCacheSize(imageCacheMaxBytes);
-					this.trackPlaybackCache.configureMaxTracks(trackCacheMaxTracks);
-
 					if (mode === ConnectionModes.online && existingSession != null) {
 						this.transport = new LiveTransport(
 							existingSession.serverUrl,
@@ -207,7 +220,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			});
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
 			this.handleAlbumChange();
-			this.handleTrackCacheQueueChange();
+			this.handleTrackPlaybackSourceChange();
 			this.setState({ version: this.state.version + 1 });
 		});
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
@@ -215,6 +228,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 		// Handle any track already playing at startup
 		this.handleAlbumChange();
+		this.handleTrackPlaybackSourceChange();
+		this.refreshTrackCachedCount();
 	}
 
 	onDestroy(): void {
@@ -224,13 +239,18 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.authToastTimer) {
 			clearTimeout(this.authToastTimer);
 		}
+		if (this.playbackToastTimer) {
+			clearTimeout(this.playbackToastTimer);
+		}
+		if (this.playerSourceBoundTimeout) {
+			clearTimeout(this.playerSourceBoundTimeout);
+		}
 		this.unsubscribePlayback?.();
 		this.unsubscribePalette?.();
 		if (this.nativeCacheStatsInterval) {
 			clearInterval(this.nativeCacheStatsInterval);
 		}
 		this.paletteQueue.dispose();
-		this.trackPlaybackPrefetchQueue.clearQueue();
 	}
 
 	private showAuthToast(message: string): void {
@@ -241,6 +261,25 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.authToastTimer = setTimeout(() => {
 			this.setState({ authToastMessage: null });
 		}, 2500);
+	}
+
+	private showPlaybackToast(message: string): void {
+		if (this.playbackToastTimer) {
+			clearTimeout(this.playbackToastTimer);
+		}
+		this.setState({ playbackToastMessage: message });
+		this.playbackToastTimer = setTimeout(() => {
+			this.setState({ playbackToastMessage: null });
+		}, 3000);
+	}
+
+	private refreshTrackCachedCount(): void {
+		const nativeCount = this.getNativeTrackCachedCount();
+		if (nativeCount == null || this.state.trackPlaybackCachedCount === nativeCount) {
+			return;
+		}
+
+		this.setState({ trackPlaybackCachedCount: nativeCount });
 	}
 
 	private async validateSessionInBackground(session: AuthSession): Promise<void> {
@@ -415,23 +454,174 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 	}
 
-	private handleTrackCacheQueueChange(): void {
-		const { track, trackIndex, tracks } = this.playbackStore;
+	private handleTrackCached(trackId: string): void {
+		this.lastTrackFetchErrorTrackId = null;
+		this.refreshTrackCachedCount();
 
-		if (!track || tracks.length === 0) {
-			this.lastTrackCacheQueueKey = '';
-			this.trackPlaybackPrefetchQueue.clearQueue();
+		if (this.playbackStore.track?.id !== trackId) {
 			return;
 		}
 
-		const queueKey = tracks.map((item) => item.id).join('|');
-		if (queueKey !== this.lastTrackCacheQueueKey) {
-			this.lastTrackCacheQueueKey = queueKey;
-			this.trackPlaybackPrefetchQueue.replaceQueue(tracks, trackIndex);
+		this.handleTrackPlaybackSourceChange(true);
+	}
+
+	private handleTrackCacheFetchFailed(trackId: string, reason = 'unknown'): void {
+		if (this.playbackStore.track?.id !== trackId) {
 			return;
 		}
 
-		this.trackPlaybackPrefetchQueue.prioritize(track);
+		if (this.lastTrackFetchErrorTrackId === trackId) {
+			return;
+		}
+
+		this.lastTrackFetchErrorTrackId = trackId;
+		this.showPlaybackToast(`cache failed: ${reason}`);
+	}
+
+	private handleTrackPlaybackSourceChange(force = false): void {
+		const activeTrack = this.playbackStore.track;
+
+		if (!activeTrack) {
+			this.lastPlaybackDebugProbeKey = 'none';
+			this.playbackSourceRequestId += 1;
+			this.lastTrackSourceTrackId = null;
+			if (this.state.trackPlaybackSourceUrl != null) {
+				this.setState({ trackPlaybackSourceUrl: null });
+			}
+			return;
+		}
+
+		const playbackState = this.playbackStore.isPlaying ? 'playing' : 'paused';
+		const sourceState = this.state.trackPlaybackSourceUrl ? 'has-source' : 'no-source';
+		const probeKey = `${activeTrack.id}|${playbackState}|${sourceState}`;
+		this.lastPlaybackDebugProbeKey = probeKey;
+
+		if (!force && this.lastTrackSourceTrackId === activeTrack.id) {
+			const shouldRetryForMissingSource =
+				this.playbackStore.isPlaying && this.state.trackPlaybackSourceUrl == null;
+			if (!shouldRetryForMissingSource) {
+				return;
+			}
+		}
+
+		this.lastTrackSourceTrackId = activeTrack.id;
+		const requestId = this.playbackSourceRequestId + 1;
+		this.playbackSourceRequestId = requestId;
+		const nativeSource = this.getNativeCachedTrackSource(activeTrack.id);
+		if (nativeSource) {
+			if (this.state.trackPlaybackSourceUrl !== nativeSource) {
+				this.setState({ trackPlaybackSourceUrl: nativeSource });
+			}
+			return;
+		}
+
+		if (this.playbackStore.isPlaying) {
+			void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId);
+		}
+	}
+
+	private downloadCurrentTrackForPlayback(trackId: string, requestId: number): void {
+		if (!trackId || this.inFlightTrackDownloadIds.has(trackId)) {
+			return;
+		}
+
+		this.inFlightTrackDownloadIds.add(trackId);
+
+		try {
+			const url = this.transport.getTrackCacheUrl?.(trackId) ?? null;
+			if (!url) {
+				this.showPlaybackToast('cache download failed: no url');
+				this.handleTrackCacheFetchFailed(trackId, 'no url');
+				return;
+			}
+
+			const nativeSource = this.cacheTrackViaNative(trackId, url);
+			if (nativeSource) {
+				if (requestId !== this.playbackSourceRequestId) {
+					return;
+				}
+
+				if (this.playbackStore.track?.id !== trackId) {
+					return;
+				}
+
+				this.handleTrackCached(trackId);
+				return;
+			}
+
+			this.showPlaybackToast('cache download failed: native cache failed');
+			this.handleTrackCacheFetchFailed(trackId, 'native cache failed');
+			return;
+		} catch (error) {
+			const rawMessage =
+				typeof error === 'string'
+					? error
+					: error instanceof Error
+						? error.message
+						: 'unknown error';
+			const message = this.summarizeCacheError(rawMessage);
+			this.showPlaybackToast(`cache flow exception: ${message}`);
+			this.handleTrackCacheFetchFailed(trackId, `exception: ${message}`);
+		} finally {
+			this.inFlightTrackDownloadIds.delete(trackId);
+		}
+	}
+
+	private summarizeCacheError(message: string): string {
+		if (!message) {
+			return 'unknown error';
+		}
+
+		const markerIndex = message.indexOf(':');
+		if (markerIndex <= 0) {
+			return message;
+		}
+
+		return message.slice(0, markerIndex);
+	}
+
+	private cacheTrackViaNative(trackId: string, url: string): string | null {
+		try {
+			const source = cacheAtollaTrackFromUrl(trackId, url);
+			if (!source) {
+				return null;
+			}
+			return this.normalizePlaybackFileSource(source);
+		} catch {
+			return null;
+		}
+	}
+
+	private getNativeCachedTrackSource(trackId: string): string | null {
+		if (!trackId) {
+			return null;
+		}
+
+		try {
+			const source = getAtollaCachedTrackFileUrl(trackId);
+			if (!source) {
+				return null;
+			}
+			return this.normalizePlaybackFileSource(source);
+		} catch {
+			return null;
+		}
+	}
+
+	private normalizePlaybackFileSource(source: string): string {
+		return source.trim();
+	}
+
+	private getNativeTrackCachedCount(): number | null {
+		try {
+			const count = getAtollaTrackCacheEntryCount();
+			if (!Number.isFinite(count) || count < 0) {
+				return null;
+			}
+			return count;
+		} catch {
+			return null;
+		}
 	}
 
 	handleFooterTabTap = (tab: FooterTab): void => {
@@ -475,7 +665,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		} catch {
 			// Native clear unavailable on non-Android targets.
 		}
+		if (selection.tracks) {
+			try {
+				clearAtollaTrackCache();
+			} catch {
+				// Native track cache clear unavailable on non-Android targets.
+			}
+			this.lastTrackFetchErrorTrackId = null;
+			this.lastTrackSourceTrackId = null;
+			this.playbackSourceRequestId += 1;
+			this.setState({ trackPlaybackSourceUrl: null });
+		}
 		this.refreshNativeCacheStats();
+		this.refreshTrackCachedCount();
 		this.setState({ version: this.state.version + 1 });
 	};
 
@@ -492,9 +694,89 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	handleTrackCacheMaxTracksChange = (count: number): void => {
 		this.preferences.setTrackCacheMaxTracks(count);
-		this.trackPlaybackCache.configureMaxTracks(count);
 		this.setState({ trackCacheMaxTracks: count });
+		this.refreshTrackCachedCount();
 	};
+
+	handlePlaybackError = (error: string): void => {
+		const normalized = error?.trim() ?? '';
+
+		this.showPlaybackToast(
+			normalized.length > 0 ? `playback error: ${normalized}` : 'playback error',
+		);
+	};
+
+	handleNativePlayerEvent = (event: string): void => {
+		if (!event) {
+			return;
+		}
+
+		const trackId = this.playbackStore.track?.id ?? 'none';
+		const source = this.state.trackPlaybackSourceUrl ?? 'none';
+		const eventKey = `${event}|${trackId}|${source}`;
+		if (this.lastNativePlayerEvent === eventKey) {
+			return;
+		}
+
+		this.lastNativePlayerEvent = eventKey;
+
+		if (event === 'loaded' || event === 'progress') {
+			this.playerReadySource = source;
+			if (this.playerSourceBoundTimeout) {
+				clearTimeout(this.playerSourceBoundTimeout);
+				this.playerSourceBoundTimeout = undefined;
+			}
+		}
+
+		if (event === 'source-bound') {
+			if (this.playerSourceBoundTimeout) {
+				clearTimeout(this.playerSourceBoundTimeout);
+			}
+
+			const retryKey = `${trackId}|${source}`;
+			this.playerSourceBoundTimeout = setTimeout(() => {
+				if (this.state.trackPlaybackSourceUrl !== source) {
+					return;
+				}
+
+				if (this.playerReadySource === source) {
+					return;
+				}
+
+				if (this.playerSourceRetryKeys.has(retryKey)) {
+					return;
+				}
+
+				const alternateSource = this.toggleLocalFileSourceFormat(source);
+				if (!alternateSource || alternateSource === source) {
+					return;
+				}
+
+				this.playerSourceRetryKeys.add(retryKey);
+				this.showPlaybackToast('player: retry source format');
+				this.setState({ trackPlaybackSourceUrl: alternateSource });
+			}, 1200);
+		}
+
+		this.showPlaybackToast(`player: ${event}`);
+	};
+
+	private toggleLocalFileSourceFormat(source: string): string {
+		const trimmed = source.trim();
+		if (!trimmed) {
+			return trimmed;
+		}
+
+		if (trimmed.startsWith('file://')) {
+			return trimmed.slice('file://'.length);
+		}
+
+		if (trimmed.startsWith('/')) {
+			return `file://${trimmed}`;
+		}
+
+		return trimmed;
+	}
 
 	handleHomeNavigationControllerChange = (navigationController: NavigationController): void => {
 		this.homeNavigationController = navigationController;
@@ -856,7 +1138,16 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
 
 		<view style={styles.root}>
-			<MockPlayer playbackStore={this.playbackStore} />
+			{this.state.connectionMode === ConnectionModes.mock ? (
+				<MockPlayer playbackStore={this.playbackStore} />
+			) : (
+				<NativeAudioPlayer
+					onPlaybackError={this.handlePlaybackError}
+					onPlaybackEvent={this.handleNativePlayerEvent}
+					playbackSourceUrl={this.state.trackPlaybackSourceUrl}
+					playbackStore={this.playbackStore}
+				/>
+			)}
 			{this.state.activeFooterTab === FooterTabs.home && (
 				<HomeHeaderNav
 					activeTab={this.state.activeHomeTab}
@@ -911,6 +1202,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onLogout={this.handleLogout}
 					onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
 					preferences={this.preferences}
+					trackCacheCachedCount={this.state.trackPlaybackCachedCount}
 					trackCacheMaxTracks={this.state.trackCacheMaxTracks}
 				/>
 			)}
@@ -949,6 +1241,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			)}
 
 			{this.state.authToastMessage && <Toast message={this.state.authToastMessage} />}
+			{this.state.playbackToastMessage && <Toast message={this.state.playbackToastMessage} />}
 		</view>;
 	}
 }

@@ -17,6 +17,7 @@ interface CacheClearModalState {
 	artistImage: boolean;
 	artistLogo: boolean;
 	playlistImage: boolean;
+	tracks: boolean;
 }
 
 export class CacheClearModal extends StatefulComponent<
@@ -29,6 +30,7 @@ export class CacheClearModal extends StatefulComponent<
 		artistImage: true,
 		artistLogo: true,
 		playlistImage: true,
+		tracks: true,
 	};
 
 	private stopPropagation = () => {};
@@ -39,6 +41,7 @@ export class CacheClearModal extends StatefulComponent<
 	private toggleAlbumArtBlurred = () =>
 		this.setState({ albumArtBlurred: !this.state.albumArtBlurred });
 	private togglePlaylistImage = () => this.setState({ playlistImage: !this.state.playlistImage });
+	private toggleTracks = () => this.setState({ tracks: !this.state.tracks });
 
 	private handleConfirm = () => {
 		this.viewModel.onConfirm({
@@ -47,12 +50,15 @@ export class CacheClearModal extends StatefulComponent<
 			artistImage: this.state.artistImage,
 			artistLogo: this.state.artistLogo,
 			playlistImage: this.state.playlistImage,
+			tracks: this.state.tracks,
 		});
 	};
 
 	onRender(): void {
-		const { albumArt, albumArtBlurred, artistImage, artistLogo, playlistImage } = this.state;
-		const anySelected = albumArt || albumArtBlurred || artistImage || artistLogo || playlistImage;
+		const { albumArt, albumArtBlurred, artistImage, artistLogo, playlistImage, tracks } =
+			this.state;
+		const anySelected =
+			albumArt || albumArtBlurred || artistImage || artistLogo || playlistImage || tracks;
 
 		<blur
 			blurStyle='systemThickMaterialDark'
@@ -98,6 +104,12 @@ export class CacheClearModal extends StatefulComponent<
 						checked={playlistImage}
 						label='playlist images'
 						onToggle={this.togglePlaylistImage}
+					/>
+					<Checkbox
+						accessibilityLabel='cache-clear-track-row'
+						checked={tracks}
+						label='tracks'
+						onToggle={this.toggleTracks}
 					/>
 
 					<view style={styles.divider} />

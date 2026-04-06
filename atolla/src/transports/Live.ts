@@ -41,6 +41,16 @@ interface HTTPResponseLike {
 	statusCode: number;
 }
 
+function getHeaderValue(headers: Record<string, string>, key: string): string | null {
+	const normalizedKey = key.toLowerCase();
+	for (const [headerKey, headerValue] of Object.entries(headers)) {
+		if (headerKey.toLowerCase() === normalizedKey) {
+			return headerValue;
+		}
+	}
+	return null;
+}
+
 interface HTTPClientLike {
 	get(pathOrUrl: string, headers?: Record<string, string>): Promise<HTTPResponseLike>;
 }
@@ -58,8 +68,12 @@ interface AlbumsPageResult {
 const defaultPageSize = 100;
 const defaultSearchLimit = 100;
 
-function createClientHeader(): string {
-	return 'MediaBrowser Client="Atolla", Device="Atolla", DeviceId="atolla", Version="0.0.1"';
+function createClientHeader(accessToken?: string): string {
+	const base = 'MediaBrowser Client="Atolla", Device="Atolla", DeviceId="atolla", Version="0.0.1"';
+	if (!accessToken) {
+		return base;
+	}
+	return `${base}, Token="${accessToken}"`;
 }
 
 export class LiveTransport implements Transport {
@@ -327,11 +341,69 @@ export class LiveTransport implements Transport {
 			return null;
 		}
 
-		const path = this.buildPath(`/Items/${encodeURIComponent(trackId)}/Download`, {
+		const path = this.buildPath(`/Audio/${encodeURIComponent(trackId)}/stream.mp3`, {
 			api_key: this.accessToken,
+			deviceId: 'atolla',
+			static: true,
 			userId: this.userId,
 		});
 		return `${this.baseUrl}${path}`;
+	}
+
+	downloadBinary(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
+		return this.requestBinaryWithRedirects(url, 5);
+	}
+
+	private async requestBinaryWithRedirects(
+		url: string,
+		remainingRedirects: number,
+	): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
+		const split = splitAbsoluteUrl(url);
+		if (!split) {
+			throw new Error(`invalid download url: ${url}`);
+		}
+
+		const { baseUrl, pathWithQuery } = split;
+		const client = this.httpClientFactory(baseUrl);
+
+		const response = await this.runWithRequestTimeout(
+			client.get(pathWithQuery, this.createBinaryHeaders()),
+		);
+
+		if (isRedirectStatus(response.statusCode)) {
+			if (remainingRedirects <= 0) {
+				throw new Error(`download redirect limit reached status=${response.statusCode}`);
+			}
+
+			const location = getHeaderValue(response.headers, 'location');
+			if (!location) {
+				throw new Error(`download redirect missing location status=${response.statusCode}`);
+			}
+
+			const nextUrl = resolveRedirectUrl(baseUrl, location);
+			if (!nextUrl) {
+				throw new Error(`download redirect invalid location status=${response.statusCode}`);
+			}
+			return this.requestBinaryWithRedirects(nextUrl, remainingRedirects - 1);
+		}
+
+		if (response.statusCode < 200 || response.statusCode >= 300 || !response.body) {
+			const location = getHeaderValue(response.headers, 'location') ?? 'none';
+			const contentType = getHeaderValue(response.headers, 'content-type') ?? 'none';
+			const contentLength = getHeaderValue(response.headers, 'content-length') ?? 'none';
+			const hasBody = response.body ? '1' : '0';
+			throw new Error(
+				`download missing body status=${response.statusCode} body=${hasBody} ct=${contentType} cl=${contentLength} loc=${location}`,
+			);
+		}
+
+		const bytes = response.body;
+		const buffer = bytes.buffer.slice(
+			bytes.byteOffset,
+			bytes.byteOffset + bytes.byteLength,
+		) as ArrayBuffer;
+		const mimeType = getHeaderValue(response.headers, 'content-type') ?? 'audio/mpeg';
+		return { buffer, mimeType };
 	}
 
 	private async fetchAllItems<TItem>(
@@ -432,9 +504,21 @@ export class LiveTransport implements Transport {
 	}
 
 	private createHeaders(): Record<string, string> {
+		const authHeader = createClientHeader(this.accessToken);
 		return {
 			Accept: 'application/json',
-			'X-Emby-Authorization': createClientHeader(),
+			Authorization: authHeader,
+			'X-Emby-Authorization': authHeader,
+			'X-Emby-Token': this.accessToken,
+		};
+	}
+
+	private createBinaryHeaders(): Record<string, string> {
+		const authHeader = createClientHeader(this.accessToken);
+		return {
+			Accept: '*/*',
+			Authorization: authHeader,
+			'X-Emby-Authorization': authHeader,
 			'X-Emby-Token': this.accessToken,
 		};
 	}
@@ -470,4 +554,44 @@ export class LiveTransport implements Transport {
 		itemPrimaryImageUrl: (itemId: string, imageTag?: string): string =>
 			this.buildItemImageUrl(itemId, 'Primary', imageTag),
 	};
+}
+
+function isRedirectStatus(statusCode: number): boolean {
+	return (
+		statusCode === 301 ||
+		statusCode === 302 ||
+		statusCode === 303 ||
+		statusCode === 307 ||
+		statusCode === 308
+	);
+}
+
+function splitAbsoluteUrl(url: string): { baseUrl: string; pathWithQuery: string } | null {
+	const trimmed = (url ?? '').trim();
+	const match = /^(https?:\/\/[^/]+)(\/.*)?$/i.exec(trimmed);
+	if (!match) {
+		return null;
+	}
+
+	return {
+		baseUrl: match[1],
+		pathWithQuery: match[2] && match[2].length > 0 ? match[2] : '/',
+	};
+}
+
+function resolveRedirectUrl(baseUrl: string, location: string): string | null {
+	const trimmedLocation = (location ?? '').trim();
+	if (!trimmedLocation) {
+		return null;
+	}
+
+	if (/^https?:\/\//i.test(trimmedLocation)) {
+		return trimmedLocation;
+	}
+
+	if (trimmedLocation.startsWith('/')) {
+		return `${baseUrl}${trimmedLocation}`;
+	}
+
+	return `${baseUrl}/${trimmedLocation}`;
 }
