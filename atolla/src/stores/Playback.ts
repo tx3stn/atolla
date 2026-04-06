@@ -3,6 +3,8 @@ import type { Track } from '../models/Track';
 
 type PlaybackListener = () => void;
 
+export type LoopMode = 'none' | 'queue' | 'track';
+
 export function shuffleArray<T>(arr: Array<T>): Array<T> {
 	const copy = [...arr];
 	for (let i = copy.length - 1; i > 0; i--) {
@@ -18,10 +20,27 @@ export class PlaybackStore {
 
 	album: Album | null = null;
 	isPlaying: boolean = false;
+	loopMode: LoopMode = 'none';
 	progressSeconds: number = 0;
 	seekTarget: number | null = null;
 	trackIndex: number = 0;
 	tracks: Array<Track> = [];
+
+	cycleLoopMode(): void {
+		switch (this.loopMode) {
+			case 'none':
+				this.loopMode = 'queue';
+				break;
+			case 'queue':
+				this.loopMode = 'track';
+				break;
+			default:
+				this.loopMode = 'none';
+				break;
+		}
+
+		this.notify();
+	}
 
 	get artistLogoUrl(): string | null {
 		return this._artistLogoUrls[this.trackIndex] ?? null;
@@ -82,9 +101,18 @@ export class PlaybackStore {
 		this.seekTarget = null;
 
 		if (seconds >= activeTrack.duration) {
-			if (this.trackIndex >= this.tracks.length - 1) {
-				this.progressSeconds = activeTrack.duration;
-				this.isPlaying = false;
+			if (this.loopMode === 'track') {
+				this.progressSeconds = 0;
+				this.seekTarget = 0;
+			} else if (this.trackIndex >= this.tracks.length - 1) {
+				if (this.loopMode === 'queue' && this.tracks.length > 0) {
+					this.trackIndex = 0;
+					this.progressSeconds = 0;
+					this.seekTarget = 0;
+				} else {
+					this.progressSeconds = activeTrack.duration;
+					this.isPlaying = false;
+				}
 			} else {
 				this.trackIndex += 1;
 				this.progressSeconds = 0;

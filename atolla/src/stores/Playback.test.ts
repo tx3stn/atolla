@@ -22,10 +22,41 @@ describe('PlaybackStore', () => {
 			expect(store.track).toBeNull();
 			expect(store.album).toBeNull();
 			expect(store.isPlaying).toBe(false);
+			expect(store.loopMode).toBe('none');
 			expect(store.progressSeconds).toBe(0);
 			expect(store.trackIndex).toBe(0);
 			expect(store.tracks).toEqual([]);
 			expect(store.artistLogoUrl).toBeNull();
+		});
+	});
+
+	describe('cycleLoopMode()', () => {
+		it('cycles from none to queue', () => {
+			const store = new PlaybackStore();
+			store.cycleLoopMode();
+			expect(store.loopMode).toBe('queue');
+		});
+
+		it('cycles from queue to track', () => {
+			const store = new PlaybackStore();
+			store.loopMode = 'queue';
+			store.cycleLoopMode();
+			expect(store.loopMode as string).toBe('track');
+		});
+
+		it('cycles from track to none', () => {
+			const store = new PlaybackStore();
+			store.loopMode = 'track';
+			store.cycleLoopMode();
+			expect(store.loopMode as string).toBe('none');
+		});
+
+		it('notifies listeners', () => {
+			const store = new PlaybackStore();
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.cycleLoopMode();
+			expect(calls).toBe(1);
 		});
 	});
 
@@ -186,6 +217,45 @@ describe('PlaybackStore', () => {
 			store.play(tracks, album);
 			store.seekTo(-10);
 			expect(store.progressSeconds).toBe(0);
+		});
+	});
+
+	describe('updateProgress()', () => {
+		it('loops the queue from start when mode is queue and final track completes', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			store.loopMode = 'queue';
+
+			store.updateProgress(track3.duration);
+
+			expect(store.trackIndex).toBe(0);
+			expect(store.progressSeconds).toBe(0);
+			expect(store.isPlaying).toBe(true);
+			expect(store.seekTarget).toBe(0);
+		});
+
+		it('restarts current track when mode is track and track completes', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.loopMode = 'track';
+
+			store.updateProgress(track2.duration);
+
+			expect(store.trackIndex).toBe(1);
+			expect(store.progressSeconds).toBe(0);
+			expect(store.isPlaying).toBe(true);
+			expect(store.seekTarget).toBe(0);
+		});
+
+		it('stops playback at final track when loop mode is none', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+
+			store.updateProgress(track3.duration);
+
+			expect(store.trackIndex).toBe(2);
+			expect(store.progressSeconds).toBe(track3.duration);
+			expect(store.isPlaying).toBe(false);
 		});
 	});
 

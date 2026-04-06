@@ -1015,6 +1015,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.playbackStore.playPause();
 	};
 
+	handleNowPlayingLoopModeToggle = (): void => {
+		this.playbackStore.cycleLoopMode();
+	};
+
 	handleNowPlayingPrevious = (): void => {
 		this.playbackStore.previous();
 	};
@@ -1277,8 +1281,16 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 
-		const { track, album, isPlaying, progressSeconds, artistLogoUrl, tracks, trackIndex } =
-			this.playbackStore;
+		const {
+			track,
+			album,
+			isPlaying,
+			loopMode,
+			progressSeconds,
+			artistLogoUrl,
+			tracks,
+			trackIndex,
+		} = this.playbackStore;
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
 
 		<view style={styles.root}>
@@ -1369,9 +1381,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					collapseSignal={this.state.nowPlayingCollapseSignal}
 					imageCache={this.imageCache}
 					isPlaying={isPlaying}
+					loopMode={loopMode}
 					onAlbumTap={this.handleNowPlayingAlbumTap}
 					onArtistTap={this.handleNowPlayingArtistTap}
 					onDismiss={this.handleNowPlayingDismiss}
+					onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
 					onNext={this.handleNowPlayingNext}
 					onPlayPause={this.handleNowPlayingPlayPause}
 					onPrevious={this.handleNowPlayingPrevious}

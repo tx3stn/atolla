@@ -12,7 +12,7 @@ import type { Track } from '../../models/Track';
 import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
-import type { PlaybackStore } from '../../stores/Playback';
+import type { LoopMode, PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
@@ -30,9 +30,11 @@ export interface NowPlayingSurfaceViewModel {
 	collapseSignal: number;
 	imageCache?: ImageCache;
 	isPlaying: boolean;
+	loopMode?: LoopMode;
 	onAlbumTap?: () => void;
 	onArtistTap?: () => void;
 	onDismiss: () => void;
+	onLoopModeToggle?: () => void;
 	onNext: () => void;
 	onPlayPause: () => void;
 	onPrevious: () => void;
@@ -376,6 +378,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			imageCache,
 			onNext,
 			onPlayPause,
+			onLoopModeToggle,
 			onProgressTap,
 			onPrevious,
 			onTrackTap,
@@ -420,6 +423,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		const elapsedText = formatDuration(progressSeconds);
 		const remainingText = `-${formatDuration(Math.max(0, track.duration - progressSeconds))}`;
 		const totalText = formatDuration(track.duration);
+		const loopMode = this.viewModel.loopMode ?? 'none';
+		const loopIcon = getLoopModeIcon(loopMode);
 		const trackReleaseYear =
 			track.productionYear ??
 			(track.releaseDate ? extractYearFromDateString(track.releaseDate) : null);
@@ -554,11 +559,22 @@ export class NowPlayingSurface extends StatefulComponent<
 									</layout>
 									<layout style={styles.expandedControlsRow}>
 										<TappableIcon
+											accessibilityLabel='now-playing-loop-mode'
+											animationsEnabled={this.viewModel.animationsEnabled}
+											hitSize={60}
+											icon={loopIcon}
+											iconSize={25}
+											onTap={onLoopModeToggle}
+											rippleScale={1.34}
+											rippleTint={withAlpha(onSurfaceColor, 0.42)}
+											tint={loopMode === 'none' ? mutedOnSurfaceColor : onSurfaceColor}
+										/>
+										<TappableIcon
 											accessibilityLabel='now-playing-previous'
 											animationsEnabled={this.viewModel.animationsEnabled}
-											hitSize={68}
+											hitSize={70}
 											icon={res.previous}
-											iconSize={35}
+											iconSize={38}
 											onTap={onPrevious}
 											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
@@ -567,9 +583,9 @@ export class NowPlayingSurface extends StatefulComponent<
 										<TappableIcon
 											accessibilityLabel='now-playing-play-pause'
 											animationsEnabled={this.viewModel.animationsEnabled}
-											hitSize={78}
+											hitSize={80}
 											icon={isPlaying ? res.pause : res.play}
-											iconSize={45}
+											iconSize={48}
 											onTap={onPlayPause}
 											rippleScale={1.26}
 											rippleTint={withAlpha(onSurfaceColor, 0.48)}
@@ -578,14 +594,15 @@ export class NowPlayingSurface extends StatefulComponent<
 										<TappableIcon
 											accessibilityLabel='now-playing-next'
 											animationsEnabled={this.viewModel.animationsEnabled}
-											hitSize={68}
+											hitSize={70}
 											icon={res.next}
-											iconSize={35}
+											iconSize={38}
 											onTap={onNext}
 											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
 											tint={onSurfaceColor}
 										/>
+										<view style={styles.controlsRowPlaceholder} />
 									</layout>
 									<layout style={styles.expandedQueueTabsRow}>
 										<view
@@ -660,6 +677,17 @@ function withAlpha(hexColor: string, alpha: number): string {
 	const b = Number.parseInt(hex.slice(4, 6), 16);
 	const normalizedAlpha = Math.max(0, Math.min(1, alpha));
 	return `rgba(${r},${g},${b},${normalizedAlpha})`;
+}
+
+function getLoopModeIcon(mode: LoopMode): unknown {
+	switch (mode) {
+		case 'queue':
+			return res.loopqueue;
+		case 'track':
+			return res.looptrack;
+		default:
+			return res.loopnone;
+	}
 }
 
 function extractYearFromDateString(dateString: string): number | null {
@@ -888,10 +916,14 @@ const styles = {
 	expandedControlsRow: new Style({
 		alignItems: 'center',
 		flexDirection: 'row',
-		justifyContent: 'center',
+		justifyContent: 'space-evenly',
 		marginBottom: 12,
 		marginTop: 12,
 		width: '100%',
+	}),
+	controlsRowPlaceholder: new Style({
+		height: 62,
+		width: 62,
 	}),
 	expandedFirstPage: new Style({
 		minHeight: '100%',
@@ -996,7 +1028,6 @@ const styles = {
 	}),
 	transitionArtwork: new Style<ImageView>({
 		aspectRatio: 1,
-		// borderRadius: theme.borderRadius,
 		left: 12,
 		position: 'absolute',
 		top: 10,

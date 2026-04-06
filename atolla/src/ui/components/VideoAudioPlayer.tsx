@@ -45,11 +45,13 @@ export class VideoAudioPlayer extends StatefulComponent<
 		this.unsubscribePlaybackStore = this.viewModel.playbackStore.subscribe(() => {
 			const nextPlaybackRate = this.viewModel.playbackStore.isPlaying ? 1 : 0;
 			const seekTarget = this.viewModel.playbackStore.seekTarget;
+			const shouldApplySeek = seekTarget != null;
 			const nextSeekToTimeMs =
 				seekTarget != null ? Math.max(0, seekTarget * 1000) : this.state.seekToTimeMs;
 
 			if (
 				nextPlaybackRate !== this.state.playbackRate ||
+				shouldApplySeek ||
 				nextSeekToTimeMs !== this.state.seekToTimeMs
 			) {
 				this.setState({ playbackRate: nextPlaybackRate, seekToTimeMs: nextSeekToTimeMs });

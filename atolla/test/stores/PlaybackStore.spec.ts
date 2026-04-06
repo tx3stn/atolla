@@ -14,6 +14,23 @@ describe('PlaybackStore', () => {
 		store = new PlaybackStore();
 	});
 
+	describe('loop mode', () => {
+		it('defaults to none', () => {
+			expect(store.loopMode).toBe('none');
+		});
+
+		it('cycles none -> queue -> track -> none', () => {
+			store.cycleLoopMode();
+			expect(store.loopMode).toBe('queue');
+
+			store.cycleLoopMode();
+			expect(store.loopMode).toBe('track');
+
+			store.cycleLoopMode();
+			expect(store.loopMode).toBe('none');
+		});
+	});
+
 	describe('seekTo()', () => {
 		it('sets progressSeconds and seekTarget', () => {
 			store.playTracks([makeTrack('a', 60)]);
@@ -92,6 +109,28 @@ describe('PlaybackStore', () => {
 
 			expect(store.isPlaying).toBe(false);
 			expect(store.progressSeconds).toBe(30);
+		});
+
+		it('restarts queue from first track when loop mode is queue', () => {
+			store.playTracks([makeTrack('a', 30), makeTrack('b', 45)], 1);
+			store.loopMode = 'queue';
+			store.updateProgress(45);
+
+			expect(store.trackIndex).toBe(0);
+			expect(store.progressSeconds).toBe(0);
+			expect(store.isPlaying).toBe(true);
+			expect(store.seekTarget).toBe(0);
+		});
+
+		it('restarts current track when loop mode is track', () => {
+			store.playTracks([makeTrack('a', 30)], 0);
+			store.loopMode = 'track';
+			store.updateProgress(30);
+
+			expect(store.trackIndex).toBe(0);
+			expect(store.progressSeconds).toBe(0);
+			expect(store.isPlaying).toBe(true);
+			expect(store.seekTarget).toBe(0);
 		});
 	});
 });

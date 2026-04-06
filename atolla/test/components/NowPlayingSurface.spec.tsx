@@ -33,7 +33,9 @@ function createNowPlayingComponent(trackOverrides = {}, albumOverride = album) {
 		artistLogoUrl: null,
 		collapseSignal: 0,
 		isPlaying: true,
+		loopMode: 'none',
 		onDismiss: () => {},
+		onLoopModeToggle: () => {},
 		onNext: () => {},
 		onPlayPause: () => {},
 		onPrevious: () => {},
@@ -56,7 +58,9 @@ describe('NowPlayingSurface', () => {
 			artistLogoUrl: null,
 			collapseSignal: 0,
 			isPlaying: true,
+			loopMode: 'none',
 			onDismiss: () => {},
+			onLoopModeToggle: () => {},
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
@@ -107,7 +111,9 @@ describe('NowPlayingSurface', () => {
 			artistLogoUrl: null,
 			collapseSignal: 0,
 			isPlaying: true,
+			loopMode: 'none',
 			onDismiss: () => {},
+			onLoopModeToggle: () => {},
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
@@ -155,7 +161,9 @@ describe('NowPlayingSurface', () => {
 				artistLogoUrl: null,
 				collapseSignal: 0,
 				isPlaying: true,
+				loopMode: 'none',
 				onDismiss: () => {},
+				onLoopModeToggle: () => {},
 				onNext: () => {},
 				onPlayPause: () => {},
 				onPrevious: () => {},
@@ -220,7 +228,9 @@ describe('NowPlayingSurface', () => {
 			artistLogoUrl: null,
 			collapseSignal: 0,
 			isPlaying: true,
+			loopMode: 'none',
 			onDismiss: () => {},
+			onLoopModeToggle: () => {},
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
@@ -267,7 +277,9 @@ describe('NowPlayingSurface', () => {
 			artistLogoUrl: null,
 			collapseSignal: 0,
 			isPlaying: true,
+			loopMode: 'none',
 			onDismiss: () => {},
+			onLoopModeToggle: () => {},
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
@@ -316,7 +328,9 @@ describe('NowPlayingSurface', () => {
 			artistLogoUrl: null,
 			collapseSignal: 0,
 			isPlaying: true,
+			loopMode: 'none',
 			onDismiss: () => {},
+			onLoopModeToggle: () => {},
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
@@ -362,7 +376,9 @@ describe('NowPlayingSurface', () => {
 			artistLogoUrl: null,
 			collapseSignal: 1,
 			isPlaying: true,
+			loopMode: 'none',
 			onDismiss: () => {},
+			onLoopModeToggle: () => {},
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
@@ -413,7 +429,9 @@ describe('NowPlayingSurface', () => {
 			artistLogoUrl: 'https://example.com/logo.png',
 			collapseSignal: 0,
 			isPlaying: true,
+			loopMode: 'none',
 			onDismiss: () => {},
+			onLoopModeToggle: () => {},
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
@@ -453,5 +471,40 @@ describe('NowPlayingSurface', () => {
 
 		expect(values).toContain('Untimed Album');
 		expect(values).not.toContain('Untimed Album (na)');
+	});
+
+	valdiIt('calls loop mode toggle handler when loop control is tapped', () => {
+		let calls = 0;
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'queue',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {
+				calls += 1;
+			},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			progressSeconds: 90,
+			track,
+			trackIndex: 0,
+			tracks: [track],
+		});
+		const component = instrumented.getComponent();
+
+		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+		compactBar?.getAttribute('onTap')?.();
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const loopControl = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'now-playing-loop-mode',
+		);
+		loopControl?.getAttribute('onTap')?.();
+
+		expect(calls).toBe(1);
 	});
 });
