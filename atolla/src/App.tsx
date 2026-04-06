@@ -15,11 +15,13 @@ import {
 import type { Album } from './models/Album';
 import type { Artist } from './models/Artist';
 import type { Playlist } from './models/Playlist';
+import type { Track } from './models/Track';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { type ClearCacheSelection, ImageCache } from './services/ImageCache';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
+import { TrackPlaybackNativePrefetchQueue } from './services/TrackPlaybackNativePrefetchQueue';
 import { PlaybackStore } from './stores/Playback';
 import {
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
@@ -32,6 +34,7 @@ import {
 	clearAtollaTrackCache,
 	getAtollaCachedTrackFileUrl,
 	getAtollaTrackCacheEntryCount,
+	setAtollaTrackCacheMaxTracks,
 } from './TrackPlaybackNative';
 import { theme } from './theme';
 import { LiveTransport } from './transports/Live';
@@ -134,6 +137,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playerSourceBoundTimeout?: ReturnType<typeof setTimeout>;
 	private playerReadySource = '';
 	private playerSourceRetryKeys = new Set<string>();
+	private lastPrefetchTracksRef: Array<Track> | null = null;
+	private lastPrefetchTrackIndex = -1;
+	private lastPrefetchTransport: Transport | null = null;
+	private trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
+		(track) => this.transport.getTrackCacheUrl?.(track.id) ?? null,
+		(trackId) => this.getNativeCachedTrackSource(trackId) != null,
+		(trackId, url) => this.cacheTrackViaNative(trackId, url),
+		(trackId) => this.handleTrackCached(trackId),
+	);
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
@@ -210,6 +222,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						serverUrlPrefill: rememberedServerUrl,
 						trackCacheMaxTracks,
 					});
+					this.applyNativeTrackCacheLimit(trackCacheMaxTracks);
 				},
 			)
 			.catch(() => {
@@ -220,6 +233,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
 			this.handleAlbumChange();
 			this.handleTrackPlaybackSourceChange();
+			this.handleTrackPrefetchQueueChange();
 			this.setState({ version: this.state.version + 1 });
 		});
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
@@ -228,6 +242,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		// Handle any track already playing at startup
 		this.handleAlbumChange();
 		this.handleTrackPlaybackSourceChange();
+		this.handleTrackPrefetchQueueChange();
 		this.refreshTrackCachedCount();
 	}
 
@@ -249,6 +264,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.nativeCacheStatsInterval) {
 			clearInterval(this.nativeCacheStatsInterval);
 		}
+		this.trackPrefetchQueue.clearQueue();
 		this.paletteQueue.dispose();
 	}
 
@@ -519,6 +535,41 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	}
 
+	private handleTrackPrefetchQueueChange(force = false): void {
+		const activeTrack = this.playbackStore.track;
+		const tracks = this.playbackStore.tracks;
+		const trackIndex = this.playbackStore.trackIndex;
+
+		if (!activeTrack || tracks.length === 0) {
+			this.lastPrefetchTracksRef = null;
+			this.lastPrefetchTrackIndex = -1;
+			this.lastPrefetchTransport = this.transport;
+			this.trackPrefetchQueue.clearQueue();
+			return;
+		}
+
+		if (
+			!force &&
+			tracks === this.lastPrefetchTracksRef &&
+			trackIndex === this.lastPrefetchTrackIndex &&
+			this.transport === this.lastPrefetchTransport
+		) {
+			return;
+		}
+
+		this.lastPrefetchTracksRef = tracks;
+		this.lastPrefetchTrackIndex = trackIndex;
+		this.lastPrefetchTransport = this.transport;
+
+		const nextTrackIndex = trackIndex + 1;
+		if (nextTrackIndex >= tracks.length) {
+			this.trackPrefetchQueue.clearQueue();
+			return;
+		}
+
+		this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex);
+	}
+
 	private downloadCurrentTrackForPlayback(trackId: string, requestId: number): void {
 		if (!trackId || this.inFlightTrackDownloadIds.has(trackId)) {
 			return;
@@ -672,8 +723,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 			this.lastTrackFetchErrorTrackId = null;
 			this.lastTrackSourceTrackId = null;
+			this.lastPrefetchTracksRef = null;
+			this.lastPrefetchTrackIndex = -1;
+			this.lastPrefetchTransport = null;
 			this.playbackSourceRequestId += 1;
 			this.setState({ trackPlaybackSourceUrl: null });
+			this.handleTrackPrefetchQueueChange(true);
 		}
 		this.refreshNativeCacheStats();
 		this.refreshTrackCachedCount();
@@ -694,8 +749,21 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	handleTrackCacheMaxTracksChange = (count: number): void => {
 		this.preferences.setTrackCacheMaxTracks(count);
 		this.setState({ trackCacheMaxTracks: count });
+		this.applyNativeTrackCacheLimit(count);
 		this.refreshTrackCachedCount();
 	};
+
+	private applyNativeTrackCacheLimit(maxTracks: number): void {
+		if (!Number.isFinite(maxTracks) || maxTracks <= 0) {
+			return;
+		}
+
+		try {
+			setAtollaTrackCacheMaxTracks(maxTracks);
+		} catch {
+			// Native track cache limit unavailable on non-Android targets.
+		}
+	}
 
 	handlePlaybackError = (error: string): void => {
 		const normalized = error?.trim() ?? '';

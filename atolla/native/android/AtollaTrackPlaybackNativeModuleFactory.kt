@@ -27,6 +27,10 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 			override fun clearAtollaTrackCache() {
 				AtollaTrackPlaybackNativeCache.clearCache()
 			}
+
+			override fun setAtollaTrackCacheMaxTracks(maxTracks: Double) {
+				AtollaTrackPlaybackNativeCache.setCacheMaxTracks(maxTracks.toInt())
+			}
 		}
 	}
 }
@@ -34,7 +38,12 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 object AtollaTrackPlaybackNativeCache {
 	private const val tag = "AtollaTrackCache"
 	private const val cacheFolder = "atolla-track-cache"
+	private const val defaultMaxTracks = 20
 
+	@Volatile
+	private var cacheMaxTracks = defaultMaxTracks
+
+	@Synchronized
 	fun cacheTrackFromUrl(trackId: String, url: String): String {
 		if (trackId.isBlank() || url.isBlank()) {
 			return ""
@@ -42,6 +51,7 @@ object AtollaTrackPlaybackNativeCache {
 
 		val existingFile = resolveExistingTrackFile(trackId)
 		if (existingFile != null && existingFile.exists() && existingFile.isFile) {
+			touch(existingFile)
 			return toFileUrl(existingFile)
 		}
 
@@ -77,6 +87,8 @@ object AtollaTrackPlaybackNativeCache {
 				return ""
 			}
 			file.writeBytes(bytes)
+			touch(file)
+			pruneIfNeeded(cacheDir)
 			toFileUrl(file)
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed to cache track trackId=$trackId", error)
@@ -84,6 +96,7 @@ object AtollaTrackPlaybackNativeCache {
 		}
 	}
 
+	@Synchronized
 	fun getCachedTrackFileUrl(trackId: String): String {
 		if (trackId.isBlank()) {
 			return ""
@@ -94,9 +107,12 @@ object AtollaTrackPlaybackNativeCache {
 			return ""
 		}
 
+		touch(file)
+
 		return toFileUrl(file)
 	}
 
+	@Synchronized
 	fun getCacheEntryCount(): Int {
 		val dir = resolveCacheDir() ?: return 0
 		val files = try {
@@ -108,6 +124,7 @@ object AtollaTrackPlaybackNativeCache {
 		return files.count { it.isFile }
 	}
 
+	@Synchronized
 	fun clearCache() {
 		val dir = resolveCacheDir() ?: return
 		val files = try {
@@ -126,6 +143,17 @@ object AtollaTrackPlaybackNativeCache {
 				// best effort
 			}
 		}
+	}
+
+	@Synchronized
+	fun setCacheMaxTracks(maxTracks: Int) {
+		if (maxTracks <= 0) {
+			return
+		}
+
+		cacheMaxTracks = maxTracks
+		val dir = resolveCacheDir() ?: return
+		pruneIfNeeded(dir)
 	}
 
 	private fun resolveExistingTrackFile(trackId: String): File? {
@@ -218,6 +246,53 @@ object AtollaTrackPlaybackNativeCache {
 
 	private fun toFileUrl(file: File): String {
 		return "file://${file.absolutePath}"
+	}
+
+	private fun pruneIfNeeded(cacheDir: File) {
+		val maxTracks = cacheMaxTracks
+		if (maxTracks <= 0) {
+			return
+		}
+
+		val files = try {
+			cacheDir.listFiles()
+		} catch (_: Throwable) {
+			null
+		} ?: return
+
+		val trackFiles = files.filter { it.isFile }
+		if (trackFiles.size <= maxTracks) {
+			return
+		}
+
+		val byLru = trackFiles.sortedWith(
+			compareBy<File> { it.lastModified() }
+				.thenBy { it.name },
+		)
+
+		val filesToDelete = byLru.take(trackFiles.size - maxTracks)
+		var deleted = 0
+		for (file in filesToDelete) {
+			try {
+				if (file.delete()) {
+					deleted += 1
+				}
+			} catch (_: Throwable) {
+				// best effort cleanup
+			}
+		}
+
+		if (deleted > 0) {
+			Log.d(tag, "Pruned $deleted tracks from cache (max=$maxTracks)")
+		}
+	}
+
+	private fun touch(file: File) {
+		try {
+			file.setLastModified(System.currentTimeMillis())
+		} catch (_: Throwable) {
+			// best effort only
+		}
 	}
 
 }

@@ -13,3 +13,6 @@ export function getAtollaTrackCacheEntryCount(): number;
 
 // @ExportFunction
 export function clearAtollaTrackCache(): void;
+
+// @ExportFunction
+export function setAtollaTrackCacheMaxTracks(maxTracks: number): void;
