@@ -143,10 +143,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastTrackFetchErrorTrackId: string | null = null;
 	private playbackSourceRequestId = 0;
 	private inFlightTrackDownloadIds = new Set<string>();
-	private lastNativePlayerEvent = '';
-	private playerSourceBoundTimeout?: ReturnType<typeof setTimeout>;
-	private playerReadySource = '';
-	private playerSourceRetryKeys = new Set<string>();
+	private lastPlaybackEventKey = '';
+	private playbackSourceBoundTimeout?: ReturnType<typeof setTimeout>;
+	private playbackReadySource = '';
+	private playbackSourceRetryKeys = new Set<string>();
 	private lastPrefetchTracksRef: Array<Track> | null = null;
 	private lastPrefetchTrackIndex = -1;
 	private lastPrefetchTransport: Transport | null = null;
@@ -273,8 +273,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.playbackToastTimer) {
 			clearTimeout(this.playbackToastTimer);
 		}
-		if (this.playerSourceBoundTimeout) {
-			clearTimeout(this.playerSourceBoundTimeout);
+		if (this.playbackSourceBoundTimeout) {
+			clearTimeout(this.playbackSourceBoundTimeout);
 		}
 		this.unsubscribePlayback?.();
 		this.unsubscribePalette?.();
@@ -794,7 +794,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		);
 	};
 
-	handleNativePlayerEvent = (event: string): void => {
+	handlePlaybackEvent = (event: string): void => {
 		if (!event) {
 			return;
 		}
@@ -802,36 +802,36 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		const trackId = this.playbackStore.track?.id ?? 'none';
 		const source = this.state.trackPlaybackSourceUrl ?? 'none';
 		const eventKey = `${event}|${trackId}|${source}`;
-		if (this.lastNativePlayerEvent === eventKey) {
+		if (this.lastPlaybackEventKey === eventKey) {
 			return;
 		}
 
-		this.lastNativePlayerEvent = eventKey;
+		this.lastPlaybackEventKey = eventKey;
 
 		if (event === 'loaded' || event === 'progress') {
-			this.playerReadySource = source;
-			if (this.playerSourceBoundTimeout) {
-				clearTimeout(this.playerSourceBoundTimeout);
-				this.playerSourceBoundTimeout = undefined;
+			this.playbackReadySource = source;
+			if (this.playbackSourceBoundTimeout) {
+				clearTimeout(this.playbackSourceBoundTimeout);
+				this.playbackSourceBoundTimeout = undefined;
 			}
 		}
 
 		if (event === 'source-bound') {
-			if (this.playerSourceBoundTimeout) {
-				clearTimeout(this.playerSourceBoundTimeout);
+			if (this.playbackSourceBoundTimeout) {
+				clearTimeout(this.playbackSourceBoundTimeout);
 			}
 
 			const retryKey = `${trackId}|${source}`;
-			this.playerSourceBoundTimeout = setTimeout(() => {
+			this.playbackSourceBoundTimeout = setTimeout(() => {
 				if (this.state.trackPlaybackSourceUrl !== source) {
 					return;
 				}
 
-				if (this.playerReadySource === source) {
+				if (this.playbackReadySource === source) {
 					return;
 				}
 
-				if (this.playerSourceRetryKeys.has(retryKey)) {
+				if (this.playbackSourceRetryKeys.has(retryKey)) {
 					return;
 				}
 
@@ -840,7 +840,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					return;
 				}
 
-				this.playerSourceRetryKeys.add(retryKey);
+				this.playbackSourceRetryKeys.add(retryKey);
 				this.setState({ trackPlaybackSourceUrl: alternateSource });
 			}, 1200);
 		}
@@ -1275,7 +1275,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			) : (
 				<VideoAudioPlayer
 					onPlaybackError={this.handlePlaybackError}
-					onPlaybackEvent={this.handleNativePlayerEvent}
+					onPlaybackEvent={this.handlePlaybackEvent}
 					playbackSourceUrl={this.state.trackPlaybackSourceUrl}
 					playbackStore={this.playbackStore}
 				/>
