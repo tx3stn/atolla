@@ -3,6 +3,8 @@ import { PersistentStore } from 'persistence/src/PersistentStore';
 import { type ConnectionMode, ConnectionModes } from '../transports/Model';
 
 export const DEFAULT_IMAGE_CACHE_MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+export const GRID_COLUMN_OPTIONS = [3, 4] as const;
+export const DEFAULT_GRID_COLUMNS = 3;
 export const TRACK_CACHE_LIMIT_OPTIONS = [10, 15, 20, 25, 30, 35] as const;
 export const DEFAULT_TRACK_CACHE_MAX_TRACKS = 20;
 
@@ -53,6 +55,25 @@ export class Preferences {
 
 	async setAnimationsEnabled(enabled: boolean): Promise<void> {
 		await this.store.storeString('navigation_animations_enabled', String(enabled));
+	}
+
+	async getGridColumns(): Promise<number> {
+		try {
+			const value = Number(await this.store.fetchString('grid_columns'));
+			if (GRID_COLUMN_OPTIONS.includes(value as (typeof GRID_COLUMN_OPTIONS)[number])) {
+				return value;
+			}
+			return DEFAULT_GRID_COLUMNS;
+		} catch {
+			return DEFAULT_GRID_COLUMNS;
+		}
+	}
+
+	async setGridColumns(count: number): Promise<void> {
+		if (!GRID_COLUMN_OPTIONS.includes(count as (typeof GRID_COLUMN_OPTIONS)[number])) {
+			return;
+		}
+		await this.store.storeString('grid_columns', String(count));
 	}
 
 	async getTrackCacheMaxTracks(): Promise<number> {

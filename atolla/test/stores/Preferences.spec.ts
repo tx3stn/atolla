@@ -1,7 +1,9 @@
 // @ts-nocheck
 import 'jasmine/src/jasmine';
 import {
+	DEFAULT_GRID_COLUMNS,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
+	GRID_COLUMN_OPTIONS,
 	Preferences,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from 'atolla/src/stores/Preferences';
@@ -23,6 +25,50 @@ class InMemoryPreferencesStore {
 }
 
 describe('Preferences', () => {
+	describe('getGridColumns()', () => {
+		it('returns default when preference is missing', async () => {
+			const preferences = new Preferences(new InMemoryPreferencesStore());
+
+			expect(await preferences.getGridColumns()).toBe(DEFAULT_GRID_COLUMNS);
+		});
+
+		it('returns default when stored value is invalid', async () => {
+			const store = new InMemoryPreferencesStore();
+			await store.storeString('grid_columns', '999');
+			const preferences = new Preferences(store);
+
+			expect(await preferences.getGridColumns()).toBe(DEFAULT_GRID_COLUMNS);
+		});
+
+		it('returns stored value when allowed', async () => {
+			const store = new InMemoryPreferencesStore();
+			await store.storeString('grid_columns', String(GRID_COLUMN_OPTIONS[1]));
+			const preferences = new Preferences(store);
+
+			expect(await preferences.getGridColumns()).toBe(GRID_COLUMN_OPTIONS[1]);
+		});
+	});
+
+	describe('setGridColumns()', () => {
+		it('stores allowed value', async () => {
+			const store = new InMemoryPreferencesStore();
+			const preferences = new Preferences(store);
+
+			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[1]);
+
+			expect(await store.fetchString('grid_columns')).toBe(String(GRID_COLUMN_OPTIONS[1]));
+		});
+
+		it('ignores disallowed value', async () => {
+			const store = new InMemoryPreferencesStore();
+			const preferences = new Preferences(store);
+
+			await preferences.setGridColumns(6);
+
+			await expectAsync(store.fetchString('grid_columns')).toBeRejected();
+		});
+	});
+
 	describe('getTrackCacheMaxTracks()', () => {
 		it('returns default when preference is missing', async () => {
 			const preferences = new Preferences(new InMemoryPreferencesStore());

@@ -16,6 +16,7 @@ import { gridPaginationConfig } from './GridPagination';
 
 export interface AlbumsViewModel {
 	animationsEnabled: boolean;
+	gridColumns: number;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
 	paletteQueue?: PaletteGenerationQueue;
@@ -194,6 +195,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			<CardGrid
 				accessibilityLabel='home-albums-grid'
 				cards={cards}
+				columnCount={this.viewModel.gridColumns}
 				imageCache={imageCache}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 				isLoadingMore={this.state.isLoadingNextPage}

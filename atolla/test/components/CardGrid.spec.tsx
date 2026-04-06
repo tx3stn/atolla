@@ -186,4 +186,31 @@ describe('CardGrid', () => {
 		const values = labels.map((label) => label.getAttribute('value'));
 		expect(values).toContain('Loading more...');
 	});
+
+	valdiIt('places prefetch trigger after first row when using 4 columns', () => {
+		const cards = Array.from({ length: 8 }, (_, index) => makeCard(String(index + 1)));
+		const instrumented = createComponent(CardGrid, {
+			accessibilityLabel: 'grid',
+			cards,
+			columnCount: 4,
+			onCardTap: () => {},
+			onLoadMore: () => {},
+			resolveArtworkSource: () => null,
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const triggerIndex = views.findIndex(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
+		);
+		const card4Index = views.findIndex(
+			(view) => view.getAttribute('accessibilityLabel') === 'card-4',
+		);
+		const card5Index = views.findIndex(
+			(view) => view.getAttribute('accessibilityLabel') === 'card-5',
+		);
+
+		expect(triggerIndex).toBeGreaterThan(card4Index);
+		expect(triggerIndex).toBeLessThan(card5Index);
+	});
 });

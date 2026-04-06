@@ -19,6 +19,7 @@ export interface CardGridViewModel {
 	accessibilityLabel: string;
 	cacheVersion?: number;
 	cards: Array<Card>;
+	columnCount?: number;
 	imageCache?: ImageCache;
 	infiniteScrollTriggerRatio?: number;
 	isLoadingMore?: boolean;
@@ -46,6 +47,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 			accessibilityLabel,
 			cacheVersion,
 			cards,
+			columnCount: rawColumnCount,
 			infiniteScrollTriggerRatio,
 			imageCache,
 			isLoadingMore,
@@ -56,9 +58,16 @@ export class CardGrid extends Component<CardGridViewModel> {
 			resolveArtworkSource,
 		} = this.viewModel;
 
+		const columnCount =
+			rawColumnCount === 4 || rawColumnCount === 3
+				? rawColumnCount
+				: rawColumnCount && rawColumnCount > 0
+					? Math.floor(rawColumnCount)
+					: 3;
+
 		const rows: Array<Array<Card>> = [];
-		for (let i = 0; i < cards.length; i += 3) {
-			rows.push(cards.slice(i, i + 3));
+		for (let i = 0; i < cards.length; i += columnCount) {
+			rows.push(cards.slice(i, i + columnCount));
 		}
 
 		const triggerRowIndex =
@@ -77,7 +86,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 			{rows.map((row, rowIndex) => (
 				<layout
 					key={`row-${rowIndex}`}
-					style={row.length === 3 ? styles.cardGridRowFull : styles.cardGridRowPartial}
+					style={row.length === columnCount ? styles.cardGridRowFull : styles.cardGridRowPartial}
 				>
 					{row.map((entry) => {
 						const artworkKey = resolveArtworkSource
@@ -85,7 +94,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 							: entry.artworkKey;
 						const category = cardKindToCategory(entry.kind);
 						return (
-							<layout key={entry.id} style={styles.browseCard}>
+							<layout key={entry.id} style={createBrowseCardStyle(columnCount)}>
 								<view
 									accessibilityLabel={`card-${entry.id}`}
 									contentDescription={`card-${entry.id}`}
@@ -230,12 +239,11 @@ const styles = {
 		overflow: 'hidden',
 		width: '100%',
 	}),
-	browseCard: new Style({
+	browseCardBase: {
 		padding: 2,
 		paddingTop: 12,
 		rowGap: 4,
-		width: '33%',
-	}),
+	},
 	cardGridRowFull: new Style({
 		flexDirection: 'row',
 		flexShrink: 0,
@@ -283,3 +291,19 @@ const styles = {
 		width: '100%',
 	}),
 };
+
+const browseCardStyleByColumnCount: Record<number, Style> = {};
+
+function createBrowseCardStyle(columnCount: number): Style {
+	if (browseCardStyleByColumnCount[columnCount]) {
+		return browseCardStyleByColumnCount[columnCount];
+	}
+
+	const width = columnCount === 4 ? '24.5%' : columnCount === 3 ? '33%' : `${99 / columnCount}%`;
+	const style = new Style({
+		...styles.browseCardBase,
+		width,
+	});
+	browseCardStyleByColumnCount[columnCount] = style;
+	return style;
+}

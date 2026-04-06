@@ -6,8 +6,10 @@ import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ClearCacheSelection } from '../../services/ImageCache';
 import type { Preferences } from '../../stores/Preferences';
 import {
+	DEFAULT_GRID_COLUMNS,
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
+	GRID_COLUMN_OPTIONS,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -36,6 +38,7 @@ function formatBytes(bytes: number): string {
 
 export interface SettingsViewModel {
 	animationsEnabled: boolean;
+	gridColumns?: number;
 	imageCacheBufferedBytes?: number;
 	imageCacheBufferedCount?: number;
 	imageCacheError?: string | null;
@@ -43,6 +46,7 @@ export interface SettingsViewModel {
 	onAnimationsChange?: (enabled: boolean) => void;
 	onCacheSizeChange?: (bytes: number) => void;
 	onClearCache?: (selection: ClearCacheSelection) => void;
+	onGridColumnsChange?: (count: number) => void;
 	onLogout?: () => void;
 	onTrackCacheMaxTracksChange?: (count: number) => void;
 	preferences: Preferences;
@@ -54,6 +58,7 @@ interface SettingsState {
 	cacheSizeInput: string;
 	showCacheClearModal: boolean;
 	showCacheToast: boolean;
+	showGridColumnsOptions: boolean;
 	showTrackCacheLimitOptions: boolean;
 }
 
@@ -62,6 +67,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		cacheSizeInput: bytesToGb(this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES),
 		showCacheClearModal: false,
 		showCacheToast: false,
+		showGridColumnsOptions: false,
 		showTrackCacheLimitOptions: false,
 	};
 
@@ -101,6 +107,15 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		this.setState({ showTrackCacheLimitOptions: false });
 	};
 
+	private handleGridColumnsToggle = () => {
+		this.setState({ showGridColumnsOptions: !this.state.showGridColumnsOptions });
+	};
+
+	private handleGridColumnsSelect = (count: number) => {
+		this.viewModel.onGridColumnsChange?.(count);
+		this.setState({ showGridColumnsOptions: false });
+	};
+
 	onViewModelUpdate(): void {
 		this.setState({
 			cacheSizeInput: bytesToGb(this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES),
@@ -118,12 +133,14 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 	onRender(): void {
 		const {
 			animationsEnabled,
+			gridColumns,
 			imageCacheBufferedBytes,
 			imageCacheBufferedCount,
 			onAnimationsChange,
 			trackCacheCachedCount,
 			trackCacheMaxTracks,
 		} = this.viewModel;
+		const selectedGridColumns = gridColumns ?? DEFAULT_GRID_COLUMNS;
 		const selectedTrackCacheLimit = trackCacheMaxTracks ?? DEFAULT_TRACK_CACHE_MAX_TRACKS;
 
 		<view style={styles.root}>
@@ -141,6 +158,35 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						onToggle={(enabled) => onAnimationsChange?.(enabled)}
 					/>
 				</view>
+				<view style={styles.trackCacheLimitContainer}>
+					<label style={styles.settingLabel} value='grid columns' />
+					<view
+						accessibilityLabel='settings-grid-columns-dropdown'
+						contentDescription='settings-grid-columns-dropdown'
+						onTap={this.handleGridColumnsToggle}
+						style={styles.trackCacheLimitButton}
+					>
+						<label style={styles.trackCacheLimitButtonLabel} value={`${selectedGridColumns}`} />
+					</view>
+				</view>
+				{this.state.showGridColumnsOptions && (
+					<view style={styles.trackCacheLimitOptionsList}>
+						{GRID_COLUMN_OPTIONS.map((option) => (
+							<view
+								accessibilityLabel={`settings-grid-columns-option-${option}`}
+								contentDescription={`settings-grid-columns-option-${option}`}
+								onTap={() => this.handleGridColumnsSelect(option)}
+								style={
+									option === selectedGridColumns
+										? styles.trackCacheLimitOptionSelected
+										: styles.trackCacheLimitOption
+								}
+							>
+								<label style={styles.trackCacheLimitOptionLabel} value={`${option}`} />
+							</view>
+						))}
+					</view>
+				)}
 			</view>
 
 			<label style={styles.sectionTitle} value='CACHE' />

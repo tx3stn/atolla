@@ -15,6 +15,7 @@ import { gridPaginationConfig } from './GridPagination';
 
 export interface ArtistsViewModel {
 	animationsEnabled: boolean;
+	gridColumns: number;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
 	paletteQueue?: PaletteGenerationQueue;
@@ -191,6 +192,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			<CardGrid
 				accessibilityLabel='home-artists-grid'
 				cards={cards}
+				columnCount={this.viewModel.gridColumns}
 				imageCache={imageCache}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 				isLoadingMore={this.state.isLoadingNextPage}

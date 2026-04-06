@@ -25,6 +25,7 @@ export function setImageCacheSize(bytes: number): void {
 export interface HomeViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
+	gridColumns: number;
 	imageCache: ImageCache;
 	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationControllerChange?: (navigationController: NavigationController) => void;
@@ -132,6 +133,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const {
 			activeTab,
 			animationsEnabled,
+			gridColumns,
 			imageCache,
 			onNavigateToArtist,
 			paletteQueue,
@@ -146,6 +148,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<ArtistsView
 							animationsEnabled={animationsEnabled}
+							gridColumns={gridColumns}
 							imageCache={imageCache}
 							navigationController={navigationController}
 							paletteQueue={paletteQueue}
@@ -162,6 +165,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<AlbumsView
 							animationsEnabled={animationsEnabled}
+							gridColumns={gridColumns}
 							imageCache={imageCache}
 							navigationController={navigationController}
 							paletteQueue={paletteQueue}
@@ -178,6 +182,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<PlaylistsView
 							animationsEnabled={animationsEnabled}
+							gridColumns={gridColumns}
 							imageCache={imageCache}
 							navigationController={navigationController}
 							onNavigateToArtist={onNavigateToArtist}

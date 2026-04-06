@@ -31,6 +31,7 @@ describe('HomeView', () => {
 		const instrumented = createComponent(HomeView, {
 			activeTab: HeaderTabs.albums,
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			playbackStore: new PlaybackStore(),
 			resetSignal: 0,
@@ -45,6 +46,7 @@ describe('HomeView', () => {
 		const instrumented = createComponent(HomeView, {
 			activeTab: HeaderTabs.artists,
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			playbackStore: new PlaybackStore(),
 			resetSignal: 0,

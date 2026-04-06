@@ -29,6 +29,7 @@ import {
 } from './services/TrackPlaybackNotificationSync';
 import { PlaybackStore } from './stores/Playback';
 import {
+	DEFAULT_GRID_COLUMNS,
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
 	Preferences,
@@ -76,6 +77,7 @@ interface AppState {
 	authErrorMessage: string | null;
 	authToastMessage: string | null;
 	connectionMode: ConnectionMode;
+	gridColumns: number;
 	homeResetNonce: number;
 	imageCacheMaxBytes: number;
 	isAuthenticating: boolean;
@@ -166,6 +168,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		authErrorMessage: null,
 		authToastMessage: null,
 		connectionMode: ConnectionModes.mock,
+		gridColumns: DEFAULT_GRID_COLUMNS,
 		homeResetNonce: 0,
 		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
 		isAuthenticating: false,
@@ -200,6 +203,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.handleNativePlaybackNotificationAction();
 		}, 350);
 		Promise.all([
+			this.preferences.getGridColumns(),
 			this.preferences.getImageCacheMaxBytes(),
 			this.preferences.getAnimationsEnabled(),
 			this.preferences.getMode(),
@@ -209,6 +213,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		])
 			.then(
 				([
+					gridColumns,
 					imageCacheMaxBytes,
 					animationsEnabled,
 					mode,
@@ -232,6 +237,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						animationsEnabled,
 						authErrorMessage: null,
 						connectionMode: mode,
+						gridColumns,
 						imageCacheMaxBytes,
 						isAuthRequired,
 						serverUrlPrefill: rememberedServerUrl,
@@ -774,6 +780,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.refreshTrackCachedCount();
 	};
 
+	handleGridColumnsChange = (count: number): void => {
+		this.preferences.setGridColumns(count);
+		this.setState({ gridColumns: count });
+	};
+
 	private applyNativeTrackCacheLimit(maxTracks: number): void {
 		if (!Number.isFinite(maxTracks) || maxTracks <= 0) {
 			return;
@@ -1229,6 +1240,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				| 'animationsEnabled'
 				| 'authErrorMessage'
 				| 'connectionMode'
+				| 'gridColumns'
 				| 'imageCacheMaxBytes'
 				| 'isAuthRequired'
 				| 'serverUrlPrefill'
@@ -1291,6 +1303,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				<HomeView
 					activeTab={this.state.activeHomeTab}
 					animationsEnabled={this.state.animationsEnabled}
+					gridColumns={this.state.gridColumns}
 					imageCache={this.imageCache}
 					onNavigateToArtist={this.handleNavigateToArtist}
 					onNavigationControllerChange={this.handleHomeNavigationControllerChange}
@@ -1320,6 +1333,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			{this.state.activeFooterTab === FooterTabs.settings && (
 				<SettingsView
 					animationsEnabled={this.state.animationsEnabled}
+					gridColumns={this.state.gridColumns}
 					imageCacheBufferedBytes={
 						this.state.nativeImageCacheBufferedBytes ?? this.imageCache.bufferedBytes
 					}
@@ -1331,6 +1345,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onAnimationsChange={this.handleAnimationsChange}
 					onCacheSizeChange={this.handleCacheSizeChange}
 					onClearCache={this.handleClearCache}
+					onGridColumnsChange={this.handleGridColumnsChange}
 					onLogout={this.handleLogout}
 					onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
 					preferences={this.preferences}

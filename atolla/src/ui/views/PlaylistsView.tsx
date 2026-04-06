@@ -15,6 +15,7 @@ import { PlaylistView } from './PlaylistView';
 
 export interface PlaylistsViewModel {
 	animationsEnabled: boolean;
+	gridColumns: number;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -200,6 +201,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			<CardGrid
 				accessibilityLabel='home-playlists-grid'
 				cards={cards}
+				columnCount={this.viewModel.gridColumns}
 				imageCache={imageCache}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 				isLoadingMore={this.state.isLoadingNextPage}

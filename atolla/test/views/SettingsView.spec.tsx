@@ -195,6 +195,56 @@ describe('SettingsView', () => {
 		expect(selected).toBe(30);
 	});
 
+	valdiIt('shows grid columns options when tapped', () => {
+		const instrumented = createComponent(SettingsView, {
+			gridColumns: 3,
+			preferences: new Preferences(),
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-dropdown')
+			?.getAttribute('onTap')?.();
+
+		const updatedViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		const option = updatedViews.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-option-4',
+		);
+
+		expect(option).toBeTruthy();
+	});
+
+	valdiIt('calls onGridColumnsChange when selecting a grid columns option', () => {
+		let selected = 0;
+		const instrumented = createComponent(SettingsView, {
+			gridColumns: 3,
+			onGridColumnsChange: (count) => {
+				selected = count;
+			},
+			preferences: new Preferences(),
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-dropdown')
+			?.getAttribute('onTap')?.();
+
+		const updatedViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		updatedViews
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-option-4')
+			?.getAttribute('onTap')?.();
+
+		expect(selected).toBe(4);
+	});
+
 	valdiIt('does not call onClearCache when modal is cancelled', () => {
 		let called = false;
 		const instrumented = createComponent(SettingsView, {
