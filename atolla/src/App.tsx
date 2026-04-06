@@ -130,7 +130,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastTrackFetchErrorTrackId: string | null = null;
 	private playbackSourceRequestId = 0;
 	private inFlightTrackDownloadIds = new Set<string>();
-	private lastPlaybackDebugProbeKey = '';
 	private lastNativePlayerEvent = '';
 	private playerSourceBoundTimeout?: ReturnType<typeof setTimeout>;
 	private playerReadySource = '';
@@ -753,12 +752,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				}
 
 				this.playerSourceRetryKeys.add(retryKey);
-				this.showPlaybackToast('player: retry source format');
 				this.setState({ trackPlaybackSourceUrl: alternateSource });
 			}, 1200);
 		}
-
-		this.showPlaybackToast(`player: ${event}`);
 	};
 
 	private toggleLocalFileSourceFormat(source: string): string {

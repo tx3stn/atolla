@@ -28,6 +28,7 @@ export class NativeAudioPlayer extends Component<NativeAudioPlayerViewModel> {
 
 	onCreate(): void {
 		this.syncInterval = setInterval(() => {
+			this.syncPlaybackControls();
 			this.syncFromNativePlayer();
 		}, 300);
 	}
@@ -72,6 +73,17 @@ export class NativeAudioPlayer extends Component<NativeAudioPlayerViewModel> {
 			}
 		}
 
+		this.syncPlaybackControls();
+	}
+
+	onRender(): void {}
+
+	private syncPlaybackControls(): void {
+		const { playbackSourceUrl, playbackStore } = this.viewModel;
+		if (!playbackSourceUrl || !playbackStore.track) {
+			return;
+		}
+
 		try {
 			setAtollaNativeTrackPlayerPlaying(playbackStore.isPlaying);
 		} catch {
@@ -87,8 +99,6 @@ export class NativeAudioPlayer extends Component<NativeAudioPlayerViewModel> {
 			}
 		}
 	}
-
-	onRender(): void {}
 
 	private syncFromNativePlayer(): void {
 		const { playbackSourceUrl, playbackStore } = this.viewModel;

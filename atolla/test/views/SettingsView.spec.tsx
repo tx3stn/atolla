@@ -112,6 +112,7 @@ describe('SettingsView', () => {
 			artistImage: true,
 			artistLogo: true,
 			playlistImage: true,
+			tracks: true,
 		});
 	});
 

@@ -26,6 +26,7 @@ describe('CacheClearModal', () => {
 		expect(values).toContain('album art');
 		expect(values).toContain('blurred album art');
 		expect(values).toContain('playlist images');
+		expect(values).toContain('tracks');
 	});
 
 	valdiIt('confirm button is enabled when all checkboxes are checked by default', () => {
@@ -66,6 +67,9 @@ describe('CacheClearModal', () => {
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-playlist-image-row')
 			?.getAttribute('onTap')?.();
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-track-row')
+			?.getAttribute('onTap')?.();
 
 		const updatedViews = elementTypeFind(
 			componentGetElements(component),
@@ -99,6 +103,7 @@ describe('CacheClearModal', () => {
 			artistImage: true,
 			artistLogo: true,
 			playlistImage: true,
+			tracks: true,
 		});
 	});
 
@@ -131,6 +136,7 @@ describe('CacheClearModal', () => {
 			artistImage: true,
 			artistLogo: true,
 			playlistImage: true,
+			tracks: true,
 		});
 	});
 
