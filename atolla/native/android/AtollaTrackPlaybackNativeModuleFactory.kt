@@ -1,5 +1,22 @@
 package atolla.native.android
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.drawable.Icon
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
+import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.snap.modules.atolla.TrackPlaybackNativeModule
 import com.snap.modules.atolla.TrackPlaybackNativeModuleFactory
@@ -7,6 +24,7 @@ import com.snap.valdi.modules.RegisterValdiModule
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicLong
 
 @RegisterValdiModule
 class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory() {
@@ -30,6 +48,42 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 
 			override fun setAtollaTrackCacheMaxTracks(maxTracks: Double) {
 				AtollaTrackPlaybackNativeCache.setCacheMaxTracks(maxTracks.toInt())
+			}
+
+			override fun updateAtollaTrackPlaybackNotification(
+				trackName: String,
+				artistName: String,
+				albumName: String,
+				artworkUrl: String,
+				isPlaying: Boolean,
+				positionSeconds: Double,
+				durationSeconds: Double,
+				hasPrevious: Boolean,
+				hasNext: Boolean,
+			) {
+				AtollaTrackPlaybackMediaSession.updateNotification(
+					trackName = trackName,
+					artistName = artistName,
+					albumName = albumName,
+					artworkUrl = artworkUrl,
+					isPlaying = isPlaying,
+					positionSeconds = positionSeconds,
+					durationSeconds = durationSeconds,
+					hasPrevious = hasPrevious,
+					hasNext = hasNext,
+				)
+			}
+
+			override fun clearAtollaTrackPlaybackNotification() {
+				AtollaTrackPlaybackMediaSession.clearNotification()
+			}
+
+			override fun consumeAtollaTrackPlaybackNotificationAction(): String {
+				return AtollaTrackPlaybackMediaSession.consumeAction()
+			}
+
+			override fun ensureAtollaTrackPlaybackNotificationPermission(): Boolean {
+				return AtollaTrackPlaybackMediaSession.ensureNotificationPermission()
 			}
 		}
 	}
@@ -295,4 +349,580 @@ object AtollaTrackPlaybackNativeCache {
 		}
 	}
 
+}
+
+object AtollaTrackPlaybackMediaSession {
+	private const val tag = "AtollaTrackPlaybackMedia"
+	private const val notificationChannelId = "atolla_track_playback"
+	private const val notificationChannelName = "Track playback"
+	private const val notificationId = 4002
+	private const val actionPlay = "com.tx3stn.atolla.action.TRACK_PLAY"
+	private const val actionPause = "com.tx3stn.atolla.action.TRACK_PAUSE"
+	private const val actionPrevious = "com.tx3stn.atolla.action.TRACK_PREVIOUS"
+	private const val actionNext = "com.tx3stn.atolla.action.TRACK_NEXT"
+	private const val actionStop = "com.tx3stn.atolla.action.TRACK_STOP"
+
+	@Volatile private var mediaSession: MediaSession? = null
+	@Volatile private var notificationManager: NotificationManager? = null
+	@Volatile private var pendingAction: String = ""
+	@Volatile private var activeTrackName: String = ""
+	@Volatile private var activeArtistName: String = ""
+	@Volatile private var activeAlbumName: String = ""
+	@Volatile private var activeArtworkUrl: String = ""
+	@Volatile private var activeIsPlaying: Boolean = false
+	@Volatile private var activePositionMs: Long = 0L
+	@Volatile private var activeDurationMs: Long = 0L
+	@Volatile private var activeHasPrevious: Boolean = false
+	@Volatile private var activeHasNext: Boolean = false
+	@Volatile private var currentArtworkBitmap: Bitmap? = null
+
+	private val artworkRequestCounter = AtomicLong(0)
+
+	@Synchronized
+	fun updateNotification(
+		trackName: String,
+		artistName: String,
+		albumName: String,
+		artworkUrl: String,
+		isPlaying: Boolean,
+		positionSeconds: Double,
+		durationSeconds: Double,
+		hasPrevious: Boolean,
+		hasNext: Boolean,
+	) {
+		val context = resolveApplicationContext() ?: return
+		if (!ensureNotificationPermission()) {
+			return
+		}
+		ensureMediaInfrastructure(context)
+
+		activeTrackName = trackName.trim()
+		activeArtistName = artistName.trim()
+		activeAlbumName = albumName.trim()
+		activeIsPlaying = isPlaying
+		activePositionMs = (positionSeconds * 1000.0).toLong().coerceAtLeast(0L)
+		activeDurationMs = (durationSeconds * 1000.0).toLong().coerceAtLeast(0L)
+		activeHasPrevious = hasPrevious
+		activeHasNext = hasNext
+
+		val normalizedArtworkUrl = artworkUrl.trim()
+		if (normalizedArtworkUrl != activeArtworkUrl) {
+			activeArtworkUrl = normalizedArtworkUrl
+			currentArtworkBitmap = null
+			loadArtworkAsync(normalizedArtworkUrl)
+		}
+
+		updateMediaState()
+		updateMediaMetadata()
+		showOrUpdateNotification(context)
+	}
+
+	@Synchronized
+	fun ensureNotificationPermission(): Boolean {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+			return true
+		}
+
+		val context = resolveApplicationContext() ?: return false
+		val permissionGranted =
+			context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+				android.content.pm.PackageManager.PERMISSION_GRANTED
+		if (permissionGranted) {
+			return true
+		}
+
+		val activity = resolveForegroundActivity() ?: return false
+		return try {
+			activity.requestPermissions(
+				arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+				12041,
+			)
+			false
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed requesting notification permission", error)
+			false
+		}
+	}
+
+	@Synchronized
+	fun clearNotification() {
+		activeTrackName = ""
+		activeArtistName = ""
+		activeAlbumName = ""
+		activeArtworkUrl = ""
+		activeIsPlaying = false
+		activePositionMs = 0L
+		activeDurationMs = 0L
+		activeHasPrevious = false
+		activeHasNext = false
+		currentArtworkBitmap = null
+		cancelNotification()
+		releaseMediaSession()
+	}
+
+	@Synchronized
+	fun consumeAction(): String {
+		val action = pendingAction
+		pendingAction = ""
+		return action
+	}
+
+	@Synchronized
+	fun onAction(action: String?) {
+		pendingAction =
+			when (action) {
+				actionPlay -> "play"
+				actionPause -> "pause"
+				actionPrevious -> "previous"
+				actionNext -> "next"
+				actionStop -> "stop"
+				else -> ""
+			}
+	}
+
+	private fun resolveApplicationContext(): Context? {
+		return try {
+			val activityThreadClass = Class.forName("android.app.ActivityThread")
+			val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)
+			currentApplication as? android.app.Application
+		} catch (_: Throwable) {
+			null
+		}
+	}
+
+	@Synchronized
+	private fun ensureMediaInfrastructure(context: Context) {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+			return
+		}
+
+		try {
+			if (notificationManager == null) {
+				notificationManager =
+					context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+			}
+
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+				val manager = notificationManager
+				if (manager != null && manager.getNotificationChannel(notificationChannelId) == null) {
+					val channel = NotificationChannel(
+						notificationChannelId,
+						notificationChannelName,
+						NotificationManager.IMPORTANCE_LOW,
+					)
+					manager.createNotificationChannel(channel)
+				}
+			}
+
+			ensureMediaSessionInitializedOnMainThread(context)
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed media infrastructure setup", error)
+		}
+	}
+
+	@Synchronized
+	private fun ensureMediaSessionInitializedOnMainThread(context: Context) {
+		if (mediaSession != null) {
+			return
+		}
+
+		val mainLooper = Looper.getMainLooper()
+		if (mainLooper == null) {
+			Log.e(tag, "Main looper unavailable for media session init")
+			return
+		}
+
+		if (Looper.myLooper() == mainLooper) {
+			createMediaSession(context)
+			return
+		}
+
+		Handler(mainLooper).post {
+			try {
+				synchronized(this) {
+					if (mediaSession == null) {
+						createMediaSession(context)
+					}
+				}
+			} catch (error: Throwable) {
+				Log.e(tag, "Failed posting media session init", error)
+			}
+		}
+	}
+
+	private fun createMediaSession(context: Context) {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+			return
+		}
+
+		val session = MediaSession(context, tag)
+		session.setCallback(
+			object : MediaSession.Callback() {
+				override fun onPlay() {
+					onAction(actionPlay)
+				}
+
+				override fun onPause() {
+					onAction(actionPause)
+				}
+
+				override fun onSkipToPrevious() {
+					onAction(actionPrevious)
+				}
+
+				override fun onSkipToNext() {
+					onAction(actionNext)
+				}
+
+				override fun onStop() {
+					onAction(actionStop)
+				}
+
+				override fun onSeekTo(pos: Long) {
+				// Atolla app currently handles seek from its own UI.
+			}
+			},
+		)
+		session.isActive = true
+		mediaSession = session
+	}
+
+	private fun updateMediaState() {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+			return
+		}
+
+		val session = mediaSession ?: return
+
+		try {
+			val playbackState =
+				if (activeIsPlaying) {
+					PlaybackState.STATE_PLAYING
+				} else {
+					PlaybackState.STATE_PAUSED
+				}
+
+			var actions =
+				(
+					PlaybackState.ACTION_PLAY or
+						PlaybackState.ACTION_PAUSE or
+						PlaybackState.ACTION_PLAY_PAUSE or
+						PlaybackState.ACTION_STOP
+					)
+
+			if (activeHasPrevious) {
+				actions = actions or PlaybackState.ACTION_SKIP_TO_PREVIOUS
+			}
+
+			if (activeHasNext) {
+				actions = actions or PlaybackState.ACTION_SKIP_TO_NEXT
+			}
+
+			val speed = if (activeIsPlaying) 1.0f else 0.0f
+			val builder = PlaybackState.Builder()
+				.setActions(actions)
+				.setState(playbackState, activePositionMs, speed)
+
+			session.setPlaybackState(builder.build())
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed updating media state", error)
+		}
+	}
+
+	private fun updateMediaMetadata() {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+			return
+		}
+
+		val session = mediaSession ?: return
+
+		try {
+			val title = activeTrackName.ifBlank { "Track" }
+			val artist = activeArtistName.ifBlank { "Atolla" }
+			val album = activeAlbumName.ifBlank { "" }
+
+			val builder = android.media.MediaMetadata.Builder()
+				.putString(android.media.MediaMetadata.METADATA_KEY_TITLE, title)
+				.putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, artist)
+				.putString(android.media.MediaMetadata.METADATA_KEY_ALBUM, album)
+				.putLong(android.media.MediaMetadata.METADATA_KEY_DURATION, activeDurationMs)
+
+			currentArtworkBitmap?.let { bitmap ->
+				builder.putBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART, bitmap)
+			}
+
+			session.setMetadata(builder.build())
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed updating media metadata", error)
+		}
+	}
+
+	private fun showOrUpdateNotification(context: Context) {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+			return
+		}
+
+		if (!ensureNotificationPermission()) {
+			return
+		}
+
+		try {
+			val manager = notificationManager ?: return
+			val session = mediaSession ?: return
+
+			val contentIntent =
+				context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { launchIntent ->
+					PendingIntent.getActivity(
+						context,
+						10,
+						launchIntent,
+						pendingIntentFlags(),
+					)
+				}
+
+			val actions = mutableListOf<Notification.Action>()
+			val compactIndices = mutableListOf<Int>()
+
+			if (activeHasPrevious) {
+				actions +=
+					buildNotificationAction(
+						context,
+						android.R.drawable.ic_media_previous,
+						"Previous",
+						actionPendingIntent(context, actionPrevious, 21),
+					)
+				compactIndices += actions.lastIndex
+			}
+
+			actions +=
+				if (activeIsPlaying) {
+					buildNotificationAction(
+						context,
+						android.R.drawable.ic_media_pause,
+						"Pause",
+						actionPendingIntent(context, actionPause, 22),
+					)
+				} else {
+					buildNotificationAction(
+						context,
+						android.R.drawable.ic_media_play,
+						"Play",
+						actionPendingIntent(context, actionPlay, 23),
+					)
+				}
+			compactIndices += actions.lastIndex
+
+			if (activeHasNext) {
+				actions +=
+					buildNotificationAction(
+						context,
+						android.R.drawable.ic_media_next,
+						"Next",
+						actionPendingIntent(context, actionNext, 24),
+					)
+				compactIndices += actions.lastIndex
+			}
+
+			actions +=
+				buildNotificationAction(
+					context,
+					android.R.drawable.ic_menu_close_clear_cancel,
+					"Stop",
+					actionPendingIntent(context, actionStop, 25),
+				)
+
+			val style = Notification.MediaStyle().setMediaSession(session.sessionToken)
+			if (compactIndices.isNotEmpty()) {
+				style.setShowActionsInCompactView(*compactIndices.toIntArray())
+			}
+
+			val title = activeTrackName.ifBlank { "Atolla" }
+			val subtitle = when {
+				activeArtistName.isNotBlank() -> activeArtistName
+				activeAlbumName.isNotBlank() -> activeAlbumName
+				else -> ""
+			}
+
+			val smallIcon = if (context.applicationInfo.icon != 0) context.applicationInfo.icon else android.R.drawable.ic_media_play
+
+			val builder =
+				buildNotificationBuilder(context)
+					.setSmallIcon(smallIcon)
+					.setContentTitle(title)
+					.setContentText(if (subtitle.isNotBlank()) subtitle else if (activeIsPlaying) "Playing" else "Paused")
+					.setOnlyAlertOnce(true)
+					.setOngoing(activeIsPlaying)
+					.setVisibility(Notification.VISIBILITY_PUBLIC)
+					.setStyle(style)
+
+			for (action in actions) {
+				builder.addAction(action)
+			}
+
+			if (contentIntent != null) {
+				builder.setContentIntent(contentIntent)
+			}
+
+			currentArtworkBitmap?.let { bitmap ->
+				builder.setLargeIcon(bitmap)
+			}
+
+			manager.notify(notificationId, builder.build())
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed posting media notification", error)
+		}
+	}
+
+	private fun actionPendingIntent(context: Context, action: String, requestCode: Int): PendingIntent {
+		val intent = Intent(context, AtollaTrackPlaybackActionReceiver::class.java).setAction(action)
+		return PendingIntent.getBroadcast(context, requestCode, intent, pendingIntentFlags())
+	}
+
+	private fun buildNotificationBuilder(context: Context): Notification.Builder {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			return Notification.Builder(context, notificationChannelId)
+		}
+
+		@Suppress("DEPRECATION")
+		return Notification.Builder(context)
+	}
+
+	private fun buildNotificationAction(
+		context: Context,
+		iconResource: Int,
+		title: String,
+		pendingIntent: PendingIntent,
+	): Notification.Action {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+			return Notification.Action.Builder(
+				Icon.createWithResource(context, iconResource),
+				title,
+				pendingIntent,
+			).build()
+		}
+
+		@Suppress("DEPRECATION")
+		return Notification.Action.Builder(iconResource, title, pendingIntent).build()
+	}
+
+	private fun pendingIntentFlags(): Int {
+		val mutableFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+		return PendingIntent.FLAG_UPDATE_CURRENT or mutableFlag
+	}
+
+	private fun cancelNotification() {
+		try {
+			notificationManager?.cancel(notificationId)
+		} catch (_: Throwable) {
+			// ignored
+		}
+	}
+
+	private fun releaseMediaSession() {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+			return
+		}
+
+		val session = mediaSession
+		mediaSession = null
+		if (session != null) {
+			try {
+				session.isActive = false
+				session.release()
+			} catch (_: Throwable) {
+				// ignored
+			}
+		}
+	}
+
+	private fun loadArtworkAsync(artworkUrl: String) {
+		if (artworkUrl.isBlank()) {
+			return
+		}
+
+		val requestId = artworkRequestCounter.incrementAndGet()
+		Thread {
+			val bitmap = decodeArtworkBitmap(artworkUrl)
+			synchronized(this) {
+				if (requestId != artworkRequestCounter.get() || artworkUrl != activeArtworkUrl) {
+					return@synchronized
+				}
+				currentArtworkBitmap = bitmap
+				updateMediaMetadata()
+				resolveApplicationContext()?.let { context ->
+					showOrUpdateNotification(context)
+				}
+			}
+		}.start()
+	}
+
+	private fun decodeArtworkBitmap(artworkUrl: String): Bitmap? {
+		return try {
+			val uri = Uri.parse(artworkUrl)
+			if (uri.scheme == "file") {
+				val file = File(uri.path ?: "")
+				if (!file.exists() || !file.isFile) {
+					return null
+				}
+				return BitmapFactory.decodeFile(file.absolutePath)
+			}
+
+			val connection = (URL(artworkUrl).openConnection() as HttpURLConnection).apply {
+				connectTimeout = 10_000
+				readTimeout = 20_000
+				instanceFollowRedirects = true
+				requestMethod = "GET"
+				setRequestProperty("Accept", "image/*,*/*")
+			}
+
+			val status = connection.responseCode
+			if (status < 200 || status >= 300) {
+				return null
+			}
+
+			connection.inputStream.use { stream ->
+				BitmapFactory.decodeStream(stream)
+			}
+		} catch (_: Throwable) {
+			null
+		}
+	}
+
+	private fun resolveForegroundActivity(): Activity? {
+		return try {
+			val activityThreadClass = Class.forName("android.app.ActivityThread")
+			val currentActivityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null)
+			val activitiesField = activityThreadClass.getDeclaredField("mActivities")
+			activitiesField.isAccessible = true
+			val activities = activitiesField.get(currentActivityThread) as? Map<*, *> ?: return null
+
+			for (entry in activities.values) {
+				val activityRecord = entry ?: continue
+				val activityRecordClass = activityRecord.javaClass
+				val pausedField = activityRecordClass.getDeclaredField("paused")
+				pausedField.isAccessible = true
+				val isPaused = pausedField.getBoolean(activityRecord)
+				if (isPaused) {
+					continue
+				}
+
+				val activityField = activityRecordClass.getDeclaredField("activity")
+				activityField.isAccessible = true
+				val activity = activityField.get(activityRecord) as? Activity
+				if (activity != null) {
+					return activity
+				}
+			}
+
+			null
+		} catch (_: Throwable) {
+			null
+		}
+	}
+}
+
+class AtollaTrackPlaybackActionReceiver : BroadcastReceiver() {
+	override fun onReceive(context: Context?, intent: Intent?) {
+		AtollaTrackPlaybackMediaSession.onAction(intent?.action)
+	}
 }

@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.Icon
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.session.MediaSession
@@ -444,6 +445,14 @@ object AtollaNativeTrackPlayer {
 
 		try {
 			val context = resolveApplicationContext() ?: return
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+				val permissionGranted =
+					context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+						android.content.pm.PackageManager.PERMISSION_GRANTED
+				if (!permissionGranted) {
+					return
+				}
+			}
 			ensureMediaInfrastructure(context)
 			val manager = notificationManager ?: return
 			val session = mediaSession ?: return
@@ -462,28 +471,31 @@ object AtollaNativeTrackPlayer {
 
 			val playPauseAction =
 				if (isPlayingNow) {
-					Notification.Action.Builder(
+					buildNotificationAction(
+						context,
 						android.R.drawable.ic_media_pause,
 						"Pause",
 						actionPendingIntent(context, actionPause, 1),
-					).build()
+					)
 				} else {
-					Notification.Action.Builder(
+					buildNotificationAction(
+						context,
 						android.R.drawable.ic_media_play,
 						"Play",
 						actionPendingIntent(context, actionPlay, 2),
-					).build()
+					)
 				}
 
 			val stopAction =
-				Notification.Action.Builder(
+				buildNotificationAction(
+					context,
 					android.R.drawable.ic_menu_close_clear_cancel,
 					"Stop",
 					actionPendingIntent(context, actionStop, 3),
-				).build()
+				)
 
 			val builder =
-				Notification.Builder(context)
+				buildNotificationBuilder(context)
 					.setSmallIcon(android.R.drawable.ic_media_play)
 					.setContentTitle(title)
 					.setContentText(if (isPlayingNow) "Playing" else "Paused")
@@ -497,10 +509,6 @@ object AtollaNativeTrackPlayer {
 					)
 					.addAction(playPauseAction)
 					.addAction(stopAction)
-
-			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-				builder.setChannelId(notificationChannelId)
-			}
 
 			if (contentIntent != null) {
 				builder.setContentIntent(contentIntent)
@@ -540,6 +548,33 @@ object AtollaNativeTrackPlayer {
 	private fun actionPendingIntent(context: Context, action: String, requestCode: Int): PendingIntent {
 		val intent = Intent(context, AtollaNativeTrackPlayerActionReceiver::class.java).setAction(action)
 		return PendingIntent.getBroadcast(context, requestCode, intent, pendingIntentFlags())
+	}
+
+	private fun buildNotificationBuilder(context: Context): Notification.Builder {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			return Notification.Builder(context, notificationChannelId)
+		}
+
+		@Suppress("DEPRECATION")
+		return Notification.Builder(context)
+	}
+
+	private fun buildNotificationAction(
+		context: Context,
+		iconResource: Int,
+		title: String,
+		pendingIntent: PendingIntent,
+	): Notification.Action {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+			return Notification.Action.Builder(
+				Icon.createWithResource(context, iconResource),
+				title,
+				pendingIntent,
+			).build()
+		}
+
+		@Suppress("DEPRECATION")
+		return Notification.Action.Builder(iconResource, title, pendingIntent).build()
 	}
 
 	private fun pendingIntentFlags(): Int {

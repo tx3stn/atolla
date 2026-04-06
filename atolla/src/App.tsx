@@ -22,6 +22,11 @@ import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthSe
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { TrackPlaybackNativePrefetchQueue } from './services/TrackPlaybackNativePrefetchQueue';
+import {
+	applyTrackPlaybackNotificationAction,
+	buildTrackPlaybackNotificationPayload,
+	normalizeTrackPlaybackNotificationAction,
+} from './services/TrackPlaybackNotificationSync';
 import { PlaybackStore } from './stores/Playback';
 import {
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
@@ -32,9 +37,13 @@ import { SearchStore } from './stores/Search';
 import {
 	cacheAtollaTrackFromUrl,
 	clearAtollaTrackCache,
+	clearAtollaTrackPlaybackNotification,
+	consumeAtollaTrackPlaybackNotificationAction,
+	ensureAtollaTrackPlaybackNotificationPermission,
 	getAtollaCachedTrackFileUrl,
 	getAtollaTrackCacheEntryCount,
 	setAtollaTrackCacheMaxTracks,
+	updateAtollaTrackPlaybackNotification,
 } from './TrackPlaybackNative';
 import { theme } from './theme';
 import { LiveTransport } from './transports/Live';
@@ -115,6 +124,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private authToastTimer?: ReturnType<typeof setTimeout>;
 	private playbackToastTimer?: ReturnType<typeof setTimeout>;
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
+	private nativePlaybackActionInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
 	private homeNavigationController?: NavigationController;
 	private pendingArtistId: string | null = null;
@@ -140,6 +150,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastPrefetchTracksRef: Array<Track> | null = null;
 	private lastPrefetchTrackIndex = -1;
 	private lastPrefetchTransport: Transport | null = null;
+	private lastTrackNotificationStateKey = '';
+	private lastTrackNotificationPositionBucket = -1;
 	private trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
 		(track) => this.transport.getTrackCacheUrl?.(track.id) ?? null,
 		(trackId) => this.getNativeCachedTrackSource(trackId) != null,
@@ -184,6 +196,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.refreshNativeCacheStats();
 			}
 		}, 1000);
+		this.nativePlaybackActionInterval = setInterval(() => {
+			this.handleNativePlaybackNotificationAction();
+		}, 350);
 		Promise.all([
 			this.preferences.getImageCacheMaxBytes(),
 			this.preferences.getAnimationsEnabled(),
@@ -234,6 +249,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.handleAlbumChange();
 			this.handleTrackPlaybackSourceChange();
 			this.handleTrackPrefetchQueueChange();
+			this.syncTrackPlaybackNotification();
 			this.setState({ version: this.state.version + 1 });
 		});
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
@@ -243,6 +259,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.handleAlbumChange();
 		this.handleTrackPlaybackSourceChange();
 		this.handleTrackPrefetchQueueChange();
+		this.syncTrackPlaybackNotification();
 		this.refreshTrackCachedCount();
 	}
 
@@ -264,6 +281,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.nativeCacheStatsInterval) {
 			clearInterval(this.nativeCacheStatsInterval);
 		}
+		if (this.nativePlaybackActionInterval) {
+			clearInterval(this.nativePlaybackActionInterval);
+		}
+		clearAtollaTrackPlaybackNotification();
 		this.trackPrefetchQueue.clearQueue();
 		this.paletteQueue.dispose();
 	}
@@ -1000,6 +1021,53 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		this.playbackStore.skipForward(10);
 	};
+
+	private handleNativePlaybackNotificationAction(): void {
+		const action = normalizeTrackPlaybackNotificationAction(
+			consumeAtollaTrackPlaybackNotificationAction(),
+		);
+		if (action === '') {
+			return;
+		}
+
+		applyTrackPlaybackNotificationAction(this.playbackStore, action);
+	}
+
+	private syncTrackPlaybackNotification(): void {
+		const payload = buildTrackPlaybackNotificationPayload(this.playbackStore);
+		if (!payload) {
+			this.lastTrackNotificationStateKey = '';
+			this.lastTrackNotificationPositionBucket = -1;
+			clearAtollaTrackPlaybackNotification();
+			return;
+		}
+
+		if (
+			payload.stateKey === this.lastTrackNotificationStateKey &&
+			payload.positionBucket === this.lastTrackNotificationPositionBucket
+		) {
+			return;
+		}
+
+		this.lastTrackNotificationStateKey = payload.stateKey;
+		this.lastTrackNotificationPositionBucket = payload.positionBucket;
+
+		if (!ensureAtollaTrackPlaybackNotificationPermission()) {
+			return;
+		}
+
+		updateAtollaTrackPlaybackNotification(
+			payload.trackName,
+			payload.artistName,
+			payload.albumName,
+			payload.artworkUrl,
+			payload.isPlaying,
+			payload.positionSeconds,
+			payload.durationSeconds,
+			payload.hasPrevious,
+			payload.hasNext,
+		);
+	}
 
 	handleNavigateToArtist = (artistId: string): void => {
 		if (!this.homeNavigationController) {
