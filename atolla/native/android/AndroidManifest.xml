@@ -34,11 +34,6 @@
         </activity>
 
         <receiver
-            android:name="atolla.native.android.AtollaNativeTrackPlayerActionReceiver"
-            android:exported="false"
-        />
-
-        <receiver
             android:name="atolla.native.android.AtollaTrackPlaybackActionReceiver"
             android:exported="false"
         />

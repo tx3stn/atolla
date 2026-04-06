@@ -32,12 +32,10 @@ kt_android_library(
         "android/AtollaImageLoaderAutoBootstrap.kt",
         "android/AtollaImageLoaderBootstrapModuleFactory.kt",
         "android/AtollaImageLoaderRegistration.kt",
-        "android/AtollaNativeTrackPlayerModuleFactory.kt",
         "android/AtollaTrackPlaybackNativeModuleFactory.kt",
     ],
     assets = [
         "android/assets/valdi_native_modules/atolla.native.android.AtollaImageLoaderBootstrapModuleFactory",
-        "android/assets/valdi_native_modules/atolla.native.android.AtollaNativeTrackPlayerModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaTrackPlaybackNativeModuleFactory",
     ],
     assets_dir = "android/assets",
