@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="atolla_launch_background">#FF000000</color>
+    <color name="atolla_launcher_icon_background">#FF000000</color>
     <color name="background_material_light">#FF000000</color>
 </resources>

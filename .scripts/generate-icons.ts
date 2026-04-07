@@ -4,11 +4,14 @@ import { dirname, resolve } from 'node:path';
 import sharp from 'sharp';
 
 type IconOutput = {
+	monochrome?: boolean;
 	path: string;
 	size: number;
 };
 
 const sourceSvgPath = resolve(process.cwd(), 'atolla/res/logo.svg');
+const androidIconPaddingRatio = 0.28;
+const defaultIconPaddingRatio = 0.01;
 
 const outputs: Array<IconOutput> = [
 	{ path: resolve(process.cwd(), 'generated/icons/ios/app-store-1024.png'), size: 1024 },
@@ -62,6 +65,15 @@ const outputs: Array<IconOutput> = [
 		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xxxhdpi/ic_launcher.png'),
 		size: 192,
 	},
+	{
+		path: resolve(process.cwd(), 'atolla/native/android/res/drawable/ic_launcher_foreground.png'),
+		size: 432,
+	},
+	{
+		monochrome: true,
+		path: resolve(process.cwd(), 'atolla/native/android/res/drawable/ic_launcher_monochrome.png'),
+		size: 432,
+	},
 ];
 
 async function generateIcons(): Promise<void> {
@@ -69,11 +81,13 @@ async function generateIcons(): Promise<void> {
 		await mkdir(dirname(output.path), { recursive: true });
 
 		const isAndroidOutput = output.path.includes('/android/');
-		const padding = isAndroidOutput ? 0 : Math.round(output.size * 0.01);
+		const padding = Math.round(
+			output.size * (isAndroidOutput ? androidIconPaddingRatio : defaultIconPaddingRatio),
+		);
 		const contentSize = output.size - padding * 2;
-		const fitMode = isAndroidOutput ? 'cover' : 'contain';
+		const fitMode = 'contain';
 
-		await sharp(sourceSvgPath, { density: 512, limitInputPixels: false })
+		const rendered = sharp(sourceSvgPath, { density: 512, limitInputPixels: false })
 			.trim({ threshold: 0 })
 			.resize(contentSize, contentSize, {
 				background: { alpha: 0, b: 0, g: 0, r: 0 },
@@ -85,6 +99,35 @@ async function generateIcons(): Promise<void> {
 				left: padding,
 				right: padding,
 				top: padding,
+			})
+			.png({ compressionLevel: 9 });
+
+		if (!output.monochrome) {
+			await rendered.toFile(output.path);
+			continue;
+		}
+
+		const renderedBuffer = await rendered.toBuffer();
+		const alphaChannel = await sharp(renderedBuffer)
+			.ensureAlpha()
+			.extractChannel('alpha')
+			.raw()
+			.toBuffer({ resolveWithObject: true });
+
+		await sharp({
+			create: {
+				background: { b: 255, g: 255, r: 255 },
+				channels: 3,
+				height: alphaChannel.info.height,
+				width: alphaChannel.info.width,
+			},
+		})
+			.joinChannel(alphaChannel.data, {
+				raw: {
+					channels: 1,
+					height: alphaChannel.info.height,
+					width: alphaChannel.info.width,
+				},
 			})
 			.png({ compressionLevel: 9 })
 			.toFile(output.path);
