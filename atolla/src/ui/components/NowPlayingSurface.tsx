@@ -803,7 +803,7 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 			width: '100%',
 		}),
 		expandedArtistNameStyle: new Style<Label>({
-			...theme.text.mutedHeader,
+			...theme.text.display,
 			color: mutedOnSurfaceColor,
 			marginBottom: 8,
 			textAlign: 'center',
@@ -879,6 +879,10 @@ const styles = {
 		right: 0,
 		top: 0,
 	}),
+	controlsRowPlaceholder: new Style({
+		height: 62,
+		width: 62,
+	}),
 	expandedArtistLogo: new Style<ImageView>({
 		height: 70,
 		marginBottom: -4,
@@ -920,10 +924,6 @@ const styles = {
 		marginBottom: 12,
 		marginTop: 12,
 		width: '100%',
-	}),
-	controlsRowPlaceholder: new Style({
-		height: 62,
-		width: 62,
 	}),
 	expandedFirstPage: new Style({
 		minHeight: '100%',

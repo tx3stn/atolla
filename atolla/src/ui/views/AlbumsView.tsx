@@ -205,7 +205,15 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 					if (album) {
 						navigationController.push(
 							AlbumView,
-							{ album, animationsEnabled, imageCache, paletteQueue, playbackStore, transport },
+							{
+								album,
+								animationsEnabled,
+								gridColumns: this.viewModel.gridColumns,
+								imageCache,
+								paletteQueue,
+								playbackStore,
+								transport,
+							},
 							{},
 							{ animated: animationsEnabled },
 						);

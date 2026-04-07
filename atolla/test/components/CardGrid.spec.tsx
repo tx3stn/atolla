@@ -20,6 +20,7 @@ describe('CardGrid', () => {
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
 			cards,
+			columnCount: 3,
 			onCardTap: () => {},
 			resolveArtworkSource: () => null,
 		});
@@ -34,6 +35,7 @@ describe('CardGrid', () => {
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
 			cards,
+			columnCount: 3,
 			onCardTap: () => {},
 			resolveArtworkSource: () => null,
 		});
@@ -54,6 +56,7 @@ describe('CardGrid', () => {
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
 			cards,
+			columnCount: 3,
 			onCardTap: (card) => {
 				tapped = card;
 			},
@@ -78,6 +81,7 @@ describe('CardGrid', () => {
 			const instrumented = createComponent(CardGrid, {
 				accessibilityLabel: 'grid',
 				cards,
+				columnCount: 3,
 				onCardLongPress: (card) => {
 					longPressed = card;
 				},
@@ -110,6 +114,7 @@ describe('CardGrid', () => {
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
 			cards,
+			columnCount: 3,
 			onCardTap: () => {},
 			resolveArtworkSource: () => null,
 		});
@@ -128,6 +133,7 @@ describe('CardGrid', () => {
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
 			cards,
+			columnCount: 3,
 			onCardTap: () => {},
 			resolveArtworkSource: () => 'https://example.com/art.jpg',
 		});
@@ -147,6 +153,7 @@ describe('CardGrid', () => {
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
 			cards,
+			columnCount: 3,
 			onCardTap: () => {},
 			onLoadMore: () => {
 				loadMoreCalls += 1;
@@ -172,6 +179,7 @@ describe('CardGrid', () => {
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
 			cards,
+			columnCount: 3,
 			isLoadingMore: true,
 			onCardTap: () => {},
 			onLoadMore: () => {},

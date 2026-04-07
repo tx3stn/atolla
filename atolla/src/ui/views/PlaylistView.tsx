@@ -18,6 +18,7 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 
 export interface PlaylistViewModel {
 	animationsEnabled: boolean;
+	gridColumns: number;
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -55,13 +56,21 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	navigateToArtist = (artistId: string): void => {
-		const { animationsEnabled, imageCache, paletteQueue, playbackStore, transport } =
+		const { animationsEnabled, gridColumns, imageCache, paletteQueue, playbackStore, transport } =
 			this.viewModel;
 		transport.getArtist(artistId).then((artist) => {
 			if (!artist) return;
 			this.navigationController.push(
 				ArtistView,
-				{ animationsEnabled, artist, imageCache, paletteQueue, playbackStore, transport },
+				{
+					animationsEnabled,
+					artist,
+					gridColumns,
+					imageCache,
+					paletteQueue,
+					playbackStore,
+					transport,
+				},
 				{},
 				{ animated: animationsEnabled },
 			);

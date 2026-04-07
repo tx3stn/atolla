@@ -36,6 +36,7 @@ type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 export interface SearchViewModel {
 	animationsEnabled: boolean;
 	focusSignal?: number;
+	gridColumns: number;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
 	onNavigateToHomeResult?: (target: SearchHomeNavigationTarget) => void;
@@ -345,6 +346,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 		const {
 			animationsEnabled,
+			gridColumns,
 			imageCache,
 			navigationController,
 			paletteQueue,
@@ -355,7 +357,15 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			if (!artist) return;
 			navigationController.push(
 				ArtistView,
-				{ animationsEnabled, artist, imageCache, paletteQueue, playbackStore, transport },
+				{
+					animationsEnabled,
+					artist,
+					gridColumns,
+					imageCache,
+					paletteQueue,
+					playbackStore,
+					transport,
+				},
 				{},
 				{ animated: animationsEnabled },
 			);
@@ -393,6 +403,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			{
 				album,
 				animationsEnabled: this.viewModel.animationsEnabled,
+				gridColumns: this.viewModel.gridColumns,
 				imageCache: this.viewModel.imageCache,
 				paletteQueue: this.viewModel.paletteQueue,
 				playbackStore: this.viewModel.playbackStore,
@@ -419,6 +430,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			{
 				animationsEnabled: this.viewModel.animationsEnabled,
 				artist,
+				gridColumns: this.viewModel.gridColumns,
 				imageCache: this.viewModel.imageCache,
 				paletteQueue: this.viewModel.paletteQueue,
 				playbackStore: this.viewModel.playbackStore,
@@ -452,13 +464,22 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			PlaylistView,
 			{
 				animationsEnabled,
+				gridColumns: this.viewModel.gridColumns,
 				imageCache,
 				onNavigateToArtist: (artistId) => {
 					transport.getArtist(artistId).then((artist) => {
 						if (!artist) return;
 						navigationController.push(
 							ArtistView,
-							{ animationsEnabled, artist, imageCache, paletteQueue, playbackStore, transport },
+							{
+								animationsEnabled,
+								artist,
+								gridColumns: this.viewModel.gridColumns,
+								imageCache,
+								paletteQueue,
+								playbackStore,
+								transport,
+							},
 							{},
 							{ animated: animationsEnabled },
 						);
@@ -609,6 +630,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 									<CardGrid
 										accessibilityLabel='search-albums-grid'
 										cards={this.createAlbumCards(results.albums)}
+										columnCount={this.viewModel.gridColumns}
 										imageCache={this.viewModel.imageCache}
 										onCardTap={this.handleAlbumCardTap}
 									/>
@@ -621,6 +643,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 									<CardGrid
 										accessibilityLabel='search-artists-grid'
 										cards={this.createArtistCards(results.artists)}
+										columnCount={this.viewModel.gridColumns}
 										imageCache={this.viewModel.imageCache}
 										onCardTap={this.handleArtistCardTap}
 									/>
@@ -633,6 +656,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 									<CardGrid
 										accessibilityLabel='search-playlists-grid'
 										cards={this.createPlaylistCards(results.playlists)}
+										columnCount={this.viewModel.gridColumns}
 										imageCache={this.viewModel.imageCache}
 										onCardTap={this.handlePlaylistCardTap}
 									/>

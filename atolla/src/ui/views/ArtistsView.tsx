@@ -202,7 +202,15 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					if (artist) {
 						navigationController.push(
 							ArtistView,
-							{ animationsEnabled, artist, imageCache, paletteQueue, playbackStore, transport },
+							{
+								animationsEnabled,
+								artist,
+								gridColumns: this.viewModel.gridColumns,
+								imageCache,
+								paletteQueue,
+								playbackStore,
+								transport,
+							},
 							{},
 							{ animated: animationsEnabled },
 						);

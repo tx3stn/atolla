@@ -213,6 +213,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 							PlaylistView,
 							{
 								animationsEnabled,
+								gridColumns: this.viewModel.gridColumns,
 								imageCache,
 								onNavigateToArtist,
 								paletteQueue,

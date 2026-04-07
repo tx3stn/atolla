@@ -54,6 +54,7 @@ describe('ArtistsView', () => {
 		};
 
 		const instrumented = createComponent(ArtistsView, {
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -80,6 +81,7 @@ describe('ArtistsView', () => {
 
 		const navigationController = makeNavigationController();
 		const instrumented = createComponent(ArtistsView, {
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController,
 			playbackStore: new PlaybackStore(),
@@ -115,6 +117,7 @@ describe('ArtistsView', () => {
 		spyOn(playbackStore, 'setArtistLogoUrl');
 
 		const instrumented = createComponent(ArtistsView, {
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
@@ -144,6 +147,7 @@ describe('ArtistsView', () => {
 		};
 
 		const instrumented = createComponent(ArtistsView, {
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),

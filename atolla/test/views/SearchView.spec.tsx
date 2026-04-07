@@ -51,6 +51,7 @@ describe('SearchView', () => {
 	valdiIt('starts with an empty query', () => {
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -67,6 +68,7 @@ describe('SearchView', () => {
 	valdiIt('updates query state when textfield changes', () => {
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -90,6 +92,7 @@ describe('SearchView', () => {
 		let calls = 0;
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -124,6 +127,7 @@ describe('SearchView', () => {
 		const searchCalls = [];
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -157,6 +161,7 @@ describe('SearchView', () => {
 		const searchCalls = [];
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -185,6 +190,7 @@ describe('SearchView', () => {
 		const searchCalls = [];
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -209,6 +215,7 @@ describe('SearchView', () => {
 		const navigationController = makeNavigationController();
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController,
 			playbackStore: new PlaybackStore(),
@@ -243,6 +250,7 @@ describe('SearchView', () => {
 		const routed = [];
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			onNavigateToHomeResult: (target) => routed.push(target),
@@ -275,6 +283,7 @@ describe('SearchView', () => {
 		const playbackStore = new PlaybackStore();
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
@@ -308,6 +317,7 @@ describe('SearchView', () => {
 	valdiIt('renders search bar with accessibility labels', () => {
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
+			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),

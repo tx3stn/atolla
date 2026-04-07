@@ -47,7 +47,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 			accessibilityLabel,
 			cacheVersion,
 			cards,
-			columnCount: rawColumnCount,
+			columnCount,
 			infiniteScrollTriggerRatio,
 			imageCache,
 			isLoadingMore,
@@ -57,13 +57,6 @@ export class CardGrid extends Component<CardGridViewModel> {
 			onRetryLoadMore,
 			resolveArtworkSource,
 		} = this.viewModel;
-
-		const columnCount =
-			rawColumnCount === 4 || rawColumnCount === 3
-				? rawColumnCount
-				: rawColumnCount && rawColumnCount > 0
-					? Math.floor(rawColumnCount)
-					: 3;
 
 		const rows: Array<Array<Card>> = [];
 		for (let i = 0; i < cards.length; i += columnCount) {

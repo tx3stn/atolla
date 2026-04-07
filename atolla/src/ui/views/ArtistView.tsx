@@ -23,6 +23,7 @@ import { AlbumView } from './AlbumView';
 export interface ArtistViewModel {
 	animationsEnabled: boolean;
 	artist: Artist;
+	gridColumns: number;
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
 	paletteQueue?: PaletteGenerationQueue;
@@ -104,11 +105,11 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			return;
 		}
 
-		const { animationsEnabled, imageCache, paletteQueue, playbackStore, transport } =
+		const { animationsEnabled, gridColumns, imageCache, paletteQueue, playbackStore, transport } =
 			this.viewModel;
 		this.navigationController.push(
 			AlbumView,
-			{ album, animationsEnabled, imageCache, paletteQueue, playbackStore, transport },
+			{ album, animationsEnabled, gridColumns, imageCache, paletteQueue, playbackStore, transport },
 			{},
 			{ animated: animationsEnabled },
 		);
@@ -228,6 +229,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 								<CardGrid
 									accessibilityLabel='artist-albums-grid'
 									cards={albumCards}
+									columnCount={this.viewModel.gridColumns}
 									imageCache={imageCache}
 									onCardLongPress={this.handleAlbumCardLongPress}
 									onCardTap={this.handleAlbumCardTap}

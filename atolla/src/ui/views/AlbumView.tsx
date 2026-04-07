@@ -22,6 +22,7 @@ import { ArtistView } from './ArtistView';
 export interface AlbumViewModel {
 	album: Album;
 	animationsEnabled: boolean;
+	gridColumns: number;
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
 	paletteQueue?: PaletteGenerationQueue;
@@ -56,13 +57,28 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	handleArtistLogoTap = (): void => {
-		const { album, animationsEnabled, imageCache, paletteQueue, playbackStore, transport } =
-			this.viewModel;
+		const {
+			album,
+			animationsEnabled,
+			gridColumns,
+			imageCache,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
 		const navigationController = this.viewModel.navigationController ?? this.navigationController;
 		const pushArtistView = (artist: Artist) => {
 			navigationController.push(
 				ArtistView,
-				{ animationsEnabled, artist, imageCache, paletteQueue, playbackStore, transport },
+				{
+					animationsEnabled,
+					artist,
+					gridColumns,
+					imageCache,
+					paletteQueue,
+					playbackStore,
+					transport,
+				},
 				{},
 				{ animated: animationsEnabled },
 			);

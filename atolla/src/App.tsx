@@ -946,6 +946,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					{
 						animationsEnabled: this.state.animationsEnabled,
 						artist: target.artist,
+						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						paletteQueue: this.paletteQueue,
@@ -963,6 +964,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					{
 						album: target.album as Album,
 						animationsEnabled: this.state.animationsEnabled,
+						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						paletteQueue: this.paletteQueue,
@@ -979,6 +981,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					PlaylistView,
 					{
 						animationsEnabled: this.state.animationsEnabled,
+						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						paletteQueue: this.paletteQueue,
@@ -1096,6 +1099,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				{
 					animationsEnabled: this.state.animationsEnabled,
 					artist,
+					gridColumns: this.state.gridColumns,
 					imageCache: this.imageCache,
 					paletteQueue: this.paletteQueue,
 					playbackStore: this.playbackStore,
@@ -1157,6 +1161,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					{
 						animationsEnabled: this.state.animationsEnabled,
 						artist: resolvedArtist,
+						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
@@ -1224,6 +1229,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				{
 					album,
 					animationsEnabled: this.state.animationsEnabled,
+					gridColumns: this.state.gridColumns,
 					imageCache: this.imageCache,
 					paletteQueue: this.paletteQueue,
 					playbackStore: this.playbackStore,
@@ -1331,6 +1337,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						<SearchView
 							animationsEnabled={this.state.animationsEnabled}
 							focusSignal={this.state.searchFocusSignal}
+							gridColumns={this.state.gridColumns}
 							imageCache={this.imageCache}
 							navigationController={navigationController}
 							onNavigateToHomeResult={this.handleSearchResultNavigation}
