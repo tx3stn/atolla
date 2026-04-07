@@ -24,7 +24,6 @@ export interface JellyfinAuthStoreLike {
 
 export class JellyfinAuthStore implements JellyfinAuthStoreLike {
 	private store = new PersistentStore('jellyfin_auth', {
-		deviceGlobal: true,
 		enableEncryption: true,
 	});
 

@@ -99,11 +99,7 @@ interface AppState {
 export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playbackStore = new PlaybackStore();
 	private preferences = new Preferences();
-	private searchStore = new SearchStore(
-		new PersistentStore('search_history', {
-			deviceGlobal: true,
-		}),
-	);
+	private searchStore = new SearchStore(new PersistentStore('search_history'));
 	private transport: Transport = new MockTransport();
 	private imageCache = (() => {
 		try {

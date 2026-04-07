@@ -17,7 +17,7 @@ export class Preferences {
 	private store: PreferencesStore;
 
 	constructor(store?: PreferencesStore) {
-		this.store = store ?? new PersistentStore('preferences', { deviceGlobal: true });
+		this.store = store ?? new PersistentStore('preferences');
 	}
 
 	async getMode(): Promise<ConnectionMode> {

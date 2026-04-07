@@ -4,7 +4,7 @@ import type { PaletteStore } from './ArtworkPaletteService';
 import type { Palette } from './color/types';
 
 export class PersistentPaletteStore implements PaletteStore {
-	private store = new PersistentStore('artwork_palettes', { deviceGlobal: true });
+	private store = new PersistentStore('artwork_palettes');
 
 	async loadPalette(imageUrl: string): Promise<Palette | null> {
 		try {
