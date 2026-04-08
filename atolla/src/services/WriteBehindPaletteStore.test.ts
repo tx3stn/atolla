@@ -1,0 +1,90 @@
+import { describe, expect, it } from 'bun:test';
+import type { PaletteStore } from './ArtworkPaletteService';
+import type { Palette } from './color/types';
+import { WriteBehindPaletteStore } from './WriteBehindPaletteStore';
+
+const palette: Palette = {
+	accent: { hex: '#ff0000' },
+	muted_on_surface: { hex: '#888888' },
+	on_surface: { hex: '#ffffff' },
+	primary: { hex: '#ff0000' },
+	surface: { hex: '#000000' },
+};
+
+class CapturingStore implements PaletteStore {
+	saved: Array<{ url: string; palette: Palette }> = [];
+	seeded = new Map<string, Palette>();
+	resolvers: Array<() => void> = [];
+
+	loadPalette(url: string): Promise<Palette | null> {
+		return Promise.resolve(this.seeded.get(url) ?? null);
+	}
+
+	savePalette(url: string, p: Palette): Promise<void> {
+		return new Promise((resolve) => {
+			this.resolvers.push(() => {
+				this.saved.push({ palette: p, url });
+				resolve();
+			});
+		});
+	}
+
+	flush(): void {
+		for (const resolve of this.resolvers) resolve();
+		this.resolvers = [];
+	}
+}
+
+describe('WriteBehindPaletteStore', () => {
+	describe('savePalette()', () => {
+		it('returns immediately without waiting for the inner store', async () => {
+			const inner = new CapturingStore();
+			const store = new WriteBehindPaletteStore(inner);
+
+			await store.savePalette('https://example.com/art.png', palette);
+
+			// Inner has not resolved yet — still pending
+			expect(inner.saved).toHaveLength(0);
+		});
+
+		it('eventually writes to the inner store in the background', async () => {
+			const inner = new CapturingStore();
+			const store = new WriteBehindPaletteStore(inner);
+
+			void store.savePalette('https://example.com/art.png', palette);
+			inner.flush();
+			await Promise.resolve();
+
+			expect(inner.saved).toHaveLength(1);
+			expect(inner.saved[0].url).toBe('https://example.com/art.png');
+		});
+
+		it('does not propagate errors from the inner store', async () => {
+			const inner: PaletteStore = {
+				loadPalette: () => Promise.resolve(null),
+				savePalette: () => Promise.reject(new Error('disk full')),
+			};
+			const store = new WriteBehindPaletteStore(inner);
+
+			await expect(store.savePalette('url', palette)).resolves.toBeUndefined();
+		});
+	});
+
+	describe('loadPalette()', () => {
+		it('delegates to the inner store and returns the palette', async () => {
+			const inner = new CapturingStore();
+			inner.seeded.set('https://example.com/art.png', palette);
+			const store = new WriteBehindPaletteStore(inner);
+
+			const result = await store.loadPalette('https://example.com/art.png');
+
+			expect(result).toEqual(palette);
+		});
+
+		it('returns null for unknown urls', async () => {
+			const store = new WriteBehindPaletteStore(new CapturingStore());
+
+			expect(await store.loadPalette('https://example.com/missing.png')).toBeNull();
+		});
+	});
+});

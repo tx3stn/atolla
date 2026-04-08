@@ -27,6 +27,8 @@ import {
 	buildTrackPlaybackNotificationPayload,
 	normalizeTrackPlaybackNotificationAction,
 } from './services/TrackPlaybackNotificationSync';
+import { WriteBehindImageStore } from './services/WriteBehindImageStore';
+import { WriteBehindPaletteStore } from './services/WriteBehindPaletteStore';
 import { JellyfinAuthStore } from './stores/JellyfinAuthStore';
 import { PlaybackStore } from './stores/Playback';
 import {
@@ -315,13 +317,22 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.searchStore = new SearchStore(
 			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
 		);
-		this.paletteService = new ArtworkPaletteService(new PersistentPaletteStore());
+		this.paletteService = new ArtworkPaletteService(
+			new WriteBehindPaletteStore(
+				new PersistentPaletteStore(
+					new PersistentStore(`atolla/user/${userId}/artwork_palettes`, { deviceGlobal: true }),
+				),
+			),
+		);
 		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
-		this.imageCache = new ImageCache({
-			exists: () => Promise.resolve(false),
-			fetch: () => Promise.reject(new Error()),
-			store: () => Promise.resolve(),
-		});
+		this.imageCache = new ImageCache(
+			new WriteBehindImageStore(
+				new PersistentStore(`atolla/user/${userId}/image_cache`, {
+					deviceGlobal: true,
+					maxWeight: imageCacheMaxBytes,
+				}),
+			),
+		);
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
 			this.setState({ version: this.state.version + 1 });
 		});

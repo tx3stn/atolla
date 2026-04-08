@@ -114,7 +114,9 @@ async function generateIcons(): Promise<void> {
 		const isAndroidOutput = output.path.includes('/android/');
 		const padding = output.noPadding
 			? 0
-			: Math.round(output.size * (isAndroidOutput ? androidIconPaddingRatio : defaultIconPaddingRatio));
+			: Math.round(
+					output.size * (isAndroidOutput ? androidIconPaddingRatio : defaultIconPaddingRatio),
+				);
 		const contentSize = output.size - padding * 2;
 		const fitMode = 'contain';
 
