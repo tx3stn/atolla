@@ -239,7 +239,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					}
 
 					const isAuthRequired = mode === ConnectionModes.online && existingSession == null;
-					const userId = existingSession?.userId ?? 'shared';
+					const userId = existingSession != null ? existingSession.userId : 'shared';
 					this.initUserStores(userId, imageCacheMaxBytes);
 
 					this.completeBootstrap({
@@ -289,8 +289,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.playbackSourceBoundTimeout) {
 			clearTimeout(this.playbackSourceBoundTimeout);
 		}
-		this.unsubscribePlayback?.();
-		this.unsubscribePalette?.();
+		if (this.unsubscribePlayback) {
+			this.unsubscribePlayback();
+		}
+		if (this.unsubscribePalette) {
+			this.unsubscribePalette();
+		}
 		if (this.nativeCacheStatsInterval) {
 			clearInterval(this.nativeCacheStatsInterval);
 		}
