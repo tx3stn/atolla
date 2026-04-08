@@ -743,7 +743,8 @@ object AtollaTrackPlaybackMediaSession {
 				else -> ""
 			}
 
-			val smallIcon = if (context.applicationInfo.icon != 0) context.applicationInfo.icon else android.R.drawable.ic_media_play
+			val notificationResId = context.resources.getIdentifier("ic_notification", "drawable", context.packageName)
+			val smallIcon = if (notificationResId != 0) notificationResId else android.R.drawable.ic_media_play
 
 			val builder =
 				buildNotificationBuilder(context)

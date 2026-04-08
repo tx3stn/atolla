@@ -5,6 +5,7 @@ import sharp from 'sharp';
 
 type IconOutput = {
 	monochrome?: boolean;
+	noPadding?: boolean;
 	path: string;
 	size: number;
 };
@@ -74,6 +75,36 @@ const outputs: Array<IconOutput> = [
 		path: resolve(process.cwd(), 'atolla/native/android/res/drawable/ic_launcher_monochrome.png'),
 		size: 432,
 	},
+	{
+		monochrome: true,
+		noPadding: true,
+		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-mdpi/ic_notification.png'),
+		size: 24,
+	},
+	{
+		monochrome: true,
+		noPadding: true,
+		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-hdpi/ic_notification.png'),
+		size: 36,
+	},
+	{
+		monochrome: true,
+		noPadding: true,
+		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-xhdpi/ic_notification.png'),
+		size: 48,
+	},
+	{
+		monochrome: true,
+		noPadding: true,
+		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-xxhdpi/ic_notification.png'),
+		size: 72,
+	},
+	{
+		monochrome: true,
+		noPadding: true,
+		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-xxxhdpi/ic_notification.png'),
+		size: 96,
+	},
 ];
 
 async function generateIcons(): Promise<void> {
@@ -81,9 +112,9 @@ async function generateIcons(): Promise<void> {
 		await mkdir(dirname(output.path), { recursive: true });
 
 		const isAndroidOutput = output.path.includes('/android/');
-		const padding = Math.round(
-			output.size * (isAndroidOutput ? androidIconPaddingRatio : defaultIconPaddingRatio),
-		);
+		const padding = output.noPadding
+			? 0
+			: Math.round(output.size * (isAndroidOutput ? androidIconPaddingRatio : defaultIconPaddingRatio));
 		const contentSize = output.size - padding * 2;
 		const fitMode = 'contain';
 

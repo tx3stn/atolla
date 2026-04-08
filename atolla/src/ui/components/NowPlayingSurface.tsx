@@ -414,7 +414,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		const accentColor = palette.accent.hex;
 		const surfaceColor = palette.surface.hex;
 		const onSurfaceColor = palette.on_surface.hex;
-		const mutedOnSurfaceColor = palette.muted_on_surface.hex;
+		const mutedOnSurfaceColor = theme.colors.grey;
 
 		const backToLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, activeTab === 'backTo');
 		const upNextLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, activeTab === 'upNext');
