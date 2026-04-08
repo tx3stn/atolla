@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { PersistentStore } from 'persistence/src/PersistentStore';
+import type { PersistentStore } from 'persistence/src/PersistentStore';
 
 export interface StoredAuthSession {
 	accessToken: string;
@@ -23,9 +23,7 @@ export interface JellyfinAuthStoreLike {
 }
 
 export class JellyfinAuthStore implements JellyfinAuthStoreLike {
-	private store = new PersistentStore('jellyfin_auth', {
-		enableEncryption: true,
-	});
+	constructor(private store: PersistentStore) {}
 
 	async loadSession(): Promise<StoredAuthSession | null> {
 		try {

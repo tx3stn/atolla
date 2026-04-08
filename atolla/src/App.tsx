@@ -27,6 +27,7 @@ import {
 	buildTrackPlaybackNotificationPayload,
 	normalizeTrackPlaybackNotificationAction,
 } from './services/TrackPlaybackNotificationSync';
+import { JellyfinAuthStore } from './stores/JellyfinAuthStore';
 import { PlaybackStore } from './stores/Playback';
 import {
 	DEFAULT_GRID_COLUMNS,
@@ -98,25 +99,30 @@ interface AppState {
 
 export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playbackStore = new PlaybackStore();
-	private preferences = new Preferences();
-	private searchStore = new SearchStore(new PersistentStore('search_history'));
-	private transport: Transport = new MockTransport();
-	private imageCache = (() => {
+	private preferences = new Preferences(
+		new PersistentStore('atolla/preferences', { deviceGlobal: true }),
+	);
+	private authService = (() => {
 		try {
-			return new ImageCache(
-				new PersistentStore('image_cache', { maxWeight: DEFAULT_IMAGE_CACHE_MAX_BYTES }),
-			);
+			return new JellyfinAuthService({
+				store: new JellyfinAuthStore(
+					new PersistentStore('atolla/jellyfin_auth', { enableEncryption: true }),
+				),
+			});
 		} catch {
-			return new ImageCache({
-				exists: () => Promise.resolve(false),
-				fetch: () => Promise.reject(new Error()),
-				store: () => Promise.resolve(),
+			// User session unavailable (e.g. emulator) — fall back to unencrypted device-global store.
+			return new JellyfinAuthService({
+				store: new JellyfinAuthStore(
+					new PersistentStore('atolla/jellyfin_auth', { deviceGlobal: true }),
+				),
 			});
 		}
 	})();
-	private paletteService = new ArtworkPaletteService(new PersistentPaletteStore());
-	private paletteQueue = new PaletteGenerationQueue(this.paletteService);
-	private authService = new JellyfinAuthService();
+	private searchStore!: SearchStore;
+	private transport: Transport = new MockTransport();
+	private imageCache!: ImageCache;
+	private paletteService!: ArtworkPaletteService;
+	private paletteQueue!: PaletteGenerationQueue;
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
 	private authToastTimer?: ReturnType<typeof setTimeout>;
@@ -198,14 +204,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.nativePlaybackActionInterval = setInterval(() => {
 			this.handleNativePlaybackNotificationAction();
 		}, 350);
-		Promise.all([
-			this.preferences.getGridColumns(),
-			this.preferences.getImageCacheMaxBytes(),
-			this.preferences.getAnimationsEnabled(),
-			this.preferences.getMode(),
-			this.preferences.getTrackCacheMaxTracks(),
-			this.authService.loadSession(),
-			this.authService.loadRememberedServerUrl(),
+		Promise.race([
+			Promise.all([
+				this.preferences.getGridColumns(),
+				this.preferences.getImageCacheMaxBytes(),
+				this.preferences.getAnimationsEnabled(),
+				this.preferences.getMode(),
+				this.preferences.getTrackCacheMaxTracks(),
+				this.authService.loadSession(),
+				this.authService.loadRememberedServerUrl(),
+			]),
+			new Promise<never>((_, reject) =>
+				setTimeout(() => reject(new Error('preferences load timeout')), 5000),
+			),
 		])
 			.then(
 				([
@@ -228,6 +239,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					}
 
 					const isAuthRequired = mode === ConnectionModes.online && existingSession == null;
+					const userId = existingSession?.userId ?? 'shared';
+					this.initUserStores(userId, imageCacheMaxBytes);
 
 					this.completeBootstrap({
 						animationsEnabled,
@@ -244,6 +257,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			)
 			.catch(() => {
 				if (!this.state.isBootstrapped) {
+					this.initUserStores('shared', DEFAULT_IMAGE_CACHE_MAX_BYTES);
 					this.completeBootstrap({});
 				}
 			});
@@ -252,9 +266,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.handleTrackPlaybackSourceChange();
 			this.handleTrackPrefetchQueueChange();
 			this.syncTrackPlaybackNotification();
-			this.setState({ version: this.state.version + 1 });
-		});
-		this.unsubscribePalette = this.paletteService.subscribe(() => {
 			this.setState({ version: this.state.version + 1 });
 		});
 		// Handle any track already playing at startup
@@ -288,7 +299,33 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 		clearAtollaTrackPlaybackNotification();
 		this.trackPrefetchQueue.clearQueue();
-		this.paletteQueue.dispose();
+		if (this.paletteQueue) {
+			this.paletteQueue.dispose();
+		}
+	}
+
+	private initUserStores(userId: string, imageCacheMaxBytes: number): void {
+		if (this.unsubscribePalette) {
+			this.unsubscribePalette();
+		}
+		this.searchStore = new SearchStore(
+			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
+		);
+		this.paletteService = new ArtworkPaletteService(
+			new PersistentPaletteStore(
+				new PersistentStore(`atolla/user/${userId}/artwork_palettes`, { deviceGlobal: true }),
+			),
+		);
+		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
+		this.imageCache = new ImageCache(
+			new PersistentStore(`atolla/user/${userId}/image_cache`, {
+				deviceGlobal: true,
+				maxWeight: imageCacheMaxBytes,
+			}),
+		);
+		this.unsubscribePalette = this.paletteService.subscribe(() => {
+			this.setState({ version: this.state.version + 1 });
+		});
 	}
 
 	private showAuthToast(message: string): void {
@@ -378,6 +415,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				await this.authService.saveSession(session);
 
 				this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId);
+				this.initUserStores(session.userId, this.state.imageCacheMaxBytes);
 
 				this.setState({
 					authErrorMessage: null,
@@ -481,6 +519,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	// immediately (warmUp) and prefetches the image for display. If no persisted
 	// When the playing track changes, warm up any persisted palette and queue generation if needed.
 	private handleAlbumChange(): void {
+		if (!this.paletteService) return;
 		const imageUrl =
 			this.playbackStore.track?.albumImageUrl ?? this.playbackStore.album?.imageUrl ?? null;
 		if (!imageUrl || imageUrl === this.lastArtworkUrl) return;

@@ -1,10 +1,10 @@
 // @ts-nocheck
-import { PersistentStore } from 'persistence/src/PersistentStore';
+import type { PersistentStore } from 'persistence/src/PersistentStore';
 import type { PaletteStore } from './ArtworkPaletteService';
 import type { Palette } from './color/types';
 
 export class PersistentPaletteStore implements PaletteStore {
-	private store = new PersistentStore('artwork_palettes');
+	constructor(private store: PersistentStore) {}
 
 	async loadPalette(imageUrl: string): Promise<Palette | null> {
 		try {

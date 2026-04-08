@@ -8,12 +8,19 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
+function mockPreferences() {
+	return new Preferences({
+		fetchString: () => Promise.reject(new Error()),
+		storeString: () => Promise.resolve(),
+	});
+}
+
 describe('SettingsView', () => {
 	valdiIt('renders cache section title and clear cache label', () => {
 		const instrumented = createComponent(SettingsView, {
 			imageCacheMaxBytes: 2 * 1024 * 1024 * 1024,
 			onCacheSizeChange: () => {},
-			preferences: new Preferences(),
+			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
 		const labels = elementTypeFind(
@@ -30,7 +37,7 @@ describe('SettingsView', () => {
 		const instrumented = createComponent(SettingsView, {
 			imageCacheMaxBytes: 2 * 1024 * 1024 * 1024,
 			onCacheSizeChange: () => {},
-			preferences: new Preferences(),
+			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
@@ -49,7 +56,7 @@ describe('SettingsView', () => {
 			onLogout: () => {
 				called = true;
 			},
-			preferences: new Preferences(),
+			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
@@ -63,7 +70,7 @@ describe('SettingsView', () => {
 
 	valdiIt('tapping clear cache button shows the cache clear modal', () => {
 		const instrumented = createComponent(SettingsView, {
-			preferences: new Preferences(),
+			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
 
@@ -89,7 +96,7 @@ describe('SettingsView', () => {
 			onClearCache: (selection) => {
 				received = selection;
 			},
-			preferences: new Preferences(),
+			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
 
@@ -119,7 +126,7 @@ describe('SettingsView', () => {
 	valdiIt('shows toast after confirming cache clear', () => {
 		const instrumented = createComponent(SettingsView, {
 			onClearCache: () => {},
-			preferences: new Preferences(),
+			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
 
@@ -147,7 +154,7 @@ describe('SettingsView', () => {
 
 	valdiIt('shows cached tracks dropdown options when tapped', () => {
 		const instrumented = createComponent(SettingsView, {
-			preferences: new Preferences(),
+			preferences: mockPreferences(),
 			trackCacheMaxTracks: 20,
 		});
 		const component = instrumented.getComponent();
@@ -174,7 +181,7 @@ describe('SettingsView', () => {
 			onTrackCacheMaxTracksChange: (count) => {
 				selected = count;
 			},
-			preferences: new Preferences(),
+			preferences: mockPreferences(),
 			trackCacheMaxTracks: 20,
 		});
 		const component = instrumented.getComponent();
@@ -198,7 +205,7 @@ describe('SettingsView', () => {
 	valdiIt('shows grid columns options when tapped', () => {
 		const instrumented = createComponent(SettingsView, {
 			gridColumns: 3,
-			preferences: new Preferences(),
+			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
 
@@ -225,7 +232,7 @@ describe('SettingsView', () => {
 			onGridColumnsChange: (count) => {
 				selected = count;
 			},
-			preferences: new Preferences(),
+			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
 
@@ -251,7 +258,7 @@ describe('SettingsView', () => {
 			onClearCache: () => {
 				called = true;
 			},
-			preferences: new Preferences(),
+			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
 
