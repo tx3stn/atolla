@@ -315,18 +315,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.searchStore = new SearchStore(
 			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
 		);
-		this.paletteService = new ArtworkPaletteService(
-			new PersistentPaletteStore(
-				new PersistentStore(`atolla/user/${userId}/artwork_palettes`, { deviceGlobal: true }),
-			),
-		);
+		this.paletteService = new ArtworkPaletteService(new PersistentPaletteStore());
 		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
-		this.imageCache = new ImageCache(
-			new PersistentStore(`atolla/user/${userId}/image_cache`, {
-				deviceGlobal: true,
-				maxWeight: imageCacheMaxBytes,
-			}),
-		);
+		this.imageCache = new ImageCache({
+			exists: () => Promise.resolve(false),
+			fetch: () => Promise.reject(new Error()),
+			store: () => Promise.resolve(),
+		});
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
 			this.setState({ version: this.state.version + 1 });
 		});
