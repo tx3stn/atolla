@@ -414,7 +414,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		const accentColor = palette.accent.hex;
 		const surfaceColor = palette.surface.hex;
 		const onSurfaceColor = palette.on_surface.hex;
-		const mutedOnSurfaceColor = theme.colors.grey;
+		const mutedOnSurfaceColor = palette.muted_on_surface.hex;
 
 		const backToLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, activeTab === 'backTo');
 		const upNextLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, activeTab === 'upNext');
@@ -567,7 +567,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											onTap={onLoopModeToggle}
 											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
-											tint={loopMode === 'none' ? mutedOnSurfaceColor : onSurfaceColor}
+											tint={loopMode === 'none' ? theme.colors.grey : onSurfaceColor}
 										/>
 										<TappableIcon
 											accessibilityLabel='now-playing-previous'
