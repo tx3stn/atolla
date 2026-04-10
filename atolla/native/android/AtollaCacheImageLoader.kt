@@ -100,6 +100,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		}
 		private val inFlight = ConcurrentHashMap<String, CompletableFuture<ByteArray>>()
 		var sharedInstance: AtollaCacheImageLoader? = null
+		var imageCachedObserver: ((url: String, category: String) -> Unit)? = null
 	}
 
 	private val tag = "AtollaCacheLoader"
@@ -350,6 +351,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 					memory.put(key, blurredBytes)
 					writeToDisk(key, blurredBytes)
 					Log.d(tag, "blur generated after fetch key=$key bytes=${blurredBytes.size}")
+					notifyImageCached(payload.sourceUrl, payload.category)
 					future.complete(blurredBytes)
 					if (!cancelled.get()) completeFromBytes(blurredBytes, options, completion)
 				} else {
@@ -373,6 +375,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			Log.d(tag, "network fetch success key=$key bytes=${bytes.size}")
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
+			notifyImageCached(payload.sourceUrl, payload.category)
 			inFlight.remove(key)
 			future.complete(bytes)
 			if (!cancelled.get()) completeFromBytes(bytes, options, completion)
@@ -444,6 +447,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				if (blurredBytes != null) {
 					memory.put(key, blurredBytes)
 					writeToDisk(key, blurredBytes)
+					notifyImageCached(sourceUrl, category)
 					future.complete(blurredBytes)
 				} else {
 					future.completeExceptionally(ValdiException("Blur generation failed after fetch"))
@@ -454,12 +458,21 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			val bytes = URL(sourceUrl).readBytes()
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
+			notifyImageCached(sourceUrl, category)
 			inFlight.remove(key)
 			future.complete(bytes)
 		} catch (error: Throwable) {
 			inFlight.remove(key)
 			future.completeExceptionally(error)
 			Log.e(tag, "preload failed key=$key", error)
+		}
+	}
+
+	private fun notifyImageCached(url: String, category: String) {
+		try {
+			imageCachedObserver?.invoke(url, category)
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed to notify image cached observer", error)
 		}
 	}
 

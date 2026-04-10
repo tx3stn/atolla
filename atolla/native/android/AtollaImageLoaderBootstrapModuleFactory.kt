@@ -34,6 +34,10 @@ class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactor
 					loader.preload(url, category)
 				}
 			}
+
+			override fun setAtollaImageCachedObserver(callback: (String, String) -> Unit) {
+				AtollaCacheImageLoader.imageCachedObserver = callback
+			}
 		}
 	}
 }

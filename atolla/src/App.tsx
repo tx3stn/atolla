@@ -12,6 +12,7 @@ import {
 	ensureAtollaImageLoaderBootstrap,
 	getAtollaImageLoaderCacheByteSize,
 	getAtollaImageLoaderCacheEntryCount,
+	setAtollaImageCachedObserver,
 } from './ImageLoaderBootstrap';
 import type { Album } from './models/Album';
 import type { Artist } from './models/Artist';
@@ -401,6 +402,16 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				maxWeight: imageCacheMaxBytes,
 			}),
 		);
+		try {
+			setAtollaImageCachedObserver((url, category) => {
+				if (category !== 'album_art' || this.paletteService.hasPalette(url)) {
+					return;
+				}
+				this.paletteQueue.enqueue(url);
+			});
+		} catch {
+			// Observer bridge unavailable on non-Android targets.
+		}
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
 			this.setState({ version: this.state.version + 1 });
 		});

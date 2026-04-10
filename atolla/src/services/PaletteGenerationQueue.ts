@@ -15,7 +15,8 @@ import { PaletteWorkerEntryPoint } from './PaletteGenerationWorker';
 
 export class PaletteGenerationQueue {
 	private queue: Array<string> = [];
-	private inProgress = false;
+	private slowPathInProgress = false;
+	private slowPathQueue: Array<string> = [];
 	private workerClient: IWorkerServiceClient<IPaletteWorker>;
 
 	constructor(private readonly paletteService: ArtworkPaletteService) {
@@ -30,6 +31,14 @@ export class PaletteGenerationQueue {
 	prioritize(imageUrl: string | null | undefined): void {
 		if (!imageUrl || this.paletteService.hasPalette(imageUrl)) return;
 		this.queue = [imageUrl, ...this.queue.filter((u) => u !== imageUrl)];
+		this.processNext();
+	}
+
+	enqueue(imageUrl: string | null | undefined): void {
+		if (!imageUrl || this.paletteService.hasPalette(imageUrl)) return;
+		if (!this.queue.includes(imageUrl)) {
+			this.queue.push(imageUrl);
+		}
 		this.processNext();
 	}
 
@@ -65,14 +74,13 @@ export class PaletteGenerationQueue {
 	}
 
 	private processNext(): void {
-		if (this.inProgress || this.queue.length === 0) return;
-		this.inProgress = true;
-		// biome-ignore lint/style/noNonNullAssertion: length checked above
-		const url = this.queue.shift()!;
-		void this.processUrl(url).finally(() => {
-			this.inProgress = false;
-			this.processNext();
-		});
+		if (this.queue.length === 0) return;
+
+		const pending = this.queue;
+		this.queue = [];
+		for (const url of pending) {
+			void this.processUrl(url);
+		}
 	}
 
 	private async processUrl(url: string): Promise<void> {
@@ -85,9 +93,36 @@ export class PaletteGenerationQueue {
 			return;
 		}
 
-		// Load buffer from native image cache then compute in worker.
+		this.enqueueSlowPath(url);
+	}
+
+	private enqueueSlowPath(url: string): void {
+		if (this.paletteService.hasPalette(url) || this.slowPathQueue.includes(url)) {
+			return;
+		}
+		this.slowPathQueue.push(url);
+		this.processSlowPathQueue();
+	}
+
+	private processSlowPathQueue(): void {
+		if (this.slowPathInProgress || this.slowPathQueue.length === 0) {
+			return;
+		}
+
+		this.slowPathInProgress = true;
+		// biome-ignore lint/style/noNonNullAssertion: length checked above
+		const url = this.slowPathQueue.shift()!;
+		void this.processSlowPathUrl(url).finally(() => {
+			this.slowPathInProgress = false;
+			this.processSlowPathQueue();
+		});
+	}
+
+	private async processSlowPathUrl(url: string): Promise<void> {
+		if (this.paletteService.hasPalette(url)) return;
+
 		const entry = await this.loadBuffer(url);
-		if (!entry) return; // cache miss — skip silently, will retry on next open
+		if (!entry) return;
 
 		const palette = await this.workerClient.api.computePalette(entry.buffer, entry.mimeType);
 		if (palette) {

@@ -19,3 +19,8 @@ export function extractAtollaPaletteFromCache(url: string, category: string): st
 
 // @ExportFunction
 export function preloadAtollaImages(urls: Array<string>, category: string): void;
+
+// @ExportFunction
+export function setAtollaImageCachedObserver(
+	callback: (url: string, category: string) => void,
+): void;
