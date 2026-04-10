@@ -1,6 +1,5 @@
 import type { PaletteStore } from './ArtworkPaletteService';
 import type { Palette } from './color/types';
-import { DiskWriteWorker } from './DiskWriteWorker';
 
 /**
  * A PaletteStore wrapper that makes writes fire-and-forget so callers
@@ -11,7 +10,8 @@ import { DiskWriteWorker } from './DiskWriteWorker';
 export class WriteBehindPaletteStore implements PaletteStore {
 	private memory = new Map<string, Palette>();
 	private pendingWrites = new Map<string, Palette>();
-	private writeWorker = new DiskWriteWorker();
+	private writeQueue: Array<() => Promise<void>> = [];
+	private writeQueueRunning = false;
 	private writeDrainQueued = false;
 
 	constructor(private inner: PaletteStore) {}
@@ -41,10 +41,44 @@ export class WriteBehindPaletteStore implements PaletteStore {
 			return;
 		}
 		this.writeDrainQueued = true;
-		this.writeWorker.enqueue(async () => {
+		this.enqueueWriteJob(async () => {
 			this.writeDrainQueued = false;
 			await this.drainWrites();
 		});
+	}
+
+	private enqueueWriteJob(job: () => Promise<void>): void {
+		this.writeQueue.push(job);
+		if (this.writeQueueRunning) {
+			return;
+		}
+		this.writeQueueRunning = true;
+		void this.runWriteQueue();
+	}
+
+	private async runWriteQueue(): Promise<void> {
+		while (this.writeQueue.length > 0) {
+			const job = this.writeQueue.shift();
+			if (!job) {
+				continue;
+			}
+
+			try {
+				await job();
+			} catch {
+				// Best effort background writes.
+			}
+
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 0);
+			});
+		}
+
+		this.writeQueueRunning = false;
+		if (this.writeQueue.length > 0) {
+			this.writeQueueRunning = true;
+			void this.runWriteQueue();
+		}
 	}
 
 	private async drainWrites(): Promise<void> {

@@ -18,7 +18,7 @@ import type { Artist } from './models/Artist';
 import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
-import { type ClearCacheSelection, ImageCache } from './services/ImageCache';
+import { type ClearCacheSelection, ImageCacheManager } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
@@ -29,7 +29,6 @@ import {
 	buildTrackPlaybackNotificationPayload,
 	normalizeTrackPlaybackNotificationAction,
 } from './services/TrackPlaybackNotificationSync';
-import { WriteBehindImageStore } from './services/WriteBehindImageStore';
 import { WriteBehindPaletteStore } from './services/WriteBehindPaletteStore';
 import {
 	JellyfinAuthStore,
@@ -193,7 +192,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 	private searchStore!: SearchStore;
 	private transport: Transport = new MockTransport();
-	private imageCache!: ImageCache;
+	private imageCache!: ImageCacheManager;
 	private paletteService!: ArtworkPaletteService;
 	private paletteQueue!: PaletteGenerationQueue;
 	private unsubscribePlayback?: () => void;
@@ -396,13 +395,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			),
 		);
 		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
-		this.imageCache = new ImageCache(
-			new WriteBehindImageStore(
-				new PersistentStore(`atolla/user/${userId}/image_cache`, {
-					deviceGlobal: true,
-					maxWeight: imageCacheMaxBytes,
-				}),
-			),
+		this.imageCache = new ImageCacheManager(
+			new PersistentStore(`atolla/user/${userId}/image_cache`, {
+				deviceGlobal: true,
+				maxWeight: imageCacheMaxBytes,
+			}),
 		);
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
 			this.setState({ version: this.state.version + 1 });
@@ -1488,13 +1485,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				<SettingsView
 					animationsEnabled={this.state.animationsEnabled}
 					gridColumns={this.state.gridColumns}
-					imageCacheBufferedBytes={
-						this.state.nativeImageCacheBufferedBytes ?? this.imageCache.bufferedBytes
-					}
-					imageCacheBufferedCount={
-						this.state.nativeImageCacheBufferedCount ?? this.imageCache.bufferedCount
-					}
-					imageCacheError={this.imageCache.lastError}
+					imageCacheBufferedBytes={this.state.nativeImageCacheBufferedBytes ?? 0}
+					imageCacheBufferedCount={this.state.nativeImageCacheBufferedCount ?? 0}
+					imageCacheError={null}
 					imageCacheMaxBytes={this.state.imageCacheMaxBytes}
 					onAnimationsChange={this.handleAnimationsChange}
 					onCacheSizeChange={this.handleCacheSizeChange}
