@@ -631,7 +631,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 										accessibilityLabel='search-albums-grid'
 										cards={this.createAlbumCards(results.albums)}
 										columnCount={this.viewModel.gridColumns}
-										imageCache={this.viewModel.imageCache}
 										onCardTap={this.handleAlbumCardTap}
 									/>
 								</layout>
@@ -644,7 +643,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 										accessibilityLabel='search-artists-grid'
 										cards={this.createArtistCards(results.artists)}
 										columnCount={this.viewModel.gridColumns}
-										imageCache={this.viewModel.imageCache}
 										onCardTap={this.handleArtistCardTap}
 									/>
 								</layout>
@@ -657,7 +655,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 										accessibilityLabel='search-playlists-grid'
 										cards={this.createPlaylistCards(results.playlists)}
 										columnCount={this.viewModel.gridColumns}
-										imageCache={this.viewModel.imageCache}
 										onCardTap={this.handlePlaylistCardTap}
 									/>
 								</layout>

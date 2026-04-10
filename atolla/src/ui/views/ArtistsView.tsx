@@ -193,7 +193,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				accessibilityLabel='home-artists-grid'
 				cards={cards}
 				columnCount={this.viewModel.gridColumns}
-				imageCache={imageCache}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 				isLoadingMore={this.state.isLoadingNextPage}
 				onCardLongPress={this.handleArtistCardLongPress}

@@ -197,7 +197,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				accessibilityLabel='home-albums-grid'
 				cards={cards}
 				columnCount={this.viewModel.gridColumns}
-				imageCache={imageCache}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 				isLoadingMore={this.state.isLoadingNextPage}
 				onCardLongPress={this.handleAlbumCardLongPress}

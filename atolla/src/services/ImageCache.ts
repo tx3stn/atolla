@@ -77,7 +77,7 @@ export class ImageCache {
 		url: string,
 		category: ImageCategory,
 	): { buffer: ArrayBuffer; mimeType: string } | null {
-		return this.buffers.get(this.memoryKey(url, category)) ?? null;
+		return this.buffers.get(this.cacheKey(url, category)) ?? null;
 	}
 
 	constructor(
@@ -86,7 +86,7 @@ export class ImageCache {
 	) {}
 
 	get(url: string, category: ImageCategory): string | null {
-		return this.memory.get(this.memoryKey(url, category)) ?? null;
+		return this.memory.get(this.cacheKey(url, category)) ?? null;
 	}
 
 	// Returns the cached data URI if available, otherwise kicks off a load and
@@ -94,7 +94,7 @@ export class ImageCache {
 	// behavior for callers while the cache load happens in the background.
 	getOrLoad(url: string, category: ImageCategory): string | null {
 		if (!url) return null;
-		const key = this.memoryKey(url, category);
+		const key = this.cacheKey(url, category);
 		const cached = this.memory.get(key);
 		if (cached) return cached;
 
@@ -108,7 +108,7 @@ export class ImageCache {
 		const requestedKeys: Array<string> = [];
 		for (const url of urls) {
 			if (!url) continue;
-			const key = this.memoryKey(url, category);
+			const key = this.cacheKey(url, category);
 			requestedKeys.push(key);
 			if (this.memory.has(key) || this.pending.has(key)) continue;
 			this.enqueueLoad(url, category);
@@ -134,7 +134,7 @@ export class ImageCache {
 	}
 
 	subscribeTo(url: string, category: ImageCategory, listener: ImageKeyListener): () => void {
-		const key = this.memoryKey(url, category);
+		const key = this.cacheKey(url, category);
 		let listeners = this.keyListeners.get(key);
 		if (!listeners) {
 			listeners = new Set<ImageKeyListener>();
@@ -159,7 +159,7 @@ export class ImageCache {
 	// native loader. Used to trigger palette extraction without a round-trip.
 	async reload(url: string, category: ImageCategory): Promise<void> {
 		if (!url) return;
-		const key = this.memoryKey(url, category);
+		const key = this.cacheKey(url, category);
 		const cached = this.buffers.get(key);
 		if (cached) {
 			this.notifyStored(url, cached.buffer, cached.mimeType);
@@ -176,7 +176,7 @@ export class ImageCache {
 	}
 
 	private enqueueLoad(url: string, category: ImageCategory): void {
-		const key = this.memoryKey(url, category);
+		const key = this.cacheKey(url, category);
 		if (this.pending.has(key) || this.memory.has(key)) {
 			return;
 		}
@@ -217,16 +217,15 @@ export class ImageCache {
 	}
 
 	private async loadUrl(url: string, category: ImageCategory): Promise<void> {
-		const memoryKey = this.memoryKey(url, category);
-		const storeKey = this.storeKey(url, category);
+		const key = this.cacheKey(url, category);
 		try {
 			// Try persistent store first
 			try {
-				const diskBuffer = await this.store.fetch(storeKey);
+				const diskBuffer = await this.store.fetch(key);
 				if (diskBuffer !== null) {
 					const mimeType = guessMimeType(url);
-					this.memory.set(memoryKey, toDataUri(diskBuffer, mimeType));
-					this.buffers.set(memoryKey, { buffer: diskBuffer, mimeType });
+					this.memory.set(key, toDataUri(diskBuffer, mimeType));
+					this.buffers.set(key, { buffer: diskBuffer, mimeType });
 					this.notifyStored(url, diskBuffer, mimeType);
 					return;
 				}
@@ -244,11 +243,11 @@ export class ImageCache {
 
 			// Populate in-memory cache before attempting persistence — persistence
 			// failure must not prevent the buffer from being available for extraction.
-			this.memory.set(memoryKey, toDataUri(buffer, mimeType));
-			this.buffers.set(memoryKey, { buffer, mimeType });
+			this.memory.set(key, toDataUri(buffer, mimeType));
+			this.buffers.set(key, { buffer, mimeType });
 
 			try {
-				await this.store.store(storeKey, buffer, undefined, buffer.byteLength);
+				await this.store.store(key, buffer, undefined, buffer.byteLength);
 			} catch {
 				// Persistence failed — in-memory cache is still set
 			}
@@ -257,15 +256,15 @@ export class ImageCache {
 		} catch (err) {
 			this.lastError = `load failed for ${url.slice(0, 60)}: ${String(err)}`;
 		} finally {
-			this.pending.delete(memoryKey);
+			this.pending.delete(key);
 			this.notify();
-			this.notifyKey(memoryKey);
+			this.notifyKey(key);
 		}
 	}
 
 	// Called by App after it loads album art bytes from the native bootstrap.
 	async storeBlurred(url: string, buffer: ArrayBuffer, mimeType: string): Promise<void> {
-		if (this.memory.has(this.memoryKey(url, 'album_art_blurred'))) return;
+		if (this.memory.has(this.cacheKey(url, 'album_art_blurred'))) return;
 		await this.generateAndStoreBlurred(url, buffer, mimeType);
 	}
 
@@ -289,25 +288,21 @@ export class ImageCache {
 			ctx.drawImage(bitmap, 0, 0, SIZE, SIZE);
 			const { data } = ctx.getImageData(0, 0, SIZE, SIZE);
 			const png = encodePng(new Uint8Array(data.buffer), SIZE, SIZE);
-			const storeKey = this.storeKey(url, 'album_art_blurred');
+			const key = this.cacheKey(url, 'album_art_blurred');
 			// Persist so the atolla-cache:// handler can serve it as an image URL.
 			try {
-				await this.store.store(storeKey, png, undefined, png.byteLength);
+				await this.store.store(key, png, undefined, png.byteLength);
 			} catch {
 				// Persistence failed — data URI fallback still set below.
 			}
-			this.memory.set(this.memoryKey(url, 'album_art_blurred'), toDataUri(png, 'image/png'));
+			this.memory.set(key, toDataUri(png, 'image/png'));
 			this.notify();
 		} catch {
 			// Non-critical — blur generation is best-effort
 		}
 	}
 
-	private memoryKey(url: string, category: ImageCategory): string {
-		return `${category}:${url}`;
-	}
-
-	private storeKey(url: string, category: ImageCategory): string {
+	private cacheKey(url: string, category: ImageCategory): string {
 		return `${category}:${url}`;
 	}
 

@@ -230,7 +230,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 									accessibilityLabel='artist-albums-grid'
 									cards={albumCards}
 									columnCount={this.viewModel.gridColumns}
-									imageCache={imageCache}
 									onCardLongPress={this.handleAlbumCardLongPress}
 									onCardTap={this.handleAlbumCardTap}
 								/>

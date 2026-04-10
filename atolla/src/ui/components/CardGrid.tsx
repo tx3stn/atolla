@@ -3,7 +3,7 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
-import type { ImageCache, ImageCategory } from '../../services/ImageCache';
+import type { ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
 
@@ -20,7 +20,6 @@ export interface CardGridViewModel {
 	cacheVersion?: number;
 	cards: Array<Card>;
 	columnCount?: number;
-	imageCache?: ImageCache;
 	infiniteScrollTriggerRatio?: number;
 	isLoadingMore?: boolean;
 	onCardLongPress?: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
@@ -49,7 +48,6 @@ export class CardGrid extends Component<CardGridViewModel> {
 			cards,
 			columnCount,
 			infiniteScrollTriggerRatio,
-			imageCache,
 			isLoadingMore,
 			onCardLongPress,
 			onCardTap,
@@ -112,7 +110,6 @@ export class CardGrid extends Component<CardGridViewModel> {
 										<CachedImage
 											cacheVersion={cacheVersion}
 											category={category}
-											imageCache={imageCache}
 											objectFit='cover'
 											style={styles.artworkImage}
 											url={artworkKey}

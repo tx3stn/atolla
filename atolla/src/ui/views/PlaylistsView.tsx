@@ -202,7 +202,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				accessibilityLabel='home-playlists-grid'
 				cards={cards}
 				columnCount={this.viewModel.gridColumns}
-				imageCache={imageCache}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 				isLoadingMore={this.state.isLoadingNextPage}
 				onCardLongPress={this.handlePlaylistCardLongPress}

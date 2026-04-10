@@ -111,4 +111,15 @@ describe('WriteBehindImageStore', () => {
 		expect(await imageStore.fetch('unknown')).toBeNull();
 		expect(db.fetchCalls).toBe(1);
 	});
+
+	it('does not memoize null disk misses in memory cache', async () => {
+		const db = new PendingWriteStore();
+		const imageStore = new WriteBehindImageStore(db as never);
+
+		expect(await imageStore.fetch('unknown')).toBeNull();
+		db.seed('unknown', buffer);
+
+		expect(await imageStore.fetch('unknown')).toEqual(buffer);
+		expect(db.fetchCalls).toBe(2);
+	});
 });

@@ -29,7 +29,9 @@ export class WriteBehindImageStore implements ImageStore {
 
 		try {
 			const fromDisk = await this.persistentStore.fetch(key);
-			this.memory.set(key, fromDisk);
+			if (fromDisk !== null) {
+				this.memory.set(key, fromDisk);
+			}
 			return fromDisk;
 		} catch {
 			return null;

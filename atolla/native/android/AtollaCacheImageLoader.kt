@@ -209,7 +209,8 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		// already in progress, attach to its CompletableFuture instead of
 		// starting another thread. This prevents the "all at once" appearance
 		// caused by N grid items each spawning their own background thread.
-		val existing = inFlight[key]
+		val newFuture = CompletableFuture<ByteArray>()
+		val existing = inFlight.putIfAbsent(key, newFuture)
 		if (existing != null) {
 			existing.whenComplete { bytes, error ->
 				if (!cancelled.get()) {
@@ -222,9 +223,6 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			}
 		}
 
-		val future = CompletableFuture<ByteArray>()
-		inFlight[key] = future
-
 		thread(start = true) {
 			try {
 				// Disk hit: promote to memory and complete.
@@ -232,7 +230,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 					memory[key] = bytes
 					Log.d(tag, "disk cache hit key=$key bytes=${bytes.size}")
 					inFlight.remove(key)
-					future.complete(bytes)
+					newFuture.complete(bytes)
 					if (!cancelled.get()) completeFromBytes(bytes, options, completion)
 					return@thread
 				}
@@ -249,10 +247,10 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 							memory[key] = blurredBytes
 							writeToDisk(key, blurredBytes)
 							Log.d(tag, "blur generated from cache key=$key bytes=${blurredBytes.size}")
-							future.complete(blurredBytes)
+							newFuture.complete(blurredBytes)
 							if (!cancelled.get()) completeFromBytes(blurredBytes, options, completion)
 						} else {
-							future.completeExceptionally(ValdiException("Blur generation failed"))
+							newFuture.completeExceptionally(ValdiException("Blur generation failed"))
 							if (!cancelled.get()) completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed"))
 						}
 						return@thread
@@ -266,10 +264,10 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 						memory[key] = blurredBytes
 						writeToDisk(key, blurredBytes)
 						Log.d(tag, "blur generated after fetch key=$key bytes=${blurredBytes.size}")
-						future.complete(blurredBytes)
+						newFuture.complete(blurredBytes)
 						if (!cancelled.get()) completeFromBytes(blurredBytes, options, completion)
 					} else {
-						future.completeExceptionally(ValdiException("Blur generation failed after fetch"))
+						newFuture.completeExceptionally(ValdiException("Blur generation failed after fetch"))
 						if (!cancelled.get()) completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed after fetch"))
 					}
 					return@thread
@@ -278,7 +276,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				if (payload.cacheOnly) {
 					inFlight.remove(key)
 					val ex = ValdiException("Cache miss for cache-only request")
-					future.completeExceptionally(ex)
+					newFuture.completeExceptionally(ex)
 					if (!cancelled.get()) {
 						completion.onImageLoadComplete(0, 0, null, ex)
 					}
@@ -290,12 +288,12 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				memory[key] = bytes
 				writeToDisk(key, bytes)
 				inFlight.remove(key)
-				future.complete(bytes)
+				newFuture.complete(bytes)
 				if (!cancelled.get()) completeFromBytes(bytes, options, completion)
 			} catch (error: Throwable) {
 				Log.e(tag, "load failed key=$key", error)
 				inFlight.remove(key)
-				future.completeExceptionally(error)
+				newFuture.completeExceptionally(error)
 				if (!cancelled.get()) completion.onImageLoadComplete(0, 0, null, error)
 			}
 		}
