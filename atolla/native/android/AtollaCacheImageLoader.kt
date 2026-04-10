@@ -61,6 +61,8 @@ data class QuantizedColorCandidate(
 class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 	companion object {
 		private const val MEMORY_CACHE_BYTES = 50 * 1024 * 1024
+		private const val DISK_CACHE_MAX_BYTES = 200L * 1024 * 1024
+		private const val DISK_CACHE_TTL_MS = 30L * 24 * 3600 * 1000
 
 		private enum class LoadPriority(val value: Int) {
 			DISPLAY(0),
@@ -518,7 +520,9 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			return null
 		}
 		return try {
-			file.readBytes()
+			val bytes = file.readBytes()
+			file.setLastModified(System.currentTimeMillis())
+			bytes
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed reading disk cache key=$key", error)
 			null
@@ -529,9 +533,59 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		val file = cacheFileForKey(key) ?: return
 		try {
 			file.writeBytes(bytes)
+			evictDiskCacheIfNeeded()
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed writing disk cache key=$key", error)
 		}
+	}
+
+	private fun evictDiskCacheIfNeeded() {
+		val dir = diskCacheDir ?: return
+		executor.execute(
+			LoadTask(LoadPriority.PREFETCH) {
+				val files = try {
+					dir.listFiles()?.filter { it.isFile }
+				} catch (_: Throwable) {
+					null
+				} ?: return@LoadTask
+
+				val now = System.currentTimeMillis()
+				val liveFiles = mutableListOf<File>()
+				for (file in files) {
+					val age = now - file.lastModified()
+					if (age > DISK_CACHE_TTL_MS) {
+						try {
+							file.delete()
+						} catch (_: Throwable) {
+							// Best effort disk cleanup.
+						}
+						continue
+					}
+					liveFiles.add(file)
+				}
+
+				var totalBytes = liveFiles.sumOf { it.length() }
+				if (totalBytes <= DISK_CACHE_MAX_BYTES) {
+					return@LoadTask
+				}
+
+				val oldestFirst = liveFiles.sortedBy { it.lastModified() }
+				for (file in oldestFirst) {
+					if (totalBytes <= DISK_CACHE_MAX_BYTES) {
+						break
+					}
+					val fileBytes = file.length()
+					val deleted = try {
+						file.delete()
+					} catch (_: Throwable) {
+						false
+					}
+					if (deleted) {
+						totalBytes -= fileBytes
+					}
+				}
+			},
+		)
 	}
 
 	private fun sha256Hex(value: String): String {
