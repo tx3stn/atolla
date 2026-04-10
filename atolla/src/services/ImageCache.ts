@@ -59,4 +59,5 @@ export class ImageCacheManager {
 	}
 }
 
+export { ImageCacheManager as ImageCache };
 export type ImageCache = ImageCacheManager;

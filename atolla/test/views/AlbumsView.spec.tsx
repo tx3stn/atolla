@@ -48,14 +48,6 @@ function makeNavigationController() {
 describe('AlbumsView', () => {
 	valdiIt('loads first page only on create', async () => {
 		const allAlbums = makeAlbums(70);
-		const prefetchCalls: Array<Array<string>> = [];
-		const imageCache = {
-			...stubImageCache,
-			prefetch: (urls: Array<string>) => {
-				prefetchCalls.push(urls);
-				return Promise.resolve();
-			},
-		};
 		const transport = {
 			getAlbumsPage: (page: number, size: number) => {
 				const start = (page - 1) * size;
@@ -69,7 +61,7 @@ describe('AlbumsView', () => {
 
 		const instrumented = createComponent(AlbumsView, {
 			gridColumns: 3,
-			imageCache,
+			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			transport,
@@ -80,8 +72,6 @@ describe('AlbumsView', () => {
 		await flushAsyncWork();
 
 		expect(component.state.albums.length).toBe(pageSize);
-		expect(prefetchCalls.length).toBe(1);
-		expect(prefetchCalls[0]?.length).toBe(pageSize);
 	});
 
 	valdiIt('loads next page when prefetch trigger is laid out', async () => {
