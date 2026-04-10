@@ -3,6 +3,7 @@ package atolla.native.android
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.util.LruCache
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.Uri
@@ -59,6 +60,8 @@ data class QuantizedColorCandidate(
 
 class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 	companion object {
+		private const val MEMORY_CACHE_BYTES = 50 * 1024 * 1024
+
 		private enum class LoadPriority(val value: Int) {
 			DISPLAY(0),
 			PREFETCH(1),
@@ -88,7 +91,11 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			},
 		)
 
-		private val sharedMemory = ConcurrentHashMap<String, ByteArray>()
+		private val sharedMemory = object : LruCache<String, ByteArray>(MEMORY_CACHE_BYTES) {
+			override fun sizeOf(key: String, value: ByteArray): Int {
+				return value.size
+			}
+		}
 		private val inFlight = ConcurrentHashMap<String, CompletableFuture<ByteArray>>()
 	}
 
@@ -118,7 +125,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		if (diskStats != null) {
 			return diskStats.first
 		}
-		return memory.size
+		return memory.snapshot().size
 	}
 
 	fun getTotalBytes(): Long {
@@ -126,7 +133,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		if (diskStats != null) {
 			return diskStats.second
 		}
-		return memory.values.sumOf { it.size.toLong() }
+		return memory.snapshot().values.sumOf { it.size.toLong() }
 	}
 
 	fun clearCategories(categories: List<String>) {
@@ -136,7 +143,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		val prefixes = expanded.map { "$it:" }
 
 		// Clear matching entries from memory.
-		val memKeys = memory.keys().toList().filter { k -> prefixes.any { k.startsWith(it) } }
+		val memKeys = memory.snapshot().keys.filter { k -> prefixes.any { k.startsWith(it) } }
 		for (k in memKeys) memory.remove(k)
 
 		// Disk filenames are "${category}_${sha256(key)}", so filter by prefix.
@@ -152,7 +159,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 
 	fun extractPalette(category: String, sourceUrl: String): String? {
 		val key = "$category:$sourceUrl"
-		val bytes = memory[key] ?: readFromDisk(key) ?: return null
+		val bytes = memory.get(key) ?: readFromDisk(key) ?: return null
 		val bitmap = try {
 			BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
 		} catch (error: Throwable) {
@@ -223,7 +230,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		Log.d(tag, "loadImage key=$key outputType=${options.outputType}")
 
 		// Fast path: native memory hit — synchronous, safe on any thread.
-		memory[key]?.let { bytes ->
+		memory.get(key)?.let { bytes ->
 			Log.d(tag, "cache hit key=$key bytes=${bytes.size}")
 			completeFromBytes(bytes, options, completion)
 			return null
@@ -299,7 +306,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		try {
 			// Disk hit: promote to memory and complete.
 			readFromDisk(key)?.let { bytes ->
-				memory[key] = bytes
+				memory.put(key, bytes)
 				Log.d(tag, "disk cache hit key=$key bytes=${bytes.size}")
 				inFlight.remove(key)
 				future.complete(bytes)
@@ -311,12 +318,12 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			// network if the original isn't cached yet.
 			if (payload.category == "album_art_blurred") {
 				val originalKey = "album_art:${payload.sourceUrl}"
-				val cachedOriginal = memory[originalKey] ?: readFromDisk(originalKey)
+				val cachedOriginal = memory.get(originalKey) ?: readFromDisk(originalKey)
 				if (cachedOriginal != null) {
 					val blurredBytes = generateBlurredBytes(cachedOriginal)
 					inFlight.remove(key)
 					if (blurredBytes != null) {
-						memory[key] = blurredBytes
+						memory.put(key, blurredBytes)
 						writeToDisk(key, blurredBytes)
 						Log.d(tag, "blur generated from cache key=$key bytes=${blurredBytes.size}")
 						future.complete(blurredBytes)
@@ -328,12 +335,12 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 					return
 				}
 				val originalBytes = URL(payload.sourceUrl).readBytes()
-				memory[originalKey] = originalBytes
+				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
 				val blurredBytes = generateBlurredBytes(originalBytes)
 				inFlight.remove(key)
 				if (blurredBytes != null) {
-					memory[key] = blurredBytes
+					memory.put(key, blurredBytes)
 					writeToDisk(key, blurredBytes)
 					Log.d(tag, "blur generated after fetch key=$key bytes=${blurredBytes.size}")
 					future.complete(blurredBytes)
@@ -357,7 +364,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 
 			val bytes = URL(payload.sourceUrl).readBytes()
 			Log.d(tag, "network fetch success key=$key bytes=${bytes.size}")
-			memory[key] = bytes
+			memory.put(key, bytes)
 			writeToDisk(key, bytes)
 			inFlight.remove(key)
 			future.complete(bytes)
