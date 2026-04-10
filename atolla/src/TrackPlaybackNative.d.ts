@@ -38,3 +38,6 @@ export function consumeAtollaTrackPlaybackNotificationAction(): string;
 
 // @ExportFunction
 export function ensureAtollaTrackPlaybackNotificationPermission(): boolean;
+
+// @ExportFunction
+export function getAtollaDeviceUserScopeKey(): string;

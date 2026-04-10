@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { PersistentStore } from 'persistence/src/PersistentStore';
+import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
@@ -18,6 +19,7 @@ import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { type ClearCacheSelection, ImageCache } from './services/ImageCache';
+import { buildImageSource } from './services/ImageSource';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
@@ -29,7 +31,11 @@ import {
 } from './services/TrackPlaybackNotificationSync';
 import { WriteBehindImageStore } from './services/WriteBehindImageStore';
 import { WriteBehindPaletteStore } from './services/WriteBehindPaletteStore';
-import { JellyfinAuthStore } from './stores/JellyfinAuthStore';
+import {
+	JellyfinAuthStore,
+	type JellyfinAuthStoreLike,
+	type StoredAuthSession,
+} from './stores/JellyfinAuthStore';
 import { PlaybackStore } from './stores/Playback';
 import {
 	DEFAULT_GRID_COLUMNS,
@@ -45,6 +51,7 @@ import {
 	consumeAtollaTrackPlaybackNotificationAction,
 	ensureAtollaTrackPlaybackNotificationPermission,
 	getAtollaCachedTrackFileUrl,
+	getAtollaDeviceUserScopeKey,
 	getAtollaTrackCacheEntryCount,
 	setAtollaTrackCacheMaxTracks,
 	updateAtollaTrackPlaybackNotification,
@@ -99,27 +106,91 @@ interface AppState {
 	version: number;
 }
 
+class InMemoryAuthStore implements JellyfinAuthStoreLike {
+	private session: StoredAuthSession | null = null;
+	private serverUrl = '';
+
+	loadSession(): Promise<StoredAuthSession | null> {
+		return Promise.resolve(this.session);
+	}
+
+	saveSession(session: StoredAuthSession): Promise<void> {
+		this.session = {
+			accessToken: session.accessToken,
+			serverId: session.serverId,
+			serverUrl: session.serverUrl,
+			userId: session.userId,
+		};
+		this.serverUrl = session.serverUrl;
+		return Promise.resolve();
+	}
+
+	clearSession(): Promise<void> {
+		this.session = null;
+		return Promise.resolve();
+	}
+
+	rememberServerUrl(serverUrl: string): Promise<void> {
+		this.serverUrl = serverUrl;
+		return Promise.resolve();
+	}
+
+	loadRememberedServerUrl(): Promise<string> {
+		return Promise.resolve(this.serverUrl);
+	}
+}
+
 export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playbackStore = new PlaybackStore();
 	private preferences = new Preferences(
 		new PersistentStore('atolla/preferences', { deviceGlobal: true }),
 	);
-	private authService = (() => {
+	private authService = this.createAuthService();
+
+	private createAuthService(): JellyfinAuthService {
+		const scopeKey = this.resolveDeviceUserScopeKey();
+		const authStoreNamespace = `atolla/device-user/${scopeKey}/jellyfin_auth`;
 		try {
 			return new JellyfinAuthService({
 				store: new JellyfinAuthStore(
-					new PersistentStore('atolla/jellyfin_auth', { enableEncryption: true }),
+					new PersistentStore(authStoreNamespace, {
+						deviceGlobal: true,
+						enableEncryption: true,
+					}),
 				),
 			});
 		} catch {
-			// User session unavailable (e.g. emulator) — fall back to unencrypted device-global store.
-			return new JellyfinAuthService({
-				store: new JellyfinAuthStore(
-					new PersistentStore('atolla/jellyfin_auth', { deviceGlobal: true }),
-				),
-			});
+			try {
+				return new JellyfinAuthService({
+					store: new JellyfinAuthStore(
+						new PersistentStore(authStoreNamespace, { deviceGlobal: true }),
+					),
+				});
+			} catch {
+				return new JellyfinAuthService({
+					store: new InMemoryAuthStore(),
+				});
+			}
 		}
-	})();
+	}
+
+	private resolveDeviceUserScopeKey(): string {
+		try {
+			const raw = getAtollaDeviceUserScopeKey();
+			if (typeof raw !== 'string') {
+				return 'unknown';
+			}
+
+			const trimmed = raw.trim();
+			if (trimmed.length === 0) {
+				return 'unknown';
+			}
+
+			return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
+		} catch {
+			return 'unknown';
+		}
+	}
 	private searchStore!: SearchStore;
 	private transport: Transport = new MockTransport();
 	private imageCache!: ImageCache;
@@ -534,11 +605,30 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.playbackStore.track?.albumImageUrl ?? this.playbackStore.album?.imageUrl ?? null;
 		if (!imageUrl || imageUrl === this.lastArtworkUrl) return;
 		this.lastArtworkUrl = imageUrl;
+		this.prewarmNowPlayingArtwork(imageUrl);
 		void this.paletteService.warmUp([imageUrl]).then(() => {
 			if (!this.paletteService.hasPalette(imageUrl)) {
 				this.paletteQueue.prioritize(imageUrl);
 			}
 		});
+	}
+
+	private prewarmNowPlayingArtwork(imageUrl: string): void {
+		const sources = [
+			buildImageSource(imageUrl, 'album_art'),
+			buildImageSource(imageUrl, 'album_art_blurred'),
+		];
+
+		for (const source of sources) {
+			let subscription: { unsubscribe(): void } | undefined;
+			subscription = addAssetLoadObserver(
+				source,
+				() => {
+					subscription?.unsubscribe();
+				},
+				AssetOutputType.BITMAP,
+			);
+		}
 	}
 
 	private handleTrackCached(trackId: string): void {

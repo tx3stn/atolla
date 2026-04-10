@@ -3,8 +3,7 @@ import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
 import { guessMimeType } from '../images/MimeType';
 
 export interface ImageStore {
-	exists(key: string): Promise<boolean>;
-	fetch(key: string): Promise<ArrayBuffer>;
+	fetch(key: string): Promise<ArrayBuffer | null>;
 	fetchAll?(): Promise<Record<string, unknown>>;
 	remove?(key: string): Promise<void>;
 	store(key: string, value: ArrayBuffer, ttlSeconds?: number, weight?: number): Promise<void>;
@@ -223,12 +222,12 @@ export class ImageCache {
 		try {
 			// Try persistent store first
 			try {
-				if (await this.store.exists(storeKey)) {
-					const buffer = await this.store.fetch(storeKey);
+				const diskBuffer = await this.store.fetch(storeKey);
+				if (diskBuffer !== null) {
 					const mimeType = guessMimeType(url);
-					this.memory.set(memoryKey, toDataUri(buffer, mimeType));
-					this.buffers.set(memoryKey, { buffer, mimeType });
-					this.notifyStored(url, buffer, mimeType);
+					this.memory.set(memoryKey, toDataUri(diskBuffer, mimeType));
+					this.buffers.set(memoryKey, { buffer: diskBuffer, mimeType });
+					this.notifyStored(url, diskBuffer, mimeType);
 					return;
 				}
 			} catch {

@@ -107,6 +107,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			this.isLoadingPage = false;
 			void this.viewModel.imageCache.prefetch(
 				page.items.map((a) => a.imageUrl).filter((url): url is string => url != null),
+				'album_art',
 			);
 			this.setState({
 				albums,

@@ -567,7 +567,9 @@ export class NowPlayingSurface extends StatefulComponent<
 											onTap={onLoopModeToggle}
 											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
-											tint={loopMode === 'none' ? theme.colors.grey : onSurfaceColor}
+											tint={
+												loopMode === 'none' ? withAlpha(mutedOnSurfaceColor, 0.58) : onSurfaceColor
+											}
 										/>
 										<TappableIcon
 											accessibilityLabel='now-playing-previous'

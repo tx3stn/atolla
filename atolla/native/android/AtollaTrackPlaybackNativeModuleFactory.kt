@@ -17,6 +17,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import android.util.Log
 import com.snap.modules.atolla.TrackPlaybackNativeModule
 import com.snap.modules.atolla.TrackPlaybackNativeModuleFactory
@@ -84,6 +85,15 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 
 			override fun ensureAtollaTrackPlaybackNotificationPermission(): Boolean {
 				return AtollaTrackPlaybackMediaSession.ensureNotificationPermission()
+			}
+
+			override fun getAtollaDeviceUserScopeKey(): String {
+				return try {
+					val userId = Process.myUid() / 100000
+					"android-user-$userId"
+				} catch (_: Throwable) {
+					"android-user-unknown"
+				}
 			}
 		}
 	}

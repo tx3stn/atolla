@@ -30,6 +30,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.URL
 import java.security.MessageDigest
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 import kotlin.math.abs
@@ -55,9 +56,14 @@ data class QuantizedColorCandidate(
 )
 
 class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
+	companion object {
+		private val sharedMemory = ConcurrentHashMap<String, ByteArray>()
+		private val inFlight = ConcurrentHashMap<String, CompletableFuture<ByteArray>>()
+	}
+
 	private val tag = "AtollaCacheLoader"
 	private val diskCacheFolder = "atolla-image-cache"
-	private val memory = ConcurrentHashMap<String, ByteArray>()
+	private val memory = sharedMemory
 	private val diskCacheDir: File? by lazy {
 		val appCacheDir = resolveAppCacheDir() ?: return@lazy null
 		val dir = File(appCacheDir, diskCacheFolder)
@@ -185,87 +191,118 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		val key = "${payload.category}:${payload.sourceUrl}"
 		Log.d(tag, "loadImage key=$key outputType=${options.outputType}")
 
+		// Fast path: native memory hit — synchronous, safe on any thread.
 		memory[key]?.let { bytes ->
 			Log.d(tag, "cache hit key=$key bytes=${bytes.size}")
 			completeFromBytes(bytes, options, completion)
 			return null
 		}
 
-		readFromDisk(key)?.let { bytes ->
-			memory[key] = bytes
-			Log.d(tag, "disk cache hit key=$key bytes=${bytes.size}")
-			completeFromBytes(bytes, options, completion)
-			return null
+		// Disk reads and network fetches happen on a background thread so the
+		// calling thread (typically the UI thread) is never blocked. Disposing
+		// only cancels the completion callback — the download still runs to
+		// completion so the result is cached for the next request (e.g. when
+		// the same image scrolls back into view).
+		val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
+
+		// Deduplicate concurrent requests for the same key. If a download is
+		// already in progress, attach to its CompletableFuture instead of
+		// starting another thread. This prevents the "all at once" appearance
+		// caused by N grid items each spawning their own background thread.
+		val existing = inFlight[key]
+		if (existing != null) {
+			existing.whenComplete { bytes, error ->
+				if (!cancelled.get()) {
+					if (bytes != null) completeFromBytes(bytes, options, completion)
+					else completion.onImageLoadComplete(0, 0, null, error ?: ValdiException("Download failed"))
+				}
+			}
+			return object : Disposable {
+				override fun dispose() { cancelled.set(true) }
+			}
 		}
 
-		// For blurred requests: generate from the cached original, fetching from
-		// network on a background thread if the original isn't cached yet.
-		if (payload.category == "album_art_blurred") {
-			val originalKey = "album_art:${payload.sourceUrl}"
-			val cachedOriginal = memory[originalKey] ?: readFromDisk(originalKey)
-			if (cachedOriginal != null) {
-				val blurredBytes = generateBlurredBytes(cachedOriginal)
-				if (blurredBytes != null) {
-					memory[key] = blurredBytes
-					writeToDisk(key, blurredBytes)
-					Log.d(tag, "blur generated from cache key=$key bytes=${blurredBytes.size}")
-					completeFromBytes(blurredBytes, options, completion)
-					return null
+		val future = CompletableFuture<ByteArray>()
+		inFlight[key] = future
+
+		thread(start = true) {
+			try {
+				// Disk hit: promote to memory and complete.
+				readFromDisk(key)?.let { bytes ->
+					memory[key] = bytes
+					Log.d(tag, "disk cache hit key=$key bytes=${bytes.size}")
+					inFlight.remove(key)
+					future.complete(bytes)
+					if (!cancelled.get()) completeFromBytes(bytes, options, completion)
+					return@thread
 				}
-				completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed"))
-				return null
-			}
-			// Original not in cache yet — fetch from network then generate.
-			val worker = thread(start = true) {
-				try {
+
+				// Blurred art: generate from the cached original, fetching from
+				// network if the original isn't cached yet.
+				if (payload.category == "album_art_blurred") {
+					val originalKey = "album_art:${payload.sourceUrl}"
+					val cachedOriginal = memory[originalKey] ?: readFromDisk(originalKey)
+					if (cachedOriginal != null) {
+						val blurredBytes = generateBlurredBytes(cachedOriginal)
+						inFlight.remove(key)
+						if (blurredBytes != null) {
+							memory[key] = blurredBytes
+							writeToDisk(key, blurredBytes)
+							Log.d(tag, "blur generated from cache key=$key bytes=${blurredBytes.size}")
+							future.complete(blurredBytes)
+							if (!cancelled.get()) completeFromBytes(blurredBytes, options, completion)
+						} else {
+							future.completeExceptionally(ValdiException("Blur generation failed"))
+							if (!cancelled.get()) completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed"))
+						}
+						return@thread
+					}
 					val originalBytes = URL(payload.sourceUrl).readBytes()
 					memory[originalKey] = originalBytes
 					writeToDisk(originalKey, originalBytes)
 					val blurredBytes = generateBlurredBytes(originalBytes)
+					inFlight.remove(key)
 					if (blurredBytes != null) {
 						memory[key] = blurredBytes
 						writeToDisk(key, blurredBytes)
 						Log.d(tag, "blur generated after fetch key=$key bytes=${blurredBytes.size}")
-						completeFromBytes(blurredBytes, options, completion)
+						future.complete(blurredBytes)
+						if (!cancelled.get()) completeFromBytes(blurredBytes, options, completion)
 					} else {
-						completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed after fetch"))
+						future.completeExceptionally(ValdiException("Blur generation failed after fetch"))
+						if (!cancelled.get()) completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed after fetch"))
 					}
-				} catch (error: Throwable) {
-					Log.e(tag, "blur fetch failed key=$key", error)
-					completion.onImageLoadComplete(0, 0, null, error)
+					return@thread
 				}
-			}
-			return object : Disposable {
-				override fun dispose() { worker.interrupt() }
-			}
-		}
 
-		if (payload.cacheOnly) {
-			completion.onImageLoadComplete(
-				0,
-				0,
-				null,
-				ValdiException("Cache miss for cache-only request"),
-			)
-			return null
-		}
+				if (payload.cacheOnly) {
+					inFlight.remove(key)
+					val ex = ValdiException("Cache miss for cache-only request")
+					future.completeExceptionally(ex)
+					if (!cancelled.get()) {
+						completion.onImageLoadComplete(0, 0, null, ex)
+					}
+					return@thread
+				}
 
-		val worker = thread(start = true) {
-			try {
 				val bytes = URL(payload.sourceUrl).readBytes()
 				Log.d(tag, "network fetch success key=$key bytes=${bytes.size}")
 				memory[key] = bytes
 				writeToDisk(key, bytes)
-				completeFromBytes(bytes, options, completion)
+				inFlight.remove(key)
+				future.complete(bytes)
+				if (!cancelled.get()) completeFromBytes(bytes, options, completion)
 			} catch (error: Throwable) {
-				Log.e(tag, "network fetch failed key=$key", error)
-				completion.onImageLoadComplete(0, 0, null, error)
+				Log.e(tag, "load failed key=$key", error)
+				inFlight.remove(key)
+				future.completeExceptionally(error)
+				if (!cancelled.get()) completion.onImageLoadComplete(0, 0, null, error)
 			}
 		}
 
 		return object : Disposable {
 			override fun dispose() {
-				worker.interrupt()
+				cancelled.set(true)
 			}
 		}
 	}

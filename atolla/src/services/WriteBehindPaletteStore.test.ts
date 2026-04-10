@@ -15,8 +15,10 @@ class CapturingStore implements PaletteStore {
 	saved: Array<{ url: string; palette: Palette }> = [];
 	seeded = new Map<string, Palette>();
 	resolvers: Array<() => void> = [];
+	loadCalls = 0;
 
 	loadPalette(url: string): Promise<Palette | null> {
+		this.loadCalls += 1;
 		return Promise.resolve(this.seeded.get(url) ?? null);
 	}
 
@@ -68,6 +70,17 @@ describe('WriteBehindPaletteStore', () => {
 
 			await expect(store.savePalette('url', palette)).resolves.toBeUndefined();
 		});
+
+		it('makes the palette available from memory immediately', async () => {
+			const inner = new CapturingStore();
+			const store = new WriteBehindPaletteStore(inner);
+
+			void store.savePalette('https://example.com/art.png', palette);
+			const result = await store.loadPalette('https://example.com/art.png');
+
+			expect(result).toEqual(palette);
+			expect(inner.loadCalls).toBe(0);
+		});
 	});
 
 	describe('loadPalette()', () => {
@@ -85,6 +98,19 @@ describe('WriteBehindPaletteStore', () => {
 			const store = new WriteBehindPaletteStore(new CapturingStore());
 
 			expect(await store.loadPalette('https://example.com/missing.png')).toBeNull();
+		});
+
+		it('hydrates memory from inner store and serves subsequent reads from memory', async () => {
+			const inner = new CapturingStore();
+			inner.seeded.set('https://example.com/art.png', palette);
+			const store = new WriteBehindPaletteStore(inner);
+
+			const first = await store.loadPalette('https://example.com/art.png');
+			const second = await store.loadPalette('https://example.com/art.png');
+
+			expect(first).toEqual(palette);
+			expect(second).toEqual(palette);
+			expect(inner.loadCalls).toBe(1);
 		});
 	});
 });
