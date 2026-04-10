@@ -39,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -108,6 +109,8 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			}
 		}
 		private val inFlight = ConcurrentHashMap<String, CompletableFuture<ByteArray>>()
+		private val diskEvictionScheduled = AtomicBoolean(false)
+		private val diskEvictionRequested = AtomicBoolean(false)
 		var sharedInstance: AtollaCacheImageLoader? = null
 		var imageCachedObserver: ((url: String, category: String) -> Unit)? = null
 	}
@@ -572,52 +575,75 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 	}
 
 	private fun evictDiskCacheIfNeeded() {
-		val dir = diskCacheDir ?: return
+		diskEvictionRequested.set(true)
+		if (!diskEvictionScheduled.compareAndSet(false, true)) {
+			return
+		}
+
 		executor.execute(
 			LoadTask(LoadPriority.PREFETCH) {
-				val files = try {
-					dir.listFiles()?.filter { it.isFile }
-				} catch (_: Throwable) {
-					null
-				} ?: return@LoadTask
-
-				val now = System.currentTimeMillis()
-				val liveFiles = mutableListOf<File>()
-				for (file in files) {
-					val age = now - file.lastModified()
-					if (age > DISK_CACHE_TTL_MS) {
-						try {
-							file.delete()
-						} catch (_: Throwable) {
-							// Best effort disk cleanup.
-						}
-						continue
-					}
-					liveFiles.add(file)
-				}
-
-				var totalBytes = liveFiles.sumOf { it.length() }
-				if (totalBytes <= DISK_CACHE_MAX_BYTES) {
-					return@LoadTask
-				}
-
-				val oldestFirst = liveFiles.sortedBy { it.lastModified() }
-				for (file in oldestFirst) {
-					if (totalBytes <= DISK_CACHE_MAX_BYTES) {
-						break
-					}
-					val fileBytes = file.length()
-					val deleted = try {
-						file.delete()
-					} catch (_: Throwable) {
-						false
-					}
-					if (deleted) {
-						totalBytes -= fileBytes
+				try {
+					drainDiskEvictionRequests()
+				} finally {
+					diskEvictionScheduled.set(false)
+					if (diskEvictionRequested.get()) {
+						evictDiskCacheIfNeeded()
 					}
 				}
 			},
 		)
+	}
+
+	private fun drainDiskEvictionRequests() {
+		do {
+			diskEvictionRequested.set(false)
+			runDiskEvictionPass()
+		} while (diskEvictionRequested.get())
+	}
+
+	private fun runDiskEvictionPass() {
+		val dir = diskCacheDir ?: return
+		val files = try {
+			dir.listFiles()?.filter { it.isFile }
+		} catch (_: Throwable) {
+			null
+		} ?: return
+
+		val now = System.currentTimeMillis()
+		val liveFiles = mutableListOf<File>()
+		for (file in files) {
+			val age = now - file.lastModified()
+			if (age > DISK_CACHE_TTL_MS) {
+				try {
+					file.delete()
+				} catch (_: Throwable) {
+					// Best effort disk cleanup.
+				}
+				continue
+			}
+			liveFiles.add(file)
+		}
+
+		var totalBytes = liveFiles.sumOf { it.length() }
+		if (totalBytes <= DISK_CACHE_MAX_BYTES) {
+			return
+		}
+
+		val oldestFirst = liveFiles.sortedBy { it.lastModified() }
+		for (file in oldestFirst) {
+			if (totalBytes <= DISK_CACHE_MAX_BYTES) {
+				break
+			}
+			val fileBytes = file.length()
+			val deleted = try {
+				file.delete()
+			} catch (_: Throwable) {
+				false
+			}
+			if (deleted) {
+				totalBytes -= fileBytes
+			}
+		}
 	}
 
 	private fun sha256Hex(value: String): String {
