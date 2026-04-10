@@ -647,7 +647,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 
-		this.handleTrackPlaybackSourceChange(true);
+		if (this.state.trackPlaybackSourceUrl == null) {
+			this.handleTrackPlaybackSourceChange(true);
+		}
 	}
 
 	private handleTrackCacheFetchFailed(trackId: string, reason = 'unknown'): void {
@@ -700,8 +702,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 
+		const streamUrl = this.getTrackStreamSource(activeTrack.id);
+		if (streamUrl && this.state.trackPlaybackSourceUrl !== streamUrl) {
+			this.setState({ trackPlaybackSourceUrl: streamUrl });
+		}
+
 		if (this.playbackStore.isPlaying) {
-			void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId);
+			void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
 		}
 	}
 
@@ -740,7 +747,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex);
 	}
 
-	private downloadCurrentTrackForPlayback(trackId: string, requestId: number): void {
+	private downloadCurrentTrackForPlayback(
+		trackId: string,
+		requestId: number,
+		resolvedStreamSource: string | null,
+	): void {
 		if (!trackId || this.inFlightTrackDownloadIds.has(trackId)) {
 			return;
 		}
@@ -748,7 +759,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.inFlightTrackDownloadIds.add(trackId);
 
 		try {
-			const url = this.transport.getTrackCacheUrl?.(trackId) ?? null;
+			const url = resolvedStreamSource ?? this.getTrackStreamSource(trackId);
 			if (!url) {
 				this.showPlaybackToast('cache download failed: no url');
 				this.handleTrackCacheFetchFailed(trackId, 'no url');
@@ -785,6 +796,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		} finally {
 			this.inFlightTrackDownloadIds.delete(trackId);
 		}
+	}
+
+	private getTrackStreamSource(trackId: string): string | null {
+		const url = this.transport.getTrackCacheUrl?.(trackId) ?? null;
+		if (!url) {
+			return null;
+		}
+
+		return this.normalizePlaybackFileSource(url);
 	}
 
 	private summarizeCacheError(message: string): string {
