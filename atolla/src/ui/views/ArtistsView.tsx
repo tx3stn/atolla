@@ -3,6 +3,7 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
+import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Artist } from '../../models/Artist';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -102,10 +103,14 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			const artists = isFirstPage ? page.items : [...this.state.artists, ...page.items];
 			this.currentPage = nextPage;
 			this.isLoadingPage = false;
-			void this.viewModel.imageCache.prefetch(
-				page.items.map((a) => a.imageUrl).filter((url): url is string => url != null),
-				'artist_image',
-			);
+			try {
+				preloadAtollaImages(
+					page.items.map((a) => a.imageUrl).filter((url): url is string => url != null),
+					'artist_image',
+				);
+			} catch {
+				// Non-Android targets do not provide native preload bridge.
+			}
 			this.setState({
 				artists,
 				hasMore: page.hasMore,

@@ -97,11 +97,16 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			}
 		}
 		private val inFlight = ConcurrentHashMap<String, CompletableFuture<ByteArray>>()
+		var sharedInstance: AtollaCacheImageLoader? = null
 	}
 
 	private val tag = "AtollaCacheLoader"
 	private val diskCacheFolder = "atolla-image-cache"
 	private val memory = sharedMemory
+
+	init {
+		sharedInstance = this
+	}
 	private val diskCacheDir: File? by lazy {
 		val appCacheDir = resolveAppCacheDir() ?: return@lazy null
 		val dir = File(appCacheDir, diskCacheFolder)
@@ -374,6 +379,85 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			inFlight.remove(key)
 			future.completeExceptionally(error)
 			if (!cancelled.get()) completion.onImageLoadComplete(0, 0, null, error)
+		}
+	}
+
+	fun preload(sourceUrl: String, category: String) {
+		if (sourceUrl.isBlank() || category.isBlank()) {
+			return
+		}
+
+		val key = "$category:$sourceUrl"
+		if (memory.get(key) != null || inFlight.containsKey(key)) {
+			return
+		}
+
+		val future = CompletableFuture<ByteArray>()
+		if (inFlight.putIfAbsent(key, future) != null) {
+			return
+		}
+
+		executor.execute(
+			LoadTask(LoadPriority.PREFETCH) {
+				executePreloadTask(sourceUrl, category, key, future)
+			},
+		)
+	}
+
+	private fun executePreloadTask(
+		sourceUrl: String,
+		category: String,
+		key: String,
+		future: CompletableFuture<ByteArray>,
+	) {
+		try {
+			readFromDisk(key)?.let { bytes ->
+				memory.put(key, bytes)
+				inFlight.remove(key)
+				future.complete(bytes)
+				return
+			}
+
+			if (category == "album_art_blurred") {
+				val originalKey = "album_art:$sourceUrl"
+				val cachedOriginal = memory.get(originalKey) ?: readFromDisk(originalKey)
+				if (cachedOriginal != null) {
+					val blurredBytes = generateBlurredBytes(cachedOriginal)
+					inFlight.remove(key)
+					if (blurredBytes != null) {
+						memory.put(key, blurredBytes)
+						writeToDisk(key, blurredBytes)
+						future.complete(blurredBytes)
+					} else {
+						future.completeExceptionally(ValdiException("Blur generation failed"))
+					}
+					return
+				}
+
+				val originalBytes = URL(sourceUrl).readBytes()
+				memory.put(originalKey, originalBytes)
+				writeToDisk(originalKey, originalBytes)
+				val blurredBytes = generateBlurredBytes(originalBytes)
+				inFlight.remove(key)
+				if (blurredBytes != null) {
+					memory.put(key, blurredBytes)
+					writeToDisk(key, blurredBytes)
+					future.complete(blurredBytes)
+				} else {
+					future.completeExceptionally(ValdiException("Blur generation failed after fetch"))
+				}
+				return
+			}
+
+			val bytes = URL(sourceUrl).readBytes()
+			memory.put(key, bytes)
+			writeToDisk(key, bytes)
+			inFlight.remove(key)
+			future.complete(bytes)
+		} catch (error: Throwable) {
+			inFlight.remove(key)
+			future.completeExceptionally(error)
+			Log.e(tag, "preload failed key=$key", error)
 		}
 	}
 

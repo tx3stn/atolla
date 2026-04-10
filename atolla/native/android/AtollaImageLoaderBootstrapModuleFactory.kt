@@ -27,6 +27,13 @@ class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactor
 			override fun extractAtollaPaletteFromCache(url: String, category: String): String {
 				return AtollaImageLoaderAutoBootstrap.extractPaletteFromCache(url, category) ?: ""
 			}
+
+			override fun preloadAtollaImages(urls: List<String>, category: String) {
+				val loader = AtollaCacheImageLoader.sharedInstance ?: return
+				for (url in urls) {
+					loader.preload(url, category)
+				}
+			}
 		}
 	}
 }
