@@ -43,6 +43,7 @@ kt_android_library(
     custom_package = "atolla.native.android",
     deps = [
         "//atolla:atolla_api_kt",
+        "@android_mvn//:com_squareup_okhttp3_okhttp",
         "@valdi//valdi:valdi_java",
     ],
 )

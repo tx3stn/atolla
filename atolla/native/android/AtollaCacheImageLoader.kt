@@ -27,9 +27,12 @@ import com.snap.valdi.utils.ValdiMarshaller
 import com.snap.valdi.utils.ValdiVideoLoader
 import com.snap.valdi.utils.ValdiVideoPlayer
 import com.snap.valdi.utils.ValdiVideoPlayerCreatedCompletion
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.net.URL
+import java.io.IOException
 import java.security.MessageDigest
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -63,6 +66,12 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		private const val MEMORY_CACHE_BYTES = 50 * 1024 * 1024
 		private const val DISK_CACHE_MAX_BYTES = 200L * 1024 * 1024
 		private const val DISK_CACHE_TTL_MS = 30L * 24 * 3600 * 1000
+
+		private val httpClient = OkHttpClient.Builder()
+			.protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+			.connectTimeout(10, TimeUnit.SECONDS)
+			.readTimeout(30, TimeUnit.SECONDS)
+			.build()
 
 		private enum class LoadPriority(val value: Int) {
 			DISPLAY(0),
@@ -342,7 +351,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 					}
 					return
 				}
-				val originalBytes = URL(payload.sourceUrl).readBytes()
+				val originalBytes = fetchBytes(payload.sourceUrl)
 				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
 				val blurredBytes = generateBlurredBytes(originalBytes)
@@ -371,7 +380,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				return
 			}
 
-			val bytes = URL(payload.sourceUrl).readBytes()
+			val bytes = fetchBytes(payload.sourceUrl)
 			Log.d(tag, "network fetch success key=$key bytes=${bytes.size}")
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
@@ -439,7 +448,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 					return
 				}
 
-				val originalBytes = URL(sourceUrl).readBytes()
+				val originalBytes = fetchBytes(sourceUrl)
 				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
 				val blurredBytes = generateBlurredBytes(originalBytes)
@@ -455,7 +464,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				return
 			}
 
-			val bytes = URL(sourceUrl).readBytes()
+			val bytes = fetchBytes(sourceUrl)
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
 			notifyImageCached(sourceUrl, category)
@@ -473,6 +482,16 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			imageCachedObserver?.invoke(url, category)
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed to notify image cached observer", error)
+		}
+	}
+
+	private fun fetchBytes(url: String): ByteArray {
+		val request = Request.Builder().url(url).build()
+		return httpClient.newCall(request).execute().use { response ->
+			if (!response.isSuccessful) {
+				throw IOException("HTTP ${response.code}")
+			}
+			response.body?.bytes() ?: throw IOException("Empty body")
 		}
 	}
 
