@@ -40,6 +40,7 @@ import java.util.concurrent.PriorityBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -63,6 +64,12 @@ data class QuantizedColorCandidate(
 )
 
 class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
+	private data class DiskCacheEntry(
+		val file: File,
+		val bytes: Long,
+		val modifiedAtMs: Long,
+	)
+
 	companion object {
 		private const val MEMORY_CACHE_BYTES = 50 * 1024 * 1024
 		private const val DISK_CACHE_MAX_BYTES = 200L * 1024 * 1024
@@ -79,8 +86,11 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			PREFETCH(1),
 		}
 
-		private data class LoadTask(
+		private val taskSequence = AtomicLong(0)
+
+		private class LoadTask(
 			val priority: LoadPriority,
+			private val sequence: Long = taskSequence.incrementAndGet(),
 			val runTask: () -> Unit,
 		) : Runnable, Comparable<LoadTask> {
 			override fun run() {
@@ -88,7 +98,12 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			}
 
 			override fun compareTo(other: LoadTask): Int {
-				return priority.value.compareTo(other.priority.value)
+				val byPriority = priority.value.compareTo(other.priority.value)
+				if (byPriority != 0) {
+					return byPriority
+				}
+
+				return sequence.compareTo(other.sequence)
 			}
 		}
 
@@ -610,9 +625,10 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		} ?: return
 
 		val now = System.currentTimeMillis()
-		val liveFiles = mutableListOf<File>()
+		val liveFiles = mutableListOf<DiskCacheEntry>()
 		for (file in files) {
-			val age = now - file.lastModified()
+			val modifiedAtMs = file.lastModified()
+			val age = now - modifiedAtMs
 			if (age > DISK_CACHE_TTL_MS) {
 				try {
 					file.delete()
@@ -621,22 +637,28 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				}
 				continue
 			}
-			liveFiles.add(file)
+			liveFiles.add(
+				DiskCacheEntry(
+					file = file,
+					bytes = file.length(),
+					modifiedAtMs = modifiedAtMs,
+				),
+			)
 		}
 
-		var totalBytes = liveFiles.sumOf { it.length() }
+		var totalBytes = liveFiles.sumOf { it.bytes }
 		if (totalBytes <= DISK_CACHE_MAX_BYTES) {
 			return
 		}
 
-		val oldestFirst = liveFiles.sortedBy { it.lastModified() }
-		for (file in oldestFirst) {
+		val oldestFirst = liveFiles.sortedWith(compareBy<DiskCacheEntry> { it.modifiedAtMs }.thenBy { it.file.name })
+		for (entry in oldestFirst) {
 			if (totalBytes <= DISK_CACHE_MAX_BYTES) {
 				break
 			}
-			val fileBytes = file.length()
+			val fileBytes = entry.bytes
 			val deleted = try {
-				file.delete()
+				entry.file.delete()
 			} catch (_: Throwable) {
 				false
 			}
