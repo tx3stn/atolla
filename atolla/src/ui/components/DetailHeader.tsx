@@ -38,6 +38,7 @@ export interface DetailHeaderViewModel {
 interface DetailHeaderState {
 	addToQueuePhase: 'idle' | 'confirming';
 	checkmarkAnimated: boolean;
+	removeDownloadPhase: 'idle' | 'confirming';
 	toastMessage: string | null;
 }
 
@@ -45,18 +46,34 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 	private checkmarkRef = new ElementRef();
 	private rippleRef = new ElementRef();
 	private confirmationTimer?: ReturnType<typeof setTimeout>;
+	private removeDownloadTimer?: ReturnType<typeof setTimeout>;
 	private toastTimer?: ReturnType<typeof setTimeout>;
 
 	state: DetailHeaderState = {
 		addToQueuePhase: 'idle',
 		checkmarkAnimated: false,
+		removeDownloadPhase: 'idle',
 		toastMessage: null,
 	};
 
 	onDestroy(): void {
 		clearTimeout(this.confirmationTimer);
+		clearTimeout(this.removeDownloadTimer);
 		this.toastTimer = clearScheduledToast(this.toastTimer);
 	}
+
+	private handleRemoveDownloadTap = (): void => {
+		this.viewModel.onRemoveDownload?.();
+
+		if (this.removeDownloadTimer) {
+			clearTimeout(this.removeDownloadTimer);
+		}
+
+		this.setState({ removeDownloadPhase: 'confirming' });
+		this.removeDownloadTimer = setTimeout(() => {
+			this.setState({ removeDownloadPhase: 'idle' });
+		}, 2000);
+	};
 
 	private handleAddToQueueTap = async (): Promise<void> => {
 		const { animationsEnabled, onAddToQueue } = this.viewModel;
@@ -101,7 +118,6 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			logoSource,
 			onArtistTap,
 			onDownload,
-			onRemoveDownload,
 			onPlay,
 			onShuffle,
 			subheaderLineOneLeft,
@@ -110,7 +126,18 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			subheaderLineTwoRight,
 		} = this.viewModel;
 
-		const { addToQueuePhase, checkmarkAnimated, toastMessage } = this.state;
+		const { addToQueuePhase, checkmarkAnimated, removeDownloadPhase, toastMessage } = this.state;
+		const showRemoveConfirmation = removeDownloadPhase === 'confirming';
+		const downloadIcon = showRemoveConfirmation
+			? res.trash
+			: downloadState === 'downloaded'
+				? res.downloaded
+				: res.download;
+		const onDownloadTap = showRemoveConfirmation
+			? undefined
+			: downloadState === 'downloaded'
+				? this.handleRemoveDownloadTap
+				: onDownload;
 
 		<layout style={styles.root}>
 			<layout style={styles.headerRow}>
@@ -148,8 +175,8 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 							<TappableIcon
 								accessibilityLabel='detail-header-download-button'
 								animationsEnabled={this.viewModel.animationsEnabled}
-								icon={downloadState === 'downloaded' ? res.downloaded : res.download}
-								onTap={downloadState === 'downloaded' ? onRemoveDownload : onDownload}
+								icon={downloadIcon}
+								onTap={onDownloadTap}
 							/>
 						)}
 						<TappableIcon
