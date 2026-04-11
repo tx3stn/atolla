@@ -1,5 +1,6 @@
 // biome-ignore-all lint/suspicious/useAwait: async used for Transport interface conformance
 
+import { TransportErrors } from '../errors/TransportErrors';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
 import type { Playlist } from '../models/Playlist';
@@ -155,6 +156,6 @@ export class OfflineTransport implements Transport {
 	}
 
 	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {
-		// Scrobbles queued by ScrobbleService are retried when back online.
+		return Promise.reject(new Error(TransportErrors.OFFLINE_SCROBBLE_UNAVAILABLE.msg()));
 	}
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { TransportErrors } from '../errors/TransportErrors';
 import type {
 	DownloadedAlbumEntry,
 	DownloadedArtistEntry,
@@ -120,5 +121,13 @@ describe('OfflineTransport', () => {
 		const logoUrl = await transport.getArtistLogoUrl('artist-1');
 
 		expect(logoUrl).toBe('https://img/logo-artist-1.png');
+	});
+
+	it('rejects scrobble delivery while offline', async () => {
+		const transport = new OfflineTransport(createDownloadsMock({}) as never);
+
+		await expect(
+			transport.scrobbleTrackPlayed('track-1', '2026-01-01T00:00:00.000Z'),
+		).rejects.toThrow(TransportErrors.OFFLINE_SCROBBLE_UNAVAILABLE.msg());
 	});
 });
