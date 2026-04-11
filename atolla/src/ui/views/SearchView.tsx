@@ -25,12 +25,6 @@ import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
 import { PlaylistView } from './PlaylistView';
 
-const noResultFrames = [
-	'No results. The crate is empty.',
-	'No results. Dig deeper.',
-	'No results. Try another cut.',
-];
-
 type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 
 export interface SearchViewModel {
@@ -56,7 +50,6 @@ interface SearchState {
 	errorMessage: string | null;
 	isFooterVisible: boolean;
 	lastSubmittedQuery: string;
-	noResultFrameIndex: number;
 	query: string;
 	recentSearches: Array<string>;
 	results: SearchResults;
@@ -97,7 +90,6 @@ function normalizeSearchInput(value: unknown): string {
 
 export class SearchView extends StatefulComponent<SearchViewModel, SearchState> {
 	private hasBeenDestroyed = false;
-	private noResultTimer?: ReturnType<typeof setInterval>;
 	private requestVersion = 0;
 	private recentSearchTapHandlers = new Map<string, () => void>();
 	private searchInputRef = new ElementRef();
@@ -109,7 +101,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		errorMessage: null,
 		isFooterVisible: false,
 		lastSubmittedQuery: '',
-		noResultFrameIndex: 0,
 		query: '',
 		recentSearches: [],
 		results: {
@@ -142,16 +133,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			}
 			this.setState({ recentSearches });
 		});
-
-		this.noResultTimer = setInterval(() => {
-			if (this.state.status !== 'empty') {
-				return;
-			}
-
-			this.setState({
-				noResultFrameIndex: (this.state.noResultFrameIndex + 1) % noResultFrames.length,
-			});
-		}, 420);
 	}
 
 	onViewModelUpdate(prevViewModel?: SearchViewModel): void {
@@ -199,9 +180,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
 		this.toastTimerId = clearScheduledToast(this.toastTimerId);
-		if (this.noResultTimer) {
-			clearInterval(this.noResultTimer);
-		}
 	}
 
 	handleSubmitSearch = (query: unknown): void => {
@@ -602,11 +580,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 					{status === 'empty' && (
 						<view style={styles.infoContainer}>
-							<label style={styles.emptyTitle} value='No matches found' />
-							<label
-								style={styles.emptyText}
-								value={noResultFrames[this.state.noResultFrameIndex]}
-							/>
+							<label style={styles.emptyTitle} value='nothing to see here' />
 						</view>
 					)}
 
@@ -730,6 +704,7 @@ const styles = {
 	}),
 	emptyTitle: new Style<Label>({
 		...theme.text.mainBold,
+		paddingBottom: 20,
 		textAlign: 'center',
 	}),
 	errorText: new Style<Label>({
