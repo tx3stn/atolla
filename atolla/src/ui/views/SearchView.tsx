@@ -665,7 +665,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					<layout style={styles.recentSection}>
 						<label style={styles.sectionTitle} value='RECENT SEARCHES' />
 						{recentSearches.length === 0 ? (
-							<label style={styles.recentEmpty} value='No recent searches yet.' />
+							<label style={styles.recentEmpty} value='no recent searches' />
 						) : (
 							recentSearches.map((term) => (
 								<view
