@@ -33,6 +33,7 @@ export interface TrackListViewModel {
 	onTrackTap?: (trackId: string) => void;
 	palette?: Palette;
 	showDragHandles?: boolean;
+	tapPulseColor?: string;
 	tracks: Array<TrackListEntry>;
 }
 
@@ -69,6 +70,7 @@ const resolvedStylesCache = new Map<string, TrackListResolvedStyles>();
 export class TrackList extends Component<TrackListViewModel> {
 	private draggingRowIdentities = new Set<string>();
 	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
+	private pulseOverlayRefByIdentity = new Map<string, ElementRef>();
 	private removeActionRefByIdentity = new Map<string, ElementRef>();
 	private suppressNextTap = false;
 	private rowOffsetByIdentity = new Map<string, number>();
@@ -81,6 +83,17 @@ export class TrackList extends Component<TrackListViewModel> {
 			0.28,
 		);
 		const resolvedStyles = getResolvedTrackListStyles(colors);
+		const pulseColor = this.viewModel.tapPulseColor ?? theme.colors.white;
+		const pulseOverlayStyle = new Style({
+			backgroundColor: pulseColor,
+			borderRadius: theme.borderRadius,
+			bottom: 0,
+			left: 0,
+			opacity: 0,
+			position: 'absolute',
+			right: 0,
+			top: 0,
+		});
 
 		if (this.viewModel.tracks.length === 0) {
 			<label
@@ -117,6 +130,7 @@ export class TrackList extends Component<TrackListViewModel> {
 							style={resolvedStyles.rowStyle}
 							testID={`track-row-${rowIdentity}`}
 						>
+							<view ref={this.getPulseOverlayRef(rowIdentity)} style={pulseOverlayStyle} />
 							<layout style={styles.rowInteractiveLayout}>
 								{/* biome-ignore lint/a11y/noStaticElementInteractions: Track rows are intentionally interactive. */}
 								<view
@@ -136,6 +150,7 @@ export class TrackList extends Component<TrackListViewModel> {
 											this.suppressNextTap = false;
 											return;
 										}
+										this.triggerTapPulse(rowIdentity);
 										this.viewModel.onTrackTap?.(entry.id);
 									}}
 									onTouch={
@@ -240,6 +255,27 @@ export class TrackList extends Component<TrackListViewModel> {
 				);
 			})}
 		</layout>;
+	}
+
+	private getPulseOverlayRef(identity: string): ElementRef {
+		const existing = this.pulseOverlayRefByIdentity.get(identity);
+		if (existing) {
+			return existing;
+		}
+		const created = new ElementRef();
+		this.pulseOverlayRefByIdentity.set(identity, created);
+		return created;
+	}
+
+	private triggerTapPulse(identity: string): void {
+		const ref = this.pulseOverlayRefByIdentity.get(identity);
+		if (!ref) {
+			return;
+		}
+		ref.setAttribute('opacity', 0.28);
+		setTimeout(() => {
+			ref.setAttribute('opacity', 0);
+		}, 180);
 	}
 
 	private getRowRef(identity: string): ElementRef {

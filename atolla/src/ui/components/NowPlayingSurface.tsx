@@ -640,6 +640,7 @@ export class NowPlayingSurface extends StatefulComponent<
 									onTrackTap={onTrackTap}
 									palette={palette}
 									showDragHandles
+									tapPulseColor={palette.accent.hex}
 									tracks={activeTab === 'upNext' ? upNextEntries : backToEntries}
 								/>
 							</layout>

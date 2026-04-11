@@ -3,6 +3,7 @@ import { PersistentStore } from 'persistence/src/PersistentStore';
 import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
+import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
@@ -622,6 +623,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	private prewarmNowPlayingArtwork(imageUrl: string): void {
+		const outputType = Device.isAndroid()
+			? AssetOutputType.IMAGE_ANDROID
+			: AssetOutputType.IMAGE_IOS;
 		const sources = [
 			buildImageSource(imageUrl, 'album_art'),
 			buildImageSource(imageUrl, 'album_art_blurred'),
@@ -634,7 +638,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				() => {
 					subscription?.unsubscribe();
 				},
-				AssetOutputType.BITMAP,
+				outputType,
 			);
 		}
 	}
