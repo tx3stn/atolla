@@ -8,7 +8,12 @@ export type ConnectionMode = (typeof ConnectionModes)[keyof typeof ConnectionMod
 
 export function cycleConnectionMode(current: ConnectionMode): ConnectionMode {
 	switch (current) {
+		// mock mode is not cycleable
 		case ConnectionModes.mock: {
+			return ConnectionModes.mock;
+		}
+
+		case ConnectionModes.offline: {
 			return ConnectionModes.online;
 		}
 
@@ -17,7 +22,7 @@ export function cycleConnectionMode(current: ConnectionMode): ConnectionMode {
 		}
 
 		default: {
-			return ConnectionModes.mock;
+			return ConnectionModes.online;
 		}
 	}
 }
