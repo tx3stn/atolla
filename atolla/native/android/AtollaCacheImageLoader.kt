@@ -108,7 +108,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		}
 
 		private val executor = ThreadPoolExecutor(
-			2,
+			6,
 			6,
 			30L,
 			TimeUnit.SECONDS,
@@ -116,7 +116,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			{ runnable ->
 				Thread(runnable, "atolla-image-loader").also { it.isDaemon = true }
 			},
-		)
+		).also { it.allowCoreThreadTimeOut(true) }
 
 		private val sharedMemory = object : LruCache<String, ByteArray>(MEMORY_CACHE_BYTES) {
 			override fun sizeOf(key: String, value: ByteArray): Int {
@@ -268,11 +268,16 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		val key = "${payload.category}:${payload.sourceUrl}"
 		Log.d(tag, "loadImage key=$key outputType=${options.outputType}")
 
-		// Fast path: native memory hit — synchronous, safe on any thread.
+		// Memory hit: bytes are ready but bitmap decoding is expensive and must not
+		// block the main thread. Offload to a DISPLAY-priority task so the calling
+		// thread (typically the UI thread) returns immediately.
 		memory.get(key)?.let { bytes ->
 			Log.d(tag, "cache hit key=$key bytes=${bytes.size}")
-			completeFromBytes(bytes, options, completion)
-			return null
+			val cancelled = AtomicBoolean(false)
+			executor.execute(LoadTask(LoadPriority.DISPLAY) {
+				completeFromBytes(bytes, options, completion, cancelled)
+			})
+			return object : Disposable { override fun dispose() { cancelled.set(true) } }
 		}
 
 		// Disk reads and network fetches happen on a background thread so the
@@ -384,9 +389,9 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 					memory.put(key, blurredBytes)
 					writeToDisk(key, blurredBytes)
 					Log.d(tag, "blur generated after fetch key=$key bytes=${blurredBytes.size}")
-					notifyImageCached(payload.sourceUrl, payload.category)
 					future.complete(blurredBytes)
 					completeFromBytes(blurredBytes, options, completion, cancelled)
+					notifyImageCached(payload.sourceUrl, payload.category)
 				} else {
 					future.completeExceptionally(ValdiException("Blur generation failed after fetch"))
 					deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed after fetch")) }
@@ -406,10 +411,10 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			Log.d(tag, "network fetch success key=$key bytes=${bytes.size}")
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
-			notifyImageCached(payload.sourceUrl, payload.category)
 			inFlight.remove(key)
 			future.complete(bytes)
 			completeFromBytes(bytes, options, completion, cancelled)
+			notifyImageCached(payload.sourceUrl, payload.category)
 		} catch (error: Throwable) {
 			Log.e(tag, "load failed key=$key", error)
 			inFlight.remove(key)
@@ -478,8 +483,8 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				if (blurredBytes != null) {
 					memory.put(key, blurredBytes)
 					writeToDisk(key, blurredBytes)
-					notifyImageCached(sourceUrl, category)
 					future.complete(blurredBytes)
+					notifyImageCached(sourceUrl, category)
 				} else {
 					future.completeExceptionally(ValdiException("Blur generation failed after fetch"))
 				}
@@ -489,9 +494,9 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			val bytes = fetchBytes(sourceUrl)
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
-			notifyImageCached(sourceUrl, category)
 			inFlight.remove(key)
 			future.complete(bytes)
+			notifyImageCached(sourceUrl, category)
 		} catch (error: Throwable) {
 			inFlight.remove(key)
 			future.completeExceptionally(error)
