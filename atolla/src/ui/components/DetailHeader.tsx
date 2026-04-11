@@ -3,6 +3,7 @@ import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { DownloadState } from '../../services/DownloadService';
 import type { ImageCache, ImageCategory } from '../../services/ImageCache';
@@ -11,6 +12,7 @@ import { animateRipple, createRippleStyle } from '../animations/Icons';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
 import { LoopingArrowSpinner } from './LoopingArrowSpinner';
+import { Modal } from './Modal';
 import { TappableIcon } from './TappableIcon';
 import { Toast } from './Toast';
 import { clearScheduledToast, scheduleToastDismiss } from './toastTimer';
@@ -23,6 +25,7 @@ export interface DetailHeaderViewModel {
 	fallbackText?: string | null;
 	imageCache?: ImageCache;
 	logoSource?: string | null;
+	modalSlot?: DetachedSlot;
 	onAddToQueue?: () => Promise<void>;
 	onArtistTap?: () => void;
 	onDownload?: () => void;
@@ -38,13 +41,15 @@ export interface DetailHeaderViewModel {
 interface DetailHeaderState {
 	addToQueuePhase: 'idle' | 'confirming';
 	checkmarkAnimated: boolean;
-	removeDownloadPhase: 'idle' | 'confirming';
+	removeDownloadPhase: 'idle' | 'confirming' | 'confirmed';
 	toastMessage: string | null;
 }
 
 export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, DetailHeaderState> {
 	private checkmarkRef = new ElementRef();
 	private rippleRef = new ElementRef();
+	private readonly removeDownloadBody =
+		'This will remove this download from your device.\n\nIf these tracks are part of a playlist they will not be removed unless you remove the playlist.';
 	private confirmationTimer?: ReturnType<typeof setTimeout>;
 	private removeDownloadTimer?: ReturnType<typeof setTimeout>;
 	private toastTimer?: ReturnType<typeof setTimeout>;
@@ -60,20 +65,56 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		clearTimeout(this.confirmationTimer);
 		clearTimeout(this.removeDownloadTimer);
 		this.toastTimer = clearScheduledToast(this.toastTimer);
+		this.viewModel.modalSlot?.slotted(() => {});
 	}
 
 	private handleRemoveDownloadTap = (): void => {
+		this.setState({ removeDownloadPhase: 'confirming' });
+
+		this.viewModel.modalSlot?.slotted(() => {
+			<Modal
+				body={this.removeDownloadBody}
+				cancelAccessibilityLabel='detail-header-remove-download-no-btn'
+				confirmAccessibilityLabel='detail-header-remove-download-yes-btn'
+				modalAccessibilityLabel='detail-header-remove-download-modal'
+				onClose={this.handleRemoveDownloadCancel}
+				onConfirm={this.handleRemoveDownloadConfirm}
+				title='REMOVE DOWNLOAD?'
+			/>;
+		});
+	};
+
+	private handleRemoveDownloadCancel = (): void => {
+		this.viewModel.modalSlot?.slotted(() => {});
+		this.setState({ removeDownloadPhase: 'idle' });
+	};
+
+	private handleRemoveDownloadConfirm = (): void => {
+		this.viewModel.modalSlot?.slotted(() => {});
 		this.viewModel.onRemoveDownload?.();
 
 		if (this.removeDownloadTimer) {
 			clearTimeout(this.removeDownloadTimer);
 		}
 
-		this.setState({ removeDownloadPhase: 'confirming' });
+		this.setState({ removeDownloadPhase: 'confirmed' });
 		this.removeDownloadTimer = setTimeout(() => {
 			this.setState({ removeDownloadPhase: 'idle' });
 		}, 2000);
 	};
+
+	onViewModelUpdate(prevViewModel?: DetailHeaderViewModel): void {
+		if (!prevViewModel) return;
+
+		if (
+			prevViewModel.downloadState !== this.viewModel.downloadState &&
+			this.viewModel.downloadState !== 'downloaded' &&
+			this.state.removeDownloadPhase !== 'idle'
+		) {
+			this.viewModel.modalSlot?.slotted(() => {});
+			this.setState({ removeDownloadPhase: 'idle' });
+		}
+	}
 
 	private handleAddToQueueTap = async (): Promise<void> => {
 		const { animationsEnabled, onAddToQueue } = this.viewModel;
@@ -127,17 +168,19 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		} = this.viewModel;
 
 		const { addToQueuePhase, checkmarkAnimated, removeDownloadPhase, toastMessage } = this.state;
-		const showRemoveConfirmation = removeDownloadPhase === 'confirming';
+		const showRemoveModal = removeDownloadPhase === 'confirming';
+		const showRemoveConfirmation = removeDownloadPhase === 'confirmed';
 		const downloadIcon = showRemoveConfirmation
 			? res.trash
 			: downloadState === 'downloaded'
 				? res.downloaded
 				: res.download;
-		const onDownloadTap = showRemoveConfirmation
-			? undefined
-			: downloadState === 'downloaded'
-				? this.handleRemoveDownloadTap
-				: onDownload;
+		const onDownloadTap =
+			showRemoveModal || showRemoveConfirmation
+				? undefined
+				: downloadState === 'downloaded'
+					? this.handleRemoveDownloadTap
+					: onDownload;
 
 		<layout style={styles.root}>
 			<layout style={styles.headerRow}>
@@ -240,6 +283,17 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 				</layout>
 			)}
 			{toastMessage && <Toast message={toastMessage} />}
+			{showRemoveModal && !this.viewModel.modalSlot && (
+				<Modal
+					body={this.removeDownloadBody}
+					cancelAccessibilityLabel='detail-header-remove-download-no-btn'
+					confirmAccessibilityLabel='detail-header-remove-download-yes-btn'
+					modalAccessibilityLabel='detail-header-remove-download-modal'
+					onClose={this.handleRemoveDownloadCancel}
+					onConfirm={this.handleRemoveDownloadConfirm}
+					title='REMOVE DOWNLOAD?'
+				/>
+			)}
 		</layout>;
 	}
 }

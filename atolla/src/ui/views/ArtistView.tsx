@@ -268,6 +268,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					fallbackText={artist.name}
 					imageCache={imageCache}
 					logoSource={artist.logoUrl || null}
+					modalSlot={this.modalSlot}
 					onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onDownload={this.handleDownloadTap}
 					onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}

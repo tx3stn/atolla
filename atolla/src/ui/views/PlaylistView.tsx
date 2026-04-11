@@ -328,6 +328,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					downloadState={downloadState}
 					fallbackText={this.viewModel.playlist.name}
 					imageCache={this.viewModel.imageCache}
+					modalSlot={this.modalSlot}
 					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onDownload={this.handleDownloadTap}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
