@@ -212,13 +212,25 @@ export class DownloadService {
 	downloadAlbum(params: {
 		album: Album;
 		tracks: Array<{ track: Track; streamUrl: string }>;
+		artistImageUrl?: string | null;
 		artistLogoUrl: string | null;
 	}): void {
-		const { album, tracks, artistLogoUrl } = params;
+		const { album, artistImageUrl, tracks, artistLogoUrl } = params;
 		this.ensureLoaded().then(async () => {
 			this.preloadDownloadImages({
 				albumArtUrls: [album.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
+				artistImageUrls: [artistImageUrl],
 				artistLogoUrls: [artistLogoUrl],
+			});
+
+			this.upsertArtistEntry({
+				albumIds: [album.id],
+				artist: {
+					id: album.artistId,
+					imageUrl: artistImageUrl ?? undefined,
+					logoUrl: artistLogoUrl ?? undefined,
+					name: album.artistName,
+				},
 			});
 
 			this.albums[album.id] = {
@@ -242,14 +254,23 @@ export class DownloadService {
 
 	downloadPlaylist(params: {
 		playlist: Playlist;
+		artists?: Array<Artist>;
 		tracks: Array<{ track: Track; streamUrl: string; artistLogoUrl: string | null }>;
 	}): void {
-		const { playlist, tracks } = params;
+		const { artists = [], playlist, tracks } = params;
 		this.ensureLoaded().then(async () => {
 			this.preloadDownloadImages({
 				albumArtUrls: [playlist.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
+				artistImageUrls: artists.map((artist) => artist.imageUrl),
 				artistLogoUrls: tracks.map(({ artistLogoUrl }) => artistLogoUrl),
 			});
+
+			for (const artist of artists) {
+				this.upsertArtistEntry({
+					albumIds: [],
+					artist,
+				});
+			}
 
 			const trackArtistLogoUrls: Record<string, string | null> = {};
 			for (const { track, artistLogoUrl } of tracks) {
@@ -289,13 +310,14 @@ export class DownloadService {
 					album.imageUrl,
 					...tracks.map(({ track }) => track.albumImageUrl),
 				]),
+				artistImageUrls: [artist.imageUrl],
 				artistLogoUrls: [artistLogoUrl],
 			});
 
-			this.artists[artist.id] = {
+			this.upsertArtistEntry({
 				albumIds: albumEntries.map((a) => a.album.id),
 				artist,
-			};
+			});
 			for (const { album, tracks } of albumEntries) {
 				this.albums[album.id] = {
 					album,
@@ -328,9 +350,11 @@ export class DownloadService {
 			const entry = this.albums[albumId];
 			if (!entry) return;
 			delete this.albums[albumId];
+			this.removeAlbumReferenceFromArtists(albumId);
 			for (const trackId of entry.trackIds) {
 				this.dereferenceTrack(trackId, albumId, null);
 			}
+			this.pruneOrphanArtists();
 			await this.persistAll();
 			this.notify();
 		});
@@ -344,6 +368,7 @@ export class DownloadService {
 			for (const trackId of entry.trackIds) {
 				this.dereferenceTrack(trackId, null, playlistId);
 			}
+			this.pruneOrphanArtists();
 			await this.persistAll();
 			this.notify();
 		});
@@ -362,6 +387,7 @@ export class DownloadService {
 					this.dereferenceTrack(trackId, albumId, null);
 				}
 			}
+			this.pruneOrphanArtists();
 			await this.persistAll();
 			this.notify();
 		});
@@ -426,6 +452,7 @@ export class DownloadService {
 
 	private preloadDownloadImages(params: {
 		albumArtUrls: Array<string | null | undefined>;
+		artistImageUrls: Array<string | null | undefined>;
 		artistLogoUrls: Array<string | null | undefined>;
 	}): void {
 		if (!this.preloadImagesFn) {
@@ -433,7 +460,52 @@ export class DownloadService {
 		}
 
 		this.preloadCategory(params.albumArtUrls, 'album_art');
+		this.preloadCategory(params.artistImageUrls, 'artist_image');
 		this.preloadCategory(params.artistLogoUrls, 'artist_logo');
+	}
+
+	private upsertArtistEntry(entry: DownloadedArtistEntry): void {
+		const existing = this.artists[entry.artist.id];
+		if (!existing) {
+			this.artists[entry.artist.id] = {
+				albumIds: [...entry.albumIds],
+				artist: { ...entry.artist },
+			};
+			return;
+		}
+
+		const mergedAlbumIds = Array.from(new Set([...existing.albumIds, ...entry.albumIds]));
+		this.artists[entry.artist.id] = {
+			albumIds: mergedAlbumIds,
+			artist: {
+				...existing.artist,
+				...entry.artist,
+				imageUrl: existing.artist.imageUrl ?? entry.artist.imageUrl,
+				logoUrl: existing.artist.logoUrl ?? entry.artist.logoUrl,
+				name: existing.artist.name || entry.artist.name,
+			},
+		};
+	}
+
+	private removeAlbumReferenceFromArtists(albumId: string): void {
+		for (const artistEntry of Object.values(this.artists)) {
+			artistEntry.albumIds = artistEntry.albumIds.filter((id) => id !== albumId);
+		}
+	}
+
+	private pruneOrphanArtists(): void {
+		for (const [artistId, artistEntry] of Object.entries(this.artists)) {
+			if (artistEntry.albumIds.length > 0) {
+				continue;
+			}
+
+			const hasTrackReference = Object.values(this.tracks).some(
+				(trackEntry) => trackEntry.track.artistId === artistId,
+			);
+			if (!hasTrackReference) {
+				delete this.artists[artistId];
+			}
+		}
 	}
 
 	private preloadCategory(urls: Array<string | null | undefined>, category: ImageCategory): void {

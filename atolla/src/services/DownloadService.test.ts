@@ -179,6 +179,7 @@ describe('DownloadService', () => {
 
 			service.downloadAlbum({
 				album,
+				artistImageUrl: 'https://img/artist-1.jpg',
 				artistLogoUrl: 'https://img/logo-artist.jpg',
 				tracks: [
 					{ streamUrl: 'http://stream/track-1', track: trackA },
@@ -193,6 +194,7 @@ describe('DownloadService', () => {
 					category: 'album_art',
 					urls: ['https://img/album-1.jpg', 'https://img/album-2.jpg'],
 				},
+				{ category: 'artist_image', urls: ['https://img/artist-1.jpg'] },
 				{ category: 'artist_logo', urls: ['https://img/logo-artist.jpg'] },
 			]);
 		});

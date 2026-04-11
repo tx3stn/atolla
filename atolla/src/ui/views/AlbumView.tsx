@@ -153,6 +153,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		if (existingLogoUrl) {
 			downloadService.downloadAlbum({
 				album,
+				artistImageUrl: this.state.artist?.imageUrl ?? null,
 				artistLogoUrl: existingLogoUrl,
 				tracks,
 			});
@@ -167,6 +168,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				}
 				downloadService.downloadAlbum({
 					album,
+					artistImageUrl: this.state.artist?.imageUrl ?? null,
 					artistLogoUrl: resolvedLogoUrl,
 					tracks,
 				});
@@ -174,6 +176,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			.catch(() => {
 				downloadService.downloadAlbum({
 					album,
+					artistImageUrl: this.state.artist?.imageUrl ?? null,
 					artistLogoUrl: null,
 					tracks,
 				});
