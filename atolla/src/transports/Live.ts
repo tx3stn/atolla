@@ -336,6 +336,29 @@ export class LiveTransport implements Transport {
 		return (list.Items ?? []).map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
+	async getTracksByPlaylistPage(
+		playlistId: string,
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
+			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
+			{
+				fields: 'Overview',
+				limit: Math.max(1, pageSize),
+				startIndex,
+				userId: this.userId,
+			},
+		);
+
+		return {
+			hasMore: startIndex + (list.Items ?? []).length < list.TotalRecordCount,
+			items: (list.Items ?? []).map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
+			totalCount: list.TotalRecordCount,
+		};
+	}
+
 	getTrackCacheUrl(trackId: string): string | null {
 		if (!trackId) {
 			return null;

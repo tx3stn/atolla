@@ -16,6 +16,8 @@ import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 
+const TRACK_PAGE_SIZE = 50;
+
 export interface PlaylistViewModel {
 	animationsEnabled: boolean;
 	gridColumns: number;
@@ -34,6 +36,7 @@ interface PlaylistState {
 	isDownloaded: boolean;
 	isFooterVisible: boolean;
 	isLoading: boolean;
+	totalTrackCount: number | null;
 	tracks: Array<Track>;
 }
 
@@ -43,7 +46,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	PlaylistState
 > {
 	private modalSlot = new DetachedSlot();
+	private allTracks: Array<Track> | null = null;
+	private currentPage = 0;
 	private hasBeenDestroyed = false;
+	private hasMoreTracks = true;
+	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
 
 	state: PlaylistState = {
@@ -52,6 +59,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		isDownloaded: false,
 		isFooterVisible: false,
 		isLoading: true,
+		totalTrackCount: null,
 		tracks: [],
 	};
 
@@ -132,23 +140,91 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		const { playbackStore, transport, playlist } = this.viewModel;
+		const { playbackStore } = this.viewModel;
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: playbackStore.track !== null });
 		});
 		this.setState({ isFooterVisible: playbackStore.track !== null });
-		transport.getTracksByPlaylist(playlist.id).then(async (tracks) => {
-			if (this.hasBeenDestroyed) {
-				return;
-			}
+		void this.loadNextPage();
+	}
+
+	private async loadNextPage(): Promise<void> {
+		if (this.hasBeenDestroyed || this.isLoadingPage || !this.hasMoreTracks) {
+			return;
+		}
+
+		const nextPage = this.currentPage + 1;
+		const isFirstPage = nextPage === 1;
+		this.isLoadingPage = true;
+
+		try {
+			const result = await this.fetchPage(nextPage);
+			if (this.hasBeenDestroyed) return;
+
 			const artistLogoUrls = await Promise.all(
-				tracks.map((t) => (t.artistId ? transport.getArtistLogoUrl(t.artistId) : null)),
+				result.items.map((t) =>
+					t.artistId ? this.viewModel.transport.getArtistLogoUrl(t.artistId) : null,
+				),
 			);
-			if (this.hasBeenDestroyed) {
-				return;
+			if (this.hasBeenDestroyed) return;
+
+			const tracks = isFirstPage ? result.items : [...this.state.tracks, ...result.items];
+			const allArtistLogoUrls = isFirstPage
+				? artistLogoUrls
+				: [...this.state.artistLogoUrls, ...artistLogoUrls];
+
+			this.currentPage = nextPage;
+			this.hasMoreTracks = result.hasMore;
+			this.isLoadingPage = false;
+
+			const totalTrackCount = isFirstPage
+				? (result.totalCount ?? tracks.length)
+				: this.state.totalTrackCount;
+			this.setState({
+				artistLogoUrls: allArtistLogoUrls,
+				isLoading: false,
+				totalTrackCount,
+				tracks,
+			});
+			this.viewModel.paletteQueue?.enqueuePlaylistTracks(result.items);
+
+			if (result.hasMore) {
+				void this.loadNextPage();
 			}
-			this.setState({ artistLogoUrls, isLoading: false, tracks });
-			this.viewModel.paletteQueue?.enqueuePlaylistTracks(tracks);
+		} catch {
+			if (this.hasBeenDestroyed) return;
+			this.isLoadingPage = false;
+			this.setState({ isLoading: false });
+		}
+	}
+
+	private fetchPage(
+		page: number,
+	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
+		const { playlist, transport } = this.viewModel;
+		if (transport.getTracksByPlaylistPage) {
+			return transport.getTracksByPlaylistPage(playlist.id, page, TRACK_PAGE_SIZE);
+		}
+
+		if (!this.allTracks) {
+			return transport.getTracksByPlaylist(playlist.id).then((tracks) => {
+				this.allTracks = tracks;
+				const start = (page - 1) * TRACK_PAGE_SIZE;
+				const end = start + TRACK_PAGE_SIZE;
+				return {
+					hasMore: end < tracks.length,
+					items: tracks.slice(start, end),
+					totalCount: tracks.length,
+				};
+			});
+		}
+
+		const start = (page - 1) * TRACK_PAGE_SIZE;
+		const end = start + TRACK_PAGE_SIZE;
+		return Promise.resolve({
+			hasMore: end < this.allTracks.length,
+			items: this.allTracks.slice(start, end),
+			totalCount: this.allTracks.length,
 		});
 	}
 
@@ -159,7 +235,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	}
 
 	onRender(): void {
-		const { contextMenuTrack, isDownloaded, isFooterVisible, isLoading, tracks } = this.state;
+		const { contextMenuTrack, isDownloaded, isFooterVisible, isLoading, totalTrackCount, tracks } =
+			this.state;
 		const { imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
@@ -189,7 +266,13 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					onDownload={this.handleDownloadTap}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
-					subheaderLineOneLeft={tracks.length > 0 ? `${tracks.length} tracks` : null}
+					subheaderLineOneLeft={
+						totalTrackCount != null
+							? `${totalTrackCount} tracks`
+							: tracks.length > 0
+								? `${tracks.length} tracks`
+								: null
+					}
 					subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
 				/>
 				{isLoading ? (

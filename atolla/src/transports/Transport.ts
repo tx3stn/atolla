@@ -29,5 +29,10 @@ export interface Transport {
 	getTracksByAlbum(albumId: string): Promise<Array<Track>>;
 	getTracksByArtist(artistId: string): Promise<Array<Track>>;
 	getTracksByPlaylist(playlistId: string): Promise<Array<Track>>;
+	getTracksByPlaylistPage?: (
+		playlistId: string,
+		page: number,
+		pageSize: number,
+	) => Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }>;
 	search(query: string): Promise<SearchResults>;
 }
