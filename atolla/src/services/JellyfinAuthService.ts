@@ -132,6 +132,15 @@ function extractErrorDetail(error: unknown): string | null {
 		return `code ${candidate.code.trim()}`;
 	}
 
+	try {
+		const serialized = JSON.stringify(error);
+		if (serialized && serialized !== '{}' && serialized !== 'null') {
+			return serialized.length > 200 ? `${serialized.substring(0, 200)}…` : serialized;
+		}
+	} catch {
+		// not serializable
+	}
+
 	return null;
 }
 
@@ -196,6 +205,7 @@ export class JellyfinAuthService {
 
 	async startQuickConnect(serverUrl: string): Promise<QuickConnectStartResult> {
 		this.lastConnectionErrorDetail = null;
+		this.lastConnectionErrorContext = null;
 		const normalizedUrl = normalizeServerUrl(serverUrl);
 		if (this.isMockMode) {
 			return {
@@ -260,6 +270,7 @@ export class JellyfinAuthService {
 		pollIntervalMs = 2_000,
 	): Promise<void> {
 		this.lastConnectionErrorDetail = null;
+		this.lastConnectionErrorContext = null;
 		const normalizedUrl = normalizeServerUrl(serverUrl);
 		if (this.isMockMode) {
 			const delayMs = Math.max(0, this.mockApprovalDelayMs);
@@ -309,6 +320,7 @@ export class JellyfinAuthService {
 
 	async authenticateWithQuickConnect(serverUrl: string, secret: string): Promise<AuthSession> {
 		this.lastConnectionErrorDetail = null;
+		this.lastConnectionErrorContext = null;
 		const normalizedUrl = normalizeServerUrl(serverUrl);
 
 		if (this.isMockMode) {
@@ -417,6 +429,7 @@ export class JellyfinAuthService {
 					if (detail && detail.toLowerCase() !== connectionErrorMessage.toLowerCase()) {
 						return `${message}: ${detail}`;
 					}
+					return 'could not reach server — check the URL and try again';
 				}
 				return message;
 			}
@@ -478,6 +491,7 @@ export class JellyfinAuthService {
 
 	private rememberConnectionError(error: unknown, context?: string): void {
 		this.lastConnectionErrorDetail = extractErrorDetail(error);
+		this.lastConnectionErrorContext = context ?? null;
 		console.warn('[auth] connection error', {
 			context,
 			detail: this.lastConnectionErrorDetail,
