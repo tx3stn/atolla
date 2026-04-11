@@ -27,8 +27,7 @@ export class Preferences {
 		try {
 			return await this.store.fetchString('mode');
 		} catch {
-			// FIXME: update to online
-			return ConnectionModes.mock;
+			return ConnectionModes.offline;
 		}
 	}
 

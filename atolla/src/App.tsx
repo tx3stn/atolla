@@ -275,7 +275,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		animationsEnabled: true,
 		authErrorMessage: null,
 		authToastMessage: null,
-		connectionMode: ConnectionModes.mock,
+		connectionMode: ConnectionModes.offline,
 		downloadingCount: 0,
 		gridColumns: DEFAULT_GRID_COLUMNS,
 		homeResetNonce: 0,
@@ -347,6 +347,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							existingSession.accessToken,
 							existingSession.userId,
 						);
+					} else if (mode === ConnectionModes.online) {
+						this.transport = new OfflineTransport(this.downloadService);
+					} else if (mode === ConnectionModes.offline) {
+						this.transport = new OfflineTransport(this.downloadService);
+					} else if (mode === ConnectionModes.mock) {
+						this.transport = new MockTransport();
 					}
 
 					const isAuthRequired = mode === ConnectionModes.online && existingSession == null;
@@ -369,7 +375,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			.catch(() => {
 				if (!this.state.isBootstrapped) {
 					this.initUserStores('shared');
-					this.completeBootstrap({});
+					this.transport = new OfflineTransport(this.downloadService);
+					this.completeBootstrap({ connectionMode: ConnectionModes.offline });
 				}
 			});
 		this.downloadService.subscribe(() => {
@@ -624,11 +631,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			} catch {
 				// best effort — clear what we can
 			}
-			this.transport = new MockTransport();
+			this.transport = new OfflineTransport(this.downloadService);
 			this.playbackStore.stop();
 			this.setState({
 				authErrorMessage: null,
-				connectionMode: ConnectionModes.mock,
+				connectionMode: ConnectionModes.online,
 				isAuthenticating: false,
 				isAuthRequired: true,
 				quickConnectCode: null,
