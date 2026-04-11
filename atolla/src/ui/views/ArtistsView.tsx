@@ -20,6 +20,7 @@ export interface ArtistsViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
+	isOfflineMode: boolean;
 	navigationController: NavigationController;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -80,6 +81,28 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		this.unsubscribePlayback?.();
 	}
 
+	onViewModelUpdate(prevViewModel?: ArtistsViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		if (this.viewModel.isOfflineMode === prevViewModel.isOfflineMode) {
+			return;
+		}
+
+		this.allArtists = null;
+		this.currentPage = 0;
+		this.isLoadingPage = false;
+		this.setState({
+			artists: [],
+			hasMore: true,
+			isLoadingNextPage: false,
+			nextPageFailed: false,
+			page: 0,
+		});
+		void this.loadInitialPages();
+	}
+
 	private async loadInitialPages(): Promise<void> {
 		await this.loadNextPage();
 	}
@@ -131,6 +154,18 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	private fetchPage(page: number): Promise<ArtistPageResult> {
+		if (shouldUseLocalSortedList(this.viewModel)) {
+			if (!this.allArtists) {
+				return this.viewModel.transport.getAllArtists().then((artists) => {
+					this.allArtists = sortArtistsForView(artists, true);
+					return { hasMore: false, items: this.allArtists };
+				});
+			}
+
+			this.allArtists = sortArtistsForView(this.allArtists, true);
+			return Promise.resolve({ hasMore: false, items: this.allArtists });
+		}
+
 		const transport = this.viewModel.transport as Transport & Partial<PagedArtistsTransport>;
 		if (transport.getArtistsPage) {
 			return transport.getArtistsPage(page, gridPaginationConfig.pageSize);
@@ -138,12 +173,14 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 		if (!this.allArtists) {
 			return this.viewModel.transport.getAllArtists().then((artists) => {
-				this.allArtists = artists;
+				this.allArtists = sortArtistsForView(artists, shouldUseLocalSortedList(this.viewModel));
 				const start = (page - 1) * gridPaginationConfig.pageSize;
 				const end = start + gridPaginationConfig.pageSize;
 				return { hasMore: end < this.allArtists.length, items: this.allArtists.slice(start, end) };
 			});
 		}
+
+		this.allArtists = sortArtistsForView(this.allArtists, shouldUseLocalSortedList(this.viewModel));
 
 		const start = (page - 1) * gridPaginationConfig.pageSize;
 		const end = start + gridPaginationConfig.pageSize;
@@ -187,7 +224,12 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			transport,
 		} = this.viewModel;
 
-		const cards: Array<Card> = this.state.artists.map((artist) => ({
+		const artists = sortArtistsForView(
+			this.state.artists,
+			shouldUseLocalSortedList(this.viewModel),
+		);
+
+		const cards: Array<Card> = artists.map((artist) => ({
 			artworkKey: artist.imageUrl ?? '',
 			id: artist.id,
 			kind: 'artist',
@@ -230,6 +272,53 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			/>
 		</scroll>;
 	}
+}
+
+function sortArtistsForView(artists: Array<Artist>, shouldSortLocally: boolean): Array<Artist> {
+	if (!shouldSortLocally) {
+		return artists;
+	}
+
+	return sortOfflineArtists(artists);
+}
+
+function shouldUseLocalSortedList(viewModel: ArtistsViewModel): boolean {
+	if (viewModel.isOfflineMode) {
+		return true;
+	}
+
+	const transport = viewModel.transport as Transport & Partial<PagedArtistsTransport>;
+	return !transport.getArtistsPage;
+}
+
+function sortOfflineArtists(artists: Array<Artist>): Array<Artist> {
+	return [...artists].sort((left, right) => {
+		const normalizedLeft = normalizeArtistName(left.name);
+		const normalizedRight = normalizeArtistName(right.name);
+		const byNormalized = compareCaseInsensitive(normalizedLeft, normalizedRight);
+		if (byNormalized !== 0) {
+			return byNormalized;
+		}
+
+		return compareCaseInsensitive(left.name, right.name);
+	});
+}
+
+function normalizeArtistName(name: string): string {
+	const trimmed = name.trim();
+	return (/^the\s+/i.test(trimmed) ? trimmed.replace(/^the\s+/i, '') : trimmed).toLocaleLowerCase();
+}
+
+function compareCaseInsensitive(left: string, right: string): number {
+	const leftLower = left.trim().toLocaleLowerCase();
+	const rightLower = right.trim().toLocaleLowerCase();
+	if (leftLower < rightLower) {
+		return -1;
+	}
+	if (leftLower > rightLower) {
+		return 1;
+	}
+	return 0;
 }
 
 function createScrollStyle(isFooterVisible: boolean): Style {

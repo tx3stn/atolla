@@ -21,6 +21,7 @@ export interface AlbumsViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
+	isOfflineMode: boolean;
 	navigationController: NavigationController;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -83,6 +84,29 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		this.unsubscribePlayback?.();
 	}
 
+	onViewModelUpdate(prevViewModel?: AlbumsViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		if (this.viewModel.isOfflineMode === prevViewModel.isOfflineMode) {
+			return;
+		}
+
+		this.allAlbums = null;
+		this.currentPage = 0;
+		this.isLoadingPage = false;
+		this.setState({
+			albums: [],
+			hasMore: true,
+			isLoadingNextPage: false,
+			nextPageFailed: false,
+			page: 0,
+			sort: this.state.sort,
+		});
+		void this.loadInitialPages();
+	}
+
 	private async loadInitialPages(): Promise<void> {
 		await this.loadNextPage();
 	}
@@ -134,6 +158,18 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	private fetchPage(page: number): Promise<AlbumPageResult> {
+		if (shouldUseLocalSortedList(this.viewModel)) {
+			if (!this.allAlbums) {
+				return this.viewModel.transport.getAllAlbums().then((albums) => {
+					this.allAlbums = sortAlbumsForView(albums, this.state.sort, true);
+					return { hasMore: false, items: this.allAlbums };
+				});
+			}
+
+			this.allAlbums = sortAlbumsForView(this.allAlbums, this.state.sort, true);
+			return Promise.resolve({ hasMore: false, items: this.allAlbums });
+		}
+
 		const transport = this.viewModel.transport as Transport & Partial<PagedAlbumsTransport>;
 		if (transport.getAlbumsPage) {
 			return transport.getAlbumsPage(page, gridPaginationConfig.pageSize);
@@ -142,14 +178,22 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		if (!this.allAlbums) {
 			return this.viewModel.transport.getAllAlbums().then((albums) => {
 				this.allAlbums = albums;
-				const sorted = sortAlbums(this.allAlbums, this.state.sort);
+				const sorted = sortAlbumsForView(
+					this.allAlbums,
+					this.state.sort,
+					shouldUseLocalSortedList(this.viewModel),
+				);
 				const start = (page - 1) * gridPaginationConfig.pageSize;
 				const end = start + gridPaginationConfig.pageSize;
 				return { hasMore: end < sorted.length, items: sorted.slice(start, end) };
 			});
 		}
 
-		const sorted = sortAlbums(this.allAlbums, this.state.sort);
+		const sorted = sortAlbumsForView(
+			this.allAlbums,
+			this.state.sort,
+			shouldUseLocalSortedList(this.viewModel),
+		);
 		const start = (page - 1) * gridPaginationConfig.pageSize;
 		const end = start + gridPaginationConfig.pageSize;
 		return Promise.resolve({ hasMore: end < sorted.length, items: sorted.slice(start, end) });
@@ -191,7 +235,11 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			transport,
 		} = this.viewModel;
 
-		const cards: Array<Card> = this.state.albums.map((album) => ({
+		const albums = shouldUseLocalSortedList(this.viewModel)
+			? sortAlbumsForView(this.state.albums, this.state.sort, true)
+			: this.state.albums;
+
+		const cards: Array<Card> = albums.map((album) => ({
 			artworkKey: album.imageUrl ?? '',
 			id: album.id,
 			kind: 'album',
@@ -234,6 +282,39 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			/>
 		</scroll>;
 	}
+}
+
+function sortAlbumsForView(
+	albums: Array<Album>,
+	sort: AlbumSort,
+	isOfflineMode: boolean,
+): Array<Album> {
+	if (!isOfflineMode || sort !== AlbumSorts.alphabetical) {
+		return sortAlbums(albums, sort);
+	}
+
+	return [...albums].sort((left, right) => compareCaseInsensitive(left.name, right.name));
+}
+
+function shouldUseLocalSortedList(viewModel: AlbumsViewModel): boolean {
+	if (viewModel.isOfflineMode) {
+		return true;
+	}
+
+	const transport = viewModel.transport as Transport & Partial<PagedAlbumsTransport>;
+	return !transport.getAlbumsPage;
+}
+
+function compareCaseInsensitive(left: string, right: string): number {
+	const leftLower = left.trim().toLocaleLowerCase();
+	const rightLower = right.trim().toLocaleLowerCase();
+	if (leftLower < rightLower) {
+		return -1;
+	}
+	if (leftLower > rightLower) {
+		return 1;
+	}
+	return 0;
 }
 
 function createScrollStyle(isFooterVisible: boolean): Style {

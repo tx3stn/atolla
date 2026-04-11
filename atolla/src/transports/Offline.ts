@@ -58,7 +58,7 @@ export class OfflineTransport implements Transport {
 			}
 		}
 
-		return Array.from(artistsById.values());
+		return sortArtistsByName(Array.from(artistsById.values()));
 	}
 
 	async getAllAlbums(): Promise<Array<Album>> {
@@ -83,7 +83,7 @@ export class OfflineTransport implements Transport {
 			});
 		}
 
-		return Array.from(albumsById.values());
+		return sortAlbumsByName(Array.from(albumsById.values()));
 	}
 
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
@@ -255,4 +255,46 @@ export class OfflineTransport implements Transport {
 	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {
 		return Promise.reject(new Error(TransportErrors.OFFLINE_SCROBBLE_UNAVAILABLE.msg()));
 	}
+}
+
+function sortAlbumsByName(albums: Array<Album>): Array<Album> {
+	return [...albums].sort((left, right) => compareNamesCaseInsensitive(left.name, right.name));
+}
+
+function sortArtistsByName(artists: Array<Artist>): Array<Artist> {
+	return [...artists].sort((left, right) =>
+		compareNamesIgnoringLeadingTheCaseInsensitive(left.name, right.name),
+	);
+}
+
+function compareNamesCaseInsensitive(left: string, right: string): number {
+	const leftLower = left.trim().toLocaleLowerCase();
+	const rightLower = right.trim().toLocaleLowerCase();
+	if (leftLower < rightLower) {
+		return -1;
+	}
+	if (leftLower > rightLower) {
+		return 1;
+	}
+	return 0;
+}
+
+function compareNamesIgnoringLeadingTheCaseInsensitive(left: string, right: string): number {
+	const normalizedLeft = normalizeLeadingThe(left);
+	const normalizedRight = normalizeLeadingThe(right);
+	const byNormalized = compareNamesCaseInsensitive(normalizedLeft, normalizedRight);
+	if (byNormalized !== 0) {
+		return byNormalized;
+	}
+
+	return compareNamesCaseInsensitive(left, right);
+}
+
+function normalizeLeadingThe(name: string): string {
+	const trimmed = name.trim();
+	if (!/^the\s+/i.test(trimmed)) {
+		return trimmed;
+	}
+
+	return trimmed.replace(/^the\s+/i, '');
 }

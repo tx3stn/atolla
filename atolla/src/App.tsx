@@ -1564,6 +1564,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				<HomeView
 					activeTab={this.state.activeHomeTab}
 					animationsEnabled={this.state.animationsEnabled}
+					connectionMode={this.state.connectionMode}
 					downloadService={this.downloadService}
 					gridColumns={this.state.gridColumns}
 					onNavigateToArtist={this.handleNavigateToArtist}

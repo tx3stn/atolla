@@ -162,6 +162,22 @@ describe('OfflineTransport', () => {
 							name: 'Track One',
 						},
 					},
+					{
+						albumIds: [],
+						complete: true,
+						playlistIds: ['playlist-1'],
+						streamUrl: 'file:///track-2.mp3',
+						track: {
+							albumId: 'album-2',
+							albumImageUrl: 'https://img/album-2.jpg',
+							albumName: 'Another Album',
+							artistId: 'artist-2',
+							artistName: 'Another Artist',
+							duration: 200,
+							id: 'track-2',
+							name: 'Track Two',
+						},
+					},
 				],
 			}) as never,
 		);
@@ -172,7 +188,10 @@ describe('OfflineTransport', () => {
 		const tracksByArtist = await transport.getTracksByArtist('artist-1');
 		const tracksByAlbum = await transport.getTracksByAlbum('album-1');
 
-		expect(artists).toEqual([{ id: 'artist-1', name: 'Artist One' }]);
+		expect(artists).toEqual([
+			{ id: 'artist-2', name: 'Another Artist' },
+			{ id: 'artist-1', name: 'Artist One' },
+		]);
 		expect(albums).toEqual([
 			{
 				artistId: 'artist-1',
@@ -181,10 +200,109 @@ describe('OfflineTransport', () => {
 				imageUrl: 'https://img/album-1.jpg',
 				name: 'Album One',
 			},
+			{
+				artistId: 'artist-2',
+				artistName: 'Another Artist',
+				id: 'album-2',
+				imageUrl: 'https://img/album-2.jpg',
+				name: 'Another Album',
+			},
 		]);
-		expect(albumsByArtist).toEqual(albums);
+		expect(albumsByArtist).toEqual([
+			{
+				artistId: 'artist-1',
+				artistName: 'Artist One',
+				id: 'album-1',
+				imageUrl: 'https://img/album-1.jpg',
+				name: 'Album One',
+			},
+		]);
 		expect(tracksByArtist.map((track) => track.id)).toEqual(['track-1']);
 		expect(tracksByAlbum.map((track) => track.id)).toEqual(['track-1']);
+	});
+
+	it('sorts artist and album lists case-insensitively', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				tracks: [
+					{
+						albumIds: [],
+						complete: true,
+						playlistIds: ['playlist-1'],
+						streamUrl: 'file:///track-1.mp3',
+						track: {
+							albumId: 'album-a',
+							albumName: 'alpha album',
+							artistId: 'artist-a',
+							artistName: 'alpha artist',
+							duration: 180,
+							id: 'track-1',
+							name: 'Track One',
+						},
+					},
+					{
+						albumIds: [],
+						complete: true,
+						playlistIds: ['playlist-1'],
+						streamUrl: 'file:///track-2.mp3',
+						track: {
+							albumId: 'album-b',
+							albumName: 'Bravo Album',
+							artistId: 'artist-b',
+							artistName: 'Bravo Artist',
+							duration: 180,
+							id: 'track-2',
+							name: 'Track Two',
+						},
+					},
+				],
+			}) as never,
+		);
+
+		const artists = await transport.getAllArtists();
+		const albums = await transport.getAllAlbums();
+
+		expect(artists.map((artist) => artist.name)).toEqual(['alpha artist', 'Bravo Artist']);
+		expect(albums.map((album) => album.name)).toEqual(['alpha album', 'Bravo Album']);
+	});
+
+	it('sorts offline artists alphabetically while ignoring leading The', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				tracks: [
+					{
+						albumIds: [],
+						complete: true,
+						playlistIds: ['playlist-1'],
+						streamUrl: 'file:///track-1.mp3',
+						track: {
+							artistId: 'artist-1',
+							artistName: 'The Beatles',
+							duration: 180,
+							id: 'track-1',
+							name: 'Track One',
+						},
+					},
+					{
+						albumIds: [],
+						complete: true,
+						playlistIds: ['playlist-1'],
+						streamUrl: 'file:///track-2.mp3',
+						track: {
+							artistId: 'artist-2',
+							artistName: 'Arcade Fire',
+							duration: 180,
+							id: 'track-2',
+							name: 'Track Two',
+						},
+					},
+				],
+			}) as never,
+		);
+
+		const artists = await transport.getAllArtists();
+
+		expect(artists.map((artist) => artist.name)).toEqual(['Arcade Fire', 'The Beatles']);
 	});
 
 	it('derives artist for an album-only download when artist entry is missing', async () => {
@@ -214,5 +332,44 @@ describe('OfflineTransport', () => {
 				name: 'Artist One',
 			},
 		]);
+	});
+
+	it('returns artist albums without forcing alphabetical ordering', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albums: [
+					{
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-new',
+							name: 'Newest Album',
+							releaseDate: '2025-01-01',
+						},
+						artistLogoUrl: null,
+						trackIds: [],
+					},
+					{
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-old',
+							name: 'Old Album',
+							releaseDate: '2020-01-01',
+						},
+						artistLogoUrl: null,
+						trackIds: [],
+					},
+				],
+				artistEntry: {
+					albumIds: ['album-new', 'album-old'],
+					artist: { id: 'artist-1', name: 'Artist One' },
+				},
+			}) as never,
+		);
+
+		const albums = await transport.getAlbumsByArtist('artist-1');
+
+		expect(albums.map((album) => album.id)).toEqual(['album-new', 'album-old']);
 	});
 });

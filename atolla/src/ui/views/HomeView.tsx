@@ -9,6 +9,7 @@ import type { DownloadService } from '../../services/DownloadService';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
+import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
 import { AlbumsView } from './AlbumsView';
@@ -18,6 +19,7 @@ import { PlaylistsView } from './PlaylistsView';
 export interface HomeViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
+	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
 	gridColumns: number;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -59,11 +61,16 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		}
 
 		const activeTabChanged = this.viewModel.activeTab !== prevViewModel.activeTab;
+		const connectionModeChanged = this.viewModel.connectionMode !== prevViewModel.connectionMode;
 		if (activeTabChanged) {
 			this.startTabTransitionOverlay();
 		}
 
-		if (!activeTabChanged && this.viewModel.resetSignal === prevViewModel.resetSignal) {
+		if (
+			!activeTabChanged &&
+			!connectionModeChanged &&
+			this.viewModel.resetSignal === prevViewModel.resetSignal
+		) {
 			return;
 		}
 
@@ -134,6 +141,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			playbackStore,
 		} = this.viewModel;
 		const transport = this.viewModel.transport;
+		const isOfflineMode = this.viewModel.connectionMode === ConnectionModes.offline;
 
 		<view style={styles.root}>
 			{this.state.isNavigationMounted && activeTab === HeaderTabs.artists && (
@@ -145,6 +153,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
+							isOfflineMode={isOfflineMode}
 							navigationController={navigationController}
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
@@ -163,6 +172,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
+							isOfflineMode={isOfflineMode}
 							navigationController={navigationController}
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
