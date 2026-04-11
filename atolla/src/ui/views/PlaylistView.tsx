@@ -16,6 +16,7 @@ import { DetailHeader } from '../components/DetailHeader';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import type { HomeNavContext } from './HomeView';
 
 const TRACK_PAGE_SIZE = 50;
 
@@ -26,6 +27,7 @@ export interface PlaylistViewModel {
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
 	onNavigateToArtist?: (artistId: string) => void;
+	onNavigationContext?: (context: HomeNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
@@ -298,6 +300,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.unsubscribePlayback?.();
 		this.unsubscribeDownloads?.();
 		this.viewModel.onExitFromSearchNavigation?.();
+		this.viewModel.onNavigationContext?.(null);
 	}
 
 	onRender(): void {

@@ -5,6 +5,9 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
+import type { Album } from '../../models/Album';
+import type { Artist } from '../../models/Artist';
+import type { Playlist } from '../../models/Playlist';
 import type { DownloadService } from '../../services/DownloadService';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
@@ -16,6 +19,11 @@ import { AlbumsView } from './AlbumsView';
 import { ArtistsView } from './ArtistsView';
 import { PlaylistsView } from './PlaylistsView';
 
+export type HomeNavContext =
+	| { kind: 'artist'; artist: Artist }
+	| { kind: 'album'; album: Album }
+	| { kind: 'playlist'; playlist: Playlist };
+
 export interface HomeViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
@@ -23,6 +31,7 @@ export interface HomeViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	onNavigateToArtist?: (artistId: string) => void;
+	onNavigationContext?: (context: HomeNavContext | null) => void;
 	onNavigationControllerChange?: (navigationController: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -137,6 +146,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			gridColumns,
 			imageCache,
 			onNavigateToArtist,
+			onNavigationContext,
 			paletteQueue,
 			playbackStore,
 		} = this.viewModel;
@@ -155,6 +165,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							imageCache={imageCache}
 							isOfflineMode={isOfflineMode}
 							navigationController={navigationController}
+							onNavigationContext={onNavigationContext}
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
 							transport={transport}
@@ -174,6 +185,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							imageCache={imageCache}
 							isOfflineMode={isOfflineMode}
 							navigationController={navigationController}
+							onNavigationContext={onNavigationContext}
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
 							transport={transport}
@@ -193,6 +205,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							imageCache={imageCache}
 							navigationController={navigationController}
 							onNavigateToArtist={onNavigateToArtist}
+							onNavigationContext={onNavigationContext}
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
 							transport={transport}

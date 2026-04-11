@@ -14,6 +14,7 @@ import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { ArtistView } from './ArtistView';
 import { gridPaginationConfig } from './GridPagination';
+import type { HomeNavContext } from './HomeView';
 
 export interface ArtistsViewModel {
 	animationsEnabled: boolean;
@@ -22,6 +23,7 @@ export interface ArtistsViewModel {
 	imageCache: ImageCache;
 	isOfflineMode: boolean;
 	navigationController: NavigationController;
+	onNavigationContext?: (context: HomeNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
@@ -248,6 +250,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				onCardTap={(card) => {
 					const artist = this.state.artists.find((a) => a.id === card.id);
 					if (artist) {
+						this.viewModel.onNavigationContext?.({ artist, kind: 'artist' });
 						navigationController.push(
 							ArtistView,
 							{
@@ -256,6 +259,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 								downloadService: this.viewModel.downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
+								onNavigationContext: this.viewModel.onNavigationContext,
 								paletteQueue,
 								playbackStore,
 								transport,

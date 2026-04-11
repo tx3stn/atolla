@@ -20,6 +20,7 @@ import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { AlbumView } from './AlbumView';
+import type { HomeNavContext } from './HomeView';
 
 export interface ArtistViewModel {
 	animationsEnabled: boolean;
@@ -28,6 +29,7 @@ export interface ArtistViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
+	onNavigationContext?: (context: HomeNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
@@ -139,10 +141,12 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			downloadService,
 			gridColumns,
 			imageCache,
+			onNavigationContext,
 			paletteQueue,
 			playbackStore,
 			transport,
 		} = this.viewModel;
+		onNavigationContext?.({ album, kind: 'album' });
 		this.navigationController.push(
 			AlbumView,
 			{
@@ -151,6 +155,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				downloadService,
 				gridColumns,
 				imageCache,
+				onNavigationContext,
 				paletteQueue,
 				playbackStore,
 				transport,
@@ -221,6 +226,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.unsubscribePlayback?.();
 		this.unsubscribeDownloads?.();
 		this.viewModel.onExitFromSearchNavigation?.();
+		this.viewModel.onNavigationContext?.(null);
 	}
 
 	onRender(): void {

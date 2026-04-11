@@ -12,6 +12,7 @@ import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { gridPaginationConfig } from './GridPagination';
+import type { HomeNavContext } from './HomeView';
 import { type PlaylistSort, PlaylistSorts, sortPlaylists } from './PlaylistsSort';
 import { PlaylistView } from './PlaylistView';
 
@@ -22,6 +23,7 @@ export interface PlaylistsViewModel {
 	imageCache: ImageCache;
 	navigationController: NavigationController;
 	onNavigateToArtist?: (artistId: string) => void;
+	onNavigationContext?: (context: HomeNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
@@ -215,6 +217,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				onCardTap={(card) => {
 					const playlist = this.state.playlists.find((p) => p.id === card.id);
 					if (playlist) {
+						this.viewModel.onNavigationContext?.({ kind: 'playlist', playlist });
 						navigationController.push(
 							PlaylistView,
 							{
@@ -223,6 +226,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
 								onNavigateToArtist,
+								onNavigationContext: this.viewModel.onNavigationContext,
 								paletteQueue,
 								playbackStore,
 								playlist,

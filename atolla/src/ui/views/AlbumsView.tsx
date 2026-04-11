@@ -15,6 +15,7 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { type AlbumSort, AlbumSorts, sortAlbums } from './AlbumsSort';
 import { AlbumView } from './AlbumView';
 import { gridPaginationConfig } from './GridPagination';
+import type { HomeNavContext } from './HomeView';
 
 export interface AlbumsViewModel {
 	animationsEnabled: boolean;
@@ -23,6 +24,7 @@ export interface AlbumsViewModel {
 	imageCache: ImageCache;
 	isOfflineMode: boolean;
 	navigationController: NavigationController;
+	onNavigationContext?: (context: HomeNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
@@ -258,6 +260,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				onCardTap={(card) => {
 					const album = this.state.albums.find((a) => a.id === card.id);
 					if (album) {
+						this.viewModel.onNavigationContext?.({ album, kind: 'album' });
 						navigationController.push(
 							AlbumView,
 							{
@@ -266,6 +269,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 								downloadService: this.viewModel.downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
+								onNavigationContext: this.viewModel.onNavigationContext,
 								paletteQueue,
 								playbackStore,
 								transport,

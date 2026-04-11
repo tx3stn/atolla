@@ -83,7 +83,7 @@ import { VideoAudioPlayer } from './ui/components/VideoAudioPlayer';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
 import { ConnectionView } from './ui/views/ConnectionView';
-import { HomeView } from './ui/views/HomeView';
+import { type HomeNavContext, HomeView } from './ui/views/HomeView';
 import { PlaylistView } from './ui/views/PlaylistView';
 import { type SearchHomeNavigationTarget, SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
@@ -246,6 +246,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private pendingSearchNavigation: SearchHomeNavigationTarget | null = null;
 	private isResolvingSearchNavigation = false;
 	private returnToSearchOnDetailClose = false;
+	private currentHomeNavContext: HomeNavContext | null = null;
+	private pendingNavRestoreContext: HomeNavContext | null = null;
 	private readonly minimumBootSplashMs = 750;
 	private bootstrapStartedAt = Date.now();
 	private bootstrapCommitTimer?: ReturnType<typeof setTimeout>;
@@ -609,6 +611,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	handleModeChange = (mode: ConnectionMode): void => {
 		void (async () => {
+			this.pendingNavRestoreContext = this.currentHomeNavContext;
 			await this.preferences.setMode(mode);
 			this.authService.setMockMode(mode === ConnectionModes.mock);
 
@@ -1116,7 +1119,51 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.tryNavigatePendingArtist();
 		this.tryNavigatePendingAlbum();
 		this.tryNavigatePendingSearchResult();
+		this.tryRestoreNavContext();
 	};
+
+	handleNavigationContext = (context: HomeNavContext | null): void => {
+		this.currentHomeNavContext = context;
+	};
+
+	private tryRestoreNavContext(): void {
+		const context = this.pendingNavRestoreContext;
+		if (!context || !this.homeNavigationController) {
+			return;
+		}
+		this.pendingNavRestoreContext = null;
+
+		const nav = this.homeNavigationController;
+		const { animationsEnabled, gridColumns } = this.state;
+		const shared = {
+			animationsEnabled,
+			downloadService: this.downloadService,
+			gridColumns,
+			onNavigationContext: this.handleNavigationContext,
+			paletteQueue: this.paletteQueue,
+			playbackStore: this.playbackStore,
+			transport: this.transport,
+		};
+
+		if (context.kind === 'artist') {
+			this.transport.getArtist(context.artist.id).then((artist) => {
+				if (!nav) return;
+				nav.push(
+					ArtistView,
+					{ ...shared, artist: artist ?? context.artist },
+					{},
+					{ animated: false },
+				);
+				this.currentHomeNavContext = { artist: artist ?? context.artist, kind: 'artist' };
+			});
+		} else if (context.kind === 'album') {
+			nav.push(AlbumView, { ...shared, album: context.album }, {}, { animated: false });
+			this.currentHomeNavContext = context;
+		} else if (context.kind === 'playlist') {
+			nav.push(PlaylistView, { ...shared, playlist: context.playlist }, {}, { animated: false });
+			this.currentHomeNavContext = context;
+		}
+	}
 
 	handleSearchResultNavigation = (target: SearchHomeNavigationTarget): void => {
 		this.pendingSearchNavigation = target;
@@ -1578,6 +1625,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					downloadService={this.downloadService}
 					gridColumns={this.state.gridColumns}
 					onNavigateToArtist={this.handleNavigateToArtist}
+					onNavigationContext={this.handleNavigationContext}
 					onNavigationControllerChange={this.handleHomeNavigationControllerChange}
 					paletteQueue={this.paletteQueue}
 					playbackStore={this.playbackStore}
