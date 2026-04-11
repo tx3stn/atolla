@@ -2,6 +2,7 @@ import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
 import type { Playlist } from '../models/Playlist';
 import type { Track } from '../models/Track';
+import type { ImageCategory } from './ImageCache';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -48,6 +49,8 @@ export interface DownloadServiceOptions {
 	cacheTrack: (trackId: string, url: string) => Promise<void>;
 	/** Return the local playback URL for a previously cached track. */
 	getTrackPlaybackUrl: (trackId: string) => string;
+	/** Hint native image cache to persist image assets for offline experience. */
+	preloadImages?: (urls: Array<string>, category: ImageCategory) => void;
 	/** Remove a previously downloaded track from permanent storage. */
 	removeTrack: (trackId: string) => void;
 	store: DownloadServiceStore;
@@ -85,12 +88,14 @@ export class DownloadService {
 	private readonly cacheTrackFn: DownloadServiceOptions['cacheTrack'];
 	private readonly getTrackPlaybackUrlFn: DownloadServiceOptions['getTrackPlaybackUrl'];
 	private readonly removeTrackFn: DownloadServiceOptions['removeTrack'];
+	private readonly preloadImagesFn: DownloadServiceOptions['preloadImages'];
 
 	constructor(options: DownloadServiceOptions) {
 		this.store = options.store;
 		this.cacheTrackFn = options.cacheTrack;
 		this.getTrackPlaybackUrlFn = options.getTrackPlaybackUrl;
 		this.removeTrackFn = options.removeTrack;
+		this.preloadImagesFn = options.preloadImages;
 	}
 
 	// -------------------------------------------------------------------------
@@ -211,6 +216,11 @@ export class DownloadService {
 	}): void {
 		const { album, tracks, artistLogoUrl } = params;
 		this.ensureLoaded().then(async () => {
+			this.preloadDownloadImages({
+				albumArtUrls: [album.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
+				artistLogoUrls: [artistLogoUrl],
+			});
+
 			this.albums[album.id] = {
 				album,
 				artistLogoUrl,
@@ -236,6 +246,11 @@ export class DownloadService {
 	}): void {
 		const { playlist, tracks } = params;
 		this.ensureLoaded().then(async () => {
+			this.preloadDownloadImages({
+				albumArtUrls: [playlist.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
+				artistLogoUrls: tracks.map(({ artistLogoUrl }) => artistLogoUrl),
+			});
+
 			const trackArtistLogoUrls: Record<string, string | null> = {};
 			for (const { track, artistLogoUrl } of tracks) {
 				trackArtistLogoUrls[track.id] = artistLogoUrl;
@@ -269,6 +284,14 @@ export class DownloadService {
 	}): void {
 		const { artist, albumEntries, artistLogoUrl } = params;
 		this.ensureLoaded().then(async () => {
+			this.preloadDownloadImages({
+				albumArtUrls: albumEntries.flatMap(({ album, tracks }) => [
+					album.imageUrl,
+					...tracks.map(({ track }) => track.albumImageUrl),
+				]),
+				artistLogoUrls: [artistLogoUrl],
+			});
+
 			this.artists[artist.id] = {
 				albumIds: albumEntries.map((a) => a.album.id),
 				artist,
@@ -399,6 +422,42 @@ export class DownloadService {
 		if (this.queue.some((q) => q.trackId === trackId)) return;
 		this.queue.push({ streamUrl, trackId });
 		this.drainQueue();
+	}
+
+	private preloadDownloadImages(params: {
+		albumArtUrls: Array<string | null | undefined>;
+		artistLogoUrls: Array<string | null | undefined>;
+	}): void {
+		if (!this.preloadImagesFn) {
+			return;
+		}
+
+		this.preloadCategory(params.albumArtUrls, 'album_art');
+		this.preloadCategory(params.artistLogoUrls, 'artist_logo');
+	}
+
+	private preloadCategory(urls: Array<string | null | undefined>, category: ImageCategory): void {
+		if (!this.preloadImagesFn) {
+			return;
+		}
+
+		const uniqueUrls = Array.from(
+			new Set(
+				urls
+					.map((url) => (typeof url === 'string' ? url.trim() : ''))
+					.filter((url): url is string => url.length > 0),
+			),
+		);
+
+		if (uniqueUrls.length === 0) {
+			return;
+		}
+
+		try {
+			this.preloadImagesFn(uniqueUrls, category);
+		} catch {
+			// Best effort only.
+		}
 	}
 
 	private drainQueue(): void {

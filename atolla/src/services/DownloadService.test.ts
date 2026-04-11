@@ -56,10 +56,12 @@ function createService(
 	store: InMemoryStore;
 	cacheCalls: Array<CacheCall>;
 	removeCalls: Array<string>;
+	preloadCalls: Array<{ category: string; urls: Array<string> }>;
 } {
 	const store = options.store ?? new InMemoryStore();
 	const cacheCalls: Array<CacheCall> = [];
 	const removeCalls: Array<string> = [];
+	const preloadCalls: Array<{ category: string; urls: Array<string> }> = [];
 
 	const service = new DownloadService({
 		cacheTrack: (trackId, url) => {
@@ -67,6 +69,9 @@ function createService(
 			return Promise.resolve();
 		},
 		getTrackPlaybackUrl: (trackId) => `file://${trackId}`,
+		preloadImages: (urls, category) => {
+			preloadCalls.push({ category, urls });
+		},
 		removeTrack: (trackId) => {
 			removeCalls.push(trackId);
 		},
@@ -74,7 +79,7 @@ function createService(
 		...options,
 	});
 
-	return { cacheCalls, removeCalls, service, store };
+	return { cacheCalls, preloadCalls, removeCalls, service, store };
 }
 
 // Drain the microtask / Promise queue so async effects settle.
@@ -164,6 +169,32 @@ describe('DownloadService', () => {
 
 			expect(service.getDownloadingCount()).toBe(0);
 			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
+		});
+
+		it('preloads artist logos and album artwork for offline image cache', async () => {
+			const { preloadCalls, service } = createService();
+			const album = { ...makeAlbum('album-1'), imageUrl: 'https://img/album-1.jpg' };
+			const trackA = { ...makeTrack('track-1'), albumImageUrl: 'https://img/album-1.jpg' };
+			const trackB = { ...makeTrack('track-2'), albumImageUrl: 'https://img/album-2.jpg' };
+
+			service.downloadAlbum({
+				album,
+				artistLogoUrl: 'https://img/logo-artist.jpg',
+				tracks: [
+					{ streamUrl: 'http://stream/track-1', track: trackA },
+					{ streamUrl: 'http://stream/track-2', track: trackB },
+				],
+			});
+
+			await flush();
+
+			expect(preloadCalls).toEqual([
+				{
+					category: 'album_art',
+					urls: ['https://img/album-1.jpg', 'https://img/album-2.jpg'],
+				},
+				{ category: 'artist_logo', urls: ['https://img/logo-artist.jpg'] },
+			]);
 		});
 	});
 

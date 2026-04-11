@@ -36,16 +36,54 @@ export class OfflineTransport implements Transport {
 	}
 
 	async getArtist(artistId: string): Promise<Artist | null> {
-		return this.downloads.getArtist(artistId)?.artist ?? null;
+		const downloadedArtist = this.downloads.getArtist(artistId)?.artist;
+		if (downloadedArtist) {
+			return downloadedArtist;
+		}
+
+		const downloadedAlbum = this.downloads
+			.getAllAlbums()
+			.find((entry) => entry.album.artistId === artistId);
+		if (!downloadedAlbum) {
+			return null;
+		}
+
+		return {
+			id: artistId,
+			logoUrl: downloadedAlbum.artistLogoUrl ?? undefined,
+			name: downloadedAlbum.album.artistName,
+		};
 	}
 
 	async getArtistLogoUrl(artistId: string): Promise<string | null> {
 		const artistEntry = this.downloads.getArtist(artistId);
-		if (!artistEntry) return null;
-		for (const albumId of artistEntry.albumIds) {
-			const albumEntry = this.downloads.getAlbum(albumId);
-			if (albumEntry?.artistLogoUrl) return albumEntry.artistLogoUrl;
+		if (artistEntry) {
+			for (const albumId of artistEntry.albumIds) {
+				const albumEntry = this.downloads.getAlbum(albumId);
+				if (albumEntry?.artistLogoUrl) return albumEntry.artistLogoUrl;
+			}
 		}
+
+		for (const albumEntry of this.downloads.getAllAlbums()) {
+			if (albumEntry.album.artistId === artistId && albumEntry.artistLogoUrl) {
+				return albumEntry.artistLogoUrl;
+			}
+		}
+
+		for (const playlistEntry of this.downloads.getAllPlaylists()) {
+			for (const trackId of playlistEntry.trackIds) {
+				const trackEntry = this.downloads.getTrack(trackId);
+				if (!trackEntry || trackEntry.track.artistId !== artistId) {
+					continue;
+				}
+
+				const playlistLogo = playlistEntry.trackArtistLogoUrls[trackId];
+				if (playlistLogo) {
+					return playlistLogo;
+				}
+			}
+		}
+
 		return null;
 	}
 

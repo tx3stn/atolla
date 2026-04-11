@@ -98,17 +98,35 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	handleDownloadTap = (): void => {
 		const { downloadService, playlist, transport } = this.viewModel;
-		const tracks = this.state.tracks
-			.map((track, i) => {
+		Promise.all(
+			this.state.tracks.map(async (track, i) => {
 				const streamUrl = transport.getTrackCacheUrl?.(track.id);
-				return streamUrl
-					? { artistLogoUrl: this.state.artistLogoUrls[i] ?? null, streamUrl, track }
-					: null;
-			})
-			.filter(
+				if (!streamUrl) {
+					return null;
+				}
+
+				const existingLogoUrl = this.state.artistLogoUrls[i] ?? null;
+				if (existingLogoUrl) {
+					return { artistLogoUrl: existingLogoUrl, streamUrl, track };
+				}
+
+				if (!track.artistId) {
+					return { artistLogoUrl: null, streamUrl, track };
+				}
+
+				try {
+					const resolvedLogoUrl = await transport.getArtistLogoUrl(track.artistId);
+					return { artistLogoUrl: resolvedLogoUrl, streamUrl, track };
+				} catch {
+					return { artistLogoUrl: null, streamUrl, track };
+				}
+			}),
+		).then((resolvedTracks) => {
+			const tracks = resolvedTracks.filter(
 				(t): t is { artistLogoUrl: string | null; streamUrl: string; track: Track } => t !== null,
 			);
-		downloadService.downloadPlaylist({ playlist, tracks });
+			downloadService.downloadPlaylist({ playlist, tracks });
+		});
 	};
 
 	handleRemoveDownloadTap = (): void => {

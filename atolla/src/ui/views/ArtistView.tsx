@@ -84,20 +84,26 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	handleDownloadTap = (): void => {
 		const { artist, downloadService, transport } = this.viewModel;
-		const artistLogoUrl = artist.logoUrl ?? null;
-		Promise.all(
-			this.state.albums.map((album) =>
-				transport.getTracksByAlbum(album.id).then((tracks) => ({
-					album,
-					tracks: tracks
-						.map((track) => {
-							const streamUrl = transport.getTrackCacheUrl?.(track.id);
-							return streamUrl ? { streamUrl, track } : null;
-						})
-						.filter((t): t is { streamUrl: string; track: Track } => t !== null),
-				})),
+		const artistLogoUrlPromise = artist.logoUrl
+			? Promise.resolve(artist.logoUrl)
+			: transport.getArtistLogoUrl(artist.id).catch(() => null);
+
+		Promise.all([
+			artistLogoUrlPromise,
+			Promise.all(
+				this.state.albums.map((album) =>
+					transport.getTracksByAlbum(album.id).then((tracks) => ({
+						album,
+						tracks: tracks
+							.map((track) => {
+								const streamUrl = transport.getTrackCacheUrl?.(track.id);
+								return streamUrl ? { streamUrl, track } : null;
+							})
+							.filter((t): t is { streamUrl: string; track: Track } => t !== null),
+					})),
+				),
 			),
-		).then((albumEntries) => {
+		]).then(([artistLogoUrl, albumEntries]) => {
 			downloadService.downloadArtistAlbums({ albumEntries, artist, artistLogoUrl });
 		});
 	};

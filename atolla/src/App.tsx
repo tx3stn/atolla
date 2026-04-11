@@ -13,6 +13,7 @@ import {
 	ensureAtollaImageLoaderBootstrap,
 	getAtollaImageLoaderDiskCacheByteSize,
 	getAtollaImageLoaderDiskCacheEntryCount,
+	preloadAtollaImages,
 	setAtollaImageCachedObserver,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
@@ -212,6 +213,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				});
 			}),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
+		preloadImages: (urls, category) => {
+			try {
+				preloadAtollaImages(urls, category);
+			} catch {
+				// Non-Android targets do not provide native preload bridge.
+			}
+		},
 		removeTrack: (trackId) => removeAtollaDownloadedTrack(trackId),
 		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
 	});

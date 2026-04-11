@@ -148,11 +148,36 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				return streamUrl ? { streamUrl, track } : null;
 			})
 			.filter((t): t is { streamUrl: string; track: Track } => t !== null);
-		downloadService.downloadAlbum({
-			album,
-			artistLogoUrl: this.state.artistLogoUrl,
-			tracks,
-		});
+
+		const existingLogoUrl = this.state.artistLogoUrl;
+		if (existingLogoUrl) {
+			downloadService.downloadAlbum({
+				album,
+				artistLogoUrl: existingLogoUrl,
+				tracks,
+			});
+			return;
+		}
+
+		transport
+			.getArtistLogoUrl(album.artistId)
+			.then((resolvedLogoUrl) => {
+				if (resolvedLogoUrl) {
+					this.setState({ artistLogoUrl: resolvedLogoUrl });
+				}
+				downloadService.downloadAlbum({
+					album,
+					artistLogoUrl: resolvedLogoUrl,
+					tracks,
+				});
+			})
+			.catch(() => {
+				downloadService.downloadAlbum({
+					album,
+					artistLogoUrl: null,
+					tracks,
+				});
+			});
 	};
 
 	handleRemoveDownloadTap = (): void => {
