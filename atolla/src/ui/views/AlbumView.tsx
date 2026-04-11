@@ -7,6 +7,7 @@ import { NavigationPageStatefulComponent } from 'valdi_navigation/src/Navigation
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Track } from '../../models/Track';
+import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
@@ -22,6 +23,7 @@ import { ArtistView } from './ArtistView';
 export interface AlbumViewModel {
 	album: Album;
 	animationsEnabled: boolean;
+	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
@@ -34,7 +36,7 @@ interface AlbumState {
 	artist: Artist | null;
 	artistLogoUrl: string | null;
 	contextMenuTrack: Track | null;
-	isDownloaded: boolean;
+	downloadState: DownloadState;
 	isFooterVisible: boolean;
 	isLoading: boolean;
 	tracks: Array<Track>;
@@ -45,12 +47,13 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	private modalSlot = new DetachedSlot();
 	private hasBeenDestroyed = false;
 	private unsubscribePlayback?: () => void;
+	private unsubscribeDownloads?: () => void;
 
 	state: AlbumState = {
 		artist: null,
 		artistLogoUrl: null,
 		contextMenuTrack: null,
-		isDownloaded: false,
+		downloadState: 'not_downloaded',
 		isFooterVisible: false,
 		isLoading: true,
 		tracks: [],
@@ -138,7 +141,22 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	handleDownloadTap = (): void => {
-		this.setState({ isDownloaded: !this.state.isDownloaded });
+		const { album, downloadService, transport } = this.viewModel;
+		const tracks = this.state.tracks
+			.map((track) => {
+				const streamUrl = transport.getTrackCacheUrl?.(track.id);
+				return streamUrl ? { streamUrl, track } : null;
+			})
+			.filter((t): t is { streamUrl: string; track: Track } => t !== null);
+		downloadService.downloadAlbum({
+			album,
+			artistLogoUrl: this.state.artistLogoUrl,
+			tracks,
+		});
+	};
+
+	handleRemoveDownloadTap = (): void => {
+		this.viewModel.downloadService.removeAlbumDownload(this.viewModel.album.id);
 	};
 
 	handleHeaderAddToQueueTap = (): Promise<void> => {
@@ -147,14 +165,24 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		return Promise.resolve();
 	};
 
+	private syncDownloadState(): void {
+		this.setState({
+			downloadState: this.viewModel.downloadService.getAlbumDownloadState(this.viewModel.album.id),
+		});
+	}
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		const { album, paletteQueue, playbackStore, transport } = this.viewModel;
+		const { album, downloadService, paletteQueue, playbackStore, transport } = this.viewModel;
 		paletteQueue?.prioritize(album.imageUrl);
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: playbackStore.track !== null });
 		});
+		this.unsubscribeDownloads = downloadService.subscribe(() => {
+			this.syncDownloadState();
+		});
 		this.setState({ isFooterVisible: playbackStore.track !== null });
+		this.syncDownloadState();
 		transport.getTracksByAlbum(album.id).then((tracks) => {
 			if (this.hasBeenDestroyed) {
 				return;
@@ -173,11 +201,12 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		this.unsubscribeDownloads?.();
 		this.viewModel.onExitFromSearchNavigation?.();
 	}
 
 	onRender(): void {
-		const { artistLogoUrl, contextMenuTrack, isDownloaded, isFooterVisible, isLoading, tracks } =
+		const { artistLogoUrl, contextMenuTrack, downloadState, isFooterVisible, isLoading, tracks } =
 			this.state;
 		const { album, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 
@@ -202,14 +231,15 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					artworkCategory='album_art'
 					artworkSource={album.imageUrl ?? null}
 					buttonText={album.releaseDate}
+					downloadState={downloadState}
 					fallbackText={album.artistName}
 					imageCache={imageCache}
-					isDownloaded={isDownloaded}
 					logoSource={artistLogoUrl}
 					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onArtistTap={this.handleArtistLogoTap}
 					onDownload={this.handleDownloadTap}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+					onRemoveDownload={this.handleRemoveDownloadTap}
 					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 					subheaderLineOneLeft={album.name}
 					subheaderLineTwoLeft={releaseDateText}

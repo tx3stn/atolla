@@ -6,6 +6,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
+import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
@@ -20,6 +21,7 @@ const TRACK_PAGE_SIZE = 50;
 
 export interface PlaylistViewModel {
 	animationsEnabled: boolean;
+	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
@@ -33,7 +35,7 @@ export interface PlaylistViewModel {
 interface PlaylistState {
 	artistLogoUrls: Array<string | null>;
 	contextMenuTrack: Track | null;
-	isDownloaded: boolean;
+	downloadState: DownloadState;
 	isFooterVisible: boolean;
 	isLoading: boolean;
 	totalTrackCount: number | null;
@@ -52,11 +54,12 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private hasMoreTracks = true;
 	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
+	private unsubscribeDownloads?: () => void;
 
 	state: PlaylistState = {
 		artistLogoUrls: [],
 		contextMenuTrack: null,
-		isDownloaded: false,
+		downloadState: 'not_downloaded',
 		isFooterVisible: false,
 		isLoading: true,
 		totalTrackCount: null,
@@ -94,7 +97,22 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	handleDownloadTap = (): void => {
-		this.setState({ isDownloaded: !this.state.isDownloaded });
+		const { downloadService, playlist, transport } = this.viewModel;
+		const tracks = this.state.tracks
+			.map((track, i) => {
+				const streamUrl = transport.getTrackCacheUrl?.(track.id);
+				return streamUrl
+					? { artistLogoUrl: this.state.artistLogoUrls[i] ?? null, streamUrl, track }
+					: null;
+			})
+			.filter(
+				(t): t is { artistLogoUrl: string | null; streamUrl: string; track: Track } => t !== null,
+			);
+		downloadService.downloadPlaylist({ playlist, tracks });
+	};
+
+	handleRemoveDownloadTap = (): void => {
+		this.viewModel.downloadService.removePlaylistDownload(this.viewModel.playlist.id);
 	};
 
 	handleHeaderPlayTap = (): void => {
@@ -138,13 +156,25 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.viewModel.onNavigateToArtist?.(artistId);
 	};
 
+	private syncDownloadState(): void {
+		this.setState({
+			downloadState: this.viewModel.downloadService.getPlaylistDownloadState(
+				this.viewModel.playlist.id,
+			),
+		});
+	}
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		const { playbackStore } = this.viewModel;
+		const { downloadService, playbackStore } = this.viewModel;
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: playbackStore.track !== null });
 		});
+		this.unsubscribeDownloads = downloadService.subscribe(() => {
+			this.syncDownloadState();
+		});
 		this.setState({ isFooterVisible: playbackStore.track !== null });
+		this.syncDownloadState();
 		void this.loadNextPage();
 	}
 
@@ -231,11 +261,12 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		this.unsubscribeDownloads?.();
 		this.viewModel.onExitFromSearchNavigation?.();
 	}
 
 	onRender(): void {
-		const { contextMenuTrack, isDownloaded, isFooterVisible, isLoading, totalTrackCount, tracks } =
+		const { contextMenuTrack, downloadState, isFooterVisible, isLoading, totalTrackCount, tracks } =
 			this.state;
 		const { imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
 
@@ -259,12 +290,13 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					animationsEnabled={this.viewModel.animationsEnabled}
 					artworkCategory='playlist_image'
 					artworkSource={this.viewModel.playlist.imageUrl ?? null}
+					downloadState={downloadState}
 					fallbackText={this.viewModel.playlist.name}
 					imageCache={this.viewModel.imageCache}
-					isDownloaded={isDownloaded}
 					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onDownload={this.handleDownloadTap}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+					onRemoveDownload={this.handleRemoveDownloadTap}
 					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 					subheaderLineOneLeft={
 						totalTrackCount != null

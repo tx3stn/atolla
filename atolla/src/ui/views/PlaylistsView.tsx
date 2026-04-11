@@ -4,6 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Playlist } from '../../models/Playlist';
+import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
@@ -16,6 +17,7 @@ import { PlaylistView } from './PlaylistView';
 
 export interface PlaylistsViewModel {
 	animationsEnabled: boolean;
+	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
@@ -217,6 +219,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 							PlaylistView,
 							{
 								animationsEnabled,
+								downloadService: this.viewModel.downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
 								onNavigateToArtist,

@@ -21,6 +21,7 @@ import type { Artist } from './models/Artist';
 import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
+import { DownloadService } from './services/DownloadService';
 import type { ClearCacheSelection } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
@@ -63,6 +64,7 @@ import { theme } from './theme';
 import { LiveTransport } from './transports/Live';
 import { MockTransport } from './transports/Mock';
 import { type ConnectionMode, ConnectionModes } from './transports/Model';
+import { OfflineTransport } from './transports/Offline';
 import type { Transport } from './transports/Transport';
 import { BootSplash } from './ui/components/BootSplash';
 import { FooterNav } from './ui/components/FooterNav';
@@ -90,6 +92,7 @@ interface AppState {
 	authErrorMessage: string | null;
 	authToastMessage: string | null;
 	connectionMode: ConnectionMode;
+	downloadingCount: number;
 	gridColumns: number;
 	homeResetNonce: number;
 	imageCacheMaxBytes: number;
@@ -197,6 +200,17 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private searchStore!: SearchStore;
 	private transport: Transport = new MockTransport();
 	private paletteService!: ArtworkPaletteService;
+	private downloadService = new DownloadService({
+		cacheTrack: (trackId, url) =>
+			new Promise<void>((resolve, reject) => {
+				cacheAtollaTrackFromUrlAsync(trackId, url, (source) => {
+					if (source) resolve();
+					else reject(new Error('cacheAtollaTrackFromUrlAsync returned no source'));
+				});
+			}),
+		getTrackPlaybackUrl: (trackId) => getAtollaCachedTrackFileUrl(trackId),
+		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
+	});
 	private paletteQueue!: PaletteGenerationQueue;
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
@@ -250,6 +264,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		authErrorMessage: null,
 		authToastMessage: null,
 		connectionMode: ConnectionModes.mock,
+		downloadingCount: 0,
 		gridColumns: DEFAULT_GRID_COLUMNS,
 		homeResetNonce: 0,
 		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
@@ -345,6 +360,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					this.completeBootstrap({});
 				}
 			});
+		this.downloadService.subscribe(() => {
+			this.setState({ downloadingCount: this.downloadService.getDownloadingCount() });
+		});
+		this.downloadService.onAppReady();
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
 			this.syncScrobblePlaybackSnapshot();
 			this.handleAlbumChange();
@@ -576,6 +595,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					this.setState({ connectionMode: mode, isAuthRequired: true });
 					return;
 				}
+			} else if (mode === ConnectionModes.offline) {
+				this.transport = new OfflineTransport(this.downloadService);
 			} else {
 				this.transport = new MockTransport();
 			}
@@ -1125,6 +1146,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					{
 						animationsEnabled: this.state.animationsEnabled,
 						artist: target.artist,
+						downloadService: this.downloadService,
 						gridColumns: this.state.gridColumns,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						paletteQueue: this.paletteQueue,
@@ -1142,6 +1164,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					{
 						album: target.album as Album,
 						animationsEnabled: this.state.animationsEnabled,
+						downloadService: this.downloadService,
 						gridColumns: this.state.gridColumns,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						paletteQueue: this.paletteQueue,
@@ -1158,6 +1181,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					PlaylistView,
 					{
 						animationsEnabled: this.state.animationsEnabled,
+						downloadService: this.downloadService,
 						gridColumns: this.state.gridColumns,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						paletteQueue: this.paletteQueue,
@@ -1275,6 +1299,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				{
 					animationsEnabled: this.state.animationsEnabled,
 					artist,
+					downloadService: this.downloadService,
 					gridColumns: this.state.gridColumns,
 					paletteQueue: this.paletteQueue,
 					playbackStore: this.playbackStore,
@@ -1336,6 +1361,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					{
 						animationsEnabled: this.state.animationsEnabled,
 						artist: resolvedArtist,
+						downloadService: this.downloadService,
 						gridColumns: this.state.gridColumns,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
@@ -1403,6 +1429,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				{
 					album,
 					animationsEnabled: this.state.animationsEnabled,
+					downloadService: this.downloadService,
 					gridColumns: this.state.gridColumns,
 					paletteQueue: this.paletteQueue,
 					playbackStore: this.playbackStore,
@@ -1510,6 +1537,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				<HomeView
 					activeTab={this.state.activeHomeTab}
 					animationsEnabled={this.state.animationsEnabled}
+					downloadService={this.downloadService}
 					gridColumns={this.state.gridColumns}
 					onNavigateToArtist={this.handleNavigateToArtist}
 					onNavigationControllerChange={this.handleHomeNavigationControllerChange}
@@ -1559,6 +1587,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			<FooterNav
 				activeTab={this.state.activeFooterTab}
 				connectionMode={this.state.connectionMode}
+				downloadingCount={this.state.downloadingCount}
 				onFooterTabTap={this.handleFooterTabTap}
 				onModeChange={this.handleModeChange}
 			/>

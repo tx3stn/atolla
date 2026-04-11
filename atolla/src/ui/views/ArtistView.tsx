@@ -7,6 +7,7 @@ import { NavigationPageStatefulComponent } from 'valdi_navigation/src/Navigation
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Track } from '../../models/Track';
+import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
@@ -23,6 +24,7 @@ import { AlbumView } from './AlbumView';
 export interface ArtistViewModel {
 	animationsEnabled: boolean;
 	artist: Artist;
+	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
 	onExitFromSearchNavigation?: () => void;
@@ -36,7 +38,7 @@ interface ArtistState {
 	albumsLoaded: boolean;
 	allTracks: Array<Track>;
 	contextMenuTrack: Track | null;
-	isDownloaded: boolean;
+	downloadState: DownloadState;
 	isFooterVisible: boolean;
 	topTracks: Array<Track>;
 	topTracksLoaded: boolean;
@@ -47,13 +49,14 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	private modalSlot = new DetachedSlot();
 	private hasBeenDestroyed = false;
 	private unsubscribePlayback?: () => void;
+	private unsubscribeDownloads?: () => void;
 
 	state: ArtistState = {
 		albums: [],
 		albumsLoaded: false,
 		allTracks: [],
 		contextMenuTrack: null,
-		isDownloaded: false,
+		downloadState: 'not_downloaded',
 		isFooterVisible: false,
 		topTracks: [],
 		topTracksLoaded: false,
@@ -80,7 +83,27 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	};
 
 	handleDownloadTap = (): void => {
-		this.setState({ isDownloaded: !this.state.isDownloaded });
+		const { artist, downloadService, transport } = this.viewModel;
+		const artistLogoUrl = artist.logoUrl ?? null;
+		Promise.all(
+			this.state.albums.map((album) =>
+				transport.getTracksByAlbum(album.id).then((tracks) => ({
+					album,
+					tracks: tracks
+						.map((track) => {
+							const streamUrl = transport.getTrackCacheUrl?.(track.id);
+							return streamUrl ? { streamUrl, track } : null;
+						})
+						.filter((t): t is { streamUrl: string; track: Track } => t !== null),
+				})),
+			),
+		).then((albumEntries) => {
+			downloadService.downloadArtistAlbums({ albumEntries, artist, artistLogoUrl });
+		});
+	};
+
+	handleRemoveDownloadTap = (): void => {
+		this.viewModel.downloadService.removeArtistDownload(this.viewModel.artist.id);
 	};
 
 	handleHeaderAddToQueueTap = (): Promise<void> => {
@@ -105,11 +128,27 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			return;
 		}
 
-		const { animationsEnabled, gridColumns, imageCache, paletteQueue, playbackStore, transport } =
-			this.viewModel;
+		const {
+			animationsEnabled,
+			downloadService,
+			gridColumns,
+			imageCache,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
 		this.navigationController.push(
 			AlbumView,
-			{ album, animationsEnabled, gridColumns, imageCache, paletteQueue, playbackStore, transport },
+			{
+				album,
+				animationsEnabled,
+				downloadService,
+				gridColumns,
+				imageCache,
+				paletteQueue,
+				playbackStore,
+				transport,
+			},
 			{},
 			{ animated: animationsEnabled },
 		);
@@ -131,13 +170,25 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		});
 	};
 
+	private syncDownloadState(): void {
+		this.setState({
+			downloadState: this.viewModel.downloadService.getArtistDownloadState(
+				this.viewModel.artist.id,
+			),
+		});
+	}
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		const { artist, playbackStore, transport } = this.viewModel;
+		const { artist, downloadService, playbackStore, transport } = this.viewModel;
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: playbackStore.track !== null });
 		});
+		this.unsubscribeDownloads = downloadService.subscribe(() => {
+			this.syncDownloadState();
+		});
 		this.setState({ isFooterVisible: playbackStore.track !== null });
+		this.syncDownloadState();
 		transport.getAlbumsByArtist(artist.id).then((albums) => {
 			if (this.hasBeenDestroyed) {
 				return;
@@ -162,6 +213,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		this.unsubscribeDownloads?.();
 		this.viewModel.onExitFromSearchNavigation?.();
 	}
 
@@ -172,7 +224,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			albumsLoaded,
 			allTracks,
 			contextMenuTrack,
-			isDownloaded,
+			downloadState,
 			isFooterVisible,
 			topTracks,
 			topTracksLoaded,
@@ -206,13 +258,14 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					animationsEnabled={animationsEnabled}
 					artworkCategory='artist_image'
 					artworkSource={artist.imageUrl ?? null}
+					downloadState={downloadState}
 					fallbackText={artist.name}
 					imageCache={imageCache}
-					isDownloaded={isDownloaded}
 					logoSource={artist.logoUrl || null}
 					onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onDownload={this.handleDownloadTap}
 					onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+					onRemoveDownload={this.handleRemoveDownloadTap}
 					onShuffle={allTracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 				/>
 

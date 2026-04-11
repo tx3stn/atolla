@@ -4,11 +4,13 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { DownloadState } from '../../services/DownloadService';
 import type { ImageCache, ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
+import { LoopingArrowSpinner } from './LoopingArrowSpinner';
 import { TappableIcon } from './TappableIcon';
 import { Toast } from './Toast';
 import { clearScheduledToast, scheduleToastDismiss } from './toastTimer';
@@ -17,14 +19,15 @@ export interface DetailHeaderViewModel {
 	animationsEnabled: boolean;
 	artworkCategory: ImageCategory;
 	artworkSource: string | null;
+	downloadState?: DownloadState;
 	fallbackText?: string | null;
 	imageCache?: ImageCache;
-	isDownloaded?: boolean;
 	logoSource?: string | null;
 	onAddToQueue?: () => Promise<void>;
 	onArtistTap?: () => void;
 	onDownload?: () => void;
 	onPlay?: () => void;
+	onRemoveDownload?: () => void;
 	onShuffle?: () => void;
 	subheaderLineOneLeft?: string | null;
 	subheaderLineOneRight?: string | null;
@@ -93,11 +96,12 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 	onRender() {
 		const {
 			artworkSource,
+			downloadState,
 			fallbackText,
-			isDownloaded,
 			logoSource,
 			onArtistTap,
 			onDownload,
+			onRemoveDownload,
 			onPlay,
 			onShuffle,
 			subheaderLineOneLeft,
@@ -134,12 +138,20 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 						/>
 					</layout>
 					<layout style={styles.buttonsRow}>
-						<TappableIcon
-							accessibilityLabel='detail-header-download-button'
-							animationsEnabled={this.viewModel.animationsEnabled}
-							icon={isDownloaded ? res.downloaded : res.download}
-							onTap={isDownloaded ? () => {} : onDownload}
-						/>
+						{downloadState === 'downloading' ? (
+							<LoopingArrowSpinner
+								accessibilityLabel='detail-header-downloading-spinner'
+								size={24}
+								tint={theme.colors.white}
+							/>
+						) : (
+							<TappableIcon
+								accessibilityLabel='detail-header-download-button'
+								animationsEnabled={this.viewModel.animationsEnabled}
+								icon={downloadState === 'downloaded' ? res.downloaded : res.download}
+								onTap={downloadState === 'downloaded' ? onRemoveDownload : onDownload}
+							/>
+						)}
 						<TappableIcon
 							accessibilityLabel='detail-header-shuffle-button'
 							animationsEnabled={this.viewModel.animationsEnabled}

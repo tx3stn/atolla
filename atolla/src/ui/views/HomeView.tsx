@@ -5,6 +5,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
+import type { DownloadService } from '../../services/DownloadService';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
@@ -17,6 +18,7 @@ import { PlaylistsView } from './PlaylistsView';
 export interface HomeViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
+	downloadService: DownloadService;
 	gridColumns: number;
 	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationControllerChange?: (navigationController: NavigationController) => void;
@@ -124,6 +126,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const {
 			activeTab,
 			animationsEnabled,
+			downloadService,
 			gridColumns,
 			imageCache,
 			onNavigateToArtist,
@@ -139,6 +142,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<ArtistsView
 							animationsEnabled={animationsEnabled}
+							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
 							navigationController={navigationController}
@@ -156,6 +160,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<AlbumsView
 							animationsEnabled={animationsEnabled}
+							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
 							navigationController={navigationController}
@@ -173,6 +178,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<PlaylistsView
 							animationsEnabled={animationsEnabled}
+							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
 							navigationController={navigationController}

@@ -8,6 +8,7 @@ import {
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
+import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { FooterIcon } from './FooterIcon';
 import { type FooterTab, FooterTabs } from './FooterTab';
@@ -15,6 +16,7 @@ import { type FooterTab, FooterTabs } from './FooterTab';
 export interface FooterNavViewModel {
 	activeTab: FooterTab;
 	connectionMode: ConnectionMode;
+	downloadingCount: number;
 	onFooterTabTap: (tabId: FooterTab) => void;
 	onModeChange: (mode: ConnectionMode) => void;
 }
@@ -25,7 +27,8 @@ export class FooterNav extends Component<FooterNavViewModel> {
 	};
 
 	onRender() {
-		const modeIcon = modeIcons(this.viewModel.connectionMode);
+		const { connectionMode, downloadingCount } = this.viewModel;
+		const modeIcon = modeIcons(connectionMode);
 
 		<view style={styles.footerPinned}>
 			<FooterIcon
@@ -52,13 +55,21 @@ export class FooterNav extends Component<FooterNavViewModel> {
 				active={this.viewModel.activeTab === FooterTabs.settings}
 				icon={res.settings}
 			/>
-			<FooterIcon
+			<view
 				accessibilityLabel='footer-mode'
-				action={createReusableCallback(() => {
+				contentDescription='footer-mode'
+				onTap={createReusableCallback(() => {
 					this.onModeBadgeTap();
 				})}
-				icon={modeIcon}
-			/>
+				style={styles.modeIconWrapper}
+			>
+				<image src={modeIcon} style={styles.modeIcon} tint={theme.colors.grey} />
+				{downloadingCount > 0 && (
+					<view style={styles.badge}>
+						<label style={styles.badgeLabel} value={String(downloadingCount)} />
+					</view>
+				)}
+			</view>
 		</view>;
 	}
 }
@@ -78,6 +89,22 @@ const modeIcons = (mode: ConnectionMode) => {
 };
 
 const styles = {
+	badge: new Style({
+		alignItems: 'center',
+		backgroundColor: theme.colors.active,
+		borderRadius: 8,
+		justifyContent: 'center',
+		minWidth: 16,
+		paddingHorizontal: 4,
+		position: 'absolute',
+		right: 2,
+		top: 0,
+	}),
+	badgeLabel: new Style<Label>({
+		color: theme.colors.white,
+		fontSize: 9,
+		fontWeight: '700',
+	}),
 	footerPinned: new Style({
 		backgroundColor: theme.colors.bgFrosted,
 		bottom: 0,
@@ -90,5 +117,20 @@ const styles = {
 		right: 0,
 		width: '100%',
 		zIndex: 60,
+	}),
+	modeIcon: new Style({
+		height: 20,
+		width: 20,
+	}),
+	modeIconWrapper: new Style({
+		alignItems: 'center',
+		flexGrow: 1,
+		justifyContent: 'center',
+		overflow: 'visible',
+		paddingBottom: 10,
+		paddingLeft: 0,
+		paddingRight: 0,
+		paddingTop: 5,
+		position: 'relative',
 	}),
 };

@@ -1,60 +1,122 @@
 // biome-ignore-all lint/suspicious/useAwait: async used for Transport interface conformance
 
-import { TransportErrors } from '../errors/TransportErrors';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
+import type { DownloadService } from '../services/DownloadService';
 import type { Transport } from './Transport';
 
-// Offline transport reads from the local SQLite DB (not yet implemented).
 export class OfflineTransport implements Transport {
+	private readonly downloads: DownloadService;
+
+	constructor(downloads: DownloadService) {
+		this.downloads = downloads;
+	}
+
 	async getAllArtists(): Promise<Array<Artist>> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+		return this.downloads.getAllArtists().map((e) => e.artist);
 	}
 
 	async getAllAlbums(): Promise<Array<Album>> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+		return this.downloads.getAllAlbums().map((e) => e.album);
 	}
 
-	async getAlbumsByArtist(_artistId: string): Promise<Array<Album>> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
+		const artistEntry = this.downloads.getArtist(artistId);
+		if (!artistEntry) return [];
+		return artistEntry.albumIds
+			.map((id) => this.downloads.getAlbum(id)?.album)
+			.filter((a): a is Album => a != null);
 	}
 
 	async getAllPlaylists(): Promise<Array<Playlist>> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+		return this.downloads.getAllPlaylists().map((e) => e.playlist);
 	}
 
-	async getArtist(_artistId: string): Promise<Artist | null> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+	async getArtist(artistId: string): Promise<Artist | null> {
+		return this.downloads.getArtist(artistId)?.artist ?? null;
 	}
 
-	async getArtistLogoUrl(_artistId: string): Promise<string | null> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+	async getArtistLogoUrl(artistId: string): Promise<string | null> {
+		const artistEntry = this.downloads.getArtist(artistId);
+		if (!artistEntry) return null;
+		for (const albumId of artistEntry.albumIds) {
+			const albumEntry = this.downloads.getAlbum(albumId);
+			if (albumEntry?.artistLogoUrl) return albumEntry.artistLogoUrl;
+		}
+		return null;
 	}
 
-	async getArtistTopTracks(_artistId: string): Promise<Array<Track>> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
+		return this.downloads
+			.getAllTracks()
+			.filter((e) => e.track.artistId === artistId && e.complete)
+			.map((e) => e.track);
 	}
 
-	async search(_query: string): Promise<SearchResults> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
+		const albumEntry = this.downloads.getAlbum(albumId);
+		if (!albumEntry) return [];
+		return albumEntry.trackIds
+			.map((id) => this.downloads.getTrack(id)?.track)
+			.filter((t): t is Track => t != null);
 	}
 
-	async getTracksByAlbum(_albumId: string): Promise<Array<Track>> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+	async getTracksByArtist(artistId: string): Promise<Array<Track>> {
+		const artistEntry = this.downloads.getArtist(artistId);
+		if (!artistEntry) return [];
+		const tracks: Array<Track> = [];
+		for (const albumId of artistEntry.albumIds) {
+			const albumEntry = this.downloads.getAlbum(albumId);
+			if (!albumEntry) continue;
+			for (const trackId of albumEntry.trackIds) {
+				const trackEntry = this.downloads.getTrack(trackId);
+				if (trackEntry) tracks.push(trackEntry.track);
+			}
+		}
+		return tracks;
 	}
 
-	async getTracksByArtist(_artistId: string): Promise<Array<Track>> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
+		const playlistEntry = this.downloads.getPlaylist(playlistId);
+		if (!playlistEntry) return [];
+		return playlistEntry.trackIds
+			.map((id) => this.downloads.getTrack(id)?.track)
+			.filter((t): t is Track => t != null);
 	}
 
-	async getTracksByPlaylist(_playlistId: string): Promise<Array<Track>> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+	getTrackCacheUrl(trackId: string): string | null {
+		if (!this.downloads.isTrackDownloaded(trackId)) return null;
+		return this.downloads.getTrackPlaybackUrl(trackId);
+	}
+
+	async search(query: string): Promise<SearchResults> {
+		const q = query.toLowerCase();
+		const match = (name: string) => name.toLowerCase().includes(q);
+
+		return {
+			albums: this.downloads
+				.getAllAlbums()
+				.filter((e) => match(e.album.name))
+				.map((e) => e.album),
+			artists: this.downloads
+				.getAllArtists()
+				.filter((e) => match(e.artist.name))
+				.map((e) => e.artist),
+			playlists: this.downloads
+				.getAllPlaylists()
+				.filter((e) => match(e.playlist.name))
+				.map((e) => e.playlist),
+			tracks: this.downloads
+				.getAllTracks()
+				.filter((e) => e.complete && match(e.track.name))
+				.map((e) => e.track),
+		};
 	}
 
 	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {
-		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+		// Scrobbles queued by ScrobbleService are retried when back online.
 	}
 }

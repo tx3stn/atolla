@@ -5,6 +5,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Album } from '../../models/Album';
+import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
@@ -17,6 +18,7 @@ import { gridPaginationConfig } from './GridPagination';
 
 export interface AlbumsViewModel {
 	animationsEnabled: boolean;
+	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
@@ -213,6 +215,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 							{
 								album,
 								animationsEnabled,
+								downloadService: this.viewModel.downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
 								paletteQueue,
