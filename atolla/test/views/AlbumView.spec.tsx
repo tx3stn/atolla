@@ -31,6 +31,13 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
+const downloadService = {
+	downloadAlbum: () => {},
+	getAlbumDownloadState: () => 'not_downloaded',
+	removeAlbumDownload: () => {},
+	subscribe: () => () => {},
+};
+
 describe('AlbumView', () => {
 	valdiIt('renders track rows when tracks are present in state', () => {
 		const album = {
@@ -56,7 +63,7 @@ describe('AlbumView', () => {
 
 		const instrumented = createComponent(
 			AlbumView,
-			{ album, playbackStore, transport },
+			{ album, downloadService, playbackStore, transport },
 			{ navigator: mockNavigator },
 		);
 		const component = instrumented.getComponent();
@@ -97,7 +104,7 @@ describe('AlbumView', () => {
 
 		const instrumented = createComponent(
 			AlbumView,
-			{ album, playbackStore, transport },
+			{ album, downloadService, playbackStore, transport },
 			{ navigator: mockNavigator },
 		);
 		const component = instrumented.getComponent();
@@ -133,7 +140,7 @@ describe('AlbumView', () => {
 
 		const instrumented = createComponent(
 			AlbumView,
-			{ album, playbackStore, transport },
+			{ album, downloadService, playbackStore, transport },
 			{ navigator: mockNavigator },
 		);
 		const component = instrumented.getComponent();
@@ -164,7 +171,7 @@ describe('AlbumView', () => {
 		const navigationController = makeNavigationController();
 		const instrumented = createComponent(
 			AlbumView,
-			{ album, navigationController, playbackStore, transport },
+			{ album, downloadService, navigationController, playbackStore, transport },
 			{ navigator: mockNavigator },
 		);
 		const component = instrumented.getComponent();
@@ -211,7 +218,7 @@ describe('AlbumView', () => {
 
 			const instrumented = createComponent(
 				AlbumView,
-				{ album, playbackStore, transport },
+				{ album, downloadService, playbackStore, transport },
 				{ navigator: mockNavigator },
 			);
 			const component = instrumented.getComponent();

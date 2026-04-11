@@ -21,6 +21,13 @@ const playbackStore = {
 	track: null,
 };
 
+const downloadService = {
+	downloadPlaylist: () => {},
+	getPlaylistDownloadState: () => 'not_downloaded',
+	removePlaylistDownload: () => {},
+	subscribe: () => () => {},
+};
+
 describe('PlaylistView', () => {
 	valdiIt('renders track rows from state', () => {
 		const playlist = { id: 'playlist-1', name: 'Roadtrip' };
@@ -34,7 +41,7 @@ describe('PlaylistView', () => {
 
 		const instrumented = createComponent(
 			PlaylistView,
-			{ playbackStore, playlist, transport },
+			{ downloadService, playbackStore, playlist, transport },
 			{ navigator: mockNavigator },
 		);
 		const component = instrumented.getComponent();
@@ -61,7 +68,7 @@ describe('PlaylistView', () => {
 
 		const instrumented = createComponent(
 			PlaylistView,
-			{ playbackStore, playlist, transport },
+			{ downloadService, playbackStore, playlist, transport },
 			{ navigator: mockNavigator },
 		);
 		const component = instrumented.getComponent();
