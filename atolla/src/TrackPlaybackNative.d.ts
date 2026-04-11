@@ -6,6 +6,13 @@
 export function cacheAtollaTrackFromUrl(trackId: string, url: string): string;
 
 // @ExportFunction
+export function cacheAtollaTrackFromUrlAsync(
+	trackId: string,
+	url: string,
+	onComplete: (source: string) => void,
+): void;
+
+// @ExportFunction
 export function getAtollaCachedTrackFileUrl(trackId: string): string;
 
 // @ExportFunction

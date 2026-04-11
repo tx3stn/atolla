@@ -3,7 +3,11 @@ import type { Track } from '../models/Track';
 
 type TrackUrlResolver = (track: Track) => string | null;
 type TrackCacheChecker = (trackId: string) => boolean;
-type TrackCacher = (trackId: string, url: string) => string | null;
+type TrackCacher = (
+	trackId: string,
+	url: string,
+	onComplete: (source: string | null) => void,
+) => void;
 
 interface QueueEntry {
 	track: Track;
@@ -75,37 +79,38 @@ export class TrackPlaybackNativePrefetchQueue {
 
 		setTimeout(() => {
 			this.processEntry(next, generation);
-			this.inProgress = false;
-			if (generation === this.generation) {
-				this.processNext(generation);
-				return;
-			}
-
-			this.processNext(this.generation);
 		}, 0);
 	}
 
 	private processEntry(entry: QueueEntry, generation: number): void {
 		if (generation !== this.generation) {
+			this.inProgress = false;
+			this.processNext(this.generation);
 			return;
 		}
 
 		if (this.hasCachedTrack(entry.trackId)) {
+			this.inProgress = false;
+			this.processNext(this.generation);
 			return;
 		}
 
 		const url = this.resolveTrackUrl(entry.track);
 		if (!url) {
 			this.onTrackFetchFailed?.(entry.trackId, 'no url');
+			this.inProgress = false;
+			this.processNext(this.generation);
 			return;
 		}
 
-		const source = this.cacheTrack(entry.trackId, url);
-		if (!source || generation !== this.generation) {
-			this.onTrackFetchFailed?.(entry.trackId, 'native cache failed');
-			return;
-		}
-
-		this.onTrackStored?.(entry.trackId);
+		this.cacheTrack(entry.trackId, url, (source) => {
+			if (!source || generation !== this.generation) {
+				this.onTrackFetchFailed?.(entry.trackId, 'native cache failed');
+			} else {
+				this.onTrackStored?.(entry.trackId);
+			}
+			this.inProgress = false;
+			this.processNext(this.generation);
+		});
 	}
 }

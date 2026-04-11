@@ -46,7 +46,7 @@ import {
 } from './stores/Preferences';
 import { SearchStore } from './stores/Search';
 import {
-	cacheAtollaTrackFromUrl,
+	cacheAtollaTrackFromUrlAsync,
 	clearAtollaTrackCache,
 	clearAtollaTrackPlaybackNotification,
 	consumeAtollaTrackPlaybackNotificationAction,
@@ -233,7 +233,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
 		(track) => this.transport.getTrackCacheUrl?.(track.id) ?? null,
 		(trackId) => this.getNativeCachedTrackSource(trackId) != null,
-		(trackId, url) => this.cacheTrackViaNative(trackId, url),
+		(trackId, url, onComplete) => {
+			cacheAtollaTrackFromUrlAsync(trackId, url, (rawSource) => {
+				onComplete(rawSource ? this.normalizePlaybackFileSource(rawSource) : null);
+			});
+		},
 		(trackId) => this.handleTrackCached(trackId),
 	);
 
@@ -770,22 +774,24 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				return;
 			}
 
-			const nativeSource = this.cacheTrackViaNative(trackId, url);
-			if (nativeSource) {
-				if (requestId !== this.playbackSourceRequestId) {
+			cacheAtollaTrackFromUrlAsync(trackId, url, (rawSource) => {
+				const nativeSource = rawSource ? this.normalizePlaybackFileSource(rawSource) : null;
+				if (nativeSource) {
+					if (requestId !== this.playbackSourceRequestId) {
+						return;
+					}
+
+					if (this.playbackStore.track?.id !== trackId) {
+						return;
+					}
+
+					this.handleTrackCached(trackId);
 					return;
 				}
 
-				if (this.playbackStore.track?.id !== trackId) {
-					return;
-				}
-
-				this.handleTrackCached(trackId);
-				return;
-			}
-
-			this.showPlaybackToast('cache download failed: native cache failed');
-			this.handleTrackCacheFetchFailed(trackId, 'native cache failed');
+				this.showPlaybackToast('cache download failed: native cache failed');
+				this.handleTrackCacheFetchFailed(trackId, 'native cache failed');
+			});
 			return;
 		} catch (error) {
 			const rawMessage =
@@ -822,18 +828,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 
 		return message.slice(0, markerIndex);
-	}
-
-	private cacheTrackViaNative(trackId: string, url: string): string | null {
-		try {
-			const source = cacheAtollaTrackFromUrl(trackId, url);
-			if (!source) {
-				return null;
-			}
-			return this.normalizePlaybackFileSource(source);
-		} catch {
-			return null;
-		}
 	}
 
 	private getNativeCachedTrackSource(trackId: string): string | null {

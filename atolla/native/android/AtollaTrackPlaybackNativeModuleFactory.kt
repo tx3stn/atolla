@@ -35,6 +35,18 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				return AtollaTrackPlaybackNativeCache.cacheTrackFromUrl(trackId, url)
 			}
 
+			override fun cacheAtollaTrackFromUrlAsync(trackId: String, url: String, onComplete: (String) -> Unit) {
+				Thread {
+					val result = try {
+						AtollaTrackPlaybackNativeCache.cacheTrackFromUrl(trackId, url)
+					} catch (error: Throwable) {
+						Log.e("AtollaTrackCache", "Async track cache failed trackId=$trackId", error)
+						""
+					}
+					onComplete(result)
+				}.also { it.isDaemon = true }.start()
+			}
+
 			override fun getAtollaCachedTrackFileUrl(trackId: String): String {
 				return AtollaTrackPlaybackNativeCache.getCachedTrackFileUrl(trackId)
 			}
@@ -144,13 +156,28 @@ object AtollaTrackPlaybackNativeCache {
 
 			val extension = extensionFromMimeType(mimeType)
 			val file = File(cacheDir, "$safeKey.$extension")
+			val tempFile = File(cacheDir, "$safeKey.tmp")
 			deleteExistingTrackFiles(cacheDir, safeKey)
-			val bytes = connection.getInputStream().use { it.readBytes() }
-			if (bytes.isEmpty()) {
+			tempFile.delete()
+			val bytesWritten = try {
+				connection.getInputStream().use { input ->
+					tempFile.outputStream().use { output ->
+						input.copyTo(output)
+					}
+				}
+			} catch (error: Throwable) {
+				tempFile.delete()
+				throw error
+			}
+			if (bytesWritten == 0L) {
 				Log.e(tag, "Track download returned empty bytes trackId=$trackId")
+				tempFile.delete()
 				return ""
 			}
-			file.writeBytes(bytes)
+			if (!tempFile.renameTo(file)) {
+				tempFile.copyTo(file, overwrite = true)
+				tempFile.delete()
+			}
 			touch(file)
 			pruneIfNeeded(cacheDir)
 			toFileUrl(file)

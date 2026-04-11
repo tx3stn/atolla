@@ -28,10 +28,10 @@ describe('TrackPlaybackNativePrefetchQueue', () => {
 		const queue = new TrackPlaybackNativePrefetchQueue(
 			(track) => `https://audio/${track.id}`,
 			(trackId) => cached.has(trackId),
-			(trackId) => {
+			(trackId, _url, onComplete) => {
 				attemptedTrackIds.push(trackId);
 				cached.add(trackId);
-				return `file:///tmp/${trackId}.mp3`;
+				onComplete(`file:///tmp/${trackId}.mp3`);
 			},
 		);
 
@@ -48,10 +48,10 @@ describe('TrackPlaybackNativePrefetchQueue', () => {
 		const queue = new TrackPlaybackNativePrefetchQueue(
 			(track) => `https://audio/${track.id}`,
 			(trackId) => cached.has(trackId),
-			(trackId) => {
+			(trackId, _url, onComplete) => {
 				attemptedTrackIds.push(trackId);
 				cached.add(trackId);
-				return `file:///tmp/${trackId}.mp3`;
+				onComplete(`file:///tmp/${trackId}.mp3`);
 			},
 		);
 
@@ -70,10 +70,10 @@ describe('TrackPlaybackNativePrefetchQueue', () => {
 		const queue = new TrackPlaybackNativePrefetchQueue(
 			(track) => `https://audio/${track.id}`,
 			(trackId) => cached.has(trackId),
-			(trackId) => {
+			(trackId, _url, onComplete) => {
 				attemptedTrackIds.push(trackId);
 				cached.add(trackId);
-				return `file:///tmp/${trackId}.mp3`;
+				onComplete(`file:///tmp/${trackId}.mp3`);
 			},
 		);
 

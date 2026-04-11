@@ -1187,7 +1187,13 @@ private class AtollaTrackValdiVideoPlayer(
 		}
 
 		try {
-			player.setDataSource(context, Uri.parse(sourceUrl))
+			val uri = Uri.parse(sourceUrl)
+			val scheme = uri.scheme?.lowercase()
+			if (scheme == "http" || scheme == "https") {
+				player.setDataSource(sourceUrl)
+			} else {
+				player.setDataSource(context, uri)
+			}
 			player.prepareAsync()
 			mediaPlayer = player
 		} catch (error: Throwable) {
