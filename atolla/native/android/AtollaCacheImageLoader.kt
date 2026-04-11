@@ -72,7 +72,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 
 	companion object {
 		private const val MEMORY_CACHE_BYTES = 50 * 1024 * 1024
-		private const val DISK_CACHE_MAX_BYTES = 200L * 1024 * 1024
+		@Volatile var diskCacheMaxBytes = 200L * 1024 * 1024
 		private const val DISK_CACHE_TTL_MS = 30L * 24 * 3600 * 1000
 
 		private val httpClient = OkHttpClient.Builder()
@@ -173,6 +173,14 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			return diskStats.second
 		}
 		return memory.snapshot().values.sumOf { it.size.toLong() }
+	}
+
+	fun getDiskEntryCount(): Int = getDiskStats()?.first ?: 0
+
+	fun getDiskByteSize(): Long = getDiskStats()?.second ?: 0L
+
+	fun setDiskCacheMaxBytes(bytes: Long) {
+		diskCacheMaxBytes = bytes
 	}
 
 	fun clearCategories(categories: List<String>) {
@@ -674,13 +682,13 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		}
 
 		var totalBytes = liveFiles.sumOf { it.bytes }
-		if (totalBytes <= DISK_CACHE_MAX_BYTES) {
+		if (totalBytes <= diskCacheMaxBytes) {
 			return
 		}
 
 		val oldestFirst = liveFiles.sortedWith(compareBy<DiskCacheEntry> { it.modifiedAtMs }.thenBy { it.file.name })
 		for (entry in oldestFirst) {
-			if (totalBytes <= DISK_CACHE_MAX_BYTES) {
+			if (totalBytes <= diskCacheMaxBytes) {
 				break
 			}
 			val fileBytes = entry.bytes

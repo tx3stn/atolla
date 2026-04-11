@@ -10,6 +10,7 @@ import {
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
 	GRID_COLUMN_OPTIONS,
+	IMAGE_CACHE_SIZE_OPTIONS,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -20,13 +21,10 @@ import { Toggle } from '../components/Toggle';
 
 const GB = 1024 * 1024 * 1024;
 
-function bytesToGb(bytes: number): string {
-	return String(Math.round(bytes / GB));
-}
-
-function gbToBytes(gb: string): number | null {
-	const n = Number(gb);
-	return Number.isFinite(n) && n > 0 ? Math.round(n * GB) : null;
+function formatCacheSizeLabel(bytes: number): string {
+	const gb = bytes / GB;
+	if (gb < 1) return `${Math.round(bytes / (1024 * 1024))} MB`;
+	return `${gb} GB`;
 }
 
 function formatBytes(bytes: number): string {
@@ -39,8 +37,8 @@ function formatBytes(bytes: number): string {
 export interface SettingsViewModel {
 	animationsEnabled: boolean;
 	gridColumns?: number;
-	imageCacheBufferedBytes?: number;
-	imageCacheBufferedCount?: number;
+	imageCacheDiskBytes?: number;
+	imageCacheDiskCount?: number;
 	imageCacheError?: string | null;
 	imageCacheMaxBytes?: number;
 	onAnimationsChange?: (enabled: boolean) => void;
@@ -55,19 +53,19 @@ export interface SettingsViewModel {
 }
 
 interface SettingsState {
-	cacheSizeInput: string;
 	showCacheClearModal: boolean;
 	showCacheToast: boolean;
 	showGridColumnsOptions: boolean;
+	showImageCacheOptions: boolean;
 	showTrackCacheLimitOptions: boolean;
 }
 
 export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsState> {
 	state: SettingsState = {
-		cacheSizeInput: bytesToGb(this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES),
 		showCacheClearModal: false,
 		showCacheToast: false,
 		showGridColumnsOptions: false,
+		showImageCacheOptions: false,
 		showTrackCacheLimitOptions: false,
 	};
 
@@ -116,32 +114,29 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		this.setState({ showGridColumnsOptions: false });
 	};
 
-	onViewModelUpdate(): void {
-		this.setState({
-			cacheSizeInput: bytesToGb(this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES),
-		});
-	}
+	private handleImageCacheToggle = () => {
+		this.setState({ showImageCacheOptions: !this.state.showImageCacheOptions });
+	};
 
-	handleCacheSizeChange = (text: string): void => {
-		this.setState({ cacheSizeInput: text });
-		const bytes = gbToBytes(text);
-		if (bytes !== null) {
-			this.viewModel.onCacheSizeChange?.(bytes);
-		}
+	private handleImageCacheSelect = (bytes: number) => {
+		this.viewModel.onCacheSizeChange?.(bytes);
+		this.setState({ showImageCacheOptions: false });
 	};
 
 	onRender(): void {
 		const {
 			animationsEnabled,
 			gridColumns,
-			imageCacheBufferedBytes,
-			imageCacheBufferedCount,
+			imageCacheDiskBytes,
+			imageCacheDiskCount,
 			onAnimationsChange,
 			trackCacheCachedCount,
 			trackCacheMaxTracks,
 		} = this.viewModel;
 		const selectedGridColumns = gridColumns ?? DEFAULT_GRID_COLUMNS;
 		const selectedTrackCacheLimit = trackCacheMaxTracks ?? DEFAULT_TRACK_CACHE_MAX_TRACKS;
+		const selectedImageCacheSize =
+			this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES;
 
 		<view style={styles.root}>
 			<view style={styles.pageHeaderRow}>
@@ -191,24 +186,46 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 			<label style={styles.sectionTitle} value='CACHE' />
 			<view style={styles.section}>
-				<view style={styles.settingRow}>
-					<label style={styles.settingLabel} value='image cache (GB)' />
-					<view style={styles.inputContainer}>
-						<textfield
-							accessibilityLabel='settings-cache-size-input'
-							contentDescription='settings-cache-size-input'
-							keyboardType='numeric'
-							onChange={this.handleCacheSizeChange}
-							style={styles.input}
-							value={this.state.cacheSizeInput}
+				<view style={styles.trackCacheLimitContainer}>
+					<label style={styles.settingLabel} value='image cache size' />
+					<view
+						accessibilityLabel='settings-image-cache-size-dropdown'
+						contentDescription='settings-image-cache-size-dropdown'
+						onTap={this.handleImageCacheToggle}
+						style={styles.trackCacheLimitButton}
+					>
+						<label
+							style={styles.trackCacheLimitButtonLabel}
+							value={formatCacheSizeLabel(selectedImageCacheSize)}
 						/>
 					</view>
 				</view>
-				{imageCacheBufferedCount != null && imageCacheBufferedBytes != null && (
+				{this.state.showImageCacheOptions && (
+					<view style={styles.trackCacheLimitOptionsList}>
+						{IMAGE_CACHE_SIZE_OPTIONS.map((option) => (
+							<view
+								accessibilityLabel={`settings-image-cache-size-option-${option}`}
+								contentDescription={`settings-image-cache-size-option-${option}`}
+								onTap={() => this.handleImageCacheSelect(option)}
+								style={
+									option === selectedImageCacheSize
+										? styles.trackCacheLimitOptionSelected
+										: styles.trackCacheLimitOption
+								}
+							>
+								<label
+									style={styles.trackCacheLimitOptionLabel}
+									value={formatCacheSizeLabel(option)}
+								/>
+							</view>
+						))}
+					</view>
+				)}
+				{imageCacheDiskCount != null && imageCacheDiskBytes != null && (
 					<label
-						accessibilityLabel='settings-cache-usage'
+						accessibilityLabel='settings-disk-cache-usage'
 						style={styles.paletteStatus}
-						value={`${imageCacheBufferedCount} images in memory (${formatBytes(imageCacheBufferedBytes)})`}
+						value={`${imageCacheDiskCount} images on disk (${formatBytes(imageCacheDiskBytes)})`}
 					/>
 				)}
 				<view style={styles.trackCacheLimitContainer}>
@@ -275,16 +292,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 }
 
 const styles = {
-	input: new Style({
-		...theme.text.main,
-		flexGrow: 1,
-	}),
-	inputContainer: new Style({
-		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.borderRadius,
-		padding: 14,
-		width: '50%',
-	}),
 	pageHeaderLogo: new Style({
 		height: 65,
 		width: 65,

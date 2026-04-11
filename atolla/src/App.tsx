@@ -11,16 +11,17 @@ import { AuthErrors } from './errors/AuthErrors';
 import {
 	clearAtollaNativeCacheCategories,
 	ensureAtollaImageLoaderBootstrap,
-	getAtollaImageLoaderCacheByteSize,
-	getAtollaImageLoaderCacheEntryCount,
+	getAtollaImageLoaderDiskCacheByteSize,
+	getAtollaImageLoaderDiskCacheEntryCount,
 	setAtollaImageCachedObserver,
+	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
 import type { Album } from './models/Album';
 import type { Artist } from './models/Artist';
 import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
-import { type ClearCacheSelection, ImageCacheManager } from './services/ImageCache';
+import type { ClearCacheSelection } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
@@ -74,7 +75,7 @@ import { VideoAudioPlayer } from './ui/components/VideoAudioPlayer';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
 import { ConnectionView } from './ui/views/ConnectionView';
-import { HomeView, setImageCacheSize } from './ui/views/HomeView';
+import { HomeView } from './ui/views/HomeView';
 import { PlaylistView } from './ui/views/PlaylistView';
 import { type SearchHomeNavigationTarget, SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
@@ -94,8 +95,8 @@ interface AppState {
 	isAuthenticating: boolean;
 	isAuthRequired: boolean;
 	isBootstrapped: boolean;
-	nativeImageCacheBufferedBytes: number | null;
-	nativeImageCacheBufferedCount: number | null;
+	nativeImageCacheDiskBytes: number | null;
+	nativeImageCacheDiskCount: number | null;
 	nowPlayingCollapseSignal: number;
 	playbackToastMessage: string | null;
 	quickConnectCode: string | null;
@@ -194,7 +195,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 	private searchStore!: SearchStore;
 	private transport: Transport = new MockTransport();
-	private imageCache!: ImageCacheManager;
 	private paletteService!: ArtworkPaletteService;
 	private paletteQueue!: PaletteGenerationQueue;
 	private unsubscribePlayback?: () => void;
@@ -254,8 +254,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		isAuthenticating: false,
 		isAuthRequired: false,
 		isBootstrapped: false,
-		nativeImageCacheBufferedBytes: null,
-		nativeImageCacheBufferedCount: null,
+		nativeImageCacheDiskBytes: null,
+		nativeImageCacheDiskCount: null,
 		nowPlayingCollapseSignal: 0,
 		playbackToastMessage: null,
 		quickConnectCode: null,
@@ -307,7 +307,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					rememberedServerUrl,
 				]) => {
 					this.authService.setMockMode(mode === ConnectionModes.mock);
-					setImageCacheSize(imageCacheMaxBytes);
+					try {
+						setAtollaImageLoaderDiskCacheMaxBytes(imageCacheMaxBytes);
+					} catch {
+						// Native disk cache unavailable on non-Android targets.
+					}
 					if (mode === ConnectionModes.online && existingSession != null) {
 						this.transport = new LiveTransport(
 							existingSession.serverUrl,
@@ -318,7 +322,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 					const isAuthRequired = mode === ConnectionModes.online && existingSession == null;
 					const userId = existingSession != null ? existingSession.userId : 'shared';
-					this.initUserStores(userId, imageCacheMaxBytes);
+					this.initUserStores(userId);
 
 					this.completeBootstrap({
 						animationsEnabled,
@@ -335,7 +339,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			)
 			.catch(() => {
 				if (!this.state.isBootstrapped) {
-					this.initUserStores('shared', DEFAULT_IMAGE_CACHE_MAX_BYTES);
+					this.initUserStores('shared');
 					this.completeBootstrap({});
 				}
 			});
@@ -386,7 +390,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	}
 
-	private initUserStores(userId: string, imageCacheMaxBytes: number): void {
+	private initUserStores(userId: string): void {
 		if (this.unsubscribePalette) {
 			this.unsubscribePalette();
 		}
@@ -401,12 +405,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			),
 		);
 		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
-		this.imageCache = new ImageCacheManager(
-			new PersistentStore(`atolla/user/${userId}/image_cache`, {
-				deviceGlobal: true,
-				maxWeight: imageCacheMaxBytes,
-			}),
-		);
 		try {
 			setAtollaImageCachedObserver((url, category) => {
 				if (category !== 'album_art' || this.paletteService.hasPalette(url)) {
@@ -509,7 +507,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				await this.authService.saveSession(session);
 
 				this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId);
-				this.initUserStores(session.userId, this.state.imageCacheMaxBytes);
+				this.initUserStores(session.userId);
 
 				this.setState({
 					authErrorMessage: null,
@@ -592,17 +590,17 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	private refreshNativeCacheStats(): void {
 		try {
-			const nativeImageCacheBufferedCount = getAtollaImageLoaderCacheEntryCount();
-			const nativeImageCacheBufferedBytes = getAtollaImageLoaderCacheByteSize();
+			const nativeImageCacheDiskCount = getAtollaImageLoaderDiskCacheEntryCount();
+			const nativeImageCacheDiskBytes = getAtollaImageLoaderDiskCacheByteSize();
 			if (
-				this.state.nativeImageCacheBufferedCount === nativeImageCacheBufferedCount &&
-				this.state.nativeImageCacheBufferedBytes === nativeImageCacheBufferedBytes
+				this.state.nativeImageCacheDiskCount === nativeImageCacheDiskCount &&
+				this.state.nativeImageCacheDiskBytes === nativeImageCacheDiskBytes
 			) {
 				return;
 			}
 			this.setState({
-				nativeImageCacheBufferedBytes,
-				nativeImageCacheBufferedCount,
+				nativeImageCacheDiskBytes,
+				nativeImageCacheDiskCount,
 			});
 		} catch {
 			// Native cache stats unavailable on non-Android targets.
@@ -897,7 +895,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (selection.artistImage) categories.push('artist_image');
 		if (selection.artistLogo) categories.push('artist_logo');
 		if (selection.playlistImage) categories.push('playlist_image');
-		void this.imageCache.clearSelected(selection);
 		try {
 			clearAtollaNativeCacheCategories(categories);
 		} catch {
@@ -925,7 +922,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	handleCacheSizeChange = (bytes: number): void => {
 		this.preferences.setImageCacheMaxBytes(bytes);
-		setImageCacheSize(bytes);
+		try {
+			setAtollaImageLoaderDiskCacheMaxBytes(bytes);
+		} catch {
+			// Native disk cache unavailable on non-Android targets.
+		}
 		this.setState({ imageCacheMaxBytes: bytes });
 	};
 
@@ -1108,7 +1109,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						animationsEnabled: this.state.animationsEnabled,
 						artist: target.artist,
 						gridColumns: this.state.gridColumns,
-						imageCache: this.imageCache,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
@@ -1126,7 +1126,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						album: target.album as Album,
 						animationsEnabled: this.state.animationsEnabled,
 						gridColumns: this.state.gridColumns,
-						imageCache: this.imageCache,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
@@ -1143,7 +1142,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					{
 						animationsEnabled: this.state.animationsEnabled,
 						gridColumns: this.state.gridColumns,
-						imageCache: this.imageCache,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
@@ -1261,7 +1259,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					animationsEnabled: this.state.animationsEnabled,
 					artist,
 					gridColumns: this.state.gridColumns,
-					imageCache: this.imageCache,
 					paletteQueue: this.paletteQueue,
 					playbackStore: this.playbackStore,
 					transport: this.transport,
@@ -1323,7 +1320,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						animationsEnabled: this.state.animationsEnabled,
 						artist: resolvedArtist,
 						gridColumns: this.state.gridColumns,
-						imageCache: this.imageCache,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
 						transport: this.transport,
@@ -1391,7 +1387,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					album,
 					animationsEnabled: this.state.animationsEnabled,
 					gridColumns: this.state.gridColumns,
-					imageCache: this.imageCache,
 					paletteQueue: this.paletteQueue,
 					playbackStore: this.playbackStore,
 					transport: this.transport,
@@ -1483,7 +1478,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					activeTab={this.state.activeHomeTab}
 					animationsEnabled={this.state.animationsEnabled}
 					gridColumns={this.state.gridColumns}
-					imageCache={this.imageCache}
 					onNavigateToArtist={this.handleNavigateToArtist}
 					onNavigationControllerChange={this.handleHomeNavigationControllerChange}
 					paletteQueue={this.paletteQueue}
@@ -1499,7 +1493,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							animationsEnabled={this.state.animationsEnabled}
 							focusSignal={this.state.searchFocusSignal}
 							gridColumns={this.state.gridColumns}
-							imageCache={this.imageCache}
 							navigationController={navigationController}
 							onNavigateToHomeResult={this.handleSearchResultNavigation}
 							paletteQueue={this.paletteQueue}
@@ -1514,8 +1507,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				<SettingsView
 					animationsEnabled={this.state.animationsEnabled}
 					gridColumns={this.state.gridColumns}
-					imageCacheBufferedBytes={this.state.nativeImageCacheBufferedBytes ?? 0}
-					imageCacheBufferedCount={this.state.nativeImageCacheBufferedCount ?? 0}
+					imageCacheDiskBytes={this.state.nativeImageCacheDiskBytes ?? undefined}
+					imageCacheDiskCount={this.state.nativeImageCacheDiskCount ?? undefined}
 					imageCacheError={null}
 					imageCacheMaxBytes={this.state.imageCacheMaxBytes}
 					onAnimationsChange={this.handleAnimationsChange}
@@ -1543,7 +1536,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					animationsEnabled={this.state.animationsEnabled}
 					artistLogoUrl={artistLogoUrl}
 					collapseSignal={this.state.nowPlayingCollapseSignal}
-					imageCache={this.imageCache}
 					isPlaying={isPlaying}
 					loopMode={loopMode}
 					onAlbumTap={this.handleNowPlayingAlbumTap}

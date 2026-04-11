@@ -58,6 +58,29 @@ object AtollaImageLoaderAutoBootstrap {
 	}
 
 	@JvmStatic
+	fun getDiskCacheEntryCount(): Int {
+		registerForAllRuntimes()
+		return synchronized(registeredLoaders) {
+			registeredLoaders.values.sumOf { it.getDiskEntryCount() }
+		}
+	}
+
+	@JvmStatic
+	fun getDiskCacheByteSize(): Long {
+		registerForAllRuntimes()
+		return synchronized(registeredLoaders) {
+			registeredLoaders.values.sumOf { it.getDiskByteSize() }
+		}
+	}
+
+	@JvmStatic
+	fun setDiskCacheMaxBytes(bytes: Long) {
+		synchronized(registeredLoaders) {
+			registeredLoaders.values.forEach { it.setDiskCacheMaxBytes(bytes) }
+		}
+	}
+
+	@JvmStatic
 	fun clearNativeCacheCategories(categories: List<String>) {
 		registerForAllRuntimes()
 		synchronized(registeredLoaders) {

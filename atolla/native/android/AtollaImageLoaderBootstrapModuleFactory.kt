@@ -20,6 +20,18 @@ class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactor
 				return AtollaImageLoaderAutoBootstrap.getCacheByteSize().toDouble()
 			}
 
+			override fun getAtollaImageLoaderDiskCacheEntryCount(): Double {
+				return AtollaImageLoaderAutoBootstrap.getDiskCacheEntryCount().toDouble()
+			}
+
+			override fun getAtollaImageLoaderDiskCacheByteSize(): Double {
+				return AtollaImageLoaderAutoBootstrap.getDiskCacheByteSize().toDouble()
+			}
+
+			override fun setAtollaImageLoaderDiskCacheMaxBytes(bytes: Double) {
+				AtollaImageLoaderAutoBootstrap.setDiskCacheMaxBytes(bytes.toLong())
+			}
+
 			override fun clearAtollaNativeCacheCategories(categories: List<String>) {
 				AtollaImageLoaderAutoBootstrap.clearNativeCacheCategories(categories)
 			}

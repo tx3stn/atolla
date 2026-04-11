@@ -2,7 +2,10 @@
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { type ConnectionMode, ConnectionModes } from '../transports/Model';
 
-export const DEFAULT_IMAGE_CACHE_MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+const MB = 1024 * 1024;
+const GB = 1024 * 1024 * 1024;
+export const IMAGE_CACHE_SIZE_OPTIONS = [500 * MB, 1 * GB, Math.round(1.5 * GB), 2 * GB] as const;
+export const DEFAULT_IMAGE_CACHE_MAX_BYTES = 2 * GB;
 export const GRID_COLUMN_OPTIONS = [3, 4] as const;
 export const DEFAULT_GRID_COLUMNS = 3;
 export const TRACK_CACHE_LIMIT_OPTIONS = [10, 15, 20, 25, 30, 35] as const;
@@ -35,13 +38,20 @@ export class Preferences {
 
 	async getImageCacheMaxBytes(): Promise<number> {
 		try {
-			return Number(await this.store.fetchString('image_cache_max_bytes'));
+			const value = Number(await this.store.fetchString('image_cache_max_bytes'));
+			if (IMAGE_CACHE_SIZE_OPTIONS.includes(value as (typeof IMAGE_CACHE_SIZE_OPTIONS)[number])) {
+				return value;
+			}
+			return DEFAULT_IMAGE_CACHE_MAX_BYTES;
 		} catch {
 			return DEFAULT_IMAGE_CACHE_MAX_BYTES;
 		}
 	}
 
 	async setImageCacheMaxBytes(bytes: number): Promise<void> {
+		if (!IMAGE_CACHE_SIZE_OPTIONS.includes(bytes as (typeof IMAGE_CACHE_SIZE_OPTIONS)[number])) {
+			return;
+		}
 		await this.store.storeString('image_cache_max_bytes', String(bytes));
 	}
 

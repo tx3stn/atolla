@@ -5,10 +5,8 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
-import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
-import { DEFAULT_IMAGE_CACHE_MAX_BYTES } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
@@ -16,17 +14,10 @@ import { AlbumsView } from './AlbumsView';
 import { ArtistsView } from './ArtistsView';
 import { PlaylistsView } from './PlaylistsView';
 
-let _imageCacheMaxBytes = DEFAULT_IMAGE_CACHE_MAX_BYTES;
-
-export function setImageCacheSize(bytes: number): void {
-	_imageCacheMaxBytes = bytes;
-}
-
 export interface HomeViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
 	gridColumns: number;
-	imageCache: ImageCache;
 	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationControllerChange?: (navigationController: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
