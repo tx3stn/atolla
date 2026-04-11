@@ -25,6 +25,19 @@ export function clearAtollaTrackCache(): void;
 export function setAtollaTrackCacheMaxTracks(maxTracks: number): void;
 
 // @ExportFunction
+export function cacheAtollaDownloadedTrackFromUrlAsync(
+	trackId: string,
+	url: string,
+	onComplete: (source: string) => void,
+): void;
+
+// @ExportFunction
+export function getAtollaDownloadedTrackFileUrl(trackId: string): string;
+
+// @ExportFunction
+export function removeAtollaDownloadedTrack(trackId: string): void;
+
+// @ExportFunction
 export function updateAtollaTrackPlaybackNotification(
 	trackName: string,
 	artistName: string,

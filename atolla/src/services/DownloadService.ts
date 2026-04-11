@@ -48,6 +48,8 @@ export interface DownloadServiceOptions {
 	cacheTrack: (trackId: string, url: string) => Promise<void>;
 	/** Return the local playback URL for a previously cached track. */
 	getTrackPlaybackUrl: (trackId: string) => string;
+	/** Remove a previously downloaded track from permanent storage. */
+	removeTrack: (trackId: string) => void;
 	store: DownloadServiceStore;
 }
 
@@ -82,11 +84,13 @@ export class DownloadService {
 	private readonly store: DownloadServiceStore;
 	private readonly cacheTrackFn: DownloadServiceOptions['cacheTrack'];
 	private readonly getTrackPlaybackUrlFn: DownloadServiceOptions['getTrackPlaybackUrl'];
+	private readonly removeTrackFn: DownloadServiceOptions['removeTrack'];
 
 	constructor(options: DownloadServiceOptions) {
 		this.store = options.store;
 		this.cacheTrackFn = options.cacheTrack;
 		this.getTrackPlaybackUrlFn = options.getTrackPlaybackUrl;
+		this.removeTrackFn = options.removeTrack;
 	}
 
 	// -------------------------------------------------------------------------
@@ -387,6 +391,7 @@ export class DownloadService {
 		if (entry.albumIds.length === 0 && entry.playlistIds.length === 0) {
 			delete this.tracks[trackId];
 			this.queue = this.queue.filter((q) => q.trackId !== trackId);
+			this.removeTrackFn(trackId);
 		}
 	}
 

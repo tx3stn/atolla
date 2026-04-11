@@ -55,9 +55,11 @@ function createService(
 	service: DownloadService;
 	store: InMemoryStore;
 	cacheCalls: Array<CacheCall>;
+	removeCalls: Array<string>;
 } {
 	const store = options.store ?? new InMemoryStore();
 	const cacheCalls: Array<CacheCall> = [];
+	const removeCalls: Array<string> = [];
 
 	const service = new DownloadService({
 		cacheTrack: (trackId, url) => {
@@ -65,11 +67,14 @@ function createService(
 			return Promise.resolve();
 		},
 		getTrackPlaybackUrl: (trackId) => `file://${trackId}`,
+		removeTrack: (trackId) => {
+			removeCalls.push(trackId);
+		},
 		store,
 		...options,
 	});
 
-	return { cacheCalls, service, store };
+	return { cacheCalls, removeCalls, service, store };
 }
 
 // Drain the microtask / Promise queue so async effects settle.
@@ -204,7 +209,7 @@ describe('DownloadService', () => {
 
 	describe('reference counting', () => {
 		it('keeps a track that belongs to both an album and a playlist after album removed', async () => {
-			const { service } = createService();
+			const { removeCalls, service } = createService();
 			const album = makeAlbum('album-1');
 			const playlist = makePlaylist('playlist-1');
 			const track = makeTrack('track-1');
@@ -227,10 +232,11 @@ describe('DownloadService', () => {
 			// Track still referenced by playlist
 			expect(service.isTrackDownloaded('track-1')).toBe(true);
 			expect(service.getPlaylistDownloadState('playlist-1')).toBe('downloaded');
+			expect(removeCalls).toEqual([]);
 		});
 
 		it('removes a track when its last reference is removed', async () => {
-			const { service } = createService();
+			const { removeCalls, service } = createService();
 			const album = makeAlbum('album-1');
 			const track = makeTrack('track-1');
 
@@ -247,6 +253,7 @@ describe('DownloadService', () => {
 
 			expect(service.isTrackDownloaded('track-1')).toBe(false);
 			expect(service.getAlbumDownloadState('album-1')).toBe('not_downloaded');
+			expect(removeCalls).toEqual(['track-1']);
 		});
 
 		it('removes an artist and all its albums and tracks', async () => {
@@ -300,6 +307,7 @@ describe('DownloadService', () => {
 					return Promise.resolve();
 				},
 				getTrackPlaybackUrl: (id) => `file://${id}`,
+				removeTrack: () => {},
 				store,
 			});
 

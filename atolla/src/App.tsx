@@ -49,6 +49,7 @@ import {
 } from './stores/Preferences';
 import { SearchStore } from './stores/Search';
 import {
+	cacheAtollaDownloadedTrackFromUrlAsync,
 	cacheAtollaTrackFromUrlAsync,
 	clearAtollaTrackCache,
 	clearAtollaTrackPlaybackNotification,
@@ -56,7 +57,9 @@ import {
 	ensureAtollaTrackPlaybackNotificationPermission,
 	getAtollaCachedTrackFileUrl,
 	getAtollaDeviceUserScopeKey,
+	getAtollaDownloadedTrackFileUrl,
 	getAtollaTrackCacheEntryCount,
+	removeAtollaDownloadedTrack,
 	setAtollaTrackCacheMaxTracks,
 	updateAtollaTrackPlaybackNotification,
 } from './TrackPlaybackNative';
@@ -203,12 +206,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private downloadService = new DownloadService({
 		cacheTrack: (trackId, url) =>
 			new Promise<void>((resolve, reject) => {
-				cacheAtollaTrackFromUrlAsync(trackId, url, (source) => {
+				cacheAtollaDownloadedTrackFromUrlAsync(trackId, url, (source) => {
 					if (source) resolve();
-					else reject(new Error('cacheAtollaTrackFromUrlAsync returned no source'));
+					else reject(new Error('cacheAtollaDownloadedTrackFromUrlAsync returned no source'));
 				});
 			}),
-		getTrackPlaybackUrl: (trackId) => getAtollaCachedTrackFileUrl(trackId),
+		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
+		removeTrack: (trackId) => removeAtollaDownloadedTrack(trackId),
 		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
 	});
 	private paletteQueue!: PaletteGenerationQueue;
@@ -701,6 +705,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 
+		if (this.isOfflinePlaybackMode()) {
+			return;
+		}
+
 		if (this.lastTrackFetchErrorTrackId === trackId) {
 			return;
 		}
@@ -751,9 +759,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.setState({ trackPlaybackSourceUrl: streamUrl });
 		}
 
-		if (this.playbackStore.isPlaying) {
+		if (this.playbackStore.isPlaying && !this.isOfflinePlaybackMode()) {
 			void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
 		}
+	}
+
+	private isOfflinePlaybackMode(): boolean {
+		return this.state.connectionMode === ConnectionModes.offline;
 	}
 
 	private handleTrackPrefetchQueueChange(force = false): void {

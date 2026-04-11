@@ -63,6 +63,26 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				AtollaTrackPlaybackNativeCache.setCacheMaxTracks(maxTracks.toInt())
 			}
 
+			override fun cacheAtollaDownloadedTrackFromUrlAsync(trackId: String, url: String, onComplete: (String) -> Unit) {
+				Thread {
+					val result = try {
+						AtollaDownloadedTrackNativeCache.cacheTrackFromUrl(trackId, url)
+					} catch (error: Throwable) {
+						Log.e("AtollaDownloadedTrackCache", "Async downloaded track cache failed trackId=$trackId", error)
+						""
+					}
+					onComplete(result)
+				}.also { it.isDaemon = true }.start()
+			}
+
+			override fun getAtollaDownloadedTrackFileUrl(trackId: String): String {
+				return AtollaDownloadedTrackNativeCache.getCachedTrackFileUrl(trackId)
+			}
+
+			override fun removeAtollaDownloadedTrack(trackId: String) {
+				AtollaDownloadedTrackNativeCache.removeTrack(trackId)
+			}
+
 			override fun updateAtollaTrackPlaybackNotification(
 				trackName: String,
 				artistName: String,
@@ -386,6 +406,205 @@ object AtollaTrackPlaybackNativeCache {
 		}
 	}
 
+}
+
+object AtollaDownloadedTrackNativeCache {
+	private const val tag = "AtollaDownloadedTrackCache"
+	private const val cacheFolder = "atolla-downloaded-track-cache"
+
+	@Synchronized
+	fun cacheTrackFromUrl(trackId: String, url: String): String {
+		if (trackId.isBlank() || url.isBlank()) {
+			return ""
+		}
+
+		val existingFile = resolveExistingTrackFile(trackId)
+		if (existingFile != null && existingFile.exists() && existingFile.isFile) {
+			touch(existingFile)
+			return toFileUrl(existingFile)
+		}
+
+		val cacheDir = resolveCacheDir() ?: return ""
+		val safeKey = safeTrackKey(trackId)
+
+		return try {
+			val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+				connectTimeout = 10_000
+				readTimeout = 20_000
+				instanceFollowRedirects = true
+				requestMethod = "GET"
+				setRequestProperty("Accept", "audio/*,*/*")
+			}
+			val status = connection.responseCode
+			if (status < 200 || status >= 300) {
+				Log.e(tag, "Track download failed trackId=$trackId status=$status")
+				return ""
+			}
+
+			val mimeType = connection.contentType ?: "application/octet-stream"
+			if (!isLikelyAudioMimeType(mimeType)) {
+				Log.e(tag, "Track download returned non-audio contentType=$mimeType trackId=$trackId")
+				return ""
+			}
+
+			val extension = extensionFromMimeType(mimeType)
+			val file = File(cacheDir, "$safeKey.$extension")
+			val tempFile = File(cacheDir, "$safeKey.tmp")
+			deleteExistingTrackFiles(cacheDir, safeKey)
+			tempFile.delete()
+			val bytesWritten = try {
+				connection.getInputStream().use { input ->
+					tempFile.outputStream().use { output ->
+						input.copyTo(output)
+					}
+				}
+			} catch (error: Throwable) {
+				tempFile.delete()
+				throw error
+			}
+			if (bytesWritten == 0L) {
+				Log.e(tag, "Track download returned empty bytes trackId=$trackId")
+				tempFile.delete()
+				return ""
+			}
+			if (!tempFile.renameTo(file)) {
+				tempFile.copyTo(file, overwrite = true)
+				tempFile.delete()
+			}
+			touch(file)
+			toFileUrl(file)
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed to cache downloaded track trackId=$trackId", error)
+			""
+		}
+	}
+
+	@Synchronized
+	fun getCachedTrackFileUrl(trackId: String): String {
+		if (trackId.isBlank()) {
+			return ""
+		}
+
+		val file = resolveExistingTrackFile(trackId) ?: return ""
+		if (!file.exists() || !file.isFile) {
+			return ""
+		}
+
+		touch(file)
+
+		return toFileUrl(file)
+	}
+
+	@Synchronized
+	fun removeTrack(trackId: String) {
+		if (trackId.isBlank()) {
+			return
+		}
+
+		val cacheDir = resolveCacheDir() ?: return
+		val safeKey = safeTrackKey(trackId)
+		deleteExistingTrackFiles(cacheDir, safeKey)
+	}
+
+	private fun resolveExistingTrackFile(trackId: String): File? {
+		val dir = resolveCacheDir() ?: return null
+		val key = safeTrackKey(trackId)
+		val matches = try {
+			dir.listFiles { file -> file.isFile && file.name.startsWith("$key.") }
+		} catch (_: Throwable) {
+			null
+		} ?: return null
+
+		return matches.firstOrNull()
+	}
+
+	private fun deleteExistingTrackFiles(cacheDir: File, key: String) {
+		val matches = try {
+			cacheDir.listFiles { file -> file.isFile && file.name.startsWith("$key.") }
+		} catch (_: Throwable) {
+			null
+		} ?: return
+
+		for (file in matches) {
+			try {
+				file.delete()
+			} catch (_: Throwable) {
+				// best effort cleanup
+			}
+		}
+	}
+
+	private fun resolveCacheDir(): File? {
+		val appFilesDir = resolveAppFilesDir() ?: return null
+		val dir = File(appFilesDir, cacheFolder)
+		return try {
+			if (!dir.exists()) {
+				dir.mkdirs()
+			}
+			if (!dir.isDirectory) {
+				Log.e(tag, "Downloaded track cache path is not a directory: ${dir.absolutePath}")
+				return null
+			}
+			dir
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed to initialize downloaded track cache directory", error)
+			null
+		}
+	}
+
+	private fun resolveAppFilesDir(): File? {
+		return try {
+			val activityThreadClass = Class.forName("android.app.ActivityThread")
+			val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)
+			val app = currentApplication as? android.app.Application ?: return null
+			app.filesDir
+		} catch (error: Throwable) {
+			Log.e(tag, "Unable to resolve application files directory", error)
+			null
+		}
+	}
+
+	private fun extensionFromMimeType(mimeType: String): String {
+		val normalized = mimeType.lowercase()
+		return when {
+			normalized.contains("aac") -> "aac"
+			normalized.contains("flac") -> "flac"
+			normalized.contains("ogg") -> "ogg"
+			normalized.contains("wav") -> "wav"
+			normalized.contains("m4a") || normalized.contains("mp4") -> "m4a"
+			else -> "mp3"
+		}
+	}
+
+	private fun isLikelyAudioMimeType(mimeType: String): Boolean {
+		val normalized = mimeType.lowercase()
+		if (normalized.startsWith("audio/")) {
+			return true
+		}
+
+		return normalized.contains("octet-stream")
+	}
+
+	private fun safeTrackKey(trackId: String): String {
+		val trimmed = trackId.trim()
+		if (trimmed.isEmpty()) {
+			return "track"
+		}
+
+		return trimmed.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+	}
+
+	private fun toFileUrl(file: File): String {
+		return "file://${file.absolutePath}"
+	}
+
+	private fun touch(file: File) {
+		try {
+			file.setLastModified(System.currentTimeMillis())
+		} catch (_: Throwable) {
+			// best effort only
+		}
+	}
 }
 
 object AtollaTrackPlaybackMediaSession {
