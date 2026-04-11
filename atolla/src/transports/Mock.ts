@@ -177,6 +177,8 @@ export class MockTransport implements Transport {
 		return MockTransport.sampleAudioUrl;
 	}
 
+	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {}
+
 	private readonly imageResolvers: JellyfinImageResolvers = {
 		albumPrimaryImageUrl: (albumId: string): string | undefined =>
 			mockAlbumPrimaryImageUrls[albumId],

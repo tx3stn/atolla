@@ -26,6 +26,7 @@ import { buildImageSource } from './services/ImageSource';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
+import { ScrobbleService } from './services/ScrobbleService';
 import { TrackPlaybackNativePrefetchQueue } from './services/TrackPlaybackNativePrefetchQueue';
 import {
 	applyTrackPlaybackNotificationAction,
@@ -199,6 +200,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private paletteQueue!: PaletteGenerationQueue;
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
+	private scrobbleService?: ScrobbleService;
 	private authToastTimer?: ReturnType<typeof setTimeout>;
 	private playbackToastTimer?: ReturnType<typeof setTimeout>;
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
@@ -344,12 +346,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				}
 			});
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
+			this.syncScrobblePlaybackSnapshot();
 			this.handleAlbumChange();
 			this.handleTrackPlaybackSourceChange();
 			this.handleTrackPrefetchQueueChange();
 			this.syncTrackPlaybackNotification();
 			this.setState({ version: this.state.version + 1 });
 		});
+		this.syncScrobblePlaybackSnapshot();
 		// Handle any track already playing at startup
 		this.handleAlbumChange();
 		this.handleTrackPlaybackSourceChange();
@@ -405,6 +409,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			),
 		);
 		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
+		this.scrobbleService = new ScrobbleService({
+			deliverScrobble: (pending) => {
+				if (!this.transport.scrobbleTrackPlayed) {
+					return Promise.reject(new Error('scrobble delivery unavailable'));
+				}
+				return this.transport.scrobbleTrackPlayed(pending.trackId, pending.triggeredAt);
+			},
+			store: new PersistentStore(`atolla/user/${userId}/pending_scrobbles`, {
+				deviceGlobal: true,
+			}),
+		});
+		this.syncScrobblePlaybackSnapshot();
+		void this.scrobbleService.onAppReady();
 		try {
 			setAtollaImageCachedObserver((url, category) => {
 				if (category !== 'album_art' || this.paletteService.hasPalette(url)) {
@@ -1420,7 +1437,23 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 		this.bootstrapCommitTimer = setTimeout(() => {
 			this.setState({ ...partialState, isBootstrapped: true });
+			void this.scrobbleService?.onAppReady();
 		}, remaining);
+	}
+
+	private syncScrobblePlaybackSnapshot(): void {
+		if (!this.scrobbleService) {
+			return;
+		}
+
+		const activeTrack = this.playbackStore.track;
+		this.scrobbleService.observePlayback({
+			hasSeekTarget: this.playbackStore.seekTarget != null,
+			isPlaying: this.playbackStore.isPlaying,
+			progressSeconds: this.playbackStore.progressSeconds,
+			trackDurationSeconds: activeTrack?.duration ?? 0,
+			trackId: activeTrack?.id ?? null,
+		});
 	}
 
 	onRender(): void {

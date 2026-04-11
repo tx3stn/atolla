@@ -53,6 +53,11 @@ function getHeaderValue(headers: Record<string, string>, key: string): string | 
 
 interface HTTPClientLike {
 	get(pathOrUrl: string, headers?: Record<string, string>): Promise<HTTPResponseLike>;
+	post?(
+		pathOrUrl: string,
+		body?: Uint8Array,
+		headers?: Record<string, string>,
+	): Promise<HTTPResponseLike>;
 }
 
 interface LiveTransportOptions {
@@ -371,6 +376,30 @@ export class LiveTransport implements Transport {
 			userId: this.userId,
 		});
 		return `${this.baseUrl}${path}`;
+	}
+
+	async scrobbleTrackPlayed(trackId: string, datePlayed: string): Promise<void> {
+		if (!trackId || !datePlayed) {
+			throw TransportErrors.LIVE_REQUEST_FAILED;
+		}
+
+		const client = this.httpClientFactory(this.baseUrl);
+		if (typeof client.post !== 'function') {
+			throw TransportErrors.LIVE_NOT_IMPLEMENTED;
+		}
+
+		const requestPath = this.buildPath(`/UserPlayedItems/${encodeURIComponent(trackId)}`, {
+			datePlayed,
+			userId: this.userId,
+		});
+
+		await this.runWithRequestTimeout(
+			client.post(requestPath, undefined, this.createHeaders()),
+		).then((response) => {
+			if (response.statusCode < 200 || response.statusCode >= 300) {
+				throw TransportErrors.LIVE_REQUEST_FAILED;
+			}
+		});
 	}
 
 	downloadBinary(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {

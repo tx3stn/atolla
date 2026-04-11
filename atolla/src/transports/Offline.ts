@@ -53,4 +53,8 @@ export class OfflineTransport implements Transport {
 	async getTracksByPlaylist(_playlistId: string): Promise<Array<Track>> {
 		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
 	}
+
+	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {
+		throw TransportErrors.OFFLINE_NOT_IMPLEMENTED;
+	}
 }

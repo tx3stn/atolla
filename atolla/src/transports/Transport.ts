@@ -34,5 +34,6 @@ export interface Transport {
 		page: number,
 		pageSize: number,
 	) => Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }>;
+	scrobbleTrackPlayed?(trackId: string, datePlayed: string): Promise<void>;
 	search(query: string): Promise<SearchResults>;
 }

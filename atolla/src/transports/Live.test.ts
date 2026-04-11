@@ -38,6 +38,7 @@ function createHTTPClientFactory(responses: Array<MockHTTPResponse>) {
 	const calls: Array<{
 		baseUrl: string;
 		headers?: Record<string, string>;
+		method: 'get' | 'post';
 		pathOrUrl: string;
 	}> = [];
 
@@ -45,7 +46,15 @@ function createHTTPClientFactory(responses: Array<MockHTTPResponse>) {
 		calls,
 		factory: (baseUrl: string) => ({
 			get: (pathOrUrl: string, headers?: Record<string, string>) => {
-				calls.push({ baseUrl, headers, pathOrUrl });
+				calls.push({ baseUrl, headers, method: 'get', pathOrUrl });
+				const response = responses.shift();
+				if (!response) {
+					throw new Error('no queued response');
+				}
+				return Promise.resolve(response);
+			},
+			post: (pathOrUrl: string, _body?: Uint8Array, headers?: Record<string, string>) => {
+				calls.push({ baseUrl, headers, method: 'post', pathOrUrl });
 				const response = responses.shift();
 				if (!response) {
 					throw new Error('no queued response');
@@ -322,5 +331,22 @@ describe('LiveTransport core collections', () => {
 		expect(cacheUrl).toContain('/Audio/track-123/stream.mp3?');
 		expect(cacheUrl).toContain('api_key=token-1');
 		expect(cacheUrl).toContain('deviceId=atolla');
+	});
+
+	it('posts scrobble events with datePlayed', async () => {
+		const { calls, factory } = createHTTPClientFactory([
+			{ body: undefined, headers: {}, statusCode: 204 },
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		await transport.scrobbleTrackPlayed('track-1', '2026-01-01T00:00:00.000Z');
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0].method).toBe('post');
+		expect(calls[0].pathOrUrl).toContain('/UserPlayedItems/track-1');
+		expect(queryParam(calls[0].pathOrUrl, 'datePlayed')).toBe('2026-01-01T00:00:00.000Z');
+		expect(queryParam(calls[0].pathOrUrl, 'userId')).toBe('user-1');
 	});
 });
