@@ -47,6 +47,8 @@ export interface DownloadServiceStore {
 export interface DownloadServiceOptions {
 	/** Download a track and persist it locally. */
 	cacheTrack: (trackId: string, url: string) => Promise<void>;
+	/** Return the total size in bytes of all permanently downloaded tracks. */
+	getTotalDownloadedSizeBytes?: () => number;
 	/** Return the local playback URL for a previously cached track. */
 	getTrackPlaybackUrl: (trackId: string) => string;
 	/** Hint native image cache to persist image assets for offline experience. */
@@ -87,6 +89,7 @@ export class DownloadService {
 	private readonly store: DownloadServiceStore;
 	private readonly cacheTrackFn: DownloadServiceOptions['cacheTrack'];
 	private readonly getTrackPlaybackUrlFn: DownloadServiceOptions['getTrackPlaybackUrl'];
+	private readonly getTotalDownloadedSizeBytesFn: DownloadServiceOptions['getTotalDownloadedSizeBytes'];
 	private readonly removeTrackFn: DownloadServiceOptions['removeTrack'];
 	private readonly preloadImagesFn: DownloadServiceOptions['preloadImages'];
 
@@ -94,6 +97,7 @@ export class DownloadService {
 		this.store = options.store;
 		this.cacheTrackFn = options.cacheTrack;
 		this.getTrackPlaybackUrlFn = options.getTrackPlaybackUrl;
+		this.getTotalDownloadedSizeBytesFn = options.getTotalDownloadedSizeBytes;
 		this.removeTrackFn = options.removeTrack;
 		this.preloadImagesFn = options.preloadImages;
 	}
@@ -161,6 +165,16 @@ export class DownloadService {
 	/** Number of tracks not yet fully downloaded. Drives the footer badge. */
 	getDownloadingCount(): number {
 		return Object.values(this.tracks).filter((t) => !t.complete).length;
+	}
+
+	/** Number of fully downloaded tracks. */
+	getDownloadedTrackCount(): number {
+		return Object.values(this.tracks).filter((t) => t.complete).length;
+	}
+
+	/** Total size in bytes of all permanently downloaded tracks, or null if unavailable. */
+	getTotalDownloadedSizeBytes(): number | null {
+		return this.getTotalDownloadedSizeBytesFn?.() ?? null;
 	}
 
 	isTrackDownloaded(trackId: string): boolean {

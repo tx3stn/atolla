@@ -58,6 +58,7 @@ import {
 	ensureAtollaTrackPlaybackNotificationPermission,
 	getAtollaCachedTrackFileUrl,
 	getAtollaDeviceUserScopeKey,
+	getAtollaDownloadedCacheTotalSizeBytes,
 	getAtollaDownloadedTrackFileUrl,
 	getAtollaTrackCacheEntryCount,
 	removeAtollaDownloadedTrack,
@@ -96,6 +97,8 @@ interface AppState {
 	authErrorMessage: string | null;
 	authToastMessage: string | null;
 	connectionMode: ConnectionMode;
+	downloadedSizeBytes: number | null;
+	downloadedTrackCount: number;
 	downloadingCount: number;
 	gridColumns: number;
 	homeResetNonce: number;
@@ -212,6 +215,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					else reject(new Error('cacheAtollaDownloadedTrackFromUrlAsync returned no source'));
 				});
 			}),
+		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
 		preloadImages: (urls, category) => {
 			try {
@@ -276,6 +280,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		authErrorMessage: null,
 		authToastMessage: null,
 		connectionMode: ConnectionModes.offline,
+		downloadedSizeBytes: null,
+		downloadedTrackCount: 0,
 		downloadingCount: 0,
 		gridColumns: DEFAULT_GRID_COLUMNS,
 		homeResetNonce: 0,
@@ -380,7 +386,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				}
 			});
 		this.downloadService.subscribe(() => {
-			this.setState({ downloadingCount: this.downloadService.getDownloadingCount() });
+			this.setState({
+				downloadedSizeBytes: this.downloadService.getTotalDownloadedSizeBytes(),
+				downloadedTrackCount: this.downloadService.getDownloadedTrackCount(),
+				downloadingCount: this.downloadService.getDownloadingCount(),
+			});
 		});
 		this.downloadService.onAppReady();
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
@@ -1595,6 +1605,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			{this.state.activeFooterTab === FooterTabs.settings && (
 				<SettingsView
 					animationsEnabled={this.state.animationsEnabled}
+					downloadedSizeBytes={this.state.downloadedSizeBytes ?? undefined}
+					downloadedTrackCount={this.state.downloadedTrackCount}
 					gridColumns={this.state.gridColumns}
 					imageCacheDiskBytes={this.state.nativeImageCacheDiskBytes ?? undefined}
 					imageCacheDiskCount={this.state.nativeImageCacheDiskCount ?? undefined}

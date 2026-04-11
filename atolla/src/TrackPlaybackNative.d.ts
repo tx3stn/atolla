@@ -38,6 +38,9 @@ export function getAtollaDownloadedTrackFileUrl(trackId: string): string;
 export function removeAtollaDownloadedTrack(trackId: string): void;
 
 // @ExportFunction
+export function getAtollaDownloadedCacheTotalSizeBytes(): number;
+
+// @ExportFunction
 export function updateAtollaTrackPlaybackNotification(
 	trackName: string,
 	artistName: string,

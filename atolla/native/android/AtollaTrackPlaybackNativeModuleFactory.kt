@@ -83,6 +83,10 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				AtollaDownloadedTrackNativeCache.removeTrack(trackId)
 			}
 
+			override fun getAtollaDownloadedCacheTotalSizeBytes(): Double {
+				return AtollaDownloadedTrackNativeCache.getTotalSizeBytes().toDouble()
+			}
+
 			override fun updateAtollaTrackPlaybackNotification(
 				trackName: String,
 				artistName: String,
@@ -493,6 +497,16 @@ object AtollaDownloadedTrackNativeCache {
 		touch(file)
 
 		return toFileUrl(file)
+	}
+
+	@Synchronized
+	fun getTotalSizeBytes(): Long {
+		val dir = resolveCacheDir() ?: return 0L
+		return try {
+			dir.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
+		} catch (_: Throwable) {
+			0L
+		}
 	}
 
 	@Synchronized

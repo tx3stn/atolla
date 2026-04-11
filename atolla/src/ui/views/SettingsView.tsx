@@ -36,6 +36,8 @@ function formatBytes(bytes: number): string {
 
 export interface SettingsViewModel {
 	animationsEnabled: boolean;
+	downloadedSizeBytes?: number;
+	downloadedTrackCount?: number;
 	gridColumns?: number;
 	imageCacheDiskBytes?: number;
 	imageCacheDiskCount?: number;
@@ -126,6 +128,8 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 	onRender(): void {
 		const {
 			animationsEnabled,
+			downloadedSizeBytes,
+			downloadedTrackCount,
 			gridColumns,
 			imageCacheDiskBytes,
 			imageCacheDiskCount,
@@ -225,11 +229,11 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 					<label
 						accessibilityLabel='settings-disk-cache-usage'
 						style={styles.paletteStatus}
-						value={`${imageCacheDiskCount} images on disk (${formatBytes(imageCacheDiskBytes)})`}
+						value={`${imageCacheDiskCount} images on disk      [ ${formatBytes(imageCacheDiskBytes)} ]`}
 					/>
 				)}
 				<view style={styles.trackCacheLimitContainer}>
-					<label style={styles.settingLabel} value='cached tracks' />
+					<label style={styles.settingLabel} value='play queue cached tracks' />
 					<view
 						accessibilityLabel='settings-track-cache-limit-dropdown'
 						contentDescription='settings-track-cache-limit-dropdown'
@@ -267,6 +271,15 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 					label='clear cache'
 					onTap={this.handleClearCachePress}
 					style={styles.button}
+				/>
+			</view>
+
+			<label style={styles.sectionTitle} value='DOWNLOADS' />
+			<view style={styles.section}>
+				<label
+					accessibilityLabel='settings-downloaded-track-count'
+					style={styles.trackCacheCountLabel}
+					value={`${downloadedTrackCount ?? 0} tracks downloaded      [ ${formatBytes(downloadedSizeBytes)} ]`}
 				/>
 			</view>
 
@@ -345,7 +358,7 @@ const styles = {
 	trackCacheCountLabel: new Style({
 		...theme.text.sub,
 		marginLeft: 4,
-		marginTop: 8,
+		paddingBottom: 16,
 	}),
 	trackCacheLimitButton: new Style({
 		alignItems: 'center',
