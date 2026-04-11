@@ -126,6 +126,10 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		private val inFlight = ConcurrentHashMap<String, CompletableFuture<ByteArray>>()
 		private val diskEvictionScheduled = AtomicBoolean(false)
 		private val diskEvictionRequested = AtomicBoolean(false)
+		// Valdi's image pipeline requires completion callbacks on the main thread.
+		// Images served from the memory fast-path are already on the main thread;
+		// disk/network paths run on background threads and must post back here.
+		private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 		var sharedInstance: AtollaCacheImageLoader? = null
 		var imageCachedObserver: ((url: String, category: String) -> Unit)? = null
 	}
@@ -287,8 +291,10 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		if (existing != null) {
 			existing.whenComplete { bytes, error ->
 				if (!cancelled.get()) {
-					if (bytes != null) completeFromBytes(bytes, options, completion)
-					else completion.onImageLoadComplete(0, 0, null, error ?: ValdiException("Download failed"))
+					if (bytes != null) completeFromBytes(bytes, options, completion, cancelled)
+					else deliverOnMain(cancelled) {
+						completion.onImageLoadComplete(0, 0, null, error ?: ValdiException("Download failed"))
+					}
 				}
 			}
 			return object : Disposable {
@@ -345,7 +351,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				Log.d(tag, "disk cache hit key=$key bytes=${bytes.size}")
 				inFlight.remove(key)
 				future.complete(bytes)
-				if (!cancelled.get()) completeFromBytes(bytes, options, completion)
+				completeFromBytes(bytes, options, completion, cancelled)
 				return
 			}
 
@@ -362,10 +368,10 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 						writeToDisk(key, blurredBytes)
 						Log.d(tag, "blur generated from cache key=$key bytes=${blurredBytes.size}")
 						future.complete(blurredBytes)
-						if (!cancelled.get()) completeFromBytes(blurredBytes, options, completion)
+						completeFromBytes(blurredBytes, options, completion, cancelled)
 					} else {
 						future.completeExceptionally(ValdiException("Blur generation failed"))
-						if (!cancelled.get()) completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed"))
+						deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed")) }
 					}
 					return
 				}
@@ -380,10 +386,10 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 					Log.d(tag, "blur generated after fetch key=$key bytes=${blurredBytes.size}")
 					notifyImageCached(payload.sourceUrl, payload.category)
 					future.complete(blurredBytes)
-					if (!cancelled.get()) completeFromBytes(blurredBytes, options, completion)
+					completeFromBytes(blurredBytes, options, completion, cancelled)
 				} else {
 					future.completeExceptionally(ValdiException("Blur generation failed after fetch"))
-					if (!cancelled.get()) completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed after fetch"))
+					deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed after fetch")) }
 				}
 				return
 			}
@@ -392,9 +398,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				inFlight.remove(key)
 				val ex = ValdiException("Cache miss for cache-only request")
 				future.completeExceptionally(ex)
-				if (!cancelled.get()) {
-					completion.onImageLoadComplete(0, 0, null, ex)
-				}
+				deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, ex) }
 				return
 			}
 
@@ -405,12 +409,12 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			notifyImageCached(payload.sourceUrl, payload.category)
 			inFlight.remove(key)
 			future.complete(bytes)
-			if (!cancelled.get()) completeFromBytes(bytes, options, completion)
+			completeFromBytes(bytes, options, completion, cancelled)
 		} catch (error: Throwable) {
 			Log.e(tag, "load failed key=$key", error)
 			inFlight.remove(key)
 			future.completeExceptionally(error)
-			if (!cancelled.get()) completion.onImageLoadComplete(0, 0, null, error)
+			deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, error) }
 		}
 	}
 
@@ -513,26 +517,44 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		}
 	}
 
+	// Deliver a completion callback on the main thread. When already on the main
+	// thread (memory fast-path) the block runs synchronously. When called from a
+	// background thread (disk/network path) the block is posted so Valdi can update
+	// the image view on the next message-loop iteration.
+	// cancelled is re-checked inside the post to handle disposal between the post
+	// and execution.
+	private fun deliverOnMain(cancelled: AtomicBoolean? = null, deliver: () -> Unit) {
+		if (Looper.myLooper() == Looper.getMainLooper()) {
+			if (cancelled?.get() != true) deliver()
+		} else {
+			mainHandler.post { if (cancelled?.get() != true) deliver() }
+		}
+	}
+
 	private fun completeFromBytes(
 		bytes: ByteArray,
 		options: ValdiImageLoadOptions,
 		completion: ValdiImageLoadCompletion,
+		cancelled: AtomicBoolean? = null,
 	) {
+		// Decode on the calling thread so expensive bitmap decoding stays off the main thread.
 		val image: ValdiImage = when (options.outputType) {
 			ValdiAssetLoadOutputType.BITMAP -> ValdiImageFactory.fromByteArray(bytes)
 			ValdiAssetLoadOutputType.RAW_CONTENT -> ValdiImageWithContent(ValdiImageContent.Bytes(bytes))
 			else -> {
-				completion.onImageLoadComplete(
-					0,
-					0,
-					null,
-					ValdiException("Unsupported output type: ${options.outputType}"),
-				)
+				deliverOnMain(cancelled) {
+					completion.onImageLoadComplete(
+						0,
+						0,
+						null,
+						ValdiException("Unsupported output type: ${options.outputType}"),
+					)
+				}
 				return
 			}
 		}
 
-		completion.onImageLoadComplete(0, 0, image, null)
+		deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, image, null) }
 	}
 
 	private fun resolveAppCacheDir(): File? {
