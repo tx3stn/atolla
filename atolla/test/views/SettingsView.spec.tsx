@@ -277,4 +277,40 @@ describe('SettingsView', () => {
 
 		expect(called).toBe(false);
 	});
+
+	valdiIt('calls onJellyfinDeviceIdOverrideChange when auth device id input changes', () => {
+		const received: Array<string> = [];
+		const instrumented = createComponent(SettingsView, {
+			onJellyfinDeviceIdOverrideChange: (value: string) => {
+				received.push(value);
+			},
+			preferences: mockPreferences(),
+		});
+		const component = instrumented.getComponent();
+		const textFields = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.TextField,
+		);
+
+		textFields
+			.find(
+				(field) => field.getAttribute('accessibilityLabel') === 'settings-jellyfin-device-id-input',
+			)
+			?.getAttribute('onChange')?.('custom-profile-device');
+
+		expect(received).toEqual(['custom-profile-device']);
+	});
+
+	valdiIt('does not render auth device id reset button', () => {
+		const instrumented = createComponent(SettingsView, {
+			preferences: mockPreferences(),
+		});
+		const component = instrumented.getComponent();
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const resetButton = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'settings-jellyfin-device-id-reset-btn',
+		);
+
+		expect(resetButton).toBeUndefined();
+	});
 });

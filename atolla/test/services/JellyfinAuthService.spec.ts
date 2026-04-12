@@ -104,6 +104,23 @@ describe('JellyfinAuthService', () => {
 		);
 	});
 
+	it('uses configured client device id in auth headers', async () => {
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, true),
+			jsonResponse(200, { Code: 'ABCD', Secret: 'secret-1' }),
+		]);
+		const service = new JellyfinAuthService({
+			clientDeviceId: 'profile-2-device',
+			httpClientFactory: factory,
+			store: createStore(),
+		});
+
+		await service.startQuickConnect('demo.jellyfin.local');
+
+		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="profile-2-device"');
+		expect(calls[1].headers?.['X-Emby-Authorization']).toContain('DeviceId="profile-2-device"');
+	});
+
 	it('throws quick-connect unavailable when server reports disabled', async () => {
 		const { factory } = createHTTPClientFactory([jsonResponse(200, false)]);
 		const service = new JellyfinAuthService({ httpClientFactory: factory, store: createStore() });

@@ -61,6 +61,7 @@ interface HTTPClientLike {
 }
 
 interface LiveTransportOptions {
+	clientDeviceId?: string;
 	httpClientFactory?: (baseUrl: string) => HTTPClientLike;
 	requestTimeoutMs?: number;
 }
@@ -73,8 +74,21 @@ interface AlbumsPageResult {
 const defaultPageSize = 100;
 const defaultSearchLimit = 100;
 
-function createClientHeader(accessToken?: string): string {
-	const base = 'MediaBrowser Client="Atolla", Device="Atolla", DeviceId="atolla", Version="0.0.1"';
+function normalizeClientDeviceId(value: string | null | undefined): string {
+	if (typeof value !== 'string') {
+		return 'atolla';
+	}
+
+	const trimmed = value.trim();
+	if (trimmed.length === 0) {
+		return 'atolla';
+	}
+
+	return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function createClientHeader(accessToken?: string, clientDeviceId = 'atolla'): string {
+	const base = `MediaBrowser Client="Atolla", Device="Atolla", DeviceId="${clientDeviceId}", Version="0.0.1"`;
 	if (!accessToken) {
 		return base;
 	}
@@ -83,6 +97,7 @@ function createClientHeader(accessToken?: string): string {
 
 export class LiveTransport implements Transport {
 	private readonly baseUrl: string;
+	private readonly clientDeviceId: string;
 	private readonly httpClientFactory: (baseUrl: string) => HTTPClientLike;
 	private readonly requestTimeoutMs: number;
 
@@ -93,6 +108,7 @@ export class LiveTransport implements Transport {
 		options: LiveTransportOptions = {},
 	) {
 		this.baseUrl = this.normalizeBaseUrl(serverUrl);
+		this.clientDeviceId = normalizeClientDeviceId(options.clientDeviceId);
 		this.httpClientFactory =
 			options.httpClientFactory ??
 			((baseUrl: string) => {
@@ -371,7 +387,7 @@ export class LiveTransport implements Transport {
 
 		const path = this.buildPath(`/Audio/${encodeURIComponent(trackId)}/stream.mp3`, {
 			api_key: this.accessToken,
-			deviceId: 'atolla',
+			deviceId: this.clientDeviceId,
 			static: true,
 			userId: this.userId,
 		});
@@ -556,7 +572,7 @@ export class LiveTransport implements Transport {
 	}
 
 	private createHeaders(): Record<string, string> {
-		const authHeader = createClientHeader(this.accessToken);
+		const authHeader = createClientHeader(this.accessToken, this.clientDeviceId);
 		return {
 			Accept: 'application/json',
 			Authorization: authHeader,
@@ -566,7 +582,7 @@ export class LiveTransport implements Transport {
 	}
 
 	private createBinaryHeaders(): Record<string, string> {
-		const authHeader = createClientHeader(this.accessToken);
+		const authHeader = createClientHeader(this.accessToken, this.clientDeviceId);
 		return {
 			Accept: '*/*',
 			Authorization: authHeader,

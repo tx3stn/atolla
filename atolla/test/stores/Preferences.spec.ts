@@ -114,4 +114,40 @@ describe('Preferences', () => {
 			await expectAsync(store.fetchString('track_cache_max_tracks')).toBeRejected();
 		});
 	});
+
+	describe('getJellyfinClientDeviceIdOverride()', () => {
+		it('returns empty string when preference is missing', async () => {
+			const preferences = new Preferences(new InMemoryPreferencesStore());
+
+			expect(await preferences.getJellyfinClientDeviceIdOverride()).toBe('');
+		});
+
+		it('returns trimmed value when override exists', async () => {
+			const store = new InMemoryPreferencesStore();
+			await store.storeString('jellyfin_client_device_id_override', '  profile-a-device  ');
+			const preferences = new Preferences(store);
+
+			expect(await preferences.getJellyfinClientDeviceIdOverride()).toBe('profile-a-device');
+		});
+	});
+
+	describe('setJellyfinClientDeviceIdOverride()', () => {
+		it('stores trimmed override value', async () => {
+			const store = new InMemoryPreferencesStore();
+			const preferences = new Preferences(store);
+
+			await preferences.setJellyfinClientDeviceIdOverride('  custom-device  ');
+
+			expect(await store.fetchString('jellyfin_client_device_id_override')).toBe('custom-device');
+		});
+
+		it('stores empty string when override is cleared', async () => {
+			const store = new InMemoryPreferencesStore();
+			const preferences = new Preferences(store);
+
+			await preferences.setJellyfinClientDeviceIdOverride('');
+
+			expect(await store.fetchString('jellyfin_client_device_id_override')).toBe('');
+		});
+	});
 });

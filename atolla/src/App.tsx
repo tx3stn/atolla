@@ -107,6 +107,7 @@ interface AppState {
 	isAuthRequired: boolean;
 	isBootstrapped: boolean;
 	isHomeHeaderVisible: boolean;
+	jellyfinClientDeviceIdOverride: string;
 	nativeImageCacheDiskBytes: number | null;
 	nativeImageCacheDiskCount: number | null;
 	nowPlayingCollapseSignal: number;
@@ -156,16 +157,20 @@ class InMemoryAuthStore implements JellyfinAuthStoreLike {
 
 export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playbackStore = new PlaybackStore();
+	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
+	private readonly defaultJellyfinClientDeviceId = `atolla-${this.deviceUserScopeKey}`;
+	private jellyfinClientDeviceIdOverride = '';
 	private preferences = new Preferences(
 		new PersistentStore('atolla/preferences', { deviceGlobal: true }),
 	);
 	private authService = this.createAuthService();
 
 	private createAuthService(): JellyfinAuthService {
-		const scopeKey = this.resolveDeviceUserScopeKey();
-		const authStoreNamespace = `atolla/device-user/${scopeKey}/jellyfin_auth`;
+		const authStoreNamespace = `atolla/device-user/${this.deviceUserScopeKey}/jellyfin_auth`;
+		const clientDeviceId = this.getEffectiveJellyfinClientDeviceId();
 		try {
 			return new JellyfinAuthService({
+				clientDeviceId,
 				store: new JellyfinAuthStore(
 					new PersistentStore(authStoreNamespace, {
 						deviceGlobal: true,
@@ -176,12 +181,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		} catch {
 			try {
 				return new JellyfinAuthService({
+					clientDeviceId,
 					store: new JellyfinAuthStore(
 						new PersistentStore(authStoreNamespace, { deviceGlobal: true }),
 					),
 				});
 			} catch {
 				return new JellyfinAuthService({
+					clientDeviceId,
 					store: new InMemoryAuthStore(),
 				});
 			}
@@ -204,6 +211,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		} catch {
 			return 'unknown';
 		}
+	}
+
+	private normalizeJellyfinClientDeviceIdOverride(value: string): string {
+		const trimmed = value.trim();
+		if (trimmed.length === 0) {
+			return '';
+		}
+
+		return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
+	}
+
+	private getEffectiveJellyfinClientDeviceId(): string {
+		return this.jellyfinClientDeviceIdOverride || this.defaultJellyfinClientDeviceId;
 	}
 	private searchStore!: SearchStore;
 	private transport: Transport = new MockTransport();
@@ -293,6 +313,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		isAuthRequired: false,
 		isBootstrapped: false,
 		isHomeHeaderVisible: true,
+		jellyfinClientDeviceIdOverride: '',
 		nativeImageCacheDiskBytes: null,
 		nativeImageCacheDiskCount: null,
 		nowPlayingCollapseSignal: 0,
@@ -328,6 +349,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.preferences.getAnimationsEnabled(),
 				this.preferences.getMode(),
 				this.preferences.getTrackCacheMaxTracks(),
+				this.preferences.getJellyfinClientDeviceIdOverride(),
 				this.authService.loadSession(),
 				this.authService.loadRememberedServerUrl(),
 			]),
@@ -342,9 +364,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					animationsEnabled,
 					mode,
 					trackCacheMaxTracks,
+					jellyfinClientDeviceIdOverride,
 					existingSession,
 					rememberedServerUrl,
 				]) => {
+					this.jellyfinClientDeviceIdOverride = this.normalizeJellyfinClientDeviceIdOverride(
+						jellyfinClientDeviceIdOverride,
+					);
+					this.authService.setClientDeviceId(this.getEffectiveJellyfinClientDeviceId());
 					this.authService.setMockMode(mode === ConnectionModes.mock);
 					try {
 						setAtollaImageLoaderDiskCacheMaxBytes(imageCacheMaxBytes);
@@ -356,6 +383,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							existingSession.serverUrl,
 							existingSession.accessToken,
 							existingSession.userId,
+							{ clientDeviceId: this.getEffectiveJellyfinClientDeviceId() },
 						);
 					} else if (mode === ConnectionModes.online) {
 						this.transport = new OfflineTransport(this.downloadService);
@@ -376,6 +404,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns,
 						imageCacheMaxBytes,
 						isAuthRequired,
+						jellyfinClientDeviceIdOverride: this.jellyfinClientDeviceIdOverride,
 						serverUrlPrefill: rememberedServerUrl,
 						trackCacheMaxTracks,
 					});
@@ -575,7 +604,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				);
 				await this.authService.saveSession(session);
 
-				this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId);
+				this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId, {
+					clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
+				});
 				this.initUserStores(session.userId);
 
 				this.setState({
@@ -624,6 +655,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						session.serverUrl,
 						session.accessToken,
 						session.userId,
+						{ clientDeviceId: this.getEffectiveJellyfinClientDeviceId() },
 					);
 				} else {
 					this.setState({ connectionMode: mode, isAuthRequired: true });
@@ -1036,6 +1068,29 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	handleGridColumnsChange = (count: number): void => {
 		this.preferences.setGridColumns(count);
 		this.setState({ gridColumns: count });
+	};
+
+	handleJellyfinClientDeviceIdOverrideChange = (value: string): void => {
+		void (async () => {
+			const normalized = this.normalizeJellyfinClientDeviceIdOverride(value);
+			this.jellyfinClientDeviceIdOverride = normalized;
+			this.setState({ jellyfinClientDeviceIdOverride: normalized });
+
+			await this.preferences.setJellyfinClientDeviceIdOverride(normalized);
+			this.authService.setClientDeviceId(this.getEffectiveJellyfinClientDeviceId());
+
+			if (this.state.connectionMode === ConnectionModes.online) {
+				const session = await this.authService.loadSession();
+				if (session != null) {
+					this.transport = new LiveTransport(
+						session.serverUrl,
+						session.accessToken,
+						session.userId,
+						{ clientDeviceId: this.getEffectiveJellyfinClientDeviceId() },
+					);
+				}
+			}
+		})();
 	};
 
 	private applyNativeTrackCacheLimit(maxTracks: number): void {
@@ -1685,6 +1740,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			{this.state.activeFooterTab === FooterTabs.settings && (
 				<SettingsView
 					animationsEnabled={this.state.animationsEnabled}
+					defaultJellyfinDeviceId={this.defaultJellyfinClientDeviceId}
 					downloadedSizeBytes={this.state.downloadedSizeBytes ?? undefined}
 					downloadedTrackCount={this.state.downloadedTrackCount}
 					gridColumns={this.state.gridColumns}
@@ -1692,10 +1748,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					imageCacheDiskCount={this.state.nativeImageCacheDiskCount ?? undefined}
 					imageCacheError={null}
 					imageCacheMaxBytes={this.state.imageCacheMaxBytes}
+					jellyfinDeviceIdOverride={this.state.jellyfinClientDeviceIdOverride}
 					onAnimationsChange={this.handleAnimationsChange}
 					onCacheSizeChange={this.handleCacheSizeChange}
 					onClearCache={this.handleClearCache}
 					onGridColumnsChange={this.handleGridColumnsChange}
+					onJellyfinDeviceIdOverrideChange={this.handleJellyfinClientDeviceIdOverrideChange}
 					onLogout={this.handleLogout}
 					onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
 					preferences={this.preferences}

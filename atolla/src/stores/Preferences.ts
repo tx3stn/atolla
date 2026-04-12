@@ -103,4 +103,16 @@ export class Preferences {
 		}
 		await this.store.storeString('track_cache_max_tracks', String(count));
 	}
+
+	async getJellyfinClientDeviceIdOverride(): Promise<string> {
+		try {
+			return (await this.store.fetchString('jellyfin_client_device_id_override')).trim();
+		} catch {
+			return '';
+		}
+	}
+
+	async setJellyfinClientDeviceIdOverride(value: string): Promise<void> {
+		await this.store.storeString('jellyfin_client_device_id_override', value.trim());
+	}
 }

@@ -34,8 +34,40 @@ function formatBytes(bytes: number): string {
 	return `${(bytes / GB).toFixed(2)} GB`;
 }
 
+function normalizeInputValue(value: unknown): string {
+	if (typeof value === 'string') {
+		return value;
+	}
+
+	if (value && typeof value === 'object') {
+		const candidate = value as {
+			nativeEvent?: { text?: unknown; value?: unknown };
+			query?: unknown;
+			text?: unknown;
+			value?: unknown;
+		};
+
+		const raw =
+			candidate.nativeEvent?.text ??
+			candidate.nativeEvent?.value ??
+			candidate.query ??
+			candidate.text ??
+			candidate.value;
+		if (typeof raw === 'string') {
+			return raw;
+		}
+	}
+
+	if (value == null) {
+		return '';
+	}
+
+	return String(value);
+}
+
 export interface SettingsViewModel {
 	animationsEnabled: boolean;
+	defaultJellyfinDeviceId?: string;
 	downloadedSizeBytes?: number;
 	downloadedTrackCount?: number;
 	gridColumns?: number;
@@ -43,10 +75,12 @@ export interface SettingsViewModel {
 	imageCacheDiskCount?: number;
 	imageCacheError?: string | null;
 	imageCacheMaxBytes?: number;
+	jellyfinDeviceIdOverride?: string;
 	onAnimationsChange?: (enabled: boolean) => void;
 	onCacheSizeChange?: (bytes: number) => void;
 	onClearCache?: (selection: ClearCacheSelection) => void;
 	onGridColumnsChange?: (count: number) => void;
+	onJellyfinDeviceIdOverrideChange?: (value: string) => void;
 	onLogout?: () => void;
 	onTrackCacheMaxTracksChange?: (count: number) => void;
 	preferences: Preferences;
@@ -128,12 +162,15 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 	onRender(): void {
 		const {
 			animationsEnabled,
+			defaultJellyfinDeviceId,
 			downloadedSizeBytes,
 			downloadedTrackCount,
 			gridColumns,
 			imageCacheDiskBytes,
 			imageCacheDiskCount,
+			jellyfinDeviceIdOverride,
 			onAnimationsChange,
+			onJellyfinDeviceIdOverrideChange,
 			trackCacheCachedCount,
 			trackCacheMaxTracks,
 		} = this.viewModel;
@@ -285,6 +322,22 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 			<label style={styles.sectionTitle} value='AUTH' />
 			<view style={styles.section}>
+				<view style={styles.settingRow}>
+					<label style={styles.settingLabel} value='device id' />
+					<view style={styles.authDeviceIdInlineInputContainer}>
+						<textfield
+							accessibilityLabel='settings-jellyfin-device-id-input'
+							autocapitalization='none'
+							contentDescription='settings-jellyfin-device-id-input'
+							onChange={(value: unknown) => {
+								onJellyfinDeviceIdOverrideChange?.(normalizeInputValue(value));
+							}}
+							placeholder={defaultJellyfinDeviceId ?? 'atolla'}
+							style={styles.authDeviceIdInput}
+							value={jellyfinDeviceIdOverride ?? ''}
+						/>
+					</view>
+				</view>
 				<Button
 					accessibilityLabel='settings-logout'
 					label='logout'
@@ -305,6 +358,21 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 }
 
 const styles = {
+	authDeviceIdInlineInputContainer: new Style({
+		backgroundColor: theme.colors.bgAccent,
+		borderRadius: 999,
+		flexGrow: 1,
+		marginLeft: 10,
+		paddingBottom: 10,
+		paddingLeft: 10,
+		paddingRight: 10,
+		paddingTop: 10,
+	}),
+	authDeviceIdInput: new Style({
+		...theme.text.main,
+		marginLeft: 18,
+		width: '100%',
+	}),
 	pageHeaderLogo: new Style({
 		height: 65,
 		width: 65,

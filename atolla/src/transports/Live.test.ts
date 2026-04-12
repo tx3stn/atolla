@@ -333,6 +333,18 @@ describe('LiveTransport core collections', () => {
 		expect(cacheUrl).toContain('deviceId=atolla');
 	});
 
+	it('builds track cache url with configured device id', () => {
+		const { factory } = createHTTPClientFactory([]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			clientDeviceId: 'profile-2-device',
+			httpClientFactory: factory,
+		});
+
+		const cacheUrl = transport.getTrackCacheUrl('track-123');
+
+		expect(cacheUrl).toContain('deviceId=profile-2-device');
+	});
+
 	it('posts scrobble events with datePlayed', async () => {
 		const { calls, factory } = createHTTPClientFactory([
 			{ body: undefined, headers: {}, statusCode: 204 },

@@ -45,6 +45,7 @@ interface HTTPClientLike {
 }
 
 interface JellyfinAuthServiceOptions {
+	clientDeviceId?: string;
 	httpClientFactory?: (baseUrl: string) => HTTPClientLike;
 	isMockMode?: boolean;
 	mockApprovalDelayMs?: number;
@@ -69,8 +70,21 @@ function normalizeServerUrl(url: string): string {
 	return withScheme.replace(/\/+$/, '');
 }
 
-function createClientHeader(): string {
-	return 'MediaBrowser Client="Atolla", Device="Atolla", DeviceId="atolla", Version="0.0.1"';
+function normalizeClientDeviceId(value: string | null | undefined): string {
+	if (typeof value !== 'string') {
+		return 'atolla';
+	}
+
+	const trimmed = value.trim();
+	if (trimmed.length === 0) {
+		return 'atolla';
+	}
+
+	return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function createClientHeaderWithDeviceId(clientDeviceId: string): string {
+	return `MediaBrowser Client="Atolla", Device="Atolla", DeviceId="${clientDeviceId}", Version="0.0.1"`;
 }
 
 function sanitizeErrorDetail(value: unknown): string | null {
@@ -152,6 +166,7 @@ export class JellyfinAuthService {
 	private readonly now: NowFn;
 	private readonly requestTimeoutMs: number;
 	private isMockMode: boolean;
+	private clientDeviceId: string;
 	private lastConnectionErrorDetail: string | null = null;
 
 	constructor(options: JellyfinAuthServiceOptions = {}) {
@@ -163,6 +178,7 @@ export class JellyfinAuthService {
 				return new HTTPClient(baseUrl) as unknown as HTTPClientLike;
 			});
 		this.isMockMode = options.isMockMode ?? false;
+		this.clientDeviceId = normalizeClientDeviceId(options.clientDeviceId);
 		this.mockApprovalDelayMs = options.mockApprovalDelayMs ?? 3_000;
 		this.sleep = options.sleep ?? defaultSleep;
 		this.now = options.now ?? (() => Date.now());
@@ -171,6 +187,10 @@ export class JellyfinAuthService {
 
 	setMockMode(enabled: boolean): void {
 		this.isMockMode = enabled;
+	}
+
+	setClientDeviceId(value: string): void {
+		this.clientDeviceId = normalizeClientDeviceId(value);
 	}
 
 	loadSession(): Promise<AuthSession | null> {
@@ -525,7 +545,7 @@ export class JellyfinAuthService {
 	private createHeaders(accessToken?: string): Record<string, string> {
 		const headers: Record<string, string> = {
 			'Content-Type': 'application/json',
-			'X-Emby-Authorization': createClientHeader(),
+			'X-Emby-Authorization': createClientHeaderWithDeviceId(this.clientDeviceId),
 		};
 		if (accessToken) {
 			headers['X-Emby-Token'] = accessToken;
