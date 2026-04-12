@@ -17,6 +17,7 @@ import type { Transport } from '../../transports/Transport';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
 import { AlbumsView } from './AlbumsView';
 import { ArtistsView } from './ArtistsView';
+import { GenresView } from './GenresView';
 import { PlaylistsView } from './PlaylistsView';
 
 export type HomeNavContext =
@@ -30,6 +31,8 @@ export interface HomeViewModel {
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
 	gridColumns: number;
+	isHeaderVisible: boolean;
+	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationContext?: (context: HomeNavContext | null) => void;
 	onNavigationControllerChange?: (navigationController: NavigationController) => void;
@@ -145,7 +148,9 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			downloadService,
 			gridColumns,
 			imageCache,
+			isHeaderVisible,
 			onNavigateToArtist,
+			onHeaderVisibilityChange,
 			onNavigationContext,
 			paletteQueue,
 			playbackStore,
@@ -163,8 +168,10 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
+							isHeaderVisible={isHeaderVisible}
 							isOfflineMode={isOfflineMode}
 							navigationController={navigationController}
+							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigationContext={onNavigationContext}
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
@@ -183,8 +190,10 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
+							isHeaderVisible={isHeaderVisible}
 							isOfflineMode={isOfflineMode}
 							navigationController={navigationController}
+							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigationContext={onNavigationContext}
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
@@ -203,7 +212,9 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
+							isHeaderVisible={isHeaderVisible}
 							navigationController={navigationController}
+							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigateToArtist={onNavigateToArtist}
 							onNavigationContext={onNavigationContext}
 							paletteQueue={paletteQueue}
@@ -212,6 +223,14 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						/>;
 					})}
 				</NavigationRoot>
+			)}
+
+			{this.state.isNavigationMounted && activeTab === HeaderTabs.genres && (
+				<GenresView
+					isHeaderVisible={isHeaderVisible}
+					onHeaderVisibilityChange={onHeaderVisibilityChange}
+					playbackStore={playbackStore}
+				/>
 			)}
 
 			{this.state.isTabTransitionOverlayVisible && <view style={styles.tabTransitionOverlay} />}

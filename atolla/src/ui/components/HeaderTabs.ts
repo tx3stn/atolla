@@ -1,6 +1,7 @@
 export const HeaderTabs = {
 	albums: 'ALBUMS',
 	artists: 'ARTISTS',
+	genres: 'GENRES',
 	playlists: 'PLAYLISTS',
 } as const;
 

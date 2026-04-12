@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 64" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="header-pill-gradient" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8F60BE" />
+      <stop offset="38%" stop-color="#5A58B3" />
+      <stop offset="72%" stop-color="#1F4FA8" />
+      <stop offset="100%" stop-color="#3C8FD2" />
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="240" height="64" rx="32" ry="32" fill="url(#header-pill-gradient)" />
+</svg>

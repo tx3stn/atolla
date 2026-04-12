@@ -106,6 +106,7 @@ interface AppState {
 	isAuthenticating: boolean;
 	isAuthRequired: boolean;
 	isBootstrapped: boolean;
+	isHomeHeaderVisible: boolean;
 	nativeImageCacheDiskBytes: number | null;
 	nativeImageCacheDiskCount: number | null;
 	nowPlayingCollapseSignal: number;
@@ -291,6 +292,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		isAuthenticating: false,
 		isAuthRequired: false,
 		isBootstrapped: false,
+		isHomeHeaderVisible: true,
 		nativeImageCacheDiskBytes: null,
 		nativeImageCacheDiskCount: null,
 		nowPlayingCollapseSignal: 0,
@@ -942,6 +944,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.returnToSearchOnDetailClose = false;
 		this.setState({
 			activeFooterTab: tab,
+			isHomeHeaderVisible: tab === FooterTabs.home ? true : this.state.isHomeHeaderVisible,
 			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
 			searchFocusSignal:
 				tab === FooterTabs.search ? this.state.searchFocusSignal + 1 : this.state.searchFocusSignal,
@@ -957,13 +960,23 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (tab === this.state.activeHomeTab) {
 			this.setState({
 				homeResetNonce: this.state.homeResetNonce + 1,
+				isHomeHeaderVisible: true,
 			});
 			return;
 		}
 
 		this.setState({
 			activeHomeTab: tab,
+			isHomeHeaderVisible: true,
 		});
+	};
+
+	handleHomeHeaderVisibilityChange = (isVisible: boolean): void => {
+		if (this.state.isHomeHeaderVisible === isVisible) {
+			return;
+		}
+
+		this.setState({ isHomeHeaderVisible: isVisible });
 	};
 
 	handleClearCache = (selection: ClearCacheSelection): void => {
@@ -1180,6 +1193,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			activeFooterTab: FooterTabs.home,
 			activeHomeTab,
 			homeResetNonce: this.state.homeResetNonce + 1,
+			isHomeHeaderVisible: true,
 		});
 
 		this.tryNavigatePendingSearchResult();
@@ -1409,6 +1423,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			activeFooterTab: FooterTabs.home,
 			activeHomeTab: HeaderTabs.artists,
 			homeResetNonce: this.state.homeResetNonce + 1,
+			isHomeHeaderVisible: true,
 		});
 
 		this.tryNavigatePendingArtist();
@@ -1487,6 +1502,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			activeFooterTab: FooterTabs.home,
 			activeHomeTab: HeaderTabs.albums,
 			homeResetNonce: this.state.homeResetNonce + 1,
+			isHomeHeaderVisible: true,
 		});
 
 		this.tryNavigatePendingAlbum();
@@ -1610,7 +1626,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					playbackStore={this.playbackStore}
 				/>
 			)}
-			{this.state.activeFooterTab === FooterTabs.home && (
+			{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeHeaderVisible && (
 				<HomeHeaderNav
 					activeTab={this.state.activeHomeTab}
 					onTabTap={this.handleHomeHeaderTabTap}
@@ -1624,6 +1640,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					connectionMode={this.state.connectionMode}
 					downloadService={this.downloadService}
 					gridColumns={this.state.gridColumns}
+					isHeaderVisible={this.state.isHomeHeaderVisible}
+					onHeaderVisibilityChange={this.handleHomeHeaderVisibilityChange}
 					onNavigateToArtist={this.handleNavigateToArtist}
 					onNavigationContext={this.handleNavigationContext}
 					onNavigationControllerChange={this.handleHomeNavigationControllerChange}

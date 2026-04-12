@@ -15,6 +15,7 @@ const colors = {
 	overlay: 'rgba(0,0,0,0.6)',
 	separator: 'rgba(255,255,255,0.08)',
 	toastGlassBg: 'rgba(16,24,40,0.85)',
+	transparent: 'rgba(0,0,0,0)',
 	white: '#d8dee9',
 };
 
@@ -28,19 +29,25 @@ export const theme = {
 		display: {
 			color: colors.white,
 			font: systemBoldFont(28),
-			letterSpacing: 0.6,
+			letterSpacing: 0.7,
 			paddingBottom: 2,
 		},
 		main: {
 			color: colors.white,
 			font: systemFont(16),
-			letterSpacing: 0.5,
+			letterSpacing: 0.7,
 			paddingBottom: 2,
 		},
 		mainBold: {
 			color: colors.white,
 			font: systemBoldFont(16),
-			letterSpacing: 0.5,
+			letterSpacing: 0.7,
+			paddingBottom: 2,
+		},
+		mainMuted: {
+			color: colors.grey,
+			font: systemBoldFont(16),
+			letterSpacing: 0.9,
 			paddingBottom: 2,
 		},
 		mutedHeader: {

@@ -2,6 +2,7 @@
 
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Artist } from '../../models/Artist';
@@ -21,8 +22,10 @@ export interface ArtistsViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
+	isHeaderVisible: boolean;
 	isOfflineMode: boolean;
 	navigationController: NavigationController;
+	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigationContext?: (context: HomeNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -46,6 +49,8 @@ interface ArtistPageResult {
 interface PagedArtistsTransport {
 	getArtistsPage: (page: number, pageSize: number) => Promise<ArtistPageResult>;
 }
+
+const TouchEventState = { Changed: 1 } as const;
 
 export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsState> {
 	private allArtists: Array<Artist> | null = null;
@@ -216,6 +221,25 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		});
 	};
 
+	handleScrollTouch = (event): void => {
+		if (!this.viewModel.onHeaderVisibilityChange || event.state !== TouchEventState.Changed) {
+			return;
+		}
+
+		if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+			return;
+		}
+
+		if (event.deltaY <= -18 && this.viewModel.isHeaderVisible) {
+			this.viewModel.onHeaderVisibilityChange(false);
+			return;
+		}
+
+		if (event.deltaY >= 12 && !this.viewModel.isHeaderVisible) {
+			this.viewModel.onHeaderVisibilityChange(true);
+		}
+	};
+
 	onRender(): void {
 		const {
 			imageCache,
@@ -238,8 +262,14 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			primaryText: artist.name,
 			secondaryText: '',
 		}));
-
-		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
+		// biome-ignore lint/a11y/noStaticElementInteractions: Scroll drag drives header hide/show.
+		<scroll
+			onDrag={createReusableCallback((event) => {
+				this.handleScrollTouch(event);
+			})}
+			onDragPredicate={(event) => Math.abs(event.deltaY) > Math.abs(event.deltaX)}
+			style={createScrollStyle(this.state.isFooterVisible, this.viewModel.isHeaderVisible)}
+		>
 			<CardGrid
 				accessibilityLabel='home-artists-grid'
 				cards={cards}
@@ -273,6 +303,9 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
 				}
 				onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
+				onTouchMove={createReusableCallback((event) => {
+					this.handleScrollTouch(event);
+				})}
 			/>
 		</scroll>;
 	}
@@ -325,13 +358,13 @@ function compareCaseInsensitive(left: string, right: string): number {
 	return 0;
 }
 
-function createScrollStyle(isFooterVisible: boolean): Style {
+function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style {
 	return new Style({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: theme.headerHeight,
+		paddingTop: isHeaderVisible ? theme.headerHeight : 8,
 		width: '100%',
 	});
 }
