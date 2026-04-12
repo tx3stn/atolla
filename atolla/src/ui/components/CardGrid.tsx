@@ -26,7 +26,6 @@ export interface CardGridViewModel {
 	onCardTap: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
 	onLoadMore?: () => void;
 	onRetryLoadMore?: () => void;
-	onTouchMove?: (event: { deltaX: number; deltaY: number; state: number }) => void;
 	resolveArtworkSource?: (artworkKey: string) => string | null;
 }
 
@@ -179,7 +178,6 @@ export class CardGrid extends Component<CardGridViewModel> {
 			if (Math.abs(event.deltaX) > 5 || Math.abs(event.deltaY) > 5) {
 				this.cancelCardLongPress();
 			}
-			this.viewModel.onTouchMove?.(event);
 			return;
 		}
 

@@ -16,6 +16,7 @@ import { DetailHeader } from '../components/DetailHeader';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { ArtistView } from './ArtistView';
 import type { HomeNavContext } from './HomeView';
 
 const TRACK_PAGE_SIZE = 50;
@@ -25,7 +26,9 @@ export interface PlaylistViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
+	isHeaderVisible?: boolean;
 	onExitFromSearchNavigation?: () => void;
+	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationContext?: (context: HomeNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
@@ -39,6 +42,7 @@ interface PlaylistState {
 	contextMenuTrack: Track | null;
 	downloadState: DownloadState;
 	isFooterVisible: boolean;
+	isHeaderVisible: boolean;
 	isLoading: boolean;
 	totalTrackCount: number | null;
 	tracks: Array<Track>;
@@ -57,29 +61,49 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
 	private unsubscribeDownloads?: () => void;
+	private readonly setHeaderVisibility = (isVisible: boolean): void => {
+		if (this.state.isHeaderVisible === isVisible) {
+			return;
+		}
 
+		this.setState({ isHeaderVisible: isVisible });
+		this.viewModel.onHeaderVisibilityChange?.(isVisible);
+	};
 	state: PlaylistState = {
 		artistLogoUrls: [],
 		contextMenuTrack: null,
 		downloadState: 'not_downloaded',
 		isFooterVisible: false,
+		isHeaderVisible: false,
 		isLoading: true,
 		totalTrackCount: null,
 		tracks: [],
 	};
 
 	navigateToArtist = (artistId: string): void => {
-		const { animationsEnabled, gridColumns, imageCache, paletteQueue, playbackStore, transport } =
-			this.viewModel;
+		const {
+			animationsEnabled,
+			downloadService,
+			gridColumns,
+			imageCache,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
 		transport.getArtist(artistId).then((artist) => {
 			if (!artist) return;
+			this.setHeaderVisibility(false);
 			this.navigationController.push(
 				ArtistView,
 				{
 					animationsEnabled,
 					artist,
+					downloadService,
 					gridColumns,
 					imageCache,
+					isHeaderVisible: false,
+					onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+					onNavigationContext: this.viewModel.onNavigationContext,
 					paletteQueue,
 					playbackStore,
 					transport,
@@ -203,6 +227,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
+		this.setHeaderVisibility(false);
 		const { downloadService, playbackStore } = this.viewModel;
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: playbackStore.track !== null });
@@ -213,6 +238,19 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.setState({ isFooterVisible: playbackStore.track !== null });
 		this.syncDownloadState();
 		void this.loadNextPage();
+	}
+
+	onViewModelUpdate(prevViewModel?: PlaylistViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		if (
+			this.viewModel.isHeaderVisible !== prevViewModel.isHeaderVisible &&
+			this.viewModel.isHeaderVisible !== this.state.isHeaderVisible
+		) {
+			this.viewModel.onHeaderVisibilityChange?.(this.state.isHeaderVisible);
+		}
 	}
 
 	private async loadNextPage(): Promise<void> {
@@ -299,13 +337,21 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
 		this.unsubscribeDownloads?.();
+		this.viewModel.onHeaderVisibilityChange?.(true);
 		this.viewModel.onExitFromSearchNavigation?.();
 		this.viewModel.onNavigationContext?.(null);
 	}
 
 	onRender(): void {
-		const { contextMenuTrack, downloadState, isFooterVisible, isLoading, totalTrackCount, tracks } =
-			this.state;
+		const {
+			contextMenuTrack,
+			downloadState,
+			isFooterVisible,
+			isHeaderVisible,
+			isLoading,
+			totalTrackCount,
+			tracks,
+		} = this.state;
 		const { imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
@@ -323,7 +369,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			contentDescription='playlist-view'
 			style={styles.root}
 		>
-			<scroll style={createScrollStyle(isFooterVisible)}>
+			<scroll style={createScrollStyle(isFooterVisible, isHeaderVisible)}>
 				<DetailHeader
 					animationsEnabled={this.viewModel.animationsEnabled}
 					artworkCategory='playlist_image'
@@ -336,6 +382,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					onDownload={this.handleDownloadTap}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onRemoveDownload={this.handleRemoveDownloadTap}
+					onRevealHeaderGesture={() => {
+						this.setHeaderVisibility(true);
+					}}
 					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 					subheaderLineOneLeft={
 						totalTrackCount != null
@@ -393,25 +442,13 @@ function formatDuration(seconds: number): string {
 	return h > 0 ? `${h}:${mm}:${String(s).padStart(2, '0')}` : `${mm}:${String(s).padStart(2, '0')}`;
 }
 
-function createScrollStyle(isFooterVisible: boolean): Style {
-	return isFooterVisible ? scrollStyles.withFooter : scrollStyles.withoutFooter;
+function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style {
+	return new Style({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		padding: 8,
+		paddingBottom: scrollPaddingBottom(isFooterVisible),
+		paddingTop: isHeaderVisible ? theme.headerHeight + 16 : 8,
+		width: '100%',
+	});
 }
-
-const scrollStyles = {
-	withFooter: new Style({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		padding: 8,
-		paddingBottom: scrollPaddingBottom(true),
-		paddingTop: theme.headerHeight,
-		width: '100%',
-	}),
-	withoutFooter: new Style({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		padding: 8,
-		paddingBottom: scrollPaddingBottom(false),
-		paddingTop: theme.headerHeight,
-		width: '100%',
-	}),
-};

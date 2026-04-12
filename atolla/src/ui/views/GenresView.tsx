@@ -6,6 +6,7 @@ import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
+import { createHeaderVisibilityTouchHandler } from '../animations/Header';
 
 interface GenresViewModel {
 	isHeaderVisible: boolean;
@@ -15,18 +16,34 @@ interface GenresViewModel {
 
 interface GenresState {
 	isFooterVisible: boolean;
+	isHeaderVisible: boolean;
 }
-
-const TouchEventState = { Changed: 1 } as const;
 
 export class GenresView extends StatefulComponent<GenresViewModel, GenresState> {
 	private unsubscribePlayback?: () => void;
+	private readonly setHeaderVisibility = (isVisible: boolean): void => {
+		if (this.state.isHeaderVisible === isVisible) {
+			return;
+		}
+
+		this.setState({ isHeaderVisible: isVisible });
+		this.viewModel.onHeaderVisibilityChange?.(isVisible);
+	};
+	private readonly handleScrollDrag = createHeaderVisibilityTouchHandler({
+		getIsHeaderVisible: () => this.state.isHeaderVisible,
+		onHeaderVisibilityChange: this.setHeaderVisibility,
+	});
 
 	state: GenresState = {
 		isFooterVisible: false,
+		isHeaderVisible: true,
 	};
 
 	onCreate(): void {
+		if (this.state.isHeaderVisible !== this.viewModel.isHeaderVisible) {
+			this.setState({ isHeaderVisible: this.viewModel.isHeaderVisible });
+		}
+
 		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
 			const isFooterVisible = this.viewModel.playbackStore.track !== null;
 			if (isFooterVisible !== this.state.isFooterVisible) {
@@ -40,37 +57,31 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		}
 	}
 
+	onViewModelUpdate(prevViewModel?: GenresViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		if (
+			this.viewModel.isHeaderVisible !== prevViewModel.isHeaderVisible &&
+			this.viewModel.isHeaderVisible !== this.state.isHeaderVisible
+		) {
+			this.setState({ isHeaderVisible: this.viewModel.isHeaderVisible });
+		}
+	}
+
 	onDestroy(): void {
 		this.unsubscribePlayback?.();
 	}
-
-	handleScrollTouch = (event): void => {
-		if (!this.viewModel.onHeaderVisibilityChange || event.state !== TouchEventState.Changed) {
-			return;
-		}
-
-		if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
-			return;
-		}
-
-		if (event.deltaY <= -18 && this.viewModel.isHeaderVisible) {
-			this.viewModel.onHeaderVisibilityChange(false);
-			return;
-		}
-
-		if (event.deltaY >= 12 && !this.viewModel.isHeaderVisible) {
-			this.viewModel.onHeaderVisibilityChange(true);
-		}
-	};
 
 	onRender(): void {
 		// biome-ignore lint/a11y/noStaticElementInteractions: Scroll drag drives header hide/show.
 		<scroll
 			onDrag={createReusableCallback((event) => {
-				this.handleScrollTouch(event);
+				this.handleScrollDrag(event);
 			})}
 			onDragPredicate={(event) => Math.abs(event.deltaY) > Math.abs(event.deltaX)}
-			style={createScrollStyle(this.state.isFooterVisible, this.viewModel.isHeaderVisible)}
+			style={createScrollStyle(this.state.isFooterVisible, this.state.isHeaderVisible)}
 		>
 			<view style={styles.content}>
 				<label style={styles.title} value='Genres' />

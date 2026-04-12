@@ -4,6 +4,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { DownloadState } from '../../services/DownloadService';
 import type { ImageCache, ImageCategory } from '../../services/ImageCache';
@@ -16,6 +17,8 @@ import { Modal } from './Modal';
 import { TappableIcon } from './TappableIcon';
 import { Toast } from './Toast';
 import { clearScheduledToast, scheduleToastDismiss } from './toastTimer';
+
+const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
 
 export interface DetailHeaderViewModel {
 	animationsEnabled: boolean;
@@ -31,6 +34,7 @@ export interface DetailHeaderViewModel {
 	onDownload?: () => void;
 	onPlay?: () => void;
 	onRemoveDownload?: () => void;
+	onRevealHeaderGesture?: () => void;
 	onShuffle?: () => void;
 	subheaderLineOneLeft?: string | null;
 	subheaderLineOneRight?: string | null;
@@ -151,6 +155,20 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		}, 2000);
 	};
 
+	private handleHeaderDrag = (event): void => {
+		if (event.state !== TouchEventState.Changed && event.state !== TouchEventState.Ended) {
+			return;
+		}
+
+		if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+			return;
+		}
+
+		if (event.deltaY >= 18) {
+			this.viewModel.onRevealHeaderGesture?.();
+		}
+	};
+
 	onRender() {
 		const {
 			artworkSource,
@@ -181,8 +199,14 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 				: downloadState === 'downloaded'
 					? this.handleRemoveDownloadTap
 					: onDownload;
-
-		<layout style={styles.root}>
+		// biome-ignore lint/a11y/noStaticElementInteractions: Detail header supports reveal drag gesture.
+		<view
+			onDrag={createReusableCallback((event) => {
+				this.handleHeaderDrag(event);
+			})}
+			onDragPredicate={(event) => Math.abs(event.deltaY) > Math.abs(event.deltaX)}
+			style={styles.root}
+		>
 			<layout style={styles.headerRow}>
 				<view style={styles.artworkTile}>
 					{artworkSource && (
@@ -294,7 +318,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					title='REMOVE DOWNLOAD?'
 				/>
 			)}
-		</layout>;
+		</view>;
 	}
 }
 
@@ -376,6 +400,7 @@ const styles = {
 	root: new Style({
 		marginBottom: 12,
 		padding: 4,
+		position: 'relative',
 		width: '100%',
 	}),
 	subheaderLineOneLeftText: new Style<Label>({

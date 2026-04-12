@@ -27,7 +27,9 @@ export interface AlbumViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
+	isHeaderVisible?: boolean;
 	onExitFromSearchNavigation?: () => void;
+	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigationContext?: (context: HomeNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -40,6 +42,7 @@ interface AlbumState {
 	contextMenuTrack: Track | null;
 	downloadState: DownloadState;
 	isFooterVisible: boolean;
+	isHeaderVisible: boolean;
 	isLoading: boolean;
 	tracks: Array<Track>;
 }
@@ -50,13 +53,21 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	private hasBeenDestroyed = false;
 	private unsubscribePlayback?: () => void;
 	private unsubscribeDownloads?: () => void;
+	private readonly setHeaderVisibility = (isVisible: boolean): void => {
+		if (this.state.isHeaderVisible === isVisible) {
+			return;
+		}
 
+		this.setState({ isHeaderVisible: isVisible });
+		this.viewModel.onHeaderVisibilityChange?.(isVisible);
+	};
 	state: AlbumState = {
 		artist: null,
 		artistLogoUrl: null,
 		contextMenuTrack: null,
 		downloadState: 'not_downloaded',
 		isFooterVisible: false,
+		isHeaderVisible: false,
 		isLoading: true,
 		tracks: [],
 	};
@@ -65,6 +76,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const {
 			album,
 			animationsEnabled,
+			downloadService,
 			gridColumns,
 			imageCache,
 			paletteQueue,
@@ -73,13 +85,17 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		} = this.viewModel;
 		const navigationController = this.viewModel.navigationController ?? this.navigationController;
 		const pushArtistView = (artist: Artist) => {
+			this.setHeaderVisibility(false);
 			navigationController.push(
 				ArtistView,
 				{
 					animationsEnabled,
 					artist,
+					downloadService,
 					gridColumns,
 					imageCache,
+					isHeaderVisible: false,
+					onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 					paletteQueue,
 					playbackStore,
 					transport,
@@ -203,6 +219,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
+		this.setHeaderVisibility(false);
 		const { album, downloadService, paletteQueue, playbackStore, transport } = this.viewModel;
 		paletteQueue?.prioritize(album.imageUrl);
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
@@ -228,17 +245,38 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		});
 	}
 
+	onViewModelUpdate(prevViewModel?: AlbumViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		if (
+			this.viewModel.isHeaderVisible !== prevViewModel.isHeaderVisible &&
+			this.viewModel.isHeaderVisible !== this.state.isHeaderVisible
+		) {
+			this.viewModel.onHeaderVisibilityChange?.(this.state.isHeaderVisible);
+		}
+	}
+
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
 		this.unsubscribeDownloads?.();
+		this.viewModel.onHeaderVisibilityChange?.(true);
 		this.viewModel.onExitFromSearchNavigation?.();
 		this.viewModel.onNavigationContext?.(null);
 	}
 
 	onRender(): void {
-		const { artistLogoUrl, contextMenuTrack, downloadState, isFooterVisible, isLoading, tracks } =
-			this.state;
+		const {
+			artistLogoUrl,
+			contextMenuTrack,
+			downloadState,
+			isFooterVisible,
+			isHeaderVisible,
+			isLoading,
+			tracks,
+		} = this.state;
 		const { album, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
@@ -253,7 +291,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const releaseDateText = formatReleaseDate(album.releaseDate);
 		const durationText = tracks.length > 0 ? formatDuration(totalDuration) : null;
 
-		const scrollStyle = createScrollStyle(isFooterVisible);
+		const scrollStyle = createScrollStyle(isFooterVisible, isHeaderVisible);
 
 		<layout accessibilityLabel='album-view' contentDescription='album-view' style={styles.root}>
 			<scroll style={scrollStyle}>
@@ -272,6 +310,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					onDownload={this.handleDownloadTap}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onRemoveDownload={this.handleRemoveDownloadTap}
+					onRevealHeaderGesture={() => {
+						this.setHeaderVisibility(true);
+					}}
 					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 					subheaderLineOneLeft={album.name}
 					subheaderLineTwoLeft={releaseDateText}
@@ -335,25 +376,13 @@ const styles = {
 	}),
 };
 
-function createScrollStyle(isFooterVisible: boolean): Style {
-	return isFooterVisible ? scrollStyles.withFooter : scrollStyles.withoutFooter;
+function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style {
+	return new Style({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		padding: 8,
+		paddingBottom: scrollPaddingBottom(isFooterVisible),
+		paddingTop: isHeaderVisible ? theme.headerHeight + 16 : 8,
+		width: '100%',
+	});
 }
-
-const scrollStyles = {
-	withFooter: new Style({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		padding: 8,
-		paddingBottom: scrollPaddingBottom(true),
-		paddingTop: theme.headerHeight,
-		width: '100%',
-	}),
-	withoutFooter: new Style({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		padding: 8,
-		paddingBottom: scrollPaddingBottom(false),
-		paddingTop: theme.headerHeight,
-		width: '100%',
-	}),
-};

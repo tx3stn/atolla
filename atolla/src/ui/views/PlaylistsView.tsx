@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Playlist } from '../../models/Playlist';
@@ -35,6 +34,7 @@ export interface PlaylistsViewModel {
 interface PlaylistsState {
 	hasMore: boolean;
 	isFooterVisible: boolean;
+	isHeaderVisible: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
@@ -51,18 +51,25 @@ interface PagedPlaylistsTransport {
 	getPlaylistsPage: (page: number, pageSize: number) => Promise<PlaylistPageResult>;
 }
 
-const TouchEventState = { Changed: 1 } as const;
-
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
 	private allPlaylists: Array<Playlist> | null = null;
 	private currentPage = 0;
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
+	private readonly setHeaderVisibility = (isVisible: boolean): void => {
+		if (this.state.isHeaderVisible === isVisible) {
+			return;
+		}
+
+		this.setState({ isHeaderVisible: isVisible });
+		this.viewModel.onHeaderVisibilityChange?.(isVisible);
+	};
 
 	state: PlaylistsState = {
 		hasMore: true,
 		isFooterVisible: false,
+		isHeaderVisible: true,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
@@ -72,6 +79,9 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
+		if (this.state.isHeaderVisible !== this.viewModel.isHeaderVisible) {
+			this.setState({ isHeaderVisible: this.viewModel.isHeaderVisible });
+		}
 		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
 			const isFooterVisible = this.viewModel.playbackStore.track !== null;
 			if (isFooterVisible !== this.state.isFooterVisible) {
@@ -88,6 +98,19 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+	}
+
+	onViewModelUpdate(prevViewModel?: PlaylistsViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		if (
+			this.viewModel.isHeaderVisible !== prevViewModel.isHeaderVisible &&
+			this.viewModel.isHeaderVisible !== this.state.isHeaderVisible
+		) {
+			this.setState({ isHeaderVisible: this.viewModel.isHeaderVisible });
+		}
 	}
 
 	private async loadInitialPages(): Promise<void> {
@@ -190,25 +213,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		});
 	};
 
-	handleScrollTouch = (event): void => {
-		if (!this.viewModel.onHeaderVisibilityChange || event.state !== TouchEventState.Changed) {
-			return;
-		}
-
-		if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
-			return;
-		}
-
-		if (event.deltaY <= -18 && this.viewModel.isHeaderVisible) {
-			this.viewModel.onHeaderVisibilityChange(false);
-			return;
-		}
-
-		if (event.deltaY >= 12 && !this.viewModel.isHeaderVisible) {
-			this.viewModel.onHeaderVisibilityChange(true);
-		}
-	};
-
 	onRender(): void {
 		const {
 			animationsEnabled,
@@ -229,14 +233,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				secondaryText: '',
 			}),
 		);
-		// biome-ignore lint/a11y/noStaticElementInteractions: Scroll drag drives header hide/show.
-		<scroll
-			onDrag={createReusableCallback((event) => {
-				this.handleScrollTouch(event);
-			})}
-			onDragPredicate={(event) => Math.abs(event.deltaY) > Math.abs(event.deltaX)}
-			style={createScrollStyle(this.state.isFooterVisible, this.viewModel.isHeaderVisible)}
-		>
+		<scroll style={createScrollStyle(this.state.isFooterVisible, this.state.isHeaderVisible)}>
 			<CardGrid
 				accessibilityLabel='home-playlists-grid'
 				cards={cards}
@@ -248,6 +245,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					const playlist = this.state.playlists.find((p) => p.id === card.id);
 					if (playlist) {
 						this.viewModel.onNavigationContext?.({ kind: 'playlist', playlist });
+						this.setHeaderVisibility(false);
 						navigationController.push(
 							PlaylistView,
 							{
@@ -255,6 +253,8 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 								downloadService: this.viewModel.downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
+								isHeaderVisible: false,
+								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 								onNavigateToArtist,
 								onNavigationContext: this.viewModel.onNavigationContext,
 								paletteQueue,
@@ -271,9 +271,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
 				}
 				onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
-				onTouchMove={createReusableCallback((event) => {
-					this.handleScrollTouch(event);
-				})}
 			/>
 		</scroll>;
 	}

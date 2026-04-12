@@ -28,7 +28,9 @@ export interface ArtistViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
+	isHeaderVisible?: boolean;
 	onExitFromSearchNavigation?: () => void;
+	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigationContext?: (context: HomeNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -42,6 +44,7 @@ interface ArtistState {
 	contextMenuTrack: Track | null;
 	downloadState: DownloadState;
 	isFooterVisible: boolean;
+	isHeaderVisible: boolean;
 	topTracks: Array<Track>;
 	topTracksLoaded: boolean;
 }
@@ -52,7 +55,14 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	private hasBeenDestroyed = false;
 	private unsubscribePlayback?: () => void;
 	private unsubscribeDownloads?: () => void;
+	private readonly setHeaderVisibility = (isVisible: boolean): void => {
+		if (this.state.isHeaderVisible === isVisible) {
+			return;
+		}
 
+		this.setState({ isHeaderVisible: isVisible });
+		this.viewModel.onHeaderVisibilityChange?.(isVisible);
+	};
 	state: ArtistState = {
 		albums: [],
 		albumsLoaded: false,
@@ -60,6 +70,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		contextMenuTrack: null,
 		downloadState: 'not_downloaded',
 		isFooterVisible: false,
+		isHeaderVisible: false,
 		topTracks: [],
 		topTracksLoaded: false,
 	};
@@ -147,6 +158,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			transport,
 		} = this.viewModel;
 		onNavigationContext?.({ album, kind: 'album' });
+		this.setHeaderVisibility(false);
 		this.navigationController.push(
 			AlbumView,
 			{
@@ -155,6 +167,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				downloadService,
 				gridColumns,
 				imageCache,
+				isHeaderVisible: false,
+				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				onNavigationContext,
 				paletteQueue,
 				playbackStore,
@@ -191,6 +205,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
+		this.setHeaderVisibility(false);
 		const { artist, downloadService, playbackStore, transport } = this.viewModel;
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: playbackStore.track !== null });
@@ -221,10 +236,24 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		});
 	}
 
+	onViewModelUpdate(prevViewModel?: ArtistViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		if (
+			this.viewModel.isHeaderVisible !== prevViewModel.isHeaderVisible &&
+			this.viewModel.isHeaderVisible !== this.state.isHeaderVisible
+		) {
+			this.viewModel.onHeaderVisibilityChange?.(this.state.isHeaderVisible);
+		}
+	}
+
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
 		this.unsubscribeDownloads?.();
+		this.viewModel.onHeaderVisibilityChange?.(true);
 		this.viewModel.onExitFromSearchNavigation?.();
 		this.viewModel.onNavigationContext?.(null);
 	}
@@ -238,6 +267,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			contextMenuTrack,
 			downloadState,
 			isFooterVisible,
+			isHeaderVisible,
 			topTracks,
 			topTracksLoaded,
 		} = this.state;
@@ -261,7 +291,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			track,
 		}));
 
-		const scrollStyle = createScrollStyle(isFooterVisible);
+		const scrollStyle = createScrollStyle(isFooterVisible, isHeaderVisible);
 		const isLoading = !albumsLoaded || !topTracksLoaded;
 
 		<layout accessibilityLabel='artist-view' contentDescription='artist-view' style={styles.root}>
@@ -279,6 +309,9 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					onDownload={this.handleDownloadTap}
 					onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onRemoveDownload={this.handleRemoveDownloadTap}
+					onRevealHeaderGesture={() => {
+						this.setHeaderVisibility(true);
+					}}
 					onShuffle={allTracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 				/>
 
@@ -369,25 +402,13 @@ const styles = {
 	}),
 };
 
-function createScrollStyle(isFooterVisible: boolean): Style {
-	return isFooterVisible ? scrollStyles.withFooter : scrollStyles.withoutFooter;
+function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style {
+	return new Style({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		padding: 8,
+		paddingBottom: scrollPaddingBottom(isFooterVisible),
+		paddingTop: isHeaderVisible ? theme.headerHeight + 16 : 8,
+		width: '100%',
+	});
 }
-
-const scrollStyles = {
-	withFooter: new Style({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		padding: 8,
-		paddingBottom: scrollPaddingBottom(true),
-		paddingTop: theme.headerHeight,
-		width: '100%',
-	}),
-	withoutFooter: new Style({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		padding: 8,
-		paddingBottom: scrollPaddingBottom(false),
-		paddingTop: theme.headerHeight,
-		width: '100%',
-	}),
-};
