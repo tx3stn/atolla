@@ -307,6 +307,9 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					modalSlot={this.modalSlot}
 					onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onDownload={this.handleDownloadTap}
+					onHideHeaderGesture={() => {
+						this.setHeaderVisibility(false);
+					}}
 					onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onRemoveDownload={this.handleRemoveDownloadTap}
 					onRevealHeaderGesture={() => {

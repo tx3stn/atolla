@@ -32,6 +32,7 @@ export interface DetailHeaderViewModel {
 	onAddToQueue?: () => Promise<void>;
 	onArtistTap?: () => void;
 	onDownload?: () => void;
+	onHideHeaderGesture?: () => void;
 	onPlay?: () => void;
 	onRemoveDownload?: () => void;
 	onRevealHeaderGesture?: () => void;
@@ -166,6 +167,11 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 
 		if (event.deltaY >= 18) {
 			this.viewModel.onRevealHeaderGesture?.();
+			return;
+		}
+
+		if (event.deltaY <= -18) {
+			this.viewModel.onHideHeaderGesture?.();
 		}
 	};
 

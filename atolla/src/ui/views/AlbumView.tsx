@@ -308,6 +308,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onArtistTap={this.handleArtistLogoTap}
 					onDownload={this.handleDownloadTap}
+					onHideHeaderGesture={() => {
+						this.setHeaderVisibility(false);
+					}}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onRemoveDownload={this.handleRemoveDownloadTap}
 					onRevealHeaderGesture={() => {

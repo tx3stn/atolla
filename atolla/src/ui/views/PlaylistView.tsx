@@ -380,6 +380,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					modalSlot={this.modalSlot}
 					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 					onDownload={this.handleDownloadTap}
+					onHideHeaderGesture={() => {
+						this.setHeaderVisibility(false);
+					}}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 					onRemoveDownload={this.handleRemoveDownloadTap}
 					onRevealHeaderGesture={() => {
