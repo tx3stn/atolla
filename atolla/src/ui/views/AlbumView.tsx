@@ -33,6 +33,7 @@ export interface AlbumViewModel {
 	onNavigationContext?: (context: HomeNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	restoreHeaderOnDestroy?: boolean;
 	transport: Transport;
 }
 
@@ -98,6 +99,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 					paletteQueue,
 					playbackStore,
+					restoreHeaderOnDestroy: false,
 					transport,
 				},
 				{},
@@ -262,7 +264,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
 		this.unsubscribeDownloads?.();
-		this.viewModel.onHeaderVisibilityChange?.(true);
+		if (this.viewModel.restoreHeaderOnDestroy ?? true) {
+			this.viewModel.onHeaderVisibilityChange?.(true);
+		}
 		this.viewModel.onExitFromSearchNavigation?.();
 		this.viewModel.onNavigationContext?.(null);
 	}

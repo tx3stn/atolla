@@ -34,6 +34,7 @@ export interface ArtistViewModel {
 	onNavigationContext?: (context: HomeNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	restoreHeaderOnDestroy?: boolean;
 	transport: Transport;
 }
 
@@ -172,6 +173,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				onNavigationContext,
 				paletteQueue,
 				playbackStore,
+				restoreHeaderOnDestroy: false,
 				transport,
 			},
 			{},
@@ -253,7 +255,9 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
 		this.unsubscribeDownloads?.();
-		this.viewModel.onHeaderVisibilityChange?.(true);
+		if (this.viewModel.restoreHeaderOnDestroy ?? true) {
+			this.viewModel.onHeaderVisibilityChange?.(true);
+		}
 		this.viewModel.onExitFromSearchNavigation?.();
 		this.viewModel.onNavigationContext?.(null);
 	}

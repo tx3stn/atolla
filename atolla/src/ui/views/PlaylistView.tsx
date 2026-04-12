@@ -34,6 +34,7 @@ export interface PlaylistViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
+	restoreHeaderOnDestroy?: boolean;
 	transport: Transport;
 }
 
@@ -106,6 +107,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					onNavigationContext: this.viewModel.onNavigationContext,
 					paletteQueue,
 					playbackStore,
+					restoreHeaderOnDestroy: false,
 					transport,
 				},
 				{},
@@ -337,7 +339,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
 		this.unsubscribeDownloads?.();
-		this.viewModel.onHeaderVisibilityChange?.(true);
+		if (this.viewModel.restoreHeaderOnDestroy ?? true) {
+			this.viewModel.onHeaderVisibilityChange?.(true);
+		}
 		this.viewModel.onExitFromSearchNavigation?.();
 		this.viewModel.onNavigationContext?.(null);
 	}
