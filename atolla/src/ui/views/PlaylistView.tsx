@@ -229,6 +229,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
+		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
 		const { downloadService, playbackStore } = this.viewModel;
 		this.unsubscribePlayback = playbackStore.subscribe(() => {

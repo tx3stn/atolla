@@ -23,6 +23,16 @@ describe('Home header nav visibility policy', () => {
 		expect(playlistsSource).toContain('this.viewModel.onHeaderVisibilityChange?.(false);');
 	});
 
+	it('defaults detail routes to hidden home header on create', async () => {
+		const albumSource = await Bun.file(new URL('./AlbumView.tsx', import.meta.url)).text();
+		const artistSource = await Bun.file(new URL('./ArtistView.tsx', import.meta.url)).text();
+		const playlistSource = await Bun.file(new URL('./PlaylistView.tsx', import.meta.url)).text();
+
+		expect(albumSource).toContain('this.viewModel.onHeaderVisibilityChange?.(false);');
+		expect(artistSource).toContain('this.viewModel.onHeaderVisibilityChange?.(false);');
+		expect(playlistSource).toContain('this.viewModel.onHeaderVisibilityChange?.(false);');
+	});
+
 	it('does not include scroll gesture-driven header toggling in genres root tab', async () => {
 		const genresSource = await Bun.file(new URL('./GenresView.tsx', import.meta.url)).text();
 

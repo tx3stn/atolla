@@ -207,6 +207,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
+		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
 		const { artist, downloadService, playbackStore, transport } = this.viewModel;
 		this.unsubscribePlayback = playbackStore.subscribe(() => {

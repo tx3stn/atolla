@@ -221,6 +221,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
+		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
 		const { album, downloadService, paletteQueue, playbackStore, transport } = this.viewModel;
 		paletteQueue?.prioritize(album.imageUrl);
