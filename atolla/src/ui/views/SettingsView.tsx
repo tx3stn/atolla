@@ -405,8 +405,8 @@ const styles = {
 		marginTop: 12,
 	}),
 	root: new Style({
-		height: '100%',
-		padding: 20,
+		paddingLeft: 8,
+		paddingRight: 8,
 		width: '100%',
 	}),
 	section: new Style({
@@ -483,7 +483,6 @@ function createScrollStyle(): Style {
 	return new Style({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
-		padding: 8,
 		paddingBottom: scrollPaddingBottom(true),
 		paddingTop: theme.headerHeight,
 		width: '100%',
