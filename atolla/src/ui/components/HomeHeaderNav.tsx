@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { Component } from 'valdi_core/src/Component';
+import { StatefulComponent } from 'valdi_core/src/Component';
+import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import { theme } from '../../theme';
@@ -17,11 +18,37 @@ interface HomeHeaderViewModel {
 	onTabTap: (tabId: HeaderTab) => void;
 }
 
-export class HomeHeaderNav extends Component<HomeHeaderViewModel> {
+export class HomeHeaderNav extends StatefulComponent<HomeHeaderViewModel, Record<string, never>> {
+	private rootRef = new ElementRef();
+	private readonly hiddenTop = -(theme.headerHeight + 16);
+
+	onCreate(): void {
+		if (!this.viewModel.animationsEnabled) {
+			this.rootRef.setAttribute('top', 0);
+			this.rootRef.setAttribute('opacity', 1);
+			return;
+		}
+
+		this.rootRef.setAttribute('top', this.hiddenTop);
+		this.rootRef.setAttribute('opacity', 0.88);
+
+		Promise.resolve().then(() => {
+			this.animatePromise({ damping: 26, stiffness: 400 }, () => {
+				this.rootRef.setAttribute('top', 1);
+				this.rootRef.setAttribute('opacity', 1);
+			}).then(() => {
+				this.animatePromise({ damping: 30, stiffness: 420 }, () => {
+					this.rootRef.setAttribute('top', 0);
+				});
+			});
+		});
+	}
+
 	onRender() {
 		<view
 			accessibilityLabel='home-header-nav'
 			contentDescription='home-header-nav'
+			ref={this.rootRef}
 			style={styles.homeTabs}
 		>
 			<view style={styles.leadingFabSlot}>
