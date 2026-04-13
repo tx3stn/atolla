@@ -13,6 +13,8 @@ describe('HomeView', () => {
 		expect(source).toContain("value='RECENTLY PLAYED'");
 		expect(source).toContain('recentlyPlayedTracks: Array<Track>');
 		expect(source).toContain('this.viewModel.recentlyPlayedTracks.slice(0, 5)');
+		expect(source).toContain('this.viewModel.onOpenAlbum(album)');
+		expect(source).toContain('this.viewModel.playbackStore.playTracks(queue, trackIndex)');
 		expect(source).toContain('Math.max(1, this.viewModel.gridColumns) * 2');
 	});
 });

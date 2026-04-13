@@ -1647,6 +1647,18 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.tryNavigatePendingAlbum();
 	};
 
+	handleHomeAlbumTap = (album: Album): void => {
+		this.pendingAlbum = album;
+		this.setState({
+			activeFooterTab: FooterTabs.library,
+			activeLibraryTab: HeaderTabs.albums,
+			isLibraryHeaderVisible: true,
+			libraryResetNonce: this.state.libraryResetNonce + 1,
+		});
+
+		this.tryNavigatePendingAlbum();
+	};
+
 	private tryNavigatePendingAlbum(): void {
 		if (
 			!this.pendingAlbum ||
@@ -1777,6 +1789,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					connectionMode={this.state.connectionMode}
 					downloadingCount={this.state.downloadingCount}
 					gridColumns={this.state.gridColumns}
+					onOpenAlbum={this.handleHomeAlbumTap}
 					onRequestModeChange={this.requestModeChange}
 					playbackStore={this.playbackStore}
 					recentlyPlayedTracks={this.recentlyPlayedTracks}

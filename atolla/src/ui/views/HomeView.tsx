@@ -18,6 +18,7 @@ export interface HomeViewModel {
 	connectionMode: ConnectionMode;
 	downloadingCount: number;
 	gridColumns: number;
+	onOpenAlbum: (album: Album) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	playbackStore: PlaybackStore;
 	recentlyPlayedTracks: Array<Track>;
@@ -129,13 +130,39 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private createRecentlyPlayedEntries(): Array<TrackListEntry> {
 		return this.viewModel.recentlyPlayedTracks.slice(0, 5).map((track, index) => ({
 			artworkSource: track.albumImageUrl ?? null,
-			id: `${track.id}-${index}`,
+			id: track.id,
 			leadingLabel: String(index + 1),
 			meta: track.artistName ?? track.albumName ?? '',
 			title: track.name,
 			track,
 		}));
 	}
+
+	private handleAlbumCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'playlist';
+	}): void => {
+		if (card.kind !== 'album') {
+			return;
+		}
+
+		const album = this.state.albums.find((candidate) => candidate.id === card.id);
+		if (!album) {
+			return;
+		}
+
+		this.viewModel.onOpenAlbum(album);
+	};
+
+	private handleRecentlyPlayedTrackTap = (trackId: string): void => {
+		const queue = this.viewModel.recentlyPlayedTracks.slice(0, 5);
+		const trackIndex = queue.findIndex((track) => track.id === trackId);
+		if (trackIndex < 0) {
+			return;
+		}
+
+		this.viewModel.playbackStore.playTracks(queue, trackIndex);
+	};
 
 	onRender(): void {
 		const onThisDayCards = this.createOnThisDayCards();
@@ -167,7 +194,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 										accessibilityLabel='home-on-this-day-grid'
 										cards={onThisDayCards}
 										columnCount={this.viewModel.gridColumns}
-										onCardTap={() => {}}
+										onCardTap={this.handleAlbumCardTap}
 									/>
 								) : (
 									<label style={styles.emptyState} value='no anniversaries today' />
@@ -180,14 +207,17 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 									accessibilityLabel='home-recently-added-grid'
 									cards={recentlyAddedCards}
 									columnCount={this.viewModel.gridColumns}
-									onCardTap={() => {}}
+									onCardTap={this.handleAlbumCardTap}
 								/>
 							</layout>
 
 							<layout style={styles.section}>
 								<label style={styles.sectionTitle} value='RECENTLY PLAYED' />
 								{recentlyPlayedTracks.length > 0 ? (
-									<TrackList tracks={recentlyPlayedTracks} />
+									<TrackList
+										onTrackTap={this.handleRecentlyPlayedTrackTap}
+										tracks={recentlyPlayedTracks}
+									/>
 								) : (
 									<label style={styles.emptyState} value='nothing played yet' />
 								)}
