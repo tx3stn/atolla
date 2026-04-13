@@ -92,6 +92,8 @@ import { SettingsView } from './ui/views/SettingsView';
 
 export type AppViewModel = Record<string, never>;
 
+const RECENTLY_PLAYED_TRACKS_KEY = 'recently_played_tracks';
+
 interface AppState {
 	activeFooterTab: FooterTab;
 	activeLibraryTab: HeaderTab;
@@ -228,6 +230,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		return this.jellyfinClientDeviceIdOverride || this.defaultJellyfinClientDeviceId;
 	}
 	private searchStore!: SearchStore;
+	private recentlyPlayedStore?: {
+		fetchString(key: string): Promise<string>;
+		storeString(key: string, value: string): Promise<void>;
+	};
 	private transport: Transport = new MockTransport();
 	private paletteService!: ArtworkPaletteService;
 	private downloadService = new DownloadService({
@@ -460,7 +466,62 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 
 		this.lastObservedRecentTrackId = activeTrack.id;
-		this.recentlyPlayedTracks = [activeTrack, ...this.recentlyPlayedTracks].slice(0, 5);
+		this.recentlyPlayedTracks = [
+			activeTrack,
+			...this.recentlyPlayedTracks.filter((track) => track.id !== activeTrack.id),
+		].slice(0, 5);
+		this.persistRecentlyPlayedTracks();
+	}
+
+	private persistRecentlyPlayedTracks(): void {
+		if (!this.recentlyPlayedStore) {
+			return;
+		}
+
+		void this.recentlyPlayedStore
+			.storeString(RECENTLY_PLAYED_TRACKS_KEY, JSON.stringify(this.recentlyPlayedTracks))
+			.catch(() => {
+				// best effort persistence
+			});
+	}
+
+	private restoreRecentlyPlayedTracks(): void {
+		if (!this.recentlyPlayedStore) {
+			return;
+		}
+
+		const store = this.recentlyPlayedStore;
+		void store
+			.fetchString(RECENTLY_PLAYED_TRACKS_KEY)
+			.then((raw) => {
+				const parsed = JSON.parse(raw);
+				if (!Array.isArray(parsed)) {
+					this.recentlyPlayedTracks = [];
+					this.setState({ version: this.state.version + 1 });
+					return;
+				}
+
+				const restored = parsed.filter((track): track is Track => this.isTrack(track)).slice(0, 5);
+				this.recentlyPlayedTracks = restored;
+				this.setState({ version: this.state.version + 1 });
+			})
+			.catch(() => {
+				this.recentlyPlayedTracks = [];
+				this.setState({ version: this.state.version + 1 });
+			});
+	}
+
+	private isTrack(value: unknown): value is Track {
+		if (!value || typeof value !== 'object') {
+			return false;
+		}
+
+		const candidate = value as Partial<Track>;
+		return (
+			typeof candidate.id === 'string' &&
+			typeof candidate.name === 'string' &&
+			typeof candidate.duration === 'number'
+		);
 	}
 
 	onDestroy(): void {
@@ -502,6 +563,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.searchStore = new SearchStore(
 			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
 		);
+		this.recentlyPlayedStore = new PersistentStore(`atolla/user/${userId}/recently_played`, {
+			deviceGlobal: true,
+		});
+		this.recentlyPlayedTracks = [];
+		this.lastObservedRecentTrackId = null;
+		this.restoreRecentlyPlayedTracks();
 		this.paletteService = new ArtworkPaletteService(
 			new WriteBehindPaletteStore(
 				new PersistentPaletteStore(
@@ -711,6 +778,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 			this.transport = new OfflineTransport(this.downloadService);
 			this.playbackStore.stop();
+			this.recentlyPlayedTracks = [];
+			this.lastObservedRecentTrackId = null;
 			this.setState({
 				authErrorMessage: null,
 				connectionMode: ConnectionModes.online,
@@ -718,6 +787,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				isAuthRequired: true,
 				quickConnectCode: null,
 				serverUrlPrefill: '',
+				version: this.state.version + 1,
 			});
 			this.showAuthToast('logged out');
 		})();
