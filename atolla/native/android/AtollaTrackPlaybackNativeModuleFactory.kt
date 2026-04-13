@@ -18,11 +18,13 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
+import android.os.SystemClock
 import android.util.Log
 import com.snap.modules.atolla.TrackPlaybackNativeModule
 import com.snap.modules.atolla.TrackPlaybackNativeModuleFactory
 import com.snap.valdi.modules.RegisterValdiModule
 import java.io.File
+import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.atomic.AtomicLong
@@ -645,8 +647,11 @@ object AtollaTrackPlaybackMediaSession {
 	@Volatile private var activeHasPrevious: Boolean = false
 	@Volatile private var activeHasNext: Boolean = false
 	@Volatile private var currentArtworkBitmap: Bitmap? = null
+	@Volatile private var isArtworkLoadInFlight: Boolean = false
+	@Volatile private var lastArtworkLoadAttemptMs: Long = 0L
 
 	private val artworkRequestCounter = AtomicLong(0)
+	private const val artworkRetryIntervalMs = 3_000L
 
 	@Synchronized
 	fun updateNotification(
@@ -675,16 +680,28 @@ object AtollaTrackPlaybackMediaSession {
 		activeHasPrevious = hasPrevious
 		activeHasNext = hasNext
 
-		val normalizedArtworkUrl = artworkUrl.trim()
-		if (normalizedArtworkUrl != activeArtworkUrl) {
+		val normalizedArtworkUrl = resolveNotificationArtworkUrl(artworkUrl.trim())
+		val artworkChanged = normalizedArtworkUrl != activeArtworkUrl
+		if (artworkChanged) {
 			activeArtworkUrl = normalizedArtworkUrl
-			currentArtworkBitmap = null
+			isArtworkLoadInFlight = false
+			if (normalizedArtworkUrl.isBlank()) {
+				currentArtworkBitmap = null
+			}
+		}
+
+		val shouldRetryArtworkLoad =
+			!artworkChanged &&
+			normalizedArtworkUrl.isNotBlank() &&
+			currentArtworkBitmap == null &&
+			!isArtworkLoadInFlight &&
+			(SystemClock.elapsedRealtime() - lastArtworkLoadAttemptMs) >= artworkRetryIntervalMs
+
+		if ((artworkChanged && normalizedArtworkUrl.isNotBlank()) || shouldRetryArtworkLoad) {
 			loadArtworkAsync(normalizedArtworkUrl)
 		}
 
-		updateMediaState()
-		updateMediaMetadata()
-		showOrUpdateNotification(context)
+		publishNotificationSnapshot(context)
 	}
 
 	@Synchronized
@@ -919,11 +936,40 @@ object AtollaTrackPlaybackMediaSession {
 
 			currentArtworkBitmap?.let { bitmap ->
 				builder.putBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART, bitmap)
+				builder.putBitmap(android.media.MediaMetadata.METADATA_KEY_ART, bitmap)
+				builder.putBitmap(android.media.MediaMetadata.METADATA_KEY_DISPLAY_ICON, bitmap)
 			}
 
 			session.setMetadata(builder.build())
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed updating media metadata", error)
+		}
+	}
+
+	private fun publishNotificationSnapshot(context: Context? = null) {
+		runOnMainThread {
+			synchronized(this) {
+				val resolvedContext = context ?: resolveApplicationContext() ?: return@synchronized
+				updateMediaState()
+				updateMediaMetadata()
+				showOrUpdateNotification(resolvedContext)
+			}
+		}
+	}
+
+	private fun runOnMainThread(block: () -> Unit) {
+		val mainLooper = Looper.getMainLooper() ?: return
+		if (Looper.myLooper() == mainLooper) {
+			block()
+			return
+		}
+
+		Handler(mainLooper).post {
+			try {
+				block()
+			} catch (error: Throwable) {
+				Log.e(tag, "Failed running media update on main thread", error)
+			}
 		}
 	}
 
@@ -1111,19 +1157,21 @@ object AtollaTrackPlaybackMediaSession {
 			return
 		}
 
+		isArtworkLoadInFlight = true
+		lastArtworkLoadAttemptMs = SystemClock.elapsedRealtime()
 		val requestId = artworkRequestCounter.incrementAndGet()
 		Thread {
 			val bitmap = decodeArtworkBitmap(artworkUrl)
 			synchronized(this) {
+				if (requestId == artworkRequestCounter.get()) {
+					isArtworkLoadInFlight = false
+				}
 				if (requestId != artworkRequestCounter.get() || artworkUrl != activeArtworkUrl) {
 					return@synchronized
 				}
 				currentArtworkBitmap = bitmap
-				updateMediaMetadata()
-				resolveApplicationContext()?.let { context ->
-					showOrUpdateNotification(context)
-				}
 			}
+			publishNotificationSnapshot()
 		}.start()
 	}
 
@@ -1135,7 +1183,7 @@ object AtollaTrackPlaybackMediaSession {
 				if (!file.exists() || !file.isFile) {
 					return null
 				}
-				return BitmapFactory.decodeFile(file.absolutePath)
+				return decodeBitmapBytesWithSampling(file.readBytes())
 			}
 
 			val connection = (URL(artworkUrl).openConnection() as HttpURLConnection).apply {
@@ -1151,12 +1199,66 @@ object AtollaTrackPlaybackMediaSession {
 				return null
 			}
 
-			connection.inputStream.use { stream ->
-				BitmapFactory.decodeStream(stream)
+			val bytes = connection.inputStream.use { stream ->
+				val out = ByteArrayOutputStream()
+				val buffer = ByteArray(16 * 1024)
+				while (true) {
+					val read = stream.read(buffer)
+					if (read <= 0) {
+						break
+					}
+					out.write(buffer, 0, read)
+				}
+				out.toByteArray()
 			}
+
+			decodeBitmapBytesWithSampling(bytes)
 		} catch (_: Throwable) {
 			null
 		}
+	}
+
+	private fun resolveNotificationArtworkUrl(artworkUrl: String): String {
+		if (artworkUrl.isBlank()) {
+			return ""
+		}
+
+		return try {
+			AtollaImageLoaderAutoBootstrap.registerForAllRuntimes()
+			AtollaCacheImageLoader.sharedInstance
+				?.resolveCachedFileUrl("album_art", artworkUrl)
+				?: artworkUrl
+		} catch (_: Throwable) {
+			artworkUrl
+		}
+	}
+
+	private fun decodeBitmapBytesWithSampling(bytes: ByteArray): Bitmap? {
+		if (bytes.isEmpty()) {
+			return null
+		}
+
+		val boundsOptions = BitmapFactory.Options().apply {
+			inJustDecodeBounds = true
+		}
+		BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
+
+		if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) {
+			return null
+		}
+
+		var sampleSize = 1
+		val targetMaxDimension = 1024
+		while (boundsOptions.outWidth / sampleSize > targetMaxDimension || boundsOptions.outHeight / sampleSize > targetMaxDimension) {
+			sampleSize *= 2
+		}
+
+		val decodeOptions = BitmapFactory.Options().apply {
+			inSampleSize = sampleSize.coerceAtLeast(1)
+			inPreferredConfig = Bitmap.Config.ARGB_8888
+		}
+
+		return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions)
 	}
 
 	private fun resolveForegroundActivity(): Activity? {

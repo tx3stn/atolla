@@ -877,7 +877,7 @@ const styles = {
 	compactProgressContainer: new Style({
 		borderRadius: theme.borderRadius,
 		bottom: 0,
-		left: 55,
+		left: 50,
 		position: 'absolute',
 		right: 0,
 		top: 0,

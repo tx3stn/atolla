@@ -3,10 +3,10 @@ package atolla.native.android
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.net.Uri
 import android.util.LruCache
 import android.media.AudioAttributes
 import android.media.MediaPlayer
-import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -231,6 +231,25 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			null
 		} finally {
 			bitmap.recycle()
+		}
+	}
+
+	fun resolveCachedFileUrl(category: String, sourceUrl: String): String? {
+		if (category.isBlank() || sourceUrl.isBlank()) {
+			return null
+		}
+
+		val key = "$category:$sourceUrl"
+		val file = cacheFileForKey(key) ?: return null
+		if (!file.exists() || !file.isFile) {
+			return null
+		}
+
+		return try {
+			file.setLastModified(System.currentTimeMillis())
+			Uri.fromFile(file).toString()
+		} catch (_: Throwable) {
+			null
 		}
 	}
 
