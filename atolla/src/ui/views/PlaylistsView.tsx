@@ -21,7 +21,6 @@ export interface PlaylistsViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
-	isHeaderVisible: boolean;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -34,7 +33,6 @@ export interface PlaylistsViewModel {
 interface PlaylistsState {
 	hasMore: boolean;
 	isFooterVisible: boolean;
-	isHeaderVisible: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
@@ -57,19 +55,10 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
-	private readonly setHeaderVisibility = (isVisible: boolean): void => {
-		if (this.state.isHeaderVisible === isVisible) {
-			return;
-		}
-
-		this.setState({ isHeaderVisible: isVisible });
-		this.viewModel.onHeaderVisibilityChange?.(isVisible);
-	};
 
 	state: PlaylistsState = {
 		hasMore: true,
 		isFooterVisible: false,
-		isHeaderVisible: true,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
@@ -79,9 +68,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		if (this.state.isHeaderVisible !== this.viewModel.isHeaderVisible) {
-			this.setState({ isHeaderVisible: this.viewModel.isHeaderVisible });
-		}
 		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
 			const isFooterVisible = this.viewModel.playbackStore.track !== null;
 			if (isFooterVisible !== this.state.isFooterVisible) {
@@ -98,19 +84,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
-	}
-
-	onViewModelUpdate(prevViewModel?: PlaylistsViewModel): void {
-		if (!prevViewModel) {
-			return;
-		}
-
-		if (
-			this.viewModel.isHeaderVisible !== prevViewModel.isHeaderVisible &&
-			this.viewModel.isHeaderVisible !== this.state.isHeaderVisible
-		) {
-			this.setState({ isHeaderVisible: this.viewModel.isHeaderVisible });
-		}
 	}
 
 	private async loadInitialPages(): Promise<void> {
@@ -233,7 +206,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				secondaryText: '',
 			}),
 		);
-		<scroll style={createScrollStyle(this.state.isFooterVisible, this.state.isHeaderVisible)}>
+		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
 				accessibilityLabel='home-playlists-grid'
 				cards={cards}
@@ -245,7 +218,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					const playlist = this.state.playlists.find((p) => p.id === card.id);
 					if (playlist) {
 						this.viewModel.onNavigationContext?.({ kind: 'playlist', playlist });
-						this.setHeaderVisibility(false);
+						this.viewModel.onHeaderVisibilityChange?.(false);
 						navigationController.push(
 							PlaylistView,
 							{
@@ -253,7 +226,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 								downloadService: this.viewModel.downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
-								isHeaderVisible: false,
 								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 								onNavigateToArtist,
 								onNavigationContext: this.viewModel.onNavigationContext,
@@ -276,13 +248,13 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 }
 
-function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style {
+function createScrollStyle(isFooterVisible: boolean): Style {
 	return new Style({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: isHeaderVisible ? theme.headerHeight : 8,
+		paddingTop: theme.headerHeight,
 		width: '100%',
 	});
 }

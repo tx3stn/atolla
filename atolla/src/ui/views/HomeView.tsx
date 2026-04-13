@@ -31,7 +31,6 @@ export interface HomeViewModel {
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
 	gridColumns: number;
-	isHeaderVisible: boolean;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationContext?: (context: HomeNavContext | null) => void;
@@ -148,7 +147,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			downloadService,
 			gridColumns,
 			imageCache,
-			isHeaderVisible,
 			onNavigateToArtist,
 			onHeaderVisibilityChange,
 			onNavigationContext,
@@ -168,7 +166,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
-							isHeaderVisible={isHeaderVisible}
 							isOfflineMode={isOfflineMode}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
@@ -190,7 +187,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
-							isHeaderVisible={isHeaderVisible}
 							isOfflineMode={isOfflineMode}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
@@ -212,7 +208,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
-							isHeaderVisible={isHeaderVisible}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigateToArtist={onNavigateToArtist}
@@ -226,11 +221,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			)}
 
 			{this.state.isNavigationMounted && activeTab === HeaderTabs.genres && (
-				<GenresView
-					isHeaderVisible={isHeaderVisible}
-					onHeaderVisibilityChange={onHeaderVisibilityChange}
-					playbackStore={playbackStore}
-				/>
+				<GenresView playbackStore={playbackStore} />
 			)}
 
 			{this.state.isTabTransitionOverlayVisible && <view style={styles.tabTransitionOverlay} />}

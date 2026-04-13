@@ -21,7 +21,6 @@ export interface ArtistsViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
-	isHeaderVisible: boolean;
 	isOfflineMode: boolean;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
@@ -35,7 +34,6 @@ interface ArtistsState {
 	artists: Array<Artist>;
 	hasMore: boolean;
 	isFooterVisible: boolean;
-	isHeaderVisible: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
@@ -56,20 +54,11 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
-	private readonly setHeaderVisibility = (isVisible: boolean): void => {
-		if (this.state.isHeaderVisible === isVisible) {
-			return;
-		}
-
-		this.setState({ isHeaderVisible: isVisible });
-		this.viewModel.onHeaderVisibilityChange?.(isVisible);
-	};
 
 	state: ArtistsState = {
 		artists: [],
 		hasMore: true,
 		isFooterVisible: false,
-		isHeaderVisible: true,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
@@ -77,9 +66,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		if (this.state.isHeaderVisible !== this.viewModel.isHeaderVisible) {
-			this.setState({ isHeaderVisible: this.viewModel.isHeaderVisible });
-		}
 		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
 			const isFooterVisible = this.viewModel.playbackStore.track !== null;
 			if (isFooterVisible !== this.state.isFooterVisible) {
@@ -101,13 +87,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	onViewModelUpdate(prevViewModel?: ArtistsViewModel): void {
 		if (!prevViewModel) {
 			return;
-		}
-
-		if (
-			this.viewModel.isHeaderVisible !== prevViewModel.isHeaderVisible &&
-			this.viewModel.isHeaderVisible !== this.state.isHeaderVisible
-		) {
-			this.setState({ isHeaderVisible: this.viewModel.isHeaderVisible });
 		}
 
 		if (this.viewModel.isOfflineMode === prevViewModel.isOfflineMode) {
@@ -260,7 +239,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			primaryText: artist.name,
 			secondaryText: '',
 		}));
-		<scroll style={createScrollStyle(this.state.isFooterVisible, this.state.isHeaderVisible)}>
+		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
 				accessibilityLabel='home-artists-grid'
 				cards={cards}
@@ -272,7 +251,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					const artist = this.state.artists.find((a) => a.id === card.id);
 					if (artist) {
 						this.viewModel.onNavigationContext?.({ artist, kind: 'artist' });
-						this.setHeaderVisibility(false);
+						this.viewModel.onHeaderVisibilityChange?.(false);
 						navigationController.push(
 							ArtistView,
 							{
@@ -281,7 +260,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 								downloadService: this.viewModel.downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
-								isHeaderVisible: false,
 								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 								onNavigationContext: this.viewModel.onNavigationContext,
 								paletteQueue,
@@ -349,13 +327,13 @@ function compareCaseInsensitive(left: string, right: string): number {
 	return 0;
 }
 
-function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style {
+function createScrollStyle(isFooterVisible: boolean): Style {
 	return new Style({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: isHeaderVisible ? theme.headerHeight : 8,
+		paddingTop: theme.headerHeight,
 		width: '100%',
 	});
 }

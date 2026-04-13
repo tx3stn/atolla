@@ -1709,7 +1709,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					connectionMode={this.state.connectionMode}
 					downloadService={this.downloadService}
 					gridColumns={this.state.gridColumns}
-					isHeaderVisible={this.state.isHomeHeaderVisible}
 					onHeaderVisibilityChange={this.handleHomeHeaderVisibilityChange}
 					onNavigateToArtist={this.handleNavigateToArtist}
 					onNavigationContext={this.handleNavigationContext}

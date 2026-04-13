@@ -22,9 +22,9 @@
 
 ## Features
 
-* Seamless online/offline usage including offline search
-* Dynamic colour palette generation from album artwork
+* Seamless online/offline usage including offline search & scrobbling
 * Image focussed UI including artist logos
+* Dynamic colour palette generation from album artwork
 
 ## Why?
 

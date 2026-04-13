@@ -22,7 +22,6 @@ export interface AlbumsViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
-	isHeaderVisible: boolean;
 	isOfflineMode: boolean;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
@@ -36,7 +35,6 @@ interface AlbumsState {
 	albums: Array<Album>;
 	hasMore: boolean;
 	isFooterVisible: boolean;
-	isHeaderVisible: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
@@ -58,20 +56,11 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
-	private readonly setHeaderVisibility = (isVisible: boolean): void => {
-		if (this.state.isHeaderVisible === isVisible) {
-			return;
-		}
-
-		this.setState({ isHeaderVisible: isVisible });
-		this.viewModel.onHeaderVisibilityChange?.(isVisible);
-	};
 
 	state: AlbumsState = {
 		albums: [],
 		hasMore: true,
 		isFooterVisible: false,
-		isHeaderVisible: true,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
@@ -80,9 +69,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		if (this.state.isHeaderVisible !== this.viewModel.isHeaderVisible) {
-			this.setState({ isHeaderVisible: this.viewModel.isHeaderVisible });
-		}
 		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
 			const isFooterVisible = this.viewModel.playbackStore.track !== null;
 			if (isFooterVisible !== this.state.isFooterVisible) {
@@ -104,13 +90,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	onViewModelUpdate(prevViewModel?: AlbumsViewModel): void {
 		if (!prevViewModel) {
 			return;
-		}
-
-		if (
-			this.viewModel.isHeaderVisible !== prevViewModel.isHeaderVisible &&
-			this.viewModel.isHeaderVisible !== this.state.isHeaderVisible
-		) {
-			this.setState({ isHeaderVisible: this.viewModel.isHeaderVisible });
 		}
 
 		if (this.viewModel.isOfflineMode === prevViewModel.isOfflineMode) {
@@ -270,7 +249,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			primaryText: album.name,
 			secondaryText: album.artistName,
 		}));
-		<scroll style={createScrollStyle(this.state.isFooterVisible, this.state.isHeaderVisible)}>
+		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
 				accessibilityLabel='home-albums-grid'
 				cards={cards}
@@ -282,7 +261,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 					const album = this.state.albums.find((a) => a.id === card.id);
 					if (album) {
 						this.viewModel.onNavigationContext?.({ album, kind: 'album' });
-						this.setHeaderVisibility(false);
+						this.viewModel.onHeaderVisibilityChange?.(false);
 						navigationController.push(
 							AlbumView,
 							{
@@ -291,7 +270,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 								downloadService: this.viewModel.downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
-								isHeaderVisible: false,
 								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 								onNavigationContext: this.viewModel.onNavigationContext,
 								paletteQueue,
@@ -345,13 +323,13 @@ function compareCaseInsensitive(left: string, right: string): number {
 	return 0;
 }
 
-function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style {
+function createScrollStyle(isFooterVisible: boolean): Style {
 	return new Style({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: isHeaderVisible ? theme.headerHeight : 8,
+		paddingTop: theme.headerHeight,
 		width: '100%',
 	});
 }
