@@ -33,6 +33,12 @@ export interface Transport {
 	getTrackCacheUrl?(trackId: string): string | null;
 	getTracksByAlbum(albumId: string): Promise<Array<Track>>;
 	getTracksByArtist(artistId: string): Promise<Array<Track>>;
+	getTracksByGenre(genreId: string): Promise<Array<Track>>;
+	getTracksByGenrePage?: (
+		genreId: string,
+		page: number,
+		pageSize: number,
+	) => Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }>;
 	getTracksByPlaylist(playlistId: string): Promise<Array<Track>>;
 	getTracksByPlaylistPage?: (
 		playlistId: string,

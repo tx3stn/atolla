@@ -7,6 +7,7 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
+import type { Genre } from '../../models/Genre';
 import type { Playlist } from '../../models/Playlist';
 import type { DownloadService } from '../../services/DownloadService';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -23,6 +24,7 @@ import { PlaylistsView } from './PlaylistsView';
 export type HomeNavContext =
 	| { kind: 'artist'; artist: Artist }
 	| { kind: 'album'; album: Album }
+	| { genre: Genre; kind: 'genre' }
 	| { kind: 'playlist'; playlist: Playlist };
 
 export interface HomeViewModel {
@@ -221,7 +223,22 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			)}
 
 			{this.state.isNavigationMounted && activeTab === HeaderTabs.genres && (
-				<GenresView gridColumns={gridColumns} playbackStore={playbackStore} transport={transport} />
+				<NavigationRoot>
+					{$slot((navigationController) => {
+						this.viewModel.onNavigationControllerChange?.(navigationController);
+						<GenresView
+							animationsEnabled={animationsEnabled}
+							gridColumns={gridColumns}
+							imageCache={imageCache}
+							navigationController={navigationController}
+							onHeaderVisibilityChange={onHeaderVisibilityChange}
+							onNavigateToArtist={onNavigateToArtist}
+							onNavigationContext={onNavigationContext}
+							playbackStore={playbackStore}
+							transport={transport}
+						/>;
+					})}
+				</NavigationRoot>
 			)}
 
 			{this.state.isTabTransitionOverlayVisible && <view style={styles.tabTransitionOverlay} />}

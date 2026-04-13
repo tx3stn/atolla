@@ -7,5 +7,7 @@ describe('GenresView', () => {
 		expect(source).toContain('getGenresPage(');
 		expect(source).toContain("accessibilityLabel='home-genres-grid'");
 		expect(source).toContain('onLoadMore={');
+		expect(source).toContain('navigationController.push(');
+		expect(source).toContain('GenreView');
 	});
 });

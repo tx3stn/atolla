@@ -226,6 +226,22 @@ export class OfflineTransport implements Transport {
 			.map((entry) => entry.track);
 	}
 
+	async getTracksByGenre(_genreId: string): Promise<Array<Track>> {
+		return [];
+	}
+
+	async getTracksByGenrePage(
+		_genreId: string,
+		_page: number,
+		_pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
+		return {
+			hasMore: false,
+			items: [],
+			totalCount: 0,
+		};
+	}
+
 	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
 		const playlistEntry = this.downloads.getPlaylist(playlistId);
 		if (!playlistEntry) return [];

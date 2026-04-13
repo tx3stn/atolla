@@ -69,6 +69,21 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 			expect(matchingAlbumTrack?.releaseDate).toBe(playlistTrack.releaseDate);
 			expect(matchingAlbumTrack?.productionYear).toBe(playlistTrack.productionYear);
 		});
+
+		it('returns genre pages and genre tracks with contract-compliant tracks', async () => {
+			const transport = createTransport();
+			const genresPage = await transport.getGenresPage(1, 5);
+			expect(genresPage.items.length).toBeGreaterThan(0);
+
+			const genre = genresPage.items[0];
+			expect(typeof genre.id).toBe('string');
+			expect(genre.id.length).toBeGreaterThan(0);
+			expect(typeof genre.name).toBe('string');
+
+			const genreTracks = await transport.getTracksByGenre(genre.id);
+			expect(genreTracks.length).toBeGreaterThan(0);
+			genreTracks.forEach(assertTrackContract);
+		});
 	});
 }
 

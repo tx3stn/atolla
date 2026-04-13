@@ -2,16 +2,26 @@
 
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Genre } from '../../models/Genre';
+import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { GenreView } from './GenreView';
 import { gridPaginationConfig } from './GridPagination';
+import type { HomeNavContext } from './HomeView';
 
 interface GenresViewModel {
+	animationsEnabled: boolean;
 	gridColumns: number;
+	imageCache: ImageCache;
+	navigationController: NavigationController;
+	onHeaderVisibilityChange?: (isVisible: boolean) => void;
+	onNavigateToArtist?: (artistId: string) => void;
+	onNavigationContext?: (context: HomeNavContext | null) => void;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -124,12 +134,14 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	}
 
 	onRender(): void {
+		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
+			this.viewModel;
 		const cards: Array<Card> = this.state.genres.map((genre) => ({
 			artworkKey: genre.imageUrl ?? '',
 			id: genre.id,
 			kind: 'album',
 			primaryText: genre.name,
-			secondaryText: '',
+			secondaryText: genre.trackCount != null ? `${genre.trackCount} tracks` : '',
 		}));
 
 		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
@@ -139,7 +151,29 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 				columnCount={this.viewModel.gridColumns}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 				isLoadingMore={this.state.isLoadingNextPage}
-				onCardTap={() => {}}
+				onCardTap={(card) => {
+					const genre = this.state.genres.find((candidate) => candidate.id === card.id);
+					if (!genre) {
+						return;
+					}
+
+					this.viewModel.onNavigationContext?.({ genre, kind: 'genre' });
+					this.viewModel.onHeaderVisibilityChange?.(false);
+					navigationController.push(
+						GenreView,
+						{
+							animationsEnabled,
+							genre,
+							imageCache,
+							onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+							onNavigateToArtist: this.viewModel.onNavigateToArtist,
+							playbackStore,
+							transport,
+						},
+						{},
+						{ animated: animationsEnabled },
+					);
+				}}
 				onLoadMore={
 					this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
 				}

@@ -83,6 +83,7 @@ import { VideoAudioPlayer } from './ui/components/VideoAudioPlayer';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
 import { ConnectionView } from './ui/views/ConnectionView';
+import { GenreView } from './ui/views/GenreView';
 import { type HomeNavContext, HomeView } from './ui/views/HomeView';
 import { PlaylistView } from './ui/views/PlaylistView';
 import { type SearchHomeNavigationTarget, SearchView } from './ui/views/SearchView';
@@ -1231,6 +1232,18 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.currentHomeNavContext = context;
 		} else if (context.kind === 'playlist') {
 			nav.push(PlaylistView, { ...shared, playlist: context.playlist }, {}, { animated: false });
+			this.currentHomeNavContext = context;
+		} else if (context.kind === 'genre') {
+			nav.push(
+				GenreView,
+				{
+					...shared,
+					genre: context.genre,
+					onNavigateToArtist: this.handleNavigateToArtist,
+				},
+				{},
+				{ animated: false },
+			);
 			this.currentHomeNavContext = context;
 		}
 	}

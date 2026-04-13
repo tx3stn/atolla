@@ -257,6 +257,7 @@ describe('LiveTransport core collections', () => {
 			Id: 'genre-1',
 			ImageTags: { Primary: 'genre-tag-1' },
 			Name: 'Noise Rock',
+			RecursiveItemCount: 42,
 			Type: 'MusicGenre',
 		};
 		const { calls, factory } = createHTTPClientFactory([
@@ -280,9 +281,38 @@ describe('LiveTransport core collections', () => {
 			expect.objectContaining({
 				id: 'genre-1',
 				name: 'Noise Rock',
+				trackCount: 42,
 			}),
 		);
 		expect(page.items[0].imageUrl).toContain('/Items/genre-1/Images/Primary');
+	});
+
+	it('fetches genre tracks page with genreIds and paging query', async () => {
+		const track: JellyfinTrackItem = {
+			ArtistItems: [{ Id: 'artist-1', Name: 'Artist A' }],
+			Id: 'track-1',
+			Name: 'Track One',
+			RunTimeTicks: 120_000_000,
+			Type: 'Audio',
+		};
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([track], 7, 3)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const page = await transport.getTracksByGenrePage('genre-1', 2, 3);
+
+		expect(calls).toHaveLength(1);
+		expect(queryParam(calls[0].pathOrUrl, 'genreIds')).toBe('genre-1');
+		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('Audio');
+		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('3');
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('3');
+		expect(page.totalCount).toBe(7);
+		expect(page.hasMore).toBe(true);
+		expect(page.items).toHaveLength(1);
+		expect(page.items[0].id).toBe('track-1');
 	});
 
 	it('fetches artist top tracks sorted by play count', async () => {

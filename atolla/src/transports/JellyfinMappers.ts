@@ -131,5 +131,6 @@ export function mapJellyfinGenreToGenre(
 		id: item.Id,
 		imageUrl: imageResolvers.itemPrimaryImageUrl?.(item.Id, primaryTag),
 		name: item.Name,
+		trackCount: item.RecursiveItemCount ?? item.ChildCount,
 	};
 }

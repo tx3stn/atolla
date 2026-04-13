@@ -27,6 +27,9 @@ export interface JellyfinBaseItemDto extends JellyfinBaseItemIdentity {
 	AlbumId?: string;
 	AlbumPrimaryImageTag?: string;
 	ArtistItems?: Array<JellyfinNameIdReference>;
+	ChildCount?: number;
+	GenreItems?: Array<JellyfinNameIdReference>;
+	Genres?: Array<string>;
 	ImageTags?: Record<string, string>;
 	IndexNumber?: number;
 	MediaSources?: Array<unknown>;
@@ -35,6 +38,7 @@ export interface JellyfinBaseItemDto extends JellyfinBaseItemIdentity {
 	ParentLogoItemId?: string;
 	PremiereDate?: string;
 	ProductionYear?: number;
+	RecursiveItemCount?: number;
 	RunTimeTicks?: number;
 }
 

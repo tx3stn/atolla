@@ -367,6 +367,41 @@ export class LiveTransport implements Transport {
 		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
+	async getTracksByGenre(genreId: string): Promise<Array<Track>> {
+		const items = await this.fetchAllItems<JellyfinTrackItem>({
+			genreIds: genreId,
+			includeItemTypes: JellyfinMusicItemTypes.Audio,
+			recursive: true,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+		});
+
+		return items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+	}
+
+	async getTracksByGenrePage(
+		genreId: string,
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			genreIds: genreId,
+			includeItemTypes: JellyfinMusicItemTypes.Audio,
+			limit: Math.max(1, pageSize),
+			recursive: true,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+			startIndex,
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
+			totalCount: list.TotalRecordCount,
+		};
+	}
+
 	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
 		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
 			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
