@@ -1,8 +1,8 @@
 import { BasePage } from './Base';
 
-export class HomeAlbumsTabPage extends BasePage {
+export class LibraryAlbumsTabPage extends BasePage {
 	private readonly cardPrefix = 'card-album-';
-	private readonly grid = 'home-albums-grid';
+	private readonly grid = 'library-albums-grid';
 
 	async isVisible(): Promise<boolean> {
 		const grid = this.elementByID(this.grid);

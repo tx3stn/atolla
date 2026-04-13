@@ -32,11 +32,11 @@ export class FooterNav extends Component<FooterNavViewModel> {
 
 		<view style={styles.footerPinned}>
 			<FooterIcon
-				accessibilityLabel='footer-home'
+				accessibilityLabel='footer-library'
 				action={createReusableCallback(() => {
-					this.viewModel.onFooterTabTap(FooterTabs.home);
+					this.viewModel.onFooterTabTap(FooterTabs.library);
 				})}
-				active={this.viewModel.activeTab === FooterTabs.home}
+				active={this.viewModel.activeTab === FooterTabs.library}
 				icon={res.home}
 			/>
 			<FooterIcon

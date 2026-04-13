@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
-describe('Home header nav visibility policy', () => {
-	it('keeps home root tabs pinned below a visible header nav', async () => {
+describe('Library header nav visibility policy', () => {
+	it('keeps library root tabs pinned below a visible header nav', async () => {
 		const albumsSource = await Bun.file(new URL('./AlbumsView.tsx', import.meta.url)).text();
 		const artistsSource = await Bun.file(new URL('./ArtistsView.tsx', import.meta.url)).text();
 		const playlistsSource = await Bun.file(new URL('./PlaylistsView.tsx', import.meta.url)).text();
@@ -13,7 +13,7 @@ describe('Home header nav visibility policy', () => {
 		expect(genresSource).toContain('paddingTop: theme.headerHeight,');
 	});
 
-	it('hides home header only when entering detail routes from root tabs', async () => {
+	it('hides library header only when entering detail routes from root tabs', async () => {
 		const albumsSource = await Bun.file(new URL('./AlbumsView.tsx', import.meta.url)).text();
 		const artistsSource = await Bun.file(new URL('./ArtistsView.tsx', import.meta.url)).text();
 		const playlistsSource = await Bun.file(new URL('./PlaylistsView.tsx', import.meta.url)).text();
@@ -23,7 +23,7 @@ describe('Home header nav visibility policy', () => {
 		expect(playlistsSource).toContain('this.viewModel.onHeaderVisibilityChange?.(false);');
 	});
 
-	it('defaults detail routes to hidden home header on create', async () => {
+	it('defaults detail routes to hidden library header on create', async () => {
 		const albumSource = await Bun.file(new URL('./AlbumView.tsx', import.meta.url)).text();
 		const artistSource = await Bun.file(new URL('./ArtistView.tsx', import.meta.url)).text();
 		const playlistSource = await Bun.file(new URL('./PlaylistView.tsx', import.meta.url)).text();

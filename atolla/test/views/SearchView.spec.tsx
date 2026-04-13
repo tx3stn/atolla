@@ -253,7 +253,7 @@ describe('SearchView', () => {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
-			onNavigateToHomeResult: (target) => routed.push(target),
+			onNavigateToLibraryResult: (target) => routed.push(target),
 			playbackStore: new PlaybackStore(),
 			searchStore: makeSearchStore(),
 			transport: {

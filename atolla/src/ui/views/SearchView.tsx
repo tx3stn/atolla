@@ -33,14 +33,14 @@ export interface SearchViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
-	onNavigateToHomeResult?: (target: SearchHomeNavigationTarget) => void;
+	onNavigateToLibraryResult?: (target: SearchLibraryNavigationTarget) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	searchStore: SearchStore;
 	transport: Transport;
 }
 
-export type SearchHomeNavigationTarget =
+export type SearchLibraryNavigationTarget =
 	| { album: Album; kind: 'album' }
 	| { artist: Artist; kind: 'artist' }
 	| { kind: 'playlist'; playlist: Playlist };
@@ -371,8 +371,8 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			return;
 		}
 
-		if (this.viewModel.onNavigateToHomeResult) {
-			this.viewModel.onNavigateToHomeResult({ album, kind: 'album' });
+		if (this.viewModel.onNavigateToLibraryResult) {
+			this.viewModel.onNavigateToLibraryResult({ album, kind: 'album' });
 			return;
 		}
 
@@ -398,8 +398,8 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			return;
 		}
 
-		if (this.viewModel.onNavigateToHomeResult) {
-			this.viewModel.onNavigateToHomeResult({ artist, kind: 'artist' });
+		if (this.viewModel.onNavigateToLibraryResult) {
+			this.viewModel.onNavigateToLibraryResult({ artist, kind: 'artist' });
 			return;
 		}
 
@@ -425,8 +425,8 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			return;
 		}
 
-		if (this.viewModel.onNavigateToHomeResult) {
-			this.viewModel.onNavigateToHomeResult({ kind: 'playlist', playlist });
+		if (this.viewModel.onNavigateToLibraryResult) {
+			this.viewModel.onNavigateToLibraryResult({ kind: 'playlist', playlist });
 			return;
 		}
 

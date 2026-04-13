@@ -14,7 +14,7 @@ import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { ArtistView } from './ArtistView';
 import { gridPaginationConfig } from './GridPagination';
-import type { HomeNavContext } from './HomeView';
+import type { LibraryNavContext } from './LibraryView';
 
 export interface ArtistsViewModel {
 	animationsEnabled: boolean;
@@ -24,7 +24,7 @@ export interface ArtistsViewModel {
 	isOfflineMode: boolean;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
-	onNavigationContext?: (context: HomeNavContext | null) => void;
+	onNavigationContext?: (context: LibraryNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
@@ -241,7 +241,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		}));
 		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
-				accessibilityLabel='home-artists-grid'
+				accessibilityLabel='library-artists-grid'
 				cards={cards}
 				columnCount={this.viewModel.gridColumns}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}

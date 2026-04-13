@@ -6,10 +6,10 @@ import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import { theme } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import { ConnectivityFab } from './ConnectivityFab';
-import { HomeHeaderTab } from './HeaderTab';
+import { LibraryHeaderTab } from './HeaderTab';
 import { type HeaderTab, HeaderTabs } from './HeaderTabs';
 
-interface HomeHeaderViewModel {
+interface LibraryHeaderViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
@@ -18,7 +18,10 @@ interface HomeHeaderViewModel {
 	onTabTap: (tabId: HeaderTab) => void;
 }
 
-export class HomeHeaderNav extends StatefulComponent<HomeHeaderViewModel, Record<string, never>> {
+export class LibraryHeaderNav extends StatefulComponent<
+	LibraryHeaderViewModel,
+	Record<string, never>
+> {
 	private rootRef = new ElementRef();
 	private readonly hiddenTop = -(theme.headerHeight + 16);
 
@@ -46,10 +49,10 @@ export class HomeHeaderNav extends StatefulComponent<HomeHeaderViewModel, Record
 
 	onRender() {
 		<view
-			accessibilityLabel='home-header-nav'
-			contentDescription='home-header-nav'
+			accessibilityLabel='library-header-nav'
+			contentDescription='library-header-nav'
 			ref={this.rootRef}
-			style={styles.homeTabs}
+			style={styles.libraryTabs}
 		>
 			<view style={styles.leadingFabSlot}>
 				<ConnectivityFab
@@ -62,28 +65,28 @@ export class HomeHeaderNav extends StatefulComponent<HomeHeaderViewModel, Record
 			<view style={styles.scrollViewport}>
 				<scroll horizontal={true} showsHorizontalScrollIndicator={false} style={styles.scroll}>
 					<view style={styles.tabsRow}>
-						<HomeHeaderTab
+						<LibraryHeaderTab
 							active={this.viewModel.activeTab === HeaderTabs.artists}
 							onTap={createReusableCallback(() => {
 								this.viewModel.onTabTap(HeaderTabs.artists);
 							})}
 							tab={HeaderTabs.artists}
 						/>
-						<HomeHeaderTab
+						<LibraryHeaderTab
 							active={this.viewModel.activeTab === HeaderTabs.albums}
 							onTap={createReusableCallback(() => {
 								this.viewModel.onTabTap(HeaderTabs.albums);
 							})}
 							tab={HeaderTabs.albums}
 						/>
-						<HomeHeaderTab
+						<LibraryHeaderTab
 							active={this.viewModel.activeTab === HeaderTabs.playlists}
 							onTap={createReusableCallback(() => {
 								this.viewModel.onTabTap(HeaderTabs.playlists);
 							})}
 							tab={HeaderTabs.playlists}
 						/>
-						<HomeHeaderTab
+						<LibraryHeaderTab
 							active={this.viewModel.activeTab === HeaderTabs.genres}
 							onTap={createReusableCallback(() => {
 								this.viewModel.onTabTap(HeaderTabs.genres);
@@ -102,7 +105,15 @@ export class HomeHeaderNav extends StatefulComponent<HomeHeaderViewModel, Record
 }
 
 const styles = {
-	homeTabs: new Style({
+	lastTabWrap: new Style({}),
+	leadingFabSlot: new Style({
+		alignItems: 'center',
+		justifyContent: 'flex-start',
+		paddingLeft: 6,
+		paddingRight: 6,
+		width: 60,
+	}),
+	libraryTabs: new Style({
 		backgroundColor: theme.colors.transparent,
 		flexDirection: 'row',
 		left: 0,
@@ -113,14 +124,6 @@ const styles = {
 		top: 0,
 		width: '100%',
 		zIndex: 10,
-	}),
-	lastTabWrap: new Style({}),
-	leadingFabSlot: new Style({
-		alignItems: 'center',
-		justifyContent: 'flex-start',
-		paddingLeft: 6,
-		paddingRight: 6,
-		width: 60,
 	}),
 	scroll: new Style({
 		flex: 1,

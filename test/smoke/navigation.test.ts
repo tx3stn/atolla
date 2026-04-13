@@ -1,20 +1,20 @@
 import { AlbumDetailPage } from '../pages/AlbumDetailPage';
 import { ArtistDetailPage } from '../pages/ArtistDetailPage';
 import { FooterPage } from '../pages/Footer';
-import { HomePage } from '../pages/HomePage';
+import { LibraryPage } from '../pages/LibraryPage';
 import { PlaylistDetailPage } from '../pages/PlaylistDetailPage';
 import { SearchPage } from '../pages/SearchPage';
 import { SettingsPage } from '../pages/SettingsPage';
 
 describe('footer navigation', () => {
 	let footer: FooterPage;
-	let home: HomePage;
+	let home: LibraryPage;
 
 	beforeEach(async () => {
 		footer = new FooterPage(browser);
-		await footer.tapHome();
+		await footer.tapLibrary();
 
-		home = new HomePage(browser);
+		home = new LibraryPage(browser);
 		await home.waitForLoad();
 	});
 

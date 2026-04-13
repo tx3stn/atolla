@@ -2,7 +2,7 @@
 import 'jasmine/src/jasmine';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { HeaderTabs } from 'atolla/src/ui/components/HeaderTabs';
-import { HomeView } from 'atolla/src/ui/views/HomeView';
+import { LibraryView } from 'atolla/src/ui/views/LibraryView';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 const stubImageCache = {
@@ -26,9 +26,9 @@ const stubTransport = {
 	search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
 };
 
-describe('HomeView', () => {
+describe('LibraryView', () => {
 	valdiIt('uses active tab from view model', () => {
-		const instrumented = createComponent(HomeView, {
+		const instrumented = createComponent(LibraryView, {
 			activeTab: HeaderTabs.albums,
 			animationsEnabled: true,
 			gridColumns: 3,
@@ -43,7 +43,7 @@ describe('HomeView', () => {
 	});
 
 	valdiIt('starts with navigation overlay visible', () => {
-		const instrumented = createComponent(HomeView, {
+		const instrumented = createComponent(LibraryView, {
 			activeTab: HeaderTabs.artists,
 			animationsEnabled: true,
 			gridColumns: 3,

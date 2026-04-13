@@ -12,7 +12,7 @@ import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { gridPaginationConfig } from './GridPagination';
-import type { HomeNavContext } from './HomeView';
+import type { LibraryNavContext } from './LibraryView';
 import { type PlaylistSort, PlaylistSorts, sortPlaylists } from './PlaylistsSort';
 import { PlaylistView } from './PlaylistView';
 
@@ -24,7 +24,7 @@ export interface PlaylistsViewModel {
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
-	onNavigationContext?: (context: HomeNavContext | null) => void;
+	onNavigationContext?: (context: LibraryNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
@@ -208,7 +208,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		);
 		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
-				accessibilityLabel='home-playlists-grid'
+				accessibilityLabel='library-playlists-grid'
 				cards={cards}
 				columnCount={this.viewModel.gridColumns}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}

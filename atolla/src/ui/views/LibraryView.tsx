@@ -21,13 +21,13 @@ import { ArtistsView } from './ArtistsView';
 import { GenresView } from './GenresView';
 import { PlaylistsView } from './PlaylistsView';
 
-export type HomeNavContext =
+export type LibraryNavContext =
 	| { kind: 'artist'; artist: Artist }
 	| { kind: 'album'; album: Album }
 	| { genre: Genre; kind: 'genre' }
 	| { kind: 'playlist'; playlist: Playlist };
 
-export interface HomeViewModel {
+export interface LibraryViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
@@ -35,7 +35,7 @@ export interface HomeViewModel {
 	gridColumns: number;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
-	onNavigationContext?: (context: HomeNavContext | null) => void;
+	onNavigationContext?: (context: LibraryNavContext | null) => void;
 	onNavigationControllerChange?: (navigationController: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -43,17 +43,17 @@ export interface HomeViewModel {
 	transport: Transport;
 }
 
-interface HomeState {
+interface LibraryState {
 	isNavigationMounted: boolean;
 	isTabTransitionOverlayVisible: boolean;
 }
 
-export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
+export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryState> {
 	private resetVersion = 0;
 	private tabTransitionTimer?: ReturnType<typeof setTimeout>;
 	private transitionVersion = 0;
 
-	state: HomeState = {
+	state: LibraryState = {
 		isNavigationMounted: false,
 		isTabTransitionOverlayVisible: true,
 	};
@@ -68,7 +68,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		}
 	}
 
-	onViewModelUpdate(prevViewModel?: HomeViewModel): void {
+	onViewModelUpdate(prevViewModel?: LibraryViewModel): void {
 		if (!prevViewModel) {
 			return;
 		}

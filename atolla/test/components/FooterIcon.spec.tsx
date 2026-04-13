@@ -58,13 +58,13 @@ describe('FooterIcon', () => {
 
 	valdiIt('sets accessibilityLabel on the tap target', () => {
 		const instrumented = createComponent(FooterIcon, {
-			accessibilityLabel: 'footer-home',
+			accessibilityLabel: 'footer-library',
 			action: () => {},
 			icon,
 		});
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		expect(views[0].getAttribute('accessibilityLabel')).toBe('footer-home');
+		expect(views[0].getAttribute('accessibilityLabel')).toBe('footer-library');
 	});
 });

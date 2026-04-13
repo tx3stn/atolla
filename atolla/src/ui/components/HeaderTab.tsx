@@ -7,13 +7,13 @@ import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import type { HeaderTab } from './HeaderTabs';
 
-interface HomeHeaderViewModel {
+interface LibraryHeaderViewModel {
 	active: boolean;
 	onTap: () => void;
 	tab: HeaderTab;
 }
 
-export class HomeHeaderTab extends Component<HomeHeaderViewModel> {
+export class LibraryHeaderTab extends Component<LibraryHeaderViewModel> {
 	onRender() {
 		<view style={styles.tabWrap}>
 			<view

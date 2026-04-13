@@ -13,7 +13,7 @@ import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { GenreView } from './GenreView';
 import { gridPaginationConfig } from './GridPagination';
-import type { HomeNavContext } from './HomeView';
+import type { LibraryNavContext } from './LibraryView';
 
 interface GenresViewModel {
 	animationsEnabled: boolean;
@@ -23,7 +23,7 @@ interface GenresViewModel {
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
-	onNavigationContext?: (context: HomeNavContext | null) => void;
+	onNavigationContext?: (context: LibraryNavContext | null) => void;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }
@@ -148,7 +148,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 
 		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
-				accessibilityLabel='home-genres-grid'
+				accessibilityLabel='library-genres-grid'
 				cards={cards}
 				columnCount={this.viewModel.gridColumns}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}

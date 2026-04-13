@@ -75,7 +75,7 @@ import { BootSplash } from './ui/components/BootSplash';
 import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
-import { HomeHeaderNav } from './ui/components/HomeHeaderNav';
+import { LibraryHeaderNav } from './ui/components/LibraryHeaderNav';
 import { MockPlayer } from './ui/components/MockPlayer';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { Toast } from './ui/components/Toast';
@@ -84,16 +84,16 @@ import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
 import { ConnectionView } from './ui/views/ConnectionView';
 import { GenreView } from './ui/views/GenreView';
-import { type HomeNavContext, HomeView } from './ui/views/HomeView';
+import { type LibraryNavContext, LibraryView } from './ui/views/LibraryView';
 import { PlaylistView } from './ui/views/PlaylistView';
-import { type SearchHomeNavigationTarget, SearchView } from './ui/views/SearchView';
+import { type SearchLibraryNavigationTarget, SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
 
 export type AppViewModel = Record<string, never>;
 
 interface AppState {
 	activeFooterTab: FooterTab;
-	activeHomeTab: HeaderTab;
+	activeLibraryTab: HeaderTab;
 	animationsEnabled: boolean;
 	authErrorMessage: string | null;
 	authToastMessage: string | null;
@@ -102,13 +102,13 @@ interface AppState {
 	downloadedTrackCount: number;
 	downloadingCount: number;
 	gridColumns: number;
-	homeResetNonce: number;
 	imageCacheMaxBytes: number;
 	isAuthenticating: boolean;
 	isAuthRequired: boolean;
 	isBootstrapped: boolean;
-	isHomeHeaderVisible: boolean;
+	isLibraryHeaderVisible: boolean;
 	jellyfinClientDeviceIdOverride: string;
+	libraryResetNonce: number;
 	nativeImageCacheDiskBytes: number | null;
 	nativeImageCacheDiskCount: number | null;
 	nowPlayingCollapseSignal: number;
@@ -258,18 +258,18 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
 	private nativePlaybackActionInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
-	private homeNavigationController?: NavigationController;
+	private libraryNavigationController?: NavigationController;
 	private pendingArtistId: string | null = null;
 	private pendingArtistFallbackName: string = 'Unknown Artist';
 	private pendingArtistFallbackLogoUrl: string | null = null;
 	private isResolvingArtistNavigation = false;
 	private pendingAlbum: Album | null = null;
 	private isResolvingAlbumNavigation = false;
-	private pendingSearchNavigation: SearchHomeNavigationTarget | null = null;
+	private pendingSearchNavigation: SearchLibraryNavigationTarget | null = null;
 	private isResolvingSearchNavigation = false;
 	private returnToSearchOnDetailClose = false;
-	private currentHomeNavContext: HomeNavContext | null = null;
-	private pendingNavRestoreContext: HomeNavContext | null = null;
+	private currentLibraryNavContext: LibraryNavContext | null = null;
+	private pendingNavRestoreContext: LibraryNavContext | null = null;
 	private readonly minimumBootSplashMs = 750;
 	private bootstrapStartedAt = Date.now();
 	private bootstrapCommitTimer?: ReturnType<typeof setTimeout>;
@@ -298,8 +298,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	);
 
 	state: AppState = {
-		activeFooterTab: FooterTabs.home,
-		activeHomeTab: HeaderTabs.artists,
+		activeFooterTab: FooterTabs.library,
+		activeLibraryTab: HeaderTabs.artists,
 		animationsEnabled: true,
 		authErrorMessage: null,
 		authToastMessage: null,
@@ -308,13 +308,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		downloadedTrackCount: 0,
 		downloadingCount: 0,
 		gridColumns: DEFAULT_GRID_COLUMNS,
-		homeResetNonce: 0,
 		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
 		isAuthenticating: false,
 		isAuthRequired: false,
 		isBootstrapped: false,
-		isHomeHeaderVisible: true,
+		isLibraryHeaderVisible: true,
 		jellyfinClientDeviceIdOverride: '',
+		libraryResetNonce: 0,
 		nativeImageCacheDiskBytes: null,
 		nativeImageCacheDiskCount: null,
 		nowPlayingCollapseSignal: 0,
@@ -645,7 +645,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	private requestModeChange = async (mode: ConnectionMode): Promise<boolean> => {
 		try {
-			this.pendingNavRestoreContext = this.currentHomeNavContext;
+			this.pendingNavRestoreContext = this.currentLibraryNavContext;
 			await this.preferences.setMode(mode);
 			this.authService.setMockMode(mode === ConnectionModes.mock);
 
@@ -988,7 +988,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.returnToSearchOnDetailClose = false;
 		this.setState({
 			activeFooterTab: tab,
-			isHomeHeaderVisible: tab === FooterTabs.home ? true : this.state.isHomeHeaderVisible,
+			isLibraryHeaderVisible: tab === FooterTabs.library ? true : this.state.isLibraryHeaderVisible,
 			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
 			searchFocusSignal:
 				tab === FooterTabs.search ? this.state.searchFocusSignal + 1 : this.state.searchFocusSignal,
@@ -999,28 +999,28 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	};
 
-	handleHomeHeaderTabTap = (tab: HeaderTab): void => {
+	handleLibraryHeaderTabTap = (tab: HeaderTab): void => {
 		this.returnToSearchOnDetailClose = false;
-		if (tab === this.state.activeHomeTab) {
+		if (tab === this.state.activeLibraryTab) {
 			this.setState({
-				homeResetNonce: this.state.homeResetNonce + 1,
-				isHomeHeaderVisible: true,
+				isLibraryHeaderVisible: true,
+				libraryResetNonce: this.state.libraryResetNonce + 1,
 			});
 			return;
 		}
 
 		this.setState({
-			activeHomeTab: tab,
-			isHomeHeaderVisible: true,
+			activeLibraryTab: tab,
+			isLibraryHeaderVisible: true,
 		});
 	};
 
-	handleHomeHeaderVisibilityChange = (isVisible: boolean): void => {
-		if (this.state.isHomeHeaderVisible === isVisible) {
+	handleLibraryHeaderVisibilityChange = (isVisible: boolean): void => {
+		if (this.state.isLibraryHeaderVisible === isVisible) {
 			return;
 		}
 
-		this.setState({ isHomeHeaderVisible: isVisible });
+		this.setState({ isLibraryHeaderVisible: isVisible });
 	};
 
 	handleClearCache = (selection: ClearCacheSelection): void => {
@@ -1194,33 +1194,33 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		return trimmed;
 	}
 
-	handleHomeNavigationControllerChange = (navigationController: NavigationController): void => {
-		this.homeNavigationController = navigationController;
+	handleLibraryNavigationControllerChange = (navigationController: NavigationController): void => {
+		this.libraryNavigationController = navigationController;
 		this.tryNavigatePendingArtist();
 		this.tryNavigatePendingAlbum();
 		this.tryNavigatePendingSearchResult();
 		this.tryRestoreNavContext();
 	};
 
-	handleNavigationContext = (context: HomeNavContext | null): void => {
-		this.currentHomeNavContext = context;
+	handleNavigationContext = (context: LibraryNavContext | null): void => {
+		this.currentLibraryNavContext = context;
 	};
 
 	private tryRestoreNavContext(): void {
 		const context = this.pendingNavRestoreContext;
-		if (!context || !this.homeNavigationController) {
+		if (!context || !this.libraryNavigationController) {
 			return;
 		}
 		this.pendingNavRestoreContext = null;
 
-		const nav = this.homeNavigationController;
+		const nav = this.libraryNavigationController;
 		const { animationsEnabled, gridColumns } = this.state;
 		const shared = {
 			animationsEnabled,
 			downloadService: this.downloadService,
 			gridColumns,
 			isHeaderVisible: false,
-			onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
+			onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 			onNavigationContext: this.handleNavigationContext,
 			paletteQueue: this.paletteQueue,
 			playbackStore: this.playbackStore,
@@ -1236,14 +1236,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					{},
 					{ animated: false },
 				);
-				this.currentHomeNavContext = { artist: artist ?? context.artist, kind: 'artist' };
+				this.currentLibraryNavContext = { artist: artist ?? context.artist, kind: 'artist' };
 			});
 		} else if (context.kind === 'album') {
 			nav.push(AlbumView, { ...shared, album: context.album }, {}, { animated: false });
-			this.currentHomeNavContext = context;
+			this.currentLibraryNavContext = context;
 		} else if (context.kind === 'playlist') {
 			nav.push(PlaylistView, { ...shared, playlist: context.playlist }, {}, { animated: false });
-			this.currentHomeNavContext = context;
+			this.currentLibraryNavContext = context;
 		} else if (context.kind === 'genre') {
 			nav.push(
 				GenreView,
@@ -1255,15 +1255,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				{},
 				{ animated: false },
 			);
-			this.currentHomeNavContext = context;
+			this.currentLibraryNavContext = context;
 		}
 	}
 
-	handleSearchResultNavigation = (target: SearchHomeNavigationTarget): void => {
+	handleSearchResultNavigation = (target: SearchLibraryNavigationTarget): void => {
 		this.pendingSearchNavigation = target;
 		this.returnToSearchOnDetailClose = true;
 
-		const activeHomeTab =
+		const activeLibraryTab =
 			target.kind === 'album'
 				? HeaderTabs.albums
 				: target.kind === 'artist'
@@ -1271,10 +1271,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					: HeaderTabs.playlists;
 
 		this.setState({
-			activeFooterTab: FooterTabs.home,
-			activeHomeTab,
-			homeResetNonce: this.state.homeResetNonce + 1,
-			isHomeHeaderVisible: true,
+			activeFooterTab: FooterTabs.library,
+			activeLibraryTab,
+			isLibraryHeaderVisible: true,
+			libraryResetNonce: this.state.libraryResetNonce + 1,
 		});
 
 		this.tryNavigatePendingSearchResult();
@@ -1285,7 +1285,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 
-		if (this.state.activeFooterTab !== FooterTabs.home) {
+		if (this.state.activeFooterTab !== FooterTabs.library) {
 			return;
 		}
 
@@ -1299,7 +1299,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private tryNavigatePendingSearchResult(): void {
 		if (
 			!this.pendingSearchNavigation ||
-			!this.homeNavigationController ||
+			!this.libraryNavigationController ||
 			this.isResolvingSearchNavigation
 		) {
 			return;
@@ -1314,13 +1314,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				return;
 			}
 
-			if (!this.homeNavigationController) {
+			if (!this.libraryNavigationController) {
 				this.isResolvingSearchNavigation = false;
 				return;
 			}
 
 			if (target.kind === 'artist') {
-				this.homeNavigationController.push(
+				this.libraryNavigationController.push(
 					ArtistView,
 					{
 						animationsEnabled: this.state.animationsEnabled,
@@ -1329,7 +1329,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns: this.state.gridColumns,
 						isHeaderVisible: false,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
-						onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
+						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
 						transport: this.transport,
@@ -1340,7 +1340,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 
 			if (target.kind === 'album') {
-				this.homeNavigationController.push(
+				this.libraryNavigationController.push(
 					AlbumView,
 					{
 						album: target.album as Album,
@@ -1349,7 +1349,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns: this.state.gridColumns,
 						isHeaderVisible: false,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
-						onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
+						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
 						transport: this.transport,
@@ -1360,7 +1360,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 
 			if (target.kind === 'playlist') {
-				this.homeNavigationController.push(
+				this.libraryNavigationController.push(
 					PlaylistView,
 					{
 						animationsEnabled: this.state.animationsEnabled,
@@ -1368,7 +1368,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns: this.state.gridColumns,
 						isHeaderVisible: false,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
-						onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
+						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
 						playlist: target.playlist as Playlist,
@@ -1473,10 +1473,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	handleNavigateToArtist = (artistId: string): void => {
-		if (!this.homeNavigationController) {
+		if (!this.libraryNavigationController) {
 			return;
 		}
-		const navigationController = this.homeNavigationController;
+		const navigationController = this.libraryNavigationController;
 		this.transport.getArtist(artistId).then((artist) => {
 			if (!artist) return;
 			navigationController.push(
@@ -1487,7 +1487,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					downloadService: this.downloadService,
 					gridColumns: this.state.gridColumns,
 					isHeaderVisible: false,
-					onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
+					onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 					paletteQueue: this.paletteQueue,
 					playbackStore: this.playbackStore,
 					transport: this.transport,
@@ -1509,10 +1509,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.pendingArtistFallbackName = track?.artistName ?? album?.artistName ?? 'Unknown Artist';
 		this.pendingArtistFallbackLogoUrl = artistLogoUrl ?? null;
 		this.setState({
-			activeFooterTab: FooterTabs.home,
-			activeHomeTab: HeaderTabs.artists,
-			homeResetNonce: this.state.homeResetNonce + 1,
-			isHomeHeaderVisible: true,
+			activeFooterTab: FooterTabs.library,
+			activeLibraryTab: HeaderTabs.artists,
+			isLibraryHeaderVisible: true,
+			libraryResetNonce: this.state.libraryResetNonce + 1,
 		});
 
 		this.tryNavigatePendingArtist();
@@ -1521,7 +1521,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private tryNavigatePendingArtist(): void {
 		if (
 			!this.pendingArtistId ||
-			!this.homeNavigationController ||
+			!this.libraryNavigationController ||
 			this.isResolvingArtistNavigation
 		) {
 			return;
@@ -1544,7 +1544,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						logoUrl: this.pendingArtistFallbackLogoUrl ?? null,
 						name: this.pendingArtistFallbackName,
 					} as Artist);
-				this.homeNavigationController?.push(
+				this.libraryNavigationController?.push(
 					ArtistView,
 					{
 						animationsEnabled: this.state.animationsEnabled,
@@ -1552,7 +1552,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						downloadService: this.downloadService,
 						gridColumns: this.state.gridColumns,
 						isHeaderVisible: false,
-						onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
+						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
 						transport: this.transport,
@@ -1590,17 +1590,21 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		this.pendingAlbum = resolvedAlbum;
 		this.setState({
-			activeFooterTab: FooterTabs.home,
-			activeHomeTab: HeaderTabs.albums,
-			homeResetNonce: this.state.homeResetNonce + 1,
-			isHomeHeaderVisible: true,
+			activeFooterTab: FooterTabs.library,
+			activeLibraryTab: HeaderTabs.albums,
+			isLibraryHeaderVisible: true,
+			libraryResetNonce: this.state.libraryResetNonce + 1,
 		});
 
 		this.tryNavigatePendingAlbum();
 	};
 
 	private tryNavigatePendingAlbum(): void {
-		if (!this.pendingAlbum || !this.homeNavigationController || this.isResolvingAlbumNavigation) {
+		if (
+			!this.pendingAlbum ||
+			!this.libraryNavigationController ||
+			this.isResolvingAlbumNavigation
+		) {
 			return;
 		}
 
@@ -1611,11 +1615,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.isResolvingAlbumNavigation = false;
 				return;
 			}
-			if (!this.homeNavigationController) {
+			if (!this.libraryNavigationController) {
 				this.isResolvingAlbumNavigation = false;
 				return;
 			}
-			this.homeNavigationController.push(
+			this.libraryNavigationController.push(
 				AlbumView,
 				{
 					album,
@@ -1623,7 +1627,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					downloadService: this.downloadService,
 					gridColumns: this.state.gridColumns,
 					isHeaderVisible: false,
-					onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
+					onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 					paletteQueue: this.paletteQueue,
 					playbackStore: this.playbackStore,
 					transport: this.transport,
@@ -1719,31 +1723,31 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					playbackStore={this.playbackStore}
 				/>
 			)}
-			{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeHeaderVisible && (
-				<HomeHeaderNav
-					activeTab={this.state.activeHomeTab}
+			{this.state.activeFooterTab === FooterTabs.library && this.state.isLibraryHeaderVisible && (
+				<LibraryHeaderNav
+					activeTab={this.state.activeLibraryTab}
 					animationsEnabled={this.state.animationsEnabled}
 					connectionMode={this.state.connectionMode}
 					downloadingCount={this.state.downloadingCount}
 					onRequestModeChange={this.requestModeChange}
-					onTabTap={this.handleHomeHeaderTabTap}
+					onTabTap={this.handleLibraryHeaderTabTap}
 				/>
 			)}
 
-			{this.state.activeFooterTab === FooterTabs.home && (
-				<HomeView
-					activeTab={this.state.activeHomeTab}
+			{this.state.activeFooterTab === FooterTabs.library && (
+				<LibraryView
+					activeTab={this.state.activeLibraryTab}
 					animationsEnabled={this.state.animationsEnabled}
 					connectionMode={this.state.connectionMode}
 					downloadService={this.downloadService}
 					gridColumns={this.state.gridColumns}
-					onHeaderVisibilityChange={this.handleHomeHeaderVisibilityChange}
+					onHeaderVisibilityChange={this.handleLibraryHeaderVisibilityChange}
 					onNavigateToArtist={this.handleNavigateToArtist}
 					onNavigationContext={this.handleNavigationContext}
-					onNavigationControllerChange={this.handleHomeNavigationControllerChange}
+					onNavigationControllerChange={this.handleLibraryNavigationControllerChange}
 					paletteQueue={this.paletteQueue}
 					playbackStore={this.playbackStore}
-					resetSignal={this.state.homeResetNonce}
+					resetSignal={this.state.libraryResetNonce}
 					transport={this.transport}
 				/>
 			)}
@@ -1755,7 +1759,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							focusSignal={this.state.searchFocusSignal}
 							gridColumns={this.state.gridColumns}
 							navigationController={navigationController}
-							onNavigateToHomeResult={this.handleSearchResultNavigation}
+							onNavigateToLibraryResult={this.handleSearchResultNavigation}
 							paletteQueue={this.paletteQueue}
 							playbackStore={this.playbackStore}
 							searchStore={this.searchStore}

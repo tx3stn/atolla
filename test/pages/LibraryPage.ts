@@ -1,17 +1,17 @@
 import type { Browser } from 'webdriverio';
 import { BasePage } from './Base';
-import { HomeAlbumsTabPage } from './HomeAlbumsTabPage';
-import { HomeArtistsTabPage } from './HomeArtistsTabPage';
-import { HomePlaylistsTabPage } from './HomePlaylistsTabPage';
+import { LibraryAlbumsTabPage } from './LibraryAlbumsTabPage';
+import { LibraryArtistsTabPage } from './LibraryArtistsTabPage';
+import { LibraryPlaylistsTabPage } from './LibraryPlaylistsTabPage';
 
-interface HomeTabs {
-	albums: HomeAlbumsTabPage;
-	artists: HomeArtistsTabPage;
-	playlists: HomePlaylistsTabPage;
+interface LibraryTabs {
+	albums: LibraryAlbumsTabPage;
+	artists: LibraryArtistsTabPage;
+	playlists: LibraryPlaylistsTabPage;
 }
 
-export class HomePage extends BasePage {
-	public readonly tabs: HomeTabs;
+export class LibraryPage extends BasePage {
+	public readonly tabs: LibraryTabs;
 
 	private readonly albumsHeaderTab = 'header-tab-albums';
 	private readonly artistsHeaderTab = 'header-tab-artists';
@@ -20,9 +20,9 @@ export class HomePage extends BasePage {
 	constructor(driver: Browser) {
 		super(driver);
 		this.tabs = {
-			albums: new HomeAlbumsTabPage(driver),
-			artists: new HomeArtistsTabPage(driver),
-			playlists: new HomePlaylistsTabPage(driver),
+			albums: new LibraryAlbumsTabPage(driver),
+			artists: new LibraryArtistsTabPage(driver),
+			playlists: new LibraryPlaylistsTabPage(driver),
 		};
 	}
 
@@ -52,13 +52,13 @@ export class HomePage extends BasePage {
 
 	async waitForLoad(): Promise<void> {
 		await this.elementByID(this.artistsHeaderTab).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for artists header tab on home',
+			timeoutMsg: 'Timed out waiting for artists header tab on library',
 		});
 		await this.elementByID(this.albumsHeaderTab).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for albums header tab on home',
+			timeoutMsg: 'Timed out waiting for albums header tab on library',
 		});
 		await this.elementByID(this.playlistsHeaderTab).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for playlists header tab on home',
+			timeoutMsg: 'Timed out waiting for playlists header tab on library',
 		});
 	}
 }

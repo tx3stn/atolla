@@ -10,7 +10,7 @@ describe('DetailHeader remove download confirmation', () => {
 		expect(source).toContain("title='REMOVE DOWNLOAD?'");
 	});
 
-	it('supports bidirectional drag gestures for home header visibility', async () => {
+	it('supports bidirectional drag gestures for library header visibility', async () => {
 		const source = await Bun.file(new URL('./DetailHeader.tsx', import.meta.url)).text();
 
 		expect(source).toContain('onHideHeaderGesture?: () => void;');

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-describe('Detail view home-header restore policy', () => {
+describe('Detail view library-header restore policy', () => {
 	it('restores header on destroy only when restoreHeaderOnDestroy is enabled', async () => {
 		const albumSource = await Bun.file(new URL('./AlbumView.tsx', import.meta.url)).text();
 		const artistSource = await Bun.file(new URL('./ArtistView.tsx', import.meta.url)).text();

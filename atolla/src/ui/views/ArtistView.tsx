@@ -20,7 +20,7 @@ import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { AlbumView } from './AlbumView';
-import type { HomeNavContext } from './HomeView';
+import type { LibraryNavContext } from './LibraryView';
 
 export interface ArtistViewModel {
 	animationsEnabled: boolean;
@@ -31,7 +31,7 @@ export interface ArtistViewModel {
 	isHeaderVisible?: boolean;
 	onExitFromSearchNavigation?: () => void;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
-	onNavigationContext?: (context: HomeNavContext | null) => void;
+	onNavigationContext?: (context: LibraryNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	restoreHeaderOnDestroy?: boolean;

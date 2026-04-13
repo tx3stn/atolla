@@ -1,8 +1,8 @@
 import { BasePage } from './Base';
 
-export class HomeArtistsTabPage extends BasePage {
-	private readonly cardPrefix = 'card-artist-';
-	private readonly grid = 'home-artists-grid';
+export class LibraryPlaylistsTabPage extends BasePage {
+	private readonly cardPrefix = 'card-playlist-';
+	private readonly grid = 'library-playlists-grid';
 
 	async isVisible(): Promise<boolean> {
 		const grid = this.elementByID(this.grid);
@@ -13,9 +13,9 @@ export class HomeArtistsTabPage extends BasePage {
 		return await grid.isDisplayed();
 	}
 
-	async tapCardByID(artistId: string): Promise<void> {
-		await this.elementByID(`card-${artistId}`).waitForDisplayed();
-		await this.elementByID(`card-${artistId}`).click();
+	async tapCardByID(playlistId: string): Promise<void> {
+		await this.elementByID(`card-${playlistId}`).waitForDisplayed();
+		await this.elementByID(`card-${playlistId}`).click();
 	}
 
 	async tapFirstVisibleCard(): Promise<void> {

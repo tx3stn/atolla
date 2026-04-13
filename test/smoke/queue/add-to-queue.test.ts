@@ -1,14 +1,14 @@
 import { TrackContextMenu } from 'test/pages/TrackContextModal';
 import { AlbumDetailPage } from '../../pages/AlbumDetailPage';
 import { FooterPage } from '../../pages/Footer';
-import { HomePage } from '../../pages/HomePage';
+import { LibraryPage } from '../../pages/LibraryPage';
 
 describe('add to queue', () => {
 	before(async () => {
 		const footer = new FooterPage(browser);
-		await footer.tapHome();
+		await footer.tapLibrary();
 
-		const home = new HomePage(browser);
+		const home = new LibraryPage(browser);
 		await home.waitForLoad();
 		await home.openAlbumsTab();
 		await home.tabs.albums.waitForLoad();

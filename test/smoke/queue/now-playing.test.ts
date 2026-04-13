@@ -1,6 +1,6 @@
 import { AlbumDetailPage } from '../../pages/AlbumDetailPage';
 import { FooterPage } from '../../pages/Footer';
-import { HomePage } from '../../pages/HomePage';
+import { LibraryPage } from '../../pages/LibraryPage';
 import { NowPlayingFooterPage } from '../../pages/NowPlayingBar';
 
 describe('now playing queue', () => {
@@ -10,9 +10,9 @@ describe('now playing queue', () => {
 
 	before(async () => {
 		const footer = new FooterPage(browser);
-		await footer.tapHome();
+		await footer.tapLibrary();
 
-		const home = new HomePage(browser);
+		const home = new LibraryPage(browser);
 		await home.waitForLoad();
 		await home.openAlbumsTab();
 		await home.tabs.albums.waitForLoad();

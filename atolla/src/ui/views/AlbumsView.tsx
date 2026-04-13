@@ -15,7 +15,7 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { type AlbumSort, AlbumSorts, sortAlbums } from './AlbumsSort';
 import { AlbumView } from './AlbumView';
 import { gridPaginationConfig } from './GridPagination';
-import type { HomeNavContext } from './HomeView';
+import type { LibraryNavContext } from './LibraryView';
 
 export interface AlbumsViewModel {
 	animationsEnabled: boolean;
@@ -25,7 +25,7 @@ export interface AlbumsViewModel {
 	isOfflineMode: boolean;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
-	onNavigationContext?: (context: HomeNavContext | null) => void;
+	onNavigationContext?: (context: LibraryNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	transport: Transport;
@@ -251,7 +251,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		}));
 		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
-				accessibilityLabel='home-albums-grid'
+				accessibilityLabel='library-albums-grid'
 				cards={cards}
 				columnCount={this.viewModel.gridColumns}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}

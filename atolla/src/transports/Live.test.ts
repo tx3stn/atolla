@@ -176,7 +176,7 @@ describe('LiveTransport core collections', () => {
 		expect(artists[0].imageUrl).toContain('/Items/artist-1/Images/Primary');
 	});
 
-	it('loads all playlists for home tab', async () => {
+	it('loads all playlists for library tab', async () => {
 		const playlist: JellyfinPlaylistItem = {
 			Id: 'playlist-1',
 			ImageTags: { Primary: 'playlist-tag-1' },
