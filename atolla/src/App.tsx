@@ -643,8 +643,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		})();
 	};
 
-	handleModeChange = (mode: ConnectionMode): void => {
-		void (async () => {
+	private requestModeChange = async (mode: ConnectionMode): Promise<boolean> => {
+		try {
 			this.pendingNavRestoreContext = this.currentHomeNavContext;
 			await this.preferences.setMode(mode);
 			this.authService.setMockMode(mode === ConnectionModes.mock);
@@ -658,18 +658,29 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						session.userId,
 						{ clientDeviceId: this.getEffectiveJellyfinClientDeviceId() },
 					);
-				} else {
-					this.setState({ connectionMode: mode, isAuthRequired: true });
-					return;
+					this.setState({ connectionMode: mode, isAuthRequired: false });
+					return true;
 				}
-			} else if (mode === ConnectionModes.offline) {
+
+				this.setState({ connectionMode: mode, isAuthRequired: true });
+				return true;
+			}
+
+			if (mode === ConnectionModes.offline) {
 				this.transport = new OfflineTransport(this.downloadService);
 			} else {
 				this.transport = new MockTransport();
 			}
 
 			this.setState({ connectionMode: mode, isAuthRequired: false });
-		})();
+			return true;
+		} catch {
+			return false;
+		}
+	};
+
+	handleModeChange = (mode: ConnectionMode): void => {
+		void this.requestModeChange(mode);
 	};
 
 	handleLogout = (): void => {
@@ -1711,6 +1722,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeHeaderVisible && (
 				<HomeHeaderNav
 					activeTab={this.state.activeHomeTab}
+					animationsEnabled={this.state.animationsEnabled}
+					connectionMode={this.state.connectionMode}
+					downloadingCount={this.state.downloadingCount}
+					onRequestModeChange={this.requestModeChange}
 					onTabTap={this.handleHomeHeaderTabTap}
 				/>
 			)}

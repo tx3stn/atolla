@@ -8,6 +8,8 @@ describe('HomeHeaderNav', () => {
 		expect(source).toContain(
 			'<scroll horizontal={true} showsHorizontalScrollIndicator={false} style={styles.scroll}>',
 		);
+		expect(source).toContain('<ConnectivityFab');
+		expect(source).toContain('style={styles.leadingFabSlot}');
 		expect(source).toContain('style={styles.tabsRow}');
 		expect(source).toContain("value='>'");
 		expect(source).toContain('tab={HeaderTabs.artists}');
