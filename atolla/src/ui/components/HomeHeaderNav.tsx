@@ -81,7 +81,6 @@ const styles = {
 		left: 0,
 		minHeight: theme.headerHeight,
 		paddingBottom: 4,
-		paddingTop: 4,
 		position: 'absolute',
 		right: 0,
 		top: 0,
@@ -91,13 +90,14 @@ const styles = {
 	lastTabWrap: new Style({}),
 	leadingFabSlot: new Style({
 		alignItems: 'center',
-		justifyContent: 'center',
+		justifyContent: 'flex-start',
 		paddingLeft: 6,
 		paddingRight: 6,
-		width: 58,
+		width: 60,
 	}),
 	scroll: new Style({
 		flex: 1,
+		paddingTop: 4,
 	}),
 	scrollHint: new Style({
 		...theme.text.mainBold,
