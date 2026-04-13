@@ -59,6 +59,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private currentPage = 0;
 	private hasBeenDestroyed = false;
 	private hasMoreTracks = true;
+	private loadGeneration = 0;
 	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
 	private unsubscribeDownloads?: () => void;
@@ -227,6 +228,21 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		});
 	}
 
+	private resetAndLoadPlaylistData(): void {
+		this.loadGeneration += 1;
+		this.allTracks = null;
+		this.currentPage = 0;
+		this.hasMoreTracks = true;
+		this.isLoadingPage = false;
+		this.setState({
+			artistLogoUrls: [],
+			isLoading: true,
+			totalTrackCount: null,
+			tracks: [],
+		});
+		void this.loadNextPage(this.loadGeneration);
+	}
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
 		this.viewModel.onHeaderVisibilityChange?.(false);
@@ -240,7 +256,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		});
 		this.setState({ isFooterVisible: playbackStore.track !== null });
 		this.syncDownloadState();
-		void this.loadNextPage();
+		this.resetAndLoadPlaylistData();
 	}
 
 	onViewModelUpdate(prevViewModel?: PlaylistViewModel): void {
@@ -254,9 +270,20 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		) {
 			this.viewModel.onHeaderVisibilityChange?.(this.state.isHeaderVisible);
 		}
+
+		if (
+			this.viewModel.transport !== prevViewModel.transport ||
+			this.viewModel.playlist.id !== prevViewModel.playlist.id
+		) {
+			this.resetAndLoadPlaylistData();
+		}
 	}
 
-	private async loadNextPage(): Promise<void> {
+	private async loadNextPage(generation = this.loadGeneration): Promise<void> {
+		if (generation !== this.loadGeneration) {
+			return;
+		}
+
 		if (this.hasBeenDestroyed || this.isLoadingPage || !this.hasMoreTracks) {
 			return;
 		}
@@ -267,14 +294,14 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 		try {
 			const result = await this.fetchPage(nextPage);
-			if (this.hasBeenDestroyed) return;
+			if (this.hasBeenDestroyed || generation !== this.loadGeneration) return;
 
 			const artistLogoUrls = await Promise.all(
 				result.items.map((t) =>
 					t.artistId ? this.viewModel.transport.getArtistLogoUrl(t.artistId) : null,
 				),
 			);
-			if (this.hasBeenDestroyed) return;
+			if (this.hasBeenDestroyed || generation !== this.loadGeneration) return;
 
 			const tracks = isFirstPage ? result.items : [...this.state.tracks, ...result.items];
 			const allArtistLogoUrls = isFirstPage
@@ -297,10 +324,10 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			this.viewModel.paletteQueue?.enqueuePlaylistTracks(result.items);
 
 			if (result.hasMore) {
-				void this.loadNextPage();
+				void this.loadNextPage(generation);
 			}
 		} catch {
-			if (this.hasBeenDestroyed) return;
+			if (this.hasBeenDestroyed || generation !== this.loadGeneration) return;
 			this.isLoadingPage = false;
 			this.setState({ isLoading: false });
 		}

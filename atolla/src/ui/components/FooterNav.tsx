@@ -37,7 +37,7 @@ export class FooterNav extends Component<FooterNavViewModel> {
 					this.viewModel.onFooterTabTap(FooterTabs.library);
 				})}
 				active={this.viewModel.activeTab === FooterTabs.library}
-				icon={res.home}
+				icon={res.library}
 			/>
 			<FooterIcon
 				accessibilityLabel='footer-search'

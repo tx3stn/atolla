@@ -52,6 +52,7 @@ interface AlbumState {
 export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, AlbumState> {
 	private modalSlot = new DetachedSlot();
 	private hasBeenDestroyed = false;
+	private loadGeneration = 0;
 	private unsubscribePlayback?: () => void;
 	private unsubscribeDownloads?: () => void;
 	private readonly setHeaderVisibility = (isVisible: boolean): void => {
@@ -219,12 +220,40 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		});
 	}
 
+	private loadAlbumData(): void {
+		const generation = this.loadGeneration + 1;
+		this.loadGeneration = generation;
+
+		const { album, paletteQueue, transport } = this.viewModel;
+		paletteQueue?.prioritize(album.imageUrl);
+		this.setState({ isLoading: true });
+
+		Promise.allSettled([
+			transport.getTracksByAlbum(album.id),
+			transport.getArtist(album.artistId),
+		]).then(([tracksResult, artistResult]) => {
+			if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
+				return;
+			}
+
+			const tracks = tracksResult.status === 'fulfilled' ? tracksResult.value : [];
+			const artist = artistResult.status === 'fulfilled' ? artistResult.value : null;
+			const logoUrl = artist?.logoUrl || null;
+
+			this.setState({
+				artist: artist ?? null,
+				artistLogoUrl: logoUrl,
+				isLoading: false,
+				tracks,
+			});
+		});
+	}
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
-		const { album, downloadService, paletteQueue, playbackStore, transport } = this.viewModel;
-		paletteQueue?.prioritize(album.imageUrl);
+		const { downloadService, playbackStore } = this.viewModel;
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: playbackStore.track !== null });
 		});
@@ -233,19 +262,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		});
 		this.setState({ isFooterVisible: playbackStore.track !== null });
 		this.syncDownloadState();
-		transport.getTracksByAlbum(album.id).then((tracks) => {
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-			this.setState({ isLoading: false, tracks });
-		});
-		transport.getArtist(album.artistId).then((artist) => {
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-			const logoUrl = artist?.logoUrl || null;
-			this.setState({ artist: artist ?? null, artistLogoUrl: logoUrl });
-		});
+		this.loadAlbumData();
 	}
 
 	onViewModelUpdate(prevViewModel?: AlbumViewModel): void {
@@ -258,6 +275,13 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			this.viewModel.isHeaderVisible !== this.state.isHeaderVisible
 		) {
 			this.viewModel.onHeaderVisibilityChange?.(this.state.isHeaderVisible);
+		}
+
+		if (
+			this.viewModel.transport !== prevViewModel.transport ||
+			this.viewModel.album.id !== prevViewModel.album.id
+		) {
+			this.loadAlbumData();
 		}
 	}
 

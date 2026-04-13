@@ -268,7 +268,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private pendingSearchNavigation: SearchLibraryNavigationTarget | null = null;
 	private isResolvingSearchNavigation = false;
 	private returnToSearchOnDetailClose = false;
-	private currentLibraryNavContext: LibraryNavContext | null = null;
 	private pendingNavRestoreContext: LibraryNavContext | null = null;
 	private readonly minimumBootSplashMs = 750;
 	private bootstrapStartedAt = Date.now();
@@ -1206,9 +1205,38 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.currentLibraryNavContext = context;
 	};
 
+	private isSameLibraryNavContext(
+		left: LibraryNavContext | null,
+		right: LibraryNavContext | null,
+	): boolean {
+		if (!left || !right || left.kind !== right.kind) {
+			return false;
+		}
+
+		switch (left.kind) {
+			case 'artist': {
+				return left.artist.id === right.artist.id;
+			}
+			case 'album': {
+				return left.album.id === right.album.id;
+			}
+			case 'playlist': {
+				return left.playlist.id === right.playlist.id;
+			}
+			case 'genre': {
+				return left.genre.id === right.genre.id;
+			}
+		}
+	}
+
 	private tryRestoreNavContext(): void {
 		const context = this.pendingNavRestoreContext;
 		if (!context || !this.libraryNavigationController) {
+			return;
+		}
+
+		if (this.isSameLibraryNavContext(this.currentLibraryNavContext, context)) {
+			this.pendingNavRestoreContext = null;
 			return;
 		}
 		this.pendingNavRestoreContext = null;
