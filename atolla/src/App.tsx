@@ -84,6 +84,7 @@ import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
 import { ConnectionView } from './ui/views/ConnectionView';
 import { GenreView } from './ui/views/GenreView';
+import { HomeView } from './ui/views/HomeView';
 import { type LibraryNavContext, LibraryView } from './ui/views/LibraryView';
 import { PlaylistView } from './ui/views/PlaylistView';
 import { type SearchLibraryNavigationTarget, SearchView } from './ui/views/SearchView';
@@ -985,10 +986,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	handleFooterTabTap = (tab: FooterTab): void => {
 		this.returnToSearchOnDetailClose = false;
-		const isLibrarySurfaceTab = tab === FooterTabs.home || tab === FooterTabs.library;
 		this.setState({
 			activeFooterTab: tab,
-			isLibraryHeaderVisible: isLibrarySurfaceTab ? true : this.state.isLibraryHeaderVisible,
+			isLibraryHeaderVisible: tab === FooterTabs.library ? true : this.state.isLibraryHeaderVisible,
 			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
 			searchFocusSignal:
 				tab === FooterTabs.search ? this.state.searchFocusSignal + 1 : this.state.searchFocusSignal,
@@ -1740,9 +1740,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			trackIndex,
 		} = this.playbackStore;
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
-		const isLibrarySurfaceTab =
-			this.state.activeFooterTab === FooterTabs.home ||
-			this.state.activeFooterTab === FooterTabs.library;
 
 		<view style={styles.root}>
 			{this.state.connectionMode === ConnectionModes.mock ? (
@@ -1755,7 +1752,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					playbackStore={this.playbackStore}
 				/>
 			)}
-			{isLibrarySurfaceTab && this.state.isLibraryHeaderVisible && (
+			{this.state.activeFooterTab === FooterTabs.home && (
+				<HomeView
+					animationsEnabled={this.state.animationsEnabled}
+					connectionMode={this.state.connectionMode}
+					downloadingCount={this.state.downloadingCount}
+					gridColumns={this.state.gridColumns}
+					onRequestModeChange={this.requestModeChange}
+					playbackStore={this.playbackStore}
+					transport={this.transport}
+				/>
+			)}
+
+			{this.state.activeFooterTab === FooterTabs.library && this.state.isLibraryHeaderVisible && (
 				<LibraryHeaderNav
 					activeTab={this.state.activeLibraryTab}
 					animationsEnabled={this.state.animationsEnabled}
@@ -1766,7 +1775,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				/>
 			)}
 
-			{isLibrarySurfaceTab && (
+			{this.state.activeFooterTab === FooterTabs.library && (
 				<LibraryView
 					activeTab={this.state.activeLibraryTab}
 					animationsEnabled={this.state.animationsEnabled}
