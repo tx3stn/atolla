@@ -13,11 +13,6 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { ConnectivityFab } from '../components/ConnectivityFab';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 
-interface RecentPlayedEntry {
-	playedAtMs: number;
-	track: Track;
-}
-
 export interface HomeViewModel {
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
@@ -25,41 +20,31 @@ export interface HomeViewModel {
 	gridColumns: number;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	playbackStore: PlaybackStore;
+	recentlyPlayedTracks: Array<Track>;
 	transport: Transport;
 }
 
 interface HomeState {
 	albums: Array<Album>;
-	isFooterVisible: boolean;
 	isLoadingAlbums: boolean;
-	recentlyPlayed: Array<RecentPlayedEntry>;
 }
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private hasBeenDestroyed = false;
 	private loadGeneration = 0;
-	private lastObservedTrackId: string | null = null;
-	private unsubscribePlayback?: () => void;
 
 	state: HomeState = {
 		albums: [],
-		isFooterVisible: false,
 		isLoadingAlbums: true,
-		recentlyPlayed: [],
 	};
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
-			this.syncPlaybackState();
-		});
-		this.syncPlaybackState();
 		this.loadAlbums();
 	}
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
-		this.unsubscribePlayback?.();
 	}
 
 	onViewModelUpdate(prevViewModel?: HomeViewModel): void {
@@ -93,29 +78,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 				this.setState({ albums: [], isLoadingAlbums: false });
 			});
-	}
-
-	private syncPlaybackState(): void {
-		const activeTrack = this.viewModel.playbackStore.track;
-		const nextRecent = this.state.recentlyPlayed;
-
-		if (activeTrack?.id && activeTrack.id !== this.lastObservedTrackId) {
-			this.lastObservedTrackId = activeTrack.id;
-			const nowMs = Date.now();
-			const deduped = nextRecent.filter((entry) => entry.track.id !== activeTrack.id);
-			deduped.unshift({ playedAtMs: nowMs, track: activeTrack });
-			this.setState({
-				isFooterVisible: this.viewModel.playbackStore.track !== null,
-				recentlyPlayed: deduped.slice(0, 5),
-			});
-			return;
-		}
-
-		if (!activeTrack) {
-			this.lastObservedTrackId = null;
-		}
-
-		this.setState({ isFooterVisible: this.viewModel.playbackStore.track !== null });
 	}
 
 	private createOnThisDayCards(): Array<Card> {
@@ -165,16 +127,14 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	private createRecentlyPlayedEntries(): Array<TrackListEntry> {
-		return [...this.state.recentlyPlayed]
-			.sort((left, right) => right.playedAtMs - left.playedAtMs)
-			.map((entry, index) => ({
-				artworkSource: entry.track.albumImageUrl ?? null,
-				id: entry.track.id,
-				leadingLabel: String(index + 1),
-				meta: entry.track.artistName ?? entry.track.albumName ?? '',
-				title: entry.track.name,
-				track: entry.track,
-			}));
+		return this.viewModel.recentlyPlayedTracks.slice(0, 5).map((track, index) => ({
+			artworkSource: track.albumImageUrl ?? null,
+			id: `${track.id}-${index}`,
+			leadingLabel: String(index + 1),
+			meta: track.artistName ?? track.albumName ?? '',
+			title: track.name,
+			track,
+		}));
 	}
 
 	onRender(): void {
@@ -194,7 +154,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				</view>
 			</view>
 
-			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
+			<scroll style={createScrollStyle(this.viewModel.playbackStore.track !== null)}>
 				<layout style={styles.content}>
 					{this.state.isLoadingAlbums ? (
 						<label style={styles.emptyState} value='loading home' />

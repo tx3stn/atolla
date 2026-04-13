@@ -11,7 +11,8 @@ describe('HomeView', () => {
 		expect(source).toContain("value='RECENTLY ADDED'");
 		expect(source).toContain("accessibilityLabel='home-recently-added-grid'");
 		expect(source).toContain("value='RECENTLY PLAYED'");
-		expect(source).toContain('recentlyPlayed: deduped.slice(0, 5)');
+		expect(source).toContain('recentlyPlayedTracks: Array<Track>');
+		expect(source).toContain('this.viewModel.recentlyPlayedTracks.slice(0, 5)');
 		expect(source).toContain('Math.max(1, this.viewModel.gridColumns) * 2');
 	});
 });

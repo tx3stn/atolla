@@ -286,6 +286,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastPrefetchTransport: Transport | null = null;
 	private lastTrackNotificationStateKey = '';
 	private lastTrackNotificationPositionBucket = -1;
+	private recentlyPlayedTracks: Array<Track> = [];
+	private lastObservedRecentTrackId: string | null = null;
 	private trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
 		(track) => this.transport.getTrackCacheUrl?.(track.id) ?? null,
 		(trackId) => this.getNativeCachedTrackSource(trackId) != null,
@@ -432,6 +434,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.handleAlbumChange();
 			this.handleTrackPlaybackSourceChange();
 			this.handleTrackPrefetchQueueChange();
+			this.captureRecentlyPlayedTrack();
 			this.syncTrackPlaybackNotification();
 			this.setState({ version: this.state.version + 1 });
 		});
@@ -440,8 +443,24 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.handleAlbumChange();
 		this.handleTrackPlaybackSourceChange();
 		this.handleTrackPrefetchQueueChange();
+		this.captureRecentlyPlayedTrack();
 		this.syncTrackPlaybackNotification();
 		this.refreshTrackCachedCount();
+	}
+
+	private captureRecentlyPlayedTrack(): void {
+		const activeTrack = this.playbackStore.track;
+		if (!activeTrack) {
+			this.lastObservedRecentTrackId = null;
+			return;
+		}
+
+		if (activeTrack.id === this.lastObservedRecentTrackId) {
+			return;
+		}
+
+		this.lastObservedRecentTrackId = activeTrack.id;
+		this.recentlyPlayedTracks = [activeTrack, ...this.recentlyPlayedTracks].slice(0, 5);
 	}
 
 	onDestroy(): void {
@@ -1760,6 +1779,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					gridColumns={this.state.gridColumns}
 					onRequestModeChange={this.requestModeChange}
 					playbackStore={this.playbackStore}
+					recentlyPlayedTracks={this.recentlyPlayedTracks}
 					transport={this.transport}
 				/>
 			)}
