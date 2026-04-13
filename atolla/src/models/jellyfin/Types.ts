@@ -2,6 +2,7 @@ export const JellyfinMusicItemTypes = {
 	Audio: 'Audio',
 	MusicAlbum: 'MusicAlbum',
 	MusicArtist: 'MusicArtist',
+	MusicGenre: 'MusicGenre',
 	Playlist: 'Playlist',
 } as const;
 
@@ -52,6 +53,10 @@ export interface JellyfinTrackItem extends JellyfinBaseItemDto {
 export interface JellyfinPlaylistItem extends JellyfinBaseItemDto {
 	ItemIds?: Array<string>;
 	Type: 'Playlist';
+}
+
+export interface JellyfinGenreItem extends JellyfinBaseItemDto {
+	Type: 'MusicGenre';
 }
 
 export interface JellyfinPlaylistDetailsDto {

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 
 describe('GenresView', () => {
-	it('renders genres placeholder content', async () => {
+	it('renders paginated genres card grid', async () => {
 		const source = await Bun.file(new URL('./GenresView.tsx', import.meta.url)).text();
 
-		expect(source).toContain("value='Genres'");
-		expect(source).toContain("value='Coming soon.'");
+		expect(source).toContain('getGenresPage(');
+		expect(source).toContain("accessibilityLabel='home-genres-grid'");
+		expect(source).toContain('onLoadMore={');
 	});
 });

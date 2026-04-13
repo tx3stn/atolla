@@ -221,7 +221,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			)}
 
 			{this.state.isNavigationMounted && activeTab === HeaderTabs.genres && (
-				<GenresView playbackStore={playbackStore} />
+				<GenresView gridColumns={gridColumns} playbackStore={playbackStore} transport={transport} />
 			)}
 
 			{this.state.isTabTransitionOverlayVisible && <view style={styles.tabTransitionOverlay} />}

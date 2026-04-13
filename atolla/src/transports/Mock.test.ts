@@ -41,10 +41,13 @@ describe('MockTransport pagination', () => {
 		const transport = new MockTransport();
 
 		const artistsPage = await transport.getArtistsPage(1, 2);
+		const genresPage = await transport.getGenresPage(1, 3);
 		const playlistsPage = await transport.getPlaylistsPage(1, 1);
 
 		expect(artistsPage.items.length).toBe(2);
 		expect(artistsPage.hasMore).toBe(true);
+		expect(genresPage.items.length).toBe(3);
+		expect(genresPage.hasMore).toBe(true);
 		expect(playlistsPage.items.length).toBe(1);
 		expect(typeof playlistsPage.hasMore).toBe('boolean');
 	});

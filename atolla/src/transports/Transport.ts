@@ -1,5 +1,6 @@
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
+import type { Genre } from '../models/Genre';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
@@ -21,6 +22,10 @@ export interface Transport {
 		pageSize: number,
 	) => Promise<{ hasMore: boolean; items: Array<Artist> }>;
 	getArtistTopTracks(artistId: string): Promise<Array<Track>>;
+	getGenresPage: (
+		page: number,
+		pageSize: number,
+	) => Promise<{ hasMore: boolean; items: Array<Genre> }>;
 	getPlaylistsPage?: (
 		page: number,
 		pageSize: number,

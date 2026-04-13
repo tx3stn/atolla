@@ -9,9 +9,11 @@ import {
 	mockArtistPrimaryImageUrls,
 	mockJellyfinArtists,
 } from '../__mocks__/Artists';
+import { mockGenrePrimaryImageUrls, mockJellyfinGenres } from '../__mocks__/Genres';
 import { mockJellyfinPlaylists } from '../__mocks__/Playlists';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
+import type { Genre } from '../models/Genre';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
@@ -19,6 +21,7 @@ import {
 	type JellyfinImageResolvers,
 	mapJellyfinAlbumToAlbum,
 	mapJellyfinArtistToArtist,
+	mapJellyfinGenreToGenre,
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
 } from './JellyfinMappers';
@@ -92,6 +95,20 @@ export class MockTransport implements Transport {
 		return {
 			hasMore: startIndex + pageItems.length < sortedPlaylists.length,
 			items: pageItems.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers)),
+		};
+	}
+
+	async getGenresPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const sortedGenres = [...mockJellyfinGenres].sort((a, b) => a.Name.localeCompare(b.Name));
+		const pageItems = sortedGenres.slice(startIndex, startIndex + pageSize);
+
+		return {
+			hasMore: startIndex + pageItems.length < sortedGenres.length,
+			items: pageItems.map((item) => mapJellyfinGenreToGenre(item, this.imageResolvers)),
 		};
 	}
 
@@ -184,6 +201,8 @@ export class MockTransport implements Transport {
 			mockAlbumPrimaryImageUrls[albumId],
 		itemLogoImageUrl: (itemId: string): string | undefined => mockArtistLogoUrls[itemId],
 		itemPrimaryImageUrl: (itemId: string): string | undefined =>
-			mockArtistPrimaryImageUrls[itemId] ?? mockAlbumPrimaryImageUrls[itemId],
+			mockArtistPrimaryImageUrls[itemId] ??
+			mockAlbumPrimaryImageUrls[itemId] ??
+			mockGenrePrimaryImageUrls[itemId],
 	};
 }

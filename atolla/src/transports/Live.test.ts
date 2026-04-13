@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import type {
 	JellyfinAlbumItem,
 	JellyfinArtistItem,
+	JellyfinGenreItem,
 	JellyfinListEnvelope,
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
@@ -249,6 +250,39 @@ describe('LiveTransport core collections', () => {
 		expect(page.hasMore).toBe(false);
 		expect(page.items).toHaveLength(1);
 		expect(page.items[0].id).toBe('playlist-1');
+	});
+
+	it('fetches genres page using /MusicGenres query paging', async () => {
+		const genre: JellyfinGenreItem = {
+			Id: 'genre-1',
+			ImageTags: { Primary: 'genre-tag-1' },
+			Name: 'Noise Rock',
+			Type: 'MusicGenre',
+		};
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([genre], 3, 2)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const page = await transport.getGenresPage(2, 2);
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0].pathOrUrl.startsWith('/MusicGenres?')).toBe(true);
+		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('2');
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('2');
+		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('SortName');
+		expect(queryParam(calls[0].pathOrUrl, 'sortOrder')).toBe('Ascending');
+		expect(page.hasMore).toBe(false);
+		expect(page.items).toHaveLength(1);
+		expect(page.items[0]).toEqual(
+			expect.objectContaining({
+				id: 'genre-1',
+				name: 'Noise Rock',
+			}),
+		);
+		expect(page.items[0].imageUrl).toContain('/Items/genre-1/Images/Primary');
 	});
 
 	it('fetches artist top tracks sorted by play count', async () => {

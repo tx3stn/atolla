@@ -13,7 +13,7 @@ import {
 	IMAGE_CACHE_SIZE_OPTIONS,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from '../../stores/Preferences';
-import { theme } from '../../theme';
+import { scrollPaddingBottom, theme } from '../../theme';
 import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
 import { Toast } from '../components/Toast';
@@ -179,181 +179,186 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		const selectedImageCacheSize =
 			this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES;
 
-		<view style={styles.root}>
-			<view style={styles.pageHeaderRow}>
-				<label style={styles.pageTitle} value='SETTINGS' />
-				<image src={res.logo} style={styles.pageHeaderLogo} />
-			</view>
-			<label style={styles.sectionTitle} value='APPEARANCE' />
-			<view style={styles.section}>
-				<view style={styles.settingRow}>
-					<label style={styles.settingLabel} value='animations' />
-					<Toggle
-						accessibilityLabel='settings-animations-toggle'
-						enabled={animationsEnabled}
-						onToggle={(enabled) => onAnimationsChange?.(enabled)}
-					/>
+		<scroll style={createScrollStyle()}>
+			<view style={styles.root}>
+				<view style={styles.pageHeaderRow}>
+					<label style={styles.pageTitle} value='SETTINGS' />
+					<image src={res.logo} style={styles.pageHeaderLogo} />
 				</view>
-				<view style={styles.trackCacheLimitContainer}>
-					<label style={styles.settingLabel} value='grid columns' />
-					<view
-						accessibilityLabel='settings-grid-columns-dropdown'
-						contentDescription='settings-grid-columns-dropdown'
-						onTap={this.handleGridColumnsToggle}
-						style={styles.trackCacheLimitButton}
-					>
-						<label style={styles.trackCacheLimitButtonLabel} value={`${selectedGridColumns}`} />
+				<label style={styles.sectionTitle} value='APPEARANCE' />
+				<view style={styles.section}>
+					<view style={styles.settingRow}>
+						<label style={styles.settingLabel} value='animations' />
+						<Toggle
+							accessibilityLabel='settings-animations-toggle'
+							enabled={animationsEnabled}
+							onToggle={(enabled) => onAnimationsChange?.(enabled)}
+						/>
 					</view>
+					<view style={styles.trackCacheLimitContainer}>
+						<label style={styles.settingLabel} value='grid columns' />
+						<view
+							accessibilityLabel='settings-grid-columns-dropdown'
+							contentDescription='settings-grid-columns-dropdown'
+							onTap={this.handleGridColumnsToggle}
+							style={styles.trackCacheLimitButton}
+						>
+							<label style={styles.trackCacheLimitButtonLabel} value={`${selectedGridColumns}`} />
+						</view>
+					</view>
+					{this.state.showGridColumnsOptions && (
+						<view style={styles.trackCacheLimitOptionsList}>
+							{GRID_COLUMN_OPTIONS.map((option) => (
+								<view
+									accessibilityLabel={`settings-grid-columns-option-${option}`}
+									contentDescription={`settings-grid-columns-option-${option}`}
+									onTap={() => this.handleGridColumnsSelect(option)}
+									style={
+										option === selectedGridColumns
+											? styles.trackCacheLimitOptionSelected
+											: styles.trackCacheLimitOption
+									}
+								>
+									<label style={styles.trackCacheLimitOptionLabel} value={`${option}`} />
+								</view>
+							))}
+						</view>
+					)}
 				</view>
-				{this.state.showGridColumnsOptions && (
-					<view style={styles.trackCacheLimitOptionsList}>
-						{GRID_COLUMN_OPTIONS.map((option) => (
-							<view
-								accessibilityLabel={`settings-grid-columns-option-${option}`}
-								contentDescription={`settings-grid-columns-option-${option}`}
-								onTap={() => this.handleGridColumnsSelect(option)}
-								style={
-									option === selectedGridColumns
-										? styles.trackCacheLimitOptionSelected
-										: styles.trackCacheLimitOption
-								}
-							>
-								<label style={styles.trackCacheLimitOptionLabel} value={`${option}`} />
-							</view>
-						))}
-					</view>
-				)}
-			</view>
 
-			<label style={styles.sectionTitle} value='CACHE' />
-			<view style={styles.section}>
-				<view style={styles.trackCacheLimitContainer}>
-					<label style={styles.settingLabel} value='image cache size' />
-					<view
-						accessibilityLabel='settings-image-cache-size-dropdown'
-						contentDescription='settings-image-cache-size-dropdown'
-						onTap={this.handleImageCacheToggle}
-						style={styles.trackCacheLimitButton}
-					>
+				<label style={styles.sectionTitle} value='CACHE' />
+				<view style={styles.section}>
+					<view style={styles.trackCacheLimitContainer}>
+						<label style={styles.settingLabel} value='image cache size' />
+						<view
+							accessibilityLabel='settings-image-cache-size-dropdown'
+							contentDescription='settings-image-cache-size-dropdown'
+							onTap={this.handleImageCacheToggle}
+							style={styles.trackCacheLimitButton}
+						>
+							<label
+								style={styles.trackCacheLimitButtonLabel}
+								value={formatCacheSizeLabel(selectedImageCacheSize)}
+							/>
+						</view>
+					</view>
+					{this.state.showImageCacheOptions && (
+						<view style={styles.trackCacheLimitOptionsList}>
+							{IMAGE_CACHE_SIZE_OPTIONS.map((option) => (
+								<view
+									accessibilityLabel={`settings-image-cache-size-option-${option}`}
+									contentDescription={`settings-image-cache-size-option-${option}`}
+									onTap={() => this.handleImageCacheSelect(option)}
+									style={
+										option === selectedImageCacheSize
+											? styles.trackCacheLimitOptionSelected
+											: styles.trackCacheLimitOption
+									}
+								>
+									<label
+										style={styles.trackCacheLimitOptionLabel}
+										value={formatCacheSizeLabel(option)}
+									/>
+								</view>
+							))}
+						</view>
+					)}
+					{imageCacheDiskCount != null && imageCacheDiskBytes != null && (
 						<label
-							style={styles.trackCacheLimitButtonLabel}
-							value={formatCacheSizeLabel(selectedImageCacheSize)}
+							accessibilityLabel='settings-disk-cache-usage'
+							style={styles.paletteStatus}
+							value={`${imageCacheDiskCount} images on disk      [ ${formatBytes(imageCacheDiskBytes)} ]`}
 						/>
+					)}
+					<view style={styles.trackCacheLimitContainer}>
+						<label style={styles.settingLabel} value='play queue cached tracks' />
+						<view
+							accessibilityLabel='settings-track-cache-limit-dropdown'
+							contentDescription='settings-track-cache-limit-dropdown'
+							onTap={this.handleTrackCacheLimitToggle}
+							style={styles.trackCacheLimitButton}
+						>
+							<label
+								style={styles.trackCacheLimitButtonLabel}
+								value={`${selectedTrackCacheLimit}`}
+							/>
+						</view>
 					</view>
-				</view>
-				{this.state.showImageCacheOptions && (
-					<view style={styles.trackCacheLimitOptionsList}>
-						{IMAGE_CACHE_SIZE_OPTIONS.map((option) => (
-							<view
-								accessibilityLabel={`settings-image-cache-size-option-${option}`}
-								contentDescription={`settings-image-cache-size-option-${option}`}
-								onTap={() => this.handleImageCacheSelect(option)}
-								style={
-									option === selectedImageCacheSize
-										? styles.trackCacheLimitOptionSelected
-										: styles.trackCacheLimitOption
-								}
-							>
-								<label
-									style={styles.trackCacheLimitOptionLabel}
-									value={formatCacheSizeLabel(option)}
-								/>
-							</view>
-						))}
-					</view>
-				)}
-				{imageCacheDiskCount != null && imageCacheDiskBytes != null && (
 					<label
-						accessibilityLabel='settings-disk-cache-usage'
-						style={styles.paletteStatus}
-						value={`${imageCacheDiskCount} images on disk      [ ${formatBytes(imageCacheDiskBytes)} ]`}
+						accessibilityLabel='settings-track-cache-count'
+						style={styles.trackCacheCountLabel}
+						value={`${trackCacheCachedCount ?? 0} tracks currently cached`}
+					/>
+					{this.state.showTrackCacheLimitOptions && (
+						<view style={styles.trackCacheLimitOptionsList}>
+							{TRACK_CACHE_LIMIT_OPTIONS.map((option) => (
+								<view
+									accessibilityLabel={`settings-track-cache-limit-option-${option}`}
+									contentDescription={`settings-track-cache-limit-option-${option}`}
+									onTap={() => this.handleTrackCacheLimitSelect(option)}
+									style={
+										option === selectedTrackCacheLimit
+											? styles.trackCacheLimitOptionSelected
+											: styles.trackCacheLimitOption
+									}
+								>
+									<label style={styles.trackCacheLimitOptionLabel} value={`${option}`} />
+								</view>
+							))}
+						</view>
+					)}
+					<Button
+						accessibilityLabel='settings-cache-clear'
+						label='clear cache'
+						onTap={this.handleClearCachePress}
+						style={styles.button}
+					/>
+				</view>
+
+				<label style={styles.sectionTitle} value='DOWNLOADS' />
+				<view style={styles.section}>
+					<label
+						accessibilityLabel='settings-downloaded-track-count'
+						style={styles.trackCacheCountLabel}
+						value={`${downloadedTrackCount ?? 0} tracks downloaded      [ ${formatBytes(downloadedSizeBytes)} ]`}
+					/>
+				</view>
+
+				<label style={styles.sectionTitle} value='AUTH' />
+				<view style={styles.section}>
+					<view style={styles.settingRow}>
+						<label style={styles.settingLabel} value='device id' />
+						<view style={styles.authDeviceIdInlineInputContainer}>
+							<textfield
+								accessibilityLabel='settings-jellyfin-device-id-input'
+								autocapitalization='none'
+								contentDescription='settings-jellyfin-device-id-input'
+								onChange={(value: unknown) => {
+									onJellyfinDeviceIdOverrideChange?.(normalizeInputValue(value));
+								}}
+								placeholder={defaultJellyfinDeviceId ?? 'atolla'}
+								style={styles.authDeviceIdInput}
+								value={jellyfinDeviceIdOverride ?? ''}
+							/>
+						</view>
+					</view>
+					<Button
+						accessibilityLabel='settings-logout'
+						label='logout'
+						onTap={createReusableCallback(() => this.viewModel.onLogout?.())}
+					/>
+				</view>
+
+				{this.state.showCacheClearModal && (
+					<CacheClearModal
+						onCancel={this.handleCacheClearCancel}
+						onConfirm={this.handleCacheClearConfirm}
 					/>
 				)}
-				<view style={styles.trackCacheLimitContainer}>
-					<label style={styles.settingLabel} value='play queue cached tracks' />
-					<view
-						accessibilityLabel='settings-track-cache-limit-dropdown'
-						contentDescription='settings-track-cache-limit-dropdown'
-						onTap={this.handleTrackCacheLimitToggle}
-						style={styles.trackCacheLimitButton}
-					>
-						<label style={styles.trackCacheLimitButtonLabel} value={`${selectedTrackCacheLimit}`} />
-					</view>
-				</view>
-				<label
-					accessibilityLabel='settings-track-cache-count'
-					style={styles.trackCacheCountLabel}
-					value={`${trackCacheCachedCount ?? 0} tracks currently cached`}
-				/>
-				{this.state.showTrackCacheLimitOptions && (
-					<view style={styles.trackCacheLimitOptionsList}>
-						{TRACK_CACHE_LIMIT_OPTIONS.map((option) => (
-							<view
-								accessibilityLabel={`settings-track-cache-limit-option-${option}`}
-								contentDescription={`settings-track-cache-limit-option-${option}`}
-								onTap={() => this.handleTrackCacheLimitSelect(option)}
-								style={
-									option === selectedTrackCacheLimit
-										? styles.trackCacheLimitOptionSelected
-										: styles.trackCacheLimitOption
-								}
-							>
-								<label style={styles.trackCacheLimitOptionLabel} value={`${option}`} />
-							</view>
-						))}
-					</view>
-				)}
-				<Button
-					accessibilityLabel='settings-cache-clear'
-					label='clear cache'
-					onTap={this.handleClearCachePress}
-					style={styles.button}
-				/>
+
+				{this.state.showCacheToast && <Toast message='cache cleared' />}
 			</view>
-
-			<label style={styles.sectionTitle} value='DOWNLOADS' />
-			<view style={styles.section}>
-				<label
-					accessibilityLabel='settings-downloaded-track-count'
-					style={styles.trackCacheCountLabel}
-					value={`${downloadedTrackCount ?? 0} tracks downloaded      [ ${formatBytes(downloadedSizeBytes)} ]`}
-				/>
-			</view>
-
-			<label style={styles.sectionTitle} value='AUTH' />
-			<view style={styles.section}>
-				<view style={styles.settingRow}>
-					<label style={styles.settingLabel} value='device id' />
-					<view style={styles.authDeviceIdInlineInputContainer}>
-						<textfield
-							accessibilityLabel='settings-jellyfin-device-id-input'
-							autocapitalization='none'
-							contentDescription='settings-jellyfin-device-id-input'
-							onChange={(value: unknown) => {
-								onJellyfinDeviceIdOverrideChange?.(normalizeInputValue(value));
-							}}
-							placeholder={defaultJellyfinDeviceId ?? 'atolla'}
-							style={styles.authDeviceIdInput}
-							value={jellyfinDeviceIdOverride ?? ''}
-						/>
-					</view>
-				</view>
-				<Button
-					accessibilityLabel='settings-logout'
-					label='logout'
-					onTap={createReusableCallback(() => this.viewModel.onLogout?.())}
-				/>
-			</view>
-
-			{this.state.showCacheClearModal && (
-				<CacheClearModal
-					onCancel={this.handleCacheClearCancel}
-					onConfirm={this.handleCacheClearConfirm}
-				/>
-			)}
-
-			{this.state.showCacheToast && <Toast message='cache cleared' />}
-		</view>;
+		</scroll>;
 	}
 }
 
@@ -473,3 +478,14 @@ const styles = {
 		width: '100%',
 	}),
 };
+
+function createScrollStyle(): Style {
+	return new Style({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		padding: 8,
+		paddingBottom: scrollPaddingBottom(true),
+		paddingTop: theme.headerHeight,
+		width: '100%',
+	});
+}

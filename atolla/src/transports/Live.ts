@@ -1,9 +1,11 @@
 import { TransportErrors } from '../errors/TransportErrors';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
+import type { Genre } from '../models/Genre';
 import type {
 	JellyfinAlbumItem,
 	JellyfinArtistItem,
+	JellyfinGenreItem,
 	JellyfinListEnvelope,
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
@@ -16,6 +18,7 @@ import {
 	type JellyfinImageResolvers,
 	mapJellyfinAlbumToAlbum,
 	mapJellyfinArtistToArtist,
+	mapJellyfinGenreToGenre,
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
 } from './JellyfinMappers';
@@ -29,6 +32,7 @@ export {
 	type JellyfinImageResolvers,
 	mapJellyfinAlbumToAlbum,
 	mapJellyfinArtistToArtist,
+	mapJellyfinGenreToGenre,
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
 	resolvePrimaryArtist,
@@ -200,6 +204,26 @@ export class LiveTransport implements Transport {
 		});
 
 		return items.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers));
+	}
+
+	async getGenresPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.requestJson<JellyfinListEnvelope<JellyfinGenreItem>>('/MusicGenres', {
+			fields: 'Overview',
+			limit: Math.max(1, pageSize),
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+			startIndex,
+			userId: this.userId,
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => mapJellyfinGenreToGenre(item, this.imageResolvers)),
+		};
 	}
 
 	async getPlaylistsPage(

@@ -1,9 +1,11 @@
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
+import type { Genre } from '../models/Genre';
 import type {
 	JellyfinAlbumItem,
 	JellyfinArtistItem,
 	JellyfinBaseItemDto,
+	JellyfinGenreItem,
 	JellyfinNameIdReference,
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
@@ -110,6 +112,19 @@ export function mapJellyfinPlaylistToPlaylist(
 	item: JellyfinPlaylistItem,
 	imageResolvers: JellyfinImageResolvers = {},
 ): Playlist {
+	const primaryTag = item.ImageTags?.Primary;
+
+	return {
+		id: item.Id,
+		imageUrl: imageResolvers.itemPrimaryImageUrl?.(item.Id, primaryTag),
+		name: item.Name,
+	};
+}
+
+export function mapJellyfinGenreToGenre(
+	item: JellyfinGenreItem,
+	imageResolvers: JellyfinImageResolvers = {},
+): Genre {
 	const primaryTag = item.ImageTags?.Primary;
 
 	return {

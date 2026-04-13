@@ -3,6 +3,7 @@
 import { TransportErrors } from '../errors/TransportErrors';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
+import type { Genre } from '../models/Genre';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
@@ -103,6 +104,16 @@ export class OfflineTransport implements Transport {
 
 	async getAllPlaylists(): Promise<Array<Playlist>> {
 		return this.downloads.getAllPlaylists().map((e) => e.playlist);
+	}
+
+	async getGenresPage(
+		_page: number,
+		_pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
+		return {
+			hasMore: false,
+			items: [],
+		};
 	}
 
 	async getArtist(artistId: string): Promise<Artist | null> {
