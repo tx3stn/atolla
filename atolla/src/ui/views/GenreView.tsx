@@ -6,6 +6,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
+import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
@@ -19,6 +20,7 @@ const TRACK_PAGE_SIZE = 50;
 
 export interface GenreViewModel {
 	animationsEnabled: boolean;
+	downloadService: DownloadService;
 	genre: Genre;
 	imageCache: ImageCache;
 	isHeaderVisible?: boolean;
@@ -32,6 +34,7 @@ export interface GenreViewModel {
 interface GenreState {
 	artistLogoUrls: Array<string | null>;
 	contextMenuTrack: Track | null;
+	downloadState: DownloadState;
 	isFooterVisible: boolean;
 	isHeaderVisible: boolean;
 	isLoading: boolean;
@@ -50,6 +53,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	private hasMoreTracks = true;
 	private isLoadingPage = false;
 	private triggeredAutoLoadForTrackCount: number | null = null;
+	private unsubscribeDownloads?: () => void;
 	private unsubscribePlayback?: () => void;
 	private readonly setHeaderVisibility = (isVisible: boolean): void => {
 		if (this.state.isHeaderVisible === isVisible) {
@@ -63,6 +67,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	state: GenreState = {
 		artistLogoUrls: [],
 		contextMenuTrack: null,
+		downloadState: 'not_downloaded',
 		isFooterVisible: false,
 		isHeaderVisible: false,
 		isLoading: true,
@@ -101,6 +106,60 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		return Promise.resolve();
 	};
 
+	handleDownloadTap = (): void => {
+		const { downloadService, genre, transport } = this.viewModel;
+		Promise.all(
+			this.state.tracks.map(async (track, i) => {
+				const streamUrl = transport.getTrackCacheUrl?.(track.id);
+				if (!streamUrl) {
+					return null;
+				}
+
+				const existingLogoUrl = this.state.artistLogoUrls[i] ?? null;
+				if (existingLogoUrl) {
+					return { artistLogoUrl: existingLogoUrl, streamUrl, track };
+				}
+
+				if (!track.artistId) {
+					return { artistLogoUrl: null, streamUrl, track };
+				}
+
+				try {
+					const resolvedLogoUrl = await transport.getArtistLogoUrl(track.artistId);
+					return { artistLogoUrl: resolvedLogoUrl, streamUrl, track };
+				} catch {
+					return { artistLogoUrl: null, streamUrl, track };
+				}
+			}),
+		).then((resolvedTracks) => {
+			const tracks = resolvedTracks.filter(
+				(t): t is { artistLogoUrl: string | null; streamUrl: string; track: Track } => t !== null,
+			);
+
+			const uniqueArtistIds = Array.from(
+				new Set(
+					tracks
+						.map(({ track }) => track.artistId)
+						.filter((artistId): artistId is string => artistId != null && artistId.length > 0),
+				),
+			);
+
+			Promise.all(
+				uniqueArtistIds.map((artistId) => transport.getArtist(artistId).catch(() => null)),
+			).then((artists) => {
+				downloadService.downloadGenre({
+					artists: artists.filter((artist): artist is NonNullable<typeof artist> => artist != null),
+					genre,
+					tracks,
+				});
+			});
+		});
+	};
+
+	handleRemoveDownloadTap = (): void => {
+		this.viewModel.downloadService.removeGenreDownload(this.viewModel.genre.id);
+	};
+
 	handleTrackTap = (trackId: string): void => {
 		const { playbackStore } = this.viewModel;
 		const { artistLogoUrls, tracks } = this.state;
@@ -121,15 +180,25 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		this.viewModel.onNavigateToArtist?.(artistId);
 	};
 
+	private syncDownloadState(): void {
+		this.setState({
+			downloadState: this.viewModel.downloadService.getGenreDownloadState(this.viewModel.genre.id),
+		});
+	}
+
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
-		const { playbackStore } = this.viewModel;
+		const { downloadService, playbackStore } = this.viewModel;
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
 			this.setState({ isFooterVisible: playbackStore.track !== null });
 		});
+		this.unsubscribeDownloads = downloadService.subscribe(() => {
+			this.syncDownloadState();
+		});
 		this.setState({ isFooterVisible: playbackStore.track !== null });
+		this.syncDownloadState();
 		void this.loadNextPage();
 	}
 
@@ -252,6 +321,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
+		this.unsubscribeDownloads?.();
 		this.unsubscribePlayback?.();
 		if (this.viewModel.restoreHeaderOnDestroy ?? true) {
 			this.viewModel.onHeaderVisibilityChange?.(true);
@@ -261,6 +331,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	onRender(): void {
 		const {
 			contextMenuTrack,
+			downloadState,
 			isFooterVisible,
 			isHeaderVisible,
 			isLoading,
@@ -287,14 +358,17 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 					animationsEnabled={this.viewModel.animationsEnabled}
 					artworkCategory='album_art'
 					artworkSource={genre.imageUrl ?? null}
+					downloadState={downloadState}
 					fallbackText={genre.name}
 					imageCache={this.viewModel.imageCache}
 					modalSlot={this.modalSlot}
 					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+					onDownload={this.handleDownloadTap}
 					onHideHeaderGesture={() => {
 						this.setHeaderVisibility(false);
 					}}
 					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+					onRemoveDownload={this.handleRemoveDownloadTap}
 					onRevealHeaderGesture={() => {
 						this.setHeaderVisibility(true);
 					}}

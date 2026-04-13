@@ -5,6 +5,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Genre } from '../../models/Genre';
+import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
@@ -16,6 +17,7 @@ import type { HomeNavContext } from './HomeView';
 
 interface GenresViewModel {
 	animationsEnabled: boolean;
+	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
 	navigationController: NavigationController;
@@ -163,6 +165,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 						GenreView,
 						{
 							animationsEnabled,
+							downloadService: this.viewModel.downloadService,
 							genre,
 							imageCache,
 							onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,

@@ -107,12 +107,18 @@ export class OfflineTransport implements Transport {
 	}
 
 	async getGenresPage(
-		_page: number,
-		_pageSize: number,
+		page: number,
+		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
+		const allGenres = [...this.downloads.getAllGenres()]
+			.map((entry) => entry.genre)
+			.sort((left, right) => compareNamesCaseInsensitive(left.name, right.name));
+
+		const start = Math.max(0, page - 1) * pageSize;
+		const end = start + pageSize;
 		return {
-			hasMore: false,
-			items: [],
+			hasMore: end < allGenres.length,
+			items: allGenres.slice(start, end),
 		};
 	}
 
@@ -175,6 +181,20 @@ export class OfflineTransport implements Transport {
 			}
 		}
 
+		for (const genreEntry of this.downloads.getAllGenres()) {
+			for (const trackId of genreEntry.trackIds) {
+				const trackEntry = this.downloads.getTrack(trackId);
+				if (!trackEntry || trackEntry.track.artistId !== artistId) {
+					continue;
+				}
+
+				const genreLogo = genreEntry.trackArtistLogoUrls[trackId];
+				if (genreLogo) {
+					return genreLogo;
+				}
+			}
+		}
+
 		return null;
 	}
 
@@ -226,19 +246,32 @@ export class OfflineTransport implements Transport {
 			.map((entry) => entry.track);
 	}
 
-	async getTracksByGenre(_genreId: string): Promise<Array<Track>> {
-		return [];
+	async getTracksByGenre(genreId: string): Promise<Array<Track>> {
+		const genreEntry = this.downloads.getGenre(genreId);
+		if (genreEntry) {
+			return genreEntry.trackIds
+				.map((trackId) => this.downloads.getTrack(trackId)?.track)
+				.filter((track): track is Track => track != null);
+		}
+
+		return this.downloads
+			.getAllTracks()
+			.filter((entry) => entry.genreIds.includes(genreId))
+			.map((entry) => entry.track);
 	}
 
 	async getTracksByGenrePage(
-		_genreId: string,
-		_page: number,
-		_pageSize: number,
+		genreId: string,
+		page: number,
+		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
+		const allTracks = await this.getTracksByGenre(genreId);
+		const start = Math.max(0, page - 1) * pageSize;
+		const end = start + pageSize;
 		return {
-			hasMore: false,
-			items: [],
-			totalCount: 0,
+			hasMore: end < allTracks.length,
+			items: allTracks.slice(start, end),
+			totalCount: allTracks.length,
 		};
 	}
 

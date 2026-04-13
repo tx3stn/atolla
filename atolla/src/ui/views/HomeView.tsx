@@ -228,6 +228,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						this.viewModel.onNavigationControllerChange?.(navigationController);
 						<GenresView
 							animationsEnabled={animationsEnabled}
+							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
 							navigationController={navigationController}

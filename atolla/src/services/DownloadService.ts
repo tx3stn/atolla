@@ -1,5 +1,6 @@
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
+import type { Genre } from '../models/Genre';
 import type { Playlist } from '../models/Playlist';
 import type { Track } from '../models/Track';
 import type { ImageCategory } from './ImageCache';
@@ -13,6 +14,7 @@ export type DownloadState = 'not_downloaded' | 'downloading' | 'downloaded';
 export interface DownloadedTrackEntry {
 	albumIds: Array<string>;
 	complete: boolean;
+	genreIds: Array<string>;
 	playlistIds: Array<string>;
 	streamUrl: string;
 	track: Track;
@@ -33,6 +35,12 @@ export interface DownloadedPlaylistEntry {
 export interface DownloadedArtistEntry {
 	albumIds: Array<string>;
 	artist: Artist;
+}
+
+export interface DownloadedGenreEntry {
+	genre: Genre;
+	trackArtistLogoUrls: Record<string, string | null>;
+	trackIds: Array<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,6 +71,7 @@ export interface DownloadServiceOptions {
 // ---------------------------------------------------------------------------
 
 const KEY_ALBUMS = 'dl_albums';
+const KEY_GENRES = 'dl_genres';
 const KEY_PLAYLISTS = 'dl_playlists';
 const KEY_ARTISTS = 'dl_artists';
 const KEY_TRACKS = 'dl_tracks';
@@ -75,6 +84,7 @@ const MAX_CONCURRENT_DOWNLOADS = 3;
 
 export class DownloadService {
 	private albums: Record<string, DownloadedAlbumEntry> = {};
+	private genres: Record<string, DownloadedGenreEntry> = {};
 	private playlists: Record<string, DownloadedPlaylistEntry> = {};
 	private artists: Record<string, DownloadedArtistEntry> = {};
 	private tracks: Record<string, DownloadedTrackEntry> = {};
@@ -153,6 +163,13 @@ export class DownloadService {
 		return allComplete ? 'downloaded' : 'downloading';
 	}
 
+	getGenreDownloadState(genreId: string): DownloadState {
+		const entry = this.genres[genreId];
+		if (!entry) return 'not_downloaded';
+		const allComplete = entry.trackIds.every((id) => this.tracks[id]?.complete === true);
+		return allComplete ? 'downloaded' : 'downloading';
+	}
+
 	getArtistDownloadState(artistId: string): DownloadState {
 		const entry = this.artists[artistId];
 		if (!entry) return 'not_downloaded';
@@ -195,6 +212,10 @@ export class DownloadService {
 		return Object.values(this.playlists);
 	}
 
+	getAllGenres(): Array<DownloadedGenreEntry> {
+		return Object.values(this.genres);
+	}
+
 	getAllArtists(): Array<DownloadedArtistEntry> {
 		return Object.values(this.artists);
 	}
@@ -209,6 +230,10 @@ export class DownloadService {
 
 	getPlaylist(playlistId: string): DownloadedPlaylistEntry | undefined {
 		return this.playlists[playlistId];
+	}
+
+	getGenre(genreId: string): DownloadedGenreEntry | undefined {
+		return this.genres[genreId];
 	}
 
 	getArtist(artistId: string): DownloadedArtistEntry | undefined {
@@ -253,7 +278,7 @@ export class DownloadService {
 				trackIds: tracks.map((t) => t.track.id),
 			};
 			for (const { track, streamUrl } of tracks) {
-				this.addTrackRef(track, streamUrl, album.id, null);
+				this.addTrackRef(track, streamUrl, album.id, null, null);
 			}
 			await this.persistAll();
 
@@ -296,7 +321,51 @@ export class DownloadService {
 				trackIds: tracks.map((t) => t.track.id),
 			};
 			for (const { track, streamUrl } of tracks) {
-				this.addTrackRef(track, streamUrl, null, playlist.id);
+				this.addTrackRef(track, streamUrl, null, null, playlist.id);
+			}
+			await this.persistAll();
+
+			for (const { track, streamUrl } of tracks) {
+				if (!this.tracks[track.id]?.complete) {
+					this.enqueueTrack(track.id, streamUrl);
+				}
+			}
+			this.notify();
+		});
+	}
+
+	downloadGenre(params: {
+		genre: Genre;
+		artists?: Array<Artist>;
+		tracks: Array<{ track: Track; streamUrl: string; artistLogoUrl: string | null }>;
+	}): void {
+		const { artists = [], genre, tracks } = params;
+		this.ensureLoaded().then(async () => {
+			this.preloadDownloadImages({
+				albumArtUrls: [genre.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
+				artistImageUrls: artists.map((artist) => artist.imageUrl),
+				artistLogoUrls: tracks.map(({ artistLogoUrl }) => artistLogoUrl),
+			});
+
+			for (const artist of artists) {
+				this.upsertArtistEntry({
+					albumIds: [],
+					artist,
+				});
+			}
+
+			const trackArtistLogoUrls: Record<string, string | null> = {};
+			for (const { track, artistLogoUrl } of tracks) {
+				trackArtistLogoUrls[track.id] = artistLogoUrl;
+			}
+
+			this.genres[genre.id] = {
+				genre,
+				trackArtistLogoUrls,
+				trackIds: tracks.map((t) => t.track.id),
+			};
+			for (const { track, streamUrl } of tracks) {
+				this.addTrackRef(track, streamUrl, null, genre.id, null);
 			}
 			await this.persistAll();
 
@@ -339,7 +408,7 @@ export class DownloadService {
 					trackIds: tracks.map((t) => t.track.id),
 				};
 				for (const { track, streamUrl } of tracks) {
-					this.addTrackRef(track, streamUrl, album.id, null);
+					this.addTrackRef(track, streamUrl, album.id, null, null);
 				}
 			}
 			await this.persistAll();
@@ -366,7 +435,7 @@ export class DownloadService {
 			delete this.albums[albumId];
 			this.removeAlbumReferenceFromArtists(albumId);
 			for (const trackId of entry.trackIds) {
-				this.dereferenceTrack(trackId, albumId, null);
+				this.dereferenceTrack(trackId, albumId, null, null);
 			}
 			this.pruneOrphanArtists();
 			await this.persistAll();
@@ -380,7 +449,21 @@ export class DownloadService {
 			if (!entry) return;
 			delete this.playlists[playlistId];
 			for (const trackId of entry.trackIds) {
-				this.dereferenceTrack(trackId, null, playlistId);
+				this.dereferenceTrack(trackId, null, null, playlistId);
+			}
+			this.pruneOrphanArtists();
+			await this.persistAll();
+			this.notify();
+		});
+	}
+
+	removeGenreDownload(genreId: string): void {
+		this.ensureLoaded().then(async () => {
+			const entry = this.genres[genreId];
+			if (!entry) return;
+			delete this.genres[genreId];
+			for (const trackId of entry.trackIds) {
+				this.dereferenceTrack(trackId, null, genreId, null);
 			}
 			this.pruneOrphanArtists();
 			await this.persistAll();
@@ -398,7 +481,7 @@ export class DownloadService {
 				if (!albumEntry) continue;
 				delete this.albums[albumId];
 				for (const trackId of albumEntry.trackIds) {
-					this.dereferenceTrack(trackId, albumId, null);
+					this.dereferenceTrack(trackId, albumId, null, null);
 				}
 			}
 			this.pruneOrphanArtists();
@@ -415,12 +498,16 @@ export class DownloadService {
 		track: Track,
 		streamUrl: string,
 		albumId: string | null,
+		genreId: string | null,
 		playlistId: string | null,
 	): void {
 		const existing = this.tracks[track.id];
 		if (existing) {
 			if (albumId && !existing.albumIds.includes(albumId)) {
 				existing.albumIds.push(albumId);
+			}
+			if (genreId && !existing.genreIds.includes(genreId)) {
+				existing.genreIds.push(genreId);
 			}
 			if (playlistId && !existing.playlistIds.includes(playlistId)) {
 				existing.playlistIds.push(playlistId);
@@ -429,6 +516,7 @@ export class DownloadService {
 			this.tracks[track.id] = {
 				albumIds: albumId ? [albumId] : [],
 				complete: false,
+				genreIds: genreId ? [genreId] : [],
 				playlistIds: playlistId ? [playlistId] : [],
 				streamUrl,
 				track,
@@ -439,6 +527,7 @@ export class DownloadService {
 	private dereferenceTrack(
 		trackId: string,
 		albumId: string | null,
+		genreId: string | null,
 		playlistId: string | null,
 	): void {
 		const entry = this.tracks[trackId];
@@ -447,11 +536,18 @@ export class DownloadService {
 		if (albumId) {
 			entry.albumIds = entry.albumIds.filter((id) => id !== albumId);
 		}
+		if (genreId) {
+			entry.genreIds = entry.genreIds.filter((id) => id !== genreId);
+		}
 		if (playlistId) {
 			entry.playlistIds = entry.playlistIds.filter((id) => id !== playlistId);
 		}
 
-		if (entry.albumIds.length === 0 && entry.playlistIds.length === 0) {
+		if (
+			entry.albumIds.length === 0 &&
+			entry.genreIds.length === 0 &&
+			entry.playlistIds.length === 0
+		) {
 			delete this.tracks[trackId];
 			this.queue = this.queue.filter((q) => q.trackId !== trackId);
 			this.removeTrackFn(trackId);
@@ -587,12 +683,18 @@ export class DownloadService {
 		this.loadChain = this.loadChain.then(async () => {
 			if (this.isLoaded) return;
 			this.albums = await this.loadKey<Record<string, DownloadedAlbumEntry>>(KEY_ALBUMS, {});
+			this.genres = await this.loadKey<Record<string, DownloadedGenreEntry>>(KEY_GENRES, {});
 			this.playlists = await this.loadKey<Record<string, DownloadedPlaylistEntry>>(
 				KEY_PLAYLISTS,
 				{},
 			);
 			this.artists = await this.loadKey<Record<string, DownloadedArtistEntry>>(KEY_ARTISTS, {});
 			this.tracks = await this.loadKey<Record<string, DownloadedTrackEntry>>(KEY_TRACKS, {});
+			for (const trackEntry of Object.values(this.tracks)) {
+				if (!Array.isArray(trackEntry.genreIds)) {
+					trackEntry.genreIds = [];
+				}
+			}
 			this.isLoaded = true;
 		});
 		return this.loadChain;
@@ -609,6 +711,7 @@ export class DownloadService {
 	private async persistAll(): Promise<void> {
 		await Promise.all([
 			this.store.storeString(KEY_ALBUMS, JSON.stringify(this.albums)),
+			this.store.storeString(KEY_GENRES, JSON.stringify(this.genres)),
 			this.store.storeString(KEY_PLAYLISTS, JSON.stringify(this.playlists)),
 			this.store.storeString(KEY_ARTISTS, JSON.stringify(this.artists)),
 			this.store.storeString(KEY_TRACKS, JSON.stringify(this.tracks)),

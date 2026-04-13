@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
+import type { Genre } from '../models/Genre';
 import type { Playlist } from '../models/Playlist';
 import type { Track } from '../models/Track';
 import {
@@ -42,6 +43,10 @@ function makeArtist(id: string): Artist {
 
 function makePlaylist(id: string): Playlist {
 	return { id, name: `Playlist ${id}` };
+}
+
+function makeGenre(id: string): Genre {
+	return { id, name: `Genre ${id}` };
 }
 
 type CacheCall = { trackId: string; url: string };
@@ -221,6 +226,27 @@ describe('DownloadService', () => {
 		});
 	});
 
+	describe('downloadGenre', () => {
+		it('marks all genre tracks as downloaded', async () => {
+			const { service } = createService();
+			const genre = makeGenre('genre-1');
+			const tracks = [makeTrack('track-1'), makeTrack('track-2')];
+
+			service.downloadGenre({
+				genre,
+				tracks: tracks.map((track) => ({
+					artistLogoUrl: null,
+					streamUrl: `http://s/${track.id}`,
+					track,
+				})),
+			});
+
+			await flush();
+
+			expect(service.getGenreDownloadState('genre-1')).toBe('downloaded');
+		});
+	});
+
 	describe('downloadArtistAlbums', () => {
 		it('marks artist as downloaded when all albums complete', async () => {
 			const { service } = createService();
@@ -241,6 +267,32 @@ describe('DownloadService', () => {
 	});
 
 	describe('reference counting', () => {
+		it('keeps a track that belongs to both an album and a genre after genre removed', async () => {
+			const { removeCalls, service } = createService();
+			const album = makeAlbum('album-1');
+			const genre = makeGenre('genre-1');
+			const track = makeTrack('track-1');
+
+			service.downloadAlbum({
+				album,
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track }],
+			});
+			service.downloadGenre({
+				genre,
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track }],
+			});
+
+			await flush();
+
+			service.removeGenreDownload('genre-1');
+			await flush();
+
+			expect(service.isTrackDownloaded('track-1')).toBe(true);
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
+			expect(removeCalls).toEqual([]);
+		});
+
 		it('keeps a track that belongs to both an album and a playlist after album removed', async () => {
 			const { removeCalls, service } = createService();
 			const album = makeAlbum('album-1');
@@ -286,6 +338,26 @@ describe('DownloadService', () => {
 
 			expect(service.isTrackDownloaded('track-1')).toBe(false);
 			expect(service.getAlbumDownloadState('album-1')).toBe('not_downloaded');
+			expect(removeCalls).toEqual(['track-1']);
+		});
+
+		it('removes a genre track when its last reference is removed', async () => {
+			const { removeCalls, service } = createService();
+			const genre = makeGenre('genre-1');
+			const track = makeTrack('track-1');
+
+			service.downloadGenre({
+				genre,
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track }],
+			});
+
+			await flush();
+
+			service.removeGenreDownload('genre-1');
+			await flush();
+
+			expect(service.isTrackDownloaded('track-1')).toBe(false);
+			expect(service.getGenreDownloadState('genre-1')).toBe('not_downloaded');
 			expect(removeCalls).toEqual(['track-1']);
 		});
 
