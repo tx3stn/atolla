@@ -297,7 +297,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	);
 
 	state: AppState = {
-		activeFooterTab: FooterTabs.library,
+		activeFooterTab: FooterTabs.home,
 		activeLibraryTab: HeaderTabs.artists,
 		animationsEnabled: true,
 		authErrorMessage: null,
@@ -985,9 +985,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	handleFooterTabTap = (tab: FooterTab): void => {
 		this.returnToSearchOnDetailClose = false;
+		const isLibrarySurfaceTab = tab === FooterTabs.home || tab === FooterTabs.library;
 		this.setState({
 			activeFooterTab: tab,
-			isLibraryHeaderVisible: tab === FooterTabs.library ? true : this.state.isLibraryHeaderVisible,
+			isLibraryHeaderVisible: isLibrarySurfaceTab ? true : this.state.isLibraryHeaderVisible,
 			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
 			searchFocusSignal:
 				tab === FooterTabs.search ? this.state.searchFocusSignal + 1 : this.state.searchFocusSignal,
@@ -1739,6 +1740,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			trackIndex,
 		} = this.playbackStore;
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
+		const isLibrarySurfaceTab =
+			this.state.activeFooterTab === FooterTabs.home ||
+			this.state.activeFooterTab === FooterTabs.library;
 
 		<view style={styles.root}>
 			{this.state.connectionMode === ConnectionModes.mock ? (
@@ -1751,7 +1755,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					playbackStore={this.playbackStore}
 				/>
 			)}
-			{this.state.activeFooterTab === FooterTabs.library && this.state.isLibraryHeaderVisible && (
+			{isLibrarySurfaceTab && this.state.isLibraryHeaderVisible && (
 				<LibraryHeaderNav
 					activeTab={this.state.activeLibraryTab}
 					animationsEnabled={this.state.animationsEnabled}
@@ -1762,7 +1766,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				/>
 			)}
 
-			{this.state.activeFooterTab === FooterTabs.library && (
+			{isLibrarySurfaceTab && (
 				<LibraryView
 					activeTab={this.state.activeLibraryTab}
 					animationsEnabled={this.state.animationsEnabled}
@@ -1821,13 +1825,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				/>
 			)}
 
-			<FooterNav
-				activeTab={this.state.activeFooterTab}
-				connectionMode={this.state.connectionMode}
-				downloadingCount={this.state.downloadingCount}
-				onFooterTabTap={this.handleFooterTabTap}
-				onModeChange={this.handleModeChange}
-			/>
+			<FooterNav activeTab={this.state.activeFooterTab} onFooterTabTap={this.handleFooterTabTap} />
 
 			{track && (
 				<NowPlayingSurface

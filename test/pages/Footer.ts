@@ -2,6 +2,7 @@ import type { Browser } from 'webdriverio';
 import { BasePage } from './Base';
 
 export class FooterPage extends BasePage {
+	private readonly home: string;
 	private readonly library: string;
 	private readonly searchBar: string;
 	private readonly search: string;
@@ -10,10 +11,18 @@ export class FooterPage extends BasePage {
 	constructor(driver: Browser) {
 		super(driver);
 
+		this.home = 'footer-home';
 		this.library = 'footer-library';
 		this.searchBar = 'search-bar';
 		this.search = 'footer-search';
 		this.settings = 'footer-settings';
+	}
+
+	async tapHome(): Promise<void> {
+		await this.elementByID(this.home).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for footer home button',
+		});
+		await this.elementByID(this.home).click();
 	}
 
 	async tapLibrary(): Promise<void> {
@@ -55,6 +64,7 @@ export class FooterPage extends BasePage {
 
 	async isVisible(): Promise<boolean> {
 		return (
+			(await this.elementByID(this.home).isDisplayed()) &&
 			(await this.elementByID(this.library).isDisplayed()) &&
 			(await this.elementByID(this.search).isDisplayed()) &&
 			(await this.elementByID(this.settings).isDisplayed())
