@@ -1936,9 +1936,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			{this.state.activeFooterTab === FooterTabs.settings && (
 				<SettingsView
 					animationsEnabled={this.state.animationsEnabled}
+					connectionMode={this.state.connectionMode}
 					defaultJellyfinDeviceId={this.defaultJellyfinClientDeviceId}
 					downloadedSizeBytes={this.state.downloadedSizeBytes ?? undefined}
 					downloadedTrackCount={this.state.downloadedTrackCount}
+					downloadingCount={this.state.downloadingCount}
 					gridColumns={this.state.gridColumns}
 					imageCacheDiskBytes={this.state.nativeImageCacheDiskBytes ?? undefined}
 					imageCacheDiskCount={this.state.nativeImageCacheDiskCount ?? undefined}
@@ -1951,6 +1953,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onGridColumnsChange={this.handleGridColumnsChange}
 					onJellyfinDeviceIdOverrideChange={this.handleJellyfinClientDeviceIdOverrideChange}
 					onLogout={this.handleLogout}
+					onRequestModeChange={this.requestModeChange}
 					onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
 					preferences={this.preferences}
 					trackCacheCachedCount={this.state.trackPlaybackCachedCount}

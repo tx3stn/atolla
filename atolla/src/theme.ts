@@ -29,7 +29,7 @@ export const theme = {
 		display: {
 			color: colors.white,
 			font: systemBoldFont(28),
-			letterSpacing: 0.7,
+			letterSpacing: 1,
 			paddingBottom: 2,
 		},
 		main: {

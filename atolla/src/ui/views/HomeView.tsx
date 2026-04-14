@@ -10,8 +10,8 @@ import { scrollPaddingBottom, theme } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
-import { ConnectivityFab } from '../components/ConnectivityFab';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { ViewHeader } from '../components/ViewHeader';
 
 export interface HomeViewModel {
 	animationsEnabled: boolean;
@@ -170,16 +170,13 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
 
 		<layout accessibilityLabel='home-view' contentDescription='home-view' style={styles.root}>
-			<view style={styles.header}>
-				<view style={styles.leadingFabSlot}>
-					<ConnectivityFab
-						animationsEnabled={this.viewModel.animationsEnabled}
-						connectionMode={this.viewModel.connectionMode}
-						downloadingCount={this.viewModel.downloadingCount}
-						onRequestModeChange={this.viewModel.onRequestModeChange}
-					/>
-				</view>
-			</view>
+			<ViewHeader
+				animationsEnabled={this.viewModel.animationsEnabled}
+				connectionMode={this.viewModel.connectionMode}
+				downloadingCount={this.viewModel.downloadingCount}
+				onRequestModeChange={this.viewModel.onRequestModeChange}
+				title='HOME'
+			/>
 
 			<scroll style={createScrollStyle(this.viewModel.playbackStore.track !== null)}>
 				<layout style={styles.content}>
@@ -260,25 +257,6 @@ const styles = {
 	emptyState: new Style<Label>({
 		...theme.text.sub,
 		marginTop: 6,
-	}),
-	header: new Style({
-		backgroundColor: theme.colors.transparent,
-		flexDirection: 'row',
-		left: 0,
-		minHeight: theme.headerHeight,
-		paddingBottom: 4,
-		position: 'absolute',
-		right: 0,
-		top: 0,
-		width: '100%',
-		zIndex: 10,
-	}),
-	leadingFabSlot: new Style({
-		alignItems: 'center',
-		justifyContent: 'flex-start',
-		paddingLeft: 6,
-		paddingRight: 6,
-		width: 60,
 	}),
 	root: new Style({
 		flexGrow: 1,
