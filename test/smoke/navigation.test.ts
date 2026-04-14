@@ -1,6 +1,7 @@
 import { AlbumDetailPage } from '../pages/AlbumDetailPage';
 import { ArtistDetailPage } from '../pages/ArtistDetailPage';
 import { FooterPage } from '../pages/Footer';
+import { HomePage } from '../pages/HomePage';
 import { LibraryPage } from '../pages/LibraryPage';
 import { PlaylistDetailPage } from '../pages/PlaylistDetailPage';
 import { SearchPage } from '../pages/SearchPage';
@@ -94,6 +95,21 @@ describe('footer navigation', () => {
 		await home.tabs.albums.waitForLoad();
 
 		expect(await home.tabs.albums.isVisible()).toBe(true);
+	});
+
+	it('should return to home when swiping back from an album opened on home', async () => {
+		const albumDetailPage = new AlbumDetailPage(browser);
+		const homePage = new HomePage(browser);
+
+		await footer.tapHome();
+		await homePage.waitForLoad();
+		await homePage.tapFirstVisibleAlbumCard();
+		await albumDetailPage.waitForLoad();
+
+		await homePage.swipeBack();
+		await homePage.waitForLoad();
+
+		expect(await homePage.elementByID('home-view').isDisplayed()).toBe(true);
 	});
 
 	it('should swipe back to playlists grid after opening playlist via header tab', async () => {

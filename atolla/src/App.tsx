@@ -265,6 +265,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
 	private nativePlaybackActionInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
+	private homeNavigationController?: NavigationController;
 	private libraryNavigationController?: NavigationController;
 	private pendingArtistId: string | null = null;
 	private pendingArtistFallbackName: string = 'Unknown Artist';
@@ -1291,6 +1292,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.tryRestoreNavContext();
 	};
 
+	handleHomeNavigationControllerChange = (navigationController: NavigationController): void => {
+		this.homeNavigationController = navigationController;
+	};
+
 	handleNavigationContext = (context: LibraryNavContext | null): void => {
 		this.currentLibraryNavContext = context;
 	};
@@ -1718,15 +1723,26 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	handleHomeAlbumTap = (album: Album): void => {
-		this.pendingAlbum = album;
-		this.setState({
-			activeFooterTab: FooterTabs.library,
-			activeLibraryTab: HeaderTabs.albums,
-			isLibraryHeaderVisible: true,
-			libraryResetNonce: this.state.libraryResetNonce + 1,
-		});
+		this.returnToSearchOnDetailClose = false;
 
-		this.tryNavigatePendingAlbum();
+		if (!this.homeNavigationController) {
+			return;
+		}
+
+		this.homeNavigationController.push(
+			AlbumView,
+			{
+				album,
+				animationsEnabled: this.state.animationsEnabled,
+				downloadService: this.downloadService,
+				gridColumns: this.state.gridColumns,
+				paletteQueue: this.paletteQueue,
+				playbackStore: this.playbackStore,
+				transport: this.transport,
+			},
+			{},
+			{ animated: this.state.animationsEnabled },
+		);
 	};
 
 	private tryNavigatePendingAlbum(): void {
@@ -1854,17 +1870,22 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				/>
 			)}
 			{this.state.activeFooterTab === FooterTabs.home && (
-				<HomeView
-					animationsEnabled={this.state.animationsEnabled}
-					connectionMode={this.state.connectionMode}
-					downloadingCount={this.state.downloadingCount}
-					gridColumns={this.state.gridColumns}
-					onOpenAlbum={this.handleHomeAlbumTap}
-					onRequestModeChange={this.requestModeChange}
-					playbackStore={this.playbackStore}
-					recentlyPlayedTracks={this.recentlyPlayedTracks}
-					transport={this.transport}
-				/>
+				<NavigationRoot>
+					{$slot((navigationController) => {
+						this.handleHomeNavigationControllerChange(navigationController);
+						<HomeView
+							animationsEnabled={this.state.animationsEnabled}
+							connectionMode={this.state.connectionMode}
+							downloadingCount={this.state.downloadingCount}
+							gridColumns={this.state.gridColumns}
+							onOpenAlbum={this.handleHomeAlbumTap}
+							onRequestModeChange={this.requestModeChange}
+							playbackStore={this.playbackStore}
+							recentlyPlayedTracks={this.recentlyPlayedTracks}
+							transport={this.transport}
+						/>;
+					})}
+				</NavigationRoot>
 			)}
 
 			{this.state.activeFooterTab === FooterTabs.library && this.state.isLibraryHeaderVisible && (
