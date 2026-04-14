@@ -7,7 +7,12 @@ import type {
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
 } from '../models/jellyfin/Types';
-import { LiveTransport, mapJellyfinArtistToArtist, mapJellyfinTrackToTrack } from './Live';
+import {
+	LiveTransport,
+	mapJellyfinAlbumToAlbum,
+	mapJellyfinArtistToArtist,
+	mapJellyfinTrackToTrack,
+} from './Live';
 
 interface MockHTTPResponse {
 	body?: Uint8Array;
@@ -106,6 +111,47 @@ describe('mapJellyfinArtistToArtist', () => {
 
 		expect(artist.logoUrl).toBeUndefined();
 	});
+
+	it('maps artist genres from genre references', () => {
+		const item: JellyfinArtistItem = {
+			GenreItems: [
+				{ Id: 'genre-2', Name: 'Noise Rock' },
+				{ Id: 'genre-1', Name: 'Post-Hardcore' },
+			],
+			Id: 'artist-1',
+			Name: 'Artist A',
+			Type: 'MusicArtist',
+		};
+
+		const artist = mapJellyfinArtistToArtist(item);
+
+		expect(artist.genres).toEqual([
+			{ id: 'genre-2', name: 'Noise Rock' },
+			{ id: 'genre-1', name: 'Post-Hardcore' },
+		]);
+	});
+});
+
+describe('mapJellyfinAlbumToAlbum', () => {
+	it('maps album genres from genre references', () => {
+		const item: JellyfinAlbumItem = {
+			AlbumArtist: 'Artist A',
+			GenreItems: [
+				{ Id: 'genre-2', Name: 'Noise Rock' },
+				{ Id: 'genre-1', Name: 'Post-Hardcore' },
+			],
+			Id: 'album-1',
+			Name: 'Album A',
+			Type: 'MusicAlbum',
+		};
+
+		const album = mapJellyfinAlbumToAlbum(item);
+
+		expect(album.genres).toEqual([
+			{ id: 'genre-2', name: 'Noise Rock' },
+			{ id: 'genre-1', name: 'Post-Hardcore' },
+		]);
+	});
 });
 
 describe('LiveTransport core collections', () => {
@@ -130,6 +176,7 @@ describe('LiveTransport core collections', () => {
 		expect(calls[0].baseUrl).toBe('https://demo.jellyfin.local');
 		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('0');
 		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('1');
+		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBe('Overview,Genres');
 		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('MusicAlbum');
 		expect(queryParam(calls[0].pathOrUrl, 'userId')).toBe('user-1');
 		expect(calls[0].headers?.['X-Emby-Token']).toBe('token-1');

@@ -1,4 +1,29 @@
 import type { Album } from '../../models/Album';
+import type { Genre } from '../../models/Genre';
+
+function isGenreLike(value: unknown): value is Genre {
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
+
+	const candidate = value as Partial<Genre>;
+	return typeof candidate.id === 'string' && typeof candidate.name === 'string';
+}
+
+function normalizeGenres(genres?: Array<Genre>): Array<Genre> | undefined {
+	if (!genres || genres.length === 0) {
+		return undefined;
+	}
+
+	const normalized = genres
+		.filter((genre) => isGenreLike(genre))
+		.map((genre) => ({
+			id: genre.id,
+			name: genre.name,
+		}));
+
+	return normalized.length > 0 ? normalized : undefined;
+}
 
 function isAlbumLike(value: unknown): value is Album {
 	if (!value || typeof value !== 'object') {
@@ -27,14 +52,24 @@ function isAlbumLike(value: unknown): value is Album {
 		return false;
 	}
 
+	if (
+		candidate.genres != null &&
+		(!Array.isArray(candidate.genres) || !candidate.genres.every((genre) => isGenreLike(genre)))
+	) {
+		return false;
+	}
+
 	return true;
 }
 
 function normalizeAlbum(album: Album): Album {
+	const genres = normalizeGenres(album.genres);
+
 	return {
 		artistId: album.artistId,
 		artistName: album.artistName,
 		...(album.bio ? { bio: album.bio } : {}),
+		...(genres ? { genres } : {}),
 		id: album.id,
 		...(album.imageUrl ? { imageUrl: album.imageUrl } : {}),
 		name: album.name,
@@ -89,6 +124,10 @@ export function createHomeAlbumsSignature(albums: Array<Album>): string {
 				normalized.releaseDate ?? '',
 				normalized.imageUrl ?? '',
 				normalized.bio ?? '',
+				(normalized.genres ?? [])
+					.map((genre) => `${genre.id}:${genre.name}`)
+					.sort((left, right) => left.localeCompare(right))
+					.join(','),
 			].join('|');
 		})
 		.join('\n');

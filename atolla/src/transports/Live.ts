@@ -125,6 +125,7 @@ export class LiveTransport implements Transport {
 	async getAlbumsPage(page: number, pageSize: number): Promise<AlbumsPageResult> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
+			fields: 'Overview,Genres',
 			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 			limit: Math.max(1, pageSize),
 			recursive: true,
@@ -172,6 +173,7 @@ export class LiveTransport implements Transport {
 
 	async getAllAlbums(): Promise<Array<Album>> {
 		const items = await this.fetchAllItems<JellyfinAlbumItem>({
+			fields: 'Overview,Genres',
 			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 			recursive: true,
 			sortBy: 'SortName',
@@ -184,6 +186,7 @@ export class LiveTransport implements Transport {
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
 		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
 			albumArtistIds: artistId,
+			fields: 'Overview,Genres',
 			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 			limit: defaultSearchLimit,
 			recursive: true,
@@ -560,9 +563,10 @@ export class LiveTransport implements Transport {
 	private fetchItemsPage<TItem>(
 		params: Record<string, string | number | boolean | undefined>,
 	): Promise<JellyfinListEnvelope<TItem>> {
+		const fields = typeof params.fields === 'string' ? params.fields : 'Overview';
 		return this.requestJson<JellyfinListEnvelope<TItem>>('/Items', {
 			...params,
-			fields: 'Overview',
+			fields,
 			recursive: params.recursive ?? true,
 			userId: this.userId,
 		});

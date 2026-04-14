@@ -52,4 +52,18 @@ describe('HomeView cache helpers', () => {
 
 		expect(createHomeAlbumsSignature(changed)).not.toBe(createHomeAlbumsSignature(sampleAlbums));
 	});
+
+	it('preserves album genres through cache serialization', () => {
+		const withGenres: Array<Album> = [
+			{
+				...sampleAlbums[0],
+				genres: [
+					{ id: 'genre-2', name: 'Noise Rock' },
+					{ id: 'genre-1', name: 'Post-Hardcore' },
+				],
+			},
+		];
+
+		expect(parseHomeAlbumsCache(serializeHomeAlbumsCache(withGenres))).toEqual(withGenres);
+	});
 });

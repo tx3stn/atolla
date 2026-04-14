@@ -59,6 +59,7 @@ export function mapJellyfinArtistToArtist(
 
 	return {
 		bio: item.Overview,
+		genres: mapGenreReferences(item),
 		id: item.Id,
 		imageUrl: imageResolvers.itemPrimaryImageUrl?.(item.Id, primaryTag),
 		logoUrl: logoTag ? imageResolvers.itemLogoImageUrl?.(logoItemId, logoTag) : undefined,
@@ -77,11 +78,37 @@ export function mapJellyfinAlbumToAlbum(
 		artistId: primaryArtist?.Id ?? '',
 		artistName: primaryArtist?.Name ?? '',
 		bio: item.Overview,
+		genres: mapGenreReferences(item),
 		id: item.Id,
 		imageUrl: imageResolvers.itemPrimaryImageUrl?.(item.Id, primaryTag),
 		name: item.Name,
 		releaseDate: item.PremiereDate,
 	};
+}
+
+function mapGenreReferences(
+	item: Pick<JellyfinBaseItemDto, 'GenreItems'>,
+): Array<Genre> | undefined {
+	const byId = new Map<string, Genre>();
+
+	for (const genreItem of item.GenreItems ?? []) {
+		const genreId = genreItem?.Id?.trim();
+		const genreName = genreItem?.Name?.trim();
+		if (!genreId || !genreName || byId.has(genreId)) {
+			continue;
+		}
+
+		byId.set(genreId, {
+			id: genreId,
+			name: genreName,
+		});
+	}
+
+	if (byId.size === 0) {
+		return undefined;
+	}
+
+	return [...byId.values()].sort((left, right) => left.name.localeCompare(right.name));
 }
 
 export function mapJellyfinTrackToTrack(

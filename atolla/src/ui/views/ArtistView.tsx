@@ -6,6 +6,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
+import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
@@ -16,10 +17,13 @@ import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { DetailHeader } from '../components/DetailHeader';
+import { GenrePills } from '../components/GenrePills';
+import { mergeGenreCollections } from '../components/GenrePillsData';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { AlbumView } from './AlbumView';
+import { GenreView } from './GenreView';
 import type { LibraryNavContext } from './LibraryView';
 
 export interface ArtistViewModel {
@@ -198,6 +202,34 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		});
 	};
 
+	handleGenreTap = (genre: Genre): void => {
+		const {
+			animationsEnabled,
+			downloadService,
+			imageCache,
+			onNavigationContext,
+			playbackStore,
+			transport,
+		} = this.viewModel;
+		onNavigationContext?.({ genre, kind: 'genre' });
+		this.setHeaderVisibility(false);
+		this.navigationController.push(
+			GenreView,
+			{
+				animationsEnabled,
+				downloadService,
+				genre,
+				imageCache,
+				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+				playbackStore,
+				restoreHeaderOnDestroy: false,
+				transport,
+			},
+			{},
+			{ animated: animationsEnabled },
+		);
+	};
+
 	private syncDownloadState(): void {
 		this.setState({
 			downloadState: this.viewModel.downloadService.getArtistDownloadState(
@@ -325,6 +357,10 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 		const scrollStyle = createScrollStyle(isFooterVisible, isHeaderVisible);
 		const isLoading = !albumsLoaded || !topTracksLoaded;
+		const artistGenres = mergeGenreCollections([
+			artist.genres,
+			...albums.map((album) => album.genres),
+		]);
 
 		<layout accessibilityLabel='artist-view' contentDescription='artist-view' style={styles.root}>
 			<scroll style={scrollStyle}>
@@ -388,6 +424,14 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 								logoUrl={artist.logoUrl}
 								modalSlot={this.modalSlot}
 								title={artist.name}
+							/>
+						)}
+
+						{artistGenres.length > 0 && (
+							<GenrePills
+								accessibilityLabel='artist-genres'
+								genres={artistGenres}
+								onGenreTap={this.handleGenreTap}
 							/>
 						)}
 					</layout>

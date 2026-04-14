@@ -6,6 +6,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
+import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
@@ -15,10 +16,13 @@ import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
+import { GenrePills } from '../components/GenrePills';
+import { normalizeGenres } from '../components/GenrePillsData';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ArtistView } from './ArtistView';
+import { GenreView } from './GenreView';
 import type { LibraryNavContext } from './LibraryView';
 
 export interface AlbumViewModel {
@@ -214,6 +218,29 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		return Promise.resolve();
 	};
 
+	handleGenreTap = (genre: Genre): void => {
+		const { animationsEnabled, downloadService, imageCache, playbackStore, transport } =
+			this.viewModel;
+		const navigationController = this.viewModel.navigationController ?? this.navigationController;
+		this.viewModel.onNavigationContext?.({ genre, kind: 'genre' });
+		this.setHeaderVisibility(false);
+		navigationController.push(
+			GenreView,
+			{
+				animationsEnabled,
+				downloadService,
+				genre,
+				imageCache,
+				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+				playbackStore,
+				restoreHeaderOnDestroy: false,
+				transport,
+			},
+			{},
+			{ animated: animationsEnabled },
+		);
+	};
+
 	private syncDownloadState(): void {
 		this.setState({
 			downloadState: this.viewModel.downloadService.getAlbumDownloadState(this.viewModel.album.id),
@@ -307,6 +334,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			tracks,
 		} = this.state;
 		const { album, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		const albumGenres = normalizeGenres(album.genres);
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			id: track.id,
@@ -361,6 +389,13 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					/>
 				)}
 				{album.bio && <BioSection bio={album.bio} modalSlot={this.modalSlot} title={album.name} />}
+				{albumGenres.length > 0 && (
+					<GenrePills
+						accessibilityLabel='album-genres'
+						genres={albumGenres}
+						onGenreTap={this.handleGenreTap}
+					/>
+				)}
 			</scroll>
 			{contextMenuTrack && (
 				<TrackContextMenu
