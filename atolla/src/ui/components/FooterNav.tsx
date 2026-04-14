@@ -25,21 +25,21 @@ export class FooterNav extends Component<FooterNavViewModel> {
 			/>
 
 			<FooterIcon
-				accessibilityLabel='footer-search'
-				action={createReusableCallback(() => {
-					this.viewModel.onFooterTabTap(FooterTabs.search);
-				})}
-				active={this.viewModel.activeTab === FooterTabs.search}
-				icon={res.search}
-			/>
-
-			<FooterIcon
 				accessibilityLabel='footer-library'
 				action={createReusableCallback(() => {
 					this.viewModel.onFooterTabTap(FooterTabs.library);
 				})}
 				active={this.viewModel.activeTab === FooterTabs.library}
 				icon={res.library}
+			/>
+
+			<FooterIcon
+				accessibilityLabel='footer-search'
+				action={createReusableCallback(() => {
+					this.viewModel.onFooterTabTap(FooterTabs.search);
+				})}
+				active={this.viewModel.activeTab === FooterTabs.search}
+				icon={res.search}
 			/>
 
 			<FooterIcon
