@@ -235,6 +235,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		fetchString(key: string): Promise<string>;
 		storeString(key: string, value: string): Promise<void>;
 	};
+	private homeAlbumsStore?: {
+		fetchString(key: string): Promise<string>;
+		storeString(key: string, value: string): Promise<void>;
+	};
 	private transport: Transport = new MockTransport();
 	private paletteService!: ArtworkPaletteService;
 	private downloadService = new DownloadService({
@@ -566,6 +570,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
 		);
 		this.recentlyPlayedStore = new PersistentStore(`atolla/user/${userId}/recently_played`, {
+			deviceGlobal: true,
+		});
+		this.homeAlbumsStore = new PersistentStore(`atolla/user/${userId}/home`, {
 			deviceGlobal: true,
 		});
 		this.recentlyPlayedTracks = [];
@@ -1879,6 +1886,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							connectionMode={this.state.connectionMode}
 							downloadingCount={this.state.downloadingCount}
 							gridColumns={this.state.gridColumns}
+							homeAlbumsStore={this.homeAlbumsStore}
 							onOpenAlbum={this.handleHomeAlbumTap}
 							onRequestModeChange={this.requestModeChange}
 							playbackStore={this.playbackStore}

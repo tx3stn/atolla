@@ -14,12 +14,18 @@ import { CardDetailList } from '../components/CardDetailList';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ViewHeader } from '../components/ViewHeader';
+import {
+	createHomeAlbumsSignature,
+	parseHomeAlbumsCache,
+	serializeHomeAlbumsCache,
+} from './HomeAlbumsCache';
 
 export interface HomeViewModel {
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
 	downloadingCount: number;
 	gridColumns: number;
+	homeAlbumsStore?: HomeAlbumsPersistence;
 	onOpenAlbum: (album: Album) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	playbackStore: PlaybackStore;
@@ -27,13 +33,21 @@ export interface HomeViewModel {
 	transport: Transport;
 }
 
+export interface HomeAlbumsPersistence {
+	fetchString(key: string): Promise<string>;
+	storeString(key: string, value: string): Promise<void>;
+}
+
 interface HomeState {
 	albums: Array<Album>;
 	isLoadingAlbums: boolean;
 }
 
+const HOME_ALBUMS_CACHE_KEY = 'albums_v1';
+
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private hasBeenDestroyed = false;
+	private lastAlbumsSignature = '';
 	private loadGeneration = 0;
 
 	state: HomeState = {
@@ -64,7 +78,37 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const generation = this.loadGeneration + 1;
 		this.loadGeneration = generation;
 		this.setState({ isLoadingAlbums: true });
+		this.restoreCachedAlbums(generation);
+		this.refreshAlbums(generation);
+	}
 
+	private restoreCachedAlbums(generation: number): void {
+		const store = this.viewModel.homeAlbumsStore;
+		if (!store) {
+			return;
+		}
+
+		store
+			.fetchString(HOME_ALBUMS_CACHE_KEY)
+			.then((raw) => {
+				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
+					return;
+				}
+
+				const cachedAlbums = parseHomeAlbumsCache(raw);
+				if (cachedAlbums == null) {
+					return;
+				}
+
+				this.lastAlbumsSignature = createHomeAlbumsSignature(cachedAlbums);
+				this.setState({ albums: cachedAlbums, isLoadingAlbums: false });
+			})
+			.catch(() => {
+				// No cache available yet.
+			});
+	}
+
+	private refreshAlbums(generation: number): void {
 		this.viewModel.transport
 			.getAllAlbums()
 			.then((albums) => {
@@ -72,15 +116,36 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					return;
 				}
 
-				this.setState({ albums, isLoadingAlbums: false });
+				const nextSignature = createHomeAlbumsSignature(albums);
+				const hasChanged = nextSignature !== this.lastAlbumsSignature;
+				this.lastAlbumsSignature = nextSignature;
+
+				if (hasChanged || this.state.isLoadingAlbums) {
+					this.setState({ albums, isLoadingAlbums: false });
+				}
+
+				this.persistAlbums(albums);
 			})
 			.catch(() => {
 				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
 					return;
 				}
 
-				this.setState({ albums: [], isLoadingAlbums: false });
+				if (this.state.isLoadingAlbums) {
+					this.setState({ isLoadingAlbums: false });
+				}
 			});
+	}
+
+	private persistAlbums(albums: Array<Album>): void {
+		const store = this.viewModel.homeAlbumsStore;
+		if (!store) {
+			return;
+		}
+
+		void store.storeString(HOME_ALBUMS_CACHE_KEY, serializeHomeAlbumsCache(albums)).catch(() => {
+			// Cache persistence is best-effort only.
+		});
 	}
 
 	private createOnThisDayCards(): Array<CardDetailItem> {
