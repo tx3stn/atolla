@@ -5,12 +5,6 @@ import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import { CardDetail } from './CardDetail';
 
-export interface CardDetailColors {
-	mutedOnSurfaceColor?: string;
-	onSurfaceColor?: string;
-	surfaceColor?: string;
-}
-
 export interface CardDetailItem {
 	artworkKey: string;
 	id: string;
@@ -24,12 +18,11 @@ export interface CardDetailListViewModel {
 	accessibilityLabel: string;
 	cards: Array<CardDetailItem>;
 	onCardTap: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
-	resolveCardColors?: (artworkKey: string) => CardDetailColors | null;
 }
 
 export class CardDetailList extends Component<CardDetailListViewModel> {
 	onRender() {
-		const { accessibilityLabel, cards, onCardTap, resolveCardColors } = this.viewModel;
+		const { accessibilityLabel, cards, onCardTap } = this.viewModel;
 
 		<layout
 			accessibilityLabel={accessibilityLabel}
@@ -37,8 +30,6 @@ export class CardDetailList extends Component<CardDetailListViewModel> {
 			style={styles.list}
 		>
 			{cards.map((entry, index) => {
-				const resolvedColors = resolveCardColors ? resolveCardColors(entry.artworkKey) : null;
-
 				return (
 					<view
 						key={entry.id}
@@ -47,12 +38,9 @@ export class CardDetailList extends Component<CardDetailListViewModel> {
 						<CardDetail
 							accessibilityLabel={`card-detail-${entry.id}`}
 							artworkKey={entry.artworkKey}
-							backgroundColor={resolvedColors?.surfaceColor}
 							lineOne={entry.lineOne}
 							lineThree={entry.lineThree}
 							lineTwo={entry.lineTwo}
-							mutedOnSurfaceColor={resolvedColors?.mutedOnSurfaceColor}
-							onSurfaceColor={resolvedColors?.onSurfaceColor}
 							onTap={createReusableCallback(() => {
 								onCardTap({ id: entry.id, kind: entry.kind });
 							})}

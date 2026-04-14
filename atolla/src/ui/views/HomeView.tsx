@@ -5,12 +5,11 @@ import { Style } from 'valdi_core/src/Style';
 import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
-import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
-import type { CardDetailColors, CardDetailItem } from '../components/CardDetailList';
+import type { CardDetailItem } from '../components/CardDetailList';
 import { CardDetailList } from '../components/CardDetailList';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
@@ -23,11 +22,8 @@ export interface HomeViewModel {
 	gridColumns: number;
 	onOpenAlbum: (album: Album) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
-	onWarmOnThisDayPalettes?: (artworkKeys: Array<string>) => void;
-	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	recentlyPlayedTracks: Array<Track>;
-	resolveOnThisDayCardColors?: (artworkKey: string) => CardDetailColors | null;
 	transport: Transport;
 }
 
@@ -77,7 +73,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				}
 
 				this.setState({ albums, isLoadingAlbums: false });
-				this.warmOnThisDayPalettes(albums);
 			})
 			.catch(() => {
 				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
@@ -86,33 +81,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 				this.setState({ albums: [], isLoadingAlbums: false });
 			});
-	}
-
-	private warmOnThisDayPalettes(albums: Array<Album>): void {
-		if (!this.viewModel.paletteQueue && !this.viewModel.onWarmOnThisDayPalettes) {
-			return;
-		}
-
-		const onThisDayCards = createOnThisDayCardDetails(albums, new Date());
-		const artworkKeys = Array.from(
-			new Set(
-				onThisDayCards
-					.map((card) => card.artworkKey)
-					.filter((artworkKey) => typeof artworkKey === 'string' && artworkKey.length > 0),
-			),
-		);
-
-		if (artworkKeys.length === 0) {
-			return;
-		}
-
-		this.viewModel.onWarmOnThisDayPalettes?.(artworkKeys);
-
-		setTimeout(() => {
-			for (const artworkKey of artworkKeys) {
-				this.viewModel.paletteQueue?.enqueue(artworkKey);
-			}
-		}, 0);
 	}
 
 	private createOnThisDayCards(): Array<CardDetailItem> {
@@ -197,7 +165,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 										accessibilityLabel='home-on-this-day-grid'
 										cards={onThisDayCards}
 										onCardTap={this.handleAlbumCardTap}
-										resolveCardColors={this.viewModel.resolveOnThisDayCardColors}
 									/>
 								) : (
 									<label style={styles.emptyState} value='no anniversaries today' />
