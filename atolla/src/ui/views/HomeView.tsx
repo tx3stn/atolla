@@ -5,10 +5,13 @@ import { Style } from 'valdi_core/src/Style';
 import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
+import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
+import type { CardDetailColors, CardDetailItem } from '../components/CardDetailList';
+import { CardDetailList } from '../components/CardDetailList';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ViewHeader } from '../components/ViewHeader';
@@ -20,8 +23,11 @@ export interface HomeViewModel {
 	gridColumns: number;
 	onOpenAlbum: (album: Album) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
+	onWarmOnThisDayPalettes?: (artworkKeys: Array<string>) => void;
+	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	recentlyPlayedTracks: Array<Track>;
+	resolveOnThisDayCardColors?: (artworkKey: string) => CardDetailColors | null;
 	transport: Transport;
 }
 
@@ -71,6 +77,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				}
 
 				this.setState({ albums, isLoadingAlbums: false });
+				this.warmOnThisDayPalettes(albums);
 			})
 			.catch(() => {
 				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
@@ -81,36 +88,35 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			});
 	}
 
-	private createOnThisDayCards(): Array<Card> {
-		const now = new Date();
-		const month = now.getMonth() + 1;
-		const day = now.getDate();
-		const currentYear = now.getFullYear();
+	private warmOnThisDayPalettes(albums: Array<Album>): void {
+		if (!this.viewModel.paletteQueue && !this.viewModel.onWarmOnThisDayPalettes) {
+			return;
+		}
 
-		return this.state.albums
-			.filter((album) => {
-				if (!album.releaseDate) {
-					return false;
-				}
+		const onThisDayCards = createOnThisDayCardDetails(albums, new Date());
+		const artworkKeys = Array.from(
+			new Set(
+				onThisDayCards
+					.map((card) => card.artworkKey)
+					.filter((artworkKey) => typeof artworkKey === 'string' && artworkKey.length > 0),
+			),
+		);
 
-				const parsed = new Date(album.releaseDate);
-				if (Number.isNaN(parsed.getTime())) {
-					return false;
-				}
+		if (artworkKeys.length === 0) {
+			return;
+		}
 
-				const releaseYear = parsed.getFullYear();
-				return (
-					releaseYear < currentYear && parsed.getMonth() + 1 === month && parsed.getDate() === day
-				);
-			})
-			.sort((left, right) => (right.releaseDate ?? '').localeCompare(left.releaseDate ?? ''))
-			.map((album) => ({
-				artworkKey: album.imageUrl ?? '',
-				id: album.id,
-				kind: 'album',
-				primaryText: album.name,
-				secondaryText: album.releaseDate ? album.releaseDate.slice(0, 4) : album.artistName,
-			}));
+		this.viewModel.onWarmOnThisDayPalettes?.(artworkKeys);
+
+		setTimeout(() => {
+			for (const artworkKey of artworkKeys) {
+				this.viewModel.paletteQueue?.enqueue(artworkKey);
+			}
+		}, 0);
+	}
+
+	private createOnThisDayCards(): Array<CardDetailItem> {
+		return createOnThisDayCardDetails(this.state.albums, new Date());
 	}
 
 	private createRecentlyAddedCards(): Array<Card> {
@@ -187,11 +193,11 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							<layout style={styles.section}>
 								<label style={styles.sectionTitle} value='ON THIS DAY' />
 								{onThisDayCards.length > 0 ? (
-									<CardGrid
+									<CardDetailList
 										accessibilityLabel='home-on-this-day-grid'
 										cards={onThisDayCards}
-										columnCount={this.viewModel.gridColumns}
 										onCardTap={this.handleAlbumCardTap}
+										resolveCardColors={this.viewModel.resolveOnThisDayCardColors}
 									/>
 								) : (
 									<label style={styles.emptyState} value='no anniversaries today' />
@@ -274,3 +280,68 @@ const styles = {
 		marginBottom: 8,
 	}),
 };
+
+interface OnThisDayCandidate {
+	album: Album;
+	originalReleaseDate: Date;
+	originalReleaseYear: number;
+}
+
+export function createOnThisDayCardDetails(albums: Array<Album>, now: Date): Array<CardDetailItem> {
+	const month = now.getMonth() + 1;
+	const day = now.getDate();
+	const currentYear = now.getFullYear();
+
+	return albums
+		.map((album): OnThisDayCandidate | null => {
+			if (!album.releaseDate || !album.name.trim() || !album.artistName.trim()) {
+				return null;
+			}
+
+			const originalReleaseDate = new Date(album.releaseDate);
+			if (Number.isNaN(originalReleaseDate.getTime())) {
+				return null;
+			}
+
+			const originalReleaseYear = originalReleaseDate.getFullYear();
+			if (originalReleaseYear >= currentYear) {
+				return null;
+			}
+
+			if (originalReleaseDate.getMonth() + 1 !== month || originalReleaseDate.getDate() !== day) {
+				return null;
+			}
+
+			return {
+				album,
+				originalReleaseDate,
+				originalReleaseYear,
+			};
+		})
+		.filter((candidate): candidate is OnThisDayCandidate => candidate !== null)
+		.sort((left, right) => {
+			if (left.originalReleaseYear !== right.originalReleaseYear) {
+				return left.originalReleaseYear - right.originalReleaseYear;
+			}
+
+			const byName = left.album.name.localeCompare(right.album.name);
+			if (byName !== 0) {
+				return byName;
+			}
+
+			return left.originalReleaseDate.getTime() - right.originalReleaseDate.getTime();
+		})
+		.map(({ album, originalReleaseYear }) => {
+			const yearsAgo = currentYear - originalReleaseYear;
+			const yearsAgoText = yearsAgo === 1 ? '1 YEAR AGO' : `${yearsAgo} YEARS AGO`;
+
+			return {
+				artworkKey: album.imageUrl ?? '',
+				id: album.id,
+				kind: 'album',
+				lineOne: yearsAgoText,
+				lineThree: album.artistName,
+				lineTwo: album.name,
+			};
+		});
+}

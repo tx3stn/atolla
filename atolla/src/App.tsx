@@ -72,6 +72,7 @@ import { type ConnectionMode, ConnectionModes } from './transports/Model';
 import { OfflineTransport } from './transports/Offline';
 import type { Transport } from './transports/Transport';
 import { BootSplash } from './ui/components/BootSplash';
+import type { CardDetailColors } from './ui/components/CardDetailList';
 import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
@@ -229,6 +230,61 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private getEffectiveJellyfinClientDeviceId(): string {
 		return this.jellyfinClientDeviceIdOverride || this.defaultJellyfinClientDeviceId;
 	}
+
+	private resolveOnThisDayCardColors = (artworkKey: string): CardDetailColors | null => {
+		if (!artworkKey || !this.paletteService) {
+			return null;
+		}
+
+		if (!this.paletteService.hasPalette(artworkKey)) {
+			if (!this.onThisDayPaletteWarmupInFlight.has(artworkKey)) {
+				this.onThisDayPaletteWarmupInFlight.add(artworkKey);
+				void this.paletteService
+					.warmUp([artworkKey])
+					.then(() => {
+						if (!this.paletteService.hasPalette(artworkKey)) {
+							this.paletteQueue.enqueue(artworkKey);
+						}
+					})
+					.finally(() => {
+						this.onThisDayPaletteWarmupInFlight.delete(artworkKey);
+					});
+			}
+		}
+
+		const palette = this.paletteService.getPalette(artworkKey);
+
+		return {
+			mutedOnSurfaceColor: palette.muted_on_surface.hex,
+			onSurfaceColor: palette.on_surface.hex,
+			surfaceColor: palette.surface.hex,
+		};
+	};
+
+	private warmOnThisDayPalettes = (artworkKeys: Array<string>): void => {
+		if (!this.paletteService || artworkKeys.length === 0) {
+			return;
+		}
+
+		const uniqueArtworkKeys = Array.from(
+			new Set(
+				artworkKeys.filter((artworkKey) => typeof artworkKey === 'string' && artworkKey.length > 0),
+			),
+		);
+
+		if (uniqueArtworkKeys.length === 0) {
+			return;
+		}
+
+		void this.paletteService.warmUp(uniqueArtworkKeys).then(() => {
+			for (const artworkKey of uniqueArtworkKeys) {
+				if (!this.paletteService.hasPalette(artworkKey)) {
+					this.paletteQueue.enqueue(artworkKey);
+				}
+			}
+		});
+	};
+
 	private searchStore!: SearchStore;
 	private recentlyPlayedStore?: {
 		fetchString(key: string): Promise<string>;
@@ -267,6 +323,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastArtworkUrl: string | null = null;
 	private homeNavigationController?: NavigationController;
 	private libraryNavigationController?: NavigationController;
+	private onThisDayPaletteWarmupInFlight = new Set<string>();
 	private pendingArtistId: string | null = null;
 	private pendingArtistFallbackName: string = 'Unknown Artist';
 	private pendingArtistFallbackLogoUrl: string | null = null;
@@ -1880,8 +1937,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							gridColumns={this.state.gridColumns}
 							onOpenAlbum={this.handleHomeAlbumTap}
 							onRequestModeChange={this.requestModeChange}
+							onWarmOnThisDayPalettes={this.warmOnThisDayPalettes}
+							paletteQueue={this.paletteQueue}
 							playbackStore={this.playbackStore}
 							recentlyPlayedTracks={this.recentlyPlayedTracks}
+							resolveOnThisDayCardColors={this.resolveOnThisDayCardColors}
 							transport={this.transport}
 						/>;
 					})}
