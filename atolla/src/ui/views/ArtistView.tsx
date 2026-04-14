@@ -23,6 +23,7 @@ import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { AlbumView } from './AlbumView';
+import { resolveGenreForNavigation } from './GenreNavigationResolver';
 import { GenreView } from './GenreView';
 import type { LibraryNavContext } from './LibraryView';
 
@@ -203,6 +204,10 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	};
 
 	handleGenreTap = (genre: Genre): void => {
+		void this.navigateToGenre(genre);
+	};
+
+	private async navigateToGenre(genre: Genre): Promise<void> {
 		const {
 			animationsEnabled,
 			downloadService,
@@ -211,14 +216,20 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			playbackStore,
 			transport,
 		} = this.viewModel;
-		onNavigationContext?.({ genre, kind: 'genre' });
+		const resolvedGenre = await resolveGenreForNavigation(transport, genre);
+
+		if (this.hasBeenDestroyed) {
+			return;
+		}
+
+		onNavigationContext?.({ genre: resolvedGenre, kind: 'genre' });
 		this.setHeaderVisibility(false);
 		this.navigationController.push(
 			GenreView,
 			{
 				animationsEnabled,
 				downloadService,
-				genre,
+				genre: resolvedGenre,
 				imageCache,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				playbackStore,
@@ -228,7 +239,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			{},
 			{ animated: animationsEnabled },
 		);
-	};
+	}
 
 	private syncDownloadState(): void {
 		this.setState({
