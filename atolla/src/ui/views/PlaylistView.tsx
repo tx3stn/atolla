@@ -17,6 +17,7 @@ import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ArtistView } from './ArtistView';
+import { resolveGenreForNavigation } from './GenreNavigationResolver';
 import type { LibraryNavContext } from './LibraryView';
 
 const TRACK_PAGE_SIZE = 50;
@@ -155,6 +156,17 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				(t): t is { artistLogoUrl: string | null; streamUrl: string; track: Track } => t !== null,
 			);
 
+			const genreById = new Map<string, { id: string; imageUrl?: string; name: string }>();
+			for (const { track } of tracks) {
+				for (const genre of track.genres ?? []) {
+					if (!genreById.has(genre.id)) {
+						genreById.set(genre.id, genre);
+					}
+				}
+			}
+
+			const uniqueGenres = Array.from(genreById.values());
+
 			const uniqueArtistIds = Array.from(
 				new Set(
 					tracks
@@ -163,13 +175,38 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				),
 			);
 
-			Promise.all(
-				uniqueArtistIds.map((artistId) => transport.getArtist(artistId).catch(() => null)),
-			).then((artists) => {
+			Promise.all([
+				...uniqueArtistIds.map((artistId) => transport.getArtist(artistId).catch(() => null)),
+				...uniqueGenres.map((genre) =>
+					resolveGenreForNavigation(transport, genre).catch(() => genre),
+				),
+			]).then((resolvedValues) => {
+				const artists = resolvedValues.slice(0, uniqueArtistIds.length);
+				const resolvedGenres = resolvedValues.slice(uniqueArtistIds.length);
+				const resolvedGenreById = new Map<
+					string,
+					{ id: string; imageUrl?: string; name: string }
+				>();
+				for (const genre of resolvedGenres) {
+					if (genre && typeof genre.id === 'string' && typeof genre.name === 'string') {
+						resolvedGenreById.set(genre.id, genre);
+					}
+				}
+
+				const tracksWithResolvedGenres = tracks.map((trackEntry) => ({
+					...trackEntry,
+					track: {
+						...trackEntry.track,
+						genres: (trackEntry.track.genres ?? []).map(
+							(genre) => resolvedGenreById.get(genre.id) ?? genre,
+						),
+					},
+				}));
+
 				downloadService.downloadPlaylist({
 					artists: artists.filter((artist): artist is NonNullable<typeof artist> => artist != null),
 					playlist,
-					tracks,
+					tracks: tracksWithResolvedGenres,
 				});
 			});
 		});

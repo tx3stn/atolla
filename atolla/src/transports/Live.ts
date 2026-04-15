@@ -409,7 +409,7 @@ export class LiveTransport implements Transport {
 		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
 			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
 			{
-				fields: 'Overview',
+				fields: 'Overview,Genres',
 				limit: 500,
 				startIndex: 0,
 				userId: this.userId,
@@ -428,7 +428,7 @@ export class LiveTransport implements Transport {
 		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
 			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
 			{
-				fields: 'Overview',
+				fields: 'Overview,Genres',
 				limit: Math.max(1, pageSize),
 				startIndex,
 				userId: this.userId,

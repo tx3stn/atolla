@@ -94,6 +94,26 @@ describe('mapJellyfinTrackToTrack', () => {
 		expect(track.releaseDate).toBe('2020-04-20T00:00:00.0000000Z');
 		expect(track.productionYear).toBe(2020);
 	});
+
+	it('maps track genres from genre references', () => {
+		const item: JellyfinTrackItem = {
+			GenreItems: [
+				{ Id: 'genre-2', Name: 'Noise Rock' },
+				{ Id: 'genre-1', Name: 'Post-Hardcore' },
+			],
+			Id: 'track-1',
+			Name: 'The Track',
+			RunTimeTicks: 180_000_0000,
+			Type: 'Audio',
+		};
+
+		const track = mapJellyfinTrackToTrack(item);
+
+		expect(track.genres).toEqual([
+			{ id: 'genre-2', name: 'Noise Rock' },
+			{ id: 'genre-1', name: 'Post-Hardcore' },
+		]);
+	});
 });
 
 describe('mapJellyfinArtistToArtist', () => {
@@ -360,6 +380,32 @@ describe('LiveTransport core collections', () => {
 		expect(page.hasMore).toBe(true);
 		expect(page.items).toHaveLength(1);
 		expect(page.items[0].id).toBe('track-1');
+	});
+
+	it('fetches playlist tracks page with genre fields', async () => {
+		const track: JellyfinTrackItem = {
+			GenreItems: [{ Id: 'genre-1', Name: 'Noise Rock' }],
+			Id: 'track-1',
+			Name: 'Track One',
+			RunTimeTicks: 120_000_000,
+			Type: 'Audio',
+		};
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([track], 3, 1)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const page = await transport.getTracksByPlaylistPage('playlist-1', 2, 1);
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0].pathOrUrl).toContain('/Playlists/playlist-1/Items');
+		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBe('Overview,Genres');
+		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('1');
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('1');
+		expect(page.totalCount).toBe(3);
+		expect(page.items[0].genres).toEqual([{ id: 'genre-1', name: 'Noise Rock' }]);
 	});
 
 	it('fetches artist top tracks sorted by play count', async () => {

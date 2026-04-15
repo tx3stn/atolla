@@ -1,3 +1,5 @@
+import type { Genre } from './Genre';
+
 export interface Track {
 	albumId?: string;
 	albumImageUrl?: string;
@@ -5,6 +7,7 @@ export interface Track {
 	artistId?: string;
 	artistName?: string;
 	duration: number; // seconds
+	genres?: Array<Genre>;
 	id: string;
 	name: string;
 	productionYear?: number;

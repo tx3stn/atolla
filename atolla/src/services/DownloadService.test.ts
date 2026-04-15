@@ -203,6 +203,33 @@ describe('DownloadService', () => {
 				{ category: 'artist_logo', urls: ['https://img/logo-artist.jpg'] },
 			]);
 		});
+
+		it('indexes album genres for offline genre pages', async () => {
+			const { service } = createService();
+			const genreA = makeGenre('genre-1');
+			const genreB = makeGenre('genre-2');
+			const album = {
+				...makeAlbum('album-1'),
+				genres: [genreA, genreB],
+			};
+
+			service.downloadAlbum({
+				album,
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://stream/track-1', track: makeTrack('track-1') }],
+			});
+
+			await flush();
+			const downloadedGenreTrackIds = service.getAllGenres().flatMap((entry) => entry.trackIds);
+
+			expect(
+				service
+					.getAllGenres()
+					.map((entry) => entry.genre.id)
+					.sort(),
+			).toEqual(['genre-1', 'genre-2']);
+			expect(downloadedGenreTrackIds).toContain('track-1');
+		});
 	});
 
 	describe('downloadPlaylist', () => {
@@ -223,6 +250,29 @@ describe('DownloadService', () => {
 			await flush();
 
 			expect(service.getPlaylistDownloadState('playlist-1')).toBe('downloaded');
+		});
+
+		it('indexes playlist track genres and preloads genre images', async () => {
+			const { preloadCalls, service } = createService();
+			const playlist = makePlaylist('playlist-1');
+			const track = {
+				...makeTrack('track-1'),
+				genres: [{ id: 'genre-1', imageUrl: 'https://img/genre-1.jpg', name: 'Noise Rock' }],
+			};
+
+			service.downloadPlaylist({
+				playlist,
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track }],
+			});
+
+			await flush();
+
+			expect(service.getAllGenres().map((entry) => entry.genre.id)).toEqual(['genre-1']);
+			expect(service.getAllGenres()[0].trackIds).toEqual(['track-1']);
+			expect(preloadCalls).toContainEqual({
+				category: 'album_art',
+				urls: ['https://img/genre-1.jpg'],
+			});
 		});
 	});
 
@@ -322,7 +372,10 @@ describe('DownloadService', () => {
 
 		it('removes a track when its last reference is removed', async () => {
 			const { removeCalls, service } = createService();
-			const album = makeAlbum('album-1');
+			const album = {
+				...makeAlbum('album-1'),
+				genres: [makeGenre('genre-1')],
+			};
 			const track = makeTrack('track-1');
 
 			service.downloadAlbum({
@@ -338,6 +391,7 @@ describe('DownloadService', () => {
 
 			expect(service.isTrackDownloaded('track-1')).toBe(false);
 			expect(service.getAlbumDownloadState('album-1')).toBe('not_downloaded');
+			expect(service.getAllGenres()).toEqual([]);
 			expect(removeCalls).toEqual(['track-1']);
 		});
 

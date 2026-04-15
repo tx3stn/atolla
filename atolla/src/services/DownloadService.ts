@@ -264,6 +264,7 @@ export class DownloadService {
 				albumArtUrls: [album.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
 				artistImageUrls: [artistImageUrl],
 				artistLogoUrls: [artistLogoUrl],
+				genreArtUrls: album.genres?.map((genre) => genre.imageUrl) ?? [],
 			});
 
 			this.upsertArtistEntry({
@@ -282,7 +283,7 @@ export class DownloadService {
 				trackIds: tracks.map((t) => t.track.id),
 			};
 			for (const { track, streamUrl } of tracks) {
-				this.addTrackRef(track, streamUrl, album.id, null, null);
+				this.addTrackRef(track, streamUrl, album.id, null, null, album.genres, artistLogoUrl);
 			}
 			await this.persistAll();
 
@@ -306,6 +307,9 @@ export class DownloadService {
 				albumArtUrls: [playlist.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
 				artistImageUrls: artists.map((artist) => artist.imageUrl),
 				artistLogoUrls: tracks.map(({ artistLogoUrl }) => artistLogoUrl),
+				genreArtUrls: tracks.flatMap(({ track }) =>
+					(track.genres ?? []).map((genre) => genre.imageUrl),
+				),
 			});
 
 			for (const artist of artists) {
@@ -324,8 +328,8 @@ export class DownloadService {
 				trackArtistLogoUrls,
 				trackIds: tracks.map((t) => t.track.id),
 			};
-			for (const { track, streamUrl } of tracks) {
-				this.addTrackRef(track, streamUrl, null, null, playlist.id);
+			for (const { artistLogoUrl, streamUrl, track } of tracks) {
+				this.addTrackRef(track, streamUrl, null, null, playlist.id, track.genres, artistLogoUrl);
 			}
 			await this.persistAll();
 
@@ -349,6 +353,10 @@ export class DownloadService {
 				albumArtUrls: [genre.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
 				artistImageUrls: artists.map((artist) => artist.imageUrl),
 				artistLogoUrls: tracks.map(({ artistLogoUrl }) => artistLogoUrl),
+				genreArtUrls: [
+					genre.imageUrl,
+					...tracks.flatMap(({ track }) => (track.genres ?? []).map((g) => g.imageUrl)),
+				],
 			});
 
 			for (const artist of artists) {
@@ -368,8 +376,16 @@ export class DownloadService {
 				trackArtistLogoUrls,
 				trackIds: tracks.map((t) => t.track.id),
 			};
-			for (const { track, streamUrl } of tracks) {
-				this.addTrackRef(track, streamUrl, null, genre.id, null);
+			for (const { artistLogoUrl, streamUrl, track } of tracks) {
+				this.addTrackRef(
+					track,
+					streamUrl,
+					null,
+					genre.id,
+					null,
+					[...(track.genres ?? []), genre],
+					artistLogoUrl,
+				);
 			}
 			await this.persistAll();
 
@@ -399,6 +415,10 @@ export class DownloadService {
 				]),
 				artistImageUrls: [artist.imageUrl],
 				artistLogoUrls: [artistLogoUrl],
+				genreArtUrls: albumEntries.flatMap(({ album, tracks }) => [
+					...(album.genres ?? []).map((genre) => genre.imageUrl),
+					...tracks.flatMap(({ track }) => (track.genres ?? []).map((genre) => genre.imageUrl)),
+				]),
 			});
 
 			this.upsertArtistEntry({
@@ -412,7 +432,7 @@ export class DownloadService {
 					trackIds: tracks.map((t) => t.track.id),
 				};
 				for (const { track, streamUrl } of tracks) {
-					this.addTrackRef(track, streamUrl, album.id, null, null);
+					this.addTrackRef(track, streamUrl, album.id, null, null, album.genres, artistLogoUrl);
 				}
 			}
 			await this.persistAll();
@@ -529,14 +549,33 @@ export class DownloadService {
 		albumId: string | null,
 		genreId: string | null,
 		playlistId: string | null,
+		genreRefs?: Array<Genre>,
+		artistLogoUrl?: string | null,
 	): void {
+		const normalizedGenres: Array<Genre> = this.normalizeGenres([
+			...(genreRefs ?? []),
+			...(track.genres ?? []),
+		]);
+		if (genreId) {
+			const existingGenre = this.genres[genreId]?.genre;
+			normalizedGenres.push(
+				existingGenre ?? {
+					id: genreId,
+					name: this.genres[genreId]?.genre.name ?? genreId,
+				},
+			);
+		}
+
+		const explicitGenreIds: Array<string> = genreId ? [genreId] : [];
 		const existing = this.tracks[track.id];
 		if (existing) {
 			if (albumId && !existing.albumIds.includes(albumId)) {
 				existing.albumIds.push(albumId);
 			}
-			if (genreId && !existing.genreIds.includes(genreId)) {
-				existing.genreIds.push(genreId);
+			for (const explicitGenreId of explicitGenreIds) {
+				if (!existing.genreIds.includes(explicitGenreId)) {
+					existing.genreIds.push(explicitGenreId);
+				}
 			}
 			if (playlistId && !existing.playlistIds.includes(playlistId)) {
 				existing.playlistIds.push(playlistId);
@@ -545,11 +584,15 @@ export class DownloadService {
 			this.tracks[track.id] = {
 				albumIds: albumId ? [albumId] : [],
 				complete: false,
-				genreIds: genreId ? [genreId] : [],
+				genreIds: explicitGenreIds,
 				playlistIds: playlistId ? [playlistId] : [],
 				streamUrl,
 				track,
 			};
+		}
+
+		for (const genre of normalizedGenres) {
+			this.upsertGenreTrackReference(genre, track.id, artistLogoUrl ?? null);
 		}
 	}
 
@@ -561,7 +604,6 @@ export class DownloadService {
 	): Promise<void> {
 		const entry = this.tracks[trackId];
 		if (!entry) return;
-
 		if (albumId) {
 			entry.albumIds = entry.albumIds.filter((id) => id !== albumId);
 		}
@@ -577,9 +619,91 @@ export class DownloadService {
 			entry.genreIds.length === 0 &&
 			entry.playlistIds.length === 0
 		) {
+			this.removeTrackFromAllGenres(trackId);
 			delete this.tracks[trackId];
 			this.queue = this.queue.filter((q) => q.trackId !== trackId);
 			await this.removeTrackFn(trackId);
+		}
+	}
+
+	private normalizeGenres(genres: Array<Genre>): Array<Genre> {
+		const byId = new Map<string, Genre>();
+
+		for (const genre of genres) {
+			const genreId = genre?.id?.trim();
+			const genreName = genre?.name?.trim();
+			if (!genreId || !genreName) {
+				continue;
+			}
+
+			const existing = byId.get(genreId);
+			if (!existing) {
+				byId.set(genreId, {
+					id: genreId,
+					imageUrl: genre.imageUrl,
+					name: genreName,
+					trackCount: genre.trackCount,
+				});
+				continue;
+			}
+
+			byId.set(genreId, {
+				...existing,
+				imageUrl: existing.imageUrl ?? genre.imageUrl,
+				name: existing.name || genreName,
+				trackCount: existing.trackCount ?? genre.trackCount,
+			});
+		}
+
+		return [...byId.values()];
+	}
+
+	private upsertGenreTrackReference(
+		genre: Genre,
+		trackId: string,
+		artistLogoUrl: string | null,
+	): void {
+		const existing = this.genres[genre.id];
+		if (!existing) {
+			this.genres[genre.id] = {
+				genre: { ...genre },
+				trackArtistLogoUrls: { [trackId]: artistLogoUrl },
+				trackIds: [trackId],
+			};
+			return;
+		}
+
+		existing.genre = {
+			...existing.genre,
+			imageUrl: existing.genre.imageUrl ?? genre.imageUrl,
+			name: existing.genre.name || genre.name,
+			trackCount: existing.genre.trackCount ?? genre.trackCount,
+		};
+
+		if (!existing.trackIds.includes(trackId)) {
+			existing.trackIds.push(trackId);
+		}
+
+		const existingLogo = existing.trackArtistLogoUrls[trackId];
+		if (existingLogo == null && artistLogoUrl != null) {
+			existing.trackArtistLogoUrls[trackId] = artistLogoUrl;
+		} else if (!(trackId in existing.trackArtistLogoUrls)) {
+			existing.trackArtistLogoUrls[trackId] = artistLogoUrl;
+		}
+	}
+
+	private removeTrackFromAllGenres(trackId: string): void {
+		for (const [genreId, genreEntry] of Object.entries(this.genres)) {
+			if (!genreEntry.trackIds.includes(trackId)) {
+				continue;
+			}
+
+			genreEntry.trackIds = genreEntry.trackIds.filter((id) => id !== trackId);
+			delete genreEntry.trackArtistLogoUrls[trackId];
+
+			if (genreEntry.trackIds.length === 0) {
+				delete this.genres[genreId];
+			}
 		}
 	}
 
@@ -593,12 +717,13 @@ export class DownloadService {
 		albumArtUrls: Array<string | null | undefined>;
 		artistImageUrls: Array<string | null | undefined>;
 		artistLogoUrls: Array<string | null | undefined>;
+		genreArtUrls: Array<string | null | undefined>;
 	}): void {
 		if (!this.preloadImagesFn) {
 			return;
 		}
 
-		this.preloadCategory(params.albumArtUrls, 'album_art');
+		this.preloadCategory([...params.albumArtUrls, ...params.genreArtUrls], 'album_art');
 		this.preloadCategory(params.artistImageUrls, 'artist_image');
 		this.preloadCategory(params.artistLogoUrls, 'artist_logo');
 	}

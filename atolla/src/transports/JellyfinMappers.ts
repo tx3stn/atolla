@@ -127,6 +127,7 @@ export function mapJellyfinTrackToTrack(
 		artistId: primaryArtist?.Id || undefined,
 		artistName: primaryArtist?.Name,
 		duration: runTimeTicksToSeconds(item.RunTimeTicks),
+		genres: mapGenreReferences(item),
 		id: item.Id,
 		name: item.Name,
 		productionYear: item.ProductionYear,
