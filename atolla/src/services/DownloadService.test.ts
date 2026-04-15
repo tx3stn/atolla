@@ -382,6 +382,36 @@ describe('DownloadService', () => {
 			expect(service.getAlbumDownloadState('album-1')).toBe('not_downloaded');
 			expect(service.isTrackDownloaded('track-1')).toBe(false);
 		});
+
+		it('removes all downloaded entities and tracks when clearing all downloads', async () => {
+			const { removeCalls, service } = createService();
+			const album = makeAlbum('album-1');
+			const playlist = makePlaylist('playlist-1');
+			const trackA = makeTrack('track-1');
+			const trackB = makeTrack('track-2');
+
+			service.downloadAlbum({
+				album,
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: trackA }],
+			});
+			service.downloadPlaylist({
+				playlist,
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-2', track: trackB }],
+			});
+
+			await flush();
+
+			service.removeAllDownloads();
+			await flush();
+
+			expect(service.getDownloadedTrackCount()).toBe(0);
+			expect(service.getAlbumDownloadState('album-1')).toBe('not_downloaded');
+			expect(service.getPlaylistDownloadState('playlist-1')).toBe('not_downloaded');
+			expect(service.isTrackDownloaded('track-1')).toBe(false);
+			expect(service.isTrackDownloaded('track-2')).toBe(false);
+			expect(removeCalls.sort()).toEqual(['track-1', 'track-2']);
+		});
 	});
 
 	describe('onAppReady', () => {

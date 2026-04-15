@@ -1173,6 +1173,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({ version: this.state.version + 1 });
 	};
 
+	handleClearDownloads = (): void => {
+		this.downloadService.removeAllDownloads();
+	};
+
 	handleCacheSizeChange = (bytes: number): void => {
 		this.preferences.setImageCacheMaxBytes(bytes);
 		try {
@@ -1998,6 +2002,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onAnimationsChange={this.handleAnimationsChange}
 					onCacheSizeChange={this.handleCacheSizeChange}
 					onClearCache={this.handleClearCache}
+					onClearDownloads={this.handleClearDownloads}
 					onGridColumnsChange={this.handleGridColumnsChange}
 					onJellyfinDeviceIdOverrideChange={this.handleJellyfinClientDeviceIdOverrideChange}
 					onLogout={this.handleLogout}

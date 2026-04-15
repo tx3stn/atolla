@@ -278,6 +278,80 @@ describe('SettingsView', () => {
 		expect(called).toBe(false);
 	});
 
+	valdiIt('tapping delete all downloads button shows the confirm modal', () => {
+		const instrumented = createComponent(SettingsView, {
+			preferences: mockPreferences(),
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-delete-all-btn')
+			?.getAttribute('onTap')?.();
+
+		const updatedViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		const modal = updatedViews.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-clear-modal',
+		);
+
+		expect(modal).toBeTruthy();
+	});
+
+	valdiIt('calls onClearDownloads when downloads clear modal is confirmed', () => {
+		let called = false;
+		const instrumented = createComponent(SettingsView, {
+			onClearDownloads: () => {
+				called = true;
+			},
+			preferences: mockPreferences(),
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-delete-all-btn')
+			?.getAttribute('onTap')?.();
+
+		const modalViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		modalViews
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-clear-confirm-btn')
+			?.getAttribute('onTap')?.();
+
+		expect(called).toBe(true);
+	});
+
+	valdiIt('does not call onClearDownloads when downloads clear modal is cancelled', () => {
+		let called = false;
+		const instrumented = createComponent(SettingsView, {
+			onClearDownloads: () => {
+				called = true;
+			},
+			preferences: mockPreferences(),
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-delete-all-btn')
+			?.getAttribute('onTap')?.();
+
+		const modalViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		modalViews
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-clear-cancel-btn')
+			?.getAttribute('onTap')?.();
+
+		expect(called).toBe(false);
+	});
+
 	valdiIt('calls onJellyfinDeviceIdOverrideChange when auth device id input changes', () => {
 		const received: Array<string> = [];
 		const instrumented = createComponent(SettingsView, {

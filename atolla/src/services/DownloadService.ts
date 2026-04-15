@@ -490,6 +490,24 @@ export class DownloadService {
 		});
 	}
 
+	removeAllDownloads(): void {
+		this.ensureLoaded().then(async () => {
+			for (const trackId of Object.keys(this.tracks)) {
+				this.removeTrackFn(trackId);
+			}
+
+			this.albums = {};
+			this.genres = {};
+			this.playlists = {};
+			this.artists = {};
+			this.tracks = {};
+			this.queue = [];
+
+			await this.persistAll();
+			this.notify();
+		});
+	}
+
 	// -------------------------------------------------------------------------
 	// Internal helpers
 	// -------------------------------------------------------------------------

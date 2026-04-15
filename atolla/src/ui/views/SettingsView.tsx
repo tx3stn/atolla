@@ -16,6 +16,7 @@ import { scrollPaddingBottom, theme } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
+import { Modal } from '../components/Modal';
 import { Toast } from '../components/Toast';
 import { Toggle } from '../components/Toggle';
 import { ViewHeader } from '../components/ViewHeader';
@@ -82,6 +83,7 @@ export interface SettingsViewModel {
 	onAnimationsChange?: (enabled: boolean) => void;
 	onCacheSizeChange?: (bytes: number) => void;
 	onClearCache?: (selection: ClearCacheSelection) => void;
+	onClearDownloads?: () => void;
 	onGridColumnsChange?: (count: number) => void;
 	onJellyfinDeviceIdOverrideChange?: (value: string) => void;
 	onLogout?: () => void;
@@ -95,6 +97,7 @@ export interface SettingsViewModel {
 interface SettingsState {
 	showCacheClearModal: boolean;
 	showCacheToast: boolean;
+	showClearDownloadsModal: boolean;
 	showGridColumnsOptions: boolean;
 	showImageCacheOptions: boolean;
 	showTrackCacheLimitOptions: boolean;
@@ -104,6 +107,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 	state: SettingsState = {
 		showCacheClearModal: false,
 		showCacheToast: false,
+		showClearDownloadsModal: false,
 		showGridColumnsOptions: false,
 		showImageCacheOptions: false,
 		showTrackCacheLimitOptions: false,
@@ -134,6 +138,19 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 	private handleCacheClearCancel = () => {
 		this.setState({ showCacheClearModal: false });
+	};
+
+	private handleClearDownloadsPress = () => {
+		this.setState({ showClearDownloadsModal: true });
+	};
+
+	private handleClearDownloadsConfirm = () => {
+		this.viewModel.onClearDownloads?.();
+		this.setState({ showClearDownloadsModal: false });
+	};
+
+	private handleClearDownloadsCancel = () => {
+		this.setState({ showClearDownloadsModal: false });
 	};
 
 	private handleTrackCacheLimitToggle = () => {
@@ -234,6 +251,31 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						)}
 					</view>
 
+					<label style={styles.sectionTitle} value='AUTH' />
+					<view style={styles.section}>
+						<view style={styles.settingRow}>
+							<label style={styles.settingLabel} value='device id' />
+							<view style={styles.authDeviceIdInlineInputContainer}>
+								<textfield
+									accessibilityLabel='settings-jellyfin-device-id-input'
+									autocapitalization='none'
+									contentDescription='settings-jellyfin-device-id-input'
+									onChange={(value: unknown) => {
+										onJellyfinDeviceIdOverrideChange?.(normalizeInputValue(value));
+									}}
+									placeholder={defaultJellyfinDeviceId ?? 'atolla'}
+									style={styles.authDeviceIdInput}
+									value={jellyfinDeviceIdOverride ?? ''}
+								/>
+							</view>
+						</view>
+						<Button
+							accessibilityLabel='settings-logout'
+							label='logout'
+							onTap={createReusableCallback(() => this.viewModel.onLogout?.())}
+						/>
+					</view>
+
 					<label style={styles.sectionTitle} value='CACHE' />
 					<view style={styles.section}>
 						<view style={styles.trackCacheLimitContainer}>
@@ -330,30 +372,11 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							style={styles.trackCacheCountLabel}
 							value={`${downloadedTrackCount ?? 0} tracks downloaded      [ ${formatBytes(downloadedSizeBytes)} ]`}
 						/>
-					</view>
-
-					<label style={styles.sectionTitle} value='AUTH' />
-					<view style={styles.section}>
-						<view style={styles.settingRow}>
-							<label style={styles.settingLabel} value='device id' />
-							<view style={styles.authDeviceIdInlineInputContainer}>
-								<textfield
-									accessibilityLabel='settings-jellyfin-device-id-input'
-									autocapitalization='none'
-									contentDescription='settings-jellyfin-device-id-input'
-									onChange={(value: unknown) => {
-										onJellyfinDeviceIdOverrideChange?.(normalizeInputValue(value));
-									}}
-									placeholder={defaultJellyfinDeviceId ?? 'atolla'}
-									style={styles.authDeviceIdInput}
-									value={jellyfinDeviceIdOverride ?? ''}
-								/>
-							</view>
-						</view>
 						<Button
-							accessibilityLabel='settings-logout'
-							label='logout'
-							onTap={createReusableCallback(() => this.viewModel.onLogout?.())}
+							accessibilityLabel='settings-downloads-delete-all'
+							label='delete all downloads'
+							onTap={this.handleClearDownloadsPress}
+							style={styles.button}
 						/>
 					</view>
 
@@ -361,6 +384,18 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						<CacheClearModal
 							onCancel={this.handleCacheClearCancel}
 							onConfirm={this.handleCacheClearConfirm}
+						/>
+					)}
+
+					{this.state.showClearDownloadsModal && (
+						<Modal
+							body={'remove all downloaded tracks from your device?'}
+							cancelAccessibilityLabel='settings-downloads-clear-cancel-btn'
+							confirmAccessibilityLabel='settings-downloads-clear-confirm-btn'
+							modalAccessibilityLabel='settings-downloads-clear-modal'
+							onClose={this.handleClearDownloadsCancel}
+							onConfirm={this.handleClearDownloadsConfirm}
+							title='delete all downloads'
 						/>
 					)}
 

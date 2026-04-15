@@ -49,7 +49,7 @@ export class Modal extends Component<ModalViewModel> {
 						url={logoUrl}
 					/>
 				)}
-				{!logoUrl && <label style={styles.title} value={title} />}
+				{!logoUrl && <label style={styles.title} value={title.toUpperCase()} />}
 				<view style={styles.divider} />
 				<scroll style={styles.scroll}>
 					<label numberOfLines={0} style={styles.body} value={body} />
