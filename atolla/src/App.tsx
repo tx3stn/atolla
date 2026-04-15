@@ -109,6 +109,7 @@ interface AppState {
 	isAuthenticating: boolean;
 	isAuthRequired: boolean;
 	isBootstrapped: boolean;
+	isHomeHeaderVisible: boolean;
 	isLibraryHeaderVisible: boolean;
 	jellyfinClientDeviceIdOverride: string;
 	libraryResetNonce: number;
@@ -326,6 +327,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		isAuthenticating: false,
 		isAuthRequired: false,
 		isBootstrapped: false,
+		isHomeHeaderVisible: false,
 		isLibraryHeaderVisible: true,
 		jellyfinClientDeviceIdOverride: '',
 		libraryResetNonce: 0,
@@ -1086,6 +1088,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.returnToSearchOnDetailClose = false;
 		this.setState({
 			activeFooterTab: tab,
+			isHomeHeaderVisible: false,
 			isLibraryHeaderVisible: tab === FooterTabs.library ? true : this.state.isLibraryHeaderVisible,
 			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
 			searchFocusSignal:
@@ -1119,6 +1122,23 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 
 		this.setState({ isLibraryHeaderVisible: isVisible });
+	};
+
+	handleHomeHeaderVisibilityChange = (isVisible: boolean): void => {
+		if (this.state.isHomeHeaderVisible === isVisible) {
+			return;
+		}
+
+		this.setState({ isHomeHeaderVisible: isVisible });
+	};
+
+	handleHomeHeaderTabTap = (tab: HeaderTab): void => {
+		this.setState({
+			activeFooterTab: FooterTabs.library,
+			activeLibraryTab: tab,
+			isHomeHeaderVisible: false,
+			isLibraryHeaderVisible: true,
+		});
 	};
 
 	handleClearCache = (selection: ClearCacheSelection): void => {
@@ -1744,8 +1764,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				animationsEnabled: this.state.animationsEnabled,
 				downloadService: this.downloadService,
 				gridColumns: this.state.gridColumns,
+				imageCache: this.imageCache,
+				onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
+				onNavigationContext: (ctx) => {
+					if (!ctx) this.setState({ isHomeHeaderVisible: false });
+				},
 				paletteQueue: this.paletteQueue,
 				playbackStore: this.playbackStore,
+				restoreHeaderOnDestroy: false,
 				transport: this.transport,
 			},
 			{},
@@ -1895,6 +1921,17 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						/>;
 					})}
 				</NavigationRoot>
+			)}
+
+			{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeHeaderVisible && (
+				<LibraryHeaderNav
+					activeTab={HeaderTabs.albums}
+					animationsEnabled={this.state.animationsEnabled}
+					connectionMode={this.state.connectionMode}
+					downloadingCount={this.state.downloadingCount}
+					onRequestModeChange={this.requestModeChange}
+					onTabTap={this.handleHomeHeaderTabTap}
+				/>
 			)}
 
 			{this.state.activeFooterTab === FooterTabs.library && this.state.isLibraryHeaderVisible && (

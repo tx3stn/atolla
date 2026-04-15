@@ -26,6 +26,7 @@ export class ConnectivityFab extends StatefulComponent<
 	ConnectivityFabState
 > {
 	private transitionTimerId?: ReturnType<typeof setTimeout>;
+	private destroyed = false;
 
 	state: ConnectivityFabState = {
 		displayMode: ConnectionModes.online,
@@ -54,6 +55,7 @@ export class ConnectivityFab extends StatefulComponent<
 	}
 
 	onDestroy(): void {
+		this.destroyed = true;
 		if (this.transitionTimerId) {
 			clearTimeout(this.transitionTimerId);
 		}
@@ -81,10 +83,13 @@ export class ConnectivityFab extends StatefulComponent<
 		const target = this.resolveMode(targetMode);
 
 		if (target === ConnectionModes.online) {
+			if (this.destroyed) return;
 			this.setState({ displayMode: target, transientMark: 'wifi' });
 			await this.wait(TRANSITION_DISPLAY_MS);
+			if (this.destroyed) return;
 			this.setState({ transientMark: 'none' });
 		} else {
+			if (this.destroyed) return;
 			this.setState({ displayMode: target });
 		}
 	}
@@ -108,6 +113,7 @@ export class ConnectivityFab extends StatefulComponent<
 		void this.playTransition(targetMode)
 			.then(() => requestPromise)
 			.then((success) => {
+				if (this.destroyed) return;
 				if (success) {
 					this.setState({
 						displayMode: this.resolveMode(targetMode),
@@ -117,6 +123,7 @@ export class ConnectivityFab extends StatefulComponent<
 				}
 
 				void this.playTransition(fromMode).then(() => {
+					if (this.destroyed) return;
 					this.setState({
 						displayMode: this.resolveMode(fromMode),
 						isTransitioning: false,
