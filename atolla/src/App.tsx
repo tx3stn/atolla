@@ -1767,7 +1767,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				imageCache: this.imageCache,
 				onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
 				onNavigationContext: (ctx) => {
-					if (!ctx) this.setState({ isHomeHeaderVisible: false });
+					if (!ctx && this.state.isHomeHeaderVisible) {
+						this.setState({ isHomeHeaderVisible: false });
+					}
 				},
 				paletteQueue: this.paletteQueue,
 				playbackStore: this.playbackStore,

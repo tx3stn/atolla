@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import type { Album } from '../../models/Album';
+import { ConnectionModes } from '../../transports/Model';
 import {
 	createHomeAlbumsSignature,
 	parseHomeAlbumsCache,
 	serializeHomeAlbumsCache,
 } from './HomeAlbumsCache';
+import { shouldApplyTransportAlbumsToHome } from './HomeView';
 
 const sampleAlbums: Array<Album> = [
 	{
@@ -65,5 +67,11 @@ describe('HomeView cache helpers', () => {
 		];
 
 		expect(parseHomeAlbumsCache(serializeHomeAlbumsCache(withGenres))).toEqual(withGenres);
+	});
+
+	it('keeps cached home albums when offline mode is active', () => {
+		expect(shouldApplyTransportAlbumsToHome(ConnectionModes.offline)).toBe(false);
+		expect(shouldApplyTransportAlbumsToHome(ConnectionModes.online)).toBe(true);
+		expect(shouldApplyTransportAlbumsToHome(ConnectionModes.mock)).toBe(true);
 	});
 });

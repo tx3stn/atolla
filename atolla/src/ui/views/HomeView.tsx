@@ -7,7 +7,7 @@ import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
-import type { ConnectionMode } from '../../transports/Model';
+import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import type { CardDetailItem } from '../components/CardDetailList';
 import { CardDetailList } from '../components/CardDetailList';
@@ -79,6 +79,12 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.loadGeneration = generation;
 		this.setState({ isLoadingAlbums: true });
 		this.restoreCachedAlbums(generation);
+
+		if (!shouldApplyTransportAlbumsToHome(this.viewModel.connectionMode)) {
+			this.setState({ isLoadingAlbums: false });
+			return;
+		}
+
 		this.refreshAlbums(generation);
 	}
 
@@ -109,10 +115,20 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	private refreshAlbums(generation: number): void {
+		const shouldApplyTransportAlbums = shouldApplyTransportAlbumsToHome(
+			this.viewModel.connectionMode,
+		);
 		this.viewModel.transport
 			.getAllAlbums()
 			.then((albums) => {
 				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
+					return;
+				}
+
+				if (!shouldApplyTransportAlbums) {
+					if (this.state.isLoadingAlbums) {
+						this.setState({ isLoadingAlbums: false });
+					}
 					return;
 				}
 
@@ -263,6 +279,10 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			</scroll>
 		</layout>;
 	}
+}
+
+export function shouldApplyTransportAlbumsToHome(connectionMode: ConnectionMode): boolean {
+	return connectionMode !== ConnectionModes.offline;
 }
 
 function createScrollStyle(isFooterVisible: boolean): Style {
