@@ -33,6 +33,7 @@ kt_android_library(
         "android/AtollaImageLoaderAutoBootstrap.kt",
         "android/AtollaImageLoaderBootstrapModuleFactory.kt",
         "android/AtollaImageLoaderRegistration.kt",
+        "android/AtollaPlaybackService.kt",
         "android/AtollaTrackPlaybackNativeModuleFactory.kt",
     ],
     assets = [

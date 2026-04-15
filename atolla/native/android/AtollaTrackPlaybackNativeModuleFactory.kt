@@ -1084,7 +1084,11 @@ object AtollaTrackPlaybackMediaSession {
 				builder.setLargeIcon(bitmap)
 			}
 
-			manager.notify(notificationId, builder.build())
+			val notification = builder.build()
+			// Route through the foreground service so Android keeps the process
+			// alive when the screen is locked. manager.notify() alone is not
+			// sufficient — the OS will kill the process under background pressure.
+			AtollaPlaybackService.ensureStartedWithNotification(context, notification)
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed posting media notification", error)
 		}
@@ -1129,6 +1133,13 @@ object AtollaTrackPlaybackMediaSession {
 
 	private fun cancelNotification() {
 		try {
+			// Stopping the service removes the foreground notification automatically.
+			AtollaPlaybackService.stopIfRunning()
+		} catch (_: Throwable) {
+			// ignored
+		}
+		try {
+			// Fallback: cancel via NotificationManager in case the service never started.
 			notificationManager?.cancel(notificationId)
 		} catch (_: Throwable) {
 			// ignored

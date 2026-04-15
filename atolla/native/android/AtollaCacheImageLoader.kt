@@ -5,11 +5,16 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
 import android.util.LruCache
+import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import android.view.View
 import com.snap.valdi.callable.safePerform
@@ -1059,6 +1064,19 @@ private class AtollaTrackValdiVideoPlayer(
 	@Volatile private var sourceUrl: String = initialSourceUrl
 	@Volatile private var volume: Float = 1f
 
+	// Audio focus — prevents other audio apps from being silently interrupted and
+	// ensures the OS notifies us when focus is lost so we can pause cleanly.
+	@Volatile private var hasAudioFocus: Boolean = false
+	// Stored as Any? so the class loads on API < 26 (AudioFocusRequest requires API 26).
+	@Volatile private var audioFocusRequestObj: Any? = null
+	private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { change ->
+		mainHandler.post { handleAudioFocusChange(change) }
+	}
+
+	// WiFi lock — prevents the OS from applying WiFi power-saving modes that stall
+	// network streams when the screen is off.
+	@Volatile private var wifiLock: WifiManager.WifiLock? = null
+
 	private val progressRunnable = object : Runnable {
 		override fun run() {
 			if (disposed) {
@@ -1168,6 +1186,9 @@ private class AtollaTrackValdiVideoPlayer(
 				.setUsage(AudioAttributes.USAGE_MEDIA)
 				.build(),
 		)
+		// Keep the CPU running while playing — prevents the stream from stalling when
+		// the screen is off. WAKE_LOCK permission is declared in AndroidManifest.xml.
+		player.setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
 
 		player.setOnPreparedListener { preparedPlayer ->
 			if (disposed) {
@@ -1244,10 +1265,20 @@ private class AtollaTrackValdiVideoPlayer(
 			if (player.isPlaying) {
 				player.pause()
 			}
+			releaseWifiLock()
 			return
 		}
 
+		// Obtain audio focus before starting; if denied, don't start the player.
+		if (!hasAudioFocus) {
+			val granted = requestAudioFocus()
+			if (!granted) {
+				return
+			}
+		}
+
 		if (!player.isPlaying) {
+			acquireWifiLockIfNeeded()
 			try {
 				player.start()
 				callbacks?.onBeginPlayback?.let { callback ->
@@ -1269,7 +1300,101 @@ private class AtollaTrackValdiVideoPlayer(
 		}
 	}
 
+	private fun requestAudioFocus(): Boolean {
+		val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+			?: return false
+		return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+				.setAudioAttributes(
+					AudioAttributes.Builder()
+						.setUsage(AudioAttributes.USAGE_MEDIA)
+						.setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+						.build(),
+				)
+				.setOnAudioFocusChangeListener(audioFocusListener, mainHandler)
+				.build()
+			audioFocusRequestObj = req
+			val result = audioManager.requestAudioFocus(req)
+			hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+			hasAudioFocus
+		} else {
+			@Suppress("DEPRECATION")
+			val result = audioManager.requestAudioFocus(
+				audioFocusListener,
+				AudioManager.STREAM_MUSIC,
+				AudioManager.AUDIOFOCUS_GAIN,
+			)
+			hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+			hasAudioFocus
+		}
+	}
+
+	private fun abandonAudioFocus() {
+		hasAudioFocus = false
+		val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+			?: return
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			val req = audioFocusRequestObj as? AudioFocusRequest
+			if (req != null) {
+				audioManager.abandonAudioFocusRequest(req)
+			}
+			audioFocusRequestObj = null
+		} else {
+			@Suppress("DEPRECATION")
+			audioManager.abandonAudioFocus(audioFocusListener)
+		}
+	}
+
+	private fun handleAudioFocusChange(focusChange: Int) {
+		when (focusChange) {
+			AudioManager.AUDIOFOCUS_GAIN -> {
+				hasAudioFocus = true
+				// Resume playback if JS still wants to be playing.
+				if (playbackRate > 0f) {
+					applyPlaybackRate()
+				}
+			}
+			AudioManager.AUDIOFOCUS_LOSS -> {
+				hasAudioFocus = false
+				mediaPlayer?.takeIf { it.isPlaying }?.pause()
+				releaseWifiLock()
+				abandonAudioFocus()
+			}
+			AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+			AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+				// Pause for transient loss; resume when AUDIOFOCUS_GAIN arrives.
+				hasAudioFocus = false
+				mediaPlayer?.takeIf { it.isPlaying }?.pause()
+				releaseWifiLock()
+			}
+		}
+	}
+
+	private fun acquireWifiLockIfNeeded() {
+		if (wifiLock != null) return
+		val scheme = try { Uri.parse(sourceUrl).scheme?.lowercase() } catch (_: Throwable) { null }
+		if (scheme != "http" && scheme != "https") return
+		val wifiManager = context.applicationContext
+			.getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return
+		@Suppress("DEPRECATION")
+		val lock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "atolla:playback")
+		lock.acquire()
+		wifiLock = lock
+	}
+
+	private fun releaseWifiLock() {
+		val lock = wifiLock ?: return
+		wifiLock = null
+		try {
+			if (lock.isHeld) lock.release()
+		} catch (_: Throwable) {
+			// ignored
+		}
+	}
+
 	private fun releasePlayer() {
+		releaseWifiLock()
+		abandonAudioFocus()
 		val player = mediaPlayer
 		mediaPlayer = null
 		isPrepared = false
