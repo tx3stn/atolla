@@ -56,7 +56,6 @@ export class LibraryHeaderNav extends StatefulComponent<
 		>
 			<view style={styles.leadingFabSlot}>
 				<ConnectivityFab
-					animationsEnabled={this.viewModel.animationsEnabled}
 					connectionMode={this.viewModel.connectionMode}
 					downloadingCount={this.viewModel.downloadingCount}
 					onRequestModeChange={this.viewModel.onRequestModeChange}

@@ -19,7 +19,6 @@ export class ViewHeader extends Component<ViewHeaderViewModel> {
 		<view accessibilityLabel='view-header' contentDescription='view-header' style={styles.root}>
 			<view style={styles.leadingFabSlot}>
 				<ConnectivityFab
-					animationsEnabled={this.viewModel.animationsEnabled}
 					connectionMode={this.viewModel.connectionMode}
 					downloadingCount={this.viewModel.downloadingCount}
 					onRequestModeChange={this.viewModel.onRequestModeChange}
