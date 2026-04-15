@@ -7,6 +7,8 @@ import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
+import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
+import { startWorkerService } from 'worker/src/WorkerService';
 import { AuthErrors } from './errors/AuthErrors';
 import {
 	clearAtollaNativeCacheCategories,
@@ -22,6 +24,10 @@ import type { Artist } from './models/Artist';
 import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
+import {
+	DownloadNativeWorkerEntryPoint,
+	type IDownloadNativeWorker,
+} from './services/DownloadNativeWorker';
 import { DownloadService } from './services/DownloadService';
 import type { ClearCacheSelection } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
@@ -50,7 +56,6 @@ import {
 } from './stores/Preferences';
 import { SearchStore } from './stores/Search';
 import {
-	cacheAtollaDownloadedTrackFromUrlAsync,
 	cacheAtollaTrackFromUrlAsync,
 	clearAtollaTrackCache,
 	clearAtollaTrackPlaybackNotification,
@@ -61,7 +66,6 @@ import {
 	getAtollaDownloadedCacheTotalSizeBytes,
 	getAtollaDownloadedTrackFileUrl,
 	getAtollaTrackCacheEntryCount,
-	removeAtollaDownloadedTrack,
 	setAtollaTrackCacheMaxTracks,
 	updateAtollaTrackPlaybackNotification,
 } from './TrackPlaybackNative';
@@ -242,14 +246,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 	private transport: Transport = new MockTransport();
 	private paletteService!: ArtworkPaletteService;
+	private downloadWorkerClient: IWorkerServiceClient<IDownloadNativeWorker> = startWorkerService(
+		DownloadNativeWorkerEntryPoint,
+		[],
+	);
 	private downloadService = new DownloadService({
-		cacheTrack: (trackId, url) =>
-			new Promise<void>((resolve, reject) => {
-				cacheAtollaDownloadedTrackFromUrlAsync(trackId, url, (source) => {
-					if (source) resolve();
-					else reject(new Error('cacheAtollaDownloadedTrackFromUrlAsync returned no source'));
-				});
-			}),
+		cacheTrack: (trackId, url) => this.downloadWorkerClient.api.cacheDownloadedTrack(trackId, url),
 		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
 		preloadImages: (urls, category) => {
@@ -259,7 +261,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				// Non-Android targets do not provide native preload bridge.
 			}
 		},
-		removeTrack: (trackId) => removeAtollaDownloadedTrack(trackId),
+		removeTrack: (trackId) => this.downloadWorkerClient.api.removeDownloadedTrack(trackId),
+		removeTracks: (trackIds) => this.downloadWorkerClient.api.removeDownloadedTracks(trackIds),
 		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
 	});
 	private paletteQueue!: PaletteGenerationQueue;
@@ -562,6 +565,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.paletteQueue) {
 			this.paletteQueue.dispose();
 		}
+		this.downloadWorkerClient.dispose();
 	}
 
 	private initUserStores(userId: string): void {

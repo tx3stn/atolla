@@ -62,7 +62,9 @@ export interface DownloadServiceOptions {
 	/** Hint native image cache to persist image assets for offline experience. */
 	preloadImages?: (urls: Array<string>, category: ImageCategory) => void;
 	/** Remove a previously downloaded track from permanent storage. */
-	removeTrack: (trackId: string) => void;
+	removeTrack: (trackId: string) => Promise<void> | void;
+	/** Remove previously downloaded tracks from permanent storage in bulk. */
+	removeTracks?: (trackIds: Array<string>) => Promise<void> | void;
 	store: DownloadServiceStore;
 }
 
@@ -101,6 +103,7 @@ export class DownloadService {
 	private readonly getTrackPlaybackUrlFn: DownloadServiceOptions['getTrackPlaybackUrl'];
 	private readonly getTotalDownloadedSizeBytesFn: DownloadServiceOptions['getTotalDownloadedSizeBytes'];
 	private readonly removeTrackFn: DownloadServiceOptions['removeTrack'];
+	private readonly removeTracksFn: DownloadServiceOptions['removeTracks'];
 	private readonly preloadImagesFn: DownloadServiceOptions['preloadImages'];
 
 	constructor(options: DownloadServiceOptions) {
@@ -109,6 +112,7 @@ export class DownloadService {
 		this.getTrackPlaybackUrlFn = options.getTrackPlaybackUrl;
 		this.getTotalDownloadedSizeBytesFn = options.getTotalDownloadedSizeBytes;
 		this.removeTrackFn = options.removeTrack;
+		this.removeTracksFn = options.removeTracks;
 		this.preloadImagesFn = options.preloadImages;
 	}
 
@@ -435,7 +439,7 @@ export class DownloadService {
 			delete this.albums[albumId];
 			this.removeAlbumReferenceFromArtists(albumId);
 			for (const trackId of entry.trackIds) {
-				this.dereferenceTrack(trackId, albumId, null, null);
+				await this.dereferenceTrack(trackId, albumId, null, null);
 			}
 			this.pruneOrphanArtists();
 			await this.persistAll();
@@ -449,7 +453,7 @@ export class DownloadService {
 			if (!entry) return;
 			delete this.playlists[playlistId];
 			for (const trackId of entry.trackIds) {
-				this.dereferenceTrack(trackId, null, null, playlistId);
+				await this.dereferenceTrack(trackId, null, null, playlistId);
 			}
 			this.pruneOrphanArtists();
 			await this.persistAll();
@@ -463,7 +467,7 @@ export class DownloadService {
 			if (!entry) return;
 			delete this.genres[genreId];
 			for (const trackId of entry.trackIds) {
-				this.dereferenceTrack(trackId, null, genreId, null);
+				await this.dereferenceTrack(trackId, null, genreId, null);
 			}
 			this.pruneOrphanArtists();
 			await this.persistAll();
@@ -481,7 +485,7 @@ export class DownloadService {
 				if (!albumEntry) continue;
 				delete this.albums[albumId];
 				for (const trackId of albumEntry.trackIds) {
-					this.dereferenceTrack(trackId, albumId, null, null);
+					await this.dereferenceTrack(trackId, albumId, null, null);
 				}
 			}
 			this.pruneOrphanArtists();
@@ -492,8 +496,15 @@ export class DownloadService {
 
 	removeAllDownloads(): void {
 		this.ensureLoaded().then(async () => {
-			for (const trackId of Object.keys(this.tracks)) {
-				this.removeTrackFn(trackId);
+			const trackIds = Object.keys(this.tracks);
+			if (trackIds.length > 0) {
+				if (this.removeTracksFn) {
+					await this.removeTracksFn(trackIds);
+				} else {
+					for (const trackId of trackIds) {
+						await this.removeTrackFn(trackId);
+					}
+				}
 			}
 
 			this.albums = {};
@@ -542,12 +553,12 @@ export class DownloadService {
 		}
 	}
 
-	private dereferenceTrack(
+	private async dereferenceTrack(
 		trackId: string,
 		albumId: string | null,
 		genreId: string | null,
 		playlistId: string | null,
-	): void {
+	): Promise<void> {
 		const entry = this.tracks[trackId];
 		if (!entry) return;
 
@@ -568,7 +579,7 @@ export class DownloadService {
 		) {
 			delete this.tracks[trackId];
 			this.queue = this.queue.filter((q) => q.trackId !== trackId);
-			this.removeTrackFn(trackId);
+			await this.removeTrackFn(trackId);
 		}
 	}
 
