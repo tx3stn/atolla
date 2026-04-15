@@ -329,6 +329,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.unsubscribeDownloads?.();
 		if (this.viewModel.restoreHeaderOnDestroy ?? true) {
 			this.viewModel.onHeaderVisibilityChange?.(true);
+		} else {
+			this.viewModel.onHeaderVisibilityChange?.(false);
 		}
 		this.viewModel.onExitFromSearchNavigation?.();
 		this.viewModel.onNavigationContext?.(null);

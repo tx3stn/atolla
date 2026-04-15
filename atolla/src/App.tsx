@@ -1093,7 +1093,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({
 			activeFooterTab: tab,
 			isHomeHeaderVisible: false,
-			isLibraryHeaderVisible: tab === FooterTabs.library ? true : this.state.isLibraryHeaderVisible,
+			isLibraryHeaderVisible: tab === FooterTabs.library,
 			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
 			searchFocusSignal:
 				tab === FooterTabs.search ? this.state.searchFocusSignal + 1 : this.state.searchFocusSignal,
@@ -1774,11 +1774,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				gridColumns: this.state.gridColumns,
 				imageCache: this.imageCache,
 				onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
-				onNavigationContext: (ctx) => {
-					if (!ctx && this.state.isHomeHeaderVisible) {
-						this.setState({ isHomeHeaderVisible: false });
-					}
-				},
 				paletteQueue: this.paletteQueue,
 				playbackStore: this.playbackStore,
 				restoreHeaderOnDestroy: false,
