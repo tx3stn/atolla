@@ -385,6 +385,117 @@ describe('OfflineTransport', () => {
 		]);
 	});
 
+	it('sorts tracks from a directly downloaded album by track number', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albums: [
+					{
+						album: { artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'Album One' },
+						artistLogoUrl: null,
+						trackIds: ['track-3', 'track-1', 'track-2'],
+					},
+				],
+				tracks: [
+					{
+						albumIds: ['album-1'],
+						complete: true,
+						genreIds: [],
+						playlistIds: [],
+						streamUrl: '',
+						track: { albumId: 'album-1', duration: 100, id: 'track-1', name: 'Track One', trackNumber: 1 },
+					},
+					{
+						albumIds: ['album-1'],
+						complete: true,
+						genreIds: [],
+						playlistIds: [],
+						streamUrl: '',
+						track: { albumId: 'album-1', duration: 100, id: 'track-2', name: 'Track Two', trackNumber: 2 },
+					},
+					{
+						albumIds: ['album-1'],
+						complete: true,
+						genreIds: [],
+						playlistIds: [],
+						streamUrl: '',
+						track: { albumId: 'album-1', duration: 100, id: 'track-3', name: 'Track Three', trackNumber: 3 },
+					},
+				],
+			}) as never,
+		);
+
+		const tracks = await transport.getTracksByAlbum('album-1');
+
+		expect(tracks.map((t) => t.id)).toEqual(['track-1', 'track-2', 'track-3']);
+	});
+
+	it('sorts tracks from a playlist-originated album by track number', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				tracks: [
+					{
+						albumIds: [],
+						complete: true,
+						genreIds: [],
+						playlistIds: ['playlist-1'],
+						streamUrl: '',
+						track: { albumId: 'album-1', duration: 100, id: 'track-3', name: 'Track Three', trackNumber: 3 },
+					},
+					{
+						albumIds: [],
+						complete: true,
+						genreIds: [],
+						playlistIds: ['playlist-1'],
+						streamUrl: '',
+						track: { albumId: 'album-1', duration: 100, id: 'track-1', name: 'Track One', trackNumber: 1 },
+					},
+					{
+						albumIds: [],
+						complete: true,
+						genreIds: [],
+						playlistIds: ['playlist-1'],
+						streamUrl: '',
+						track: { albumId: 'album-1', duration: 100, id: 'track-2', name: 'Track Two', trackNumber: 2 },
+					},
+				],
+			}) as never,
+		);
+
+		const tracks = await transport.getTracksByAlbum('album-1');
+
+		expect(tracks.map((t) => t.id)).toEqual(['track-1', 'track-2', 'track-3']);
+	});
+
+	it('includes releaseDate on album stubs built from playlist-originated tracks', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				tracks: [
+					{
+						albumIds: [],
+						complete: true,
+						genreIds: [],
+						playlistIds: ['playlist-1'],
+						streamUrl: '',
+						track: {
+							albumId: 'album-1',
+							albumName: 'Album One',
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							duration: 100,
+							id: 'track-1',
+							name: 'Track One',
+							releaseDate: '2023-06-15',
+						},
+					},
+				],
+			}) as never,
+		);
+
+		const albums = await transport.getAllAlbums();
+
+		expect(albums[0].releaseDate).toBe('2023-06-15');
+	});
+
 	it('returns artist albums without forcing alphabetical ordering', async () => {
 		const transport = new OfflineTransport(
 			createDownloadsMock({

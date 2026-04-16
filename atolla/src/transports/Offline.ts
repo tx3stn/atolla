@@ -81,6 +81,7 @@ export class OfflineTransport implements Transport {
 				id: albumId,
 				imageUrl: trackEntry.track.albumImageUrl,
 				name: trackEntry.track.albumName ?? 'Unknown Album',
+				releaseDate: trackEntry.track.releaseDate,
 			});
 		}
 
@@ -212,14 +213,16 @@ export class OfflineTransport implements Transport {
 				.map((id) => this.downloads.getTrack(id)?.track)
 				.filter((t): t is Track => t != null);
 			if (tracks.length > 0) {
-				return tracks;
+				return sortTracksByNumber(tracks);
 			}
 		}
 
-		return this.downloads
-			.getAllTracks()
-			.filter((entry) => entry.track.albumId === albumId)
-			.map((entry) => entry.track);
+		return sortTracksByNumber(
+			this.downloads
+				.getAllTracks()
+				.filter((entry) => entry.track.albumId === albumId)
+				.map((entry) => entry.track),
+		);
 	}
 
 	async getTracksByArtist(artistId: string): Promise<Array<Track>> {
@@ -315,6 +318,10 @@ export class OfflineTransport implements Transport {
 	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {
 		return Promise.reject(new Error(TransportErrors.OFFLINE_SCROBBLE_UNAVAILABLE.msg()));
 	}
+}
+
+function sortTracksByNumber(tracks: Array<Track>): Array<Track> {
+	return [...tracks].sort((a, b) => (a.trackNumber ?? 0) - (b.trackNumber ?? 0));
 }
 
 function sortAlbumsByName(albums: Array<Album>): Array<Album> {
