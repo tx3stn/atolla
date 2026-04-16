@@ -114,6 +114,7 @@ interface AppState {
 	isAuthRequired: boolean;
 	isBootstrapped: boolean;
 	isHomeHeaderVisible: boolean;
+	isHomeNavigationMounted: boolean;
 	isLibraryHeaderVisible: boolean;
 	jellyfinClientDeviceIdOverride: string;
 	libraryResetNonce: number;
@@ -275,6 +276,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private nativePlaybackActionInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
 	private homeNavigationController?: NavigationController;
+	private homeNavigationNonce = 0;
 	private libraryNavigationController?: NavigationController;
 	private pendingArtistId: string | null = null;
 	private pendingArtistFallbackName: string = 'Unknown Artist';
@@ -331,6 +333,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		isAuthRequired: false,
 		isBootstrapped: false,
 		isHomeHeaderVisible: false,
+		isHomeNavigationMounted: true,
 		isLibraryHeaderVisible: true,
 		jellyfinClientDeviceIdOverride: '',
 		libraryResetNonce: 0,
@@ -1093,11 +1096,22 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({
 			activeFooterTab: tab,
 			isHomeHeaderVisible: false,
+			isHomeNavigationMounted: tab === FooterTabs.home ? false : this.state.isHomeNavigationMounted,
 			isLibraryHeaderVisible: tab === FooterTabs.library,
 			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
 			searchFocusSignal:
 				tab === FooterTabs.search ? this.state.searchFocusSignal + 1 : this.state.searchFocusSignal,
 		});
+
+		if (tab === FooterTabs.home) {
+			this.homeNavigationNonce += 1;
+			const capturedNonce = this.homeNavigationNonce;
+			Promise.resolve().then(() => {
+				if (this.homeNavigationNonce === capturedNonce) {
+					this.setState({ isHomeNavigationMounted: true });
+				}
+			});
+		}
 
 		if (tab === FooterTabs.settings) {
 			this.refreshNativeCacheStats();
@@ -1908,7 +1922,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					playbackStore={this.playbackStore}
 				/>
 			)}
-			{this.state.activeFooterTab === FooterTabs.home && (
+			{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeNavigationMounted && (
 				<NavigationRoot>
 					{$slot((navigationController) => {
 						this.handleHomeNavigationControllerChange(navigationController);
