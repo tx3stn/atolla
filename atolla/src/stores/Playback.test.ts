@@ -680,6 +680,41 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('setArtistLogoUrls()', () => {
+		it('updates queued logo urls without resetting playback state', () => {
+			const store = new PlaybackStore();
+			store.playTracks(tracks, 1);
+			store.updateProgress(37);
+
+			store.setArtistLogoUrls(['logo1', 'logo2', 'logo3']);
+
+			expect(store.trackIndex).toBe(1);
+			expect(store.progressSeconds).toBe(37);
+			expect(store.artistLogoUrl).toBe('logo2');
+		});
+
+		it('fills missing entries with null', () => {
+			const store = new PlaybackStore();
+			store.playTracks(tracks);
+
+			store.setArtistLogoUrls(['logo1']);
+			store.next();
+
+			expect(store.artistLogoUrl).toBeNull();
+		});
+
+		it('notifies listeners', () => {
+			const store = new PlaybackStore();
+			store.playTracks(tracks);
+			let calls = 0;
+			store.subscribe(() => calls++);
+
+			store.setArtistLogoUrls(['logo1', 'logo2', 'logo3']);
+
+			expect(calls).toBe(1);
+		});
+	});
+
 	describe('shuffleArray()', () => {
 		it('returns a new array with the same elements', () => {
 			const arr = [1, 2, 3, 4, 5];

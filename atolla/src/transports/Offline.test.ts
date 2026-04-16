@@ -390,7 +390,12 @@ describe('OfflineTransport', () => {
 			createDownloadsMock({
 				albums: [
 					{
-						album: { artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'Album One' },
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-1',
+							name: 'Album One',
+						},
 						artistLogoUrl: null,
 						trackIds: ['track-3', 'track-1', 'track-2'],
 					},
@@ -402,7 +407,13 @@ describe('OfflineTransport', () => {
 						genreIds: [],
 						playlistIds: [],
 						streamUrl: '',
-						track: { albumId: 'album-1', duration: 100, id: 'track-1', name: 'Track One', trackNumber: 1 },
+						track: {
+							albumId: 'album-1',
+							duration: 100,
+							id: 'track-1',
+							name: 'Track One',
+							trackNumber: 1,
+						},
 					},
 					{
 						albumIds: ['album-1'],
@@ -410,7 +421,13 @@ describe('OfflineTransport', () => {
 						genreIds: [],
 						playlistIds: [],
 						streamUrl: '',
-						track: { albumId: 'album-1', duration: 100, id: 'track-2', name: 'Track Two', trackNumber: 2 },
+						track: {
+							albumId: 'album-1',
+							duration: 100,
+							id: 'track-2',
+							name: 'Track Two',
+							trackNumber: 2,
+						},
 					},
 					{
 						albumIds: ['album-1'],
@@ -418,7 +435,13 @@ describe('OfflineTransport', () => {
 						genreIds: [],
 						playlistIds: [],
 						streamUrl: '',
-						track: { albumId: 'album-1', duration: 100, id: 'track-3', name: 'Track Three', trackNumber: 3 },
+						track: {
+							albumId: 'album-1',
+							duration: 100,
+							id: 'track-3',
+							name: 'Track Three',
+							trackNumber: 3,
+						},
 					},
 				],
 			}) as never,
@@ -439,7 +462,13 @@ describe('OfflineTransport', () => {
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						streamUrl: '',
-						track: { albumId: 'album-1', duration: 100, id: 'track-3', name: 'Track Three', trackNumber: 3 },
+						track: {
+							albumId: 'album-1',
+							duration: 100,
+							id: 'track-3',
+							name: 'Track Three',
+							trackNumber: 3,
+						},
 					},
 					{
 						albumIds: [],
@@ -447,7 +476,13 @@ describe('OfflineTransport', () => {
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						streamUrl: '',
-						track: { albumId: 'album-1', duration: 100, id: 'track-1', name: 'Track One', trackNumber: 1 },
+						track: {
+							albumId: 'album-1',
+							duration: 100,
+							id: 'track-1',
+							name: 'Track One',
+							trackNumber: 1,
+						},
 					},
 					{
 						albumIds: [],
@@ -455,7 +490,13 @@ describe('OfflineTransport', () => {
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						streamUrl: '',
-						track: { albumId: 'album-1', duration: 100, id: 'track-2', name: 'Track Two', trackNumber: 2 },
+						track: {
+							albumId: 'album-1',
+							duration: 100,
+							id: 'track-2',
+							name: 'Track Two',
+							trackNumber: 2,
+						},
 					},
 				],
 			}) as never,

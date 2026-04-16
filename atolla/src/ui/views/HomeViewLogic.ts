@@ -1,0 +1,42 @@
+import type { Track } from '../../models/Track';
+import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
+import type { Transport } from '../../transports/Transport';
+
+export function shouldApplyTransportAlbumsToHome(connectionMode: ConnectionMode): boolean {
+	return connectionMode !== ConnectionModes.offline;
+}
+
+export function resolveArtistLogoUrlsForTracks(
+	tracks: Array<Track>,
+	transport: Pick<Transport, 'getArtistLogoUrl'>,
+): Promise<Array<string | null>> {
+	const logoRequestsByArtistId = new Map<string, Promise<string | null>>();
+
+	return Promise.all(
+		tracks.map((track) => {
+			if (!track.artistId) {
+				return Promise.resolve(null);
+			}
+
+			const existingRequest = logoRequestsByArtistId.get(track.artistId);
+			if (existingRequest) {
+				return existingRequest;
+			}
+
+			const request = transport.getArtistLogoUrl(track.artistId).catch(() => null);
+			logoRequestsByArtistId.set(track.artistId, request);
+			return request;
+		}),
+	);
+}
+
+export function isSameTrackQueue(
+	currentTracks: Array<Track>,
+	expectedTracks: Array<Track>,
+): boolean {
+	if (currentTracks.length !== expectedTracks.length) {
+		return false;
+	}
+
+	return currentTracks.every((track, index) => track.id === expectedTracks[index]?.id);
+}

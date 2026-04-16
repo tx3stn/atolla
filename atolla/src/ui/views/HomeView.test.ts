@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'bun:test';
 import type { Album } from '../../models/Album';
+import type { Track } from '../../models/Track';
 import { ConnectionModes } from '../../transports/Model';
 import {
 	createHomeAlbumsSignature,
 	parseHomeAlbumsCache,
 	serializeHomeAlbumsCache,
 } from './HomeAlbumsCache';
-import { shouldApplyTransportAlbumsToHome } from './HomeView';
+import { resolveArtistLogoUrlsForTracks, shouldApplyTransportAlbumsToHome } from './HomeViewLogic';
 
 const sampleAlbums: Array<Album> = [
 	{
@@ -73,5 +74,43 @@ describe('HomeView cache helpers', () => {
 		expect(shouldApplyTransportAlbumsToHome(ConnectionModes.offline)).toBe(false);
 		expect(shouldApplyTransportAlbumsToHome(ConnectionModes.online)).toBe(true);
 		expect(shouldApplyTransportAlbumsToHome(ConnectionModes.mock)).toBe(true);
+	});
+
+	it('resolves artist logo urls per track and reuses duplicate artist requests', async () => {
+		const calls: Array<string> = [];
+		const tracks: Array<Track> = [
+			{ artistId: 'artist-1', duration: 120, id: 'track-1', name: 'Track One' },
+			{ artistId: 'artist-2', duration: 120, id: 'track-2', name: 'Track Two' },
+			{ artistId: 'artist-1', duration: 120, id: 'track-3', name: 'Track Three' },
+			{ duration: 120, id: 'track-4', name: 'Track Four' },
+		];
+
+		const logoUrls = await resolveArtistLogoUrlsForTracks(tracks, {
+			getArtistLogoUrl: (artistId: string): Promise<string | null> => {
+				calls.push(artistId);
+				return Promise.resolve(`${artistId}-logo`);
+			},
+		});
+
+		expect(calls).toEqual(['artist-1', 'artist-2']);
+		expect(logoUrls).toEqual(['artist-1-logo', 'artist-2-logo', 'artist-1-logo', null]);
+	});
+
+	it('falls back to null logos when transport lookup fails', async () => {
+		const tracks: Array<Track> = [
+			{ artistId: 'artist-1', duration: 120, id: 'track-1', name: 'Track One' },
+			{ artistId: 'artist-2', duration: 120, id: 'track-2', name: 'Track Two' },
+		];
+
+		const logoUrls = await resolveArtistLogoUrlsForTracks(tracks, {
+			getArtistLogoUrl: (artistId: string): Promise<string | null> => {
+				if (artistId === 'artist-1') {
+					return Promise.reject(new Error('network failure'));
+				}
+				return Promise.resolve('artist-2-logo');
+			},
+		});
+
+		expect(logoUrls).toEqual([null, 'artist-2-logo']);
 	});
 });

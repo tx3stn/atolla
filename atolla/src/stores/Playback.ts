@@ -167,6 +167,11 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	setArtistLogoUrls(logoUrls: Array<string | null>): void {
+		this._artistLogoUrls = this.tracks.map((_, index) => logoUrls[index] ?? null);
+		this.notify();
+	}
+
 	addToQueue(tracks: Array<Track>): void {
 		this.tracks = [...this.tracks, ...tracks];
 		this._artistLogoUrls = [...this._artistLogoUrls, ...tracks.map(() => null)];

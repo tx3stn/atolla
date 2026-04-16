@@ -7,7 +7,7 @@ import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
-import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
+import type { ConnectionMode } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import type { CardDetailItem } from '../components/CardDetailList';
 import { CardDetailList } from '../components/CardDetailList';
@@ -19,6 +19,11 @@ import {
 	parseHomeAlbumsCache,
 	serializeHomeAlbumsCache,
 } from './HomeAlbumsCache';
+import {
+	isSameTrackQueue,
+	resolveArtistLogoUrlsForTracks,
+	shouldApplyTransportAlbumsToHome,
+} from './HomeViewLogic';
 
 export interface HomeViewModel {
 	animationsEnabled: boolean;
@@ -217,6 +222,14 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		}
 
 		this.viewModel.playbackStore.playTracks(queue, trackIndex);
+
+		void resolveArtistLogoUrlsForTracks(queue, this.viewModel.transport).then((logoUrls) => {
+			if (!isSameTrackQueue(this.viewModel.playbackStore.tracks, queue)) {
+				return;
+			}
+
+			this.viewModel.playbackStore.setArtistLogoUrls(logoUrls);
+		});
 	};
 
 	onRender(): void {
@@ -279,10 +292,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			</scroll>
 		</layout>;
 	}
-}
-
-export function shouldApplyTransportAlbumsToHome(connectionMode: ConnectionMode): boolean {
-	return connectionMode !== ConnectionModes.offline;
 }
 
 function createScrollStyle(isFooterVisible: boolean): Style {
