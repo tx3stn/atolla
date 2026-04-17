@@ -8,5 +8,5 @@
       <stop offset="100%" stop-color="#57B3E8"/>
     </linearGradient>
   </defs>
-  <path fill="url(#nav-gradient)" d="M10 20v-5Q10 14 11 14h2Q14 14 14 15v5h4Q19 20 19 19V12h2Q22 12 21.3 11.3L13.5 4.3Q12 3 10.5 4.3L2.7 11.3Q2 12 3 12h2v7Q5 20 6 20H10z"/>
+  <path fill="url(#nav-gradient)" d="M9.5 20v-6.5Q9.5 12.5 10.5 12.5h3Q14.5 12.5 14.5 13.5v6.5H21Q22 20 22 19V13Q22 12 21.3 11.3L13.5 4.3Q12 3 10.5 4.3L2.7 11.3Q2 12 2 13V19Q2 20 3 20H9.5z"/>
 </svg>
