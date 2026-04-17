@@ -50,7 +50,29 @@ describe('SettingsView', () => {
 		expect(typeof clearCacheButton?.getAttribute('onTap')).toBe('function');
 	});
 
-	valdiIt('calls onLogout when logout button is tapped', () => {
+	valdiIt('tapping logout button shows the confirm modal', () => {
+		const instrumented = createComponent(SettingsView, {
+			preferences: mockPreferences(),
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-btn')
+			?.getAttribute('onTap')?.();
+
+		const updatedViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		const modal = updatedViews.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'settings-logout-modal',
+		);
+
+		expect(modal).toBeTruthy();
+	});
+
+	valdiIt('calls onLogout when logout confirm modal is confirmed', () => {
 		let called = false;
 		const instrumented = createComponent(SettingsView, {
 			onLogout: () => {
@@ -59,13 +81,47 @@ describe('SettingsView', () => {
 			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
-			.find((view) => view.getAttribute('accessibilityLabel') === 'settings-logout-btn')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-btn')
+			?.getAttribute('onTap')?.();
+
+		const modalViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		modalViews
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-confirm-btn')
 			?.getAttribute('onTap')?.();
 
 		expect(called).toBe(true);
+	});
+
+	valdiIt('does not call onLogout when logout confirm modal is cancelled', () => {
+		let called = false;
+		const instrumented = createComponent(SettingsView, {
+			onLogout: () => {
+				called = true;
+			},
+			preferences: mockPreferences(),
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-btn')
+			?.getAttribute('onTap')?.();
+
+		const modalViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		modalViews
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-cancel-btn')
+			?.getAttribute('onTap')?.();
+
+		expect(called).toBe(false);
 	});
 
 	valdiIt('tapping clear cache button shows the cache clear modal', () => {

@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ClearCacheSelection } from '../../services/ImageCache';
 import type { Preferences } from '../../stores/Preferences';
 import {
@@ -100,6 +99,7 @@ interface SettingsState {
 	showClearDownloadsModal: boolean;
 	showGridColumnsOptions: boolean;
 	showImageCacheOptions: boolean;
+	showLogoutModal: boolean;
 	showTrackCacheLimitOptions: boolean;
 }
 
@@ -110,6 +110,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		showClearDownloadsModal: false,
 		showGridColumnsOptions: false,
 		showImageCacheOptions: false,
+		showLogoutModal: false,
 		showTrackCacheLimitOptions: false,
 	};
 
@@ -138,6 +139,19 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 	private handleCacheClearCancel = () => {
 		this.setState({ showCacheClearModal: false });
+	};
+
+	private handleLogoutPress = () => {
+		this.setState({ showLogoutModal: true });
+	};
+
+	private handleLogoutConfirm = () => {
+		this.viewModel.onLogout?.();
+		this.setState({ showLogoutModal: false });
+	};
+
+	private handleLogoutCancel = () => {
+		this.setState({ showLogoutModal: false });
 	};
 
 	private handleClearDownloadsPress = () => {
@@ -272,7 +286,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						<Button
 							accessibilityLabel='settings-logout'
 							label='logout'
-							onTap={createReusableCallback(() => this.viewModel.onLogout?.())}
+							onTap={this.handleLogoutPress}
 						/>
 					</view>
 
@@ -396,6 +410,18 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							onClose={this.handleClearDownloadsCancel}
 							onConfirm={this.handleClearDownloadsConfirm}
 							title='delete all downloads'
+						/>
+					)}
+
+					{this.state.showLogoutModal && (
+						<Modal
+							body={'are you sure you want to log out?'}
+							cancelAccessibilityLabel='settings-logout-cancel-btn'
+							confirmAccessibilityLabel='settings-logout-confirm-btn'
+							modalAccessibilityLabel='settings-logout-modal'
+							onClose={this.handleLogoutCancel}
+							onConfirm={this.handleLogoutConfirm}
+							title='logout'
 						/>
 					)}
 
