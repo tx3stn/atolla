@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M10 20v-5Q10 14 11 14h2Q14 14 14 15v5h4Q19 20 19 19V12h2Q22 12 21.3 11.3L13.5 4.3Q12 3 10.5 4.3L2.7 11.3Q2 12 3 12h2v7Q5 20 6 20H10z"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <defs>
+    <linearGradient id="nav-gradient" x1="16" y1="1" x2="9" y2="23" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#AA5CC3"/>
+      <stop offset="22%" stop-color="#8B62D3"/>
+      <stop offset="50%" stop-color="#3159BD"/>
+      <stop offset="76%" stop-color="#2D78CE"/>
+      <stop offset="100%" stop-color="#57B3E8"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#nav-gradient)" d="M10 20v-5Q10 14 11 14h2Q14 14 14 15v5h4Q19 20 19 19V12h2Q22 12 21.3 11.3L13.5 4.3Q12 3 10.5 4.3L2.7 11.3Q2 12 3 12h2v7Q5 20 6 20H10z"/>
+</svg>

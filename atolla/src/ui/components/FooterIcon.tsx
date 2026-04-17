@@ -22,7 +22,7 @@ export class FooterIcon extends Component<FooterIconView> {
 			<image
 				src={this.viewModel.icon}
 				style={styles.footerTabIconImage}
-				tint={this.viewModel.active ? theme.colors.active : theme.colors.grey}
+				tint={this.viewModel.active ? undefined : theme.colors.grey}
 			/>
 		</view>;
 	}
