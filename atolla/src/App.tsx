@@ -78,12 +78,12 @@ import type { Transport } from './transports/Transport';
 import { BootSplash } from './ui/components/BootSplash';
 import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
+import { GaplessPlayer } from './ui/components/GaplessPlayer';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
 import { LibraryHeaderNav } from './ui/components/LibraryHeaderNav';
 import { MockPlayer } from './ui/components/MockPlayer';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { Toast } from './ui/components/Toast';
-import { VideoAudioPlayer } from './ui/components/VideoAudioPlayer';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
 import { ConnectionView } from './ui/views/ConnectionView';
@@ -101,7 +101,6 @@ const RECENTLY_PLAYED_TRACKS_KEY = 'recently_played_tracks';
 interface AppState {
 	activeFooterTab: FooterTab;
 	activeLibraryTab: HeaderTab;
-	activePlayerSlot: 'A' | 'B';
 	animationsEnabled: boolean;
 	authErrorMessage: string | null;
 	authToastMessage: string | null;
@@ -121,9 +120,9 @@ interface AppState {
 	libraryResetNonce: number;
 	nativeImageCacheDiskBytes: number | null;
 	nativeImageCacheDiskCount: number | null;
+	nextTrackSourceUrl: string | null;
 	nowPlayingCollapseSignal: number;
 	playbackToastMessage: string | null;
-	playerBSourceUrl: string | null;
 	quickConnectCode: string | null;
 	searchFocusSignal: number;
 	serverUrlPrefill: string;
@@ -322,7 +321,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
 		activeLibraryTab: HeaderTabs.artists,
-		activePlayerSlot: 'A',
 		animationsEnabled: true,
 		authErrorMessage: null,
 		authToastMessage: null,
@@ -342,9 +340,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		libraryResetNonce: 0,
 		nativeImageCacheDiskBytes: null,
 		nativeImageCacheDiskCount: null,
+		nextTrackSourceUrl: null,
 		nowPlayingCollapseSignal: 0,
 		playbackToastMessage: null,
-		playerBSourceUrl: null,
 		quickConnectCode: null,
 		searchFocusSignal: 0,
 		serverUrlPrefill: '',
@@ -883,7 +881,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 
-		if (this.getActivePlayerSource() == null) {
+		if (this.state.trackPlaybackSourceUrl == null) {
 			this.handleTrackPlaybackSourceChange(true);
 		}
 		this.handleNextTrackPreload();
@@ -913,18 +911,20 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.lastPlaybackDebugProbeKey = 'none';
 			this.playbackSourceRequestId += 1;
 			this.lastTrackSourceTrackId = null;
-			this.setActivePlayerSource(null);
+			if (this.state.trackPlaybackSourceUrl != null) {
+				this.setState({ trackPlaybackSourceUrl: null });
+			}
 			return;
 		}
 
 		const playbackState = this.playbackStore.isPlaying ? 'playing' : 'paused';
-		const activeSource = this.getActivePlayerSource();
-		const sourceState = activeSource ? 'has-source' : 'no-source';
+		const sourceState = this.state.trackPlaybackSourceUrl ? 'has-source' : 'no-source';
 		const probeKey = `${activeTrack.id}|${playbackState}|${sourceState}`;
 		this.lastPlaybackDebugProbeKey = probeKey;
 
 		if (!force && this.lastTrackSourceTrackId === activeTrack.id) {
-			const shouldRetryForMissingSource = this.playbackStore.isPlaying && activeSource == null;
+			const shouldRetryForMissingSource =
+				this.playbackStore.isPlaying && this.state.trackPlaybackSourceUrl == null;
 			if (!shouldRetryForMissingSource) {
 				return;
 			}
@@ -935,13 +935,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.playbackSourceRequestId = requestId;
 		const nativeSource = this.getNativeCachedTrackSource(activeTrack.id);
 		if (nativeSource) {
-			this.setActivePlayerSource(nativeSource);
+			if (this.state.trackPlaybackSourceUrl !== nativeSource) {
+				this.setState({ trackPlaybackSourceUrl: nativeSource });
+			}
 			return;
 		}
 
 		const streamUrl = this.getTrackStreamSource(activeTrack.id);
-		if (streamUrl && activeSource !== streamUrl) {
-			this.setActivePlayerSource(streamUrl);
+		if (streamUrl && this.state.trackPlaybackSourceUrl !== streamUrl) {
+			this.setState({ trackPlaybackSourceUrl: streamUrl });
 		}
 
 		if (this.playbackStore.isPlaying && !this.isOfflinePlaybackMode()) {
@@ -953,32 +955,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		return this.state.connectionMode === ConnectionModes.offline;
 	}
 
-	private getActivePlayerSource(): string | null {
-		return this.state.activePlayerSlot === 'A'
-			? this.state.trackPlaybackSourceUrl
-			: this.state.playerBSourceUrl;
-	}
-
-	private setActivePlayerSource(url: string | null): void {
-		if (this.state.activePlayerSlot === 'A') {
-			if (this.state.trackPlaybackSourceUrl !== url) this.setState({ trackPlaybackSourceUrl: url });
-		} else {
-			if (this.state.playerBSourceUrl !== url) this.setState({ playerBSourceUrl: url });
-		}
-	}
-
-	private setInactivePlayerSource(url: string | null): void {
-		if (this.state.activePlayerSlot === 'A') {
-			if (this.state.playerBSourceUrl !== url) this.setState({ playerBSourceUrl: url });
-		} else {
-			if (this.state.trackPlaybackSourceUrl !== url) this.setState({ trackPlaybackSourceUrl: url });
-		}
-	}
-
-	private handleGaplessHandoff = (): void => {
+	private handleTrackCompleted = (): void => {
 		const track = this.playbackStore.track;
-		const nextSlot = this.state.activePlayerSlot === 'A' ? 'B' : 'A';
-		this.setState({ activePlayerSlot: nextSlot });
 		if (track) {
 			this.playbackStore.updateProgress(track.duration);
 		}
@@ -991,15 +969,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			if (loopMode === 'queue' && tracks.length > 0) {
 				nextIndex = 0;
 			} else {
-				this.setInactivePlayerSource(null);
+				if (this.state.nextTrackSourceUrl !== null) {
+					this.setState({ nextTrackSourceUrl: null });
+				}
 				return;
 			}
 		}
 		const nextTrack = tracks[nextIndex];
-		const inactiveSource = nextTrack
+		const source = nextTrack
 			? (this.getNativeCachedTrackSource(nextTrack.id) ?? this.getTrackStreamSource(nextTrack.id))
 			: null;
-		this.setInactivePlayerSource(inactiveSource);
+		if (this.state.nextTrackSourceUrl !== source) {
+			this.setState({ nextTrackSourceUrl: source });
+		}
 	}
 
 	private handleTrackPrefetchQueueChange(force = false): void {
@@ -1236,11 +1218,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.lastPrefetchTrackIndex = -1;
 			this.lastPrefetchTransport = null;
 			this.playbackSourceRequestId += 1;
-			this.setState({
-				activePlayerSlot: 'A',
-				playerBSourceUrl: null,
-				trackPlaybackSourceUrl: null,
-			});
+			this.setState({ nextTrackSourceUrl: null, trackPlaybackSourceUrl: null });
 			this.handleTrackPrefetchQueueChange(true);
 		}
 		this.refreshNativeCacheStats();
@@ -1328,7 +1306,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 
 		const trackId = this.playbackStore.track?.id ?? 'none';
-		const source = this.getActivePlayerSource() ?? 'none';
+		const source = this.state.trackPlaybackSourceUrl ?? 'none';
 		const eventKey = `${event}|${trackId}|${source}`;
 		if (this.lastPlaybackEventKey === eventKey) {
 			return;
@@ -1351,7 +1329,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 			const retryKey = `${trackId}|${source}`;
 			this.playbackSourceBoundTimeout = setTimeout(() => {
-				if (this.getActivePlayerSource() !== source) {
+				if (this.state.trackPlaybackSourceUrl !== source) {
 					return;
 				}
 
@@ -1369,7 +1347,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				}
 
 				this.playbackSourceRetryKeys.add(retryKey);
-				this.setActivePlayerSource(alternateSource);
+				this.setState({ trackPlaybackSourceUrl: alternateSource });
 			}, 1200);
 		}
 	};
@@ -1969,30 +1947,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
 
 		<view style={styles.root}>
-			{this.state.connectionMode === ConnectionModes.mock && (
+			{this.state.connectionMode === ConnectionModes.mock ? (
 				<MockPlayer playbackStore={this.playbackStore} />
-			)}
-			{this.state.connectionMode !== ConnectionModes.mock && (
-				<VideoAudioPlayer
-					isActive={this.state.activePlayerSlot === 'A'}
+			) : (
+				<GaplessPlayer
+					activeSourceUrl={this.state.trackPlaybackSourceUrl}
+					nextSourceUrl={this.state.nextTrackSourceUrl}
 					onPlaybackError={this.handlePlaybackError}
 					onPlaybackEvent={this.handlePlaybackEvent}
-					onTrackCompleted={
-						this.state.activePlayerSlot === 'A' ? this.handleGaplessHandoff : undefined
-					}
-					playbackSourceUrl={this.state.trackPlaybackSourceUrl}
-					playbackStore={this.playbackStore}
-				/>
-			)}
-			{this.state.connectionMode !== ConnectionModes.mock && (
-				<VideoAudioPlayer
-					isActive={this.state.activePlayerSlot === 'B'}
-					onPlaybackError={this.handlePlaybackError}
-					onPlaybackEvent={this.handlePlaybackEvent}
-					onTrackCompleted={
-						this.state.activePlayerSlot === 'B' ? this.handleGaplessHandoff : undefined
-					}
-					playbackSourceUrl={this.state.playerBSourceUrl}
+					onTrackCompleted={this.handleTrackCompleted}
 					playbackStore={this.playbackStore}
 				/>
 			)}

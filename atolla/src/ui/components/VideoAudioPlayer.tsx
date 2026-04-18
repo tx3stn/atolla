@@ -4,13 +4,18 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { PlaybackStore } from '../../stores/Playback';
 
+const PRE_ROLL_THRESHOLD_MS = 1500;
+
 export interface VideoAudioPlayerViewModel {
 	isActive?: boolean;
+	isPreRolling?: boolean;
+	onNearingEnd?: () => void;
 	onPlaybackError?: (error: string) => void;
 	onPlaybackEvent?: (event: string) => void;
 	onTrackCompleted?: () => void;
 	playbackSourceUrl: string | null;
 	playbackStore: PlaybackStore;
+	volume?: number;
 }
 
 interface VideoAudioPlayerState {
@@ -33,6 +38,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 	private lastSourceUrl = '';
 	private hasReportedLoadedForSource = false;
 	private hasReportedProgressForSource = false;
+	private hasSignaledNearingEnd = false;
 	private resolvedSourceAsset: unknown = null;
 	private resolvedSourceString = '';
 
@@ -43,11 +49,15 @@ export class VideoAudioPlayer extends StatefulComponent<
 
 	onCreate(): void {
 		const isActive = this.viewModel.isActive !== false;
-		this.setState({ playbackRate: isActive && this.viewModel.playbackStore.isPlaying ? 1 : 0 });
+		const isPreRolling = this.viewModel.isPreRolling === true;
+		this.setState({
+			playbackRate: (isActive || isPreRolling) && this.viewModel.playbackStore.isPlaying ? 1 : 0,
+		});
 
 		this.unsubscribePlaybackStore = this.viewModel.playbackStore.subscribe(() => {
 			const isActive = this.viewModel.isActive !== false;
-			if (!isActive) {
+			const isPreRolling = this.viewModel.isPreRolling === true;
+			if (!isActive && !isPreRolling) {
 				if (this.state.playbackRate !== 0) {
 					this.setState({ playbackRate: 0 });
 				}
@@ -55,6 +65,15 @@ export class VideoAudioPlayer extends StatefulComponent<
 			}
 
 			const nextPlaybackRate = this.viewModel.playbackStore.isPlaying ? 1 : 0;
+
+			if (!isActive) {
+				// Pre-rolling: follow isPlaying but skip seek logic
+				if (nextPlaybackRate !== this.state.playbackRate) {
+					this.setState({ playbackRate: nextPlaybackRate });
+				}
+				return;
+			}
+
 			const seekTarget = this.viewModel.playbackStore.seekTarget;
 			const shouldApplySeek = seekTarget != null;
 			const nextSeekToTimeMs =
@@ -77,6 +96,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 			this.lastSourceUrl = '';
 			this.hasReportedLoadedForSource = false;
 			this.hasReportedProgressForSource = false;
+			this.hasSignaledNearingEnd = false;
 			this.resolvedSourceAsset = null;
 			this.resolvedSourceString = '';
 			this.clearLoadTimeout();
@@ -90,6 +110,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 			this.lastSourceUrl = playbackSourceUrl;
 			this.hasReportedLoadedForSource = false;
 			this.hasReportedProgressForSource = false;
+			this.hasSignaledNearingEnd = false;
 			this.resolveVideoSource(playbackSourceUrl);
 			if (this.state.seekToTimeMs !== 0) {
 				this.setState({ seekToTimeMs: 0 });
@@ -99,8 +120,9 @@ export class VideoAudioPlayer extends StatefulComponent<
 			this.startLoadTimeout(this.describeResolvedSource());
 		}
 
-		const expectedPlaybackRate =
-			this.viewModel.isActive !== false && playbackStore.isPlaying ? 1 : 0;
+		const isActive = this.viewModel.isActive !== false;
+		const isPreRolling = this.viewModel.isPreRolling === true;
+		const expectedPlaybackRate = (isActive || isPreRolling) && playbackStore.isPlaying ? 1 : 0;
 		if (expectedPlaybackRate !== this.state.playbackRate) {
 			this.setState({ playbackRate: expectedPlaybackRate });
 		}
@@ -125,7 +147,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 			seekToTime={this.state.seekToTimeMs}
 			src={source}
 			style={styles.hiddenAudioVideo}
-			volume={1}
+			volume={this.viewModel.volume ?? 1}
 		/>;
 	}
 
@@ -175,8 +197,21 @@ export class VideoAudioPlayer extends StatefulComponent<
 			this.viewModel.onPlaybackEvent?.('progress');
 		}
 
-		if (timeMs >= 0 && this.viewModel.isActive !== false) {
-			this.viewModel.playbackStore.updateProgress(timeMs / 1000);
+		if (this.viewModel.isActive !== false) {
+			if (timeMs >= 0) {
+				this.viewModel.playbackStore.updateProgress(timeMs / 1000);
+			}
+
+			if (!this.hasSignaledNearingEnd && this.viewModel.onNearingEnd) {
+				const track = this.viewModel.playbackStore.track;
+				if (track) {
+					const remainingMs = track.duration * 1000 - timeMs;
+					if (remainingMs > 0 && remainingMs <= PRE_ROLL_THRESHOLD_MS) {
+						this.hasSignaledNearingEnd = true;
+						this.viewModel.onNearingEnd();
+					}
+				}
+			}
 		}
 	};
 
