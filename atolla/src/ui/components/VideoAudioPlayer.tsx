@@ -5,9 +5,11 @@ import { Style } from 'valdi_core/src/Style';
 import type { PlaybackStore } from '../../stores/Playback';
 
 export interface VideoAudioPlayerViewModel {
+	isActive?: boolean;
 	onPlaybackError?: (error: string) => void;
 	onPlaybackEvent?: (event: string) => void;
-	playbackSourceUrl: string;
+	onTrackCompleted?: () => void;
+	playbackSourceUrl: string | null;
 	playbackStore: PlaybackStore;
 }
 
@@ -40,9 +42,18 @@ export class VideoAudioPlayer extends StatefulComponent<
 	}
 
 	onCreate(): void {
-		this.setState({ playbackRate: this.viewModel.playbackStore.isPlaying ? 1 : 0 });
+		const isActive = this.viewModel.isActive !== false;
+		this.setState({ playbackRate: isActive && this.viewModel.playbackStore.isPlaying ? 1 : 0 });
 
 		this.unsubscribePlaybackStore = this.viewModel.playbackStore.subscribe(() => {
+			const isActive = this.viewModel.isActive !== false;
+			if (!isActive) {
+				if (this.state.playbackRate !== 0) {
+					this.setState({ playbackRate: 0 });
+				}
+				return;
+			}
+
 			const nextPlaybackRate = this.viewModel.playbackStore.isPlaying ? 1 : 0;
 			const seekTarget = this.viewModel.playbackStore.seekTarget;
 			const shouldApplySeek = seekTarget != null;
@@ -86,6 +97,12 @@ export class VideoAudioPlayer extends StatefulComponent<
 			this.clearLoadTimeout();
 			this.viewModel.onPlaybackEvent?.('source-bound');
 			this.startLoadTimeout(this.describeResolvedSource());
+		}
+
+		const expectedPlaybackRate =
+			this.viewModel.isActive !== false && playbackStore.isPlaying ? 1 : 0;
+		if (expectedPlaybackRate !== this.state.playbackRate) {
+			this.setState({ playbackRate: expectedPlaybackRate });
 		}
 	}
 
@@ -140,9 +157,13 @@ export class VideoAudioPlayer extends StatefulComponent<
 
 	private handleCompleted = (): void => {
 		this.clearLoadTimeout();
-		const track = this.viewModel.playbackStore.track;
-		if (track) {
-			this.viewModel.playbackStore.updateProgress(track.duration);
+		if (this.viewModel.onTrackCompleted) {
+			this.viewModel.onTrackCompleted();
+		} else {
+			const track = this.viewModel.playbackStore.track;
+			if (track) {
+				this.viewModel.playbackStore.updateProgress(track.duration);
+			}
 		}
 		this.viewModel.onPlaybackEvent?.('completed');
 	};
@@ -154,7 +175,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 			this.viewModel.onPlaybackEvent?.('progress');
 		}
 
-		if (timeMs >= 0) {
+		if (timeMs >= 0 && this.viewModel.isActive !== false) {
 			this.viewModel.playbackStore.updateProgress(timeMs / 1000);
 		}
 	};

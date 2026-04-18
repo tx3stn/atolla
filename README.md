@@ -22,7 +22,8 @@
 
 ## Features
 
-* Seamless online/offline usage including offline search & scrobbling
+* Seamless online/offline switching including offline search & scrobbling
+* Gapless playback
 * Image focussed UI including artist logos
 * Dynamic colour palette generation from album artwork
 
