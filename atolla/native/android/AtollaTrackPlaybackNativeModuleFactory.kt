@@ -20,6 +20,12 @@ import android.os.Looper
 import android.os.Process
 import android.os.SystemClock
 import android.util.Log
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import com.snap.modules.atolla.TrackPlaybackNativeModule
 import com.snap.modules.atolla.TrackPlaybackNativeModuleFactory
 import com.snap.valdi.modules.RegisterValdiModule
@@ -27,6 +33,7 @@ import java.io.File
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.ArrayDeque
 import java.util.concurrent.atomic.AtomicLong
 
 @RegisterValdiModule
@@ -132,6 +139,325 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				} catch (_: Throwable) {
 					"android-user-unknown"
 				}
+			}
+
+			override fun configureAtollaAudioPlayback(
+				currentSourceUrl: String,
+				currentTrackId: String,
+				currentDurationMs: Double,
+				nextSourceUrl: String,
+				nextTrackId: String,
+				nextDurationMs: Double,
+			) {
+				AtollaGaplessAudioEngine.configure(
+					currentSourceUrl = currentSourceUrl,
+					currentTrackId = currentTrackId,
+					currentDurationMs = currentDurationMs.toLong(),
+					nextSourceUrl = nextSourceUrl,
+					nextTrackId = nextTrackId,
+					nextDurationMs = nextDurationMs.toLong(),
+				)
+			}
+
+			override fun setAtollaAudioPlaybackRate(rate: Double) {
+				AtollaGaplessAudioEngine.setPlaybackRate(rate.toFloat())
+			}
+
+			override fun setAtollaAudioPlaybackVolume(volume: Double) {
+				AtollaGaplessAudioEngine.setVolume(volume.toFloat())
+			}
+
+			override fun seekAtollaAudioPlaybackToMs(positionMs: Double) {
+				AtollaGaplessAudioEngine.seekTo(positionMs.toLong())
+			}
+
+			override fun getAtollaAudioPlaybackPositionMs(): Double {
+				return AtollaGaplessAudioEngine.getPositionMs().toDouble()
+			}
+
+			override fun getAtollaAudioPlaybackDurationMs(): Double {
+				return AtollaGaplessAudioEngine.getDurationMs().toDouble()
+			}
+
+			override fun consumeAtollaAudioPlaybackEvent(): String {
+				return AtollaGaplessAudioEngine.consumeEvent()
+			}
+
+			override fun clearAtollaAudioPlayback() {
+				AtollaGaplessAudioEngine.clear()
+			}
+		}
+	}
+}
+
+object AtollaGaplessAudioEngine {
+	private const val tag = "AtollaGaplessAudio"
+	private val mainHandler = Handler(Looper.getMainLooper())
+	private val eventQueue = ArrayDeque<String>()
+
+	@Volatile private var sourceUrl: String = ""
+	@Volatile private var sourceTrackId: String = ""
+	@Volatile private var sourceDurationMs: Long = 0L
+	@Volatile private var nextSourceUrl: String = ""
+	@Volatile private var nextTrackId: String = ""
+	@Volatile private var nextDurationMs: Long = 0L
+	@Volatile private var playbackRate: Float = 0f
+	@Volatile private var volume: Float = 1f
+	@Volatile private var pendingSeekToMs: Long? = null
+
+	private var exoPlayer: ExoPlayer? = null
+
+	private val playerListener = object : Player.Listener {
+		override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+			if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+				return
+			}
+
+			enqueueEvent("completed")
+			if (mediaItem != null) {
+				sourceTrackId = mediaItem.mediaId
+				sourceUrl = mediaItem.localConfiguration?.uri?.toString() ?: sourceUrl
+			}
+			sourceDurationMs = 0L
+			nextSourceUrl = ""
+			nextTrackId = ""
+			nextDurationMs = 0L
+			trimPlayedItems()
+		}
+
+		override fun onPlaybackStateChanged(playbackState: Int) {
+			if (playbackState == Player.STATE_READY) {
+				enqueueEvent("loaded")
+				applyPendingSeekIfNeeded()
+			}
+		}
+
+		override fun onPlayerError(error: PlaybackException) {
+			enqueueEvent("error:${error.message ?: "ExoPlayer playback error"}")
+		}
+	}
+
+	fun configure(
+		currentSourceUrl: String,
+		currentTrackId: String,
+		currentDurationMs: Long,
+		nextSourceUrl: String,
+		nextTrackId: String,
+		nextDurationMs: Long,
+	) {
+		this.sourceUrl = currentSourceUrl
+		this.sourceTrackId = currentTrackId
+		this.sourceDurationMs = currentDurationMs.coerceAtLeast(0L)
+		this.nextSourceUrl = nextSourceUrl
+		this.nextTrackId = nextTrackId
+		this.nextDurationMs = nextDurationMs.coerceAtLeast(0L)
+
+		mainHandler.post {
+			val player = ensurePlayer() ?: return@post
+			syncQueue(player)
+		}
+	}
+
+	fun setPlaybackRate(rate: Float) {
+		playbackRate = rate
+		mainHandler.post {
+			val player = ensurePlayer() ?: return@post
+			if (playbackRate <= 0f) {
+				player.playWhenReady = false
+				return@post
+			}
+
+			player.setPlaybackParameters(PlaybackParameters(playbackRate))
+			player.playWhenReady = true
+		}
+	}
+
+	fun setVolume(volume: Float) {
+		this.volume = volume
+		mainHandler.post {
+			val player = ensurePlayer() ?: return@post
+			player.volume = this.volume.coerceIn(0f, 1f)
+		}
+	}
+
+	fun seekTo(positionMs: Long) {
+		pendingSeekToMs = positionMs.coerceAtLeast(0L)
+		mainHandler.post {
+			applyPendingSeekIfNeeded()
+		}
+	}
+
+	fun getPositionMs(): Long {
+		val player = exoPlayer ?: return 0L
+		return try {
+			player.currentPosition.coerceAtLeast(0L)
+		} catch (_: Throwable) {
+			0L
+		}
+	}
+
+	fun getDurationMs(): Long {
+		val player = exoPlayer ?: return 0L
+		return try {
+			val duration = player.duration
+			if (duration == C.TIME_UNSET) 0L else duration.coerceAtLeast(0L)
+		} catch (_: Throwable) {
+			0L
+		}
+	}
+
+	fun consumeEvent(): String {
+		synchronized(eventQueue) {
+			return if (eventQueue.isEmpty()) "" else eventQueue.removeFirst()
+		}
+	}
+
+	fun clear() {
+		sourceUrl = ""
+		sourceTrackId = ""
+		sourceDurationMs = 0L
+		nextSourceUrl = ""
+		nextTrackId = ""
+		nextDurationMs = 0L
+		pendingSeekToMs = null
+		synchronized(eventQueue) {
+			eventQueue.clear()
+		}
+
+		mainHandler.post {
+			releasePlayer()
+		}
+	}
+
+	private fun ensurePlayer(): ExoPlayer? {
+		if (sourceUrl.isBlank()) {
+			return exoPlayer
+		}
+
+		val existing = exoPlayer
+		if (existing != null) {
+			return existing
+		}
+
+		val appContext = resolveApplicationContext() ?: run {
+			Log.e(tag, "Unable to resolve application context for audio playback")
+			return null
+		}
+
+		val player = ExoPlayer.Builder(appContext).build()
+		player.addListener(playerListener)
+		player.volume = volume.coerceIn(0f, 1f)
+		exoPlayer = player
+		return player
+	}
+
+	private fun syncQueue(player: ExoPlayer) {
+		if (sourceUrl.isBlank()) {
+			return
+		}
+
+		val currentItem = player.currentMediaItem
+		if (currentItem == null || !mediaItemMatches(currentItem, sourceUrl, sourceTrackId)) {
+			replaceQueue(player)
+			return
+		}
+
+		trimPlayedItems()
+		val itemCount = player.mediaItemCount
+		if (itemCount > 1) {
+			player.removeMediaItems(1, itemCount)
+		}
+
+		if (nextSourceUrl.isNotBlank() && nextSourceUrl != sourceUrl) {
+			player.addMediaItem(buildMediaItem(nextSourceUrl, nextTrackId))
+		}
+	}
+
+	private fun replaceQueue(player: ExoPlayer) {
+		if (sourceUrl.isBlank()) {
+			return
+		}
+
+		val items = mutableListOf(buildMediaItem(sourceUrl, sourceTrackId))
+		if (nextSourceUrl.isNotBlank() && nextSourceUrl != sourceUrl) {
+			items.add(buildMediaItem(nextSourceUrl, nextTrackId))
+		}
+
+		player.setMediaItems(items, 0, 0L)
+		player.prepare()
+		if (playbackRate > 0f) {
+			player.setPlaybackParameters(PlaybackParameters(playbackRate))
+			player.playWhenReady = true
+		} else {
+			player.playWhenReady = false
+		}
+		applyPendingSeekIfNeeded()
+	}
+
+	private fun buildMediaItem(url: String, trackId: String): MediaItem {
+		return MediaItem.Builder()
+			.setMediaId(if (trackId.isBlank()) url else trackId)
+			.setUri(url)
+			.build()
+	}
+
+	private fun mediaItemMatches(item: MediaItem, expectedUrl: String, expectedTrackId: String): Boolean {
+		if (expectedTrackId.isNotBlank() && item.mediaId == expectedTrackId) {
+			return true
+		}
+
+		return item.localConfiguration?.uri?.toString() == expectedUrl
+	}
+
+	private fun applyPendingSeekIfNeeded() {
+		val player = exoPlayer ?: return
+		val seekMs = pendingSeekToMs ?: return
+		try {
+			player.seekTo(seekMs)
+			pendingSeekToMs = null
+		} catch (_: Throwable) {
+			// best effort
+		}
+	}
+
+	private fun trimPlayedItems() {
+		val player = exoPlayer ?: return
+		val currentIndex = player.currentMediaItemIndex
+		if (currentIndex > 0) {
+			player.removeMediaItems(0, currentIndex)
+		}
+	}
+
+	private fun enqueueEvent(event: String) {
+		synchronized(eventQueue) {
+			if (eventQueue.size >= 32) {
+				eventQueue.removeFirst()
+			}
+			eventQueue.addLast(event)
+		}
+	}
+
+	private fun resolveApplicationContext(): Context? {
+		return try {
+			val activityThreadClass = Class.forName("android.app.ActivityThread")
+			val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)
+			val app = currentApplication as? android.app.Application ?: return null
+			app.applicationContext
+		} catch (error: Throwable) {
+			Log.e(tag, "Unable to resolve application context", error)
+			null
+		}
+	}
+
+	private fun releasePlayer() {
+		val player = exoPlayer
+		exoPlayer = null
+		if (player != null) {
+			try {
+				player.removeListener(playerListener)
+				player.release()
+			} catch (_: Throwable) {
+				// ignored
 			}
 		}
 	}

@@ -59,6 +59,11 @@ data class AtollaCacheRequestPayload(
 
 data class AtollaTrackVideoRequestPayload(
 	val sourceUrl: String,
+	val sourceTrackId: String?,
+	val sourceDurationMs: Long?,
+	val nextSourceUrl: String?,
+	val nextTrackId: String?,
+	val nextDurationMs: Long?,
 )
 
 data class QuantizedColorCandidate(
@@ -276,10 +281,22 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		Log.d(tag, "getRequestPayload url=$url")
 		if (url.scheme == "atolla-track" && url.host == "audio") {
 			val source = url.getQueryParameter("u")
+			val sourceTrackId = url.getQueryParameter("t")
+			val sourceDurationMs = url.getQueryParameter("d")?.toLongOrNull()
+			val next = url.getQueryParameter("n")
+			val nextTrackId = url.getQueryParameter("nt")
+			val nextDurationMs = url.getQueryParameter("nd")?.toLongOrNull()
 			if (source.isNullOrBlank()) {
 				throw ValdiException("Invalid atolla-track video URL")
 			}
-			return AtollaTrackVideoRequestPayload(sourceUrl = source)
+			return AtollaTrackVideoRequestPayload(
+				sourceUrl = source,
+				sourceTrackId = sourceTrackId,
+				sourceDurationMs = sourceDurationMs,
+				nextSourceUrl = next,
+				nextTrackId = nextTrackId,
+				nextDurationMs = nextDurationMs,
+			)
 		}
 
 		val category = url.getQueryParameter("c")
@@ -368,7 +385,15 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			return null
 		}
 
-		val player = AtollaTrackValdiVideoPlayer(context, payload.sourceUrl)
+		val player = AtollaTrackValdiVideoPlayer(
+			context,
+			payload.sourceUrl,
+			payload.sourceTrackId,
+			payload.sourceDurationMs,
+			payload.nextSourceUrl,
+			payload.nextTrackId,
+			payload.nextDurationMs,
+		)
 		completion.onVideoPlayerCreated(player, null)
 		return player
 	}
@@ -1044,371 +1069,5 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			bytes += file.length()
 		}
 		return count to bytes
-	}
-}
-
-private class AtollaTrackValdiVideoPlayer(
-	private val context: android.content.Context,
-	initialSourceUrl: String,
-) : ValdiVideoPlayer, Disposable {
-	private val mainHandler = Handler(Looper.getMainLooper())
-	private val view = View(context)
-	private val progressIntervalMs = 300L
-
-	@Volatile private var callbacks: ValdiVideoPlayer.Callbacks? = null
-	@Volatile private var disposed = false
-	@Volatile private var isPrepared = false
-	@Volatile private var mediaPlayer: MediaPlayer? = null
-	@Volatile private var pendingSeekToMs: Int? = null
-	@Volatile private var playbackRate: Float = 0f
-	@Volatile private var sourceUrl: String = initialSourceUrl
-	@Volatile private var volume: Float = 1f
-
-	// Audio focus — prevents other audio apps from being silently interrupted and
-	// ensures the OS notifies us when focus is lost so we can pause cleanly.
-	@Volatile private var hasAudioFocus: Boolean = false
-	// Stored as Any? so the class loads on API < 26 (AudioFocusRequest requires API 26).
-	@Volatile private var audioFocusRequestObj: Any? = null
-	private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { change ->
-		mainHandler.post { handleAudioFocusChange(change) }
-	}
-
-	// WiFi lock — prevents the OS from applying WiFi power-saving modes that stall
-	// network streams when the screen is off.
-	@Volatile private var wifiLock: WifiManager.WifiLock? = null
-
-	private val progressRunnable = object : Runnable {
-		override fun run() {
-			if (disposed) {
-				return
-			}
-
-			val player = mediaPlayer
-			if (player != null && isPrepared) {
-				try {
-					val positionMs = player.currentPosition.toDouble()
-					val durationMs = player.duration.toDouble().coerceAtLeast(0.0)
-					callbacks?.onProgressUpdated?.let { callback ->
-						ValdiMarshaller.use { marshaller ->
-							marshaller.pushDouble(positionMs)
-							marshaller.pushDouble(durationMs)
-							callback.safePerform(marshaller)
-						}
-					}
-				} catch (_: Throwable) {
-					// best effort progress callback
-				}
-			}
-
-			mainHandler.postDelayed(this, progressIntervalMs)
-		}
-	}
-
-	init {
-		mainHandler.post {
-			if (disposed) {
-				return@post
-			}
-			initializePlayer()
-			mainHandler.post(progressRunnable)
-		}
-	}
-
-	override fun getView(): View = view
-
-	override fun setRequestPayload(payload: Any?) {
-		val typedPayload = payload as? AtollaTrackVideoRequestPayload ?: return
-		if (typedPayload.sourceUrl == sourceUrl) {
-			return
-		}
-
-		sourceUrl = typedPayload.sourceUrl
-		mainHandler.post {
-			if (disposed) {
-				return@post
-			}
-			initializePlayer()
-		}
-	}
-
-	override fun setVolume(volume: Float) {
-		this.volume = volume
-		mainHandler.post {
-			mediaPlayer?.setVolume(volume, volume)
-		}
-	}
-
-	override fun setPlaybackRate(rate: Float) {
-		playbackRate = rate
-		mainHandler.post {
-			applyPlaybackRate()
-		}
-	}
-
-	override fun setSeekToTime(time: Float) {
-		val seekMs = time.toInt().coerceAtLeast(0)
-		pendingSeekToMs = seekMs
-		mainHandler.post {
-			val player = mediaPlayer ?: return@post
-			if (!isPrepared) {
-				return@post
-			}
-
-			try {
-				player.seekTo(seekMs)
-				pendingSeekToMs = null
-			} catch (_: Throwable) {
-				// ignored
-			}
-		}
-	}
-
-	override fun setCallbacks(callbacks: ValdiVideoPlayer.Callbacks?) {
-		this.callbacks = callbacks
-	}
-
-	override fun dispose() {
-		disposed = true
-		mainHandler.removeCallbacks(progressRunnable)
-		mainHandler.post {
-			releasePlayer()
-		}
-	}
-
-	private fun initializePlayer() {
-		releasePlayer()
-		isPrepared = false
-
-		val player = MediaPlayer()
-		player.setAudioAttributes(
-			AudioAttributes.Builder()
-				.setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-				.setUsage(AudioAttributes.USAGE_MEDIA)
-				.build(),
-		)
-		// Keep the CPU running while playing — prevents the stream from stalling when
-		// the screen is off. WAKE_LOCK permission is declared in AndroidManifest.xml.
-		player.setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
-
-		player.setOnPreparedListener { preparedPlayer ->
-			if (disposed) {
-				return@setOnPreparedListener
-			}
-
-			isPrepared = true
-			preparedPlayer.setVolume(volume, volume)
-			pendingSeekToMs?.let { seekMs ->
-				try {
-					preparedPlayer.seekTo(seekMs)
-					pendingSeekToMs = null
-				} catch (_: Throwable) {
-					// ignored
-				}
-			}
-
-			callbacks?.onVideoLoaded?.let { callback ->
-				ValdiMarshaller.use { marshaller ->
-					marshaller.pushDouble(preparedPlayer.duration.toDouble())
-					callback.safePerform(marshaller)
-				}
-			}
-
-			applyPlaybackRate()
-		}
-
-		player.setOnCompletionListener {
-			callbacks?.onCompleted?.let { callback ->
-				ValdiMarshaller.use { marshaller ->
-					callback.safePerform(marshaller)
-				}
-			}
-		}
-
-		player.setOnErrorListener { _, what, extra ->
-			callbacks?.onError?.let { callback ->
-				ValdiMarshaller.use { marshaller ->
-					marshaller.pushString("MediaPlayer error what=$what extra=$extra")
-					callback.safePerform(marshaller)
-				}
-			}
-			true
-		}
-
-		try {
-			val uri = Uri.parse(sourceUrl)
-			val scheme = uri.scheme?.lowercase()
-			if (scheme == "http" || scheme == "https") {
-				player.setDataSource(sourceUrl)
-			} else {
-				player.setDataSource(context, uri)
-			}
-			player.prepareAsync()
-			mediaPlayer = player
-		} catch (error: Throwable) {
-			callbacks?.onError?.let { callback ->
-				ValdiMarshaller.use { marshaller ->
-					marshaller.pushString(error.message ?: "setDataSource failed")
-					callback.safePerform(marshaller)
-				}
-			}
-			releasePlayer()
-		}
-	}
-
-	private fun applyPlaybackRate() {
-		val player = mediaPlayer ?: return
-		if (!isPrepared) {
-			return
-		}
-
-		if (playbackRate <= 0f) {
-			if (player.isPlaying) {
-				player.pause()
-			}
-			releaseWifiLock()
-			return
-		}
-
-		// Obtain audio focus before starting; if denied, don't start the player.
-		if (!hasAudioFocus) {
-			val granted = requestAudioFocus()
-			if (!granted) {
-				return
-			}
-		}
-
-		if (!player.isPlaying) {
-			acquireWifiLockIfNeeded()
-			try {
-				player.start()
-				callbacks?.onBeginPlayback?.let { callback ->
-					ValdiMarshaller.use { marshaller ->
-						callback.safePerform(marshaller)
-					}
-				}
-			} catch (_: Throwable) {
-				// ignored
-			}
-		}
-
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-			try {
-				player.playbackParams = player.playbackParams.setSpeed(playbackRate)
-			} catch (_: Throwable) {
-				// ignored
-			}
-		}
-	}
-
-	private fun requestAudioFocus(): Boolean {
-		val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-			?: return false
-		return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-				.setAudioAttributes(
-					AudioAttributes.Builder()
-						.setUsage(AudioAttributes.USAGE_MEDIA)
-						.setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-						.build(),
-				)
-				.setOnAudioFocusChangeListener(audioFocusListener, mainHandler)
-				.build()
-			audioFocusRequestObj = req
-			val result = audioManager.requestAudioFocus(req)
-			hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-			hasAudioFocus
-		} else {
-			@Suppress("DEPRECATION")
-			val result = audioManager.requestAudioFocus(
-				audioFocusListener,
-				AudioManager.STREAM_MUSIC,
-				AudioManager.AUDIOFOCUS_GAIN,
-			)
-			hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-			hasAudioFocus
-		}
-	}
-
-	private fun abandonAudioFocus() {
-		hasAudioFocus = false
-		val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-			?: return
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			val req = audioFocusRequestObj as? AudioFocusRequest
-			if (req != null) {
-				audioManager.abandonAudioFocusRequest(req)
-			}
-			audioFocusRequestObj = null
-		} else {
-			@Suppress("DEPRECATION")
-			audioManager.abandonAudioFocus(audioFocusListener)
-		}
-	}
-
-	private fun handleAudioFocusChange(focusChange: Int) {
-		when (focusChange) {
-			AudioManager.AUDIOFOCUS_GAIN -> {
-				hasAudioFocus = true
-				// Resume playback if JS still wants to be playing.
-				if (playbackRate > 0f) {
-					applyPlaybackRate()
-				}
-			}
-			AudioManager.AUDIOFOCUS_LOSS -> {
-				hasAudioFocus = false
-				mediaPlayer?.takeIf { it.isPlaying }?.pause()
-				releaseWifiLock()
-				abandonAudioFocus()
-			}
-			AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-			AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-				// Pause for transient loss; resume when AUDIOFOCUS_GAIN arrives.
-				hasAudioFocus = false
-				mediaPlayer?.takeIf { it.isPlaying }?.pause()
-				releaseWifiLock()
-			}
-		}
-	}
-
-	private fun acquireWifiLockIfNeeded() {
-		if (wifiLock != null) return
-		val scheme = try { Uri.parse(sourceUrl).scheme?.lowercase() } catch (_: Throwable) { null }
-		if (scheme != "http" && scheme != "https") return
-		val wifiManager = context.applicationContext
-			.getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return
-		@Suppress("DEPRECATION")
-		val lock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "atolla:playback")
-		lock.acquire()
-		wifiLock = lock
-	}
-
-	private fun releaseWifiLock() {
-		val lock = wifiLock ?: return
-		wifiLock = null
-		try {
-			if (lock.isHeld) lock.release()
-		} catch (_: Throwable) {
-			// ignored
-		}
-	}
-
-	private fun releasePlayer() {
-		releaseWifiLock()
-		abandonAudioFocus()
-		val player = mediaPlayer
-		mediaPlayer = null
-		isPrepared = false
-		if (player != null) {
-			try {
-				player.stop()
-			} catch (_: Throwable) {
-				// ignored
-			}
-			try {
-				player.release()
-			} catch (_: Throwable) {
-				// ignored
-			}
-		}
 	}
 }

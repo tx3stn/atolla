@@ -34,6 +34,7 @@ kt_android_library(
         "android/AtollaImageLoaderBootstrapModuleFactory.kt",
         "android/AtollaImageLoaderRegistration.kt",
         "android/AtollaPlaybackService.kt",
+        "android/AtollaTrackValdiVideoPlayer.kt",
         "android/AtollaTrackPlaybackNativeModuleFactory.kt",
     ],
     assets = [
@@ -44,6 +45,7 @@ kt_android_library(
     custom_package = "atolla.native.android",
     deps = [
         "//atolla:atolla_api_kt",
+        "@media3_mvn//:androidx_media3_media3_exoplayer",
         "@android_mvn//:com_squareup_okhttp3_okhttp",
         "@valdi//valdi:valdi_java",
     ],

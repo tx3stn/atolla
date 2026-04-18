@@ -9,7 +9,8 @@ const PRE_ROLL_THRESHOLD_MS = 1500;
 export interface VideoAudioPlayerViewModel {
 	isActive?: boolean;
 	isPreRolling?: boolean;
-	onNearingEnd?: () => void;
+	nextPlaybackSourceUrl?: string | null;
+	onNearingEnd?: (remainingMs: number) => void;
 	onPlaybackError?: (error: string) => void;
 	onPlaybackEvent?: (event: string) => void;
 	onTrackCompleted?: () => void;
@@ -39,6 +40,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 	private hasReportedLoadedForSource = false;
 	private hasReportedProgressForSource = false;
 	private hasSignaledNearingEnd = false;
+	private lastNextSourceUrl = '';
 	private resolvedSourceAsset: unknown = null;
 	private resolvedSourceString = '';
 
@@ -49,15 +51,13 @@ export class VideoAudioPlayer extends StatefulComponent<
 
 	onCreate(): void {
 		const isActive = this.viewModel.isActive !== false;
-		const isPreRolling = this.viewModel.isPreRolling === true;
 		this.setState({
-			playbackRate: (isActive || isPreRolling) && this.viewModel.playbackStore.isPlaying ? 1 : 0,
+			playbackRate: isActive && this.viewModel.playbackStore.isPlaying ? 1 : 0,
 		});
 
 		this.unsubscribePlaybackStore = this.viewModel.playbackStore.subscribe(() => {
 			const isActive = this.viewModel.isActive !== false;
-			const isPreRolling = this.viewModel.isPreRolling === true;
-			if (!isActive && !isPreRolling) {
+			if (!isActive) {
 				if (this.state.playbackRate !== 0) {
 					this.setState({ playbackRate: 0 });
 				}
@@ -65,14 +65,6 @@ export class VideoAudioPlayer extends StatefulComponent<
 			}
 
 			const nextPlaybackRate = this.viewModel.playbackStore.isPlaying ? 1 : 0;
-
-			if (!isActive) {
-				// Pre-rolling: follow isPlaying but skip seek logic
-				if (nextPlaybackRate !== this.state.playbackRate) {
-					this.setState({ playbackRate: nextPlaybackRate });
-				}
-				return;
-			}
 
 			const seekTarget = this.viewModel.playbackStore.seekTarget;
 			const shouldApplySeek = seekTarget != null;
@@ -94,6 +86,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 
 		if (!playbackSourceUrl || !playbackStore.track) {
 			this.lastSourceUrl = '';
+			this.lastNextSourceUrl = '';
 			this.hasReportedLoadedForSource = false;
 			this.hasReportedProgressForSource = false;
 			this.hasSignaledNearingEnd = false;
@@ -106,12 +99,17 @@ export class VideoAudioPlayer extends StatefulComponent<
 			return;
 		}
 
-		if (playbackSourceUrl !== this.lastSourceUrl) {
+		const normalizedNextSourceUrl = this.viewModel.nextPlaybackSourceUrl ?? '';
+		if (
+			playbackSourceUrl !== this.lastSourceUrl ||
+			normalizedNextSourceUrl !== this.lastNextSourceUrl
+		) {
 			this.lastSourceUrl = playbackSourceUrl;
+			this.lastNextSourceUrl = normalizedNextSourceUrl;
 			this.hasReportedLoadedForSource = false;
 			this.hasReportedProgressForSource = false;
 			this.hasSignaledNearingEnd = false;
-			this.resolveVideoSource(playbackSourceUrl);
+			this.resolveVideoSource(playbackSourceUrl, this.viewModel.nextPlaybackSourceUrl ?? null);
 			if (this.state.seekToTimeMs !== 0) {
 				this.setState({ seekToTimeMs: 0 });
 			}
@@ -121,8 +119,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 		}
 
 		const isActive = this.viewModel.isActive !== false;
-		const isPreRolling = this.viewModel.isPreRolling === true;
-		const expectedPlaybackRate = (isActive || isPreRolling) && playbackStore.isPlaying ? 1 : 0;
+		const expectedPlaybackRate = isActive && playbackStore.isPlaying ? 1 : 0;
 		if (expectedPlaybackRate !== this.state.playbackRate) {
 			this.setState({ playbackRate: expectedPlaybackRate });
 		}
@@ -208,7 +205,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 					const remainingMs = track.duration * 1000 - timeMs;
 					if (remainingMs > 0 && remainingMs <= PRE_ROLL_THRESHOLD_MS) {
 						this.hasSignaledNearingEnd = true;
-						this.viewModel.onNearingEnd();
+						this.viewModel.onNearingEnd(remainingMs);
 					}
 				}
 			}
@@ -225,15 +222,79 @@ export class VideoAudioPlayer extends StatefulComponent<
 		}, 2500);
 	}
 
-	private resolveVideoSource(sourceUrl: string): void {
+	private resolveVideoSource(sourceUrl: string, nextSourceUrl: string | null): void {
 		const normalized = this.normalizeLocalFileSource(sourceUrl);
-		const loaderUrl = this.toTrackLoaderUrl(normalized);
+		const normalizedNext = nextSourceUrl ? this.normalizeLocalFileSource(nextSourceUrl) : null;
+		const currentTrackId = this.viewModel.playbackStore.track?.id ?? null;
+		const nextTrackId = this.resolveNextTrackId();
+		const currentTrackDurationMs = this.resolveCurrentTrackDurationMs();
+		const nextTrackDurationMs = this.resolveNextTrackDurationMs();
+		const loaderUrl = this.toTrackLoaderUrl(
+			normalized,
+			normalizedNext,
+			currentTrackId,
+			nextTrackId,
+			currentTrackDurationMs,
+			nextTrackDurationMs,
+		);
 		this.resolvedSourceString = loaderUrl;
 		try {
 			this.resolvedSourceAsset = makeAssetFromUrl(loaderUrl);
 		} catch {
 			this.resolvedSourceAsset = null;
 		}
+	}
+
+	private resolveNextTrackId(): string | null {
+		const { playbackStore } = this.viewModel;
+		const { loopMode, trackIndex, tracks } = playbackStore;
+		if (tracks.length === 0) {
+			return null;
+		}
+
+		if (trackIndex < tracks.length - 1) {
+			return tracks[trackIndex + 1]?.id ?? null;
+		}
+
+		if (loopMode === 'queue') {
+			return tracks[0]?.id ?? null;
+		}
+
+		return null;
+	}
+
+	private resolveCurrentTrackDurationMs(): number | null {
+		const durationSeconds = this.viewModel.playbackStore.track?.duration;
+		if (durationSeconds == null || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+			return null;
+		}
+
+		return Math.floor(durationSeconds * 1000);
+	}
+
+	private resolveNextTrackDurationMs(): number | null {
+		const { playbackStore } = this.viewModel;
+		const { loopMode, trackIndex, tracks } = playbackStore;
+		if (tracks.length === 0) {
+			return null;
+		}
+
+		let nextTrackDurationSeconds: number | undefined;
+		if (trackIndex < tracks.length - 1) {
+			nextTrackDurationSeconds = tracks[trackIndex + 1]?.duration;
+		} else if (loopMode === 'queue') {
+			nextTrackDurationSeconds = tracks[0]?.duration;
+		}
+
+		if (
+			nextTrackDurationSeconds == null ||
+			!Number.isFinite(nextTrackDurationSeconds) ||
+			nextTrackDurationSeconds <= 0
+		) {
+			return null;
+		}
+
+		return Math.floor(nextTrackDurationSeconds * 1000);
 	}
 
 	private normalizeLocalFileSource(sourceUrl: string): string {
@@ -261,9 +322,36 @@ export class VideoAudioPlayer extends StatefulComponent<
 		return `src=string:${this.resolvedSourceString}`;
 	}
 
-	private toTrackLoaderUrl(fileUrl: string): string {
+	private toTrackLoaderUrl(
+		fileUrl: string,
+		nextFileUrl: string | null,
+		trackId: string | null,
+		nextTrackId: string | null,
+		trackDurationMs: number | null,
+		nextTrackDurationMs: number | null,
+	): string {
 		const encoded = encodeURIComponent(fileUrl);
-		return `atolla-track://audio?u=${encoded}`;
+		const encodedTrackId = trackId ? encodeURIComponent(trackId) : '';
+		const durationQuery =
+			trackDurationMs != null && Number.isFinite(trackDurationMs) && trackDurationMs > 0
+				? `&d=${Math.floor(trackDurationMs)}`
+				: '';
+		if (!nextFileUrl) {
+			if (encodedTrackId) {
+				return `atolla-track://audio?u=${encoded}&t=${encodedTrackId}${durationQuery}`;
+			}
+			return `atolla-track://audio?u=${encoded}${durationQuery}`;
+		}
+
+		const encodedNext = encodeURIComponent(nextFileUrl);
+		const encodedNextTrackId = nextTrackId ? encodeURIComponent(nextTrackId) : '';
+		const trackQuery = encodedTrackId ? `&t=${encodedTrackId}` : '';
+		const nextTrackQuery = encodedNextTrackId ? `&nt=${encodedNextTrackId}` : '';
+		const nextDurationQuery =
+			nextTrackDurationMs != null && Number.isFinite(nextTrackDurationMs) && nextTrackDurationMs > 0
+				? `&nd=${Math.floor(nextTrackDurationMs)}`
+				: '';
+		return `atolla-track://audio?u=${encoded}&n=${encodedNext}${trackQuery}${nextTrackQuery}${durationQuery}${nextDurationQuery}`;
 	}
 
 	private clearLoadTimeout(): void {

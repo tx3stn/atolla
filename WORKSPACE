@@ -22,6 +22,19 @@ load("@valdi//bzl:workspace_preinit.bzl", "valdi_preinitialize_workspace")
 
 valdi_preinitialize_workspace()
 
+load("@rules_jvm_external//:defs.bzl", "maven_install")
+
+maven_install(
+    name = "media3_mvn",
+    artifacts = [
+        "androidx.media3:media3-exoplayer:1.3.1",
+    ],
+    repositories = [
+        "https://maven.google.com",
+        "https://repo1.maven.org/maven2",
+    ],
+)
+
 load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies", "aspect_bazel_lib_register_toolchains", "register_yq_toolchains")
 
 register_yq_toolchains()

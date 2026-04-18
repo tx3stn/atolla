@@ -64,3 +64,34 @@ export function ensureAtollaTrackPlaybackNotificationPermission(): boolean;
 
 // @ExportFunction
 export function getAtollaDeviceUserScopeKey(): string;
+
+// @ExportFunction
+export function configureAtollaAudioPlayback(
+	currentSourceUrl: string,
+	currentTrackId: string,
+	currentDurationMs: number,
+	nextSourceUrl: string,
+	nextTrackId: string,
+	nextDurationMs: number,
+): void;
+
+// @ExportFunction
+export function setAtollaAudioPlaybackRate(rate: number): void;
+
+// @ExportFunction
+export function setAtollaAudioPlaybackVolume(volume: number): void;
+
+// @ExportFunction
+export function seekAtollaAudioPlaybackToMs(positionMs: number): void;
+
+// @ExportFunction
+export function getAtollaAudioPlaybackPositionMs(): number;
+
+// @ExportFunction
+export function getAtollaAudioPlaybackDurationMs(): number;
+
+// @ExportFunction
+export function consumeAtollaAudioPlaybackEvent(): string;
+
+// @ExportFunction
+export function clearAtollaAudioPlayback(): void;
