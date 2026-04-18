@@ -220,6 +220,13 @@ export class MockTransport implements Transport {
 		});
 	}
 
+	async getShuffledLibraryTracks(): Promise<Array<Track>> {
+		const tracks = mockJellyfinTracks.map((item) =>
+			mapJellyfinTrackToTrack(item, this.imageResolvers),
+		);
+		return shuffleTracks(tracks);
+	}
+
 	getTrackCacheUrl(_trackId: string): string | null {
 		return MockTransport.sampleAudioUrl;
 	}
@@ -235,4 +242,13 @@ export class MockTransport implements Transport {
 			mockAlbumPrimaryImageUrls[itemId] ??
 			mockGenrePrimaryImageUrls[itemId],
 	};
+}
+
+function shuffleTracks<T>(tracks: Array<T>): Array<T> {
+	const copy = [...tracks];
+	for (let i = copy.length - 1; i > 0; i--) {
+		const randomIndex = Math.floor(Math.random() * (i + 1));
+		[copy[i], copy[randomIndex]] = [copy[randomIndex], copy[i]];
+	}
+	return copy;
 }

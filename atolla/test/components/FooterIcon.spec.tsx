@@ -26,7 +26,7 @@ describe('FooterIcon', () => {
 		expect(called).toBe(true);
 	});
 
-	valdiIt('applies active tint when active is true', () => {
+	valdiIt('applies no tint when active is true', () => {
 		const instrumented = createComponent(FooterIcon, {
 			action: () => {},
 			active: true,
@@ -38,7 +38,7 @@ describe('FooterIcon', () => {
 			componentGetElements(component),
 			IRenderedElementViewClass.Image,
 		);
-		expect(images[0].getAttribute('tint')).toBe(theme.colors.active);
+		expect(images[0].getAttribute('tint')).toBe(null);
 	});
 
 	valdiIt('applies grey tint when not active', () => {

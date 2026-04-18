@@ -1,4 +1,5 @@
 import type { Track } from '../../models/Track';
+import { shuffleArray } from '../../stores/Playback';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 
@@ -39,4 +40,38 @@ export function isSameTrackQueue(
 	}
 
 	return currentTracks.every((track, index) => track.id === expectedTracks[index]?.id);
+}
+
+type ShuffleLibraryTransport = Pick<Transport, 'getAllAlbums' | 'getTracksByAlbum'> & {
+	getShuffledLibraryTracks?: () => Promise<Array<Track>>;
+};
+
+export async function buildShuffleLibraryQueue(
+	connectionMode: ConnectionMode,
+	transport: ShuffleLibraryTransport,
+	shuffleTracks: (tracks: Array<Track>) => Array<Track> = shuffleArray,
+): Promise<Array<Track>> {
+	if (connectionMode === ConnectionModes.online && transport.getShuffledLibraryTracks) {
+		const remoteTracks = await transport.getShuffledLibraryTracks().catch(() => []);
+		if (remoteTracks.length > 0) {
+			return remoteTracks;
+		}
+	}
+
+	const albums = await transport.getAllAlbums();
+	if (albums.length === 0) {
+		return [];
+	}
+
+	const trackLists = await Promise.all(albums.map((album) => transport.getTracksByAlbum(album.id)));
+	const uniqueTracksById = new Map<string, Track>();
+	for (const tracks of trackLists) {
+		for (const track of tracks) {
+			if (!uniqueTracksById.has(track.id)) {
+				uniqueTracksById.set(track.id, track);
+			}
+		}
+	}
+
+	return shuffleTracks(Array.from(uniqueTracksById.values()));
 }

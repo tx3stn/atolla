@@ -286,6 +286,14 @@ export class OfflineTransport implements Transport {
 			.filter((t): t is Track => t != null);
 	}
 
+	async getShuffledLibraryTracks(): Promise<Array<Track>> {
+		const availableTracks = this.downloads
+			.getAllTracks()
+			.filter((entry) => entry.complete)
+			.map((entry) => entry.track);
+		return shuffleTracks(availableTracks);
+	}
+
 	getTrackCacheUrl(trackId: string): string | null {
 		if (!this.downloads.isTrackDownloaded(trackId)) return null;
 		return this.downloads.getTrackPlaybackUrl(trackId);
@@ -364,4 +372,13 @@ function normalizeLeadingThe(name: string): string {
 	}
 
 	return trimmed.replace(/^the\s+/i, '');
+}
+
+function shuffleTracks<T>(tracks: Array<T>): Array<T> {
+	const copy = [...tracks];
+	for (let i = copy.length - 1; i > 0; i--) {
+		const randomIndex = Math.floor(Math.random() * (i + 1));
+		[copy[i], copy[randomIndex]] = [copy[randomIndex], copy[i]];
+	}
+	return copy;
 }

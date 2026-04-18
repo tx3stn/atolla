@@ -7,7 +7,11 @@ import {
 	parseHomeAlbumsCache,
 	serializeHomeAlbumsCache,
 } from './HomeAlbumsCache';
-import { resolveArtistLogoUrlsForTracks, shouldApplyTransportAlbumsToHome } from './HomeViewLogic';
+import {
+	buildShuffleLibraryQueue,
+	resolveArtistLogoUrlsForTracks,
+	shouldApplyTransportAlbumsToHome,
+} from './HomeViewLogic';
 
 const sampleAlbums: Array<Album> = [
 	{
@@ -112,5 +116,69 @@ describe('HomeView cache helpers', () => {
 		});
 
 		expect(logoUrls).toEqual([null, 'artist-2-logo']);
+	});
+
+	it('uses transport shuffled library endpoint in online mode when available', async () => {
+		const remoteTracks: Array<Track> = [
+			{ duration: 120, id: 'track-2', name: 'Track Two' },
+			{ duration: 120, id: 'track-1', name: 'Track One' },
+		];
+		let calledGetAllAlbums = false;
+
+		const queue = await buildShuffleLibraryQueue(ConnectionModes.online, {
+			getAllAlbums: () => {
+				calledGetAllAlbums = true;
+				return Promise.resolve([]);
+			},
+			getShuffledLibraryTracks: async () => remoteTracks,
+			getTracksByAlbum: async () => [],
+		});
+
+		expect(queue).toEqual(remoteTracks);
+		expect(calledGetAllAlbums).toBe(false);
+	});
+
+	it('builds a local shuffled queue in offline mode', async () => {
+		const trackOne: Track = { albumId: 'album-1', duration: 120, id: 'track-1', name: 'Track One' };
+		const trackTwo: Track = { albumId: 'album-2', duration: 120, id: 'track-2', name: 'Track Two' };
+
+		const queue = await buildShuffleLibraryQueue(
+			ConnectionModes.offline,
+			{
+				getAllAlbums: async () => [
+					{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'Album One' },
+					{ artistId: 'artist-2', artistName: 'Artist Two', id: 'album-2', name: 'Album Two' },
+				],
+				getShuffledLibraryTracks: async () => [trackTwo],
+				getTracksByAlbum: (albumId: string) => {
+					if (albumId === 'album-1') {
+						return Promise.resolve([trackOne]);
+					}
+					return Promise.resolve([trackTwo, trackOne]);
+				},
+			},
+			(tracks) => [...tracks].reverse(),
+		);
+
+		expect(queue).toEqual([trackTwo, trackOne]);
+	});
+
+	it('falls back to local shuffle when online instant shuffle returns no tracks', async () => {
+		const trackOne: Track = { albumId: 'album-1', duration: 120, id: 'track-1', name: 'Track One' };
+		const trackTwo: Track = { albumId: 'album-1', duration: 120, id: 'track-2', name: 'Track Two' };
+
+		const queue = await buildShuffleLibraryQueue(
+			ConnectionModes.online,
+			{
+				getAllAlbums: async () => [
+					{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'Album One' },
+				],
+				getShuffledLibraryTracks: async () => [],
+				getTracksByAlbum: async () => [trackOne, trackTwo],
+			},
+			(tracks) => tracks,
+		);
+
+		expect(queue).toEqual([trackOne, trackTwo]);
 	});
 });

@@ -20,6 +20,7 @@ import {
 	serializeHomeAlbumsCache,
 } from './HomeAlbumsCache';
 import {
+	buildShuffleLibraryQueue,
 	isSameTrackQueue,
 	resolveArtistLogoUrlsForTracks,
 	shouldApplyTransportAlbumsToHome,
@@ -49,6 +50,7 @@ interface HomeState {
 }
 
 const HOME_ALBUMS_CACHE_KEY = 'albums_v1';
+const SHUFFLE_LIBRARY_MIX_ID = 'mix-shuffle-library';
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private hasBeenDestroyed = false;
@@ -232,8 +234,51 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		});
 	};
 
+	private createMixCards(): Array<Card> {
+		return [
+			{
+				artworkKey: this.state.albums[0]?.imageUrl ?? '',
+				id: SHUFFLE_LIBRARY_MIX_ID,
+				kind: 'playlist',
+				primaryText: 'Shuffle Library',
+			},
+		];
+	}
+
+	private handleMixCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'playlist';
+	}): void => {
+		if (card.id !== SHUFFLE_LIBRARY_MIX_ID) {
+			return;
+		}
+
+		void this.startShuffleLibraryMix();
+	};
+
+	private async startShuffleLibraryMix(): Promise<void> {
+		const queue = await buildShuffleLibraryQueue(
+			this.viewModel.connectionMode,
+			this.viewModel.transport,
+		);
+		if (queue.length === 0) {
+			return;
+		}
+
+		this.viewModel.playbackStore.playTracks(queue, 0);
+
+		void resolveArtistLogoUrlsForTracks(queue, this.viewModel.transport).then((logoUrls) => {
+			if (!isSameTrackQueue(this.viewModel.playbackStore.tracks, queue)) {
+				return;
+			}
+
+			this.viewModel.playbackStore.setArtistLogoUrls(logoUrls);
+		});
+	}
+
 	onRender(): void {
 		const onThisDayCards = this.createOnThisDayCards();
+		const mixCards = this.createMixCards();
 		const recentlyAddedCards = this.createRecentlyAddedCards();
 		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
 
@@ -286,6 +331,16 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 									<label style={styles.emptyState} value='nothing played yet' />
 								)}
 							</layout>
+
+							<layout style={styles.section}>
+								<label style={styles.sectionTitle} value='MIXES' />
+								<CardGrid
+									accessibilityLabel='home-mixes-grid'
+									cards={mixCards}
+									columnCount={this.viewModel.gridColumns}
+									onCardTap={this.handleMixCardTap}
+								/>
+							</layout>
 						</layout>
 					)}
 				</layout>
@@ -330,7 +385,7 @@ const styles = {
 		width: '100%',
 	}),
 	section: new Style({
-		marginBottom: 18,
+		marginBottom: 24,
 		width: '100%',
 	}),
 	sections: new Style({
