@@ -34,6 +34,8 @@ import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.ArrayDeque
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 @RegisterValdiModule
@@ -288,21 +290,25 @@ object AtollaGaplessAudioEngine {
 	}
 
 	fun getPositionMs(): Long {
-		val player = exoPlayer ?: return 0L
-		return try {
-			player.currentPosition.coerceAtLeast(0L)
-		} catch (_: Throwable) {
-			0L
+		return runOnMainSync(0L) {
+			val player = exoPlayer ?: return@runOnMainSync 0L
+			try {
+				player.currentPosition.coerceAtLeast(0L)
+			} catch (_: Throwable) {
+				0L
+			}
 		}
 	}
 
 	fun getDurationMs(): Long {
-		val player = exoPlayer ?: return 0L
-		return try {
-			val duration = player.duration
-			if (duration == C.TIME_UNSET) 0L else duration.coerceAtLeast(0L)
-		} catch (_: Throwable) {
-			0L
+		return runOnMainSync(0L) {
+			val player = exoPlayer ?: return@runOnMainSync 0L
+			try {
+				val duration = player.duration
+				if (duration == C.TIME_UNSET) 0L else duration.coerceAtLeast(0L)
+			} catch (_: Throwable) {
+				0L
+			}
 		}
 	}
 
@@ -460,6 +466,35 @@ object AtollaGaplessAudioEngine {
 				// ignored
 			}
 		}
+	}
+
+	private fun <T> runOnMainSync(defaultValue: T, block: () -> T): T {
+		if (Looper.myLooper() == Looper.getMainLooper()) {
+			return try {
+				block()
+			} catch (_: Throwable) {
+				defaultValue
+			}
+		}
+
+		val latch = CountDownLatch(1)
+		var result = defaultValue
+		mainHandler.post {
+			result = try {
+				block()
+			} catch (_: Throwable) {
+				defaultValue
+			}
+			latch.countDown()
+		}
+
+		try {
+			latch.await(50, TimeUnit.MILLISECONDS)
+		} catch (_: Throwable) {
+			return defaultValue
+		}
+
+		return result
 	}
 }
 

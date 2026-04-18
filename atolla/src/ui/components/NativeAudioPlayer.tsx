@@ -41,6 +41,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 	private lastSourceUrl = '';
 	private lastNextSourceUrl = '';
 	private lastSeekTargetSeconds: number | null = null;
+	private hasReportedProgressForSource = false;
 
 	onCreate(): void {
 		const isActive = this.viewModel.isActive !== false;
@@ -90,6 +91,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 		if (source !== this.lastSourceUrl || next !== this.lastNextSourceUrl) {
 			this.lastSourceUrl = source;
 			this.lastNextSourceUrl = next;
+			this.hasReportedProgressForSource = false;
 			this.configurePlayback(source, this.viewModel.nextPlaybackSourceUrl ?? null);
 			this.viewModel.onPlaybackEvent?.('source-bound');
 		}
@@ -127,7 +129,17 @@ export class NativeAudioPlayer extends StatefulComponent<
 		try {
 			const positionMs = getAtollaAudioPlaybackPositionMs();
 			if (Number.isFinite(positionMs) && positionMs >= 0 && this.viewModel.isActive !== false) {
-				this.viewModel.playbackStore.updateProgress(positionMs / 1000);
+				if (positionMs > 0 && !this.hasReportedProgressForSource) {
+					this.hasReportedProgressForSource = true;
+					this.viewModel.onPlaybackEvent?.('progress');
+				}
+				const trackDurationSeconds = this.viewModel.playbackStore.track?.duration ?? 0;
+				const positionSeconds = positionMs / 1000;
+				const safePositionSeconds =
+					trackDurationSeconds > 0
+						? Math.min(positionSeconds, Math.max(0, trackDurationSeconds - 0.05))
+						: positionSeconds;
+				this.viewModel.playbackStore.updateProgress(safePositionSeconds);
 			}
 		} catch {
 			// best effort poll
