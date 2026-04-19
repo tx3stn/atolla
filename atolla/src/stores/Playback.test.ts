@@ -17,6 +17,7 @@ const tracks = [track1, track2, track3];
 
 class InMemoryQueueStore {
 	values = new Map<string, string>();
+	writeCount = 0;
 
 	fetchString(key: string): Promise<string> {
 		const value = this.values.get(key);
@@ -28,6 +29,7 @@ class InMemoryQueueStore {
 
 	storeString(key: string, value: string): Promise<void> {
 		this.values.set(key, value);
+		this.writeCount += 1;
 		return Promise.resolve();
 	}
 }
@@ -814,14 +816,59 @@ describe('PlaybackStore', () => {
 			expect(raw).not.toBeNull();
 
 			const payload = JSON.parse(raw ?? '{}') as {
+				progressSeconds: number;
 				trackIndex: number;
 				tracks: Array<Track>;
 			};
+			expect(payload.progressSeconds).toBe(0);
 			expect(payload.trackIndex).toBe(1);
 			expect(payload.tracks).toEqual([track1, track2]);
 		});
 
 		it('restores queue state from cache', async () => {
+			const queueStore = new InMemoryQueueStore();
+			queueStore.values.set(
+				'queue',
+				JSON.stringify({
+					album,
+					artistLogoUrls: ['logo-1', null],
+					progressSeconds: 33,
+					trackIndex: 1,
+					tracks: [track1, track2],
+				}),
+			);
+
+			const store = new PlaybackStore();
+			await store.setQueueStore(queueStore);
+
+			expect(store.tracks).toEqual([track1, track2]);
+			expect(store.trackIndex).toBe(1);
+			expect(store.track).toEqual(track2);
+			expect(store.artistLogoUrl).toBeNull();
+			expect(store.progressSeconds).toBe(33);
+			expect(store.isPlaying).toBe(false);
+		});
+
+		it('clamps restored progress to the active track duration', async () => {
+			const queueStore = new InMemoryQueueStore();
+			queueStore.values.set(
+				'queue',
+				JSON.stringify({
+					album,
+					artistLogoUrls: [null],
+					progressSeconds: 999,
+					trackIndex: 0,
+					tracks: [track1],
+				}),
+			);
+
+			const store = new PlaybackStore();
+			await store.setQueueStore(queueStore);
+
+			expect(store.progressSeconds).toBe(track1.duration);
+		});
+
+		it('supports restoring legacy queue payloads without progress', async () => {
 			const queueStore = new InMemoryQueueStore();
 			queueStore.values.set(
 				'queue',
@@ -836,11 +883,46 @@ describe('PlaybackStore', () => {
 			const store = new PlaybackStore();
 			await store.setQueueStore(queueStore);
 
-			expect(store.tracks).toEqual([track1, track2]);
-			expect(store.trackIndex).toBe(1);
 			expect(store.track).toEqual(track2);
-			expect(store.artistLogoUrl).toBeNull();
-			expect(store.isPlaying).toBe(false);
+			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('checkpoints progress every five seconds while playing', async () => {
+			const queueStore = new InMemoryQueueStore();
+			const store = new PlaybackStore();
+
+			await store.setQueueStore(queueStore);
+			store.playTracks([track1]);
+			const writesAfterPlay = queueStore.writeCount;
+
+			store.updateProgress(1);
+			store.updateProgress(3);
+			store.updateProgress(4.9);
+			expect(queueStore.writeCount).toBe(writesAfterPlay);
+
+			store.updateProgress(5);
+			expect(queueStore.writeCount).toBe(writesAfterPlay + 1);
+
+			store.updateProgress(9);
+			expect(queueStore.writeCount).toBe(writesAfterPlay + 1);
+
+			store.updateProgress(10);
+			expect(queueStore.writeCount).toBe(writesAfterPlay + 2);
+		});
+
+		it('persists progress immediately on seek and pause', async () => {
+			const queueStore = new InMemoryQueueStore();
+			const store = new PlaybackStore();
+
+			await store.setQueueStore(queueStore);
+			store.playTracks([track1]);
+			const writesAfterPlay = queueStore.writeCount;
+
+			store.seekTo(12);
+			expect(queueStore.writeCount).toBe(writesAfterPlay + 1);
+
+			store.playPause();
+			expect(queueStore.writeCount).toBe(writesAfterPlay + 2);
 		});
 
 		it('ignores invalid cached payloads', async () => {

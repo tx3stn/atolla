@@ -552,6 +552,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	onDestroy(): void {
+		this.playbackStore.persistNow();
 		if (this.bootstrapCommitTimer) {
 			clearTimeout(this.bootstrapCommitTimer);
 		}

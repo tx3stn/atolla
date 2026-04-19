@@ -11,11 +11,13 @@ interface PlaybackQueueStore {
 interface PersistedPlaybackQueue {
 	album: Album | null;
 	artistLogoUrls: Array<string | null>;
+	progressSeconds: number;
 	trackIndex: number;
 	tracks: Array<Track>;
 }
 
 const playbackQueueCacheKey = 'queue';
+const progressPersistStepSeconds = 5;
 
 export type LoopMode = 'none' | 'queue' | 'track';
 
@@ -33,6 +35,7 @@ export class PlaybackStore {
 	private _artistLogoUrls: Array<string | null> = [];
 	private queueStore: PlaybackQueueStore | null = null;
 	private queueStoreLoadToken = 0;
+	private lastPersistedProgressSeconds = 0;
 
 	album: Album | null = null;
 	isPlaying: boolean = false;
@@ -66,7 +69,11 @@ export class PlaybackStore {
 			this.trackIndex = Math.max(0, Math.min(parsed.trackIndex, parsed.tracks.length - 1));
 			this._artistLogoUrls = parsed.tracks.map((_, index) => parsed.artistLogoUrls[index] ?? null);
 			this.isPlaying = false;
-			this.progressSeconds = 0;
+			const currentTrack = this.tracks[this.trackIndex] ?? null;
+			const maxProgress = currentTrack?.duration ?? 0;
+			const restoredProgress = Number.isFinite(parsed.progressSeconds) ? parsed.progressSeconds : 0;
+			this.progressSeconds = Math.max(0, Math.min(restoredProgress, maxProgress));
+			this.lastPersistedProgressSeconds = this.progressSeconds;
 			this.seekTarget = null;
 			this.notify();
 		} catch {
@@ -143,6 +150,9 @@ export class PlaybackStore {
 
 	playPause(): void {
 		this.isPlaying = !this.isPlaying;
+		if (!this.isPlaying) {
+			this.persistQueue();
+		}
 		this.notify();
 	}
 
@@ -151,6 +161,8 @@ export class PlaybackStore {
 		if (!activeTrack) return;
 
 		this.seekTarget = null;
+
+		let queueStateChanged = false;
 
 		if (seconds >= activeTrack.duration) {
 			if (this.loopMode === 'track') {
@@ -161,19 +173,31 @@ export class PlaybackStore {
 					this.trackIndex = 0;
 					this.progressSeconds = 0;
 					this.seekTarget = 0;
-					this.persistQueue();
+					queueStateChanged = true;
 				} else {
 					this.progressSeconds = activeTrack.duration;
 					this.isPlaying = false;
+					this.persistQueue();
 				}
 			} else {
 				this.trackIndex += 1;
 				this.progressSeconds = 0;
-				this.persistQueue();
+				queueStateChanged = true;
 			}
 		} else {
 			this.progressSeconds = seconds;
+			if (
+				this.isPlaying &&
+				this.progressSeconds - this.lastPersistedProgressSeconds >= progressPersistStepSeconds
+			) {
+				this.persistQueue();
+			}
 		}
+
+		if (queueStateChanged) {
+			this.persistQueue();
+		}
+
 		this.notify();
 	}
 
@@ -184,7 +208,12 @@ export class PlaybackStore {
 		const clamped = Math.max(0, Math.min(activeTrack.duration, seconds));
 		this.seekTarget = clamped;
 		this.progressSeconds = clamped;
+		this.persistQueue();
 		this.notify();
+	}
+
+	persistNow(): void {
+		this.persistQueue();
 	}
 
 	skipForward(seconds = 10): void {
@@ -338,9 +367,11 @@ export class PlaybackStore {
 		const payload: PersistedPlaybackQueue = {
 			album: this.album,
 			artistLogoUrls: this._artistLogoUrls,
+			progressSeconds: this.progressSeconds,
 			trackIndex: this.trackIndex,
 			tracks: this.tracks,
 		};
+		this.lastPersistedProgressSeconds = this.progressSeconds;
 
 		void this.queueStore.storeString(playbackQueueCacheKey, JSON.stringify(payload)).catch(() => {
 			// best effort persistence
@@ -397,6 +428,13 @@ function isPersistedPlaybackQueue(value: unknown): value is PersistedPlaybackQue
 	}
 
 	if (typeof candidate.trackIndex !== 'number') {
+		return false;
+	}
+
+	if (
+		candidate.progressSeconds != null &&
+		(typeof candidate.progressSeconds !== 'number' || !Number.isFinite(candidate.progressSeconds))
+	) {
 		return false;
 	}
 

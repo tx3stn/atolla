@@ -93,6 +93,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 			this.lastNextSourceUrl = next;
 			this.hasReportedProgressForSource = false;
 			this.configurePlayback(source, this.viewModel.nextPlaybackSourceUrl ?? null);
+			this.applyInitialSeekForSource();
 			this.viewModel.onPlaybackEvent?.('source-bound');
 		}
 
@@ -123,6 +124,16 @@ export class NativeAudioPlayer extends StatefulComponent<
 				`native audio configure failed: ${this.describeError(error)}`,
 			);
 		}
+	}
+
+	private applyInitialSeekForSource(): void {
+		const restoredProgressSeconds = this.viewModel.playbackStore.progressSeconds;
+		if (!Number.isFinite(restoredProgressSeconds) || restoredProgressSeconds <= 0) {
+			return;
+		}
+
+		this.lastSeekTargetSeconds = restoredProgressSeconds;
+		this.safeSeekTo(Math.max(0, Math.floor(restoredProgressSeconds * 1000)));
 	}
 
 	private syncProgressAndEvents(): void {

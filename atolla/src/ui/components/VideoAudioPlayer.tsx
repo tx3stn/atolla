@@ -110,8 +110,13 @@ export class VideoAudioPlayer extends StatefulComponent<
 			this.hasReportedProgressForSource = false;
 			this.hasSignaledNearingEnd = false;
 			this.resolveVideoSource(playbackSourceUrl, this.viewModel.nextPlaybackSourceUrl ?? null);
-			if (this.state.seekToTimeMs !== 0) {
-				this.setState({ seekToTimeMs: 0 });
+			const restoredProgressSeconds = this.viewModel.playbackStore.progressSeconds;
+			const initialSeekToTimeMs =
+				Number.isFinite(restoredProgressSeconds) && restoredProgressSeconds > 0
+					? Math.max(0, Math.floor(restoredProgressSeconds * 1000))
+					: 0;
+			if (this.state.seekToTimeMs !== initialSeekToTimeMs) {
+				this.setState({ seekToTimeMs: initialSeekToTimeMs });
 			}
 			this.clearLoadTimeout();
 			this.viewModel.onPlaybackEvent?.('source-bound');
