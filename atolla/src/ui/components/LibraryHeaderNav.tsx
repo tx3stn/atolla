@@ -8,22 +8,37 @@ import type { ConnectionMode } from '../../transports/Model';
 import { ConnectivityFab } from './ConnectivityFab';
 import { LibraryHeaderTab } from './HeaderTab';
 import { type HeaderTab, HeaderTabs } from './HeaderTabs';
+import { SortNavPanel, type SortOrder, SortOrders } from './SortNavPanel';
+
+const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
 
 interface LibraryHeaderViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
 	downloadingCount: number;
+	onAlphabetLetterTap?: (letter: string) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
+	onSortChange?: (sort: SortOrder) => void;
 	onTabTap: (tabId: HeaderTab) => void;
+}
+
+interface LibraryHeaderState {
+	currentSort: SortOrder;
+	isPanelOpen: boolean;
 }
 
 export class LibraryHeaderNav extends StatefulComponent<
 	LibraryHeaderViewModel,
-	Record<string, never>
+	LibraryHeaderState
 > {
 	private rootRef = new ElementRef();
 	private readonly hiddenTop = -(theme.headerHeight + 16);
+
+	state: LibraryHeaderState = {
+		currentSort: SortOrders.aToZ,
+		isPanelOpen: false,
+	};
 
 	onCreate(): void {
 		if (!this.viewModel.animationsEnabled) {
@@ -47,12 +62,44 @@ export class LibraryHeaderNav extends StatefulComponent<
 		});
 	}
 
+	private handleDrag = (event): void => {
+		if (event.state !== TouchEventState.Changed && event.state !== TouchEventState.Ended) {
+			return;
+		}
+		if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+			return;
+		}
+		if (event.deltaY >= 18 && !this.state.isPanelOpen) {
+			this.setState({ isPanelOpen: true });
+			return;
+		}
+		if (event.deltaY <= -18 && this.state.isPanelOpen) {
+			this.setState({ isPanelOpen: false });
+		}
+	};
+
+	private closeSortPanel = (): void => {
+		this.setState({ isPanelOpen: false });
+	};
+
+	private handleSortChange = (sort: SortOrder): void => {
+		this.setState({ currentSort: sort });
+		this.viewModel.onSortChange?.(sort);
+	};
+
 	onRender() {
+		const { isPanelOpen, currentSort } = this.state;
+
+		// biome-ignore lint/a11y/noStaticElementInteractions: Header supports swipe-down gesture to reveal sort panel.
 		<view
 			accessibilityLabel='library-header-nav'
 			contentDescription='library-header-nav'
+			onDrag={createReusableCallback((event) => {
+				this.handleDrag(event);
+			})}
+			onDragPredicate={(event) => Math.abs(event.deltaY) > Math.abs(event.deltaX)}
 			ref={this.rootRef}
-			style={styles.libraryTabs}
+			style={isPanelOpen ? styles.libraryTabsOpen : styles.libraryTabs}
 		>
 			<view style={styles.leadingFabSlot}>
 				<ConnectivityFab
@@ -99,11 +146,28 @@ export class LibraryHeaderNav extends StatefulComponent<
 			<view style={styles.scrollHintWrap}>
 				<label style={styles.scrollHint} value='>' />
 			</view>
+
+			{isPanelOpen && <view onTap={this.closeSortPanel} style={styles.dismissOverlay} />}
+
+			{isPanelOpen && (
+				<SortNavPanel
+					currentSort={currentSort}
+					onLetterTap={this.viewModel.onAlphabetLetterTap}
+					onSortChange={this.handleSortChange}
+				/>
+			)}
 		</view>;
 	}
 }
 
 const styles = {
+	dismissOverlay: new Style({
+		bottom: 0,
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: theme.headerHeight,
+	}),
 	lastTabWrap: new Style({}),
 	leadingFabSlot: new Style({
 		alignItems: 'center',
@@ -114,6 +178,19 @@ const styles = {
 	}),
 	libraryTabs: new Style({
 		backgroundColor: theme.colors.transparent,
+		flexDirection: 'row',
+		left: 0,
+		minHeight: theme.headerHeight,
+		paddingBottom: 4,
+		position: 'absolute',
+		right: 0,
+		top: 0,
+		width: '100%',
+		zIndex: 10,
+	}),
+	libraryTabsOpen: new Style({
+		backgroundColor: theme.colors.transparent,
+		bottom: 0,
 		flexDirection: 'row',
 		left: 0,
 		minHeight: theme.headerHeight,
