@@ -3,6 +3,20 @@ import type { Track } from '../models/Track';
 
 type PlaybackListener = () => void;
 
+interface PlaybackQueueStore {
+	fetchString(key: string): Promise<string>;
+	storeString(key: string, value: string): Promise<void>;
+}
+
+interface PersistedPlaybackQueue {
+	album: Album | null;
+	artistLogoUrls: Array<string | null>;
+	trackIndex: number;
+	tracks: Array<Track>;
+}
+
+const playbackQueueCacheKey = 'queue';
+
 export type LoopMode = 'none' | 'queue' | 'track';
 
 export function shuffleArray<T>(arr: Array<T>): Array<T> {
@@ -17,6 +31,8 @@ export function shuffleArray<T>(arr: Array<T>): Array<T> {
 export class PlaybackStore {
 	private listeners = new Set<PlaybackListener>();
 	private _artistLogoUrls: Array<string | null> = [];
+	private queueStore: PlaybackQueueStore | null = null;
+	private queueStoreLoadToken = 0;
 
 	album: Album | null = null;
 	isPlaying: boolean = false;
@@ -25,6 +41,38 @@ export class PlaybackStore {
 	seekTarget: number | null = null;
 	trackIndex: number = 0;
 	tracks: Array<Track> = [];
+
+	async setQueueStore(store: PlaybackQueueStore | null): Promise<void> {
+		this.queueStore = store;
+		const token = ++this.queueStoreLoadToken;
+
+		if (!store) {
+			return;
+		}
+
+		try {
+			const raw = await store.fetchString(playbackQueueCacheKey);
+			if (token !== this.queueStoreLoadToken || this.queueStore !== store) {
+				return;
+			}
+
+			const parsed = JSON.parse(raw);
+			if (!isPersistedPlaybackQueue(parsed)) {
+				return;
+			}
+
+			this.tracks = parsed.tracks;
+			this.album = parsed.album;
+			this.trackIndex = Math.max(0, Math.min(parsed.trackIndex, parsed.tracks.length - 1));
+			this._artistLogoUrls = parsed.tracks.map((_, index) => parsed.artistLogoUrls[index] ?? null);
+			this.isPlaying = false;
+			this.progressSeconds = 0;
+			this.seekTarget = null;
+			this.notify();
+		} catch {
+			// best effort restore
+		}
+	}
 
 	cycleLoopMode(): void {
 		switch (this.loopMode) {
@@ -63,6 +111,7 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this.seekTarget = null;
 		this._artistLogoUrls = [];
+		this.persistQueue();
 		this.notify();
 	}
 
@@ -72,6 +121,7 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this.seekTarget = null;
 		this.isPlaying = true;
+		this.persistQueue();
 		this.notify();
 	}
 
@@ -79,6 +129,7 @@ export class PlaybackStore {
 		this.trackIndex = Math.min(this.trackIndex + 1, this.tracks.length - 1);
 		this.progressSeconds = 0;
 		this.seekTarget = null;
+		this.persistQueue();
 		this.notify();
 	}
 
@@ -86,6 +137,7 @@ export class PlaybackStore {
 		this.trackIndex = Math.max(this.trackIndex - 1, 0);
 		this.progressSeconds = 0;
 		this.seekTarget = null;
+		this.persistQueue();
 		this.notify();
 	}
 
@@ -109,6 +161,7 @@ export class PlaybackStore {
 					this.trackIndex = 0;
 					this.progressSeconds = 0;
 					this.seekTarget = 0;
+					this.persistQueue();
 				} else {
 					this.progressSeconds = activeTrack.duration;
 					this.isPlaying = false;
@@ -116,6 +169,7 @@ export class PlaybackStore {
 			} else {
 				this.trackIndex += 1;
 				this.progressSeconds = 0;
+				this.persistQueue();
 			}
 		} else {
 			this.progressSeconds = seconds;
@@ -144,6 +198,7 @@ export class PlaybackStore {
 		this.isPlaying = false;
 		this.progressSeconds = 0;
 		this.trackIndex = 0;
+		this.persistQueue();
 		this.notify();
 	}
 
@@ -154,6 +209,7 @@ export class PlaybackStore {
 		this.isPlaying = true;
 		this.progressSeconds = 0;
 		this._artistLogoUrls = [];
+		this.persistQueue();
 		this.notify();
 	}
 
@@ -164,17 +220,20 @@ export class PlaybackStore {
 		this.isPlaying = true;
 		this.progressSeconds = 0;
 		this._artistLogoUrls = tracks.map((_, index) => logoUrls[index] ?? null);
+		this.persistQueue();
 		this.notify();
 	}
 
 	setArtistLogoUrls(logoUrls: Array<string | null>): void {
 		this._artistLogoUrls = this.tracks.map((_, index) => logoUrls[index] ?? null);
+		this.persistQueue();
 		this.notify();
 	}
 
 	addToQueue(tracks: Array<Track>): void {
 		this.tracks = [...this.tracks, ...tracks];
 		this._artistLogoUrls = [...this._artistLogoUrls, ...tracks.map(() => null)];
+		this.persistQueue();
 		this.notify();
 	}
 
@@ -186,6 +245,7 @@ export class PlaybackStore {
 			...tracks.map(() => null),
 			...this._artistLogoUrls.slice(insertAt),
 		];
+		this.persistQueue();
 		this.notify();
 	}
 
@@ -215,6 +275,7 @@ export class PlaybackStore {
 			this.seekTarget = null;
 		}
 
+		this.persistQueue();
 		this.notify();
 	}
 
@@ -250,6 +311,7 @@ export class PlaybackStore {
 			this.trackIndex += 1;
 		}
 
+		this.persistQueue();
 		this.notify();
 	}
 
@@ -264,7 +326,25 @@ export class PlaybackStore {
 		}
 		this.tracks = [...this.tracks.slice(0, start), ...tail];
 		this._artistLogoUrls = [...this._artistLogoUrls.slice(0, start), ...tailLogoUrls];
+		this.persistQueue();
 		this.notify();
+	}
+
+	private persistQueue(): void {
+		if (!this.queueStore) {
+			return;
+		}
+
+		const payload: PersistedPlaybackQueue = {
+			album: this.album,
+			artistLogoUrls: this._artistLogoUrls,
+			trackIndex: this.trackIndex,
+			tracks: this.tracks,
+		};
+
+		void this.queueStore.storeString(playbackQueueCacheKey, JSON.stringify(payload)).catch(() => {
+			// best effort persistence
+		});
 	}
 
 	setArtistLogoUrl(url: string | null): void {
@@ -296,4 +376,60 @@ export class PlaybackStore {
 			listener();
 		}
 	}
+}
+
+function isPersistedPlaybackQueue(value: unknown): value is PersistedPlaybackQueue {
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
+
+	const candidate = value as Partial<PersistedPlaybackQueue>;
+	if (!Array.isArray(candidate.tracks) || !candidate.tracks.every(isTrack)) {
+		return false;
+	}
+
+	if (!Array.isArray(candidate.artistLogoUrls)) {
+		return false;
+	}
+
+	if (!candidate.artistLogoUrls.every((entry) => entry == null || typeof entry === 'string')) {
+		return false;
+	}
+
+	if (typeof candidate.trackIndex !== 'number') {
+		return false;
+	}
+
+	if (candidate.album != null && !isAlbum(candidate.album)) {
+		return false;
+	}
+
+	return true;
+}
+
+function isTrack(value: unknown): value is Track {
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
+
+	const candidate = value as Partial<Track>;
+	return (
+		typeof candidate.id === 'string' &&
+		typeof candidate.name === 'string' &&
+		typeof candidate.duration === 'number'
+	);
+}
+
+function isAlbum(value: unknown): value is Album {
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
+
+	const candidate = value as Partial<Album>;
+	return (
+		typeof candidate.id === 'string' &&
+		typeof candidate.name === 'string' &&
+		typeof candidate.artistId === 'string' &&
+		typeof candidate.artistName === 'string'
+	);
 }

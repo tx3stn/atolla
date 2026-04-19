@@ -15,6 +15,23 @@ const track2: Track = { duration: 240, id: 'track-2', name: 'Track Two' };
 const track3: Track = { duration: 300, id: 'track-3', name: 'Track Three' };
 const tracks = [track1, track2, track3];
 
+class InMemoryQueueStore {
+	values = new Map<string, string>();
+
+	fetchString(key: string): Promise<string> {
+		const value = this.values.get(key);
+		if (value == null) {
+			return Promise.reject(new Error('missing key'));
+		}
+		return Promise.resolve(value);
+	}
+
+	storeString(key: string, value: string): Promise<void> {
+		this.values.set(key, value);
+		return Promise.resolve();
+	}
+}
+
 describe('PlaybackStore', () => {
 	describe('initial state', () => {
 		it('starts with no track, album, or playback', () => {
@@ -781,6 +798,61 @@ describe('PlaybackStore', () => {
 			store.subscribe(() => calls++);
 			store.shuffle();
 			expect(calls).toBe(1);
+		});
+	});
+
+	describe('queue cache', () => {
+		it('persists queue updates when a queue store is set', async () => {
+			const queueStore = new InMemoryQueueStore();
+			const store = new PlaybackStore();
+
+			await store.setQueueStore(queueStore);
+			store.playTracks([track1, track2], 1);
+
+			const raw = queueStore.values.get('queue');
+			expect(raw).toBeDefined();
+			expect(raw).not.toBeNull();
+
+			const payload = JSON.parse(raw ?? '{}') as {
+				trackIndex: number;
+				tracks: Array<Track>;
+			};
+			expect(payload.trackIndex).toBe(1);
+			expect(payload.tracks).toEqual([track1, track2]);
+		});
+
+		it('restores queue state from cache', async () => {
+			const queueStore = new InMemoryQueueStore();
+			queueStore.values.set(
+				'queue',
+				JSON.stringify({
+					album,
+					artistLogoUrls: ['logo-1', null],
+					trackIndex: 1,
+					tracks: [track1, track2],
+				}),
+			);
+
+			const store = new PlaybackStore();
+			await store.setQueueStore(queueStore);
+
+			expect(store.tracks).toEqual([track1, track2]);
+			expect(store.trackIndex).toBe(1);
+			expect(store.track).toEqual(track2);
+			expect(store.artistLogoUrl).toBeNull();
+			expect(store.isPlaying).toBe(false);
+		});
+
+		it('ignores invalid cached payloads', async () => {
+			const queueStore = new InMemoryQueueStore();
+			queueStore.values.set('queue', JSON.stringify({ trackIndex: 0, tracks: 'invalid' }));
+
+			const store = new PlaybackStore();
+			await store.setQueueStore(queueStore);
+
+			expect(store.tracks).toEqual([]);
+			expect(store.track).toBeNull();
+			expect(store.trackIndex).toBe(0);
 		});
 	});
 });

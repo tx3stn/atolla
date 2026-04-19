@@ -245,6 +245,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		fetchString(key: string): Promise<string>;
 		storeString(key: string, value: string): Promise<void>;
 	};
+	private nowPlayingQueueStore?: {
+		fetchString(key: string): Promise<string>;
+		storeString(key: string, value: string): Promise<void>;
+	};
 	private homeAlbumsStore?: {
 		fetchString(key: string): Promise<string>;
 		storeString(key: string, value: string): Promise<void>;
@@ -590,6 +594,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.recentlyPlayedStore = new PersistentStore(`atolla/user/${userId}/recently_played`, {
 			deviceGlobal: true,
 		});
+		this.nowPlayingQueueStore = new PersistentStore(`atolla/user/${userId}/now_playing_queue`, {
+			deviceGlobal: true,
+		});
+		void this.playbackStore.setQueueStore(this.nowPlayingQueueStore);
 		this.homeAlbumsStore = new PersistentStore(`atolla/user/${userId}/home`, {
 			deviceGlobal: true,
 		});
