@@ -61,15 +61,12 @@ describe('SettingsView', () => {
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-btn')
 			?.getAttribute('onTap')?.();
 
-		const updatedViews = elementTypeFind(
+		const modalConfirm = elementTypeFind(
 			componentGetElements(component),
 			IRenderedElementViewClass.View,
-		);
-		const modal = updatedViews.find(
-			(v) => v.getAttribute('accessibilityLabel') === 'settings-logout-modal',
-		);
+		).find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-confirm-btn');
 
-		expect(modal).toBeTruthy();
+		expect(modalConfirm).toBeTruthy();
 	});
 
 	valdiIt('calls onLogout when logout confirm modal is confirmed', () => {
@@ -345,15 +342,12 @@ describe('SettingsView', () => {
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-delete-all-btn')
 			?.getAttribute('onTap')?.();
 
-		const updatedViews = elementTypeFind(
+		const modalConfirm = elementTypeFind(
 			componentGetElements(component),
 			IRenderedElementViewClass.View,
-		);
-		const modal = updatedViews.find(
-			(v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-clear-modal',
-		);
+		).find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-clear-confirm-btn');
 
-		expect(modal).toBeTruthy();
+		expect(modalConfirm).toBeTruthy();
 	});
 
 	valdiIt('calls onClearDownloads when downloads clear modal is confirmed', () => {
