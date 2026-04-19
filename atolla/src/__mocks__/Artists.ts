@@ -2,6 +2,7 @@ import type { JellyfinArtistItem } from '../models/jellyfin/Types';
 
 export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 	{
+		DateCreated: '2024-01-10T08:00:00.000Z',
 		Id: 'artist-1',
 		ImageTags: {
 			Primary: 'mock',
@@ -12,6 +13,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-01-24T08:00:00.000Z',
 		Id: 'artist-2',
 		ImageTags: {
 			Primary: 'mock',
@@ -22,6 +24,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-02-07T08:00:00.000Z',
 		Id: 'artist-3',
 		ImageTags: {
 			Primary: 'mock',
@@ -32,6 +35,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-02-21T08:00:00.000Z',
 		Id: 'artist-4',
 		ImageTags: {
 			Primary: 'mock',
@@ -42,6 +46,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-03-06T08:00:00.000Z',
 		Id: 'artist-5',
 		ImageTags: {
 			Primary: 'mock',
@@ -52,6 +57,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-03-20T08:00:00.000Z',
 		Id: 'artist-6',
 		ImageTags: {
 			Primary: 'mock',
@@ -62,6 +68,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-04-03T08:00:00.000Z',
 		Id: 'artist-7',
 		ImageTags: {
 			Primary: 'mock',
@@ -72,6 +79,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-04-17T08:00:00.000Z',
 		Id: 'artist-8',
 		ImageTags: {
 			Primary: 'mock',
@@ -82,6 +90,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-05-01T08:00:00.000Z',
 		Id: 'artist-9',
 		ImageTags: {
 			Primary: 'mock',
@@ -92,6 +101,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-05-15T08:00:00.000Z',
 		Id: 'artist-10',
 		ImageTags: {
 			Primary: 'mock',
@@ -102,6 +112,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-05-29T08:00:00.000Z',
 		Id: 'artist-11',
 		ImageTags: {
 			Primary: 'mock',
@@ -112,6 +123,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-06-12T08:00:00.000Z',
 		Id: 'artist-12',
 		ImageTags: {
 			Primary: 'mock',
@@ -122,6 +134,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-06-26T08:00:00.000Z',
 		Id: 'artist-13',
 		ImageTags: {
 			Primary: 'mock',
@@ -132,6 +145,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-07-10T08:00:00.000Z',
 		Id: 'artist-14',
 		ImageTags: {
 			Primary: 'mock',
@@ -142,6 +156,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-07-24T08:00:00.000Z',
 		Id: 'artist-15',
 		ImageTags: {
 			Primary: 'mock',
@@ -152,6 +167,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		Type: 'MusicArtist',
 	},
 	{
+		DateCreated: '2024-08-07T08:00:00.000Z',
 		Id: 'artist-16',
 		ImageTags: {
 			Primary: 'mock',

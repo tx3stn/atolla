@@ -59,6 +59,7 @@ export function mapJellyfinArtistToArtist(
 
 	return {
 		bio: item.Overview,
+		dateAdded: item.DateCreated,
 		genres: mapGenreReferences(item),
 		id: item.Id,
 		imageUrl: imageResolvers.itemPrimaryImageUrl?.(item.Id, primaryTag),
@@ -143,6 +144,7 @@ export function mapJellyfinPlaylistToPlaylist(
 	const primaryTag = item.ImageTags?.Primary;
 
 	return {
+		dateAdded: item.DateCreated,
 		id: item.Id,
 		imageUrl: imageResolvers.itemPrimaryImageUrl?.(item.Id, primaryTag),
 		name: item.Name,

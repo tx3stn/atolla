@@ -28,6 +28,7 @@ export interface JellyfinBaseItemDto extends JellyfinBaseItemIdentity {
 	AlbumPrimaryImageTag?: string;
 	ArtistItems?: Array<JellyfinNameIdReference>;
 	ChildCount?: number;
+	DateCreated?: string;
 	GenreItems?: Array<JellyfinNameIdReference>;
 	Genres?: Array<string>;
 	ImageTags?: Record<string, string>;

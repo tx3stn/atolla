@@ -11,6 +11,7 @@ import {
 	LiveTransport,
 	mapJellyfinAlbumToAlbum,
 	mapJellyfinArtistToArtist,
+	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
 } from './Live';
 
@@ -117,6 +118,19 @@ describe('mapJellyfinTrackToTrack', () => {
 });
 
 describe('mapJellyfinArtistToArtist', () => {
+	it('maps dateAdded from DateCreated', () => {
+		const item: JellyfinArtistItem = {
+			DateCreated: '2024-02-11T00:00:00.000Z',
+			Id: 'artist-1',
+			Name: 'Artist A',
+			Type: 'MusicArtist',
+		};
+
+		const artist = mapJellyfinArtistToArtist(item);
+
+		expect(artist.dateAdded).toBe('2024-02-11T00:00:00.000Z');
+	});
+
 	it('omits logoUrl when artist has no logo metadata', () => {
 		const item: JellyfinArtistItem = {
 			Id: 'artist-1',
@@ -149,6 +163,21 @@ describe('mapJellyfinArtistToArtist', () => {
 			{ id: 'genre-2', name: 'Noise Rock' },
 			{ id: 'genre-1', name: 'Post-Hardcore' },
 		]);
+	});
+});
+
+describe('mapJellyfinPlaylistToPlaylist', () => {
+	it('maps dateAdded from DateCreated', () => {
+		const item: JellyfinPlaylistItem = {
+			DateCreated: '2024-03-08T00:00:00.000Z',
+			Id: 'playlist-1',
+			Name: 'Playlist A',
+			Type: 'Playlist',
+		};
+
+		const playlist = mapJellyfinPlaylistToPlaylist(item);
+
+		expect(playlist.dateAdded).toBe('2024-03-08T00:00:00.000Z');
 	});
 });
 

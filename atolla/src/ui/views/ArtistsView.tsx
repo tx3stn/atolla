@@ -304,12 +304,22 @@ function sortArtistsForView(
 		return artists;
 	}
 
-	if (sort === SortOrders.newToOld || sort === SortOrders.oldToNew) {
-		return artists;
+	if (sort === SortOrders.newToOld) {
+		return [...artists].sort((a, b) => compareDates(b.dateAdded, a.dateAdded));
+	}
+	if (sort === SortOrders.oldToNew) {
+		return [...artists].sort((a, b) => compareDates(a.dateAdded, b.dateAdded));
 	}
 
 	const sorted = sortOfflineArtists(artists);
 	return sort === SortOrders.zToA ? sorted.reverse() : sorted;
+}
+
+function compareDates(a: string | undefined, b: string | undefined): number {
+	if (!a && !b) return 0;
+	if (!a) return 1;
+	if (!b) return -1;
+	return a < b ? -1 : a > b ? 1 : 0;
 }
 
 function shouldUseLocalSortedList(viewModel: ArtistsViewModel): boolean {
