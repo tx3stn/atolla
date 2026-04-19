@@ -13,6 +13,7 @@ import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
+import { sortArtists } from './ArtistsSort';
 import { ArtistView } from './ArtistView';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
@@ -300,26 +301,11 @@ function sortArtistsForView(
 	sort: SortOrder,
 	shouldSortLocally: boolean,
 ): Array<Artist> {
-	if (!shouldSortLocally) {
+	if (!shouldSortLocally && sort === SortOrders.aToZ) {
 		return artists;
 	}
 
-	if (sort === SortOrders.newToOld) {
-		return [...artists].sort((a, b) => compareDates(b.dateAdded, a.dateAdded));
-	}
-	if (sort === SortOrders.oldToNew) {
-		return [...artists].sort((a, b) => compareDates(a.dateAdded, b.dateAdded));
-	}
-
-	const sorted = sortOfflineArtists(artists);
-	return sort === SortOrders.zToA ? sorted.reverse() : sorted;
-}
-
-function compareDates(a: string | undefined, b: string | undefined): number {
-	if (!a && !b) return 0;
-	if (!a) return 1;
-	if (!b) return -1;
-	return a < b ? -1 : a > b ? 1 : 0;
+	return sortArtists(artists, sort);
 }
 
 function shouldUseLocalSortedList(viewModel: ArtistsViewModel): boolean {
@@ -339,36 +325,6 @@ function matchesArtistLetterFilter(name: string, letter: string): boolean {
 		return /^\d/.test(name.trim());
 	}
 	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
-}
-
-function sortOfflineArtists(artists: Array<Artist>): Array<Artist> {
-	return [...artists].sort((left, right) => {
-		const normalizedLeft = normalizeArtistName(left.name);
-		const normalizedRight = normalizeArtistName(right.name);
-		const byNormalized = compareCaseInsensitive(normalizedLeft, normalizedRight);
-		if (byNormalized !== 0) {
-			return byNormalized;
-		}
-
-		return compareCaseInsensitive(left.name, right.name);
-	});
-}
-
-function normalizeArtistName(name: string): string {
-	const trimmed = name.trim();
-	return (/^the\s+/i.test(trimmed) ? trimmed.replace(/^the\s+/i, '') : trimmed).toLocaleLowerCase();
-}
-
-function compareCaseInsensitive(left: string, right: string): number {
-	const leftLower = left.trim().toLocaleLowerCase();
-	const rightLower = right.trim().toLocaleLowerCase();
-	if (leftLower < rightLower) {
-		return -1;
-	}
-	if (leftLower > rightLower) {
-		return 1;
-	}
-	return 0;
 }
 
 function createScrollStyle(isFooterVisible: boolean): Style {

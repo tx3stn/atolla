@@ -1,28 +1,60 @@
 import type { Album } from '../../models/Album';
-import { type SortOrder, SortOrders } from '../components/SortNavPanel';
+export type AlbumSort = 'a-z' | 'z-a' | 'new-old' | 'old-new';
 
-export type AlbumSort = SortOrder;
-export { SortOrders as AlbumSorts };
+export const AlbumSorts = {
+	aToZ: 'a-z' as AlbumSort,
+	newToOld: 'new-old' as AlbumSort,
+	oldToNew: 'old-new' as AlbumSort,
+	zToA: 'z-a' as AlbumSort,
+};
 
-export function sortAlbums(albums: Array<Album>, sort: SortOrder): Array<Album> {
+export function sortAlbums(albums: Array<Album>, sort: AlbumSort): Array<Album> {
 	const sorted = [...albums];
 	switch (sort) {
-		case SortOrders.aToZ:
+		case AlbumSorts.aToZ:
 			return sorted.sort((a, b) => a.name.localeCompare(b.name));
-		case SortOrders.zToA:
+		case AlbumSorts.zToA:
 			return sorted.sort((a, b) => b.name.localeCompare(a.name));
-		case SortOrders.newToOld:
-			return sorted.sort((a, b) => compareDates(b.releaseDate, a.releaseDate));
-		case SortOrders.oldToNew:
-			return sorted.sort((a, b) => compareDates(a.releaseDate, b.releaseDate));
+		case AlbumSorts.newToOld:
+			return sorted.sort((a, b) => compareDatesDescending(a.releaseDate, b.releaseDate));
+		case AlbumSorts.oldToNew:
+			return sorted.sort((a, b) => compareDatesAscending(a.releaseDate, b.releaseDate));
 		default:
 			return sorted.sort((a, b) => a.name.localeCompare(b.name));
 	}
 }
 
-function compareDates(a: string | undefined, b: string | undefined): number {
-	if (!a && !b) return 0;
-	if (!a) return 1;
-	if (!b) return -1;
-	return a.localeCompare(b);
+function compareDatesAscending(left: string | undefined, right: string | undefined): number {
+	const leftTime = parseDateTime(left);
+	const rightTime = parseDateTime(right);
+
+	if (leftTime == null && rightTime == null) return 0;
+	if (leftTime == null) return 1;
+	if (rightTime == null) return -1;
+
+	return leftTime - rightTime;
+}
+
+function compareDatesDescending(left: string | undefined, right: string | undefined): number {
+	const leftTime = parseDateTime(left);
+	const rightTime = parseDateTime(right);
+
+	if (leftTime == null && rightTime == null) return 0;
+	if (leftTime == null) return 1;
+	if (rightTime == null) return -1;
+
+	return rightTime - leftTime;
+}
+
+function parseDateTime(value: string | undefined): number | null {
+	if (!value) {
+		return null;
+	}
+
+	const time = Date.parse(value);
+	if (Number.isNaN(time)) {
+		return null;
+	}
+
+	return time;
 }
