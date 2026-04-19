@@ -38,7 +38,7 @@ describe('FooterIcon', () => {
 			componentGetElements(component),
 			IRenderedElementViewClass.Image,
 		);
-		expect(images[0].getAttribute('tint')).toBe(null);
+		expect(images[0].getAttribute('tint')).toBe(undefined);
 	});
 
 	valdiIt('applies grey tint when not active', () => {

@@ -13,7 +13,7 @@ export const SortOrders = {
 	zToA: 'z-a' as SortOrder,
 };
 
-const SORT_OPTIONS: Array<{ label: string; value: SortOrder }> = [
+const _SORT_OPTIONS: Array<{ label: string; value: SortOrder }> = [
 	{ label: 'a › z', value: SortOrders.aToZ },
 	{ label: 'z › a', value: SortOrders.zToA },
 	{ label: 'new › old', value: SortOrders.newToOld },
@@ -80,26 +80,26 @@ export class SortNavPanel extends Component<SortNavPanelViewModel> {
 				</view>
 			</view>
 
-			<view style={styles.divider} />
-
-			<label style={styles.sortLabel} value='SORT' />
-			<view style={styles.sortRow}>
-				{SORT_OPTIONS.map(({ label, value }) => (
-					<view
-						key={value}
-						onTap={() => onSortChange(value)}
-						style={currentSort === value ? styles.pillActive : styles.pill}
-					>
-						{currentSort === value && (
-							<image src={res.headertabgradient} style={styles.pillGradient} />
-						)}
-						<label
-							style={currentSort === value ? styles.pillLabelActive : styles.pillLabel}
-							value={label}
-						/>
-					</view>
-				))}
-			</view>
+			{/* <view style={styles.divider} /> */}
+			{/**/}
+			{/* <label style={styles.sortLabel} value='SORT' /> */}
+			{/* <view style={styles.sortRow}> */}
+			{/* 	{SORT_OPTIONS.map(({ label, value }) => ( */}
+			{/* 		<view */}
+			{/* 			key={value} */}
+			{/* 			onTap={() => onSortChange(value)} */}
+			{/* 			style={currentSort === value ? styles.pillActive : styles.pill} */}
+			{/* 		> */}
+			{/* 			{currentSort === value && ( */}
+			{/* 				<image src={res.headertabgradient} style={styles.pillGradient} /> */}
+			{/* 			)} */}
+			{/* 			<label */}
+			{/* 				style={currentSort === value ? styles.pillLabelActive : styles.pillLabel} */}
+			{/* 				value={label} */}
+			{/* 			/> */}
+			{/* 		</view> */}
+			{/* 	))} */}
+			{/* </view> */}
 		</view>;
 	}
 }
@@ -124,23 +124,28 @@ const styles = {
 	}),
 	letterButton: new Style({
 		alignItems: 'center',
-		flex: 1,
+		height: 24,
 		justifyContent: 'center',
-		padding: 4,
+		marginLeft: 1,
+		marginRight: 1,
+		width: 24,
 	}),
 	letterButtonActive: new Style({
 		alignItems: 'center',
-		borderRadius: 999,
-		flex: 1,
+		borderRadius: 12,
+		height: 24,
 		justifyContent: 'center',
+		marginLeft: 1,
+		marginRight: 1,
 		overflow: 'hidden',
-		padding: 4,
 		position: 'relative',
+		width: 24,
 	}),
 	letterGradient: new Style({
 		borderRadius: 999,
 		bottom: 0,
 		left: 0,
+		padding: 4,
 		position: 'absolute',
 		right: 0,
 		top: 0,
