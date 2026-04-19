@@ -83,6 +83,7 @@ import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
 import { LibraryHeaderNav } from './ui/components/LibraryHeaderNav';
 import { MockPlayer } from './ui/components/MockPlayer';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
+import { type SortOrder, SortOrders } from './ui/components/SortNavPanel';
 import { Toast } from './ui/components/Toast';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
@@ -117,7 +118,9 @@ interface AppState {
 	isHomeNavigationMounted: boolean;
 	isLibraryHeaderVisible: boolean;
 	jellyfinClientDeviceIdOverride: string;
+	libraryLetterFilter: string | null;
 	libraryResetNonce: number;
+	librarySort: SortOrder;
 	nativeImageCacheDiskBytes: number | null;
 	nativeImageCacheDiskCount: number | null;
 	nextTrackSourceUrl: string | null;
@@ -337,7 +340,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		isHomeNavigationMounted: true,
 		isLibraryHeaderVisible: true,
 		jellyfinClientDeviceIdOverride: '',
+		libraryLetterFilter: null,
 		libraryResetNonce: 0,
+		librarySort: SortOrders.aToZ,
 		nativeImageCacheDiskBytes: null,
 		nativeImageCacheDiskCount: null,
 		nextTrackSourceUrl: null,
@@ -1158,6 +1163,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (tab === this.state.activeLibraryTab) {
 			this.setState({
 				isLibraryHeaderVisible: true,
+				libraryLetterFilter: null,
 				libraryResetNonce: this.state.libraryResetNonce + 1,
 			});
 			return;
@@ -1166,7 +1172,16 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({
 			activeLibraryTab: tab,
 			isLibraryHeaderVisible: true,
+			libraryLetterFilter: null,
 		});
+	};
+
+	handleLibraryAlphabetLetterTap = (letter: string | null): void => {
+		this.setState({ libraryLetterFilter: letter });
+	};
+
+	handleLibrarySortChange = (sort: SortOrder): void => {
+		this.setState({ librarySort: sort });
 	};
 
 	handleLibraryHeaderVisibilityChange = (isVisible: boolean): void => {
@@ -1996,7 +2011,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					animationsEnabled={this.state.animationsEnabled}
 					connectionMode={this.state.connectionMode}
 					downloadingCount={this.state.downloadingCount}
+					onAlphabetLetterTap={this.handleLibraryAlphabetLetterTap}
 					onRequestModeChange={this.requestModeChange}
+					onSortChange={this.handleLibrarySortChange}
 					onTabTap={this.handleLibraryHeaderTabTap}
 				/>
 			)}
@@ -2008,6 +2025,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					connectionMode={this.state.connectionMode}
 					downloadService={this.downloadService}
 					gridColumns={this.state.gridColumns}
+					letterFilter={this.state.libraryLetterFilter}
 					onHeaderVisibilityChange={this.handleLibraryHeaderVisibilityChange}
 					onNavigateToArtist={this.handleNavigateToArtist}
 					onNavigationContext={this.handleNavigationContext}
@@ -2015,6 +2033,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					paletteQueue={this.paletteQueue}
 					playbackStore={this.playbackStore}
 					resetSignal={this.state.libraryResetNonce}
+					sortOrder={this.state.librarySort}
 					transport={this.transport}
 				/>
 			)}

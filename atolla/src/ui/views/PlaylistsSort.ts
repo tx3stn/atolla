@@ -1,14 +1,15 @@
 import type { Playlist } from '../../models/Playlist';
+import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 
-export const PlaylistSorts = {
-	alphabetical: 'alphabetical',
-} as const;
+export type PlaylistSort = SortOrder;
+export { SortOrders as PlaylistSorts };
 
-export type PlaylistSort = (typeof PlaylistSorts)[keyof typeof PlaylistSorts];
-
-export function sortPlaylists(playlists: Array<Playlist>, sort: PlaylistSort): Array<Playlist> {
+export function sortPlaylists(playlists: Array<Playlist>, sort: SortOrder): Array<Playlist> {
+	const sorted = [...playlists];
 	switch (sort) {
-		case PlaylistSorts.alphabetical:
-			return [...playlists].sort((a, b) => a.name.localeCompare(b.name));
+		case SortOrders.zToA:
+			return sorted.sort((a, b) => b.name.localeCompare(a.name));
+		default:
+			return sorted.sort((a, b) => a.name.localeCompare(b.name));
 	}
 }

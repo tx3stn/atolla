@@ -17,13 +17,14 @@ interface LibraryHeaderViewModel {
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
 	downloadingCount: number;
-	onAlphabetLetterTap?: (letter: string) => void;
+	onAlphabetLetterTap?: (letter: string | null) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	onSortChange?: (sort: SortOrder) => void;
 	onTabTap: (tabId: HeaderTab) => void;
 }
 
 interface LibraryHeaderState {
+	activeLetterFilter: string | null;
 	currentSort: SortOrder;
 	isPanelOpen: boolean;
 }
@@ -36,6 +37,7 @@ export class LibraryHeaderNav extends StatefulComponent<
 	private readonly hiddenTop = -(theme.headerHeight + 16);
 
 	state: LibraryHeaderState = {
+		activeLetterFilter: null,
 		currentSort: SortOrders.aToZ,
 		isPanelOpen: false,
 	};
@@ -60,6 +62,17 @@ export class LibraryHeaderNav extends StatefulComponent<
 				});
 			});
 		});
+	}
+
+	onViewModelUpdate(prevViewModel?: LibraryHeaderViewModel): void {
+		if (!prevViewModel) return;
+		if (
+			this.viewModel.activeTab !== prevViewModel.activeTab &&
+			this.state.activeLetterFilter != null
+		) {
+			this.setState({ activeLetterFilter: null });
+			this.viewModel.onAlphabetLetterTap?.(null);
+		}
 	}
 
 	private handleDrag = (event): void => {
@@ -87,8 +100,14 @@ export class LibraryHeaderNav extends StatefulComponent<
 		this.viewModel.onSortChange?.(sort);
 	};
 
+	private handleLetterTap = (letter: string): void => {
+		const next = this.state.activeLetterFilter === letter ? null : letter;
+		this.setState({ activeLetterFilter: next });
+		this.viewModel.onAlphabetLetterTap?.(next);
+	};
+
 	onRender() {
-		const { isPanelOpen, currentSort } = this.state;
+		const { isPanelOpen, currentSort, activeLetterFilter } = this.state;
 
 		// biome-ignore lint/a11y/noStaticElementInteractions: Header supports swipe-down gesture to reveal sort panel.
 		<view
@@ -151,8 +170,9 @@ export class LibraryHeaderNav extends StatefulComponent<
 
 			{isPanelOpen && (
 				<SortNavPanel
+					activeLetterFilter={activeLetterFilter}
 					currentSort={currentSort}
-					onLetterTap={this.viewModel.onAlphabetLetterTap}
+					onLetterTap={this.handleLetterTap}
 					onSortChange={this.handleSortChange}
 				/>
 			)}

@@ -20,6 +20,7 @@ interface GenresViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
+	letterFilter?: string | null;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -138,7 +139,17 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	onRender(): void {
 		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
 			this.viewModel;
-		const cards: Array<Card> = this.state.genres.map((genre) => ({
+		let genres = this.state.genres;
+		if (this.viewModel.letterFilter) {
+			const letter = this.viewModel.letterFilter;
+			genres = genres.filter((g) =>
+				letter === '0'
+					? /^\d/.test(g.name.trim())
+					: g.name.trim().toLowerCase().startsWith(letter.toLowerCase()),
+			);
+		}
+
+		const cards: Array<Card> = genres.map((genre) => ({
 			artworkKey: genre.imageUrl ?? '',
 			id: genre.id,
 			kind: 'album',

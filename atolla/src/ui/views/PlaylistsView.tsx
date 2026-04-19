@@ -11,9 +11,10 @@ import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
-import { type PlaylistSort, PlaylistSorts, sortPlaylists } from './PlaylistsSort';
+import { sortPlaylists } from './PlaylistsSort';
 import { PlaylistView } from './PlaylistView';
 
 export interface PlaylistsViewModel {
@@ -21,12 +22,14 @@ export interface PlaylistsViewModel {
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
+	letterFilter?: string | null;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationContext?: (context: LibraryNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	sortOrder?: SortOrder;
 	transport: Transport;
 }
 
@@ -37,7 +40,6 @@ interface PlaylistsState {
 	nextPageFailed: boolean;
 	page: number;
 	playlists: Array<Playlist>;
-	sort: PlaylistSort;
 }
 
 interface PlaylistPageResult {
@@ -63,7 +65,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		nextPageFailed: false,
 		page: 0,
 		playlists: [],
-		sort: PlaylistSorts.alphabetical,
 	};
 
 	onCreate(): void {
@@ -84,6 +85,27 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+	}
+
+	onViewModelUpdate(prevViewModel?: PlaylistsViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+		if (this.viewModel.letterFilter === prevViewModel.letterFilter) {
+			return;
+		}
+
+		this.allPlaylists = null;
+		this.currentPage = 0;
+		this.isLoadingPage = false;
+		this.setState({
+			hasMore: true,
+			isLoadingNextPage: false,
+			nextPageFailed: false,
+			page: 0,
+			playlists: [],
+		});
+		void this.loadInitialPages();
 	}
 
 	private async loadInitialPages(): Promise<void> {
@@ -137,25 +159,23 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	private fetchPage(page: number): Promise<PlaylistPageResult> {
+		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
 		const transport = this.viewModel.transport as Transport & Partial<PagedPlaylistsTransport>;
-		if (transport.getPlaylistsPage) {
-			return transport.getPlaylistsPage(page, gridPaginationConfig.pageSize);
+
+		const useLocalList = !!this.viewModel.letterFilter || !transport.getPlaylistsPage;
+
+		if (useLocalList) {
+			if (!this.allPlaylists) {
+				return this.viewModel.transport.getAllPlaylists().then((playlists) => {
+					this.allPlaylists = sortPlaylists(playlists, sort);
+					return { hasMore: false, items: this.allPlaylists };
+				});
+			}
+			this.allPlaylists = sortPlaylists(this.allPlaylists, sort);
+			return Promise.resolve({ hasMore: false, items: this.allPlaylists });
 		}
 
-		if (!this.allPlaylists) {
-			return this.viewModel.transport.getAllPlaylists().then((playlists) => {
-				this.allPlaylists = playlists;
-				const sorted = sortPlaylists(this.allPlaylists, this.state.sort);
-				const start = (page - 1) * gridPaginationConfig.pageSize;
-				const end = start + gridPaginationConfig.pageSize;
-				return { hasMore: end < sorted.length, items: sorted.slice(start, end) };
-			});
-		}
-
-		const sorted = sortPlaylists(this.allPlaylists, this.state.sort);
-		const start = (page - 1) * gridPaginationConfig.pageSize;
-		const end = start + gridPaginationConfig.pageSize;
-		return Promise.resolve({ hasMore: end < sorted.length, items: sorted.slice(start, end) });
+		return transport.getPlaylistsPage(page, gridPaginationConfig.pageSize);
 	}
 
 	retryLoadMore(): void {
@@ -197,15 +217,20 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			transport,
 		} = this.viewModel;
 
-		const cards: Array<Card> = sortPlaylists(this.state.playlists, this.state.sort).map(
-			(playlist) => ({
-				artworkKey: playlist.imageUrl ?? '',
-				id: playlist.id,
-				kind: 'playlist',
-				primaryText: playlist.name,
-				secondaryText: '',
-			}),
-		);
+		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
+		let playlists = sortPlaylists(this.state.playlists, sort);
+		if (this.viewModel.letterFilter) {
+			const letter = this.viewModel.letterFilter;
+			playlists = playlists.filter((p) => matchesLetterFilter(p.name, letter));
+		}
+
+		const cards: Array<Card> = playlists.map((playlist) => ({
+			artworkKey: playlist.imageUrl ?? '',
+			id: playlist.id,
+			kind: 'playlist',
+			primaryText: playlist.name,
+			secondaryText: '',
+		}));
 		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
 				accessibilityLabel='library-playlists-grid'
@@ -246,6 +271,13 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			/>
 		</scroll>;
 	}
+}
+
+function matchesLetterFilter(name: string, letter: string): boolean {
+	if (letter === '0') {
+		return /^\d/.test(name.trim());
+	}
+	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
 }
 
 function createScrollStyle(isFooterVisible: boolean): Style {

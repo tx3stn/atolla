@@ -16,6 +16,7 @@ import { theme } from '../../theme';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
+import type { SortOrder } from '../components/SortNavPanel';
 import { AlbumsView } from './AlbumsView';
 import { ArtistsView } from './ArtistsView';
 import { GenresView } from './GenresView';
@@ -33,6 +34,7 @@ export interface LibraryViewModel {
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
 	gridColumns: number;
+	letterFilter?: string | null;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationContext?: (context: LibraryNavContext | null) => void;
@@ -40,6 +42,7 @@ export interface LibraryViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	resetSignal: number;
+	sortOrder?: SortOrder;
 	transport: Transport;
 }
 
@@ -149,11 +152,13 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 			downloadService,
 			gridColumns,
 			imageCache,
+			letterFilter,
 			onNavigateToArtist,
 			onHeaderVisibilityChange,
 			onNavigationContext,
 			paletteQueue,
 			playbackStore,
+			sortOrder,
 		} = this.viewModel;
 		const transport = this.viewModel.transport;
 		const isOfflineMode = this.viewModel.connectionMode === ConnectionModes.offline;
@@ -169,11 +174,13 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							gridColumns={gridColumns}
 							imageCache={imageCache}
 							isOfflineMode={isOfflineMode}
+							letterFilter={letterFilter}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigationContext={onNavigationContext}
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
+							sortOrder={sortOrder}
 							transport={transport}
 						/>;
 					})}
@@ -190,11 +197,13 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							gridColumns={gridColumns}
 							imageCache={imageCache}
 							isOfflineMode={isOfflineMode}
+							letterFilter={letterFilter}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigationContext={onNavigationContext}
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
+							sortOrder={sortOrder}
 							transport={transport}
 						/>;
 					})}
@@ -210,12 +219,14 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
+							letterFilter={letterFilter}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigateToArtist={onNavigateToArtist}
 							onNavigationContext={onNavigationContext}
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
+							sortOrder={sortOrder}
 							transport={transport}
 						/>;
 					})}
@@ -231,6 +242,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							downloadService={downloadService}
 							gridColumns={gridColumns}
 							imageCache={imageCache}
+							letterFilter={letterFilter}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigateToArtist={onNavigateToArtist}

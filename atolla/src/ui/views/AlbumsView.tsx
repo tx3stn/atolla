@@ -12,7 +12,8 @@ import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
-import { type AlbumSort, AlbumSorts, sortAlbums } from './AlbumsSort';
+import { type SortOrder, SortOrders } from '../components/SortNavPanel';
+import { sortAlbums } from './AlbumsSort';
 import { AlbumView } from './AlbumView';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
@@ -23,11 +24,13 @@ export interface AlbumsViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	isOfflineMode: boolean;
+	letterFilter?: string | null;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigationContext?: (context: LibraryNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	sortOrder?: SortOrder;
 	transport: Transport;
 }
 
@@ -38,7 +41,6 @@ interface AlbumsState {
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
-	sort: AlbumSort;
 }
 
 interface AlbumPageResult {
@@ -64,7 +66,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
-		sort: AlbumSorts.alphabetical,
 	};
 
 	onCreate(): void {
@@ -92,7 +93,10 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			return;
 		}
 
-		if (this.viewModel.isOfflineMode === prevViewModel.isOfflineMode) {
+		const offlineChanged = this.viewModel.isOfflineMode !== prevViewModel.isOfflineMode;
+		const filterChanged = this.viewModel.letterFilter !== prevViewModel.letterFilter;
+
+		if (!offlineChanged && !filterChanged) {
 			return;
 		}
 
@@ -105,7 +109,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			isLoadingNextPage: false,
 			nextPageFailed: false,
 			page: 0,
-			sort: this.state.sort,
 		});
 		void this.loadInitialPages();
 	}
@@ -161,15 +164,17 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	private fetchPage(page: number): Promise<AlbumPageResult> {
+		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
+
 		if (shouldUseLocalSortedList(this.viewModel)) {
 			if (!this.allAlbums) {
 				return this.viewModel.transport.getAllAlbums().then((albums) => {
-					this.allAlbums = sortAlbumsForView(albums, this.state.sort, true);
+					this.allAlbums = sortAlbumsForView(albums, sort, true);
 					return { hasMore: false, items: this.allAlbums };
 				});
 			}
 
-			this.allAlbums = sortAlbumsForView(this.allAlbums, this.state.sort, true);
+			this.allAlbums = sortAlbumsForView(this.allAlbums, sort, true);
 			return Promise.resolve({ hasMore: false, items: this.allAlbums });
 		}
 
@@ -181,22 +186,14 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		if (!this.allAlbums) {
 			return this.viewModel.transport.getAllAlbums().then((albums) => {
 				this.allAlbums = albums;
-				const sorted = sortAlbumsForView(
-					this.allAlbums,
-					this.state.sort,
-					shouldUseLocalSortedList(this.viewModel),
-				);
+				const sorted = sortAlbumsForView(this.allAlbums, sort, false);
 				const start = (page - 1) * gridPaginationConfig.pageSize;
 				const end = start + gridPaginationConfig.pageSize;
 				return { hasMore: end < sorted.length, items: sorted.slice(start, end) };
 			});
 		}
 
-		const sorted = sortAlbumsForView(
-			this.allAlbums,
-			this.state.sort,
-			shouldUseLocalSortedList(this.viewModel),
-		);
+		const sorted = sortAlbumsForView(this.allAlbums, sort, false);
 		const start = (page - 1) * gridPaginationConfig.pageSize;
 		const end = start + gridPaginationConfig.pageSize;
 		return Promise.resolve({ hasMore: end < sorted.length, items: sorted.slice(start, end) });
@@ -238,9 +235,15 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			transport,
 		} = this.viewModel;
 
-		const albums = shouldUseLocalSortedList(this.viewModel)
-			? sortAlbumsForView(this.state.albums, this.state.sort, true)
-			: this.state.albums;
+		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
+		let albums = shouldUseLocalSortedList(this.viewModel)
+			? sortAlbumsForView(this.state.albums, sort, true)
+			: sortAlbumsForView(this.state.albums, sort, false);
+
+		if (this.viewModel.letterFilter) {
+			const letter = this.viewModel.letterFilter;
+			albums = albums.filter((a) => matchesLetterFilter(a.name, letter));
+		}
 
 		const cards: Array<Card> = albums.map((album) => ({
 			artworkKey: album.imageUrl ?? '',
@@ -292,18 +295,20 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 function sortAlbumsForView(
 	albums: Array<Album>,
-	sort: AlbumSort,
-	isOfflineMode: boolean,
+	sort: SortOrder,
+	shouldSortLocally: boolean,
 ): Array<Album> {
-	if (!isOfflineMode || sort !== AlbumSorts.alphabetical) {
-		return sortAlbums(albums, sort);
+	if (!shouldSortLocally && sort === SortOrders.aToZ) {
+		return albums;
 	}
-
-	return [...albums].sort((left, right) => compareCaseInsensitive(left.name, right.name));
+	return sortAlbums(albums, sort);
 }
 
 function shouldUseLocalSortedList(viewModel: AlbumsViewModel): boolean {
 	if (viewModel.isOfflineMode) {
+		return true;
+	}
+	if (viewModel.letterFilter) {
 		return true;
 	}
 
@@ -311,16 +316,11 @@ function shouldUseLocalSortedList(viewModel: AlbumsViewModel): boolean {
 	return !transport.getAlbumsPage;
 }
 
-function compareCaseInsensitive(left: string, right: string): number {
-	const leftLower = left.trim().toLocaleLowerCase();
-	const rightLower = right.trim().toLocaleLowerCase();
-	if (leftLower < rightLower) {
-		return -1;
+function matchesLetterFilter(name: string, letter: string): boolean {
+	if (letter === '0') {
+		return /^\d/.test(name.trim());
 	}
-	if (leftLower > rightLower) {
-		return 1;
-	}
-	return 0;
+	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
 }
 
 function createScrollStyle(isFooterVisible: boolean): Style {

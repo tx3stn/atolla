@@ -12,6 +12,7 @@ import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { ArtistView } from './ArtistView';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
@@ -22,11 +23,13 @@ export interface ArtistsViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	isOfflineMode: boolean;
+	letterFilter?: string | null;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigationContext?: (context: LibraryNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	sortOrder?: SortOrder;
 	transport: Transport;
 }
 
@@ -89,7 +92,10 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			return;
 		}
 
-		if (this.viewModel.isOfflineMode === prevViewModel.isOfflineMode) {
+		const offlineChanged = this.viewModel.isOfflineMode !== prevViewModel.isOfflineMode;
+		const filterChanged = this.viewModel.letterFilter !== prevViewModel.letterFilter;
+
+		if (!offlineChanged && !filterChanged) {
 			return;
 		}
 
@@ -157,15 +163,17 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	private fetchPage(page: number): Promise<ArtistPageResult> {
+		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
+
 		if (shouldUseLocalSortedList(this.viewModel)) {
 			if (!this.allArtists) {
 				return this.viewModel.transport.getAllArtists().then((artists) => {
-					this.allArtists = sortArtistsForView(artists, true);
+					this.allArtists = sortArtistsForView(artists, sort, true);
 					return { hasMore: false, items: this.allArtists };
 				});
 			}
 
-			this.allArtists = sortArtistsForView(this.allArtists, true);
+			this.allArtists = sortArtistsForView(this.allArtists, sort, true);
 			return Promise.resolve({ hasMore: false, items: this.allArtists });
 		}
 
@@ -176,14 +184,14 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 		if (!this.allArtists) {
 			return this.viewModel.transport.getAllArtists().then((artists) => {
-				this.allArtists = sortArtistsForView(artists, shouldUseLocalSortedList(this.viewModel));
+				this.allArtists = sortArtistsForView(artists, sort, false);
 				const start = (page - 1) * gridPaginationConfig.pageSize;
 				const end = start + gridPaginationConfig.pageSize;
 				return { hasMore: end < this.allArtists.length, items: this.allArtists.slice(start, end) };
 			});
 		}
 
-		this.allArtists = sortArtistsForView(this.allArtists, shouldUseLocalSortedList(this.viewModel));
+		this.allArtists = sortArtistsForView(this.allArtists, sort, false);
 
 		const start = (page - 1) * gridPaginationConfig.pageSize;
 		const end = start + gridPaginationConfig.pageSize;
@@ -227,10 +235,17 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			transport,
 		} = this.viewModel;
 
-		const artists = sortArtistsForView(
+		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
+		let artists = sortArtistsForView(
 			this.state.artists,
+			sort,
 			shouldUseLocalSortedList(this.viewModel),
 		);
+
+		if (this.viewModel.letterFilter) {
+			const letter = this.viewModel.letterFilter;
+			artists = artists.filter((a) => matchesArtistLetterFilter(a.name, letter));
+		}
 
 		const cards: Array<Card> = artists.map((artist) => ({
 			artworkKey: artist.imageUrl ?? '',
@@ -280,21 +295,40 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 }
 
-function sortArtistsForView(artists: Array<Artist>, shouldSortLocally: boolean): Array<Artist> {
+function sortArtistsForView(
+	artists: Array<Artist>,
+	sort: SortOrder,
+	shouldSortLocally: boolean,
+): Array<Artist> {
 	if (!shouldSortLocally) {
 		return artists;
 	}
 
-	return sortOfflineArtists(artists);
+	if (sort === SortOrders.newToOld || sort === SortOrders.oldToNew) {
+		return artists;
+	}
+
+	const sorted = sortOfflineArtists(artists);
+	return sort === SortOrders.zToA ? sorted.reverse() : sorted;
 }
 
 function shouldUseLocalSortedList(viewModel: ArtistsViewModel): boolean {
 	if (viewModel.isOfflineMode) {
 		return true;
 	}
+	if (viewModel.letterFilter) {
+		return true;
+	}
 
 	const transport = viewModel.transport as Transport & Partial<PagedArtistsTransport>;
 	return !transport.getArtistsPage;
+}
+
+function matchesArtistLetterFilter(name: string, letter: string): boolean {
+	if (letter === '0') {
+		return /^\d/.test(name.trim());
+	}
+	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
 }
 
 function sortOfflineArtists(artists: Array<Artist>): Array<Artist> {

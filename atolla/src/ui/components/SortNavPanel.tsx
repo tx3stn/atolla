@@ -2,7 +2,6 @@
 import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 import { theme } from '../../theme';
 
 export type SortOrder = 'a-z' | 'z-a' | 'new-old' | 'old-new';
@@ -25,6 +24,7 @@ const ALPHA_TOP = '0ABCDEFGHIJKLM'.split('');
 const ALPHA_BOTTOM = 'NOPQRSTUVWXYZ'.split('');
 
 export interface SortNavPanelViewModel {
+	activeLetterFilter: string | null;
 	currentSort: SortOrder;
 	onLetterTap?: (letter: string) => void;
 	onSortChange: (sort: SortOrder) => void;
@@ -32,21 +32,49 @@ export interface SortNavPanelViewModel {
 
 export class SortNavPanel extends Component<SortNavPanelViewModel> {
 	onRender() {
-		const { currentSort, onLetterTap, onSortChange } = this.viewModel;
+		const { activeLetterFilter, currentSort, onLetterTap, onSortChange } = this.viewModel;
 
 		<view style={styles.panel}>
 			<view style={styles.alphabetGrid}>
 				<view style={styles.alphabetRow}>
 					{ALPHA_TOP.map((letter) => (
-						<view key={letter} onTap={() => onLetterTap?.(letter)} style={styles.letterButton}>
-							<label style={styles.letterLabel} value={letter} />
+						<view
+							key={letter}
+							onTap={() => onLetterTap?.(letter)}
+							style={
+								activeLetterFilter === letter ? styles.letterButtonActive : styles.letterButton
+							}
+						>
+							{activeLetterFilter === letter && (
+								<image src={res.headertabgradient} style={styles.letterGradient} />
+							)}
+							<label
+								style={
+									activeLetterFilter === letter ? styles.letterLabelActive : styles.letterLabel
+								}
+								value={letter}
+							/>
 						</view>
 					))}
 				</view>
 				<view style={styles.alphabetRow}>
 					{ALPHA_BOTTOM.map((letter) => (
-						<view key={letter} onTap={() => onLetterTap?.(letter)} style={styles.letterButton}>
-							<label style={styles.letterLabel} value={letter} />
+						<view
+							key={letter}
+							onTap={() => onLetterTap?.(letter)}
+							style={
+								activeLetterFilter === letter ? styles.letterButtonActive : styles.letterButton
+							}
+						>
+							{activeLetterFilter === letter && (
+								<image src={res.headertabgradient} style={styles.letterGradient} />
+							)}
+							<label
+								style={
+									activeLetterFilter === letter ? styles.letterLabelActive : styles.letterLabel
+								}
+								value={letter}
+							/>
 						</view>
 					))}
 				</view>
@@ -100,8 +128,29 @@ const styles = {
 		justifyContent: 'center',
 		padding: 4,
 	}),
+	letterButtonActive: new Style({
+		alignItems: 'center',
+		borderRadius: 999,
+		flex: 1,
+		justifyContent: 'center',
+		overflow: 'hidden',
+		padding: 4,
+		position: 'relative',
+	}),
+	letterGradient: new Style({
+		borderRadius: 999,
+		bottom: 0,
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
+	}),
 	letterLabel: new Style({
 		...theme.text.mainMuted,
+	}),
+	letterLabelActive: new Style({
+		...theme.text.mainMuted,
+		color: theme.colors.bg,
 	}),
 	panel: new Style({
 		backgroundColor: theme.colors.bgFrosted,
