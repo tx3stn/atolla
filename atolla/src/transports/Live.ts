@@ -129,8 +129,8 @@ export class LiveTransport implements Transport {
 			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 			limit: Math.max(1, pageSize),
 			recursive: true,
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
+			sortBy: 'PremiereDate,SortName',
+			sortOrder: 'Descending,Ascending',
 			startIndex,
 		});
 
@@ -176,8 +176,8 @@ export class LiveTransport implements Transport {
 			fields: 'Overview,Genres',
 			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 			recursive: true,
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
+			sortBy: 'PremiereDate,SortName',
+			sortOrder: 'Descending,Ascending',
 		});
 
 		return items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));

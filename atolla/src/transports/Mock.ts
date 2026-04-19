@@ -40,7 +40,7 @@ export class MockTransport implements Transport {
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Album> }> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
-		const sortedAlbums = [...mockJellyfinAlbums].sort((a, b) => a.Name.localeCompare(b.Name));
+		const sortedAlbums = sortMockAlbumsByDefaultOrder(mockJellyfinAlbums);
 		const pageItems = sortedAlbums.slice(startIndex, startIndex + pageSize);
 
 		return {
@@ -73,7 +73,9 @@ export class MockTransport implements Transport {
 	}
 
 	async getAllAlbums(): Promise<Array<Album>> {
-		return mockJellyfinAlbums.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+		return sortMockAlbumsByDefaultOrder(mockJellyfinAlbums).map((item) =>
+			mapJellyfinAlbumToAlbum(item, this.imageResolvers),
+		);
 	}
 
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
@@ -251,4 +253,39 @@ function shuffleTracks<T>(tracks: Array<T>): Array<T> {
 		[copy[i], copy[randomIndex]] = [copy[randomIndex], copy[i]];
 	}
 	return copy;
+}
+
+function sortMockAlbumsByDefaultOrder(albums: Array<(typeof mockJellyfinAlbums)[number]>) {
+	return [...albums].sort((left, right) => {
+		const byDate = compareDatesDescending(left.PremiereDate, right.PremiereDate);
+		if (byDate !== 0) {
+			return byDate;
+		}
+
+		return left.Name.localeCompare(right.Name);
+	});
+}
+
+function compareDatesDescending(left: string | undefined, right: string | undefined): number {
+	const leftTime = parseDateTime(left);
+	const rightTime = parseDateTime(right);
+
+	if (leftTime == null && rightTime == null) return 0;
+	if (leftTime == null) return 1;
+	if (rightTime == null) return -1;
+
+	return rightTime - leftTime;
+}
+
+function parseDateTime(value: string | undefined): number | null {
+	if (!value) {
+		return null;
+	}
+
+	const time = Date.parse(value);
+	if (Number.isNaN(time)) {
+		return null;
+	}
+
+	return time;
 }

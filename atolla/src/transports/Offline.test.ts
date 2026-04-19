@@ -537,6 +537,51 @@ describe('OfflineTransport', () => {
 		expect(albums[0].releaseDate).toBe('2023-06-15');
 	});
 
+	it('orders all albums by releaseDate descending with missing dates last', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albums: [
+					{
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-old',
+							name: 'Old Album',
+							releaseDate: '2020-01-01',
+						},
+						artistLogoUrl: null,
+						trackIds: [],
+					},
+					{
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-new',
+							name: 'New Album',
+							releaseDate: '2025-01-01',
+						},
+						artistLogoUrl: null,
+						trackIds: [],
+					},
+					{
+						album: {
+							artistId: 'artist-2',
+							artistName: 'Artist Two',
+							id: 'album-no-date',
+							name: 'No Date Album',
+						},
+						artistLogoUrl: null,
+						trackIds: [],
+					},
+				],
+			}) as never,
+		);
+
+		const albums = await transport.getAllAlbums();
+
+		expect(albums.map((album) => album.id)).toEqual(['album-new', 'album-old', 'album-no-date']);
+	});
+
 	it('returns artist albums without forcing alphabetical ordering', async () => {
 		const transport = new OfflineTransport(
 			createDownloadsMock({

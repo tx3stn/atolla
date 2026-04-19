@@ -54,4 +54,31 @@ describe('MockTransport pagination', () => {
 		expect(playlistsPage.items.length).toBe(1);
 		expect(typeof playlistsPage.hasMore).toBe('boolean');
 	});
+
+	it('orders albums by release date descending for all and paged responses', async () => {
+		const transport = new MockTransport();
+
+		const allAlbums = await transport.getAllAlbums();
+		const firstPage = await transport.getAlbumsPage(1, 5);
+
+		expect(firstPage.items.map((album) => album.id)).toEqual(
+			allAlbums.slice(0, 5).map((album) => album.id),
+		);
+
+		for (let index = 0; index < allAlbums.length - 1; index++) {
+			const current = allAlbums[index].releaseDate;
+			const next = allAlbums[index + 1].releaseDate;
+
+			if (!current) {
+				expect(next).toBeUndefined();
+				continue;
+			}
+
+			if (!next) {
+				continue;
+			}
+
+			expect(Date.parse(current)).toBeGreaterThanOrEqual(Date.parse(next));
+		}
+	});
 });

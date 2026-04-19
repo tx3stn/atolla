@@ -227,6 +227,8 @@ describe('LiveTransport core collections', () => {
 		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('1');
 		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBe('Overview,Genres');
 		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('MusicAlbum');
+		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('PremiereDate,SortName');
+		expect(queryParam(calls[0].pathOrUrl, 'sortOrder')).toBe('Descending,Ascending');
 		expect(queryParam(calls[0].pathOrUrl, 'userId')).toBe('user-1');
 		expect(calls[0].headers?.['X-Emby-Token']).toBe('token-1');
 		expect(page.hasMore).toBe(true);
@@ -298,6 +300,40 @@ describe('LiveTransport core collections', () => {
 			}),
 		);
 		expect(playlists[0].imageUrl).toContain('/Items/playlist-1/Images/Primary');
+	});
+
+	it('loads all albums with release-date-desc sort query', async () => {
+		const firstAlbum: JellyfinAlbumItem = {
+			AlbumArtist: 'Artist A',
+			Id: 'album-1',
+			Name: 'Album A',
+			Type: 'MusicAlbum',
+		};
+		const secondAlbum: JellyfinAlbumItem = {
+			AlbumArtist: 'Artist B',
+			Id: 'album-2',
+			Name: 'Album B',
+			Type: 'MusicAlbum',
+		};
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([firstAlbum], 2, 0)),
+			jsonResponse(200, listResponse([secondAlbum], 2, 1)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const albums = await transport.getAllAlbums();
+
+		expect(calls).toHaveLength(2);
+		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('MusicAlbum');
+		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('PremiereDate,SortName');
+		expect(queryParam(calls[0].pathOrUrl, 'sortOrder')).toBe('Descending,Ascending');
+		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBe('Overview,Genres');
+		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('0');
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('100');
+		expect(queryParam(calls[1].pathOrUrl, 'startIndex')).toBe('1');
+		expect(albums.map((album) => album.id)).toEqual(['album-1', 'album-2']);
 	});
 
 	it('fetches artists page with paging query and hasMore', async () => {

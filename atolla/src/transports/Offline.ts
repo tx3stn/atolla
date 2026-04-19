@@ -85,7 +85,7 @@ export class OfflineTransport implements Transport {
 			});
 		}
 
-		return sortAlbumsByName(Array.from(albumsById.values()));
+		return sortAlbumsByDefaultOrder(Array.from(albumsById.values()));
 	}
 
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
@@ -332,8 +332,39 @@ function sortTracksByNumber(tracks: Array<Track>): Array<Track> {
 	return [...tracks].sort((a, b) => (a.trackNumber ?? 0) - (b.trackNumber ?? 0));
 }
 
-function sortAlbumsByName(albums: Array<Album>): Array<Album> {
-	return [...albums].sort((left, right) => compareNamesCaseInsensitive(left.name, right.name));
+function sortAlbumsByDefaultOrder(albums: Array<Album>): Array<Album> {
+	return [...albums].sort((left, right) => {
+		const byDate = compareDatesDescending(left.releaseDate, right.releaseDate);
+		if (byDate !== 0) {
+			return byDate;
+		}
+
+		return compareNamesCaseInsensitive(left.name, right.name);
+	});
+}
+
+function compareDatesDescending(left: string | undefined, right: string | undefined): number {
+	const leftTime = parseDateTime(left);
+	const rightTime = parseDateTime(right);
+
+	if (leftTime == null && rightTime == null) return 0;
+	if (leftTime == null) return 1;
+	if (rightTime == null) return -1;
+
+	return rightTime - leftTime;
+}
+
+function parseDateTime(value: string | undefined): number | null {
+	if (!value) {
+		return null;
+	}
+
+	const time = Date.parse(value);
+	if (Number.isNaN(time)) {
+		return null;
+	}
+
+	return time;
 }
 
 function sortArtistsByName(artists: Array<Artist>): Array<Artist> {
