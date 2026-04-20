@@ -31,6 +31,10 @@ export interface Transport {
 		pageSize: number,
 	) => Promise<{ hasMore: boolean; items: Array<Playlist> }>;
 	getShuffledLibraryTracks?(): Promise<Array<Track>>;
+	getShuffledLibraryTracksPage?(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track> }>;
 	getTrackCacheUrl?(trackId: string): string | null;
 	getTracksByAlbum(albumId: string): Promise<Array<Track>>;
 	getTracksByArtist(artistId: string): Promise<Array<Track>>;

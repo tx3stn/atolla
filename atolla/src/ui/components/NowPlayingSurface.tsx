@@ -4,9 +4,6 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
-
-const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
-
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
@@ -22,6 +19,9 @@ import { Toast } from './Toast';
 import { TrackContextMenu } from './TrackContextMenu';
 import { TrackList, type TrackListEntry } from './TrackList';
 import { clearScheduledToast, scheduleToastDismiss } from './toastTimer';
+
+const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
+const MAX_VISIBLE_QUEUE_TRACKS = 30;
 
 export interface NowPlayingSurfaceViewModel {
 	album: Album | null;
@@ -397,8 +397,13 @@ export class NowPlayingSurface extends StatefulComponent<
 			track: t,
 		});
 
-		const upNextEntries = tracks.slice(trackIndex + 1).map(toEntry);
-		const backToEntries = tracks.slice(0, trackIndex).reverse().map(toEntry);
+		const upNextEntries = tracks
+			.slice(trackIndex + 1, trackIndex + 1 + MAX_VISIBLE_QUEUE_TRACKS)
+			.map(toEntry);
+		const backToEntries = tracks
+			.slice(Math.max(0, trackIndex - MAX_VISIBLE_QUEUE_TRACKS), trackIndex)
+			.reverse()
+			.map(toEntry);
 		const activeTab = this.state.activeQueueTab;
 		const canEditQueue = Boolean(this.viewModel.playbackStore);
 		const albumImageUrl = track.albumImageUrl ?? album?.imageUrl ?? null;

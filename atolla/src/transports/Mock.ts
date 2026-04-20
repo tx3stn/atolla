@@ -229,6 +229,21 @@ export class MockTransport implements Transport {
 		return shuffleTracks(tracks);
 	}
 
+	async getShuffledLibraryTracksPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track> }> {
+		const allTracks = mockJellyfinTracks
+			.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers))
+			.sort((a, b) => a.id.localeCompare(b.id));
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const items = allTracks.slice(startIndex, startIndex + pageSize);
+		return {
+			hasMore: startIndex + items.length < allTracks.length,
+			items,
+		};
+	}
+
 	getTrackCacheUrl(_trackId: string): string | null {
 		return MockTransport.sampleAudioUrl;
 	}

@@ -5,9 +5,10 @@ import { Style } from 'valdi_core/src/Style';
 import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
+import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
-import type { ConnectionMode } from '../../transports/Model';
+import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import type { CardDetailItem } from '../components/CardDetailList';
 import { CardDetailList } from '../components/CardDetailList';
@@ -56,6 +57,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private hasBeenDestroyed = false;
 	private lastAlbumsSignature = '';
 	private loadGeneration = 0;
+	private shuffleLoader: ShuffleQueueLoader | null = null;
+	private shuffleLoadToken = 0;
 
 	state: HomeState = {
 		albums: [],
@@ -69,6 +72,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
+		this.shuffleLoader?.dispose();
 	}
 
 	onViewModelUpdate(prevViewModel?: HomeViewModel): void {
@@ -257,22 +261,64 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	private async startShuffleLibraryMix(): Promise<void> {
-		const queue = await buildShuffleLibraryQueue(
-			this.viewModel.connectionMode,
-			this.viewModel.transport,
-		);
+		this.shuffleLoader?.dispose();
+		this.shuffleLoader = null;
+		const token = ++this.shuffleLoadToken;
+
+		const { connectionMode, playbackStore, transport } = this.viewModel;
+
+		if (connectionMode === ConnectionModes.online && transport.getShuffledLibraryTracksPage) {
+			const fetchPage = (page: number, pageSize: number) =>
+				transport.getShuffledLibraryTracksPage?.(page, pageSize);
+
+			let result: { hasMore: boolean; items: Array<Track> };
+			try {
+				result = await fetchPage(1, SHUFFLE_PAGE_SIZE);
+			} catch {
+				return;
+			}
+
+			if (this.hasBeenDestroyed || token !== this.shuffleLoadToken) {
+				return;
+			}
+			if (result.items.length === 0) {
+				return;
+			}
+
+			playbackStore.playTracks(result.items, 0);
+
+			if (result.hasMore) {
+				const loader = new ShuffleQueueLoader(playbackStore, fetchPage, SHUFFLE_PAGE_SIZE);
+				loader.start(2, true);
+				this.shuffleLoader = loader;
+			}
+
+			const initialItems = result.items;
+			void resolveArtistLogoUrlsForTracks(initialItems, transport).then((logoUrls) => {
+				if (playbackStore.tracks[0]?.id !== initialItems[0]?.id) {
+					return;
+				}
+				playbackStore.setArtistLogoUrls(logoUrls);
+			});
+			return;
+		}
+
+		const queue = await buildShuffleLibraryQueue(connectionMode, transport);
+
+		if (this.hasBeenDestroyed || token !== this.shuffleLoadToken) {
+			return;
+		}
 		if (queue.length === 0) {
 			return;
 		}
 
-		this.viewModel.playbackStore.playTracks(queue, 0);
+		playbackStore.playTracks(queue, 0);
 
-		void resolveArtistLogoUrlsForTracks(queue, this.viewModel.transport).then((logoUrls) => {
-			if (!isSameTrackQueue(this.viewModel.playbackStore.tracks, queue)) {
+		void resolveArtistLogoUrlsForTracks(queue, transport).then((logoUrls) => {
+			if (!isSameTrackQueue(playbackStore.tracks, queue)) {
 				return;
 			}
-
-			this.viewModel.playbackStore.setArtistLogoUrls(logoUrls);
+			playbackStore.setArtistLogoUrls(logoUrls);
 		});
 	}
 

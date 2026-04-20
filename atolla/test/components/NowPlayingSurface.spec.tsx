@@ -51,6 +51,14 @@ function getLabelValues(component): Array<string> {
 	return labels.map((label) => label.getAttribute('value'));
 }
 
+function createQueueTracks(count: number) {
+	return Array.from({ length: count }, (_, index) => ({
+		...track,
+		id: `track-${index + 1}`,
+		name: `Track ${index + 1}`,
+	}));
+}
+
 describe('NowPlayingSurface', () => {
 	valdiIt('renders compact now-playing content by default', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
@@ -361,6 +369,84 @@ describe('NowPlayingSurface', () => {
 			'track-row-track-2-1',
 			'track-row-track-1-2',
 		]);
+	});
+
+	valdiIt('caps up-next queue display to thirty tracks', () => {
+		const tracks = createQueueTracks(50);
+
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			progressSeconds: 90,
+			track: tracks[0],
+			trackIndex: 0,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+		compactBar?.getAttribute('onTap')?.();
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const upNextRows = views
+			.map((view) => view.getAttribute('testID'))
+			.filter((testID) => typeof testID === 'string' && testID.startsWith('track-row-track-'));
+
+		expect(upNextRows.length).toBe(30);
+		expect(upNextRows[0]).toBe('track-row-track-2-0');
+		expect(upNextRows[29]).toBe('track-row-track-31-29');
+		expect(upNextRows).not.toContain('track-row-track-32-30');
+	});
+
+	valdiIt('caps back-to queue display to thirty tracks', () => {
+		const tracks = createQueueTracks(80);
+
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			progressSeconds: 90,
+			track: tracks[70],
+			trackIndex: 70,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+		compactBar?.getAttribute('onTap')?.();
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const backToTab = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'now-playing-tab-back-to',
+		);
+		backToTab?.getAttribute('onTap')?.();
+
+		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const backToRows = views
+			.map((view) => view.getAttribute('testID'))
+			.filter((testID) => typeof testID === 'string' && testID.startsWith('track-row-track-'));
+
+		expect(backToRows.length).toBe(30);
+		expect(backToRows[0]).toBe('track-row-track-70-0');
+		expect(backToRows[29]).toBe('track-row-track-41-29');
+		expect(backToRows).not.toContain('track-row-track-40-30');
 	});
 
 	valdiIt('handles collapse signal update while expanded', () => {

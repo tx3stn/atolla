@@ -294,6 +294,23 @@ export class OfflineTransport implements Transport {
 		return shuffleTracks(availableTracks);
 	}
 
+	async getShuffledLibraryTracksPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track> }> {
+		const allTracks = this.downloads
+			.getAllTracks()
+			.filter((entry) => entry.complete)
+			.map((entry) => entry.track)
+			.sort((a, b) => a.id.localeCompare(b.id));
+		const start = Math.max(0, page - 1) * pageSize;
+		const end = start + pageSize;
+		return {
+			hasMore: end < allTracks.length,
+			items: allTracks.slice(start, end),
+		};
+	}
+
 	getTrackCacheUrl(trackId: string): string | null {
 		if (!this.downloads.isTrackDownloaded(trackId)) return null;
 		return this.downloads.getTrackPlaybackUrl(trackId);

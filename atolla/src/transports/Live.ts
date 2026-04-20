@@ -454,6 +454,25 @@ export class LiveTransport implements Transport {
 		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
+	async getShuffledLibraryTracksPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			includeItemTypes: JellyfinMusicItemTypes.Audio,
+			limit: Math.max(1, pageSize),
+			recursive: true,
+			sortBy: 'Random',
+			startIndex,
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
+		};
+	}
+
 	getTrackCacheUrl(trackId: string): string | null {
 		if (!trackId) {
 			return null;
