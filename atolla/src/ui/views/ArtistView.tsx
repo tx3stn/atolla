@@ -4,6 +4,7 @@ import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
+import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
@@ -275,6 +276,14 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			const allTracks = allTracksResult.status === 'fulfilled' ? allTracksResult.value : [];
 			const topTracks = topTracksResult.status === 'fulfilled' ? topTracksResult.value : [];
 
+			try {
+				preloadAtollaImages(
+					albums.map((a) => a.imageUrl).filter((url): url is string => url != null),
+					'album_art',
+				);
+			} catch {
+				// Non-Android targets do not provide native preload bridge.
+			}
 			this.setState({
 				albums,
 				albumsLoaded: true,

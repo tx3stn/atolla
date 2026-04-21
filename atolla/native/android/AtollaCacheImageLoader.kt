@@ -27,6 +27,7 @@ import com.snap.valdi.utils.ValdiImageFactory
 import com.snap.valdi.utils.ValdiImageLoadCompletion
 import com.snap.valdi.utils.ValdiImageLoadOptions
 import com.snap.valdi.utils.ValdiImageLoader
+import com.snap.valdi.utils.ValdiImageWithBitmap
 import com.snap.valdi.utils.ValdiImageWithContent
 import com.snap.valdi.utils.ValdiMarshaller
 import com.snap.valdi.utils.ValdiVideoLoader
@@ -81,7 +82,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 	)
 
 	companion object {
-		private const val MEMORY_CACHE_BYTES = 50 * 1024 * 1024
+		private const val MEMORY_CACHE_BYTES = 200 * 1024 * 1024
 		@Volatile var diskCacheMaxBytes = 200L * 1024 * 1024
 		private const val DISK_CACHE_TTL_MS = 30L * 24 * 3600 * 1000
 
@@ -133,6 +134,13 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				return value.size
 			}
 		}
+		private val sharedBitmapMemory = object : LruCache<String, Bitmap>(
+			(Runtime.getRuntime().maxMemory() / 4).toInt()
+		) {
+			override fun sizeOf(key: String, value: Bitmap): Int {
+				return value.byteCount
+			}
+		}
 		private val inFlight = ConcurrentHashMap<String, CompletableFuture<ByteArray>>()
 		private val diskEvictionScheduled = AtomicBoolean(false)
 		private val diskEvictionRequested = AtomicBoolean(false)
@@ -147,6 +155,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 	private val tag = "AtollaCacheLoader"
 	private val diskCacheFolder = "atolla-image-cache"
 	private val memory = sharedMemory
+	private val bitmapMemory = sharedBitmapMemory
 
 	init {
 		sharedInstance = this
@@ -202,6 +211,9 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		// Clear matching entries from memory.
 		val memKeys = memory.snapshot().keys.filter { k -> prefixes.any { k.startsWith(it) } }
 		for (k in memKeys) memory.remove(k)
+
+		val bitmapKeys = bitmapMemory.snapshot().keys.filter { k -> prefixes.any { k.startsWith(it) } }
+		for (k in bitmapKeys) bitmapMemory.remove(k)
 
 		// Disk filenames are "${category}_${sha256(key)}", so filter by prefix.
 		val dir = diskCacheDir ?: return
@@ -317,16 +329,48 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		val key = "${payload.category}:${payload.sourceUrl}"
 		Log.d(tag, "loadImage key=$key outputType=${options.outputType}")
 
-		// Memory hit: bytes are ready but bitmap decoding is expensive and must not
-		// block the main thread. Offload to a DISPLAY-priority task so the calling
-		// thread (typically the UI thread) returns immediately.
+		// Bitmap cache hit: decoded bitmap is ready — deliver synchronously without
+		// dispatching to a background thread, so scrolling back into view is instant.
+		if (options.outputType == ValdiAssetLoadOutputType.BITMAP) {
+			bitmapMemory.get(key)?.let { bitmap ->
+				val copy = bitmap.copy(bitmap.config ?: android.graphics.Bitmap.Config.ARGB_8888, false)
+				if (copy != null) {
+					Log.d(tag, "bitmap cache hit key=$key")
+					completion.onImageLoadComplete(0, 0, ValdiImageWithBitmap(copy), null)
+					return object : Disposable { override fun dispose() {} }
+				}
+				bitmapMemory.remove(key)
+			}
+		}
+
+		// Memory hit: bytes already in RAM. Decode and deliver synchronously on the
+		// calling thread (the UI thread) so there is zero async latency and no blank
+		// frame between Valdi clearing the old image and showing the new one.
+		// Bitmap decode for a thumbnail is <1ms — preferable to a 16ms blank frame.
 		memory.get(key)?.let { bytes ->
 			Log.d(tag, "cache hit key=$key bytes=${bytes.size}")
-			val cancelled = AtomicBoolean(false)
-			executor.execute(LoadTask(LoadPriority.DISPLAY) {
-				completeFromBytes(bytes, options, completion, cancelled)
-			})
-			return object : Disposable { override fun dispose() { cancelled.set(true) } }
+			val image: ValdiImage = when (options.outputType) {
+				ValdiAssetLoadOutputType.RAW_CONTENT ->
+					ValdiImageWithContent(ValdiImageContent.Bytes(bytes))
+				ValdiAssetLoadOutputType.BITMAP -> {
+					val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+					if (bitmap != null) {
+						bitmap.copy(Bitmap.Config.ARGB_8888, false)?.let { bitmapMemory.put(key, it) }
+						ValdiImageWithBitmap(bitmap)
+					} else {
+						ValdiImageFactory.fromByteArray(bytes)
+					}
+				}
+				else -> {
+					val cancelled = AtomicBoolean(false)
+					executor.execute(LoadTask(LoadPriority.DISPLAY) {
+						completeFromBytes(key, bytes, options, completion, cancelled)
+					})
+					return object : Disposable { override fun dispose() { cancelled.set(true) } }
+				}
+			}
+			completion.onImageLoadComplete(0, 0, image, null)
+			return object : Disposable { override fun dispose() {} }
 		}
 
 		// Disk reads and network fetches happen on a background thread so the
@@ -345,7 +389,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		if (existing != null) {
 			existing.whenComplete { bytes, error ->
 				if (!cancelled.get()) {
-					if (bytes != null) completeFromBytes(bytes, options, completion, cancelled)
+					if (bytes != null) completeFromBytes(key, bytes, options, completion, cancelled)
 					else deliverOnMain(cancelled) {
 						completion.onImageLoadComplete(0, 0, null, error ?: ValdiException("Download failed"))
 					}
@@ -413,7 +457,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				Log.d(tag, "disk cache hit key=$key bytes=${bytes.size}")
 				inFlight.remove(key)
 				future.complete(bytes)
-				completeFromBytes(bytes, options, completion, cancelled)
+				completeFromBytes(key, bytes, options, completion, cancelled)
 				return
 			}
 
@@ -430,7 +474,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 						writeToDisk(key, blurredBytes)
 						Log.d(tag, "blur generated from cache key=$key bytes=${blurredBytes.size}")
 						future.complete(blurredBytes)
-						completeFromBytes(blurredBytes, options, completion, cancelled)
+						completeFromBytes(key, blurredBytes, options, completion, cancelled)
 					} else {
 						future.completeExceptionally(ValdiException("Blur generation failed"))
 						deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed")) }
@@ -447,7 +491,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 					writeToDisk(key, blurredBytes)
 					Log.d(tag, "blur generated after fetch key=$key bytes=${blurredBytes.size}")
 					future.complete(blurredBytes)
-					completeFromBytes(blurredBytes, options, completion, cancelled)
+					completeFromBytes(key, blurredBytes, options, completion, cancelled)
 					notifyImageCached(payload.sourceUrl, payload.category)
 				} else {
 					future.completeExceptionally(ValdiException("Blur generation failed after fetch"))
@@ -470,7 +514,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			writeToDisk(key, bytes)
 			inFlight.remove(key)
 			future.complete(bytes)
-			completeFromBytes(bytes, options, completion, cancelled)
+			completeFromBytes(key, bytes, options, completion, cancelled)
 			notifyImageCached(payload.sourceUrl, payload.category)
 		} catch (error: Throwable) {
 			Log.e(tag, "load failed key=$key", error)
@@ -486,7 +530,22 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		}
 
 		val key = "$category:$sourceUrl"
-		if (memory.get(key) != null || inFlight.containsKey(key)) {
+
+		// Bitmap already decoded and cached — nothing to do.
+		if (bitmapMemory.get(key) != null) return
+
+		// Bytes in memory but bitmap not yet decoded. Warm the bitmap cache on a
+		// background thread so subsequent loadImage calls can serve synchronously.
+		memory.get(key)?.let { bytes ->
+			if (!inFlight.containsKey(key)) {
+				executor.execute(LoadTask(LoadPriority.PREFETCH) {
+					warmBitmapCache(key, bytes, category)
+				})
+			}
+			return
+		}
+
+		if (inFlight.containsKey(key)) {
 			return
 		}
 
@@ -502,6 +561,13 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		)
 	}
 
+	private fun warmBitmapCache(key: String, bytes: ByteArray, category: String) {
+		if (category == "album_art_blurred" || bitmapMemory.get(key) != null) return
+		BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+			?.copy(Bitmap.Config.ARGB_8888, false)
+			?.let { bitmapMemory.put(key, it) }
+	}
+
 	private fun executePreloadTask(
 		sourceUrl: String,
 		category: String,
@@ -513,6 +579,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				memory.put(key, bytes)
 				inFlight.remove(key)
 				future.complete(bytes)
+				warmBitmapCache(key, bytes, category)
 				return
 			}
 
@@ -553,6 +620,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			writeToDisk(key, bytes)
 			inFlight.remove(key)
 			future.complete(bytes)
+			warmBitmapCache(key, bytes, category)
 			notifyImageCached(sourceUrl, category)
 		} catch (error: Throwable) {
 			inFlight.remove(key)
@@ -594,14 +662,28 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 	}
 
 	private fun completeFromBytes(
+		key: String,
 		bytes: ByteArray,
 		options: ValdiImageLoadOptions,
 		completion: ValdiImageLoadCompletion,
 		cancelled: AtomicBoolean? = null,
 	) {
 		// Decode on the calling thread so expensive bitmap decoding stays off the main thread.
+		// Always decode and warm the bitmap cache, regardless of the requested output type,
+		// so that any subsequent BITMAP request is served synchronously from bitmapMemory.
+		val bitmap = bitmapMemory.get(key) ?: run {
+			BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.also { decoded ->
+				decoded.copy(Bitmap.Config.ARGB_8888, false)?.let { bitmapMemory.put(key, it) }
+			}
+		}
 		val image: ValdiImage = when (options.outputType) {
-			ValdiAssetLoadOutputType.BITMAP -> ValdiImageFactory.fromByteArray(bytes)
+			ValdiAssetLoadOutputType.BITMAP -> {
+				if (bitmap != null) {
+					ValdiImageWithBitmap(bitmap)
+				} else {
+					ValdiImageFactory.fromByteArray(bytes)
+				}
+			}
 			ValdiAssetLoadOutputType.RAW_CONTENT -> ValdiImageWithContent(ValdiImageContent.Bytes(bytes))
 			else -> {
 				deliverOnMain(cancelled) {
