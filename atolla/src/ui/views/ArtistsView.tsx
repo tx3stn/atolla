@@ -7,6 +7,7 @@ import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Artist } from '../../models/Artist';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
+import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
@@ -140,8 +141,11 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			this.isLoadingPage = false;
 			try {
 				preloadAtollaImages(
-					page.items.map((a) => a.imageUrl).filter((url): url is string => url != null),
-					'artist_image',
+					page.items
+						.map((a) => a.imageUrl)
+						.filter((url): url is string => url != null)
+						.map((url) => normalizeImageUrlForCategory(url, 'artist_image_thumb')),
+					'artist_image_thumb',
 				);
 			} catch {
 				// Non-Android targets do not provide native preload bridge.

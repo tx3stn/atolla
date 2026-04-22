@@ -1220,11 +1220,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	handleClearCache = (selection: ClearCacheSelection): void => {
 		const categories: Array<string> = [];
-		if (selection.albumArt) categories.push('album_art');
+		if (selection.albumArt) categories.push('album_art', 'album_art_thumb');
 		if (selection.albumArtBlurred) categories.push('album_art_blurred');
-		if (selection.artistImage) categories.push('artist_image');
+		if (selection.artistImage) categories.push('artist_image', 'artist_image_thumb');
 		if (selection.artistLogo) categories.push('artist_logo');
-		if (selection.playlistImage) categories.push('playlist_image');
+		if (selection.playlistImage) categories.push('playlist_image', 'playlist_image_thumb');
 		try {
 			clearAtollaNativeCacheCategories(categories);
 		} catch {

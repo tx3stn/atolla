@@ -4,7 +4,6 @@ import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
-import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
@@ -24,6 +23,7 @@ import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { AlbumView } from './AlbumView';
+import { sortArtistAlbums } from './ArtistViewSort';
 import { resolveGenreForNavigation } from './GenreNavigationResolver';
 import { GenreView } from './GenreView';
 import type { LibraryNavContext } from './LibraryView';
@@ -272,18 +272,11 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				return;
 			}
 
-			const albums = albumsResult.status === 'fulfilled' ? albumsResult.value : [];
+			const albums =
+				albumsResult.status === 'fulfilled' ? sortArtistAlbums(albumsResult.value) : [];
 			const allTracks = allTracksResult.status === 'fulfilled' ? allTracksResult.value : [];
 			const topTracks = topTracksResult.status === 'fulfilled' ? topTracksResult.value : [];
 
-			try {
-				preloadAtollaImages(
-					albums.map((a) => a.imageUrl).filter((url): url is string => url != null),
-					'album_art',
-				);
-			} catch {
-				// Non-Android targets do not provide native preload bridge.
-			}
 			this.setState({
 				albums,
 				albumsLoaded: true,
@@ -301,12 +294,18 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.setHeaderVisibility(false);
 		const { downloadService, playbackStore } = this.viewModel;
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
-			this.setState({ isFooterVisible: playbackStore.track !== null });
+			const isFooterVisible = playbackStore.track !== null;
+			if (isFooterVisible !== this.state.isFooterVisible) {
+				this.setState({ isFooterVisible });
+			}
 		});
 		this.unsubscribeDownloads = downloadService.subscribe(() => {
 			this.syncDownloadState();
 		});
-		this.setState({ isFooterVisible: playbackStore.track !== null });
+		const isFooterVisible = playbackStore.track !== null;
+		if (isFooterVisible !== this.state.isFooterVisible) {
+			this.setState({ isFooterVisible });
+		}
 		this.syncDownloadState();
 		this.loadArtistData();
 	}
@@ -356,10 +355,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			topTracksLoaded,
 		} = this.state;
 
-		const sortedAlbums = [...albums].sort((a, b) =>
-			(b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''),
-		);
-		const albumCards: Array<Card> = sortedAlbums.map((album) => ({
+		const albumCards: Array<Card> = albums.map((album) => ({
 			artworkKey: album.imageUrl ?? '',
 			id: album.id,
 			kind: 'album',

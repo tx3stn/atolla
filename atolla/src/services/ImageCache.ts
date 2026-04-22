@@ -2,10 +2,13 @@
 
 export type ImageCategory =
 	| 'artist_image'
+	| 'artist_image_thumb'
 	| 'artist_logo'
 	| 'album_art'
+	| 'album_art_thumb'
 	| 'album_art_blurred'
-	| 'playlist_image';
+	| 'playlist_image'
+	| 'playlist_image_thumb';
 
 export interface ClearCacheSelection {
 	albumArt: boolean;
@@ -26,11 +29,11 @@ export class ImageCacheManager {
 
 	async clearSelected(selection: ClearCacheSelection): Promise<void> {
 		const categories: Array<ImageCategory> = [];
-		if (selection.artistImage) categories.push('artist_image');
+		if (selection.artistImage) categories.push('artist_image', 'artist_image_thumb');
 		if (selection.artistLogo) categories.push('artist_logo');
-		if (selection.albumArt) categories.push('album_art');
+		if (selection.albumArt) categories.push('album_art', 'album_art_thumb');
 		if (selection.albumArtBlurred) categories.push('album_art_blurred');
-		if (selection.playlistImage) categories.push('playlist_image');
+		if (selection.playlistImage) categories.push('playlist_image', 'playlist_image_thumb');
 
 		await Promise.all(categories.map((category) => this.clearCategory(category)));
 	}

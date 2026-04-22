@@ -170,7 +170,7 @@ export class TrackList extends Component<TrackListViewModel> {
 												testID={`track-artwork-touch-${rowIdentity}`}
 											>
 												<CachedImage
-													category='album_art'
+													category='album_art_thumb'
 													imageCache={this.viewModel.imageCache}
 													objectFit='cover'
 													style={styles.artwork}

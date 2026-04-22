@@ -208,9 +208,9 @@ export class CardGrid extends Component<CardGridViewModel> {
 }
 
 function cardKindToCategory(kind: Card['kind']): ImageCategory {
-	if (kind === 'artist') return 'artist_image';
-	if (kind === 'playlist') return 'playlist_image';
-	return 'album_art';
+	if (kind === 'artist') return 'artist_image_thumb';
+	if (kind === 'playlist') return 'playlist_image_thumb';
+	return 'album_art_thumb';
 }
 
 const styles = {

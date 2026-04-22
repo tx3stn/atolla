@@ -16,7 +16,11 @@ describe('ImageCacheManager', () => {
 			tracks: false,
 		});
 
-		expect(store.removeCalls).toEqual(['image_cache:album_art', 'image_cache:playlist_image']);
+		expect(store.removeCalls.length).toBe(4);
+		expect(store.removeCalls).toContain('image_cache:album_art');
+		expect(store.removeCalls).toContain('image_cache:album_art_thumb');
+		expect(store.removeCalls).toContain('image_cache:playlist_image');
+		expect(store.removeCalls).toContain('image_cache:playlist_image_thumb');
 	});
 
 	it('removes category-prefixed keys when fetchAll is available', async () => {

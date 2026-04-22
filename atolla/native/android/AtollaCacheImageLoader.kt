@@ -75,6 +75,11 @@ data class QuantizedColorCandidate(
 )
 
 class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
+	private data class BitmapDecodePlan(
+		val bitmapKey: String,
+		val maxDimension: Int,
+	)
+
 	private data class DiskCacheEntry(
 		val file: File,
 		val bytes: Long,
@@ -83,6 +88,14 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 
 	companion object {
 		private const val MEMORY_CACHE_BYTES = 200 * 1024 * 1024
+		private const val MIN_BITMAP_MAX_DIMENSION = 128
+		private const val MAX_BITMAP_MAX_DIMENSION = 2048
+		private const val DEFAULT_ALBUM_BITMAP_MAX_DIMENSION = 384
+		private const val DEFAULT_BLURRED_BITMAP_MAX_DIMENSION = 256
+		private const val DEFAULT_ARTIST_BITMAP_MAX_DIMENSION = 768
+		private const val DEFAULT_PLAYLIST_BITMAP_MAX_DIMENSION = 384
+		private const val DEFAULT_LOGO_BITMAP_MAX_DIMENSION = 512
+		private const val DEFAULT_BITMAP_MAX_DIMENSION = 768
 		@Volatile var diskCacheMaxBytes = 200L * 1024 * 1024
 		private const val DISK_CACHE_TTL_MS = 30L * 24 * 3600 * 1000
 
@@ -119,8 +132,8 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		}
 
 		private val executor = ThreadPoolExecutor(
-			6,
-			6,
+			12,
+			12,
 			30L,
 			TimeUnit.SECONDS,
 			PriorityBlockingQueue<Runnable>(),
@@ -203,9 +216,14 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 	}
 
 	fun clearCategories(categories: List<String>) {
-		// Always clear blurred art alongside album art.
+		// Keep full-size and thumb variants in sync when clearing categories.
 		val expanded = categories.toMutableSet()
-		if (expanded.contains("album_art")) expanded.add("album_art_blurred")
+		if (expanded.contains("album_art")) expanded.addAll(listOf("album_art_blurred", "album_art_thumb"))
+		if (expanded.contains("album_art_thumb")) expanded.add("album_art")
+		if (expanded.contains("artist_image")) expanded.add("artist_image_thumb")
+		if (expanded.contains("artist_image_thumb")) expanded.add("artist_image")
+		if (expanded.contains("playlist_image")) expanded.add("playlist_image_thumb")
+		if (expanded.contains("playlist_image_thumb")) expanded.add("playlist_image")
 		val prefixes = expanded.map { "$it:" }
 
 		// Clear matching entries from memory.
@@ -327,19 +345,24 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 	): Disposable? {
 		val payload = requetPayload as AtollaCacheRequestPayload
 		val key = "${payload.category}:${payload.sourceUrl}"
+		val bitmapPlan = resolveBitmapDecodePlan(key, payload.category, options)
 		Log.d(tag, "loadImage key=$key outputType=${options.outputType}")
 
 		// Bitmap cache hit: decoded bitmap is ready — deliver synchronously without
 		// dispatching to a background thread, so scrolling back into view is instant.
 		if (options.outputType == ValdiAssetLoadOutputType.BITMAP) {
-			bitmapMemory.get(key)?.let { bitmap ->
-				val copy = bitmap.copy(bitmap.config ?: android.graphics.Bitmap.Config.ARGB_8888, false)
-				if (copy != null) {
-					Log.d(tag, "bitmap cache hit key=$key")
-					completion.onImageLoadComplete(0, 0, ValdiImageWithBitmap(copy), null)
-					return object : Disposable { override fun dispose() {} }
+			bitmapMemory.get(bitmapPlan.bitmapKey)?.let { bitmap ->
+				if (bitmap.isRecycled) {
+					bitmapMemory.remove(bitmapPlan.bitmapKey)
+				} else {
+					val copy = safeCopyForDelivery(bitmap)
+					if (copy != null) {
+				Log.d(tag, "bitmap cache hit key=${bitmapPlan.bitmapKey}")
+				completion.onImageLoadComplete(0, 0, ValdiImageWithBitmap(copy), null)
+				return object : Disposable { override fun dispose() {} }
+					}
+					bitmapMemory.remove(bitmapPlan.bitmapKey)
 				}
-				bitmapMemory.remove(key)
 			}
 		}
 
@@ -353,9 +376,8 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				ValdiAssetLoadOutputType.RAW_CONTENT ->
 					ValdiImageWithContent(ValdiImageContent.Bytes(bytes))
 				ValdiAssetLoadOutputType.BITMAP -> {
-					val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+					val bitmap = getOrDecodeBitmap(bytes, bitmapPlan)
 					if (bitmap != null) {
-						bitmap.copy(Bitmap.Config.ARGB_8888, false)?.let { bitmapMemory.put(key, it) }
 						ValdiImageWithBitmap(bitmap)
 					} else {
 						ValdiImageFactory.fromByteArray(bytes)
@@ -371,6 +393,38 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			}
 			completion.onImageLoadComplete(0, 0, image, null)
 			return object : Disposable { override fun dispose() {} }
+		}
+
+		// Disk fast-path for fixed-size thumbnails: read synchronously on the calling
+		// thread (the UI thread) before dispatching to the background executor.
+		// Thumbnail files are <100 KB so a sequential read takes well under 1 ms —
+		// far cheaper than a mainHandler.post() which costs at least one full frame
+		// and is the direct cause of the pop-in on scroll-back when images are
+		// already on disk but not yet promoted to the in-memory cache.
+		if (isFixedThumbCategory(payload.category)) {
+			readFromDisk(key)?.let { bytes ->
+				memory.put(key, bytes)
+				when (options.outputType) {
+					ValdiAssetLoadOutputType.BITMAP -> {
+						val bitmap = getOrDecodeBitmap(bytes, bitmapPlan)
+						val image = if (bitmap != null) {
+							val copy = safeCopyForDelivery(bitmap)
+							if (copy != null) ValdiImageWithBitmap(copy) else ValdiImageFactory.fromByteArray(bytes)
+						} else {
+							ValdiImageFactory.fromByteArray(bytes)
+						}
+						Log.d(tag, "disk fast-path hit key=$key")
+						completion.onImageLoadComplete(0, 0, image, null)
+						return object : Disposable { override fun dispose() {} }
+					}
+					ValdiAssetLoadOutputType.RAW_CONTENT -> {
+						Log.d(tag, "disk fast-path hit key=$key")
+						completion.onImageLoadComplete(0, 0, ValdiImageWithContent(ValdiImageContent.Bytes(bytes)), null)
+						return object : Disposable { override fun dispose() {} }
+					}
+					else -> { /* unsupported output type — fall through to async path */ }
+				}
+			}
 		}
 
 		// Disk reads and network fetches happen on a background thread so the
@@ -530,9 +584,10 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		}
 
 		val key = "$category:$sourceUrl"
+		val bitmapPlan = resolveBitmapDecodePlan(key, category, null)
 
 		// Bitmap already decoded and cached — nothing to do.
-		if (bitmapMemory.get(key) != null) return
+		if (bitmapMemory.get(bitmapPlan.bitmapKey) != null) return
 
 		// Bytes in memory but bitmap not yet decoded. Warm the bitmap cache on a
 		// background thread so subsequent loadImage calls can serve synchronously.
@@ -562,10 +617,10 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 	}
 
 	private fun warmBitmapCache(key: String, bytes: ByteArray, category: String) {
-		if (category == "album_art_blurred" || bitmapMemory.get(key) != null) return
-		BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-			?.copy(Bitmap.Config.ARGB_8888, false)
-			?.let { bitmapMemory.put(key, it) }
+		if (category == "album_art_blurred") return
+		val bitmapPlan = resolveBitmapDecodePlan(key, category, null)
+		if (bitmapMemory.get(bitmapPlan.bitmapKey) != null) return
+		getOrDecodeBitmap(bytes, bitmapPlan)
 	}
 
 	private fun executePreloadTask(
@@ -668,18 +723,19 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		completion: ValdiImageLoadCompletion,
 		cancelled: AtomicBoolean? = null,
 	) {
-		// Decode on the calling thread so expensive bitmap decoding stays off the main thread.
-		// Always decode and warm the bitmap cache, regardless of the requested output type,
-		// so that any subsequent BITMAP request is served synchronously from bitmapMemory.
-		val bitmap = bitmapMemory.get(key) ?: run {
-			BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.also { decoded ->
-				decoded.copy(Bitmap.Config.ARGB_8888, false)?.let { bitmapMemory.put(key, it) }
-			}
-		}
+		val category = key.substringBefore(':')
+		val bitmapPlan = resolveBitmapDecodePlan(key, category, options)
 		val image: ValdiImage = when (options.outputType) {
 			ValdiAssetLoadOutputType.BITMAP -> {
+				val bitmap = getOrDecodeBitmap(bytes, bitmapPlan)
 				if (bitmap != null) {
-					ValdiImageWithBitmap(bitmap)
+					val copy = safeCopyForDelivery(bitmap)
+					if (copy != null) {
+						ValdiImageWithBitmap(copy)
+					} else {
+						bitmapMemory.remove(bitmapPlan.bitmapKey)
+						ValdiImageFactory.fromByteArray(bytes)
+					}
 				} else {
 					ValdiImageFactory.fromByteArray(bytes)
 				}
@@ -699,6 +755,137 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		}
 
 		deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, image, null) }
+	}
+
+	private fun resolveBitmapDecodePlan(
+		key: String,
+		category: String,
+		options: ValdiImageLoadOptions?,
+	): BitmapDecodePlan {
+		val categoryDefault = defaultBitmapMaxDimensionForCategory(category)
+		if (isFixedThumbCategory(category)) {
+			val fixed = quantizeBitmapMaxDimension(normalizeBitmapMaxDimension(categoryDefault))
+			return BitmapDecodePlan(bitmapKey = "$key#md=$fixed", maxDimension = fixed)
+		}
+		val requestedMaxDimension = options?.let { resolveRequestedBitmapMaxDimension(it) }
+		val candidate = when {
+			requestedMaxDimension == null -> categoryDefault
+			else -> max(categoryDefault, requestedMaxDimension)
+		}
+		val maxDimension = quantizeBitmapMaxDimension(normalizeBitmapMaxDimension(candidate))
+		return BitmapDecodePlan(bitmapKey = "$key#md=$maxDimension", maxDimension = maxDimension)
+	}
+
+	private fun isFixedThumbCategory(category: String): Boolean {
+		return category == "album_art_thumb" ||
+			category == "artist_image_thumb" ||
+			category == "playlist_image_thumb"
+	}
+
+	private fun defaultBitmapMaxDimensionForCategory(category: String): Int {
+		return when (category) {
+			"album_art" -> DEFAULT_ALBUM_BITMAP_MAX_DIMENSION
+			"album_art_thumb" -> DEFAULT_ALBUM_BITMAP_MAX_DIMENSION
+			"album_art_blurred" -> DEFAULT_BLURRED_BITMAP_MAX_DIMENSION
+			"artist_image" -> DEFAULT_ARTIST_BITMAP_MAX_DIMENSION
+			"artist_image_thumb" -> DEFAULT_ARTIST_BITMAP_MAX_DIMENSION
+			"playlist_image" -> DEFAULT_PLAYLIST_BITMAP_MAX_DIMENSION
+			"playlist_image_thumb" -> DEFAULT_PLAYLIST_BITMAP_MAX_DIMENSION
+			"artist_logo" -> DEFAULT_LOGO_BITMAP_MAX_DIMENSION
+			else -> DEFAULT_BITMAP_MAX_DIMENSION
+		}
+	}
+
+	private fun normalizeBitmapMaxDimension(value: Int): Int {
+		return value.coerceIn(MIN_BITMAP_MAX_DIMENSION, MAX_BITMAP_MAX_DIMENSION)
+	}
+
+	private fun resolveRequestedBitmapMaxDimension(options: ValdiImageLoadOptions): Int? {
+		val propertyNames = listOf(
+			"targetWidth",
+			"targetHeight",
+			"requestedWidth",
+			"requestedHeight",
+			"maxWidth",
+			"maxHeight",
+			"desiredWidth",
+			"desiredHeight",
+		)
+
+		var maxDimension = 0
+		for (name in propertyNames) {
+			val value = readIntLikeProperty(options, name)
+			if (value != null && value > maxDimension) {
+				maxDimension = value
+			}
+		}
+
+		return if (maxDimension > 0) maxDimension else null
+	}
+
+	private fun quantizeBitmapMaxDimension(value: Int): Int {
+		val buckets = intArrayOf(128, 192, 256, 320, 384, 512, 640, 768, 1024, 1280, 1536, 2048)
+		for (bucket in buckets) {
+			if (value <= bucket) return bucket
+		}
+		return MAX_BITMAP_MAX_DIMENSION
+	}
+
+	private fun readIntLikeProperty(target: Any, name: String): Int? {
+		val clazz = target::class.java
+		val getterName = "get${name.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }}"
+
+		val methodNames = listOf(name, getterName)
+		for (methodName in methodNames) {
+			val method = clazz.methods.firstOrNull { it.name == methodName && it.parameterCount == 0 } ?: continue
+			val value = runCatching { method.invoke(target) }.getOrNull() as? Number ?: continue
+			return value.toInt()
+		}
+
+		val field = runCatching { clazz.getDeclaredField(name).apply { isAccessible = true } }.getOrNull()
+		val fieldValue = runCatching { field?.get(target) }.getOrNull() as? Number
+		return fieldValue?.toInt()
+	}
+
+	private fun getOrDecodeBitmap(bytes: ByteArray, bitmapPlan: BitmapDecodePlan): Bitmap? {
+		bitmapMemory.get(bitmapPlan.bitmapKey)?.let {
+			if (!it.isRecycled) return it
+			bitmapMemory.remove(bitmapPlan.bitmapKey)
+		}
+		val decoded = decodeSampledBitmap(bytes, bitmapPlan.maxDimension) ?: return null
+		decoded.copy(Bitmap.Config.ARGB_8888, false)?.let { bitmapMemory.put(bitmapPlan.bitmapKey, it) }
+		return decoded
+	}
+
+	private fun safeCopyForDelivery(bitmap: Bitmap): Bitmap? {
+		if (bitmap.isRecycled) return null
+		return runCatching {
+			bitmap.copy(bitmap.config ?: Bitmap.Config.ARGB_8888, false)
+		}.getOrNull()
+	}
+
+	private fun decodeSampledBitmap(bytes: ByteArray, maxDimension: Int): Bitmap? {
+		val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+		BitmapFactory.decodeByteArray(bytes, 0, bytes.size, boundsOptions)
+
+		if (boundsOptions.outWidth <= 0 || boundsOptions.outHeight <= 0) {
+			return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+		}
+
+		val sampleSize = calculateInSampleSize(boundsOptions.outWidth, boundsOptions.outHeight, maxDimension)
+		val decodeOptions = BitmapFactory.Options().apply {
+			inPreferredConfig = Bitmap.Config.ARGB_8888
+			inSampleSize = sampleSize
+		}
+		return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions)
+	}
+
+	private fun calculateInSampleSize(width: Int, height: Int, maxDimension: Int): Int {
+		var sampleSize = 1
+		while (max(width / sampleSize, height / sampleSize) > maxDimension) {
+			sampleSize *= 2
+		}
+		return sampleSize
 	}
 
 	private fun resolveAppCacheDir(): File? {

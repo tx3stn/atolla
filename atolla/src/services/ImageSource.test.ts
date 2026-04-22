@@ -4,6 +4,7 @@ import {
 	atollaCacheScheme,
 	buildImageSource,
 	imageCacheKey,
+	normalizeImageUrlForCategory,
 	parseImageSource,
 } from './ImageSource';
 
@@ -12,6 +13,37 @@ describe('ImageSource', () => {
 		const source = buildImageSource('https://example.com/a b.jpg', 'album_art');
 		expect(source).toBe(
 			`${atollaCacheScheme}://${atollaCacheHost}?c=album_art&u=https%3A%2F%2Fexample.com%2Fa%20b.jpg`,
+		);
+	});
+
+	it('adds Jellyfin thumbnail params for thumb categories', () => {
+		const source = buildImageSource(
+			'https://media.example.com/Items/123/Images/Primary?api_key=abc&tag=xyz',
+			'album_art_thumb',
+		);
+		const parsed = parseImageSource(source);
+
+		expect(parsed?.category).toBe('album_art_thumb');
+		expect(parsed?.url).toBe(
+			'https://media.example.com/Items/123/Images/Primary?api_key=abc&tag=xyz&maxWidth=384&maxHeight=384&quality=85',
+		);
+	});
+
+	it('preserves explicit sizing params when already present', () => {
+		const source = buildImageSource(
+			'https://media.example.com/Items/123/Images/Primary?api_key=abc&maxWidth=256&maxHeight=256',
+			'album_art_thumb',
+		);
+
+		expect(parseImageSource(source)?.url).toBe(
+			'https://media.example.com/Items/123/Images/Primary?api_key=abc&maxWidth=256&maxHeight=256&quality=85',
+		);
+	});
+
+	it('normalizes thumbnail URL consistently for preload and render', () => {
+		const url = 'https://media.example.com/Items/123/Images/Primary?api_key=abc&tag=xyz';
+		expect(normalizeImageUrlForCategory(url, 'album_art_thumb')).toBe(
+			'https://media.example.com/Items/123/Images/Primary?api_key=abc&tag=xyz&maxWidth=384&maxHeight=384&quality=85',
 		);
 	});
 

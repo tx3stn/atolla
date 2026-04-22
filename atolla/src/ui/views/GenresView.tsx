@@ -7,6 +7,7 @@ import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Genre } from '../../models/Genre';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
+import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -105,8 +106,11 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			this.isLoadingPage = false;
 			try {
 				preloadAtollaImages(
-					page.items.map((g) => g.imageUrl).filter((url): url is string => url != null),
-					'album_art',
+					page.items
+						.map((g) => g.imageUrl)
+						.filter((url): url is string => url != null)
+						.map((url) => normalizeImageUrlForCategory(url, 'album_art_thumb')),
+					'album_art_thumb',
 				);
 			} catch {
 				// Non-Android targets do not provide native preload bridge.

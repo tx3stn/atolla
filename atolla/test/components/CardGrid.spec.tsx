@@ -144,7 +144,7 @@ describe('CardGrid', () => {
 			IRenderedElementViewClass.Image,
 		);
 		expect(images.length).toBe(1);
-		expect(images[0].getAttribute('src')).toContain('atolla-cache://image?c=album_art&u=');
+		expect(images[0].getAttribute('src')).toContain('atolla-cache://image?c=album_art_thumb&u=');
 	});
 
 	valdiIt('auto-loads more when prefetch trigger is laid out', () => {
