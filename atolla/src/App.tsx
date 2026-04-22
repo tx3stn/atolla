@@ -1990,7 +1990,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						<HomeView
 							animationsEnabled={this.state.animationsEnabled}
 							connectionMode={this.state.connectionMode}
-							downloadingCount={this.state.downloadingCount}
 							gridColumns={this.state.gridColumns}
 							homeAlbumsStore={this.homeAlbumsStore}
 							onOpenAlbum={this.handleHomeAlbumTap}
@@ -2008,7 +2007,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					activeTab={HeaderTabs.albums}
 					animationsEnabled={this.state.animationsEnabled}
 					connectionMode={this.state.connectionMode}
-					downloadingCount={this.state.downloadingCount}
 					onRequestModeChange={this.requestModeChange}
 					onTabTap={this.handleHomeHeaderTabTap}
 				/>
@@ -2019,7 +2017,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					activeTab={this.state.activeLibraryTab}
 					animationsEnabled={this.state.animationsEnabled}
 					connectionMode={this.state.connectionMode}
-					downloadingCount={this.state.downloadingCount}
 					onAlphabetLetterTap={this.handleLibraryAlphabetLetterTap}
 					onRequestModeChange={this.requestModeChange}
 					onSortChange={this.handleLibrarySortChange}
@@ -2092,7 +2089,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				/>
 			)}
 
-			<FooterNav activeTab={this.state.activeFooterTab} onFooterTabTap={this.handleFooterTabTap} />
+			<FooterNav
+				activeTab={this.state.activeFooterTab}
+				downloadingCount={this.state.downloadingCount}
+				onFooterTabTap={this.handleFooterTabTap}
+			/>
 
 			{track && (
 				<NowPlayingSurface

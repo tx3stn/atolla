@@ -9,7 +9,6 @@ import { ConnectivityFab } from './ConnectivityFab';
 export interface ViewHeaderViewModel {
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
-	downloadingCount: number;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	title: string;
 }
@@ -20,7 +19,6 @@ export class ViewHeader extends Component<ViewHeaderViewModel> {
 			<view style={styles.leadingFabSlot}>
 				<ConnectivityFab
 					connectionMode={this.viewModel.connectionMode}
-					downloadingCount={this.viewModel.downloadingCount}
 					onRequestModeChange={this.viewModel.onRequestModeChange}
 				/>
 			</view>

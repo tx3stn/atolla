@@ -2,15 +2,13 @@
 import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
-import { theme } from '../../theme';
+import type { ImageView } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 
 const TRANSITION_DISPLAY_MS = 2000;
 
 export interface ConnectivityFabViewModel {
 	connectionMode: ConnectionMode;
-	downloadingCount: number;
 	hidden?: boolean;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 }
@@ -154,32 +152,12 @@ export class ConnectivityFab extends StatefulComponent<
 				<view style={styles.logoWrap}>
 					<image src={logoSrc} style={styles.logo} />
 				</view>
-				{this.viewModel.downloadingCount > 0 && (
-					<view style={styles.badge}>
-						<label style={styles.badgeLabel} value={String(this.viewModel.downloadingCount)} />
-					</view>
-				)}
 			</view>
 		</view>;
 	}
 }
 
 const styles = {
-	badge: new Style({
-		alignItems: 'center',
-		backgroundColor: theme.colors.active,
-		borderRadius: 999,
-		justifyContent: 'center',
-		minWidth: 22,
-		padding: 3,
-		position: 'absolute',
-		right: -2,
-		top: -1,
-	}),
-	badgeLabel: new Style<Label>({
-		...theme.text.sub,
-		color: theme.colors.white,
-	}),
 	hitTarget: new Style({
 		alignItems: 'center',
 		height: 46,

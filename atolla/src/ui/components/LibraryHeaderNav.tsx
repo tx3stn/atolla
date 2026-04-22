@@ -16,7 +16,6 @@ interface LibraryHeaderViewModel {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
-	downloadingCount: number;
 	onAlphabetLetterTap?: (letter: string | null) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	onSortChange?: (sort: SortOrder) => void;
@@ -123,7 +122,6 @@ export class LibraryHeaderNav extends StatefulComponent<
 			<view style={styles.leadingFabSlot}>
 				<ConnectivityFab
 					connectionMode={this.viewModel.connectionMode}
-					downloadingCount={this.viewModel.downloadingCount}
 					onRequestModeChange={this.viewModel.onRequestModeChange}
 				/>
 			</view>

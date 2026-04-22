@@ -1,13 +1,14 @@
 // @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 export interface FooterIconView {
 	accessibilityLabel?: string;
 	action: () => void;
 	active?: boolean;
+	badgeCount?: number;
 	icon: unknown;
 }
 
@@ -24,11 +25,34 @@ export class FooterIcon extends Component<FooterIconView> {
 				style={styles.footerTabIconImage}
 				tint={this.viewModel.active ? undefined : theme.colors.grey}
 			/>
+			{(this.viewModel.badgeCount ?? 0) > 0 && (
+				<view style={styles.badge}>
+					<label style={styles.badgeLabel} value={String(this.viewModel.badgeCount)} />
+				</view>
+			)}
 		</view>;
 	}
 }
 
 const styles = {
+	badge: new Style({
+		alignItems: 'center',
+		backgroundColor: theme.colors.active,
+		borderRadius: 999,
+		justifyContent: 'center',
+		minWidth: 18,
+		paddingBottom: 2,
+		paddingLeft: 4,
+		paddingRight: 4,
+		paddingTop: 2,
+		position: 'absolute',
+		right: 20,
+		top: 2,
+	}),
+	badgeLabel: new Style<Label>({
+		...theme.text.sub,
+		color: theme.colors.white,
+	}),
 	footerTabChip: new Style({
 		alignItems: 'center',
 		flexGrow: 1,

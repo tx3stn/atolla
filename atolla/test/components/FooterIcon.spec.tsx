@@ -67,4 +67,34 @@ describe('FooterIcon', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		expect(views[0].getAttribute('accessibilityLabel')).toBe('footer-library');
 	});
+
+	valdiIt('renders badge count when badgeCount is positive', () => {
+		const instrumented = createComponent(FooterIcon, {
+			action: () => {},
+			badgeCount: 3,
+			icon,
+		});
+		const component = instrumented.getComponent();
+
+		const labels = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Label,
+		);
+		expect(labels.map((label) => label.getAttribute('value'))).toContain('3');
+	});
+
+	valdiIt('does not render badge when badgeCount is zero', () => {
+		const instrumented = createComponent(FooterIcon, {
+			action: () => {},
+			badgeCount: 0,
+			icon,
+		});
+		const component = instrumented.getComponent();
+
+		const labels = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Label,
+		);
+		expect(labels.length).toBe(0);
+	});
 });

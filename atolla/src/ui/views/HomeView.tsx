@@ -30,7 +30,6 @@ import {
 export interface HomeViewModel {
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
-	downloadingCount: number;
 	gridColumns: number;
 	homeAlbumsStore?: HomeAlbumsPersistence;
 	onOpenAlbum: (album: Album) => void;
@@ -332,7 +331,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			<ViewHeader
 				animationsEnabled={this.viewModel.animationsEnabled}
 				connectionMode={this.viewModel.connectionMode}
-				downloadingCount={this.viewModel.downloadingCount}
 				onRequestModeChange={this.viewModel.onRequestModeChange}
 				title='HOME'
 			/>

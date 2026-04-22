@@ -9,6 +9,7 @@ import { type FooterTab, FooterTabs } from './FooterTab';
 
 export interface FooterNavViewModel {
 	activeTab: FooterTab;
+	downloadingCount: number;
 	onFooterTabTap: (tabId: FooterTab) => void;
 }
 
@@ -30,6 +31,7 @@ export class FooterNav extends Component<FooterNavViewModel> {
 					this.viewModel.onFooterTabTap(FooterTabs.library);
 				})}
 				active={this.viewModel.activeTab === FooterTabs.library}
+				badgeCount={this.viewModel.downloadingCount}
 				icon={res.library}
 			/>
 
