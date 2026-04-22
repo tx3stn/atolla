@@ -76,13 +76,15 @@ export class NativeAudioPlayer extends StatefulComponent<
 			clearInterval(this.progressInterval);
 			this.progressInterval = null;
 		}
-		this.safeClearPlayback();
 	}
 
 	onViewModelUpdate(): void {
 		const source = this.viewModel.playbackSourceUrl;
 		const next = this.viewModel.nextPlaybackSourceUrl ?? '';
 		if (!source || !this.viewModel.playbackStore.track) {
+			if (!this.viewModel.playbackStore.track) {
+				this.safeClearPlayback();
+			}
 			this.lastSourceUrl = '';
 			this.lastNextSourceUrl = '';
 			return;
