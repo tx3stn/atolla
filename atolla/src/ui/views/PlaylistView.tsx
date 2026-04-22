@@ -17,7 +17,6 @@ import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ArtistView } from './ArtistView';
-import { resolveGenreForNavigation } from './GenreNavigationResolver';
 import type { LibraryNavContext } from './LibraryView';
 
 const TRACK_PAGE_SIZE = 50;
@@ -128,88 +127,29 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	handleDownloadTap = (): void => {
 		const { downloadService, playlist, transport } = this.viewModel;
-		Promise.all(
-			this.state.tracks.map(async (track, i) => {
+		const tracks = this.state.tracks
+			.map((track, i) => {
 				const streamUrl = transport.getTrackCacheUrl?.(track.id);
 				if (!streamUrl) {
 					return null;
 				}
 
-				const existingLogoUrl = this.state.artistLogoUrls[i] ?? null;
-				if (existingLogoUrl) {
-					return { artistLogoUrl: existingLogoUrl, streamUrl, track };
-				}
-
-				if (!track.artistId) {
-					return { artistLogoUrl: null, streamUrl, track };
-				}
-
-				try {
-					const resolvedLogoUrl = await transport.getArtistLogoUrl(track.artistId);
-					return { artistLogoUrl: resolvedLogoUrl, streamUrl, track };
-				} catch {
-					return { artistLogoUrl: null, streamUrl, track };
-				}
-			}),
-		).then((resolvedTracks) => {
-			const tracks = resolvedTracks.filter(
+				return {
+					artistLogoUrl: this.state.artistLogoUrls[i] ?? null,
+					streamUrl,
+					track,
+				};
+			})
+			.filter(
 				(t): t is { artistLogoUrl: string | null; streamUrl: string; track: Track } => t !== null,
 			);
 
-			const genreById = new Map<string, { id: string; imageUrl?: string; name: string }>();
-			for (const { track } of tracks) {
-				for (const genre of track.genres ?? []) {
-					if (!genreById.has(genre.id)) {
-						genreById.set(genre.id, genre);
-					}
-				}
-			}
+		if (tracks.length === 0) {
+			return;
+		}
 
-			const uniqueGenres = Array.from(genreById.values());
-
-			const uniqueArtistIds = Array.from(
-				new Set(
-					tracks
-						.map(({ track }) => track.artistId)
-						.filter((artistId): artistId is string => artistId != null && artistId.length > 0),
-				),
-			);
-
-			Promise.all([
-				...uniqueArtistIds.map((artistId) => transport.getArtist(artistId).catch(() => null)),
-				...uniqueGenres.map((genre) =>
-					resolveGenreForNavigation(transport, genre).catch(() => genre),
-				),
-			]).then((resolvedValues) => {
-				const artists = resolvedValues.slice(0, uniqueArtistIds.length);
-				const resolvedGenres = resolvedValues.slice(uniqueArtistIds.length);
-				const resolvedGenreById = new Map<
-					string,
-					{ id: string; imageUrl?: string; name: string }
-				>();
-				for (const genre of resolvedGenres) {
-					if (genre && typeof genre.id === 'string' && typeof genre.name === 'string') {
-						resolvedGenreById.set(genre.id, genre);
-					}
-				}
-
-				const tracksWithResolvedGenres = tracks.map((trackEntry) => ({
-					...trackEntry,
-					track: {
-						...trackEntry.track,
-						genres: (trackEntry.track.genres ?? []).map(
-							(genre) => resolvedGenreById.get(genre.id) ?? genre,
-						),
-					},
-				}));
-
-				downloadService.downloadPlaylist({
-					artists: artists.filter((artist): artist is NonNullable<typeof artist> => artist != null),
-					playlist,
-					tracks: tracksWithResolvedGenres,
-				});
-			});
-		});
+		this.setState({ downloadState: 'downloading' });
+		downloadService.downloadPlaylist({ playlist, tracks });
 	};
 
 	handleRemoveDownloadTap = (): void => {

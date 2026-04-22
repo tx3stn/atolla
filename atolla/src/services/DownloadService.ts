@@ -331,7 +331,6 @@ export class DownloadService {
 			for (const { artistLogoUrl, streamUrl, track } of tracks) {
 				this.addTrackRef(track, streamUrl, null, null, playlist.id, track.genres, artistLogoUrl);
 			}
-			await this.persistAll();
 
 			for (const { track, streamUrl } of tracks) {
 				if (!this.tracks[track.id]?.complete) {
@@ -339,6 +338,7 @@ export class DownloadService {
 				}
 			}
 			this.notify();
+			await this.persistAll();
 		});
 	}
 
