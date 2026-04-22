@@ -21,6 +21,7 @@ import android.os.Process
 import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.C
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
@@ -210,6 +211,19 @@ object AtollaGaplessAudioEngine {
 	private var exoPlayer: ExoPlayer? = null
 
 	private val playerListener = object : Player.Listener {
+		override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+			if (playWhenReady) {
+				return
+			}
+
+			if (
+				reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS ||
+				reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY
+			) {
+				enqueueEvent("pause-requested")
+			}
+		}
+
 		override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
 			if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
 				return
@@ -351,6 +365,12 @@ object AtollaGaplessAudioEngine {
 		}
 
 		val player = ExoPlayer.Builder(appContext).build()
+		val audioAttributes = AudioAttributes.Builder()
+			.setUsage(C.USAGE_MEDIA)
+			.setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+			.build()
+		player.setAudioAttributes(audioAttributes, true)
+		player.setHandleAudioBecomingNoisy(true)
 		player.addListener(playerListener)
 		player.volume = volume.coerceIn(0f, 1f)
 		exoPlayer = player
@@ -1440,6 +1460,7 @@ object AtollaTrackPlaybackMediaSession {
 			if (contentIntent != null) {
 				builder.setContentIntent(contentIntent)
 			}
+			builder.setDeleteIntent(actionPendingIntent(context, actionStop, 26))
 
 			currentArtworkBitmap?.let { bitmap ->
 				builder.setLargeIcon(bitmap)

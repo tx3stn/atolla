@@ -1,5 +1,9 @@
 // @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
+import {
+	applyNativeAudioPlaybackEventAction,
+	normalizeNativeAudioPlaybackEventAction,
+} from '../../services/NativeAudioPlaybackEventSync';
 import type { PlaybackStore } from '../../stores/Playback';
 import {
 	clearAtollaAudioPlayback,
@@ -191,6 +195,13 @@ export class NativeAudioPlayer extends StatefulComponent<
 			if (event.startsWith('error:')) {
 				this.viewModel.onPlaybackEvent?.('error');
 				this.viewModel.onPlaybackError?.(`native audio error: ${event.slice('error:'.length)}`);
+				continue;
+			}
+
+			const nativeAction = normalizeNativeAudioPlaybackEventAction(event);
+			if (nativeAction !== '') {
+				applyNativeAudioPlaybackEventAction(this.viewModel.playbackStore, nativeAction);
+				this.viewModel.onPlaybackEvent?.('pause-requested');
 			}
 		}
 	}
