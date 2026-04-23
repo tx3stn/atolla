@@ -189,6 +189,10 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 			override fun clearAtollaAudioPlayback() {
 				AtollaGaplessAudioEngine.clear()
 			}
+
+			override fun getAtollaAudioPlaybackIsActive(): Boolean {
+				return AtollaGaplessAudioEngine.isActive()
+			}
 		}
 	}
 }
@@ -328,6 +332,12 @@ object AtollaGaplessAudioEngine {
 			} catch (_: Throwable) {
 				0L
 			}
+		}
+	}
+
+	fun isActive(): Boolean {
+		return runOnMainSync(false) {
+			exoPlayer?.isPlaying ?: false
 		}
 	}
 

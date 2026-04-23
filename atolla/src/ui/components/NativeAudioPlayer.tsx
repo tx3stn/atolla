@@ -47,12 +47,19 @@ export class NativeAudioPlayer extends StatefulComponent<
 	private lastCompletedToken = '';
 	private lastSeekTargetSeconds: number | null = null;
 	private hasReportedProgressForSource = false;
+	private hasEverBoundSource = false;
 
 	onCreate(): void {
 		const isActive = this.viewModel.isActive !== false;
 		const playbackRate = isActive && this.viewModel.playbackStore.isPlaying ? 1 : 0;
 		this.setState({ playbackRate });
-		this.safeSetPlaybackRate(playbackRate);
+		// Suppress rate=0 if the store hasn't restored yet (empty track + not playing)
+		// to avoid pausing background playback before we know the intended state.
+		// Once setQueueStore restores isPlaying correctly, playbackRate will be 1
+		// if ExoPlayer is actively running and we'll send the right value.
+		if (playbackRate > 0 || this.viewModel.playbackStore.track != null) {
+			this.safeSetPlaybackRate(playbackRate);
+		}
 		this.safeSetVolume(this.viewModel.volume ?? 1);
 
 		this.unsubscribePlaybackStore = this.viewModel.playbackStore.subscribe(() => {
@@ -87,7 +94,11 @@ export class NativeAudioPlayer extends StatefulComponent<
 		const source = this.viewModel.playbackSourceUrl;
 		const next = this.viewModel.nextPlaybackSourceUrl ?? '';
 		if (!source || !this.viewModel.playbackStore.track) {
-			if (!this.viewModel.playbackStore.track) {
+			// Only clear if we have previously bound a source — that means the store IS
+			// loaded and the track was explicitly stopped. Without this guard,
+			// safeClearPlayback() fires on initial mount before the async store restore
+			// completes, destroying background playback that is still running natively.
+			if (!this.viewModel.playbackStore.track && this.hasEverBoundSource) {
 				this.safeClearPlayback();
 			}
 			this.lastSourceUrl = '';
@@ -96,12 +107,19 @@ export class NativeAudioPlayer extends StatefulComponent<
 		}
 
 		if (source !== this.lastSourceUrl || next !== this.lastNextSourceUrl) {
+			const isReattach = !this.hasEverBoundSource;
+			this.hasEverBoundSource = true;
 			this.lastSourceUrl = source;
 			this.lastNextSourceUrl = next;
 			this.lastCompletedToken = '';
 			this.hasReportedProgressForSource = false;
 			this.configurePlayback(source, this.viewModel.nextPlaybackSourceUrl ?? null);
-			this.applyInitialSeekForSource();
+			// Skip the initial seek when re-attaching to an already-running player
+			// (app remount while background playback was in progress) — ExoPlayer is
+			// already at the right position and seeking would cause a re-buffer stutter.
+			if (!isReattach) {
+				this.applyInitialSeekForSource();
+			}
 			this.viewModel.onPlaybackEvent?.('source-bound');
 		}
 

@@ -95,3 +95,6 @@ export function consumeAtollaAudioPlaybackEvent(): string;
 
 // @ExportFunction
 export function clearAtollaAudioPlayback(): void;
+
+// @ExportFunction
+export function getAtollaAudioPlaybackIsActive(): boolean;

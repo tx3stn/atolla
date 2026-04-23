@@ -65,6 +65,7 @@ import {
 	getAtollaDeviceUserScopeKey,
 	getAtollaDownloadedCacheTotalSizeBytes,
 	getAtollaDownloadedTrackFileUrl,
+	getAtollaAudioPlaybackIsActive,
 	getAtollaTrackCacheEntryCount,
 	setAtollaTrackCacheMaxTracks,
 	updateAtollaTrackPlaybackNotification,
@@ -600,7 +601,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.nowPlayingQueueStore = new PersistentStore(`atolla/user/${userId}/now_playing_queue`, {
 			deviceGlobal: true,
 		});
-		void this.playbackStore.setQueueStore(this.nowPlayingQueueStore);
+		void this.playbackStore.setQueueStore(this.nowPlayingQueueStore, () => {
+				try {
+					return getAtollaAudioPlaybackIsActive();
+				} catch {
+					return false;
+				}
+			});
 		this.homeAlbumsStore = new PersistentStore(`atolla/user/${userId}/home`, {
 			deviceGlobal: true,
 		});

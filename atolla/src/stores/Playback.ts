@@ -45,7 +45,10 @@ export class PlaybackStore {
 	trackIndex: number = 0;
 	tracks: Array<Track> = [];
 
-	async setQueueStore(store: PlaybackQueueStore | null): Promise<void> {
+	async setQueueStore(
+		store: PlaybackQueueStore | null,
+		isPlayingFn?: () => boolean,
+	): Promise<void> {
 		this.queueStore = store;
 		const token = ++this.queueStoreLoadToken;
 
@@ -68,7 +71,9 @@ export class PlaybackStore {
 			this.album = parsed.album;
 			this.trackIndex = Math.max(0, Math.min(parsed.trackIndex, parsed.tracks.length - 1));
 			this._artistLogoUrls = parsed.tracks.map((_, index) => parsed.artistLogoUrls[index] ?? null);
-			this.isPlaying = false;
+			// Restore as playing if the native player is actively running (process was alive
+			// and playback continued in background). On a cold start the callback returns false.
+			this.isPlaying = isPlayingFn?.() === true;
 			const currentTrack = this.tracks[this.trackIndex] ?? null;
 			const maxProgress = currentTrack?.duration ?? 0;
 			const restoredProgress = Number.isFinite(parsed.progressSeconds) ? parsed.progressSeconds : 0;
