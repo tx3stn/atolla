@@ -245,6 +245,11 @@ object AtollaGaplessAudioEngine {
 			if (playbackState == Player.STATE_READY) {
 				enqueueEvent("loaded")
 				applyPendingSeekIfNeeded()
+				return
+			}
+
+			if (playbackState == Player.STATE_ENDED) {
+				enqueueEvent("completed")
 			}
 		}
 
@@ -370,6 +375,7 @@ object AtollaGaplessAudioEngine {
 			.setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
 			.build()
 		player.setAudioAttributes(audioAttributes, true)
+		player.setWakeMode(C.WAKE_MODE_NETWORK)
 		player.setHandleAudioBecomingNoisy(true)
 		player.addListener(playerListener)
 		player.volume = volume.coerceIn(0f, 1f)
@@ -1047,9 +1053,6 @@ object AtollaTrackPlaybackMediaSession {
 		hasNext: Boolean,
 	) {
 		val context = resolveApplicationContext() ?: return
-		if (!ensureNotificationPermission()) {
-			return
-		}
 		ensureMediaInfrastructure(context)
 
 		activeTrackName = trackName.trim()
@@ -1243,7 +1246,7 @@ object AtollaTrackPlaybackMediaSession {
 				}
 
 				override fun onStop() {
-					onAction(actionStop)
+					onAction(actionPause)
 				}
 
 				override fun onSeekTo(pos: Long) {
@@ -1359,12 +1362,8 @@ object AtollaTrackPlaybackMediaSession {
 			return
 		}
 
-		if (!ensureNotificationPermission()) {
-			return
-		}
-
 		try {
-			val manager = notificationManager ?: return
+			notificationManager ?: return
 			val session = mediaSession ?: return
 
 			val contentIntent =
@@ -1460,7 +1459,7 @@ object AtollaTrackPlaybackMediaSession {
 			if (contentIntent != null) {
 				builder.setContentIntent(contentIntent)
 			}
-			builder.setDeleteIntent(actionPendingIntent(context, actionStop, 26))
+			builder.setDeleteIntent(actionPendingIntent(context, actionPause, 26))
 
 			currentArtworkBitmap?.let { bitmap ->
 				builder.setLargeIcon(bitmap)

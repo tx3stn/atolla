@@ -44,6 +44,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 	private progressInterval: ReturnType<typeof setInterval> | null = null;
 	private lastSourceUrl = '';
 	private lastNextSourceUrl = '';
+	private lastCompletedToken = '';
 	private lastSeekTargetSeconds: number | null = null;
 	private hasReportedProgressForSource = false;
 
@@ -97,6 +98,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 		if (source !== this.lastSourceUrl || next !== this.lastNextSourceUrl) {
 			this.lastSourceUrl = source;
 			this.lastNextSourceUrl = next;
+			this.lastCompletedToken = '';
 			this.hasReportedProgressForSource = false;
 			this.configurePlayback(source, this.viewModel.nextPlaybackSourceUrl ?? null);
 			this.applyInitialSeekForSource();
@@ -175,15 +177,21 @@ export class NativeAudioPlayer extends StatefulComponent<
 			}
 
 			if (event === 'completed') {
-				if (this.viewModel.onTrackCompleted) {
-					this.viewModel.onTrackCompleted();
-				} else {
-					const track = this.viewModel.playbackStore.track;
-					if (track) {
-						this.viewModel.playbackStore.updateProgress(track.duration);
+				const activeTrackId = this.viewModel.playbackStore.track?.id ?? '';
+				const activeSourceUrl = this.viewModel.playbackSourceUrl ?? '';
+				const completionToken = `${activeTrackId}|${activeSourceUrl}`;
+				if (completionToken !== this.lastCompletedToken) {
+					this.lastCompletedToken = completionToken;
+					if (this.viewModel.onTrackCompleted) {
+						this.viewModel.onTrackCompleted();
+					} else {
+						const track = this.viewModel.playbackStore.track;
+						if (track) {
+							this.viewModel.playbackStore.updateProgress(track.duration);
+						}
 					}
+					this.viewModel.onPlaybackEvent?.('completed');
 				}
-				this.viewModel.onPlaybackEvent?.('completed');
 				continue;
 			}
 

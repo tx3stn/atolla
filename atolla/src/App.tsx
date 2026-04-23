@@ -577,7 +577,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.nativePlaybackActionInterval) {
 			clearInterval(this.nativePlaybackActionInterval);
 		}
-		clearAtollaTrackPlaybackNotification();
+		if (!this.playbackStore.track) {
+			clearAtollaTrackPlaybackNotification();
+		}
 		this.trackPrefetchQueue.clearQueue();
 		if (this.paletteQueue) {
 			this.paletteQueue.dispose();

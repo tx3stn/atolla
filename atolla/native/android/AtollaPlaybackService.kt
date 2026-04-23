@@ -68,12 +68,15 @@ class AtollaPlaybackService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Must call startForeground within 5 s of startForegroundService.
-        // pendingNotification was set before startForegroundService was called.
         val notification = pendingNotification
-        if (notification != null) {
-            startForeground(NOTIFICATION_ID, notification)
+        if (notification == null) {
+            // pendingNotification is only null when the OS restarts this service via
+            // START_STICKY after the process was killed. There is no active playback
+            // to resume, so stop immediately rather than show a stale placeholder.
+            stopSelf(startId)
+            return START_NOT_STICKY
         }
+        startForeground(NOTIFICATION_ID, notification)
         return START_STICKY
     }
 
@@ -99,4 +102,5 @@ class AtollaPlaybackService : Service() {
             instance = null
         }
     }
+
 }
