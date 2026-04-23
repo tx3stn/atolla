@@ -11,6 +11,7 @@ import {
 	consumeAtollaAudioPlaybackEvent,
 	getAtollaAudioPlaybackPositionMs,
 	seekAtollaAudioPlaybackToMs,
+	setAtollaAudioPlaybackNextNotification,
 	setAtollaAudioPlaybackRate,
 	setAtollaAudioPlaybackVolume,
 } from '../../TrackPlaybackNative';
@@ -150,6 +151,65 @@ export class NativeAudioPlayer extends StatefulComponent<
 				`native audio configure failed: ${this.describeError(error)}`,
 			);
 		}
+
+		try {
+			const nextNotification = this.resolveNextTrackNotification();
+			if (nextNotification) {
+				setAtollaAudioPlaybackNextNotification(
+					nextNotification.trackName,
+					nextNotification.artistName,
+					nextNotification.albumName,
+					nextNotification.artworkUrl,
+					nextNotification.durationSeconds,
+					nextNotification.hasPrevious,
+					nextNotification.hasNext,
+				);
+			}
+		} catch {
+			// best effort
+		}
+	}
+
+	private resolveNextTrackNotification(): {
+		trackName: string;
+		artistName: string;
+		albumName: string;
+		artworkUrl: string;
+		durationSeconds: number;
+		hasPrevious: boolean;
+		hasNext: boolean;
+	} | null {
+		const { playbackStore } = this.viewModel;
+		const { loopMode, trackIndex, tracks } = playbackStore;
+		if (tracks.length === 0) {
+			return null;
+		}
+
+		let nextIndex: number | null = null;
+		if (trackIndex < tracks.length - 1) {
+			nextIndex = trackIndex + 1;
+		} else if (loopMode === 'queue') {
+			nextIndex = 0;
+		}
+
+		if (nextIndex == null) {
+			return null;
+		}
+
+		const nextTrack = tracks[nextIndex];
+		if (!nextTrack) {
+			return null;
+		}
+
+		return {
+			albumName: nextTrack.albumName ?? '',
+			artistName: nextTrack.artistName ?? '',
+			artworkUrl: nextTrack.albumImageUrl ?? '',
+			durationSeconds: Number.isFinite(nextTrack.duration) ? nextTrack.duration : 0,
+			hasNext: nextIndex < tracks.length - 1,
+			hasPrevious: nextIndex > 0,
+			trackName: nextTrack.name,
+		};
 	}
 
 	private applyInitialSeekForSource(): void {

@@ -98,3 +98,14 @@ export function clearAtollaAudioPlayback(): void;
 
 // @ExportFunction
 export function getAtollaAudioPlaybackIsActive(): boolean;
+
+// @ExportFunction
+export function setAtollaAudioPlaybackNextNotification(
+	trackName: string,
+	artistName: string,
+	albumName: string,
+	artworkUrl: string,
+	durationSeconds: number,
+	hasPrevious: boolean,
+	hasNext: boolean,
+): void;

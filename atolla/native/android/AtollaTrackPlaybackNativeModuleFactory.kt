@@ -193,6 +193,26 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 			override fun getAtollaAudioPlaybackIsActive(): Boolean {
 				return AtollaGaplessAudioEngine.isActive()
 			}
+
+			override fun setAtollaAudioPlaybackNextNotification(
+				trackName: String,
+				artistName: String,
+				albumName: String,
+				artworkUrl: String,
+				durationSeconds: Double,
+				hasPrevious: Boolean,
+				hasNext: Boolean,
+			) {
+				AtollaGaplessAudioEngine.setNextNotification(
+					trackName = trackName,
+					artistName = artistName,
+					albumName = albumName,
+					artworkUrl = artworkUrl,
+					durationSeconds = durationSeconds,
+					hasPrevious = hasPrevious,
+					hasNext = hasNext,
+				)
+			}
 		}
 	}
 }
@@ -211,6 +231,14 @@ object AtollaGaplessAudioEngine {
 	@Volatile private var playbackRate: Float = 0f
 	@Volatile private var volume: Float = 1f
 	@Volatile private var pendingSeekToMs: Long? = null
+
+	@Volatile private var nextNotificationTrackName: String = ""
+	@Volatile private var nextNotificationArtistName: String = ""
+	@Volatile private var nextNotificationAlbumName: String = ""
+	@Volatile private var nextNotificationArtworkUrl: String = ""
+	@Volatile private var nextNotificationDurationSeconds: Double = 0.0
+	@Volatile private var nextNotificationHasPrevious: Boolean = false
+	@Volatile private var nextNotificationHasNext: Boolean = false
 
 	private var exoPlayer: ExoPlayer? = null
 
@@ -243,6 +271,34 @@ object AtollaGaplessAudioEngine {
 			nextTrackId = ""
 			nextDurationMs = 0L
 			trimPlayedItems()
+
+			val trackName = nextNotificationTrackName
+			val artistName = nextNotificationArtistName
+			val albumName = nextNotificationAlbumName
+			val artworkUrl = nextNotificationArtworkUrl
+			val durationSeconds = nextNotificationDurationSeconds
+			val hasPrevious = nextNotificationHasPrevious
+			val hasNext = nextNotificationHasNext
+			nextNotificationTrackName = ""
+			nextNotificationArtistName = ""
+			nextNotificationAlbumName = ""
+			nextNotificationArtworkUrl = ""
+			nextNotificationDurationSeconds = 0.0
+			nextNotificationHasPrevious = false
+			nextNotificationHasNext = false
+			if (trackName.isNotBlank()) {
+				AtollaTrackPlaybackMediaSession.updateNotification(
+					trackName = trackName,
+					artistName = artistName,
+					albumName = albumName,
+					artworkUrl = artworkUrl,
+					isPlaying = true,
+					positionSeconds = 0.0,
+					durationSeconds = durationSeconds,
+					hasPrevious = hasPrevious,
+					hasNext = hasNext,
+				)
+			}
 		}
 
 		override fun onPlaybackStateChanged(playbackState: Int) {
@@ -339,6 +395,24 @@ object AtollaGaplessAudioEngine {
 		return runOnMainSync(false) {
 			exoPlayer?.isPlaying ?: false
 		}
+	}
+
+	fun setNextNotification(
+		trackName: String,
+		artistName: String,
+		albumName: String,
+		artworkUrl: String,
+		durationSeconds: Double,
+		hasPrevious: Boolean,
+		hasNext: Boolean,
+	) {
+		nextNotificationTrackName = trackName
+		nextNotificationArtistName = artistName
+		nextNotificationAlbumName = albumName
+		nextNotificationArtworkUrl = artworkUrl
+		nextNotificationDurationSeconds = durationSeconds
+		nextNotificationHasPrevious = hasPrevious
+		nextNotificationHasNext = hasNext
 	}
 
 	fun consumeEvent(): String {
