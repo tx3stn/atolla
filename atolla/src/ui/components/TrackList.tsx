@@ -71,6 +71,8 @@ export class TrackList extends Component<TrackListViewModel> {
 	private draggingRowIdentities = new Set<string>();
 	private dragHandleRefByIdentity = new Map<string, ElementRef>();
 	private handleBeingPressedIdentity: string | null = null;
+	private neighborBounceTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+	private neighborOffsetByIdentity = new Map<string, number>();
 	private rowIdentitiesByIndex: Array<string> = [];
 	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
 	private pulseOverlayRefByIdentity = new Map<string, ElementRef>();
@@ -427,14 +429,58 @@ export class TrackList extends Component<TrackListViewModel> {
 				offset = ROW_SLOT_HEIGHT;
 			}
 
-			this.setRowVerticalOffset(identity, offset);
+			const current = this.neighborOffsetByIdentity.get(identity) ?? 0;
+			if (offset === current) continue;
+
+			this.neighborOffsetByIdentity.set(identity, offset);
+			this.animateNeighborToOffset(identity, offset);
 		}
+	}
+
+	private animateNeighborToOffset(identity: string, targetOffset: number): void {
+		const pending = this.neighborBounceTimeouts.get(identity);
+		if (pending) {
+			clearTimeout(pending);
+			this.neighborBounceTimeouts.delete(identity);
+		}
+
+		if (targetOffset === 0) {
+			this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.18 }, () => {
+				this.setRowVerticalOffset(identity, 0);
+			});
+			return;
+		}
+
+		// Phase 1: overshoot 15% past the target
+		this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.12 }, () => {
+			this.setRowVerticalOffset(identity, targetOffset * 1.15);
+		});
+
+		// Phase 2: settle back to exact target
+		const timeout = setTimeout(() => {
+			this.neighborBounceTimeouts.delete(identity);
+			if ((this.neighborOffsetByIdentity.get(identity) ?? 0) !== targetOffset) return;
+			this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.09 }, () => {
+				this.setRowVerticalOffset(identity, targetOffset);
+			});
+		}, 120);
+		this.neighborBounceTimeouts.set(identity, timeout);
 	}
 
 	private resetNeighborOffsets(draggingIdentity: string): void {
 		for (const identity of this.rowIdentitiesByIndex) {
 			if (identity === draggingIdentity) continue;
-			this.setRowVerticalOffset(identity, 0);
+			const pending = this.neighborBounceTimeouts.get(identity);
+			if (pending) {
+				clearTimeout(pending);
+				this.neighborBounceTimeouts.delete(identity);
+			}
+			const current = this.neighborOffsetByIdentity.get(identity) ?? 0;
+			if (current === 0) continue;
+			this.neighborOffsetByIdentity.set(identity, 0);
+			this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.18 }, () => {
+				this.setRowVerticalOffset(identity, 0);
+			});
 		}
 	}
 
