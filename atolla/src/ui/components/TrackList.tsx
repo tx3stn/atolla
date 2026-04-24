@@ -64,17 +64,19 @@ const MAX_SWIPE_DISTANCE = 88;
 const REMOVE_SWIPE_DISTANCE = 64;
 const REMOVE_SWIPE_VELOCITY = 700;
 const REORDER_STEP_HEIGHT = 64;
-const MAX_REORDER_PREVIEW_OFFSET = 96;
 const resolvedStylesCache = new Map<string, TrackListResolvedStyles>();
 
 export class TrackList extends Component<TrackListViewModel> {
 	private draggingRowIdentities = new Set<string>();
+	private dragHandleRefByIdentity = new Map<string, ElementRef>();
+	private handleBeingPressedIdentity: string | null = null;
 	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
 	private pulseOverlayRefByIdentity = new Map<string, ElementRef>();
 	private removeActionRefByIdentity = new Map<string, ElementRef>();
 	private suppressNextTap = false;
 	private rowOffsetByIdentity = new Map<string, number>();
 	private rowRefByIdentity = new Map<string, ElementRef>();
+	private swipeContainerRefByIdentity = new Map<string, ElementRef>();
 
 	onRender() {
 		const colors = resolveColors(this.viewModel.palette, this.viewModel.noRowBackground);
@@ -110,7 +112,27 @@ export class TrackList extends Component<TrackListViewModel> {
 				const canSwipe = Boolean(this.viewModel.onTrackSwipeRemove);
 
 				return (
-					<view key={rowIdentity} style={styles.swipeContainer}>
+					// biome-ignore lint/a11y/noStaticElementInteractions: container owns vertical drag to decouple gesture from moving inner row
+					<view
+						key={rowIdentity}
+						onDrag={
+							this.viewModel.onTrackReorder
+								? ((entryIndex, identity, rowBg, activeDragColor) => (event) => {
+										this.handleHandleDrag(event, entryIndex, identity, rowBg, activeDragColor);
+									})(index, rowIdentity, colors.rowBackground, dragHighlightColor)
+								: undefined
+						}
+						onDragDisabled={!this.viewModel.onTrackReorder}
+						onDragPredicate={(
+							(identity) => (event) =>
+								((this.handleBeingPressedIdentity === identity &&
+									this.draggingRowIdentities.size === 0) ||
+									this.draggingRowIdentities.has(identity)) &&
+								Math.abs(event.deltaY) > Math.abs(event.deltaX)
+						)(rowIdentity)}
+						ref={this.getSwipeContainerRef(rowIdentity)}
+						style={styles.swipeContainer}
+					>
 						{canSwipe && this.viewModel.showDragHandles ? (
 							<view
 								ref={this.getRemoveActionRef(rowIdentity)}
@@ -144,7 +166,10 @@ export class TrackList extends Component<TrackListViewModel> {
 											: undefined
 									}
 									onDragDisabled={!canSwipe}
-									onDragPredicate={(event) => Math.abs(event.deltaX) > Math.abs(event.deltaY)}
+									onDragPredicate={(event) =>
+										this.draggingRowIdentities.size === 0 &&
+										Math.abs(event.deltaX) > Math.abs(event.deltaY)
+									}
 									onTap={() => {
 										if (this.suppressNextTap) {
 											this.suppressNextTap = false;
@@ -207,26 +232,7 @@ export class TrackList extends Component<TrackListViewModel> {
 								</view>
 
 								{this.viewModel.showDragHandles ? (
-									/* biome-ignore lint/a11y/noStaticElementInteractions: Edit handle intentionally supports tap and vertical drag. */
 									<view
-										onDrag={
-											this.viewModel.onTrackReorder
-												? (
-														(entryIndex, identity, rowBackgroundColor, activeDragColor) =>
-														(event) => {
-															this.handleHandleDrag(
-																event,
-																entryIndex,
-																identity,
-																rowBackgroundColor,
-																activeDragColor,
-															);
-														}
-													)(index, rowIdentity, colors.rowBackground, dragHighlightColor)
-												: undefined
-										}
-										onDragDisabled={!this.viewModel.onTrackReorder}
-										onDragPredicate={(event) => Math.abs(event.deltaY) > Math.abs(event.deltaX)}
 										onTap={
 											entry.track && this.viewModel.onTrackLongPress
 												? ((track) => () => {
@@ -239,6 +245,20 @@ export class TrackList extends Component<TrackListViewModel> {
 													})(entry.track)
 												: undefined
 										}
+										onTouch={
+											this.viewModel.onTrackReorder
+												? ((identity) => (event) => {
+														if (event.state === TouchEventState.Started) {
+															this.handleBeingPressedIdentity = identity;
+														} else if (event.state !== TouchEventState.Changed) {
+															if (this.handleBeingPressedIdentity === identity) {
+																this.handleBeingPressedIdentity = null;
+															}
+														}
+													})(rowIdentity)
+												: undefined
+										}
+										ref={this.getDragHandleRef(rowIdentity)}
 										style={styles.editHandleContainer}
 										testID={`track-row-edit-handle-${rowIdentity}`}
 									>
@@ -288,6 +308,26 @@ export class TrackList extends Component<TrackListViewModel> {
 		return created;
 	}
 
+	private getSwipeContainerRef(identity: string): ElementRef {
+		const existing = this.swipeContainerRefByIdentity.get(identity);
+		if (existing) {
+			return existing;
+		}
+		const created = new ElementRef();
+		this.swipeContainerRefByIdentity.set(identity, created);
+		return created;
+	}
+
+	private getDragHandleRef(identity: string): ElementRef {
+		const existing = this.dragHandleRefByIdentity.get(identity);
+		if (existing) {
+			return existing;
+		}
+		const created = new ElementRef();
+		this.dragHandleRefByIdentity.set(identity, created);
+		return created;
+	}
+
 	private setRowOffset(identity: string, offset: number): void {
 		const rowRef = this.rowRefByIdentity.get(identity);
 		if (!rowRef) {
@@ -300,13 +340,13 @@ export class TrackList extends Component<TrackListViewModel> {
 	}
 
 	private setRowVerticalOffset(identity: string, offset: number): void {
-		const rowRef = this.rowRefByIdentity.get(identity);
-		if (!rowRef) {
+		const containerRef = this.swipeContainerRefByIdentity.get(identity);
+		if (!containerRef) {
 			return;
 		}
 
-		rowRef.setAttribute('top', offset);
-		rowRef.setAttribute('bottom', -offset);
+		containerRef.setAttribute('top', offset);
+		containerRef.setAttribute('bottom', -offset);
 	}
 
 	private setRowDraggingAppearance(
@@ -319,19 +359,23 @@ export class TrackList extends Component<TrackListViewModel> {
 		if (!rowRef) {
 			return;
 		}
+		const containerRef = this.swipeContainerRefByIdentity.get(identity);
 
 		if (isDragging) {
 			this.draggingRowIdentities.add(identity);
 			rowRef.setAttribute('zIndex', 20);
 			rowRef.setAttribute('elevation', 12);
 			rowRef.setAttribute('backgroundColor', dragBackgroundColor);
+			containerRef?.setAttribute('zIndex', 100);
 			return;
 		}
 
 		this.draggingRowIdentities.delete(identity);
+		this.handleBeingPressedIdentity = null;
 		rowRef.setAttribute('zIndex', 0);
 		rowRef.setAttribute('elevation', 0);
 		rowRef.setAttribute('backgroundColor', defaultBackgroundColor);
+		containerRef?.setAttribute('zIndex', 0);
 	}
 
 	private getRemoveActionRef(identity: string): ElementRef {
@@ -368,6 +412,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		if (event.state === TouchEventState.Changed) {
 			const offset = Math.max(-MAX_SWIPE_DISTANCE, Math.min(0, event.deltaX));
 			this.setRowOffset(rowIdentity, offset);
+			this.cancelLongPress();
 			return;
 		}
 
@@ -414,11 +459,7 @@ export class TrackList extends Component<TrackListViewModel> {
 					dragBackgroundColor,
 				);
 			}
-			const previewOffset = Math.max(
-				-MAX_REORDER_PREVIEW_OFFSET,
-				Math.min(MAX_REORDER_PREVIEW_OFFSET, event.deltaY),
-			);
-			this.setRowVerticalOffset(rowIdentity, previewOffset);
+			this.setRowVerticalOffset(rowIdentity, event.deltaY);
 			return;
 		}
 
