@@ -506,21 +506,26 @@ export class TrackList extends Component<TrackListViewModel> {
 			return;
 		}
 
-		this.setRowVerticalOffset(rowIdentity, 0);
-		this.resetNeighborOffsets(rowIdentity);
-		this.setRowDraggingAppearance(rowIdentity, false, defaultBackgroundColor, dragBackgroundColor);
-
 		const movementSteps = Math.round(event.deltaY / REORDER_STEP_HEIGHT);
-		if (movementSteps === 0) {
-			return;
-		}
-
 		const lastIndex = this.viewModel.tracks.length - 1;
 		const targetIndex = Math.max(0, Math.min(lastIndex, entryIndex + movementSteps));
+
 		if (targetIndex === entryIndex) {
+			this.setRowVerticalOffset(rowIdentity, 0);
+			this.resetNeighborOffsets(rowIdentity);
+			this.setRowDraggingAppearance(
+				rowIdentity,
+				false,
+				defaultBackgroundColor,
+				dragBackgroundColor,
+			);
 			return;
 		}
 
+		// Snap dragged row to its final slot; leave neighbors shifted — the re-render
+		// from onTrackReorder will replace this state seamlessly without a flash.
+		this.setRowVerticalOffset(rowIdentity, (targetIndex - entryIndex) * ROW_SLOT_HEIGHT);
+		this.setRowDraggingAppearance(rowIdentity, false, defaultBackgroundColor, dragBackgroundColor);
 		this.resetRowOffset(rowIdentity);
 		this.suppressNextTap = true;
 		this.viewModel.onTrackReorder(entryIndex, targetIndex);
