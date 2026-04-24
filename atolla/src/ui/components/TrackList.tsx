@@ -64,12 +64,14 @@ const MAX_SWIPE_DISTANCE = 88;
 const REMOVE_SWIPE_DISTANCE = 64;
 const REMOVE_SWIPE_VELOCITY = 700;
 const REORDER_STEP_HEIGHT = 64;
+const ROW_SLOT_HEIGHT = REORDER_STEP_HEIGHT + 8; // row height + gap between rows
 const resolvedStylesCache = new Map<string, TrackListResolvedStyles>();
 
 export class TrackList extends Component<TrackListViewModel> {
 	private draggingRowIdentities = new Set<string>();
 	private dragHandleRefByIdentity = new Map<string, ElementRef>();
 	private handleBeingPressedIdentity: string | null = null;
+	private rowIdentitiesByIndex: Array<string> = [];
 	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
 	private pulseOverlayRefByIdentity = new Map<string, ElementRef>();
 	private removeActionRefByIdentity = new Map<string, ElementRef>();
@@ -109,6 +111,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		<layout style={styles.list}>
 			{this.viewModel.tracks.map((entry: TrackListEntry, index: number) => {
 				const rowIdentity = `${entry.id}-${index}`;
+				this.rowIdentitiesByIndex[index] = rowIdentity;
 				const canSwipe = Boolean(this.viewModel.onTrackSwipeRemove);
 
 				return (
@@ -408,6 +411,33 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.setRowOffset(identity, 0);
 	}
 
+	private updateNeighborOffsets(draggingIndex: number, targetStep: number): void {
+		const lastIndex = this.viewModel.tracks.length - 1;
+		const clampedStep = Math.max(-draggingIndex, Math.min(lastIndex - draggingIndex, targetStep));
+
+		for (let i = 0; i < this.rowIdentitiesByIndex.length; i++) {
+			if (i === draggingIndex) continue;
+			const identity = this.rowIdentitiesByIndex[i];
+			if (!identity) continue;
+
+			let offset = 0;
+			if (clampedStep > 0 && i > draggingIndex && i <= draggingIndex + clampedStep) {
+				offset = -ROW_SLOT_HEIGHT;
+			} else if (clampedStep < 0 && i < draggingIndex && i >= draggingIndex + clampedStep) {
+				offset = ROW_SLOT_HEIGHT;
+			}
+
+			this.setRowVerticalOffset(identity, offset);
+		}
+	}
+
+	private resetNeighborOffsets(draggingIdentity: string): void {
+		for (const identity of this.rowIdentitiesByIndex) {
+			if (identity === draggingIdentity) continue;
+			this.setRowVerticalOffset(identity, 0);
+		}
+	}
+
 	private handleRowDrag(event, trackId: string, entryIndex: number, rowIdentity: string): void {
 		if (event.state === TouchEventState.Changed) {
 			const offset = Math.max(-MAX_SWIPE_DISTANCE, Math.min(0, event.deltaX));
@@ -460,11 +490,13 @@ export class TrackList extends Component<TrackListViewModel> {
 				);
 			}
 			this.setRowVerticalOffset(rowIdentity, event.deltaY);
+			this.updateNeighborOffsets(entryIndex, Math.round(event.deltaY / REORDER_STEP_HEIGHT));
 			return;
 		}
 
 		if (event.state !== TouchEventState.Ended) {
 			this.setRowVerticalOffset(rowIdentity, 0);
+			this.resetNeighborOffsets(rowIdentity);
 			this.setRowDraggingAppearance(
 				rowIdentity,
 				false,
@@ -475,6 +507,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		}
 
 		this.setRowVerticalOffset(rowIdentity, 0);
+		this.resetNeighborOffsets(rowIdentity);
 		this.setRowDraggingAppearance(rowIdentity, false, defaultBackgroundColor, dragBackgroundColor);
 
 		const movementSteps = Math.round(event.deltaY / REORDER_STEP_HEIGHT);
