@@ -128,6 +128,21 @@ export class TrackList extends Component<TrackListViewModel> {
 	}
 
 	onRender() {
+		// After every re-render with no active drag, wipe all stale vertical offsets so
+		// rows can never visually overlap regardless of how we arrived here.
+		if (this.draggingRowIdentities.size === 0) {
+			for (const timeout of this.neighborBounceTimeouts.values()) clearTimeout(timeout);
+			this.neighborBounceTimeouts.clear();
+			this.neighborOffsetByIdentity.clear();
+			for (let i = 0; i < this.viewModel.tracks.length; i++) {
+				const ref = this.swipeContainerRefByIdentity.get(`${this.viewModel.tracks[i].id}-${i}`);
+				if (ref) {
+					ref.setAttribute('top', 0);
+					ref.setAttribute('bottom', 0);
+				}
+			}
+		}
+
 		const colors = resolveColors(this.viewModel.palette, this.viewModel.noRowBackground);
 		const dragHighlightColor = withAlpha(
 			this.viewModel.palette?.accent.hex ?? theme.colors.active,
@@ -619,6 +634,11 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.setRowDraggingAppearance(rowIdentity, false, defaultBackgroundColor, dragBackgroundColor);
 		this.resetRowOffset(rowIdentity);
 		this.suppressNextTap = true;
+		// Clear stale offset tracking so future drags don't skip animations for
+		// elements that happen to share an identity with a previous neighbor.
+		for (const timeout of this.neighborBounceTimeouts.values()) clearTimeout(timeout);
+		this.neighborBounceTimeouts.clear();
+		this.neighborOffsetByIdentity.clear();
 		this.viewModel.onTrackReorder(entryIndex, targetIndex);
 	}
 
