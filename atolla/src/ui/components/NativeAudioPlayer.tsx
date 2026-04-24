@@ -107,7 +107,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 			return;
 		}
 
-		if (source !== this.lastSourceUrl || next !== this.lastNextSourceUrl) {
+		if (source !== this.lastSourceUrl) {
 			const isReattach = !this.hasEverBoundSource;
 			this.hasEverBoundSource = true;
 			this.lastSourceUrl = source;
@@ -122,6 +122,12 @@ export class NativeAudioPlayer extends StatefulComponent<
 				this.applyInitialSeekForSource();
 			}
 			this.viewModel.onPlaybackEvent?.('source-bound');
+		} else if (next !== this.lastNextSourceUrl) {
+			// Only the gapless preload changed (e.g. playNext inserted a track) — update
+			// the native player's next source without seeking the current track, which would
+			// re-request the streaming URL and can cause a playback error.
+			this.lastNextSourceUrl = next;
+			this.configurePlayback(source, this.viewModel.nextPlaybackSourceUrl ?? null);
 		}
 
 		this.safeSetVolume(this.viewModel.volume ?? 1);
