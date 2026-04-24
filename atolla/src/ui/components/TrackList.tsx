@@ -82,6 +82,51 @@ export class TrackList extends Component<TrackListViewModel> {
 	private rowRefByIdentity = new Map<string, ElementRef>();
 	private swipeContainerRefByIdentity = new Map<string, ElementRef>();
 
+	onViewModelUpdate(prevViewModel: TrackListViewModel): void {
+		if (!prevViewModel || prevViewModel.tracks.length <= this.viewModel.tracks.length) return;
+
+		const prevTracks = prevViewModel.tracks;
+		const nextTracks = this.viewModel.tracks;
+
+		let removedIndex = prevTracks.length - 1;
+		for (let i = 0; i < nextTracks.length; i++) {
+			if (prevTracks[i].id !== nextTracks[i].id) {
+				removedIndex = i;
+				break;
+			}
+		}
+
+		if (removedIndex >= nextTracks.length) return;
+
+		const shiftedIdentities = nextTracks
+			.slice(removedIndex)
+			.map((entry, i) => `${entry.id}-${removedIndex + i}`);
+
+		setTimeout(() => {
+			for (const identity of shiftedIdentities) {
+				const containerRef = this.swipeContainerRefByIdentity.get(identity);
+				if (!containerRef) continue;
+				containerRef.setAttribute('top', ROW_SLOT_HEIGHT);
+				containerRef.setAttribute('bottom', -ROW_SLOT_HEIGHT);
+			}
+
+			const overshoot = -ROW_SLOT_HEIGHT * 0.08;
+			this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.16 }, () => {
+				for (const identity of shiftedIdentities) {
+					this.setRowVerticalOffset(identity, overshoot);
+				}
+			});
+
+			setTimeout(() => {
+				this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.1 }, () => {
+					for (const identity of shiftedIdentities) {
+						this.setRowVerticalOffset(identity, 0);
+					}
+				});
+			}, 160);
+		}, 0);
+	}
+
 	onRender() {
 		const colors = resolveColors(this.viewModel.palette, this.viewModel.noRowBackground);
 		const dragHighlightColor = withAlpha(
