@@ -11,7 +11,10 @@ export const DEFAULT_GRID_COLUMNS = 3;
 export const TRACK_CACHE_LIMIT_OPTIONS = [10, 15, 20, 25, 30, 35] as const;
 export const DEFAULT_TRACK_CACHE_MAX_TRACKS = 20;
 
-export const LANGUAGE_OPTIONS = [{ code: 'en', name: 'English' }] as const;
+export const LANGUAGE_OPTIONS = [
+	{ code: 'en', flag: '🇬🇧', name: 'English' },
+	{ code: 'fr', flag: '🇫🇷', name: 'Français' },
+] as const;
 export type LanguageCode = (typeof LANGUAGE_OPTIONS)[number]['code'];
 export const DEFAULT_LANGUAGE: LanguageCode = 'en';
 

@@ -36,7 +36,7 @@ export class LanguageSelectModal extends Component<LanguageSelectModalViewModel>
 							onTap={() => this.viewModel.onSelect(option.code)}
 							style={option.code === selectedLanguage ? styles.optionSelected : styles.option}
 						>
-							<label style={styles.optionLabel} value={option.name} />
+							<label style={styles.optionLabel} value={`${option.flag}  ${option.name}`} />
 						</view>
 					))}
 				</view>

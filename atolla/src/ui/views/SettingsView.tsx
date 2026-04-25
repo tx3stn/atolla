@@ -33,8 +33,9 @@ import { ViewHeader } from '../components/ViewHeader';
 
 const GB = 1024 * 1024 * 1024;
 
-function getLanguageName(code: LanguageCode): string {
-	return LANGUAGE_OPTIONS.find((opt) => opt.code === code)?.name ?? code;
+function getLanguageLabel(code: LanguageCode): string {
+	const opt = LANGUAGE_OPTIONS.find((o) => o.code === code);
+	return opt != null ? `${opt.flag}  ${opt.name}` : code;
 }
 
 function formatCacheSizeLabel(bytes: number): string {
@@ -431,7 +432,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							>
 								<label
 									style={styles.trackCacheLimitButtonLabel}
-									value={getLanguageName(selectedLanguage)}
+									value={getLanguageLabel(selectedLanguage)}
 								/>
 							</view>
 						</view>
