@@ -1,23 +1,29 @@
 import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import { systemFont } from 'valdi_core/src/SystemFont';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
-import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
+import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { Button } from '../components/Button';
+import { LanguageSelectModal } from '../components/LanguageSelectModal';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 
 export interface ConnectionViewModel {
 	errorMessage: string | null;
 	isConnecting: boolean;
 	onConnect: (serverUrl: string) => void;
+	onLanguageChange?: (code: LanguageCode) => void;
 	quickConnectCode: string | null;
+	selectedLanguage?: LanguageCode;
 	serverUrl: string;
 }
 
 interface ConnectionState {
 	serverUrlInput: string;
+	showLanguageModal: boolean;
 }
 
 function normalizeInputValue(value: unknown): string {
@@ -54,6 +60,20 @@ function normalizeInputValue(value: unknown): string {
 export class ConnectionView extends StatefulComponent<ConnectionViewModel, ConnectionState> {
 	state: ConnectionState = {
 		serverUrlInput: this.viewModel.serverUrl,
+		showLanguageModal: false,
+	};
+
+	private handleLanguagePress = () => {
+		this.setState({ showLanguageModal: true });
+	};
+
+	private handleLanguageSelect = (code: LanguageCode) => {
+		this.viewModel.onLanguageChange?.(code);
+		this.setState({ showLanguageModal: false });
+	};
+
+	private handleLanguageCancel = () => {
+		this.setState({ showLanguageModal: false });
 	};
 
 	onViewModelUpdate(prevViewModel?: ConnectionViewModel): void {
@@ -96,6 +116,8 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 		const canConnect =
 			normalizeInputValue(this.state.serverUrlInput).trim().length > 0 &&
 			(this.viewModel.isConnecting === false || Boolean(this.viewModel.errorMessage));
+		const selectedLanguage = this.viewModel.selectedLanguage ?? DEFAULT_LANGUAGE;
+		const currentFlag = LANGUAGE_OPTIONS.find((o) => o.code === selectedLanguage)?.flag ?? '🌐';
 
 		<view style={styles.root}>
 			<view style={styles.logoContainer}>
@@ -149,6 +171,22 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 			{this.viewModel.errorMessage && (
 				<label style={styles.errorMessage} value={this.viewModel.errorMessage} />
 			)}
+
+			<view
+				accessibilityLabel='connection-language-button'
+				onTap={this.handleLanguagePress}
+				style={styles.languageButton}
+			>
+				<label style={styles.languageFlag} value={currentFlag} />
+			</view>
+
+			{this.state.showLanguageModal && (
+				<LanguageSelectModal
+					onCancel={this.handleLanguageCancel}
+					onSelect={this.handleLanguageSelect}
+					selectedLanguage={selectedLanguage}
+				/>
+			)}
 		</view>;
 	}
 }
@@ -171,6 +209,21 @@ const styles = {
 		marginTop: 16,
 		padding: 14,
 		width: '100%',
+	}),
+	languageButton: new Style<View>({
+		alignItems: 'center',
+		backgroundColor: theme.colors.bgRaised,
+		borderRadius: 999,
+		bottom: 32,
+		height: 48,
+		justifyContent: 'center',
+		position: 'absolute',
+		right: 24,
+		width: 48,
+	}),
+	languageFlag: new Style<Label>({
+		font: systemFont(16),
+		textAlign: 'center',
 	}),
 	logoContainer: new Style({
 		alignItems: 'center' as const,
@@ -210,6 +263,7 @@ const styles = {
 		height: '100%',
 		justifyContent: 'center' as const,
 		padding: 20,
+		position: 'relative' as const,
 		width: '100%',
 	}),
 	subtitle: new Style<Label>({

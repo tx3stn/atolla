@@ -1983,7 +1983,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					errorMessage={this.state.authErrorMessage}
 					isConnecting={this.state.isAuthenticating}
 					onConnect={this.handleConnect}
+					onLanguageChange={this.handleLanguageChange}
 					quickConnectCode={this.state.quickConnectCode}
+					selectedLanguage={this.state.language}
 					serverUrl={this.state.serverUrlPrefill}
 				/>
 				{this.state.authToastMessage && <Toast message={this.state.authToastMessage} />}
