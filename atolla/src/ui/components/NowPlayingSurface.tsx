@@ -208,6 +208,12 @@ export class NowPlayingSurface extends StatefulComponent<
 		});
 	};
 
+	private handleContextMenuArtistTap = (): void => {
+		void this.closeSurface().then(() => {
+			this.viewModel.onArtistTap?.();
+		});
+	};
+
 	private handleAlbumNameTap = (): void => {
 		this.closeSurface().then(() => {
 			this.viewModel.onAlbumTap?.();
@@ -646,9 +652,11 @@ export class NowPlayingSurface extends StatefulComponent<
 			</view>
 			{this.state.contextMenuTrack && this.viewModel.playbackStore && this.viewModel.transport && (
 				<TrackContextMenu
+					animationsEnabled={this.viewModel.animationsEnabled}
+					imageCache={this.viewModel.imageCache}
 					onArtistTap={
 						this.state.contextMenuTrack.artistId && this.viewModel.onArtistTap
-							? this.viewModel.onArtistTap
+							? this.handleContextMenuArtistTap
 							: undefined
 					}
 					onDismiss={this.handleContextMenuDismiss}

@@ -1,4 +1,5 @@
 import res from 'atolla/res';
+import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
@@ -209,7 +210,7 @@ function animateRowPressOverlay(
 	ref.setAttribute('opacity', 0);
 
 	return component
-		.animatePromise({ curve: 'easeOut', duration: 0.04 }, () => {
+		.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.04 }, () => {
 			ref.setAttribute('left', centerX - impactWidth / 2);
 			ref.setAttribute('top', centerY - impactHeight / 2);
 			ref.setAttribute('width', impactWidth);
@@ -218,7 +219,7 @@ function animateRowPressOverlay(
 			ref.setAttribute('opacity', 0.26);
 		})
 		.then(() => {
-			return component.animatePromise({ curve: 'easeOut', duration: 0.14 }, () => {
+			return component.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.14 }, () => {
 				ref.setAttribute('left', 0);
 				ref.setAttribute('top', 0);
 				ref.setAttribute('width', safeWidth);
