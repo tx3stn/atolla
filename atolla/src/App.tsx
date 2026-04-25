@@ -3,6 +3,8 @@ import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';
+import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
+import { Locale } from 'valdi_core/src/localization/Locale';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
@@ -22,6 +24,7 @@ import type { Album } from './models/Album';
 import type { Artist } from './models/Artist';
 import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
+import Strings from './Strings';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import {
 	DownloadNativeWorkerEntryPoint,
@@ -439,6 +442,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					const userId = existingSession != null ? existingSession.userId : 'shared';
 					this.initUserStores(userId);
 
+					if (language !== DEFAULT_LANGUAGE) {
+						overrideLocales(Strings, () => [new Locale(language, undefined)]);
+					}
 					this.completeBootstrap({
 						animationsEnabled,
 						authErrorMessage: null,
@@ -1294,6 +1300,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	handleLanguageChange = (code: LanguageCode): void => {
 		void this.preferences.setLanguage(code);
+		overrideLocales(Strings, () => [new Locale(code, undefined)]);
 		this.setState({ language: code });
 	};
 
@@ -2133,6 +2140,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					artistLogoUrl={artistLogoUrl}
 					collapseSignal={this.state.nowPlayingCollapseSignal}
 					isPlaying={isPlaying}
+					language={this.state.language}
 					loopMode={loopMode}
 					onAlbumTap={this.handleNowPlayingAlbumTap}
 					onArtistTap={this.handleNowPlayingArtistTap}

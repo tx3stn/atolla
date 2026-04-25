@@ -32,6 +32,7 @@ export interface NowPlayingSurfaceViewModel {
 	collapseSignal: number;
 	imageCache?: ImageCache;
 	isPlaying: boolean;
+	language?: string;
 	loopMode?: LoopMode;
 	onAlbumTap?: () => void;
 	onArtistTap?: () => void;
