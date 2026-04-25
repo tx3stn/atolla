@@ -716,7 +716,7 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 		artworkTileStyle: new Style<View>({
 			aspectRatio: 1,
 			backgroundColor: colors.tileBackground,
-			borderRadius: theme.borderRadius,
+			borderRadius: theme.borderRadius / 2,
 			slowClipping: true,
 			width: 42,
 		}),

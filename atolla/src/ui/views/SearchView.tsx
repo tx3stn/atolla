@@ -732,11 +732,8 @@ const styles = {
 	recentSearchChip: new Style<View>({
 		flexDirection: 'row',
 		flexGrow: 1,
-		marginTop: 8,
-		paddingBottom: 10,
-		paddingLeft: 12,
-		paddingRight: 12,
-		paddingTop: 10,
+		marginTop: 4,
+		padding: 4,
 		width: '100%',
 	}),
 	recentSearchIcon: new Style<ImageView>({

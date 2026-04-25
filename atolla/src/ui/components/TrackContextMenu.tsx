@@ -2,7 +2,7 @@ import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
-import type { BlurView, ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { BlurView, ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
@@ -135,49 +135,51 @@ export class TrackContextMenu extends StatefulComponent<
 			onTap={this.handleBackdropTap}
 			style={styles.backdrop}
 		>
-			<view accessibilityLabel='track-context-menu' style={styles.card}>
-				<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
-					<ArtistLogo
-						containerStyle={styles.logoContainer}
-						fallbackText={track.artistName ?? null}
-						imageCache={imageCache}
-						logoSource={artistLogoUrl}
-						logoStyle={styles.logoImage}
-					/>
+			<layout style={styles.backdropCenter}>
+				<view accessibilityLabel='track-context-menu' style={styles.card}>
+					<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
+						<ArtistLogo
+							containerStyle={styles.logoContainer}
+							fallbackText={track.artistName ?? null}
+							imageCache={imageCache}
+							logoSource={artistLogoUrl}
+							logoStyle={styles.logoImage}
+						/>
+					</view>
+					<TrackList imageCache={imageCache} tracks={previewEntry} />
+					<view style={styles.divider} />
+					<view
+						accessibilityLabel='track-context-play-next'
+						onLayout={this.handleActionRowLayout}
+						onTap={this.handlePlayNextTap}
+						style={styles.actionRow}
+					>
+						<view ref={this.playNextRippleRef} style={styles.actionRowRipple} />
+						<image src={res.playnext} style={styles.icon} tint={theme.colors.muted} />
+						<label style={styles.actionLabel} value='play next' />
+					</view>
+					<view
+						accessibilityLabel='track-context-add-to-queue'
+						onLayout={this.handleActionRowLayout}
+						onTap={this.handleAddToQueueTap}
+						style={styles.actionRow}
+					>
+						<view ref={this.addToQueueRippleRef} style={styles.actionRowRipple} />
+						<image src={res.addtoqueue} style={styles.icon} tint={theme.colors.muted} />
+						<label style={styles.actionLabel} value='add to queue' />
+					</view>
+					<view
+						accessibilityLabel='track-context-add-to-playlist'
+						onLayout={this.handleActionRowLayout}
+						onTap={this.handleAddToPlaylistTap}
+						style={styles.actionRow}
+					>
+						<view ref={this.addToPlaylistRippleRef} style={styles.actionRowRipple} />
+						<image src={res.addtoplaylist} style={styles.icon} tint={theme.colors.muted} />
+						<label style={styles.actionLabel} value='add to playlist' />
+					</view>
 				</view>
-				<TrackList imageCache={imageCache} tracks={previewEntry} />
-				<view style={styles.divider} />
-				<view
-					accessibilityLabel='track-context-play-next'
-					onLayout={this.handleActionRowLayout}
-					onTap={this.handlePlayNextTap}
-					style={styles.actionRow}
-				>
-					<view ref={this.playNextRippleRef} style={styles.actionRowRipple} />
-					<image src={res.playnext} style={styles.icon} tint={theme.colors.muted} />
-					<label style={styles.actionLabel} value='play next' />
-				</view>
-				<view
-					accessibilityLabel='track-context-add-to-queue'
-					onLayout={this.handleActionRowLayout}
-					onTap={this.handleAddToQueueTap}
-					style={styles.actionRow}
-				>
-					<view ref={this.addToQueueRippleRef} style={styles.actionRowRipple} />
-					<image src={res.addtoqueue} style={styles.icon} tint={theme.colors.muted} />
-					<label style={styles.actionLabel} value='add to queue' />
-				</view>
-				<view
-					accessibilityLabel='track-context-add-to-playlist'
-					onLayout={this.handleActionRowLayout}
-					onTap={this.handleAddToPlaylistTap}
-					style={styles.actionRow}
-				>
-					<view ref={this.addToPlaylistRippleRef} style={styles.actionRowRipple} />
-					<image src={res.addtoplaylist} style={styles.icon} tint={theme.colors.muted} />
-					<label style={styles.actionLabel} value='add to playlist' />
-				</view>
-			</view>
+			</layout>
 		</blur>;
 	}
 }
@@ -234,13 +236,9 @@ const styles = {
 	actionRow: new Style({
 		...theme.text.subLarger,
 		flexDirection: 'row' as const,
-		paddingBottom: 12,
-		paddingLeft: 4,
-		paddingRight: 4,
-		paddingTop: 12,
+		padding: 4,
 		position: 'relative' as const,
-		slowClipping: true,
-		width: '40%',
+		width: '100%',
 	}),
 	actionRowRipple: new Style({
 		backgroundColor: theme.colors.white,
@@ -262,6 +260,12 @@ const styles = {
 		top: 0,
 		width: '100%',
 		zIndex: 100,
+	}),
+	backdropCenter: new Style<Layout>({
+		alignItems: 'center',
+		height: '100%',
+		justifyContent: 'center',
+		width: '100%',
 	}),
 	card: new Style({
 		backgroundColor: theme.colors.bg,

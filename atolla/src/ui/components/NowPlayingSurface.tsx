@@ -333,7 +333,7 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	private handleQueueTrackSwipeRemove = (_trackId: string, entryIndex: number): void => {
 		const { playbackStore, trackIndex } = this.viewModel;
-		if (!playbackStore || !playbackStore.removeFromQueueAt) {
+		if (!playbackStore?.removeFromQueueAt) {
 			return;
 		}
 
@@ -346,7 +346,7 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	private handleQueueTrackReorder = (fromEntryIndex: number, toEntryIndex: number): void => {
 		const { playbackStore, trackIndex } = this.viewModel;
-		if (!playbackStore || !playbackStore.moveQueueTrack) {
+		if (!playbackStore?.moveQueueTrack) {
 			return;
 		}
 
@@ -943,8 +943,8 @@ const styles = {
 	expandedQueueList: new Style<Layout>({
 		marginTop: -(theme.footerHeight - 24),
 		paddingBottom: theme.footerHeight,
-		paddingLeft: 14,
-		paddingRight: 14,
+		paddingLeft: 6,
+		paddingRight: 6,
 		width: '100%',
 	}),
 	expandedQueueTabButton: new Style<View>({

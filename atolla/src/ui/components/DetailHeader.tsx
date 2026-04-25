@@ -338,7 +338,7 @@ const styles = {
 	artistLogoContainer: new Style<View>({
 		alignItems: 'flex-start',
 		justifyContent: 'flex-start',
-		paddingLeft: 10,
+		paddingLeft: 2,
 		width: '100%',
 	}),
 	artistLogoImage: new Style<ImageView>({
