@@ -181,6 +181,9 @@
 	"settings_image_cache_size": {
 		"defaultMessage": "image cache size"
 	},
+	"settings_language": {
+		"defaultMessage": "language"
+	},
 	"settings_logout_button": {
 		"defaultMessage": "logout"
 	},

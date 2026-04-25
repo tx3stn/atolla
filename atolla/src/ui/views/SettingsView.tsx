@@ -25,6 +25,7 @@ import { scrollPaddingBottom, theme } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
+import { LanguageSelectModal } from '../components/LanguageSelectModal';
 import { Modal } from '../components/Modal';
 import { Toast } from '../components/Toast';
 import { Toggle } from '../components/Toggle';
@@ -115,7 +116,7 @@ interface SettingsState {
 	showClearDownloadsModal: boolean;
 	showGridColumnsOptions: boolean;
 	showImageCacheOptions: boolean;
-	showLanguageOptions: boolean;
+	showLanguageModal: boolean;
 	showLogoutModal: boolean;
 	showTrackCacheLimitOptions: boolean;
 }
@@ -127,7 +128,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		showClearDownloadsModal: false,
 		showGridColumnsOptions: false,
 		showImageCacheOptions: false,
-		showLanguageOptions: false,
+		showLanguageModal: false,
 		showLogoutModal: false,
 		showTrackCacheLimitOptions: false,
 	};
@@ -212,13 +213,17 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		this.setState({ showImageCacheOptions: false });
 	};
 
-	private handleLanguageToggle = () => {
-		this.setState({ showLanguageOptions: !this.state.showLanguageOptions });
+	private handleLanguagePress = () => {
+		this.setState({ showLanguageModal: true });
 	};
 
 	private handleLanguageSelect = (code: LanguageCode) => {
 		this.viewModel.onLanguageChange?.(code);
-		this.setState({ showLanguageOptions: false });
+		this.setState({ showLanguageModal: false });
+	};
+
+	private handleLanguageCancel = () => {
+		this.setState({ showLanguageModal: false });
 	};
 
 	onRender(): void {
@@ -418,11 +423,11 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 					<label style={styles.sectionTitle} value={Strings.settingsSectionLanguage()} />
 					<view style={styles.section}>
 						<view style={styles.trackCacheLimitContainer}>
-							<label style={styles.settingLabel} value={getLanguageName(selectedLanguage)} />
+							<label style={styles.settingLabel} value={Strings.settingsLanguage()} />
 							<view
-								accessibilityLabel='settings-language-dropdown'
-								onTap={this.handleLanguageToggle}
-								style={styles.trackCacheLimitButton}
+								accessibilityLabel='settings-language-selector'
+								onTap={this.handleLanguagePress}
+								style={styles.languageSelectorButton}
 							>
 								<label
 									style={styles.trackCacheLimitButtonLabel}
@@ -430,24 +435,15 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								/>
 							</view>
 						</view>
-						{this.state.showLanguageOptions && (
-							<view style={styles.trackCacheLimitOptionsList}>
-								{LANGUAGE_OPTIONS.map((option) => (
-									<view
-										accessibilityLabel={`settings-language-option-${option.code}`}
-										onTap={() => this.handleLanguageSelect(option.code)}
-										style={
-											option.code === selectedLanguage
-												? styles.trackCacheLimitOptionSelected
-												: styles.trackCacheLimitOption
-										}
-									>
-										<label style={styles.trackCacheLimitOptionLabel} value={option.name} />
-									</view>
-								))}
-							</view>
-						)}
 					</view>
+
+					{this.state.showLanguageModal && (
+						<LanguageSelectModal
+							onCancel={this.handleLanguageCancel}
+							onSelect={this.handleLanguageSelect}
+							selectedLanguage={selectedLanguage}
+						/>
+					)}
 
 					{this.state.showCacheClearModal && (
 						<CacheClearModal
@@ -502,6 +498,17 @@ const styles = {
 		...theme.text.main,
 		marginLeft: 18,
 		width: '100%',
+	}),
+	languageSelectorButton: new Style<View>({
+		alignItems: 'center',
+		backgroundColor: theme.colors.bgAccent,
+		borderRadius: 999,
+		flexGrow: 1,
+		marginLeft: 10,
+		paddingBottom: 10,
+		paddingLeft: 18,
+		paddingRight: 18,
+		paddingTop: 10,
 	}),
 	paletteError: new Style<Label>({
 		...theme.text.sub,

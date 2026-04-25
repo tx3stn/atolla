@@ -59,6 +59,7 @@ declare const Strings: {
 	settingsDeviceIdPlaceholder: () => string;
 	settingsGridColumns: () => string;
 	settingsImageCacheSize: () => string;
+	settingsLanguage: () => string;
 	settingsLogoutButton: () => string;
 	settingsLogoutConfirm: () => string;
 	settingsPlayQueueCachedTracks: () => string;
