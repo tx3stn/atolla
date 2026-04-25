@@ -36,7 +36,8 @@
 		"enabled": true,
 		"rules": {
 			"a11y": {
-				"noLabelWithoutControl": "off"
+				"noLabelWithoutControl": "off",
+				"noStaticElementInteractions": "off"
 			},
 			"complexity": {
 				"useDateNow": "warn"

@@ -1,8 +1,6 @@
-// @ts-nocheck
-
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
@@ -244,6 +242,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				id: SHUFFLE_LIBRARY_MIX_ID,
 				kind: 'playlist',
 				primaryText: 'Shuffle Library',
+				secondaryText: '',
 			},
 		];
 	}
@@ -267,8 +266,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const { connectionMode, playbackStore, transport } = this.viewModel;
 
 		if (connectionMode === ConnectionModes.online && transport.getShuffledLibraryTracksPage) {
-			const fetchPage = (page: number, pageSize: number) =>
-				transport.getShuffledLibraryTracksPage?.(page, pageSize);
+			const getPage = transport.getShuffledLibraryTracksPage;
+			const fetchPage = (page: number, pageSize: number) => getPage(page, pageSize);
 
 			let result: { hasMore: boolean; items: Array<Track> };
 			try {
@@ -327,7 +326,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const recentlyAddedCards = this.createRecentlyAddedCards();
 		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
 
-		<layout accessibilityLabel='home-view' contentDescription='home-view' style={styles.root}>
+		<layout style={styles.root}>
 			<ViewHeader
 				animationsEnabled={this.viewModel.animationsEnabled}
 				connectionMode={this.viewModel.connectionMode}
@@ -393,18 +392,18 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 }
 
-function createScrollStyle(isFooterVisible: boolean): Style {
+function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
 	return isFooterVisible ? scrollStyles.withFooter : scrollStyles.withoutFooter;
 }
 
 const scrollStyles = {
-	withFooter: new Style({
+	withFooter: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		paddingBottom: scrollPaddingBottom(true),
 		width: '100%',
 	}),
-	withoutFooter: new Style({
+	withoutFooter: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		paddingBottom: scrollPaddingBottom(false),

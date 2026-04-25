@@ -1,4 +1,4 @@
-workspace(name = "music_app")
+workspace(name = "atolla")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 

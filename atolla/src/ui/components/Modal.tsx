@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { BlurView, ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
 
@@ -82,7 +81,7 @@ export class Modal extends Component<ModalViewModel> {
 }
 
 const styles = {
-	actionButton: new Style({
+	actionButton: new Style<Layout>({
 		alignItems: 'center',
 		padding: 14,
 		width: '50%',
@@ -95,17 +94,17 @@ const styles = {
 		backgroundColor: theme.colors.separator,
 		width: 1,
 	}),
-	actions: new Style({
+	actions: new Style<Layout>({
 		flexDirection: 'row',
 	}),
-	backdrop: new Style<BlurView>({
-		alignItems: 'center',
+	backdrop: new Style({
+		alignItems: 'center' as const,
 		backgroundColor: theme.colors.overlay,
 		bottom: 0,
 		height: '100%',
-		justifyContent: 'center',
+		justifyContent: 'center' as const,
 		left: 0,
-		position: 'absolute',
+		position: 'absolute' as const,
 		right: 0,
 		top: 0,
 		width: '100%',
@@ -114,16 +113,15 @@ const styles = {
 	body: new Style<Label>({
 		...theme.text.main,
 		color: theme.colors.grey,
-		lineBreakMode: 'wordWrap',
 	}),
-	card: new Style({
+	card: new Style<View>({
 		backgroundColor: theme.colors.bg,
 		borderColor: theme.colors.separator,
 		borderRadius: theme.borderRadius,
 		borderWidth: 1,
 		maxHeight: '80%',
-		overflow: 'hidden',
 		padding: 20,
+		slowClipping: true,
 		width: '90%',
 	}),
 	confirmDivider: new Style({

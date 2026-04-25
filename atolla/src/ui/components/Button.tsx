@@ -1,6 +1,6 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 export interface ButtonViewModel {
@@ -14,7 +14,6 @@ export class Button extends Component<ButtonViewModel> {
 	onRender(): void {
 		<view
 			accessibilityLabel={`${this.viewModel.accessibilityLabel}-btn`}
-			contentDescription={`${this.viewModel.accessibilityLabel}-btn`}
 			onTap={this.viewModel.enabled !== false ? this.viewModel.onTap : undefined}
 			style={this.viewModel.enabled !== false ? styles.button : styles.buttonDisabled}
 		>
@@ -23,25 +22,26 @@ export class Button extends Component<ButtonViewModel> {
 	}
 }
 
-const buttonBase = {
-	alignItems: 'center',
-	borderRadius: 999,
-	marginBottom: 5,
-	marginTop: 5,
-	padding: 10,
-	width: '100%',
-};
-
 const styles = {
-	button: new Style({
-		...buttonBase,
+	button: new Style<View>({
+		alignItems: 'center',
 		backgroundColor: theme.colors.bgAccent,
+		borderRadius: 999,
+		marginBottom: 5,
+		marginTop: 5,
+		padding: 10,
+		width: '100%',
 	}),
-	buttonDisabled: new Style({
-		...buttonBase,
+	buttonDisabled: new Style<View>({
+		alignItems: 'center',
 		backgroundColor: theme.colors.bgDim,
+		borderRadius: 999,
+		marginBottom: 5,
+		marginTop: 5,
+		padding: 10,
+		width: '100%',
 	}),
-	buttonLabel: new Style({
+	buttonLabel: new Style<Label>({
 		...theme.text.main,
 		color: theme.colors.active,
 	}),

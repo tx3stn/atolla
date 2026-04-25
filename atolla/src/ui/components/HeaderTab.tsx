@@ -1,9 +1,8 @@
-// @ts-nocheck
 import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
-import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import type { HeaderTab } from './HeaderTabs';
 
@@ -18,7 +17,6 @@ export class LibraryHeaderTab extends Component<LibraryHeaderViewModel> {
 		<view style={styles.tabWrap}>
 			<view
 				accessibilityLabel={`header-tab-${this.viewModel.tab.toLowerCase()}`}
-				contentDescription={`header-tab-${this.viewModel.tab.toLowerCase()}`}
 				key={this.viewModel.tab}
 				onTap={createReusableCallback(() => {
 					this.viewModel.onTap();
@@ -38,7 +36,7 @@ export class LibraryHeaderTab extends Component<LibraryHeaderViewModel> {
 }
 
 const styles = {
-	activeGradient: new Style({
+	activeGradient: new Style<View>({
 		borderRadius: 999,
 		bottom: 0,
 		left: 0,
@@ -51,7 +49,7 @@ const styles = {
 		color: theme.colors.bg,
 		textAlign: 'center',
 	}),
-	header: new Style({
+	header: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgFrosted,
 		borderRadius: 999,
@@ -59,26 +57,26 @@ const styles = {
 		justifyContent: 'center',
 		minHeight: 25,
 		minWidth: 72,
-		overflow: 'hidden',
 		paddingBottom: 6,
 		paddingLeft: 12,
 		paddingRight: 12,
 		paddingTop: 6,
 		position: 'relative',
+		slowClipping: true,
 	}),
-	headerActive: new Style({
+	headerActive: new Style<View>({
 		alignItems: 'center',
 		borderRadius: 999,
 		flexGrow: 0,
 		justifyContent: 'center',
 		minHeight: 25,
 		minWidth: 72,
-		overflow: 'hidden',
 		paddingBottom: 6,
 		paddingLeft: 12,
 		paddingRight: 12,
 		paddingTop: 6,
 		position: 'relative',
+		slowClipping: true,
 	}),
 	nonActiveTab: new Style<Label>({
 		...theme.text.mainMuted,

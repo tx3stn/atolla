@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import {
 	applyNativeAudioPlaybackEventAction,

@@ -1,13 +1,12 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { ImageCache } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
 
 export interface ArtistLogoViewModel {
-	containerStyle?: Style;
+	containerStyle?: Style<View>;
 	fallbackText?: string | null;
 	fallbackTextStyle?: Style<Label>;
 	imageCache?: ImageCache;
@@ -33,22 +32,22 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 			accessibilityLabel={testID ?? 'artist-logo'}
 			onTap={onTap}
 			style={containerStyle ?? styles.logoArea}
-			testID={testID ?? 'artist-logo'}
 		>
 			{logoSource ? (
 				<CachedImage
 					category='artist_logo'
-					imageCache={this.viewModel.imageCache}
 					objectFit='contain'
 					style={logoStyle ?? styles.logoImage}
 					url={logoSource}
 				/>
 			) : fallbackText ? (
-				<label
-					numberOfLines={0}
-					style={fallbackTextStyle ?? styles.fallbackText}
-					value={fallbackText}
-				/>
+				<view style={styles.fallbackTextPadding}>
+					<label
+						numberOfLines={0}
+						style={fallbackTextStyle ?? styles.fallbackText}
+						value={fallbackText}
+					/>
+				</view>
 			) : null}
 		</view>;
 	}
@@ -57,10 +56,12 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 const styles = {
 	fallbackText: new Style<Label>({
 		...theme.text.display,
+	}),
+	fallbackTextPadding: new Style<View>({
 		padding: 12,
 	}),
-	logoArea: new Style({
-		overflow: 'hidden',
+	logoArea: new Style<View>({
+		slowClipping: true,
 		width: '100%',
 	}),
 	logoImage: new Style<ImageView>({

@@ -191,14 +191,14 @@ describe('NowPlayingSurface', () => {
 
 			views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 			const artworkTouch = views.find(
-				(view) => view.getAttribute('testID') === 'track-artwork-touch-track-3-0',
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-3-0',
 			);
 			artworkTouch?.getAttribute('onTouch')?.({ state: 0 });
 			jasmine.clock().tick(500);
 
 			views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 			const upNextRowSwipeRegion = views.find(
-				(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-3-0',
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-3-0',
 			);
 			upNextRowSwipeRegion?.getAttribute('onDrag')?.({
 				deltaX: -72,
@@ -256,7 +256,7 @@ describe('NowPlayingSurface', () => {
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const firstUpNextHandle = views.find(
-			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-3-0',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-3-0',
 		);
 		firstUpNextHandle?.getAttribute('onDrag')?.({
 			deltaX: 0,
@@ -311,7 +311,7 @@ describe('NowPlayingSurface', () => {
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const firstBackToHandle = views.find(
-			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-2-0',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-2-0',
 		);
 		firstBackToHandle?.getAttribute('onDrag')?.({
 			deltaX: 0,
@@ -361,8 +361,8 @@ describe('NowPlayingSurface', () => {
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const backToRows = views
-			.map((view) => view.getAttribute('testID'))
-			.filter((testID) => typeof testID === 'string' && testID.startsWith('track-row-track-'));
+			.map((view) => view.getAttribute('accessibilityLabel'))
+			.filter((label) => typeof label === 'string' && label.startsWith('track-row-track-'));
 
 		expect(backToRows).toEqual([
 			'track-row-track-3-0',
@@ -398,8 +398,8 @@ describe('NowPlayingSurface', () => {
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const upNextRows = views
-			.map((view) => view.getAttribute('testID'))
-			.filter((testID) => typeof testID === 'string' && testID.startsWith('track-row-track-'));
+			.map((view) => view.getAttribute('accessibilityLabel'))
+			.filter((label) => typeof label === 'string' && label.startsWith('track-row-track-'));
 
 		expect(upNextRows.length).toBe(30);
 		expect(upNextRows[0]).toBe('track-row-track-2-0');
@@ -440,8 +440,8 @@ describe('NowPlayingSurface', () => {
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const backToRows = views
-			.map((view) => view.getAttribute('testID'))
-			.filter((testID) => typeof testID === 'string' && testID.startsWith('track-row-track-'));
+			.map((view) => view.getAttribute('accessibilityLabel'))
+			.filter((label) => typeof label === 'string' && label.startsWith('track-row-track-'));
 
 		expect(backToRows.length).toBe(30);
 		expect(backToRows[0]).toBe('track-row-track-70-0');

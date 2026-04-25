@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 export interface CheckboxViewModel {
@@ -15,12 +14,7 @@ export class Checkbox extends Component<CheckboxViewModel> {
 	onRender(): void {
 		const { accessibilityLabel, checked, label, onToggle } = this.viewModel;
 
-		<view
-			accessibilityLabel={accessibilityLabel}
-			contentDescription={accessibilityLabel}
-			onTap={onToggle}
-			style={styles.row}
-		>
+		<view accessibilityLabel={accessibilityLabel} onTap={onToggle} style={styles.row}>
 			<view style={checked ? styles.checkboxChecked : styles.checkboxUnchecked}>
 				{checked && <label style={styles.checkmark} value='✓' />}
 			</view>
@@ -32,7 +26,7 @@ export class Checkbox extends Component<CheckboxViewModel> {
 const CHECKBOX_SIZE = 20;
 
 const styles = {
-	checkboxChecked: new Style({
+	checkboxChecked: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.active,
 		borderRadius: 4,
@@ -41,7 +35,7 @@ const styles = {
 		marginRight: 12,
 		width: CHECKBOX_SIZE,
 	}),
-	checkboxUnchecked: new Style({
+	checkboxUnchecked: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
 		borderColor: theme.colors.separator,
 		borderRadius: 4,
@@ -50,12 +44,12 @@ const styles = {
 		marginRight: 12,
 		width: CHECKBOX_SIZE,
 	}),
-	checkmark: new Style({
+	checkmark: new Style<Label>({
 		color: theme.colors.white,
 		font: theme.text.sub.font,
 		textAlign: 'center',
 	}),
-	row: new Style({
+	row: new Style<View>({
 		alignItems: 'center',
 		flexDirection: 'row',
 		paddingBottom: 10,

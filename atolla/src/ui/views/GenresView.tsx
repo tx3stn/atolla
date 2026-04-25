@@ -1,8 +1,7 @@
-// @ts-nocheck
-
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
+import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Genre } from '../../models/Genre';
 import type { DownloadService } from '../../services/DownloadService';
@@ -201,8 +200,8 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	}
 }
 
-function createScrollStyle(isFooterVisible: boolean): Style {
-	return new Style({
+function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
+	return new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,

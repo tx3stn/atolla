@@ -1,6 +1,12 @@
-// @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type {
+	Label,
+	Layout,
+	ScrollView,
+	TextField,
+	View,
+} from 'valdi_tsx/src/NativeTemplateElements';
 import type { ClearCacheSelection } from '../../services/ImageCache';
 import type { Preferences } from '../../stores/Preferences';
 import {
@@ -218,7 +224,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			<ViewHeader
 				animationsEnabled={animationsEnabled}
 				connectionMode={this.viewModel.connectionMode}
-				downloadingCount={this.viewModel.downloadingCount}
 				onRequestModeChange={this.viewModel.onRequestModeChange}
 				title='SETTINGS'
 			/>
@@ -238,7 +243,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							<label style={styles.settingLabel} value='grid columns' />
 							<view
 								accessibilityLabel='settings-grid-columns-dropdown'
-								contentDescription='settings-grid-columns-dropdown'
 								onTap={this.handleGridColumnsToggle}
 								style={styles.trackCacheLimitButton}
 							>
@@ -250,7 +254,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								{GRID_COLUMN_OPTIONS.map((option) => (
 									<view
 										accessibilityLabel={`settings-grid-columns-option-${option}`}
-										contentDescription={`settings-grid-columns-option-${option}`}
 										onTap={() => this.handleGridColumnsSelect(option)}
 										style={
 											option === selectedGridColumns
@@ -273,7 +276,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								<textfield
 									accessibilityLabel='settings-jellyfin-device-id-input'
 									autocapitalization='none'
-									contentDescription='settings-jellyfin-device-id-input'
 									onChange={(value: unknown) => {
 										onJellyfinDeviceIdOverrideChange?.(normalizeInputValue(value));
 									}}
@@ -296,7 +298,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							<label style={styles.settingLabel} value='image cache size' />
 							<view
 								accessibilityLabel='settings-image-cache-size-dropdown'
-								contentDescription='settings-image-cache-size-dropdown'
 								onTap={this.handleImageCacheToggle}
 								style={styles.trackCacheLimitButton}
 							>
@@ -311,7 +312,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								{IMAGE_CACHE_SIZE_OPTIONS.map((option) => (
 									<view
 										accessibilityLabel={`settings-image-cache-size-option-${option}`}
-										contentDescription={`settings-image-cache-size-option-${option}`}
 										onTap={() => this.handleImageCacheSelect(option)}
 										style={
 											option === selectedImageCacheSize
@@ -338,7 +338,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							<label style={styles.settingLabel} value='play queue cached tracks' />
 							<view
 								accessibilityLabel='settings-track-cache-limit-dropdown'
-								contentDescription='settings-track-cache-limit-dropdown'
 								onTap={this.handleTrackCacheLimitToggle}
 								style={styles.trackCacheLimitButton}
 							>
@@ -358,7 +357,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								{TRACK_CACHE_LIMIT_OPTIONS.map((option) => (
 									<view
 										accessibilityLabel={`settings-track-cache-limit-option-${option}`}
-										contentDescription={`settings-track-cache-limit-option-${option}`}
 										onTap={() => this.handleTrackCacheLimitSelect(option)}
 										style={
 											option === selectedTrackCacheLimit
@@ -375,7 +373,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							accessibilityLabel='settings-cache-clear'
 							label='clear cache'
 							onTap={this.handleClearCachePress}
-							style={styles.button}
 						/>
 					</view>
 
@@ -384,13 +381,12 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						<label
 							accessibilityLabel='settings-downloaded-track-count'
 							style={styles.trackCacheCountLabel}
-							value={`${downloadedTrackCount ?? 0} tracks downloaded      [ ${formatBytes(downloadedSizeBytes)} ]`}
+							value={`${downloadedTrackCount ?? 0} tracks downloaded      [ ${formatBytes(downloadedSizeBytes ?? 0)} ]`}
 						/>
 						<Button
 							accessibilityLabel='settings-downloads-delete-all'
 							label='delete all downloads'
 							onTap={this.handleClearDownloadsPress}
-							style={styles.button}
 						/>
 					</view>
 
@@ -433,7 +429,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 }
 
 const styles = {
-	authDeviceIdInlineInputContainer: new Style({
+	authDeviceIdInlineInputContainer: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: 999,
 		flexGrow: 1,
@@ -443,53 +439,56 @@ const styles = {
 		paddingRight: 10,
 		paddingTop: 10,
 	}),
-	authDeviceIdInput: new Style({
+	authDeviceIdInput: new Style<TextField>({
 		...theme.text.main,
 		marginLeft: 18,
 		width: '100%',
 	}),
-	paletteError: new Style({
+	paletteError: new Style<Label>({
 		...theme.text.sub,
 		color: '#ff6b6b',
 		marginLeft: 4,
 		marginTop: 8,
 	}),
-	paletteStatus: new Style({
+	paletteStatus: new Style<Label>({
 		...theme.text.sub,
 		marginBottom: 10,
 		marginLeft: 4,
 		marginTop: 12,
 	}),
-	root: new Style({
+	root: new Style<View>({
 		marginTop: 12,
 		paddingLeft: 8,
 		paddingRight: 8,
 		width: '100%',
 	}),
-	section: new Style({
+	section: new Style<View>({
 		marginBottom: 16,
 		marginTop: 8,
 	}),
-	sectionTitle: new Style({
+	sectionTitle: new Style<Label>({
 		...theme.text.mutedHeader,
 		letterSpacing: 1,
-		margin: 4,
+		marginBottom: 4,
+		marginLeft: 4,
+		marginRight: 4,
+		marginTop: 4,
 	}),
-	settingLabel: new Style({
+	settingLabel: new Style<Label>({
 		...theme.text.sub,
 		flexGrow: 1,
 		marginLeft: 4,
 	}),
-	settingRow: new Style({
+	settingRow: new Style<Layout>({
 		alignItems: 'center',
 		flexDirection: 'row',
 	}),
-	trackCacheCountLabel: new Style({
+	trackCacheCountLabel: new Style<Label>({
 		...theme.text.sub,
+		marginBottom: 16,
 		marginLeft: 4,
-		paddingBottom: 16,
 	}),
-	trackCacheLimitButton: new Style({
+	trackCacheLimitButton: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.borderRadius,
@@ -499,15 +498,15 @@ const styles = {
 		paddingRight: 18,
 		paddingTop: 12,
 	}),
-	trackCacheLimitButtonLabel: new Style({
+	trackCacheLimitButtonLabel: new Style<Label>({
 		...theme.text.main,
 	}),
-	trackCacheLimitContainer: new Style({
+	trackCacheLimitContainer: new Style<Layout>({
 		alignItems: 'center',
 		flexDirection: 'row',
 		marginTop: 10,
 	}),
-	trackCacheLimitOption: new Style({
+	trackCacheLimitOption: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.borderRadius,
@@ -516,10 +515,10 @@ const styles = {
 		paddingBottom: 8,
 		paddingTop: 8,
 	}),
-	trackCacheLimitOptionLabel: new Style({
+	trackCacheLimitOptionLabel: new Style<Label>({
 		...theme.text.sub,
 	}),
-	trackCacheLimitOptionSelected: new Style({
+	trackCacheLimitOptionSelected: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.active,
 		borderRadius: theme.borderRadius,
@@ -528,19 +527,19 @@ const styles = {
 		paddingBottom: 8,
 		paddingTop: 8,
 	}),
-	trackCacheLimitOptionsList: new Style({
+	trackCacheLimitOptionsList: new Style<Layout>({
 		flexDirection: 'row',
 		marginTop: 10,
 		width: '100%',
 	}),
-	viewRoot: new Style({
+	viewRoot: new Style<Layout>({
 		flexGrow: 1,
 		width: '100%',
 	}),
 };
 
-function createScrollStyle(): Style {
-	return new Style({
+function createScrollStyle(): Style<ScrollView> {
+	return new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		paddingBottom: scrollPaddingBottom(true),

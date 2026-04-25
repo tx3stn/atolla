@@ -1,9 +1,9 @@
-// @ts-nocheck
 import res from 'atolla/res';
+import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 const fullTurnRadians = Math.PI * 2;
@@ -58,9 +58,12 @@ export class LoopingArrowSpinner extends StatefulComponent<LoopingArrowSpinnerVi
 		const duration = this.viewModel.durationSeconds ?? 0.9;
 		const nextAngle = this.spinnerAngle + fullTurnRadians;
 
-		this.animatePromise({ beginFromCurrentState: true, curve: 'linear', duration }, () => {
-			this.spinnerRef.setAttribute('rotation', nextAngle);
-		})
+		this.animatePromise(
+			{ beginFromCurrentState: true, curve: AnimationCurve.Linear, duration },
+			() => {
+				this.spinnerRef.setAttribute('rotation', nextAngle);
+			},
+		)
 			.then(() => {
 				this.spinnerAngle = nextAngle;
 				this.spin();
@@ -79,7 +82,6 @@ export class LoopingArrowSpinner extends StatefulComponent<LoopingArrowSpinnerVi
 
 		<view
 			accessibilityLabel={accessibilityLabel}
-			contentDescription={accessibilityLabel}
 			style={hasLabel ? styles.root : getIconOnlyRootStyle(size)}
 		>
 			<image
@@ -93,16 +95,16 @@ export class LoopingArrowSpinner extends StatefulComponent<LoopingArrowSpinnerVi
 	}
 }
 
-const iconOnlyRootStyleCache = new Map<number, Style>();
+const iconOnlyRootStyleCache = new Map<number, Style<View>>();
 const spinnerStyleCache = new Map<number, Style<ImageView>>();
 
-function getIconOnlyRootStyle(size: number): Style {
+function getIconOnlyRootStyle(size: number): Style<View> {
 	const existingStyle = iconOnlyRootStyleCache.get(size);
 	if (existingStyle) {
 		return existingStyle;
 	}
 
-	const createdStyle = new Style({
+	const createdStyle = new Style<View>({
 		alignItems: 'center',
 		height: size,
 		justifyContent: 'center',
@@ -131,10 +133,11 @@ const styles = {
 		...theme.text.sub,
 		marginLeft: 8,
 	}),
-	root: new Style({
+	root: new Style<Layout>({
 		alignItems: 'center',
 		flexDirection: 'row',
 		justifyContent: 'center',
-		paddingVertical: 8,
+		paddingBottom: 8,
+		paddingTop: 8,
 	}),
 };

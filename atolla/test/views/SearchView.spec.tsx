@@ -333,6 +333,5 @@ describe('SearchView', () => {
 		);
 
 		expect(searchBar).toBeTruthy();
-		expect(searchBar?.getAttribute('contentDescription')).toBe('search-bar');
 	});
 });

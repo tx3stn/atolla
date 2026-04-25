@@ -1,9 +1,10 @@
-// @ts-nocheck
 import res from 'atolla/res';
+import { AnimationCurve, type AnimationOptions } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
+import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
@@ -85,7 +86,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		toastMessage: null,
 	};
 
-	private runAnimate(options: object, callback: () => void): void {
+	private runAnimate(options: AnimationOptions, callback: () => void): void {
 		if (this.viewModel.animationsEnabled) {
 			this.animate(options, callback);
 		} else {
@@ -93,7 +94,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 	}
 
-	private runAnimatePromise(options: object, callback: () => void): Promise<void> {
+	private runAnimatePromise(options: AnimationOptions, callback: () => void): Promise<void> {
 		if (this.viewModel.animationsEnabled) {
 			return this.animatePromise(options, callback);
 		}
@@ -114,7 +115,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.transitionArtworkRef.setAttribute('opacity', 1);
 
 		this.runAnimatePromise(
-			{ beginFromCurrentState: true, curve: 'easeOut', duration: 0.34 },
+			{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.34 },
 			() => {
 				this.compactBarRef.setAttribute('opacity', 0);
 				this.overlayCardRef.setAttribute('bottom', 0);
@@ -133,7 +134,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		)
 			.then(() => {
 				return this.runAnimatePromise(
-					{ beginFromCurrentState: true, curve: 'easeOut', duration: 0.08 },
+					{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.08 },
 					() => {
 						this.expandedContentRef.setAttribute('opacity', 1);
 						this.transitionArtworkRef.setAttribute('opacity', 1);
@@ -177,7 +178,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.transitionArtworkRef.setAttribute('opacity', 1);
 
 		return this.runAnimatePromise(
-			{ beginFromCurrentState: true, curve: 'easeIn', duration: 0.26 },
+			{ beginFromCurrentState: true, curve: AnimationCurve.EaseIn, duration: 0.26 },
 			() => {
 				this.overlayRef.setAttribute('top', 0);
 				this.compactBarRef.setAttribute('opacity', 1);
@@ -232,7 +233,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.transitionArtworkRef.setAttribute('width', 65);
 	}
 
-	private handleCompactDrag = (event): void => {
+	private handleCompactDrag = (event: DragEvent): void => {
 		if (this.state.isExpanded) {
 			return;
 		}
@@ -273,7 +274,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		});
 	};
 
-	private handleExpandedDrag = (event): void => {
+	private handleExpandedDrag = (event: DragEvent): void => {
 		if (!this.state.isExpanded) {
 			return;
 		}
@@ -306,9 +307,12 @@ export class NowPlayingSurface extends StatefulComponent<
 	};
 
 	private handleExpandedDragCancel = (): void => {
-		this.runAnimate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.2 }, () => {
-			this.overlayRef.setAttribute('top', 0);
-		});
+		this.runAnimate(
+			{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.2 },
+			() => {
+				this.overlayRef.setAttribute('top', 0);
+			},
+		);
 	};
 
 	private handleQueueTabTap = (tab: QueueTab): void => {
@@ -375,7 +379,6 @@ export class NowPlayingSurface extends StatefulComponent<
 			album,
 			artistLogoUrl,
 			isPlaying,
-			imageCache,
 			onNext,
 			onPlayPause,
 			onLoopModeToggle,
@@ -392,7 +395,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		const toEntry = (t: Track): TrackListEntry => ({
 			artworkSource: t.albumImageUrl ?? album?.imageUrl ?? null,
 			id: t.id,
-			meta: t.artistName ?? null,
+			meta: t.artistName ?? '',
 			title: t.name,
 			track: t,
 		});
@@ -449,10 +452,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		const rootStyle = this.state.isExpanded ? styles.rootExpanded : styles.rootCollapsed;
 
 		<view style={rootStyle}>
-			{/* biome-ignore lint/a11y/noStaticElementInteractions: Intentional interactive compact now-playing surface. */}
 			<view
 				accessibilityLabel='now-playing-surface-bar'
-				contentDescription='now-playing-surface-bar'
 				id='now-playing-surface-bar'
 				onDrag={this.handleCompactDrag}
 				onTap={this.openSurface}
@@ -506,10 +507,9 @@ export class NowPlayingSurface extends StatefulComponent<
 						<scroll ref={this.expandedScrollRef} style={styles.expandedInner}>
 							<layout style={styles.expandedFirstPage}>
 								{albumArtworkSource && (
-									/* biome-ignore lint/a11y/noStaticElementInteractions: Collapse gesture should only be active over artwork. */
 									<view
 										onDrag={this.handleExpandedDrag}
-										onDragEnabled={this.state.isExpanded}
+										onDragDisabled={!this.state.isExpanded}
 										style={styles.expandedArtworkGestureZone}
 									>
 										<image
@@ -525,11 +525,9 @@ export class NowPlayingSurface extends StatefulComponent<
 										containerStyle={styles.expandedArtistLogoArea}
 										fallbackText={track.artistName ?? ''}
 										fallbackTextStyle={paletteStyles.expandedArtistNameStyle}
-										imageCache={imageCache}
 										logoSource={artistLogoSource}
 										logoStyle={styles.expandedArtistLogo}
 										onTap={this.handleArtistLogoTap}
-										testID='now-playing-artist-logo'
 									/>
 								</layout>
 								<layout style={styles.expandedBottomSection}>
@@ -614,7 +612,6 @@ export class NowPlayingSurface extends StatefulComponent<
 									<layout style={styles.expandedQueueTabsRow}>
 										<view
 											accessibilityLabel='now-playing-tab-back-to'
-											contentDescription='now-playing-tab-back-to'
 											onTap={this.handleBackToTabTap}
 											style={styles.expandedQueueTabButton}
 										>
@@ -622,7 +619,6 @@ export class NowPlayingSurface extends StatefulComponent<
 										</view>
 										<view
 											accessibilityLabel='now-playing-tab-up-next'
-											contentDescription='now-playing-tab-up-next'
 											onTap={this.handleUpNextTabTap}
 											style={styles.expandedQueueTabButton}
 										>
@@ -631,13 +627,8 @@ export class NowPlayingSurface extends StatefulComponent<
 									</layout>
 								</layout>
 							</layout>
-							<layout
-								accessibilityLabel='now-playing-queue-list'
-								contentDescription='now-playing-queue-list'
-								style={styles.expandedQueueList}
-							>
+							<layout accessibilityLabel='now-playing-queue-list' style={styles.expandedQueueList}>
 								<TrackList
-									imageCache={imageCache}
 									noRowBackground
 									onTrackLongPress={this.handleTrackLongPress}
 									onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}
@@ -655,7 +646,6 @@ export class NowPlayingSurface extends StatefulComponent<
 			</view>
 			{this.state.contextMenuTrack && this.viewModel.playbackStore && this.viewModel.transport && (
 				<TrackContextMenu
-					imageCache={imageCache}
 					onArtistTap={
 						this.state.contextMenuTrack.artistId && this.viewModel.onArtistTap
 							? this.viewModel.onArtistTap
@@ -687,7 +677,7 @@ function withAlpha(hexColor: string, alpha: number): string {
 	return `rgba(${r},${g},${b},${normalizedAlpha})`;
 }
 
-function getLoopModeIcon(mode: LoopMode): unknown {
+function getLoopModeIcon(mode: LoopMode) {
 	switch (mode) {
 		case 'queue':
 			return res.loopqueue;
@@ -721,12 +711,12 @@ interface PaletteStyles {
 	trackNameStyle: Style<Label>;
 }
 
-const compactProgressFillStyleCache = new Map<string, Style>();
-const overlayTintStyleCache = new Map<string, Style>();
+const compactProgressFillStyleCache = new Map<string, Style<View>>();
+const overlayTintStyleCache = new Map<string, Style<View>>();
 const paletteStylesCache = new Map<string, PaletteStyles>();
 const queueTabLabelStyleCache = new Map<string, Style<Label>>();
 
-function createCompactProgressFillStyle(accentColor: string, progressRatio: number): Style {
+function createCompactProgressFillStyle(accentColor: string, progressRatio: number): Style<View> {
 	const progressPercent = Math.round(progressRatio * 100);
 	const key = `${accentColor}|${progressPercent}`;
 	const cachedStyle = compactProgressFillStyleCache.get(key);
@@ -734,7 +724,7 @@ function createCompactProgressFillStyle(accentColor: string, progressRatio: numb
 		return cachedStyle;
 	}
 
-	const createdStyle = new Style({
+	const createdStyle = new Style<View>({
 		backgroundColor: accentColor,
 		borderRadius: theme.borderRadius,
 		bottom: 0,
@@ -749,14 +739,14 @@ function createCompactProgressFillStyle(accentColor: string, progressRatio: numb
 	return createdStyle;
 }
 
-function getOverlayTintStyle(surfaceColor: string, opacity: number): Style {
+function getOverlayTintStyle(surfaceColor: string, opacity: number): Style<View> {
 	const key = `${surfaceColor}|${opacity}`;
 	const cachedStyle = overlayTintStyleCache.get(key);
 	if (cachedStyle) {
 		return cachedStyle;
 	}
 
-	const createdStyle = new Style({
+	const createdStyle = new Style<View>({
 		backgroundColor: withAlpha(surfaceColor, opacity),
 		borderRadius: theme.borderRadius,
 		bottom: 0,
@@ -798,15 +788,14 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 		artistNameStyle: new Style<Label>({
 			...theme.text.sub,
 			color: mutedOnSurfaceColor,
-			paddingTop: 4,
+			marginTop: 4,
 		}),
 		expandedAlbumLineStyle: new Style<Label>({
 			...theme.text.subLarger,
 			color: mutedOnSurfaceColor,
-			marginTop: 4,
-			paddingLeft: 12,
-			paddingRight: 12,
-			paddingTop: 12,
+			marginLeft: 12,
+			marginRight: 12,
+			marginTop: 12,
 			textAlign: 'center',
 			width: '100%',
 		}),
@@ -824,8 +813,8 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 		expandedTrackNameStyle: new Style<Label>({
 			...theme.text.title,
 			color: onSurfaceColor,
-			paddingLeft: 12,
-			paddingRight: 12,
+			marginLeft: 12,
+			marginRight: 12,
 			textAlign: 'center',
 			width: '100%',
 		}),
@@ -833,7 +822,7 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 			...theme.text.sub,
 			color: mutedOnSurfaceColor,
 			flexShrink: 0,
-			paddingRight: 10,
+			marginRight: 10,
 		}),
 		trackNameStyle: new Style<Label>({
 			...theme.text.title,
@@ -853,22 +842,18 @@ const styles = {
 		marginRight: 14,
 		width: 75,
 	}),
-	compactBar: new Style({
+	compactBar: new Style<View>({
 		alignItems: 'center',
 		borderRadius: theme.borderRadius,
 		bottom: theme.footerHeight * 0.8,
-		elevation: 20,
+		boxShadow: '0 10 18 rgba(0,0,0,0.35)',
 		flexDirection: 'row',
 		left: 8,
 		marginLeft: 10,
 		marginRight: 10,
-		overflow: 'hidden',
 		position: 'absolute',
 		right: 8,
-		shadowColor: '#000000',
-		shadowOffset: { height: 10, width: 0 },
-		shadowOpacity: 0.35,
-		shadowRadius: 18,
+		slowClipping: true,
 		zIndex: 25,
 	}),
 	compactBgArtwork: new Style<ImageView>({
@@ -879,7 +864,7 @@ const styles = {
 		right: 0,
 		top: 0,
 	}),
-	compactProgressContainer: new Style({
+	compactProgressContainer: new Style<View>({
 		borderRadius: theme.borderRadius,
 		bottom: 0,
 		left: 50,
@@ -887,7 +872,7 @@ const styles = {
 		right: 0,
 		top: 0,
 	}),
-	controlsRowPlaceholder: new Style({
+	controlsRowPlaceholder: new Style<View>({
 		height: 62,
 		width: 62,
 	}),
@@ -897,10 +882,10 @@ const styles = {
 		objectFit: 'contain',
 		width: '100%',
 	}),
-	expandedArtistLogoArea: new Style({
+	expandedArtistLogoArea: new Style<View>({
 		width: '100%',
 	}),
-	expandedArtworkGestureZone: new Style({
+	expandedArtworkGestureZone: new Style<View>({
 		aspectRatio: 1,
 		width: '100%',
 	}),
@@ -911,12 +896,12 @@ const styles = {
 		right: 0,
 		top: 0,
 	}),
-	expandedBottomSection: new Style({
+	expandedBottomSection: new Style<Layout>({
 		marginBottom: theme.footerHeight - 24,
 		marginTop: 'auto',
 		width: '100%',
 	}),
-	expandedContent: new Style({
+	expandedContent: new Style<View>({
 		bottom: 0,
 		height: '100%',
 		left: 14,
@@ -925,7 +910,7 @@ const styles = {
 		right: 14,
 		top: 0,
 	}),
-	expandedControlsRow: new Style({
+	expandedControlsRow: new Style<Layout>({
 		alignItems: 'center',
 		flexDirection: 'row',
 		justifyContent: 'space-evenly',
@@ -933,34 +918,36 @@ const styles = {
 		marginTop: 12,
 		width: '100%',
 	}),
-	expandedFirstPage: new Style({
+	expandedFirstPage: new Style<Layout>({
 		minHeight: '100%',
 		width: '100%',
 	}),
-	expandedInfoSection: new Style({
+	expandedInfoSection: new Style<Layout>({
 		alignItems: 'center',
 		flexGrow: 1,
 		justifyContent: 'center',
-		paddingHorizontal: 24,
+		paddingLeft: 24,
+		paddingRight: 24,
 		width: '100%',
 	}),
 	expandedInner: new Style({
-		flex: 1,
+		flexGrow: 1,
 		width: '100%',
 	}),
-	expandedProgressSection: new Style({
+	expandedProgressSection: new Style<Layout>({
 		marginTop: 4,
 		paddingLeft: 30,
 		paddingRight: 30,
 		width: '100%',
 	}),
-	expandedQueueList: new Style({
+	expandedQueueList: new Style<Layout>({
 		marginTop: -(theme.footerHeight - 24),
 		paddingBottom: theme.footerHeight,
-		paddingHorizontal: 14,
+		paddingLeft: 14,
+		paddingRight: 14,
 		width: '100%',
 	}),
-	expandedQueueTabButton: new Style({
+	expandedQueueTabButton: new Style<View>({
 		alignItems: 'center',
 		flexGrow: 1,
 		justifyContent: 'flex-end',
@@ -969,7 +956,7 @@ const styles = {
 	expandedQueueTabsRow: new Style({
 		borderTopColor: theme.colors.bgAccent,
 		borderTopWidth: 1,
-		flexDirection: 'row',
+		flexDirection: 'row' as const,
 		padding: 10,
 		width: '100%',
 	}),
@@ -978,38 +965,38 @@ const styles = {
 		opacity: 0,
 		width: '100%',
 	}),
-	expandedTimeRow: new Style({
+	expandedTimeRow: new Style<Layout>({
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		marginTop: 6,
 		width: '100%',
 	}),
-	expandedTrackMetaSection: new Style({
+	expandedTrackMetaSection: new Style<Layout>({
 		alignItems: 'center',
 		marginBottom: 10,
 		width: '100%',
 	}),
-	expandedTrackMetaTextInset: new Style({
+	expandedTrackMetaTextInset: new Style<Layout>({
 		paddingLeft: 28,
 		paddingRight: 28,
 		width: '100%',
 	}),
-	info: new Style({
+	info: new Style<Layout>({
 		flexGrow: 1,
 		flexShrink: 1,
 		justifyContent: 'center',
 		marginRight: 12,
 	}),
-	overlayCard: new Style({
+	overlayCard: new Style<View>({
 		borderRadius: theme.borderRadius,
 		bottom: theme.footerHeight * 0.8,
 		height: 84,
 		left: 20,
-		overflow: 'hidden',
 		position: 'absolute',
 		right: 20,
+		slowClipping: true,
 	}),
-	overlayRoot: new Style({
+	overlayRoot: new Style<View>({
 		height: '100%',
 		left: 0,
 		position: 'absolute',
@@ -1017,7 +1004,7 @@ const styles = {
 		top: 2000,
 		zIndex: 30,
 	}),
-	rootCollapsed: new Style({
+	rootCollapsed: new Style<View>({
 		bottom: 0,
 		height: 180,
 		left: 0,
@@ -1025,7 +1012,7 @@ const styles = {
 		right: 0,
 		width: '100%',
 	}),
-	rootExpanded: new Style({
+	rootExpanded: new Style<View>({
 		height: '100%',
 		left: 0,
 		position: 'absolute',

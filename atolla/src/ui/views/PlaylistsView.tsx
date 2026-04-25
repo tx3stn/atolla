@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
+import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Playlist } from '../../models/Playlist';
 import type { DownloadService } from '../../services/DownloadService';
@@ -166,9 +166,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
 		const transport = this.viewModel.transport as Transport & Partial<PagedPlaylistsTransport>;
 
-		const useLocalList = !!this.viewModel.letterFilter || !transport.getPlaylistsPage;
-
-		if (useLocalList) {
+		if (!!this.viewModel.letterFilter || !transport.getPlaylistsPage) {
 			if (!this.allPlaylists) {
 				return this.viewModel.transport.getAllPlaylists().then((playlists) => {
 					this.allPlaylists = sortPlaylists(playlists, sort);
@@ -190,7 +188,10 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		void this.loadNextPage();
 	}
 
-	handlePlaylistCardLongPress = (card: Card): void => {
+	handlePlaylistCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'playlist';
+	}): void => {
 		const playlist = this.state.playlists.find((candidate) => candidate.id === card.id);
 		if (!playlist) {
 			return;
@@ -284,8 +285,8 @@ function matchesLetterFilter(name: string, letter: string): boolean {
 	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
 }
 
-function createScrollStyle(isFooterVisible: boolean): Style {
-	return new Style({
+function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
+	return new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,

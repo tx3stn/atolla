@@ -16,11 +16,17 @@ describe('PlaybackProgressBar', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const root = views.find((view) => view.getAttribute('testID') === 'playback-progress-bar');
-		const track = views.find((view) => view.getAttribute('testID') === 'playback-progress-track');
-		const fill = views.find((view) => view.getAttribute('testID') === 'playback-progress-fill');
+		const root = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'playback-progress-bar',
+		);
+		const track = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'playback-progress-track',
+		);
+		const fill = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'playback-progress-fill',
+		);
 		const playhead = views.find(
-			(view) => view.getAttribute('testID') === 'playback-progress-playhead',
+			(view) => view.getAttribute('accessibilityLabel') === 'playback-progress-playhead',
 		);
 
 		expect(root?.getAttribute('style').attributes.width).toBe('100%');
@@ -39,7 +45,9 @@ describe('PlaybackProgressBar', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const fill = views.find((view) => view.getAttribute('testID') === 'playback-progress-fill');
+		const fill = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'playback-progress-fill',
+		);
 
 		expect(fill?.getAttribute('style').attributes.width).toBe('100%');
 	});
@@ -57,7 +65,9 @@ describe('PlaybackProgressBar', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const track = views.find((view) => view.getAttribute('testID') === 'playback-progress-track');
+		const track = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'playback-progress-track',
+		);
 		track?.getAttribute('onTap')?.();
 
 		expect(tapCount).toBe(1);

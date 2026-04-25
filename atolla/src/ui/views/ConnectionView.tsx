@@ -1,8 +1,8 @@
-// @ts-nocheck
 import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
+import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { Button } from '../components/Button';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
@@ -108,7 +108,6 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				<textfield
 					accessibilityLabel='connection-server-url-input'
 					autocapitalization='none'
-					contentDescription='connection-server-url-input'
 					keyboardAppearance='dark'
 					onChange={(value: unknown) => {
 						this.setState({ serverUrlInput: normalizeInputValue(value) });
@@ -154,7 +153,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 }
 
 const styles = {
-	errorMessage: new Style({
+	errorMessage: new Style<Label>({
 		...theme.text.sub,
 		color: '#ff6b6b',
 		marginTop: 10,
@@ -173,10 +172,10 @@ const styles = {
 		width: '100%',
 	}),
 	logoContainer: new Style({
-		alignItems: 'center',
+		alignItems: 'center' as const,
 		backgroundColor: theme.colors.bg,
 		height: 96,
-		justifyContent: 'center',
+		justifyContent: 'center' as const,
 		marginBottom: 30,
 		width: 96,
 	}),
@@ -184,39 +183,39 @@ const styles = {
 		height: 96,
 		width: 96,
 	}),
-	quickConnectCode: new Style({
+	quickConnectCode: new Style<Label>({
 		...theme.text.mainBold,
 		color: theme.colors.active,
 		textAlign: 'center',
 	}),
 	quickConnectCodeSlot: new Style({
-		alignItems: 'center',
+		alignItems: 'center' as const,
 		height: 28,
-		justifyContent: 'center',
+		justifyContent: 'center' as const,
 	}),
 	quickConnectContainer: new Style({
-		alignItems: 'center',
+		alignItems: 'center' as const,
 		marginTop: 10,
 	}),
 	quickConnectSpinnerSlot: new Style({
-		alignItems: 'center',
+		alignItems: 'center' as const,
 		height: 46,
-		justifyContent: 'center',
+		justifyContent: 'center' as const,
 		marginTop: 10,
 	}),
 	root: new Style({
-		alignItems: 'center',
+		alignItems: 'center' as const,
 		backgroundColor: theme.colors.bg,
 		height: '100%',
-		justifyContent: 'center',
+		justifyContent: 'center' as const,
 		padding: 20,
 		width: '100%',
 	}),
-	subtitle: new Style({
+	subtitle: new Style<Label>({
 		...theme.text.sub,
 		textAlign: 'center',
 	}),
-	title: new Style({
+	title: new Style<Label>({
 		...theme.text.display,
 		marginBottom: 6,
 		textAlign: 'center',

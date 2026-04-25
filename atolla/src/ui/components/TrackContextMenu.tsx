@@ -1,4 +1,3 @@
-// @ts-nocheck
 import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
@@ -136,11 +135,7 @@ export class TrackContextMenu extends StatefulComponent<
 			onTap={this.handleBackdropTap}
 			style={styles.backdrop}
 		>
-			<view
-				accessibilityLabel='track-context-menu'
-				contentDescription='track-context-menu'
-				style={styles.card}
-			>
+			<view accessibilityLabel='track-context-menu' style={styles.card}>
 				<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
 					<ArtistLogo
 						containerStyle={styles.logoContainer}
@@ -154,7 +149,6 @@ export class TrackContextMenu extends StatefulComponent<
 				<view style={styles.divider} />
 				<view
 					accessibilityLabel='track-context-play-next'
-					contentDescription='track-context-play-next'
 					onLayout={this.handleActionRowLayout}
 					onTap={this.handlePlayNextTap}
 					style={styles.actionRow}
@@ -165,7 +159,6 @@ export class TrackContextMenu extends StatefulComponent<
 				</view>
 				<view
 					accessibilityLabel='track-context-add-to-queue'
-					contentDescription='track-context-add-to-queue'
 					onLayout={this.handleActionRowLayout}
 					onTap={this.handleAddToQueueTap}
 					style={styles.actionRow}
@@ -176,7 +169,6 @@ export class TrackContextMenu extends StatefulComponent<
 				</view>
 				<view
 					accessibilityLabel='track-context-add-to-playlist'
-					contentDescription='track-context-add-to-playlist'
 					onLayout={this.handleActionRowLayout}
 					onTap={this.handleAddToPlaylistTap}
 					style={styles.actionRow}
@@ -190,8 +182,12 @@ export class TrackContextMenu extends StatefulComponent<
 	}
 }
 
+interface Animatable {
+	animatePromise(options: object, callback: () => void): Promise<void>;
+}
+
 function animateRowPressOverlay(
-	component: { animatePromise: (options: object, callback: () => void) => Promise<void> },
+	component: Animatable,
 	ref: ElementRef,
 	rowWidth: number,
 	rowHeight: number,
@@ -234,15 +230,16 @@ function animateRowPressOverlay(
 const styles = {
 	actionLabel: new Style<Label>({
 		...theme.text.subLarger,
-		paddingVertical: 4,
 	}),
 	actionRow: new Style({
 		...theme.text.subLarger,
-		flexDirection: 'row',
-		overflow: 'hidden',
-		paddingHorizontal: 4,
-		paddingVertical: 12,
-		position: 'relative',
+		flexDirection: 'row' as const,
+		paddingBottom: 12,
+		paddingLeft: 4,
+		paddingRight: 4,
+		paddingTop: 12,
+		position: 'relative' as const,
+		slowClipping: true,
 		width: '40%',
 	}),
 	actionRowRipple: new Style({
@@ -250,17 +247,15 @@ const styles = {
 		height: 0,
 		left: 0,
 		opacity: 0,
-		position: 'absolute',
+		position: 'absolute' as const,
 		top: 0,
 		width: 0,
 		zIndex: 2,
 	}),
 	backdrop: new Style<BlurView>({
-		alignItems: 'center',
 		backgroundColor: theme.colors.overlay,
 		bottom: 0,
 		height: '100%',
-		justifyContent: 'center',
 		left: 0,
 		position: 'absolute',
 		right: 0,
@@ -273,8 +268,8 @@ const styles = {
 		borderColor: theme.colors.separator,
 		borderRadius: theme.borderRadius,
 		borderWidth: 1,
-		overflow: 'hidden',
 		padding: 16,
+		slowClipping: true,
 		width: '90%',
 	}),
 	divider: new Style({
@@ -290,15 +285,15 @@ const styles = {
 		width: 18,
 	}),
 	logoContainer: new Style({
-		alignItems: 'center',
+		alignItems: 'center' as const,
 		height: 60,
 		marginBottom: 12,
-		overflow: 'hidden',
+		slowClipping: true,
 		width: '100%',
 	}),
 	logoImage: new Style({
 		height: '100%',
-		objectFit: 'contain',
+		objectFit: 'contain' as const,
 		width: '100%',
 	}),
 	logoTapArea: new Style({

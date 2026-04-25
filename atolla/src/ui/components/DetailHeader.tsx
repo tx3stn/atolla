@@ -1,11 +1,12 @@
-// @ts-nocheck
 import res from 'atolla/res';
+import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
-import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
+import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { DownloadState } from '../../services/DownloadService';
 import type { ImageCache, ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
@@ -145,7 +146,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 
 		if (animated) {
 			setTimeout(() => {
-				this.animatePromise({ curve: 'easeOut', duration: 0.2 }, () => {
+				this.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.2 }, () => {
 					this.checkmarkRef.setAttribute('opacity', 1);
 				});
 			}, 0);
@@ -156,7 +157,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		}, 2000);
 	};
 
-	private handleHeaderDrag = (event): void => {
+	private handleHeaderDrag = (event: DragEvent): void => {
 		if (event.state !== TouchEventState.Changed && event.state !== TouchEventState.Ended) {
 			return;
 		}
@@ -205,7 +206,6 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 				: downloadState === 'downloaded'
 					? this.handleRemoveDownloadTap
 					: onDownload;
-		// biome-ignore lint/a11y/noStaticElementInteractions: Detail header supports reveal drag gesture.
 		<view
 			onDrag={createReusableCallback((event) => {
 				this.handleHeaderDrag(event);
@@ -218,7 +218,6 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					{artworkSource && (
 						<CachedImage
 							category={this.viewModel.artworkCategory}
-							imageCache={this.viewModel.imageCache}
 							objectFit='cover'
 							style={styles.artworkImage}
 							url={artworkSource}
@@ -260,7 +259,6 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 						/>
 						<view
 							accessibilityLabel='detail-header-add-to-queue-button'
-							contentDescription='detail-header-add-to-queue-button'
 							onTap={addToQueuePhase === 'idle' ? this.handleAddToQueueTap : undefined}
 							style={styles.addToQueueButton}
 						>
@@ -329,7 +327,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 }
 
 const styles = {
-	addToQueueButton: new Style({
+	addToQueueButton: new Style<View>({
 		alignItems: 'center',
 		height: 40,
 		justifyContent: 'center',
@@ -337,7 +335,7 @@ const styles = {
 		position: 'relative',
 		width: 40,
 	}),
-	artistLogoContainer: new Style({
+	artistLogoContainer: new Style<View>({
 		alignItems: 'flex-start',
 		justifyContent: 'flex-start',
 		paddingLeft: 10,
@@ -353,11 +351,11 @@ const styles = {
 		height: '100%',
 		width: '100%',
 	}),
-	artworkTile: new Style({
+	artworkTile: new Style<View>({
 		aspectRatio: 1,
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.borderRadius,
-		overflow: 'hidden',
+		slowClipping: true,
 		width: '50%',
 	}),
 	buttonIcon: new Style<ImageView>({
@@ -369,7 +367,7 @@ const styles = {
 		opacity: 0,
 		width: 24,
 	}),
-	buttonsRow: new Style({
+	buttonsRow: new Style<Layout>({
 		alignItems: 'center',
 		bottom: 0,
 		flexDirection: 'row',
@@ -383,12 +381,12 @@ const styles = {
 		right: 0,
 		width: '100%',
 	}),
-	headerRow: new Style({
+	headerRow: new Style<Layout>({
 		alignItems: 'stretch',
 		flexDirection: 'row',
 		width: '100%',
 	}),
-	logoArea: new Style({
+	logoArea: new Style<Layout>({
 		alignItems: 'center',
 		height: '75%',
 		justifyContent: 'flex-start',
@@ -397,16 +395,15 @@ const styles = {
 		top: 0,
 		width: '100%',
 	}),
-	rightColumn: new Style({
+	rightColumn: new Style<Layout>({
 		alignSelf: 'stretch',
 		flexDirection: 'column',
 		height: '100%',
 		marginLeft: 8,
-		overflow: 'hidden',
 		position: 'relative',
 		width: '46%',
 	}),
-	root: new Style({
+	root: new Style<View>({
 		marginBottom: 12,
 		padding: 4,
 		position: 'relative',
@@ -415,29 +412,28 @@ const styles = {
 	subheaderLineOneLeftText: new Style<Label>({
 		...theme.text.display,
 		marginLeft: 12,
+		marginRight: 4,
 		marginTop: 10,
-		paddingHorizontal: 4,
 	}),
 	subheaderLineOneRightText: new Style<Label>({
 		...theme.text.sub,
 		marginRight: 12,
 		marginTop: 10,
-		paddingHorizontal: 4,
 	}),
-	subheaderLineRow: new Style({
+	subheaderLineRow: new Style<Layout>({
 		alignItems: 'center',
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		width: '100%',
 	}),
-	subheaderLineRowTwo: new Style({
+	subheaderLineRowTwo: new Style<Layout>({
 		alignItems: 'center',
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		marginTop: 3,
 		width: '100%',
 	}),
-	subheaderLines: new Style({
+	subheaderLines: new Style<Layout>({
 		flexDirection: 'column',
 		marginTop: 8,
 		width: '100%',
@@ -446,12 +442,10 @@ const styles = {
 		...theme.text.sub,
 		marginLeft: 12,
 		marginTop: 2,
-		paddingHorizontal: 4,
 	}),
 	subheaderLineTwoRightText: new Style<Label>({
 		...theme.text.sub,
 		marginRight: 12,
 		marginTop: 2,
-		paddingHorizontal: 4,
 	}),
 };

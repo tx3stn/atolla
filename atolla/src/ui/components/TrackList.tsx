@@ -1,19 +1,19 @@
-// @ts-nocheck
-
 import res from 'atolla/res';
+import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { Component } from 'valdi_core/src/Component';
-import { Device, DeviceHapticFeedbackType } from 'valdi_core/src/Device';
+import { Device } from 'valdi_core/src/Device';
+import { DeviceHapticFeedbackType } from 'valdi_core/src/DeviceBridge';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
-
-const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
-
+import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
+import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Track } from '../../models/Track';
 import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { theme, withAlpha } from '../../theme';
 import { CachedImage } from './CachedImage';
+
+const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
 
 export interface TrackListEntry {
 	artworkSource?: string | null;
@@ -45,11 +45,11 @@ interface TrackListColors {
 }
 
 interface TrackListResolvedStyles {
-	artworkTileStyle: Style;
+	artworkTileStyle: Style<View>;
 	emptyStateStyle: Style<Label>;
 	leadingLabelTextStyle: Style<Label>;
 	metaStyle: Style<Label>;
-	rowStyle: Style;
+	rowStyle: Style<View>;
 	titleStyle: Style<Label>;
 }
 
@@ -111,18 +111,24 @@ export class TrackList extends Component<TrackListViewModel> {
 			}
 
 			const overshoot = -ROW_SLOT_HEIGHT * 0.08;
-			this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.16 }, () => {
-				for (const identity of shiftedIdentities) {
-					this.setRowVerticalOffset(identity, overshoot);
-				}
-			});
+			this.animate(
+				{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.16 },
+				() => {
+					for (const identity of shiftedIdentities) {
+						this.setRowVerticalOffset(identity, overshoot);
+					}
+				},
+			);
 
 			setTimeout(() => {
-				this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.1 }, () => {
-					for (const identity of shiftedIdentities) {
-						this.setRowVerticalOffset(identity, 0);
-					}
-				});
+				this.animate(
+					{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.1 },
+					() => {
+						for (const identity of shiftedIdentities) {
+							this.setRowVerticalOffset(identity, 0);
+						}
+					},
+				);
 			}, 160);
 		}, 0);
 	}
@@ -150,7 +156,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		);
 		const resolvedStyles = getResolvedTrackListStyles(colors);
 		const pulseColor = this.viewModel.tapPulseColor ?? theme.colors.white;
-		const pulseOverlayStyle = new Style({
+		const pulseOverlayStyle = new Style<View>({
 			backgroundColor: pulseColor,
 			borderRadius: theme.borderRadius,
 			bottom: 0,
@@ -177,8 +183,8 @@ export class TrackList extends Component<TrackListViewModel> {
 				const canSwipe = Boolean(this.viewModel.onTrackSwipeRemove);
 
 				return (
-					// biome-ignore lint/a11y/noStaticElementInteractions: container owns vertical drag to decouple gesture from moving inner row
 					<view
+						accessibilityLabel={`track-row-drag-${rowIdentity}`}
 						key={rowIdentity}
 						onDrag={
 							this.viewModel.onTrackReorder
@@ -200,29 +206,27 @@ export class TrackList extends Component<TrackListViewModel> {
 					>
 						{canSwipe && this.viewModel.showDragHandles ? (
 							<view
+								accessibilityLabel={`track-row-remove-action-${rowIdentity}`}
 								ref={this.getRemoveActionRef(rowIdentity)}
 								style={styles.swipeRemoveActionContainer}
-								testID={`track-row-remove-action-${rowIdentity}`}
 							>
 								<image
+									accessibilityLabel={`track-row-remove-icon-${rowIdentity}`}
 									src={res.trash}
 									style={styles.swipeRemoveActionIcon}
-									testID={`track-row-remove-icon-${rowIdentity}`}
 									tint={theme.colors.destructive}
 								/>
 							</view>
 						) : null}
 						<view
+							accessibilityLabel={`track-row-${rowIdentity}`}
 							ref={this.getRowRef(rowIdentity)}
 							style={resolvedStyles.rowStyle}
-							testID={`track-row-${rowIdentity}`}
 						>
 							<view ref={this.getPulseOverlayRef(rowIdentity)} style={pulseOverlayStyle} />
 							<layout style={styles.rowInteractiveLayout}>
-								{/* biome-ignore lint/a11y/noStaticElementInteractions: Track rows are intentionally interactive. */}
 								<view
 									accessibilityLabel={`track-row-swipe-region-${rowIdentity}`}
-									contentDescription={`track-row-swipe-region-${rowIdentity}`}
 									onDrag={
 										canSwipe
 											? ((trackId, entryIndex, identity) => (event) => {
@@ -246,32 +250,24 @@ export class TrackList extends Component<TrackListViewModel> {
 									onTouch={
 										entry.track && this.viewModel.onTrackLongPress
 											? ((track) => (event) => {
-													this.handleTrackTouch(event, track);
+													this.handleTrackTouch(event as DragEvent, track);
 												})(entry.track)
 											: undefined
 									}
 									style={styles.swipeGestureRegion}
-									testID={`track-row-swipe-region-${rowIdentity}`}
 								>
 									<layout style={styles.rowContent}>
 										{entry.artworkSource ? (
-											<view
-												style={resolvedStyles.artworkTileStyle}
-												testID={`track-artwork-touch-${rowIdentity}`}
-											>
+											<view style={resolvedStyles.artworkTileStyle}>
 												<CachedImage
 													category='album_art_thumb'
-													imageCache={this.viewModel.imageCache}
 													objectFit='cover'
 													style={styles.artwork}
 													url={entry.artworkSource}
 												/>
 											</view>
 										) : entry.leadingLabel ? (
-											<view
-												style={styles.leadingLabelTile}
-												testID={`track-row-non-artwork-touch-${rowIdentity}`}
-											>
+											<view style={styles.leadingLabelTile}>
 												<label
 													style={resolvedStyles.leadingLabelTextStyle}
 													value={entry.leadingLabel}
@@ -281,15 +277,15 @@ export class TrackList extends Component<TrackListViewModel> {
 
 										<layout style={styles.textBlock}>
 											<label
-												ellipsizeMode='tail'
 												numberOfLines={2}
 												style={resolvedStyles.titleStyle}
+												textOverflow='ellipsis'
 												value={entry.title}
 											/>
 											<label
-												ellipsizeMode='tail'
 												numberOfLines={1}
 												style={resolvedStyles.metaStyle}
+												textOverflow='ellipsis'
 												value={entry.meta}
 											/>
 										</layout>
@@ -298,6 +294,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 								{this.viewModel.showDragHandles ? (
 									<view
+										accessibilityLabel={`track-row-edit-handle-${rowIdentity}`}
 										onTap={
 											entry.track && this.viewModel.onTrackLongPress
 												? ((track) => () => {
@@ -325,7 +322,6 @@ export class TrackList extends Component<TrackListViewModel> {
 										}
 										ref={this.getDragHandleRef(rowIdentity)}
 										style={styles.editHandleContainer}
-										testID={`track-row-edit-handle-${rowIdentity}`}
 									>
 										<image
 											src={res.draghandle}
@@ -420,11 +416,11 @@ export class TrackList extends Component<TrackListViewModel> {
 		defaultBackgroundColor: string,
 		dragBackgroundColor: string,
 	): void {
+		const containerRef = this.swipeContainerRefByIdentity.get(identity);
 		const rowRef = this.rowRefByIdentity.get(identity);
 		if (!rowRef) {
 			return;
 		}
-		const containerRef = this.swipeContainerRefByIdentity.get(identity);
 
 		if (isDragging) {
 			this.draggingRowIdentities.add(identity);
@@ -505,24 +501,33 @@ export class TrackList extends Component<TrackListViewModel> {
 		}
 
 		if (targetOffset === 0) {
-			this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.18 }, () => {
-				this.setRowVerticalOffset(identity, 0);
-			});
+			this.animate(
+				{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.18 },
+				() => {
+					this.setRowVerticalOffset(identity, 0);
+				},
+			);
 			return;
 		}
 
 		// Phase 1: overshoot 15% past the target
-		this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.12 }, () => {
-			this.setRowVerticalOffset(identity, targetOffset * 1.15);
-		});
+		this.animate(
+			{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.12 },
+			() => {
+				this.setRowVerticalOffset(identity, targetOffset * 1.15);
+			},
+		);
 
 		// Phase 2: settle back to exact target
 		const timeout = setTimeout(() => {
 			this.neighborBounceTimeouts.delete(identity);
 			if ((this.neighborOffsetByIdentity.get(identity) ?? 0) !== targetOffset) return;
-			this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.09 }, () => {
-				this.setRowVerticalOffset(identity, targetOffset);
-			});
+			this.animate(
+				{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.09 },
+				() => {
+					this.setRowVerticalOffset(identity, targetOffset);
+				},
+			);
 		}, 120);
 		this.neighborBounceTimeouts.set(identity, timeout);
 	}
@@ -538,13 +543,21 @@ export class TrackList extends Component<TrackListViewModel> {
 			const current = this.neighborOffsetByIdentity.get(identity) ?? 0;
 			if (current === 0) continue;
 			this.neighborOffsetByIdentity.set(identity, 0);
-			this.animate({ beginFromCurrentState: true, curve: 'easeOut', duration: 0.18 }, () => {
-				this.setRowVerticalOffset(identity, 0);
-			});
+			this.animate(
+				{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.18 },
+				() => {
+					this.setRowVerticalOffset(identity, 0);
+				},
+			);
 		}
 	}
 
-	private handleRowDrag(event, trackId: string, entryIndex: number, rowIdentity: string): void {
+	private handleRowDrag(
+		event: DragEvent,
+		trackId: string,
+		entryIndex: number,
+		rowIdentity: string,
+	): void {
 		if (event.state === TouchEventState.Changed) {
 			const offset = Math.max(-MAX_SWIPE_DISTANCE, Math.min(0, event.deltaX));
 			this.setRowOffset(rowIdentity, offset);
@@ -571,7 +584,7 @@ export class TrackList extends Component<TrackListViewModel> {
 	}
 
 	private handleHandleDrag(
-		event,
+		event: DragEvent,
 		entryIndex: number,
 		rowIdentity: string,
 		defaultBackgroundColor: string,
@@ -661,8 +674,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 	private performSelectionHaptic(): void {
 		try {
-			const selectionType =
-				DeviceHapticFeedbackType?.SELECTION ?? DeviceHapticFeedbackType?.Selection ?? 'selection';
+			const selectionType = DeviceHapticFeedbackType?.SELECTION ?? 'selection';
 			Device.performHapticFeedback(selectionType);
 		} catch {
 			// Ignore haptic failures so menu actions still proceed.
@@ -677,7 +689,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.longPressTimeout = null;
 	}
 
-	private handleTrackTouch(event, track?: Track): void {
+	private handleTrackTouch(event: DragEvent, track?: Track): void {
 		if (event.state === TouchEventState.Started) {
 			this.scheduleLongPress(track);
 			return;
@@ -701,17 +713,17 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 	}
 
 	const created: TrackListResolvedStyles = {
-		artworkTileStyle: new Style({
+		artworkTileStyle: new Style<View>({
 			aspectRatio: 1,
 			backgroundColor: colors.tileBackground,
 			borderRadius: theme.borderRadius,
-			overflow: 'hidden',
+			slowClipping: true,
 			width: 42,
 		}),
 		emptyStateStyle: new Style<Label>({
 			...theme.text.sub,
 			color: colors.meta,
-			padding: 8,
+			margin: 8,
 			textAlign: 'center',
 		}),
 		leadingLabelTextStyle: new Style<Label>({
@@ -725,14 +737,13 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 			flexShrink: 1,
 			marginTop: 3,
 		}),
-		rowStyle: new Style({
+		rowStyle: new Style<View>({
 			backgroundColor: colors.rowBackground,
 			borderRadius: theme.borderRadius,
 			paddingBottom: 8,
 			paddingLeft: 10,
 			paddingRight: 10,
 			paddingTop: 8,
-			rowGap: 4,
 		}),
 		titleStyle: new Style<Label>({
 			...theme.text.mainBold,
@@ -764,7 +775,7 @@ const styles = {
 		height: '100%',
 		width: '100%',
 	}),
-	editHandleContainer: new Style({
+	editHandleContainer: new Style<View>({
 		alignItems: 'center',
 		justifyContent: 'center',
 		paddingLeft: 8,
@@ -774,7 +785,7 @@ const styles = {
 		height: 24,
 		width: 24,
 	}),
-	leadingLabelTile: new Style({
+	leadingLabelTile: new Style<View>({
 		alignItems: 'center',
 		alignSelf: 'flex-start',
 		aspectRatio: 1,
@@ -782,32 +793,29 @@ const styles = {
 		paddingTop: 5,
 		width: 38,
 	}),
-	list: new Style({
-		rowGap: 8,
+	list: new Style<Layout>({
 		width: '100%',
 	}),
-	rowContent: new Style({
+	rowContent: new Style<Layout>({
 		alignItems: 'center',
-		columnGap: 18,
-		flex: 1,
 		flexDirection: 'row',
+		flexGrow: 1,
 	}),
-	rowInteractiveLayout: new Style({
+	rowInteractiveLayout: new Style<Layout>({
 		alignItems: 'center',
 		flexDirection: 'row',
 		width: '100%',
 	}),
-	swipeContainer: new Style({
-		overflow: 'hidden',
+	swipeContainer: new Style<View>({
+		overflow: 'visible',
 		position: 'relative',
 		width: '100%',
 	}),
-	swipeGestureRegion: new Style({
-		flex: 1,
+	swipeGestureRegion: new Style<Layout>({
 		flexGrow: 1,
 		width: 0,
 	}),
-	swipeRemoveActionContainer: new Style({
+	swipeRemoveActionContainer: new Style<View>({
 		alignItems: 'center',
 		bottom: 0,
 		justifyContent: 'center',
@@ -820,8 +828,8 @@ const styles = {
 		height: 20,
 		width: 20,
 	}),
-	textBlock: new Style({
-		flex: 1,
+	textBlock: new Style<Layout>({
+		flexGrow: 1,
 		flexShrink: 1,
 		paddingLeft: 10,
 	}),

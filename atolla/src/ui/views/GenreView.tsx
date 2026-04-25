@@ -1,9 +1,9 @@
-// @ts-nocheck
 import { Style } from 'valdi_core/src/Style';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
+import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
@@ -345,14 +345,14 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
 			id: track.id,
-			meta: track.artistName,
+			meta: track.artistName ?? '',
 			title: track.name,
 			track,
 		}));
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 
-		<layout accessibilityLabel='genre-view' contentDescription='genre-view' style={styles.root}>
+		<layout accessibilityLabel='genre-view' style={styles.root}>
 			<scroll style={createScrollStyle(isFooterVisible, isHeaderVisible)}>
 				<DetailHeader
 					animationsEnabled={this.viewModel.animationsEnabled}
@@ -395,7 +395,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				{!isLoading && this.hasMoreTracks && !nextPageFailed && (
 					<view
 						accessibilityLabel='genre-load-more-trigger'
-						contentDescription='genre-load-more-trigger'
 						onLayout={() => {
 							this.handleLoadMoreTriggerLayout();
 						}}
@@ -406,7 +405,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				{nextPageFailed && (
 					<view
 						accessibilityLabel='genre-load-more-retry'
-						contentDescription='genre-load-more-retry'
 						onTap={this.retryLoadMore}
 						style={styles.loadMoreRetryContainer}
 					>
@@ -435,21 +433,22 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 }
 
 const styles = {
-	loadMoreLabel: new Style({
+	loadMoreLabel: new Style<Label>({
 		...theme.text.sub,
 		marginTop: 12,
 		textAlign: 'center',
 	}),
-	loadMoreRetryContainer: new Style({
+	loadMoreRetryContainer: new Style<Layout>({
 		alignItems: 'center',
 		marginTop: 12,
-		paddingVertical: 8,
+		paddingBottom: 8,
+		paddingTop: 8,
 	}),
-	loadMoreRetryLabel: new Style({
+	loadMoreRetryLabel: new Style<Label>({
 		...theme.text.main,
 		textAlign: 'center',
 	}),
-	loadMoreTrigger: new Style({
+	loadMoreTrigger: new Style<View>({
 		height: 1,
 		width: '100%',
 	}),
@@ -468,8 +467,8 @@ function formatDuration(seconds: number): string {
 	return h > 0 ? `${h}:${mm}:${String(s).padStart(2, '0')}` : `${mm}:${String(s).padStart(2, '0')}`;
 }
 
-function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style {
-	return new Style({
+function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style<ScrollView> {
+	return new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,

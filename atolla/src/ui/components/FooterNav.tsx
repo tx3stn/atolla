@@ -1,8 +1,8 @@
-// @ts-nocheck
 import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
+import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { FooterIcon } from './FooterIcon';
 import { type FooterTab, FooterTabs } from './FooterTab';
@@ -57,7 +57,7 @@ export class FooterNav extends Component<FooterNavViewModel> {
 }
 
 const styles = {
-	footerPinned: new Style({
+	footerPinned: new Style<View>({
 		backgroundColor: theme.colors.bgFrosted,
 		bottom: 0,
 		flexDirection: 'row',

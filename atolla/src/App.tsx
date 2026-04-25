@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
@@ -29,7 +28,7 @@ import {
 	type IDownloadNativeWorker,
 } from './services/DownloadNativeWorker';
 import { DownloadService } from './services/DownloadService';
-import type { ClearCacheSelection } from './services/ImageCache';
+import { type ClearCacheSelection, ImageCacheManager } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
@@ -175,6 +174,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
 	private readonly defaultJellyfinClientDeviceId = `atolla-${this.deviceUserScopeKey}`;
 	private jellyfinClientDeviceIdOverride = '';
+	private currentLibraryNavContext: LibraryNavContext | null = null;
 	private preferences = new Preferences(
 		new PersistentStore('atolla/preferences', { deviceGlobal: true }),
 	);
@@ -313,6 +313,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastPrefetchTransport: Transport | null = null;
 	private lastTrackNotificationStateKey = '';
 	private lastTrackNotificationPositionBucket = -1;
+	private readonly imageCache = new ImageCacheManager({});
 	private recentlyPlayedTracks: Array<Track> = [];
 	private lastObservedRecentTrackId: string | null = null;
 	private trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
@@ -931,7 +932,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		const activeTrack = this.playbackStore.track;
 
 		if (!activeTrack) {
-			this.lastPlaybackDebugProbeKey = 'none';
 			this.playbackSourceRequestId += 1;
 			this.lastTrackSourceTrackId = null;
 			if (this.state.trackPlaybackSourceUrl != null) {
@@ -939,11 +939,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 			return;
 		}
-
-		const playbackState = this.playbackStore.isPlaying ? 'playing' : 'paused';
-		const sourceState = this.state.trackPlaybackSourceUrl ? 'has-source' : 'no-source';
-		const probeKey = `${activeTrack.id}|${playbackState}|${sourceState}`;
-		this.lastPlaybackDebugProbeKey = probeKey;
 
 		if (!force && this.lastTrackSourceTrackId === activeTrack.id) {
 			const shouldRetryForMissingSource =
@@ -1428,16 +1423,16 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		switch (left.kind) {
 			case 'artist': {
-				return left.artist.id === right.artist.id;
+				return right.kind === 'artist' && left.artist.id === right.artist.id;
 			}
 			case 'album': {
-				return left.album.id === right.album.id;
+				return right.kind === 'album' && left.album.id === right.album.id;
 			}
 			case 'playlist': {
-				return left.playlist.id === right.playlist.id;
+				return right.kind === 'playlist' && left.playlist.id === right.playlist.id;
 			}
 			case 'genre': {
-				return left.genre.id === right.genre.id;
+				return right.kind === 'genre' && left.genre.id === right.genre.id;
 			}
 		}
 	}
@@ -1460,6 +1455,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			animationsEnabled,
 			downloadService: this.downloadService,
 			gridColumns,
+			imageCache: this.imageCache,
 			isHeaderVisible: false,
 			onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 			onNavigationContext: this.handleNavigationContext,
@@ -1568,6 +1564,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						artist: target.artist,
 						downloadService: this.downloadService,
 						gridColumns: this.state.gridColumns,
+						imageCache: this.imageCache,
 						isHeaderVisible: false,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
@@ -1588,6 +1585,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						animationsEnabled: this.state.animationsEnabled,
 						downloadService: this.downloadService,
 						gridColumns: this.state.gridColumns,
+						imageCache: this.imageCache,
 						isHeaderVisible: false,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
@@ -1607,6 +1605,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						animationsEnabled: this.state.animationsEnabled,
 						downloadService: this.downloadService,
 						gridColumns: this.state.gridColumns,
+						imageCache: this.imageCache,
 						isHeaderVisible: false,
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
@@ -1727,6 +1726,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					artist,
 					downloadService: this.downloadService,
 					gridColumns: this.state.gridColumns,
+					imageCache: this.imageCache,
 					isHeaderVisible: false,
 					onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 					paletteQueue: this.paletteQueue,
@@ -1792,6 +1792,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						artist: resolvedArtist,
 						downloadService: this.downloadService,
 						gridColumns: this.state.gridColumns,
+						imageCache: this.imageCache,
 						isHeaderVisible: false,
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
@@ -1893,6 +1894,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					animationsEnabled: this.state.animationsEnabled,
 					downloadService: this.downloadService,
 					gridColumns: this.state.gridColumns,
+					imageCache: this.imageCache,
 					isHeaderVisible: false,
 					onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 					paletteQueue: this.paletteQueue,
@@ -1917,7 +1919,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				| 'gridColumns'
 				| 'imageCacheMaxBytes'
 				| 'isAuthRequired'
+				| 'jellyfinClientDeviceIdOverride'
 				| 'serverUrlPrefill'
+				| 'trackCacheMaxTracks'
 			>
 		>,
 	): void {
@@ -2040,6 +2044,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					connectionMode={this.state.connectionMode}
 					downloadService={this.downloadService}
 					gridColumns={this.state.gridColumns}
+					imageCache={this.imageCache}
 					letterFilter={this.state.libraryLetterFilter}
 					onHeaderVisibilityChange={this.handleLibraryHeaderVisibilityChange}
 					onNavigateToArtist={this.handleNavigateToArtist}
@@ -2057,8 +2062,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					{$slot((navigationController) => {
 						<SearchView
 							animationsEnabled={this.state.animationsEnabled}
+							downloadService={this.downloadService}
 							focusSignal={this.state.searchFocusSignal}
 							gridColumns={this.state.gridColumns}
+							imageCache={this.imageCache}
 							navigationController={navigationController}
 							onNavigateToLibraryResult={this.handleSearchResultNavigation}
 							paletteQueue={this.paletteQueue}
@@ -2139,11 +2146,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 const styles = {
 	root: new Style({
-		alignItems: 'center',
+		alignItems: 'center' as const,
 		backgroundColor: theme.colors.bg,
 		height: '100%',
-		justifyContent: 'flex-start',
-		position: 'relative',
+		justifyContent: 'flex-start' as const,
+		position: 'relative' as const,
 		width: '100%',
 	}),
 };

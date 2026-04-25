@@ -1,20 +1,27 @@
-// @ts-nocheck
 import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
-import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type {
+	ImageView,
+	Label,
+	Layout,
+	ScrollView,
+	View,
+} from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Playlist } from '../../models/Playlist';
+import type { SearchResults } from '../../models/Search';
 import type { Track } from '../../models/Track';
+import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { SearchStore } from '../../stores/Search';
 import { scrollPaddingBottom, theme } from '../../theme';
-import type { SearchResults, Transport } from '../../transports/Transport';
+import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { Toast } from '../components/Toast';
@@ -29,6 +36,7 @@ type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 
 export interface SearchViewModel {
 	animationsEnabled: boolean;
+	downloadService: DownloadService;
 	focusSignal?: number;
 	gridColumns: number;
 	imageCache: ImageCache;
@@ -304,15 +312,15 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.handleSubmitSearch(this.state.lastSubmittedQuery);
 	};
 
-	handleAlbumCardTap = (card: Card): void => {
+	handleAlbumCardTap = (card: { id: string; kind: 'album' | 'artist' | 'playlist' }): void => {
 		this.handleAlbumTap(card.id);
 	};
 
-	handleArtistCardTap = (card: Card): void => {
+	handleArtistCardTap = (card: { id: string; kind: 'album' | 'artist' | 'playlist' }): void => {
 		this.handleArtistTap(card.id);
 	};
 
-	handlePlaylistCardTap = (card: Card): void => {
+	handlePlaylistCardTap = (card: { id: string; kind: 'album' | 'artist' | 'playlist' }): void => {
 		this.handlePlaylistTap(card.id);
 	};
 
@@ -324,6 +332,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 		const {
 			animationsEnabled,
+			downloadService,
 			gridColumns,
 			imageCache,
 			navigationController,
@@ -338,6 +347,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				{
 					animationsEnabled,
 					artist,
+					downloadService,
 					gridColumns,
 					imageCache,
 					paletteQueue,
@@ -381,6 +391,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			{
 				album,
 				animationsEnabled: this.viewModel.animationsEnabled,
+				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache: this.viewModel.imageCache,
 				paletteQueue: this.viewModel.paletteQueue,
@@ -408,6 +419,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			{
 				animationsEnabled: this.viewModel.animationsEnabled,
 				artist,
+				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache: this.viewModel.imageCache,
 				paletteQueue: this.viewModel.paletteQueue,
@@ -432,6 +444,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 		const {
 			animationsEnabled,
+			downloadService,
 			imageCache,
 			navigationController,
 			paletteQueue,
@@ -442,6 +455,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			PlaylistView,
 			{
 				animationsEnabled,
+				downloadService,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache,
 				onNavigateToArtist: (artistId) => {
@@ -452,6 +466,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 							{
 								animationsEnabled,
 								artist,
+								downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
 								paletteQueue,
@@ -521,28 +536,17 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		const { contextMenuTrack, query, recentSearches, results, status, toastMessage } = this.state;
 		const { imageCache, playbackStore, transport } = this.viewModel;
 
-		<layout
-			accessibilityLabel='search-view'
-			contentDescription='search-view'
-			style={styles.searchRoot}
-		>
+		<layout accessibilityLabel='search-view' style={styles.searchRoot}>
 			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 				<view style={styles.root}>
-					<view
-						accessibilityLabel='search-bar'
-						contentDescription='search-bar'
-						style={styles.searchBar}
-					>
+					<view accessibilityLabel='search-bar' style={styles.searchBar}>
 						<image src={res.search} style={styles.searchIcon} tint={theme.colors.white} />
 						<textfield
 							accessibilityLabel='search-input'
 							autocapitalization='none'
-							contentDescription='search-input'
 							keyboardAppearance='dark'
 							onChange={this.handleQueryChange}
-							onDone={this.handleSearchKeyboardSubmit}
 							onReturn={this.handleSearchKeyboardSubmit}
-							onSubmit={this.handleSearchKeyboardSubmit}
 							placeholder='search'
 							ref={this.searchInputRef}
 							returnKeyText='search'
@@ -569,7 +573,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 							/>
 							<view
 								accessibilityLabel='search-retry'
-								contentDescription='search-retry'
 								onTap={this.handleRetryTap}
 								style={styles.retryButton}
 							>
@@ -644,7 +647,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 							recentSearches.map((term) => (
 								<view
 									accessibilityLabel={`recent-search-${term}`}
-									contentDescription={`recent-search-${term}`}
 									key={term}
 									onTap={this.getRecentSearchTapHandler(term)}
 									style={styles.recentSearchChip}
@@ -677,18 +679,18 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	}
 }
 
-function createScrollStyle(isFooterVisible: boolean): Style {
+function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
 	return isFooterVisible ? scrollStyles.withFooter : scrollStyles.withoutFooter;
 }
 
 const scrollStyles = {
-	withFooter: new Style({
+	withFooter: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		paddingBottom: scrollPaddingBottom(true),
 		width: '100%',
 	}),
-	withoutFooter: new Style({
+	withoutFooter: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		paddingBottom: scrollPaddingBottom(false),
@@ -704,7 +706,7 @@ const styles = {
 	}),
 	emptyTitle: new Style<Label>({
 		...theme.text.mainBold,
-		paddingBottom: 20,
+		marginBottom: 20,
 		textAlign: 'center',
 	}),
 	errorText: new Style<Label>({
@@ -717,23 +719,24 @@ const styles = {
 		color: '#ff6b6b',
 		textAlign: 'center',
 	}),
-	infoContainer: new Style({
+	infoContainer: new Style<Layout>({
 		alignItems: 'center',
-		paddingVertical: 16,
-		rowGap: 8,
+		paddingBottom: 16,
+		paddingTop: 16,
 		width: '100%',
 	}),
 	recentEmpty: new Style<Label>({
 		...theme.text.sub,
 		marginTop: 8,
 	}),
-	recentSearchChip: new Style({
-		...theme.text.subLarger,
+	recentSearchChip: new Style<View>({
 		flexDirection: 'row',
 		flexGrow: 1,
 		marginTop: 8,
-		paddingHorizontal: 12,
-		paddingVertical: 10,
+		paddingBottom: 10,
+		paddingLeft: 12,
+		paddingRight: 12,
+		paddingTop: 10,
 		width: '100%',
 	}),
 	recentSearchIcon: new Style<ImageView>({
@@ -744,36 +747,37 @@ const styles = {
 	recentSearchText: new Style<Label>({
 		...theme.text.subLarger,
 	}),
-	recentSection: new Style({
+	recentSection: new Style<Layout>({
 		marginTop: 8,
 		paddingBottom: 12,
 		width: '100%',
 	}),
-	resultsContainer: new Style({
+	resultsContainer: new Style<Layout>({
 		marginTop: 10,
 		width: '100%',
 	}),
-	retryButton: new Style({
+	retryButton: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.borderRadius,
-		paddingHorizontal: 12,
-		paddingVertical: 8,
+		paddingBottom: 8,
+		paddingLeft: 12,
+		paddingRight: 12,
+		paddingTop: 8,
 	}),
 	retryButtonText: new Style<Label>({
 		...theme.text.main,
 		color: theme.colors.active,
 	}),
-	root: new Style({
+	root: new Style<View>({
 		padding: 20,
 		width: '100%',
 	}),
-	searchBar: new Style({
+	searchBar: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: 'transparent',
 		borderColor: theme.colors.white,
 		borderRadius: 999,
 		borderWidth: 1,
-		columnGap: 10,
 		flexDirection: 'row',
 		marginBottom: 20,
 		padding: 12,
@@ -788,11 +792,11 @@ const styles = {
 		marginLeft: 20,
 		padding: 8,
 	}),
-	searchRoot: new Style({
+	searchRoot: new Style<Layout>({
 		flexGrow: 1,
 		width: '100%',
 	}),
-	section: new Style({
+	section: new Style<Layout>({
 		marginBottom: 18,
 		width: '100%',
 	}),

@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
+import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 const TRACK_WIDTH = 44;
@@ -22,7 +22,6 @@ export class Toggle extends Component<ToggleViewModel> {
 
 		<view
 			accessibilityLabel={accessibilityLabel}
-			contentDescription={accessibilityLabel}
 			onTap={createReusableCallback(() => onToggle(!enabled))}
 			style={enabled ? styles.trackOn : styles.trackOff}
 		>
@@ -31,7 +30,7 @@ export class Toggle extends Component<ToggleViewModel> {
 	}
 }
 
-function createThumbStyle(marginLeft: number): Style {
+function createThumbStyle(marginLeft: number): Style<View> {
 	return new Style({
 		backgroundColor: theme.colors.white,
 		borderRadius: THUMB_SIZE / 2,
@@ -42,14 +41,14 @@ function createThumbStyle(marginLeft: number): Style {
 }
 
 const styles = {
-	trackOff: new Style({
+	trackOff: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: TRACK_HEIGHT / 2,
 		height: TRACK_HEIGHT,
 		justifyContent: 'center',
 		width: TRACK_WIDTH,
 	}),
-	trackOn: new Style({
+	trackOn: new Style<View>({
 		backgroundColor: theme.colors.active,
 		borderRadius: TRACK_HEIGHT / 2,
 		height: TRACK_HEIGHT,

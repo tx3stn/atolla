@@ -1,8 +1,7 @@
-// @ts-nocheck
-
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
+import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Artist } from '../../models/Artist';
 import type { DownloadService } from '../../services/DownloadService';
@@ -214,7 +213,10 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		void this.loadNextPage();
 	}
 
-	handleArtistCardLongPress = (card: Card): void => {
+	handleArtistCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'playlist';
+	}): void => {
 		const artist = this.state.artists.find((candidate) => candidate.id === card.id);
 		if (!artist) {
 			return;
@@ -331,8 +333,8 @@ function matchesArtistLetterFilter(name: string, letter: string): boolean {
 	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
 }
 
-function createScrollStyle(isFooterVisible: boolean): Style {
-	return new Style({
+function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
+	return new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,

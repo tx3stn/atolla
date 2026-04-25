@@ -1,8 +1,9 @@
-// @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
+import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
+import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import { ConnectivityFab } from './ConnectivityFab';
@@ -74,7 +75,7 @@ export class LibraryHeaderNav extends StatefulComponent<
 		}
 	}
 
-	private handleDrag = (event): void => {
+	private handleDrag = (event: DragEvent): void => {
 		if (event.state !== TouchEventState.Changed && event.state !== TouchEventState.Ended) {
 			return;
 		}
@@ -108,10 +109,8 @@ export class LibraryHeaderNav extends StatefulComponent<
 	onRender() {
 		const { isPanelOpen, currentSort, activeLetterFilter } = this.state;
 
-		// biome-ignore lint/a11y/noStaticElementInteractions: Header supports swipe-down gesture to reveal sort panel.
 		<view
 			accessibilityLabel='library-header-nav'
-			contentDescription='library-header-nav'
 			onDrag={createReusableCallback((event) => {
 				this.handleDrag(event);
 			})}
@@ -182,12 +181,12 @@ const styles = {
 	dismissOverlay: new Style({
 		bottom: 0,
 		left: 0,
-		position: 'absolute',
+		position: 'absolute' as const,
 		right: 0,
 		top: theme.headerHeight,
 	}),
 	lastTabWrap: new Style({}),
-	leadingFabSlot: new Style({
+	leadingFabSlot: new Style<Layout>({
 		alignItems: 'center',
 		justifyContent: 'flex-start',
 		paddingLeft: 6,
@@ -196,11 +195,11 @@ const styles = {
 	}),
 	libraryTabs: new Style({
 		backgroundColor: theme.colors.transparent,
-		flexDirection: 'row',
+		flexDirection: 'row' as const,
 		left: 0,
 		minHeight: theme.headerHeight,
 		paddingBottom: 4,
-		position: 'absolute',
+		position: 'absolute' as const,
 		right: 0,
 		top: 0,
 		width: '100%',
@@ -209,37 +208,37 @@ const styles = {
 	libraryTabsOpen: new Style({
 		backgroundColor: theme.colors.transparent,
 		bottom: 0,
-		flexDirection: 'row',
+		flexDirection: 'row' as const,
 		left: 0,
 		minHeight: theme.headerHeight,
 		paddingBottom: 4,
-		position: 'absolute',
+		position: 'absolute' as const,
 		right: 0,
 		top: 0,
 		width: '100%',
 		zIndex: 10,
 	}),
-	scroll: new Style({
-		flex: 1,
+	scroll: new Style<Layout>({
+		flexGrow: 1,
 		paddingTop: 4,
 	}),
-	scrollHint: new Style({
+	scrollHint: new Style<Label>({
 		...theme.text.mainBold,
 		color: theme.colors.grey,
 	}),
 	scrollHintWrap: new Style({
-		alignItems: 'center',
+		alignItems: 'center' as const,
 		backgroundColor: theme.colors.bg,
-		justifyContent: 'center',
+		justifyContent: 'center' as const,
 		paddingLeft: 6,
 		paddingRight: 10,
 	}),
 	scrollViewport: new Style({
-		flex: 1,
+		flexGrow: 1,
 		minWidth: 0,
-		overflow: 'hidden',
+		slowClipping: true,
 	}),
-	tabsRow: new Style({
+	tabsRow: new Style<Layout>({
 		flexDirection: 'row',
 		flexShrink: 0,
 		paddingLeft: 8,

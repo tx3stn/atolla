@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
+import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 
 export interface PlaybackProgressBarViewModel {
 	accentColor: string;
@@ -30,12 +30,11 @@ export class PlaybackProgressBar extends Component<PlaybackProgressBarViewModel>
 		);
 
 		<view
-			accessibilityLabel={this.viewModel.accessibilityLabel}
-			contentDescription={this.viewModel.accessibilityLabel}
+			accessibilityLabel={this.viewModel.accessibilityLabel ?? 'playback-progress-bar'}
 			style={styles.root}
-			testID='playback-progress-bar'
 		>
 			<view
+				accessibilityLabel='playback-progress-track'
 				onLayout={this.handleTrackLayout}
 				onTap={
 					this.viewModel.onProgressTap
@@ -49,12 +48,11 @@ export class PlaybackProgressBar extends Component<PlaybackProgressBarViewModel>
 						: undefined
 				}
 				style={trackStyle}
-				testID='playback-progress-track'
 			>
-				<view style={railStyle} testID='playback-progress-rail'>
-					<view style={fillStyle} testID='playback-progress-fill'>
+				<view style={railStyle}>
+					<view accessibilityLabel='playback-progress-fill' style={fillStyle}>
 						{progressRatio > 0 && (
-							<view style={playheadStyle} testID='playback-progress-playhead' />
+							<view accessibilityLabel='playback-progress-playhead' style={playheadStyle} />
 						)}
 					</view>
 				</view>
@@ -63,10 +61,10 @@ export class PlaybackProgressBar extends Component<PlaybackProgressBarViewModel>
 	}
 }
 
-function createTrackStyle(thickness: number): Style {
+function createTrackStyle(thickness: number): Style<View> {
 	const clampedThickness = Math.max(2, thickness);
 	const hitHeight = Math.max(24, clampedThickness + 10);
-	return new Style({
+	return new Style<View>({
 		height: hitHeight,
 		justifyContent: 'center',
 		position: 'relative',
@@ -74,9 +72,9 @@ function createTrackStyle(thickness: number): Style {
 	});
 }
 
-function createRailStyle(trackColor: string, thickness: number): Style {
+function createRailStyle(trackColor: string, thickness: number): Style<View> {
 	const clampedThickness = Math.max(2, thickness);
-	return new Style({
+	return new Style<View>({
 		backgroundColor: trackColor,
 		borderRadius: clampedThickness / 2,
 		height: clampedThickness,
@@ -85,8 +83,8 @@ function createRailStyle(trackColor: string, thickness: number): Style {
 	});
 }
 
-function createFillStyle(accentColor: string, progressRatio: number): Style {
-	return new Style({
+function createFillStyle(accentColor: string, progressRatio: number): Style<View> {
+	return new Style<View>({
 		alignItems: 'flex-end',
 		backgroundColor: accentColor,
 		borderRadius: 999,
@@ -97,19 +95,16 @@ function createFillStyle(accentColor: string, progressRatio: number): Style {
 	});
 }
 
-function createPlayheadStyle(accentColor: string, thickness: number): Style {
+function createPlayheadStyle(accentColor: string, thickness: number): Style<View> {
 	const size = Math.max(10, thickness + 6);
-	return new Style({
+	return new Style<View>({
 		backgroundColor: accentColor,
 		borderColor: '#ffffff',
 		borderRadius: size / 2,
 		borderWidth: 1,
+		boxShadow: '0 1 2 rgba(0,0,0,0.25)',
 		height: size,
 		marginRight: -size / 2,
-		shadowColor: '#000000',
-		shadowOffset: { height: 1, width: 0 },
-		shadowOpacity: 0.25,
-		shadowRadius: 2,
 		width: size,
 	});
 }

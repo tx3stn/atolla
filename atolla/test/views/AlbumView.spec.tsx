@@ -13,7 +13,7 @@ const mockNavigator = {
 	pushComponent: () => {},
 };
 
-function makeNavigationController() {
+function _makeNavigationController() {
 	let pushedComponent = null;
 	let pushedViewModel = null;
 	const navigationController = {
@@ -168,11 +168,18 @@ describe('AlbumView', () => {
 			track: null,
 		};
 
-		const navigationController = makeNavigationController();
+		let pushedPage = null;
+		const trackingNavigator = {
+			...mockNavigator,
+			__shouldDisableMakeOpaque: true,
+			pushComponent: (page) => {
+				pushedPage = page;
+			},
+		};
 		const instrumented = createComponent(
 			AlbumView,
-			{ album, downloadService, navigationController, playbackStore, transport },
-			{ navigator: mockNavigator },
+			{ album, downloadService, playbackStore, transport },
+			{ navigator: trackingNavigator },
 		);
 		const component = instrumented.getComponent();
 		component.setState({
@@ -182,14 +189,12 @@ describe('AlbumView', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const artistLogo = views.find(
-			(view) => view.getAttribute('testID') === 'detail-header-artist-logo',
+			(view) => view.getAttribute('accessibilityLabel') === 'detail-header-artist-logo',
 		);
 		artistLogo?.getAttribute('onTap')?.();
 
-		const { component: pushedComponent, viewModel: pushedViewModel } =
-			navigationController.getPushed();
-		expect(pushedComponent).toBe(ArtistView);
-		expect(pushedViewModel?.artist?.id).toBe('artist-1');
+		expect(pushedPage?.componentPath).toBe(ArtistView.componentPath);
+		expect(pushedPage?.componentViewModel?.artist?.id).toBe('artist-1');
 	});
 
 	valdiIt(

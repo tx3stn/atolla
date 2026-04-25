@@ -1,8 +1,7 @@
-// @ts-nocheck
-
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
+import type { Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { CardDetail } from './CardDetail';
 
 export interface CardDetailItem {
@@ -24,11 +23,7 @@ export class CardDetailList extends Component<CardDetailListViewModel> {
 	onRender() {
 		const { accessibilityLabel, cards, onCardTap } = this.viewModel;
 
-		<layout
-			accessibilityLabel={accessibilityLabel}
-			contentDescription={accessibilityLabel}
-			style={styles.list}
-		>
+		<layout accessibilityLabel={accessibilityLabel} style={styles.list}>
 			{cards.map((entry, index) => {
 				return (
 					<view
@@ -54,14 +49,14 @@ export class CardDetailList extends Component<CardDetailListViewModel> {
 }
 
 const styles = {
-	list: new Style({
+	list: new Style<Layout>({
 		width: '100%',
 	}),
-	rowWrap: new Style({
+	rowWrap: new Style<View>({
 		marginBottom: 12,
 		width: '100%',
 	}),
-	rowWrapLast: new Style({
+	rowWrapLast: new Style<View>({
 		width: '100%',
 	}),
 };

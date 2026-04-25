@@ -1,8 +1,6 @@
-// @ts-nocheck
-
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
 
@@ -18,16 +16,9 @@ export interface CardDetailViewModel {
 
 export class CardDetail extends Component<CardDetailViewModel> {
 	onRender() {
-		const { accessibilityLabel, artworkKey, lineOne, lineThree, lineTwo, onTap, testID } =
-			this.viewModel;
+		const { accessibilityLabel, artworkKey, lineOne, lineThree, lineTwo, onTap } = this.viewModel;
 
-		<view
-			accessibilityLabel={accessibilityLabel}
-			contentDescription={accessibilityLabel}
-			onTap={onTap}
-			style={styles.row}
-			testID={testID}
-		>
+		<view accessibilityLabel={accessibilityLabel} onTap={onTap} style={styles.row}>
 			<view style={styles.artworkTile}>
 				{artworkKey ? (
 					<CachedImage
@@ -51,27 +42,6 @@ export class CardDetail extends Component<CardDetailViewModel> {
 	}
 }
 
-const rowBase = {
-	alignItems: 'center',
-	backgroundColor: theme.colors.bgRaised,
-	borderRadius: theme.borderRadius,
-	flexDirection: 'row',
-	minHeight: 75,
-	paddingRight: 12,
-	width: '100%',
-};
-
-const artworkTileBase = {
-	alignItems: 'center',
-	aspectRatio: 1,
-	borderRadius: theme.borderRadius,
-	flexShrink: 0,
-	justifyContent: 'center',
-	marginRight: 14,
-	overflow: 'hidden',
-	width: 20,
-};
-
 const styles = {
 	artworkFallbackLabel: new Style<Label>({
 		...theme.text.main,
@@ -83,8 +53,14 @@ const styles = {
 		height: '100%',
 		width: '100%',
 	}),
-	artworkTile: new Style({
-		...artworkTileBase,
+	artworkTile: new Style<View>({
+		alignItems: 'center',
+		aspectRatio: 1,
+		borderRadius: theme.borderRadius,
+		flexShrink: 0,
+		justifyContent: 'center',
+		marginRight: 14,
+		slowClipping: true,
 		width: '25%',
 	}),
 	lineOne: new Style<Label>({
@@ -97,8 +73,16 @@ const styles = {
 		...theme.text.main,
 		marginTop: 2,
 	}),
-	row: new Style(rowBase),
-	textColumn: new Style({
+	row: new Style<View>({
+		alignItems: 'center',
+		backgroundColor: theme.colors.bgRaised,
+		borderRadius: theme.borderRadius,
+		flexDirection: 'row',
+		minHeight: 75,
+		paddingRight: 12,
+		width: '100%',
+	}),
+	textColumn: new Style<Layout>({
 		flexGrow: 1,
 		flexShrink: 1,
 		height: '100%',
@@ -106,7 +90,7 @@ const styles = {
 		paddingBottom: 10,
 		paddingTop: 5,
 	}),
-	textTop: new Style({
+	textTop: new Style<Layout>({
 		width: '100%',
 	}),
 };

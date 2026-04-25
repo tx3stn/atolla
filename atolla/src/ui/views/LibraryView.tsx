@@ -1,15 +1,15 @@
-// @ts-nocheck
-
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
+import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
 import type { Playlist } from '../../models/Playlist';
 import type { DownloadService } from '../../services/DownloadService';
+import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
@@ -34,6 +34,7 @@ export interface LibraryViewModel {
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
 	gridColumns: number;
+	imageCache: ImageCache;
 	letterFilter?: string | null;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -260,11 +261,11 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 }
 
 const styles = {
-	root: new Style({
+	root: new Style<View>({
 		flexGrow: 1,
 		width: '100%',
 	}),
-	tabTransitionOverlay: new Style({
+	tabTransitionOverlay: new Style<View>({
 		backgroundColor: theme.colors.bg,
 		bottom: 0,
 		left: 0,

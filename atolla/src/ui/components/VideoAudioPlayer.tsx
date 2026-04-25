@@ -1,7 +1,8 @@
-// @ts-nocheck
 import { makeAssetFromUrl } from 'valdi_core/src/Asset';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { Asset } from 'valdi_tsx/src/Asset';
+import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { PlaybackStore } from '../../stores/Playback';
 
 const PRE_ROLL_THRESHOLD_MS = 1500;
@@ -41,7 +42,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 	private hasReportedProgressForSource = false;
 	private hasSignaledNearingEnd = false;
 	private lastNextSourceUrl = '';
-	private resolvedSourceAsset: unknown = null;
+	private resolvedSourceAsset: Asset | null = null;
 	private resolvedSourceString = '';
 
 	onDestroy(): void {
@@ -368,7 +369,7 @@ export class VideoAudioPlayer extends StatefulComponent<
 }
 
 const styles = {
-	hiddenAudioVideo: new Style({
+	hiddenAudioVideo: new Style<View>({
 		height: 1,
 		opacity: 0,
 		position: 'absolute',

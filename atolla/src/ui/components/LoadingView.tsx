@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { LoopingArrowSpinner } from './LoopingArrowSpinner';
 
@@ -19,7 +18,7 @@ const styles = {
 		...theme.text.sub,
 		marginBottom: 12,
 	}),
-	root: new Style({
+	root: new Style<Layout>({
 		alignItems: 'center',
 		flexDirection: 'column',
 		flexGrow: 1,

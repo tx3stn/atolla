@@ -29,8 +29,12 @@ describe('TrackList', () => {
 		const component = instrumented.getComponent();
 
 		const rows = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		expect(rows.some((row) => row.getAttribute('testID') === 'track-row-a-0')).toBe(true);
-		expect(rows.some((row) => row.getAttribute('testID') === 'track-row-b-1')).toBe(true);
+		expect(rows.some((row) => row.getAttribute('accessibilityLabel') === 'track-row-a-0')).toBe(
+			true,
+		);
+		expect(rows.some((row) => row.getAttribute('accessibilityLabel') === 'track-row-b-1')).toBe(
+			true,
+		);
 	});
 
 	valdiIt('renders track title and meta labels', () => {
@@ -59,9 +63,9 @@ describe('TrackList', () => {
 		const title = labels.find((label) => label.getAttribute('value') === 'Very long track title');
 		const meta = labels.find((label) => label.getAttribute('value') === 'Very long metadata line');
 
-		expect(title?.getAttribute('ellipsizeMode')).toBe('tail');
+		expect(title?.getAttribute('textOverflow')).toBe('ellipsis');
 		expect(title?.getAttribute('numberOfLines')).toBe(2);
-		expect(meta?.getAttribute('ellipsizeMode')).toBe('tail');
+		expect(meta?.getAttribute('textOverflow')).toBe('ellipsis');
 		expect(meta?.getAttribute('numberOfLines')).toBe(1);
 	});
 
@@ -78,7 +82,7 @@ describe('TrackList', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const swipeRegion = views.find(
-			(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 		);
 		swipeRegion?.getAttribute('onTap')?.();
 
@@ -116,7 +120,7 @@ describe('TrackList', () => {
 				IRenderedElementViewClass.View,
 			);
 			const swipeRegion = views.find(
-				(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 			);
 			swipeRegion?.getAttribute('onTouch')?.({ state: 0 });
 			jasmine.clock().tick(500);
@@ -158,7 +162,7 @@ describe('TrackList', () => {
 				IRenderedElementViewClass.View,
 			);
 			const swipeRegion = views.find(
-				(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 			);
 			swipeRegion?.getAttribute('onTouch')?.({ state: 0 });
 			jasmine.clock().tick(500);
@@ -200,7 +204,7 @@ describe('TrackList', () => {
 				IRenderedElementViewClass.View,
 			);
 			const swipeRegion = views.find(
-				(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 			);
 			swipeRegion?.getAttribute('onTouch')?.({ state: 0 });
 			swipeRegion?.getAttribute('onTouch')?.({ state: 1 });
@@ -245,12 +249,12 @@ describe('TrackList', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const handle = views.find(
-			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-1-0',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
 		);
 		handle?.getAttribute('onTap')?.();
 
 		const swipeRegion = views.find(
-			(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 		);
 		swipeRegion?.getAttribute('onDrag')?.({ deltaX: -70, deltaY: 0, state: 1, velocityX: -100 });
 		swipeRegion?.getAttribute('onDrag')?.({ deltaX: -70, deltaY: 0, state: 2, velocityX: -100 });
@@ -270,12 +274,12 @@ describe('TrackList', () => {
 		const component = instrumented.getComponent();
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const removeAction = views.find(
-			(view) => view.getAttribute('testID') === 'track-row-remove-action-track-1-0',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-remove-action-track-1-0',
 		);
 		expect(removeAction?.getAttribute('style').attributes.opacity).toBe(0);
 
 		const swipeRegion = views.find(
-			(view) => view.getAttribute('testID') === 'track-row-swipe-region-track-1-0',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 		);
 		swipeRegion?.getAttribute('onDrag')?.({ deltaX: -44, deltaY: 0, state: 1, velocityX: -100 });
 		expect(removeAction?.getAttribute('opacity')).toBeGreaterThan(0);
@@ -285,7 +289,7 @@ describe('TrackList', () => {
 			IRenderedElementViewClass.Image,
 		);
 		const removeIcon = images.find(
-			(image) => image.getAttribute('testID') === 'track-row-remove-icon-track-1-0',
+			(image) => image.getAttribute('accessibilityLabel') === 'track-row-remove-icon-track-1-0',
 		);
 
 		expect(removeIcon).toBeDefined();
@@ -309,10 +313,10 @@ describe('TrackList', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const handle = views.find(
-			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-1-0',
+		const dragContainer = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
 		);
-		handle?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 70, state: 2, velocityY: 120 });
+		dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 70, state: 2, velocityY: 120 });
 
 		expect(reordered).toEqual([0, 1]);
 	});
@@ -330,20 +334,22 @@ describe('TrackList', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const handle = views.find(
-			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-1-0',
+		const dragContainer = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
 		);
-		const row = views.find((view) => view.getAttribute('testID') === 'track-row-track-1-0');
+		const row = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-track-1-0',
+		);
 
-		handle?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 42, state: 1, velocityY: 0 });
-		expect(row?.getAttribute('top')).toBe(42);
-		expect(row?.getAttribute('bottom')).toBe(-42);
+		dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 42, state: 1, velocityY: 0 });
+		expect(dragContainer?.getAttribute('top')).toBe(42);
+		expect(dragContainer?.getAttribute('bottom')).toBe(-42);
 		expect(row?.getAttribute('zIndex')).toBe(20);
 		expect(row?.getAttribute('backgroundColor')).toBe('rgba(45,120,206,0.28)');
 
-		handle?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 42, state: 2, velocityY: 90 });
-		expect(row?.getAttribute('top')).toBe(0);
-		expect(row?.getAttribute('bottom')).toBe(0);
+		dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 42, state: 2, velocityY: 90 });
+		expect(dragContainer?.getAttribute('top')).toBe(72);
+		expect(dragContainer?.getAttribute('bottom')).toBe(-72);
 		expect(row?.getAttribute('zIndex')).toBe(0);
 		expect(row?.getAttribute('backgroundColor')).toBe(theme.colors.bg);
 	});
@@ -367,10 +373,10 @@ describe('TrackList', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const handle = views.find(
-			(view) => view.getAttribute('testID') === 'track-row-edit-handle-track-2-1',
+		const dragContainer = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-2-1',
 		);
-		handle?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: -300, state: 2, velocityY: -800 });
+		dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: -300, state: 2, velocityY: -800 });
 
 		expect(fromIndex).toBe(1);
 		expect(toIndex).toBe(0);
@@ -415,7 +421,7 @@ describe('TrackList', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const row = views.find((view) => view.getAttribute('testID') === 'track-row-a-0');
+		const row = views.find((view) => view.getAttribute('accessibilityLabel') === 'track-row-a-0');
 		expect(row?.getAttribute('style').attributes.backgroundColor).toBe('#223344');
 
 		const labels = elementTypeFind(
@@ -434,7 +440,7 @@ describe('TrackList', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const row = views.find((view) => view.getAttribute('testID') === 'track-row-a-0');
+		const row = views.find((view) => view.getAttribute('accessibilityLabel') === 'track-row-a-0');
 		expect(row?.getAttribute('style').attributes.backgroundColor).toBe(theme.colors.bg);
 	});
 });

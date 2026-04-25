@@ -1,8 +1,7 @@
-// @ts-nocheck
 import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 
 const TRANSITION_DISPLAY_MS = 2000;
@@ -145,7 +144,6 @@ export class ConnectivityFab extends StatefulComponent<
 		<view style={styles.root}>
 			<view
 				accessibilityLabel='connectivity-fab'
-				contentDescription='connectivity-fab'
 				onTap={isEnabled ? this.handleTap : undefined}
 				style={styles.hitTarget}
 			>
@@ -158,7 +156,7 @@ export class ConnectivityFab extends StatefulComponent<
 }
 
 const styles = {
-	hitTarget: new Style({
+	hitTarget: new Style<View>({
 		alignItems: 'center',
 		height: 46,
 		justifyContent: 'center',
@@ -170,10 +168,10 @@ const styles = {
 		height: 34,
 		width: 34,
 	}),
-	logoWrap: new Style({
+	logoWrap: new Style<View>({
 		position: 'relative',
 	}),
-	root: new Style({
+	root: new Style<View>({
 		position: 'relative',
 	}),
 };

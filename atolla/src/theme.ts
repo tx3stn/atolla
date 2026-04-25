@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 
 const colors = {

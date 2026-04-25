@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
@@ -31,7 +30,7 @@ export class BioSection extends Component<BioSectionViewModel> {
 					});
 				}}
 			>
-				<label ellipsizeMode='tail' numberOfLines={3} style={styles.bioText} value={bio} />
+				<label numberOfLines={3} style={styles.bioText} textOverflow='ellipsis' value={bio} />
 			</view>
 		</layout>;
 	}

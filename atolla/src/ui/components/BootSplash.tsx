@@ -1,7 +1,7 @@
-// @ts-nocheck
 import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 export interface BootSplashViewModel {
@@ -19,7 +19,7 @@ export class BootSplash extends Component<BootSplashViewModel> {
 }
 
 const styles = {
-	logoContainer: new Style({
+	logoContainer: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bg,
 		height: 80,
@@ -27,11 +27,11 @@ const styles = {
 		marginBottom: 16,
 		width: 80,
 	}),
-	logoImage: new Style({
+	logoImage: new Style<View>({
 		height: 80,
 		width: 80,
 	}),
-	root: new Style({
+	root: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bg,
 		height: '100%',

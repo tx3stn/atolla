@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 
 interface RippleAnimator {
 	animatePromise(options: object, callback: () => void): Promise<void>;
@@ -24,7 +23,7 @@ export const iconImageStyle = new Style<ImageView>({
 	width: 24,
 });
 
-export function createRippleStyle(tint: string, hitSize = 40): Style {
+export function createRippleStyle(tint: string, hitSize = 40): Style<View> {
 	const center = hitSize / 2;
 	return new Style({
 		backgroundColor: tint,

@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { BlurView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { BlurView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import type { ClearCacheSelection } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { Checkbox } from './Checkbox';
@@ -68,7 +67,6 @@ export class CacheClearModal extends StatefulComponent<
 			<view onTap={this.viewModel.onCancel} style={styles.centeredContainer}>
 				<view
 					accessibilityLabel='cache-clear-modal'
-					contentDescription='cache-clear-modal'
 					onTap={this.stopPropagation}
 					style={styles.card}
 				>
@@ -117,7 +115,6 @@ export class CacheClearModal extends StatefulComponent<
 					<view style={styles.actions}>
 						<view
 							accessibilityLabel='cache-clear-confirm-btn'
-							contentDescription='cache-clear-confirm-btn'
 							onTap={anySelected ? this.handleConfirm : undefined}
 							style={anySelected ? styles.confirmButton : styles.confirmButtonDisabled}
 						>
@@ -126,7 +123,6 @@ export class CacheClearModal extends StatefulComponent<
 						<view style={styles.actionSeparator} />
 						<view
 							accessibilityLabel='cache-clear-cancel-btn'
-							contentDescription='cache-clear-cancel-btn'
 							onTap={this.viewModel.onCancel}
 							style={styles.cancelButton}
 						>
@@ -140,7 +136,7 @@ export class CacheClearModal extends StatefulComponent<
 }
 
 const styles = {
-	actionLabel: new Style({
+	actionLabel: new Style<Label>({
 		...theme.text.main,
 		textAlign: 'center',
 	}),
@@ -148,7 +144,7 @@ const styles = {
 		backgroundColor: theme.colors.separator,
 		width: 1,
 	}),
-	actions: new Style({
+	actions: new Style<Layout>({
 		flexDirection: 'row',
 	}),
 	backdrop: new Style<BlurView>({
@@ -160,7 +156,7 @@ const styles = {
 		top: 0,
 		zIndex: 100,
 	}),
-	cancelButton: new Style({
+	cancelButton: new Style<Layout>({
 		alignItems: 'center',
 		padding: 14,
 		width: '50%',
@@ -173,20 +169,20 @@ const styles = {
 		padding: 20,
 		width: '90%',
 	}),
-	centeredContainer: new Style({
+	centeredContainer: new Style<Layout>({
 		alignItems: 'center',
-		flex: 1,
+		flexGrow: 1,
 		height: '100%',
 		justifyContent: 'center',
 		width: '100%',
 	}),
-	confirmButton: new Style({
+	confirmButton: new Style<Layout>({
 		alignItems: 'center',
 		padding: 14,
 		width: '50%',
 	}),
 	confirmButtonDisabled: new Style({
-		alignItems: 'center',
+		alignItems: 'center' as const,
 		opacity: 0.4,
 		padding: 14,
 		width: '50%',

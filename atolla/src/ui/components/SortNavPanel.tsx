@@ -1,7 +1,7 @@
-// @ts-nocheck
 import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 export type SortOrder = 'a-z' | 'z-a' | 'new-old' | 'old-new';
@@ -32,7 +32,7 @@ export interface SortNavPanelViewModel {
 
 export class SortNavPanel extends Component<SortNavPanelViewModel> {
 	onRender() {
-		const { activeLetterFilter, currentSort, onLetterTap, onSortChange } = this.viewModel;
+		const { activeLetterFilter, onLetterTap } = this.viewModel;
 
 		<view style={styles.panel}>
 			<view style={styles.alphabetGrid}>
@@ -105,12 +105,12 @@ export class SortNavPanel extends Component<SortNavPanelViewModel> {
 }
 
 const styles = {
-	alphabetGrid: new Style({
+	alphabetGrid: new Style<Layout>({
 		flexDirection: 'column',
 		paddingLeft: 8,
 		paddingRight: 8,
 	}),
-	alphabetRow: new Style({
+	alphabetRow: new Style<Layout>({
 		flexDirection: 'row',
 		justifyContent: 'space-evenly',
 	}),
@@ -122,7 +122,7 @@ const styles = {
 		marginRight: 4,
 		marginTop: 8,
 	}),
-	letterButton: new Style({
+	letterButton: new Style<Layout>({
 		alignItems: 'center',
 		height: 24,
 		justifyContent: 'center',
@@ -131,29 +131,28 @@ const styles = {
 		width: 24,
 	}),
 	letterButtonActive: new Style({
-		alignItems: 'center',
+		alignItems: 'center' as const,
 		borderRadius: 12,
 		height: 24,
-		justifyContent: 'center',
+		justifyContent: 'center' as const,
 		marginLeft: 1,
 		marginRight: 1,
-		overflow: 'hidden',
-		position: 'relative',
+		position: 'relative' as const,
+		slowClipping: true,
 		width: 24,
 	}),
-	letterGradient: new Style({
+	letterGradient: new Style<ImageView>({
 		borderRadius: 999,
 		bottom: 0,
 		left: 0,
-		padding: 4,
-		position: 'absolute',
+		position: 'absolute' as const,
 		right: 0,
 		top: 0,
 	}),
-	letterLabel: new Style({
+	letterLabel: new Style<Label>({
 		...theme.text.mainMuted,
 	}),
-	letterLabelActive: new Style({
+	letterLabelActive: new Style<Label>({
 		...theme.text.mainMuted,
 		color: theme.colors.bg,
 	}),
@@ -163,7 +162,7 @@ const styles = {
 		left: 16,
 		paddingBottom: 10,
 		paddingTop: 10,
-		position: 'absolute',
+		position: 'absolute' as const,
 		right: 16,
 		top: theme.headerHeight + 6,
 		zIndex: 11,
@@ -172,35 +171,35 @@ const styles = {
 		backgroundColor: theme.colors.bgRaised,
 		borderRadius: 20,
 		marginRight: 8,
-		overflow: 'hidden',
 		paddingBottom: 7,
 		paddingLeft: 14,
 		paddingRight: 14,
 		paddingTop: 7,
-		position: 'relative',
+		position: 'relative' as const,
+		slowClipping: true,
 	}),
 	pillActive: new Style({
 		borderRadius: 20,
 		marginRight: 8,
-		overflow: 'hidden',
 		paddingBottom: 7,
 		paddingLeft: 14,
 		paddingRight: 14,
 		paddingTop: 7,
-		position: 'relative',
+		position: 'relative' as const,
+		slowClipping: true,
 	}),
 	pillGradient: new Style({
 		borderRadius: 20,
 		bottom: 0,
 		left: 0,
-		position: 'absolute',
+		position: 'absolute' as const,
 		right: 0,
 		top: 0,
 	}),
-	pillLabel: new Style({
+	pillLabel: new Style<Label>({
 		...theme.text.mainMuted,
 	}),
-	pillLabelActive: new Style({
+	pillLabelActive: new Style<Label>({
 		...theme.text.mainMuted,
 		color: theme.colors.bg,
 	}),
@@ -209,7 +208,7 @@ const styles = {
 		marginLeft: 10,
 		padding: 8,
 	}),
-	sortRow: new Style({
+	sortRow: new Style<Layout>({
 		flexDirection: 'row',
 		paddingLeft: 8,
 		paddingRight: 8,

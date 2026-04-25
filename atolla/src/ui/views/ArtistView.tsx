@@ -1,9 +1,9 @@
-// @ts-nocheck
 import { Style } from 'valdi_core/src/Style';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
+import type { Label, Layout, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
@@ -149,7 +149,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
 	};
 
-	handleAlbumCardTap = (card: Card): void => {
+	handleAlbumCardTap = (card: { id: string; kind: Card['kind'] }): void => {
 		const album = this.state.albums.find((candidate) => candidate.id === card.id);
 		if (!album) {
 			return;
@@ -188,7 +188,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		);
 	};
 
-	handleAlbumCardLongPress = (card: Card): void => {
+	handleAlbumCardLongPress = (card: { id: string; kind: Card['kind'] }): void => {
 		const album = this.state.albums.find((candidate) => candidate.id === card.id);
 		if (!album) {
 			return;
@@ -263,10 +263,19 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			topTracksLoaded: false,
 		});
 
-		Promise.allSettled([
-			transport.getAlbumsByArtist(artist.id),
-			transport.getTracksByArtist(artist.id),
-			transport.getArtistTopTracks(artist.id),
+		Promise.all([
+			transport
+				.getAlbumsByArtist(artist.id)
+				.then((v) => ({ status: 'fulfilled' as const, value: v }))
+				.catch((r) => ({ reason: r, status: 'rejected' as const })),
+			transport
+				.getTracksByArtist(artist.id)
+				.then((v) => ({ status: 'fulfilled' as const, value: v }))
+				.catch((r) => ({ reason: r, status: 'rejected' as const })),
+			transport
+				.getArtistTopTracks(artist.id)
+				.then((v) => ({ status: 'fulfilled' as const, value: v }))
+				.catch((r) => ({ reason: r, status: 'rejected' as const })),
 		]).then(([albumsResult, allTracksResult, topTracksResult]) => {
 			if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
 				return;
@@ -378,7 +387,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			...albums.map((album) => album.genres),
 		]);
 
-		<layout accessibilityLabel='artist-view' contentDescription='artist-view' style={styles.root}>
+		<layout accessibilityLabel='artist-view' style={styles.root}>
 			<scroll style={scrollStyle}>
 				<DetailHeader
 					animationsEnabled={animationsEnabled}
@@ -489,7 +498,7 @@ const styles = {
 		...theme.text.mutedHeader,
 		margin: 8,
 	}),
-	sectionHeaderRow: new Style({
+	sectionHeaderRow: new Style<Layout>({
 		alignItems: 'center',
 		flexDirection: 'row',
 		justifyContent: 'space-between',
@@ -497,8 +506,8 @@ const styles = {
 	}),
 };
 
-function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style {
-	return new Style({
+function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style<ScrollView> {
+	return new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,

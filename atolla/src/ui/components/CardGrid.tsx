@@ -1,8 +1,8 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
-import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { DragEvent, TouchEvent } from 'valdi_tsx/src/GestureEvents';
+import type { ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import type { ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
@@ -46,7 +46,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 			accessibilityLabel,
 			cacheVersion,
 			cards,
-			columnCount,
+			columnCount: rawColumnCount,
 			infiniteScrollTriggerRatio,
 			isLoadingMore,
 			onCardLongPress,
@@ -55,6 +55,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 			onRetryLoadMore,
 			resolveArtworkSource,
 		} = this.viewModel;
+		const columnCount = rawColumnCount ?? 2;
 
 		const rows: Array<Array<Card>> = [];
 		for (let i = 0; i < cards.length; i += columnCount) {
@@ -69,11 +70,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 					)
 				: -1;
 
-		<layout
-			accessibilityLabel={accessibilityLabel}
-			contentDescription={accessibilityLabel}
-			style={styles.grid}
-		>
+		<layout accessibilityLabel={accessibilityLabel} style={styles.grid}>
 			{rows.map((row, rowIndex) => (
 				<layout
 					key={`row-${rowIndex}`}
@@ -88,7 +85,6 @@ export class CardGrid extends Component<CardGridViewModel> {
 							<layout key={entry.id} style={createBrowseCardStyle(columnCount)}>
 								<view
 									accessibilityLabel={`card-${entry.id}`}
-									contentDescription={`card-${entry.id}`}
 									onTap={createReusableCallback(() => {
 										if (this.suppressNextTap) {
 											this.suppressNextTap = false;
@@ -104,7 +100,6 @@ export class CardGrid extends Component<CardGridViewModel> {
 											: undefined
 									}
 									style={styles.artworkTile}
-									testID={`card-${entry.id}`}
 								>
 									{artworkKey ? (
 										<CachedImage
@@ -126,12 +121,10 @@ export class CardGrid extends Component<CardGridViewModel> {
 					{rowIndex === triggerRowIndex && (
 						<view
 							accessibilityLabel='grid-prefetch-trigger'
-							contentDescription='grid-prefetch-trigger'
 							onLayout={createReusableCallback(() => {
 								this.handleAutoLoadTriggerLayout();
 							})}
 							style={styles.prefetchTrigger}
-							testID='grid-prefetch-trigger'
 						/>
 					)}
 				</layout>
@@ -141,12 +134,10 @@ export class CardGrid extends Component<CardGridViewModel> {
 			) : onRetryLoadMore ? (
 				<view
 					accessibilityLabel='grid-load-more-retry'
-					contentDescription='grid-load-more-retry'
 					onTap={createReusableCallback(() => {
 						onRetryLoadMore();
 					})}
 					style={styles.loadMoreRetryContainer}
-					testID='grid-load-more-retry'
 				>
 					<label style={styles.loadMoreRetryLabel} value='Failed to load more. Tap to retry.' />
 				</view>
@@ -168,14 +159,15 @@ export class CardGrid extends Component<CardGridViewModel> {
 		onLoadMore();
 	}
 
-	private handleCardTouch(event, cardId: string, kind: Card['kind']): void {
+	private handleCardTouch(event: TouchEvent, cardId: string, kind: Card['kind']): void {
 		if (event.state === TouchEventState.Started) {
 			this.scheduleCardLongPress(cardId, kind);
 			return;
 		}
 
 		if (event.state === TouchEventState.Changed) {
-			if (Math.abs(event.deltaX) > 5 || Math.abs(event.deltaY) > 5) {
+			const drag = event as DragEvent;
+			if (Math.abs(drag.deltaX) > 5 || Math.abs(drag.deltaY) > 5) {
 				this.cancelCardLongPress();
 			}
 			return;
@@ -224,12 +216,12 @@ const styles = {
 		width: '100%',
 	}),
 	artworkTile: new Style({
-		alignItems: 'center',
+		alignItems: 'center' as const,
 		aspectRatio: 1,
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.borderRadius,
-		justifyContent: 'center',
-		overflow: 'hidden',
+		justifyContent: 'center' as const,
+		slowClipping: true,
 		width: '100%',
 	}),
 	browseCardBase: {
@@ -237,7 +229,7 @@ const styles = {
 		paddingTop: 12,
 		rowGap: 4,
 	},
-	cardGridRowFull: new Style({
+	cardGridRowFull: new Style<Layout>({
 		flexDirection: 'row',
 		flexShrink: 0,
 		justifyContent: 'space-between',
@@ -246,9 +238,9 @@ const styles = {
 	}),
 	cardGridRowPartial: new Style({
 		columnGap: '1%',
-		flexDirection: 'row',
+		flexDirection: 'row' as const,
 		flexShrink: 0,
-		justifyContent: 'flex-start',
+		justifyContent: 'flex-start' as const,
 		marginBottom: 4,
 		width: '100%',
 	}),
@@ -270,10 +262,11 @@ const styles = {
 		marginTop: 12,
 		textAlign: 'center',
 	}),
-	loadMoreRetryContainer: new Style({
+	loadMoreRetryContainer: new Style<Layout>({
 		alignItems: 'center',
 		marginTop: 12,
-		paddingVertical: 8,
+		paddingBottom: 8,
+		paddingTop: 8,
 	}),
 	loadMoreRetryLabel: new Style<Label>({
 		...theme.text.main,
@@ -285,9 +278,9 @@ const styles = {
 	}),
 };
 
-const browseCardStyleByColumnCount: Record<number, Style> = {};
+const browseCardStyleByColumnCount: Record<number, Style<Layout>> = {};
 
-function createBrowseCardStyle(columnCount: number): Style {
+function createBrowseCardStyle(columnCount: number): Style<Layout> {
 	if (browseCardStyleByColumnCount[columnCount]) {
 		return browseCardStyleByColumnCount[columnCount];
 	}

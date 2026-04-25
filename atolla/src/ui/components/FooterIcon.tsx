@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Asset } from 'valdi_tsx/src/Asset';
+import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 export interface FooterIconView {
@@ -9,14 +9,13 @@ export interface FooterIconView {
 	action: () => void;
 	active?: boolean;
 	badgeCount?: number;
-	icon: unknown;
+	icon: string | Asset;
 }
 
 export class FooterIcon extends Component<FooterIconView> {
 	onRender() {
 		<view
 			accessibilityLabel={this.viewModel.accessibilityLabel}
-			contentDescription={this.viewModel.accessibilityLabel}
 			onTap={this.viewModel.action}
 			style={styles.footerTabChip}
 		>
@@ -35,7 +34,7 @@ export class FooterIcon extends Component<FooterIconView> {
 }
 
 const styles = {
-	badge: new Style({
+	badge: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.active,
 		borderRadius: 999,
@@ -53,7 +52,7 @@ const styles = {
 		...theme.text.sub,
 		color: theme.colors.white,
 	}),
-	footerTabChip: new Style({
+	footerTabChip: new Style<View>({
 		alignItems: 'center',
 		flexGrow: 1,
 		justifyContent: 'center',

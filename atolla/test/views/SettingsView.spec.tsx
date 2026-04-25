@@ -46,7 +46,6 @@ describe('SettingsView', () => {
 		);
 
 		expect(clearCacheButton).toBeTruthy();
-		expect(clearCacheButton?.getAttribute('contentDescription')).toBe('settings-cache-clear-btn');
 		expect(typeof clearCacheButton?.getAttribute('onTap')).toBe('function');
 	});
 

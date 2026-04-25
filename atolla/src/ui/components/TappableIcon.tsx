@@ -1,8 +1,8 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Asset } from 'valdi_tsx/src/Asset';
+import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
 
@@ -12,7 +12,7 @@ export interface TappableIconViewModel {
 	disabledTint?: string;
 	enabled?: boolean;
 	hitSize?: number;
-	icon: unknown;
+	icon: string | Asset;
 	iconSize?: number;
 	onTap?: () => void;
 	rippleScale?: number;
@@ -57,7 +57,6 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 
 		<view
 			accessibilityLabel={accessibilityLabel}
-			contentDescription={accessibilityLabel}
 			onTap={isEnabled ? this.handleTap : undefined}
 			style={getButtonStyle(hitSize)}
 		>
@@ -67,16 +66,16 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 	}
 }
 
-const buttonStyleCache = new Map<number, Style>();
+const buttonStyleCache = new Map<number, Style<View>>();
 const iconStyleCache = new Map<number, Style<ImageView>>();
 
-function getButtonStyle(hitSize: number): Style {
+function getButtonStyle(hitSize: number): Style<View> {
 	const existingStyle = buttonStyleCache.get(hitSize);
 	if (existingStyle) {
 		return existingStyle;
 	}
 
-	const createdStyle = new Style({
+	const createdStyle = new Style<View>({
 		alignItems: 'center',
 		height: hitSize,
 		justifyContent: 'center',
@@ -94,7 +93,7 @@ function getIconStyle(iconSize: number): Style<ImageView> {
 		return existingStyle;
 	}
 
-	const createdStyle = new Style({
+	const createdStyle = new Style<ImageView>({
 		height: iconSize,
 		width: iconSize,
 	});

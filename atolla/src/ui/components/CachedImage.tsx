@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView } from 'valdi_tsx/src/NativeTemplateElements';

@@ -1,8 +1,7 @@
-// @ts-nocheck
-
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
+import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Album } from '../../models/Album';
 import type { DownloadService } from '../../services/DownloadService';
@@ -211,7 +210,10 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		void this.loadNextPage();
 	}
 
-	handleAlbumCardLongPress = (card: Card): void => {
+	handleAlbumCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'playlist';
+	}): void => {
 		const album = this.state.albums.find((candidate) => candidate.id === card.id);
 		if (!album) {
 			return;
@@ -327,8 +329,8 @@ function matchesLetterFilter(name: string, letter: string): boolean {
 	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
 }
 
-function createScrollStyle(isFooterVisible: boolean): Style {
-	return new Style({
+function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
+	return new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,

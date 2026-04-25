@@ -1,9 +1,9 @@
-// @ts-nocheck
 import { Style } from 'valdi_core/src/Style';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
+import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
@@ -366,18 +366,14 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
 			id: track.id,
-			meta: track.artistName,
+			meta: track.artistName ?? '',
 			title: track.name,
 			track,
 		}));
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 
-		<layout
-			accessibilityLabel='playlist-view'
-			contentDescription='playlist-view'
-			style={styles.root}
-		>
+		<layout accessibilityLabel='playlist-view' style={styles.root}>
 			<scroll style={createScrollStyle(isFooterVisible, isHeaderVisible)}>
 				<DetailHeader
 					animationsEnabled={this.viewModel.animationsEnabled}
@@ -454,8 +450,8 @@ function formatDuration(seconds: number): string {
 	return h > 0 ? `${h}:${mm}:${String(s).padStart(2, '0')}` : `${mm}:${String(s).padStart(2, '0')}`;
 }
 
-function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style {
-	return new Style({
+function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style<ScrollView> {
+	return new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,

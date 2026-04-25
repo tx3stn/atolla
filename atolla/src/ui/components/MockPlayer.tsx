@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Component } from 'valdi_core/src/Component';
 import type { PlaybackStore } from '../../stores/Playback';
 

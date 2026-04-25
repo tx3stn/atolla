@@ -1,9 +1,9 @@
-// @ts-nocheck
 import { Style } from 'valdi_core/src/Style';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
+import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
@@ -90,7 +90,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			playbackStore,
 			transport,
 		} = this.viewModel;
-		const navigationController = this.viewModel.navigationController ?? this.navigationController;
+		const navigationController = this.navigationController;
 		const pushArtistView = (artist: Artist) => {
 			this.setHeaderVisibility(false);
 			navigationController.push(
@@ -226,7 +226,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	private async navigateToGenre(genre: Genre): Promise<void> {
 		const { animationsEnabled, downloadService, imageCache, playbackStore, transport } =
 			this.viewModel;
-		const navigationController = this.viewModel.navigationController ?? this.navigationController;
+		const navigationController = this.navigationController;
 		const resolvedGenre = await resolveGenreForNavigation(transport, genre);
 
 		if (this.hasBeenDestroyed) {
@@ -266,9 +266,15 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		paletteQueue?.prioritize(album.imageUrl);
 		this.setState({ isLoading: true });
 
-		Promise.allSettled([
-			transport.getTracksByAlbum(album.id),
-			transport.getArtist(album.artistId),
+		Promise.all([
+			transport
+				.getTracksByAlbum(album.id)
+				.then((v) => ({ status: 'fulfilled' as const, value: v }))
+				.catch((r) => ({ reason: r, status: 'rejected' as const })),
+			transport
+				.getArtist(album.artistId)
+				.then((v) => ({ status: 'fulfilled' as const, value: v }))
+				.catch((r) => ({ reason: r, status: 'rejected' as const })),
 		]).then(([tracksResult, artistResult]) => {
 			if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
 				return;
@@ -363,13 +369,12 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 		const scrollStyle = createScrollStyle(isFooterVisible, isHeaderVisible);
 
-		<layout accessibilityLabel='album-view' contentDescription='album-view' style={styles.root}>
+		<layout accessibilityLabel='album-view' style={styles.root}>
 			<scroll style={scrollStyle}>
 				<DetailHeader
 					animationsEnabled={animationsEnabled}
 					artworkCategory='album_art'
 					artworkSource={album.imageUrl ?? null}
-					buttonText={album.releaseDate}
 					downloadState={downloadState}
 					fallbackText={album.artistName}
 					imageCache={imageCache}
@@ -456,8 +461,8 @@ const styles = {
 	}),
 };
 
-function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style {
-	return new Style({
+function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style<ScrollView> {
+	return new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
