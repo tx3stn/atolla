@@ -7,6 +7,7 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
+import Strings from '../../Strings';
 import type { DownloadState } from '../../services/DownloadService';
 import type { ImageCache, ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
@@ -54,8 +55,9 @@ interface DetailHeaderState {
 export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, DetailHeaderState> {
 	private checkmarkRef = new ElementRef();
 	private rippleRef = new ElementRef();
-	private readonly removeDownloadBody =
-		'This will remove this download from your device.\n\nIf these tracks are part of a playlist they will not be removed unless you remove the playlist.';
+	private get removeDownloadBody(): string {
+		return Strings.removeDownloadBody();
+	}
 	private confirmationTimer?: ReturnType<typeof setTimeout>;
 	private removeDownloadTimer?: ReturnType<typeof setTimeout>;
 	private toastTimer?: ReturnType<typeof setTimeout>;
@@ -85,7 +87,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 				modalAccessibilityLabel='detail-header-remove-download-modal'
 				onClose={this.handleRemoveDownloadCancel}
 				onConfirm={this.handleRemoveDownloadConfirm}
-				title='REMOVE DOWNLOAD?'
+				title={Strings.removeDownloadTitle()}
 			/>;
 		});
 	};
@@ -319,7 +321,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					modalAccessibilityLabel='detail-header-remove-download-modal'
 					onClose={this.handleRemoveDownloadCancel}
 					onConfirm={this.handleRemoveDownloadConfirm}
-					title='REMOVE DOWNLOAD?'
+					title={Strings.removeDownloadTitle()}
 				/>
 			)}
 		</view>;

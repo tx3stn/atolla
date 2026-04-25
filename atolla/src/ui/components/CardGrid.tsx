@@ -3,6 +3,7 @@ import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { DragEvent, TouchEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
+import Strings from '../../Strings';
 import type { ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
@@ -130,7 +131,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 				</layout>
 			))}
 			{isLoadingMore ? (
-				<label style={styles.loadMoreLabel} value='Loading more...' />
+				<label style={styles.loadMoreLabel} value={Strings.loadingMore()} />
 			) : onRetryLoadMore ? (
 				<view
 					accessibilityLabel='grid-load-more-retry'
@@ -139,7 +140,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 					})}
 					style={styles.loadMoreRetryContainer}
 				>
-					<label style={styles.loadMoreRetryLabel} value='Failed to load more. Tap to retry.' />
+					<label style={styles.loadMoreRetryLabel} value={Strings.failedToLoadMore()} />
 				</view>
 			) : null}
 		</layout>;

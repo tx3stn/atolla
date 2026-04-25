@@ -1,6 +1,7 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { BlurView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
+import Strings from '../../Strings';
 import type { ClearCacheSelection } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { Checkbox } from './Checkbox';
@@ -70,43 +71,43 @@ export class CacheClearModal extends StatefulComponent<
 					onTap={this.stopPropagation}
 					style={styles.card}
 				>
-					<label style={styles.title} value='CLEAR CACHE' />
+					<label style={styles.title} value={Strings.clearCacheModalTitle()} />
 					<view style={styles.divider} />
 
 					<Checkbox
 						accessibilityLabel='cache-clear-album-art-row'
 						checked={albumArt}
-						label='album art'
+						label={Strings.cacheCategoryAlbumArt()}
 						onToggle={this.toggleAlbumArt}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-album-art-blurred-row'
 						checked={albumArtBlurred}
-						label='blurred album art'
+						label={Strings.cacheCategoryAlbumArtBlurred()}
 						onToggle={this.toggleAlbumArtBlurred}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-artist-image-row'
 						checked={artistImage}
-						label='artist images'
+						label={Strings.cacheCategoryArtistImages()}
 						onToggle={this.toggleArtistImage}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-artist-logo-row'
 						checked={artistLogo}
-						label='artist logos'
+						label={Strings.cacheCategoryArtistLogos()}
 						onToggle={this.toggleArtistLogo}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-playlist-image-row'
 						checked={playlistImage}
-						label='playlist images'
+						label={Strings.cacheCategoryPlaylistImages()}
 						onToggle={this.togglePlaylistImage}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-track-row'
 						checked={tracks}
-						label='tracks'
+						label={Strings.cacheCategoryTracks()}
 						onToggle={this.toggleTracks}
 					/>
 
@@ -118,7 +119,7 @@ export class CacheClearModal extends StatefulComponent<
 							onTap={anySelected ? this.handleConfirm : undefined}
 							style={anySelected ? styles.confirmButton : styles.confirmButtonDisabled}
 						>
-							<label style={styles.actionLabel} value='yes' />
+							<label style={styles.actionLabel} value={Strings.yes()} />
 						</view>
 						<view style={styles.actionSeparator} />
 						<view
@@ -126,7 +127,7 @@ export class CacheClearModal extends StatefulComponent<
 							onTap={this.viewModel.onCancel}
 							style={styles.cancelButton}
 						>
-							<label style={styles.actionLabel} value='no' />
+							<label style={styles.actionLabel} value={Strings.no()} />
 						</view>
 					</view>
 				</view>

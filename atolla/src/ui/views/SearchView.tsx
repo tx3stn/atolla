@@ -15,6 +15,7 @@ import type { Artist } from '../../models/Artist';
 import type { Playlist } from '../../models/Playlist';
 import type { SearchResults } from '../../models/Search';
 import type { Track } from '../../models/Track';
+import Strings from '../../Strings';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -547,7 +548,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 							keyboardAppearance='dark'
 							onChange={this.handleQueryChange}
 							onReturn={this.handleSearchKeyboardSubmit}
-							placeholder='search'
+							placeholder={Strings.searchPlaceholder()}
 							ref={this.searchInputRef}
 							returnKeyText='search'
 							style={styles.searchInput}
@@ -559,31 +560,31 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 						<LoopingArrowSpinner
 							accessibilityLabel='search-loading-spinner'
 							durationSeconds={0.9}
-							label='Searching your library...'
+							label={Strings.searchLoading()}
 							size={20}
 						/>
 					)}
 
 					{status === 'error' && (
 						<view style={styles.infoContainer}>
-							<label style={styles.errorTitle} value='Search failed' />
+							<label style={styles.errorTitle} value={Strings.searchFailed()} />
 							<label
 								style={styles.errorText}
-								value={this.state.errorMessage ?? 'Could not search right now.'}
+								value={this.state.errorMessage ?? Strings.searchCouldNotSearch()}
 							/>
 							<view
 								accessibilityLabel='search-retry'
 								onTap={this.handleRetryTap}
 								style={styles.retryButton}
 							>
-								<label style={styles.retryButtonText} value='Retry' />
+								<label style={styles.retryButtonText} value={Strings.searchRetry()} />
 							</view>
 						</view>
 					)}
 
 					{status === 'empty' && (
 						<view style={styles.infoContainer}>
-							<label style={styles.emptyTitle} value='nothing to see here' />
+							<label style={styles.emptyTitle} value={Strings.searchEmpty()} />
 						</view>
 					)}
 
@@ -591,7 +592,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 						<layout style={styles.resultsContainer}>
 							{results.tracks.length > 0 && (
 								<layout style={styles.section}>
-									{this.renderSectionTitle('TRACKS')}
+									{this.renderSectionTitle(Strings.searchSectionTracks())}
 									<TrackList
 										imageCache={imageCache}
 										onTrackLongPress={this.handleTrackLongPress}
@@ -603,7 +604,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 							{results.albums.length > 0 && (
 								<layout style={styles.section}>
-									{this.renderSectionTitle('ALBUMS')}
+									{this.renderSectionTitle(Strings.searchSectionAlbums())}
 									<CardGrid
 										accessibilityLabel='search-albums-grid'
 										cards={this.createAlbumCards(results.albums)}
@@ -615,7 +616,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 							{results.artists.length > 0 && (
 								<layout style={styles.section}>
-									{this.renderSectionTitle('ARTISTS')}
+									{this.renderSectionTitle(Strings.searchSectionArtists())}
 									<CardGrid
 										accessibilityLabel='search-artists-grid'
 										cards={this.createArtistCards(results.artists)}
@@ -627,7 +628,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 							{results.playlists.length > 0 && (
 								<layout style={styles.section}>
-									{this.renderSectionTitle('PLAYLISTS')}
+									{this.renderSectionTitle(Strings.searchSectionPlaylists())}
 									<CardGrid
 										accessibilityLabel='search-playlists-grid'
 										cards={this.createPlaylistCards(results.playlists)}
@@ -640,9 +641,9 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					)}
 
 					<layout style={styles.recentSection}>
-						<label style={styles.sectionTitle} value='RECENT SEARCHES' />
+						<label style={styles.sectionTitle} value={Strings.searchSectionRecent()} />
 						{recentSearches.length === 0 ? (
-							<label style={styles.recentEmpty} value='no recent searches' />
+							<label style={styles.recentEmpty} value={Strings.searchNoRecent()} />
 						) : (
 							recentSearches.map((term) => (
 								<view

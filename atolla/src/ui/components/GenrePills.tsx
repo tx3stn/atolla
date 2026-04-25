@@ -2,6 +2,7 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Genre } from '../../models/Genre';
+import Strings from '../../Strings';
 import { theme } from '../../theme';
 
 export interface GenrePillsViewModel {
@@ -18,7 +19,7 @@ export class GenrePills extends Component<GenrePillsViewModel> {
 		}
 
 		<layout style={styles.section}>
-			<label style={styles.sectionHeader} value='GENRES' />
+			<label style={styles.sectionHeader} value={Strings.genres()} />
 			<layout style={styles.pillsRow}>
 				{this.viewModel.genres.map((genre) => (
 					<view

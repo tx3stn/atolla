@@ -7,14 +7,18 @@ import type {
 	TextField,
 	View,
 } from 'valdi_tsx/src/NativeTemplateElements';
+import Strings from '../../Strings';
 import type { ClearCacheSelection } from '../../services/ImageCache';
 import type { Preferences } from '../../stores/Preferences';
 import {
 	DEFAULT_GRID_COLUMNS,
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
+	DEFAULT_LANGUAGE,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
 	GRID_COLUMN_OPTIONS,
 	IMAGE_CACHE_SIZE_OPTIONS,
+	LANGUAGE_OPTIONS,
+	type LanguageCode,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from '../../stores/Preferences';
 import { scrollPaddingBottom, theme } from '../../theme';
@@ -27,6 +31,10 @@ import { Toggle } from '../components/Toggle';
 import { ViewHeader } from '../components/ViewHeader';
 
 const GB = 1024 * 1024 * 1024;
+
+function getLanguageName(code: LanguageCode): string {
+	return LANGUAGE_OPTIONS.find((opt) => opt.code === code)?.name ?? code;
+}
 
 function formatCacheSizeLabel(bytes: number): string {
 	const gb = bytes / GB;
@@ -91,10 +99,12 @@ export interface SettingsViewModel {
 	onClearDownloads?: () => void;
 	onGridColumnsChange?: (count: number) => void;
 	onJellyfinDeviceIdOverrideChange?: (value: string) => void;
+	onLanguageChange?: (code: LanguageCode) => void;
 	onLogout?: () => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	onTrackCacheMaxTracksChange?: (count: number) => void;
 	preferences: Preferences;
+	selectedLanguage?: LanguageCode;
 	trackCacheCachedCount?: number;
 	trackCacheMaxTracks?: number;
 }
@@ -105,6 +115,7 @@ interface SettingsState {
 	showClearDownloadsModal: boolean;
 	showGridColumnsOptions: boolean;
 	showImageCacheOptions: boolean;
+	showLanguageOptions: boolean;
 	showLogoutModal: boolean;
 	showTrackCacheLimitOptions: boolean;
 }
@@ -116,6 +127,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		showClearDownloadsModal: false,
 		showGridColumnsOptions: false,
 		showImageCacheOptions: false,
+		showLanguageOptions: false,
 		showLogoutModal: false,
 		showTrackCacheLimitOptions: false,
 	};
@@ -200,6 +212,15 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		this.setState({ showImageCacheOptions: false });
 	};
 
+	private handleLanguageToggle = () => {
+		this.setState({ showLanguageOptions: !this.state.showLanguageOptions });
+	};
+
+	private handleLanguageSelect = (code: LanguageCode) => {
+		this.viewModel.onLanguageChange?.(code);
+		this.setState({ showLanguageOptions: false });
+	};
+
 	onRender(): void {
 		const {
 			animationsEnabled,
@@ -219,20 +240,21 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		const selectedTrackCacheLimit = trackCacheMaxTracks ?? DEFAULT_TRACK_CACHE_MAX_TRACKS;
 		const selectedImageCacheSize =
 			this.viewModel.imageCacheMaxBytes ?? DEFAULT_IMAGE_CACHE_MAX_BYTES;
+		const selectedLanguage = this.viewModel.selectedLanguage ?? DEFAULT_LANGUAGE;
 
 		<layout style={styles.viewRoot}>
 			<ViewHeader
 				animationsEnabled={animationsEnabled}
 				connectionMode={this.viewModel.connectionMode}
 				onRequestModeChange={this.viewModel.onRequestModeChange}
-				title='SETTINGS'
+				title={Strings.settingsTitle()}
 			/>
 			<scroll style={createScrollStyle()}>
 				<view style={styles.root}>
-					<label style={styles.sectionTitle} value='APPEARANCE' />
+					<label style={styles.sectionTitle} value={Strings.settingsSectionAppearance()} />
 					<view style={styles.section}>
 						<view style={styles.settingRow}>
-							<label style={styles.settingLabel} value='animations' />
+							<label style={styles.settingLabel} value={Strings.settingsAnimations()} />
 							<Toggle
 								accessibilityLabel='settings-animations-toggle'
 								enabled={animationsEnabled}
@@ -240,7 +262,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							/>
 						</view>
 						<view style={styles.trackCacheLimitContainer}>
-							<label style={styles.settingLabel} value='grid columns' />
+							<label style={styles.settingLabel} value={Strings.settingsGridColumns()} />
 							<view
 								accessibilityLabel='settings-grid-columns-dropdown'
 								onTap={this.handleGridColumnsToggle}
@@ -268,10 +290,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						)}
 					</view>
 
-					<label style={styles.sectionTitle} value='AUTH' />
+					<label style={styles.sectionTitle} value={Strings.settingsSectionAuth()} />
 					<view style={styles.section}>
 						<view style={styles.settingRow}>
-							<label style={styles.settingLabel} value='device id' />
+							<label style={styles.settingLabel} value={Strings.settingsDeviceId()} />
 							<view style={styles.authDeviceIdInlineInputContainer}>
 								<textfield
 									accessibilityLabel='settings-jellyfin-device-id-input'
@@ -279,7 +301,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 									onChange={(value: unknown) => {
 										onJellyfinDeviceIdOverrideChange?.(normalizeInputValue(value));
 									}}
-									placeholder={defaultJellyfinDeviceId ?? 'atolla'}
+									placeholder={defaultJellyfinDeviceId ?? Strings.settingsDeviceIdPlaceholder()}
 									style={styles.authDeviceIdInput}
 									value={jellyfinDeviceIdOverride ?? ''}
 								/>
@@ -287,15 +309,15 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						</view>
 						<Button
 							accessibilityLabel='settings-logout'
-							label='logout'
+							label={Strings.settingsLogoutButton()}
 							onTap={this.handleLogoutPress}
 						/>
 					</view>
 
-					<label style={styles.sectionTitle} value='CACHE' />
+					<label style={styles.sectionTitle} value={Strings.settingsSectionCache()} />
 					<view style={styles.section}>
 						<view style={styles.trackCacheLimitContainer}>
-							<label style={styles.settingLabel} value='image cache size' />
+							<label style={styles.settingLabel} value={Strings.settingsImageCacheSize()} />
 							<view
 								accessibilityLabel='settings-image-cache-size-dropdown'
 								onTap={this.handleImageCacheToggle}
@@ -331,11 +353,11 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							<label
 								accessibilityLabel='settings-disk-cache-usage'
 								style={styles.paletteStatus}
-								value={`${imageCacheDiskCount} images on disk      [ ${formatBytes(imageCacheDiskBytes)} ]`}
+								value={Strings.imagesOnDisk(imageCacheDiskCount, formatBytes(imageCacheDiskBytes))}
 							/>
 						)}
 						<view style={styles.trackCacheLimitContainer}>
-							<label style={styles.settingLabel} value='play queue cached tracks' />
+							<label style={styles.settingLabel} value={Strings.settingsPlayQueueCachedTracks()} />
 							<view
 								accessibilityLabel='settings-track-cache-limit-dropdown'
 								onTap={this.handleTrackCacheLimitToggle}
@@ -350,7 +372,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						<label
 							accessibilityLabel='settings-track-cache-count'
 							style={styles.trackCacheCountLabel}
-							value={`${trackCacheCachedCount ?? 0} tracks currently cached`}
+							value={Strings.tracksCachedCount(trackCacheCachedCount ?? 0)}
 						/>
 						{this.state.showTrackCacheLimitOptions && (
 							<view style={styles.trackCacheLimitOptionsList}>
@@ -371,23 +393,60 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						)}
 						<Button
 							accessibilityLabel='settings-cache-clear'
-							label='clear cache'
+							label={Strings.settingsClearCacheButton()}
 							onTap={this.handleClearCachePress}
 						/>
 					</view>
 
-					<label style={styles.sectionTitle} value='DOWNLOADS' />
+					<label style={styles.sectionTitle} value={Strings.settingsSectionDownloads()} />
 					<view style={styles.section}>
 						<label
 							accessibilityLabel='settings-downloaded-track-count'
 							style={styles.trackCacheCountLabel}
-							value={`${downloadedTrackCount ?? 0} tracks downloaded      [ ${formatBytes(downloadedSizeBytes ?? 0)} ]`}
+							value={Strings.tracksDownloaded(
+								downloadedTrackCount ?? 0,
+								formatBytes(downloadedSizeBytes ?? 0),
+							)}
 						/>
 						<Button
 							accessibilityLabel='settings-downloads-delete-all'
-							label='delete all downloads'
+							label={Strings.settingsDeleteAllDownloadsButton()}
 							onTap={this.handleClearDownloadsPress}
 						/>
+					</view>
+
+					<label style={styles.sectionTitle} value={Strings.settingsSectionLanguage()} />
+					<view style={styles.section}>
+						<view style={styles.trackCacheLimitContainer}>
+							<label style={styles.settingLabel} value={getLanguageName(selectedLanguage)} />
+							<view
+								accessibilityLabel='settings-language-dropdown'
+								onTap={this.handleLanguageToggle}
+								style={styles.trackCacheLimitButton}
+							>
+								<label
+									style={styles.trackCacheLimitButtonLabel}
+									value={getLanguageName(selectedLanguage)}
+								/>
+							</view>
+						</view>
+						{this.state.showLanguageOptions && (
+							<view style={styles.trackCacheLimitOptionsList}>
+								{LANGUAGE_OPTIONS.map((option) => (
+									<view
+										accessibilityLabel={`settings-language-option-${option.code}`}
+										onTap={() => this.handleLanguageSelect(option.code)}
+										style={
+											option.code === selectedLanguage
+												? styles.trackCacheLimitOptionSelected
+												: styles.trackCacheLimitOption
+										}
+									>
+										<label style={styles.trackCacheLimitOptionLabel} value={option.name} />
+									</view>
+								))}
+							</view>
+						)}
 					</view>
 
 					{this.state.showCacheClearModal && (
@@ -399,29 +458,29 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 					{this.state.showClearDownloadsModal && (
 						<Modal
-							body={'remove all downloaded tracks from your device?'}
+							body={Strings.settingsDeleteAllDownloadsConfirm()}
 							cancelAccessibilityLabel='settings-downloads-clear-cancel-btn'
 							confirmAccessibilityLabel='settings-downloads-clear-confirm-btn'
 							modalAccessibilityLabel='settings-downloads-clear-modal'
 							onClose={this.handleClearDownloadsCancel}
 							onConfirm={this.handleClearDownloadsConfirm}
-							title='delete all downloads'
+							title={Strings.settingsDeleteAllDownloadsButton()}
 						/>
 					)}
 
 					{this.state.showLogoutModal && (
 						<Modal
-							body={'are you sure you want to log out?'}
+							body={Strings.settingsLogoutConfirm()}
 							cancelAccessibilityLabel='settings-logout-cancel-btn'
 							confirmAccessibilityLabel='settings-logout-confirm-btn'
 							modalAccessibilityLabel='settings-logout-modal'
 							onClose={this.handleLogoutCancel}
 							onConfirm={this.handleLogoutConfirm}
-							title='logout'
+							title={Strings.settingsLogoutButton()}
 						/>
 					)}
 
-					{this.state.showCacheToast && <Toast message='cache cleared' />}
+					{this.state.showCacheToast && <Toast message={Strings.settingsCacheClearedToast()} />}
 				</view>
 			</scroll>
 		</layout>;

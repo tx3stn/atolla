@@ -3,6 +3,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { Label, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
+import Strings from '../../Strings';
 import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme } from '../../theme';
@@ -331,17 +332,17 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				animationsEnabled={this.viewModel.animationsEnabled}
 				connectionMode={this.viewModel.connectionMode}
 				onRequestModeChange={this.viewModel.onRequestModeChange}
-				title='HOME'
+				title={Strings.homeTitle()}
 			/>
 
 			<scroll style={createScrollStyle(this.viewModel.playbackStore.track !== null)}>
 				<layout style={styles.content}>
 					{this.state.isLoadingAlbums ? (
-						<label style={styles.emptyState} value='loading home' />
+						<label style={styles.emptyState} value={Strings.loadingHome()} />
 					) : (
 						<layout style={styles.sections}>
 							<layout style={styles.section}>
-								<label style={styles.sectionTitle} value='ON THIS DAY' />
+								<label style={styles.sectionTitle} value={Strings.homeSectionOnThisDay()} />
 								{onThisDayCards.length > 0 ? (
 									<CardDetailList
 										accessibilityLabel='home-on-this-day-grid'
@@ -349,12 +350,12 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 										onCardTap={this.handleAlbumCardTap}
 									/>
 								) : (
-									<label style={styles.emptyState} value='no anniversaries today' />
+									<label style={styles.emptyState} value={Strings.homeNoAnniversaries()} />
 								)}
 							</layout>
 
 							<layout style={styles.section}>
-								<label style={styles.sectionTitle} value='RECENTLY ADDED' />
+								<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyAdded()} />
 								<CardGrid
 									accessibilityLabel='home-recently-added-grid'
 									cards={recentlyAddedCards}
@@ -364,19 +365,19 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							</layout>
 
 							<layout style={styles.section}>
-								<label style={styles.sectionTitle} value='RECENTLY PLAYED' />
+								<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyPlayed()} />
 								{recentlyPlayedTracks.length > 0 ? (
 									<TrackList
 										onTrackTap={this.handleRecentlyPlayedTrackTap}
 										tracks={recentlyPlayedTracks}
 									/>
 								) : (
-									<label style={styles.emptyState} value='nothing played yet' />
+									<label style={styles.emptyState} value={Strings.homeNothingPlayed()} />
 								)}
 							</layout>
 
 							<layout style={styles.section}>
-								<label style={styles.sectionTitle} value='MIXES' />
+								<label style={styles.sectionTitle} value={Strings.homeSectionMixes()} />
 								<CardGrid
 									accessibilityLabel='home-mixes-grid'
 									cards={mixCards}

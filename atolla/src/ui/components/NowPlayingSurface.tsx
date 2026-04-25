@@ -7,6 +7,7 @@ import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
+import Strings from '../../Strings';
 import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
@@ -621,14 +622,14 @@ export class NowPlayingSurface extends StatefulComponent<
 											onTap={this.handleBackToTabTap}
 											style={styles.expandedQueueTabButton}
 										>
-											<label style={backToLabelStyle} value='BACK TO' />
+											<label style={backToLabelStyle} value={Strings.backTo()} />
 										</view>
 										<view
 											accessibilityLabel='now-playing-tab-up-next'
 											onTap={this.handleUpNextTabTap}
 											style={styles.expandedQueueTabButton}
 										>
-											<label style={upNextLabelStyle} value='UP NEXT' />
+											<label style={upNextLabelStyle} value={Strings.upNext()} />
 										</view>
 									</layout>
 								</layout>

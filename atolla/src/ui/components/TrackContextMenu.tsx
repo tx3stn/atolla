@@ -5,6 +5,7 @@ import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { BlurView, ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Track } from '../../models/Track';
+import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
@@ -59,12 +60,12 @@ export class TrackContextMenu extends StatefulComponent<
 
 	handlePlayNext = (): void => {
 		this.viewModel.playbackStore.playNext([this.viewModel.track]);
-		this.viewModel.onDismiss('playing next');
+		this.viewModel.onDismiss(Strings.playingNextToast());
 	};
 
 	handleAddToQueue = (): void => {
 		this.viewModel.playbackStore.addToQueue([this.viewModel.track]);
-		this.viewModel.onDismiss('added to queue');
+		this.viewModel.onDismiss(Strings.addedToQueueToast());
 	};
 
 	handleAddToPlaylist = (): void => {
@@ -157,7 +158,7 @@ export class TrackContextMenu extends StatefulComponent<
 					>
 						<view ref={this.playNextRippleRef} style={styles.actionRowRipple} />
 						<image src={res.playnext} style={styles.icon} tint={theme.colors.muted} />
-						<label style={styles.actionLabel} value='play next' />
+						<label style={styles.actionLabel} value={Strings.playNext()} />
 					</view>
 					<view
 						accessibilityLabel='track-context-add-to-queue'
@@ -167,7 +168,7 @@ export class TrackContextMenu extends StatefulComponent<
 					>
 						<view ref={this.addToQueueRippleRef} style={styles.actionRowRipple} />
 						<image src={res.addtoqueue} style={styles.icon} tint={theme.colors.muted} />
-						<label style={styles.actionLabel} value='add to queue' />
+						<label style={styles.actionLabel} value={Strings.addToQueue()} />
 					</view>
 					<view
 						accessibilityLabel='track-context-add-to-playlist'
@@ -177,7 +178,7 @@ export class TrackContextMenu extends StatefulComponent<
 					>
 						<view ref={this.addToPlaylistRippleRef} style={styles.actionRowRipple} />
 						<image src={res.addtoplaylist} style={styles.icon} tint={theme.colors.muted} />
-						<label style={styles.actionLabel} value='add to playlist' />
+						<label style={styles.actionLabel} value={Strings.addToPlaylist()} />
 					</view>
 				</view>
 			</layout>

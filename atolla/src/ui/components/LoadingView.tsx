@@ -1,13 +1,14 @@
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
+import Strings from '../../Strings';
 import { theme } from '../../theme';
 import { LoopingArrowSpinner } from './LoopingArrowSpinner';
 
 export class LoadingView extends Component<Record<string, never>> {
 	onRender(): void {
 		<layout style={styles.root}>
-			<label style={styles.label} value='loading...' />
+			<label style={styles.label} value={Strings.loading()} />
 			<LoopingArrowSpinner size={24} />
 		</layout>;
 	}

@@ -2,6 +2,7 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import Strings from '../../Strings';
 import { theme } from '../../theme';
 import { Modal } from './Modal';
 
@@ -17,7 +18,7 @@ export class BioSection extends Component<BioSectionViewModel> {
 		const { bio, logoUrl, modalSlot, title } = this.viewModel;
 
 		<layout style={styles.section}>
-			<label style={styles.sectionHeader} value='BIO' />
+			<label style={styles.sectionHeader} value={Strings.bio()} />
 			<view
 				onTap={() => {
 					modalSlot.slotted(() => {

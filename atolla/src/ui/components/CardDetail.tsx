@@ -1,6 +1,7 @@
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
+import Strings from '../../Strings';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
 
@@ -28,7 +29,7 @@ export class CardDetail extends Component<CardDetailViewModel> {
 						url={artworkKey}
 					/>
 				) : (
-					<label style={styles.artworkFallbackLabel} value='ALBUM' />
+					<label style={styles.artworkFallbackLabel} value={Strings.albumFallbackLabel()} />
 				)}
 			</view>
 			<layout style={styles.textColumn}>

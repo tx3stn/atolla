@@ -50,7 +50,9 @@ import { PlaybackStore } from './stores/Playback';
 import {
 	DEFAULT_GRID_COLUMNS,
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
+	DEFAULT_LANGUAGE,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
+	type LanguageCode,
 	Preferences,
 } from './stores/Preferences';
 import { SearchStore } from './stores/Search';
@@ -118,6 +120,7 @@ interface AppState {
 	isHomeNavigationMounted: boolean;
 	isLibraryHeaderVisible: boolean;
 	jellyfinClientDeviceIdOverride: string;
+	language: LanguageCode;
 	libraryLetterFilter: string | null;
 	libraryResetNonce: number;
 	librarySort: SortOrder;
@@ -346,6 +349,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		isHomeNavigationMounted: true,
 		isLibraryHeaderVisible: true,
 		jellyfinClientDeviceIdOverride: '',
+		language: DEFAULT_LANGUAGE,
 		libraryLetterFilter: null,
 		libraryResetNonce: 0,
 		librarySort: SortOrders.aToZ,
@@ -386,6 +390,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.preferences.getMode(),
 				this.preferences.getTrackCacheMaxTracks(),
 				this.preferences.getJellyfinClientDeviceIdOverride(),
+				this.preferences.getLanguage(),
 				this.authService.loadSession(),
 				this.authService.loadRememberedServerUrl(),
 			]),
@@ -401,6 +406,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					mode,
 					trackCacheMaxTracks,
 					jellyfinClientDeviceIdOverride,
+					language,
 					existingSession,
 					rememberedServerUrl,
 				]) => {
@@ -441,6 +447,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						imageCacheMaxBytes,
 						isAuthRequired,
 						jellyfinClientDeviceIdOverride: this.jellyfinClientDeviceIdOverride,
+						language,
 						serverUrlPrefill: rememberedServerUrl,
 						trackCacheMaxTracks,
 					});
@@ -1285,6 +1292,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({ gridColumns: count });
 	};
 
+	handleLanguageChange = (code: LanguageCode): void => {
+		void this.preferences.setLanguage(code);
+		this.setState({ language: code });
+	};
+
 	handleJellyfinClientDeviceIdOverrideChange = (value: string): void => {
 		void (async () => {
 			const normalized = this.normalizeJellyfinClientDeviceIdOverride(value);
@@ -1920,6 +1932,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				| 'imageCacheMaxBytes'
 				| 'isAuthRequired'
 				| 'jellyfinClientDeviceIdOverride'
+				| 'language'
 				| 'serverUrlPrefill'
 				| 'trackCacheMaxTracks'
 			>
@@ -2096,10 +2109,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onClearDownloads={this.handleClearDownloads}
 					onGridColumnsChange={this.handleGridColumnsChange}
 					onJellyfinDeviceIdOverrideChange={this.handleJellyfinClientDeviceIdOverrideChange}
+					onLanguageChange={this.handleLanguageChange}
 					onLogout={this.handleLogout}
 					onRequestModeChange={this.requestModeChange}
 					onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
 					preferences={this.preferences}
+					selectedLanguage={this.state.language}
 					trackCacheCachedCount={this.state.trackPlaybackCachedCount}
 					trackCacheMaxTracks={this.state.trackCacheMaxTracks}
 				/>

@@ -1,0 +1,225 @@
+{
+	"add_to_playlist": {
+		"defaultMessage": "add to playlist"
+	},
+	"add_to_queue": {
+		"defaultMessage": "add to queue"
+	},
+	"added_to_queue_toast": {
+		"defaultMessage": "added to queue"
+	},
+	"album_fallback_label": {
+		"defaultMessage": "ALBUM"
+	},
+	"artist_section_albums": {
+		"defaultMessage": "ALBUMS"
+	},
+	"artist_section_top_tracks": {
+		"defaultMessage": "TOP TRACKS"
+	},
+	"back_to": {
+		"defaultMessage": "BACK TO"
+	},
+	"bio": {
+		"defaultMessage": "BIO"
+	},
+	"cache_category_album_art": {
+		"defaultMessage": "album art"
+	},
+	"cache_category_album_art_blurred": {
+		"defaultMessage": "blurred album art"
+	},
+	"cache_category_artist_images": {
+		"defaultMessage": "artist images"
+	},
+	"cache_category_artist_logos": {
+		"defaultMessage": "artist logos"
+	},
+	"cache_category_playlist_images": {
+		"defaultMessage": "playlist images"
+	},
+	"cache_category_tracks": {
+		"defaultMessage": "tracks"
+	},
+	"clear_cache_modal_title": {
+		"defaultMessage": "CLEAR CACHE"
+	},
+	"connect_button": {
+		"defaultMessage": "connect"
+	},
+	"connect_to_jellyfin": {
+		"defaultMessage": "connect to jellyfin"
+	},
+	"enter_server_url": {
+		"defaultMessage": "enter server URL"
+	},
+	"failed_to_load_more": {
+		"defaultMessage": "Failed to load more. Tap to retry."
+	},
+	"genres": {
+		"defaultMessage": "GENRES"
+	},
+	"home_no_anniversaries": {
+		"defaultMessage": "no anniversaries today"
+	},
+	"home_nothing_played": {
+		"defaultMessage": "nothing played yet"
+	},
+	"home_section_mixes": {
+		"defaultMessage": "MIXES"
+	},
+	"home_section_on_this_day": {
+		"defaultMessage": "ON THIS DAY"
+	},
+	"home_section_recently_added": {
+		"defaultMessage": "RECENTLY ADDED"
+	},
+	"home_section_recently_played": {
+		"defaultMessage": "RECENTLY PLAYED"
+	},
+	"home_title": {
+		"defaultMessage": "HOME"
+	},
+	"images_on_disk": {
+		"defaultMessage": "{count%d} images on disk      [ {size%s} ]",
+		"example": "42 images on disk      [ 1.5 MB ]"
+	},
+	"loading": {
+		"defaultMessage": "loading..."
+	},
+	"loading_home": {
+		"defaultMessage": "loading home"
+	},
+	"loading_more": {
+		"defaultMessage": "Loading more..."
+	},
+	"no": {
+		"defaultMessage": "no"
+	},
+	"nothing_else_lined_up": {
+		"defaultMessage": "nothing else lined up"
+	},
+	"play_next": {
+		"defaultMessage": "play next"
+	},
+	"playing_next_toast": {
+		"defaultMessage": "playing next"
+	},
+	"quick_connect_code": {
+		"defaultMessage": "code: {code%s}",
+		"example": "code: ABC123"
+	},
+	"remove_download_body": {
+		"defaultMessage": "This will remove this download from your device.\n\nIf these tracks are part of a playlist they will not be removed unless you remove the playlist."
+	},
+	"remove_download_title": {
+		"defaultMessage": "REMOVE DOWNLOAD?"
+	},
+	"search_could_not_search": {
+		"defaultMessage": "Could not search right now."
+	},
+	"search_empty": {
+		"defaultMessage": "nothing to see here"
+	},
+	"search_failed": {
+		"defaultMessage": "Search failed"
+	},
+	"search_loading": {
+		"defaultMessage": "Searching your library..."
+	},
+	"search_no_recent": {
+		"defaultMessage": "no recent searches"
+	},
+	"search_placeholder": {
+		"defaultMessage": "search"
+	},
+	"search_retry": {
+		"defaultMessage": "Retry"
+	},
+	"search_section_albums": {
+		"defaultMessage": "ALBUMS"
+	},
+	"search_section_artists": {
+		"defaultMessage": "ARTISTS"
+	},
+	"search_section_playlists": {
+		"defaultMessage": "PLAYLISTS"
+	},
+	"search_section_recent": {
+		"defaultMessage": "RECENT SEARCHES"
+	},
+	"search_section_tracks": {
+		"defaultMessage": "TRACKS"
+	},
+	"server_url_placeholder": {
+		"defaultMessage": "https://jellyfin.example.com"
+	},
+	"settings_animations": {
+		"defaultMessage": "animations"
+	},
+	"settings_cache_cleared_toast": {
+		"defaultMessage": "cache cleared"
+	},
+	"settings_clear_cache_button": {
+		"defaultMessage": "clear cache"
+	},
+	"settings_delete_all_downloads_button": {
+		"defaultMessage": "delete all downloads"
+	},
+	"settings_delete_all_downloads_confirm": {
+		"defaultMessage": "remove all downloaded tracks from your device?"
+	},
+	"settings_device_id": {
+		"defaultMessage": "device id"
+	},
+	"settings_device_id_placeholder": {
+		"defaultMessage": "atolla"
+	},
+	"settings_grid_columns": {
+		"defaultMessage": "grid columns"
+	},
+	"settings_image_cache_size": {
+		"defaultMessage": "image cache size"
+	},
+	"settings_logout_button": {
+		"defaultMessage": "logout"
+	},
+	"settings_logout_confirm": {
+		"defaultMessage": "are you sure you want to log out?"
+	},
+	"settings_play_queue_cached_tracks": {
+		"defaultMessage": "play queue cached tracks"
+	},
+	"settings_section_appearance": {
+		"defaultMessage": "APPEARANCE"
+	},
+	"settings_section_auth": {
+		"defaultMessage": "AUTH"
+	},
+	"settings_section_cache": {
+		"defaultMessage": "CACHE"
+	},
+	"settings_section_downloads": {
+		"defaultMessage": "DOWNLOADS"
+	},
+	"settings_section_language": {
+		"defaultMessage": "LANGUAGE"
+	},
+	"settings_title": {
+		"defaultMessage": "SETTINGS"
+	},
+	"tracks_cached_count": {
+		"defaultMessage": "{count%d} tracks currently cached",
+		"example": "5 tracks currently cached"
+	},
+	"tracks_downloaded": {
+		"defaultMessage": "{count%d} tracks downloaded      [ {size%s} ]",
+		"example": "10 tracks downloaded      [ 2.3 GB ]"
+	},
+	"up_next": {
+		"defaultMessage": "UP NEXT"
+	},
+	"yes": {
+		"defaultMessage": "yes"
+	}
+}

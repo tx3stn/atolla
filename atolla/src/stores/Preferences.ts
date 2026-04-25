@@ -11,6 +11,10 @@ export const DEFAULT_GRID_COLUMNS = 3;
 export const TRACK_CACHE_LIMIT_OPTIONS = [10, 15, 20, 25, 30, 35] as const;
 export const DEFAULT_TRACK_CACHE_MAX_TRACKS = 20;
 
+export const LANGUAGE_OPTIONS = [{ code: 'en', name: 'English' }] as const;
+export type LanguageCode = (typeof LANGUAGE_OPTIONS)[number]['code'];
+export const DEFAULT_LANGUAGE: LanguageCode = 'en';
+
 interface PreferencesStore {
 	fetchString(key: string): Promise<string>;
 	storeString(key: string, value: string): Promise<void>;
@@ -114,5 +118,21 @@ export class Preferences {
 
 	async setJellyfinClientDeviceIdOverride(value: string): Promise<void> {
 		await this.store.storeString('jellyfin_client_device_id_override', value.trim());
+	}
+
+	async getLanguage(): Promise<LanguageCode> {
+		try {
+			const value = await this.store.fetchString('language');
+			if (LANGUAGE_OPTIONS.some((opt) => opt.code === value)) {
+				return value as LanguageCode;
+			}
+			return DEFAULT_LANGUAGE;
+		} catch {
+			return DEFAULT_LANGUAGE;
+		}
+	}
+
+	async setLanguage(code: LanguageCode): Promise<void> {
+		await this.store.storeString('language', code);
 	}
 }

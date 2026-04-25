@@ -8,6 +8,7 @@ import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
+import Strings from '../../Strings';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -418,7 +419,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						{albums.length > 0 && (
 							<layout style={styles.section}>
 								<layout style={styles.sectionHeaderRow}>
-									<label style={styles.sectionHeader} value='ALBUMS' />
+									<label style={styles.sectionHeader} value={Strings.artistSectionAlbums()} />
 									<label style={styles.sectionCount} value={`[ ${albums.length} ]`} />
 								</layout>
 								<CardGrid
@@ -433,7 +434,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 						{trackEntries.length > 0 && (
 							<layout style={styles.section}>
-								<label style={styles.sectionHeader} value='TOP TRACKS' />
+								<label style={styles.sectionHeader} value={Strings.artistSectionTopTracks()} />
 								<TrackList
 									imageCache={imageCache}
 									onTrackLongPress={this.handleTrackLongPress}

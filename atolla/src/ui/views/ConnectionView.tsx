@@ -3,6 +3,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import Strings from '../../Strings';
 import { theme } from '../../theme';
 import { Button } from '../components/Button';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
@@ -101,8 +102,8 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				<image src={res.logo} style={styles.logoImage} />
 			</view>
 
-			<label style={styles.title} value='connect to jellyfin' />
-			<label style={styles.subtitle} value='enter server URL' />
+			<label style={styles.title} value={Strings.connectToJellyfin()} />
+			<label style={styles.subtitle} value={Strings.enterServerUrl()} />
 
 			<view style={styles.inputContainer}>
 				<textfield
@@ -112,7 +113,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 					onChange={(value: unknown) => {
 						this.setState({ serverUrlInput: normalizeInputValue(value) });
 					}}
-					placeholder='https://jellyfin.example.com'
+					placeholder={Strings.serverUrlPlaceholder()}
 					style={styles.input}
 					value={this.state.serverUrlInput}
 				/>
@@ -121,7 +122,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 			<Button
 				accessibilityLabel='connection-connect'
 				enabled={canConnect}
-				label='connect'
+				label={Strings.connectButton()}
 				onTap={createReusableCallback(this.onConnectTap)}
 			/>
 
@@ -130,7 +131,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 					{this.viewModel.quickConnectCode && (
 						<label
 							style={styles.quickConnectCode}
-							value={`code: ${this.viewModel.quickConnectCode}`}
+							value={Strings.quickConnectCode(this.viewModel.quickConnectCode)}
 						/>
 					)}
 				</view>

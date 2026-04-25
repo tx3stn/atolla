@@ -12,12 +12,14 @@ valdi_module(
             "src/**/*.d.ts",
             "src/**/*.tsx",
             "src/**/*.json",
+            "strings/**/*.json",
             "test/**/*.ts",
             "test/**/*.tsx",
         ],
         exclude = [
             "src/**/*.test.ts",
             "src/**/*.test.tsx",
+            "src/Strings.d.ts",
         ],
     ),
     exclude_patterns = [

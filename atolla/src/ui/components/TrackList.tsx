@@ -8,6 +8,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Track } from '../../models/Track';
+import Strings from '../../Strings';
 import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { theme, withAlpha } from '../../theme';
@@ -171,7 +172,7 @@ export class TrackList extends Component<TrackListViewModel> {
 			<label
 				key='track-list-empty'
 				style={resolvedStyles.emptyStateStyle}
-				value='nothing else lined up'
+				value={Strings.nothingElseLinedUp()}
 			/>;
 			return;
 		}
