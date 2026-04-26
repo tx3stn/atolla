@@ -18,11 +18,14 @@ import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { DetailHeader } from '../components/DetailHeader';
+import { FooterNav } from '../components/FooterNav';
 import { GenrePills } from '../components/GenrePills';
 import { mergeGenreCollections } from '../components/GenrePillsData';
+import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import type { NavBarContext } from '../NavBarContext';
 import { AlbumView } from './AlbumView';
 import { sortArtistAlbums } from './ArtistViewSort';
 import { resolveGenreForNavigation } from './GenreNavigationResolver';
@@ -36,6 +39,7 @@ export interface ArtistViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	isHeaderVisible?: boolean;
+	navBarContext?: NavBarContext;
 	onExitFromSearchNavigation?: () => void;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigationContext?: (context: LibraryNavContext | null) => void;
@@ -177,6 +181,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				gridColumns,
 				imageCache,
 				isHeaderVisible: false,
+				navBarContext: this.viewModel.navBarContext,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				onNavigationContext,
 				paletteQueue,
@@ -233,6 +238,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				downloadService,
 				genre: resolvedGenre,
 				imageCache,
+				navBarContext: this.viewModel.navBarContext,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				playbackStore,
 				restoreHeaderOnDestroy: false,
@@ -381,6 +387,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			track,
 		}));
 
+		const { navBarContext } = this.viewModel;
 		const scrollStyle = createScrollStyle(isFooterVisible, isHeaderVisible);
 		const isLoading = !albumsLoaded || !topTracksLoaded;
 		const artistGenres = mergeGenreCollections([
@@ -474,6 +481,24 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				/>
 			)}
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+			{navBarContext && (
+				<FooterNav
+					activeTab={navBarContext.activeFooterTab}
+					downloadingCount={navBarContext.downloadingCount}
+					onFooterTabTap={navBarContext.onFooterTabTap}
+				/>
+			)}
+			{navBarContext?.header && isHeaderVisible && (
+				<LibraryHeaderNav
+					activeTab={navBarContext.header.activeTab}
+					animationsEnabled={navBarContext.header.animationsEnabled}
+					connectionMode={navBarContext.header.connectionMode}
+					onAlphabetLetterTap={navBarContext.header.onAlphabetLetterTap}
+					onRequestModeChange={navBarContext.header.onRequestModeChange}
+					onSortChange={navBarContext.header.onSortChange}
+					onTabTap={navBarContext.header.onTabTap}
+				/>
+			)}
 		</layout>;
 	}
 }

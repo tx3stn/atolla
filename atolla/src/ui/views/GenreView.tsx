@@ -12,9 +12,12 @@ import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { DetailHeader } from '../components/DetailHeader';
+import { FooterNav } from '../components/FooterNav';
+import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import type { NavBarContext } from '../NavBarContext';
 
 const TRACK_PAGE_SIZE = 50;
 
@@ -24,6 +27,7 @@ export interface GenreViewModel {
 	genre: Genre;
 	imageCache: ImageCache;
 	isHeaderVisible?: boolean;
+	navBarContext?: NavBarContext;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
 	playbackStore: PlaybackStore;
@@ -340,7 +344,8 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			totalTrackCount,
 			tracks,
 		} = this.state;
-		const { genre, imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
+		const { genre, imageCache, navBarContext, onNavigateToArtist, playbackStore, transport } =
+			this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
@@ -428,6 +433,24 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				/>
 			)}
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+			{navBarContext && (
+				<FooterNav
+					activeTab={navBarContext.activeFooterTab}
+					downloadingCount={navBarContext.downloadingCount}
+					onFooterTabTap={navBarContext.onFooterTabTap}
+				/>
+			)}
+			{navBarContext?.header && isHeaderVisible && (
+				<LibraryHeaderNav
+					activeTab={navBarContext.header.activeTab}
+					animationsEnabled={navBarContext.header.animationsEnabled}
+					connectionMode={navBarContext.header.connectionMode}
+					onAlphabetLetterTap={navBarContext.header.onAlphabetLetterTap}
+					onRequestModeChange={navBarContext.header.onRequestModeChange}
+					onSortChange={navBarContext.header.onSortChange}
+					onTabTap={navBarContext.header.onTabTap}
+				/>
+			)}
 		</layout>;
 	}
 }

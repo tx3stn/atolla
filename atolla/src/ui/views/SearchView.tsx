@@ -29,6 +29,7 @@ import { Toast } from '../components/Toast';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { clearScheduledToast, scheduleToastDismiss } from '../components/toastTimer';
+import type { NavBarContext } from '../NavBarContext';
 import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
 import { PlaylistView } from './PlaylistView';
@@ -41,6 +42,7 @@ export interface SearchViewModel {
 	focusSignal?: number;
 	gridColumns: number;
 	imageCache: ImageCache;
+	navBarContext?: NavBarContext;
 	navigationController: NavigationController;
 	onNavigateToLibraryResult?: (target: SearchLibraryNavigationTarget) => void;
 	paletteQueue?: PaletteGenerationQueue;
@@ -351,6 +353,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					downloadService,
 					gridColumns,
 					imageCache,
+					navBarContext: this.viewModel.navBarContext,
 					paletteQueue,
 					playbackStore,
 					transport,
@@ -395,6 +398,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache: this.viewModel.imageCache,
+				navBarContext: this.viewModel.navBarContext,
 				paletteQueue: this.viewModel.paletteQueue,
 				playbackStore: this.viewModel.playbackStore,
 				transport: this.viewModel.transport,
@@ -423,6 +427,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache: this.viewModel.imageCache,
+				navBarContext: this.viewModel.navBarContext,
 				paletteQueue: this.viewModel.paletteQueue,
 				playbackStore: this.viewModel.playbackStore,
 				transport: this.viewModel.transport,
@@ -452,6 +457,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			playbackStore,
 			transport,
 		} = this.viewModel;
+		const { navBarContext } = this.viewModel;
 		navigationController.push(
 			PlaylistView,
 			{
@@ -459,6 +465,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				downloadService,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache,
+				navBarContext,
 				onNavigateToArtist: (artistId) => {
 					transport.getArtist(artistId).then((artist) => {
 						if (!artist) return;
@@ -470,6 +477,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 								downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
+								navBarContext,
 								paletteQueue,
 								playbackStore,
 								transport,

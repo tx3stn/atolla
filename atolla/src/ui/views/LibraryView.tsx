@@ -17,6 +17,7 @@ import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
 import type { SortOrder } from '../components/SortNavPanel';
+import type { NavBarContext } from '../NavBarContext';
 import { AlbumsView } from './AlbumsView';
 import { ArtistsView } from './ArtistsView';
 import { GenresView } from './GenresView';
@@ -36,6 +37,7 @@ export interface LibraryViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	letterFilter?: string | null;
+	navBarContext?: NavBarContext;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationContext?: (context: LibraryNavContext | null) => void;
@@ -154,6 +156,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 			gridColumns,
 			imageCache,
 			letterFilter,
+			navBarContext,
 			onNavigateToArtist,
 			onHeaderVisibilityChange,
 			onNavigationContext,
@@ -176,6 +179,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							imageCache={imageCache}
 							isOfflineMode={isOfflineMode}
 							letterFilter={letterFilter}
+							navBarContext={navBarContext}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigationContext={onNavigationContext}
@@ -199,6 +203,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							imageCache={imageCache}
 							isOfflineMode={isOfflineMode}
 							letterFilter={letterFilter}
+							navBarContext={navBarContext}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigationContext={onNavigationContext}
@@ -221,6 +226,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							gridColumns={gridColumns}
 							imageCache={imageCache}
 							letterFilter={letterFilter}
+							navBarContext={navBarContext}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigateToArtist={onNavigateToArtist}
@@ -244,6 +250,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							gridColumns={gridColumns}
 							imageCache={imageCache}
 							letterFilter={letterFilter}
+							navBarContext={navBarContext}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
 							onNavigateToArtist={onNavigateToArtist}

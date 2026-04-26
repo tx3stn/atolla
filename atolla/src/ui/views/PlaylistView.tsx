@@ -13,9 +13,12 @@ import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { DetailHeader } from '../components/DetailHeader';
+import { FooterNav } from '../components/FooterNav';
+import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import type { NavBarContext } from '../NavBarContext';
 import { ArtistView } from './ArtistView';
 import type { LibraryNavContext } from './LibraryView';
 
@@ -27,6 +30,7 @@ export interface PlaylistViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	isHeaderVisible?: boolean;
+	navBarContext?: NavBarContext;
 	onExitFromSearchNavigation?: () => void;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -104,6 +108,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					gridColumns,
 					imageCache,
 					isHeaderVisible: false,
+					navBarContext: this.viewModel.navBarContext,
 					onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 					onNavigationContext: this.viewModel.onNavigationContext,
 					paletteQueue,
@@ -363,6 +368,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		} = this.state;
 		const { imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
 
+		const { navBarContext } = this.viewModel;
+
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
 			id: track.id,
@@ -430,6 +437,24 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				/>
 			)}
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+			{navBarContext && (
+				<FooterNav
+					activeTab={navBarContext.activeFooterTab}
+					downloadingCount={navBarContext.downloadingCount}
+					onFooterTabTap={navBarContext.onFooterTabTap}
+				/>
+			)}
+			{navBarContext?.header && isHeaderVisible && (
+				<LibraryHeaderNav
+					activeTab={navBarContext.header.activeTab}
+					animationsEnabled={navBarContext.header.animationsEnabled}
+					connectionMode={navBarContext.header.connectionMode}
+					onAlphabetLetterTap={navBarContext.header.onAlphabetLetterTap}
+					onRequestModeChange={navBarContext.header.onRequestModeChange}
+					onSortChange={navBarContext.header.onSortChange}
+					onTabTap={navBarContext.header.onTabTap}
+				/>
+			)}
 		</layout>;
 	}
 }

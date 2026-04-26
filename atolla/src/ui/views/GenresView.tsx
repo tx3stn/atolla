@@ -11,6 +11,7 @@ import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
+import type { NavBarContext } from '../NavBarContext';
 import { GenreView } from './GenreView';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
@@ -21,6 +22,7 @@ interface GenresViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	letterFilter?: string | null;
+	navBarContext?: NavBarContext;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -182,6 +184,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 							downloadService: this.viewModel.downloadService,
 							genre,
 							imageCache,
+							navBarContext: this.viewModel.navBarContext,
 							onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 							onNavigateToArtist: this.viewModel.onNavigateToArtist,
 							playbackStore,

@@ -16,11 +16,14 @@ import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
+import { FooterNav } from '../components/FooterNav';
 import { GenrePills } from '../components/GenrePills';
 import { normalizeGenres } from '../components/GenrePillsData';
+import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import type { NavBarContext } from '../NavBarContext';
 import { ArtistView } from './ArtistView';
 import { resolveGenreForNavigation } from './GenreNavigationResolver';
 import { GenreView } from './GenreView';
@@ -34,6 +37,7 @@ export interface AlbumViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	isHeaderVisible?: boolean;
+	navBarContext?: NavBarContext;
 	onExitFromSearchNavigation?: () => void;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigationContext?: (context: LibraryNavContext | null) => void;
@@ -103,6 +107,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					gridColumns,
 					imageCache,
 					isHeaderVisible: false,
+					navBarContext: this.viewModel.navBarContext,
 					onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 					paletteQueue,
 					playbackStore,
@@ -261,6 +266,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				downloadService,
 				genre: resolvedGenre,
 				imageCache,
+				navBarContext: this.viewModel.navBarContext,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				playbackStore,
 				restoreHeaderOnDestroy: false,
@@ -374,6 +380,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const { album, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 		const albumGenres = normalizeGenres(album.genres);
 
+		const { navBarContext } = this.viewModel;
+
 		const entries: Array<TrackListEntry> = tracks.map((track) => {
 			const duration = formatDuration(track.duration);
 			const showTrackArtist = track.artistName != null && track.artistName !== album.artistName;
@@ -450,6 +458,24 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				/>
 			)}
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+			{navBarContext && (
+				<FooterNav
+					activeTab={navBarContext.activeFooterTab}
+					downloadingCount={navBarContext.downloadingCount}
+					onFooterTabTap={navBarContext.onFooterTabTap}
+				/>
+			)}
+			{navBarContext?.header && isHeaderVisible && (
+				<LibraryHeaderNav
+					activeTab={navBarContext.header.activeTab}
+					animationsEnabled={navBarContext.header.animationsEnabled}
+					connectionMode={navBarContext.header.connectionMode}
+					onAlphabetLetterTap={navBarContext.header.onAlphabetLetterTap}
+					onRequestModeChange={navBarContext.header.onRequestModeChange}
+					onSortChange={navBarContext.header.onSortChange}
+					onTabTap={navBarContext.header.onTabTap}
+				/>
+			)}
 		</layout>;
 	}
 }

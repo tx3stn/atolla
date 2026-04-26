@@ -90,6 +90,7 @@ import { MockPlayer } from './ui/components/MockPlayer';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { type SortOrder, SortOrders } from './ui/components/SortNavPanel';
 import { Toast } from './ui/components/Toast';
+import type { NavBarContext } from './ui/NavBarContext';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
 import { ConnectionView } from './ui/views/ConnectionView';
@@ -1476,6 +1477,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			gridColumns,
 			imageCache: this.imageCache,
 			isHeaderVisible: false,
+			navBarContext: this.buildLibraryNavBarContext(),
 			onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 			onNavigationContext: this.handleNavigationContext,
 			paletteQueue: this.paletteQueue,
@@ -1585,6 +1587,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						isHeaderVisible: false,
+						navBarContext: this.buildLibraryNavBarContext(),
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
@@ -1606,6 +1609,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						isHeaderVisible: false,
+						navBarContext: this.buildLibraryNavBarContext(),
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
@@ -1626,6 +1630,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						isHeaderVisible: false,
+						navBarContext: this.buildLibraryNavBarContext(),
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
@@ -1747,6 +1752,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					gridColumns: this.state.gridColumns,
 					imageCache: this.imageCache,
 					isHeaderVisible: false,
+					navBarContext: this.buildLibraryNavBarContext(),
 					onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 					paletteQueue: this.paletteQueue,
 					playbackStore: this.playbackStore,
@@ -1813,6 +1819,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						isHeaderVisible: false,
+						navBarContext: this.buildLibraryNavBarContext(),
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
@@ -1875,6 +1882,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				downloadService: this.downloadService,
 				gridColumns: this.state.gridColumns,
 				imageCache: this.imageCache,
+				navBarContext: this.buildHomeNavBarContext(),
 				onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
 				paletteQueue: this.paletteQueue,
 				playbackStore: this.playbackStore,
@@ -1915,6 +1923,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					gridColumns: this.state.gridColumns,
 					imageCache: this.imageCache,
 					isHeaderVisible: false,
+					navBarContext: this.buildLibraryNavBarContext(),
 					onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 					paletteQueue: this.paletteQueue,
 					playbackStore: this.playbackStore,
@@ -1969,6 +1978,49 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			trackDurationSeconds: activeTrack?.duration ?? 0,
 			trackId: activeTrack?.id ?? null,
 		});
+	}
+
+	private buildLibraryNavBarContext(): NavBarContext | undefined {
+		if (Device.isAndroid()) return undefined;
+		return {
+			activeFooterTab: this.state.activeFooterTab,
+			downloadingCount: this.state.downloadingCount,
+			header: {
+				activeTab: this.state.activeLibraryTab,
+				animationsEnabled: this.state.animationsEnabled,
+				connectionMode: this.state.connectionMode,
+				onAlphabetLetterTap: this.handleLibraryAlphabetLetterTap,
+				onRequestModeChange: this.requestModeChange,
+				onSortChange: this.handleLibrarySortChange,
+				onTabTap: this.handleLibraryHeaderTabTap,
+			},
+			onFooterTabTap: this.handleFooterTabTap,
+		};
+	}
+
+	private buildHomeNavBarContext(): NavBarContext | undefined {
+		if (Device.isAndroid()) return undefined;
+		return {
+			activeFooterTab: FooterTabs.home,
+			downloadingCount: this.state.downloadingCount,
+			header: {
+				activeTab: HeaderTabs.albums,
+				animationsEnabled: this.state.animationsEnabled,
+				connectionMode: this.state.connectionMode,
+				onRequestModeChange: this.requestModeChange,
+				onTabTap: this.handleHomeHeaderTabTap,
+			},
+			onFooterTabTap: this.handleFooterTabTap,
+		};
+	}
+
+	private buildSearchNavBarContext(): NavBarContext | undefined {
+		if (Device.isAndroid()) return undefined;
+		return {
+			activeFooterTab: FooterTabs.search,
+			downloadingCount: this.state.downloadingCount,
+			onFooterTabTap: this.handleFooterTabTap,
+		};
 	}
 
 	onRender(): void {
@@ -2037,28 +2089,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				</NavigationRoot>
 			)}
 
-			{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeHeaderVisible && (
-				<LibraryHeaderNav
-					activeTab={HeaderTabs.albums}
-					animationsEnabled={this.state.animationsEnabled}
-					connectionMode={this.state.connectionMode}
-					onRequestModeChange={this.requestModeChange}
-					onTabTap={this.handleHomeHeaderTabTap}
-				/>
-			)}
-
-			{this.state.activeFooterTab === FooterTabs.library && this.state.isLibraryHeaderVisible && (
-				<LibraryHeaderNav
-					activeTab={this.state.activeLibraryTab}
-					animationsEnabled={this.state.animationsEnabled}
-					connectionMode={this.state.connectionMode}
-					onAlphabetLetterTap={this.handleLibraryAlphabetLetterTap}
-					onRequestModeChange={this.requestModeChange}
-					onSortChange={this.handleLibrarySortChange}
-					onTabTap={this.handleLibraryHeaderTabTap}
-				/>
-			)}
-
 			{this.state.activeFooterTab === FooterTabs.library && (
 				<LibraryView
 					activeTab={this.state.activeLibraryTab}
@@ -2068,6 +2098,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					gridColumns={this.state.gridColumns}
 					imageCache={this.imageCache}
 					letterFilter={this.state.libraryLetterFilter}
+					navBarContext={this.buildLibraryNavBarContext()}
 					onHeaderVisibilityChange={this.handleLibraryHeaderVisibilityChange}
 					onNavigateToArtist={this.handleNavigateToArtist}
 					onNavigationContext={this.handleNavigationContext}
@@ -2088,6 +2119,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							focusSignal={this.state.searchFocusSignal}
 							gridColumns={this.state.gridColumns}
 							imageCache={this.imageCache}
+							navBarContext={this.buildSearchNavBarContext()}
 							navigationController={navigationController}
 							onNavigateToLibraryResult={this.handleSearchResultNavigation}
 							paletteQueue={this.paletteQueue}
@@ -2129,12 +2161,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				/>
 			)}
 
-			<FooterNav
-				activeTab={this.state.activeFooterTab}
-				downloadingCount={this.state.downloadingCount}
-				onFooterTabTap={this.handleFooterTabTap}
-			/>
-
 			{track && (
 				<NowPlayingSurface
 					album={album}
@@ -2162,6 +2188,34 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					transport={this.transport}
 				/>
 			)}
+
+			{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeHeaderVisible && (
+				<LibraryHeaderNav
+					activeTab={HeaderTabs.albums}
+					animationsEnabled={this.state.animationsEnabled}
+					connectionMode={this.state.connectionMode}
+					onRequestModeChange={this.requestModeChange}
+					onTabTap={this.handleHomeHeaderTabTap}
+				/>
+			)}
+
+			{this.state.activeFooterTab === FooterTabs.library && this.state.isLibraryHeaderVisible && (
+				<LibraryHeaderNav
+					activeTab={this.state.activeLibraryTab}
+					animationsEnabled={this.state.animationsEnabled}
+					connectionMode={this.state.connectionMode}
+					onAlphabetLetterTap={this.handleLibraryAlphabetLetterTap}
+					onRequestModeChange={this.requestModeChange}
+					onSortChange={this.handleLibrarySortChange}
+					onTabTap={this.handleLibraryHeaderTabTap}
+				/>
+			)}
+
+			<FooterNav
+				activeTab={this.state.activeFooterTab}
+				downloadingCount={this.state.downloadingCount}
+				onFooterTabTap={this.handleFooterTabTap}
+			/>
 
 			{this.state.authToastMessage && <Toast message={this.state.authToastMessage} />}
 			{this.state.playbackToastMessage && <Toast message={this.state.playbackToastMessage} />}

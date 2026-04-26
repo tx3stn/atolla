@@ -13,6 +13,7 @@ import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
+import type { NavBarContext } from '../NavBarContext';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
 import { sortPlaylists } from './PlaylistsSort';
@@ -24,6 +25,7 @@ export interface PlaylistsViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	letterFilter?: string | null;
+	navBarContext?: NavBarContext;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -256,6 +258,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 								downloadService: this.viewModel.downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
+								navBarContext: this.viewModel.navBarContext,
 								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 								onNavigateToArtist,
 								onNavigationContext: this.viewModel.onNavigationContext,
