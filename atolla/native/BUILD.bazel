@@ -52,6 +52,16 @@ objc_library(
     ],
 )
 
+objc_library(
+    name = "atolla_image_loader_bootstrap_module_factory_ios",
+    srcs = ["ios/AtollaImageLoaderBootstrapModuleFactory.m"],
+    copts = ["-I."],
+    deps = [
+        "//atolla:atolla_api_objc",
+        ":palette_ios_bridge",
+    ],
+)
+
 kt_android_library(
     name = "atolla_cache_image_loader_android",
     srcs = [

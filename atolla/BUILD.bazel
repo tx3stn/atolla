@@ -8,6 +8,7 @@ valdi_module(
     ios_deps = [
         "//atolla/native:atolla_cache_image_loader_ios",
         "//atolla/native:atolla_track_playback_module_factory_ios",
+        "//atolla/native:atolla_image_loader_bootstrap_module_factory_ios",
     ],
     native_deps = ["//atolla/native/zig:palette_android_jni"],
     srcs = glob(
