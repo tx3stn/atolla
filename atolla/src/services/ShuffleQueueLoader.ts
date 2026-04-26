@@ -47,6 +47,10 @@ export class ShuffleQueueLoader {
 			return;
 		}
 
+		if (this.store.tracks.length === 0) {
+			return;
+		}
+
 		const remaining = this.store.tracks.length - this.store.trackIndex;
 		if (remaining > PREFETCH_THRESHOLD) {
 			return;

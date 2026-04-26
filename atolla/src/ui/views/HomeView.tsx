@@ -268,7 +268,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 		if (connectionMode === ConnectionModes.online && transport.getShuffledLibraryTracksPage) {
 			const getPage = transport.getShuffledLibraryTracksPage;
-			const fetchPage = (page: number, pageSize: number) => getPage(page, pageSize);
+			const fetchPage = (page: number, pageSize: number) => getPage.call(transport, page, pageSize);
 
 			let result: { hasMore: boolean; items: Array<Track> };
 			try {

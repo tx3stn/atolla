@@ -262,6 +262,32 @@ describe('ShuffleQueueLoader', () => {
 		loader.dispose();
 	});
 
+	it('does not fetch when the queue has been cleared to empty', async () => {
+		const initialTracks = createTracks(25);
+		const store = createMockStore(initialTracks, 0);
+		let fetchCallCount = 0;
+
+		const loader = new ShuffleQueueLoader(
+			store,
+			() => {
+				fetchCallCount++;
+				return Promise.resolve({ hasMore: true, items: createTracks(50, 'p2-') });
+			},
+			SHUFFLE_PAGE_SIZE,
+		);
+
+		loader.start(2, true);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		store.tracks = [];
+		store.trackIndex = 0;
+		for (const l of store.listeners) l();
+
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(fetchCallCount).toBe(0);
+		loader.dispose();
+	});
+
 	it('unsubscribes from the store on dispose', () => {
 		const initialTracks = createTracks(5);
 		const store = createMockStore(initialTracks, 0);
