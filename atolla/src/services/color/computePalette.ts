@@ -22,8 +22,8 @@ export async function computePalette(
 	const pixels = await decodePixelSamples(buffer, mimeType);
 	if (!pixels) return null;
 
-	const candidates = extractDominantColorCandidates(pixels, 8);
-	const primary = candidates[0]?.color ?? NEUTRAL_PALETTE.primary;
+	const candidates = extractDominantColorCandidates(pixels, 12);
+	const primary = selectPrimary(candidates);
 	const tint = selectTint(candidates, primary);
 	const accent = selectAccent(candidates, primary);
 	const rawSurface = mutedVariant(primary);
@@ -36,6 +36,30 @@ export async function computePalette(
 		primary,
 		surface,
 	};
+}
+
+// Exported for testing.
+// Picks the primary colour using a vibrancy-weighted score so that saturated
+// colours beat large neutral/grey backgrounds even when they cover fewer pixels.
+export function selectPrimary(candidates: Array<DominantColorCandidate>): Color {
+	const totalPop = candidates.reduce((sum, c) => sum + c.population, 0);
+	if (totalPop === 0) return NEUTRAL_PALETTE.primary;
+
+	let best: { color: Color; score: number } | null = null;
+	for (const candidate of candidates) {
+		const [r, g, b] = hexToRgb(candidate.color.hex);
+		const [, s, l] = rgbToHsl(r, g, b);
+		if (l <= 0.05 || l >= 0.95) continue;
+		const share = candidate.population / totalPop;
+		// Saturated colours score higher than their raw frequency:
+		// at s=0.7 the multiplier is ~2.5×, so a vivid 25% colour beats a grey 50% background.
+		const vibrancy = 1 + clamp(s - 0.08, 0, 1) * 2.5;
+		const score = share * vibrancy;
+		if (!best || score > best.score) {
+			best = { color: candidate.color, score };
+		}
+	}
+	return best?.color ?? candidates[0]?.color ?? NEUTRAL_PALETTE.primary;
 }
 
 function selectTint(candidates: Array<DominantColorCandidate>, primary: Color): Color | null {
@@ -70,7 +94,7 @@ function selectAccent(candidates: Array<DominantColorCandidate>, primary: Color)
 		if (s < 0.25) continue;
 
 		const share = candidate.population / totalPopulation;
-		if (share < 0.01 || share > 0.35) continue;
+		if (share < 0.01 || share > 0.55) continue;
 
 		const hueDistance = normalizedHueDistance(primaryHue, h);
 		if (hueDistance < 0.12) continue;
@@ -78,7 +102,7 @@ function selectAccent(candidates: Array<DominantColorCandidate>, primary: Color)
 		const lightnessDistance = Math.abs(l - primaryLightness);
 		const rarityWeight = clamp(1 - Math.abs(share - 0.12) / 0.12, 0, 1);
 		const score =
-			(hueDistance * 1.4 + lightnessDistance * 0.35) * (0.35 + s) * (0.2 + rarityWeight);
+			(hueDistance * 1.4 + lightnessDistance * 0.35) * (0.15 + s * 1.8) * (0.2 + rarityWeight);
 		if (!best || score > best.score) {
 			best = { color: candidate.color, score };
 		}
