@@ -49,6 +49,26 @@ export function resolvePrimaryArtist(
 	return null;
 }
 
+export function resolveAlbumArtist(
+	item: Pick<JellyfinBaseItemDto, 'AlbumArtist' | 'AlbumArtists' | 'ArtistItems'>,
+): JellyfinNameIdReference | null {
+	const fromAlbumArtists = item.AlbumArtists?.[0];
+	if (fromAlbumArtists?.Id && fromAlbumArtists?.Name) {
+		return fromAlbumArtists;
+	}
+
+	const fromArtistItems = item.ArtistItems?.[0];
+	if (fromArtistItems?.Id && fromArtistItems?.Name) {
+		return fromArtistItems;
+	}
+
+	if (item.AlbumArtist && item.AlbumArtist.length > 0) {
+		return { Id: '', Name: item.AlbumArtist };
+	}
+
+	return null;
+}
+
 export function mapJellyfinArtistToArtist(
 	item: JellyfinArtistItem,
 	imageResolvers: JellyfinImageResolvers = {},
@@ -72,7 +92,7 @@ export function mapJellyfinAlbumToAlbum(
 	item: JellyfinAlbumItem,
 	imageResolvers: JellyfinImageResolvers = {},
 ): Album {
-	const primaryArtist = resolvePrimaryArtist(item);
+	const primaryArtist = resolveAlbumArtist(item);
 	const primaryTag = item.ImageTags?.Primary;
 
 	return {

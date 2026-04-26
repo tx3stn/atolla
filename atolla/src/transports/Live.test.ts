@@ -13,6 +13,8 @@ import {
 	mapJellyfinArtistToArtist,
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
+	resolveAlbumArtist,
+	resolvePrimaryArtist,
 } from './Live';
 
 interface MockHTTPResponse {
@@ -200,6 +202,62 @@ describe('mapJellyfinAlbumToAlbum', () => {
 			{ id: 'genre-2', name: 'Noise Rock' },
 			{ id: 'genre-1', name: 'Post-Hardcore' },
 		]);
+	});
+
+	it('uses AlbumArtists over ArtistItems for album artist', () => {
+		const item: JellyfinAlbumItem = {
+			AlbumArtists: [{ Id: 'album-artist-1', Name: 'Various Artists' }],
+			ArtistItems: [{ Id: 'track-artist-1', Name: 'First Track Artist' }],
+			Id: 'album-1',
+			Name: 'Compilation',
+			Type: 'MusicAlbum',
+		};
+
+		const album = mapJellyfinAlbumToAlbum(item);
+
+		expect(album.artistId).toBe('album-artist-1');
+		expect(album.artistName).toBe('Various Artists');
+	});
+});
+
+describe('resolveAlbumArtist', () => {
+	it('returns AlbumArtists[0] when present', () => {
+		const item = {
+			AlbumArtist: 'Fallback',
+			AlbumArtists: [{ Id: 'a-1', Name: 'Album Artist' }],
+			ArtistItems: [{ Id: 'a-2', Name: 'Track Artist' }],
+		};
+		const result = resolveAlbumArtist(item);
+		expect(result?.Id).toBe('a-1');
+		expect(result?.Name).toBe('Album Artist');
+	});
+
+	it('falls back to ArtistItems[0] when AlbumArtists is absent', () => {
+		const item = {
+			ArtistItems: [{ Id: 'a-2', Name: 'Track Artist' }],
+		};
+		const result = resolveAlbumArtist(item);
+		expect(result?.Id).toBe('a-2');
+		expect(result?.Name).toBe('Track Artist');
+	});
+
+	it('falls back to AlbumArtist string when neither array has a valid entry', () => {
+		const item = { AlbumArtist: 'String Artist' };
+		const result = resolveAlbumArtist(item);
+		expect(result?.Name).toBe('String Artist');
+	});
+});
+
+describe('resolvePrimaryArtist', () => {
+	it('returns ArtistItems[0] first (track artist takes precedence)', () => {
+		const item = {
+			AlbumArtist: 'Fallback',
+			AlbumArtists: [{ Id: 'a-1', Name: 'Album Artist' }],
+			ArtistItems: [{ Id: 'a-2', Name: 'Track Artist' }],
+		};
+		const result = resolvePrimaryArtist(item);
+		expect(result?.Id).toBe('a-2');
+		expect(result?.Name).toBe('Track Artist');
 	});
 });
 

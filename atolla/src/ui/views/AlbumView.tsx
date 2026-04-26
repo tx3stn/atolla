@@ -24,6 +24,7 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ArtistView } from './ArtistView';
 import { resolveGenreForNavigation } from './GenreNavigationResolver';
 import { GenreView } from './GenreView';
+import { isSameTrackQueue, resolveArtistLogoUrlsForTracks } from './HomeViewLogic';
 import type { LibraryNavContext } from './LibraryView';
 
 export interface AlbumViewModel {
@@ -139,16 +140,28 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			return;
 		}
 
-		const { album, playbackStore } = this.viewModel;
-		playbackStore.play(this.state.tracks, album, trackIndex);
+		const { album, playbackStore, transport } = this.viewModel;
+		const tracks = this.state.tracks;
+		playbackStore.play(tracks, album, trackIndex);
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
+
+		void resolveArtistLogoUrlsForTracks(tracks, transport).then((logoUrls) => {
+			if (!isSameTrackQueue(playbackStore.tracks, tracks)) return;
+			playbackStore.setArtistLogoUrls(logoUrls);
+		});
 	};
 
 	handleHeaderPlayTap = (): void => {
 		if (this.state.tracks.length === 0) return;
-		const { album, playbackStore } = this.viewModel;
-		playbackStore.play(this.state.tracks, album);
+		const { album, playbackStore, transport } = this.viewModel;
+		const tracks = this.state.tracks;
+		playbackStore.play(tracks, album);
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
+
+		void resolveArtistLogoUrlsForTracks(tracks, transport).then((logoUrls) => {
+			if (!isSameTrackQueue(playbackStore.tracks, tracks)) return;
+			playbackStore.setArtistLogoUrls(logoUrls);
+		});
 	};
 
 	handleTrackLongPress = (track: Track): void => {
@@ -161,9 +174,15 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 	handleHeaderShuffleTap = (): void => {
 		if (this.state.tracks.length === 0) return;
-		const { album, playbackStore } = this.viewModel;
-		playbackStore.play(shuffleArray(this.state.tracks), album);
+		const { album, playbackStore, transport } = this.viewModel;
+		const shuffledTracks = shuffleArray(this.state.tracks);
+		playbackStore.play(shuffledTracks, album);
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
+
+		void resolveArtistLogoUrlsForTracks(shuffledTracks, transport).then((logoUrls) => {
+			if (!isSameTrackQueue(playbackStore.tracks, shuffledTracks)) return;
+			playbackStore.setArtistLogoUrls(logoUrls);
+		});
 	};
 
 	handleDownloadTap = (): void => {
@@ -355,13 +374,17 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const { album, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 		const albumGenres = normalizeGenres(album.genres);
 
-		const entries: Array<TrackListEntry> = tracks.map((track) => ({
-			id: track.id,
-			leadingLabel: track.trackNumber != null ? String(track.trackNumber) : null,
-			meta: formatDuration(track.duration),
-			title: track.name,
-			track,
-		}));
+		const entries: Array<TrackListEntry> = tracks.map((track) => {
+			const duration = formatDuration(track.duration);
+			const showTrackArtist = track.artistName != null && track.artistName !== album.artistName;
+			return {
+				id: track.id,
+				leadingLabel: track.trackNumber != null ? String(track.trackNumber) : null,
+				meta: showTrackArtist ? `${duration}  ·  ${track.artistName}` : duration,
+				title: track.name,
+				track,
+			};
+		});
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 		const releaseDateText = formatReleaseDate(album.releaseDate);

@@ -35,6 +35,7 @@ export {
 	mapJellyfinGenreToGenre,
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
+	resolveAlbumArtist,
 	resolvePrimaryArtist,
 	runTimeTicksToSeconds,
 } from './JellyfinMappers';
