@@ -5,7 +5,10 @@ package(default_visibility = ["//visibility:public"])
 valdi_module(
     name = "atolla",
     android_deps = ["//atolla/native:atolla_cache_image_loader_android"],
-    ios_deps = ["//atolla/native:atolla_cache_image_loader_ios"],
+    ios_deps = [
+        "//atolla/native:atolla_cache_image_loader_ios",
+        "//atolla/native:atolla_track_playback_module_factory_ios",
+    ],
     native_deps = ["//atolla/native/zig:palette_android_jni"],
     srcs = glob(
         [

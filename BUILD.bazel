@@ -31,6 +31,21 @@ toolchain(
     toolchain_type = "@rules_zig//zig/target:toolchain_type",
 )
 
+zig_target_toolchain(
+    name = "zig_target_ios_arm64",
+    target = "aarch64-ios-simulator",
+)
+
+toolchain(
+    name = "zig_toolchain_ios_arm64",
+    target_compatible_with = [
+        "@platforms//os:ios",
+        "@platforms//cpu:aarch64",
+    ],
+    toolchain = ":zig_target_ios_arm64",
+    toolchain_type = "@rules_zig//zig/target:toolchain_type",
+)
+
 filegroup(
     name = "app_sources",
     srcs = glob([

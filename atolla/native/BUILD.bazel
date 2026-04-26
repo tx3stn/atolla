@@ -1,4 +1,4 @@
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint", "swift_library")
 load("@rules_kotlin//kotlin:android.bzl", "kt_android_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -20,10 +20,17 @@ filegroup(
     srcs = ["android/AndroidManifest.xml"],
 )
 
+swift_interop_hint(
+    name = "palette_ios_bridge_swift_interop",
+    module_map = "ios/palette_ios_bridge.modulemap",
+    module_name = "palette_ios_bridge",
+)
+
 objc_library(
     name = "palette_ios_bridge",
     srcs = ["ios/palette_ios_bridge.m"],
     hdrs = ["ios/palette_ios_bridge.h"],
+    aspect_hints = [":palette_ios_bridge_swift_interop"],
     deps = ["//atolla/native/zig:palette_algorithm"],
     sdk_frameworks = ["CoreGraphics"],
 )
@@ -32,6 +39,17 @@ swift_library(
     name = "atolla_cache_image_loader_ios",
     srcs = ["ios/AtollaCacheImageLoader.swift"],
     deps = [":palette_ios_bridge"],
+)
+
+objc_library(
+    name = "atolla_track_playback_module_factory_ios",
+    srcs = ["ios/AtollaTrackPlaybackNativeModuleFactory.m"],
+    copts = ["-I."],
+    deps = ["//atolla:atolla_api_objc"],
+    sdk_frameworks = [
+        "AVFoundation",
+        "MediaPlayer",
+    ],
 )
 
 kt_android_library(

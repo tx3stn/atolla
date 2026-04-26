@@ -1,0 +1,4 @@
+module palette_ios_bridge {
+    header "palette_ios_bridge.h"
+    export *
+}

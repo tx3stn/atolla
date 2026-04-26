@@ -85,6 +85,11 @@ VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS:-} --macos_sdk_version=${MACOS_SDK_VERSION}
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --java_runtime_version=remotejdk_21 --tool_java_runtime_version=remotejdk_21"
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --cxxopt=-std=gnu++20 --host_cxxopt=-std=gnu++20"
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --remote_download_outputs=toplevel"
+# Clang 26 (SDK 26+) promotes several warnings to errors in third-party deps (abseil, Hermes, Yoga)
+VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --host_copt=-Wno-deprecated-builtins --copt=-Wno-deprecated-builtins"
+VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --host_copt=-Wno-nontrivial-memcall --copt=-Wno-nontrivial-memcall"
+VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --host_copt=-Wno-deprecated-literal-operator --copt=-Wno-deprecated-literal-operator"
+VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --host_copt=-Wno-deprecated --copt=-Wno-deprecated"
 
 if [[ "$FAST_DEV_BUILD" == "1" ]]; then
 	VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --spawn_strategy=local --strategy=ValdiCompile=local --compilation_mode=fastbuild --keep_going"

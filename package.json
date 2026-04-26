@@ -24,6 +24,8 @@
 		"adb:reload": "adb shell am force-stop com.tx3stn.atolla && adb shell monkey -p com.tx3stn.atolla -c android.intent.category.LAUNCHER 1",
 		"android": "bun run icons:generate && /.scripts/start-android-emulator.sh",
 		"android:fast": "FAST_DEV_BUILD=1 ./.scripts/start-android-emulator.sh",
+		"ios": "./.scripts/start-ios-simulator.sh",
+		"ios:fast": "FAST_DEV_BUILD=1 ./.scripts/start-ios-simulator.sh",
 		"appium:inspect": "./.scripts/start-appium-inspector.sh",
 		"check": "bun run format && bun run lint && bun run compile && bun run test",
 		"check:full": "bun run check && bun run check:zig &&bun run test:components",

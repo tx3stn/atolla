@@ -11,13 +11,17 @@ zig_static_library(
 cc_library(
     name = "palette_algorithm",
     hdrs = ["palette_extractor.h"],
+    includes = ["."],
     deps = [":palette_extractor_zig"],
 )
 
 # Android JNI wrapper — included in libvaldi.so via native_deps in atolla/BUILD.bazel.
 cc_library(
     name = "palette_android_jni",
-    srcs = ["palette_jni.cpp"],
+    srcs = select({
+        "@platforms//os:android": ["palette_jni.cpp"],
+        "//conditions:default": [],
+    }),
     deps = [":palette_algorithm"],
     alwayslink = 1,
 )

@@ -5,4 +5,7 @@ bazel_dep(name = "rules_zig", version = "0.13.0")
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 zig.toolchain(zig_version = "0.15.2")
 
-register_toolchains("//:zig_toolchain_android_arm64")
+register_toolchains(
+    "//:zig_toolchain_android_arm64",
+    "//:zig_toolchain_ios_arm64",
+)
