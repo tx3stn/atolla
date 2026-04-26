@@ -1,6 +1,8 @@
-###############################################################################
-# Bazel now uses Bzlmod by default to manage external dependencies.
-# Please consider migrating your external dependencies from WORKSPACE to MODULE.bazel.
-#
-# For more details, please check https://github.com/bazelbuild/bazel/issues/18958
-###############################################################################
+module(name = "atolla")
+
+bazel_dep(name = "rules_zig", version = "0.13.0")
+
+zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
+zig.toolchain(zig_version = "0.15.2")
+
+register_toolchains("//:zig_toolchain_android_arm64")

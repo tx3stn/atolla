@@ -20,10 +20,18 @@ filegroup(
     srcs = ["android/AndroidManifest.xml"],
 )
 
+objc_library(
+    name = "palette_ios_bridge",
+    srcs = ["ios/palette_ios_bridge.m"],
+    hdrs = ["ios/palette_ios_bridge.h"],
+    deps = ["//atolla/native/zig:palette_algorithm"],
+    sdk_frameworks = ["CoreGraphics"],
+)
+
 swift_library(
     name = "atolla_cache_image_loader_ios",
     srcs = ["ios/AtollaCacheImageLoader.swift"],
-    deps = [],
+    deps = [":palette_ios_bridge"],
 )
 
 kt_android_library(

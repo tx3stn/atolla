@@ -1,5 +1,6 @@
 import CommonCrypto
 import Foundation
+import palette_ios_bridge
 
 // Integrate this class in the host app where Valdi image loaders are registered.
 // Required Valdi protocols/types are provided by the host runtime.
@@ -22,6 +23,12 @@ final class AtollaCacheImageLoader: NSObject {
         }
 
         return AtollaCacheRequestPayload(category: category, sourceURL: sourceURL)
+    }
+
+    func extractPalette(category: String, sourceURL: URL) -> String? {
+        let key = "\(category):\(sourceURL.absoluteString)"
+        guard let data = cache.read(key: key) else { return nil }
+        return AtollaPaletteExtractor.extractPalette(from: data)
     }
 
     // Hook this to SCValdiImageLoader loadImageWithRequestPayload implementation.

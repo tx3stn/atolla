@@ -584,6 +584,7 @@ const styles = {
 	}),
 	trackCacheLimitOptionLabel: new Style<Label>({
 		...theme.text.sub,
+		color: theme.colors.bg,
 	}),
 	trackCacheLimitOptionSelected: new Style<View>({
 		alignItems: 'center',

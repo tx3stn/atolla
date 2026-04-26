@@ -1,4 +1,5 @@
 load("@valdi//bzl/valdi:valdi_application.bzl", "valdi_application")
+load("@rules_zig//zig:toolchain.bzl", "zig_target_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,6 +14,21 @@ valdi_application(
     title = "atolla",
     version = "0.0.1",
     deps = ["//atolla"],
+)
+
+zig_target_toolchain(
+    name = "zig_target_android_arm64",
+    target = "aarch64-linux-android",
+)
+
+toolchain(
+    name = "zig_toolchain_android_arm64",
+    target_compatible_with = [
+        "@platforms//os:android",
+        "@platforms//cpu:aarch64",
+    ],
+    toolchain = ":zig_target_android_arm64",
+    toolchain_type = "@rules_zig//zig/target:toolchain_type",
 )
 
 filegroup(

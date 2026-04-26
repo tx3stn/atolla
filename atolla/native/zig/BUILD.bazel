@@ -1,0 +1,23 @@
+load("@rules_zig//zig:defs.bzl", "zig_static_library")
+
+package(default_visibility = ["//visibility:public"])
+
+zig_static_library(
+    name = "palette_extractor_zig",
+    main = "palette_extractor.zig",
+)
+
+# Header-only wrapper so both the Android JNI and iOS ObjC bridge can dep on the C header.
+cc_library(
+    name = "palette_algorithm",
+    hdrs = ["palette_extractor.h"],
+    deps = [":palette_extractor_zig"],
+)
+
+# Android JNI wrapper — included in libvaldi.so via native_deps in atolla/BUILD.bazel.
+cc_library(
+    name = "palette_android_jni",
+    srcs = ["palette_jni.cpp"],
+    deps = [":palette_algorithm"],
+    alwayslink = 1,
+)
