@@ -6,7 +6,7 @@ import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
 import type { PlaybackStore } from '../../stores/Playback';
-import { scrollPaddingBottom, theme } from '../../theme';
+import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import type { CardDetailItem } from '../components/CardDetailList';
@@ -417,7 +417,7 @@ const styles = {
 		paddingBottom: 18,
 		paddingLeft: 14,
 		paddingRight: 14,
-		paddingTop: theme.headerHeight + 8,
+		paddingTop: theme.headerHeight + topInset + 8,
 		width: '100%',
 	}),
 	emptyState: new Style<Label>({

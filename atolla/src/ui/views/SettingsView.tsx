@@ -21,7 +21,7 @@ import {
 	type LanguageCode,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from '../../stores/Preferences';
-import { scrollPaddingBottom, theme } from '../../theme';
+import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
@@ -611,7 +611,7 @@ function createScrollStyle(): Style<ScrollView> {
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		paddingBottom: scrollPaddingBottom(true),
-		paddingTop: theme.headerHeight,
+		paddingTop: theme.headerHeight + topInset,
 		width: '100%',
 	});
 }

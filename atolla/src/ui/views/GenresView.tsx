@@ -8,7 +8,7 @@ import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { PlaybackStore } from '../../stores/Playback';
-import { scrollPaddingBottom, theme } from '../../theme';
+import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { GenreView } from './GenreView';
@@ -206,7 +206,7 @@ function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: theme.headerHeight,
+		paddingTop: theme.headerHeight + topInset,
 		width: '100%',
 	});
 }

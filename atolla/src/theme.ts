@@ -1,4 +1,7 @@
+import { Device } from 'valdi_core/src/Device';
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
+
+export const topInset = Device.getDisplayTopInset();
 
 const colors = {
 	active: '#2D78CE',

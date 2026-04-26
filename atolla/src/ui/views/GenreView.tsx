@@ -9,7 +9,7 @@ import type { Track } from '../../models/Track';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
-import { scrollPaddingBottom, theme } from '../../theme';
+import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { DetailHeader } from '../components/DetailHeader';
 import { LoadingView } from '../components/LoadingView';
@@ -473,7 +473,7 @@ function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): 
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: isHeaderVisible ? theme.headerHeight + 16 : 8,
+		paddingTop: isHeaderVisible ? theme.headerHeight + topInset + 16 : topInset + 8,
 		width: '100%',
 	});
 }

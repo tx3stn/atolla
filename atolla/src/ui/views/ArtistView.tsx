@@ -13,7 +13,7 @@ import type { DownloadService, DownloadState } from '../../services/DownloadServ
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
-import { scrollPaddingBottom, theme } from '../../theme';
+import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { type Card, CardGrid } from '../components/CardGrid';
@@ -513,7 +513,7 @@ function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): 
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: isHeaderVisible ? theme.headerHeight + 16 : 8,
+		paddingTop: isHeaderVisible ? theme.headerHeight + topInset + 16 : topInset + 8,
 		width: '100%',
 	});
 }

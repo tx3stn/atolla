@@ -4,7 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
-import { theme } from '../../theme';
+import { theme, topInset } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import { ConnectivityFab } from './ConnectivityFab';
 import { LibraryHeaderTab } from './HeaderTab';
@@ -34,7 +34,7 @@ export class LibraryHeaderNav extends StatefulComponent<
 	LibraryHeaderState
 > {
 	private rootRef = new ElementRef();
-	private readonly hiddenTop = -(theme.headerHeight + 16);
+	private readonly hiddenTop = -(theme.headerHeight + topInset + 16);
 
 	state: LibraryHeaderState = {
 		activeLetterFilter: null,
@@ -183,7 +183,7 @@ const styles = {
 		left: 0,
 		position: 'absolute' as const,
 		right: 0,
-		top: theme.headerHeight,
+		top: theme.headerHeight + topInset,
 	}),
 	lastTabWrap: new Style({}),
 	leadingFabSlot: new Style<Layout>({
@@ -199,6 +199,7 @@ const styles = {
 		left: 0,
 		minHeight: theme.headerHeight,
 		paddingBottom: 4,
+		paddingTop: topInset,
 		position: 'absolute' as const,
 		right: 0,
 		top: 0,
@@ -212,6 +213,7 @@ const styles = {
 		left: 0,
 		minHeight: theme.headerHeight,
 		paddingBottom: 4,
+		paddingTop: topInset,
 		position: 'absolute' as const,
 		right: 0,
 		top: 0,
