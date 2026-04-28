@@ -3,7 +3,7 @@ import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
-import type { Label, Layout, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
@@ -19,8 +19,10 @@ import { BioSection } from '../components/BioSection';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
+import type { FooterTab } from '../components/FooterTab';
 import { GenrePills } from '../components/GenrePills';
 import { mergeGenreCollections } from '../components/GenrePillsData';
+import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
@@ -346,6 +348,16 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		}
 	}
 
+	private handleFooterNavTabTap = (tab: FooterTab): void => {
+		this.navigationController.pop();
+		this.viewModel.navBarContext?.onFooterTabTap(tab);
+	};
+
+	private handleHeaderNavTabTap = (tab: HeaderTab): void => {
+		this.navigationController.pop();
+		this.viewModel.navBarContext?.header?.onTabTap(tab);
+	};
+
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
@@ -387,7 +399,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			track,
 		}));
 
-		const { navBarContext } = this.viewModel;
 		const scrollStyle = createScrollStyle(isFooterVisible, isHeaderVisible);
 		const isLoading = !albumsLoaded || !topTracksLoaded;
 		const artistGenres = mergeGenreCollections([
@@ -396,115 +407,122 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		]);
 
 		<layout accessibilityLabel='artist-view' style={styles.root}>
-			<scroll style={scrollStyle}>
-				<DetailHeader
-					animationsEnabled={animationsEnabled}
-					artworkCategory='artist_image'
-					artworkSource={artist.imageUrl ?? null}
-					downloadState={downloadState}
-					fallbackText={artist.name}
-					imageCache={imageCache}
-					logoSource={artist.logoUrl || null}
-					modalSlot={this.modalSlot}
-					onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
-					onDownload={this.handleDownloadTap}
-					onHideHeaderGesture={() => {
-						this.setHeaderVisibility(false);
-					}}
-					onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}
-					onRemoveDownload={this.handleRemoveDownloadTap}
-					onRevealHeaderGesture={() => {
-						this.setHeaderVisibility(true);
-					}}
-					onShuffle={allTracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
-				/>
+			<view style={styles.fullScreen}>
+				<scroll style={scrollStyle}>
+					<DetailHeader
+						animationsEnabled={animationsEnabled}
+						artworkCategory='artist_image'
+						artworkSource={artist.imageUrl ?? null}
+						downloadState={downloadState}
+						fallbackText={artist.name}
+						imageCache={imageCache}
+						logoSource={artist.logoUrl || null}
+						modalSlot={this.modalSlot}
+						onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+						onDownload={this.handleDownloadTap}
+						onHideHeaderGesture={() => {
+							this.setHeaderVisibility(false);
+						}}
+						onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+						onRemoveDownload={this.handleRemoveDownloadTap}
+						onRevealHeaderGesture={() => {
+							this.setHeaderVisibility(true);
+						}}
+						onShuffle={allTracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
+					/>
 
-				{isLoading ? (
-					<LoadingView />
-				) : (
-					<layout style={styles.content}>
-						{albums.length > 0 && (
-							<layout style={styles.section}>
-								<layout style={styles.sectionHeaderRow}>
-									<label style={styles.sectionHeader} value={Strings.artistSectionAlbums()} />
-									<label style={styles.sectionCount} value={`[ ${albums.length} ]`} />
+					{isLoading ? (
+						<LoadingView />
+					) : (
+						<layout style={styles.content}>
+							{albums.length > 0 && (
+								<layout style={styles.section}>
+									<layout style={styles.sectionHeaderRow}>
+										<label style={styles.sectionHeader} value={Strings.artistSectionAlbums()} />
+										<label style={styles.sectionCount} value={`[ ${albums.length} ]`} />
+									</layout>
+									<CardGrid
+										accessibilityLabel='artist-albums-grid'
+										cards={albumCards}
+										columnCount={this.viewModel.gridColumns}
+										onCardLongPress={this.handleAlbumCardLongPress}
+										onCardTap={this.handleAlbumCardTap}
+									/>
 								</layout>
-								<CardGrid
-									accessibilityLabel='artist-albums-grid'
-									cards={albumCards}
-									columnCount={this.viewModel.gridColumns}
-									onCardLongPress={this.handleAlbumCardLongPress}
-									onCardTap={this.handleAlbumCardTap}
+							)}
+
+							{trackEntries.length > 0 && (
+								<layout style={styles.section}>
+									<label style={styles.sectionHeader} value={Strings.artistSectionTopTracks()} />
+									<TrackList
+										imageCache={imageCache}
+										onTrackLongPress={this.handleTrackLongPress}
+										onTrackTap={this.handleTopTrackTap}
+										tracks={trackEntries}
+									/>
+								</layout>
+							)}
+
+							{artist.bio && (
+								<BioSection
+									bio={artist.bio}
+									logoUrl={artist.logoUrl}
+									modalSlot={this.modalSlot}
+									title={artist.name}
 								/>
-							</layout>
-						)}
+							)}
 
-						{trackEntries.length > 0 && (
-							<layout style={styles.section}>
-								<label style={styles.sectionHeader} value={Strings.artistSectionTopTracks()} />
-								<TrackList
-									imageCache={imageCache}
-									onTrackLongPress={this.handleTrackLongPress}
-									onTrackTap={this.handleTopTrackTap}
-									tracks={trackEntries}
+							{artistGenres.length > 0 && (
+								<GenrePills
+									accessibilityLabel='artist-genres'
+									genres={artistGenres}
+									onGenreTap={this.handleGenreTap}
 								/>
-							</layout>
-						)}
-
-						{artist.bio && (
-							<BioSection
-								bio={artist.bio}
-								logoUrl={artist.logoUrl}
-								modalSlot={this.modalSlot}
-								title={artist.name}
-							/>
-						)}
-
-						{artistGenres.length > 0 && (
-							<GenrePills
-								accessibilityLabel='artist-genres'
-								genres={artistGenres}
-								onGenreTap={this.handleGenreTap}
-							/>
-						)}
-					</layout>
+							)}
+						</layout>
+					)}
+				</scroll>
+				{this.viewModel.navBarContext && (
+					<FooterNav
+						activeTab={this.viewModel.navBarContext.activeFooterTab}
+						downloadingCount={this.viewModel.navBarContext.downloadingCount}
+						onFooterTabTap={this.handleFooterNavTabTap}
+					/>
 				)}
-			</scroll>
-			{contextMenuTrack && (
-				<TrackContextMenu
-					animationsEnabled={animationsEnabled}
-					imageCache={imageCache}
-					onDismiss={this.handleContextMenuDismiss}
-					playbackStore={playbackStore}
-					track={contextMenuTrack}
-					transport={transport}
-				/>
-			)}
-			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
-			{navBarContext && (
-				<FooterNav
-					activeTab={navBarContext.activeFooterTab}
-					downloadingCount={navBarContext.downloadingCount}
-					onFooterTabTap={navBarContext.onFooterTabTap}
-				/>
-			)}
-			{navBarContext?.header && isHeaderVisible && (
-				<LibraryHeaderNav
-					activeTab={navBarContext.header.activeTab}
-					animationsEnabled={navBarContext.header.animationsEnabled}
-					connectionMode={navBarContext.header.connectionMode}
-					onAlphabetLetterTap={navBarContext.header.onAlphabetLetterTap}
-					onRequestModeChange={navBarContext.header.onRequestModeChange}
-					onSortChange={navBarContext.header.onSortChange}
-					onTabTap={navBarContext.header.onTabTap}
-				/>
-			)}
+				{this.viewModel.navBarContext?.header && isHeaderVisible && (
+					<LibraryHeaderNav
+						activeTab={this.viewModel.navBarContext.header.activeTab}
+						animationsEnabled={this.viewModel.navBarContext.header.animationsEnabled}
+						connectionMode={this.viewModel.navBarContext.header.connectionMode}
+						onAlphabetLetterTap={this.viewModel.navBarContext.header.onAlphabetLetterTap}
+						onRequestModeChange={this.viewModel.navBarContext.header.onRequestModeChange}
+						onSortChange={this.viewModel.navBarContext.header.onSortChange}
+						onTabTap={this.handleHeaderNavTabTap}
+					/>
+				)}
+				{contextMenuTrack && (
+					<TrackContextMenu
+						animationsEnabled={animationsEnabled}
+						imageCache={imageCache}
+						onDismiss={this.handleContextMenuDismiss}
+						playbackStore={playbackStore}
+						track={contextMenuTrack}
+						transport={transport}
+					/>
+				)}
+				<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+			</view>
 		</layout>;
 	}
 }
 
 const styles = {
 	content: new Style({
+		width: '100%',
+	}),
+	fullScreen: new Style<View>({
+		height: '100%',
+		position: 'relative',
 		width: '100%',
 	}),
 	root: new Style({

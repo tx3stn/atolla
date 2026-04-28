@@ -2001,7 +2001,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private buildHomeNavBarContext(): NavBarContext | undefined {
 		if (Device.isAndroid()) return undefined;
 		return {
-			activeFooterTab: FooterTabs.home,
+			activeFooterTab: this.state.activeFooterTab,
 			downloadingCount: this.state.downloadingCount,
 			header: {
 				activeTab: HeaderTabs.albums,
@@ -2017,7 +2017,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private buildSearchNavBarContext(): NavBarContext | undefined {
 		if (Device.isAndroid()) return undefined;
 		return {
-			activeFooterTab: FooterTabs.search,
+			activeFooterTab: this.state.activeFooterTab,
 			downloadingCount: this.state.downloadingCount,
 			onFooterTabTap: this.handleFooterTabTap,
 		};
@@ -2058,177 +2058,184 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
 
 		<view style={styles.root}>
-			{this.state.connectionMode === ConnectionModes.mock ? (
-				<MockPlayer playbackStore={this.playbackStore} />
-			) : (
-				<GaplessPlayer
-					activeSourceUrl={this.state.trackPlaybackSourceUrl}
-					nextSourceUrl={this.state.nextTrackSourceUrl}
-					onPlaybackError={this.handlePlaybackError}
-					onPlaybackEvent={this.handlePlaybackEvent}
-					onTrackCompleted={this.handleTrackCompleted}
-					playbackStore={this.playbackStore}
-				/>
-			)}
-			{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeNavigationMounted && (
-				<NavigationRoot>
-					{$slot((navigationController) => {
-						this.handleHomeNavigationControllerChange(navigationController);
-						<HomeView
-							animationsEnabled={this.state.animationsEnabled}
-							connectionMode={this.state.connectionMode}
-							gridColumns={this.state.gridColumns}
-							homeAlbumsStore={this.homeAlbumsStore}
-							onOpenAlbum={this.handleHomeAlbumTap}
-							onRequestModeChange={this.requestModeChange}
-							playbackStore={this.playbackStore}
-							recentlyPlayedTracks={this.recentlyPlayedTracks}
-							transport={this.transport}
-						/>;
-					})}
-				</NavigationRoot>
-			)}
+			<view style={styles.content}>
+				{this.state.connectionMode === ConnectionModes.mock ? (
+					<MockPlayer playbackStore={this.playbackStore} />
+				) : (
+					<GaplessPlayer
+						activeSourceUrl={this.state.trackPlaybackSourceUrl}
+						nextSourceUrl={this.state.nextTrackSourceUrl}
+						onPlaybackError={this.handlePlaybackError}
+						onPlaybackEvent={this.handlePlaybackEvent}
+						onTrackCompleted={this.handleTrackCompleted}
+						playbackStore={this.playbackStore}
+					/>
+				)}
+				{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeNavigationMounted && (
+					<NavigationRoot>
+						{$slot((navigationController) => {
+							this.handleHomeNavigationControllerChange(navigationController);
+							<HomeView
+								animationsEnabled={this.state.animationsEnabled}
+								connectionMode={this.state.connectionMode}
+								gridColumns={this.state.gridColumns}
+								homeAlbumsStore={this.homeAlbumsStore}
+								onOpenAlbum={this.handleHomeAlbumTap}
+								onRequestModeChange={this.requestModeChange}
+								playbackStore={this.playbackStore}
+								recentlyPlayedTracks={this.recentlyPlayedTracks}
+								transport={this.transport}
+							/>;
+						})}
+					</NavigationRoot>
+				)}
 
-			{this.state.activeFooterTab === FooterTabs.library && (
-				<LibraryView
-					activeTab={this.state.activeLibraryTab}
-					animationsEnabled={this.state.animationsEnabled}
-					connectionMode={this.state.connectionMode}
-					downloadService={this.downloadService}
-					gridColumns={this.state.gridColumns}
-					imageCache={this.imageCache}
-					letterFilter={this.state.libraryLetterFilter}
-					navBarContext={this.buildLibraryNavBarContext()}
-					onHeaderVisibilityChange={this.handleLibraryHeaderVisibilityChange}
-					onNavigateToArtist={this.handleNavigateToArtist}
-					onNavigationContext={this.handleNavigationContext}
-					onNavigationControllerChange={this.handleLibraryNavigationControllerChange}
-					paletteQueue={this.paletteQueue}
-					playbackStore={this.playbackStore}
-					resetSignal={this.state.libraryResetNonce}
-					sortOrder={this.state.librarySort}
-					transport={this.transport}
-				/>
-			)}
-			{this.state.activeFooterTab === FooterTabs.search && (
-				<NavigationRoot>
-					{$slot((navigationController) => {
-						<SearchView
-							animationsEnabled={this.state.animationsEnabled}
-							downloadService={this.downloadService}
-							focusSignal={this.state.searchFocusSignal}
-							gridColumns={this.state.gridColumns}
-							imageCache={this.imageCache}
-							navBarContext={this.buildSearchNavBarContext()}
-							navigationController={navigationController}
-							onNavigateToLibraryResult={this.handleSearchResultNavigation}
-							paletteQueue={this.paletteQueue}
-							playbackStore={this.playbackStore}
-							searchStore={this.searchStore}
-							transport={this.transport}
-						/>;
-					})}
-				</NavigationRoot>
-			)}
-			{this.state.activeFooterTab === FooterTabs.settings && (
-				<SettingsView
-					animationsEnabled={this.state.animationsEnabled}
-					connectionMode={this.state.connectionMode}
-					defaultJellyfinDeviceId={this.defaultJellyfinClientDeviceId}
-					downloadedSizeBytes={this.state.downloadedSizeBytes ?? undefined}
-					downloadedTrackCount={this.state.downloadedTrackCount}
-					downloadingCount={this.state.downloadingCount}
-					gridColumns={this.state.gridColumns}
-					imageCacheDiskBytes={this.state.nativeImageCacheDiskBytes ?? undefined}
-					imageCacheDiskCount={this.state.nativeImageCacheDiskCount ?? undefined}
-					imageCacheError={null}
-					imageCacheMaxBytes={this.state.imageCacheMaxBytes}
-					jellyfinDeviceIdOverride={this.state.jellyfinClientDeviceIdOverride}
-					onAnimationsChange={this.handleAnimationsChange}
-					onCacheSizeChange={this.handleCacheSizeChange}
-					onClearCache={this.handleClearCache}
-					onClearDownloads={this.handleClearDownloads}
-					onGridColumnsChange={this.handleGridColumnsChange}
-					onJellyfinDeviceIdOverrideChange={this.handleJellyfinClientDeviceIdOverrideChange}
-					onLanguageChange={this.handleLanguageChange}
-					onLogout={this.handleLogout}
-					onRequestModeChange={this.requestModeChange}
-					onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
-					preferences={this.preferences}
-					selectedLanguage={this.state.language}
-					trackCacheCachedCount={this.state.trackPlaybackCachedCount}
-					trackCacheMaxTracks={this.state.trackCacheMaxTracks}
-				/>
-			)}
+				{this.state.activeFooterTab === FooterTabs.library && (
+					<LibraryView
+						activeTab={this.state.activeLibraryTab}
+						animationsEnabled={this.state.animationsEnabled}
+						connectionMode={this.state.connectionMode}
+						downloadService={this.downloadService}
+						gridColumns={this.state.gridColumns}
+						imageCache={this.imageCache}
+						letterFilter={this.state.libraryLetterFilter}
+						navBarContext={this.buildLibraryNavBarContext()}
+						onHeaderVisibilityChange={this.handleLibraryHeaderVisibilityChange}
+						onNavigateToArtist={this.handleNavigateToArtist}
+						onNavigationContext={this.handleNavigationContext}
+						onNavigationControllerChange={this.handleLibraryNavigationControllerChange}
+						paletteQueue={this.paletteQueue}
+						playbackStore={this.playbackStore}
+						resetSignal={this.state.libraryResetNonce}
+						sortOrder={this.state.librarySort}
+						transport={this.transport}
+					/>
+				)}
+				{this.state.activeFooterTab === FooterTabs.search && (
+					<NavigationRoot>
+						{$slot((navigationController) => {
+							<SearchView
+								animationsEnabled={this.state.animationsEnabled}
+								downloadService={this.downloadService}
+								focusSignal={this.state.searchFocusSignal}
+								gridColumns={this.state.gridColumns}
+								imageCache={this.imageCache}
+								navBarContext={this.buildSearchNavBarContext()}
+								navigationController={navigationController}
+								onNavigateToLibraryResult={this.handleSearchResultNavigation}
+								paletteQueue={this.paletteQueue}
+								playbackStore={this.playbackStore}
+								searchStore={this.searchStore}
+								transport={this.transport}
+							/>;
+						})}
+					</NavigationRoot>
+				)}
+				{this.state.activeFooterTab === FooterTabs.settings && (
+					<SettingsView
+						animationsEnabled={this.state.animationsEnabled}
+						connectionMode={this.state.connectionMode}
+						defaultJellyfinDeviceId={this.defaultJellyfinClientDeviceId}
+						downloadedSizeBytes={this.state.downloadedSizeBytes ?? undefined}
+						downloadedTrackCount={this.state.downloadedTrackCount}
+						downloadingCount={this.state.downloadingCount}
+						gridColumns={this.state.gridColumns}
+						imageCacheDiskBytes={this.state.nativeImageCacheDiskBytes ?? undefined}
+						imageCacheDiskCount={this.state.nativeImageCacheDiskCount ?? undefined}
+						imageCacheError={null}
+						imageCacheMaxBytes={this.state.imageCacheMaxBytes}
+						jellyfinDeviceIdOverride={this.state.jellyfinClientDeviceIdOverride}
+						onAnimationsChange={this.handleAnimationsChange}
+						onCacheSizeChange={this.handleCacheSizeChange}
+						onClearCache={this.handleClearCache}
+						onClearDownloads={this.handleClearDownloads}
+						onGridColumnsChange={this.handleGridColumnsChange}
+						onJellyfinDeviceIdOverrideChange={this.handleJellyfinClientDeviceIdOverrideChange}
+						onLanguageChange={this.handleLanguageChange}
+						onLogout={this.handleLogout}
+						onRequestModeChange={this.requestModeChange}
+						onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
+						preferences={this.preferences}
+						selectedLanguage={this.state.language}
+						trackCacheCachedCount={this.state.trackPlaybackCachedCount}
+						trackCacheMaxTracks={this.state.trackCacheMaxTracks}
+					/>
+				)}
 
-			{track && (
-				<NowPlayingSurface
-					album={album}
-					animationsEnabled={this.state.animationsEnabled}
-					artistLogoUrl={artistLogoUrl}
-					collapseSignal={this.state.nowPlayingCollapseSignal}
-					isPlaying={isPlaying}
-					language={this.state.language}
-					loopMode={loopMode}
-					onAlbumTap={this.handleNowPlayingAlbumTap}
-					onArtistTap={this.handleNowPlayingArtistTap}
-					onDismiss={this.handleNowPlayingDismiss}
-					onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
-					onNext={this.handleNowPlayingNext}
-					onPlayPause={this.handleNowPlayingPlayPause}
-					onPrevious={this.handleNowPlayingPrevious}
-					onProgressTap={this.handleNowPlayingProgressTap}
-					onTrackTap={this.handleNowPlayingTrackTap}
-					palette={palette}
-					playbackStore={this.playbackStore}
-					progressSeconds={progressSeconds}
-					track={track}
-					trackIndex={trackIndex}
-					tracks={tracks}
-					transport={this.transport}
-				/>
-			)}
+				{track && (
+					<NowPlayingSurface
+						album={album}
+						animationsEnabled={this.state.animationsEnabled}
+						artistLogoUrl={artistLogoUrl}
+						collapseSignal={this.state.nowPlayingCollapseSignal}
+						isPlaying={isPlaying}
+						language={this.state.language}
+						loopMode={loopMode}
+						onAlbumTap={this.handleNowPlayingAlbumTap}
+						onArtistTap={this.handleNowPlayingArtistTap}
+						onDismiss={this.handleNowPlayingDismiss}
+						onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
+						onNext={this.handleNowPlayingNext}
+						onPlayPause={this.handleNowPlayingPlayPause}
+						onPrevious={this.handleNowPlayingPrevious}
+						onProgressTap={this.handleNowPlayingProgressTap}
+						onTrackTap={this.handleNowPlayingTrackTap}
+						palette={palette}
+						playbackStore={this.playbackStore}
+						progressSeconds={progressSeconds}
+						track={track}
+						trackIndex={trackIndex}
+						tracks={tracks}
+						transport={this.transport}
+					/>
+				)}
 
-			{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeHeaderVisible && (
-				<LibraryHeaderNav
-					activeTab={HeaderTabs.albums}
-					animationsEnabled={this.state.animationsEnabled}
-					connectionMode={this.state.connectionMode}
-					onRequestModeChange={this.requestModeChange}
-					onTabTap={this.handleHomeHeaderTabTap}
-				/>
-			)}
+				{this.state.activeFooterTab === FooterTabs.library && this.state.isLibraryHeaderVisible && (
+					<LibraryHeaderNav
+						activeTab={this.state.activeLibraryTab}
+						animationsEnabled={this.state.animationsEnabled}
+						connectionMode={this.state.connectionMode}
+						onAlphabetLetterTap={this.handleLibraryAlphabetLetterTap}
+						onRequestModeChange={this.requestModeChange}
+						onSortChange={this.handleLibrarySortChange}
+						onTabTap={this.handleLibraryHeaderTabTap}
+					/>
+				)}
+				{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeHeaderVisible && (
+					<LibraryHeaderNav
+						activeTab={HeaderTabs.albums}
+						animationsEnabled={this.state.animationsEnabled}
+						connectionMode={this.state.connectionMode}
+						onRequestModeChange={this.requestModeChange}
+						onTabTap={this.handleHomeHeaderTabTap}
+					/>
+				)}
 
-			{this.state.activeFooterTab === FooterTabs.library && this.state.isLibraryHeaderVisible && (
-				<LibraryHeaderNav
-					activeTab={this.state.activeLibraryTab}
-					animationsEnabled={this.state.animationsEnabled}
-					connectionMode={this.state.connectionMode}
-					onAlphabetLetterTap={this.handleLibraryAlphabetLetterTap}
-					onRequestModeChange={this.requestModeChange}
-					onSortChange={this.handleLibrarySortChange}
-					onTabTap={this.handleLibraryHeaderTabTap}
-				/>
-			)}
+				{this.state.authToastMessage && <Toast message={this.state.authToastMessage} />}
+				{this.state.playbackToastMessage && <Toast message={this.state.playbackToastMessage} />}
+			</view>
 
 			<FooterNav
 				activeTab={this.state.activeFooterTab}
 				downloadingCount={this.state.downloadingCount}
 				onFooterTabTap={this.handleFooterTabTap}
 			/>
-
-			{this.state.authToastMessage && <Toast message={this.state.authToastMessage} />}
-			{this.state.playbackToastMessage && <Toast message={this.state.playbackToastMessage} />}
 		</view>;
 	}
 }
 
 const styles = {
-	root: new Style({
+	content: new Style({
 		alignItems: 'center' as const,
-		backgroundColor: theme.colors.bg,
-		height: '100%',
+		flexGrow: 1,
 		justifyContent: 'flex-start' as const,
+		position: 'relative' as const,
+		width: '100%',
+	}),
+	root: new Style({
+		backgroundColor: theme.colors.bg,
+		flexDirection: 'column' as const,
+		height: '100%',
 		position: 'relative' as const,
 		width: '100%',
 	}),

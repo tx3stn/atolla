@@ -13,6 +13,8 @@ import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
+import type { FooterTab } from '../components/FooterTab';
+import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
@@ -323,6 +325,16 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		void this.loadNextPage();
 	};
 
+	private handleFooterNavTabTap = (tab: FooterTab): void => {
+		this.navigationController.pop();
+		this.viewModel.navBarContext?.onFooterTabTap(tab);
+	};
+
+	private handleHeaderNavTabTap = (tab: HeaderTab): void => {
+		this.navigationController.pop();
+		this.viewModel.navBarContext?.header?.onTabTap(tab);
+	};
+
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribeDownloads?.();
@@ -344,8 +356,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			totalTrackCount,
 			tracks,
 		} = this.state;
-		const { genre, imageCache, navBarContext, onNavigateToArtist, playbackStore, transport } =
-			this.viewModel;
+		const { genre, imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
@@ -358,104 +369,111 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 
 		<layout accessibilityLabel='genre-view' style={styles.root}>
-			<scroll style={createScrollStyle(isFooterVisible, isHeaderVisible)}>
-				<DetailHeader
-					animationsEnabled={this.viewModel.animationsEnabled}
-					artworkCategory='album_art'
-					artworkSource={genre.imageUrl ?? null}
-					downloadState={downloadState}
-					fallbackText={genre.name}
-					imageCache={this.viewModel.imageCache}
-					modalSlot={this.modalSlot}
-					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
-					onDownload={this.handleDownloadTap}
-					onHideHeaderGesture={() => {
-						this.setHeaderVisibility(false);
-					}}
-					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
-					onRemoveDownload={this.handleRemoveDownloadTap}
-					onRevealHeaderGesture={() => {
-						this.setHeaderVisibility(true);
-					}}
-					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
-					subheaderLineOneLeft={
-						totalTrackCount != null
-							? `${totalTrackCount} tracks`
-							: tracks.length > 0
-								? `${tracks.length} tracks`
-								: null
-					}
-					subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
-				/>
-				{isLoading ? (
-					<LoadingView />
-				) : (
-					<TrackList
-						imageCache={imageCache}
-						onTrackLongPress={this.handleTrackLongPress}
-						onTrackTap={this.handleTrackTap}
-						tracks={entries}
-					/>
-				)}
-				{!isLoading && this.hasMoreTracks && !nextPageFailed && (
-					<view
-						accessibilityLabel='genre-load-more-trigger'
-						onLayout={() => {
-							this.handleLoadMoreTriggerLayout();
+			<view style={styles.fullScreen}>
+				<scroll style={createScrollStyle(isFooterVisible, isHeaderVisible)}>
+					<DetailHeader
+						animationsEnabled={this.viewModel.animationsEnabled}
+						artworkCategory='album_art'
+						artworkSource={genre.imageUrl ?? null}
+						downloadState={downloadState}
+						fallbackText={genre.name}
+						imageCache={this.viewModel.imageCache}
+						modalSlot={this.modalSlot}
+						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+						onDownload={this.handleDownloadTap}
+						onHideHeaderGesture={() => {
+							this.setHeaderVisibility(false);
 						}}
-						style={styles.loadMoreTrigger}
+						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+						onRemoveDownload={this.handleRemoveDownloadTap}
+						onRevealHeaderGesture={() => {
+							this.setHeaderVisibility(true);
+						}}
+						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
+						subheaderLineOneLeft={
+							totalTrackCount != null
+								? `${totalTrackCount} tracks`
+								: tracks.length > 0
+									? `${tracks.length} tracks`
+									: null
+						}
+						subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
+					/>
+					{isLoading ? (
+						<LoadingView />
+					) : (
+						<TrackList
+							imageCache={imageCache}
+							onTrackLongPress={this.handleTrackLongPress}
+							onTrackTap={this.handleTrackTap}
+							tracks={entries}
+						/>
+					)}
+					{!isLoading && this.hasMoreTracks && !nextPageFailed && (
+						<view
+							accessibilityLabel='genre-load-more-trigger'
+							onLayout={() => {
+								this.handleLoadMoreTriggerLayout();
+							}}
+							style={styles.loadMoreTrigger}
+						/>
+					)}
+					{isLoadingNextPage && <label style={styles.loadMoreLabel} value='Loading more...' />}
+					{nextPageFailed && (
+						<view
+							accessibilityLabel='genre-load-more-retry'
+							onTap={this.retryLoadMore}
+							style={styles.loadMoreRetryContainer}
+						>
+							<label style={styles.loadMoreRetryLabel} value='Failed to load more. Tap to retry.' />
+						</view>
+					)}
+				</scroll>
+				{this.viewModel.navBarContext && (
+					<FooterNav
+						activeTab={this.viewModel.navBarContext.activeFooterTab}
+						downloadingCount={this.viewModel.navBarContext.downloadingCount}
+						onFooterTabTap={this.handleFooterNavTabTap}
 					/>
 				)}
-				{isLoadingNextPage && <label style={styles.loadMoreLabel} value='Loading more...' />}
-				{nextPageFailed && (
-					<view
-						accessibilityLabel='genre-load-more-retry'
-						onTap={this.retryLoadMore}
-						style={styles.loadMoreRetryContainer}
-					>
-						<label style={styles.loadMoreRetryLabel} value='Failed to load more. Tap to retry.' />
-					</view>
+				{this.viewModel.navBarContext?.header && isHeaderVisible && (
+					<LibraryHeaderNav
+						activeTab={this.viewModel.navBarContext.header.activeTab}
+						animationsEnabled={this.viewModel.navBarContext.header.animationsEnabled}
+						connectionMode={this.viewModel.navBarContext.header.connectionMode}
+						onAlphabetLetterTap={this.viewModel.navBarContext.header.onAlphabetLetterTap}
+						onRequestModeChange={this.viewModel.navBarContext.header.onRequestModeChange}
+						onSortChange={this.viewModel.navBarContext.header.onSortChange}
+						onTabTap={this.handleHeaderNavTabTap}
+					/>
 				)}
-			</scroll>
-			{contextMenuTrack && (
-				<TrackContextMenu
-					animationsEnabled={this.viewModel.animationsEnabled}
-					imageCache={imageCache}
-					onArtistTap={
-						onNavigateToArtist && contextMenuTrack.artistId
-							? this.handleContextMenuArtistTap
-							: undefined
-					}
-					onDismiss={this.handleContextMenuDismiss}
-					playbackStore={playbackStore}
-					track={contextMenuTrack}
-					transport={transport}
-				/>
-			)}
-			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
-			{navBarContext && (
-				<FooterNav
-					activeTab={navBarContext.activeFooterTab}
-					downloadingCount={navBarContext.downloadingCount}
-					onFooterTabTap={navBarContext.onFooterTabTap}
-				/>
-			)}
-			{navBarContext?.header && isHeaderVisible && (
-				<LibraryHeaderNav
-					activeTab={navBarContext.header.activeTab}
-					animationsEnabled={navBarContext.header.animationsEnabled}
-					connectionMode={navBarContext.header.connectionMode}
-					onAlphabetLetterTap={navBarContext.header.onAlphabetLetterTap}
-					onRequestModeChange={navBarContext.header.onRequestModeChange}
-					onSortChange={navBarContext.header.onSortChange}
-					onTabTap={navBarContext.header.onTabTap}
-				/>
-			)}
+				{contextMenuTrack && (
+					<TrackContextMenu
+						animationsEnabled={this.viewModel.animationsEnabled}
+						imageCache={imageCache}
+						onArtistTap={
+							onNavigateToArtist && contextMenuTrack.artistId
+								? this.handleContextMenuArtistTap
+								: undefined
+						}
+						onDismiss={this.handleContextMenuDismiss}
+						playbackStore={playbackStore}
+						track={contextMenuTrack}
+						transport={transport}
+					/>
+				)}
+				<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+			</view>
 		</layout>;
 	}
 }
 
 const styles = {
+	fullScreen: new Style<View>({
+		height: '100%',
+		position: 'relative',
+		width: '100%',
+	}),
 	loadMoreLabel: new Style<Label>({
 		...theme.text.sub,
 		marginTop: 12,

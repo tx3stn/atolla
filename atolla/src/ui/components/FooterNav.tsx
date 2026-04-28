@@ -61,6 +61,7 @@ const styles = {
 		backgroundColor: theme.colors.bgFrosted,
 		bottom: 0,
 		flexDirection: 'row',
+		height: theme.footerHeight,
 		left: 0,
 		marginTop: -2,
 		padding: 6,

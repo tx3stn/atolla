@@ -3,7 +3,7 @@ import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
-import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
@@ -14,6 +14,8 @@ import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
+import type { FooterTab } from '../components/FooterTab';
+import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
@@ -345,6 +347,16 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		});
 	}
 
+	private handleFooterNavTabTap = (tab: FooterTab): void => {
+		this.navigationController.pop();
+		this.viewModel.navBarContext?.onFooterTabTap(tab);
+	};
+
+	private handleHeaderNavTabTap = (tab: HeaderTab): void => {
+		this.navigationController.pop();
+		this.viewModel.navBarContext?.header?.onTabTap(tab);
+	};
+
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
@@ -368,8 +380,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		} = this.state;
 		const { imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
 
-		const { navBarContext } = this.viewModel;
-
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
 			id: track.id,
@@ -381,85 +391,92 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 
 		<layout accessibilityLabel='playlist-view' style={styles.root}>
-			<scroll style={createScrollStyle(isFooterVisible, isHeaderVisible)}>
-				<DetailHeader
-					animationsEnabled={this.viewModel.animationsEnabled}
-					artworkCategory='playlist_image'
-					artworkSource={this.viewModel.playlist.imageUrl ?? null}
-					downloadState={downloadState}
-					fallbackText={this.viewModel.playlist.name}
-					imageCache={this.viewModel.imageCache}
-					modalSlot={this.modalSlot}
-					onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
-					onDownload={this.handleDownloadTap}
-					onHideHeaderGesture={() => {
-						this.setHeaderVisibility(false);
-					}}
-					onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
-					onRemoveDownload={this.handleRemoveDownloadTap}
-					onRevealHeaderGesture={() => {
-						this.setHeaderVisibility(true);
-					}}
-					onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
-					subheaderLineOneLeft={
-						totalTrackCount != null
-							? `${totalTrackCount} tracks`
-							: tracks.length > 0
-								? `${tracks.length} tracks`
-								: null
-					}
-					subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
-				/>
-				{isLoading ? (
-					<LoadingView />
-				) : (
-					<TrackList
-						imageCache={imageCache}
-						onTrackLongPress={this.handleTrackLongPress}
-						onTrackTap={this.handleTrackTap}
-						tracks={entries}
+			<view style={styles.fullScreen}>
+				<scroll style={createScrollStyle(isFooterVisible, isHeaderVisible)}>
+					<DetailHeader
+						animationsEnabled={this.viewModel.animationsEnabled}
+						artworkCategory='playlist_image'
+						artworkSource={this.viewModel.playlist.imageUrl ?? null}
+						downloadState={downloadState}
+						fallbackText={this.viewModel.playlist.name}
+						imageCache={this.viewModel.imageCache}
+						modalSlot={this.modalSlot}
+						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+						onDownload={this.handleDownloadTap}
+						onHideHeaderGesture={() => {
+							this.setHeaderVisibility(false);
+						}}
+						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+						onRemoveDownload={this.handleRemoveDownloadTap}
+						onRevealHeaderGesture={() => {
+							this.setHeaderVisibility(true);
+						}}
+						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
+						subheaderLineOneLeft={
+							totalTrackCount != null
+								? `${totalTrackCount} tracks`
+								: tracks.length > 0
+									? `${tracks.length} tracks`
+									: null
+						}
+						subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
+					/>
+					{isLoading ? (
+						<LoadingView />
+					) : (
+						<TrackList
+							imageCache={imageCache}
+							onTrackLongPress={this.handleTrackLongPress}
+							onTrackTap={this.handleTrackTap}
+							tracks={entries}
+						/>
+					)}
+				</scroll>
+				{this.viewModel.navBarContext && (
+					<FooterNav
+						activeTab={this.viewModel.navBarContext.activeFooterTab}
+						downloadingCount={this.viewModel.navBarContext.downloadingCount}
+						onFooterTabTap={this.handleFooterNavTabTap}
 					/>
 				)}
-			</scroll>
-			{contextMenuTrack && (
-				<TrackContextMenu
-					animationsEnabled={this.viewModel.animationsEnabled}
-					imageCache={imageCache}
-					onArtistTap={
-						onNavigateToArtist && contextMenuTrack.artistId
-							? this.handleContextMenuArtistTap
-							: undefined
-					}
-					onDismiss={this.handleContextMenuDismiss}
-					playbackStore={playbackStore}
-					track={contextMenuTrack}
-					transport={transport}
-				/>
-			)}
-			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
-			{navBarContext && (
-				<FooterNav
-					activeTab={navBarContext.activeFooterTab}
-					downloadingCount={navBarContext.downloadingCount}
-					onFooterTabTap={navBarContext.onFooterTabTap}
-				/>
-			)}
-			{navBarContext?.header && isHeaderVisible && (
-				<LibraryHeaderNav
-					activeTab={navBarContext.header.activeTab}
-					animationsEnabled={navBarContext.header.animationsEnabled}
-					connectionMode={navBarContext.header.connectionMode}
-					onAlphabetLetterTap={navBarContext.header.onAlphabetLetterTap}
-					onRequestModeChange={navBarContext.header.onRequestModeChange}
-					onSortChange={navBarContext.header.onSortChange}
-					onTabTap={navBarContext.header.onTabTap}
-				/>
-			)}
+				{this.viewModel.navBarContext?.header && isHeaderVisible && (
+					<LibraryHeaderNav
+						activeTab={this.viewModel.navBarContext.header.activeTab}
+						animationsEnabled={this.viewModel.navBarContext.header.animationsEnabled}
+						connectionMode={this.viewModel.navBarContext.header.connectionMode}
+						onAlphabetLetterTap={this.viewModel.navBarContext.header.onAlphabetLetterTap}
+						onRequestModeChange={this.viewModel.navBarContext.header.onRequestModeChange}
+						onSortChange={this.viewModel.navBarContext.header.onSortChange}
+						onTabTap={this.handleHeaderNavTabTap}
+					/>
+				)}
+				{contextMenuTrack && (
+					<TrackContextMenu
+						animationsEnabled={this.viewModel.animationsEnabled}
+						imageCache={imageCache}
+						onArtistTap={
+							onNavigateToArtist && contextMenuTrack.artistId
+								? this.handleContextMenuArtistTap
+								: undefined
+						}
+						onDismiss={this.handleContextMenuDismiss}
+						playbackStore={playbackStore}
+						track={contextMenuTrack}
+						transport={transport}
+					/>
+				)}
+				<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+			</view>
 		</layout>;
 	}
 }
 
 const styles = {
+	fullScreen: new Style<View>({
+		height: '100%',
+		position: 'relative',
+		width: '100%',
+	}),
 	root: new Style({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
