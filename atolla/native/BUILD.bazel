@@ -62,6 +62,12 @@ objc_library(
     ],
 )
 
+objc_library(
+    name = "atolla_swipe_back_fix_ios",
+    srcs = ["ios/AtollaSwipeBackFix.m"],
+    sdk_frameworks = ["UIKit"],
+)
+
 kt_android_library(
     name = "atolla_cache_image_loader_android",
     srcs = [

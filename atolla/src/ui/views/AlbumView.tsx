@@ -1,6 +1,7 @@
 import { Style } from 'valdi_core/src/Style';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
+import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
@@ -321,6 +322,11 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	onCreate(): void {
+		this.navigationController.addPageVisibilityObserver((visibility) => {
+			if (visibility === INavigatorPageVisibility.VISIBLE) {
+				this.navigationController.disableDismissalGesture()();
+			}
+		});
 		this.hasBeenDestroyed = false;
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
