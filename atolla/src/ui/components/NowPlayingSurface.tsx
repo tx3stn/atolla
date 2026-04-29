@@ -855,7 +855,7 @@ const styles = {
 	compactBar: new Style<View>({
 		alignItems: 'center',
 		borderRadius: theme.borderRadius,
-		bottom: theme.footerHeight * 0.8,
+		bottom: theme.footerHeight * 1.2,
 		boxShadow: '0 10 18 rgba(0,0,0,0.35)',
 		flexDirection: 'row',
 		left: 8,

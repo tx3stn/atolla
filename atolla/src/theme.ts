@@ -27,7 +27,7 @@ export const theme = {
 	colors: colors,
 	footerHeight: 55,
 	headerHeight: 52,
-	scrollPaddingBottom: 80 * 2.4,
+	scrollPaddingBottom: 80 * 3,
 	text: {
 		display: {
 			color: colors.white,
