@@ -65,7 +65,6 @@ const styles = {
 		left: 0,
 		marginTop: -2,
 		padding: 6,
-		paddingTop: 10,
 		position: 'absolute',
 		right: 0,
 		width: '100%',

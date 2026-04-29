@@ -50,16 +50,14 @@ const styles = {
 	}),
 	badgeLabel: new Style<Label>({
 		...theme.text.sub,
-		color: theme.colors.white,
+		color: theme.colors.bg,
 	}),
 	footerTabChip: new Style<View>({
 		alignItems: 'center',
 		flexGrow: 1,
 		justifyContent: 'center',
-		paddingBottom: 10,
-		paddingLeft: 0,
-		paddingRight: 0,
-		paddingTop: 5,
+		padding: 4,
+		paddingBottom: 8,
 	}),
 	footerTabIconImage: new Style<ImageView>({
 		height: 25,
