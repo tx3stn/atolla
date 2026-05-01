@@ -1,6 +1,7 @@
 package atolla.native.android
 
 import com.snap.valdi.modules.RegisterValdiModule
+import com.tx3stn.atolla.AtollaCacheImageLoader
 import com.snap.modules.atolla.ImageLoaderBootstrapModule
 import com.snap.modules.atolla.ImageLoaderBootstrapModuleFactory
 

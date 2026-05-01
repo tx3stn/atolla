@@ -11,7 +11,10 @@ valdi_module(
         "//atolla/native:atolla_image_loader_bootstrap_module_factory_ios",
         "//atolla/native:atolla_swipe_back_fix_ios",
     ],
-    native_deps = ["//atolla/native/zig:palette_android_jni"],
+    native_deps = [
+        "//atolla/native/zig:blur_android_jni",
+        "//atolla/native/zig:palette_android_jni",
+    ],
     srcs = glob(
         [
             "src/**/*.ts",

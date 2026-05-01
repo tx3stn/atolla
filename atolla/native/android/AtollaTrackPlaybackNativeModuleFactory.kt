@@ -1,6 +1,7 @@
 package atolla.native.android
 
 import android.app.Notification
+import com.tx3stn.atolla.AtollaCacheImageLoader
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent

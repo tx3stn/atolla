@@ -1,6 +1,7 @@
-package atolla.native.android
+package com.tx3stn.atolla
 
 import android.graphics.Bitmap
+import atolla.native.android.AtollaTrackValdiVideoPlayer
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.LruCache

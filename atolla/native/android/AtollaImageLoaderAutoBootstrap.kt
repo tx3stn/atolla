@@ -1,6 +1,7 @@
 package atolla.native.android
 
 import android.util.Log
+import com.tx3stn.atolla.AtollaCacheImageLoader
 import java.util.Collections
 import java.util.WeakHashMap
 import java.util.concurrent.Executors

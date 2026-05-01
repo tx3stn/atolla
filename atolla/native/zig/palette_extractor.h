@@ -2,6 +2,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     char primary[8];         // "#rrggbb\0"
     char accent[8];
@@ -21,3 +25,7 @@ bool atolla_extract_palette(
     uint32_t height,
     AtollaPalette* out
 );
+
+#ifdef __cplusplus
+}
+#endif

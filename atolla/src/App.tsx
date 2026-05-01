@@ -486,6 +486,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.handleTrackPrefetchQueueChange();
 			this.captureRecentlyPlayedTrack();
 			this.syncTrackPlaybackNotification();
+			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
 		});
 		this.syncScrobblePlaybackSnapshot();
@@ -663,6 +664,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			// Observer bridge unavailable on non-Android targets.
 		}
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
+			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
 		});
 	}
@@ -1661,6 +1663,46 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.playbackStore.stop();
 	};
 
+	private renderNowPlayingOverlay = (): void => {
+		const {
+			track,
+			album,
+			isPlaying,
+			loopMode,
+			progressSeconds,
+			artistLogoUrl,
+			tracks,
+			trackIndex,
+		} = this.playbackStore;
+		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
+		if (!track) return;
+		<NowPlayingSurface
+			album={album}
+			animationsEnabled={this.state.animationsEnabled}
+			artistLogoUrl={artistLogoUrl}
+			collapseSignal={this.state.nowPlayingCollapseSignal}
+			isPlaying={isPlaying}
+			language={this.state.language}
+			loopMode={loopMode}
+			onAlbumTap={this.handleNowPlayingAlbumTap}
+			onArtistTap={this.handleNowPlayingArtistTap}
+			onDismiss={this.handleNowPlayingDismiss}
+			onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
+			onNext={this.handleNowPlayingNext}
+			onPlayPause={this.handleNowPlayingPlayPause}
+			onPrevious={this.handleNowPlayingPrevious}
+			onProgressTap={this.handleNowPlayingProgressTap}
+			onTrackTap={this.handleNowPlayingTrackTap}
+			palette={palette}
+			playbackStore={this.playbackStore}
+			progressSeconds={progressSeconds}
+			track={track}
+			trackIndex={trackIndex}
+			tracks={tracks}
+			transport={this.transport}
+		/>;
+	};
+
 	handleNowPlayingNext = (): void => {
 		this.playbackStore.next();
 	};
@@ -2061,35 +2103,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			trackIndex,
 		} = this.playbackStore;
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
-
-		this.nowPlayingOverlaySlot.slotted(() => {
-			if (!track) return;
-			<NowPlayingSurface
-				album={album}
-				animationsEnabled={this.state.animationsEnabled}
-				artistLogoUrl={artistLogoUrl}
-				collapseSignal={this.state.nowPlayingCollapseSignal}
-				isPlaying={isPlaying}
-				language={this.state.language}
-				loopMode={loopMode}
-				onAlbumTap={this.handleNowPlayingAlbumTap}
-				onArtistTap={this.handleNowPlayingArtistTap}
-				onDismiss={this.handleNowPlayingDismiss}
-				onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
-				onNext={this.handleNowPlayingNext}
-				onPlayPause={this.handleNowPlayingPlayPause}
-				onPrevious={this.handleNowPlayingPrevious}
-				onProgressTap={this.handleNowPlayingProgressTap}
-				onTrackTap={this.handleNowPlayingTrackTap}
-				palette={palette}
-				playbackStore={this.playbackStore}
-				progressSeconds={progressSeconds}
-				track={track}
-				trackIndex={trackIndex}
-				tracks={tracks}
-				transport={this.transport}
-			/>;
-		});
 
 		<view style={styles.root}>
 			<view style={styles.content}>

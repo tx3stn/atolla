@@ -3,7 +3,7 @@
 #include "image_blur.h"
 
 extern "C" JNIEXPORT jintArray JNICALL
-Java_atolla_native_android_AtollaCacheImageLoader_nativeBlurPixels(
+Java_com_tx3stn_atolla_AtollaCacheImageLoader_nativeBlurPixels(
     JNIEnv* env, jobject /*thiz*/,
     jintArray pixels, jint width, jint height,
     jint out_width, jint out_height) {

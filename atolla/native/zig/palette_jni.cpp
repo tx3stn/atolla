@@ -4,7 +4,7 @@
 #include "palette_extractor.h"
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_atolla_native_android_AtollaCacheImageLoader_nativeExtractPalette(
+Java_com_tx3stn_atolla_AtollaCacheImageLoader_nativeExtractPalette(
     JNIEnv* env, jobject /*thiz*/, jintArray pixels, jint width, jint height) {
 
     const jsize len = env->GetArrayLength(pixels);
