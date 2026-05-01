@@ -445,6 +445,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						onFooterTabTap={this.handleFooterNavTabTap}
 					/>
 				)}
+				{this.viewModel.navBarContext?.nowPlayingOverlaySlot && (
+					<DetachedSlotRenderer detachedSlot={this.viewModel.navBarContext.nowPlayingOverlaySlot} />
+				)}
 				{this.viewModel.navBarContext?.header && isHeaderVisible && (
 					<LibraryHeaderNav
 						activeTab={this.viewModel.navBarContext.header.activeTab}

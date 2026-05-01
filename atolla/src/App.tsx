@@ -6,6 +6,7 @@ import { Device } from 'valdi_core/src/Device';
 import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
 import { Locale } from 'valdi_core/src/localization/Locale';
 import { Style } from 'valdi_core/src/Style';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
@@ -303,6 +304,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private pendingSearchNavigation: SearchLibraryNavigationTarget | null = null;
 	private isResolvingSearchNavigation = false;
 	private returnToSearchOnDetailClose = false;
+	private nowPlayingOverlaySlot = new DetachedSlot();
 	private pendingNavRestoreContext: LibraryNavContext | null = null;
 	private readonly minimumBootSplashMs = 750;
 	private bootstrapStartedAt = Date.now();
@@ -1994,6 +1996,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				onSortChange: this.handleLibrarySortChange,
 				onTabTap: this.handleLibraryHeaderTabTap,
 			},
+			nowPlayingOverlaySlot: this.nowPlayingOverlaySlot,
 			onFooterTabTap: this.handleFooterTabTap,
 		};
 	}
@@ -2010,6 +2013,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				onRequestModeChange: this.requestModeChange,
 				onTabTap: this.handleHomeHeaderTabTap,
 			},
+			nowPlayingOverlaySlot: this.nowPlayingOverlaySlot,
 			onFooterTabTap: this.handleFooterTabTap,
 		};
 	}
@@ -2019,6 +2023,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		return {
 			activeFooterTab: this.state.activeFooterTab,
 			downloadingCount: this.state.downloadingCount,
+			nowPlayingOverlaySlot: this.nowPlayingOverlaySlot,
 			onFooterTabTap: this.handleFooterTabTap,
 		};
 	}
@@ -2056,6 +2061,35 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			trackIndex,
 		} = this.playbackStore;
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
+
+		this.nowPlayingOverlaySlot.slotted(() => {
+			if (!track) return;
+			<NowPlayingSurface
+				album={album}
+				animationsEnabled={this.state.animationsEnabled}
+				artistLogoUrl={artistLogoUrl}
+				collapseSignal={this.state.nowPlayingCollapseSignal}
+				isPlaying={isPlaying}
+				language={this.state.language}
+				loopMode={loopMode}
+				onAlbumTap={this.handleNowPlayingAlbumTap}
+				onArtistTap={this.handleNowPlayingArtistTap}
+				onDismiss={this.handleNowPlayingDismiss}
+				onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
+				onNext={this.handleNowPlayingNext}
+				onPlayPause={this.handleNowPlayingPlayPause}
+				onPrevious={this.handleNowPlayingPrevious}
+				onProgressTap={this.handleNowPlayingProgressTap}
+				onTrackTap={this.handleNowPlayingTrackTap}
+				palette={palette}
+				playbackStore={this.playbackStore}
+				progressSeconds={progressSeconds}
+				track={track}
+				trackIndex={trackIndex}
+				tracks={tracks}
+				transport={this.transport}
+			/>;
+		});
 
 		<view style={styles.root}>
 			<view style={styles.content}>

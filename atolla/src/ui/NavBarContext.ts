@@ -1,3 +1,4 @@
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { ConnectionMode } from '../transports/Model';
 import type { FooterTab } from './components/FooterTab';
 import type { HeaderTab } from './components/HeaderTabs';
@@ -17,5 +18,6 @@ export interface NavBarContext {
 	activeFooterTab: FooterTab;
 	downloadingCount: number;
 	header?: NavBarHeaderContext;
+	nowPlayingOverlaySlot?: DetachedSlot;
 	onFooterTabTap: (tab: FooterTab) => void;
 }

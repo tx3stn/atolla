@@ -318,10 +318,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.setHeaderVisibility(false);
 		const { downloadService, playbackStore } = this.viewModel;
 		this.unsubscribePlayback = playbackStore.subscribe(() => {
-			const isFooterVisible = playbackStore.track !== null;
-			if (isFooterVisible !== this.state.isFooterVisible) {
-				this.setState({ isFooterVisible });
-			}
+			this.setState({ isFooterVisible: playbackStore.track !== null });
 		});
 		this.unsubscribeDownloads = downloadService.subscribe(() => {
 			this.syncDownloadState();
@@ -494,6 +491,9 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						downloadingCount={this.viewModel.navBarContext.downloadingCount}
 						onFooterTabTap={this.handleFooterNavTabTap}
 					/>
+				)}
+				{this.viewModel.navBarContext?.nowPlayingOverlaySlot && (
+					<DetachedSlotRenderer detachedSlot={this.viewModel.navBarContext.nowPlayingOverlaySlot} />
 				)}
 				{this.viewModel.navBarContext?.header && isHeaderVisible && (
 					<LibraryHeaderNav
