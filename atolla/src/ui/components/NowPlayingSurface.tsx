@@ -12,7 +12,7 @@ import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
 import type { LoopMode, PlaybackStore } from '../../stores/Playback';
-import { theme } from '../../theme';
+import { theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
 import { PlaybackProgressBar } from './PlaybackProgressBar';
@@ -130,7 +130,7 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.expandedContentRef.setAttribute('right', 0);
 				this.transitionArtworkRef.setAttribute('left', 0);
 				this.transitionArtworkRef.setAttribute('marginTop', 0);
-				this.transitionArtworkRef.setAttribute('top', 0);
+				this.transitionArtworkRef.setAttribute('top', topInset);
 				this.transitionArtworkRef.setAttribute('width', '100%');
 			},
 		)
@@ -514,6 +514,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					<view ref={this.expandedContentRef} style={styles.expandedContent}>
 						<scroll ref={this.expandedScrollRef} style={styles.expandedInner}>
 							<layout style={styles.expandedFirstPage}>
+								{topInset > 0 && <view style={styles.topInsetBar} />}
 								{albumArtworkSource && (
 									<view
 										onDrag={this.handleExpandedDrag}
@@ -1030,6 +1031,12 @@ const styles = {
 		top: 0,
 		width: '100%',
 		zIndex: 20,
+	}),
+	topInsetBar: new Style<View>({
+		backgroundColor: theme.colors.bg,
+		flexShrink: 0,
+		height: topInset,
+		width: '100%',
 	}),
 	transitionArtwork: new Style<ImageView>({
 		aspectRatio: 1,

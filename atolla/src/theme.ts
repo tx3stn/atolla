@@ -25,7 +25,7 @@ const colors = {
 export const theme = {
 	borderRadius: 18,
 	colors: colors,
-	footerHeight: 55,
+	footerHeight: 52,
 	headerHeight: 52,
 	scrollPaddingBottom: 80 * 3,
 	text: {
