@@ -259,6 +259,7 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 	}
 
 	private external fun nativeExtractPalette(pixels: IntArray, width: Int, height: Int): String?
+	private external fun nativeBlurPixels(pixels: IntArray, width: Int, height: Int, outWidth: Int, outHeight: Int): IntArray?
 
 	fun resolveCachedFileUrl(category: String, sourceUrl: String): String? {
 		if (category.isBlank() || sourceUrl.isBlank()) {
@@ -1018,28 +1019,16 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 		return try {
 			val original = BitmapFactory.decodeByteArray(originalBytes, 0, originalBytes.size)
 				?: return null
-			// Repeatedly halve with bilinear filtering down to ~8px on the short edge.
-			// Each halving is a box-blur pass that averages 4 pixels into 1; many passes
-			// together approximate a Gaussian blur, smoothing colour zones without the
-			// hard linear ramps you get from a single large downsample step.
-			var current = original
-			while (current.width > 8 && current.height > 8) {
-				val nextW = maxOf(8, current.width / 2)
-				val nextH = maxOf(8, current.height / 2)
-				val next = Bitmap.createScaledBitmap(current, nextW, nextH, true)
-				current.recycle()
-				current = next
-			}
-			// Two-step upsample: jumping directly from 8px to 200px lets bilinear
-			// interpolation show as linear ramps between samples. The intermediate
-			// step at 48px smooths those transitions before the final upscale.
-			val mid = Bitmap.createScaledBitmap(current, 48, 48, true)
-			current.recycle()
-			val smooth = Bitmap.createScaledBitmap(mid, 200, 200, true)
-			mid.recycle()
+			val w = original.width
+			val h = original.height
+			val pixels = IntArray(w * h)
+			original.getPixels(pixels, 0, w, 0, 0, w, h)
+			original.recycle()
+			val outPixels = nativeBlurPixels(pixels, w, h, 200, 200) ?: return null
+			val blurred = Bitmap.createBitmap(outPixels, 200, 200, Bitmap.Config.ARGB_8888)
 			val out = ByteArrayOutputStream()
-			smooth.compress(Bitmap.CompressFormat.JPEG, 90, out)
-			smooth.recycle()
+			blurred.compress(Bitmap.CompressFormat.JPEG, 90, out)
+			blurred.recycle()
 			out.toByteArray()
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed to generate blurred bytes", error)

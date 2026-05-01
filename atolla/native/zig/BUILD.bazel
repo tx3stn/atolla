@@ -1,21 +1,46 @@
 load("@rules_zig//zig:defs.bzl", "zig_static_library")
+load(":zig_ios_align.bzl", "zig_ios_align")
 
 package(default_visibility = ["//visibility:public"])
 
 zig_static_library(
-    name = "palette_extractor_zig",
-    main = "palette_extractor.zig",
+    name = "atolla_algorithms_zig",
+    main = "atolla_algorithms.zig",
 )
 
-# Header-only wrapper so both the Android JNI and iOS ObjC bridge can dep on the C header.
+# rules_zig uses llvm-ar which writes 2-byte-aligned Mach-O archives.
+# Apple's 64-bit linker requires 8-byte alignment. This rule repacks the
+# archive with xcrun libtool -static. A Starlark rule (not genrule) is used
+# so that the Apple platform transition propagates to atolla_algorithms_zig,
+# ensuring the archive is built for the correct target (iOS/macOS not host).
+zig_ios_align(
+    name = "atolla_algorithms_zig_apple",
+    zig_lib = ":atolla_algorithms_zig",
+)
+
 cc_library(
     name = "palette_algorithm",
     hdrs = ["palette_extractor.h"],
     includes = ["."],
-    deps = [":palette_extractor_zig"],
+    deps = select({
+        "@platforms//os:ios": [":atolla_algorithms_zig_apple"],
+        "@platforms//os:macos": [":atolla_algorithms_zig_apple"],
+        "//conditions:default": [":atolla_algorithms_zig"],
+    }),
 )
 
-# Android JNI wrapper — included in libvaldi.so via native_deps in atolla/BUILD.bazel.
+cc_library(
+    name = "blur_algorithm",
+    hdrs = ["image_blur.h"],
+    includes = ["."],
+    deps = select({
+        "@platforms//os:ios": [":atolla_algorithms_zig_apple"],
+        "@platforms//os:macos": [":atolla_algorithms_zig_apple"],
+        "//conditions:default": [":atolla_algorithms_zig"],
+    }),
+)
+
+# Android JNI wrappers — included in libvaldi.so via native_deps in atolla/BUILD.bazel.
 cc_library(
     name = "palette_android_jni",
     srcs = select({
@@ -23,5 +48,15 @@ cc_library(
         "//conditions:default": [],
     }),
     deps = [":palette_algorithm"],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "blur_android_jni",
+    srcs = select({
+        "@platforms//os:android": ["blur_jni.cpp"],
+        "//conditions:default": [],
+    }),
+    deps = [":blur_algorithm"],
     alwayslink = 1,
 )

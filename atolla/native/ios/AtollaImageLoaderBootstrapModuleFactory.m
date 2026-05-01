@@ -6,6 +6,7 @@
 #import <valdi_core/SCValdiRuntimeManagerProtocol.h>
 #import <Foundation/Foundation.h>
 #import <CommonCrypto/CommonDigest.h>
+#import <UIKit/UIKit.h>
 #import "atolla/native/ios/palette_ios_bridge.h"
 
 // MARK: - Request Payload
@@ -266,6 +267,39 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         completion(cached, nil);
         return [[AtollaNoopCancelable alloc] init];
     }
+
+    if ([payload.category isEqualToString:@"album_art_blurred"]) {
+        NSString *originalKey = [NSString stringWithFormat:@"album_art:%@", payload.sourceURL.absoluteString];
+        NSData *originalData = [_cache readForKey:originalKey];
+        if (originalData) {
+            NSData *blurred = [self generateBlurredDataFrom:originalData];
+            if (blurred) {
+                [_cache writeData:blurred forKey:key];
+                completion(blurred, nil);
+            } else {
+                completion(nil, [NSError errorWithDomain:@"AtollaIOSImageLoader" code:3
+                                               userInfo:@{NSLocalizedDescriptionKey: @"blur generation failed"}]);
+            }
+            return [[AtollaNoopCancelable alloc] init];
+        }
+        NSURLSessionDataTask *task = [NSURLSession.sharedSession
+            dataTaskWithURL:payload.sourceURL
+            completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
+                if (!data) { completion(nil, err); return; }
+                [self->_cache writeData:data forKey:originalKey];
+                NSData *blurred = [self generateBlurredDataFrom:data];
+                if (blurred) {
+                    [self->_cache writeData:blurred forKey:key];
+                    completion(blurred, nil);
+                } else {
+                    completion(nil, [NSError errorWithDomain:@"AtollaIOSImageLoader" code:3
+                                                   userInfo:@{NSLocalizedDescriptionKey: @"blur generation failed"}]);
+                }
+            }];
+        [task resume];
+        return [[AtollaURLTaskCancelable alloc] initWithTask:task];
+    }
+
     NSURLSessionDataTask *task = [NSURLSession.sharedSession
         dataTaskWithURL:payload.sourceURL
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
@@ -278,6 +312,51 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         }];
     [task resume];
     return [[AtollaURLTaskCancelable alloc] initWithTask:task];
+}
+
+// Mirrors Android generateBlurredBytes: repeatedly halve down to ~4px
+// (kCGInterpolationHigh at exactly 2x acts as proper area-averaging, many
+// passes approximate a Gaussian), then two-step upsample 4px → 48px → 200px.
+// Target 4px rather than Android's 8px: CGContext's Lanczos averages less
+// aggressively than Android's bilinear so one extra pass compensates.
+- (nullable NSData *)generateBlurredDataFrom:(NSData *)originalData {
+    UIImage *original = [UIImage imageWithData:originalData];
+    if (!original || !original.CGImage) return nil;
+    CGImageRef current = CGImageRetain(original.CGImage);
+
+    while (CGImageGetWidth(current) > 4 && CGImageGetHeight(current) > 4) {
+        NSInteger nextW = MAX(4, (NSInteger)CGImageGetWidth(current) / 2);
+        NSInteger nextH = MAX(4, (NSInteger)CGImageGetHeight(current) / 2);
+        CGImageRef next = [self resizeCGImage:current toSize:CGSizeMake(nextW, nextH)];
+        CGImageRelease(current);
+        if (!next) return nil;
+        current = next;
+    }
+
+    CGImageRef mid = [self resizeCGImage:current toSize:CGSizeMake(48, 48)];
+    CGImageRelease(current);
+    if (!mid) return nil;
+
+    CGImageRef smooth = [self resizeCGImage:mid toSize:CGSizeMake(200, 200)];
+    CGImageRelease(mid);
+    if (!smooth) return nil;
+
+    UIImage *result = [UIImage imageWithCGImage:smooth];
+    CGImageRelease(smooth);
+    return UIImageJPEGRepresentation(result, 0.9);
+}
+
+- (nullable CGImageRef)resizeCGImage:(CGImageRef)image toSize:(CGSize)size CF_RETURNS_RETAINED {
+    CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
+    CGContextRef ctx = CGBitmapContextCreate(NULL, (size_t)size.width, (size_t)size.height,
+                                             8, 0, cs, kCGImageAlphaPremultipliedLast);
+    CGColorSpaceRelease(cs);
+    if (!ctx) return NULL;
+    CGContextSetInterpolationQuality(ctx, kCGInterpolationHigh);
+    CGContextDrawImage(ctx, CGRectMake(0, 0, size.width, size.height), image);
+    CGImageRef result = CGBitmapContextCreateImage(ctx);
+    CGContextRelease(ctx);
+    return result;
 }
 
 - (nullable NSString *)extractPaletteForCategory:(NSString *)category sourceURL:(NSString *)url {

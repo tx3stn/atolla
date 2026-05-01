@@ -1,5 +1,8 @@
 import CommonCrypto
+import CoreGraphics
 import Foundation
+import UIKit
+import blur_ios_bridge
 import palette_ios_bridge
 
 // Integrate this class in the host app where Valdi image loaders are registered.
@@ -43,6 +46,33 @@ final class AtollaCacheImageLoader: NSObject {
             return AtollaNoopCancelable()
         }
 
+        if requestPayload.category == "album_art_blurred" {
+            let originalKey = "album_art:\(requestPayload.sourceURL.absoluteString)"
+            if let originalData = cache.read(key: originalKey) {
+                if let blurredData = generateBlurredData(from: originalData) {
+                    cache.write(key: key, data: blurredData, weight: blurredData.count)
+                    completion(blurredData, nil)
+                } else {
+                    completion(nil, "blur generation failed")
+                }
+                return AtollaNoopCancelable()
+            }
+            let operation = downloader.fetch(url: requestPayload.sourceURL) { [weak self] data, error in
+                guard let self, let data else {
+                    completion(nil, error?.localizedDescription ?? "download failed")
+                    return
+                }
+                self.cache.write(key: originalKey, data: data, weight: data.count)
+                if let blurredData = self.generateBlurredData(from: data) {
+                    self.cache.write(key: key, data: blurredData, weight: blurredData.count)
+                    completion(blurredData, nil)
+                } else {
+                    completion(nil, "blur generation failed")
+                }
+            }
+            return operation
+        }
+
         let operation = downloader.fetch(url: requestPayload.sourceURL) { [weak self] data, error in
             guard let data else {
                 completion(nil, error?.localizedDescription ?? "download failed")
@@ -54,6 +84,10 @@ final class AtollaCacheImageLoader: NSObject {
         }
 
         return operation
+    }
+
+    private func generateBlurredData(from originalData: Data) -> Data? {
+        return AtollaBlurProcessor.blur(imageData: originalData)
     }
 }
 

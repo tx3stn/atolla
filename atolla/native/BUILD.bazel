@@ -35,10 +35,28 @@ objc_library(
     sdk_frameworks = ["CoreGraphics"],
 )
 
+swift_interop_hint(
+    name = "blur_ios_bridge_swift_interop",
+    module_map = "ios/blur_ios_bridge.modulemap",
+    module_name = "blur_ios_bridge",
+)
+
+objc_library(
+    name = "blur_ios_bridge",
+    srcs = ["ios/blur_ios_bridge.m"],
+    hdrs = ["ios/blur_ios_bridge.h"],
+    aspect_hints = [":blur_ios_bridge_swift_interop"],
+    deps = ["//atolla/native/zig:blur_algorithm"],
+    sdk_frameworks = ["CoreGraphics", "UIKit"],
+)
+
 swift_library(
     name = "atolla_cache_image_loader_ios",
     srcs = ["ios/AtollaCacheImageLoader.swift"],
-    deps = [":palette_ios_bridge"],
+    deps = [
+        ":blur_ios_bridge",
+        ":palette_ios_bridge",
+    ],
 )
 
 objc_library(

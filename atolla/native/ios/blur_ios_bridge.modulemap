@@ -1,0 +1,4 @@
+module blur_ios_bridge {
+    header "blur_ios_bridge.h"
+    export *
+}
