@@ -1,23 +1,12 @@
 package com.tx3stn.atolla
 
 import android.graphics.Bitmap
-import atolla.native.android.AtollaTrackValdiVideoPlayer
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.LruCache
-import android.content.Context
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
-import android.media.MediaPlayer
-import android.net.wifi.WifiManager
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.PowerManager
 import android.util.Log
-import android.view.View
-import com.snap.valdi.callable.safePerform
+import android.util.LruCache
 import com.snap.valdi.exceptions.ValdiException
 import com.snap.valdi.utils.Disposable
 import com.snap.valdi.utils.ValdiAssetLoadOutputType
@@ -29,10 +18,6 @@ import com.snap.valdi.utils.ValdiImageLoadOptions
 import com.snap.valdi.utils.ValdiImageLoader
 import com.snap.valdi.utils.ValdiImageWithBitmap
 import com.snap.valdi.utils.ValdiImageWithContent
-import com.snap.valdi.utils.ValdiMarshaller
-import com.snap.valdi.utils.ValdiVideoLoader
-import com.snap.valdi.utils.ValdiVideoPlayer
-import com.snap.valdi.utils.ValdiVideoPlayerCreatedCompletion
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
@@ -56,16 +41,7 @@ data class AtollaCacheRequestPayload(
 	val sourceUrl: String,
 )
 
-data class AtollaTrackVideoRequestPayload(
-	val sourceUrl: String,
-	val sourceTrackId: String?,
-	val sourceDurationMs: Long?,
-	val nextSourceUrl: String?,
-	val nextTrackId: String?,
-	val nextDurationMs: Long?,
-)
-
-class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
+class AtollaCacheImageLoader : ValdiImageLoader {
 	private data class BitmapDecodePlan(
 		val bitmapKey: String,
 		val maxDimension: Int,
@@ -283,40 +259,16 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 
 	override fun getSupportedURLSchemes(): List<String> {
 		Log.d(tag, "getSupportedURLSchemes")
-		return listOf("atolla-cache", "atolla-track")
+		return listOf("atolla-cache")
 	}
 
 	override fun getSupportedOutputTypes(): Int {
-		return (
-			ValdiAssetLoadOutputType.BITMAP.value or
-				ValdiAssetLoadOutputType.RAW_CONTENT.value or
-				ValdiAssetLoadOutputType.VIDEO.value
-			)
+		return ValdiAssetLoadOutputType.BITMAP.value or ValdiAssetLoadOutputType.RAW_CONTENT.value
 	}
 
 	@Throws(ValdiException::class)
 	override fun getRequestPayload(url: Uri): Any {
 		Log.d(tag, "getRequestPayload url=$url")
-		if (url.scheme == "atolla-track" && url.host == "audio") {
-			val source = url.getQueryParameter("u")
-			val sourceTrackId = url.getQueryParameter("t")
-			val sourceDurationMs = url.getQueryParameter("d")?.toLongOrNull()
-			val next = url.getQueryParameter("n")
-			val nextTrackId = url.getQueryParameter("nt")
-			val nextDurationMs = url.getQueryParameter("nd")?.toLongOrNull()
-			if (source.isNullOrBlank()) {
-				throw ValdiException("Invalid atolla-track video URL")
-			}
-			return AtollaTrackVideoRequestPayload(
-				sourceUrl = source,
-				sourceTrackId = sourceTrackId,
-				sourceDurationMs = sourceDurationMs,
-				nextSourceUrl = next,
-				nextTrackId = nextTrackId,
-				nextDurationMs = nextDurationMs,
-			)
-		}
-
 		val category = url.getQueryParameter("c")
 		val cacheOnly = url.getQueryParameter("co") == "1"
 		val source = url.getQueryParameter("u")
@@ -453,35 +405,6 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 				cancelled.set(true)
 			}
 		}
-	}
-
-	override fun loadVideo(
-		requestPayload: Any,
-		completion: ValdiVideoPlayerCreatedCompletion,
-	): Disposable? {
-		val payload = requestPayload as? AtollaTrackVideoRequestPayload
-		if (payload == null) {
-			Log.e(tag, "Invalid video payload: ${requestPayload::class.java.name}")
-			return null
-		}
-
-		val context = resolveApplicationContext()
-		if (context == null) {
-			Log.e(tag, "Unable to resolve application context for video load")
-			return null
-		}
-
-		val player = AtollaTrackValdiVideoPlayer(
-			context,
-			payload.sourceUrl,
-			payload.sourceTrackId,
-			payload.sourceDurationMs,
-			payload.nextSourceUrl,
-			payload.nextTrackId,
-			payload.nextDurationMs,
-		)
-		completion.onVideoPlayerCreated(player, null)
-		return player
 	}
 
 	private fun executeLoadImageTask(
@@ -884,17 +807,6 @@ class AtollaCacheImageLoader : ValdiImageLoader, ValdiVideoLoader {
 			app.cacheDir
 		} catch (error: Throwable) {
 			Log.e(tag, "Unable to resolve application cache directory", error)
-			null
-		}
-	}
-
-	private fun resolveApplicationContext(): android.app.Application? {
-		return try {
-			val activityThreadClass = Class.forName("android.app.ActivityThread")
-			val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)
-			currentApplication as? android.app.Application
-		} catch (error: Throwable) {
-			Log.e(tag, "Unable to resolve application context", error)
 			null
 		}
 	}

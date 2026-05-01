@@ -50,14 +50,6 @@ objc_library(
     sdk_frameworks = ["CoreGraphics", "UIKit"],
 )
 
-swift_library(
-    name = "atolla_cache_image_loader_ios",
-    srcs = ["ios/AtollaCacheImageLoader.swift"],
-    deps = [
-        ":blur_ios_bridge",
-        ":palette_ios_bridge",
-    ],
-)
 
 objc_library(
     name = "atolla_track_playback_module_factory_ios",
@@ -94,7 +86,6 @@ kt_android_library(
         "android/AtollaImageLoaderBootstrapModuleFactory.kt",
         "android/AtollaImageLoaderRegistration.kt",
         "android/AtollaPlaybackService.kt",
-        "android/AtollaTrackValdiVideoPlayer.kt",
         "android/AtollaTrackPlaybackNativeModuleFactory.kt",
     ],
     assets = [
