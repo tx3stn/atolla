@@ -8,6 +8,7 @@
 #import <CommonCrypto/CommonDigest.h>
 #import <UIKit/UIKit.h>
 #import "atolla/native/ios/palette_ios_bridge.h"
+#import "atolla/native/ios/blur_ios_bridge.h"
 
 // MARK: - Request Payload
 
@@ -107,7 +108,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 
 - (void)clearCategories:(NSArray<NSString *> *)categories {
     [_mem removeAllObjects];
-    dispatch_async(_diskQ, ^{
+    dispatch_sync(_diskQ, ^{
         if (!self->_diskDir) return;
         NSArray<NSURL *> *files = [NSFileManager.defaultManager
             contentsOfDirectoryAtURL:self->_diskDir
@@ -314,49 +315,8 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     return [[AtollaURLTaskCancelable alloc] initWithTask:task];
 }
 
-// Mirrors Android generateBlurredBytes: repeatedly halve down to ~4px
-// (kCGInterpolationHigh at exactly 2x acts as proper area-averaging, many
-// passes approximate a Gaussian), then two-step upsample 4px → 48px → 200px.
-// Target 4px rather than Android's 8px: CGContext's Lanczos averages less
-// aggressively than Android's bilinear so one extra pass compensates.
 - (nullable NSData *)generateBlurredDataFrom:(NSData *)originalData {
-    UIImage *original = [UIImage imageWithData:originalData];
-    if (!original || !original.CGImage) return nil;
-    CGImageRef current = CGImageRetain(original.CGImage);
-
-    while (CGImageGetWidth(current) > 4 && CGImageGetHeight(current) > 4) {
-        NSInteger nextW = MAX(4, (NSInteger)CGImageGetWidth(current) / 2);
-        NSInteger nextH = MAX(4, (NSInteger)CGImageGetHeight(current) / 2);
-        CGImageRef next = [self resizeCGImage:current toSize:CGSizeMake(nextW, nextH)];
-        CGImageRelease(current);
-        if (!next) return nil;
-        current = next;
-    }
-
-    CGImageRef mid = [self resizeCGImage:current toSize:CGSizeMake(48, 48)];
-    CGImageRelease(current);
-    if (!mid) return nil;
-
-    CGImageRef smooth = [self resizeCGImage:mid toSize:CGSizeMake(200, 200)];
-    CGImageRelease(mid);
-    if (!smooth) return nil;
-
-    UIImage *result = [UIImage imageWithCGImage:smooth];
-    CGImageRelease(smooth);
-    return UIImageJPEGRepresentation(result, 0.9);
-}
-
-- (nullable CGImageRef)resizeCGImage:(CGImageRef)image toSize:(CGSize)size CF_RETURNS_RETAINED {
-    CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
-    CGContextRef ctx = CGBitmapContextCreate(NULL, (size_t)size.width, (size_t)size.height,
-                                             8, 0, cs, kCGImageAlphaPremultipliedLast);
-    CGColorSpaceRelease(cs);
-    if (!ctx) return NULL;
-    CGContextSetInterpolationQuality(ctx, kCGInterpolationHigh);
-    CGContextDrawImage(ctx, CGRectMake(0, 0, size.width, size.height), image);
-    CGImageRef result = CGBitmapContextCreateImage(ctx);
-    CGContextRelease(ctx);
-    return result;
+    return [AtollaBlurProcessor blurImageData:originalData];
 }
 
 - (nullable NSString *)extractPaletteForCategory:(NSString *)category sourceURL:(NSString *)url {
