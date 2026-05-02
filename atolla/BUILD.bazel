@@ -14,6 +14,7 @@ valdi_module(
     native_deps = [
         "//atolla/native/zig:blur_android_jni",
         "//atolla/native/zig:palette_android_jni",
+        "//atolla/native/zig:waveform_android_jni",
     ],
     srcs = glob(
         [

@@ -1,0 +1,4 @@
+module waveform_ios_bridge {
+    header "waveform_ios_bridge.h"
+    export *
+}

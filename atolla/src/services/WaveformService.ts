@@ -62,6 +62,18 @@ export class WaveformService {
 		this.notify();
 	}
 
+	getCount(): number {
+		return this.records.size;
+	}
+
+	getReadyCount(): number {
+		let count = 0;
+		for (const record of this.records.values()) {
+			if (record.status === 'ready') count++;
+		}
+		return count;
+	}
+
 	getMaskImageUrl(trackId: string): string | null {
 		const record = this.records.get(trackId);
 		return record?.status === 'ready' ? (record.maskImageUrl ?? null) : null;

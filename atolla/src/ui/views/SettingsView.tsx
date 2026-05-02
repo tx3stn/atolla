@@ -109,6 +109,8 @@ export interface SettingsViewModel {
 	selectedLanguage?: LanguageCode;
 	trackCacheCachedCount?: number;
 	trackCacheMaxTracks?: number;
+	waveformCount?: number;
+	waveformReadyCount?: number;
 }
 
 interface SettingsState {
@@ -448,6 +450,17 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 					{this.state.showCacheClearModal && (
 						<CacheClearModal
+							counts={{
+								tracks:
+									trackCacheCachedCount != null ? { total: trackCacheCachedCount } : undefined,
+								waveformData:
+									this.viewModel.waveformCount != null
+										? {
+												ready: this.viewModel.waveformReadyCount,
+												total: this.viewModel.waveformCount,
+											}
+										: undefined,
+							}}
 							onCancel={this.handleCacheClearCancel}
 							onConfirm={this.handleCacheClearConfirm}
 						/>

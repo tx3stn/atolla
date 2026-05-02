@@ -2,6 +2,8 @@ package atolla.native.android
 
 import android.app.Notification
 import com.tx3stn.atolla.AtollaCacheImageLoader
+import com.tx3stn.atolla.AtollaWaveformNativeCache
+import com.tx3stn.atolla.AtollaWaveformWorker
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -213,6 +215,30 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 					hasPrevious = hasPrevious,
 					hasNext = hasNext,
 				)
+			}
+
+			override fun generateAtollaWaveformAsync(trackId: String, audioPath: String, onComplete: (String) -> Unit) {
+				Thread {
+					val url = try {
+						val cached = AtollaWaveformNativeCache.getCachedWaveformUrl(trackId)
+						if (cached.isNotEmpty()) {
+							cached
+						} else {
+							val pngBytes = AtollaWaveformWorker.generateWaveformPng(audioPath)
+							if (pngBytes != null && pngBytes.isNotEmpty()) {
+								AtollaWaveformNativeCache.saveWaveformPng(trackId, pngBytes)
+							} else ""
+						}
+					} catch (e: Throwable) {
+						Log.e("AtollaWaveformModule", "Waveform generation failed trackId=$trackId", e)
+						""
+					}
+					onComplete(url)
+				}.also { it.isDaemon = true }.start()
+			}
+
+			override fun clearAtollaWaveformCache() {
+				AtollaWaveformNativeCache.clearCache()
 			}
 		}
 	}

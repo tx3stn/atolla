@@ -4,4 +4,5 @@
 comptime {
     _ = @import("palette_extractor.zig");
     _ = @import("image_blur.zig");
+    _ = @import("waveform_generator.zig");
 }

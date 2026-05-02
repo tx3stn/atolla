@@ -50,12 +50,30 @@ objc_library(
     sdk_frameworks = ["CoreGraphics", "UIKit"],
 )
 
+swift_interop_hint(
+    name = "waveform_ios_bridge_swift_interop",
+    module_map = "ios/waveform_ios_bridge.modulemap",
+    module_name = "waveform_ios_bridge",
+)
+
+objc_library(
+    name = "waveform_ios_bridge",
+    srcs = ["ios/waveform_ios_bridge.m"],
+    hdrs = ["ios/waveform_ios_bridge.h"],
+    aspect_hints = [":waveform_ios_bridge_swift_interop"],
+    deps = ["//atolla/native/zig:waveform_algorithm"],
+    sdk_frameworks = ["AVFoundation", "CoreMedia"],
+)
+
 
 objc_library(
     name = "atolla_track_playback_module_factory_ios",
     srcs = ["ios/AtollaTrackPlaybackNativeModuleFactory.m"],
     copts = ["-I."],
-    deps = ["//atolla:atolla_api_objc"],
+    deps = [
+        "//atolla:atolla_api_objc",
+        ":waveform_ios_bridge",
+    ],
     sdk_frameworks = [
         "AVFoundation",
         "MediaPlayer",
@@ -87,6 +105,7 @@ kt_android_library(
         "android/AtollaImageLoaderRegistration.kt",
         "android/AtollaPlaybackService.kt",
         "android/AtollaTrackPlaybackNativeModuleFactory.kt",
+        "android/AtollaWaveformWorker.kt",
     ],
     assets = [
         "android/assets/valdi_native_modules/atolla.native.android.AtollaImageLoaderBootstrapModuleFactory",

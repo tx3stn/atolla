@@ -6,6 +6,11 @@ package(default_visibility = ["//visibility:public"])
 zig_static_library(
     name = "atolla_algorithms_zig",
     main = "atolla_algorithms.zig",
+    srcs = [
+        "palette_extractor.zig",
+        "image_blur.zig",
+        "waveform_generator.zig",
+    ],
 )
 
 # rules_zig uses llvm-ar which writes 2-byte-aligned Mach-O archives.
@@ -40,6 +45,17 @@ cc_library(
     }),
 )
 
+cc_library(
+    name = "waveform_algorithm",
+    hdrs = ["waveform_generator.h"],
+    includes = ["."],
+    deps = select({
+        "@platforms//os:ios": [":atolla_algorithms_zig_apple"],
+        "@platforms//os:macos": [":atolla_algorithms_zig_apple"],
+        "//conditions:default": [":atolla_algorithms_zig"],
+    }),
+)
+
 # Android JNI wrappers — included in libvaldi.so via native_deps in atolla/BUILD.bazel.
 cc_library(
     name = "palette_android_jni",
@@ -58,5 +74,15 @@ cc_library(
         "//conditions:default": [],
     }),
     deps = [":blur_algorithm"],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "waveform_android_jni",
+    srcs = select({
+        "@platforms//os:android": ["waveform_jni.cpp"],
+        "//conditions:default": [],
+    }),
+    deps = [":waveform_algorithm"],
     alwayslink = 1,
 )

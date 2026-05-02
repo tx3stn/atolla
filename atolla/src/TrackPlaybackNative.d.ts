@@ -66,6 +66,20 @@ export function ensureAtollaTrackPlaybackNotificationPermission(): boolean;
 export function getAtollaDeviceUserScopeKey(): string;
 
 // @ExportFunction
+// Generate a waveform mask PNG for the audio at audioPath.
+// Calls onComplete with the local file URL of the written PNG, or an empty
+// string if generation failed. The output file is managed by the native cache.
+export function generateAtollaWaveformAsync(
+	trackId: string,
+	audioPath: string,
+	onComplete: (outputUrl: string) => void,
+): void;
+
+// @ExportFunction
+// Remove all waveform mask PNG files managed by the native cache.
+export function clearAtollaWaveformCache(): void;
+
+// @ExportFunction
 export function configureAtollaAudioPlayback(
 	currentSourceUrl: string,
 	currentTrackId: string,

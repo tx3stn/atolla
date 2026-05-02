@@ -209,6 +209,66 @@ describe('WaveformService', () => {
 		});
 	});
 
+	describe('getCount', () => {
+		it('returns 0 when no records exist', () => {
+			const service = new WaveformService(new MockWaveformStore());
+			expect(service.getCount()).toBe(0);
+		});
+
+		it('counts all records regardless of status', () => {
+			const store = new MockWaveformStore();
+			const service = new WaveformService(store);
+			service.scheduleGeneration('track-1');
+			service.scheduleGeneration('track-2');
+			service.onGenerationSucceeded('track-1', 'mask://track-1.png');
+			service.scheduleGeneration('track-3');
+			service.onGenerationFailed('track-3');
+
+			expect(service.getCount()).toBe(3);
+		});
+
+		it('decreases after clearAll', () => {
+			const store = new MockWaveformStore();
+			const service = new WaveformService(store);
+			service.scheduleGeneration('track-1');
+			service.scheduleGeneration('track-2');
+
+			service.clearAll();
+
+			expect(service.getCount()).toBe(0);
+		});
+	});
+
+	describe('getReadyCount', () => {
+		it('returns 0 when no records exist', () => {
+			const service = new WaveformService(new MockWaveformStore());
+			expect(service.getReadyCount()).toBe(0);
+		});
+
+		it('counts only ready records', () => {
+			const store = new MockWaveformStore();
+			const service = new WaveformService(store);
+			service.scheduleGeneration('track-1');
+			service.scheduleGeneration('track-2');
+			service.scheduleGeneration('track-3');
+			service.onGenerationSucceeded('track-1', 'mask://track-1.png');
+			service.onGenerationFailed('track-3');
+
+			expect(service.getReadyCount()).toBe(1);
+		});
+
+		it('returns 0 after clearAll', () => {
+			const store = new MockWaveformStore();
+			const service = new WaveformService(store);
+			service.scheduleGeneration('track-1');
+			service.onGenerationSucceeded('track-1', 'mask://track-1.png');
+
+			service.clearAll();
+
+			expect(service.getReadyCount()).toBe(0);
+		});
+	});
+
 	describe('getMaskImageUrl', () => {
 		it('returns null for an unknown track', () => {
 			const service = new WaveformService(new MockWaveformStore());

@@ -37,6 +37,7 @@ import { buildImageSource } from './services/ImageSource';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
+import { PersistentWaveformStore } from './services/PersistentWaveformStore';
 import { ScrobbleService } from './services/ScrobbleService';
 import { TrackPlaybackNativePrefetchQueue } from './services/TrackPlaybackNativePrefetchQueue';
 import {
@@ -44,6 +45,8 @@ import {
 	buildTrackPlaybackNotificationPayload,
 	normalizeTrackPlaybackNotificationAction,
 } from './services/TrackPlaybackNotificationSync';
+import { WaveformGenerationQueue } from './services/WaveformGenerationQueue';
+import { WaveformService } from './services/WaveformService';
 import { WriteBehindPaletteStore } from './services/WriteBehindPaletteStore';
 import {
 	JellyfinAuthStore,
@@ -64,6 +67,7 @@ import {
 	cacheAtollaTrackFromUrlAsync,
 	clearAtollaTrackCache,
 	clearAtollaTrackPlaybackNotification,
+	clearAtollaWaveformCache,
 	consumeAtollaTrackPlaybackNotificationAction,
 	ensureAtollaTrackPlaybackNotificationPermission,
 	getAtollaAudioPlaybackIsActive,
@@ -284,8 +288,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
 	});
 	private paletteQueue!: PaletteGenerationQueue;
+	private waveformService!: WaveformService;
+	private waveformQueue!: WaveformGenerationQueue;
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
+	private unsubscribeWaveform?: () => void;
 	private scrobbleService?: ScrobbleService;
 	private authToastTimer?: ReturnType<typeof setTimeout>;
 	private playbackToastTimer?: ReturnType<typeof setTimeout>;
@@ -590,6 +597,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.unsubscribePalette) {
 			this.unsubscribePalette();
 		}
+		if (this.unsubscribeWaveform) {
+			this.unsubscribeWaveform();
+		}
+		if (this.waveformQueue) {
+			this.waveformQueue.dispose();
+		}
 		if (this.nativeCacheStatsInterval) {
 			clearInterval(this.nativeCacheStatsInterval);
 		}
@@ -609,6 +622,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private initUserStores(userId: string): void {
 		if (this.unsubscribePalette) {
 			this.unsubscribePalette();
+		}
+		if (this.unsubscribeWaveform) {
+			this.unsubscribeWaveform();
+		}
+		if (this.waveformQueue) {
+			this.waveformQueue.dispose();
 		}
 		this.searchStore = new SearchStore(
 			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
@@ -664,6 +683,17 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			// Observer bridge unavailable on non-Android targets.
 		}
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
+			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
+			this.setState({ version: this.state.version + 1 });
+		});
+		this.waveformService = new WaveformService(
+			new PersistentWaveformStore(
+				new PersistentStore(`atolla/user/${userId}/waveform_data`, { deviceGlobal: true }),
+			),
+		);
+		this.waveformQueue = new WaveformGenerationQueue(this.waveformService);
+		void this.waveformService.warmUp();
+		this.unsubscribeWaveform = this.waveformService.subscribe(() => {
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
 		});
@@ -918,6 +948,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.lastTrackFetchErrorTrackId = null;
 		this.refreshTrackCachedCount();
 
+		const audioPath = this.getAudioPathForWaveform(trackId);
+		if (audioPath && this.waveformService && this.waveformQueue) {
+			this.waveformService.scheduleGeneration(trackId);
+			this.waveformQueue.enqueue(trackId, audioPath);
+		}
+
 		if (this.playbackStore.track?.id !== trackId) {
 			this.handleNextTrackPreload();
 			return;
@@ -927,6 +963,18 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.handleTrackPlaybackSourceChange(true);
 		}
 		this.handleNextTrackPreload();
+	}
+
+	private getAudioPathForWaveform(trackId: string): string | null {
+		try {
+			const cached = getAtollaCachedTrackFileUrl(trackId);
+			if (cached) return cached;
+		} catch {}
+		try {
+			const downloaded = getAtollaDownloadedTrackFileUrl(trackId);
+			if (downloaded) return downloaded;
+		} catch {}
+		return null;
 	}
 
 	private handleTrackCacheFetchFailed(trackId: string, reason = 'unknown'): void {
@@ -1266,6 +1314,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.playbackSourceRequestId += 1;
 			this.setState({ nextTrackSourceUrl: null, trackPlaybackSourceUrl: null });
 			this.handleTrackPrefetchQueueChange(true);
+		}
+		if (selection.waveformData) {
+			this.waveformService?.clearAll();
+			try {
+				clearAtollaWaveformCache();
+			} catch {
+				// Non-Android targets may not support native waveform cache clear.
+			}
 		}
 		this.refreshNativeCacheStats();
 		this.refreshTrackCachedCount();
@@ -1700,6 +1756,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			trackIndex={trackIndex}
 			tracks={tracks}
 			transport={this.transport}
+			waveformMaskUrl={this.waveformService?.getMaskImageUrl(track.id) ?? null}
 		/>;
 	};
 
@@ -2206,6 +2263,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						selectedLanguage={this.state.language}
 						trackCacheCachedCount={this.state.trackPlaybackCachedCount}
 						trackCacheMaxTracks={this.state.trackCacheMaxTracks}
+						waveformCount={this.waveformService?.getCount()}
+						waveformReadyCount={this.waveformService?.getReadyCount()}
 					/>
 				)}
 
@@ -2234,6 +2293,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						trackIndex={trackIndex}
 						tracks={tracks}
 						transport={this.transport}
+						waveformMaskUrl={this.waveformService?.getMaskImageUrl(track.id) ?? null}
 					/>
 				)}
 

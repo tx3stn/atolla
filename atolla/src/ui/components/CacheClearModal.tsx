@@ -6,7 +6,23 @@ import type { ClearCacheSelection } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { Checkbox } from './Checkbox';
 
+export interface CacheClearModalCount {
+	ready?: number;
+	total: number;
+}
+
+export interface CacheClearModalCounts {
+	albumArt?: CacheClearModalCount;
+	albumArtBlurred?: CacheClearModalCount;
+	artistImage?: CacheClearModalCount;
+	artistLogo?: CacheClearModalCount;
+	playlistImage?: CacheClearModalCount;
+	tracks?: CacheClearModalCount;
+	waveformData?: CacheClearModalCount;
+}
+
 export interface CacheClearModalViewModel {
+	counts?: CacheClearModalCounts;
 	onCancel: () => void;
 	onConfirm: (selection: ClearCacheSelection) => void;
 }
@@ -58,6 +74,12 @@ export class CacheClearModal extends StatefulComponent<
 		});
 	};
 
+	private labelWithCount(label: string, count: CacheClearModalCount | undefined): string {
+		if (count == null) return label;
+		const suffix = count.ready != null ? `${count.ready}/${count.total}` : `${count.total}`;
+		return `${label} (${suffix})`;
+	}
+
 	onRender(): void {
 		const {
 			albumArt,
@@ -68,6 +90,7 @@ export class CacheClearModal extends StatefulComponent<
 			tracks,
 			waveformData,
 		} = this.state;
+		const counts = this.viewModel.counts;
 		const anySelected =
 			albumArt ||
 			albumArtBlurred ||
@@ -94,43 +117,49 @@ export class CacheClearModal extends StatefulComponent<
 					<Checkbox
 						accessibilityLabel='cache-clear-album-art-row'
 						checked={albumArt}
-						label={Strings.cacheCategoryAlbumArt()}
+						label={this.labelWithCount(Strings.cacheCategoryAlbumArt(), counts?.albumArt)}
 						onToggle={this.toggleAlbumArt}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-album-art-blurred-row'
 						checked={albumArtBlurred}
-						label={Strings.cacheCategoryAlbumArtBlurred()}
+						label={this.labelWithCount(
+							Strings.cacheCategoryAlbumArtBlurred(),
+							counts?.albumArtBlurred,
+						)}
 						onToggle={this.toggleAlbumArtBlurred}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-artist-image-row'
 						checked={artistImage}
-						label={Strings.cacheCategoryArtistImages()}
+						label={this.labelWithCount(Strings.cacheCategoryArtistImages(), counts?.artistImage)}
 						onToggle={this.toggleArtistImage}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-artist-logo-row'
 						checked={artistLogo}
-						label={Strings.cacheCategoryArtistLogos()}
+						label={this.labelWithCount(Strings.cacheCategoryArtistLogos(), counts?.artistLogo)}
 						onToggle={this.toggleArtistLogo}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-playlist-image-row'
 						checked={playlistImage}
-						label={Strings.cacheCategoryPlaylistImages()}
+						label={this.labelWithCount(
+							Strings.cacheCategoryPlaylistImages(),
+							counts?.playlistImage,
+						)}
 						onToggle={this.togglePlaylistImage}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-track-row'
 						checked={tracks}
-						label={Strings.cacheCategoryTracks()}
+						label={this.labelWithCount(Strings.cacheCategoryTracks(), counts?.tracks)}
 						onToggle={this.toggleTracks}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-waveform-data-row'
 						checked={waveformData}
-						label={Strings.cacheCategoryWaveformData()}
+						label={this.labelWithCount(Strings.cacheCategoryWaveformData(), counts?.waveformData)}
 						onToggle={this.toggleWaveformData}
 					/>
 
