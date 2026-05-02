@@ -23,16 +23,20 @@ uint8_t* atolla_generate_waveform(
     uint32_t* out_len
 );
 
-// Generate a greyscale alpha-mask PNG from pre-computed per-column amplitudes.
-//   amps:    peak amplitude per column, float32 in [0.0, 1.0], length = width
-//   width:   number of columns
-//   height:  output image height in pixels
-//   out_len: receives the byte count of the returned buffer
+// Generate a greyscale alpha-mask PNG from pre-computed amplitude control points.
+// Catmull-Rom spline interpolation is applied to produce smooth curves at full
+// image resolution.
+//   amps:      peak amplitude per control point, float32, length = num_amps
+//   num_amps:  number of control points (typically ~100)
+//   img_width: output image width in pixels
+//   height:    output image height in pixels
+//   out_len:   receives the byte count of the returned buffer
 // Returns a malloc'd byte buffer containing the PNG, or NULL on failure.
 // The caller must pass the returned pointer to free() when done.
 uint8_t* atolla_render_waveform_from_amps(
     const float* amps,
-    uint32_t width,
+    uint32_t num_amps,
+    uint32_t img_width,
     uint32_t height,
     uint32_t* out_len
 );

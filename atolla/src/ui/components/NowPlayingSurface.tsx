@@ -981,12 +981,12 @@ const styles = {
 	expandedTimeRow: new Style<Layout>({
 		flexDirection: 'row',
 		justifyContent: 'space-between',
-		marginTop: 4,
+		marginTop: 10,
 		width: '100%',
 	}),
 	expandedTrackMetaSection: new Style<Layout>({
 		alignItems: 'center',
-		marginBottom: 10,
+		marginBottom: 20,
 		width: '100%',
 	}),
 	expandedTrackMetaTextInset: new Style<Layout>({

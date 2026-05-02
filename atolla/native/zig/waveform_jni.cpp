@@ -36,21 +36,23 @@ Java_com_tx3stn_atolla_AtollaWaveformWorker_nativeGenerateWaveform(
     return result;
 }
 
-// Called from AtollaWaveformWorker.kt with pre-computed per-column amplitudes.
-// Amps are peak values accumulated during streaming decode, covering the full
-// track regardless of length. Normalisation happens inside Zig.
+// Called from AtollaWaveformWorker.kt with pre-computed amplitude control points.
+// Amps are peak values accumulated during streaming decode. Zig applies
+// Catmull-Rom spline interpolation to render a smooth waveform at full image width.
 extern "C" JNIEXPORT jbyteArray JNICALL
 Java_com_tx3stn_atolla_AtollaWaveformWorker_nativeRenderWaveformFromAmps(
     JNIEnv* env, jobject /*thiz*/,
-    jfloatArray amps, jint width, jint height) {
+    jfloatArray amps, jint img_width, jint height) {
 
+    const jsize num_amps = env->GetArrayLength(amps);
     jfloat* raw = env->GetFloatArrayElements(amps, nullptr);
     if (!raw) return nullptr;
 
     uint32_t out_len = 0;
     uint8_t* png = atolla_render_waveform_from_amps(
         raw,
-        static_cast<uint32_t>(width),
+        static_cast<uint32_t>(num_amps),
+        static_cast<uint32_t>(img_width),
         static_cast<uint32_t>(height),
         &out_len);
     env->ReleaseFloatArrayElements(amps, raw, JNI_ABORT);

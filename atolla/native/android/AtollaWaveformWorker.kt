@@ -60,6 +60,7 @@ object AtollaWaveformNativeCache {
 class AtollaWaveformWorker {
 	companion object {
 		private const val tag = "AtollaWaveformWorker"
+		private const val waveformControlPoints = 100
 		private const val waveformWidth = 500
 		private const val waveformHeight = 100
 
@@ -110,7 +111,8 @@ class AtollaWaveformWorker {
 				val totalFrames = if (durationUs > 0)
 					(durationUs * sampleRate / 1_000_000L) else 0L
 
-				val amps = FloatArray(waveformWidth)
+				val sumSq = FloatArray(waveformControlPoints)
+				val counts = IntArray(waveformControlPoints)
 				var decodedFrames = 0L
 
 				val codec = MediaCodec.createDecoderByType(mime)
@@ -158,17 +160,16 @@ class AtollaWaveformWorker {
 								while (frameOffset < bufferFrames) {
 									val frameIndex = bufferStartFrame + frameOffset
 									val col = if (totalFrames > 0) {
-										((frameIndex * waveformWidth) / totalFrames).toInt()
+										((frameIndex * waveformControlPoints) / totalFrames).toInt()
 									} else {
-										((decodedFrames + frameOffset) % waveformWidth).toInt()
-									}.coerceIn(0, waveformWidth - 1)
+										((decodedFrames + frameOffset) % waveformControlPoints).toInt()
+									}.coerceIn(0, waveformControlPoints - 1)
 
-									var peak = 0f
 									for (ch in 0 until channelCount) {
-										val s = (shortBuffer.get().toFloat() / 32768f).let { if (it < 0) -it else it }
-										if (s > peak) peak = s
+										val s = shortBuffer.get().toFloat() / 32768f
+										sumSq[col] += s * s
+										counts[col]++
 									}
-									if (peak > amps[col]) amps[col] = peak
 
 									frameOffset += stride
 									val skipSamples = (stride - 1) * channelCount
@@ -187,7 +188,9 @@ class AtollaWaveformWorker {
 					}
 
 					codec.stop()
-					if (decodedFrames == 0L) null else amps
+					if (decodedFrames == 0L) null else FloatArray(waveformControlPoints) { i ->
+						if (counts[i] > 0) kotlin.math.sqrt(sumSq[i] / counts[i]) else 0f
+					}
 				} finally {
 					codec.release()
 				}

@@ -30,21 +30,23 @@ fn computeAmplitudes(
 ) void {
     // Sample at most 4 frames per column — the waveform is smoothed after
     // computation so fine-grained accuracy per column isn't needed.
-    const max_samples_per_col: u64 = 4;
+    const max_samples_per_col: u64 = 16;
     for (0..width) |col| {
         const start: u64 = @as(u64, col) * @as(u64, frames) / @as(u64, width);
         const end: u64 = (@as(u64, col) + 1) * @as(u64, frames) / @as(u64, width);
         const window = end - start;
         const stride: u64 = if (window > max_samples_per_col) window / max_samples_per_col else 1;
-        var peak: f32 = 0.0;
+        var sum_sq: f32 = 0.0;
+        var count: u32 = 0;
         var frame = start;
         while (frame < end) : (frame += stride) {
             for (0..channel_count) |ch| {
-                const s = @abs(samples[@as(usize, @intCast(frame)) * channel_count + ch]);
-                if (s > peak) peak = s;
+                const s = samples[@as(usize, @intCast(frame)) * channel_count + ch];
+                sum_sq += s * s;
+                count += 1;
             }
         }
-        amps[col] = peak;
+        amps[col] = if (count > 0) @sqrt(sum_sq / @as(f32, @floatFromInt(count))) else 0.0;
     }
 }
 
@@ -68,23 +70,63 @@ fn smoothAmplitudes(amps: [*]f32, width: u32) void {
     }
 }
 
-// Normalise amplitudes so the loudest column reaches full height, then apply
-// sqrt compression to lift quiet sections into the visible range.
-// Peaks are never clipped — everything is scaled relative to the maximum.
+// Normalise amplitudes linearly so the loudest column reaches full height.
+// No compression — quiet sections stay short, loud sections stay tall.
 // Silent audio becomes a flat mid-height line so the bar is always visible.
 fn normalizeAmplitudes(amps: [*]f32, width: u32) void {
     var max: f32 = 0.0;
-    for (0..width) |i| if (amps[i] > max) { max = amps[i]; };
+    for (0..width) |i| if (amps[i] > max) {
+        max = amps[i];
+    };
     if (max < 1e-6) {
         for (0..width) |i| amps[i] = 0.5;
         return;
     }
-    for (0..width) |i| amps[i] = @sqrt(amps[i] / max);
+    for (0..width) |i| amps[i] = amps[i] / max;
 }
 
 // ---------------------------------------------------------------------------
-// Pixel rendering (RGBA, symmetric waveform centred vertically)
+// Spline interpolation + pixel rendering
 // ---------------------------------------------------------------------------
+
+// Catmull-Rom spline through four control points. t ∈ [0, 1] interpolates
+// between p1 and p2, with p0 and p3 shaping the curve.
+fn catmullRom(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) f32 {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return 0.5 * ((2.0 * p1) +
+        (-p0 + p2) * t +
+        (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 +
+        (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3);
+}
+
+// Render `img_width` pixel columns by Catmull-Rom interpolating over
+// `num_ctrl` normalised amplitude control points. Produces smooth flowing
+// curves rather than discrete bars.
+fn renderSplineWaveform(
+    pixels: [*]u8,
+    img_width: u32,
+    height: u32,
+    ctrl: [*]const f32,
+    num_ctrl: u32,
+) void {
+    for (0..img_width) |x| {
+        const amp = if (num_ctrl <= 1) ctrl[0] else blk: {
+            const t_global = @as(f32, @floatFromInt(x)) /
+                @as(f32, @floatFromInt(img_width - 1)) *
+                @as(f32, @floatFromInt(num_ctrl - 1));
+            const seg: usize = @min(
+                @as(usize, @intFromFloat(t_global)),
+                @as(usize, num_ctrl - 2),
+            );
+            const t = t_global - @as(f32, @floatFromInt(seg));
+            const im1 = if (seg > 0) seg - 1 else 0;
+            const ip2 = @min(seg + 2, @as(usize, num_ctrl - 1));
+            break :blk @max(0.0, @min(1.0, catmullRom(ctrl[im1], ctrl[seg], ctrl[seg + 1], ctrl[ip2], t)));
+        };
+        renderColumn(pixels, x, img_width, height, amp);
+    }
+}
 
 fn renderColumn(
     pixels: [*]u8,
@@ -199,37 +241,38 @@ fn pngSize(width: u32, height: u32) usize {
 // Public exports
 // ---------------------------------------------------------------------------
 
-// Generates a greyscale alpha-mask PNG from pre-computed per-column amplitudes.
-//   amps:      normalised amplitude per column, float32 in [0.0, 1.0], length = width
-//   width:     number of columns (must equal length of amps)
+// Generates a greyscale alpha-mask PNG from pre-computed amplitude control points.
+//   amps:      peak amplitude per control point, float32, length = num_amps
+//   num_amps:  number of control points (typically ~100)
+//   img_width: output image width in pixels (spline interpolates to this resolution)
 //   height:    output image height in pixels
 //   out_len:   receives the byte count of the returned buffer
 // Returns a malloc'd byte buffer containing the PNG, or null on failure.
 // The caller must pass the returned pointer to free() when done.
 export fn atolla_render_waveform_from_amps(
     amps_in: [*]const f32,
-    width: u32,
+    num_amps: u32,
+    img_width: u32,
     height: u32,
     out_len: *u32,
 ) ?[*]u8 {
     out_len.* = 0;
-    if (width == 0 or height == 0) return null;
+    if (num_amps == 0 or img_width == 0 or height == 0) return null;
 
-    const amps_ptr = malloc(@as(usize, width) * @sizeOf(f32)) orelse return null;
+    const amps_ptr = malloc(@as(usize, num_amps) * @sizeOf(f32)) orelse return null;
     defer free(amps_ptr);
     const amps: [*]f32 = @ptrCast(@alignCast(amps_ptr));
-    @memcpy(amps[0..width], amps_in[0..width]);
-    // smoothAmplitudes(amps, width);
-    normalizeAmplitudes(amps, width);
+    @memcpy(amps[0..num_amps], amps_in[0..num_amps]);
+    normalizeAmplitudes(amps, num_amps);
 
-    const pixel_bytes = @as(usize, width) * @as(usize, height) * 4;
+    const pixel_bytes = @as(usize, img_width) * @as(usize, height) * 4;
     const pixels_ptr = malloc(pixel_bytes) orelse return null;
     defer free(pixels_ptr);
     const pixels: [*]u8 = @ptrCast(pixels_ptr);
     @memset(pixels[0..pixel_bytes], 0);
-    for (0..width) |x| renderColumn(pixels, x, width, height, amps[x]);
+    renderSplineWaveform(pixels, img_width, height, amps, num_amps);
 
-    const png_len = pngSize(width, height);
+    const png_len = pngSize(img_width, height);
     const png_ptr = malloc(png_len) orelse return null;
     const png: [*]u8 = @ptrCast(png_ptr);
     var offset: usize = 0;
@@ -237,7 +280,7 @@ export fn atolla_render_waveform_from_amps(
     writeBytes(png, &offset, "\x89PNG\r\n\x1a\n");
 
     var ihdr: [13]u8 = undefined;
-    std.mem.writeInt(u32, ihdr[0..4], width, .big);
+    std.mem.writeInt(u32, ihdr[0..4], img_width, .big);
     std.mem.writeInt(u32, ihdr[4..8], height, .big);
     ihdr[8] = 8;
     ihdr[9] = 6;
@@ -247,7 +290,7 @@ export fn atolla_render_waveform_from_amps(
     writeChunk(png, &offset, "IHDR", &ihdr);
 
     {
-        const row_stride = @as(usize, width) * 4;
+        const row_stride = @as(usize, img_width) * 4;
         const raw_len = @as(usize, height) * (1 + row_stride);
         const raw_ptr = malloc(raw_len) orelse {
             free(png_ptr);
@@ -302,21 +345,21 @@ export fn atolla_generate_waveform(
     const frames = sample_count / channel_count;
     if (frames == 0) return null;
 
-    // --- Compute amplitudes ---
-    const amps_ptr = malloc(@as(usize, width) * @sizeOf(f32)) orelse return null;
+    // --- Compute amplitudes at control-point resolution then spline to image width ---
+    const num_ctrl: u32 = 100;
+    const amps_ptr = malloc(@as(usize, num_ctrl) * @sizeOf(f32)) orelse return null;
     defer free(amps_ptr);
     const amps: [*]f32 = @ptrCast(@alignCast(amps_ptr));
-    computeAmplitudes(samples, frames, channel_count, amps, width);
-    // smoothAmplitudes(amps, width);
-    normalizeAmplitudes(amps, width);
+    computeAmplitudes(samples, frames, channel_count, amps, num_ctrl);
+    normalizeAmplitudes(amps, num_ctrl);
 
-    // --- Render pixel buffer (RGBA, all zeroed then filled) ---
+    // --- Render pixel buffer via Catmull-Rom spline interpolation ---
     const pixel_bytes = @as(usize, width) * @as(usize, height) * 4;
     const pixels_ptr = malloc(pixel_bytes) orelse return null;
     defer free(pixels_ptr);
     const pixels: [*]u8 = @ptrCast(pixels_ptr);
     @memset(pixels[0..pixel_bytes], 0);
-    for (0..width) |x| renderColumn(pixels, x, width, height, amps[x]);
+    renderSplineWaveform(pixels, width, height, amps, num_ctrl);
 
     // --- Encode PNG into a single pre-sized buffer ---
     const png_len = pngSize(width, height);
