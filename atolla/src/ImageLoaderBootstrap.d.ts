@@ -18,6 +18,9 @@ export function getAtollaImageLoaderDiskCacheEntryCount(): number;
 export function getAtollaImageLoaderDiskCacheByteSize(): number;
 
 // @ExportFunction
+export function getAtollaImageLoaderDiskCacheCategoryCountsJson(): string;
+
+// @ExportFunction
 export function setAtollaImageLoaderDiskCacheMaxBytes(bytes: number): void;
 
 // @ExportFunction

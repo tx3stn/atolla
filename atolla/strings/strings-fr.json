@@ -35,6 +35,9 @@
 	"cache_category_artist_logos": {
 		"defaultMessage": "logos d'artiste"
 	},
+	"cache_category_genre_images": {
+		"defaultMessage": "images de genre"
+	},
 	"cache_category_playlist_images": {
 		"defaultMessage": "images de playlist"
 	},

@@ -16,6 +16,7 @@ export interface CacheClearModalCounts {
 	albumArtBlurred?: CacheClearModalCount;
 	artistImage?: CacheClearModalCount;
 	artistLogo?: CacheClearModalCount;
+	genreImage?: CacheClearModalCount;
 	playlistImage?: CacheClearModalCount;
 	tracks?: CacheClearModalCount;
 	waveformData?: CacheClearModalCount;
@@ -32,6 +33,7 @@ interface CacheClearModalState {
 	albumArtBlurred: boolean;
 	artistImage: boolean;
 	artistLogo: boolean;
+	genreImage: boolean;
 	playlistImage: boolean;
 	tracks: boolean;
 	waveformData: boolean;
@@ -46,6 +48,7 @@ export class CacheClearModal extends StatefulComponent<
 		albumArtBlurred: true,
 		artistImage: true,
 		artistLogo: true,
+		genreImage: true,
 		playlistImage: true,
 		tracks: true,
 		waveformData: true,
@@ -58,6 +61,7 @@ export class CacheClearModal extends StatefulComponent<
 	private toggleAlbumArt = () => this.setState({ albumArt: !this.state.albumArt });
 	private toggleAlbumArtBlurred = () =>
 		this.setState({ albumArtBlurred: !this.state.albumArtBlurred });
+	private toggleGenreImage = () => this.setState({ genreImage: !this.state.genreImage });
 	private togglePlaylistImage = () => this.setState({ playlistImage: !this.state.playlistImage });
 	private toggleTracks = () => this.setState({ tracks: !this.state.tracks });
 	private toggleWaveformData = () => this.setState({ waveformData: !this.state.waveformData });
@@ -68,6 +72,7 @@ export class CacheClearModal extends StatefulComponent<
 			albumArtBlurred: this.state.albumArtBlurred,
 			artistImage: this.state.artistImage,
 			artistLogo: this.state.artistLogo,
+			genreImage: this.state.genreImage,
 			playlistImage: this.state.playlistImage,
 			tracks: this.state.tracks,
 			waveformData: this.state.waveformData,
@@ -77,7 +82,7 @@ export class CacheClearModal extends StatefulComponent<
 	private labelWithCount(label: string, count: CacheClearModalCount | undefined): string {
 		if (count == null) return label;
 		const suffix = count.ready != null ? `${count.ready}/${count.total}` : `${count.total}`;
-		return `${label} (${suffix})`;
+		return `[ ${suffix} ] ${label}`;
 	}
 
 	onRender(): void {
@@ -86,6 +91,7 @@ export class CacheClearModal extends StatefulComponent<
 			albumArtBlurred,
 			artistImage,
 			artistLogo,
+			genreImage,
 			playlistImage,
 			tracks,
 			waveformData,
@@ -96,6 +102,7 @@ export class CacheClearModal extends StatefulComponent<
 			albumArtBlurred ||
 			artistImage ||
 			artistLogo ||
+			genreImage ||
 			playlistImage ||
 			tracks ||
 			waveformData;
@@ -149,6 +156,12 @@ export class CacheClearModal extends StatefulComponent<
 							counts?.playlistImage,
 						)}
 						onToggle={this.togglePlaylistImage}
+					/>
+					<Checkbox
+						accessibilityLabel='cache-clear-genre-image-row'
+						checked={genreImage}
+						label={this.labelWithCount(Strings.cacheCategoryGenreImages(), counts?.genreImage)}
+						onToggle={this.toggleGenreImage}
 					/>
 					<Checkbox
 						accessibilityLabel='cache-clear-track-row'

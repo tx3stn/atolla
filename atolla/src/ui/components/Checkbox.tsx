@@ -28,7 +28,7 @@ const CHECKBOX_SIZE = 20;
 const styles = {
 	checkboxChecked: new Style<View>({
 		alignItems: 'center',
-		backgroundColor: theme.colors.active,
+		backgroundColor: theme.colors.bgRaised,
 		borderRadius: 4,
 		height: CHECKBOX_SIZE,
 		justifyContent: 'center',
@@ -45,7 +45,7 @@ const styles = {
 		width: CHECKBOX_SIZE,
 	}),
 	checkmark: new Style<Label>({
-		color: theme.colors.white,
+		color: theme.colors.active,
 		font: theme.text.sub.font,
 		textAlign: 'center',
 	}),

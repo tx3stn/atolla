@@ -214,7 +214,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 	handleAlbumCardLongPress = (card: {
 		id: string;
-		kind: 'album' | 'artist' | 'playlist';
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
 		const album = this.state.albums.find((candidate) => candidate.id === card.id);
 		if (!album) {

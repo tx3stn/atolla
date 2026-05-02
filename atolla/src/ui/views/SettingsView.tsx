@@ -94,6 +94,12 @@ export interface SettingsViewModel {
 	imageCacheDiskCount?: number;
 	imageCacheError?: string | null;
 	imageCacheMaxBytes?: number;
+	imageCategoryAlbumArtBlurredCount?: number;
+	imageCategoryAlbumArtCount?: number;
+	imageCategoryArtistImageCount?: number;
+	imageCategoryArtistLogoCount?: number;
+	imageCategoryGenreImageCount?: number;
+	imageCategoryPlaylistImageCount?: number;
 	jellyfinDeviceIdOverride?: string;
 	onAnimationsChange?: (enabled: boolean) => void;
 	onCacheSizeChange?: (bytes: number) => void;
@@ -377,11 +383,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								/>
 							</view>
 						</view>
-						<label
-							accessibilityLabel='settings-track-cache-count'
-							style={styles.trackCacheCountLabel}
-							value={Strings.tracksCachedCount(trackCacheCachedCount ?? 0)}
-						/>
 						{this.state.showTrackCacheLimitOptions && (
 							<view style={styles.trackCacheLimitOptionsList}>
 								{TRACK_CACHE_LIMIT_OPTIONS.map((option) => (
@@ -425,19 +426,11 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 					<label style={styles.sectionTitle} value={Strings.settingsSectionLanguage()} />
 					<view style={styles.section}>
-						<view style={styles.trackCacheLimitContainer}>
-							<label style={styles.settingLabel} value={Strings.settingsLanguage()} />
-							<view
-								accessibilityLabel='settings-language-selector'
-								onTap={this.handleLanguagePress}
-								style={styles.languageSelectorButton}
-							>
-								<label
-									style={styles.trackCacheLimitButtonLabel}
-									value={getLanguageLabel(selectedLanguage)}
-								/>
-							</view>
-						</view>
+						<Button
+							accessibilityLabel='settings-language-selector'
+							label={getLanguageLabel(selectedLanguage)}
+							onTap={this.handleLanguagePress}
+						/>
 					</view>
 
 					{this.state.showLanguageModal && (
@@ -451,6 +444,30 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 					{this.state.showCacheClearModal && (
 						<CacheClearModal
 							counts={{
+								albumArt:
+									this.viewModel.imageCategoryAlbumArtCount != null
+										? { total: this.viewModel.imageCategoryAlbumArtCount }
+										: undefined,
+								albumArtBlurred:
+									this.viewModel.imageCategoryAlbumArtBlurredCount != null
+										? { total: this.viewModel.imageCategoryAlbumArtBlurredCount }
+										: undefined,
+								artistImage:
+									this.viewModel.imageCategoryArtistImageCount != null
+										? { total: this.viewModel.imageCategoryArtistImageCount }
+										: undefined,
+								artistLogo:
+									this.viewModel.imageCategoryArtistLogoCount != null
+										? { total: this.viewModel.imageCategoryArtistLogoCount }
+										: undefined,
+								genreImage:
+									this.viewModel.imageCategoryGenreImageCount != null
+										? { total: this.viewModel.imageCategoryGenreImageCount }
+										: undefined,
+								playlistImage:
+									this.viewModel.imageCategoryPlaylistImageCount != null
+										? { total: this.viewModel.imageCategoryPlaylistImageCount }
+										: undefined,
 								tracks:
 									trackCacheCachedCount != null ? { total: trackCacheCachedCount } : undefined,
 								waveformData:

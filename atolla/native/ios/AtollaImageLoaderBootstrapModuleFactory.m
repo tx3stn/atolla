@@ -57,6 +57,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 - (long long)totalBytes;
 - (NSInteger)diskEntryCount;
 - (long long)diskBytes;
+- (NSString *)diskCategoryCountsJson;
 @end
 
 @implementation AtollaIOSImageCacheStore {
@@ -150,6 +151,30 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 - (NSInteger)entryCount { return [self diskEntryCount]; }
 - (long long)totalBytes { return [self diskBytes]; }
 
+- (NSString *)diskCategoryCountsJson {
+    if (!_diskDir) return @"{}";
+    NSArray<NSURL *> *files = [NSFileManager.defaultManager
+        contentsOfDirectoryAtURL:_diskDir includingPropertiesForKeys:nil options:0 error:nil];
+    NSMutableDictionary<NSString *, NSNumber *> *counts = [NSMutableDictionary dictionary];
+    for (NSURL *file in files) {
+        NSString *name = file.lastPathComponent;
+        // Filename format: {category}_{sha256_64_hex}
+        // SHA-256 is always 64 hex chars; strip trailing 65 chars (underscore + hash).
+        if (name.length < 66) continue;
+        NSString *cat = [name substringToIndex:name.length - 65];
+        counts[cat] = @(counts[cat].intValue + 1);
+    }
+    NSMutableString *json = [NSMutableString stringWithString:@"{"];
+    __block BOOL first = YES;
+    [counts enumerateKeysAndObjectsUsingBlock:^(NSString *k, NSNumber *v, BOOL *stop) {
+        if (!first) [json appendString:@","];
+        [json appendFormat:@"\"%@\":%@", k, v];
+        first = NO;
+    }];
+    [json appendString:@"}"];
+    return json;
+}
+
 - (NSURL *)diskFileForKey:(NSString *)key {
     if (!_diskDir) return nil;
     NSString *cat = [key componentsSeparatedByString:@":"].firstObject ?: @"unknown";
@@ -214,6 +239,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 - (long long)totalBytes;
 - (NSInteger)diskEntryCount;
 - (long long)diskBytes;
+- (NSString *)diskCategoryCountsJson;
 @end
 
 @implementation AtollaIOSImageLoader {
@@ -348,6 +374,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 - (long long)totalBytes { return _cache.totalBytes; }
 - (NSInteger)diskEntryCount { return _cache.diskEntryCount; }
 - (long long)diskBytes { return _cache.diskBytes; }
+- (NSString *)diskCategoryCountsJson { return [_cache diskCategoryCountsJson]; }
 
 @end
 
@@ -408,6 +435,10 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     for (NSString *url in urls) {
         [AtollaIOSImageLoader.sharedInstance preloadURL:url category:category];
     }
+}
+
+- (NSString *)getAtollaImageLoaderDiskCacheCategoryCountsJson {
+    return [AtollaIOSImageLoader.sharedInstance diskCategoryCountsJson];
 }
 
 - (void)setAtollaImageCachedObserverWithCallback:(atollaImageLoaderBootstrapModuleSetAtollaImageCachedObserverCallbackBlock)callback {

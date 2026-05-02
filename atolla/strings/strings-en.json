@@ -35,6 +35,9 @@
 	"cache_category_artist_logos": {
 		"defaultMessage": "artist logos"
 	},
+	"cache_category_genre_images": {
+		"defaultMessage": "genre images"
+	},
 	"cache_category_playlist_images": {
 		"defaultMessage": "playlist images"
 	},
@@ -42,7 +45,7 @@
 		"defaultMessage": "tracks"
 	},
 	"cache_category_waveform_data": {
-		"defaultMessage": "waveform data"
+		"defaultMessage": "waveforms"
 	},
 	"clear_cache_modal_title": {
 		"defaultMessage": "CLEAR CACHE"

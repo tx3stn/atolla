@@ -90,6 +90,39 @@ object AtollaImageLoaderAutoBootstrap {
 	}
 
 	@JvmStatic
+	fun getDiskCategoryCountsJson(): String {
+		registerForAllRuntimes()
+		return synchronized(registeredLoaders) {
+			val merged = mutableMapOf<String, Int>()
+			for (loader in registeredLoaders.values) {
+				val json = loader.getDiskCategoryCountsJson()
+				parseCategoryCountsJson(json).forEach { (k, v) ->
+					merged[k] = (merged[k] ?: 0) + v
+				}
+			}
+			buildString {
+				append('{')
+				merged.entries.joinTo(this, ",") { (k, v) -> "\"$k\":$v" }
+				append('}')
+			}
+		}
+	}
+
+	private fun parseCategoryCountsJson(json: String): Map<String, Int> {
+		val result = mutableMapOf<String, Int>()
+		val inner = json.trim().removePrefix("{").removeSuffix("}")
+		if (inner.isBlank()) return result
+		for (pair in inner.split(",")) {
+			val kv = pair.split(":")
+			if (kv.size != 2) continue
+			val key = kv[0].trim().removeSurrounding("\"")
+			val value = kv[1].trim().toIntOrNull() ?: continue
+			result[key] = value
+		}
+		return result
+	}
+
+	@JvmStatic
 	fun extractPaletteFromCache(sourceUrl: String, category: String): String? {
 		registerForAllRuntimes()
 		return synchronized(registeredLoaders) {

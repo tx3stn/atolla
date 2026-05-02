@@ -48,6 +48,10 @@ class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactor
 				}
 			}
 
+			override fun getAtollaImageLoaderDiskCacheCategoryCountsJson(): String {
+				return AtollaImageLoaderAutoBootstrap.getDiskCategoryCountsJson()
+			}
+
 			override fun setAtollaImageCachedObserver(callback: (String, String) -> Unit) {
 				AtollaCacheImageLoader.imageCachedObserver = callback
 			}

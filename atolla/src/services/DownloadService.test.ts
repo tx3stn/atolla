@@ -270,7 +270,7 @@ describe('DownloadService', () => {
 			expect(service.getAllGenres().map((entry) => entry.genre.id)).toEqual(['genre-1']);
 			expect(service.getAllGenres()[0].trackIds).toEqual(['track-1']);
 			expect(preloadCalls).toContainEqual({
-				category: 'album_art',
+				category: 'genre_art',
 				urls: ['https://img/genre-1.jpg'],
 			});
 		});

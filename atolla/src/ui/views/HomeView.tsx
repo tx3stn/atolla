@@ -204,7 +204,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	private handleAlbumCardTap = (card: {
 		id: string;
-		kind: 'album' | 'artist' | 'playlist';
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
 		if (card.kind !== 'album') {
 			return;
@@ -250,7 +250,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	private handleMixCardTap = (card: {
 		id: string;
-		kind: 'album' | 'artist' | 'playlist';
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
 		if (card.id !== SHUFFLE_LIBRARY_MIX_ID) {
 			return;

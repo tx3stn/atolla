@@ -16,6 +16,7 @@ import {
 	clearAtollaNativeCacheCategories,
 	ensureAtollaImageLoaderBootstrap,
 	getAtollaImageLoaderDiskCacheByteSize,
+	getAtollaImageLoaderDiskCacheCategoryCountsJson,
 	getAtollaImageLoaderDiskCacheEntryCount,
 	preloadAtollaImages,
 	setAtollaImageCachedObserver,
@@ -122,6 +123,7 @@ interface AppState {
 	downloadingCount: number;
 	gridColumns: number;
 	imageCacheMaxBytes: number;
+	imageCategoryCounts: Record<string, number>;
 	isAuthenticating: boolean;
 	isAuthRequired: boolean;
 	isBootstrapped: boolean;
@@ -356,6 +358,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		downloadingCount: 0,
 		gridColumns: DEFAULT_GRID_COLUMNS,
 		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
+		imageCategoryCounts: {},
 		isAuthenticating: false,
 		isAuthRequired: false,
 		isBootstrapped: false,
@@ -893,13 +896,16 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		try {
 			const nativeImageCacheDiskCount = getAtollaImageLoaderDiskCacheEntryCount();
 			const nativeImageCacheDiskBytes = getAtollaImageLoaderDiskCacheByteSize();
-			if (
-				this.state.nativeImageCacheDiskCount === nativeImageCacheDiskCount &&
-				this.state.nativeImageCacheDiskBytes === nativeImageCacheDiskBytes
-			) {
-				return;
+			let imageCategoryCounts: Record<string, number> = this.state.imageCategoryCounts;
+			try {
+				imageCategoryCounts = JSON.parse(
+					getAtollaImageLoaderDiskCacheCategoryCountsJson(),
+				) as Record<string, number>;
+			} catch {
+				// Leave existing counts on parse failure.
 			}
 			this.setState({
+				imageCategoryCounts,
 				nativeImageCacheDiskBytes,
 				nativeImageCacheDiskCount,
 			});
@@ -1338,6 +1344,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (selection.albumArtBlurred) categories.push('album_art_blurred');
 		if (selection.artistImage) categories.push('artist_image', 'artist_image_thumb');
 		if (selection.artistLogo) categories.push('artist_logo');
+		if (selection.genreImage) categories.push('genre_art');
 		if (selection.playlistImage) categories.push('playlist_image', 'playlist_image_thumb');
 		try {
 			clearAtollaNativeCacheCategories(categories);
@@ -2292,6 +2299,23 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						imageCacheDiskCount={this.state.nativeImageCacheDiskCount ?? undefined}
 						imageCacheError={null}
 						imageCacheMaxBytes={this.state.imageCacheMaxBytes}
+						imageCategoryAlbumArtBlurredCount={
+							this.state.imageCategoryCounts.album_art_blurred ?? 0
+						}
+						imageCategoryAlbumArtCount={
+							(this.state.imageCategoryCounts.album_art ?? 0) +
+							(this.state.imageCategoryCounts.album_art_thumb ?? 0)
+						}
+						imageCategoryArtistImageCount={
+							(this.state.imageCategoryCounts.artist_image ?? 0) +
+							(this.state.imageCategoryCounts.artist_image_thumb ?? 0)
+						}
+						imageCategoryArtistLogoCount={this.state.imageCategoryCounts.artist_logo ?? 0}
+						imageCategoryGenreImageCount={this.state.imageCategoryCounts.genre_art ?? 0}
+						imageCategoryPlaylistImageCount={
+							(this.state.imageCategoryCounts.playlist_image ?? 0) +
+							(this.state.imageCategoryCounts.playlist_image_thumb ?? 0)
+						}
 						jellyfinDeviceIdOverride={this.state.jellyfinClientDeviceIdOverride}
 						onAnimationsChange={this.handleAnimationsChange}
 						onCacheSizeChange={this.handleCacheSizeChange}

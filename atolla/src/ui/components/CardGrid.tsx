@@ -11,7 +11,7 @@ import { CachedImage } from './CachedImage';
 export interface Card {
 	artworkKey: string;
 	id: string;
-	kind: 'album' | 'artist' | 'playlist';
+	kind: 'album' | 'artist' | 'genre' | 'playlist';
 	primaryText: string;
 	secondaryText: string;
 }
@@ -23,8 +23,8 @@ export interface CardGridViewModel {
 	columnCount?: number;
 	infiniteScrollTriggerRatio?: number;
 	isLoadingMore?: boolean;
-	onCardLongPress?: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
-	onCardTap: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
+	onCardLongPress?: (card: { id: string; kind: 'album' | 'artist' | 'genre' | 'playlist' }) => void;
+	onCardTap: (card: { id: string; kind: 'album' | 'artist' | 'genre' | 'playlist' }) => void;
 	onLoadMore?: () => void;
 	onRetryLoadMore?: () => void;
 	resolveArtworkSource?: (artworkKey: string) => string | null;
@@ -203,6 +203,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 function cardKindToCategory(kind: Card['kind']): ImageCategory {
 	if (kind === 'artist') return 'artist_image_thumb';
 	if (kind === 'playlist') return 'playlist_image_thumb';
+	if (kind === 'genre') return 'genre_art';
 	return 'album_art_thumb';
 }
 

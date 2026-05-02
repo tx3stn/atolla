@@ -178,6 +178,26 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 	fun getDiskByteSize(): Long = getDiskStats()?.second ?: 0L
 
+	fun getDiskCategoryCountsJson(): String {
+		val dir = diskCacheDir ?: return "{}"
+		val files = try { dir.listFiles() } catch (_: Throwable) { null } ?: return "{}"
+		val counts = mutableMapOf<String, Int>()
+		for (file in files) {
+			if (!file.isFile) continue
+			// Filename format: {category}_{sha256_64_hex}
+			// SHA-256 is always 64 hex chars, so strip the trailing 65 chars (underscore + hash).
+			val name = file.name
+			if (name.length < 66) continue
+			val cat = name.dropLast(65)
+			if (cat.isNotEmpty()) counts[cat] = (counts[cat] ?: 0) + 1
+		}
+		return buildString {
+			append('{')
+			counts.entries.joinTo(this, ",") { (k, v) -> "\"$k\":$v" }
+			append('}')
+		}
+	}
+
 	fun setDiskCacheMaxBytes(bytes: Long) {
 		diskCacheMaxBytes = bytes
 	}

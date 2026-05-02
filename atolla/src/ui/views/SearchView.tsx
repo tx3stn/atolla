@@ -315,15 +315,24 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.handleSubmitSearch(this.state.lastSubmittedQuery);
 	};
 
-	handleAlbumCardTap = (card: { id: string; kind: 'album' | 'artist' | 'playlist' }): void => {
+	handleAlbumCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
 		this.handleAlbumTap(card.id);
 	};
 
-	handleArtistCardTap = (card: { id: string; kind: 'album' | 'artist' | 'playlist' }): void => {
+	handleArtistCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
 		this.handleArtistTap(card.id);
 	};
 
-	handlePlaylistCardTap = (card: { id: string; kind: 'album' | 'artist' | 'playlist' }): void => {
+	handlePlaylistCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
 		this.handlePlaylistTap(card.id);
 	};
 

@@ -727,7 +727,8 @@ export class DownloadService {
 			return;
 		}
 
-		this.preloadCategory([...params.albumArtUrls, ...params.genreArtUrls], 'album_art');
+		this.preloadCategory(params.albumArtUrls, 'album_art');
+		this.preloadCategory(params.genreArtUrls, 'genre_art');
 		this.preloadCategory(params.artistImageUrls, 'artist_image');
 		this.preloadCategory(params.artistLogoUrls, 'artist_logo');
 	}

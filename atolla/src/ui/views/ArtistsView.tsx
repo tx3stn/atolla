@@ -217,7 +217,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 	handleArtistCardLongPress = (card: {
 		id: string;
-		kind: 'album' | 'artist' | 'playlist';
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
 		const artist = this.state.artists.find((candidate) => candidate.id === card.id);
 		if (!artist) {

@@ -71,6 +71,7 @@ function isImageCategory(value: string): value is ImageCategory {
 		value === 'artist_image' ||
 		value === 'artist_image_thumb' ||
 		value === 'artist_logo' ||
+		value === 'genre_art' ||
 		value === 'playlist_image' ||
 		value === 'playlist_image_thumb'
 	);

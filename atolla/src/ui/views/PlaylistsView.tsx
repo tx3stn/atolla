@@ -192,7 +192,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 	handlePlaylistCardLongPress = (card: {
 		id: string;
-		kind: 'album' | 'artist' | 'playlist';
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
 		const playlist = this.state.playlists.find((candidate) => candidate.id === card.id);
 		if (!playlist) {

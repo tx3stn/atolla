@@ -7,6 +7,7 @@ export type ImageCategory =
 	| 'album_art'
 	| 'album_art_thumb'
 	| 'album_art_blurred'
+	| 'genre_art'
 	| 'playlist_image'
 	| 'playlist_image_thumb';
 
@@ -15,6 +16,7 @@ export interface ClearCacheSelection {
 	albumArtBlurred: boolean;
 	artistImage: boolean;
 	artistLogo: boolean;
+	genreImage: boolean;
 	playlistImage: boolean;
 	tracks: boolean;
 	waveformData: boolean;
@@ -34,6 +36,7 @@ export class ImageCacheManager {
 		if (selection.artistLogo) categories.push('artist_logo');
 		if (selection.albumArt) categories.push('album_art', 'album_art_thumb');
 		if (selection.albumArtBlurred) categories.push('album_art_blurred');
+		if (selection.genreImage) categories.push('genre_art');
 		if (selection.playlistImage) categories.push('playlist_image', 'playlist_image_thumb');
 
 		await Promise.all(categories.map((category) => this.clearCategory(category)));

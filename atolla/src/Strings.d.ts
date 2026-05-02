@@ -11,6 +11,7 @@ declare const Strings: {
 	cacheCategoryAlbumArtBlurred: () => string;
 	cacheCategoryArtistImages: () => string;
 	cacheCategoryArtistLogos: () => string;
+	cacheCategoryGenreImages: () => string;
 	cacheCategoryPlaylistImages: () => string;
 	cacheCategoryTracks: () => string;
 	cacheCategoryWaveformData: () => string;

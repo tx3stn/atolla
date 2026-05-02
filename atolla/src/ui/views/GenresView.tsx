@@ -110,8 +110,8 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 					page.items
 						.map((g) => g.imageUrl)
 						.filter((url): url is string => url != null)
-						.map((url) => normalizeImageUrlForCategory(url, 'album_art_thumb')),
-					'album_art_thumb',
+						.map((url) => normalizeImageUrlForCategory(url, 'genre_art')),
+					'genre_art',
 				);
 			} catch {
 				// Non-Android targets do not provide native preload bridge.
@@ -157,7 +157,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		const cards: Array<Card> = genres.map((genre) => ({
 			artworkKey: genre.imageUrl ?? '',
 			id: genre.id,
-			kind: 'album',
+			kind: 'genre',
 			primaryText: genre.name,
 			secondaryText: genre.trackCount != null ? `${genre.trackCount} tracks` : '',
 		}));
