@@ -13,6 +13,7 @@ declare const Strings: {
 	cacheCategoryArtistLogos: () => string;
 	cacheCategoryPlaylistImages: () => string;
 	cacheCategoryTracks: () => string;
+	cacheCategoryWaveformData: () => string;
 	clearCacheModalTitle: () => string;
 	connectButton: () => string;
 	connectToJellyfin: () => string;

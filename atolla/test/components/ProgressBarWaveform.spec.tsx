@@ -1,0 +1,150 @@
+// @ts-nocheck
+import 'jasmine/src/jasmine';
+import { ProgressBarWaveform } from 'atolla/src/ui/components/ProgressBarWaveform';
+import { componentGetElements } from 'foundation/test/util/componentGetElements';
+import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
+import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+
+describe('ProgressBarWaveform', () => {
+	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is null', () => {
+		const instrumented = createComponent(ProgressBarWaveform, {
+			accentColor: '#ff2255',
+			maskImageUrl: null,
+			mutedColor: 'rgba(255,34,85,0.3)',
+			progressRatio: 0.4,
+			trackColor: 'rgba(255,34,85,0.2)',
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const plainBar = views.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'playback-progress-bar',
+		);
+
+		expect(plainBar).toBeDefined();
+	});
+
+	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is undefined', () => {
+		const instrumented = createComponent(ProgressBarWaveform, {
+			accentColor: '#ff2255',
+			maskImageUrl: undefined,
+			mutedColor: 'rgba(255,34,85,0.3)',
+			progressRatio: 0.4,
+			trackColor: 'rgba(255,34,85,0.2)',
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const plainBar = views.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'playback-progress-bar',
+		);
+
+		expect(plainBar).toBeDefined();
+	});
+
+	valdiIt('renders waveform bar when maskImageUrl is provided', () => {
+		const instrumented = createComponent(ProgressBarWaveform, {
+			accentColor: '#ff2255',
+			maskImageUrl: 'mask://track-1.png',
+			mutedColor: 'rgba(255,34,85,0.3)',
+			progressRatio: 0.5,
+			trackColor: 'rgba(255,34,85,0.2)',
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const waveformBar = views.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'waveform-progress-bar',
+		);
+
+		expect(waveformBar).toBeDefined();
+	});
+
+	valdiIt('uses the provided accessibilityLabel on the waveform bar', () => {
+		const instrumented = createComponent(ProgressBarWaveform, {
+			accentColor: '#ff2255',
+			accessibilityLabel: 'now-playing-progress',
+			maskImageUrl: 'mask://track-1.png',
+			mutedColor: 'rgba(255,34,85,0.3)',
+			progressRatio: 0.5,
+			trackColor: 'rgba(255,34,85,0.2)',
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const waveformBar = views.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'now-playing-progress',
+		);
+
+		expect(waveformBar).toBeDefined();
+	});
+
+	valdiIt('renders unplayed and played image layers when progress > 0', () => {
+		const instrumented = createComponent(ProgressBarWaveform, {
+			accentColor: '#ff2255',
+			maskImageUrl: 'mask://track-1.png',
+			mutedColor: 'rgba(255,34,85,0.3)',
+			progressRatio: 0.5,
+			trackColor: 'rgba(255,34,85,0.2)',
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const images = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		);
+
+		const unplayed = images.find(
+			(img) => img.getAttribute('accessibilityLabel') === 'waveform-progress-unplayed',
+		);
+		const clipContainer = views.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'waveform-progress-clip',
+		);
+
+		expect(unplayed).toBeDefined();
+		expect(clipContainer).toBeDefined();
+	});
+
+	valdiIt('omits the played clip container when progress is 0', () => {
+		const instrumented = createComponent(ProgressBarWaveform, {
+			accentColor: '#ff2255',
+			maskImageUrl: 'mask://track-1.png',
+			mutedColor: 'rgba(255,34,85,0.3)',
+			progressRatio: 0,
+			trackColor: 'rgba(255,34,85,0.2)',
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const clipContainer = views.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'waveform-progress-clip',
+		);
+
+		expect(clipContainer).toBeUndefined();
+	});
+
+	valdiIt('calls onProgressTap when the waveform bar is tapped', () => {
+		let tapCount = 0;
+		const instrumented = createComponent(ProgressBarWaveform, {
+			accentColor: '#ff2255',
+			maskImageUrl: 'mask://track-1.png',
+			mutedColor: 'rgba(255,34,85,0.3)',
+			onProgressTap: () => {
+				tapCount += 1;
+			},
+			progressRatio: 0.5,
+			trackColor: 'rgba(255,34,85,0.2)',
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const waveformBar = views.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'waveform-progress-bar',
+		);
+		waveformBar?.getAttribute('onTap')?.();
+
+		expect(tapCount).toBe(1);
+	});
+});

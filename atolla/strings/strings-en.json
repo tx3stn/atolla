@@ -41,6 +41,9 @@
 	"cache_category_tracks": {
 		"defaultMessage": "tracks"
 	},
+	"cache_category_waveform_data": {
+		"defaultMessage": "waveform data"
+	},
 	"clear_cache_modal_title": {
 		"defaultMessage": "CLEAR CACHE"
 	},

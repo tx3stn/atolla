@@ -1,14 +1,14 @@
 // @ts-nocheck
 import 'jasmine/src/jasmine';
-import { PlaybackProgressBar } from 'atolla/src/ui/components/PlaybackProgressBar';
+import { ProgressBarPlain } from 'atolla/src/ui/components/ProgressBarPlain';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
-describe('PlaybackProgressBar', () => {
+describe('ProgressBarPlain', () => {
 	valdiIt('renders track and fill colors from view model', () => {
-		const instrumented = createComponent(PlaybackProgressBar, {
+		const instrumented = createComponent(ProgressBarPlain, {
 			accentColor: '#ff2255',
 			progressRatio: 0.4,
 			trackColor: 'rgba(255,34,85,0.2)',
@@ -37,7 +37,7 @@ describe('PlaybackProgressBar', () => {
 	});
 
 	valdiIt('clamps progress ratio into 0 to 1 bounds', () => {
-		const instrumented = createComponent(PlaybackProgressBar, {
+		const instrumented = createComponent(ProgressBarPlain, {
 			accentColor: '#33ffaa',
 			progressRatio: 2.4,
 			trackColor: 'rgba(51,255,170,0.2)',
@@ -54,7 +54,7 @@ describe('PlaybackProgressBar', () => {
 
 	valdiIt('calls onProgressTap when tapped', () => {
 		let tapCount = 0;
-		const instrumented = createComponent(PlaybackProgressBar, {
+		const instrumented = createComponent(ProgressBarPlain, {
 			accentColor: '#33ffaa',
 			onProgressTap: () => {
 				tapCount += 1;

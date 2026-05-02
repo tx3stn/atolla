@@ -17,6 +17,7 @@ export interface ClearCacheSelection {
 	artistLogo: boolean;
 	playlistImage: boolean;
 	tracks: boolean;
+	waveformData: boolean;
 }
 
 interface ImageCacheStore {

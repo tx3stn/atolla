@@ -41,6 +41,9 @@
 	"cache_category_tracks": {
 		"defaultMessage": "pistes"
 	},
+	"cache_category_waveform_data": {
+		"defaultMessage": "données de forme d'onde"
+	},
 	"clear_cache_modal_title": {
 		"defaultMessage": "VIDER LE CACHE"
 	},

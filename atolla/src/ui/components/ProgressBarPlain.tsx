@@ -3,7 +3,7 @@ import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 
-export interface PlaybackProgressBarViewModel {
+export interface ProgressBarPlainViewModel {
 	accentColor: string;
 	accessibilityLabel?: string;
 	onProgressTap?: (ratio?: number) => void;
@@ -12,7 +12,7 @@ export interface PlaybackProgressBarViewModel {
 	trackColor: string;
 }
 
-export class PlaybackProgressBar extends Component<PlaybackProgressBarViewModel> {
+export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 	private trackWidth: number | null = null;
 
 	private handleTrackLayout = (frame: { width: number }) => {

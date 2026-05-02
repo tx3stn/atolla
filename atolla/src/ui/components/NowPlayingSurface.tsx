@@ -15,7 +15,7 @@ import type { LoopMode, PlaybackStore } from '../../stores/Playback';
 import { theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
-import { PlaybackProgressBar } from './PlaybackProgressBar';
+import { ProgressBarWaveform } from './ProgressBarWaveform';
 import { TappableIcon } from './TappableIcon';
 import { Toast } from './Toast';
 import { TrackContextMenu } from './TrackContextMenu';
@@ -50,6 +50,7 @@ export interface NowPlayingSurfaceViewModel {
 	trackIndex: number;
 	tracks: Array<Track>;
 	transport?: Transport;
+	waveformMaskUrl?: string | null;
 }
 
 type QueueTab = 'backTo' | 'upNext';
@@ -556,9 +557,11 @@ export class NowPlayingSurface extends StatefulComponent<
 										</layout>
 									</view>
 									<layout style={styles.expandedProgressSection}>
-										<PlaybackProgressBar
+										<ProgressBarWaveform
 											accentColor={accentColor}
 											accessibilityLabel='now-playing-progress'
+											maskImageUrl={this.viewModel.waveformMaskUrl}
+											mutedColor={mutedOnSurfaceColor}
 											onProgressTap={onProgressTap}
 											progressRatio={progressRatio}
 											thickness={4}

@@ -18,6 +18,7 @@ interface CacheClearModalState {
 	artistLogo: boolean;
 	playlistImage: boolean;
 	tracks: boolean;
+	waveformData: boolean;
 }
 
 export class CacheClearModal extends StatefulComponent<
@@ -31,6 +32,7 @@ export class CacheClearModal extends StatefulComponent<
 		artistLogo: true,
 		playlistImage: true,
 		tracks: true,
+		waveformData: true,
 	};
 
 	private stopPropagation = () => {};
@@ -42,6 +44,7 @@ export class CacheClearModal extends StatefulComponent<
 		this.setState({ albumArtBlurred: !this.state.albumArtBlurred });
 	private togglePlaylistImage = () => this.setState({ playlistImage: !this.state.playlistImage });
 	private toggleTracks = () => this.setState({ tracks: !this.state.tracks });
+	private toggleWaveformData = () => this.setState({ waveformData: !this.state.waveformData });
 
 	private handleConfirm = () => {
 		this.viewModel.onConfirm({
@@ -51,14 +54,28 @@ export class CacheClearModal extends StatefulComponent<
 			artistLogo: this.state.artistLogo,
 			playlistImage: this.state.playlistImage,
 			tracks: this.state.tracks,
+			waveformData: this.state.waveformData,
 		});
 	};
 
 	onRender(): void {
-		const { albumArt, albumArtBlurred, artistImage, artistLogo, playlistImage, tracks } =
-			this.state;
+		const {
+			albumArt,
+			albumArtBlurred,
+			artistImage,
+			artistLogo,
+			playlistImage,
+			tracks,
+			waveformData,
+		} = this.state;
 		const anySelected =
-			albumArt || albumArtBlurred || artistImage || artistLogo || playlistImage || tracks;
+			albumArt ||
+			albumArtBlurred ||
+			artistImage ||
+			artistLogo ||
+			playlistImage ||
+			tracks ||
+			waveformData;
 
 		<blur
 			blurStyle='systemThickMaterialDark'
@@ -109,6 +126,12 @@ export class CacheClearModal extends StatefulComponent<
 						checked={tracks}
 						label={Strings.cacheCategoryTracks()}
 						onToggle={this.toggleTracks}
+					/>
+					<Checkbox
+						accessibilityLabel='cache-clear-waveform-data-row'
+						checked={waveformData}
+						label={Strings.cacheCategoryWaveformData()}
+						onToggle={this.toggleWaveformData}
 					/>
 
 					<view style={styles.divider} />
