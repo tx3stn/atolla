@@ -955,7 +955,18 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	private handleWaveformPriority(): void {
-		if (!this.waveformQueue || this.playbackStore.tracks.length === 0) return;
+		if (!this.waveformQueue || !this.waveformService || this.playbackStore.tracks.length === 0)
+			return;
+		// Enqueue any playback-queue track that doesn't have a waveform yet.
+		// This covers failed tracks (retry) and downloaded tracks whose generation
+		// never started because they weren't the active track at download time.
+		for (const track of this.playbackStore.tracks) {
+			const audioPath = this.getAudioPathForWaveform(track.id);
+			if (audioPath) {
+				this.waveformService.scheduleGeneration(track.id);
+				this.waveformQueue.enqueue(track.id, audioPath);
+			}
+		}
 		this.waveformQueue.reorderToMatch(this.getPlaybackTrackIds());
 	}
 
