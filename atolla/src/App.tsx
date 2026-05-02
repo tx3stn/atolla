@@ -493,6 +493,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.handleTrackPrefetchQueueChange();
 			this.captureRecentlyPlayedTrack();
 			this.syncTrackPlaybackNotification();
+			this.handleWaveformPriority();
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
 		});
@@ -944,6 +945,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	}
 
+	private getPlaybackTrackIds(): string[] {
+		const { tracks, trackIndex } = this.playbackStore;
+		const ids: string[] = [];
+		for (let i = trackIndex; i < tracks.length; i++) ids.push(tracks[i].id);
+		for (let i = 0; i < trackIndex; i++) ids.push(tracks[i].id);
+		return ids;
+	}
+
+	private handleWaveformPriority(): void {
+		if (!this.waveformQueue || this.playbackStore.tracks.length === 0) return;
+		this.waveformQueue.reorderToMatch(this.getPlaybackTrackIds());
+	}
+
 	private handleTrackCached(trackId: string): void {
 		this.lastTrackFetchErrorTrackId = null;
 		this.refreshTrackCachedCount();
@@ -952,6 +966,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (audioPath && this.waveformService && this.waveformQueue) {
 			this.waveformService.scheduleGeneration(trackId);
 			this.waveformQueue.enqueue(trackId, audioPath);
+			// Re-sort immediately so this entry lands in playback order rather than
+			// waiting for the next playback store event.
+			this.waveformQueue.reorderToMatch(this.getPlaybackTrackIds());
 		}
 
 		if (this.playbackStore.track?.id !== trackId) {

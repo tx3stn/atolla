@@ -36,6 +36,20 @@ export class WaveformGenerationQueue {
 		this.processNext();
 	}
 
+	// Reorder pending queue entries to match the given trackId sequence.
+	// Tracks in the desired order come first (in that order); any remaining
+	// entries (e.g. old album tracks) stay at the back.
+	reorderToMatch(trackIds: string[]): void {
+		if (this.queue.length <= 1) return;
+		const remaining = [...this.queue];
+		const ordered: Array<QueueEntry> = [];
+		for (const trackId of trackIds) {
+			const idx = remaining.findIndex((e) => e.trackId === trackId);
+			if (idx >= 0) ordered.push(...remaining.splice(idx, 1));
+		}
+		this.queue = [...ordered, ...remaining];
+	}
+
 	// Move a trackId to the front of the queue (call when the user starts
 	// playing a track whose waveform is still pending).
 	prioritize(trackId: string): void {

@@ -28,12 +28,16 @@ fn computeAmplitudes(
     amps: [*]f32,
     width: u32,
 ) void {
+    // Sample at most 32 frames per column — sufficient for accurate peak detection.
+    const max_samples_per_col: u64 = 32;
     for (0..width) |col| {
         const start: u64 = @as(u64, col) * @as(u64, frames) / @as(u64, width);
         const end: u64 = (@as(u64, col) + 1) * @as(u64, frames) / @as(u64, width);
+        const window = end - start;
+        const stride: u64 = if (window > max_samples_per_col) window / max_samples_per_col else 1;
         var peak: f32 = 0.0;
         var frame = start;
-        while (frame < end) : (frame += 1) {
+        while (frame < end) : (frame += stride) {
             for (0..channel_count) |ch| {
                 const s = @abs(samples[@as(usize, @intCast(frame)) * channel_count + ch]);
                 if (s > peak) peak = s;

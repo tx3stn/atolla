@@ -20,12 +20,15 @@ static const NSInteger kDefaultWaveformHeight = 128;
     if (tracks.count == 0) return nil;
 
     // Configure AVAssetReaderTrackOutput to decode to linear PCM float32.
+    // 4000 Hz is sufficient for amplitude envelope extraction and AVFoundation
+    // resamples during decode, so far less PCM data flows through the pipeline.
     NSDictionary *outputSettings = @{
-        AVFormatIDKey:         @(kAudioFormatLinearPCM),
+        AVFormatIDKey:             @(kAudioFormatLinearPCM),
         AVLinearPCMBitDepthKey:    @32,
         AVLinearPCMIsFloatKey:     @YES,
         AVLinearPCMIsBigEndianKey: @NO,
         AVLinearPCMIsNonInterleaved: @NO,
+        AVSampleRateKey:           @4000.0,
     };
 
     NSError *error = nil;
