@@ -26,7 +26,8 @@ export class WaveformService {
 	}
 
 	scheduleGeneration(trackId: string): void {
-		if (this.records.has(trackId)) return;
+		const existing = this.records.get(trackId);
+		if (existing?.status === 'ready' || existing?.status === 'pending') return;
 		this.records.set(trackId, { maskImageUrl: null, status: 'pending', trackId });
 		void this.persist();
 		this.notify();
