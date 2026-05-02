@@ -60,8 +60,8 @@ object AtollaWaveformNativeCache {
 class AtollaWaveformWorker {
 	companion object {
 		private const val tag = "AtollaWaveformWorker"
-		private const val waveformWidth = 256
-		private const val waveformHeight = 128
+		private const val waveformWidth = 500
+		private const val waveformHeight = 100
 
 		@JvmStatic
 		private external fun nativeGenerateWaveform(

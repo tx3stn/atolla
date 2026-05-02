@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include "waveform_generator.h"
 
-static const NSInteger kDefaultWaveformWidth  = 256;
-static const NSInteger kDefaultWaveformHeight = 128;
+static const NSInteger kDefaultWaveformWidth  = 500;
+static const NSInteger kDefaultWaveformHeight = 100;
 
 @implementation AtollaWaveformGenerator
 
@@ -14,7 +14,9 @@ static const NSInteger kDefaultWaveformHeight = 128;
     const NSInteger width  = widthIn  > 0 ? widthIn  : kDefaultWaveformWidth;
     const NSInteger height = heightIn > 0 ? heightIn : kDefaultWaveformHeight;
 
-    NSURL *url = [NSURL fileURLWithPath:audioPath];
+    NSURL *url = ([audioPath hasPrefix:@"http://"] || [audioPath hasPrefix:@"https://"])
+        ? [NSURL URLWithString:audioPath]
+        : [NSURL fileURLWithPath:audioPath];
     AVAsset *asset = [AVAsset assetWithURL:url];
     NSArray<AVAssetTrack *> *tracks = [asset tracksWithMediaType:AVMediaTypeAudio];
     if (tracks.count == 0) return nil;
@@ -28,7 +30,7 @@ static const NSInteger kDefaultWaveformHeight = 128;
         AVLinearPCMIsFloatKey:     @YES,
         AVLinearPCMIsBigEndianKey: @NO,
         AVLinearPCMIsNonInterleaved: @NO,
-        AVSampleRateKey:           @4000.0,
+        AVSampleRateKey:           @1500.0,
     };
 
     NSError *error = nil;

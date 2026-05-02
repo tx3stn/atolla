@@ -1039,6 +1039,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			if (this.state.trackPlaybackSourceUrl !== nativeSource) {
 				this.setState({ trackPlaybackSourceUrl: nativeSource });
 			}
+			// Local file available — start waveform generation immediately without
+			// waiting for handleTrackCached (covers already-cached and downloaded tracks).
+			this.enqueueWaveformIfNeeded(activeTrack.id, nativeSource);
 			return;
 		}
 
@@ -1049,7 +1052,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		if (this.playbackStore.isPlaying && !this.isOfflinePlaybackMode()) {
 			void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
+			// Start waveform generation from the stream URL in parallel with the
+			// download so the waveform is ready as soon as possible.
+			if (streamUrl) {
+				this.enqueueWaveformIfNeeded(activeTrack.id, streamUrl);
+			}
 		}
+	}
+
+	private enqueueWaveformIfNeeded(trackId: string, audioPath: string): void {
+		if (!this.waveformService || !this.waveformQueue) return;
+		this.waveformService.scheduleGeneration(trackId);
+		this.waveformQueue.enqueue(trackId, audioPath);
+		this.waveformQueue.reorderToMatch(this.getPlaybackTrackIds());
 	}
 
 	private isOfflinePlaybackMode(): boolean {

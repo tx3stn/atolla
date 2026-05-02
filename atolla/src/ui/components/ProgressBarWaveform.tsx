@@ -15,7 +15,7 @@ export interface ProgressBarWaveformViewModel {
 	trackColor: string;
 }
 
-const WAVEFORM_HEIGHT = 40;
+const WAVEFORM_HEIGHT = 50;
 
 export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel> {
 	private trackWidth: number | null = null;

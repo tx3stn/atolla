@@ -28,8 +28,9 @@ fn computeAmplitudes(
     amps: [*]f32,
     width: u32,
 ) void {
-    // Sample at most 32 frames per column — sufficient for accurate peak detection.
-    const max_samples_per_col: u64 = 32;
+    // Sample at most 4 frames per column — the waveform is smoothed after
+    // computation so fine-grained accuracy per column isn't needed.
+    const max_samples_per_col: u64 = 4;
     for (0..width) |col| {
         const start: u64 = @as(u64, col) * @as(u64, frames) / @as(u64, width);
         const end: u64 = (@as(u64, col) + 1) * @as(u64, frames) / @as(u64, width);
@@ -47,13 +48,33 @@ fn computeAmplitudes(
     }
 }
 
-// Normalise to [0, 1] with sqrt loudness compression.
-// Silent audio becomes a flat 50%-height line so the bar is always visible.
+// 5-point centred moving average to reduce spikiness. Aesthetics over accuracy.
+fn smoothAmplitudes(amps: [*]f32, width: u32) void {
+    if (width < 3) return;
+    const tmp_ptr = malloc(@as(usize, width) * @sizeOf(f32)) orelse return;
+    defer free(tmp_ptr);
+    const tmp: [*]f32 = @ptrCast(@alignCast(tmp_ptr));
+    @memcpy(tmp[0..width], amps[0..width]);
+    for (0..width) |i| {
+        const lo: usize = if (i > 2) i - 2 else 0;
+        const hi: usize = if (i + 2 < width) i + 2 else width - 1;
+        var s: f32 = 0.0;
+        var n: u32 = 0;
+        for (lo..hi + 1) |j| {
+            s += tmp[j];
+            n += 1;
+        }
+        amps[i] = s / @as(f32, @floatFromInt(n));
+    }
+}
+
+// Normalise amplitudes so the loudest column reaches full height, then apply
+// sqrt compression to lift quiet sections into the visible range.
+// Peaks are never clipped — everything is scaled relative to the maximum.
+// Silent audio becomes a flat mid-height line so the bar is always visible.
 fn normalizeAmplitudes(amps: [*]f32, width: u32) void {
     var max: f32 = 0.0;
-    for (0..width) |i| if (amps[i] > max) {
-        max = amps[i];
-    };
+    for (0..width) |i| if (amps[i] > max) { max = amps[i]; };
     if (max < 1e-6) {
         for (0..width) |i| amps[i] = 0.5;
         return;
@@ -198,6 +219,7 @@ export fn atolla_render_waveform_from_amps(
     defer free(amps_ptr);
     const amps: [*]f32 = @ptrCast(@alignCast(amps_ptr));
     @memcpy(amps[0..width], amps_in[0..width]);
+    // smoothAmplitudes(amps, width);
     normalizeAmplitudes(amps, width);
 
     const pixel_bytes = @as(usize, width) * @as(usize, height) * 4;
@@ -285,6 +307,7 @@ export fn atolla_generate_waveform(
     defer free(amps_ptr);
     const amps: [*]f32 = @ptrCast(@alignCast(amps_ptr));
     computeAmplitudes(samples, frames, channel_count, amps, width);
+    // smoothAmplitudes(amps, width);
     normalizeAmplitudes(amps, width);
 
     // --- Render pixel buffer (RGBA, all zeroed then filled) ---

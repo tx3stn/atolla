@@ -949,9 +949,8 @@ const styles = {
 		width: '100%',
 	}),
 	expandedProgressSection: new Style<Layout>({
-		marginTop: 4,
-		paddingLeft: 30,
-		paddingRight: 30,
+		paddingLeft: 25,
+		paddingRight: 25,
 		width: '100%',
 	}),
 	expandedQueueList: new Style<Layout>({
@@ -982,7 +981,7 @@ const styles = {
 	expandedTimeRow: new Style<Layout>({
 		flexDirection: 'row',
 		justifyContent: 'space-between',
-		marginTop: 6,
+		marginTop: 4,
 		width: '100%',
 	}),
 	expandedTrackMetaSection: new Style<Layout>({
