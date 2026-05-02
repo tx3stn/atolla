@@ -1,10 +1,12 @@
 #import "waveform_ios_bridge.h"
 #import <AVFoundation/AVFoundation.h>
+#include <math.h>
 #include <stdlib.h>
 #include "waveform_generator.h"
 
-static const NSInteger kDefaultWaveformWidth  = 500;
-static const NSInteger kDefaultWaveformHeight = 100;
+static const NSInteger kDefaultWaveformWidth   = 500;
+static const NSInteger kDefaultWaveformHeight  = 100;
+static const NSInteger kWaveformControlPoints  = 100;
 
 @implementation AtollaWaveformGenerator
 
@@ -21,16 +23,16 @@ static const NSInteger kDefaultWaveformHeight = 100;
     NSArray<AVAssetTrack *> *tracks = [asset tracksWithMediaType:AVMediaTypeAudio];
     if (tracks.count == 0) return nil;
 
-    // Configure AVAssetReaderTrackOutput to decode to linear PCM float32.
-    // 4000 Hz is sufficient for amplitude envelope extraction and AVFoundation
-    // resamples during decode, so far less PCM data flows through the pipeline.
+    // 500 Hz is sufficient for amplitude envelope extraction over 100 control
+    // points. AVFoundation resamples during decode so only ~500 samples/sec
+    // flow through the accumulation loop regardless of the source sample rate.
     NSDictionary *outputSettings = @{
-        AVFormatIDKey:             @(kAudioFormatLinearPCM),
-        AVLinearPCMBitDepthKey:    @32,
-        AVLinearPCMIsFloatKey:     @YES,
-        AVLinearPCMIsBigEndianKey: @NO,
+        AVFormatIDKey:               @(kAudioFormatLinearPCM),
+        AVLinearPCMBitDepthKey:      @32,
+        AVLinearPCMIsFloatKey:       @YES,
+        AVLinearPCMIsBigEndianKey:   @NO,
         AVLinearPCMIsNonInterleaved: @NO,
-        AVSampleRateKey:           @1500.0,
+        AVSampleRateKey:             @500.0,
     };
 
     NSError *error = nil;
@@ -45,29 +47,63 @@ static const NSInteger kDefaultWaveformHeight = 100;
 
     if (![reader startReading]) return nil;
 
-    // Accumulate all decoded PCM into a contiguous float buffer.
-    NSMutableData *pcm = [NSMutableData data];
-    uint32_t channel_count = 0;
+    // Derive total frame count from track duration + sample rate so each
+    // decoded frame maps to the correct column across the full track length.
+    const CMTime duration   = asset.duration;
+    const Float64 sampleRate = 500.0;
+    const long long totalFrames = (duration.timescale > 0)
+        ? (long long)(CMTimeGetSeconds(duration) * sampleRate + 0.5)
+        : 0;
+
+    // Accumulate sum-of-squares and sample counts per control-point column.
+    // No intermediate PCM buffer — each CMSampleBuffer is processed and released
+    // immediately, keeping peak memory proportional to one decoded buffer.
+    double sumSq[kWaveformControlPoints] = {0};
+    int    counts[kWaveformControlPoints] = {0};
+    long long decodedFrames = 0;
+    uint32_t channelCount   = 0;
 
     while (reader.status == AVAssetReaderStatusReading) {
         CMSampleBufferRef buffer = [output copyNextSampleBuffer];
         if (!buffer) break;
 
-        CMBlockBufferRef block = CMSampleBufferGetDataBuffer(buffer);
-        if (block) {
-            size_t length = CMBlockBufferGetDataLength(block);
-            const size_t offset = pcm.length;
-            [pcm increaseLengthBy:length];
-            CMBlockBufferCopyDataBytes(block, 0, length, (uint8_t *)pcm.mutableBytes + offset);
-        }
-
-        // Capture channel count from the first buffer's format description.
-        if (channel_count == 0) {
+        // Capture channel count from the first buffer.
+        if (channelCount == 0) {
             CMFormatDescriptionRef fmt = CMSampleBufferGetFormatDescription(buffer);
             if (fmt) {
                 const AudioStreamBasicDescription *asbd =
                     CMAudioFormatDescriptionGetStreamBasicDescription(fmt);
-                if (asbd) channel_count = (uint32_t)asbd->mChannelsPerFrame;
+                if (asbd) channelCount = (uint32_t)asbd->mChannelsPerFrame;
+            }
+        }
+
+        CMBlockBufferRef block = CMSampleBufferGetDataBuffer(buffer);
+        if (block && channelCount > 0) {
+            size_t dataLength = CMBlockBufferGetDataLength(block);
+            char *dataPtr = NULL;
+            size_t lengthAtPtr = 0;
+            if (CMBlockBufferGetDataPointer(block, 0, &lengthAtPtr, &dataLength, &dataPtr) == kCMBlockBufferNoErr && dataPtr) {
+                const float *samples    = (const float *)dataPtr;
+                const long long nFrames = (long long)(dataLength / (sizeof(float) * channelCount));
+
+                for (long long f = 0; f < nFrames; f++) {
+                    const long long frameIndex = decodedFrames + f;
+                    int col;
+                    if (totalFrames > 0) {
+                        col = (int)((frameIndex * kWaveformControlPoints) / totalFrames);
+                    } else {
+                        col = (int)(frameIndex % kWaveformControlPoints);
+                    }
+                    if (col < 0) col = 0;
+                    if (col >= kWaveformControlPoints) col = kWaveformControlPoints - 1;
+
+                    for (uint32_t ch = 0; ch < channelCount; ch++) {
+                        float s = samples[f * channelCount + ch];
+                        sumSq[col] += (double)(s * s);
+                        counts[col]++;
+                    }
+                }
+                decodedFrames += nFrames;
             }
         }
 
@@ -77,20 +113,21 @@ static const NSInteger kDefaultWaveformHeight = 100;
 
     [reader cancelReading];
 
-    if (pcm.length == 0 || channel_count == 0) return nil;
+    if (decodedFrames == 0 || channelCount == 0) return nil;
 
-    const float *samples = (const float *)pcm.bytes;
-    const uint32_t sample_count = (uint32_t)(pcm.length / sizeof(float));
+    float amps[kWaveformControlPoints];
+    for (int i = 0; i < kWaveformControlPoints; i++) {
+        amps[i] = counts[i] > 0 ? (float)sqrt(sumSq[i] / counts[i]) : 0.0f;
+    }
 
     uint32_t out_len = 0;
-    uint8_t *png = atolla_generate_waveform(
-        samples, sample_count, channel_count,
+    uint8_t *png = atolla_render_waveform_from_amps(
+        amps, (uint32_t)kWaveformControlPoints,
         (uint32_t)width, (uint32_t)height, &out_len);
 
     if (!png || out_len == 0) return nil;
 
-    NSData *result = [NSData dataWithBytesNoCopy:png length:out_len freeWhenDone:YES];
-    return result;
+    return [NSData dataWithBytesNoCopy:png length:out_len freeWhenDone:YES];
 }
 
 @end

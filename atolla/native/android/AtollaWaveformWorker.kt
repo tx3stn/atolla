@@ -152,9 +152,9 @@ class AtollaWaveformWorker {
 								val bufferFrames = shortBuffer.remaining() / channelCount
 								// Presentation time of the first frame in this buffer (µs → frames).
 								val bufferStartFrame = info.presentationTimeUs * sampleRate / 1_000_000L
-								// Sample at most 8 frames per decoded buffer — accurate enough for
+								// Sample at most 4 frames per decoded buffer — accurate enough for
 								// peak detection and avoids processing millions of frames.
-								val stride = maxOf(1, bufferFrames / 8)
+								val stride = maxOf(1, bufferFrames / 4)
 
 								var frameOffset = 0
 								while (frameOffset < bufferFrames) {
