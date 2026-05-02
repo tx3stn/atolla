@@ -11,10 +11,10 @@ interface QueueEntry {
 }
 
 interface ActiveJob {
-	entry: QueueEntry;
 	// When true the native work still runs but its result is discarded so a
 	// higher-priority track can use the next freed slot.
 	abandoned: boolean;
+	entry: QueueEntry;
 }
 
 // Number of tracks generated in parallel. Waveform work is now lightweight
@@ -52,7 +52,7 @@ export class WaveformGenerationQueue {
 	// Reorder pending queue entries to match the given trackId sequence, then
 	// abandon any in-flight jobs that are now lower priority than the queue
 	// front so their slots free up sooner.
-	reorderToMatch(trackIds: string[]): void {
+	reorderToMatch(trackIds: Array<string>): void {
 		if (this.queue.length > 1) {
 			const remaining = [...this.queue];
 			const ordered: Array<QueueEntry> = [];
@@ -77,7 +77,7 @@ export class WaveformGenerationQueue {
 	// Mark in-flight jobs that rank below the current queue front as abandoned.
 	// Their native work completes but the result is discarded; the track is
 	// re-queued at the back so it eventually gets processed.
-	private abandonLowPriorityJobs(desiredOrder: string[]): void {
+	private abandonLowPriorityJobs(desiredOrder: Array<string>): void {
 		if (this.queue.length === 0 || this.idleWorkers.length > 0) return;
 		const frontPriority = desiredOrder.indexOf(this.queue[0].trackId);
 		if (frontPriority < 0) return;

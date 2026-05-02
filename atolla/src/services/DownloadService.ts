@@ -59,6 +59,8 @@ export interface DownloadServiceOptions {
 	getTotalDownloadedSizeBytes?: () => number;
 	/** Return the local playback URL for a previously cached track. */
 	getTrackPlaybackUrl: (trackId: string) => string;
+	/** Called when a track finishes downloading successfully. */
+	onTrackDownloaded?: (trackId: string) => void;
 	/** Hint native image cache to persist image assets for offline experience. */
 	preloadImages?: (urls: Array<string>, category: ImageCategory) => void;
 	/** Remove a previously downloaded track from permanent storage. */
@@ -102,6 +104,7 @@ export class DownloadService {
 	private readonly cacheTrackFn: DownloadServiceOptions['cacheTrack'];
 	private readonly getTrackPlaybackUrlFn: DownloadServiceOptions['getTrackPlaybackUrl'];
 	private readonly getTotalDownloadedSizeBytesFn: DownloadServiceOptions['getTotalDownloadedSizeBytes'];
+	private readonly onTrackDownloadedFn: DownloadServiceOptions['onTrackDownloaded'];
 	private readonly removeTrackFn: DownloadServiceOptions['removeTrack'];
 	private readonly removeTracksFn: DownloadServiceOptions['removeTracks'];
 	private readonly preloadImagesFn: DownloadServiceOptions['preloadImages'];
@@ -111,6 +114,7 @@ export class DownloadService {
 		this.cacheTrackFn = options.cacheTrack;
 		this.getTrackPlaybackUrlFn = options.getTrackPlaybackUrl;
 		this.getTotalDownloadedSizeBytesFn = options.getTotalDownloadedSizeBytes;
+		this.onTrackDownloadedFn = options.onTrackDownloaded;
 		this.removeTrackFn = options.removeTrack;
 		this.removeTracksFn = options.removeTracks;
 		this.preloadImagesFn = options.preloadImages;
@@ -823,6 +827,7 @@ export class DownloadService {
 
 			await this.persistAll();
 			this.notify();
+			this.onTrackDownloadedFn?.(trackId);
 		} catch {
 			// Leave incomplete; will retry on next onAppReady.
 		}

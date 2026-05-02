@@ -276,6 +276,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		cacheTrack: (trackId, url) => this.downloadWorkerClient.api.cacheDownloadedTrack(trackId, url),
 		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
+		onTrackDownloaded: (trackId) => this.handleTrackCached(trackId),
 		preloadImages: (urls, category) => {
 			try {
 				preloadAtollaImages(urls, category);
@@ -945,9 +946,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	}
 
-	private getPlaybackTrackIds(): string[] {
+	private getPlaybackTrackIds(): Array<string> {
 		const { tracks, trackIndex } = this.playbackStore;
-		const ids: string[] = [];
+		const ids: Array<string> = [];
 		for (let i = trackIndex; i < tracks.length; i++) ids.push(tracks[i].id);
 		for (let i = 0; i < trackIndex; i++) ids.push(tracks[i].id);
 		return ids;
