@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
 import type { IWaveformNativeWorker } from './WaveformNativeWorker';

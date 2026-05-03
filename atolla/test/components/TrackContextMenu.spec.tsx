@@ -83,7 +83,7 @@ describe('TrackContextMenu', () => {
 		const component = instrumented.getComponent();
 
 		const backdrop = componentGetElements(component).find(
-			(element) => element.getAttribute('blurStyle') === 'systemThickMaterialDark',
+			(element) => element.getAttribute('accessibilityLabel') === 'track-context-backdrop',
 		);
 
 		backdrop?.getAttribute('onTap')?.();
