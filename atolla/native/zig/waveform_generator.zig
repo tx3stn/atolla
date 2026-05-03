@@ -418,3 +418,93 @@ export fn atolla_generate_waveform(
     out_len.* = @intCast(offset);
     return png;
 }
+
+test "catmullRom: t=0 returns p1 and t=1 returns p2" {
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), catmullRom(0.0, 1.0, 2.0, 3.0, 0.0), 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), catmullRom(0.0, 1.0, 2.0, 3.0, 1.0), 1e-5);
+}
+
+test "catmullRom: all-zero control points give zero" {
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), catmullRom(0.0, 0.0, 0.0, 0.0, 0.5), 1e-5);
+}
+
+test "normalizeAmplitudes: all-zero input becomes 0.5" {
+    var amps = [_]f32{ 0.0, 0.0, 0.0 };
+    normalizeAmplitudes(amps[0..].ptr, 3);
+    for (amps) |a| try std.testing.expectApproxEqAbs(@as(f32, 0.5), a, 1e-6);
+}
+
+test "normalizeAmplitudes: max element becomes 1.0" {
+    var amps = [_]f32{ 0.2, 0.8, 0.5 };
+    normalizeAmplitudes(amps[0..].ptr, 3);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), amps[1], 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.25), amps[0], 1e-5);
+}
+
+test "smoothAmplitudes: width < 3 leaves values unchanged" {
+    var amps = [_]f32{ 1.0, 2.0 };
+    const before = amps;
+    smoothAmplitudes(amps[0..].ptr, 2);
+    try std.testing.expectEqual(before[0], amps[0]);
+    try std.testing.expectEqual(before[1], amps[1]);
+}
+
+test "zlibStoredSize: empty data takes one block" {
+    // 2 (zlib header) + 1*5 (block header) + 0 (data) + 4 (adler32) = 11
+    try std.testing.expectEqual(@as(usize, 11), zlibStoredSize(0));
+}
+
+test "zlibStoredSize: single byte" {
+    // 2 + 5 + 1 + 4 = 12
+    try std.testing.expectEqual(@as(usize, 12), zlibStoredSize(1));
+}
+
+test "zlibStoredSize: 65535 bytes fits in one block" {
+    // 2 + 1*5 + 65535 + 4 = 65546
+    try std.testing.expectEqual(@as(usize, 65546), zlibStoredSize(65535));
+}
+
+test "zlibStoredSize: 65536 bytes requires two blocks" {
+    // n_blocks = (65536+65534)/65535 = 2; 2 + 2*5 + 65536 + 4 = 65552
+    try std.testing.expectEqual(@as(usize, 65552), zlibStoredSize(65536));
+}
+
+test "computeAmplitudes: constant signal produces constant RMS" {
+    var samples = [_]f32{ 0.5, 0.5, 0.5, 0.5 };
+    var amps = [_]f32{ 0.0, 0.0 };
+    // 4 frames, 1 channel, 2 output columns
+    computeAmplitudes(samples[0..].ptr, 4, 1, amps[0..].ptr, 2);
+    for (amps) |a| try std.testing.expectApproxEqAbs(@as(f32, 0.5), a, 1e-4);
+}
+
+test "atolla_generate_waveform: zero sample_count returns null" {
+    var out_len: u32 = 0;
+    const result = atolla_generate_waveform(undefined, 0, 1, 100, 32, &out_len);
+    try std.testing.expect(result == null);
+    try std.testing.expectEqual(@as(u32, 0), out_len);
+}
+
+test "atolla_generate_waveform: zero dimensions return null" {
+    var out_len: u32 = 0;
+    const result = atolla_generate_waveform(undefined, 100, 1, 0, 0, &out_len);
+    try std.testing.expect(result == null);
+}
+
+test "atolla_render_waveform_from_amps: zero num_amps returns null" {
+    var out_len: u32 = 0;
+    const result = atolla_render_waveform_from_amps(undefined, 0, 100, 32, &out_len);
+    try std.testing.expect(result == null);
+}
+
+test "atolla_render_waveform_from_amps: valid input produces PNG with correct magic bytes and size" {
+    var amps = [_]f32{ 0.5, 0.8, 0.3, 1.0 };
+    var out_len: u32 = 0;
+    const result = atolla_render_waveform_from_amps(amps[0..].ptr, 4, 10, 8, &out_len);
+    try std.testing.expect(result != null);
+    defer free(result);
+    try std.testing.expectEqual(@as(u8, 0x89), result.?[0]);
+    try std.testing.expectEqual(@as(u8, 'P'), result.?[1]);
+    try std.testing.expectEqual(@as(u8, 'N'), result.?[2]);
+    try std.testing.expectEqual(@as(u8, 'G'), result.?[3]);
+    try std.testing.expectEqual(pngSize(10, 8), @as(usize, out_len));
+}

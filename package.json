@@ -25,8 +25,8 @@
 		"android": "bun run icons:generate && /.scripts/start-android-emulator.sh",
 		"android:fast": "FAST_DEV_BUILD=1 ./.scripts/start-android-emulator.sh",
 		"appium:inspect": "./.scripts/start-appium-inspector.sh",
-		"check": "bun run format && bun run lint && bun run compile && bun run test",
-		"check:full": "bun run check && bun run check:zig &&bun run test:components",
+		"check": "bun run format && bun run lint && bun run compile && bun run test && bun run check:zig && bun run test:zig",
+		"check:full": "bun run check && bun run test:components",
 		"check:zig": "bazel build //atolla/native/zig:atolla_algorithms_zig",
 		"compile": "bunx tsc --noEmit",
 		"format": "biome format --write .",
@@ -37,7 +37,8 @@
 		"reload": "./.scripts/android-hotreload.sh",
 		"test": "bun test ./atolla/src",
 		"test:components": "bazel test //atolla:test --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
-		"test:e2e": "E2E_APP_PATH=$PWD/bazel-bin/atolla_android.apk wdio run ./test/wdio.conf.ts"
+		"test:e2e": "E2E_APP_PATH=$PWD/bazel-bin/atolla_android.apk wdio run ./test/wdio.conf.ts",
+		"test:zig": "./.scripts/test-zig.sh"
 	},
 	"version": "0.0.1"
 }

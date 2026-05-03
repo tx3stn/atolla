@@ -123,3 +123,86 @@ export fn atolla_blur_pixels(
     bilinearResize(cur_src[0 .. @as(usize, cur_w) * @as(usize, cur_h) * 4], cur_w, cur_h, mid_48[0..mid_size], 48, 48);
     bilinearResize(mid_48[0..mid_size], 48, 48, pixels_out[0..out_size], width_out, height_out);
 }
+
+test "bilinearSample: exact pixel corners return exact values" {
+    const std = @import("std");
+    // 2x2 RGBA: red, green, blue, yellow
+    const pixels: [16]u8 = .{
+        255, 0,   0,   255,
+        0,   255, 0,   255,
+        0,   0,   255, 255,
+        255, 255, 0,   255,
+    };
+    const p00 = bilinearSample(pixels[0..], 2, 2, 0.0, 0.0);
+    try std.testing.expectEqual(@as(u8, 255), p00[0]);
+    try std.testing.expectEqual(@as(u8, 0), p00[1]);
+
+    const p10 = bilinearSample(pixels[0..], 2, 2, 1.0, 0.0);
+    try std.testing.expectEqual(@as(u8, 0), p10[0]);
+    try std.testing.expectEqual(@as(u8, 255), p10[1]);
+}
+
+test "bilinearSample: midpoint between white and black blends to ~128" {
+    const std = @import("std");
+    const pixels: [16]u8 = .{
+        255, 255, 255, 255,
+        0,   0,   0,   255,
+        255, 255, 255, 255,
+        0,   0,   0,   255,
+    };
+    const mid = bilinearSample(pixels[0..], 2, 2, 0.5, 0.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 128.0), @as(f32, @floatFromInt(mid[0])), 1.0);
+}
+
+test "bilinearResize: 1x1 to 1x1 is identity" {
+    const std = @import("std");
+    const src: [4]u8 = .{ 100, 150, 200, 255 };
+    var dst: [4]u8 = undefined;
+    bilinearResize(src[0..], 1, 1, dst[0..], 1, 1);
+    try std.testing.expectEqual(src[0], dst[0]);
+    try std.testing.expectEqual(src[1], dst[1]);
+    try std.testing.expectEqual(src[2], dst[2]);
+    try std.testing.expectEqual(src[3], dst[3]);
+}
+
+test "bilinearResize: uniform color is preserved on downscale" {
+    const std = @import("std");
+    var src: [4 * 4 * 4]u8 = undefined;
+    for (0..16) |i| {
+        src[i * 4 + 0] = 255;
+        src[i * 4 + 1] = 0;
+        src[i * 4 + 2] = 0;
+        src[i * 4 + 3] = 255;
+    }
+    var dst: [2 * 2 * 4]u8 = undefined;
+    bilinearResize(src[0..], 4, 4, dst[0..], 2, 2);
+    for (0..4) |i| {
+        try std.testing.expectEqual(@as(u8, 255), dst[i * 4 + 0]);
+        try std.testing.expectEqual(@as(u8, 0), dst[i * 4 + 1]);
+    }
+}
+
+test "atolla_blur_pixels: zero dimensions is a no-op" {
+    const std = @import("std");
+    var out: [4]u8 = .{ 42, 42, 42, 42 };
+    const src: [4]u8 = .{ 255, 0, 0, 255 };
+    atolla_blur_pixels(&src, 0, 0, &out, 1, 1);
+    try std.testing.expectEqual(@as(u8, 42), out[0]);
+}
+
+test "atolla_blur_pixels: uniform color survives blur" {
+    const std = @import("std");
+    var src: [16 * 16 * 4]u8 = undefined;
+    for (0..16 * 16) |i| {
+        src[i * 4 + 0] = 200;
+        src[i * 4 + 1] = 100;
+        src[i * 4 + 2] = 50;
+        src[i * 4 + 3] = 255;
+    }
+    var out: [4 * 4 * 4]u8 = undefined;
+    atolla_blur_pixels(&src, 16, 16, &out, 4, 4);
+    for (0..16) |i| {
+        try std.testing.expectApproxEqAbs(@as(f32, 200.0), @as(f32, @floatFromInt(out[i * 4 + 0])), 2.0);
+        try std.testing.expectApproxEqAbs(@as(f32, 100.0), @as(f32, @floatFromInt(out[i * 4 + 1])), 2.0);
+    }
+}

@@ -287,3 +287,111 @@ export fn atolla_extract_palette(
     writeHex(&out.muted_on_surface, mutedOnSurfaceRgb.r, mutedOnSurfaceRgb.g, mutedOnSurfaceRgb.b);
     return true;
 }
+
+test "hexNibble: decimal digits and hex letters" {
+    try std.testing.expectEqual(@as(u8, 0), hexNibble('0'));
+    try std.testing.expectEqual(@as(u8, 9), hexNibble('9'));
+    try std.testing.expectEqual(@as(u8, 10), hexNibble('a'));
+    try std.testing.expectEqual(@as(u8, 15), hexNibble('f'));
+    try std.testing.expectEqual(@as(u8, 10), hexNibble('A'));
+    try std.testing.expectEqual(@as(u8, 15), hexNibble('F'));
+}
+
+test "writeHex and parseHex round-trip" {
+    var hex: [8]u8 = undefined;
+    writeHex(&hex, 0xde, 0xad, 0xbe);
+    const rgb = parseHex(hex);
+    try std.testing.expectEqual(@as(u8, 0xde), rgb.r);
+    try std.testing.expectEqual(@as(u8, 0xad), rgb.g);
+    try std.testing.expectEqual(@as(u8, 0xbe), rgb.b);
+}
+
+test "writeHex produces # prefix" {
+    var hex: [8]u8 = undefined;
+    writeHex(&hex, 0, 0, 0);
+    try std.testing.expectEqual(@as(u8, '#'), hex[0]);
+}
+
+test "rgbToHsl: gray has zero saturation" {
+    const hsl = rgbToHsl(128, 128, 128);
+    try std.testing.expectApproxEqAbs(@as(f64, 0.0), hsl.s, 1e-6);
+}
+
+test "rgbToHsl: pure red is hue 0 full saturation mid lightness" {
+    const hsl = rgbToHsl(255, 0, 0);
+    try std.testing.expectApproxEqAbs(@as(f64, 0.0), hsl.h, 1e-3);
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), hsl.s, 1e-3);
+    try std.testing.expectApproxEqAbs(@as(f64, 0.5), hsl.l, 1e-3);
+}
+
+test "rgbToHsl: pure green is hue 120" {
+    const hsl = rgbToHsl(0, 255, 0);
+    try std.testing.expectApproxEqAbs(@as(f64, 120.0), hsl.h, 1e-3);
+}
+
+test "hslToRgb: zero saturation produces gray" {
+    const rgb = hslToRgb(0.0, 0.0, 0.5);
+    try std.testing.expectEqual(rgb.r, rgb.g);
+    try std.testing.expectEqual(rgb.g, rgb.b);
+}
+
+test "rgbToHsl and hslToRgb round-trip within 2 units" {
+    const r_in: u8 = 200;
+    const g_in: u8 = 80;
+    const b_in: u8 = 40;
+    const hsl = rgbToHsl(r_in, g_in, b_in);
+    const rgb = hslToRgb(hsl.h, hsl.s, hsl.l);
+    const dr = @abs(@as(i16, r_in) - @as(i16, rgb.r));
+    const dg = @abs(@as(i16, g_in) - @as(i16, rgb.g));
+    const db = @abs(@as(i16, b_in) - @as(i16, rgb.b));
+    try std.testing.expect(dr <= 2);
+    try std.testing.expect(dg <= 2);
+    try std.testing.expect(db <= 2);
+}
+
+test "normalizedHueDistance: same hue is zero" {
+    try std.testing.expectApproxEqAbs(@as(f64, 0.0), normalizedHueDistance(120.0, 120.0), 1e-9);
+}
+
+test "normalizedHueDistance: opposite hues is 1" {
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), normalizedHueDistance(0.0, 180.0), 1e-9);
+}
+
+test "normalizedHueDistance: wraparound is symmetric" {
+    const d = normalizedHueDistance(10.0, 350.0);
+    try std.testing.expectApproxEqAbs(@as(f64, 20.0 / 180.0), d, 1e-6);
+    try std.testing.expectApproxEqAbs(d, normalizedHueDistance(350.0, 10.0), 1e-9);
+}
+
+test "rgbLightness: black is 0 and white is 1" {
+    try std.testing.expectApproxEqAbs(@as(f64, 0.0), rgbLightness(0, 0, 0), 1e-9);
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), rgbLightness(255, 255, 255), 1e-9);
+}
+
+test "atolla_extract_palette: zero dimensions writes defaults and returns false" {
+    var palette: Palette = std.mem.zeroes(Palette);
+    const dummy: [4]u8 = .{ 255, 0, 0, 255 };
+    const ok = atolla_extract_palette(&dummy, 0, 0, &palette);
+    try std.testing.expect(!ok);
+    try std.testing.expectEqual(@as(u8, '#'), palette.primary[0]);
+}
+
+test "atolla_extract_palette: 1x1 red pixel returns true with valid hex strings" {
+    const pixels: [4]u8 = .{ 255, 0, 0, 255 };
+    var palette: Palette = std.mem.zeroes(Palette);
+    const ok = atolla_extract_palette(&pixels, 1, 1, &palette);
+    try std.testing.expect(ok);
+    try std.testing.expectEqual(@as(u8, '#'), palette.primary[0]);
+    try std.testing.expectEqual(@as(u8, '#'), palette.surface[0]);
+    try std.testing.expectEqual(@as(u8, '#'), palette.on_surface[0]);
+    try std.testing.expectEqual(@as(u8, '#'), palette.muted_on_surface[0]);
+}
+
+test "atolla_extract_palette: all-black image falls back to defaults" {
+    const pixels: [4]u8 = .{ 0, 0, 0, 255 };
+    var palette: Palette = std.mem.zeroes(Palette);
+    _ = atolla_extract_palette(&pixels, 1, 1, &palette);
+    // black is filtered by lightness <= 0.15, default primary #d8dee9 applies
+    try std.testing.expectEqual(@as(u8, 'd'), palette.primary[1]);
+    try std.testing.expectEqual(@as(u8, '8'), palette.primary[2]);
+}
