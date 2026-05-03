@@ -26,8 +26,9 @@ describe('CacheClearModal', () => {
 		expect(values).toContain('album art');
 		expect(values).toContain('blurred album art');
 		expect(values).toContain('playlist images');
+		expect(values).toContain('genre images');
 		expect(values).toContain('tracks');
-		expect(values).toContain('waveform data');
+		expect(values).toContain('waveforms');
 	});
 
 	valdiIt('confirm button is enabled when all checkboxes are checked by default', () => {
@@ -69,6 +70,9 @@ describe('CacheClearModal', () => {
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-playlist-image-row')
 			?.getAttribute('onTap')?.();
 		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-genre-image-row')
+			?.getAttribute('onTap')?.();
+		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-track-row')
 			?.getAttribute('onTap')?.();
 		views
@@ -106,6 +110,7 @@ describe('CacheClearModal', () => {
 			albumArtBlurred: true,
 			artistImage: true,
 			artistLogo: true,
+			genreImage: true,
 			playlistImage: true,
 			tracks: true,
 			waveformData: true,
@@ -140,6 +145,7 @@ describe('CacheClearModal', () => {
 			albumArtBlurred: true,
 			artistImage: true,
 			artistLogo: true,
+			genreImage: true,
 			playlistImage: true,
 			tracks: true,
 			waveformData: true,

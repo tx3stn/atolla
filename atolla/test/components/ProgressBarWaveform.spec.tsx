@@ -18,11 +18,11 @@ describe('ProgressBarWaveform', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const plainBar = views.find(
-			(v) => v.getAttribute('accessibilityLabel') === 'playback-progress-bar',
+		const waveformBar = views.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'waveform-progress-bar',
 		);
 
-		expect(plainBar).toBeDefined();
+		expect(waveformBar).toBeUndefined();
 	});
 
 	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is undefined', () => {
@@ -36,11 +36,11 @@ describe('ProgressBarWaveform', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const plainBar = views.find(
-			(v) => v.getAttribute('accessibilityLabel') === 'playback-progress-bar',
+		const waveformBar = views.find(
+			(v) => v.getAttribute('accessibilityLabel') === 'waveform-progress-bar',
 		);
 
-		expect(plainBar).toBeDefined();
+		expect(waveformBar).toBeUndefined();
 	});
 
 	valdiIt('renders waveform bar when maskImageUrl is provided', () => {

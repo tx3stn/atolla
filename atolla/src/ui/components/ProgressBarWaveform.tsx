@@ -39,7 +39,6 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 		if (!maskImageUrl) {
 			<ProgressBarPlain
 				accentColor={accentColor}
-				accessibilityLabel={accessibilityLabel}
 				onProgressTap={onProgressTap}
 				progressRatio={progressRatio}
 				thickness={thickness}

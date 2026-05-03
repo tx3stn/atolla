@@ -5,7 +5,6 @@ import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 
 export interface ProgressBarPlainViewModel {
 	accentColor: string;
-	accessibilityLabel?: string;
 	onProgressTap?: (ratio?: number) => void;
 	progressRatio: number;
 	thickness?: number;
@@ -29,10 +28,7 @@ export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 			this.viewModel.thickness ?? 4,
 		);
 
-		<view
-			accessibilityLabel={this.viewModel.accessibilityLabel ?? 'playback-progress-bar'}
-			style={styles.root}
-		>
+		<view accessibilityLabel='playback-progress-bar' style={styles.root}>
 			<view
 				accessibilityLabel='playback-progress-track'
 				onLayout={this.handleTrackLayout}

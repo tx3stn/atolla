@@ -170,8 +170,10 @@ describe('SettingsView', () => {
 			albumArtBlurred: true,
 			artistImage: true,
 			artistLogo: true,
+			genreImage: true,
 			playlistImage: true,
 			tracks: true,
+			waveformData: true,
 		});
 	});
 
