@@ -1,23 +1,19 @@
 import type { Artist } from '../../models/Artist';
+import { type SortOrder, SortOrders } from '../components/SortOrder';
+import { compareDatesAscending, compareDatesDescending } from './sortDateUtils';
 
-export type ArtistSort = 'a-z' | 'z-a' | 'new-old' | 'old-new';
-
-export const ArtistSorts = {
-	aToZ: 'a-z' as ArtistSort,
-	newToOld: 'new-old' as ArtistSort,
-	oldToNew: 'old-new' as ArtistSort,
-	zToA: 'z-a' as ArtistSort,
-};
+export type ArtistSort = SortOrder;
+export { SortOrders as ArtistSorts };
 
 export function sortArtists(artists: Array<Artist>, sort: ArtistSort): Array<Artist> {
 	const sorted = [...artists];
 
 	switch (sort) {
-		case ArtistSorts.zToA:
+		case SortOrders.zToA:
 			return sortAlphabetically(sorted).reverse();
-		case ArtistSorts.newToOld:
+		case SortOrders.newToOld:
 			return sorted.sort((a, b) => compareDatesDescending(a.dateAdded, b.dateAdded));
-		case ArtistSorts.oldToNew:
+		case SortOrders.oldToNew:
 			return sorted.sort((a, b) => compareDatesAscending(a.dateAdded, b.dateAdded));
 		default:
 			return sortAlphabetically(sorted);
@@ -52,39 +48,4 @@ function compareCaseInsensitive(left: string, right: string): number {
 		return 1;
 	}
 	return 0;
-}
-
-function compareDatesAscending(left: string | undefined, right: string | undefined): number {
-	const leftTime = parseDateTime(left);
-	const rightTime = parseDateTime(right);
-
-	if (leftTime == null && rightTime == null) return 0;
-	if (leftTime == null) return 1;
-	if (rightTime == null) return -1;
-
-	return leftTime - rightTime;
-}
-
-function compareDatesDescending(left: string | undefined, right: string | undefined): number {
-	const leftTime = parseDateTime(left);
-	const rightTime = parseDateTime(right);
-
-	if (leftTime == null && rightTime == null) return 0;
-	if (leftTime == null) return 1;
-	if (rightTime == null) return -1;
-
-	return rightTime - leftTime;
-}
-
-function parseDateTime(value: string | undefined): number | null {
-	if (!value) {
-		return null;
-	}
-
-	const time = Date.parse(value);
-	if (Number.isNaN(time)) {
-		return null;
-	}
-
-	return time;
 }

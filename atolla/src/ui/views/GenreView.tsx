@@ -24,8 +24,7 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 import type { NavBarContext } from '../NavBarContext';
 import { AlbumView } from './AlbumView';
 import { resolveGenreImageUrls } from './GenreNavigationResolver';
-
-const TRACK_PAGE_SIZE = 50;
+import { TRACK_PAGE_SIZE } from './GridPagination';
 
 export interface GenreViewModel {
 	animationsEnabled: boolean;

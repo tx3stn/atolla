@@ -1,3 +1,4 @@
+import type { MimeType } from '../../images/MimeType';
 import { decodeJpeg } from './jpegDecoder';
 import { decodePng } from './pngDecoder';
 
@@ -7,7 +8,7 @@ import { decodePng } from './pngDecoder';
 // supported by the runtime. Returns null if all approaches fail.
 export function decodePixelSamples(
 	buffer: ArrayBuffer,
-	mimeType: string,
+	mimeType: MimeType,
 ): Promise<Uint8Array | null> {
 	const type = mimeType.toLowerCase().split(';')[0].trim();
 	if (type === 'image/png') {
@@ -29,7 +30,10 @@ export function decodePixelSamples(
 	return decodeViaCanvas(buffer, mimeType);
 }
 
-async function decodeViaCanvas(buffer: ArrayBuffer, mimeType: string): Promise<Uint8Array | null> {
+async function decodeViaCanvas(
+	buffer: ArrayBuffer,
+	mimeType: MimeType,
+): Promise<Uint8Array | null> {
 	try {
 		const blob = new Blob([buffer], { type: mimeType });
 		const bitmap = await createImageBitmap(blob);

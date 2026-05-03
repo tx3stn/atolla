@@ -1,4 +1,6 @@
-export function detectMimeType(bytes: Uint8Array, url: string): string {
+export type MimeType = 'image/gif' | 'image/jpeg' | 'image/png' | 'image/webp';
+
+export function detectMimeType(bytes: Uint8Array, url: string): MimeType {
 	if (
 		bytes.length >= 8 &&
 		bytes[0] === 0x89 &&
@@ -44,7 +46,7 @@ export function detectMimeType(bytes: Uint8Array, url: string): string {
 	return guessMimeType(url);
 }
 
-export function guessMimeType(url: string): string {
+export function guessMimeType(url: string): MimeType {
 	const lower = url.toLowerCase();
 	if (lower.includes('.png')) return 'image/png';
 	if (lower.includes('.webp')) return 'image/webp';

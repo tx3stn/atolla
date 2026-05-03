@@ -26,9 +26,8 @@ import type { NavBarContext } from '../NavBarContext';
 import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
 import { resolveGenreImageUrls } from './GenreNavigationResolver';
+import { TRACK_PAGE_SIZE } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
-
-const TRACK_PAGE_SIZE = 50;
 
 export interface PlaylistViewModel {
 	animationsEnabled: boolean;

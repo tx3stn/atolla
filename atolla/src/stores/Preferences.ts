@@ -17,6 +17,16 @@ export const LANGUAGE_OPTIONS = [
 export type LanguageCode = (typeof LANGUAGE_OPTIONS)[number]['code'];
 export const DEFAULT_LANGUAGE: LanguageCode = 'en';
 
+const PreferenceKeys = {
+	gridColumns: 'grid_columns',
+	imageCacheMaxBytes: 'image_cache_max_bytes',
+	jellyfinClientDeviceIdOverride: 'jellyfin_client_device_id_override',
+	language: 'language',
+	mode: 'mode',
+	navigationAnimationsEnabled: 'navigation_animations_enabled',
+	trackCacheMaxTracks: 'track_cache_max_tracks',
+} as const;
+
 interface PreferencesStore {
 	fetchString(key: string): Promise<string>;
 	storeString(key: string, value: string): Promise<void>;
@@ -31,19 +41,21 @@ export class Preferences {
 
 	async getMode(): Promise<ConnectionMode> {
 		try {
-			return await this.store.fetchString('mode');
+			const value = await this.store.fetchString(PreferenceKeys.mode);
+			const validModes: ReadonlyArray<string> = Object.values(ConnectionModes);
+			return validModes.includes(value) ? (value as ConnectionMode) : ConnectionModes.offline;
 		} catch {
 			return ConnectionModes.offline;
 		}
 	}
 
 	async setMode(mode: ConnectionMode): Promise<void> {
-		await this.store.storeString('mode', mode);
+		await this.store.storeString(PreferenceKeys.mode, mode);
 	}
 
 	async getImageCacheMaxBytes(): Promise<number> {
 		try {
-			const value = Number(await this.store.fetchString('image_cache_max_bytes'));
+			const value = Number(await this.store.fetchString(PreferenceKeys.imageCacheMaxBytes));
 			if (IMAGE_CACHE_SIZE_OPTIONS.includes(value as (typeof IMAGE_CACHE_SIZE_OPTIONS)[number])) {
 				return value;
 			}
@@ -57,24 +69,24 @@ export class Preferences {
 		if (!IMAGE_CACHE_SIZE_OPTIONS.includes(bytes as (typeof IMAGE_CACHE_SIZE_OPTIONS)[number])) {
 			return;
 		}
-		await this.store.storeString('image_cache_max_bytes', String(bytes));
+		await this.store.storeString(PreferenceKeys.imageCacheMaxBytes, String(bytes));
 	}
 
 	async getAnimationsEnabled(): Promise<boolean> {
 		try {
-			return (await this.store.fetchString('navigation_animations_enabled')) !== 'false';
+			return (await this.store.fetchString(PreferenceKeys.navigationAnimationsEnabled)) !== 'false';
 		} catch {
 			return true;
 		}
 	}
 
 	async setAnimationsEnabled(enabled: boolean): Promise<void> {
-		await this.store.storeString('navigation_animations_enabled', String(enabled));
+		await this.store.storeString(PreferenceKeys.navigationAnimationsEnabled, String(enabled));
 	}
 
 	async getGridColumns(): Promise<number> {
 		try {
-			const value = Number(await this.store.fetchString('grid_columns'));
+			const value = Number(await this.store.fetchString(PreferenceKeys.gridColumns));
 			if (GRID_COLUMN_OPTIONS.includes(value as (typeof GRID_COLUMN_OPTIONS)[number])) {
 				return value;
 			}
@@ -88,12 +100,12 @@ export class Preferences {
 		if (!GRID_COLUMN_OPTIONS.includes(count as (typeof GRID_COLUMN_OPTIONS)[number])) {
 			return;
 		}
-		await this.store.storeString('grid_columns', String(count));
+		await this.store.storeString(PreferenceKeys.gridColumns, String(count));
 	}
 
 	async getTrackCacheMaxTracks(): Promise<number> {
 		try {
-			const value = Number(await this.store.fetchString('track_cache_max_tracks'));
+			const value = Number(await this.store.fetchString(PreferenceKeys.trackCacheMaxTracks));
 			if (TRACK_CACHE_LIMIT_OPTIONS.includes(value as (typeof TRACK_CACHE_LIMIT_OPTIONS)[number])) {
 				return value;
 			}
@@ -107,24 +119,24 @@ export class Preferences {
 		if (!TRACK_CACHE_LIMIT_OPTIONS.includes(count as (typeof TRACK_CACHE_LIMIT_OPTIONS)[number])) {
 			return;
 		}
-		await this.store.storeString('track_cache_max_tracks', String(count));
+		await this.store.storeString(PreferenceKeys.trackCacheMaxTracks, String(count));
 	}
 
 	async getJellyfinClientDeviceIdOverride(): Promise<string> {
 		try {
-			return (await this.store.fetchString('jellyfin_client_device_id_override')).trim();
+			return (await this.store.fetchString(PreferenceKeys.jellyfinClientDeviceIdOverride)).trim();
 		} catch {
 			return '';
 		}
 	}
 
 	async setJellyfinClientDeviceIdOverride(value: string): Promise<void> {
-		await this.store.storeString('jellyfin_client_device_id_override', value.trim());
+		await this.store.storeString(PreferenceKeys.jellyfinClientDeviceIdOverride, value.trim());
 	}
 
 	async getLanguage(): Promise<LanguageCode> {
 		try {
-			const value = await this.store.fetchString('language');
+			const value = await this.store.fetchString(PreferenceKeys.language);
 			if (LANGUAGE_OPTIONS.some((opt) => opt.code === value)) {
 				return value as LanguageCode;
 			}
@@ -135,6 +147,6 @@ export class Preferences {
 	}
 
 	async setLanguage(code: LanguageCode): Promise<void> {
-		await this.store.storeString('language', code);
+		await this.store.storeString(PreferenceKeys.language, code);
 	}
 }

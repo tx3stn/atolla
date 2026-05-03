@@ -1,3 +1,4 @@
+import type { MimeType } from '../images/MimeType';
 import { mutedTextColor } from './color/colorUtils';
 import { computePalette } from './color/computePalette';
 import type { Palette } from './color/types';
@@ -56,7 +57,7 @@ export class ArtworkPaletteService {
 	}
 
 	// Extract a palette from the given image buffer and persist it.
-	async generatePalette(url: string, buffer: ArrayBuffer, mimeType: string): Promise<void> {
+	async generatePalette(url: string, buffer: ArrayBuffer, mimeType: MimeType): Promise<void> {
 		try {
 			const palette = await computePalette(buffer, mimeType);
 			if (!palette) {

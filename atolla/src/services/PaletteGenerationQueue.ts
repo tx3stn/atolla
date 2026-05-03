@@ -2,7 +2,7 @@ import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
 import { extractAtollaPaletteFromCache } from '../ImageLoaderBootstrap';
-import { detectMimeType } from '../images/MimeType';
+import { detectMimeType, type MimeType } from '../images/MimeType';
 import type { Album } from '../models/Album';
 import type { Track } from '../models/Track';
 import type { ArtworkPaletteService } from './ArtworkPaletteService';
@@ -163,7 +163,7 @@ export class PaletteGenerationQueue {
 		}
 	}
 
-	private loadBuffer(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
+	private loadBuffer(url: string): Promise<{ buffer: ArrayBuffer; mimeType: MimeType } | null> {
 		const source = buildImageSource(url, 'album_art', { cacheOnly: true });
 		return new Promise((resolve) => {
 			let subscription: { unsubscribe(): void } | undefined;

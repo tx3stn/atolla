@@ -19,7 +19,13 @@ interface PersistedPlaybackQueue {
 const playbackQueueCacheKey = 'queue';
 const progressPersistStepSeconds = 5;
 
-export type LoopMode = 'none' | 'queue' | 'track';
+export const LoopModes = {
+	none: 'none',
+	queue: 'queue',
+	track: 'track',
+} as const;
+
+export type LoopMode = (typeof LoopModes)[keyof typeof LoopModes];
 
 export function shuffleArray<T>(arr: Array<T>): Array<T> {
 	const copy = [...arr];
@@ -39,7 +45,7 @@ export class PlaybackStore {
 
 	album: Album | null = null;
 	isPlaying: boolean = false;
-	loopMode: LoopMode = 'none';
+	loopMode: LoopMode = LoopModes.none;
 	progressSeconds: number = 0;
 	seekTarget: number | null = null;
 	trackIndex: number = 0;
@@ -88,14 +94,14 @@ export class PlaybackStore {
 
 	cycleLoopMode(): void {
 		switch (this.loopMode) {
-			case 'none':
-				this.loopMode = 'queue';
+			case LoopModes.none:
+				this.loopMode = LoopModes.queue;
 				break;
-			case 'queue':
-				this.loopMode = 'track';
+			case LoopModes.queue:
+				this.loopMode = LoopModes.track;
 				break;
 			default:
-				this.loopMode = 'none';
+				this.loopMode = LoopModes.none;
 				break;
 		}
 
@@ -170,11 +176,11 @@ export class PlaybackStore {
 		let queueStateChanged = false;
 
 		if (seconds >= activeTrack.duration) {
-			if (this.loopMode === 'track') {
+			if (this.loopMode === LoopModes.track) {
 				this.progressSeconds = 0;
 				this.seekTarget = 0;
 			} else if (this.trackIndex >= this.tracks.length - 1) {
-				if (this.loopMode === 'queue' && this.tracks.length > 0) {
+				if (this.loopMode === LoopModes.queue && this.tracks.length > 0) {
 					this.trackIndex = 0;
 					this.progressSeconds = 0;
 					this.seekTarget = 0;

@@ -11,7 +11,7 @@ import Strings from '../../Strings';
 import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
-import type { LoopMode, PlaybackStore } from '../../stores/Playback';
+import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playback';
 import { theme, topInset, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
@@ -440,7 +440,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		const elapsedText = formatDuration(progressSeconds);
 		const remainingText = `-${formatDuration(Math.max(0, track.duration - progressSeconds))}`;
 		const totalText = formatDuration(track.duration);
-		const loopMode = this.viewModel.loopMode ?? 'none';
+		const loopMode = this.viewModel.loopMode ?? LoopModes.none;
 		const loopIcon = getLoopModeIcon(loopMode);
 		const trackReleaseYear =
 			track.productionYear ??
@@ -583,7 +583,9 @@ export class NowPlayingSurface extends StatefulComponent<
 											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
 											tint={
-												loopMode === 'none' ? withAlpha(mutedOnSurfaceColor, 0.58) : onSurfaceColor
+												loopMode === LoopModes.none
+													? withAlpha(mutedOnSurfaceColor, 0.58)
+													: onSurfaceColor
 											}
 										/>
 										<TappableIcon
@@ -684,9 +686,9 @@ function formatDuration(seconds: number): string {
 
 function getLoopModeIcon(mode: LoopMode) {
 	switch (mode) {
-		case 'queue':
+		case LoopModes.queue:
 			return res.loopqueue;
-		case 'track':
+		case LoopModes.track:
 			return res.looptrack;
 		default:
 			return res.loopnone;

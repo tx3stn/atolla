@@ -2,7 +2,7 @@ export const ConnectionModes = {
 	mock: 'mock',
 	offline: 'offline',
 	online: 'online',
-};
+} as const;
 
 export type ConnectionMode = (typeof ConnectionModes)[keyof typeof ConnectionModes];
 

@@ -3,15 +3,9 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
+import { type SortOrder, SortOrders } from './SortOrder';
 
-export type SortOrder = 'a-z' | 'z-a' | 'new-old' | 'old-new';
-
-export const SortOrders = {
-	aToZ: 'a-z' as SortOrder,
-	newToOld: 'new-old' as SortOrder,
-	oldToNew: 'old-new' as SortOrder,
-	zToA: 'z-a' as SortOrder,
-};
+export { type SortOrder, SortOrders };
 
 const ALPHA_TOP = '0ABCDEFGHIJKLM'.split('');
 const ALPHA_BOTTOM = 'NOPQRSTUVWXYZ'.split('');

@@ -1,5 +1,5 @@
 import type { Playlist } from '../../models/Playlist';
-import { type SortOrder, SortOrders } from '../components/SortNavPanel';
+import { type SortOrder, SortOrders } from '../components/SortOrder';
 
 export type PlaylistSort = SortOrder;
 export { SortOrders as PlaylistSorts };

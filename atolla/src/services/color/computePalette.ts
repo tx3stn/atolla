@@ -1,3 +1,4 @@
+import type { MimeType } from '../../images/MimeType';
 import { type DominantColorCandidate, extractDominantColorCandidates } from './colorQuantization';
 import {
 	applyHueTint,
@@ -17,7 +18,7 @@ import { NEUTRAL_PALETTE } from './types';
 // Returns null if the image could not be decoded.
 export async function computePalette(
 	buffer: ArrayBuffer,
-	mimeType: string,
+	mimeType: MimeType,
 ): Promise<Palette | null> {
 	const pixels = await decodePixelSamples(buffer, mimeType);
 	if (!pixels) return null;
