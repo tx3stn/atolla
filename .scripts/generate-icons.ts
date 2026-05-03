@@ -1,4 +1,5 @@
-import { access, mkdir } from 'node:fs/promises';
+import { copyFileSync } from 'node:fs';
+import { access, copyFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
 import sharp from 'sharp';
@@ -12,10 +13,18 @@ type IconOutput = {
 
 const sourceSvgPath = resolve(process.cwd(), 'atolla/res/logo.svg');
 const androidIconPaddingRatio = 0.28;
+const iosIconPaddingRatio = 0.12;
 const defaultIconPaddingRatio = 0.01;
 
 const outputs: Array<IconOutput> = [
 	{ path: resolve(process.cwd(), 'generated/icons/ios/app-store-1024.png'), size: 1024 },
+	{
+		path: resolve(
+			process.cwd(),
+			'atolla/native/ios/Assets.xcassets/AppIcon.appiconset/icon-1024.png',
+		),
+		size: 1024,
+	},
 	{
 		path: resolve(process.cwd(), 'generated/icons/android/ic_launcher-48.png'),
 		size: 48,
@@ -109,14 +118,17 @@ const outputs: Array<IconOutput> = [
 
 async function generateIcons(): Promise<void> {
 	for (const output of outputs) {
+		console.log(`generating: ${output.path}`);
 		await mkdir(dirname(output.path), { recursive: true });
 
 		const isAndroidOutput = output.path.includes('/android/');
-		const padding = output.noPadding
-			? 0
-			: Math.round(
-					output.size * (isAndroidOutput ? androidIconPaddingRatio : defaultIconPaddingRatio),
-				);
+		const isIosOutput = output.path.includes('/AppIcon.appiconset/');
+		const paddingRatio = isAndroidOutput
+			? androidIconPaddingRatio
+			: isIosOutput
+				? iosIconPaddingRatio
+				: defaultIconPaddingRatio;
+		const padding = output.noPadding ? 0 : Math.round(output.size * paddingRatio);
 		const contentSize = output.size - padding * 2;
 		const fitMode = 'contain';
 
@@ -198,6 +210,12 @@ async function main(): Promise<void> {
 
 	console.log('Validating generated icons...');
 	await validateIcons();
+
+	console.log('Copying svg to ios liquid glass directory...');
+	copyFileSync(
+		'atolla/res/logo.svg',
+		'atolla/native/ios/Assets.xcassets/AppIcon.icon/Assets/logo.svg',
+	);
 
 	console.log(`Icon generation/validation complete: ${outputs.length} files OK`);
 }

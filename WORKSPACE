@@ -6,6 +6,18 @@ http_archive(
     name = "valdi",
     strip_prefix = "Valdi-beta-0.0.3",
     url = "https://github.com/Snapchat/Valdi/archive/beta-0.0.3.tar.gz",
+    patches = ["//:patches/valdi_rules_apple_maybe.patch"],
+    patch_args = ["-p1"],
+)
+
+# Override Valdi's pinned rules_apple 4.0.0 with 4.1.0, which adds .icon support
+# for iOS 26 Liquid Glass icons. 4.1.0 is the minimum version with .icon support
+# and is still compatible with Valdi's pinned rules_cc 0.0.12. Valdi's
+# dependencies.bzl is patched above to use maybe() so this pre-definition wins.
+http_archive(
+    name = "build_bazel_rules_apple",
+    sha256 = "20152b14d9a420afc15ace905c02fd6425ddceb084630f3f043b287adf0fcdbd",
+    url = "https://github.com/bazelbuild/rules_apple/releases/download/4.1.0/rules_apple.4.1.0.tar.gz",
 )
 
 http_archive(

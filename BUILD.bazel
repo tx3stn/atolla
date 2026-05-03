@@ -9,6 +9,7 @@ valdi_application(
     android_package = "com.tx3stn.atolla",
     android_resource_files = ["//atolla/native:android_launcher_icons"],
     ios_bundle_id = "com.tx3stn.atolla",
+    ios_app_icons = ["//atolla/native:ios_launcher_icons"],
     ios_families = ["iphone"],
     root_component_path = "App@atolla/src/App",
     title = "atolla",

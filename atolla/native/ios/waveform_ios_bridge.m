@@ -23,16 +23,15 @@ static const NSInteger kWaveformControlPoints  = 100;
     NSArray<AVAssetTrack *> *tracks = [asset tracksWithMediaType:AVMediaTypeAudio];
     if (tracks.count == 0) return nil;
 
-    // 500 Hz is sufficient for amplitude envelope extraction over 100 control
-    // points. AVFoundation resamples during decode so only ~500 samples/sec
-    // flow through the accumulation loop regardless of the source sample rate.
+    // 8000 Hz is the minimum AVFoundation accepts and still far exceeds what's
+    // needed for a 100-point amplitude envelope.
     NSDictionary *outputSettings = @{
         AVFormatIDKey:               @(kAudioFormatLinearPCM),
         AVLinearPCMBitDepthKey:      @32,
         AVLinearPCMIsFloatKey:       @YES,
         AVLinearPCMIsBigEndianKey:   @NO,
         AVLinearPCMIsNonInterleaved: @NO,
-        AVSampleRateKey:             @500.0,
+        AVSampleRateKey:             @8000.0,
     };
 
     NSError *error = nil;
@@ -50,7 +49,7 @@ static const NSInteger kWaveformControlPoints  = 100;
     // Derive total frame count from track duration + sample rate so each
     // decoded frame maps to the correct column across the full track length.
     const CMTime duration   = asset.duration;
-    const Float64 sampleRate = 500.0;
+    const Float64 sampleRate = 8000.0;
     const long long totalFrames = (duration.timescale > 0)
         ? (long long)(CMTimeGetSeconds(duration) * sampleRate + 0.5)
         : 0;

@@ -36,3 +36,4 @@ openapi.json
 generated/
 TODO.md
 image-cache-plan.md
+atolla/native/ios/Assets.xcassets/AppIcon.icon/Assets/*.svg

@@ -31,7 +31,7 @@
 		"compile": "bunx tsc --noEmit",
 		"format": "biome format --write .",
 		"icons:generate": "bun ./.scripts/generate-icons.ts",
-		"ios": "./.scripts/start-ios-simulator.sh",
+		"ios": "bun run icons:generate && ./.scripts/start-ios-simulator.sh",
 		"ios:fast": "FAST_DEV_BUILD=1 ./.scripts/start-ios-simulator.sh",
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true --unsafe .",
 		"reload": "./.scripts/android-hotreload.sh",

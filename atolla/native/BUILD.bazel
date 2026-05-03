@@ -4,6 +4,11 @@ load("@rules_kotlin//kotlin:android.bzl", "kt_android_library")
 package(default_visibility = ["//visibility:public"])
 
 filegroup(
+    name = "ios_launcher_icons",
+    srcs = glob(["ios/Assets.xcassets/AppIcon.*/**"]),
+)
+
+filegroup(
     name = "android_launcher_icons",
     srcs = glob([
         "android/res/drawable/*.xml",
@@ -86,6 +91,7 @@ objc_library(
     copts = ["-I."],
     deps = [
         "//atolla:atolla_api_objc",
+        ":blur_ios_bridge",
         ":palette_ios_bridge",
     ],
 )
