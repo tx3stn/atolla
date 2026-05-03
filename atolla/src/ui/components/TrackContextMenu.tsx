@@ -132,7 +132,12 @@ export class TrackContextMenu extends StatefulComponent<
 			},
 		];
 
-		<blur blurStyle={theme.modalBlurStyle} onTap={this.handleBackdropTap} style={styles.backdrop}>
+		<blur
+			accessibilityLabel='track-context-backdrop'
+			blurStyle={theme.modalBlurStyle}
+			onTap={this.handleBackdropTap}
+			style={styles.backdrop}
+		>
 			<layout style={styles.backdropCenter}>
 				<view accessibilityLabel='track-context-menu' style={styles.card}>
 					<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
