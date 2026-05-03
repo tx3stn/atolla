@@ -80,10 +80,13 @@ export class ScrobbleService {
 		const delta = nextProgress - currentPlay.lastProgressSeconds;
 
 		if (delta < 0) {
+			// Reset scrobbleTriggered only when the track restarts from the beginning,
+			// not on mid-song backward scrubs, to prevent double-scrobbling.
+			const isTrackRestart = nextProgress < 1;
 			this.trackPlay = {
 				activeListenSeconds: 0,
 				lastProgressSeconds: nextProgress,
-				scrobbleTriggered: false,
+				scrobbleTriggered: isTrackRestart ? false : currentPlay.scrobbleTriggered,
 				trackDurationSeconds: snapshot.trackDurationSeconds,
 				trackId: snapshot.trackId,
 			};
