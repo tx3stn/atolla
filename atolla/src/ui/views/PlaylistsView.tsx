@@ -170,7 +170,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
 		const transport = this.viewModel.transport as Transport & Partial<PagedPlaylistsTransport>;
 
-		if (!!this.viewModel.letterFilter || !transport.getPlaylistsPage) {
+		if (this.viewModel.letterFilter || !transport.getPlaylistsPage) {
 			if (!this.allPlaylists) {
 				return this.viewModel.transport.getAllPlaylists().then((playlists) => {
 					this.allPlaylists = sortPlaylists(playlists, sort);

@@ -12,17 +12,17 @@ import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
 import type { LoopMode, PlaybackStore } from '../../stores/Playback';
-import { theme, topInset } from '../../theme';
+import { theme, topInset, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
 import { ProgressBarWaveform } from './ProgressBarWaveform';
 import { TappableIcon } from './TappableIcon';
 import { Toast } from './Toast';
+import { TouchEventState } from './TouchEventState';
 import { TrackContextMenu } from './TrackContextMenu';
 import { TrackList, type TrackListEntry } from './TrackList';
 import { clearScheduledToast, scheduleToastDismiss } from './toastTimer';
 
-const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
 const MAX_VISIBLE_QUEUE_TRACKS = 30;
 
 export interface NowPlayingSurfaceViewModel {
@@ -680,15 +680,6 @@ function formatDuration(seconds: number): string {
 	const m = Math.floor(seconds / 60);
 	const s = Math.floor(seconds % 60);
 	return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-function withAlpha(hexColor: string, alpha: number): string {
-	const hex = hexColor.replace('#', '');
-	const r = Number.parseInt(hex.slice(0, 2), 16);
-	const g = Number.parseInt(hex.slice(2, 4), 16);
-	const b = Number.parseInt(hex.slice(4, 6), 16);
-	const normalizedAlpha = Math.max(0, Math.min(1, alpha));
-	return `rgba(${r},${g},${b},${normalizedAlpha})`;
 }
 
 function getLoopModeIcon(mode: LoopMode) {

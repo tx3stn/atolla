@@ -13,8 +13,7 @@ import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { theme, withAlpha } from '../../theme';
 import { CachedImage } from './CachedImage';
-
-const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
+import { TouchEventState } from './TouchEventState';
 
 export interface TrackListEntry {
 	artworkSource?: string | null;

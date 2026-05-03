@@ -10,8 +10,7 @@ import { ConnectivityFab } from './ConnectivityFab';
 import { LibraryHeaderTab } from './HeaderTab';
 import { type HeaderTab, HeaderTabs } from './HeaderTabs';
 import { SortNavPanel } from './SortNavPanel';
-
-const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
+import { TouchEventState } from './TouchEventState';
 
 interface LibraryHeaderViewModel {
 	activeTab: HeaderTab;

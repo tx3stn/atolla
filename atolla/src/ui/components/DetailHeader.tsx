@@ -18,9 +18,8 @@ import { LoopingArrowSpinner } from './LoopingArrowSpinner';
 import { Modal } from './Modal';
 import { TappableIcon } from './TappableIcon';
 import { Toast } from './Toast';
+import { TouchEventState } from './TouchEventState';
 import { clearScheduledToast, scheduleToastDismiss } from './toastTimer';
-
-const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
 
 export interface DetailHeaderViewModel {
 	animationsEnabled: boolean;

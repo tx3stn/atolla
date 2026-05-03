@@ -7,6 +7,7 @@ import Strings from '../../Strings';
 import type { ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
+import { TouchEventState } from './TouchEventState';
 
 export interface Card {
 	artworkKey: string;
@@ -30,7 +31,6 @@ export interface CardGridViewModel {
 	resolveArtworkSource?: (artworkKey: string) => string | null;
 }
 
-const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
 const CARD_LONG_PRESS_DELAY_MS = 500;
 
 export class CardGrid extends Component<CardGridViewModel> {
