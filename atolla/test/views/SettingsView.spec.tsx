@@ -1,11 +1,28 @@
 import 'jasmine/src/jasmine';
 import type { ClearCacheSelection } from 'atolla/src/services/ImageCache';
 import { Preferences } from 'atolla/src/stores/Preferences';
-import { SettingsView } from 'atolla/src/ui/views/SettingsView';
+import { SettingsView, type SettingsViewModel } from 'atolla/src/ui/views/SettingsView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { Component } from 'valdi_core/src/Component';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+
+// Wrapper that renders SettingsView alongside a DetachedSlotRenderer so that
+// slot-rendered modals appear in the same component tree as the main view.
+class SettingsViewWithSlot extends Component<Partial<SettingsViewModel>> {
+	private slot = new DetachedSlot();
+
+	onRender() {
+		const vm = this.viewModel as unknown as SettingsViewModel;
+		<view>
+			<SettingsView modalSlot={this.slot} {...vm} />
+			<DetachedSlotRenderer detachedSlot={this.slot} />
+		</view>;
+	}
+}
 
 function mockPreferences() {
 	return new Preferences({
@@ -49,7 +66,7 @@ describe('SettingsView', () => {
 	});
 
 	valdiIt('tapping logout button shows the confirm modal', async () => {
-		const instrumented = createComponent(SettingsView, {
+		const instrumented = createComponent(SettingsViewWithSlot, {
 			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
@@ -69,7 +86,7 @@ describe('SettingsView', () => {
 
 	valdiIt('calls onLogout when logout confirm modal is confirmed', async () => {
 		let called = false;
-		const instrumented = createComponent(SettingsView, {
+		const instrumented = createComponent(SettingsViewWithSlot, {
 			onLogout: () => {
 				called = true;
 			},
@@ -120,7 +137,7 @@ describe('SettingsView', () => {
 	});
 
 	valdiIt('tapping clear cache button shows the cache clear modal', async () => {
-		const instrumented = createComponent(SettingsView, {
+		const instrumented = createComponent(SettingsViewWithSlot, {
 			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
@@ -143,7 +160,7 @@ describe('SettingsView', () => {
 
 	valdiIt('calls onClearCache with selection when modal is confirmed', async () => {
 		let received: ClearCacheSelection | undefined;
-		const instrumented = createComponent(SettingsView, {
+		const instrumented = createComponent(SettingsViewWithSlot, {
 			onClearCache: (selection: ClearCacheSelection) => {
 				received = selection;
 			},
@@ -177,7 +194,7 @@ describe('SettingsView', () => {
 	});
 
 	valdiIt('shows toast after confirming cache clear', async () => {
-		const instrumented = createComponent(SettingsView, {
+		const instrumented = createComponent(SettingsViewWithSlot, {
 			onClearCache: () => {},
 			preferences: mockPreferences(),
 		});
@@ -332,7 +349,7 @@ describe('SettingsView', () => {
 	});
 
 	valdiIt('tapping delete all downloads button shows the confirm modal', async () => {
-		const instrumented = createComponent(SettingsView, {
+		const instrumented = createComponent(SettingsViewWithSlot, {
 			preferences: mockPreferences(),
 		});
 		const component = instrumented.getComponent();
@@ -352,7 +369,7 @@ describe('SettingsView', () => {
 
 	valdiIt('calls onClearDownloads when downloads clear modal is confirmed', async () => {
 		let called = false;
-		const instrumented = createComponent(SettingsView, {
+		const instrumented = createComponent(SettingsViewWithSlot, {
 			onClearDownloads: () => {
 				called = true;
 			},
