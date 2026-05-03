@@ -62,6 +62,11 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
+	private cachedDisplayAlbums: Array<Album> = [];
+	private cachedDisplayAlbumsRef: Array<Album> | null = null;
+	private cachedDisplaySortOrder: SortOrder | undefined = undefined;
+	private cachedDisplayLetterFilter: string | null | undefined = undefined;
+	private cachedDisplayIsOffline = false;
 
 	state: AlbumsState = {
 		albums: [],
@@ -235,6 +240,37 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		});
 	};
 
+	private getDisplayAlbums(): Array<Album> {
+		const sort = this.viewModel.sortOrder ?? SortOrders.newToOld;
+		const letterFilter = this.viewModel.letterFilter;
+		const isOffline = this.viewModel.isOfflineMode;
+
+		if (
+			this.state.albums === this.cachedDisplayAlbumsRef &&
+			sort === this.cachedDisplaySortOrder &&
+			letterFilter === this.cachedDisplayLetterFilter &&
+			isOffline === this.cachedDisplayIsOffline
+		) {
+			return this.cachedDisplayAlbums;
+		}
+
+		this.cachedDisplayAlbumsRef = this.state.albums;
+		this.cachedDisplaySortOrder = sort;
+		this.cachedDisplayLetterFilter = letterFilter;
+		this.cachedDisplayIsOffline = isOffline;
+
+		let albums = sortAlbumsForView(
+			this.state.albums,
+			sort,
+			shouldUseLocalSortedList(this.viewModel),
+		);
+		if (letterFilter) {
+			albums = albums.filter((a) => matchesLetterFilter(a.name, letterFilter));
+		}
+		this.cachedDisplayAlbums = albums;
+		return albums;
+	}
+
 	onRender(): void {
 		const {
 			imageCache,
@@ -245,15 +281,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			transport,
 		} = this.viewModel;
 
-		const sort = this.viewModel.sortOrder ?? SortOrders.newToOld;
-		let albums = shouldUseLocalSortedList(this.viewModel)
-			? sortAlbumsForView(this.state.albums, sort, true)
-			: sortAlbumsForView(this.state.albums, sort, false);
-
-		if (this.viewModel.letterFilter) {
-			const letter = this.viewModel.letterFilter;
-			albums = albums.filter((a) => matchesLetterFilter(a.name, letter));
-		}
+		const albums = this.getDisplayAlbums();
 
 		const cards: Array<Card> = albums.map((album) => ({
 			artworkKey: album.imageUrl ?? '',

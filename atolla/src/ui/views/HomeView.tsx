@@ -64,6 +64,9 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private loadGeneration = 0;
 	private shuffleLoader: ShuffleQueueLoader | null = null;
 	private shuffleLoadToken = 0;
+	private cachedRecentlyAddedCards: Array<Card> = [];
+	private cachedRecentlyAddedAlbumsRef: Array<Album> | null = null;
+	private cachedRecentlyAddedGridColumns = -1;
 
 	state: HomeState = {
 		albums: [],
@@ -186,8 +189,18 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	private createRecentlyAddedCards(): Array<Card> {
-		const limit = Math.max(1, this.viewModel.gridColumns) * 2;
-		return [...this.state.albums]
+		const { gridColumns } = this.viewModel;
+		if (
+			this.state.albums === this.cachedRecentlyAddedAlbumsRef &&
+			gridColumns === this.cachedRecentlyAddedGridColumns
+		) {
+			return this.cachedRecentlyAddedCards;
+		}
+
+		this.cachedRecentlyAddedAlbumsRef = this.state.albums;
+		this.cachedRecentlyAddedGridColumns = gridColumns;
+		const limit = Math.max(1, gridColumns) * 2;
+		this.cachedRecentlyAddedCards = [...this.state.albums]
 			.sort((left, right) => (right.releaseDate ?? '').localeCompare(left.releaseDate ?? ''))
 			.slice(0, limit)
 			.map((album) => ({
@@ -197,6 +210,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				primaryText: album.name,
 				secondaryText: album.artistName,
 			}));
+		return this.cachedRecentlyAddedCards;
 	}
 
 	private createRecentlyPlayedEntries(): Array<TrackListEntry> {

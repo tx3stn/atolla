@@ -12,18 +12,22 @@ import { buildImageSource } from './ImageSource';
 import type { IPaletteWorker } from './PaletteGenerationWorker';
 import { PaletteWorkerEntryPoint } from './PaletteGenerationWorker';
 
+const SLOW_PATH_CONCURRENCY = 2;
+
 export class PaletteGenerationQueue {
 	private queue: Array<string> = [];
-	private slowPathInProgress = false;
 	private slowPathQueue: Array<string> = [];
-	private workerClient: IWorkerServiceClient<IPaletteWorker>;
+	private slowPathInFlight = new Set<string>();
+	private idleSlowPathWorkers: Array<IWorkerServiceClient<IPaletteWorker>>;
 
 	constructor(private readonly paletteService: ArtworkPaletteService) {
-		this.workerClient = startWorkerService(PaletteWorkerEntryPoint, []);
+		this.idleSlowPathWorkers = Array.from({ length: SLOW_PATH_CONCURRENCY }, () =>
+			startWorkerService(PaletteWorkerEntryPoint, []),
+		);
 	}
 
 	dispose(): void {
-		this.workerClient.dispose();
+		for (const worker of this.idleSlowPathWorkers) worker.dispose();
 	}
 
 	// Push to the front of the queue (used when an album page is opened).
@@ -96,7 +100,11 @@ export class PaletteGenerationQueue {
 	}
 
 	private enqueueSlowPath(url: string): void {
-		if (this.paletteService.hasPalette(url) || this.slowPathQueue.includes(url)) {
+		if (
+			this.paletteService.hasPalette(url) ||
+			this.slowPathQueue.includes(url) ||
+			this.slowPathInFlight.has(url)
+		) {
 			return;
 		}
 		this.slowPathQueue.push(url);
@@ -104,26 +112,30 @@ export class PaletteGenerationQueue {
 	}
 
 	private processSlowPathQueue(): void {
-		if (this.slowPathInProgress || this.slowPathQueue.length === 0) {
-			return;
+		while (this.idleSlowPathWorkers.length > 0 && this.slowPathQueue.length > 0) {
+			// biome-ignore lint/style/noNonNullAssertion: both lengths checked above
+			const worker = this.idleSlowPathWorkers.pop()!;
+			// biome-ignore lint/style/noNonNullAssertion: both lengths checked above
+			const url = this.slowPathQueue.shift()!;
+			this.slowPathInFlight.add(url);
+			void this.processSlowPathUrl(worker, url).finally(() => {
+				this.slowPathInFlight.delete(url);
+				this.idleSlowPathWorkers.push(worker);
+				this.processSlowPathQueue();
+			});
 		}
-
-		this.slowPathInProgress = true;
-		// biome-ignore lint/style/noNonNullAssertion: length checked above
-		const url = this.slowPathQueue.shift()!;
-		void this.processSlowPathUrl(url).finally(() => {
-			this.slowPathInProgress = false;
-			this.processSlowPathQueue();
-		});
 	}
 
-	private async processSlowPathUrl(url: string): Promise<void> {
+	private async processSlowPathUrl(
+		worker: IWorkerServiceClient<IPaletteWorker>,
+		url: string,
+	): Promise<void> {
 		if (this.paletteService.hasPalette(url)) return;
 
 		const entry = await this.loadBuffer(url);
 		if (!entry) return;
 
-		const palette = await this.workerClient.api.computePalette(entry.buffer, entry.mimeType);
+		const palette = await worker.api.computePalette(entry.buffer, entry.mimeType);
 		if (palette) {
 			await this.paletteService.persistPalette(url, palette);
 		}

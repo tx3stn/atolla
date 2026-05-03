@@ -62,6 +62,11 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
 	private unsubscribePlayback?: () => void;
+	private cachedDisplayArtists: Array<Artist> = [];
+	private cachedDisplayArtistsRef: Array<Artist> | null = null;
+	private cachedDisplaySortOrder: SortOrder | undefined = undefined;
+	private cachedDisplayLetterFilter: string | null | undefined = undefined;
+	private cachedDisplayIsOffline = false;
 
 	state: ArtistsState = {
 		artists: [],
@@ -236,6 +241,37 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		});
 	};
 
+	private getDisplayArtists(): Array<Artist> {
+		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
+		const letterFilter = this.viewModel.letterFilter;
+		const isOffline = this.viewModel.isOfflineMode;
+
+		if (
+			this.state.artists === this.cachedDisplayArtistsRef &&
+			sort === this.cachedDisplaySortOrder &&
+			letterFilter === this.cachedDisplayLetterFilter &&
+			isOffline === this.cachedDisplayIsOffline
+		) {
+			return this.cachedDisplayArtists;
+		}
+
+		this.cachedDisplayArtistsRef = this.state.artists;
+		this.cachedDisplaySortOrder = sort;
+		this.cachedDisplayLetterFilter = letterFilter;
+		this.cachedDisplayIsOffline = isOffline;
+
+		let artists = sortArtistsForView(
+			this.state.artists,
+			sort,
+			shouldUseLocalSortedList(this.viewModel),
+		);
+		if (letterFilter) {
+			artists = artists.filter((a) => matchesArtistLetterFilter(a.name, letterFilter));
+		}
+		this.cachedDisplayArtists = artists;
+		return artists;
+	}
+
 	onRender(): void {
 		const {
 			imageCache,
@@ -246,17 +282,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			transport,
 		} = this.viewModel;
 
-		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
-		let artists = sortArtistsForView(
-			this.state.artists,
-			sort,
-			shouldUseLocalSortedList(this.viewModel),
-		);
-
-		if (this.viewModel.letterFilter) {
-			const letter = this.viewModel.letterFilter;
-			artists = artists.filter((a) => matchesArtistLetterFilter(a.name, letter));
-		}
+		const artists = this.getDisplayArtists();
 
 		const cards: Array<Card> = artists.map((artist) => ({
 			artworkKey: artist.imageUrl ?? '',

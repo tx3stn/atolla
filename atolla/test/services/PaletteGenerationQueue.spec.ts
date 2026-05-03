@@ -219,7 +219,7 @@ describe('PaletteGenerationQueue', () => {
 			queue.dispose();
 		});
 
-		it('processes slow-path URLs one at a time', async () => {
+		it('processes slow-path URLs with SLOW_PATH_CONCURRENCY parallel workers', async () => {
 			let activeCount = 0;
 			let maxActiveCount = 0;
 
@@ -240,21 +240,21 @@ describe('PaletteGenerationQueue', () => {
 			queue.enqueue('https://example.com/b.jpg');
 			queue.enqueue('https://example.com/c.jpg');
 
-			// Drain multiple rounds to let sequential processing finish.
+			// Drain multiple rounds to let concurrent processing finish.
 			for (let i = 0; i < 10; i++) await tick();
 
-			expect(maxActiveCount).toBe(1);
+			expect(maxActiveCount).toBe(2);
 			queue.dispose();
 		});
 	});
 
 	describe('dispose', () => {
-		it('calls dispose on the worker client', () => {
+		it('calls dispose on all worker clients', () => {
 			const { queue } = makeQueue();
 
 			queue.dispose();
 
-			expect(mockWorkerClient.dispose).toHaveBeenCalledTimes(1);
+			expect(mockWorkerClient.dispose).toHaveBeenCalledTimes(2);
 		});
 	});
 });

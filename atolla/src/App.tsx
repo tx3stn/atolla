@@ -330,6 +330,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastPrefetchTracksRef: Array<Track> | null = null;
 	private lastPrefetchTrackIndex = -1;
 	private lastPrefetchTransport: Transport | null = null;
+	private lastWaveformPriorityTracksRef: Array<Track> | null = null;
+	private lastWaveformPriorityTrackIndex = -1;
 	private lastTrackNotificationStateKey = '';
 	private lastTrackNotificationPositionBucket = -1;
 	private readonly imageCache = new ImageCache({});
@@ -960,6 +962,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private handleWaveformPriority(): void {
 		if (!this.waveformQueue || !this.waveformService || this.playbackStore.tracks.length === 0)
 			return;
+
+		// Skip if neither the track list nor the active index changed — native
+		// bridge calls for every track are expensive and this fires on every
+		// progress tick.
+		if (
+			this.playbackStore.tracks === this.lastWaveformPriorityTracksRef &&
+			this.playbackStore.trackIndex === this.lastWaveformPriorityTrackIndex
+		) {
+			return;
+		}
+		this.lastWaveformPriorityTracksRef = this.playbackStore.tracks;
+		this.lastWaveformPriorityTrackIndex = this.playbackStore.trackIndex;
+
 		// Enqueue any playback-queue track that doesn't have a waveform yet.
 		// This covers failed tracks (retry) and downloaded tracks whose generation
 		// never started because they weren't the active track at download time.

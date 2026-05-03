@@ -53,13 +53,16 @@ export class WaveformGenerationQueue {
 	// front so their slots free up sooner.
 	reorderToMatch(trackIds: Array<string>): void {
 		if (this.queue.length > 1) {
-			const remaining = [...this.queue];
+			const byTrackId = new Map(this.queue.map((e) => [e.trackId, e]));
 			const ordered: Array<QueueEntry> = [];
 			for (const trackId of trackIds) {
-				const idx = remaining.findIndex((e) => e.trackId === trackId);
-				if (idx >= 0) ordered.push(...remaining.splice(idx, 1));
+				const entry = byTrackId.get(trackId);
+				if (entry) {
+					ordered.push(entry);
+					byTrackId.delete(trackId);
+				}
 			}
-			this.queue = [...ordered, ...remaining];
+			this.queue = [...ordered, ...byTrackId.values()];
 		}
 		this.abandonLowPriorityJobs(trackIds);
 		this.processNext();
