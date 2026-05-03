@@ -9,7 +9,8 @@ export class PersistentPaletteStore implements PaletteStore {
 		try {
 			const json = await this.store.fetchString(imageUrl);
 			if (!json) return null;
-			return JSON.parse(json) as Palette;
+			const parsed: unknown = JSON.parse(json);
+			return isPalette(parsed) ? parsed : null;
 		} catch {
 			return null;
 		}
@@ -30,4 +31,24 @@ export class PersistentPaletteStore implements PaletteStore {
 			// best-effort
 		}
 	}
+}
+
+function isColorHex(value: unknown): boolean {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		typeof (value as Record<string, unknown>).hex === 'string'
+	);
+}
+
+function isPalette(value: unknown): value is Palette {
+	if (typeof value !== 'object' || value === null) return false;
+	const p = value as Record<string, unknown>;
+	return (
+		isColorHex(p.accent) &&
+		isColorHex(p.muted_on_surface) &&
+		isColorHex(p.on_surface) &&
+		isColorHex(p.primary) &&
+		isColorHex(p.surface)
+	);
 }

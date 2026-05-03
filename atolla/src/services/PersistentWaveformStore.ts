@@ -10,7 +10,8 @@ export class PersistentWaveformStore implements WaveformStore {
 		try {
 			const json = await this.store.fetchString(STORE_KEY);
 			if (!json) return {};
-			return JSON.parse(json) as Record<string, WaveformRecord>;
+			const parsed: unknown = JSON.parse(json);
+			return isWaveformRecordMap(parsed) ? parsed : {};
 		} catch {
 			return {};
 		}
@@ -23,4 +24,22 @@ export class PersistentWaveformStore implements WaveformStore {
 			// best-effort persistence
 		}
 	}
+}
+
+const WAVEFORM_STATUSES = new Set(['pending', 'ready', 'failed']);
+
+function isWaveformRecord(value: unknown): value is WaveformRecord {
+	if (typeof value !== 'object' || value === null) return false;
+	const r = value as Record<string, unknown>;
+	return (
+		typeof r.trackId === 'string' &&
+		typeof r.status === 'string' &&
+		WAVEFORM_STATUSES.has(r.status) &&
+		(r.maskImageUrl === null || typeof r.maskImageUrl === 'string')
+	);
+}
+
+function isWaveformRecordMap(value: unknown): value is Record<string, WaveformRecord> {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+	return Object.values(value as Record<string, unknown>).every(isWaveformRecord);
 }

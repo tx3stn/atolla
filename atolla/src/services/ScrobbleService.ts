@@ -155,8 +155,8 @@ export class ScrobbleService {
 
 		try {
 			const raw = await this.store.fetchString(pendingScrobblesKey);
-			const parsed = JSON.parse(raw) as Array<PendingScrobble>;
-			this.pendingScrobbles = parsed.filter(isPendingScrobble);
+			const parsed: unknown = JSON.parse(raw);
+			this.pendingScrobbles = Array.isArray(parsed) ? parsed.filter(isPendingScrobble) : [];
 			this.sortPending();
 		} catch {
 			this.pendingScrobbles = [];
