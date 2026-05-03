@@ -16,6 +16,7 @@ import { TrackList } from './TrackList';
 export interface TrackContextMenuViewModel {
 	animationsEnabled?: boolean;
 	imageCache?: ImageCache;
+	onAlbumTap?: () => void;
 	onArtistTap?: () => void;
 	onDismiss: (toastMessage?: string) => void;
 	playbackStore: PlaybackStore;
@@ -97,6 +98,13 @@ export class TrackContextMenu extends StatefulComponent<
 		}
 	};
 
+	handleAlbumTap = (_trackId: string): void => {
+		if (this.viewModel.onAlbumTap) {
+			this.viewModel.onAlbumTap();
+			this.viewModel.onDismiss();
+		}
+	};
+
 	handleArtistTap = (): void => {
 		if (this.viewModel.onArtistTap) {
 			this.viewModel.onArtistTap();
@@ -149,7 +157,11 @@ export class TrackContextMenu extends StatefulComponent<
 							logoStyle={styles.logoImage}
 						/>
 					</view>
-					<TrackList imageCache={imageCache} tracks={previewEntry} />
+					<TrackList
+						imageCache={imageCache}
+						onTrackTap={this.viewModel.onAlbumTap ? this.handleAlbumTap : undefined}
+						tracks={previewEntry}
+					/>
 					<view style={styles.divider} />
 					<view
 						accessibilityLabel='track-context-play-next'

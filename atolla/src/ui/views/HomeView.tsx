@@ -258,6 +258,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
 				imageCache={imageCache}
+				onAlbumTap={track.albumId ? this.handleContextMenuAlbumTap : undefined}
 				onArtistTap={
 					onNavigateToArtist && track.artistId ? this.handleContextMenuArtistTap : undefined
 				}
@@ -267,6 +268,20 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				transport={transport}
 			/>;
 		});
+	};
+
+	private handleContextMenuAlbumTap = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track?.albumId) return;
+		const album: Album = {
+			artistId: track.artistId ?? '',
+			artistName: track.artistName ?? '',
+			id: track.albumId,
+			imageUrl: track.albumImageUrl,
+			name: track.albumName ?? '',
+		};
+		this.handleContextMenuDismiss();
+		this.viewModel.onOpenAlbum(album);
 	};
 
 	private handleContextMenuArtistTap = (): void => {

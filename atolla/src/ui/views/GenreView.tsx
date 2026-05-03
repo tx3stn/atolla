@@ -5,6 +5,7 @@ import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Album } from '../../models/Album';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
@@ -21,6 +22,7 @@ import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import type { NavBarContext } from '../NavBarContext';
+import { AlbumView } from './AlbumView';
 
 const TRACK_PAGE_SIZE = 50;
 
@@ -93,6 +95,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
 				imageCache={imageCache}
+				onAlbumTap={track.albumId ? this.handleContextMenuAlbumTap : undefined}
 				onArtistTap={
 					onNavigateToArtist && track.artistId ? this.handleContextMenuArtistTap : undefined
 				}
@@ -102,6 +105,40 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				transport={transport}
 			/>;
 		});
+	};
+
+	handleContextMenuAlbumTap = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track?.albumId) return;
+		const album: Album = {
+			artistId: track.artistId ?? '',
+			artistName: track.artistName ?? '',
+			id: track.albumId,
+			imageUrl: track.albumImageUrl,
+			name: track.albumName ?? '',
+		};
+		this.handleContextMenuDismiss();
+		const { animationsEnabled, downloadService, imageCache, playbackStore, transport } =
+			this.viewModel;
+		this.navigationController.push(
+			AlbumView,
+			{
+				album,
+				animationsEnabled,
+				downloadService,
+				gridColumns: 3,
+				imageCache,
+				isHeaderVisible: false,
+				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
+				navBarContext: this.viewModel.navBarContext,
+				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+				playbackStore,
+				restoreHeaderOnDestroy: false,
+				transport,
+			},
+			{},
+			{ animated: animationsEnabled },
+		);
 	};
 
 	handleContextMenuDismiss = (): void => {
