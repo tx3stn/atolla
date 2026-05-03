@@ -220,8 +220,24 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			return;
 		}
 
+		const uniqueArtistIds = Array.from(
+			new Set(
+				tracks
+					.map(({ track }) => track.artistId)
+					.filter((artistId): artistId is string => artistId != null && artistId.length > 0),
+			),
+		);
+
 		this.setState({ downloadState: 'downloading' });
-		downloadService.downloadPlaylist({ playlist, tracks });
+		Promise.all(
+			uniqueArtistIds.map((artistId) => transport.getArtist(artistId).catch(() => null)),
+		).then((artists) => {
+			downloadService.downloadPlaylist({
+				artists: artists.filter((artist): artist is NonNullable<typeof artist> => artist != null),
+				playlist,
+				tracks,
+			});
+		});
 	};
 
 	handleRemoveDownloadTap = (): void => {

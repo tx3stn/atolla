@@ -274,6 +274,26 @@ describe('DownloadService', () => {
 				urls: ['https://img/genre-1.jpg'],
 			});
 		});
+
+		it('preloads artist images when artists are provided', async () => {
+			const { preloadCalls, service } = createService();
+			const playlist = makePlaylist('playlist-1');
+			const track = makeTrack('track-1');
+			const artist = { ...makeArtist('artist-1'), imageUrl: 'https://img/artist-1.jpg' };
+
+			service.downloadPlaylist({
+				artists: [artist],
+				playlist,
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track }],
+			});
+
+			await flush();
+
+			expect(preloadCalls).toContainEqual({
+				category: 'artist_image',
+				urls: ['https://img/artist-1.jpg'],
+			});
+		});
 	});
 
 	describe('downloadGenre', () => {
