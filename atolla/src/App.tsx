@@ -292,6 +292,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private paletteQueue!: PaletteGenerationQueue;
 	private waveformService!: WaveformService;
 	private waveformQueue!: WaveformGenerationQueue;
+	private hasBeenDestroyed = false;
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
 	private unsubscribeWaveform?: () => void;
@@ -428,6 +429,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					existingSession,
 					rememberedServerUrl,
 				]) => {
+					if (this.hasBeenDestroyed) return;
 					this.jellyfinClientDeviceIdOverride = this.normalizeJellyfinClientDeviceIdOverride(
 						jellyfinClientDeviceIdOverride,
 					);
@@ -474,11 +476,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				},
 			)
 			.catch(() => {
-				if (!this.state.isBootstrapped) {
-					this.initUserStores('shared');
-					this.transport = new OfflineTransport(this.downloadService);
-					this.completeBootstrap({ connectionMode: ConnectionModes.offline });
-				}
+				if (this.hasBeenDestroyed || this.state.isBootstrapped) return;
+				this.initUserStores('shared');
+				this.transport = new OfflineTransport(this.downloadService);
+				this.completeBootstrap({ connectionMode: ConnectionModes.offline });
 			});
 		this.downloadService.subscribe(() => {
 			this.setState({
@@ -551,6 +552,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		void store
 			.fetchString(RECENTLY_PLAYED_TRACKS_KEY)
 			.then((raw) => {
+				if (this.hasBeenDestroyed) return;
 				const parsed = JSON.parse(raw);
 				if (!Array.isArray(parsed)) {
 					this.recentlyPlayedTracks = [];
@@ -563,6 +565,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.setState({ version: this.state.version + 1 });
 			})
 			.catch(() => {
+				if (this.hasBeenDestroyed) return;
 				this.recentlyPlayedTracks = [];
 				this.setState({ version: this.state.version + 1 });
 			});
@@ -582,6 +585,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	onDestroy(): void {
+		this.hasBeenDestroyed = true;
 		this.playbackStore.persistNow();
 		if (this.bootstrapCommitTimer) {
 			clearTimeout(this.bootstrapCommitTimer);
