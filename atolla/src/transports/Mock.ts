@@ -79,9 +79,11 @@ export class MockTransport implements Transport {
 	}
 
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
-		return mockJellyfinAlbums
-			.filter((album) => (album.ArtistItems ?? []).some((artist) => artist.Id === artistId))
-			.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+		return sortMockAlbumsByDefaultOrder(
+			mockJellyfinAlbums.filter((album) =>
+				(album.ArtistItems ?? []).some((artist) => artist.Id === artistId),
+			),
+		).map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
 	async getAllPlaylists(): Promise<Array<Playlist>> {

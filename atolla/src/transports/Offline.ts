@@ -95,7 +95,7 @@ export class OfflineTransport implements Transport {
 				.map((id) => this.downloads.getAlbum(id)?.album)
 				.filter((a): a is Album => a != null);
 			if (albums.length > 0) {
-				return albums;
+				return sortAlbumsByDefaultOrder(albums);
 			}
 		}
 

@@ -242,8 +242,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				artists: artistResults.filter(
 					(artist): artist is NonNullable<typeof artist> => artist != null,
 				),
-				resolvedGenres,
 				playlist,
+				resolvedGenres,
 				tracks,
 			});
 		});

@@ -371,7 +371,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		language: DEFAULT_LANGUAGE,
 		libraryLetterFilter: null,
 		libraryResetNonce: 0,
-		librarySort: SortOrders.aToZ,
+		librarySort: SortOrders.newToOld,
 		nativeImageCacheDiskBytes: null,
 		nativeImageCacheDiskCount: null,
 		nextTrackSourceUrl: null,

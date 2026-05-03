@@ -171,7 +171,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	private fetchPage(page: number): Promise<AlbumPageResult> {
-		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
+		const sort = this.viewModel.sortOrder ?? SortOrders.newToOld;
 
 		if (shouldUseLocalSortedList(this.viewModel)) {
 			if (!this.allAlbums) {
@@ -245,7 +245,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			transport,
 		} = this.viewModel;
 
-		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
+		const sort = this.viewModel.sortOrder ?? SortOrders.newToOld;
 		let albums = shouldUseLocalSortedList(this.viewModel)
 			? sortAlbumsForView(this.state.albums, sort, true)
 			: sortAlbumsForView(this.state.albums, sort, false);
