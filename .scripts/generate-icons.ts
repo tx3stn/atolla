@@ -1,5 +1,5 @@
 import { copyFileSync } from 'node:fs';
-import { access, copyFile, mkdir } from 'node:fs/promises';
+import { access, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
 import sharp from 'sharp';
