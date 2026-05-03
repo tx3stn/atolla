@@ -2027,6 +2027,35 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.tryNavigatePendingAlbum();
 	};
 
+	handleHomeArtistTap = (artistId: string): void => {
+		if (!this.homeNavigationController) {
+			return;
+		}
+		const navigationController = this.homeNavigationController;
+		this.transport.getArtist(artistId).then((artist) => {
+			if (!artist) return;
+			navigationController.push(
+				ArtistView,
+				{
+					animationsEnabled: this.state.animationsEnabled,
+					artist,
+					downloadService: this.downloadService,
+					gridColumns: this.state.gridColumns,
+					imageCache: this.imageCache,
+					isHeaderVisible: false,
+					modalSlot: this.modalSlot,
+					navBarContext: this.buildHomeNavBarContext(),
+					onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
+					paletteQueue: this.paletteQueue,
+					playbackStore: this.playbackStore,
+					transport: this.transport,
+				},
+				{},
+				{ animated: this.state.animationsEnabled },
+			);
+		});
+	};
+
 	handleHomeAlbumTap = (album: Album): void => {
 		this.returnToSearchOnDetailClose = false;
 
@@ -2250,6 +2279,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 								connectionMode={this.state.connectionMode}
 								gridColumns={this.state.gridColumns}
 								homeAlbumsStore={this.homeAlbumsStore}
+								imageCache={this.imageCache}
+								modalSlot={this.modalSlot}
+								onNavigateToArtist={this.handleHomeArtistTap}
 								onOpenAlbum={this.handleHomeAlbumTap}
 								onRequestModeChange={this.requestModeChange}
 								playbackStore={this.playbackStore}

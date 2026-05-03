@@ -1,9 +1,11 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
+import type { ImageCache } from '../../services/ImageCache';
 import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
@@ -12,6 +14,7 @@ import type { Transport } from '../../transports/Transport';
 import type { CardDetailItem } from '../components/CardDetailList';
 import { CardDetailList } from '../components/CardDetailList';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ViewHeader } from '../components/ViewHeader';
 import {
@@ -31,6 +34,9 @@ export interface HomeViewModel {
 	connectionMode: ConnectionMode;
 	gridColumns: number;
 	homeAlbumsStore?: HomeAlbumsPersistence;
+	imageCache: ImageCache;
+	modalSlot?: DetachedSlot;
+	onNavigateToArtist?: (artistId: string) => void;
 	onOpenAlbum: (album: Album) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	playbackStore: PlaybackStore;
@@ -45,6 +51,7 @@ export interface HomeAlbumsPersistence {
 
 interface HomeState {
 	albums: Array<Album>;
+	contextMenuTrack: Track | null;
 	isLoadingAlbums: boolean;
 }
 
@@ -60,6 +67,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	state: HomeState = {
 		albums: [],
+		contextMenuTrack: null,
 		isLoadingAlbums: true,
 	};
 
@@ -236,6 +244,42 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		});
 	};
 
+	private handleRecentlyPlayedTrackLongPress = (track: Track): void => {
+		this.setState({ contextMenuTrack: track });
+		const {
+			animationsEnabled,
+			imageCache,
+			modalSlot,
+			onNavigateToArtist,
+			playbackStore,
+			transport,
+		} = this.viewModel;
+		modalSlot?.slotted(() => {
+			<TrackContextMenu
+				animationsEnabled={animationsEnabled}
+				imageCache={imageCache}
+				onArtistTap={
+					onNavigateToArtist && track.artistId ? this.handleContextMenuArtistTap : undefined
+				}
+				onDismiss={this.handleContextMenuDismiss}
+				playbackStore={playbackStore}
+				track={track}
+				transport={transport}
+			/>;
+		});
+	};
+
+	private handleContextMenuArtistTap = (): void => {
+		const artistId = this.state.contextMenuTrack?.artistId;
+		if (!artistId) return;
+		this.viewModel.onNavigateToArtist?.(artistId);
+	};
+
+	private handleContextMenuDismiss = (): void => {
+		this.viewModel.modalSlot?.slotted(() => {});
+		this.setState({ contextMenuTrack: null });
+	};
+
 	private createMixCards(): Array<Card> {
 		return [
 			{
@@ -368,6 +412,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 								<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyPlayed()} />
 								{recentlyPlayedTracks.length > 0 ? (
 									<TrackList
+										imageCache={this.viewModel.imageCache}
+										onTrackLongPress={this.handleRecentlyPlayedTrackLongPress}
 										onTrackTap={this.handleRecentlyPlayedTrackTap}
 										tracks={recentlyPlayedTracks}
 									/>
