@@ -1,5 +1,5 @@
 import { Style } from 'valdi_core/src/Style';
-import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
@@ -42,6 +42,7 @@ export interface ArtistViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	isHeaderVisible?: boolean;
+	modalSlot?: DetachedSlot;
 	navBarContext?: NavBarContext;
 	onExitFromSearchNavigation?: () => void;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
@@ -66,7 +67,6 @@ interface ArtistState {
 
 @NavigationPage(module)
 export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel, ArtistState> {
-	private modalSlot = new DetachedSlot();
 	private hasBeenDestroyed = false;
 	private loadGeneration = 0;
 	private unsubscribePlayback?: () => void;
@@ -93,9 +93,23 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	handleTrackLongPress = (track: Track): void => {
 		this.setState({ contextMenuTrack: track });
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		modalSlot?.slotted(() => {
+			<TrackContextMenu
+				animationsEnabled={animationsEnabled}
+				imageCache={imageCache}
+				onDismiss={this.handleContextMenuDismiss}
+				playbackStore={playbackStore}
+				track={track}
+				transport={transport}
+			/>;
+		});
 	};
 
 	handleContextMenuDismiss = (): void => {
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		modalSlot?.slotted(() => {});
 		this.setState({ contextMenuTrack: null });
 	};
 
@@ -184,6 +198,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				gridColumns,
 				imageCache,
 				isHeaderVisible: false,
+				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
 				navBarContext: this.viewModel.navBarContext,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				onNavigationContext,
@@ -241,6 +256,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				downloadService,
 				genre: resolvedGenre,
 				imageCache,
+				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
 				navBarContext: this.viewModel.navBarContext,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				playbackStore,
@@ -373,12 +389,11 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	}
 
 	onRender(): void {
-		const { artist, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		const { artist, animationsEnabled, imageCache } = this.viewModel;
 		const {
 			albums,
 			albumsLoaded,
 			allTracks,
-			contextMenuTrack,
 			downloadState,
 			isFooterVisible,
 			isHeaderVisible,
@@ -420,7 +435,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						fallbackText={artist.name}
 						imageCache={imageCache}
 						logoSource={artist.logoUrl || null}
-						modalSlot={this.modalSlot}
+						modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
 						onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 						onDownload={this.handleDownloadTap}
 						onHideHeaderGesture={() => {
@@ -470,7 +485,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 								<BioSection
 									bio={artist.bio}
 									logoUrl={artist.logoUrl}
-									modalSlot={this.modalSlot}
+									modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
 									title={artist.name}
 								/>
 							)}
@@ -506,17 +521,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						onTabTap={this.handleHeaderNavTabTap}
 					/>
 				)}
-				{contextMenuTrack && (
-					<TrackContextMenu
-						animationsEnabled={animationsEnabled}
-						imageCache={imageCache}
-						onDismiss={this.handleContextMenuDismiss}
-						playbackStore={playbackStore}
-						track={contextMenuTrack}
-						transport={transport}
-					/>
-				)}
-				<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 			</view>
 		</layout>;
 	}

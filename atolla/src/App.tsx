@@ -7,6 +7,7 @@ import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
 import { Locale } from 'valdi_core/src/localization/Locale';
 import { Style } from 'valdi_core/src/Style';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
@@ -315,6 +316,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private isResolvingSearchNavigation = false;
 	private returnToSearchOnDetailClose = false;
 	private nowPlayingOverlaySlot = new DetachedSlot();
+	private modalSlot = new DetachedSlot();
 	private pendingNavRestoreContext: LibraryNavContext | null = null;
 	private readonly minimumBootSplashMs = 750;
 	private bootstrapStartedAt = Date.now();
@@ -1588,6 +1590,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			gridColumns,
 			imageCache: this.imageCache,
 			isHeaderVisible: false,
+			modalSlot: this.modalSlot,
 			navBarContext: this.buildLibraryNavBarContext(),
 			onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 			onNavigationContext: this.handleNavigationContext,
@@ -1698,6 +1701,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						isHeaderVisible: false,
+						modalSlot: this.modalSlot,
 						navBarContext: this.buildLibraryNavBarContext(),
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
@@ -1720,6 +1724,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						isHeaderVisible: false,
+						modalSlot: this.modalSlot,
 						navBarContext: this.buildLibraryNavBarContext(),
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
@@ -1741,6 +1746,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						isHeaderVisible: false,
+						modalSlot: this.modalSlot,
 						navBarContext: this.buildLibraryNavBarContext(),
 						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
@@ -1904,6 +1910,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					gridColumns: this.state.gridColumns,
 					imageCache: this.imageCache,
 					isHeaderVisible: false,
+					modalSlot: this.modalSlot,
 					navBarContext: this.buildLibraryNavBarContext(),
 					onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 					paletteQueue: this.paletteQueue,
@@ -1971,6 +1978,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns: this.state.gridColumns,
 						imageCache: this.imageCache,
 						isHeaderVisible: false,
+						modalSlot: this.modalSlot,
 						navBarContext: this.buildLibraryNavBarContext(),
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
@@ -2034,6 +2042,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				downloadService: this.downloadService,
 				gridColumns: this.state.gridColumns,
 				imageCache: this.imageCache,
+				modalSlot: this.modalSlot,
 				navBarContext: this.buildHomeNavBarContext(),
 				onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
 				paletteQueue: this.paletteQueue,
@@ -2075,6 +2084,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					gridColumns: this.state.gridColumns,
 					imageCache: this.imageCache,
 					isHeaderVisible: false,
+					modalSlot: this.modalSlot,
 					navBarContext: this.buildLibraryNavBarContext(),
 					onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 					paletteQueue: this.paletteQueue,
@@ -2146,6 +2156,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				onSortChange: this.handleLibrarySortChange,
 				onTabTap: this.handleLibraryHeaderTabTap,
 			},
+			modalSlot: this.modalSlot,
 			nowPlayingOverlaySlot: this.nowPlayingOverlaySlot,
 			onFooterTabTap: this.handleFooterTabTap,
 		};
@@ -2163,6 +2174,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				onRequestModeChange: this.requestModeChange,
 				onTabTap: this.handleHomeHeaderTabTap,
 			},
+			modalSlot: this.modalSlot,
 			nowPlayingOverlaySlot: this.nowPlayingOverlaySlot,
 			onFooterTabTap: this.handleFooterTabTap,
 		};
@@ -2173,6 +2185,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		return {
 			activeFooterTab: this.state.activeFooterTab,
 			downloadingCount: this.state.downloadingCount,
+			modalSlot: this.modalSlot,
 			nowPlayingOverlaySlot: this.nowPlayingOverlaySlot,
 			onFooterTabTap: this.handleFooterTabTap,
 		};
@@ -2189,6 +2202,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				<ConnectionView
 					errorMessage={this.state.authErrorMessage}
 					isConnecting={this.state.isAuthenticating}
+					modalSlot={this.modalSlot}
 					onConnect={this.handleConnect}
 					onLanguageChange={this.handleLanguageChange}
 					quickConnectCode={this.state.quickConnectCode}
@@ -2196,6 +2210,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					serverUrl={this.state.serverUrlPrefill}
 				/>
 				{this.state.authToastMessage && <Toast message={this.state.authToastMessage} />}
+				<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 			</view>;
 			return;
 		}
@@ -2317,6 +2332,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							(this.state.imageCategoryCounts.playlist_image_thumb ?? 0)
 						}
 						jellyfinDeviceIdOverride={this.state.jellyfinClientDeviceIdOverride}
+						modalSlot={this.modalSlot}
 						onAnimationsChange={this.handleAnimationsChange}
 						onCacheSizeChange={this.handleCacheSizeChange}
 						onClearCache={this.handleClearCache}
@@ -2395,6 +2411,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				downloadingCount={this.state.downloadingCount}
 				onFooterTabTap={this.handleFooterTabTap}
 			/>
+			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 		</view>;
 	}
 }

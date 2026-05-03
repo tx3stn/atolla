@@ -1,5 +1,6 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type {
 	Label,
 	Layout,
@@ -101,6 +102,7 @@ export interface SettingsViewModel {
 	imageCategoryGenreImageCount?: number;
 	imageCategoryPlaylistImageCount?: number;
 	jellyfinDeviceIdOverride?: string;
+	modalSlot?: DetachedSlot;
 	onAnimationsChange?: (enabled: boolean) => void;
 	onCacheSizeChange?: (bytes: number) => void;
 	onClearCache?: (selection: ClearCacheSelection) => void;
@@ -120,25 +122,17 @@ export interface SettingsViewModel {
 }
 
 interface SettingsState {
-	showCacheClearModal: boolean;
 	showCacheToast: boolean;
-	showClearDownloadsModal: boolean;
 	showGridColumnsOptions: boolean;
 	showImageCacheOptions: boolean;
-	showLanguageModal: boolean;
-	showLogoutModal: boolean;
 	showTrackCacheLimitOptions: boolean;
 }
 
 export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsState> {
 	state: SettingsState = {
-		showCacheClearModal: false,
 		showCacheToast: false,
-		showClearDownloadsModal: false,
 		showGridColumnsOptions: false,
 		showImageCacheOptions: false,
-		showLanguageModal: false,
-		showLogoutModal: false,
 		showTrackCacheLimitOptions: false,
 	};
 
@@ -151,7 +145,45 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 	}
 
 	private handleClearCachePress = () => {
-		this.setState({ showCacheClearModal: true });
+		const vm = this.viewModel;
+		vm.modalSlot?.slotted(() => {
+			<CacheClearModal
+				counts={{
+					albumArt:
+						vm.imageCategoryAlbumArtCount != null
+							? { total: vm.imageCategoryAlbumArtCount }
+							: undefined,
+					albumArtBlurred:
+						vm.imageCategoryAlbumArtBlurredCount != null
+							? { total: vm.imageCategoryAlbumArtBlurredCount }
+							: undefined,
+					artistImage:
+						vm.imageCategoryArtistImageCount != null
+							? { total: vm.imageCategoryArtistImageCount }
+							: undefined,
+					artistLogo:
+						vm.imageCategoryArtistLogoCount != null
+							? { total: vm.imageCategoryArtistLogoCount }
+							: undefined,
+					genreImage:
+						vm.imageCategoryGenreImageCount != null
+							? { total: vm.imageCategoryGenreImageCount }
+							: undefined,
+					playlistImage:
+						vm.imageCategoryPlaylistImageCount != null
+							? { total: vm.imageCategoryPlaylistImageCount }
+							: undefined,
+					tracks:
+						vm.trackCacheCachedCount != null ? { total: vm.trackCacheCachedCount } : undefined,
+					waveformData:
+						vm.waveformCount != null
+							? { ready: vm.waveformReadyCount, total: vm.waveformCount }
+							: undefined,
+				}}
+				onCancel={this.handleCacheClearCancel}
+				onConfirm={this.handleCacheClearConfirm}
+			/>;
+		});
 	};
 
 	private handleCacheClearConfirm = (selection: ClearCacheSelection) => {
@@ -159,40 +191,61 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		if (this.toastTimer != null) {
 			clearTimeout(this.toastTimer);
 		}
-		this.setState({ showCacheClearModal: false, showCacheToast: true });
+		this.viewModel.modalSlot?.slotted(() => {});
+		this.setState({ showCacheToast: true });
 		this.toastTimer = setTimeout(() => {
 			this.setState({ showCacheToast: false });
 		}, 2500);
 	};
 
 	private handleCacheClearCancel = () => {
-		this.setState({ showCacheClearModal: false });
+		this.viewModel.modalSlot?.slotted(() => {});
 	};
 
 	private handleLogoutPress = () => {
-		this.setState({ showLogoutModal: true });
+		this.viewModel.modalSlot?.slotted(() => {
+			<Modal
+				body={Strings.settingsLogoutConfirm()}
+				cancelAccessibilityLabel='settings-logout-cancel-btn'
+				confirmAccessibilityLabel='settings-logout-confirm-btn'
+				modalAccessibilityLabel='settings-logout-modal'
+				onClose={this.handleLogoutCancel}
+				onConfirm={this.handleLogoutConfirm}
+				title={Strings.settingsLogoutButton()}
+			/>;
+		});
 	};
 
 	private handleLogoutConfirm = () => {
 		this.viewModel.onLogout?.();
-		this.setState({ showLogoutModal: false });
+		this.viewModel.modalSlot?.slotted(() => {});
 	};
 
 	private handleLogoutCancel = () => {
-		this.setState({ showLogoutModal: false });
+		this.viewModel.modalSlot?.slotted(() => {});
 	};
 
 	private handleClearDownloadsPress = () => {
-		this.setState({ showClearDownloadsModal: true });
+		this.viewModel.modalSlot?.slotted(() => {
+			<Modal
+				body={Strings.settingsDeleteAllDownloadsConfirm()}
+				cancelAccessibilityLabel='settings-downloads-clear-cancel-btn'
+				confirmAccessibilityLabel='settings-downloads-clear-confirm-btn'
+				modalAccessibilityLabel='settings-downloads-clear-modal'
+				onClose={this.handleClearDownloadsCancel}
+				onConfirm={this.handleClearDownloadsConfirm}
+				title={Strings.settingsDeleteAllDownloadsButton()}
+			/>;
+		});
 	};
 
 	private handleClearDownloadsConfirm = () => {
 		this.viewModel.onClearDownloads?.();
-		this.setState({ showClearDownloadsModal: false });
+		this.viewModel.modalSlot?.slotted(() => {});
 	};
 
 	private handleClearDownloadsCancel = () => {
-		this.setState({ showClearDownloadsModal: false });
+		this.viewModel.modalSlot?.slotted(() => {});
 	};
 
 	private handleTrackCacheLimitToggle = () => {
@@ -223,16 +276,23 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 	};
 
 	private handleLanguagePress = () => {
-		this.setState({ showLanguageModal: true });
+		const selectedLanguage = this.viewModel.selectedLanguage ?? DEFAULT_LANGUAGE;
+		this.viewModel.modalSlot?.slotted(() => {
+			<LanguageSelectModal
+				onCancel={this.handleLanguageCancel}
+				onSelect={this.handleLanguageSelect}
+				selectedLanguage={selectedLanguage}
+			/>;
+		});
 	};
 
 	private handleLanguageSelect = (code: LanguageCode) => {
 		this.viewModel.onLanguageChange?.(code);
-		this.setState({ showLanguageModal: false });
+		this.viewModel.modalSlot?.slotted(() => {});
 	};
 
 	private handleLanguageCancel = () => {
-		this.setState({ showLanguageModal: false });
+		this.viewModel.modalSlot?.slotted(() => {});
 	};
 
 	onRender(): void {
@@ -247,7 +307,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			jellyfinDeviceIdOverride,
 			onAnimationsChange,
 			onJellyfinDeviceIdOverrideChange,
-			trackCacheCachedCount,
 			trackCacheMaxTracks,
 		} = this.viewModel;
 		const selectedGridColumns = gridColumns ?? DEFAULT_GRID_COLUMNS;
@@ -432,80 +491,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							onTap={this.handleLanguagePress}
 						/>
 					</view>
-
-					{this.state.showLanguageModal && (
-						<LanguageSelectModal
-							onCancel={this.handleLanguageCancel}
-							onSelect={this.handleLanguageSelect}
-							selectedLanguage={selectedLanguage}
-						/>
-					)}
-
-					{this.state.showCacheClearModal && (
-						<CacheClearModal
-							counts={{
-								albumArt:
-									this.viewModel.imageCategoryAlbumArtCount != null
-										? { total: this.viewModel.imageCategoryAlbumArtCount }
-										: undefined,
-								albumArtBlurred:
-									this.viewModel.imageCategoryAlbumArtBlurredCount != null
-										? { total: this.viewModel.imageCategoryAlbumArtBlurredCount }
-										: undefined,
-								artistImage:
-									this.viewModel.imageCategoryArtistImageCount != null
-										? { total: this.viewModel.imageCategoryArtistImageCount }
-										: undefined,
-								artistLogo:
-									this.viewModel.imageCategoryArtistLogoCount != null
-										? { total: this.viewModel.imageCategoryArtistLogoCount }
-										: undefined,
-								genreImage:
-									this.viewModel.imageCategoryGenreImageCount != null
-										? { total: this.viewModel.imageCategoryGenreImageCount }
-										: undefined,
-								playlistImage:
-									this.viewModel.imageCategoryPlaylistImageCount != null
-										? { total: this.viewModel.imageCategoryPlaylistImageCount }
-										: undefined,
-								tracks:
-									trackCacheCachedCount != null ? { total: trackCacheCachedCount } : undefined,
-								waveformData:
-									this.viewModel.waveformCount != null
-										? {
-												ready: this.viewModel.waveformReadyCount,
-												total: this.viewModel.waveformCount,
-											}
-										: undefined,
-							}}
-							onCancel={this.handleCacheClearCancel}
-							onConfirm={this.handleCacheClearConfirm}
-						/>
-					)}
-
-					{this.state.showClearDownloadsModal && (
-						<Modal
-							body={Strings.settingsDeleteAllDownloadsConfirm()}
-							cancelAccessibilityLabel='settings-downloads-clear-cancel-btn'
-							confirmAccessibilityLabel='settings-downloads-clear-confirm-btn'
-							modalAccessibilityLabel='settings-downloads-clear-modal'
-							onClose={this.handleClearDownloadsCancel}
-							onConfirm={this.handleClearDownloadsConfirm}
-							title={Strings.settingsDeleteAllDownloadsButton()}
-						/>
-					)}
-
-					{this.state.showLogoutModal && (
-						<Modal
-							body={Strings.settingsLogoutConfirm()}
-							cancelAccessibilityLabel='settings-logout-cancel-btn'
-							confirmAccessibilityLabel='settings-logout-confirm-btn'
-							modalAccessibilityLabel='settings-logout-modal'
-							onClose={this.handleLogoutCancel}
-							onConfirm={this.handleLogoutConfirm}
-							title={Strings.settingsLogoutButton()}
-						/>
-					)}
 
 					{this.state.showCacheToast && <Toast message={Strings.settingsCacheClearedToast()} />}
 				</view>

@@ -1,5 +1,5 @@
 import { Style } from 'valdi_core/src/Style';
-import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
@@ -30,6 +30,7 @@ export interface GenreViewModel {
 	genre: Genre;
 	imageCache: ImageCache;
 	isHeaderVisible?: boolean;
+	modalSlot?: DetachedSlot;
 	navBarContext?: NavBarContext;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -53,7 +54,6 @@ interface GenreState {
 
 @NavigationPage(module)
 export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, GenreState> {
-	private modalSlot = new DetachedSlot();
 	private allTracks: Array<Track> | null = null;
 	private currentPage = 0;
 	private hasBeenDestroyed = false;
@@ -86,9 +86,27 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 	handleTrackLongPress = (track: Track): void => {
 		this.setState({ contextMenuTrack: track });
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		const { animationsEnabled, imageCache, onNavigateToArtist, playbackStore, transport } =
+			this.viewModel;
+		modalSlot?.slotted(() => {
+			<TrackContextMenu
+				animationsEnabled={animationsEnabled}
+				imageCache={imageCache}
+				onArtistTap={
+					onNavigateToArtist && track.artistId ? this.handleContextMenuArtistTap : undefined
+				}
+				onDismiss={this.handleContextMenuDismiss}
+				playbackStore={playbackStore}
+				track={track}
+				transport={transport}
+			/>;
+		});
 	};
 
 	handleContextMenuDismiss = (): void => {
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		modalSlot?.slotted(() => {});
 		this.setState({ contextMenuTrack: null });
 	};
 
@@ -352,7 +370,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 	onRender(): void {
 		const {
-			contextMenuTrack,
 			downloadState,
 			isFooterVisible,
 			isHeaderVisible,
@@ -362,7 +379,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			totalTrackCount,
 			tracks,
 		} = this.state;
-		const { genre, imageCache, onNavigateToArtist, playbackStore, transport } = this.viewModel;
+		const { genre, imageCache } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
@@ -384,7 +401,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 						downloadState={downloadState}
 						fallbackText={genre.name}
 						imageCache={this.viewModel.imageCache}
-						modalSlot={this.modalSlot}
+						modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
 						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 						onDownload={this.handleDownloadTap}
 						onHideHeaderGesture={() => {
@@ -456,22 +473,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 						onTabTap={this.handleHeaderNavTabTap}
 					/>
 				)}
-				{contextMenuTrack && (
-					<TrackContextMenu
-						animationsEnabled={this.viewModel.animationsEnabled}
-						imageCache={imageCache}
-						onArtistTap={
-							onNavigateToArtist && contextMenuTrack.artistId
-								? this.handleContextMenuArtistTap
-								: undefined
-						}
-						onDismiss={this.handleContextMenuDismiss}
-						playbackStore={playbackStore}
-						track={contextMenuTrack}
-						transport={transport}
-					/>
-				)}
-				<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 			</view>
 		</layout>;
 	}

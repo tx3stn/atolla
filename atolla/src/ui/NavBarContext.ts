@@ -18,6 +18,7 @@ export interface NavBarContext {
 	activeFooterTab: FooterTab;
 	downloadingCount: number;
 	header?: NavBarHeaderContext;
+	modalSlot?: DetachedSlot;
 	nowPlayingOverlaySlot?: DetachedSlot;
 	onFooterTabTap: (tab: FooterTab) => void;
 }

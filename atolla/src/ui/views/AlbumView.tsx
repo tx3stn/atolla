@@ -1,5 +1,5 @@
 import { Style } from 'valdi_core/src/Style';
-import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
@@ -40,6 +40,7 @@ export interface AlbumViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	isHeaderVisible?: boolean;
+	modalSlot?: DetachedSlot;
 	navBarContext?: NavBarContext;
 	onExitFromSearchNavigation?: () => void;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
@@ -63,7 +64,6 @@ interface AlbumState {
 
 @NavigationPage(module)
 export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, AlbumState> {
-	private modalSlot = new DetachedSlot();
 	private hasBeenDestroyed = false;
 	private loadGeneration = 0;
 	private unsubscribePlayback?: () => void;
@@ -110,6 +110,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					gridColumns,
 					imageCache,
 					isHeaderVisible: false,
+					modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
 					navBarContext: this.viewModel.navBarContext,
 					onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 					paletteQueue,
@@ -174,9 +175,24 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 	handleTrackLongPress = (track: Track): void => {
 		this.setState({ contextMenuTrack: track });
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		modalSlot?.slotted(() => {
+			<TrackContextMenu
+				animationsEnabled={animationsEnabled}
+				imageCache={imageCache}
+				onArtistTap={this.handleArtistLogoTap}
+				onDismiss={this.handleContextMenuDismiss}
+				playbackStore={playbackStore}
+				track={track}
+				transport={transport}
+			/>;
+		});
 	};
 
 	handleContextMenuDismiss = (): void => {
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		modalSlot?.slotted(() => {});
 		this.setState({ contextMenuTrack: null });
 	};
 
@@ -269,6 +285,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				downloadService,
 				genre: resolvedGenre,
 				imageCache,
+				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
 				navBarContext: this.viewModel.navBarContext,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				playbackStore,
@@ -386,16 +403,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	onRender(): void {
-		const {
-			artistLogoUrl,
-			contextMenuTrack,
-			downloadState,
-			isFooterVisible,
-			isHeaderVisible,
-			isLoading,
-			tracks,
-		} = this.state;
-		const { album, animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		const { artistLogoUrl, downloadState, isFooterVisible, isHeaderVisible, isLoading, tracks } =
+			this.state;
+		const { album, animationsEnabled, imageCache } = this.viewModel;
 		const albumGenres = normalizeGenres(album.genres);
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => {
@@ -427,7 +437,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						fallbackText={album.artistName}
 						imageCache={imageCache}
 						logoSource={artistLogoUrl}
-						modalSlot={this.modalSlot}
+						modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
 						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 						onArtistTap={this.handleArtistLogoTap}
 						onDownload={this.handleDownloadTap}
@@ -455,7 +465,11 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						/>
 					)}
 					{album.bio && (
-						<BioSection bio={album.bio} modalSlot={this.modalSlot} title={album.name} />
+						<BioSection
+							bio={album.bio}
+							modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
+							title={album.name}
+						/>
 					)}
 					{albumGenres.length > 0 && (
 						<GenrePills
@@ -486,18 +500,6 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						onTabTap={this.handleHeaderNavTabTap}
 					/>
 				)}
-				{contextMenuTrack && (
-					<TrackContextMenu
-						animationsEnabled={animationsEnabled}
-						imageCache={imageCache}
-						onArtistTap={this.handleArtistLogoTap}
-						onDismiss={this.handleContextMenuDismiss}
-						playbackStore={playbackStore}
-						track={contextMenuTrack}
-						transport={transport}
-					/>
-				)}
-				<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 			</view>
 		</layout>;
 	}

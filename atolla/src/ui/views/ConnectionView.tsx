@@ -2,6 +2,7 @@ import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { systemFont } from 'valdi_core/src/SystemFont';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
@@ -14,6 +15,7 @@ import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 export interface ConnectionViewModel {
 	errorMessage: string | null;
 	isConnecting: boolean;
+	modalSlot?: DetachedSlot;
 	onConnect: (serverUrl: string) => void;
 	onLanguageChange?: (code: LanguageCode) => void;
 	quickConnectCode: string | null;
@@ -23,7 +25,6 @@ export interface ConnectionViewModel {
 
 interface ConnectionState {
 	serverUrlInput: string;
-	showLanguageModal: boolean;
 }
 
 function normalizeInputValue(value: unknown): string {
@@ -60,20 +61,26 @@ function normalizeInputValue(value: unknown): string {
 export class ConnectionView extends StatefulComponent<ConnectionViewModel, ConnectionState> {
 	state: ConnectionState = {
 		serverUrlInput: this.viewModel.serverUrl,
-		showLanguageModal: false,
 	};
 
 	private handleLanguagePress = () => {
-		this.setState({ showLanguageModal: true });
+		const selectedLanguage = this.viewModel.selectedLanguage ?? DEFAULT_LANGUAGE;
+		this.viewModel.modalSlot?.slotted(() => {
+			<LanguageSelectModal
+				onCancel={this.handleLanguageCancel}
+				onSelect={this.handleLanguageSelect}
+				selectedLanguage={selectedLanguage}
+			/>;
+		});
 	};
 
 	private handleLanguageSelect = (code: LanguageCode) => {
 		this.viewModel.onLanguageChange?.(code);
-		this.setState({ showLanguageModal: false });
+		this.viewModel.modalSlot?.slotted(() => {});
 	};
 
 	private handleLanguageCancel = () => {
-		this.setState({ showLanguageModal: false });
+		this.viewModel.modalSlot?.slotted(() => {});
 	};
 
 	onViewModelUpdate(prevViewModel?: ConnectionViewModel): void {
@@ -179,14 +186,6 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 			>
 				<label style={styles.languageFlag} value={currentFlag} />
 			</view>
-
-			{this.state.showLanguageModal && (
-				<LanguageSelectModal
-					onCancel={this.handleLanguageCancel}
-					onSelect={this.handleLanguageSelect}
-					selectedLanguage={selectedLanguage}
-				/>
-			)}
 		</view>;
 	}
 }

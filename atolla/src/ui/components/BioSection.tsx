@@ -9,7 +9,7 @@ import { Modal } from './Modal';
 export interface BioSectionViewModel {
 	bio: string;
 	logoUrl?: string;
-	modalSlot: DetachedSlot;
+	modalSlot?: DetachedSlot;
 	title: string;
 }
 
@@ -21,11 +21,11 @@ export class BioSection extends Component<BioSectionViewModel> {
 			<label style={styles.sectionHeader} value={Strings.bio()} />
 			<view
 				onTap={() => {
-					modalSlot.slotted(() => {
+					modalSlot?.slotted(() => {
 						<Modal
 							body={bio}
 							logoUrl={logoUrl}
-							onClose={() => modalSlot.slotted(() => {})}
+							onClose={() => modalSlot?.slotted(() => {})}
 							title={title}
 						/>;
 					});
