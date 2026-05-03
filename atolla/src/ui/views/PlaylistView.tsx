@@ -25,6 +25,7 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 import type { NavBarContext } from '../NavBarContext';
 import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
+import { resolveGenreImageUrls } from './GenreNavigationResolver';
 import type { LibraryNavContext } from './LibraryView';
 
 const TRACK_PAGE_SIZE = 50;
@@ -228,12 +229,20 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			),
 		);
 
+		const allGenres = tracks.flatMap(({ track }) => track.genres ?? []);
+
 		this.setState({ downloadState: 'downloading' });
-		Promise.all(
-			uniqueArtistIds.map((artistId) => transport.getArtist(artistId).catch(() => null)),
-		).then((artists) => {
+		Promise.all([
+			Promise.all(
+				uniqueArtistIds.map((artistId) => transport.getArtist(artistId).catch(() => null)),
+			),
+			resolveGenreImageUrls(transport, allGenres),
+		]).then(([artistResults, resolvedGenres]) => {
 			downloadService.downloadPlaylist({
-				artists: artists.filter((artist): artist is NonNullable<typeof artist> => artist != null),
+				artists: artistResults.filter(
+					(artist): artist is NonNullable<typeof artist> => artist != null,
+				),
+				resolvedGenres,
 				playlist,
 				tracks,
 			});

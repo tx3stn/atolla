@@ -261,14 +261,19 @@ export class DownloadService {
 		tracks: Array<{ track: Track; streamUrl: string }>;
 		artistImageUrl?: string | null;
 		artistLogoUrl: string | null;
+		resolvedGenres?: Array<Genre>;
 	}): void {
-		const { album, artistImageUrl, tracks, artistLogoUrl } = params;
+		const { album, artistImageUrl, tracks, artistLogoUrl, resolvedGenres = [] } = params;
 		this.ensureLoaded().then(async () => {
 			this.preloadDownloadImages({
 				albumArtUrls: [album.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
 				artistImageUrls: [artistImageUrl],
 				artistLogoUrls: [artistLogoUrl],
-				genreArtUrls: album.genres?.map((genre) => genre.imageUrl) ?? [],
+				genreArtUrls: [
+					...resolvedGenres.map((g) => g.imageUrl),
+					...(album.genres?.map((g) => g.imageUrl) ?? []),
+					...tracks.flatMap(({ track }) => (track.genres ?? []).map((g) => g.imageUrl)),
+				],
 			});
 
 			this.upsertArtistEntry({
@@ -287,7 +292,15 @@ export class DownloadService {
 				trackIds: tracks.map((t) => t.track.id),
 			};
 			for (const { track, streamUrl } of tracks) {
-				this.addTrackRef(track, streamUrl, album.id, null, null, album.genres, artistLogoUrl);
+				this.addTrackRef(
+					track,
+					streamUrl,
+					album.id,
+					null,
+					null,
+					[...(album.genres ?? []), ...resolvedGenres],
+					artistLogoUrl,
+				);
 			}
 			await this.persistAll();
 
@@ -304,16 +317,18 @@ export class DownloadService {
 		playlist: Playlist;
 		artists?: Array<Artist>;
 		tracks: Array<{ track: Track; streamUrl: string; artistLogoUrl: string | null }>;
+		resolvedGenres?: Array<Genre>;
 	}): void {
-		const { artists = [], playlist, tracks } = params;
+		const { artists = [], playlist, tracks, resolvedGenres = [] } = params;
 		this.ensureLoaded().then(async () => {
 			this.preloadDownloadImages({
 				albumArtUrls: [playlist.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
 				artistImageUrls: artists.map((artist) => artist.imageUrl),
 				artistLogoUrls: tracks.map(({ artistLogoUrl }) => artistLogoUrl),
-				genreArtUrls: tracks.flatMap(({ track }) =>
-					(track.genres ?? []).map((genre) => genre.imageUrl),
-				),
+				genreArtUrls: [
+					...resolvedGenres.map((g) => g.imageUrl),
+					...tracks.flatMap(({ track }) => (track.genres ?? []).map((g) => g.imageUrl)),
+				],
 			});
 
 			for (const artist of artists) {
@@ -333,7 +348,15 @@ export class DownloadService {
 				trackIds: tracks.map((t) => t.track.id),
 			};
 			for (const { artistLogoUrl, streamUrl, track } of tracks) {
-				this.addTrackRef(track, streamUrl, null, null, playlist.id, track.genres, artistLogoUrl);
+				this.addTrackRef(
+					track,
+					streamUrl,
+					null,
+					null,
+					playlist.id,
+					[...(track.genres ?? []), ...resolvedGenres],
+					artistLogoUrl,
+				);
 			}
 
 			for (const { track, streamUrl } of tracks) {
@@ -350,8 +373,9 @@ export class DownloadService {
 		genre: Genre;
 		artists?: Array<Artist>;
 		tracks: Array<{ track: Track; streamUrl: string; artistLogoUrl: string | null }>;
+		resolvedGenres?: Array<Genre>;
 	}): void {
-		const { artists = [], genre, tracks } = params;
+		const { artists = [], genre, tracks, resolvedGenres = [] } = params;
 		this.ensureLoaded().then(async () => {
 			this.preloadDownloadImages({
 				albumArtUrls: [genre.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
@@ -359,6 +383,7 @@ export class DownloadService {
 				artistLogoUrls: tracks.map(({ artistLogoUrl }) => artistLogoUrl),
 				genreArtUrls: [
 					genre.imageUrl,
+					...resolvedGenres.map((g) => g.imageUrl),
 					...tracks.flatMap(({ track }) => (track.genres ?? []).map((g) => g.imageUrl)),
 				],
 			});
@@ -387,7 +412,7 @@ export class DownloadService {
 					null,
 					genre.id,
 					null,
-					[...(track.genres ?? []), genre],
+					[...(track.genres ?? []), genre, ...resolvedGenres],
 					artistLogoUrl,
 				);
 			}
@@ -409,8 +434,9 @@ export class DownloadService {
 			tracks: Array<{ track: Track; streamUrl: string }>;
 		}>;
 		artistLogoUrl: string | null;
+		resolvedGenres?: Array<Genre>;
 	}): void {
-		const { artist, albumEntries, artistLogoUrl } = params;
+		const { artist, albumEntries, artistLogoUrl, resolvedGenres = [] } = params;
 		this.ensureLoaded().then(async () => {
 			this.preloadDownloadImages({
 				albumArtUrls: albumEntries.flatMap(({ album, tracks }) => [
@@ -419,10 +445,13 @@ export class DownloadService {
 				]),
 				artistImageUrls: [artist.imageUrl],
 				artistLogoUrls: [artistLogoUrl],
-				genreArtUrls: albumEntries.flatMap(({ album, tracks }) => [
-					...(album.genres ?? []).map((genre) => genre.imageUrl),
-					...tracks.flatMap(({ track }) => (track.genres ?? []).map((genre) => genre.imageUrl)),
-				]),
+				genreArtUrls: [
+					...resolvedGenres.map((g) => g.imageUrl),
+					...albumEntries.flatMap(({ album, tracks }) => [
+						...(album.genres ?? []).map((g) => g.imageUrl),
+						...tracks.flatMap(({ track }) => (track.genres ?? []).map((g) => g.imageUrl)),
+					]),
+				],
 			});
 
 			this.upsertArtistEntry({
@@ -436,7 +465,15 @@ export class DownloadService {
 					trackIds: tracks.map((t) => t.track.id),
 				};
 				for (const { track, streamUrl } of tracks) {
-					this.addTrackRef(track, streamUrl, album.id, null, null, album.genres, artistLogoUrl);
+					this.addTrackRef(
+						track,
+						streamUrl,
+						album.id,
+						null,
+						null,
+						[...(album.genres ?? []), ...resolvedGenres],
+						artistLogoUrl,
+					);
 				}
 			}
 			await this.persistAll();

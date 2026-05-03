@@ -294,6 +294,29 @@ describe('DownloadService', () => {
 				urls: ['https://img/artist-1.jpg'],
 			});
 		});
+
+		it('preloads genre art and stores genre imageUrls when resolvedGenres are provided', async () => {
+			const { preloadCalls, service } = createService();
+			const playlist = makePlaylist('playlist-1');
+			const track = { ...makeTrack('track-1'), genres: [{ id: 'genre-1', name: 'Rock' }] };
+			const resolvedGenre = { id: 'genre-1', imageUrl: 'https://img/genre-1.jpg', name: 'Rock' };
+
+			service.downloadPlaylist({
+				playlist,
+				resolvedGenres: [resolvedGenre],
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track }],
+			});
+
+			await flush();
+
+			expect(preloadCalls).toContainEqual({
+				category: 'genre_art',
+				urls: ['https://img/genre-1.jpg'],
+			});
+
+			const genre = service.getAllGenres().find((e) => e.genre.id === 'genre-1');
+			expect(genre?.genre.imageUrl).toBe('https://img/genre-1.jpg');
+		});
 	});
 
 	describe('downloadGenre', () => {

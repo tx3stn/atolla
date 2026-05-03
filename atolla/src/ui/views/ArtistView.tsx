@@ -31,7 +31,7 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 import type { NavBarContext } from '../NavBarContext';
 import { AlbumView } from './AlbumView';
 import { sortArtistAlbums } from './ArtistViewSort';
-import { resolveGenreForNavigation } from './GenreNavigationResolver';
+import { resolveGenreForNavigation, resolveGenreImageUrls } from './GenreNavigationResolver';
 import { GenreView } from './GenreView';
 import type { LibraryNavContext } from './LibraryView';
 
@@ -174,24 +174,36 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			? Promise.resolve(artist.logoUrl)
 			: transport.getArtistLogoUrl(artist.id).catch(() => null);
 
-		Promise.all([
-			artistLogoUrlPromise,
-			Promise.all(
-				this.state.albums.map((album) =>
-					transport.getTracksByAlbum(album.id).then((tracks) => ({
-						album,
-						tracks: tracks
-							.map((track) => {
-								const streamUrl = transport.getTrackCacheUrl?.(track.id);
-								return streamUrl ? { streamUrl, track } : null;
-							})
-							.filter((t): t is { streamUrl: string; track: Track } => t !== null),
-					})),
-				),
+		const albumEntriesPromise = Promise.all(
+			this.state.albums.map((album) =>
+				transport.getTracksByAlbum(album.id).then((tracks) => ({
+					album,
+					tracks: tracks
+						.map((track) => {
+							const streamUrl = transport.getTrackCacheUrl?.(track.id);
+							return streamUrl ? { streamUrl, track } : null;
+						})
+						.filter((t): t is { streamUrl: string; track: Track } => t !== null),
+				})),
 			),
-		]).then(([artistLogoUrl, albumEntries]) => {
-			downloadService.downloadArtistAlbums({ albumEntries, artist, artistLogoUrl });
-		});
+		);
+
+		Promise.all([artistLogoUrlPromise, albumEntriesPromise]).then(
+			([artistLogoUrl, albumEntries]) => {
+				const allGenres = albumEntries.flatMap(({ album, tracks }) => [
+					...(album.genres ?? []),
+					...tracks.flatMap(({ track }) => track.genres ?? []),
+				]);
+				resolveGenreImageUrls(transport, allGenres).then((resolvedGenres) => {
+					downloadService.downloadArtistAlbums({
+						albumEntries,
+						artist,
+						artistLogoUrl,
+						resolvedGenres,
+					});
+				});
+			},
+		);
 	};
 
 	handleRemoveDownloadTap = (): void => {

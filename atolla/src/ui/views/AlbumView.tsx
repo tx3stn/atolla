@@ -28,7 +28,7 @@ import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import type { NavBarContext } from '../NavBarContext';
 import { ArtistView } from './ArtistView';
-import { resolveGenreForNavigation } from './GenreNavigationResolver';
+import { resolveGenreForNavigation, resolveGenreImageUrls } from './GenreNavigationResolver';
 import { GenreView } from './GenreView';
 import { isSameTrackQueue, resolveArtistLogoUrlsForTracks } from './HomeViewLogic';
 import type { LibraryNavContext } from './LibraryView';
@@ -219,38 +219,29 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			})
 			.filter((t): t is { streamUrl: string; track: Track } => t !== null);
 
-		const existingLogoUrl = this.state.artistLogoUrl;
-		if (existingLogoUrl) {
-			downloadService.downloadAlbum({
-				album,
-				artistImageUrl: this.state.artist?.imageUrl ?? null,
-				artistLogoUrl: existingLogoUrl,
-				tracks,
-			});
-			return;
-		}
+		const artistLogoUrlPromise = this.state.artistLogoUrl
+			? Promise.resolve(this.state.artistLogoUrl)
+			: transport.getArtistLogoUrl(album.artistId).catch(() => null);
 
-		transport
-			.getArtistLogoUrl(album.artistId)
-			.then((resolvedLogoUrl) => {
-				if (resolvedLogoUrl) {
-					this.setState({ artistLogoUrl: resolvedLogoUrl });
+		const allGenres = [
+			...(album.genres ?? []),
+			...tracks.flatMap(({ track }) => track.genres ?? []),
+		];
+
+		Promise.all([artistLogoUrlPromise, resolveGenreImageUrls(transport, allGenres)]).then(
+			([artistLogoUrl, resolvedGenres]) => {
+				if (artistLogoUrl && !this.state.artistLogoUrl) {
+					this.setState({ artistLogoUrl });
 				}
 				downloadService.downloadAlbum({
 					album,
 					artistImageUrl: this.state.artist?.imageUrl ?? null,
-					artistLogoUrl: resolvedLogoUrl,
+					artistLogoUrl,
+					resolvedGenres,
 					tracks,
 				});
-			})
-			.catch(() => {
-				downloadService.downloadAlbum({
-					album,
-					artistImageUrl: this.state.artist?.imageUrl ?? null,
-					artistLogoUrl: null,
-					tracks,
-				});
-			});
+			},
+		);
 	};
 
 	handleRemoveDownloadTap = (): void => {

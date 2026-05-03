@@ -23,6 +23,7 @@ import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import type { NavBarContext } from '../NavBarContext';
 import { AlbumView } from './AlbumView';
+import { resolveGenreImageUrls } from './GenreNavigationResolver';
 
 const TRACK_PAGE_SIZE = 50;
 
@@ -206,12 +207,20 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				),
 			);
 
-			Promise.all(
-				uniqueArtistIds.map((artistId) => transport.getArtist(artistId).catch(() => null)),
-			).then((artists) => {
+			const allTrackGenres = tracks.flatMap(({ track }) => track.genres ?? []);
+
+			Promise.all([
+				Promise.all(
+					uniqueArtistIds.map((artistId) => transport.getArtist(artistId).catch(() => null)),
+				),
+				resolveGenreImageUrls(transport, allTrackGenres),
+			]).then(([artistResults, resolvedGenres]) => {
 				downloadService.downloadGenre({
-					artists: artists.filter((artist): artist is NonNullable<typeof artist> => artist != null),
+					artists: artistResults.filter(
+						(artist): artist is NonNullable<typeof artist> => artist != null,
+					),
 					genre,
+					resolvedGenres,
 					tracks,
 				});
 			});
