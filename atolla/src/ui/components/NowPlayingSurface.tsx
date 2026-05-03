@@ -807,8 +807,6 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 		expandedAlbumLineStyle: new Style<Label>({
 			...theme.text.subLarger,
 			color: mutedOnSurfaceColor,
-			marginLeft: 12,
-			marginRight: 12,
 			marginTop: 12,
 			textAlign: 'center',
 			width: '100%',
@@ -827,8 +825,6 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 		expandedTrackNameStyle: new Style<Label>({
 			...theme.text.title,
 			color: onSurfaceColor,
-			marginLeft: 12,
-			marginRight: 12,
 			textAlign: 'center',
 			width: '100%',
 		}),
@@ -990,6 +986,7 @@ const styles = {
 		width: '100%',
 	}),
 	expandedTrackMetaTextInset: new Style<Layout>({
+		alignItems: 'center',
 		paddingLeft: 28,
 		paddingRight: 28,
 		width: '100%',
