@@ -1,5 +1,6 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
@@ -22,6 +23,7 @@ interface GenresViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	letterFilter?: string | null;
+	modalSlot?: DetachedSlot;
 	navBarContext?: NavBarContext;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
@@ -184,6 +186,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 							downloadService: this.viewModel.downloadService,
 							genre,
 							imageCache,
+							modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
 							navBarContext: this.viewModel.navBarContext,
 							onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 							onNavigateToArtist: this.viewModel.onNavigateToArtist,

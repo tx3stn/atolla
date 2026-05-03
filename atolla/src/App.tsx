@@ -2269,6 +2269,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						gridColumns={this.state.gridColumns}
 						imageCache={this.imageCache}
 						letterFilter={this.state.libraryLetterFilter}
+						modalSlot={this.modalSlot}
 						navBarContext={this.buildLibraryNavBarContext()}
 						onHeaderVisibilityChange={this.handleLibraryHeaderVisibilityChange}
 						onNavigateToArtist={this.handleNavigateToArtist}

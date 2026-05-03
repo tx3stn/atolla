@@ -1,6 +1,7 @@
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
@@ -37,6 +38,7 @@ export interface LibraryViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	letterFilter?: string | null;
+	modalSlot?: DetachedSlot;
 	navBarContext?: NavBarContext;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -156,6 +158,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 			gridColumns,
 			imageCache,
 			letterFilter,
+			modalSlot,
 			navBarContext,
 			onNavigateToArtist,
 			onHeaderVisibilityChange,
@@ -179,6 +182,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							imageCache={imageCache}
 							isOfflineMode={isOfflineMode}
 							letterFilter={letterFilter}
+							modalSlot={modalSlot}
 							navBarContext={navBarContext}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
@@ -203,6 +207,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							imageCache={imageCache}
 							isOfflineMode={isOfflineMode}
 							letterFilter={letterFilter}
+							modalSlot={modalSlot}
 							navBarContext={navBarContext}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
@@ -226,6 +231,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							gridColumns={gridColumns}
 							imageCache={imageCache}
 							letterFilter={letterFilter}
+							modalSlot={modalSlot}
 							navBarContext={navBarContext}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}
@@ -250,6 +256,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							gridColumns={gridColumns}
 							imageCache={imageCache}
 							letterFilter={letterFilter}
+							modalSlot={modalSlot}
 							navBarContext={navBarContext}
 							navigationController={navigationController}
 							onHeaderVisibilityChange={onHeaderVisibilityChange}

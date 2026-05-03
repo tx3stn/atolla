@@ -1,5 +1,6 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
@@ -25,6 +26,7 @@ export interface PlaylistsViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	letterFilter?: string | null;
+	modalSlot?: DetachedSlot;
 	navBarContext?: NavBarContext;
 	navigationController: NavigationController;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
@@ -258,6 +260,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 								downloadService: this.viewModel.downloadService,
 								gridColumns: this.viewModel.gridColumns,
 								imageCache,
+								modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
 								navBarContext: this.viewModel.navBarContext,
 								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 								onNavigateToArtist,
