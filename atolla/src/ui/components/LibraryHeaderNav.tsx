@@ -9,7 +9,7 @@ import type { ConnectionMode } from '../../transports/Model';
 import { ConnectivityFab } from './ConnectivityFab';
 import { LibraryHeaderTab } from './HeaderTab';
 import { type HeaderTab, HeaderTabs } from './HeaderTabs';
-import { SortNavPanel, type SortOrder, SortOrders } from './SortNavPanel';
+import { SortNavPanel } from './SortNavPanel';
 
 const TouchEventState = { Changed: 1, Ended: 2, Started: 0 } as const;
 
@@ -19,13 +19,11 @@ interface LibraryHeaderViewModel {
 	connectionMode: ConnectionMode;
 	onAlphabetLetterTap?: (letter: string | null) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
-	onSortChange?: (sort: SortOrder) => void;
 	onTabTap: (tabId: HeaderTab) => void;
 }
 
 interface LibraryHeaderState {
 	activeLetterFilter: string | null;
-	currentSort: SortOrder;
 	isPanelOpen: boolean;
 }
 
@@ -38,7 +36,6 @@ export class LibraryHeaderNav extends StatefulComponent<
 
 	state: LibraryHeaderState = {
 		activeLetterFilter: null,
-		currentSort: SortOrders.aToZ,
 		isPanelOpen: false,
 	};
 
@@ -95,11 +92,6 @@ export class LibraryHeaderNav extends StatefulComponent<
 		this.setState({ isPanelOpen: false });
 	};
 
-	private handleSortChange = (sort: SortOrder): void => {
-		this.setState({ currentSort: sort });
-		this.viewModel.onSortChange?.(sort);
-	};
-
 	private handleLetterTap = (letter: string): void => {
 		const next = this.state.activeLetterFilter === letter ? null : letter;
 		this.setState({ activeLetterFilter: next });
@@ -107,7 +99,7 @@ export class LibraryHeaderNav extends StatefulComponent<
 	};
 
 	onRender() {
-		const { isPanelOpen, currentSort, activeLetterFilter } = this.state;
+		const { isPanelOpen, activeLetterFilter } = this.state;
 
 		<view
 			accessibilityLabel='library-header-nav'
@@ -166,12 +158,7 @@ export class LibraryHeaderNav extends StatefulComponent<
 			{isPanelOpen && <view onTap={this.closeSortPanel} style={styles.dismissOverlay} />}
 
 			{isPanelOpen && (
-				<SortNavPanel
-					activeLetterFilter={activeLetterFilter}
-					currentSort={currentSort}
-					onLetterTap={this.handleLetterTap}
-					onSortChange={this.handleSortChange}
-				/>
+				<SortNavPanel activeLetterFilter={activeLetterFilter} onLetterTap={this.handleLetterTap} />
 			)}
 		</view>;
 	}
@@ -185,7 +172,6 @@ const styles = {
 		right: 0,
 		top: theme.headerHeight + topInset,
 	}),
-	lastTabWrap: new Style({}),
 	leadingFabSlot: new Style<Layout>({
 		alignItems: 'center',
 		justifyContent: 'flex-start',

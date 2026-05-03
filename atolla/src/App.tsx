@@ -95,7 +95,6 @@ import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
 import { LibraryHeaderNav } from './ui/components/LibraryHeaderNav';
 import { MockPlayer } from './ui/components/MockPlayer';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
-import { type SortOrder, SortOrders } from './ui/components/SortNavPanel';
 import { Toast } from './ui/components/Toast';
 import type { NavBarContext } from './ui/NavBarContext';
 import { AlbumView } from './ui/views/AlbumView';
@@ -135,7 +134,6 @@ interface AppState {
 	language: LanguageCode;
 	libraryLetterFilter: string | null;
 	libraryResetNonce: number;
-	librarySort: SortOrder;
 	nativeImageCacheDiskBytes: number | null;
 	nativeImageCacheDiskCount: number | null;
 	nextTrackSourceUrl: string | null;
@@ -269,7 +267,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		fetchString(key: string): Promise<string>;
 		storeString(key: string, value: string): Promise<void>;
 	};
-	private transport: Transport = new MockTransport();
+	private transport!: Transport;
 	private paletteService!: ArtworkPaletteService;
 	private downloadWorkerClient: IWorkerServiceClient<IDownloadNativeWorker> = startWorkerService(
 		DownloadNativeWorkerEntryPoint,
@@ -371,7 +369,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		language: DEFAULT_LANGUAGE,
 		libraryLetterFilter: null,
 		libraryResetNonce: 0,
-		librarySort: SortOrders.newToOld,
 		nativeImageCacheDiskBytes: null,
 		nativeImageCacheDiskCount: null,
 		nextTrackSourceUrl: null,
@@ -446,12 +443,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							existingSession.userId,
 							{ clientDeviceId: this.getEffectiveJellyfinClientDeviceId() },
 						);
-					} else if (mode === ConnectionModes.online) {
-						this.transport = new OfflineTransport(this.downloadService);
-					} else if (mode === ConnectionModes.offline) {
-						this.transport = new OfflineTransport(this.downloadService);
 					} else if (mode === ConnectionModes.mock) {
 						this.transport = new MockTransport();
+					} else {
+						this.transport = new OfflineTransport(this.downloadService);
 					}
 
 					const isAuthRequired = mode === ConnectionModes.online && existingSession == null;
@@ -1309,10 +1304,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	handleLibraryAlphabetLetterTap = (letter: string | null): void => {
 		this.setState({ libraryLetterFilter: letter });
-	};
-
-	handleLibrarySortChange = (sort: SortOrder): void => {
-		this.setState({ librarySort: sort });
 	};
 
 	handleLibraryHeaderVisibilityChange = (isVisible: boolean): void => {
@@ -2182,7 +2173,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				connectionMode: this.state.connectionMode,
 				onAlphabetLetterTap: this.handleLibraryAlphabetLetterTap,
 				onRequestModeChange: this.requestModeChange,
-				onSortChange: this.handleLibrarySortChange,
 				onTabTap: this.handleLibraryHeaderTabTap,
 			},
 			modalSlot: this.modalSlot,
@@ -2310,7 +2300,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						paletteQueue={this.paletteQueue}
 						playbackStore={this.playbackStore}
 						resetSignal={this.state.libraryResetNonce}
-						sortOrder={this.state.librarySort}
 						transport={this.transport}
 					/>
 				)}
@@ -2421,7 +2410,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						connectionMode={this.state.connectionMode}
 						onAlphabetLetterTap={this.handleLibraryAlphabetLetterTap}
 						onRequestModeChange={this.requestModeChange}
-						onSortChange={this.handleLibrarySortChange}
 						onTabTap={this.handleLibraryHeaderTabTap}
 					/>
 				)}

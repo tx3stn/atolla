@@ -488,7 +488,6 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						connectionMode={this.viewModel.navBarContext.header.connectionMode}
 						onAlphabetLetterTap={this.viewModel.navBarContext.header.onAlphabetLetterTap}
 						onRequestModeChange={this.viewModel.navBarContext.header.onRequestModeChange}
-						onSortChange={this.viewModel.navBarContext.header.onSortChange}
 						onTabTap={this.handleHeaderNavTabTap}
 					/>
 				)}
