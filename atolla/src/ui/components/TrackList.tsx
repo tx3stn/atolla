@@ -71,16 +71,32 @@ export class TrackList extends Component<TrackListViewModel> {
 	private draggingRowIdentities = new Set<string>();
 	private dragHandleRefByIdentity = new Map<string, ElementRef>();
 	private handleBeingPressedIdentity: string | null = null;
+	private hasBeenDestroyed = false;
 	private neighborBounceTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 	private neighborOffsetByIdentity = new Map<string, number>();
 	private rowIdentitiesByIndex: Array<string> = [];
 	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
+	private removeAnimationTimeout: ReturnType<typeof setTimeout> | null = null;
 	private pulseOverlayRefByIdentity = new Map<string, ElementRef>();
 	private removeActionRefByIdentity = new Map<string, ElementRef>();
 	private suppressNextTap = false;
 	private rowOffsetByIdentity = new Map<string, number>();
 	private rowRefByIdentity = new Map<string, ElementRef>();
 	private swipeContainerRefByIdentity = new Map<string, ElementRef>();
+
+	onDestroy(): void {
+		this.hasBeenDestroyed = true;
+		if (this.longPressTimeout) {
+			clearTimeout(this.longPressTimeout);
+			this.longPressTimeout = null;
+		}
+		if (this.removeAnimationTimeout) {
+			clearTimeout(this.removeAnimationTimeout);
+			this.removeAnimationTimeout = null;
+		}
+		for (const timeout of this.neighborBounceTimeouts.values()) clearTimeout(timeout);
+		this.neighborBounceTimeouts.clear();
+	}
 
 	onViewModelUpdate(prevViewModel: TrackListViewModel): void {
 		if (!prevViewModel || prevViewModel.tracks.length <= this.viewModel.tracks.length) return;
@@ -102,7 +118,10 @@ export class TrackList extends Component<TrackListViewModel> {
 			.slice(removedIndex)
 			.map((entry, i) => `${entry.id}-${removedIndex + i}`);
 
-		setTimeout(() => {
+		if (this.removeAnimationTimeout) clearTimeout(this.removeAnimationTimeout);
+		this.removeAnimationTimeout = setTimeout(() => {
+			this.removeAnimationTimeout = null;
+			if (this.hasBeenDestroyed) return;
 			for (const identity of shiftedIdentities) {
 				const containerRef = this.swipeContainerRefByIdentity.get(identity);
 				if (!containerRef) continue;
@@ -120,7 +139,9 @@ export class TrackList extends Component<TrackListViewModel> {
 				},
 			);
 
-			setTimeout(() => {
+			this.removeAnimationTimeout = setTimeout(() => {
+				this.removeAnimationTimeout = null;
+				if (this.hasBeenDestroyed) return;
 				this.animate(
 					{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.1 },
 					() => {
