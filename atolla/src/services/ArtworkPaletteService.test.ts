@@ -17,6 +17,11 @@ class MockPaletteStore implements PaletteStore {
 		return Promise.resolve();
 	}
 
+	clearAll(): Promise<void> {
+		this.data.clear();
+		return Promise.resolve();
+	}
+
 	seed(url: string, palette: Palette): void {
 		this.data.set(url, palette);
 	}

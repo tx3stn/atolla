@@ -12,6 +12,10 @@ function createMockPaletteService() {
 	const palettes = new Map<string, Palette>();
 	return {
 		_palettes: palettes,
+		clearAll: jasmine.createSpy('clearAll').and.callFake(() => {
+			palettes.clear();
+			return Promise.resolve();
+		}),
 		hasPalette: (url: string | null | undefined) => !!url && palettes.has(url),
 		persistPalette: jasmine
 			.createSpy('persistPalette')

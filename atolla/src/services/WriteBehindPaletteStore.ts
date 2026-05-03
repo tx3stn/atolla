@@ -29,6 +29,12 @@ export class WriteBehindPaletteStore implements PaletteStore {
 		return loaded;
 	}
 
+	async clearAll(): Promise<void> {
+		this.memory.clear();
+		this.pendingWrites.clear();
+		await this.inner.clearAll();
+	}
+
 	savePalette(imageUrl: string, palette: Palette): Promise<void> {
 		this.memory.set(imageUrl, palette);
 		this.pendingWrites.set(imageUrl, palette);

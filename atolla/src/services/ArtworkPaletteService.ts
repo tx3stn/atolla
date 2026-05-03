@@ -4,6 +4,7 @@ import type { Palette } from './color/types';
 import { NEUTRAL_PALETTE } from './color/types';
 
 export interface PaletteStore {
+	clearAll(): Promise<void>;
 	loadPalette(imageUrl: string): Promise<Palette | null>;
 	savePalette(imageUrl: string, palette: Palette): Promise<void>;
 }
@@ -68,6 +69,12 @@ export class ArtworkPaletteService {
 			this.lastError = String(err);
 			this.notify();
 		}
+	}
+
+	async clearAll(): Promise<void> {
+		this.cache.clear();
+		await this.store.clearAll();
+		this.notify();
 	}
 
 	async persistPalette(url: string, palette: Palette): Promise<void> {

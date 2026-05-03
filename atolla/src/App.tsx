@@ -1374,6 +1374,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.setState({ nextTrackSourceUrl: null, trackPlaybackSourceUrl: null });
 			this.handleTrackPrefetchQueueChange(true);
 		}
+		if (selection.albumArt) {
+			void this.paletteService?.clearAll();
+		}
 		if (selection.waveformData) {
 			this.waveformService?.clearAll();
 			try {

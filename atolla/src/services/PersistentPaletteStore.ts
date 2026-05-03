@@ -22,4 +22,12 @@ export class PersistentPaletteStore implements PaletteStore {
 			// best-effort persistence
 		}
 	}
+
+	async clearAll(): Promise<void> {
+		try {
+			await this.store.removeAll();
+		} catch {
+			// best-effort
+		}
+	}
 }
