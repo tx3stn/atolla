@@ -2,6 +2,7 @@ import { Device } from 'valdi_core/src/Device';
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 
 export const topInset = Device.getDisplayTopInset();
+const isAndroid = Device.isAndroid();
 
 const colors = {
 	active: '#2D78CE',
@@ -27,6 +28,8 @@ export const theme = {
 	colors: colors,
 	footerHeight: 52,
 	headerHeight: 52,
+	modalBackdropColor: isAndroid ? 'rgba(0,0,0,0.72)' : colors.transparent,
+	modalBlurStyle: 'regular',
 	scrollPaddingBottom: 80 * 3,
 	text: {
 		display: {

@@ -132,11 +132,7 @@ export class TrackContextMenu extends StatefulComponent<
 			},
 		];
 
-		<blur
-			blurStyle='systemThickMaterialDark'
-			onTap={this.handleBackdropTap}
-			style={styles.backdrop}
-		>
+		<blur blurStyle={theme.modalBlurStyle} onTap={this.handleBackdropTap} style={styles.backdrop}>
 			<layout style={styles.backdropCenter}>
 				<view accessibilityLabel='track-context-menu' style={styles.card}>
 					<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
@@ -253,7 +249,7 @@ const styles = {
 		zIndex: 2,
 	}),
 	backdrop: new Style<BlurView>({
-		backgroundColor: theme.colors.overlay,
+		backgroundColor: theme.modalBackdropColor,
 		bottom: 0,
 		height: '100%',
 		left: 0,

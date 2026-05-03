@@ -107,11 +107,7 @@ export class CacheClearModal extends StatefulComponent<
 			tracks ||
 			waveformData;
 
-		<blur
-			blurStyle='systemThickMaterialDark'
-			onTap={this.viewModel.onCancel}
-			style={styles.backdrop}
-		>
+		<blur blurStyle={theme.modalBlurStyle} onTap={this.viewModel.onCancel} style={styles.backdrop}>
 			<view onTap={this.viewModel.onCancel} style={styles.centeredContainer}>
 				<view
 					accessibilityLabel='cache-clear-modal'
@@ -214,7 +210,7 @@ const styles = {
 		flexDirection: 'row',
 	}),
 	backdrop: new Style<BlurView>({
-		backgroundColor: theme.colors.overlay,
+		backgroundColor: theme.modalBackdropColor,
 		bottom: 0,
 		left: 0,
 		position: 'absolute',

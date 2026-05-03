@@ -17,11 +17,7 @@ export class LanguageSelectModal extends Component<LanguageSelectModalViewModel>
 	onRender(): void {
 		const { selectedLanguage } = this.viewModel;
 
-		<blur
-			blurStyle='systemThickMaterialDark'
-			onTap={this.viewModel.onCancel}
-			style={styles.backdrop}
-		>
+		<blur blurStyle={theme.modalBlurStyle} onTap={this.viewModel.onCancel} style={styles.backdrop}>
 			<view onTap={this.viewModel.onCancel} style={styles.centeredContainer}>
 				<view
 					accessibilityLabel='language-select-modal'
@@ -47,7 +43,7 @@ export class LanguageSelectModal extends Component<LanguageSelectModalViewModel>
 
 const styles = {
 	backdrop: new Style<BlurView>({
-		backgroundColor: theme.colors.overlay,
+		backgroundColor: theme.modalBackdropColor,
 		bottom: 0,
 		left: 0,
 		position: 'absolute',

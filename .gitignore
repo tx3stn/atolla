@@ -25,6 +25,7 @@ bazel-workspace/
 *.jpg
 *.png
 
+.claude/
 .opencode/
 .specify/
 IDEA.md
@@ -34,6 +35,6 @@ openapi.json
 .planning/
 
 generated/
-TODO.md
+TODO*.md
 image-cache-plan.md
 atolla/native/ios/Assets.xcassets/AppIcon.icon/Assets/*.svg

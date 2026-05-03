@@ -35,7 +35,7 @@ export class Modal extends Component<ModalViewModel> {
 
 		<blur
 			accessibilityLabel={modalAccessibilityLabel}
-			blurStyle='systemThickMaterialDark'
+			blurStyle={theme.modalBlurStyle}
 			onTap={onClose}
 			style={styles.backdrop}
 		>
@@ -99,7 +99,7 @@ const styles = {
 	}),
 	backdrop: new Style({
 		alignItems: 'center' as const,
-		backgroundColor: theme.colors.overlay,
+		backgroundColor: theme.modalBackdropColor,
 		bottom: 0,
 		height: '100%',
 		justifyContent: 'center' as const,
