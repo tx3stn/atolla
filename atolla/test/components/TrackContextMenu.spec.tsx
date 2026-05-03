@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { TrackContextMenu } from 'atolla/src/ui/components/TrackContextMenu';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -45,7 +44,7 @@ function createViewModel(overrides = {}) {
 }
 
 describe('TrackContextMenu', () => {
-	valdiIt('adds track to queue and dismisses with added-to-queue toast message', () => {
+	valdiIt('adds track to queue and dismisses with added-to-queue toast message', async () => {
 		const { callOrder, dismissMessages, viewModel } = createViewModel();
 		const instrumented = createComponent(TrackContextMenu, viewModel);
 		const component = instrumented.getComponent();
@@ -61,7 +60,7 @@ describe('TrackContextMenu', () => {
 		expect(dismissMessages).toEqual(['added to queue']);
 	});
 
-	valdiIt('queues track to play next and dismisses with play-next toast message', () => {
+	valdiIt('queues track to play next and dismisses with play-next toast message', async () => {
 		const { callOrder, dismissMessages, viewModel } = createViewModel();
 		const instrumented = createComponent(TrackContextMenu, viewModel);
 		const component = instrumented.getComponent();
@@ -77,7 +76,7 @@ describe('TrackContextMenu', () => {
 		expect(dismissMessages).toEqual(['playing next']);
 	});
 
-	valdiIt('dismisses without toast when backdrop is tapped', () => {
+	valdiIt('dismisses without toast when backdrop is tapped', async () => {
 		const { callOrder, dismissMessages, viewModel } = createViewModel();
 		const instrumented = createComponent(TrackContextMenu, viewModel);
 		const component = instrumented.getComponent();

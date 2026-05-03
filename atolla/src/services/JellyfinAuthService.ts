@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { AuthErrors } from '../errors/AuthErrors';
 import type { ErrorConst } from '../errors/Const';
-import { JellyfinAuthStore, type JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
+import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
 
 interface QuickConnectResult {
 	Authenticated?: boolean;
@@ -52,8 +51,10 @@ interface JellyfinAuthServiceOptions {
 	now?: NowFn;
 	requestTimeoutMs?: number;
 	sleep?: SleepFn;
-	store?: JellyfinAuthStoreLike;
+	store: JellyfinAuthStoreLike;
 }
+
+declare function require(id: string): unknown;
 
 type SleepFn = (ms: number) => Promise<void>;
 type NowFn = () => number;
@@ -169,13 +170,15 @@ export class JellyfinAuthService {
 	private clientDeviceId: string;
 	private lastConnectionErrorDetail: string | null = null;
 
-	constructor(options: JellyfinAuthServiceOptions = {}) {
-		this.store = options.store ?? new JellyfinAuthStore();
+	constructor(options: JellyfinAuthServiceOptions) {
+		this.store = options.store;
 		this.httpClientFactory =
 			options.httpClientFactory ??
 			((baseUrl: string) => {
-				const { HTTPClient } = require('valdi_http/src/HTTPClient');
-				return new HTTPClient(baseUrl) as unknown as HTTPClientLike;
+				const mod = require('valdi_http/src/HTTPClient') as {
+					HTTPClient: new (url: string) => HTTPClientLike;
+				};
+				return new mod.HTTPClient(baseUrl);
 			});
 		this.isMockMode = options.isMockMode ?? false;
 		this.clientDeviceId = normalizeClientDeviceId(options.clientDeviceId);
@@ -225,7 +228,6 @@ export class JellyfinAuthService {
 
 	async startQuickConnect(serverUrl: string): Promise<QuickConnectStartResult> {
 		this.lastConnectionErrorDetail = null;
-		this.lastConnectionErrorContext = null;
 		const normalizedUrl = normalizeServerUrl(serverUrl);
 		if (this.isMockMode) {
 			return {
@@ -290,7 +292,6 @@ export class JellyfinAuthService {
 		pollIntervalMs = 2_000,
 	): Promise<void> {
 		this.lastConnectionErrorDetail = null;
-		this.lastConnectionErrorContext = null;
 		const normalizedUrl = normalizeServerUrl(serverUrl);
 		if (this.isMockMode) {
 			const delayMs = Math.max(0, this.mockApprovalDelayMs);
@@ -340,7 +341,6 @@ export class JellyfinAuthService {
 
 	async authenticateWithQuickConnect(serverUrl: string, secret: string): Promise<AuthSession> {
 		this.lastConnectionErrorDetail = null;
-		this.lastConnectionErrorContext = null;
 		const normalizedUrl = normalizeServerUrl(serverUrl);
 
 		if (this.isMockMode) {
@@ -511,7 +511,6 @@ export class JellyfinAuthService {
 
 	private rememberConnectionError(error: unknown, context?: string): void {
 		this.lastConnectionErrorDetail = extractErrorDetail(error);
-		this.lastConnectionErrorContext = context ?? null;
 		console.warn('[auth] connection error', {
 			context,
 			detail: this.lastConnectionErrorDetail,

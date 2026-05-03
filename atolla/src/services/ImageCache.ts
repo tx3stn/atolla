@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 export type ImageCategory =
 	| 'artist_image'
 	| 'artist_image_thumb'
@@ -27,7 +25,7 @@ interface ImageCacheStore {
 	remove?(key: string): Promise<void>;
 }
 
-export class ImageCacheManager {
+export class ImageCache {
 	constructor(private store: ImageCacheStore) {}
 
 	async clearSelected(selection: ClearCacheSelection): Promise<void> {
@@ -65,6 +63,3 @@ export class ImageCacheManager {
 		}
 	}
 }
-
-export { ImageCacheManager as ImageCache };
-export type ImageCache = ImageCacheManager;

@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 export interface RecentSearchPersistence {
 	fetchString(key: string): Promise<string>;
 	storeString(key: string, value: string): Promise<void>;

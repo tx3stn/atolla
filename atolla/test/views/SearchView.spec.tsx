@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { AlbumView } from 'atolla/src/ui/views/AlbumView';
@@ -21,8 +20,8 @@ function flushAsyncWork(): Promise<void> {
 	return Promise.resolve().then(() => Promise.resolve());
 }
 
-function makeSearchStore(initialRecent = []) {
-	let recent = [...initialRecent];
+function makeSearchStore(initialRecent: Array<string> = []) {
+	let recent: Array<string> = [...initialRecent];
 	return {
 		addRecentSearch: (term: string) => {
 			recent = [
@@ -36,11 +35,11 @@ function makeSearchStore(initialRecent = []) {
 }
 
 function makeNavigationController() {
-	let pushedComponent = null;
-	let pushedViewModel = null;
+	let pushedComponent: unknown = null;
+	let pushedViewModel: unknown = null;
 	return {
 		getPushed: () => ({ component: pushedComponent, viewModel: pushedViewModel }),
-		push: (component, viewModel) => {
+		push: (component: unknown, viewModel: unknown) => {
 			pushedComponent = component;
 			pushedViewModel = viewModel;
 		},
@@ -48,7 +47,7 @@ function makeNavigationController() {
 }
 
 describe('SearchView', () => {
-	valdiIt('starts with an empty query', () => {
+	valdiIt('starts with an empty query', async () => {
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
 			gridColumns: 3,
@@ -65,7 +64,7 @@ describe('SearchView', () => {
 		expect(component.state.query).toBe('');
 	});
 
-	valdiIt('updates query state when textfield changes', () => {
+	valdiIt('updates query state when textfield changes', async () => {
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
 			gridColumns: 3,
@@ -124,7 +123,7 @@ describe('SearchView', () => {
 	});
 
 	valdiIt('submits search and stores recent terms', async () => {
-		const searchCalls = [];
+		const searchCalls: Array<string> = [];
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
 			gridColumns: 3,
@@ -158,7 +157,7 @@ describe('SearchView', () => {
 	});
 
 	valdiIt('submits search from keyboard return', async () => {
-		const searchCalls = [];
+		const searchCalls: Array<string> = [];
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
 			gridColumns: 3,
@@ -187,7 +186,7 @@ describe('SearchView', () => {
 	});
 
 	valdiIt('accepts event-shaped submit payloads', async () => {
-		const searchCalls = [];
+		const searchCalls: Array<string> = [];
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
 			gridColumns: 3,
@@ -211,7 +210,7 @@ describe('SearchView', () => {
 		expect(component.state.lastSubmittedQuery).toBe('shoegaze');
 	});
 
-	valdiIt('opens artist/album/playlist views from tapped cards', () => {
+	valdiIt('opens artist/album/playlist views from tapped cards', async () => {
 		const navigationController = makeNavigationController();
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
@@ -246,14 +245,14 @@ describe('SearchView', () => {
 		expect(navigationController.getPushed().component).toBe(PlaylistView);
 	});
 
-	valdiIt('routes album/artist/playlist taps through app callback when provided', () => {
-		const routed = [];
+	valdiIt('routes album/artist/playlist taps through app callback when provided', async () => {
+		const routed: Array<{ kind: string }> = [];
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
-			onNavigateToLibraryResult: (target) => routed.push(target),
+			onNavigateToLibraryResult: (target: { kind: string }) => routed.push(target),
 			playbackStore: new PlaybackStore(),
 			searchStore: makeSearchStore(),
 			transport: {
@@ -279,7 +278,7 @@ describe('SearchView', () => {
 		expect(routed.map((entry) => entry.kind)).toEqual(['album', 'artist', 'playlist']);
 	});
 
-	valdiIt('plays only the tapped track from track list results', () => {
+	valdiIt('plays only the tapped track from track list results', async () => {
 		const playbackStore = new PlaybackStore();
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
@@ -314,7 +313,7 @@ describe('SearchView', () => {
 		expect(playbackStore.isPlaying).toBe(true);
 	});
 
-	valdiIt('renders search bar with accessibility labels', () => {
+	valdiIt('renders search bar with accessibility labels', async () => {
 		const instrumented = createComponent(SearchView, {
 			animationsEnabled: true,
 			gridColumns: 3,

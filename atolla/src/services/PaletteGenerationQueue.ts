@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
@@ -165,7 +164,10 @@ export class PaletteGenerationQueue {
 						return;
 					}
 					const bytes = loadedAsset as Uint8Array;
-					const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+					const buffer = bytes.buffer.slice(
+						bytes.byteOffset,
+						bytes.byteOffset + bytes.byteLength,
+					) as ArrayBuffer;
 					resolve({ buffer, mimeType: detectMimeType(bytes, url) });
 				},
 				AssetOutputType.BYTES,

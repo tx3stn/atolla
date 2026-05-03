@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { AlbumView } from 'atolla/src/ui/views/AlbumView';
 import { ArtistView } from 'atolla/src/ui/views/ArtistView';
@@ -14,11 +13,11 @@ const mockNavigator = {
 };
 
 function _makeNavigationController() {
-	let pushedComponent = null;
-	let pushedViewModel = null;
+	let pushedComponent: unknown = null;
+	let pushedViewModel: unknown = null;
 	const navigationController = {
 		getPushed: () => ({ component: pushedComponent, viewModel: pushedViewModel }),
-		push: (component, viewModel) => {
+		push: (component: unknown, viewModel: unknown) => {
 			pushedComponent = component;
 			pushedViewModel = viewModel;
 		},
@@ -39,7 +38,7 @@ const downloadService = {
 };
 
 describe('AlbumView', () => {
-	valdiIt('renders track rows when tracks are present in state', () => {
+	valdiIt('renders track rows when tracks are present in state', async () => {
 		const album = {
 			artistId: 'artist-1',
 			artistName: 'Artist One',
@@ -74,7 +73,7 @@ describe('AlbumView', () => {
 		expect(component.state.artistLogoUrl).toBe('https://logo.png');
 	});
 
-	valdiIt('plays loaded tracks and forwards artist logo on play tap', () => {
+	valdiIt('plays loaded tracks and forwards artist logo on play tap', async () => {
 		const album = {
 			artistId: 'artist-1',
 			artistName: 'Artist One',
@@ -87,15 +86,15 @@ describe('AlbumView', () => {
 			getTracksByAlbum: async () => tracks,
 		};
 
-		let playedTracks = null;
-		let playedAlbum = null;
+		let playedTracks: unknown = null;
+		let playedAlbum: unknown = null;
 		let logo = 'unset';
 		const playbackStore = {
-			play: (inputTracks, inputAlbum) => {
+			play: (inputTracks: unknown, inputAlbum: unknown) => {
 				playedTracks = inputTracks;
 				playedAlbum = inputAlbum;
 			},
-			setArtistLogoUrl: (inputLogo) => {
+			setArtistLogoUrl: (inputLogo: string) => {
 				logo = inputLogo;
 			},
 			subscribe: () => () => {},
@@ -117,7 +116,7 @@ describe('AlbumView', () => {
 		expect(logo).toBe('https://logo.png');
 	});
 
-	valdiIt('does not call play when tracks are empty', () => {
+	valdiIt('does not call play when tracks are empty', async () => {
 		const album = {
 			artistId: 'artist-1',
 			artistName: 'Artist One',
@@ -150,7 +149,7 @@ describe('AlbumView', () => {
 		expect(playCalls).toBe(0);
 	});
 
-	valdiIt('pushes ArtistView when detail header artist logo is tapped', () => {
+	valdiIt('pushes ArtistView when detail header artist logo is tapped', async () => {
 		const album = {
 			artistId: 'artist-1',
 			artistName: 'Artist One',
@@ -168,12 +167,17 @@ describe('AlbumView', () => {
 			track: null,
 		};
 
-		let pushedPage = null;
+		const captured: {
+			pushedPage: {
+				componentPath?: unknown;
+				componentViewModel?: { artist?: { id?: string } };
+			} | null;
+		} = { pushedPage: null };
 		const trackingNavigator = {
 			...mockNavigator,
 			__shouldDisableMakeOpaque: true,
-			pushComponent: (page) => {
-				pushedPage = page;
+			pushComponent: (page: typeof captured.pushedPage) => {
+				captured.pushedPage = page;
 			},
 		};
 		const instrumented = createComponent(
@@ -193,13 +197,13 @@ describe('AlbumView', () => {
 		);
 		artistLogo?.getAttribute('onTap')?.();
 
-		expect(pushedPage?.componentPath).toBe(ArtistView.componentPath);
-		expect(pushedPage?.componentViewModel?.artist?.id).toBe('artist-1');
+		expect(captured.pushedPage?.componentPath).toBe(ArtistView.componentPath);
+		expect(captured.pushedPage?.componentViewModel?.artist?.id).toBe('artist-1');
 	});
 
 	valdiIt(
 		'renders date-only release date and total duration in separate subheader columns when tracks are loaded',
-		() => {
+		async () => {
 			const album = {
 				artistId: 'artist-1',
 				artistName: 'Artist One',

@@ -1,19 +1,20 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
-import { ImageCacheManager } from 'atolla/src/services/ImageCache';
+import { ImageCache } from 'atolla/src/services/ImageCache';
 
 describe('ImageCacheManager', () => {
 	it('clears only selected image categories', async () => {
 		const store = new RecordingImageStore();
-		const cache = new ImageCacheManager(store);
+		const cache = new ImageCache(store);
 
 		await cache.clearSelected({
 			albumArt: true,
 			albumArtBlurred: false,
 			artistImage: false,
 			artistLogo: false,
+			genreImage: false,
 			playlistImage: true,
 			tracks: false,
+			waveformData: false,
 		});
 
 		expect(store.removeCalls.length).toBe(4);
@@ -29,15 +30,17 @@ describe('ImageCacheManager', () => {
 			'album_art:https://example.com/a.jpg': true,
 			'artist_image:https://example.com/b.jpg': true,
 		});
-		const cache = new ImageCacheManager(store);
+		const cache = new ImageCache(store);
 
 		await cache.clearSelected({
 			albumArt: true,
 			albumArtBlurred: true,
 			artistImage: false,
 			artistLogo: false,
+			genreImage: false,
 			playlistImage: false,
 			tracks: false,
+			waveformData: false,
 		});
 
 		expect(store.removeCalls).toContain('album_art:https://example.com/a.jpg');

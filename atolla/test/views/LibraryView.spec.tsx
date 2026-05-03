@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { HeaderTabs } from 'atolla/src/ui/components/HeaderTabs';
@@ -27,7 +26,7 @@ const stubTransport = {
 };
 
 describe('LibraryView', () => {
-	valdiIt('uses active tab from view model', () => {
+	valdiIt('uses active tab from view model', async () => {
 		const instrumented = createComponent(LibraryView, {
 			activeTab: HeaderTabs.albums,
 			animationsEnabled: true,
@@ -42,7 +41,7 @@ describe('LibraryView', () => {
 		expect(component.viewModel.activeTab).toBe(HeaderTabs.albums);
 	});
 
-	valdiIt('starts with navigation overlay visible', () => {
+	valdiIt('starts with navigation overlay visible', async () => {
 		const instrumented = createComponent(LibraryView, {
 			activeTab: HeaderTabs.artists,
 			animationsEnabled: true,

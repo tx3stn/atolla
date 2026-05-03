@@ -65,6 +65,18 @@
 			}
 		}
 	},
+	"overrides": [
+		{
+			"includes": ["**/*.spec.ts", "**/*.spec.tsx"],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"useAwait": "off"
+					}
+				}
+			}
+		}
+	],
 	"vcs": {
 		"clientKind": "git",
 		"defaultBranch": "main",

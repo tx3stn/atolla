@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { PlaylistView } from 'atolla/src/ui/views/PlaylistView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -29,7 +28,7 @@ const downloadService = {
 };
 
 describe('PlaylistView', () => {
-	valdiIt('renders track rows from state', () => {
+	valdiIt('renders track rows from state', async () => {
 		const playlist = { id: 'playlist-1', name: 'Roadtrip' };
 		const tracks = [
 			{ artistName: 'Artist One', duration: 120, id: 'track-1', name: 'Song One' },
@@ -57,7 +56,7 @@ describe('PlaylistView', () => {
 		expect(values).toContain('Song Two');
 	});
 
-	valdiIt('renders track count and total duration in header', () => {
+	valdiIt('renders track count and total duration in header', async () => {
 		const playlist = { id: 'playlist-1', name: 'Roadtrip' };
 		const transport = {
 			getTracksByPlaylist: async () => [

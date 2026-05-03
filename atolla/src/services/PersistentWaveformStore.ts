@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { PersistentStore } from 'persistence/src/PersistentStore';
 import type { WaveformRecord, WaveformStore } from './WaveformService';
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { type ConnectionMode, ConnectionModes } from '../transports/Model';
 

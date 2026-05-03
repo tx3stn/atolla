@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import type { Album } from 'atolla/src/models/Album';
 import type { Track } from 'atolla/src/models/Track';
@@ -61,7 +60,7 @@ describe('PaletteGenerationQueue', () => {
 
 		// Default: image load fails (resolves null) — native path also fails silently in test env.
 		spyOn(Asset, 'addAssetLoadObserver').and.callFake((_source, callback) => {
-			Promise.resolve().then(() => callback(null, 'not found'));
+			Promise.resolve().then(() => callback(undefined, 'not found'));
 			return { unsubscribe: jasmine.createSpy('unsubscribe') };
 		});
 	});
@@ -123,7 +122,7 @@ describe('PaletteGenerationQueue', () => {
 			const albums: Array<Album> = [
 				{ id: 'a1', imageUrl: 'https://example.com/new.jpg' } as Album,
 				{ id: 'a2', imageUrl: 'https://example.com/existing.jpg' } as Album,
-				{ id: 'a3', imageUrl: null } as Album,
+				{ id: 'a3', imageUrl: null } as unknown as Album,
 			];
 
 			queue.enqueueAlbums(albums);
@@ -139,7 +138,7 @@ describe('PaletteGenerationQueue', () => {
 
 		it('deduplicates URLs across multiple calls', async () => {
 			// Block slow path so the URL stays pending on second call.
-			Asset.addAssetLoadObserver.and.callFake((_source, _callback) => ({
+			(Asset.addAssetLoadObserver as jasmine.Spy).and.callFake((_source, _callback) => ({
 				unsubscribe: jasmine.createSpy(),
 			}));
 			const { queue } = makeQueue();
@@ -188,7 +187,7 @@ describe('PaletteGenerationQueue', () => {
 		beforeEach(() => {
 			// Provide a valid image buffer via addAssetLoadObserver.
 			const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-			Asset.addAssetLoadObserver.and.callFake((_source, callback) => {
+			(Asset.addAssetLoadObserver as jasmine.Spy).and.callFake((_source, callback) => {
 				const sub = { unsubscribe: jasmine.createSpy('unsubscribe') };
 				Promise.resolve().then(() => callback(pngBytes, undefined));
 				return sub;
@@ -224,7 +223,7 @@ describe('PaletteGenerationQueue', () => {
 			let activeCount = 0;
 			let maxActiveCount = 0;
 
-			Asset.addAssetLoadObserver.and.callFake((_source, callback) => {
+			(Asset.addAssetLoadObserver as jasmine.Spy).and.callFake((_source, callback) => {
 				activeCount++;
 				maxActiveCount = Math.max(maxActiveCount, activeCount);
 				const sub = { unsubscribe: jasmine.createSpy() };

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { CardGrid } from 'atolla/src/ui/components/CardGrid';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -15,7 +14,7 @@ const makeCard = (id: string, primaryText = 'Album', secondaryText = '2024') => 
 });
 
 describe('CardGrid', () => {
-	valdiIt('renders a tappable tile for each card', () => {
+	valdiIt('renders a tappable tile for each card', async () => {
 		const cards = [makeCard('1'), makeCard('2'), makeCard('3')];
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
@@ -30,7 +29,7 @@ describe('CardGrid', () => {
 		expect(tiles.length).toBe(3);
 	});
 
-	valdiIt('renders primary and secondary text labels for each card', () => {
+	valdiIt('renders primary and secondary text labels for each card', async () => {
 		const cards = [makeCard('1', 'My Album', '2023')];
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
@@ -50,15 +49,15 @@ describe('CardGrid', () => {
 		expect(values).toContain('2023');
 	});
 
-	valdiIt('calls onCardTap with id and kind when a card is tapped', () => {
+	valdiIt('calls onCardTap with id and kind when a card is tapped', async () => {
 		const cards = [makeCard('album-42', 'Tap Target', '2020')];
-		let tapped: { id: string; kind: string } | null = null;
+		const captured: { tapped: { id: string; kind: string } | null } = { tapped: null };
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
 			cards,
 			columnCount: 3,
-			onCardTap: (card) => {
-				tapped = card;
+			onCardTap: (card: { id: string; kind: string }) => {
+				captured.tapped = card;
 			},
 			resolveArtworkSource: () => null,
 		});
@@ -67,23 +66,26 @@ describe('CardGrid', () => {
 		const tiles = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		tiles[0].getAttribute('onTap')?.();
 
-		expect(tapped).not.toBeNull();
-		expect(tapped?.id).toBe('album-42');
-		expect(tapped?.kind).toBe('album');
+		expect(captured.tapped).not.toBeNull();
+		expect(captured.tapped?.id).toBe('album-42');
+		expect(captured.tapped?.kind).toBe('album');
 	});
 
-	valdiIt('calls onCardLongPress after hold and suppresses tap', () => {
+	valdiIt('calls onCardLongPress after hold and suppresses tap', async () => {
 		jasmine.clock().install();
 		try {
 			const cards = [makeCard('album-42', 'Long Press Target', '2020')];
 			let tapped = false;
-			let longPressed: { id: string; kind: string } | null = null;
+			const captured: { longPressed: { id: string; kind: string } | null } = { longPressed: null };
 			const instrumented = createComponent(CardGrid, {
 				accessibilityLabel: 'grid',
 				cards,
 				columnCount: 3,
-				onCardLongPress: (card) => {
-					longPressed = card;
+				onCardLongPress: (card: {
+					id: string;
+					kind: 'album' | 'artist' | 'genre' | 'playlist';
+				}) => {
+					captured.longPressed = card;
 				},
 				onCardTap: () => {
 					tapped = true;
@@ -100,16 +102,16 @@ describe('CardGrid', () => {
 			jasmine.clock().tick(500);
 			tiles[0].getAttribute('onTap')?.();
 
-			expect(longPressed).not.toBeNull();
-			expect(longPressed?.id).toBe('album-42');
-			expect(longPressed?.kind).toBe('album');
+			expect(captured.longPressed).not.toBeNull();
+			expect(captured.longPressed?.id).toBe('album-42');
+			expect(captured.longPressed?.kind).toBe('album');
 			expect(tapped).toBe(false);
 		} finally {
 			jasmine.clock().uninstall();
 		}
 	});
 
-	valdiIt('shows fallback label when no artwork source is resolved', () => {
+	valdiIt('shows fallback label when no artwork source is resolved', async () => {
 		const cards = [makeCard('1', 'Title', '2021')];
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
@@ -128,7 +130,7 @@ describe('CardGrid', () => {
 		expect(values).toContain('ALBUM');
 	});
 
-	valdiIt('renders an image when artwork source is provided', () => {
+	valdiIt('renders an image when artwork source is provided', async () => {
 		const cards = [makeCard('1')];
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
@@ -147,7 +149,7 @@ describe('CardGrid', () => {
 		expect(images[0].getAttribute('src')).toContain('atolla-cache://image?c=album_art_thumb&u=');
 	});
 
-	valdiIt('auto-loads more when prefetch trigger is laid out', () => {
+	valdiIt('auto-loads more when prefetch trigger is laid out', async () => {
 		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
 		let loadMoreCalls = 0;
 		const instrumented = createComponent(CardGrid, {
@@ -174,7 +176,7 @@ describe('CardGrid', () => {
 		expect(loadMoreCalls).toBe(1);
 	});
 
-	valdiIt('shows loading spinner label while loading next page', () => {
+	valdiIt('shows loading spinner label while loading next page', async () => {
 		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',
@@ -195,7 +197,7 @@ describe('CardGrid', () => {
 		expect(values).toContain('Loading more...');
 	});
 
-	valdiIt('places prefetch trigger after first row when using 4 columns', () => {
+	valdiIt('places prefetch trigger after first row when using 4 columns', async () => {
 		const cards = Array.from({ length: 8 }, (_, index) => makeCard(String(index + 1)));
 		const instrumented = createComponent(CardGrid, {
 			accessibilityLabel: 'grid',

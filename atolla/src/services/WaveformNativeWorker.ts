@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { IWorkerService } from 'worker/src/IWorkerService';
 import { WorkerServiceEntryPoint, workerService } from 'worker/src/WorkerServiceEntryPoint';
 import { generateAtollaWaveformAsync } from '../TrackPlaybackNative';

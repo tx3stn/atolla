@@ -33,7 +33,7 @@ import {
 	type IDownloadNativeWorker,
 } from './services/DownloadNativeWorker';
 import { DownloadService } from './services/DownloadService';
-import { type ClearCacheSelection, ImageCacheManager } from './services/ImageCache';
+import { type ClearCacheSelection, ImageCache } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
@@ -332,7 +332,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastPrefetchTransport: Transport | null = null;
 	private lastTrackNotificationStateKey = '';
 	private lastTrackNotificationPositionBucket = -1;
-	private readonly imageCache = new ImageCacheManager({});
+	private readonly imageCache = new ImageCache({});
 	private recentlyPlayedTracks: Array<Track> = [];
 	private lastObservedRecentTrackId: string | null = null;
 	private trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(

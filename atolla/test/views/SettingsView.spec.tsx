@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import type { ClearCacheSelection } from 'atolla/src/services/ImageCache';
 import { Preferences } from 'atolla/src/stores/Preferences';
@@ -16,7 +15,7 @@ function mockPreferences() {
 }
 
 describe('SettingsView', () => {
-	valdiIt('renders cache section title and clear cache label', () => {
+	valdiIt('renders cache section title and clear cache label', async () => {
 		const instrumented = createComponent(SettingsView, {
 			imageCacheMaxBytes: 2 * 1024 * 1024 * 1024,
 			onCacheSizeChange: () => {},
@@ -33,7 +32,7 @@ describe('SettingsView', () => {
 		expect(values).toContain('clear cache');
 	});
 
-	valdiIt('renders clear cache button with accessibility labels', () => {
+	valdiIt('renders clear cache button with accessibility labels', async () => {
 		const instrumented = createComponent(SettingsView, {
 			imageCacheMaxBytes: 2 * 1024 * 1024 * 1024,
 			onCacheSizeChange: () => {},
@@ -49,7 +48,7 @@ describe('SettingsView', () => {
 		expect(typeof clearCacheButton?.getAttribute('onTap')).toBe('function');
 	});
 
-	valdiIt('tapping logout button shows the confirm modal', () => {
+	valdiIt('tapping logout button shows the confirm modal', async () => {
 		const instrumented = createComponent(SettingsView, {
 			preferences: mockPreferences(),
 		});
@@ -68,7 +67,7 @@ describe('SettingsView', () => {
 		expect(modalConfirm).toBeTruthy();
 	});
 
-	valdiIt('calls onLogout when logout confirm modal is confirmed', () => {
+	valdiIt('calls onLogout when logout confirm modal is confirmed', async () => {
 		let called = false;
 		const instrumented = createComponent(SettingsView, {
 			onLogout: () => {
@@ -94,7 +93,7 @@ describe('SettingsView', () => {
 		expect(called).toBe(true);
 	});
 
-	valdiIt('does not call onLogout when logout confirm modal is cancelled', () => {
+	valdiIt('does not call onLogout when logout confirm modal is cancelled', async () => {
 		let called = false;
 		const instrumented = createComponent(SettingsView, {
 			onLogout: () => {
@@ -120,7 +119,7 @@ describe('SettingsView', () => {
 		expect(called).toBe(false);
 	});
 
-	valdiIt('tapping clear cache button shows the cache clear modal', () => {
+	valdiIt('tapping clear cache button shows the cache clear modal', async () => {
 		const instrumented = createComponent(SettingsView, {
 			preferences: mockPreferences(),
 		});
@@ -142,10 +141,10 @@ describe('SettingsView', () => {
 		expect(modal).toBeTruthy();
 	});
 
-	valdiIt('calls onClearCache with selection when modal is confirmed', () => {
+	valdiIt('calls onClearCache with selection when modal is confirmed', async () => {
 		let received: ClearCacheSelection | undefined;
 		const instrumented = createComponent(SettingsView, {
-			onClearCache: (selection) => {
+			onClearCache: (selection: ClearCacheSelection) => {
 				received = selection;
 			},
 			preferences: mockPreferences(),
@@ -177,7 +176,7 @@ describe('SettingsView', () => {
 		});
 	});
 
-	valdiIt('shows toast after confirming cache clear', () => {
+	valdiIt('shows toast after confirming cache clear', async () => {
 		const instrumented = createComponent(SettingsView, {
 			onClearCache: () => {},
 			preferences: mockPreferences(),
@@ -206,7 +205,7 @@ describe('SettingsView', () => {
 		expect(toast).toBeTruthy();
 	});
 
-	valdiIt('shows cached tracks dropdown options when tapped', () => {
+	valdiIt('shows cached tracks dropdown options when tapped', async () => {
 		const instrumented = createComponent(SettingsView, {
 			preferences: mockPreferences(),
 			trackCacheMaxTracks: 20,
@@ -229,10 +228,10 @@ describe('SettingsView', () => {
 		expect(option).toBeTruthy();
 	});
 
-	valdiIt('calls onTrackCacheMaxTracksChange when selecting a cached tracks option', () => {
+	valdiIt('calls onTrackCacheMaxTracksChange when selecting a cached tracks option', async () => {
 		let selected = 0;
 		const instrumented = createComponent(SettingsView, {
-			onTrackCacheMaxTracksChange: (count) => {
+			onTrackCacheMaxTracksChange: (count: number) => {
 				selected = count;
 			},
 			preferences: mockPreferences(),
@@ -256,7 +255,7 @@ describe('SettingsView', () => {
 		expect(selected).toBe(30);
 	});
 
-	valdiIt('shows grid columns options when tapped', () => {
+	valdiIt('shows grid columns options when tapped', async () => {
 		const instrumented = createComponent(SettingsView, {
 			gridColumns: 3,
 			preferences: mockPreferences(),
@@ -279,11 +278,11 @@ describe('SettingsView', () => {
 		expect(option).toBeTruthy();
 	});
 
-	valdiIt('calls onGridColumnsChange when selecting a grid columns option', () => {
+	valdiIt('calls onGridColumnsChange when selecting a grid columns option', async () => {
 		let selected = 0;
 		const instrumented = createComponent(SettingsView, {
 			gridColumns: 3,
-			onGridColumnsChange: (count) => {
+			onGridColumnsChange: (count: number) => {
 				selected = count;
 			},
 			preferences: mockPreferences(),
@@ -306,7 +305,7 @@ describe('SettingsView', () => {
 		expect(selected).toBe(4);
 	});
 
-	valdiIt('does not call onClearCache when modal is cancelled', () => {
+	valdiIt('does not call onClearCache when modal is cancelled', async () => {
 		let called = false;
 		const instrumented = createComponent(SettingsView, {
 			onClearCache: () => {
@@ -332,7 +331,7 @@ describe('SettingsView', () => {
 		expect(called).toBe(false);
 	});
 
-	valdiIt('tapping delete all downloads button shows the confirm modal', () => {
+	valdiIt('tapping delete all downloads button shows the confirm modal', async () => {
 		const instrumented = createComponent(SettingsView, {
 			preferences: mockPreferences(),
 		});
@@ -351,7 +350,7 @@ describe('SettingsView', () => {
 		expect(modalConfirm).toBeTruthy();
 	});
 
-	valdiIt('calls onClearDownloads when downloads clear modal is confirmed', () => {
+	valdiIt('calls onClearDownloads when downloads clear modal is confirmed', async () => {
 		let called = false;
 		const instrumented = createComponent(SettingsView, {
 			onClearDownloads: () => {
@@ -377,7 +376,7 @@ describe('SettingsView', () => {
 		expect(called).toBe(true);
 	});
 
-	valdiIt('does not call onClearDownloads when downloads clear modal is cancelled', () => {
+	valdiIt('does not call onClearDownloads when downloads clear modal is cancelled', async () => {
 		let called = false;
 		const instrumented = createComponent(SettingsView, {
 			onClearDownloads: () => {
@@ -403,7 +402,7 @@ describe('SettingsView', () => {
 		expect(called).toBe(false);
 	});
 
-	valdiIt('calls onJellyfinDeviceIdOverrideChange when auth device id input changes', () => {
+	valdiIt('calls onJellyfinDeviceIdOverrideChange when auth device id input changes', async () => {
 		const received: Array<string> = [];
 		const instrumented = createComponent(SettingsView, {
 			onJellyfinDeviceIdOverrideChange: (value: string) => {
@@ -426,7 +425,7 @@ describe('SettingsView', () => {
 		expect(received).toEqual(['custom-profile-device']);
 	});
 
-	valdiIt('does not render auth device id reset button', () => {
+	valdiIt('does not render auth device id reset button', async () => {
 		const instrumented = createComponent(SettingsView, {
 			preferences: mockPreferences(),
 		});

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { PlaylistsView } from 'atolla/src/ui/views/PlaylistsView';
 import { PlaylistView } from 'atolla/src/ui/views/PlaylistView';
@@ -20,13 +19,13 @@ const stubImageCache = {
 };
 
 function makeNavigationController() {
-	let pushedComponent = null;
-	let pushedViewModel = null;
+	let pushedComponent: unknown = null;
+	let pushedViewModel: Record<string, { id?: string }> | null = null;
 	const navigationController = {
 		getPushed: () => ({ component: pushedComponent, viewModel: pushedViewModel }),
-		push: (component, viewModel) => {
+		push: (component: unknown, viewModel: unknown) => {
 			pushedComponent = component;
-			pushedViewModel = viewModel;
+			pushedViewModel = viewModel as Record<string, { id?: string }>;
 		},
 	};
 	return navigationController;
@@ -46,7 +45,7 @@ async function flushAsyncWork() {
 }
 
 describe('PlaylistsView', () => {
-	valdiIt('renders playlist names from state', () => {
+	valdiIt('renders playlist names from state', async () => {
 		const playlists = [
 			{ id: 'playlist-1', name: 'Roadtrip' },
 			{ id: 'playlist-2', name: 'Night Run' },
@@ -75,7 +74,7 @@ describe('PlaylistsView', () => {
 		expect(values).toContain('Night Run');
 	});
 
-	valdiIt('pushes PlaylistView when card is tapped', () => {
+	valdiIt('pushes PlaylistView when card is tapped', async () => {
 		const playlists = [{ id: 'playlist-1', name: 'Roadtrip' }];
 		const transport = {
 			getAllPlaylists: async () => playlists,
@@ -115,7 +114,7 @@ describe('PlaylistsView', () => {
 			getTracksByPlaylist: async () => playlistTracks,
 		};
 		const playbackStoreWithLongPress = {
-			playWithArtistLogos: () => {},
+			playWithArtistLogos: (_tracks: unknown, _logoUrls: unknown) => {},
 			subscribe: () => () => {},
 			track: null,
 		};

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { PersistentStore } from 'persistence/src/PersistentStore';
 
 export interface StoredAuthSession {

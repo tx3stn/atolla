@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { Toast } from 'atolla/src/ui/components/Toast';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -7,7 +6,7 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('Toast', () => {
-	valdiIt('renders the message', () => {
+	valdiIt('renders the message', async () => {
 		const instrumented = createComponent(Toast, { message: 'Cache cleared' });
 		const component = instrumented.getComponent();
 
@@ -20,7 +19,7 @@ describe('Toast', () => {
 		expect(values).toContain('Cache cleared');
 	});
 
-	valdiIt('renders with accessibilityLabel toast', () => {
+	valdiIt('renders with accessibilityLabel toast', async () => {
 		const instrumented = createComponent(Toast, { message: 'Cache cleared' });
 		const component = instrumented.getComponent();
 

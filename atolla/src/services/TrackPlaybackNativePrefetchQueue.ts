@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { Track } from '../models/Track';
 
 type TrackUrlResolver = (track: Track) => string | null;

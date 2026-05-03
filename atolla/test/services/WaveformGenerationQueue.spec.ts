@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { WaveformGenerationQueue } from 'atolla/src/services/WaveformGenerationQueue';
 import type { IWaveformNativeWorker } from 'atolla/src/services/WaveformNativeWorker';
@@ -287,7 +286,7 @@ describe('WaveformGenerationQueue', () => {
 				deferred<string | null>(),
 			];
 			const callOrder: Array<string> = [];
-			const { queue, workers: w, service } = makeQueue();
+			const { queue, workers: w } = makeQueue();
 			for (let i = 0; i < 3; i++) {
 				const d = deferreds[i];
 				w[i].api.generateWaveform.and.callFake((trackId: string) => {

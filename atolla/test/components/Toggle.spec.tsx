@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { theme } from 'atolla/src/theme';
 import { Toggle } from 'atolla/src/ui/components/Toggle';
@@ -8,11 +7,11 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('Toggle', () => {
-	valdiIt('calls onToggle with true when tapped while disabled', () => {
+	valdiIt('calls onToggle with true when tapped while disabled', async () => {
 		let received: boolean | undefined;
 		const instrumented = createComponent(Toggle, {
 			enabled: false,
-			onToggle: (enabled) => {
+			onToggle: (enabled: boolean) => {
 				received = enabled;
 			},
 		});
@@ -24,11 +23,11 @@ describe('Toggle', () => {
 		expect(received).toBe(true);
 	});
 
-	valdiIt('calls onToggle with false when tapped while enabled', () => {
+	valdiIt('calls onToggle with false when tapped while enabled', async () => {
 		let received: boolean | undefined;
 		const instrumented = createComponent(Toggle, {
 			enabled: true,
-			onToggle: (enabled) => {
+			onToggle: (enabled: boolean) => {
 				received = enabled;
 			},
 		});
@@ -40,7 +39,7 @@ describe('Toggle', () => {
 		expect(received).toBe(false);
 	});
 
-	valdiIt('uses accent color for track when enabled', () => {
+	valdiIt('uses accent color for track when enabled', async () => {
 		const instrumented = createComponent(Toggle, {
 			enabled: true,
 			onToggle: () => {},
@@ -51,7 +50,7 @@ describe('Toggle', () => {
 		expect(views[0].getAttribute('style').attributes.backgroundColor).toBe(theme.colors.active);
 	});
 
-	valdiIt('uses muted color for track when disabled', () => {
+	valdiIt('uses muted color for track when disabled', async () => {
 		const instrumented = createComponent(Toggle, {
 			enabled: false,
 			onToggle: () => {},
@@ -62,7 +61,7 @@ describe('Toggle', () => {
 		expect(views[0].getAttribute('style').attributes.backgroundColor).toBe(theme.colors.bgAccent);
 	});
 
-	valdiIt('sets accessibilityLabel on the track', () => {
+	valdiIt('sets accessibilityLabel on the track', async () => {
 		const instrumented = createComponent(Toggle, {
 			accessibilityLabel: 'settings-animations-toggle',
 			enabled: false,

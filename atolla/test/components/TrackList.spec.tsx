@@ -1,6 +1,6 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { theme } from 'atolla/src/theme';
+import type { TrackListEntry } from 'atolla/src/ui/components/TrackList';
 import { TrackList } from 'atolla/src/ui/components/TrackList';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
@@ -8,7 +8,7 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('TrackList', () => {
-	valdiIt('shows empty state when no tracks are provided', () => {
+	valdiIt('shows empty state when no tracks are provided', async () => {
 		const instrumented = createComponent(TrackList, { tracks: [] });
 		const component = instrumented.getComponent();
 
@@ -20,7 +20,7 @@ describe('TrackList', () => {
 		expect(labels[0].getAttribute('value')).toBe('nothing else lined up');
 	});
 
-	valdiIt('renders a row for each track', () => {
+	valdiIt('renders a row for each track', async () => {
 		const tracks = [
 			{ id: 'a', meta: '3:00', title: 'Song One' },
 			{ id: 'b', meta: '4:30', title: 'Song Two' },
@@ -37,7 +37,7 @@ describe('TrackList', () => {
 		);
 	});
 
-	valdiIt('renders track title and meta labels', () => {
+	valdiIt('renders track title and meta labels', async () => {
 		const tracks = [{ id: 'a', meta: '2:15', title: 'Track Name' }];
 		const instrumented = createComponent(TrackList, { tracks });
 		const component = instrumented.getComponent();
@@ -51,7 +51,7 @@ describe('TrackList', () => {
 		expect(values).toContain('2:15');
 	});
 
-	valdiIt('uses tail ellipsis for truncated title and meta text', () => {
+	valdiIt('uses tail ellipsis for truncated title and meta text', async () => {
 		const tracks = [{ id: 'a', meta: 'Very long metadata line', title: 'Very long track title' }];
 		const instrumented = createComponent(TrackList, { tracks });
 		const component = instrumented.getComponent();
@@ -69,7 +69,7 @@ describe('TrackList', () => {
 		expect(meta?.getAttribute('numberOfLines')).toBe(1);
 	});
 
-	valdiIt('calls onTrackTap with track id when row is tapped', () => {
+	valdiIt('calls onTrackTap with track id when row is tapped', async () => {
 		const tracks = [{ id: 'track-1', meta: '1:00', title: 'Tap Me' }];
 		let tappedId = '';
 		const instrumented = createComponent(TrackList, {
@@ -89,7 +89,7 @@ describe('TrackList', () => {
 		expect(tappedId).toBe('track-1');
 	});
 
-	valdiIt('calls onTrackLongPress when artwork is long pressed', () => {
+	valdiIt('calls onTrackLongPress when artwork is long pressed', async () => {
 		jasmine.clock().install();
 		try {
 			const track = {
@@ -100,7 +100,7 @@ describe('TrackList', () => {
 			};
 			let longPressedTrackId: string | null = null;
 			const instrumented = createComponent(TrackList, {
-				onTrackLongPress: (pressedTrack) => {
+				onTrackLongPress: (pressedTrack: { id: string }) => {
 					longPressedTrackId = pressedTrack.id;
 				},
 				tracks: [
@@ -125,13 +125,13 @@ describe('TrackList', () => {
 			swipeRegion?.getAttribute('onTouch')?.({ state: 0 });
 			jasmine.clock().tick(500);
 
-			expect(longPressedTrackId).toBe('track-1');
+			expect(longPressedTrackId as string | null).toBe('track-1');
 		} finally {
 			jasmine.clock().uninstall();
 		}
 	});
 
-	valdiIt('calls onTrackLongPress when non-artwork region is long pressed', () => {
+	valdiIt('calls onTrackLongPress when non-artwork region is long pressed', async () => {
 		jasmine.clock().install();
 		try {
 			const track = {
@@ -142,7 +142,7 @@ describe('TrackList', () => {
 			};
 			let longPressedTrackId: string | null = null;
 			const instrumented = createComponent(TrackList, {
-				onTrackLongPress: (pressedTrack) => {
+				onTrackLongPress: (pressedTrack: { id: string }) => {
 					longPressedTrackId = pressedTrack.id;
 				},
 				tracks: [
@@ -167,13 +167,13 @@ describe('TrackList', () => {
 			swipeRegion?.getAttribute('onTouch')?.({ state: 0 });
 			jasmine.clock().tick(500);
 
-			expect(longPressedTrackId).toBe('track-1');
+			expect(longPressedTrackId as string | null).toBe('track-1');
 		} finally {
 			jasmine.clock().uninstall();
 		}
 	});
 
-	valdiIt('keeps long press active while touch state changes', () => {
+	valdiIt('keeps long press active while touch state changes', async () => {
 		jasmine.clock().install();
 		try {
 			const track = {
@@ -184,7 +184,7 @@ describe('TrackList', () => {
 			};
 			let longPressedTrackId: string | null = null;
 			const instrumented = createComponent(TrackList, {
-				onTrackLongPress: (pressedTrack) => {
+				onTrackLongPress: (pressedTrack: { id: string }) => {
 					longPressedTrackId = pressedTrack.id;
 				},
 				tracks: [
@@ -210,13 +210,13 @@ describe('TrackList', () => {
 			swipeRegion?.getAttribute('onTouch')?.({ state: 1 });
 			jasmine.clock().tick(500);
 
-			expect(longPressedTrackId).toBe('track-1');
+			expect(longPressedTrackId as string | null).toBe('track-1');
 		} finally {
 			jasmine.clock().uninstall();
 		}
 	});
 
-	valdiIt('keeps handle tap active while swipe remove is enabled', () => {
+	valdiIt('keeps handle tap active while swipe remove is enabled', async () => {
 		const track = {
 			artistName: 'Artist',
 			duration: 180,
@@ -227,7 +227,7 @@ describe('TrackList', () => {
 		let removedEntryIndex: number | null = null;
 		let longPressedTrackId: string | null = null;
 		const instrumented = createComponent(TrackList, {
-			onTrackLongPress: (pressedTrack) => {
+			onTrackLongPress: (pressedTrack: { id: string }) => {
 				longPressedTrackId = pressedTrack.id;
 			},
 			onTrackSwipeRemove: (trackId: string, entryIndex: number) => {
@@ -259,12 +259,12 @@ describe('TrackList', () => {
 		swipeRegion?.getAttribute('onDrag')?.({ deltaX: -70, deltaY: 0, state: 1, velocityX: -100 });
 		swipeRegion?.getAttribute('onDrag')?.({ deltaX: -70, deltaY: 0, state: 2, velocityX: -100 });
 
-		expect(longPressedTrackId).toBe('track-1');
-		expect(removedTrackId).toBe('track-1');
-		expect(removedEntryIndex).toBe(0);
+		expect(longPressedTrackId as string | null).toBe('track-1');
+		expect(removedTrackId as string | null).toBe('track-1');
+		expect(removedEntryIndex as number | null).toBe(0);
 	});
 
-	valdiIt('reveals a destructive remove icon as row is swiped', () => {
+	valdiIt('reveals a destructive remove icon as row is swiped', async () => {
 		const tracks = [{ id: 'track-1', meta: '1:00', title: 'Swipe Me' }];
 		const instrumented = createComponent(TrackList, {
 			onTrackSwipeRemove: () => {},
@@ -296,7 +296,7 @@ describe('TrackList', () => {
 		expect(removeIcon?.getAttribute('tint')).toBe(theme.colors.destructive);
 	});
 
-	valdiIt('calls onTrackReorder when dragging handle vertically', () => {
+	valdiIt('calls onTrackReorder when dragging handle vertically', async () => {
 		const reordered: Array<number> = [];
 		const tracks = [
 			{ id: 'track-1', meta: '1:00', title: 'One' },
@@ -304,7 +304,7 @@ describe('TrackList', () => {
 			{ id: 'track-3', meta: '1:20', title: 'Three' },
 		];
 		const instrumented = createComponent(TrackList, {
-			onTrackReorder: (fromIndex, toIndex) => {
+			onTrackReorder: (fromIndex: number, toIndex: number) => {
 				reordered.push(fromIndex, toIndex);
 			},
 			showDragHandles: true,
@@ -321,7 +321,7 @@ describe('TrackList', () => {
 		expect(reordered).toEqual([0, 1]);
 	});
 
-	valdiIt('moves the row visually while dragging the reorder handle', () => {
+	valdiIt('moves the row visually while dragging the reorder handle', async () => {
 		const tracks = [
 			{ id: 'track-1', meta: '1:00', title: 'One' },
 			{ id: 'track-2', meta: '1:10', title: 'Two' },
@@ -354,7 +354,7 @@ describe('TrackList', () => {
 		expect(row?.getAttribute('backgroundColor')).toBe(theme.colors.bg);
 	});
 
-	valdiIt('clamps handle drag reorder to list boundaries', () => {
+	valdiIt('clamps handle drag reorder to list boundaries', async () => {
 		let fromIndex: number | null = null;
 		let toIndex: number | null = null;
 		const tracks = [
@@ -363,7 +363,7 @@ describe('TrackList', () => {
 			{ id: 'track-3', meta: '1:20', title: 'Three' },
 		];
 		const instrumented = createComponent(TrackList, {
-			onTrackReorder: (from, to) => {
+			onTrackReorder: (from: number, to: number) => {
 				fromIndex = from;
 				toIndex = to;
 			},
@@ -378,11 +378,11 @@ describe('TrackList', () => {
 		);
 		dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: -300, state: 2, velocityY: -800 });
 
-		expect(fromIndex).toBe(1);
-		expect(toIndex).toBe(0);
+		expect(fromIndex as number | null).toBe(1);
+		expect(toIndex as number | null).toBe(0);
 	});
 
-	valdiIt('renders leading label when no artwork is provided', () => {
+	valdiIt('renders leading label when no artwork is provided', async () => {
 		const tracks = [{ id: 'a', leadingLabel: '1', meta: '1:00', title: 'Track' }];
 		const instrumented = createComponent(TrackList, { tracks });
 		const component = instrumented.getComponent();
@@ -395,8 +395,8 @@ describe('TrackList', () => {
 		expect(values).toContain('1');
 	});
 
-	valdiIt('updates when tracks viewModel changes', () => {
-		const instrumented = createComponent(TrackList, { tracks: [] });
+	valdiIt('updates when tracks viewModel changes', async () => {
+		const instrumented = createComponent(TrackList, { tracks: [] as Array<TrackListEntry> });
 		const component = instrumented.getComponent();
 
 		let labels = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Label);
@@ -408,7 +408,7 @@ describe('TrackList', () => {
 		expect(values).toContain('New Track');
 	});
 
-	valdiIt('applies palette colors to row and labels when palette is provided', () => {
+	valdiIt('applies palette colors to row and labels when palette is provided', async () => {
 		const palette = {
 			accent: { hex: '#f43f5e' },
 			muted_on_surface: { hex: '#d8cc99' },
@@ -434,7 +434,7 @@ describe('TrackList', () => {
 		expect(meta?.getAttribute('style').attributes.color).toBe('#d8cc99');
 	});
 
-	valdiIt('falls back to theme colors when palette is not provided', () => {
+	valdiIt('falls back to theme colors when palette is not provided', async () => {
 		const tracks = [{ id: 'a', meta: '2:15', title: 'Track Name' }];
 		const instrumented = createComponent(TrackList, { tracks });
 		const component = instrumented.getComponent();

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { PersistentStore } from 'persistence/src/PersistentStore';
 import type { PaletteStore } from './ArtworkPaletteService';
 import type { Palette } from './color/types';

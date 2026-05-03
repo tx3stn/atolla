@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import type { Track } from 'atolla/src/models/Track';
 import { PlaybackStore } from 'atolla/src/stores/Playback';

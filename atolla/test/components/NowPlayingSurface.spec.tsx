@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { NowPlayingSurface } from 'atolla/src/ui/components/NowPlayingSurface';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -22,7 +21,10 @@ const track = {
 	name: 'The Track',
 };
 
-function createNowPlayingComponent(trackOverrides = {}, albumOverride = album) {
+function createNowPlayingComponent(
+	trackOverrides = {},
+	albumOverride: typeof album | null = album,
+) {
 	const mergedTrack = {
 		...track,
 		...trackOverrides,
@@ -46,7 +48,7 @@ function createNowPlayingComponent(trackOverrides = {}, albumOverride = album) {
 	});
 }
 
-function getLabelValues(component): Array<string> {
+function getLabelValues(component: Parameters<typeof componentGetElements>[0]): Array<string> {
 	const labels = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Label);
 	return labels.map((label) => label.getAttribute('value'));
 }
@@ -60,7 +62,7 @@ function createQueueTracks(count: number) {
 }
 
 describe('NowPlayingSurface', () => {
-	valdiIt('renders compact now-playing content by default', () => {
+	valdiIt('renders compact now-playing content by default', async () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
@@ -90,7 +92,7 @@ describe('NowPlayingSurface', () => {
 		expect(values).toContain('1:30 / 4:00');
 	});
 
-	valdiIt('shows expanded now-playing view when compact bar is tapped', () => {
+	valdiIt('shows expanded now-playing view when compact bar is tapped', async () => {
 		const instrumented = createNowPlayingComponent();
 		const component = instrumented.getComponent();
 
@@ -103,7 +105,7 @@ describe('NowPlayingSurface', () => {
 		expect(overlay?.getAttribute('top')).toBe(0);
 	});
 
-	valdiIt('shows add-to-queue toast when context menu action is tapped', () => {
+	valdiIt('shows add-to-queue toast when context menu action is tapped', async () => {
 		let addToQueueCalls = 0;
 		const playbackStore = {
 			addToQueue: () => {
@@ -152,7 +154,7 @@ describe('NowPlayingSurface', () => {
 		expect(values).toContain('added to queue');
 	});
 
-	valdiIt('removes a queued track by swipe after entering queue edit mode', () => {
+	valdiIt('removes a queued track by swipe after entering queue edit mode', async () => {
 		jasmine.clock().install();
 		try {
 			const playbackStore = {
@@ -219,7 +221,7 @@ describe('NowPlayingSurface', () => {
 		}
 	});
 
-	valdiIt('reorders up-next tracks when a queue row is dragged vertically', () => {
+	valdiIt('reorders up-next tracks when a queue row is dragged vertically', async () => {
 		const playbackStore = {
 			moveQueueTrack: jasmine.createSpy('moveQueueTrack'),
 			removeFromQueueAt: jasmine.createSpy('removeFromQueueAt'),
@@ -268,7 +270,7 @@ describe('NowPlayingSurface', () => {
 		expect(playbackStore.moveQueueTrack).toHaveBeenCalledWith(2, 3);
 	});
 
-	valdiIt('reorders back-to tracks when a queue row is dragged vertically', () => {
+	valdiIt('reorders back-to tracks when a queue row is dragged vertically', async () => {
 		const playbackStore = {
 			moveQueueTrack: jasmine.createSpy('moveQueueTrack'),
 			removeFromQueueAt: jasmine.createSpy('removeFromQueueAt'),
@@ -323,7 +325,7 @@ describe('NowPlayingSurface', () => {
 		expect(playbackStore.moveQueueTrack).toHaveBeenCalledWith(1, 0);
 	});
 
-	valdiIt('shows bypassed up-next tracks in back-to after jumping ahead in queue', () => {
+	valdiIt('shows bypassed up-next tracks in back-to after jumping ahead in queue', async () => {
 		const tracks = [
 			{ ...track, id: 'track-1', name: 'Track One' },
 			{ ...track, id: 'track-2', name: 'Track Two' },
@@ -371,7 +373,7 @@ describe('NowPlayingSurface', () => {
 		]);
 	});
 
-	valdiIt('caps up-next queue display to thirty tracks', () => {
+	valdiIt('caps up-next queue display to thirty tracks', async () => {
 		const tracks = createQueueTracks(50);
 
 		const instrumented = createComponent(NowPlayingSurface, {
@@ -407,7 +409,7 @@ describe('NowPlayingSurface', () => {
 		expect(upNextRows).not.toContain('track-row-track-32-30');
 	});
 
-	valdiIt('caps back-to queue display to thirty tracks', () => {
+	valdiIt('caps back-to queue display to thirty tracks', async () => {
 		const tracks = createQueueTracks(80);
 
 		const instrumented = createComponent(NowPlayingSurface, {
@@ -449,7 +451,7 @@ describe('NowPlayingSurface', () => {
 		expect(backToRows).not.toContain('track-row-track-40-30');
 	});
 
-	valdiIt('handles collapse signal update while expanded', () => {
+	valdiIt('handles collapse signal update while expanded', async () => {
 		const instrumented = createNowPlayingComponent();
 		const component = instrumented.getComponent();
 
@@ -479,7 +481,7 @@ describe('NowPlayingSurface', () => {
 		expect(overlay).toBeDefined();
 	});
 
-	valdiIt('shows album line year from track productionYear when album is missing', () => {
+	valdiIt('shows album line year from track productionYear when album is missing', async () => {
 		const instrumented = createNowPlayingComponent(
 			{
 				albumName: 'Playlist Album',
@@ -494,22 +496,25 @@ describe('NowPlayingSurface', () => {
 		expect(values).toContain('Playlist Album (2019)');
 	});
 
-	valdiIt('derives album line year from track releaseDate when productionYear is missing', () => {
-		const instrumented = createNowPlayingComponent(
-			{
-				albumName: 'Release Date Album',
-				releaseDate: '2004-06-01T00:00:00.0000000Z',
-			},
-			null,
-		);
-		const component = instrumented.getComponent();
+	valdiIt(
+		'derives album line year from track releaseDate when productionYear is missing',
+		async () => {
+			const instrumented = createNowPlayingComponent(
+				{
+					albumName: 'Release Date Album',
+					releaseDate: '2004-06-01T00:00:00.0000000Z',
+				},
+				null,
+			);
+			const component = instrumented.getComponent();
 
-		const values = getLabelValues(component);
+			const values = getLabelValues(component);
 
-		expect(values).toContain('Release Date Album (2004)');
-	});
+			expect(values).toContain('Release Date Album (2004)');
+		},
+	);
 
-	valdiIt('renders artist logo without double-wrapping cache uri', () => {
+	valdiIt('renders artist logo without double-wrapping cache uri', async () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: 'https://example.com/logo.png',
@@ -543,23 +548,26 @@ describe('NowPlayingSurface', () => {
 		expect(src).not.toContain('u=atolla-cache%3A%2F%2Fimage');
 	});
 
-	valdiIt('shows album name without year when playlist track has no valid date metadata', () => {
-		const instrumented = createNowPlayingComponent(
-			{
-				albumName: 'Untimed Album',
-				releaseDate: 'na',
-			},
-			null,
-		);
-		const component = instrumented.getComponent();
+	valdiIt(
+		'shows album name without year when playlist track has no valid date metadata',
+		async () => {
+			const instrumented = createNowPlayingComponent(
+				{
+					albumName: 'Untimed Album',
+					releaseDate: 'na',
+				},
+				null,
+			);
+			const component = instrumented.getComponent();
 
-		const values = getLabelValues(component);
+			const values = getLabelValues(component);
 
-		expect(values).toContain('Untimed Album');
-		expect(values).not.toContain('Untimed Album (na)');
-	});
+			expect(values).toContain('Untimed Album');
+			expect(values).not.toContain('Untimed Album (na)');
+		},
+	);
 
-	valdiIt('calls loop mode toggle handler when loop control is tapped', () => {
+	valdiIt('calls loop mode toggle handler when loop control is tapped', async () => {
 		let calls = 0;
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,

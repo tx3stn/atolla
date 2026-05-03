@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { ConnectionView } from 'atolla/src/ui/views/ConnectionView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -45,7 +44,7 @@ function getConnectButton(component: ConnectionView) {
 }
 
 describe('ConnectionView', () => {
-	valdiIt('enables connect button when url is entered', () => {
+	valdiIt('enables connect button when url is entered', async () => {
 		const instrumented = createComponent(ConnectionView, makeViewModel());
 		const component = instrumented.getComponent();
 		const textField = getTextField(component);
@@ -56,7 +55,7 @@ describe('ConnectionView', () => {
 		expect(typeof connectButton?.getAttribute('onTap')).toBe('function');
 	});
 
-	valdiIt('calls onConnect with trimmed input when connect is tapped', () => {
+	valdiIt('calls onConnect with trimmed input when connect is tapped', async () => {
 		const calls: Array<string> = [];
 		const instrumented = createComponent(
 			ConnectionView,
@@ -76,7 +75,7 @@ describe('ConnectionView', () => {
 		expect(calls).toEqual(['demo.jellyfin.local']);
 	});
 
-	valdiIt('keeps connect button disabled for whitespace-only input', () => {
+	valdiIt('keeps connect button disabled for whitespace-only input', async () => {
 		const instrumented = createComponent(ConnectionView, makeViewModel());
 		const component = instrumented.getComponent();
 		const textField = getTextField(component);
@@ -87,7 +86,7 @@ describe('ConnectionView', () => {
 		expect(connectButton?.getAttribute('onTap')).toBeUndefined();
 	});
 
-	valdiIt('accepts event-shaped input payloads and enables connect button', () => {
+	valdiIt('accepts event-shaped input payloads and enables connect button', async () => {
 		const instrumented = createComponent(ConnectionView, makeViewModel());
 		const component = instrumented.getComponent();
 		const textField = getTextField(component);
@@ -98,7 +97,7 @@ describe('ConnectionView', () => {
 		expect(typeof connectButton?.getAttribute('onTap')).toBe('function');
 	});
 
-	valdiIt('passes mock input through onConnect when connect is tapped', () => {
+	valdiIt('passes mock input through onConnect when connect is tapped', async () => {
 		const calls: Array<string> = [];
 		const instrumented = createComponent(
 			ConnectionView,
@@ -117,60 +116,66 @@ describe('ConnectionView', () => {
 		expect(calls).toEqual(['mock']);
 	});
 
-	valdiIt('keeps typed URL and re-enables connect after failed attempt view-model update', () => {
-		const instrumented = createComponent(ConnectionView, makeViewModel());
-		const component = instrumented.getComponent();
-		const textField = getTextField(component);
+	valdiIt(
+		'keeps typed URL and re-enables connect after failed attempt view-model update',
+		async () => {
+			const instrumented = createComponent(ConnectionView, makeViewModel());
+			const component = instrumented.getComponent();
+			const textField = getTextField(component);
 
-		textField.getAttribute('onChange')?.('http://127.0.0.1:18096');
+			textField.getAttribute('onChange')?.('http://127.0.0.1:18096');
 
-		instrumented.setViewModel(
-			makeViewModel({
-				isConnecting: true,
-				serverUrl: 'http://127.0.0.1:18096',
-			}),
-		);
+			instrumented.setViewModel(
+				makeViewModel({
+					isConnecting: true,
+					serverUrl: 'http://127.0.0.1:18096',
+				}),
+			);
 
-		instrumented.setViewModel(
-			makeViewModel({
-				errorMessage: 'connection error',
-				isConnecting: false,
-				serverUrl: '',
-			}),
-		);
+			instrumented.setViewModel(
+				makeViewModel({
+					errorMessage: 'connection error',
+					isConnecting: false,
+					serverUrl: '',
+				}),
+			);
 
-		expect(getTextField(component)?.getAttribute('value')).toBe('http://127.0.0.1:18096');
-		expect(typeof getConnectButton(component)?.getAttribute('onTap')).toBe('function');
-	});
+			expect(getTextField(component)?.getAttribute('value')).toBe('http://127.0.0.1:18096');
+			expect(typeof getConnectButton(component)?.getAttribute('onTap')).toBe('function');
+		},
+	);
 
-	valdiIt('shows spinner immediately when isConnecting is true', () => {
+	valdiIt('shows spinner immediately when isConnecting is true', async () => {
 		const instrumented = createComponent(ConnectionView, makeViewModel({ isConnecting: true }));
 		expect(findSpinner(instrumented.getComponent())).toBeDefined();
 	});
 
-	valdiIt('hides spinner when not connecting', () => {
+	valdiIt('hides spinner when not connecting', async () => {
 		const instrumented = createComponent(ConnectionView, makeViewModel());
 		expect(findSpinner(instrumented.getComponent())).toBeUndefined();
 	});
 
-	valdiIt('allows retry tap when error is shown even if connecting flag is stale true', () => {
-		const calls: Array<string> = [];
-		const instrumented = createComponent(
-			ConnectionView,
-			makeViewModel({
-				errorMessage: 'connection error',
-				isConnecting: true,
-				onConnect: (serverUrl: string) => {
-					calls.push(serverUrl);
-				},
-			}),
-		);
-		const component = instrumented.getComponent();
-		const textField = getTextField(component);
+	valdiIt(
+		'allows retry tap when error is shown even if connecting flag is stale true',
+		async () => {
+			const calls: Array<string> = [];
+			const instrumented = createComponent(
+				ConnectionView,
+				makeViewModel({
+					errorMessage: 'connection error',
+					isConnecting: true,
+					onConnect: (serverUrl: string) => {
+						calls.push(serverUrl);
+					},
+				}),
+			);
+			const component = instrumented.getComponent();
+			const textField = getTextField(component);
 
-		textField.getAttribute('onChange')?.('http://127.0.0.1:18096');
-		getConnectButton(component)?.getAttribute('onTap')?.();
+			textField.getAttribute('onChange')?.('http://127.0.0.1:18096');
+			getConnectButton(component)?.getAttribute('onTap')?.();
 
-		expect(calls).toEqual(['http://127.0.0.1:18096']);
-	});
+			expect(calls).toEqual(['http://127.0.0.1:18096']);
+		},
+	);
 });

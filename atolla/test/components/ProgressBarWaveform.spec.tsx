@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { ProgressBarWaveform } from 'atolla/src/ui/components/ProgressBarWaveform';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -7,7 +6,7 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('ProgressBarWaveform', () => {
-	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is null', () => {
+	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is null', async () => {
 		const instrumented = createComponent(ProgressBarWaveform, {
 			accentColor: '#ff2255',
 			maskImageUrl: null,
@@ -25,7 +24,7 @@ describe('ProgressBarWaveform', () => {
 		expect(waveformBar).toBeUndefined();
 	});
 
-	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is undefined', () => {
+	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is undefined', async () => {
 		const instrumented = createComponent(ProgressBarWaveform, {
 			accentColor: '#ff2255',
 			maskImageUrl: undefined,
@@ -43,7 +42,7 @@ describe('ProgressBarWaveform', () => {
 		expect(waveformBar).toBeUndefined();
 	});
 
-	valdiIt('renders waveform bar when maskImageUrl is provided', () => {
+	valdiIt('renders waveform bar when maskImageUrl is provided', async () => {
 		const instrumented = createComponent(ProgressBarWaveform, {
 			accentColor: '#ff2255',
 			maskImageUrl: 'mask://track-1.png',
@@ -61,7 +60,7 @@ describe('ProgressBarWaveform', () => {
 		expect(waveformBar).toBeDefined();
 	});
 
-	valdiIt('uses the provided accessibilityLabel on the waveform bar', () => {
+	valdiIt('uses the provided accessibilityLabel on the waveform bar', async () => {
 		const instrumented = createComponent(ProgressBarWaveform, {
 			accentColor: '#ff2255',
 			accessibilityLabel: 'now-playing-progress',
@@ -80,7 +79,7 @@ describe('ProgressBarWaveform', () => {
 		expect(waveformBar).toBeDefined();
 	});
 
-	valdiIt('renders unplayed and played image layers when progress > 0', () => {
+	valdiIt('renders unplayed and played image layers when progress > 0', async () => {
 		const instrumented = createComponent(ProgressBarWaveform, {
 			accentColor: '#ff2255',
 			maskImageUrl: 'mask://track-1.png',
@@ -107,7 +106,7 @@ describe('ProgressBarWaveform', () => {
 		expect(clipContainer).toBeDefined();
 	});
 
-	valdiIt('omits the played clip container when progress is 0', () => {
+	valdiIt('omits the played clip container when progress is 0', async () => {
 		const instrumented = createComponent(ProgressBarWaveform, {
 			accentColor: '#ff2255',
 			maskImageUrl: 'mask://track-1.png',
@@ -125,7 +124,7 @@ describe('ProgressBarWaveform', () => {
 		expect(clipContainer).toBeUndefined();
 	});
 
-	valdiIt('calls onProgressTap when the waveform bar is tapped', () => {
+	valdiIt('calls onProgressTap when the waveform bar is tapped', async () => {
 		let tapCount = 0;
 		const instrumented = createComponent(ProgressBarWaveform, {
 			accentColor: '#ff2255',

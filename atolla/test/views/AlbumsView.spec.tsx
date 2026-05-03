@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { AlbumsView } from 'atolla/src/ui/views/AlbumsView';
@@ -33,13 +32,13 @@ async function flushAsyncWork() {
 }
 
 function makeNavigationController() {
-	let pushedComponent = null;
-	let pushedViewModel = null;
+	let pushedComponent: unknown = null;
+	let pushedViewModel: Record<string, { id?: string }> | null = null;
 	const navigationController = {
 		getPushed: () => ({ component: pushedComponent, viewModel: pushedViewModel }),
-		push: (component, viewModel) => {
+		push: (component: unknown, viewModel: unknown) => {
 			pushedComponent = component;
-			pushedViewModel = viewModel;
+			pushedViewModel = viewModel as Record<string, { id?: string }>;
 		},
 	};
 	return navigationController;
@@ -193,7 +192,7 @@ describe('AlbumsView', () => {
 		expect(component.state.albums.length).toBe(90);
 	});
 
-	valdiIt('renders album titles from state', () => {
+	valdiIt('renders album titles from state', async () => {
 		const albums = [
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
 			{ artistId: 'artist-2', artistName: 'Artist Two', id: 'album-2', name: 'Second Album' },
@@ -222,7 +221,7 @@ describe('AlbumsView', () => {
 		expect(values).toContain('Second Album');
 	});
 
-	valdiIt('pushes AlbumView when card is tapped', () => {
+	valdiIt('pushes AlbumView when card is tapped', async () => {
 		const albums = [
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
 		];

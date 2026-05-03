@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { Modal } from 'atolla/src/ui/components/Modal';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -7,7 +6,7 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('Modal', () => {
-	valdiIt('renders artist logo through cache image source', () => {
+	valdiIt('renders artist logo through cache image source', async () => {
 		const instrumented = createComponent(Modal, {
 			body: 'Long artist bio',
 			logoUrl: 'https://example.com/artist-logo.png',

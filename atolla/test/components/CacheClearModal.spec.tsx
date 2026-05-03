@@ -1,5 +1,5 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
+import type { ClearCacheSelection } from 'atolla/src/services/ImageCache';
 import { CacheClearModal } from 'atolla/src/ui/components/CacheClearModal';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
@@ -7,7 +7,7 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('CacheClearModal', () => {
-	valdiIt('renders title and all cache type rows', () => {
+	valdiIt('renders title and all cache type rows', async () => {
 		const instrumented = createComponent(CacheClearModal, {
 			onCancel: () => {},
 			onConfirm: () => {},
@@ -31,7 +31,7 @@ describe('CacheClearModal', () => {
 		expect(values).toContain('waveforms');
 	});
 
-	valdiIt('confirm button is enabled when all checkboxes are checked by default', () => {
+	valdiIt('confirm button is enabled when all checkboxes are checked by default', async () => {
 		const instrumented = createComponent(CacheClearModal, {
 			onCancel: () => {},
 			onConfirm: () => {},
@@ -46,7 +46,7 @@ describe('CacheClearModal', () => {
 		expect(typeof confirmBtn?.getAttribute('onTap')).toBe('function');
 	});
 
-	valdiIt('confirm button is disabled when all checkboxes are unchecked', () => {
+	valdiIt('confirm button is disabled when all checkboxes are unchecked', async () => {
 		const instrumented = createComponent(CacheClearModal, {
 			onCancel: () => {},
 			onConfirm: () => {},
@@ -90,11 +90,11 @@ describe('CacheClearModal', () => {
 		expect(confirmBtn?.getAttribute('onTap')).toBeUndefined();
 	});
 
-	valdiIt('calls onConfirm with full selection when confirmed with defaults', () => {
+	valdiIt('calls onConfirm with full selection when confirmed with defaults', async () => {
 		let received: unknown;
 		const instrumented = createComponent(CacheClearModal, {
 			onCancel: () => {},
-			onConfirm: (selection) => {
+			onConfirm: (selection: ClearCacheSelection) => {
 				received = selection;
 			},
 		});
@@ -117,11 +117,11 @@ describe('CacheClearModal', () => {
 		});
 	});
 
-	valdiIt('calls onConfirm reflecting unchecked items', () => {
+	valdiIt('calls onConfirm reflecting unchecked items', async () => {
 		let received: unknown;
 		const instrumented = createComponent(CacheClearModal, {
 			onCancel: () => {},
-			onConfirm: (selection) => {
+			onConfirm: (selection: ClearCacheSelection) => {
 				received = selection;
 			},
 		});
@@ -152,7 +152,7 @@ describe('CacheClearModal', () => {
 		});
 	});
 
-	valdiIt('calls onCancel when cancel button is tapped', () => {
+	valdiIt('calls onCancel when cancel button is tapped', async () => {
 		let cancelled = false;
 		const instrumented = createComponent(CacheClearModal, {
 			onCancel: () => {

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { LoopingArrowSpinner } from 'atolla/src/ui/components/LoopingArrowSpinner';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -7,7 +6,7 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('LoopingArrowSpinner', () => {
-	valdiIt('renders default accessibility label', () => {
+	valdiIt('renders default accessibility label', async () => {
 		const instrumented = createComponent(LoopingArrowSpinner, {});
 		const component = instrumented.getComponent();
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
@@ -15,7 +14,7 @@ describe('LoopingArrowSpinner', () => {
 		expect(root).toBeTruthy();
 	});
 
-	valdiIt('renders provided label text', () => {
+	valdiIt('renders provided label text', async () => {
 		const instrumented = createComponent(LoopingArrowSpinner, {
 			label: 'Searching library...',
 		});
@@ -29,7 +28,7 @@ describe('LoopingArrowSpinner', () => {
 		expect(values).toContain('Searching library...');
 	});
 
-	valdiIt('renders spinner image', () => {
+	valdiIt('renders spinner image', async () => {
 		const instrumented = createComponent(LoopingArrowSpinner, {});
 		const component = instrumented.getComponent();
 		const images = elementTypeFind(

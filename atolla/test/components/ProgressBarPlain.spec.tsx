@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { ProgressBarPlain } from 'atolla/src/ui/components/ProgressBarPlain';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -7,7 +6,7 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('ProgressBarPlain', () => {
-	valdiIt('renders track and fill colors from view model', () => {
+	valdiIt('renders track and fill colors from view model', async () => {
 		const instrumented = createComponent(ProgressBarPlain, {
 			accentColor: '#ff2255',
 			progressRatio: 0.4,
@@ -36,7 +35,7 @@ describe('ProgressBarPlain', () => {
 		expect(playhead).toBeDefined();
 	});
 
-	valdiIt('clamps progress ratio into 0 to 1 bounds', () => {
+	valdiIt('clamps progress ratio into 0 to 1 bounds', async () => {
 		const instrumented = createComponent(ProgressBarPlain, {
 			accentColor: '#33ffaa',
 			progressRatio: 2.4,
@@ -52,7 +51,7 @@ describe('ProgressBarPlain', () => {
 		expect(fill?.getAttribute('style').attributes.width).toBe('100%');
 	});
 
-	valdiIt('calls onProgressTap when tapped', () => {
+	valdiIt('calls onProgressTap when tapped', async () => {
 		let tapCount = 0;
 		const instrumented = createComponent(ProgressBarPlain, {
 			accentColor: '#33ffaa',

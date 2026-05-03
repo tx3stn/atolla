@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { ArtistsView } from 'atolla/src/ui/views/ArtistsView';
@@ -18,13 +17,13 @@ const stubImageCache = {
 };
 
 function makeNavigationController() {
-	let pushedComponent = null;
-	let pushedViewModel = null;
+	let pushedComponent: unknown = null;
+	let pushedViewModel: Record<string, { id?: string }> | null = null;
 	const navigationController = {
 		getPushed: () => ({ component: pushedComponent, viewModel: pushedViewModel }),
-		push: (component, viewModel) => {
+		push: (component: unknown, viewModel: unknown) => {
 			pushedComponent = component;
-			pushedViewModel = viewModel;
+			pushedViewModel = viewModel as Record<string, { id?: string }>;
 		},
 	};
 	return navigationController;
@@ -44,7 +43,7 @@ async function flushAsyncWork() {
 }
 
 describe('ArtistsView', () => {
-	valdiIt('renders artist names from state', () => {
+	valdiIt('renders artist names from state', async () => {
 		const artists = [
 			{ id: 'artist-1', name: 'Artist One' },
 			{ id: 'artist-2', name: 'Artist Two' },
@@ -73,7 +72,7 @@ describe('ArtistsView', () => {
 		expect(values).toContain('Artist Two');
 	});
 
-	valdiIt('pushes ArtistView when card is tapped', () => {
+	valdiIt('pushes ArtistView when card is tapped', async () => {
 		const artists = [{ id: 'artist-1', name: 'Artist One' }];
 		const transport = {
 			getAllArtists: async () => artists,

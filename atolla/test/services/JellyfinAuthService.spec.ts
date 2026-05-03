@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { AuthErrors } from 'atolla/src/errors/AuthErrors';
 import { JellyfinAuthService } from 'atolla/src/services/JellyfinAuthService';

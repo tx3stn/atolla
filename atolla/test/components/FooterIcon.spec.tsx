@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import { theme } from 'atolla/src/theme';
 import { FooterIcon } from 'atolla/src/ui/components/FooterIcon';
@@ -10,7 +9,7 @@ import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 const icon = 'some-icon-source';
 
 describe('FooterIcon', () => {
-	valdiIt('calls action when tapped', () => {
+	valdiIt('calls action when tapped', async () => {
 		let called = false;
 		const instrumented = createComponent(FooterIcon, {
 			action: () => {
@@ -26,7 +25,7 @@ describe('FooterIcon', () => {
 		expect(called).toBe(true);
 	});
 
-	valdiIt('applies no tint when active is true', () => {
+	valdiIt('applies no tint when active is true', async () => {
 		const instrumented = createComponent(FooterIcon, {
 			action: () => {},
 			active: true,
@@ -41,7 +40,7 @@ describe('FooterIcon', () => {
 		expect(images[0].getAttribute('tint')).toBe(undefined);
 	});
 
-	valdiIt('applies grey tint when not active', () => {
+	valdiIt('applies grey tint when not active', async () => {
 		const instrumented = createComponent(FooterIcon, {
 			action: () => {},
 			active: false,
@@ -56,7 +55,7 @@ describe('FooterIcon', () => {
 		expect(images[0].getAttribute('tint')).toBe(theme.colors.grey);
 	});
 
-	valdiIt('sets accessibilityLabel on the tap target', () => {
+	valdiIt('sets accessibilityLabel on the tap target', async () => {
 		const instrumented = createComponent(FooterIcon, {
 			accessibilityLabel: 'footer-library',
 			action: () => {},
@@ -68,7 +67,7 @@ describe('FooterIcon', () => {
 		expect(views[0].getAttribute('accessibilityLabel')).toBe('footer-library');
 	});
 
-	valdiIt('renders badge count when badgeCount is positive', () => {
+	valdiIt('renders badge count when badgeCount is positive', async () => {
 		const instrumented = createComponent(FooterIcon, {
 			action: () => {},
 			badgeCount: 3,
@@ -83,7 +82,7 @@ describe('FooterIcon', () => {
 		expect(labels.map((label) => label.getAttribute('value'))).toContain('3');
 	});
 
-	valdiIt('does not render badge when badgeCount is zero', () => {
+	valdiIt('does not render badge when badgeCount is zero', async () => {
 		const instrumented = createComponent(FooterIcon, {
 			action: () => {},
 			badgeCount: 0,

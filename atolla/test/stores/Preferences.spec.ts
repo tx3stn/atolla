@@ -1,4 +1,3 @@
-// @ts-nocheck
 import 'jasmine/src/jasmine';
 import {
 	DEFAULT_GRID_COLUMNS,
