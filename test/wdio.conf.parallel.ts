@@ -1,21 +1,20 @@
-import { getCapabilities, Platforms } from './utils/device';
+import { getAllCapabilities } from './utils/device';
 import { afterTestHook, beforeHook } from './utils/hooks';
-
-const platform = process.env.E2E_PLATFORM === 'iOS' ? Platforms.iOS : Platforms.Android;
 
 export const config = {
 	afterTest: afterTestHook,
 	before: beforeHook,
-	capabilities: getCapabilities(platform),
+	capabilities: getAllCapabilities(),
 	connectionRetryCount: 3,
 	connectionRetryTimeout: 300_000,
 	exclude: [],
 	framework: 'mocha',
 	logLevel: 'warn',
-	maxInstances: 1,
+	// 2 = one session per platform running simultaneously
+	maxInstances: 2,
 	maxInstancesPerCapability: 1,
 	mochaOpts: {
-		bail: 1,
+		bail: 0,
 		timeout: 120_000,
 	},
 	reporters: ['spec'],

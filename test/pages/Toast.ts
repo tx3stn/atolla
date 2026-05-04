@@ -11,6 +11,31 @@ export class Toast extends BasePage {
 	}
 
 	async isVisible(): Promise<boolean> {
-		return await this.elementByID(this.root).isDisplayed();
+		const el = this.elementByID(this.root);
+		if (!(await el.isExisting())) {
+			return false;
+		}
+
+		return await el.isDisplayed();
+	}
+
+	async waitForVisible(): Promise<void> {
+		await this.elementByID(this.root).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for toast to appear',
+		});
+	}
+
+	async waitForHidden(): Promise<void> {
+		await this.driver.waitUntil(
+			async () => {
+				const el = this.elementByID(this.root);
+				if (!(await el.isExisting())) {
+					return true;
+				}
+
+				return !(await el.isDisplayed());
+			},
+			{ timeoutMsg: 'Timed out waiting for toast to dismiss' },
+		);
 	}
 }

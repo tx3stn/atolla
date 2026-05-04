@@ -14,6 +14,7 @@
 		"appium": "^3.2.2",
 		"appium-inspector-plugin": "^2026.2.1",
 		"appium-uiautomator2-driver": "^7.0.0",
+		"appium-xcuitest-driver": "^11.0.0",
 		"sharp": "^0.34.5",
 		"typescript": "^5.9.2",
 		"webdriverio": "^9.26.0"
@@ -37,7 +38,9 @@
 		"reload": "./.scripts/android-hotreload.sh",
 		"test": "bun test ./atolla/src",
 		"test:components": "bazel test //atolla:test --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
-		"test:e2e": "E2E_APP_PATH=$PWD/bazel-bin/atolla_android.apk wdio run ./test/wdio.conf.ts",
+		"test:e2e": "E2E_ANDROID_APP_PATH=$PWD/build/atolla_android.apk E2E_IOS_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./test/wdio.conf.parallel.ts",
+		"test:e2e:android": "E2E_APP_PATH=$PWD/build/atolla_android.apk wdio run ./test/wdio.conf.ts",
+		"test:e2e:ios": "E2E_PLATFORM=iOS E2E_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./test/wdio.conf.ts",
 		"test:zig": "./.scripts/test-zig.sh"
 	},
 	"version": "0.0.1"

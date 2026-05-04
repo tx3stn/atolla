@@ -40,19 +40,13 @@ export class FooterPage extends BasePage {
 	}
 
 	async tapSearchAndWaitForLoad(): Promise<void> {
-		await this.driver.waitUntil(
-			async () => {
-				await this.elementByID(this.search).waitForDisplayed();
-				await this.elementByID(this.search).click();
-				const searchBar = this.elementByID(this.searchBar);
-				if (!(await searchBar.isExisting())) {
-					return false;
-				}
-
-				return await searchBar.isDisplayed();
-			},
-			{ timeoutMsg: 'Timed out navigating to search view' },
-		);
+		await this.elementByID(this.search).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for footer search button',
+		});
+		await this.elementByID(this.search).click();
+		await this.elementByID(this.searchBar).waitForDisplayed({
+			timeoutMsg: 'Timed out navigating to search view',
+		});
 	}
 
 	async tapSettings(): Promise<void> {

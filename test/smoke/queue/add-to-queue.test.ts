@@ -24,12 +24,12 @@ describe('add to queue', () => {
 		await albumDetail.waitForTrackRowsVisible();
 		await albumDetail.openTrackContextMenuOnFirstVisibleRow();
 
-		const menu = new TrackContextMenu(driver);
+		const menu = new TrackContextMenu(browser);
 		await menu.waitForVisible();
 	});
 
 	it('dismisses track context menu when adding a track to queue', async () => {
-		const menu = new TrackContextMenu(driver);
+		const menu = new TrackContextMenu(browser);
 		await menu.waitForVisible();
 		await menu.tapAddToQueue();
 		await menu.waitForHidden();
@@ -41,7 +41,7 @@ describe('add to queue', () => {
 		await albumDetail.waitForTrackRowsVisible();
 		await albumDetail.openTrackContextMenuOnFirstVisibleRow();
 
-		const menu = new TrackContextMenu(driver);
+		const menu = new TrackContextMenu(browser);
 		await menu.waitForVisible();
 		await menu.tapPlayNext();
 		await menu.waitForHidden();

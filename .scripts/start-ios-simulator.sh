@@ -92,6 +92,25 @@ echo "Using simulator: $SIMULATOR_NAME ($SIMULATOR_ID)"
 VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//:atolla_ios}"
 echo "Using application target: $VALDI_APPLICATION_TARGET"
 
+# Build the IPA before installing — valdi install ios uses `bazel run` which
+# hijacks the terminal, so the artifact copy must happen first. The install
+# step gets a cache hit since the IPA is already built.
+IPA_TARGET="${VALDI_APPLICATION_TARGET%.ipa}.ipa"
+echo "Building IPA artifact..."
+read -r -a BAZEL_ARGS_ARRAY <<<"$VALDI_BAZEL_ARGS"
+bazel build "$IPA_TARGET" "${BAZEL_ARGS_ARRAY[@]}"
+
+# Copy IPA to a stable path so e2e tests can find it regardless of which platform
+# was built last (bazel-bin symlink floats to the most recent build's output dir).
+IPA_SRC="$(find bazel-bin -maxdepth 6 -name "atolla_ios.ipa" 2>/dev/null | head -1)"
+if [[ -n "$IPA_SRC" ]]; then
+	mkdir -p build
+	cp "$IPA_SRC" build/atolla_ios.ipa
+	echo "IPA copied to build/atolla_ios.ipa"
+else
+	echo "Warning: could not locate atolla_ios.ipa in bazel-bin" >&2
+fi
+
 echo "Installing app with Valdi..."
 valdi install ios \
 	--application="$VALDI_APPLICATION_TARGET" \

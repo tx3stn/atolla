@@ -9,6 +9,8 @@ describe('now playing queue', () => {
 	let afterNextUpNextFirstRow: string;
 
 	before(async () => {
+		nowPlaying = new NowPlayingFooterPage(browser);
+
 		const footer = new FooterPage(browser);
 		await footer.tapLibrary();
 
@@ -23,18 +25,16 @@ describe('now playing queue', () => {
 		await albumDetail.waitForTrackRowsVisible();
 		await albumDetail.tapPlayButton();
 
-		nowPlaying = new NowPlayingFooterPage(browser);
 		await nowPlaying.waitForVisible();
 		await nowPlaying.openExpandedSurface();
 		await nowPlaying.waitForQueueList();
 	});
 
 	after(async () => {
-		await nowPlaying.swipeAwayIfVisible();
+		await nowPlaying?.swipeAwayIfVisible();
 	});
 
 	it('shows queue list when now playing is expanded', async () => {
-		await nowPlaying.waitForQueueList();
 		await nowPlaying.waitForQueueList();
 		await nowPlaying.waitForQueueRowsVisible();
 	});

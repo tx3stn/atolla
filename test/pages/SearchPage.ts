@@ -40,4 +40,25 @@ export class SearchPage extends BasePage {
 		await this.elementByID(this.retryButton).waitForDisplayed();
 		await this.elementByID(this.retryButton).click();
 	}
+
+	async waitForAnyResultCard(): Promise<void> {
+		const prefixes = ['card-album-', 'card-artist-', 'card-playlist-'];
+		const xpath = prefixes
+			.flatMap((p) => [`starts-with(@name, "${p}")`, `starts-with(@content-desc, "${p}")`])
+			.join(' or ');
+
+		await this.driver.waitUntil(
+			async () => {
+				const elements = await this.driver.$$(`//*[${xpath}]`);
+				for (const el of elements) {
+					if (await el.isDisplayed()) {
+						return true;
+					}
+				}
+
+				return false;
+			},
+			{ timeoutMsg: 'Timed out waiting for search result cards to appear' },
+		);
+	}
 }

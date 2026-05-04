@@ -128,4 +128,15 @@ valdi install android \
 	--device_id="$ANDROID_DEVICE_ID" \
 	--bazel_args="$VALDI_BAZEL_ARGS"
 
+# Copy APK to a stable path so e2e tests can find it regardless of which platform
+# was built last (bazel-bin symlink floats to the most recent build's output dir).
+APK_SRC="$(find bazel-bin -maxdepth 3 -name "atolla_android.apk" ! -name "*unsigned*" 2>/dev/null | head -1)"
+if [[ -n "$APK_SRC" ]]; then
+	mkdir -p build
+	cp "$APK_SRC" build/atolla_android.apk
+	echo "APK copied to build/atolla_android.apk"
+else
+	echo "Warning: could not locate atolla_android.apk in bazel-bin" >&2
+fi
+
 echo "Done."

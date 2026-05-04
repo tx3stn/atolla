@@ -2,20 +2,19 @@ import type { Browser } from 'webdriverio';
 import { BasePage } from './Base';
 
 export class SettingsPage extends BasePage {
-	private readonly animationsToggle: string;
-	private readonly clearCacheButton: string;
-	private readonly generatePalettesButton: string;
+	private readonly animationsToggle = 'settings-animations-toggle';
+	private readonly clearCacheButton = 'settings-cache-clear-btn';
+	private readonly logoutButton = 'settings-logout-btn';
+	private readonly logoutConfirmButton = 'settings-logout-confirm-btn';
 
 	constructor(driver: Browser) {
 		super(driver);
-		this.animationsToggle = 'settings-animations-toggle';
-		this.clearCacheButton = 'settings-cache-clear-btn';
-		this.generatePalettesButton = 'settings-generate-palettes-btn';
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.animationsToggle).waitForDisplayed();
-		await this.elementByID(this.generatePalettesButton).waitForDisplayed();
+		await this.elementByID(this.animationsToggle).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for settings view',
+		});
 	}
 
 	async isVisible(): Promise<boolean> {
@@ -27,13 +26,19 @@ export class SettingsPage extends BasePage {
 		return await toggle.isDisplayed();
 	}
 
-	async tapGeneratePalettes(): Promise<void> {
-		await this.elementByID(this.generatePalettesButton).waitForDisplayed();
-		await this.elementByID(this.generatePalettesButton).click();
-	}
-
 	async tapClearCache(): Promise<void> {
 		await this.elementByID(this.clearCacheButton).waitForDisplayed();
 		await this.elementByID(this.clearCacheButton).click();
+	}
+
+	async tapLogout(): Promise<void> {
+		await this.elementByID(this.logoutButton).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for logout button',
+		});
+		await this.elementByID(this.logoutButton).click();
+		await this.elementByID(this.logoutConfirmButton).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for logout confirmation',
+		});
+		await this.elementByID(this.logoutConfirmButton).click();
 	}
 }
