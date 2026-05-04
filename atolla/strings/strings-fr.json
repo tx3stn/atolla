@@ -221,7 +221,7 @@
 		"defaultMessage": "ALBUM ALÉATOIRE"
 	},
 	"shuffle_library": {
-		"defaultMessage": "SHUFFLE LIBRARY"
+		"defaultMessage": "BIBLIOTHÈQUE ALÉATOIRE"
 	},
 	"tracks_cached_count": {
 		"defaultMessage": "{count%d} pistes actuellement en cache",
