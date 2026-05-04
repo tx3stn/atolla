@@ -13,6 +13,7 @@ export class WriteBehindPaletteStore implements PaletteStore {
 	private writeQueue: Array<() => Promise<void>> = [];
 	private writeQueueRunning = false;
 	private writeDrainQueued = false;
+	private clearGeneration = 0;
 
 	constructor(private inner: PaletteStore) {}
 
@@ -30,6 +31,7 @@ export class WriteBehindPaletteStore implements PaletteStore {
 	}
 
 	async clearAll(): Promise<void> {
+		this.clearGeneration += 1;
 		this.memory.clear();
 		this.pendingWrites.clear();
 		await this.inner.clearAll();
@@ -97,10 +99,14 @@ export class WriteBehindPaletteStore implements PaletteStore {
 			const [imageUrl, palette] = next;
 			this.pendingWrites.delete(imageUrl);
 
+			const generation = this.clearGeneration;
 			try {
 				await this.inner.savePalette(imageUrl, palette);
 			} catch {
 				// Best effort background persistence.
+			}
+			if (generation !== this.clearGeneration) {
+				return;
 			}
 		}
 	}

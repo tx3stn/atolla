@@ -144,7 +144,10 @@ export class PlaybackStore {
 	}
 
 	next(): void {
-		this.trackIndex = Math.min(this.trackIndex + 1, this.tracks.length - 1);
+		if (this.trackIndex >= this.tracks.length - 1) {
+			return;
+		}
+		this.trackIndex += 1;
 		this.progressSeconds = 0;
 		this.seekTarget = null;
 		this.persistQueue();
@@ -305,12 +308,17 @@ export class PlaybackStore {
 			...this._artistLogoUrls.slice(index + 1),
 		];
 
+		const wasCurrentTrack = index === this.trackIndex;
+
 		if (index < this.trackIndex) {
 			this.trackIndex -= 1;
 		}
 
 		if (this.trackIndex >= this.tracks.length) {
 			this.trackIndex = Math.max(0, this.tracks.length - 1);
+			this.progressSeconds = 0;
+			this.seekTarget = null;
+		} else if (wasCurrentTrack) {
 			this.progressSeconds = 0;
 			this.seekTarget = null;
 		}
@@ -410,6 +418,7 @@ export class PlaybackStore {
 
 			return this._artistLogoUrls[index] ?? null;
 		});
+		this.persistQueue();
 		this.notify();
 	}
 

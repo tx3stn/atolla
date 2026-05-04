@@ -18,16 +18,18 @@ export class PaletteGenerationQueue {
 	private queue: Array<string> = [];
 	private slowPathQueue: Array<string> = [];
 	private slowPathInFlight = new Set<string>();
+	private allSlowPathWorkers: Array<IWorkerServiceClient<IPaletteWorker>>;
 	private idleSlowPathWorkers: Array<IWorkerServiceClient<IPaletteWorker>>;
 
 	constructor(private readonly paletteService: ArtworkPaletteService) {
-		this.idleSlowPathWorkers = Array.from({ length: SLOW_PATH_CONCURRENCY }, () =>
+		this.allSlowPathWorkers = Array.from({ length: SLOW_PATH_CONCURRENCY }, () =>
 			startWorkerService(PaletteWorkerEntryPoint, []),
 		);
+		this.idleSlowPathWorkers = [...this.allSlowPathWorkers];
 	}
 
 	dispose(): void {
-		for (const worker of this.idleSlowPathWorkers) worker.dispose();
+		for (const worker of this.allSlowPathWorkers) worker.dispose();
 	}
 
 	// Push to the front of the queue (used when an album page is opened).

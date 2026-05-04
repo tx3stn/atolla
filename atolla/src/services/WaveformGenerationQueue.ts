@@ -25,17 +25,19 @@ const CONCURRENCY = 3;
 // PlaybackSession.queue so upcoming tracks are generated first.
 export class WaveformGenerationQueue {
 	private queue: Array<QueueEntry> = [];
+	private allWorkers: Array<IWorkerServiceClient<IWaveformNativeWorker>>;
 	private idleWorkers: Array<IWorkerServiceClient<IWaveformNativeWorker>>;
 	private activeJobs: Array<ActiveJob> = [];
 
 	constructor(private readonly waveformService: WaveformService) {
-		this.idleWorkers = Array.from({ length: CONCURRENCY }, () =>
+		this.allWorkers = Array.from({ length: CONCURRENCY }, () =>
 			startWorkerService(WaveformNativeWorkerEntryPoint, []),
 		);
+		this.idleWorkers = [...this.allWorkers];
 	}
 
 	dispose(): void {
-		for (const worker of this.idleWorkers) worker.dispose();
+		for (const worker of this.allWorkers) worker.dispose();
 	}
 
 	// Enqueue a track for waveform generation. No-op if the waveform is already
