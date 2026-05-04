@@ -217,6 +217,9 @@
 	"settings_title": {
 		"defaultMessage": "PARAMÈTRES"
 	},
+	"shuffle_library": {
+		"defaultMessage": "SHUFFLE LIBRARY"
+	},
 	"tracks_cached_count": {
 		"defaultMessage": "{count%d} pistes actuellement en cache",
 		"example": "5 pistes actuellement en cache"

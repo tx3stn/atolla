@@ -217,6 +217,9 @@
 	"settings_title": {
 		"defaultMessage": "SETTINGS"
 	},
+	"shuffle_library": {
+		"defaultMessage": "SHUFFLE LIBRARY"
+	},
 	"tracks_cached_count": {
 		"defaultMessage": "{count%d} tracks currently cached",
 		"example": "5 tracks currently cached"

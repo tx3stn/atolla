@@ -1,3 +1,4 @@
+import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
@@ -312,10 +313,11 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private createMixCards(): Array<Card> {
 		return [
 			{
-				artworkKey: this.state.albums[0]?.imageUrl ?? '',
+				artworkKey: '',
+				icon: res.shufflelibrary,
 				id: SHUFFLE_LIBRARY_MIX_ID,
 				kind: 'playlist',
-				primaryText: 'Shuffle Library',
+				primaryText: Strings.shuffleLibrary(),
 				secondaryText: '',
 			},
 		];

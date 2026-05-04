@@ -1,4 +1,3 @@
-import type { Browser } from 'webdriverio';
 import { BasePage } from './Base';
 
 export class SettingsPage extends BasePage {
@@ -6,10 +5,6 @@ export class SettingsPage extends BasePage {
 	private readonly clearCacheButton = 'settings-cache-clear-btn';
 	private readonly logoutButton = 'settings-logout-btn';
 	private readonly logoutConfirmButton = 'settings-logout-confirm-btn';
-
-	constructor(driver: Browser) {
-		super(driver);
-	}
 
 	async waitForLoad(): Promise<void> {
 		await this.elementByID(this.animationsToggle).waitForDisplayed({

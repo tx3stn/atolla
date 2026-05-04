@@ -1,14 +1,9 @@
-import type { Browser } from 'webdriverio';
 import { BasePage } from './Base';
 
 export class ConnectionPage extends BasePage {
 	private readonly serverUrlInput = 'connection-server-url-input';
 	private readonly connectButton = 'connection-connect-btn';
 	private readonly footer = 'footer-home';
-
-	constructor(driver: Browser) {
-		super(driver);
-	}
 
 	async isVisible(): Promise<boolean> {
 		const el = this.elementByID(this.serverUrlInput);

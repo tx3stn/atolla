@@ -71,6 +71,7 @@ declare const Strings: {
 	settingsSectionDownloads: () => string;
 	settingsSectionLanguage: () => string;
 	settingsTitle: () => string;
+	shuffleLibrary: () => string;
 	tracksCachedCount: (count: number) => string;
 	tracksDownloaded: (count: number, size: string) => string;
 	upNext: () => string;

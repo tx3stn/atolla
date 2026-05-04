@@ -1,6 +1,7 @@
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
+import type { Asset } from 'valdi_tsx/src/Asset';
 import type { DragEvent, TouchEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
@@ -11,6 +12,7 @@ import { TouchEventState } from './TouchEventState';
 
 export interface Card {
 	artworkKey: string;
+	icon?: string | Asset;
 	id: string;
 	kind: 'album' | 'artist' | 'genre' | 'playlist';
 	primaryText: string;
@@ -100,9 +102,11 @@ export class CardGrid extends Component<CardGridViewModel> {
 												})
 											: undefined
 									}
-									style={styles.artworkTile}
+									style={entry.icon ? styles.artworkTileIcon : styles.artworkTile}
 								>
-									{artworkKey ? (
+									{entry.icon ? (
+										<image src={entry.icon} style={styles.artworkIcon} />
+									) : artworkKey ? (
 										<CachedImage
 											cacheVersion={cacheVersion}
 											category={category}
@@ -114,7 +118,11 @@ export class CardGrid extends Component<CardGridViewModel> {
 										<label style={styles.artworkFallbackLabel} value={entry.kind.toUpperCase()} />
 									)}
 								</view>
-								<label style={styles.cardTitle} value={entry.primaryText} />
+								<label
+									numberOfLines={entry.icon ? 2 : 1}
+									style={entry.icon ? styles.cardTitleIcon : styles.cardTitle}
+									value={entry.primaryText}
+								/>
 								<label style={styles.cardSubtitle} value={entry.secondaryText} />
 							</layout>
 						);
@@ -212,6 +220,10 @@ const styles = {
 		...theme.text.main,
 		textAlign: 'center',
 	}),
+	artworkIcon: new Style<ImageView>({
+		height: '30%',
+		width: '65%',
+	}),
 	artworkImage: new Style<ImageView>({
 		borderRadius: theme.borderRadius,
 		height: '100%',
@@ -221,6 +233,15 @@ const styles = {
 		alignItems: 'center' as const,
 		aspectRatio: 1,
 		backgroundColor: theme.colors.bgAccent,
+		borderRadius: theme.borderRadius,
+		justifyContent: 'center' as const,
+		slowClipping: true,
+		width: '100%',
+	}),
+	artworkTileIcon: new Style({
+		alignItems: 'center' as const,
+		aspectRatio: 1,
+		backgroundColor: theme.colors.bgRaised,
 		borderRadius: theme.borderRadius,
 		justifyContent: 'center' as const,
 		slowClipping: true,
@@ -254,6 +275,12 @@ const styles = {
 	cardTitle: new Style<Label>({
 		...theme.text.main,
 		marginLeft: 6,
+		marginTop: 7,
+	}),
+	cardTitleIcon: new Style<Label>({
+		...theme.text.main,
+		marginLeft: 6,
+		marginRight: 6,
 		marginTop: 7,
 	}),
 	grid: new Style({
