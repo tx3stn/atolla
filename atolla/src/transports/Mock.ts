@@ -224,6 +224,16 @@ export class MockTransport implements Transport {
 		});
 	}
 
+	async getRandomAlbum(): Promise<Album | null> {
+		const albums = sortMockAlbumsByDefaultOrder(mockJellyfinAlbums);
+		if (albums.length === 0) {
+			return null;
+		}
+		const index = Math.floor(Math.random() * albums.length);
+		const item = albums[index];
+		return item ? mapJellyfinAlbumToAlbum(item, this.imageResolvers) : null;
+	}
+
 	async getShuffledLibraryTracks(): Promise<Array<Track>> {
 		const tracks = mockJellyfinTracks.map((item) =>
 			mapJellyfinTrackToTrack(item, this.imageResolvers),

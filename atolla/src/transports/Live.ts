@@ -443,6 +443,20 @@ export class LiveTransport implements Transport {
 		};
 	}
 
+	async getRandomAlbum(): Promise<Album | null> {
+		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
+			fields: 'Overview,Genres',
+			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+			limit: 1,
+			recursive: true,
+			sortBy: 'Random',
+			startIndex: 0,
+		});
+
+		const item = list.Items[0];
+		return item ? mapJellyfinAlbumToAlbum(item, this.imageResolvers) : null;
+	}
+
 	async getShuffledLibraryTracks(): Promise<Array<Track>> {
 		const list = await this.fetchItemsPage<JellyfinTrackItem>({
 			includeItemTypes: JellyfinMusicItemTypes.Audio,

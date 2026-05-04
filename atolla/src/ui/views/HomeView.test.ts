@@ -9,6 +9,7 @@ import {
 } from './HomeAlbumsCache';
 import {
 	buildShuffleLibraryQueue,
+	getRandomAlbumTracks,
 	resolveArtistLogoUrlsForTracks,
 	shouldApplyTransportAlbumsToHome,
 } from './HomeViewLogic';
@@ -180,5 +181,77 @@ describe('HomeView cache helpers', () => {
 		);
 
 		expect(queue).toEqual([trackOne, trackTwo]);
+	});
+});
+
+describe('getRandomAlbumTracks', () => {
+	it('uses getRandomAlbum from transport when available', async () => {
+		const tracks: Array<Track> = [
+			{ duration: 180, id: 'track-1', name: 'Track One' },
+			{ duration: 200, id: 'track-2', name: 'Track Two' },
+		];
+		let calledGetAllAlbums = false;
+
+		const result = await getRandomAlbumTracks({
+			getAllAlbums: () => {
+				calledGetAllAlbums = true;
+				return Promise.resolve([]);
+			},
+			getRandomAlbum: async () => ({
+				artistId: 'artist-1',
+				artistName: 'Artist One',
+				id: 'album-1',
+				name: 'Album One',
+			}),
+			getTracksByAlbum: async () => tracks,
+		});
+
+		expect(result).toEqual(tracks);
+		expect(calledGetAllAlbums).toBe(false);
+	});
+
+	it('falls back to picking from getAllAlbums when getRandomAlbum is not available', async () => {
+		const trackOne: Track = { duration: 120, id: 'track-1', name: 'Track One' };
+
+		const result = await getRandomAlbumTracks(
+			{
+				getAllAlbums: async () => [
+					{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'Album One' },
+				],
+				getTracksByAlbum: async () => [trackOne],
+			},
+			(albums) => albums[0] ?? null,
+		);
+
+		expect(result).toEqual([trackOne]);
+	});
+
+	it('falls back to getAllAlbums when getRandomAlbum returns null', async () => {
+		const trackOne: Track = { duration: 120, id: 'track-1', name: 'Track One' };
+
+		const result = await getRandomAlbumTracks(
+			{
+				getAllAlbums: async () => [
+					{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'Album One' },
+				],
+				getRandomAlbum: async () => null,
+				getTracksByAlbum: async () => [trackOne],
+			},
+			(albums) => albums[0] ?? null,
+		);
+
+		expect(result).toEqual([trackOne]);
+	});
+
+	it('returns empty array when no albums exist', async () => {
+		const result = await getRandomAlbumTracks(
+			{
+				getAllAlbums: async () => [],
+				getTracksByAlbum: async () => [],
+			},
+			() => null,
+		);
+
+		expect(result).toEqual([]);
 	});
 });

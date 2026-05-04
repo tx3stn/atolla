@@ -217,6 +217,9 @@
 	"settings_title": {
 		"defaultMessage": "PARAMÈTRES"
 	},
+	"random_album": {
+		"defaultMessage": "ALBUM ALÉATOIRE"
+	},
 	"shuffle_library": {
 		"defaultMessage": "SHUFFLE LIBRARY"
 	},

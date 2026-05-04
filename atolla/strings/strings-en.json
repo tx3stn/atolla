@@ -217,6 +217,9 @@
 	"settings_title": {
 		"defaultMessage": "SETTINGS"
 	},
+	"random_album": {
+		"defaultMessage": "RANDOM ALBUM"
+	},
 	"shuffle_library": {
 		"defaultMessage": "SHUFFLE LIBRARY"
 	},

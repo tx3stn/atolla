@@ -286,6 +286,15 @@ export class OfflineTransport implements Transport {
 			.filter((t): t is Track => t != null);
 	}
 
+	async getRandomAlbum(): Promise<Album | null> {
+		const albums = await this.getAllAlbums();
+		if (albums.length === 0) {
+			return null;
+		}
+		const index = Math.floor(Math.random() * albums.length);
+		return albums[index] ?? null;
+	}
+
 	async getShuffledLibraryTracks(): Promise<Array<Track>> {
 		const availableTracks = this.downloads
 			.getAllTracks()

@@ -30,6 +30,7 @@ export interface Transport {
 		page: number,
 		pageSize: number,
 	) => Promise<{ hasMore: boolean; items: Array<Playlist> }>;
+	getRandomAlbum?(): Promise<Album | null>;
 	getShuffledLibraryTracks?(): Promise<Array<Track>>;
 	getShuffledLibraryTracksPage?(
 		page: number,

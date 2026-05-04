@@ -1,3 +1,4 @@
+import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import { shuffleArray } from '../../stores/Playback';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
@@ -40,6 +41,35 @@ export function isSameTrackQueue(
 	}
 
 	return currentTracks.every((track, index) => track.id === expectedTracks[index]?.id);
+}
+
+type RandomAlbumTransport = Pick<Transport, 'getAllAlbums' | 'getTracksByAlbum'> & {
+	getRandomAlbum?: () => Promise<Album | null>;
+};
+
+export async function getRandomAlbumTracks(
+	transport: RandomAlbumTransport,
+	pickAlbum: (albums: Array<Album>) => Album | null = (albums) => {
+		if (albums.length === 0) return null;
+		return albums[Math.floor(Math.random() * albums.length)] ?? null;
+	},
+): Promise<Array<Track>> {
+	let album: Album | null = null;
+
+	if (transport.getRandomAlbum) {
+		album = await transport.getRandomAlbum().catch(() => null);
+	}
+
+	if (!album) {
+		const albums = await transport.getAllAlbums();
+		album = pickAlbum(albums);
+	}
+
+	if (!album) {
+		return [];
+	}
+
+	return transport.getTracksByAlbum(album.id);
 }
 
 type ShuffleLibraryTransport = Pick<Transport, 'getAllAlbums' | 'getTracksByAlbum'> & {

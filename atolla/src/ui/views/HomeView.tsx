@@ -25,6 +25,7 @@ import {
 } from './HomeAlbumsCache';
 import {
 	buildShuffleLibraryQueue,
+	getRandomAlbumTracks,
 	isSameTrackQueue,
 	resolveArtistLogoUrlsForTracks,
 	shouldApplyTransportAlbumsToHome,
@@ -58,6 +59,7 @@ interface HomeState {
 
 const HOME_ALBUMS_CACHE_KEY = 'albums_v1';
 const SHUFFLE_LIBRARY_MIX_ID = 'mix-shuffle-library';
+const RANDOM_ALBUM_MIX_ID = 'mix-random-album';
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private hasBeenDestroyed = false;
@@ -320,6 +322,14 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				primaryText: Strings.shuffleLibrary(),
 				secondaryText: '',
 			},
+			{
+				artworkKey: '',
+				icon: res.randomalbum,
+				id: RANDOM_ALBUM_MIX_ID,
+				kind: 'playlist',
+				primaryText: Strings.randomAlbum(),
+				secondaryText: '',
+			},
 		];
 	}
 
@@ -327,11 +337,11 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		id: string;
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
-		if (card.id !== SHUFFLE_LIBRARY_MIX_ID) {
-			return;
+		if (card.id === SHUFFLE_LIBRARY_MIX_ID) {
+			void this.startShuffleLibraryMix();
+		} else if (card.id === RANDOM_ALBUM_MIX_ID) {
+			void this.startRandomAlbumMix();
 		}
-
-		void this.startShuffleLibraryMix();
 	};
 
 	private async startShuffleLibraryMix(): Promise<void> {
@@ -390,6 +400,33 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 		void resolveArtistLogoUrlsForTracks(queue, transport).then((logoUrls) => {
 			if (!isSameTrackQueue(playbackStore.tracks, queue)) {
+				return;
+			}
+			playbackStore.setArtistLogoUrls(logoUrls);
+		});
+	}
+
+	private async startRandomAlbumMix(): Promise<void> {
+		const { playbackStore, transport } = this.viewModel;
+
+		let tracks: Array<Track>;
+		try {
+			tracks = await getRandomAlbumTracks(transport);
+		} catch {
+			return;
+		}
+
+		if (this.hasBeenDestroyed) {
+			return;
+		}
+		if (tracks.length === 0) {
+			return;
+		}
+
+		playbackStore.playTracks(tracks, 0);
+
+		void resolveArtistLogoUrlsForTracks(tracks, transport).then((logoUrls) => {
+			if (!isSameTrackQueue(playbackStore.tracks, tracks)) {
 				return;
 			}
 			playbackStore.setArtistLogoUrls(logoUrls);

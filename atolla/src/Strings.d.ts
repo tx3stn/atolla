@@ -37,6 +37,7 @@ declare const Strings: {
 	playingNextToast: () => string;
 	playNext: () => string;
 	quickConnectCode: (code: string) => string;
+	randomAlbum: () => string;
 	removeDownloadBody: () => string;
 	removeDownloadTitle: () => string;
 	searchCouldNotSearch: () => string;
