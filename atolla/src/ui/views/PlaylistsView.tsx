@@ -9,6 +9,7 @@ import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
+import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -34,6 +35,7 @@ export interface PlaylistsViewModel {
 	onNavigationContext?: (context: LibraryNavContext | null) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	playlistEditService: PlaylistEditService;
 	sortOrder?: SortOrder;
 	transport: Transport;
 }
@@ -268,6 +270,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 								paletteQueue,
 								playbackStore,
 								playlist,
+								playlistEditService: this.viewModel.playlistEditService,
 								transport,
 							},
 							{},

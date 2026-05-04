@@ -8,9 +8,11 @@ import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
+import Strings from '../../Strings';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
+import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -20,6 +22,7 @@ import type { FooterTab } from '../components/FooterTab';
 import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
+import { Modal } from '../components/Modal';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import type { NavBarContext } from '../NavBarContext';
@@ -44,6 +47,7 @@ export interface PlaylistViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
+	playlistEditService: PlaylistEditService;
 	restoreHeaderOnDestroy?: boolean;
 	transport: Transport;
 }
@@ -55,6 +59,7 @@ interface PlaylistState {
 	isFooterVisible: boolean;
 	isHeaderVisible: boolean;
 	isLoading: boolean;
+	removedTrackPending: { index: number; track: Track } | null;
 	totalTrackCount: number | null;
 	tracks: Array<Track>;
 }
@@ -87,6 +92,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		isFooterVisible: false,
 		isHeaderVisible: false,
 		isLoading: true,
+		removedTrackPending: null,
 		totalTrackCount: null,
 		tracks: [],
 	};
@@ -195,6 +201,98 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		modalSlot?.slotted(() => {});
 		this.setState({ contextMenuTrack: null });
+	};
+
+	handleTrackReorder = (fromEntryIndex: number, toEntryIndex: number): void => {
+		const { playlist, playlistEditService } = this.viewModel;
+		const tracks = [...this.state.tracks];
+		const artistLogoUrls = [...this.state.artistLogoUrls];
+		const [movedTrack] = tracks.splice(fromEntryIndex, 1);
+		const [movedLogo] = artistLogoUrls.splice(fromEntryIndex, 1);
+		tracks.splice(toEntryIndex, 0, movedTrack);
+		artistLogoUrls.splice(toEntryIndex, 0, movedLogo);
+
+		if (this.allTracks) {
+			const allTracks = [...this.allTracks];
+			const [movedAll] = allTracks.splice(fromEntryIndex, 1);
+			allTracks.splice(toEntryIndex, 0, movedAll);
+			this.allTracks = allTracks;
+		}
+
+		this.setState({ artistLogoUrls, tracks });
+		playlistEditService.enqueue({
+			playlistId: playlist.id,
+			toIndex: toEntryIndex,
+			trackId: movedTrack.id,
+			type: 'move',
+		});
+	};
+
+	handleTrackSwipeRemove = (_trackId: string, entryIndex: number): void => {
+		const { playlist, playlistEditService } = this.viewModel;
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		const tracks = [...this.state.tracks];
+		const artistLogoUrls = [...this.state.artistLogoUrls];
+		const [removedTrack] = tracks.splice(entryIndex, 1);
+		artistLogoUrls.splice(entryIndex, 1);
+
+		if (this.allTracks) {
+			const allTracks = [...this.allTracks];
+			allTracks.splice(entryIndex, 1);
+			this.allTracks = allTracks;
+		}
+
+		this.setState({
+			artistLogoUrls,
+			removedTrackPending: { index: entryIndex, track: removedTrack },
+			tracks,
+		});
+
+		modalSlot?.slotted(() => {
+			<Modal
+				body={Strings.removeFromPlaylistBody(removedTrack.name)}
+				cancelAccessibilityLabel='playlist-remove-cancel-btn'
+				confirmAccessibilityLabel='playlist-remove-confirm-btn'
+				modalAccessibilityLabel='playlist-remove-modal'
+				onClose={this.handleCancelRemoveFromPlaylist}
+				onConfirm={() => {
+					this.handleConfirmRemoveFromPlaylist(playlist.id, removedTrack.id, playlistEditService);
+				}}
+				title={Strings.removeFromPlaylistTitle()}
+			/>;
+		});
+	};
+
+	private handleConfirmRemoveFromPlaylist = (
+		playlistId: string,
+		trackId: string,
+		playlistEditService: PlaylistEditService,
+	): void => {
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		modalSlot?.slotted(() => {});
+		this.setState({ removedTrackPending: null });
+		playlistEditService.enqueue({ playlistId, trackId, type: 'remove' });
+	};
+
+	private handleCancelRemoveFromPlaylist = (): void => {
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		const { removedTrackPending } = this.state;
+		modalSlot?.slotted(() => {});
+
+		if (!removedTrackPending) return;
+
+		const tracks = [...this.state.tracks];
+		const artistLogoUrls = [...this.state.artistLogoUrls];
+		tracks.splice(removedTrackPending.index, 0, removedTrackPending.track);
+		artistLogoUrls.splice(removedTrackPending.index, 0, null);
+
+		if (this.allTracks) {
+			const allTracks = [...this.allTracks];
+			allTracks.splice(removedTrackPending.index, 0, removedTrackPending.track);
+			this.allTracks = allTracks;
+		}
+
+		this.setState({ artistLogoUrls, removedTrackPending: null, tracks });
 	};
 
 	handleDownloadTap = (): void => {
@@ -514,7 +612,10 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						<TrackList
 							imageCache={imageCache}
 							onTrackLongPress={this.handleTrackLongPress}
+							onTrackReorder={this.handleTrackReorder}
+							onTrackSwipeRemove={this.handleTrackSwipeRemove}
 							onTrackTap={this.handleTrackTap}
+							showDragHandles={true}
 							tracks={entries}
 						/>
 					)}

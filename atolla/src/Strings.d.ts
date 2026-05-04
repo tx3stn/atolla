@@ -40,6 +40,8 @@ declare const Strings: {
 	randomAlbum: () => string;
 	removeDownloadBody: () => string;
 	removeDownloadTitle: () => string;
+	removeFromPlaylistBody: (track: string) => string;
+	removeFromPlaylistTitle: () => string;
 	searchCouldNotSearch: () => string;
 	searchEmpty: () => string;
 	searchFailed: () => string;

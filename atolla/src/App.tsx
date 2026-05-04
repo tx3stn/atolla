@@ -40,6 +40,7 @@ import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthSe
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PersistentWaveformStore } from './services/PersistentWaveformStore';
+import { PlaylistEditService } from './services/PlaylistEditService';
 import { ScrobbleService } from './services/ScrobbleService';
 import { TrackPlaybackNativePrefetchQueue } from './services/TrackPlaybackNativePrefetchQueue';
 import {
@@ -267,6 +268,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		fetchString(key: string): Promise<string>;
 		storeString(key: string, value: string): Promise<void>;
 	};
+	private readonly playlistEditService = new PlaylistEditService(
+		new PersistentStore('atolla/playlist_edits', { deviceGlobal: true }),
+	);
 	private transport!: Transport;
 	private paletteService!: ArtworkPaletteService;
 	private downloadWorkerClient: IWorkerServiceClient<IDownloadNativeWorker> = startWorkerService(
@@ -846,6 +850,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						session.userId,
 						{ clientDeviceId: this.getEffectiveJellyfinClientDeviceId() },
 					);
+					void this.playlistEditService.flush(this.transport);
 					this.setState({ connectionMode: mode, isAuthRequired: false });
 					return true;
 				}
@@ -1627,7 +1632,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			nav.push(AlbumView, { ...shared, album: context.album }, {}, { animated: false });
 			this.currentLibraryNavContext = context;
 		} else if (context.kind === 'playlist') {
-			nav.push(PlaylistView, { ...shared, playlist: context.playlist }, {}, { animated: false });
+			nav.push(
+				PlaylistView,
+				{ ...shared, playlist: context.playlist, playlistEditService: this.playlistEditService },
+				{},
+				{ animated: false },
+			);
 			this.currentLibraryNavContext = context;
 		} else if (context.kind === 'genre') {
 			nav.push(
@@ -1766,6 +1776,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
 						playlist: target.playlist as Playlist,
+						playlistEditService: this.playlistEditService,
 						transport: this.transport,
 					},
 					{},
@@ -2321,6 +2332,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						onNavigationControllerChange={this.handleLibraryNavigationControllerChange}
 						paletteQueue={this.paletteQueue}
 						playbackStore={this.playbackStore}
+						playlistEditService={this.playlistEditService}
 						resetSignal={this.state.libraryResetNonce}
 						transport={this.transport}
 					/>
@@ -2339,6 +2351,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 								onNavigateToLibraryResult={this.handleSearchResultNavigation}
 								paletteQueue={this.paletteQueue}
 								playbackStore={this.playbackStore}
+								playlistEditService={this.playlistEditService}
 								searchStore={this.searchStore}
 								transport={this.transport}
 							/>;

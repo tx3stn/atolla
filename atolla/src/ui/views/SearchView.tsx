@@ -19,6 +19,7 @@ import Strings from '../../Strings';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
+import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { SearchStore } from '../../stores/Search';
 import { scrollPaddingBottom, theme } from '../../theme';
@@ -47,6 +48,7 @@ export interface SearchViewModel {
 	onNavigateToLibraryResult?: (target: SearchLibraryNavigationTarget) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	playlistEditService: PlaylistEditService;
 	searchStore: SearchStore;
 	transport: Transport;
 }
@@ -499,6 +501,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				paletteQueue,
 				playbackStore,
 				playlist,
+				playlistEditService: this.viewModel.playlistEditService,
 				transport,
 			},
 			{},

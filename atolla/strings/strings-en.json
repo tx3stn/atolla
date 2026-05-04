@@ -115,11 +115,21 @@
 		"defaultMessage": "code: {code%s}",
 		"example": "code: ABC123"
 	},
+	"random_album": {
+		"defaultMessage": "RANDOM ALBUM"
+	},
 	"remove_download_body": {
 		"defaultMessage": "This will remove this download from your device.\n\nIf these tracks are part of a playlist they will not be removed unless you remove the playlist."
 	},
 	"remove_download_title": {
 		"defaultMessage": "REMOVE DOWNLOAD?"
+	},
+	"remove_from_playlist_body": {
+		"defaultMessage": "remove '{track%s}' from this playlist?",
+		"example": "remove 'Song Name' from this playlist?"
+	},
+	"remove_from_playlist_title": {
+		"defaultMessage": "REMOVE FROM PLAYLIST?"
 	},
 	"search_could_not_search": {
 		"defaultMessage": "Could not search right now."
@@ -216,9 +226,6 @@
 	},
 	"settings_title": {
 		"defaultMessage": "SETTINGS"
-	},
-	"random_album": {
-		"defaultMessage": "RANDOM ALBUM"
 	},
 	"shuffle_library": {
 		"defaultMessage": "SHUFFLE LIBRARY"

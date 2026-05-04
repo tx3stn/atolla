@@ -12,6 +12,7 @@ import type { Playlist } from '../../models/Playlist';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
+import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
@@ -46,6 +47,7 @@ export interface LibraryViewModel {
 	onNavigationControllerChange?: (navigationController: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	playlistEditService: PlaylistEditService;
 	resetSignal: number;
 	sortOrder?: SortOrder;
 	transport: Transport;
@@ -239,6 +241,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							onNavigationContext={onNavigationContext}
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
+							playlistEditService={this.viewModel.playlistEditService}
 							sortOrder={sortOrder}
 							transport={transport}
 						/>;

@@ -115,11 +115,21 @@
 		"defaultMessage": "code : {code%s}",
 		"example": "code : ABC123"
 	},
+	"random_album": {
+		"defaultMessage": "ALBUM ALÉATOIRE"
+	},
 	"remove_download_body": {
 		"defaultMessage": "Cela supprimera ce téléchargement de votre appareil.\n\nSi ces pistes font partie d'une playlist, elles ne seront pas supprimées à moins que vous ne supprimiez la playlist."
 	},
 	"remove_download_title": {
 		"defaultMessage": "SUPPRIMER LE TÉLÉCHARGEMENT ?"
+	},
+	"remove_from_playlist_body": {
+		"defaultMessage": "retirer '{track%s}' de cette playlist ?",
+		"example": "retirer 'Nom de la chanson' de cette playlist ?"
+	},
+	"remove_from_playlist_title": {
+		"defaultMessage": "RETIRER DE LA PLAYLIST ?"
 	},
 	"search_could_not_search": {
 		"defaultMessage": "Impossible de rechercher pour l'instant."
@@ -216,9 +226,6 @@
 	},
 	"settings_title": {
 		"defaultMessage": "PARAMÈTRES"
-	},
-	"random_album": {
-		"defaultMessage": "ALBUM ALÉATOIRE"
 	},
 	"shuffle_library": {
 		"defaultMessage": "BIBLIOTHÈQUE ALÉATOIRE"

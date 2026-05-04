@@ -8,7 +8,7 @@
       <stop offset="100%" stop-color="#57B3E8"/>
     </linearGradient>
   </defs>
-  <g transform="rotate(30, 11, 12)">
+  <g transform="rotate(35, 11, 12)">
     <rect x="4" y="4" width="14" height="16" rx="2" stroke="url(#nav-gradient)" stroke-width="2"/>
     <circle cx="7.5" cy="8" r="1.5" fill="url(#nav-gradient)"/>
     <circle cx="7.5" cy="12" r="1.5" fill="url(#nav-gradient)"/>
@@ -17,8 +17,8 @@
     <circle cx="14.5" cy="12" r="1.5" fill="url(#nav-gradient)"/>
     <circle cx="14.5" cy="16" r="1.5" fill="url(#nav-gradient)"/>
   </g>
-  <path d="M22 5H46" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <path d="M24 10H46" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <path d="M23 15H46" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <path d="M20 20H46" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M22 5H40" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M25 10H40" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M23 15H40" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M20 20H40" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
 </svg>

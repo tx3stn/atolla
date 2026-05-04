@@ -51,6 +51,8 @@ export interface Transport {
 		page: number,
 		pageSize: number,
 	) => Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }>;
+	movePlaylistTrack?(playlistId: string, trackId: string, toIndex: number): Promise<void>;
+	removePlaylistTrack?(playlistId: string, trackId: string): Promise<void>;
 	scrobbleTrackPlayed?(trackId: string, datePlayed: string): Promise<void>;
 	search(query: string): Promise<SearchResults>;
 }
