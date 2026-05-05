@@ -48,6 +48,7 @@ export class TrackPlaybackNativePrefetchQueue {
 			return [{ track, trackId: track.id }];
 		});
 
+		this.inProgress = false;
 		this.processNext(this.generation);
 	}
 

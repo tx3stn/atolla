@@ -359,13 +359,13 @@ export class DownloadService {
 				);
 			}
 
+			await this.persistAll();
 			for (const { track, streamUrl } of tracks) {
 				if (!this.tracks[track.id]?.complete) {
 					this.enqueueTrack(track.id, streamUrl);
 				}
 			}
 			this.notify();
-			await this.persistAll();
 		});
 	}
 

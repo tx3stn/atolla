@@ -390,6 +390,19 @@ describe('ArtworkPaletteService', () => {
 			expect(calls).toBe(1);
 		});
 
+		it('notifies subscribers exactly once regardless of how many URLs are loaded', async () => {
+			const mockStore = new MockPaletteStore();
+			const urls = ['https://example.com/a.png', 'https://example.com/b.png', 'https://example.com/c.png'];
+			for (const url of urls) mockStore.seed(url, NEUTRAL_PALETTE);
+
+			const service = new ArtworkPaletteService(mockStore);
+			let calls = 0;
+			service.subscribe(() => calls++);
+			await service.warmUp(urls);
+
+			expect(calls).toBe(1);
+		});
+
 		it('does not overwrite an already-cached palette during warm-up', async () => {
 			const mockStore = new MockPaletteStore();
 			const url = 'https://example.com/art.png';

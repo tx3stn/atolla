@@ -50,10 +50,10 @@ export class ArtworkPaletteService {
 				const palette = await this.store.loadPalette(url);
 				if (palette) {
 					this.cache.set(url, this.normalizePalette(palette));
-					this.notify();
 				}
 			}),
 		);
+		this.notify();
 	}
 
 	// Extract a palette from the given image buffer and persist it.

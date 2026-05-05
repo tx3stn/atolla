@@ -13,9 +13,11 @@ import type { IPaletteWorker } from './PaletteGenerationWorker';
 import { PaletteWorkerEntryPoint } from './PaletteGenerationWorker';
 
 const SLOW_PATH_CONCURRENCY = 2;
+const FAST_PATH_CONCURRENCY = 4;
 
 export class PaletteGenerationQueue {
 	private queue: Array<string> = [];
+	private fastPathInFlight = 0;
 	private slowPathQueue: Array<string> = [];
 	private slowPathInFlight = new Set<string>();
 	private allSlowPathWorkers: Array<IWorkerServiceClient<IPaletteWorker>>;
@@ -79,12 +81,14 @@ export class PaletteGenerationQueue {
 	}
 
 	private processNext(): void {
-		if (this.queue.length === 0) return;
-
-		const pending = this.queue;
-		this.queue = [];
-		for (const url of pending) {
-			void this.processUrl(url);
+		while (this.fastPathInFlight < FAST_PATH_CONCURRENCY && this.queue.length > 0) {
+			// biome-ignore lint/style/noNonNullAssertion: length checked above
+			const url = this.queue.shift()!;
+			this.fastPathInFlight += 1;
+			void this.processUrl(url).finally(() => {
+				this.fastPathInFlight -= 1;
+				this.processNext();
+			});
 		}
 	}
 
@@ -169,9 +173,12 @@ export class PaletteGenerationQueue {
 		const source = buildImageSource(url, 'album_art', { cacheOnly: true });
 		return new Promise((resolve) => {
 			let subscription: { unsubscribe(): void } | undefined;
+			let settled = false;
 			subscription = addAssetLoadObserver(
 				source,
 				(loadedAsset: unknown, error: string | undefined) => {
+					if (settled) return;
+					settled = true;
 					subscription?.unsubscribe();
 					if (error || !loadedAsset) {
 						resolve(null);
