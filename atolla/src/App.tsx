@@ -95,6 +95,7 @@ import { GaplessPlayer } from './ui/components/GaplessPlayer';
 import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
 import { LibraryHeaderNav } from './ui/components/LibraryHeaderNav';
 import { MockPlayer } from './ui/components/MockPlayer';
+import { Modal } from './ui/components/Modal';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { Toast } from './ui/components/Toast';
 import type { NavBarContext } from './ui/NavBarContext';
@@ -850,7 +851,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						session.userId,
 						{ clientDeviceId: this.getEffectiveJellyfinClientDeviceId() },
 					);
-					void this.playlistEditService.flush(this.transport);
+					void this.playlistEditService.flush(this.transport).then((errors) => {
+						if (errors.length === 0) return;
+						const errorBody = errors.join('\n');
+						this.modalSlot.slotted(() => {
+							<Modal
+								body={errorBody}
+								onClose={() => {
+									this.modalSlot.slotted(() => {});
+								}}
+								title={Strings.playlistEditErrorTitle()}
+							/>;
+						});
+					});
 					this.setState({ connectionMode: mode, isAuthRequired: false });
 					return true;
 				}

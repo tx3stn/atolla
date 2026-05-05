@@ -100,6 +100,84 @@ describe('PlaylistEditService', () => {
 		expect(moveCalls).toHaveLength(1);
 	});
 
+	it('returns error messages for failed ops', async () => {
+		const store = new InMemoryStore();
+		const service = new PlaylistEditService(store);
+
+		const failingTransport = {
+			movePlaylistTrack: () => Promise.reject(new Error('playlist is read-only')),
+			removePlaylistTrack: () => Promise.reject(new Error('permission denied')),
+		} as unknown as Transport;
+
+		service.enqueue({ playlistId: 'p1', toIndex: 0, trackId: 't1', type: 'move' });
+		service.enqueue({ playlistId: 'p1', trackId: 't2', type: 'remove' });
+		const errors = await service.flush(failingTransport);
+
+		expect(errors).toEqual(['playlist is read-only', 'permission denied']);
+	});
+
+	it('returns empty array when all ops succeed', async () => {
+		const store = new InMemoryStore();
+		const service = new PlaylistEditService(store);
+		const { transport } = createTransportMock();
+
+		service.enqueue({ playlistId: 'p1', toIndex: 0, trackId: 't1', type: 'move' });
+		const errors = await service.flush(transport);
+
+		expect(errors).toEqual([]);
+	});
+
+	describe('execute', () => {
+		it('executes the op immediately and returns null on success', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+			const { moveCalls, transport } = createTransportMock();
+
+			const error = await service.execute(
+				{ playlistId: 'p1', toIndex: 2, trackId: 't1', type: 'move' },
+				transport,
+			);
+
+			expect(error).toBeNull();
+			expect(moveCalls).toEqual([{ playlistId: 'p1', toIndex: 2, trackId: 't1' }]);
+		});
+
+		it('returns the error message and enqueues for retry on failure', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+
+			const failingTransport = {
+				removePlaylistTrack: () => Promise.reject(new Error('playlist is read-only')),
+			} as unknown as Transport;
+
+			const error = await service.execute(
+				{ playlistId: 'p1', trackId: 't1', type: 'remove' },
+				failingTransport,
+			);
+
+			expect(error).toBe('playlist is read-only');
+
+			// op should have been queued for retry
+			const { removeCalls, transport } = createTransportMock();
+			await service.flush(transport);
+			expect(removeCalls).toHaveLength(1);
+		});
+
+		it('does not enqueue on success so flush is a no-op', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+			const { moveCalls, transport } = createTransportMock();
+
+			await service.execute(
+				{ playlistId: 'p1', toIndex: 0, trackId: 't1', type: 'move' },
+				transport,
+			);
+			await service.flush(transport);
+
+			expect(moveCalls).toHaveLength(1);
+		});
+	});
+
 	it('handles mixed move and remove ops in sequence', async () => {
 		const store = new InMemoryStore();
 		const service = new PlaylistEditService(store);

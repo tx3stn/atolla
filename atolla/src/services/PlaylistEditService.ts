@@ -43,14 +43,29 @@ export class PlaylistEditService {
 		});
 	}
 
-	async flush(transport: Transport): Promise<void> {
+	async execute(op: PlaylistOperation, transport: Transport): Promise<string | null> {
+		try {
+			if (op.type === 'move' && transport.movePlaylistTrack) {
+				await transport.movePlaylistTrack(op.playlistId, op.trackId, op.toIndex);
+			} else if (op.type === 'remove' && transport.removePlaylistTrack) {
+				await transport.removePlaylistTrack(op.playlistId, op.trackId);
+			}
+			return null;
+		} catch (e) {
+			this.enqueue(op);
+			return e instanceof Error ? e.message : 'Unknown error';
+		}
+	}
+
+	async flush(transport: Transport): Promise<Array<string>> {
 		await this.operationChain;
 		await this.load();
 
-		if (this.pendingOps.length === 0) return;
+		if (this.pendingOps.length === 0) return [];
 
 		const ops = this.pendingOps;
 		const failed: Array<PlaylistOperation> = [];
+		const errors: Array<string> = [];
 
 		for (const op of ops) {
 			try {
@@ -59,13 +74,15 @@ export class PlaylistEditService {
 				} else if (op.type === 'remove' && transport.removePlaylistTrack) {
 					await transport.removePlaylistTrack(op.playlistId, op.trackId);
 				}
-			} catch {
+			} catch (e) {
 				failed.push(op);
+				errors.push(e instanceof Error ? e.message : 'Unknown error');
 			}
 		}
 
 		this.pendingOps = failed;
 		await this.persist();
+		return errors;
 	}
 
 	private async persist(): Promise<void> {

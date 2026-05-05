@@ -204,7 +204,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	handleTrackReorder = (fromEntryIndex: number, toEntryIndex: number): void => {
-		const { playlist, playlistEditService } = this.viewModel;
+		const { playlist, playlistEditService, transport } = this.viewModel;
 		const tracks = [...this.state.tracks];
 		const artistLogoUrls = [...this.state.artistLogoUrls];
 		const [movedTrack] = tracks.splice(fromEntryIndex, 1);
@@ -220,12 +220,14 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		}
 
 		this.setState({ artistLogoUrls, tracks });
-		playlistEditService.enqueue({
-			playlistId: playlist.id,
-			toIndex: toEntryIndex,
-			trackId: movedTrack.id,
-			type: 'move',
-		});
+		void playlistEditService
+			.execute(
+				{ playlistId: playlist.id, toIndex: toEntryIndex, trackId: movedTrack.id, type: 'move' },
+				transport,
+			)
+			.then((error) => {
+				if (error) this.showEditErrorModal(error);
+			});
 	};
 
 	handleTrackSwipeRemove = (_trackId: string, entryIndex: number): void => {
@@ -271,8 +273,25 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		modalSlot?.slotted(() => {});
 		this.setState({ removedTrackPending: null });
-		playlistEditService.enqueue({ playlistId, trackId, type: 'remove' });
+		void playlistEditService
+			.execute({ playlistId, trackId, type: 'remove' }, this.viewModel.transport)
+			.then((error) => {
+				if (error) this.showEditErrorModal(error);
+			});
 	};
+
+	private showEditErrorModal(errorMessage: string): void {
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		modalSlot?.slotted(() => {
+			<Modal
+				body={errorMessage}
+				onClose={() => {
+					modalSlot?.slotted(() => {});
+				}}
+				title={Strings.playlistEditErrorTitle()}
+			/>;
+		});
+	}
 
 	private handleCancelRemoveFromPlaylist = (): void => {
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;

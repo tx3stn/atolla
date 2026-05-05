@@ -36,6 +36,7 @@ declare const Strings: {
 	nothingElseLinedUp: () => string;
 	playingNextToast: () => string;
 	playNext: () => string;
+	playlistEditErrorTitle: () => string;
 	quickConnectCode: (code: string) => string;
 	randomAlbum: () => string;
 	removeDownloadBody: () => string;

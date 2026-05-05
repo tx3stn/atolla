@@ -111,6 +111,9 @@
 	"playing_next_toast": {
 		"defaultMessage": "playing next"
 	},
+	"playlist_edit_error_title": {
+		"defaultMessage": "PLAYLIST EDIT FAILED"
+	},
 	"quick_connect_code": {
 		"defaultMessage": "code: {code%s}",
 		"example": "code: ABC123"
