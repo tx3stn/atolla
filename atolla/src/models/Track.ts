@@ -10,6 +10,7 @@ export interface Track {
 	genres?: Array<Genre>;
 	id: string;
 	name: string;
+	playlistItemId?: string;
 	productionYear?: number;
 	releaseDate?: string;
 	trackNumber?: number;

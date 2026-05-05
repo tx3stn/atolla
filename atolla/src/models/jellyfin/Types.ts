@@ -37,6 +37,7 @@ export interface JellyfinBaseItemDto extends JellyfinBaseItemIdentity {
 	Overview?: string;
 	ParentLogoImageTag?: string;
 	ParentLogoItemId?: string;
+	PlaylistItemId?: string;
 	PremiereDate?: string;
 	ProductionYear?: number;
 	RecursiveItemCount?: number;

@@ -57,6 +57,7 @@ function getHeaderValue(headers: Record<string, string>, key: string): string | 
 }
 
 interface HTTPClientLike {
+	delete?(pathOrUrl: string, headers?: Record<string, string>): Promise<HTTPResponseLike>;
 	get(pathOrUrl: string, headers?: Record<string, string>): Promise<HTTPResponseLike>;
 	post?(
 		pathOrUrl: string,
@@ -443,6 +444,19 @@ export class LiveTransport implements Transport {
 		};
 	}
 
+	async movePlaylistTrack(playlistId: string, entryId: string, toIndex: number): Promise<void> {
+		await this.requestVoid(
+			'POST',
+			`/Playlists/${encodeURIComponent(playlistId)}/Items/${encodeURIComponent(entryId)}/Move/${toIndex}`,
+		);
+	}
+
+	async removePlaylistTrack(playlistId: string, entryId: string): Promise<void> {
+		await this.requestVoid('DELETE', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
+			entryIds: entryId,
+		});
+	}
+
 	async getRandomAlbum(): Promise<Album | null> {
 		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
 			fields: 'Overview,Genres',
@@ -528,6 +542,42 @@ export class LiveTransport implements Transport {
 
 	downloadBinary(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
 		return this.requestBinaryWithRedirects(url, 5);
+	}
+
+	private async requestVoid(
+		method: 'DELETE' | 'POST',
+		path: string,
+		query: Record<string, string | number | boolean | undefined> = {},
+	): Promise<void> {
+		const client = this.httpClientFactory(this.baseUrl);
+		const requestPath = this.buildPath(path, query);
+		const headers = this.createHeaders();
+
+		let response: HTTPResponseLike;
+		if (method === 'POST') {
+			if (!client.post) throw new Error('HTTP client does not support POST');
+			response = await this.runWithRequestTimeout(
+				client.post(requestPath, new Uint8Array(0), headers),
+			);
+		} else {
+			if (!client.delete) throw new Error('HTTP client does not support DELETE');
+			response = await this.runWithRequestTimeout(client.delete(requestPath, headers));
+		}
+
+		if (response.statusCode < 200 || response.statusCode >= 300) {
+			let message = `Request failed [${response.statusCode}]`;
+			if (response.body) {
+				try {
+					const parsed = JSON.parse(new TextDecoder().decode(response.body)) as {
+						Message?: string;
+					};
+					if (parsed.Message) message = `${message}\n${parsed.Message}`;
+				} catch {
+					// ignore parse failure, use status-based message
+				}
+			}
+			throw new Error(message);
+		}
 	}
 
 	private async requestBinaryWithRedirects(

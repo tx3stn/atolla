@@ -1,5 +1,12 @@
 import type { Transport } from '../transports/Transport';
 
+function extractErrorMessage(e: unknown): string {
+	if (e != null && typeof e === 'object' && 'message' in e && typeof e.message === 'string') {
+		return e.message;
+	}
+	return 'Unknown error';
+}
+
 export type PlaylistOperation =
 	| { playlistId: string; toIndex: number; trackId: string; type: 'move' }
 	| { playlistId: string; trackId: string; type: 'remove' };
@@ -53,7 +60,7 @@ export class PlaylistEditService {
 			return null;
 		} catch (e) {
 			this.enqueue(op);
-			return e instanceof Error ? e.message : 'Unknown error';
+			return extractErrorMessage(e);
 		}
 	}
 
@@ -76,7 +83,7 @@ export class PlaylistEditService {
 				}
 			} catch (e) {
 				failed.push(op);
-				errors.push(e instanceof Error ? e.message : 'Unknown error');
+				errors.push(extractErrorMessage(e));
 			}
 		}
 

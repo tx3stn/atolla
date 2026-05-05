@@ -222,7 +222,12 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.setState({ artistLogoUrls, tracks });
 		void playlistEditService
 			.execute(
-				{ playlistId: playlist.id, toIndex: toEntryIndex, trackId: movedTrack.id, type: 'move' },
+				{
+					playlistId: playlist.id,
+					toIndex: toEntryIndex,
+					trackId: movedTrack.playlistItemId ?? movedTrack.id,
+					type: 'move',
+				},
 				transport,
 			)
 			.then((error) => {
@@ -258,7 +263,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				modalAccessibilityLabel='playlist-remove-modal'
 				onClose={this.handleCancelRemoveFromPlaylist}
 				onConfirm={() => {
-					this.handleConfirmRemoveFromPlaylist(playlist.id, removedTrack.id, playlistEditService);
+					this.handleConfirmRemoveFromPlaylist(
+						playlist.id,
+						removedTrack.playlistItemId ?? removedTrack.id,
+						playlistEditService,
+					);
 				}}
 				title={Strings.removeFromPlaylistTitle()}
 			/>;

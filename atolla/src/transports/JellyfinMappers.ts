@@ -151,6 +151,7 @@ export function mapJellyfinTrackToTrack(
 		genres: mapGenreReferences(item),
 		id: item.Id,
 		name: item.Name,
+		playlistItemId: item.PlaylistItemId,
 		productionYear: item.ProductionYear,
 		releaseDate: item.PremiereDate,
 		trackNumber: item.IndexNumber,
