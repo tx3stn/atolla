@@ -16,6 +16,7 @@ import { TrackList } from './TrackList';
 export interface TrackContextMenuViewModel {
 	animationsEnabled?: boolean;
 	imageCache?: ImageCache;
+	onAddToPlaylist?: () => void;
 	onAlbumTap?: () => void;
 	onArtistTap?: () => void;
 	onDismiss: (toastMessage?: string) => void;
@@ -70,7 +71,7 @@ export class TrackContextMenu extends StatefulComponent<
 	};
 
 	handleAddToPlaylist = (): void => {
-		this.viewModel.onDismiss();
+		this.viewModel.onAddToPlaylist?.();
 	};
 
 	handlePlayNextTap = (): void => {

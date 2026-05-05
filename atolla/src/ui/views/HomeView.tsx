@@ -18,6 +18,7 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ViewHeader } from '../components/ViewHeader';
+import { AddToPlaylistView } from './AddToPlaylistView';
 import {
 	createHomeAlbumsSignature,
 	parseHomeAlbumsCache,
@@ -275,6 +276,21 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
 				imageCache={imageCache}
+				onAddToPlaylist={() => {
+					this.setState({ contextMenuTrack: null });
+					modalSlot?.slotted(() => {
+						<AddToPlaylistView
+							animationsEnabled={animationsEnabled}
+							gridColumns={this.viewModel.gridColumns}
+							imageCache={imageCache}
+							onDismiss={() => {
+								modalSlot?.slotted(() => {});
+							}}
+							track={track}
+							transport={transport}
+						/>;
+					});
+				}}
 				onAlbumTap={track.albumId ? this.handleContextMenuAlbumTap : undefined}
 				onArtistTap={
 					onNavigateToArtist && track.artistId ? this.handleContextMenuArtistTap : undefined

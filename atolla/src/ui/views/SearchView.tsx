@@ -31,6 +31,7 @@ import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { clearScheduledToast, scheduleToastDismiss } from '../components/toastTimer';
 import type { NavBarContext } from '../NavBarContext';
+import { AddToPlaylistView } from './AddToPlaylistView';
 import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
 import { PlaylistView } from './PlaylistView';
@@ -274,9 +275,38 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	handleTrackLongPress = (track: Track): void => {
 		this.setState({ contextMenuTrack: track });
+		const modalSlot = this.viewModel.navBarContext?.modalSlot;
+		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		modalSlot?.slotted(() => {
+			<TrackContextMenu
+				animationsEnabled={animationsEnabled}
+				imageCache={imageCache}
+				onAddToPlaylist={() => {
+					this.setState({ contextMenuTrack: null });
+					modalSlot?.slotted(() => {
+						<AddToPlaylistView
+							animationsEnabled={animationsEnabled}
+							gridColumns={this.viewModel.gridColumns}
+							imageCache={imageCache}
+							onDismiss={() => {
+								modalSlot?.slotted(() => {});
+							}}
+							track={track}
+							transport={transport}
+						/>;
+					});
+				}}
+				onArtistTap={track.artistId ? this.handleContextMenuArtistTap : undefined}
+				onDismiss={this.handleContextMenuDismiss}
+				playbackStore={playbackStore}
+				track={track}
+				transport={transport}
+			/>;
+		});
 	};
 
 	handleContextMenuDismiss = (toastMessage?: string): void => {
+		this.viewModel.navBarContext?.modalSlot?.slotted(() => {});
 		this.setState({ contextMenuTrack: null });
 		if (toastMessage) {
 			this.toastTimerId = scheduleToastDismiss(
@@ -554,8 +584,8 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	}
 
 	onRender(): void {
-		const { contextMenuTrack, query, recentSearches, results, status, toastMessage } = this.state;
-		const { imageCache, playbackStore, transport } = this.viewModel;
+		const { query, recentSearches, results, status, toastMessage } = this.state;
+		const { imageCache } = this.viewModel;
 
 		<layout accessibilityLabel='search-view' style={styles.searchRoot}>
 			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
@@ -684,17 +714,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					</layout>
 				</view>
 			</scroll>
-			{contextMenuTrack && (
-				<TrackContextMenu
-					animationsEnabled={this.viewModel.animationsEnabled}
-					imageCache={imageCache}
-					onArtistTap={contextMenuTrack.artistId ? this.handleContextMenuArtistTap : undefined}
-					onDismiss={this.handleContextMenuDismiss}
-					playbackStore={playbackStore}
-					track={contextMenuTrack}
-					transport={transport}
-				/>
-			)}
 			{toastMessage && <Toast message={toastMessage} />}
 		</layout>;
 	}

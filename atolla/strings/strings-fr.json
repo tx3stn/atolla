@@ -5,6 +5,9 @@
 	"add_to_queue": {
 		"defaultMessage": "ajouter à la file"
 	},
+	"added_to_playlist": {
+		"defaultMessage": "ajouté à la playlist"
+	},
 	"added_to_queue_toast": {
 		"defaultMessage": "ajouté à la file"
 	},
@@ -55,6 +58,9 @@
 	},
 	"connect_to_jellyfin": {
 		"defaultMessage": "connecter à jellyfin"
+	},
+	"done": {
+		"defaultMessage": "terminé"
 	},
 	"enter_server_url": {
 		"defaultMessage": "entrer l'URL du serveur"

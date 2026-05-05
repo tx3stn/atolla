@@ -22,6 +22,7 @@ import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import type { NavBarContext } from '../NavBarContext';
+import { AddToPlaylistView } from './AddToPlaylistView';
 import { AlbumView } from './AlbumView';
 import { resolveGenreImageUrls } from './GenreNavigationResolver';
 import { TRACK_PAGE_SIZE } from './GridPagination';
@@ -95,6 +96,20 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
 				imageCache={imageCache}
+				onAddToPlaylist={() => {
+					this.setState({ contextMenuTrack: null });
+					modalSlot?.slotted(() => {
+						<AddToPlaylistView
+							animationsEnabled={animationsEnabled}
+							imageCache={imageCache}
+							onDismiss={() => {
+								modalSlot?.slotted(() => {});
+							}}
+							track={track}
+							transport={transport}
+						/>;
+					});
+				}}
 				onAlbumTap={track.albumId ? this.handleContextMenuAlbumTap : undefined}
 				onArtistTap={
 					onNavigateToArtist && track.artistId ? this.handleContextMenuArtistTap : undefined

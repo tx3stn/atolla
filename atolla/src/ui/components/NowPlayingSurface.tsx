@@ -14,6 +14,7 @@ import { buildImageSource } from '../../services/ImageSource';
 import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playback';
 import { theme, topInset, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { AddToPlaylistView } from '../views/AddToPlaylistView';
 import { ArtistLogo } from './ArtistLogo';
 import { ProgressBarWaveform } from './ProgressBarWaveform';
 import { TappableIcon } from './TappableIcon';
@@ -57,6 +58,7 @@ type QueueTab = 'backTo' | 'upNext';
 
 interface NowPlayingSurfaceState {
 	activeQueueTab: QueueTab;
+	addToPlaylistTrack: Track | null;
 	contextMenuTrack: Track | null;
 	isExpanded: boolean;
 	toastMessage: string | null;
@@ -84,6 +86,7 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	state: NowPlayingSurfaceState = {
 		activeQueueTab: 'upNext',
+		addToPlaylistTrack: null,
 		contextMenuTrack: null,
 		isExpanded: false,
 		toastMessage: null,
@@ -662,6 +665,11 @@ export class NowPlayingSurface extends StatefulComponent<
 				<TrackContextMenu
 					animationsEnabled={this.viewModel.animationsEnabled}
 					imageCache={this.viewModel.imageCache}
+					onAddToPlaylist={() => {
+						const track = this.state.contextMenuTrack;
+						if (!track) return;
+						this.setState({ addToPlaylistTrack: track, contextMenuTrack: null });
+					}}
 					onArtistTap={
 						this.state.contextMenuTrack.artistId && this.viewModel.onArtistTap
 							? this.handleContextMenuArtistTap
@@ -670,6 +678,17 @@ export class NowPlayingSurface extends StatefulComponent<
 					onDismiss={this.handleContextMenuDismiss}
 					playbackStore={this.viewModel.playbackStore}
 					track={this.state.contextMenuTrack}
+					transport={this.viewModel.transport}
+				/>
+			)}
+			{this.state.addToPlaylistTrack && this.viewModel.transport && (
+				<AddToPlaylistView
+					animationsEnabled={this.viewModel.animationsEnabled}
+					imageCache={this.viewModel.imageCache}
+					onDismiss={() => {
+						this.setState({ addToPlaylistTrack: null });
+					}}
+					track={this.state.addToPlaylistTrack}
 					transport={this.viewModel.transport}
 				/>
 			)}

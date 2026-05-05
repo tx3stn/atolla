@@ -1,4 +1,5 @@
 declare const Strings: {
+	addedToPlaylist: () => string;
 	addedToQueueToast: () => string;
 	addToPlaylist: () => string;
 	addToQueue: () => string;
@@ -18,6 +19,7 @@ declare const Strings: {
 	clearCacheModalTitle: () => string;
 	connectButton: () => string;
 	connectToJellyfin: () => string;
+	done: () => string;
 	enterServerUrl: () => string;
 	failedToLoadMore: () => string;
 	genres: () => string;

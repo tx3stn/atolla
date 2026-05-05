@@ -444,6 +444,13 @@ export class LiveTransport implements Transport {
 		};
 	}
 
+	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
+		await this.requestVoid('POST', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
+			ids: trackId,
+			userId: this.userId,
+		});
+	}
+
 	async movePlaylistTrack(playlistId: string, entryId: string, toIndex: number): Promise<void> {
 		await this.requestVoid(
 			'POST',

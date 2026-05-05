@@ -6,6 +6,7 @@ import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 
 export interface Transport {
+	addItemToPlaylist?(playlistId: string, trackId: string): Promise<void>;
 	downloadBinary?(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null>;
 	getAlbumsByArtist(artistId: string): Promise<Array<Album>>;
 	getAlbumsPage?: (
