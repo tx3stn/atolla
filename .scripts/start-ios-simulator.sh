@@ -11,29 +11,14 @@ require_cmd() {
 }
 
 require_cmd xcrun
-require_cmd valdi
 
 unset MACOSX_DEPLOYMENT_TARGET
 unset IPHONEOS_DEPLOYMENT_TARGET
 
 MACOS_SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
-# Omitting --simulator (NOT passing --simulator=true) is intentional: valdi has inverted logic
-# where --simulator=true sets forDevice=true and injects --ios_multi_cpus=arm64 (device).
-# Without --simulator, forDevice=false and no ios_multi_cpus flag is added, so our
-# --ios_multi_cpus=sim_arm64 below is the only one and correctly targets the simulator.
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS:-} --ios_multi_cpus=sim_arm64"
-VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --macos_sdk_version=${MACOS_SDK_VERSION} --host_macos_minimum_os=12.0 --macos_minimum_os=12.0"
-VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --cxxopt=-std=gnu++20 --host_cxxopt=-std=gnu++20"
-VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --remote_download_outputs=toplevel"
-# .bazelrc sets --copt=-DANDROID_WITH_JNI globally (for Android builds). On iOS this causes
-# android/log.h not found in JvmUtils.cpp. --copt applies to all configs so --copt=-U overrides it;
-# --host_copt alone is insufficient because the define comes via --copt, not --host_copt.
-VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --copt=-UANDROID_WITH_JNI"
-# Clang 26 (SDK 26+) promotes several warnings to errors in third-party deps (abseil, Hermes, Yoga)
-VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --host_copt=-Wno-deprecated-builtins --copt=-Wno-deprecated-builtins"
-VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --host_copt=-Wno-nontrivial-memcall --copt=-Wno-nontrivial-memcall"
-VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --host_copt=-Wno-deprecated-literal-operator --copt=-Wno-deprecated-literal-operator"
-VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --host_copt=-Wno-deprecated --copt=-Wno-deprecated"
+VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --macos_sdk_version=${MACOS_SDK_VERSION}"
+VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --config=ios"
 
 if [[ "$FAST_DEV_BUILD" == "1" ]]; then
 	VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --spawn_strategy=local --strategy=ValdiCompile=local --compilation_mode=fastbuild --keep_going"
@@ -92,29 +77,24 @@ echo "Using simulator: $SIMULATOR_NAME ($SIMULATOR_ID)"
 VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//:atolla_ios}"
 echo "Using application target: $VALDI_APPLICATION_TARGET"
 
-# Build the IPA before installing — valdi install ios uses `bazel run` which
-# hijacks the terminal, so the artifact copy must happen first. The install
-# step gets a cache hit since the IPA is already built.
 IPA_TARGET="${VALDI_APPLICATION_TARGET%.ipa}.ipa"
-echo "Building IPA artifact..."
+echo "Building app..."
 read -r -a BAZEL_ARGS_ARRAY <<<"$VALDI_BAZEL_ARGS"
 bazel build "$IPA_TARGET" "${BAZEL_ARGS_ARRAY[@]}"
 
 # Copy IPA to a stable path so e2e tests can find it regardless of which platform
 # was built last (bazel-bin symlink floats to the most recent build's output dir).
 IPA_SRC="$(find bazel-bin -maxdepth 6 -name "atolla_ios.ipa" 2>/dev/null | head -1)"
-if [[ -n "$IPA_SRC" ]]; then
-	mkdir -p build
-	cp "$IPA_SRC" build/atolla_ios.ipa
-	echo "IPA copied to build/atolla_ios.ipa"
-else
-	echo "Warning: could not locate atolla_ios.ipa in bazel-bin" >&2
+if [[ -z "$IPA_SRC" ]]; then
+	echo "Error: could not locate atolla_ios.ipa in bazel-bin" >&2
+	exit 1
 fi
 
-echo "Installing app with Valdi..."
-valdi install ios \
-	--application="$VALDI_APPLICATION_TARGET" \
-	--device_id="$SIMULATOR_ID" \
-	--bazel_args="$VALDI_BAZEL_ARGS"
+mkdir -p build
+cp "$IPA_SRC" build/atolla_ios.ipa
+echo "IPA copied to build/atolla_ios.ipa"
+
+echo "Installing on simulator..."
+xcrun simctl install "$SIMULATOR_ID" "$IPA_SRC"
 
 echo "Done."
