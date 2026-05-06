@@ -9,6 +9,7 @@
 #import <UIKit/UIKit.h>
 #import "atolla/native/ios/palette_ios_bridge.h"
 #import "atolla/native/ios/blur_ios_bridge.h"
+#include "atolla/native/zig/palette_extractor.h"
 
 // MARK: - Request Payload
 
@@ -332,6 +333,9 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
             if (!data) { completion(nil, err); return; }
             [self->_cache writeData:data forKey:key];
+            if ([payload.category isEqualToString:@"album_art"]) {
+                [self writePaletteSidecarForData:data url:payload.sourceURL.absoluteString];
+            }
             if (self->_imageCachedObserver) {
                 self->_imageCachedObserver(payload.sourceURL.absoluteString, payload.category);
             }
@@ -345,7 +349,31 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     return [AtollaBlurProcessor blurImageData:originalData];
 }
 
+- (void)writePaletteSidecarForData:(NSData *)data url:(NSString *)urlString {
+    AtollaPalette palette;
+    if (!atolla_extract_palette_from_bytes(
+            (const uint8_t *)data.bytes, data.length, &palette)) return;
+    char json[256];
+    snprintf(json, sizeof(json),
+        "{\"primary\":{\"hex\":\"%s\"},\"accent\":{\"hex\":\"%s\"},"
+        "\"surface\":{\"hex\":\"%s\"},\"on_surface\":{\"hex\":\"%s\"},"
+        "\"muted_on_surface\":{\"hex\":\"%s\"}}",
+        palette.primary, palette.accent, palette.surface,
+        palette.on_surface, palette.muted_on_surface);
+    NSData *paletteData = [[NSString stringWithUTF8String:json]
+                           dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *paletteKey = [NSString stringWithFormat:@"album_art_palette:%@", urlString];
+    [_cache writeData:paletteData forKey:paletteKey];
+}
+
 - (nullable NSString *)extractPaletteForCategory:(NSString *)category sourceURL:(NSString *)url {
+    if ([category isEqualToString:@"album_art"]) {
+        NSString *paletteKey = [NSString stringWithFormat:@"album_art_palette:%@", url];
+        NSData *paletteData = [_cache readForKey:paletteKey];
+        if (paletteData) {
+            return [[NSString alloc] initWithData:paletteData encoding:NSUTF8StringEncoding];
+        }
+    }
     NSString *key = [NSString stringWithFormat:@"%@:%@", category, url];
     NSData *data = [_cache readForKey:key];
     if (!data) return nil;
@@ -362,6 +390,9 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
             if (!data) return;
             [self->_cache writeData:data forKey:key];
+            if ([category isEqualToString:@"album_art"]) {
+                [self writePaletteSidecarForData:data url:url];
+            }
             if (self->_imageCachedObserver) self->_imageCachedObserver(url, category);
         }];
     [task resume];

@@ -1,6 +1,4 @@
-import type { MimeType } from '../images/MimeType';
 import { mutedTextColor } from './color/colorUtils';
-import { computePalette } from './color/computePalette';
 import type { Palette } from './color/types';
 import { NEUTRAL_PALETTE } from './color/types';
 
@@ -54,22 +52,6 @@ export class ArtworkPaletteService {
 			}),
 		);
 		this.notify();
-	}
-
-	// Extract a palette from the given image buffer and persist it.
-	async generatePalette(url: string, buffer: ArrayBuffer, mimeType: MimeType): Promise<void> {
-		try {
-			const palette = await computePalette(buffer, mimeType);
-			if (!palette) {
-				this.lastError = `decode returned null for ${mimeType} (${url.slice(0, 60)})`;
-				this.notify();
-				return;
-			}
-			await this.persistPalette(url, palette);
-		} catch (err) {
-			this.lastError = String(err);
-			this.notify();
-		}
 	}
 
 	async clearAll(): Promise<void> {

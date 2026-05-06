@@ -16,6 +16,7 @@ import { AuthErrors } from './errors/AuthErrors';
 import {
 	clearAtollaNativeCacheCategories,
 	ensureAtollaImageLoaderBootstrap,
+	extractAtollaPaletteFromCache,
 	getAtollaImageLoaderDiskCacheByteSize,
 	getAtollaImageLoaderDiskCacheCategoryCountsJson,
 	getAtollaImageLoaderDiskCacheEntryCount,
@@ -671,7 +672,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				),
 			),
 		);
-		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
+		this.paletteQueue = new PaletteGenerationQueue(
+			this.paletteService,
+			extractAtollaPaletteFromCache,
+		);
 		this.scrobbleService = new ScrobbleService({
 			deliverScrobble: (pending) => {
 				if (!this.transport.scrobbleTrackPlayed) {

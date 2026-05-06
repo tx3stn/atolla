@@ -26,6 +26,17 @@ bool atolla_extract_palette(
     AtollaPalette* out
 );
 
+// Extract a colour palette from raw PNG or JPEG file bytes.
+// bytes: complete file contents (PNG or JPEG)
+// len: number of bytes
+// out: filled on success; default colours written on failure
+// returns: true on success, false if format is unrecognised or parse fails
+bool atolla_extract_palette_from_bytes(
+    const uint8_t* bytes,
+    size_t len,
+    AtollaPalette* out
+);
+
 #ifdef __cplusplus
 }
 #endif

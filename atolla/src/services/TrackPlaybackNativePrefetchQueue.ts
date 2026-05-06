@@ -104,9 +104,9 @@ export class TrackPlaybackNativePrefetchQueue {
 		}
 
 		this.cacheTrack(entry.trackId, url, (source) => {
-			if (!source || generation !== this.generation) {
+			if (!source) {
 				this.onTrackFetchFailed?.(entry.trackId, 'native cache failed');
-			} else {
+			} else if (generation === this.generation) {
 				this.onTrackStored?.(entry.trackId);
 			}
 			this.inProgress = false;

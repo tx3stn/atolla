@@ -205,7 +205,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	fun clearCategories(categories: List<String>) {
 		// Keep full-size and thumb variants in sync when clearing categories.
 		val expanded = categories.toMutableSet()
-		if (expanded.contains("album_art")) expanded.addAll(listOf("album_art_blurred", "album_art_thumb"))
+		if (expanded.contains("album_art")) expanded.addAll(listOf("album_art_blurred", "album_art_thumb", "album_art_palette"))
 		if (expanded.contains("album_art_thumb")) expanded.add("album_art")
 		if (expanded.contains("artist_image")) expanded.add("artist_image_thumb")
 		if (expanded.contains("artist_image_thumb")) expanded.add("artist_image")
@@ -232,30 +232,33 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	}
 
 	fun extractPalette(category: String, sourceUrl: String): String? {
+		// Try the side-car key written at cache time — no decode needed.
+		if (category == "album_art") {
+			val paletteKey = "album_art_palette:$sourceUrl"
+			val sidecar = memory.get(paletteKey) ?: readFromDisk(paletteKey)
+			if (sidecar != null) return String(sidecar, Charsets.UTF_8)
+		}
+		// Fall back to extracting from raw bytes (handles pre-existing cache entries).
 		val key = "$category:$sourceUrl"
 		val bytes = memory.get(key) ?: readFromDisk(key) ?: return null
-		val bitmap = try {
-			BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-		} catch (error: Throwable) {
-			Log.e(tag, "Failed to decode bitmap for palette key=$key", error)
-			null
-		} ?: return null
-
 		return try {
-			val w = bitmap.width
-			val h = bitmap.height
-			val pixels = IntArray(w * h)
-			bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
-			nativeExtractPalette(pixels, w, h)
+			nativeExtractPaletteFromBytes(bytes)
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed to extract palette for key=$key", error)
 			null
-		} finally {
-			bitmap.recycle()
 		}
 	}
 
-	private external fun nativeExtractPalette(pixels: IntArray, width: Int, height: Int): String?
+	private fun writePaletteSidecarIfNeeded(sourceUrl: String, category: String, bytes: ByteArray) {
+		if (category != "album_art") return
+		val paletteJson = try { nativeExtractPaletteFromBytes(bytes) } catch (_: Throwable) { null } ?: return
+		val paletteKey = "album_art_palette:$sourceUrl"
+		val paletteBytes = paletteJson.toByteArray(Charsets.UTF_8)
+		memory.put(paletteKey, paletteBytes)
+		writeToDisk(paletteKey, paletteBytes)
+	}
+
+	private external fun nativeExtractPaletteFromBytes(bytes: ByteArray): String?
 	private external fun nativeBlurPixels(pixels: IntArray, width: Int, height: Int, outWidth: Int, outHeight: Int): IntArray?
 
 	fun resolveCachedFileUrl(category: String, sourceUrl: String): String? {
@@ -469,6 +472,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				val originalBytes = fetchBytes(payload.sourceUrl)
 				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
+				writePaletteSidecarIfNeeded(payload.sourceUrl, "album_art", originalBytes)
 				val blurredBytes = generateBlurredBytes(originalBytes)
 				inFlight.remove(key)
 				if (blurredBytes != null) {
@@ -497,6 +501,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			Log.d(tag, "network fetch success key=$key bytes=${bytes.size}")
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
+			writePaletteSidecarIfNeeded(payload.sourceUrl, payload.category, bytes)
 			inFlight.remove(key)
 			future.complete(bytes)
 			completeFromBytes(key, bytes, options, completion, cancelled)
@@ -588,6 +593,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				val originalBytes = fetchBytes(sourceUrl)
 				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
+				writePaletteSidecarIfNeeded(sourceUrl, "album_art", originalBytes)
 				val blurredBytes = generateBlurredBytes(originalBytes)
 				inFlight.remove(key)
 				if (blurredBytes != null) {
@@ -604,6 +610,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			val bytes = fetchBytes(sourceUrl)
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
+			writePaletteSidecarIfNeeded(sourceUrl, category, bytes)
 			inFlight.remove(key)
 			future.complete(bytes)
 			warmBitmapCache(key, bytes, category)

@@ -728,8 +728,6 @@ export class DownloadService {
 		const existingLogo = existing.trackArtistLogoUrls[trackId];
 		if (existingLogo == null && artistLogoUrl != null) {
 			existing.trackArtistLogoUrls[trackId] = artistLogoUrl;
-		} else if (!(trackId in existing.trackArtistLogoUrls)) {
-			existing.trackArtistLogoUrls[trackId] = artistLogoUrl;
 		}
 	}
 
