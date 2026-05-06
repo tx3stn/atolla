@@ -2,7 +2,7 @@ package atolla.native.android
 
 import android.app.Notification
 import com.tx3stn.atolla.AtollaCacheImageLoader
-import com.tx3stn.atolla.AtollaWaveformNativeCache
+import com.tx3stn.atolla.AtollaWaveformRenderTempStore
 import com.tx3stn.atolla.AtollaWaveformWorker
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -22,6 +22,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Process
 import android.os.SystemClock
+import android.util.Base64
 import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.AudioAttributes
@@ -37,6 +38,8 @@ import java.io.File
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.ArrayDeque
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -217,29 +220,41 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				)
 			}
 
-			override fun generateAtollaWaveformAsync(trackId: String, audioPath: String, onComplete: (String) -> Unit) {
+			override fun generateAtollaWaveformAmpsAsync(trackId: String, audioPath: String, onComplete: (String) -> Unit) {
 				Thread {
-					val url = try {
-						val cached = AtollaWaveformNativeCache.getCachedWaveformUrl(trackId)
-						if (cached.isNotEmpty()) {
-							cached
-						} else {
-							val pngBytes = AtollaWaveformWorker.generateWaveformPng(audioPath)
-							if (pngBytes != null && pngBytes.isNotEmpty()) {
-								AtollaWaveformNativeCache.saveWaveformPng(trackId, pngBytes)
-							} else ""
-						}
+					val result = try {
+						val amps = AtollaWaveformWorker.extractAmps(audioPath)
+						if (amps != null) {
+							val bb = ByteBuffer.allocate(amps.size * 4).order(ByteOrder.LITTLE_ENDIAN)
+							for (f in amps) bb.putFloat(f)
+							Base64.encodeToString(bb.array(), Base64.NO_WRAP)
+						} else ""
 					} catch (e: Throwable) {
-						Log.e("AtollaWaveformModule", "Waveform generation failed trackId=$trackId", e)
+						Log.e("AtollaWaveformModule", "Amp extraction failed trackId=$trackId", e)
 						""
 					}
-					onComplete(url)
+					onComplete(result)
 				}.also { it.isDaemon = true }.start()
 			}
 
-			override fun clearAtollaWaveformCache() {
-				AtollaWaveformNativeCache.clearCache()
+			override fun renderAtollaWaveformFromAmpsAsync(ampsBase64: String, width: Double, height: Double, onComplete: (String) -> Unit) {
+				Thread {
+					val result = try {
+						val bytes = Base64.decode(ampsBase64, Base64.NO_WRAP)
+						val bb = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+						val amps = FloatArray(bytes.size / 4) { bb.getFloat() }
+						val pngBytes = AtollaWaveformWorker.renderPng(amps, width.toInt(), height.toInt())
+						if (pngBytes != null && pngBytes.isNotEmpty()) {
+							AtollaWaveformRenderTempStore.save(pngBytes)
+						} else ""
+					} catch (e: Throwable) {
+						Log.e("AtollaWaveformModule", "Waveform render from amps failed", e)
+						""
+					}
+					onComplete(result)
+				}.also { it.isDaemon = true }.start()
 			}
+
 		}
 	}
 }

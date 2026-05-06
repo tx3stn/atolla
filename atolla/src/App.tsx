@@ -50,6 +50,7 @@ import {
 	normalizeTrackPlaybackNotificationAction,
 } from './services/TrackPlaybackNotificationSync';
 import { WaveformGenerationQueue } from './services/WaveformGenerationQueue';
+import { WaveformRenderCache } from './services/WaveformRenderCache';
 import { WaveformService } from './services/WaveformService';
 import { WriteBehindPaletteStore } from './services/WriteBehindPaletteStore';
 import {
@@ -71,7 +72,6 @@ import {
 	cacheAtollaTrackFromUrlAsync,
 	clearAtollaTrackCache,
 	clearAtollaTrackPlaybackNotification,
-	clearAtollaWaveformCache,
 	consumeAtollaTrackPlaybackNotificationAction,
 	ensureAtollaTrackPlaybackNotificationPermission,
 	getAtollaAudioPlaybackIsActive,
@@ -298,10 +298,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private paletteQueue!: PaletteGenerationQueue;
 	private waveformService!: WaveformService;
 	private waveformQueue!: WaveformGenerationQueue;
+	private waveformRenderCache!: WaveformRenderCache;
 	private hasBeenDestroyed = false;
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
 	private unsubscribeWaveform?: () => void;
+	private unsubscribeWaveformRender?: () => void;
 	private scrobbleService?: ScrobbleService;
 	private authToastTimer?: ReturnType<typeof setTimeout>;
 	private playbackToastTimer?: ReturnType<typeof setTimeout>;
@@ -614,8 +616,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.unsubscribeWaveform) {
 			this.unsubscribeWaveform();
 		}
+		if (this.unsubscribeWaveformRender) {
+			this.unsubscribeWaveformRender();
+		}
 		if (this.waveformQueue) {
 			this.waveformQueue.dispose();
+		}
+		if (this.waveformRenderCache) {
+			this.waveformRenderCache.clear();
 		}
 		if (this.nativeCacheStatsInterval) {
 			clearInterval(this.nativeCacheStatsInterval);
@@ -640,8 +648,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.unsubscribeWaveform) {
 			this.unsubscribeWaveform();
 		}
+		if (this.unsubscribeWaveformRender) {
+			this.unsubscribeWaveformRender();
+		}
 		if (this.waveformQueue) {
 			this.waveformQueue.dispose();
+		}
+		if (this.waveformRenderCache) {
+			this.waveformRenderCache.clear();
 		}
 		this.searchStore = new SearchStore(
 			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
@@ -708,9 +722,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				new PersistentStore(`atolla/user/${userId}/waveform_data`, { deviceGlobal: true }),
 			),
 		);
+		this.waveformRenderCache = new WaveformRenderCache();
 		this.waveformQueue = new WaveformGenerationQueue(this.waveformService);
 		void this.waveformService.warmUp();
 		this.unsubscribeWaveform = this.waveformService.subscribe(() => {
+			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
+			this.setState({ version: this.state.version + 1 });
+		});
+		this.unsubscribeWaveformRender = this.waveformRenderCache.subscribe(() => {
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
 		});
@@ -1036,6 +1055,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.handleTrackPlaybackSourceChange(true);
 		}
 		this.handleNextTrackPreload();
+	}
+
+	private getWaveformMaskUrl(trackId: string): string | null {
+		if (!this.waveformService || !this.waveformRenderCache) return null;
+		const amps = this.waveformService.getAmps(trackId);
+		if (!amps) return null;
+		return this.waveformRenderCache.getOrRequest(trackId, amps);
 	}
 
 	private getAudioPathForWaveform(trackId: string): string | null {
@@ -1405,11 +1431,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 		if (selection.waveformData) {
 			this.waveformService?.clearAll();
-			try {
-				clearAtollaWaveformCache();
-			} catch {
-				// Non-Android targets may not support native waveform cache clear.
-			}
+			this.waveformRenderCache?.clear();
 		}
 		this.refreshNativeCacheStats();
 		this.refreshTrackCachedCount();
@@ -1854,7 +1876,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			trackIndex={trackIndex}
 			tracks={tracks}
 			transport={this.transport}
-			waveformMaskUrl={this.waveformService?.getMaskImageUrl(track.id) ?? null}
+			waveformMaskUrl={this.getWaveformMaskUrl(track.id)}
 		/>;
 	};
 
@@ -2451,7 +2473,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						trackIndex={trackIndex}
 						tracks={tracks}
 						transport={this.transport}
-						waveformMaskUrl={this.waveformService?.getMaskImageUrl(track.id) ?? null}
+						waveformMaskUrl={this.getWaveformMaskUrl(track.id)}
 					/>
 				)}
 

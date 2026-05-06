@@ -20,9 +20,9 @@ interface ActiveJob {
 // (4 kHz resample + strided sampling) so running 3 at once is safe.
 const CONCURRENCY = 3;
 
-// Prioritised concurrent queue that generates waveform mask images.
+// Prioritised concurrent queue that extracts waveform amplitude arrays.
 // Up to CONCURRENCY tracks are processed in parallel; the queue order maps to
-// PlaybackSession.queue so upcoming tracks are generated first.
+// PlaybackSession.queue so upcoming tracks are processed first.
 export class WaveformGenerationQueue {
 	private queue: Array<QueueEntry> = [];
 	private allWorkers: Array<IWorkerServiceClient<IWaveformNativeWorker>>;
@@ -43,7 +43,7 @@ export class WaveformGenerationQueue {
 	// Enqueue a track for waveform generation. No-op if the waveform is already
 	// ready/failed or the track is already queued or in-flight.
 	enqueue(trackId: string, audioPath: string): void {
-		if (this.waveformService.getMaskImageUrl(trackId) !== null) return;
+		if (this.waveformService.getAmps(trackId) !== null) return;
 		if (this.queue.some((e) => e.trackId === trackId)) return;
 		if (this.activeJobs.some((j) => j.entry.trackId === trackId && !j.abandoned)) return;
 		this.queue.push({ audioPath, trackId });
@@ -118,12 +118,12 @@ export class WaveformGenerationQueue {
 		job: ActiveJob,
 	): Promise<void> {
 		const { trackId, audioPath } = job.entry;
-		if (this.waveformService.getMaskImageUrl(trackId) !== null) return;
+		if (this.waveformService.getAmps(trackId) !== null) return;
 		try {
-			const maskUrl = await worker.api.generateWaveform(trackId, audioPath);
+			const amps = await worker.api.generateWaveform(trackId, audioPath);
 			if (job.abandoned) return;
-			if (maskUrl) {
-				this.waveformService.onGenerationSucceeded(trackId, maskUrl);
+			if (amps) {
+				this.waveformService.onGenerationSucceeded(trackId, amps);
 			} else {
 				this.waveformService.onGenerationFailed(trackId);
 			}

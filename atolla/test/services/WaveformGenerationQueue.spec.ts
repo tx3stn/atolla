@@ -12,7 +12,7 @@ type MockWorker = IWorkerServiceClient<IWaveformNativeWorker> & {
 };
 
 function createMockWorker(
-	generateImpl: () => Promise<string | null> = () => Promise.resolve('data:image/png;base64,ok'),
+	generateImpl: () => Promise<string | null> = () => Promise.resolve('amps-base64-ok'),
 ): MockWorker {
 	return {
 		api: {
@@ -27,14 +27,14 @@ function createMockService() {
 	const ready = new Map<string, string>();
 	return {
 		_ready: ready,
-		getMaskImageUrl: (id: string) => ready.get(id) ?? null,
+		getAmps: (id: string) => ready.get(id) ?? null,
 		onGenerationFailed: jasmine.createSpy('onGenerationFailed').and.callFake((id: string) => {
 			ready.set(id, '__failed__');
 		}),
 		onGenerationSucceeded: jasmine
 			.createSpy('onGenerationSucceeded')
-			.and.callFake((id: string, url: string) => {
-				ready.set(id, url);
+			.and.callFake((id: string, amps: string) => {
+				ready.set(id, amps);
 			}),
 	};
 }
@@ -150,7 +150,7 @@ describe('WaveformGenerationQueue', () => {
 			queue.enqueue('t1', '/audio/t1.flac');
 			await tick();
 
-			expect(service.onGenerationSucceeded).toHaveBeenCalledWith('t1', 'data:image/png;base64,ok');
+			expect(service.onGenerationSucceeded).toHaveBeenCalledWith('t1', 'amps-base64-ok');
 			queue.dispose();
 		});
 

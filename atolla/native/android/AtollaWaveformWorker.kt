@@ -6,52 +6,38 @@ import android.media.MediaFormat
 import android.util.Log
 import java.io.File
 import java.nio.ByteOrder
+import java.util.concurrent.atomic.AtomicLong
 
-object AtollaWaveformNativeCache {
-	private const val tag = "AtollaWaveformCache"
-	private const val cacheFolder = "atolla-waveform-cache"
+// Session-scoped store for on-demand rendered waveform PNGs. Files live in the
+// app's cacheDir (Android clears them on low storage) and are not persisted
+// across launches — the render cache re-renders from stored amplitude arrays.
+object AtollaWaveformRenderTempStore {
+	private const val tag = "AtollaWaveformRenderTmp"
+	private const val renderFolder = "atolla-waveform-render"
+	private val counter = AtomicLong(0)
 
-	@Synchronized
-	fun getCachedWaveformUrl(trackId: String): String {
-		val dir = resolveCacheDir() ?: return ""
-		val file = File(dir, "${safeKey(trackId)}.png")
-		return if (file.exists() && file.isFile && file.length() > 0) "file://${file.absolutePath}" else ""
-	}
-
-	@Synchronized
-	fun saveWaveformPng(trackId: String, pngBytes: ByteArray): String {
-		if (pngBytes.isEmpty()) return ""
-		val dir = resolveCacheDir() ?: return ""
-		val file = File(dir, "${safeKey(trackId)}.png")
+	fun save(pngBytes: ByteArray): String {
 		return try {
+			val dir = resolveRenderDir() ?: return ""
+			val file = File(dir, "waveform_${counter.incrementAndGet()}.png")
 			file.writeBytes(pngBytes)
 			"file://${file.absolutePath}"
 		} catch (e: Throwable) {
-			Log.e(tag, "Failed to save waveform PNG trackId=$trackId", e)
+			Log.e(tag, "Failed to save rendered waveform PNG", e)
 			""
 		}
 	}
 
-	@Synchronized
-	fun clearCache() {
-		resolveCacheDir()?.listFiles()?.forEach { it.delete() }
-	}
-
-	private fun safeKey(trackId: String): String {
-		val trimmed = trackId.trim()
-		return if (trimmed.isEmpty()) "track" else trimmed.replace(Regex("[^a-zA-Z0-9._-]"), "_")
-	}
-
-	private fun resolveCacheDir(): File? {
+	private fun resolveRenderDir(): File? {
 		return try {
 			val activityThreadClass = Class.forName("android.app.ActivityThread")
 			val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)
 			val app = currentApplication as? android.app.Application ?: return null
-			val dir = File(app.cacheDir, cacheFolder)
+			val dir = File(app.cacheDir, renderFolder)
 			if (!dir.exists()) dir.mkdirs()
 			if (dir.isDirectory) dir else null
 		} catch (e: Throwable) {
-			Log.e(tag, "Unable to resolve waveform cache dir", e)
+			Log.e(tag, "Unable to resolve render temp dir", e)
 			null
 		}
 	}
@@ -61,16 +47,6 @@ class AtollaWaveformWorker {
 	companion object {
 		private const val tag = "AtollaWaveformWorker"
 		private const val waveformControlPoints = 100
-		private const val waveformWidth = 500
-		private const val waveformHeight = 100
-
-		@JvmStatic
-		private external fun nativeGenerateWaveform(
-			samples: FloatArray,
-			channelCount: Int,
-			width: Int,
-			height: Int,
-		): ByteArray?
 
 		@JvmStatic
 		private external fun nativeRenderWaveformFromAmps(
@@ -79,14 +55,13 @@ class AtollaWaveformWorker {
 			height: Int,
 		): ByteArray?
 
-		fun generateWaveformPng(audioPath: String): ByteArray? {
-			val amps = decodeToAmplitudes(audioPath) ?: return null
-			return try {
-				nativeRenderWaveformFromAmps(amps, waveformWidth, waveformHeight)
-			} catch (e: Throwable) {
-				Log.e(tag, "JNI waveform generation failed", e)
-				null
-			}
+		fun extractAmps(audioPath: String): FloatArray? = decodeToAmplitudes(audioPath)
+
+		fun renderPng(amps: FloatArray, width: Int, height: Int): ByteArray? = try {
+			nativeRenderWaveformFromAmps(amps, width, height)
+		} catch (e: Throwable) {
+			Log.e(tag, "JNI waveform render failed", e)
+			null
 		}
 
 		// Streams audio through MediaCodec, accumulating peak amplitudes per waveform

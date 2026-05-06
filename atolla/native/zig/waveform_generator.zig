@@ -241,6 +241,31 @@ fn pngSize(width: u32, height: u32) usize {
 // Public exports
 // ---------------------------------------------------------------------------
 
+// Extracts and normalises a 100-point float32 amplitude array from interleaved
+// float32 PCM samples. Returns a malloc'd float32[100] buffer; caller must free.
+// out_num_amps receives the count (always 100 on success).
+// Returns null if inputs are invalid or allocation fails.
+export fn atolla_extract_waveform_amps(
+    samples: [*]const f32,
+    sample_count: u32,
+    channel_count: u32,
+    out_num_amps: *u32,
+) ?[*]f32 {
+    out_num_amps.* = 0;
+    if (sample_count == 0 or channel_count == 0) return null;
+    const frames = sample_count / channel_count;
+    if (frames == 0) return null;
+
+    const num_ctrl: u32 = 100;
+    const amps_ptr = malloc(@as(usize, num_ctrl) * @sizeOf(f32)) orelse return null;
+    const amps: [*]f32 = @ptrCast(@alignCast(amps_ptr));
+    computeAmplitudes(samples, frames, channel_count, amps, num_ctrl);
+    smoothAmplitudes(amps, num_ctrl);
+    normalizeAmplitudes(amps, num_ctrl);
+    out_num_amps.* = num_ctrl;
+    return amps;
+}
+
 // Generates a greyscale alpha-mask PNG from pre-computed amplitude control points.
 //   amps:      peak amplitude per control point, float32, length = num_amps
 //   num_amps:  number of control points (typically ~100)

@@ -35,7 +35,7 @@ function isWaveformRecord(value: unknown): value is WaveformRecord {
 		typeof r.trackId === 'string' &&
 		typeof r.status === 'string' &&
 		WAVEFORM_STATUSES.has(r.status) &&
-		(r.maskImageUrl === null || typeof r.maskImageUrl === 'string')
+		(r.amps === null || typeof r.amps === 'string')
 	);
 }
 

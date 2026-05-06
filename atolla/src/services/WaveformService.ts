@@ -1,7 +1,7 @@
 export type WaveformStatus = 'pending' | 'ready' | 'failed';
 
 export interface WaveformRecord {
-	maskImageUrl: string | null;
+	amps: string | null;
 	status: WaveformStatus;
 	trackId: string;
 }
@@ -28,15 +28,15 @@ export class WaveformService {
 	scheduleGeneration(trackId: string): void {
 		const existing = this.records.get(trackId);
 		if (existing?.status === 'ready' || existing?.status === 'pending') return;
-		this.records.set(trackId, { maskImageUrl: null, status: 'pending', trackId });
+		this.records.set(trackId, { amps: null, status: 'pending', trackId });
 		void this.persist();
 		this.notify();
 	}
 
-	onGenerationSucceeded(trackId: string, maskImageUrl: string): void {
+	onGenerationSucceeded(trackId: string, amps: string): void {
 		const record = this.records.get(trackId);
 		if (record?.status !== 'pending') return;
-		this.records.set(trackId, { maskImageUrl, status: 'ready', trackId });
+		this.records.set(trackId, { amps, status: 'ready', trackId });
 		void this.persist();
 		this.notify();
 	}
@@ -44,7 +44,7 @@ export class WaveformService {
 	onGenerationFailed(trackId: string): void {
 		const record = this.records.get(trackId);
 		if (record?.status !== 'pending') return;
-		this.records.set(trackId, { maskImageUrl: null, status: 'failed', trackId });
+		this.records.set(trackId, { amps: null, status: 'failed', trackId });
 		void this.persist();
 		this.notify();
 	}
@@ -75,9 +75,9 @@ export class WaveformService {
 		return count;
 	}
 
-	getMaskImageUrl(trackId: string): string | null {
+	getAmps(trackId: string): string | null {
 		const record = this.records.get(trackId);
-		return record?.status === 'ready' ? (record.maskImageUrl ?? null) : null;
+		return record?.status === 'ready' ? (record.amps ?? null) : null;
 	}
 
 	subscribe(listener: () => void): () => void {

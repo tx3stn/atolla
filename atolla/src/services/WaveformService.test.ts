@@ -28,7 +28,7 @@ describe('WaveformService', () => {
 
 			service.scheduleGeneration('track-1');
 
-			expect(service.getMaskImageUrl('track-1')).toBeNull();
+			expect(service.getAmps('track-1')).toBeNull();
 		});
 
 		it('is idempotent when a record already exists', () => {
@@ -61,21 +61,21 @@ describe('WaveformService', () => {
 			const service = new WaveformService(store);
 			service.scheduleGeneration('track-1');
 
-			service.onGenerationSucceeded('track-1', 'mask://track-1.png');
+			service.onGenerationSucceeded('track-1', 'amps-base64-track-1');
 
-			expect(service.getMaskImageUrl('track-1')).toBe('mask://track-1.png');
+			expect(service.getAmps('track-1')).toBe('amps-base64-track-1');
 		});
 
 		it('is a no-op when the record is not pending', () => {
 			const store = new MockWaveformStore();
 			const service = new WaveformService(store);
 			service.scheduleGeneration('track-1');
-			service.onGenerationSucceeded('track-1', 'mask://track-1.png');
+			service.onGenerationSucceeded('track-1', 'amps-base64-track-1');
 			const savesBefore = store.saveCount;
 
-			service.onGenerationSucceeded('track-1', 'mask://other.png');
+			service.onGenerationSucceeded('track-1', 'amps-base64-other');
 
-			expect(service.getMaskImageUrl('track-1')).toBe('mask://track-1.png');
+			expect(service.getAmps('track-1')).toBe('amps-base64-track-1');
 			expect(store.saveCount).toBe(savesBefore);
 		});
 
@@ -83,9 +83,9 @@ describe('WaveformService', () => {
 			const store = new MockWaveformStore();
 			const service = new WaveformService(store);
 
-			service.onGenerationSucceeded('unknown', 'mask://unknown.png');
+			service.onGenerationSucceeded('unknown', 'amps-base64-unknown');
 
-			expect(service.getMaskImageUrl('unknown')).toBeNull();
+			expect(service.getAmps('unknown')).toBeNull();
 		});
 
 		it('notifies listeners', () => {
@@ -97,7 +97,7 @@ describe('WaveformService', () => {
 				notified += 1;
 			});
 
-			service.onGenerationSucceeded('track-1', 'mask://track-1.png');
+			service.onGenerationSucceeded('track-1', 'amps-base64-track-1');
 
 			expect(notified).toBe(1);
 		});
@@ -111,7 +111,7 @@ describe('WaveformService', () => {
 
 			service.onGenerationFailed('track-1');
 
-			expect(service.getMaskImageUrl('track-1')).toBeNull();
+			expect(service.getAmps('track-1')).toBeNull();
 		});
 
 		it('is a no-op when the record is not pending', () => {
@@ -144,7 +144,7 @@ describe('WaveformService', () => {
 
 			service.removeForTrack('track-1');
 
-			expect(service.getMaskImageUrl('track-1')).toBeNull();
+			expect(service.getAmps('track-1')).toBeNull();
 		});
 
 		it('is a no-op when no record exists', () => {
@@ -160,14 +160,14 @@ describe('WaveformService', () => {
 			const store = new MockWaveformStore();
 			const service = new WaveformService(store);
 			service.scheduleGeneration('track-1');
-			service.onGenerationSucceeded('track-1', 'mask://old.png');
+			service.onGenerationSucceeded('track-1', 'amps-base64-old');
 			service.removeForTrack('track-1');
 
 			service.scheduleGeneration('track-1');
-			expect(service.getMaskImageUrl('track-1')).toBeNull();
+			expect(service.getAmps('track-1')).toBeNull();
 
-			service.onGenerationSucceeded('track-1', 'mask://new.png');
-			expect(service.getMaskImageUrl('track-1')).toBe('mask://new.png');
+			service.onGenerationSucceeded('track-1', 'amps-base64-new');
+			expect(service.getAmps('track-1')).toBe('amps-base64-new');
 		});
 	});
 
@@ -177,12 +177,12 @@ describe('WaveformService', () => {
 			const service = new WaveformService(store);
 			service.scheduleGeneration('track-1');
 			service.scheduleGeneration('track-2');
-			service.onGenerationSucceeded('track-1', 'mask://track-1.png');
+			service.onGenerationSucceeded('track-1', 'amps-base64-track-1');
 
 			service.clearAll();
 
-			expect(service.getMaskImageUrl('track-1')).toBeNull();
-			expect(service.getMaskImageUrl('track-2')).toBeNull();
+			expect(service.getAmps('track-1')).toBeNull();
+			expect(service.getAmps('track-2')).toBeNull();
 		});
 
 		it('is a no-op when already empty', () => {
@@ -220,7 +220,7 @@ describe('WaveformService', () => {
 			const service = new WaveformService(store);
 			service.scheduleGeneration('track-1');
 			service.scheduleGeneration('track-2');
-			service.onGenerationSucceeded('track-1', 'mask://track-1.png');
+			service.onGenerationSucceeded('track-1', 'amps-base64-track-1');
 			service.scheduleGeneration('track-3');
 			service.onGenerationFailed('track-3');
 
@@ -251,7 +251,7 @@ describe('WaveformService', () => {
 			service.scheduleGeneration('track-1');
 			service.scheduleGeneration('track-2');
 			service.scheduleGeneration('track-3');
-			service.onGenerationSucceeded('track-1', 'mask://track-1.png');
+			service.onGenerationSucceeded('track-1', 'amps-base64-track-1');
 			service.onGenerationFailed('track-3');
 
 			expect(service.getReadyCount()).toBe(1);
@@ -261,7 +261,7 @@ describe('WaveformService', () => {
 			const store = new MockWaveformStore();
 			const service = new WaveformService(store);
 			service.scheduleGeneration('track-1');
-			service.onGenerationSucceeded('track-1', 'mask://track-1.png');
+			service.onGenerationSucceeded('track-1', 'amps-base64-track-1');
 
 			service.clearAll();
 
@@ -269,17 +269,17 @@ describe('WaveformService', () => {
 		});
 	});
 
-	describe('getMaskImageUrl', () => {
+	describe('getAmps', () => {
 		it('returns null for an unknown track', () => {
 			const service = new WaveformService(new MockWaveformStore());
-			expect(service.getMaskImageUrl('unknown')).toBeNull();
+			expect(service.getAmps('unknown')).toBeNull();
 		});
 
 		it('returns null for a pending record', () => {
 			const store = new MockWaveformStore();
 			const service = new WaveformService(store);
 			service.scheduleGeneration('track-1');
-			expect(service.getMaskImageUrl('track-1')).toBeNull();
+			expect(service.getAmps('track-1')).toBeNull();
 		});
 
 		it('returns null for a failed record', () => {
@@ -287,15 +287,15 @@ describe('WaveformService', () => {
 			const service = new WaveformService(store);
 			service.scheduleGeneration('track-1');
 			service.onGenerationFailed('track-1');
-			expect(service.getMaskImageUrl('track-1')).toBeNull();
+			expect(service.getAmps('track-1')).toBeNull();
 		});
 
-		it('returns the url for a ready record', () => {
+		it('returns the amps for a ready record', () => {
 			const store = new MockWaveformStore();
 			const service = new WaveformService(store);
 			service.scheduleGeneration('track-1');
-			service.onGenerationSucceeded('track-1', 'mask://track-1.png');
-			expect(service.getMaskImageUrl('track-1')).toBe('mask://track-1.png');
+			service.onGenerationSucceeded('track-1', 'amps-base64-track-1');
+			expect(service.getAmps('track-1')).toBe('amps-base64-track-1');
 		});
 	});
 
@@ -316,24 +316,24 @@ describe('WaveformService', () => {
 	});
 
 	describe('warmUp', () => {
-		it('loads persisted records and makes ready urls available', async () => {
+		it('loads persisted records and makes ready amps available', async () => {
 			const store = new MockWaveformStore();
 			store.seed({
-				'track-1': { maskImageUrl: 'mask://track-1.png', status: 'ready', trackId: 'track-1' },
-				'track-2': { maskImageUrl: null, status: 'failed', trackId: 'track-2' },
+				'track-1': { amps: 'amps-base64-track-1', status: 'ready', trackId: 'track-1' },
+				'track-2': { amps: null, status: 'failed', trackId: 'track-2' },
 			});
 			const service = new WaveformService(store);
 
 			await service.warmUp();
 
-			expect(service.getMaskImageUrl('track-1')).toBe('mask://track-1.png');
-			expect(service.getMaskImageUrl('track-2')).toBeNull();
+			expect(service.getAmps('track-1')).toBe('amps-base64-track-1');
+			expect(service.getAmps('track-2')).toBeNull();
 		});
 
 		it('notifies listeners after loading', async () => {
 			const store = new MockWaveformStore();
 			store.seed({
-				'track-1': { maskImageUrl: 'mask://track-1.png', status: 'ready', trackId: 'track-1' },
+				'track-1': { amps: 'amps-base64-track-1', status: 'ready', trackId: 'track-1' },
 			});
 			const service = new WaveformService(store);
 			let notified = 0;

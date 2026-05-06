@@ -66,18 +66,25 @@ export function ensureAtollaTrackPlaybackNotificationPermission(): boolean;
 export function getAtollaDeviceUserScopeKey(): string;
 
 // @ExportFunction
-// Generate a waveform mask PNG for the audio at audioPath.
-// Calls onComplete with the local file URL of the written PNG, or an empty
-// string if generation failed. The output file is managed by the native cache.
-export function generateAtollaWaveformAsync(
+// Extract a 100-point normalised amplitude array from the audio at audioPath.
+// Calls onComplete with a base64-encoded float32[100] buffer, or an empty
+// string if extraction failed.
+export function generateAtollaWaveformAmpsAsync(
 	trackId: string,
 	audioPath: string,
-	onComplete: (outputUrl: string) => void,
+	onComplete: (ampsBase64: string) => void,
 ): void;
 
 // @ExportFunction
-// Remove all waveform mask PNG files managed by the native cache.
-export function clearAtollaWaveformCache(): void;
+// Render a waveform mask PNG from a base64-encoded float32 amplitude array.
+// Calls onComplete with the local file URL of the written PNG, or an empty
+// string if rendering failed.
+export function renderAtollaWaveformFromAmpsAsync(
+	ampsBase64: string,
+	width: number,
+	height: number,
+	onComplete: (outputUrl: string) => void,
+): void;
 
 // @ExportFunction
 export function configureAtollaAudioPlayback(
