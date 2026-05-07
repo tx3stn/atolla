@@ -139,14 +139,24 @@ fn renderColumn(
     const effective = @max(amp, min_amp);
     const center: f32 = @as(f32, @floatFromInt(height)) / 2.0;
     const half_px = effective * center;
-    const y_lo: usize = @intFromFloat(@max(0.0, center - half_px));
-    const y_hi: usize = @intFromFloat(@min(@as(f32, @floatFromInt(height - 1)), center + half_px));
-    for (y_lo..y_hi + 1) |y| {
+    const y_lo = center - half_px;
+    const y_hi = center + half_px;
+    // Sub-pixel coverage: each edge row gets alpha proportional to how much of
+    // that pixel row [y, y+1) the bar actually covers. Interior rows are opaque.
+    // At the render resolution (100px) this is a ~1% effect per edge pixel;
+    // the subsequent downscale to display size makes it imperceptible as blur
+    // while eliminating the hard staircase.
+    const row_start: usize = @intFromFloat(@max(0.0, @floor(y_lo)));
+    const row_end: usize = @intFromFloat(@min(@as(f32, @floatFromInt(height - 1)), @floor(y_hi)));
+    for (row_start..row_end + 1) |y| {
+        const pf = @as(f32, @floatFromInt(y));
+        const coverage = @min(pf + 1.0, y_hi) - @max(pf, y_lo);
+        const alpha: u8 = @intFromFloat(@min(255.0, @max(0.0, coverage * 255.0)));
         const idx = (y * width + x) * 4;
         pixels[idx + 0] = 255; // R (tint replaces the colour at render time)
         pixels[idx + 1] = 255; // G
         pixels[idx + 2] = 255; // B
-        pixels[idx + 3] = 255; // A (opaque)
+        pixels[idx + 3] = alpha;
     }
 }
 
@@ -288,6 +298,7 @@ export fn atolla_render_waveform_from_amps(
     defer free(amps_ptr);
     const amps: [*]f32 = @ptrCast(@alignCast(amps_ptr));
     @memcpy(amps[0..num_amps], amps_in[0..num_amps]);
+    smoothAmplitudes(amps, num_amps);
     normalizeAmplitudes(amps, num_amps);
 
     const pixel_bytes = @as(usize, img_width) * @as(usize, height) * 4;

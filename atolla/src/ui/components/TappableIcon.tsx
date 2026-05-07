@@ -33,11 +33,6 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 			return;
 		}
 
-		try {
-			nativeBridgeHaptic(DeviceHapticFeedbackType?.SELECTION ?? 'selection');
-		} catch {}
-
-		this.viewModel.onTap?.();
 		if (this.viewModel.animationsEnabled) {
 			animateRipple(
 				this,
@@ -46,6 +41,12 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 				this.viewModel.rippleScale ?? 1.55,
 			);
 		}
+
+		try {
+			nativeBridgeHaptic(DeviceHapticFeedbackType?.SELECTION ?? 'selection');
+		} catch {}
+
+		this.viewModel.onTap?.();
 	};
 
 	onRender() {

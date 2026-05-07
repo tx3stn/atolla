@@ -1,7 +1,7 @@
 import { renderAtollaWaveformFromAmpsAsync } from '../WaveformNative';
 
-const WAVEFORM_WIDTH = 600;
-const WAVEFORM_HEIGHT = 35;
+const WAVEFORM_WIDTH = 500;
+const WAVEFORM_HEIGHT = 100;
 
 export class WaveformRenderCache {
 	private cache = new Map<string, string>();
