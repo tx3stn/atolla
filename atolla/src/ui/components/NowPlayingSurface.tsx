@@ -518,7 +518,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					<view ref={this.expandedContentRef} style={styles.expandedContent}>
 						<scroll ref={this.expandedScrollRef} style={styles.expandedInner}>
 							<layout style={styles.expandedFirstPage}>
-								{topInset > 0 && <view style={styles.topInsetBar} />}
+								{topInset > 0 && <view style={getTopInsetBarStyle(surfaceColor)} />}
 								{albumArtworkSource && (
 									<view
 										onDrag={this.handleExpandedDrag}
@@ -742,6 +742,7 @@ const compactProgressFillStyleCache = new Map<string, Style<View>>();
 const overlayTintStyleCache = new Map<string, Style<View>>();
 const paletteStylesCache = new Map<string, PaletteStyles>();
 const queueTabLabelStyleCache = new Map<string, Style<Label>>();
+const topInsetBarStyleCache = new Map<string, Style<View>>();
 
 function createCompactProgressFillStyle(accentColor: string, progressRatio: number): Style<View> {
 	const progressPercent = Math.round(progressRatio * 100);
@@ -855,6 +856,21 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 
 	paletteStylesCache.set(key, createdStyles);
 	return createdStyles;
+}
+
+function getTopInsetBarStyle(surfaceColor: string): Style<View> {
+	const cached = topInsetBarStyleCache.get(surfaceColor);
+	if (cached) {
+		return cached;
+	}
+	const created = new Style<View>({
+		backgroundColor: surfaceColor,
+		flexShrink: 0,
+		height: topInset,
+		width: '100%',
+	});
+	topInsetBarStyleCache.set(surfaceColor, created);
+	return created;
 }
 
 const styles = {
@@ -1043,12 +1059,6 @@ const styles = {
 		top: 0,
 		width: '100%',
 		zIndex: 20,
-	}),
-	topInsetBar: new Style<View>({
-		backgroundColor: theme.colors.bg,
-		flexShrink: 0,
-		height: topInset,
-		width: '100%',
 	}),
 	transitionArtwork: new Style<ImageView>({
 		aspectRatio: 1,
