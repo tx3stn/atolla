@@ -1,9 +1,15 @@
 package com.tx3stn.atolla
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.util.Log
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicLong
@@ -46,22 +52,82 @@ object AtollaWaveformRenderTempStore {
 class AtollaWaveformWorker {
 	companion object {
 		private const val tag = "AtollaWaveformWorker"
-		private const val waveformControlPoints = 100
-
-		@JvmStatic
-		private external fun nativeRenderWaveformFromAmps(
-			amps: FloatArray,
-			width: Int,
-			height: Int,
-		): ByteArray?
+		private const val waveformControlPoints = 300
 
 		fun extractAmps(audioPath: String): FloatArray? = decodeToAmplitudes(audioPath)
 
-		fun renderPng(amps: FloatArray, width: Int, height: Int): ByteArray? = try {
-			nativeRenderWaveformFromAmps(amps, width, height)
-		} catch (e: Throwable) {
-			Log.e(tag, "JNI waveform render failed", e)
-			null
+		fun renderPng(amps: FloatArray, width: Int, height: Int): ByteArray? =
+			renderSmoothPng(amps, width, height)
+
+		private fun renderSmoothPng(amps: FloatArray, width: Int, height: Int): ByteArray? {
+			val n = amps.size
+			if (n < 2) return null
+
+			// 5-point centred moving average — removes RMS noise, curves handle visual smoothness
+			val smoothed = amps.copyOf()
+			val tmp = smoothed.copyOf()
+			for (i in 0 until n) {
+				val lo = maxOf(0, i - 2)
+				val hi = minOf(n - 1, i + 2)
+				var s = 0f
+				for (j in lo..hi) s += tmp[j]
+				smoothed[i] = s / (hi - lo + 1)
+			}
+
+			// Normalise: loudest column → 1.0; silence → flat 0.5
+			val maxAmp = smoothed.max()!!
+			if (maxAmp < 1e-6f) {
+				smoothed.fill(0.5f)
+			} else {
+				for (i in 0 until n) smoothed[i] /= maxAmp
+			}
+
+			val cx = width / 2f
+			val cy = height / 2f
+			fun xAt(i: Int) = i.toFloat() * (width - 1) / (n - 1)
+			fun yTop(i: Int) = cy - smoothed[i] * cy
+			fun yBot(i: Int) = cy + smoothed[i] * cy
+
+			// Catmull-Rom → cubic Bézier: cp1 = p1+(p2-p0)/6, cp2 = p2-(p3-p1)/6
+			val path = Path()
+
+			// Top edge: left → right
+			path.moveTo(xAt(0), yTop(0))
+			for (i in 0 until n - 1) {
+				val p0i = maxOf(0, i - 1); val p3i = minOf(n - 1, i + 2)
+				val cp1x = xAt(i) + (xAt(i + 1) - xAt(p0i)) / 6f
+				val cp1y = yTop(i) + (yTop(i + 1) - yTop(p0i)) / 6f
+				val cp2x = xAt(i + 1) - (xAt(p3i) - xAt(i)) / 6f
+				val cp2y = yTop(i + 1) - (yTop(p3i) - yTop(i)) / 6f
+				path.cubicTo(cp1x, cp1y, cp2x, cp2y, xAt(i + 1), yTop(i + 1))
+			}
+
+			// Bottom edge: right → left
+			path.lineTo(xAt(n - 1), yBot(n - 1))
+			for (i in n - 2 downTo 0) {
+				val p0i = minOf(n - 1, i + 2); val p3i = maxOf(0, i - 1)
+				val cp1x = xAt(i + 1) + (xAt(i) - xAt(p0i)) / 6f
+				val cp1y = yBot(i + 1) + (yBot(i) - yBot(p0i)) / 6f
+				val cp2x = xAt(i) - (xAt(p3i) - xAt(i + 1)) / 6f
+				val cp2y = yBot(i) - (yBot(p3i) - yBot(i + 1)) / 6f
+				path.cubicTo(cp1x, cp1y, cp2x, cp2y, xAt(i), yBot(i))
+			}
+
+			path.close()
+
+			val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+			val canvas = Canvas(bitmap)
+			val paint = Paint().apply {
+				isAntiAlias = true
+				color = Color.WHITE
+				style = Paint.Style.FILL
+			}
+			canvas.drawPath(path, paint)
+
+			val out = ByteArrayOutputStream()
+			bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+			bitmap.recycle()
+			return out.toByteArray()
 		}
 
 		// Streams audio through MediaCodec, accumulating peak amplitudes per waveform
