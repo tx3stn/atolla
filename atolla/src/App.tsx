@@ -1846,16 +1846,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	private renderNowPlayingOverlay = (): void => {
-		const {
-			track,
-			album,
-			isPlaying,
-			loopMode,
-			progressSeconds,
-			artistLogoUrl,
-			tracks,
-			trackIndex,
-		} = this.playbackStore;
+		const { track, album, isPlaying, loopMode, artistLogoUrl, tracks, trackIndex } =
+			this.playbackStore;
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
 		if (!track) return;
 		<NowPlayingSurface
@@ -1877,7 +1869,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			onTrackTap={this.handleNowPlayingTrackTap}
 			palette={palette}
 			playbackStore={this.playbackStore}
-			progressSeconds={progressSeconds}
 			track={track}
 			trackIndex={trackIndex}
 			tracks={tracks}
@@ -2312,16 +2303,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 
-		const {
-			track,
-			album,
-			isPlaying,
-			loopMode,
-			progressSeconds,
-			artistLogoUrl,
-			tracks,
-			trackIndex,
-		} = this.playbackStore;
+		const { track, album, isPlaying, loopMode, artistLogoUrl, tracks, trackIndex } =
+			this.playbackStore;
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
 
 		<view style={styles.root}>
@@ -2474,7 +2457,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						onTrackTap={this.handleNowPlayingTrackTap}
 						palette={palette}
 						playbackStore={this.playbackStore}
-						progressSeconds={progressSeconds}
 						track={track}
 						trackIndex={trackIndex}
 						tracks={tracks}

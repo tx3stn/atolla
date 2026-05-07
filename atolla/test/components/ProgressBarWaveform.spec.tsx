@@ -5,14 +5,22 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
+function mockStore(progressSeconds: number) {
+	return {
+		progressSeconds,
+		subscribe: () => () => {},
+	};
+}
+
 describe('ProgressBarWaveform', () => {
 	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is null', async () => {
 		const instrumented = createComponent(ProgressBarWaveform, {
 			accentColor: '#ff2255',
 			maskImageUrl: null,
 			mutedColor: 'rgba(255,34,85,0.3)',
-			progressRatio: 0.4,
+			playbackStore: mockStore(40),
 			trackColor: 'rgba(255,34,85,0.2)',
+			trackDuration: 100,
 		});
 		const component = instrumented.getComponent();
 
@@ -29,8 +37,9 @@ describe('ProgressBarWaveform', () => {
 			accentColor: '#ff2255',
 			maskImageUrl: undefined,
 			mutedColor: 'rgba(255,34,85,0.3)',
-			progressRatio: 0.4,
+			playbackStore: mockStore(40),
 			trackColor: 'rgba(255,34,85,0.2)',
+			trackDuration: 100,
 		});
 		const component = instrumented.getComponent();
 
@@ -47,8 +56,9 @@ describe('ProgressBarWaveform', () => {
 			accentColor: '#ff2255',
 			maskImageUrl: 'mask://track-1.png',
 			mutedColor: 'rgba(255,34,85,0.3)',
-			progressRatio: 0.5,
+			playbackStore: mockStore(50),
 			trackColor: 'rgba(255,34,85,0.2)',
+			trackDuration: 100,
 		});
 		const component = instrumented.getComponent();
 
@@ -66,8 +76,9 @@ describe('ProgressBarWaveform', () => {
 			accessibilityLabel: 'now-playing-progress',
 			maskImageUrl: 'mask://track-1.png',
 			mutedColor: 'rgba(255,34,85,0.3)',
-			progressRatio: 0.5,
+			playbackStore: mockStore(50),
 			trackColor: 'rgba(255,34,85,0.2)',
+			trackDuration: 100,
 		});
 		const component = instrumented.getComponent();
 
@@ -84,8 +95,9 @@ describe('ProgressBarWaveform', () => {
 			accentColor: '#ff2255',
 			maskImageUrl: 'mask://track-1.png',
 			mutedColor: 'rgba(255,34,85,0.3)',
-			progressRatio: 0.5,
+			playbackStore: mockStore(50),
 			trackColor: 'rgba(255,34,85,0.2)',
+			trackDuration: 100,
 		});
 		const component = instrumented.getComponent();
 
@@ -106,13 +118,14 @@ describe('ProgressBarWaveform', () => {
 		expect(clipContainer).toBeDefined();
 	});
 
-	valdiIt('omits the played clip container when progress is 0', async () => {
+	valdiIt('renders clip container with zero width when progress is 0', async () => {
 		const instrumented = createComponent(ProgressBarWaveform, {
 			accentColor: '#ff2255',
 			maskImageUrl: 'mask://track-1.png',
 			mutedColor: 'rgba(255,34,85,0.3)',
-			progressRatio: 0,
+			playbackStore: mockStore(0),
 			trackColor: 'rgba(255,34,85,0.2)',
+			trackDuration: 100,
 		});
 		const component = instrumented.getComponent();
 
@@ -121,7 +134,8 @@ describe('ProgressBarWaveform', () => {
 			(v) => v.getAttribute('accessibilityLabel') === 'waveform-progress-clip',
 		);
 
-		expect(clipContainer).toBeUndefined();
+		expect(clipContainer).toBeDefined();
+		expect(clipContainer?.getAttribute('style').attributes.width).toBe('0%');
 	});
 
 	valdiIt('calls onProgressTap when the waveform bar is tapped', async () => {
@@ -133,8 +147,9 @@ describe('ProgressBarWaveform', () => {
 			onProgressTap: () => {
 				tapCount += 1;
 			},
-			progressRatio: 0.5,
+			playbackStore: mockStore(50),
 			trackColor: 'rgba(255,34,85,0.2)',
+			trackDuration: 100,
 		});
 		const component = instrumented.getComponent();
 

@@ -5,12 +5,20 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
+function mockStore(progressSeconds: number) {
+	return {
+		progressSeconds,
+		subscribe: () => () => {},
+	};
+}
+
 describe('ProgressBarPlain', () => {
 	valdiIt('renders track and fill colors from view model', async () => {
 		const instrumented = createComponent(ProgressBarPlain, {
 			accentColor: '#ff2255',
-			progressRatio: 0.4,
+			playbackStore: mockStore(40),
 			trackColor: 'rgba(255,34,85,0.2)',
+			trackDuration: 100,
 		});
 		const component = instrumented.getComponent();
 
@@ -38,8 +46,9 @@ describe('ProgressBarPlain', () => {
 	valdiIt('clamps progress ratio into 0 to 1 bounds', async () => {
 		const instrumented = createComponent(ProgressBarPlain, {
 			accentColor: '#33ffaa',
-			progressRatio: 2.4,
+			playbackStore: mockStore(240),
 			trackColor: 'rgba(51,255,170,0.2)',
+			trackDuration: 100,
 		});
 		const component = instrumented.getComponent();
 
@@ -58,8 +67,9 @@ describe('ProgressBarPlain', () => {
 			onProgressTap: () => {
 				tapCount += 1;
 			},
-			progressRatio: 0.5,
+			playbackStore: mockStore(50),
 			trackColor: 'rgba(51,255,170,0.2)',
+			trackDuration: 100,
 		});
 		const component = instrumented.getComponent();
 

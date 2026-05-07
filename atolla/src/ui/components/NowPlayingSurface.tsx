@@ -46,7 +46,6 @@ export interface NowPlayingSurfaceViewModel {
 	onTrackTap?: (trackId: string) => void;
 	palette?: Palette;
 	playbackStore?: PlaybackStore;
-	progressSeconds: number;
 	track: Track;
 	trackIndex: number;
 	tracks: Array<Track>;
@@ -75,8 +74,13 @@ export class NowPlayingSurface extends StatefulComponent<
 	private expandedScrollRef = new ElementRef();
 	private transitionArtworkRef = new ElementRef();
 	private scrollArtworkRef = new ElementRef();
+	private compactFillRef = new ElementRef();
+	private compactTimeLabelRef = new ElementRef();
+	private expandedElapsedRef = new ElementRef();
+	private expandedRemainingRef = new ElementRef();
 	private isTransitioning = false;
 	private toastTimerId?: ReturnType<typeof setTimeout>;
+	private unsubscribeProgress?: () => void;
 
 	private readonly closeDragDistance = 36;
 	private readonly closeDragVelocity = 550;
@@ -156,7 +160,16 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	onViewModelUpdate(prevViewModel: NowPlayingSurfaceViewModel): void {
 		if (!prevViewModel) {
+			if (this.viewModel.playbackStore) {
+				this.unsubscribeProgress = this.viewModel.playbackStore.subscribe(() => {
+					this.updateProgressRefs();
+				});
+			}
 			return;
+		}
+
+		if (this.viewModel.artistLogoUrl !== prevViewModel.artistLogoUrl) {
+			this.setState({ ...this.state });
 		}
 
 		if (this.viewModel.collapseSignal === prevViewModel.collapseSignal) {
@@ -172,6 +185,26 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	onDestroy(): void {
 		this.toastTimerId = clearScheduledToast(this.toastTimerId);
+		this.unsubscribeProgress?.();
+	}
+
+	private updateProgressRefs(): void {
+		const { playbackStore } = this.viewModel;
+		if (!playbackStore?.track) return;
+		const progressSeconds = playbackStore.progressSeconds;
+		const duration = playbackStore.track.duration;
+		const ratio = duration > 0 ? Math.min(progressSeconds / duration, 1) : 0;
+		const percent = Math.round(ratio * 100);
+		this.compactFillRef.setAttribute('width', `${percent}%`);
+		this.compactTimeLabelRef.setAttribute(
+			'value',
+			`${formatDuration(progressSeconds)} / ${formatDuration(duration)}`,
+		);
+		this.expandedElapsedRef.setAttribute('value', formatDuration(progressSeconds));
+		this.expandedRemainingRef.setAttribute(
+			'value',
+			`-${formatDuration(Math.max(0, duration - progressSeconds))}`,
+		);
 	}
 
 	private closeSurface = (): Promise<void> => {
@@ -398,11 +431,13 @@ export class NowPlayingSurface extends StatefulComponent<
 			onPrevious,
 			onTrackTap,
 			palette = NEUTRAL_PALETTE,
-			progressSeconds,
 			track,
 			trackIndex,
 			tracks,
 		} = this.viewModel;
+
+		const playbackStore = this.viewModel.playbackStore;
+		const progressSeconds = playbackStore?.progressSeconds ?? 0;
 
 		const toEntry = (t: Track): TrackListEntry => ({
 			artworkSource: t.albumImageUrl ?? album?.imageUrl ?? null,
@@ -480,7 +515,7 @@ export class NowPlayingSurface extends StatefulComponent<
 				)}
 				<view style={compactBgOverlayStyle} />
 				<view style={styles.compactProgressContainer}>
-					<view style={compactProgressFillStyle} />
+					<view ref={this.compactFillRef} style={compactProgressFillStyle} />
 				</view>
 				{albumArtworkSource && (
 					<image objectFit='cover' src={albumArtworkSource} style={styles.artwork} />
@@ -493,7 +528,11 @@ export class NowPlayingSurface extends StatefulComponent<
 						value={track.artistName ?? ''}
 					/>
 				</layout>
-				<label style={paletteStyles.timeStyle} value={`${elapsedText} / ${totalText}`} />
+				<label
+					ref={this.compactTimeLabelRef}
+					style={paletteStyles.timeStyle}
+					value={`${elapsedText} / ${totalText}`}
+				/>
 			</view>
 
 			<view id='now-playing-surface-overlay' ref={this.overlayRef} style={styles.overlayRoot}>
@@ -560,19 +599,30 @@ export class NowPlayingSurface extends StatefulComponent<
 										</layout>
 									</view>
 									<layout style={styles.expandedProgressSection}>
-										<ProgressBarWaveform
-											accentColor={accentColor}
-											accessibilityLabel='now-playing-progress'
-											maskImageUrl={this.viewModel.waveformMaskUrl}
-											mutedColor={mutedOnSurfaceColor}
-											onProgressTap={onProgressTap}
-											progressRatio={progressRatio}
-											thickness={4}
-											trackColor={expandedTrackColor}
-										/>
+										{playbackStore && (
+											<ProgressBarWaveform
+												accentColor={accentColor}
+												accessibilityLabel='now-playing-progress'
+												maskImageUrl={this.viewModel.waveformMaskUrl}
+												mutedColor={mutedOnSurfaceColor}
+												onProgressTap={onProgressTap}
+												playbackStore={playbackStore}
+												thickness={4}
+												trackColor={expandedTrackColor}
+												trackDuration={track.duration}
+											/>
+										)}
 										<layout style={styles.expandedTimeRow}>
-											<label style={paletteStyles.expandedTimeLabelStyle} value={elapsedText} />
-											<label style={paletteStyles.expandedTimeLabelStyle} value={remainingText} />
+											<label
+												ref={this.expandedElapsedRef}
+												style={paletteStyles.expandedTimeLabelStyle}
+												value={elapsedText}
+											/>
+											<label
+												ref={this.expandedRemainingRef}
+												style={paletteStyles.expandedTimeLabelStyle}
+												value={remainingText}
+											/>
 										</layout>
 									</layout>
 									<layout style={styles.expandedControlsRow}>
@@ -738,21 +788,9 @@ interface PaletteStyles {
 	trackNameStyle: Style<Label>;
 }
 
-const compactProgressFillStyleCache = new Map<string, Style<View>>();
-const overlayTintStyleCache = new Map<string, Style<View>>();
-const paletteStylesCache = new Map<string, PaletteStyles>();
-const queueTabLabelStyleCache = new Map<string, Style<Label>>();
-const topInsetBarStyleCache = new Map<string, Style<View>>();
-
 function createCompactProgressFillStyle(accentColor: string, progressRatio: number): Style<View> {
 	const progressPercent = Math.round(progressRatio * 100);
-	const key = `${accentColor}|${progressPercent}`;
-	const cachedStyle = compactProgressFillStyleCache.get(key);
-	if (cachedStyle) {
-		return cachedStyle;
-	}
-
-	const createdStyle = new Style<View>({
+	return new Style<View>({
 		backgroundColor: accentColor,
 		borderRadius: theme.borderRadius,
 		bottom: 0,
@@ -763,18 +801,10 @@ function createCompactProgressFillStyle(accentColor: string, progressRatio: numb
 		top: 0,
 		width: `${progressPercent}%`,
 	});
-	compactProgressFillStyleCache.set(key, createdStyle);
-	return createdStyle;
 }
 
 function getOverlayTintStyle(surfaceColor: string, opacity: number): Style<View> {
-	const key = `${surfaceColor}|${opacity}`;
-	const cachedStyle = overlayTintStyleCache.get(key);
-	if (cachedStyle) {
-		return cachedStyle;
-	}
-
-	const createdStyle = new Style<View>({
+	return new Style<View>({
 		backgroundColor: withAlpha(surfaceColor, opacity),
 		borderRadius: theme.borderRadius,
 		bottom: 0,
@@ -783,36 +813,19 @@ function getOverlayTintStyle(surfaceColor: string, opacity: number): Style<View>
 		right: 0,
 		top: 0,
 	});
-	overlayTintStyleCache.set(key, createdStyle);
-	return createdStyle;
 }
 
 function getQueueTabLabelStyle(color: string, isActive: boolean): Style<Label> {
-	const opacity = isActive ? 1 : 0.4;
-	const key = `${color}|${opacity}`;
-	const cachedStyle = queueTabLabelStyleCache.get(key);
-	if (cachedStyle) {
-		return cachedStyle;
-	}
-
-	const createdStyle = new Style<Label>({
+	return new Style<Label>({
 		...theme.text.sub,
 		color,
-		opacity,
+		opacity: isActive ? 1 : 0.4,
 		textAlign: 'center',
 	});
-	queueTabLabelStyleCache.set(key, createdStyle);
-	return createdStyle;
 }
 
 function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): PaletteStyles {
-	const key = `${onSurfaceColor}|${mutedOnSurfaceColor}`;
-	const cachedStyles = paletteStylesCache.get(key);
-	if (cachedStyles) {
-		return cachedStyles;
-	}
-
-	const createdStyles: PaletteStyles = {
+	return {
 		artistNameStyle: new Style<Label>({
 			...theme.text.sub,
 			color: mutedOnSurfaceColor,
@@ -853,24 +866,15 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 			color: onSurfaceColor,
 		}),
 	};
-
-	paletteStylesCache.set(key, createdStyles);
-	return createdStyles;
 }
 
 function getTopInsetBarStyle(surfaceColor: string): Style<View> {
-	const cached = topInsetBarStyleCache.get(surfaceColor);
-	if (cached) {
-		return cached;
-	}
-	const created = new Style<View>({
+	return new Style<View>({
 		backgroundColor: surfaceColor,
 		flexShrink: 0,
 		height: topInset,
 		width: '100%',
 	});
-	topInsetBarStyleCache.set(surfaceColor, created);
-	return created;
 }
 
 const styles = {

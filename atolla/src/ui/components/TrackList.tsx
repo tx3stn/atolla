@@ -68,7 +68,6 @@ const REMOVE_SWIPE_DISTANCE = 64;
 const REMOVE_SWIPE_VELOCITY = 700;
 const REORDER_STEP_HEIGHT = 64;
 const ROW_SLOT_HEIGHT = REORDER_STEP_HEIGHT + 8; // row height + gap between rows
-const resolvedStylesCache = new Map<string, TrackListResolvedStyles>();
 
 export class TrackList extends Component<TrackListViewModel> {
 	private draggingRowIdentities = new Set<string>();
@@ -733,14 +732,6 @@ export class TrackList extends Component<TrackListViewModel> {
 }
 
 function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedStyles {
-	const cacheKey = [colors.meta, colors.rowBackground, colors.tileBackground, colors.title].join(
-		'|',
-	);
-	const cached = resolvedStylesCache.get(cacheKey);
-	if (cached) {
-		return cached;
-	}
-
 	const created: TrackListResolvedStyles = {
 		artworkTileStyle: new Style<View>({
 			aspectRatio: 1,
@@ -781,7 +772,6 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 		}),
 	};
 
-	resolvedStylesCache.set(cacheKey, created);
 	return created;
 }
 

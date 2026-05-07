@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import type { PlaybackStore } from 'atolla/src/stores/Playback';
 import { NowPlayingSurface } from 'atolla/src/ui/components/NowPlayingSurface';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
@@ -21,6 +22,14 @@ const track = {
 	name: 'The Track',
 };
 
+function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackStore {
+	return {
+		progressSeconds: 90,
+		subscribe: () => () => {},
+		...overrides,
+	} as unknown as PlaybackStore;
+}
+
 function createNowPlayingComponent(
 	trackOverrides = {},
 	albumOverride: typeof album | null = album,
@@ -41,7 +50,7 @@ function createNowPlayingComponent(
 		onNext: () => {},
 		onPlayPause: () => {},
 		onPrevious: () => {},
-		progressSeconds: 90,
+		playbackStore: mockPlaybackStore(),
 		track: mergedTrack,
 		trackIndex: 0,
 		tracks: [mergedTrack],
@@ -74,7 +83,7 @@ describe('NowPlayingSurface', () => {
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
-			progressSeconds: 90,
+			playbackStore: mockPlaybackStore(),
 			track,
 			trackIndex: 0,
 			tracks: [track],
@@ -107,11 +116,11 @@ describe('NowPlayingSurface', () => {
 
 	valdiIt('shows add-to-queue toast when context menu action is tapped', async () => {
 		let addToQueueCalls = 0;
-		const playbackStore = {
+		const playbackStore = mockPlaybackStore({
 			addToQueue: () => {
 				addToQueueCalls += 1;
 			},
-		};
+		});
 		const transport = {
 			getArtistLogoUrl: () => Promise.resolve(null),
 		};
@@ -128,7 +137,6 @@ describe('NowPlayingSurface', () => {
 			onPlayPause: () => {},
 			onPrevious: () => {},
 			playbackStore,
-			progressSeconds: 90,
 			track,
 			trackIndex: 0,
 			tracks: [track],
@@ -157,9 +165,9 @@ describe('NowPlayingSurface', () => {
 	valdiIt('removes a queued track by swipe after entering queue edit mode', async () => {
 		jasmine.clock().install();
 		try {
-			const playbackStore = {
+			const playbackStore = mockPlaybackStore({
 				removeFromQueueAt: jasmine.createSpy('removeFromQueueAt'),
-			};
+			});
 			const tracks = [
 				{ ...track, id: 'track-1', name: 'Track One' },
 				{ ...track, id: 'track-2', name: 'Track Two' },
@@ -178,7 +186,6 @@ describe('NowPlayingSurface', () => {
 				onPlayPause: () => {},
 				onPrevious: () => {},
 				playbackStore,
-				progressSeconds: 90,
 				track: tracks[1],
 				trackIndex: 1,
 				tracks,
@@ -222,10 +229,10 @@ describe('NowPlayingSurface', () => {
 	});
 
 	valdiIt('reorders up-next tracks when a queue row is dragged vertically', async () => {
-		const playbackStore = {
+		const playbackStore = mockPlaybackStore({
 			moveQueueTrack: jasmine.createSpy('moveQueueTrack'),
 			removeFromQueueAt: jasmine.createSpy('removeFromQueueAt'),
-		};
+		});
 		const tracks = [
 			{ ...track, id: 'track-1', name: 'Track One' },
 			{ ...track, id: 'track-2', name: 'Track Two' },
@@ -245,7 +252,6 @@ describe('NowPlayingSurface', () => {
 			onPlayPause: () => {},
 			onPrevious: () => {},
 			playbackStore,
-			progressSeconds: 90,
 			track: tracks[1],
 			trackIndex: 1,
 			tracks,
@@ -271,10 +277,10 @@ describe('NowPlayingSurface', () => {
 	});
 
 	valdiIt('reorders back-to tracks when a queue row is dragged vertically', async () => {
-		const playbackStore = {
+		const playbackStore = mockPlaybackStore({
 			moveQueueTrack: jasmine.createSpy('moveQueueTrack'),
 			removeFromQueueAt: jasmine.createSpy('removeFromQueueAt'),
-		};
+		});
 		const tracks = [
 			{ ...track, id: 'track-1', name: 'Track One' },
 			{ ...track, id: 'track-2', name: 'Track Two' },
@@ -294,7 +300,6 @@ describe('NowPlayingSurface', () => {
 			onPlayPause: () => {},
 			onPrevious: () => {},
 			playbackStore,
-			progressSeconds: 90,
 			track: tracks[2],
 			trackIndex: 2,
 			tracks,
@@ -344,7 +349,7 @@ describe('NowPlayingSurface', () => {
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
-			progressSeconds: 90,
+			playbackStore: mockPlaybackStore(),
 			track: tracks[3],
 			trackIndex: 3,
 			tracks,
@@ -387,7 +392,7 @@ describe('NowPlayingSurface', () => {
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
-			progressSeconds: 90,
+			playbackStore: mockPlaybackStore(),
 			track: tracks[0],
 			trackIndex: 0,
 			tracks,
@@ -423,7 +428,7 @@ describe('NowPlayingSurface', () => {
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
-			progressSeconds: 90,
+			playbackStore: mockPlaybackStore(),
 			track: tracks[70],
 			trackIndex: 70,
 			tracks,
@@ -470,7 +475,7 @@ describe('NowPlayingSurface', () => {
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
-			progressSeconds: 90,
+			playbackStore: mockPlaybackStore(),
 			track,
 			trackIndex: 0,
 			tracks: [track],
@@ -526,7 +531,7 @@ describe('NowPlayingSurface', () => {
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
-			progressSeconds: 90,
+			playbackStore: mockPlaybackStore(),
 			track,
 			trackIndex: 0,
 			tracks: [track],
@@ -582,7 +587,7 @@ describe('NowPlayingSurface', () => {
 			onNext: () => {},
 			onPlayPause: () => {},
 			onPrevious: () => {},
-			progressSeconds: 90,
+			playbackStore: mockPlaybackStore(),
 			track,
 			trackIndex: 0,
 			tracks: [track],

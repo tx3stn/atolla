@@ -1,7 +1,9 @@
 import { Component } from 'valdi_core/src/Component';
+import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { PlaybackStore } from '../../stores/Playback';
 import { ProgressBarPlain } from './ProgressBarPlain';
 
 export interface ProgressBarWaveformViewModel {
@@ -10,19 +12,48 @@ export interface ProgressBarWaveformViewModel {
 	maskImageUrl: string | null | undefined;
 	mutedColor: string;
 	onProgressTap?: (ratio?: number) => void;
-	progressRatio: number;
+	playbackStore: PlaybackStore;
 	thickness?: number;
 	trackColor: string;
+	trackDuration: number;
 }
 
 const WAVEFORM_HEIGHT = 35;
 
 export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel> {
 	private trackWidth: number | null = null;
+	private unsubscribeProgress?: () => void;
+	private clipRef = new ElementRef();
+	private accentRef = new ElementRef();
 
 	private handleTrackLayout = (frame: { width: number }) => {
 		this.trackWidth = frame.width;
 	};
+
+	onViewModelUpdate(prevViewModel: ProgressBarWaveformViewModel): void {
+		if (!prevViewModel) {
+			this.unsubscribeProgress = this.viewModel.playbackStore?.subscribe(() => {
+				this.updateProgressRefs();
+			});
+		}
+	}
+
+	onDestroy(): void {
+		this.unsubscribeProgress?.();
+	}
+
+	private updateProgressRefs(): void {
+		const { playbackStore, trackDuration } = this.viewModel;
+		if (!playbackStore) return;
+		const clampedRatio = Math.max(
+			0,
+			Math.min(1, trackDuration > 0 ? playbackStore.progressSeconds / trackDuration : 0),
+		);
+		const progressPercent = Math.round(clampedRatio * 100);
+		const stretchPercent = progressPercent > 0 ? Math.round(10000 / progressPercent) : 100;
+		this.clipRef.setAttribute('width', `${progressPercent}%`);
+		this.accentRef.setAttribute('width', `${stretchPercent}%`);
+	}
 
 	onRender(): void {
 		const {
@@ -31,23 +62,28 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 			maskImageUrl,
 			mutedColor,
 			onProgressTap,
-			progressRatio,
+			playbackStore,
 			thickness,
 			trackColor,
+			trackDuration,
 		} = this.viewModel;
 
 		if (!maskImageUrl) {
 			<ProgressBarPlain
 				accentColor={accentColor}
 				onProgressTap={onProgressTap}
-				progressRatio={progressRatio}
+				playbackStore={playbackStore}
 				thickness={thickness}
 				trackColor={trackColor}
+				trackDuration={trackDuration}
 			/>;
 			return;
 		}
 
-		const clampedRatio = Math.max(0, Math.min(1, progressRatio));
+		const clampedRatio = Math.max(
+			0,
+			Math.min(1, trackDuration > 0 ? playbackStore.progressSeconds / trackDuration : 0),
+		);
 		const progressPercent = Math.round(clampedRatio * 100);
 		const mutedImageStyle = createMutedImageStyle(mutedColor);
 		const accentImageStyle = createAccentImageStyle(accentColor, progressPercent);
@@ -74,16 +110,19 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 				src={maskImageUrl}
 				style={mutedImageStyle}
 			/>
-			{clampedRatio > 0 && (
-				<view accessibilityLabel='waveform-progress-clip' style={createClipStyle(progressPercent)}>
-					<image
-						accessibilityLabel='waveform-progress-played'
-						objectFit='fill'
-						src={maskImageUrl}
-						style={accentImageStyle}
-					/>
-				</view>
-			)}
+			<view
+				accessibilityLabel='waveform-progress-clip'
+				ref={this.clipRef}
+				style={createClipStyle(progressPercent)}
+			>
+				<image
+					accessibilityLabel='waveform-progress-played'
+					objectFit='fill'
+					ref={this.accentRef}
+					src={maskImageUrl}
+					style={accentImageStyle}
+				/>
+			</view>
 		</view>;
 	}
 }
