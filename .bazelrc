@@ -54,6 +54,7 @@ build --watchfs
 build --incompatible_strict_action_env
 
 # Android-specific — applied via --config=android in start-android-emulator.sh
+build:android --disk_cache=~/.cache/bazel-disk-android
 build:android --copt=-DANDROID_WITH_JNI
 build:android --repo_env=VALDI_PLATFORM_DEPENDENCIES=android
 build:android --define=client_repo_arm64=true
@@ -69,6 +70,7 @@ build:android --spawn_strategy=local
 build:android --strategy=ValdiCompile=local
 
 # iOS-specific — applied via --config=ios in start-ios-simulator.sh
+build:ios --disk_cache=~/.cache/bazel-disk-ios
 build:ios --spawn_strategy=local
 build:ios --strategy=ValdiCompile=local
 

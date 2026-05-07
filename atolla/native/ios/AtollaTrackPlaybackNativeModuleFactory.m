@@ -3,8 +3,6 @@
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 #import <Foundation/Foundation.h>
-#import "waveform_ios_bridge.h"
-
 // MARK: - Track File Cache
 
 @interface AtollaTrackCache : NSObject
@@ -692,8 +690,6 @@ static BOOL sNextNotificationHasNext = NO;
 }
 
 + (void)registerPlayerObservers {
-    __weak typeof(sPlayer) weakPlayer = sPlayer;
-
     [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemDidPlayToEndTimeNotification
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
@@ -903,86 +899,6 @@ static BOOL sNextNotificationHasNext = NO;
 @end
 
 
-// MARK: - Waveform Native Cache
-
-static NSString * const kWaveformCacheFolder = @"atolla-waveform-cache";
-static NSLock *sWaveformCacheLock;
-
-@interface AtollaWaveformNativeCache : NSObject
-+ (NSString * _Nonnull)cachedUrlForTrackId:(NSString * _Nonnull)trackId;
-+ (NSString * _Nonnull)savePngData:(NSData * _Nonnull)pngData trackId:(NSString * _Nonnull)trackId;
-+ (void)clearCache;
-@end
-
-@implementation AtollaWaveformNativeCache
-
-+ (void)initialize {
-    if (self == [AtollaWaveformNativeCache class]) {
-        sWaveformCacheLock = [[NSLock alloc] init];
-    }
-}
-
-+ (nullable NSURL *)resolveCacheDir {
-    NSURL *cacheDir = [[[NSFileManager defaultManager] URLsForDirectory:NSCachesDirectory
-                                                             inDomains:NSUserDomainMask] firstObject];
-    if (!cacheDir) return nil;
-    NSURL *dir = [cacheDir URLByAppendingPathComponent:kWaveformCacheFolder isDirectory:YES];
-    NSError *error = nil;
-    [[NSFileManager defaultManager] createDirectoryAtURL:dir
-                              withIntermediateDirectories:YES
-                                               attributes:nil
-                                                    error:&error];
-    return error ? nil : dir;
-}
-
-+ (NSString * _Nonnull)cachedUrlForTrackId:(NSString * _Nonnull)trackId {
-    [sWaveformCacheLock lock];
-    @try {
-        NSURL *dir = [self resolveCacheDir];
-        if (!dir) return @"";
-        NSString *key = [AtollaTrackCache safeTrackKey:trackId];
-        NSURL *file = [dir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", key]];
-        if (![[NSFileManager defaultManager] fileExistsAtPath:file.path]) return @"";
-        NSDictionary *attrs = [[NSFileManager defaultManager] attributesOfItemAtPath:file.path error:nil];
-        if ([attrs[NSFileSize] longLongValue] == 0) return @"";
-        return [@"file://" stringByAppendingString:file.path];
-    } @finally {
-        [sWaveformCacheLock unlock];
-    }
-}
-
-+ (NSString * _Nonnull)savePngData:(NSData * _Nonnull)pngData trackId:(NSString * _Nonnull)trackId {
-    if (!pngData || pngData.length == 0) return @"";
-    [sWaveformCacheLock lock];
-    @try {
-        NSURL *dir = [self resolveCacheDir];
-        if (!dir) return @"";
-        NSString *key = [AtollaTrackCache safeTrackKey:trackId];
-        NSURL *file = [dir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", key]];
-        return [pngData writeToURL:file atomically:YES] ? [@"file://" stringByAppendingString:file.path] : @"";
-    } @finally {
-        [sWaveformCacheLock unlock];
-    }
-}
-
-+ (void)clearCache {
-    [sWaveformCacheLock lock];
-    @try {
-        NSURL *dir = [self resolveCacheDir];
-        if (!dir) return;
-        NSArray<NSURL *> *files = [[NSFileManager defaultManager]
-            contentsOfDirectoryAtURL:dir includingPropertiesForKeys:nil options:0 error:nil];
-        for (NSURL *f in files) {
-            [[NSFileManager defaultManager] removeItemAtURL:f error:nil];
-        }
-    } @finally {
-        [sWaveformCacheLock unlock];
-    }
-}
-
-@end
-
-
 // MARK: - Module Implementation
 
 @interface AtollaTrackPlaybackNativeModuleImpl : NSObject <atollaTrackPlaybackNativeModule>
@@ -1136,32 +1052,6 @@ static NSLock *sWaveformCacheLock;
                                           durationSeconds:durationSeconds
                                               hasPrevious:hasPrevious
                                                   hasNext:hasNext];
-}
-
-- (void)generateAtollaWaveformAsyncWithTrackId:(NSString * _Nonnull)trackId
-                                     audioPath:(NSString * _Nonnull)audioPath
-                                    onComplete:(atollaTrackPlaybackNativeModuleGenerateAtollaWaveformAsyncOnCompleteBlock _Nonnull)onComplete {
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSString *cachedUrl = [AtollaWaveformNativeCache cachedUrlForTrackId:trackId];
-        if (cachedUrl.length > 0) {
-            onComplete(cachedUrl);
-            return;
-        }
-
-        NSString *resolvedPath = [audioPath hasPrefix:@"file://"]
-            ? [audioPath substringFromIndex:7]
-            : audioPath;
-
-        NSData *pngData = [AtollaWaveformGenerator generateWaveformFromAudioPath:resolvedPath
-                                                                           width:512
-                                                                          height:128];
-        NSString *outputUrl = pngData ? [AtollaWaveformNativeCache savePngData:pngData trackId:trackId] : @"";
-        onComplete(outputUrl);
-    });
-}
-
-- (void)clearAtollaWaveformCache {
-    [AtollaWaveformNativeCache clearCache];
 }
 
 @end

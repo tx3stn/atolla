@@ -74,7 +74,6 @@ require_cmd() {
 
 require_cmd emulator
 require_cmd adb
-require_cmd valdi
 require_cmd xcrun
 
 unset MACOSX_DEPLOYMENT_TARGET
@@ -115,21 +114,22 @@ VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//:atolla_android}"
 echo "Using Android device: $ANDROID_DEVICE_ID"
 echo "Using application target: $VALDI_APPLICATION_TARGET"
 
-echo "Installing app with Valdi..."
-valdi install android \
-	--application="$VALDI_APPLICATION_TARGET" \
-	--device_id="$ANDROID_DEVICE_ID" \
-	--bazel_args="$VALDI_BAZEL_ARGS"
+echo "Building app..."
+read -r -a BAZEL_ARGS_ARRAY <<<"$VALDI_BAZEL_ARGS"
+bazel build "$VALDI_APPLICATION_TARGET" "${BAZEL_ARGS_ARRAY[@]}"
 
-# Copy APK to a stable path so e2e tests can find it regardless of which platform
-# was built last (bazel-bin symlink floats to the most recent build's output dir).
-APK_SRC="$(find bazel-bin -maxdepth 3 -name "atolla_android.apk" ! -name "*unsigned*" 2>/dev/null | head -1)"
-if [[ -n "$APK_SRC" ]]; then
-	mkdir -p build
-	cp "$APK_SRC" build/atolla_android.apk
-	echo "APK copied to build/atolla_android.apk"
-else
-	echo "Warning: could not locate atolla_android.apk in bazel-bin" >&2
+BAZEL_BIN="$(bazel info bazel-bin "${BAZEL_ARGS_ARRAY[@]}" 2>/dev/null)"
+APK_SRC="${BAZEL_BIN}/atolla_android.apk"
+if [[ ! -f "$APK_SRC" ]]; then
+	echo "Error: could not locate atolla_android.apk at ${APK_SRC}" >&2
+	exit 1
 fi
+
+mkdir -p build
+cp -f "$APK_SRC" build/atolla_android.apk
+echo "APK copied to build/atolla_android.apk"
+
+echo "Installing on device..."
+adb -s "$ANDROID_DEVICE_ID" install -r "$APK_SRC"
 
 echo "Done."

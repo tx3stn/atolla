@@ -82,16 +82,17 @@ echo "Building app..."
 read -r -a BAZEL_ARGS_ARRAY <<<"$VALDI_BAZEL_ARGS"
 bazel build "$IPA_TARGET" "${BAZEL_ARGS_ARRAY[@]}"
 
-# Copy IPA to a stable path so e2e tests can find it regardless of which platform
-# was built last (bazel-bin symlink floats to the most recent build's output dir).
-IPA_SRC="$(find bazel-bin -maxdepth 6 -name "atolla_ios.ipa" 2>/dev/null | head -1)"
-if [[ -z "$IPA_SRC" ]]; then
-	echo "Error: could not locate atolla_ios.ipa in bazel-bin" >&2
+# Use cquery to locate the IPA — rules_apple outputs land in an iOS-specific
+# config transition directory that bazel info bazel-bin doesn't reflect.
+IPA_SRC="$(bazel cquery --output=files "$IPA_TARGET" "${BAZEL_ARGS_ARRAY[@]}" 2>/dev/null \
+	| grep '\.ipa$' | grep -v '/runfiles/' | head -1)"
+if [[ ! -f "$IPA_SRC" ]]; then
+	echo "Error: could not locate atolla_ios.ipa (cquery returned: '${IPA_SRC}')" >&2
 	exit 1
 fi
 
 mkdir -p build
-cp "$IPA_SRC" build/atolla_ios.ipa
+cp -f "$IPA_SRC" build/atolla_ios.ipa
 echo "IPA copied to build/atolla_ios.ipa"
 
 echo "Installing on simulator..."

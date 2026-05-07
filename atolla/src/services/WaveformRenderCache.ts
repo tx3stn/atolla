@@ -1,4 +1,4 @@
-import { renderAtollaWaveformFromAmpsAsync } from '../TrackPlaybackNative';
+import { renderAtollaWaveformFromAmpsAsync } from '../WaveformNative';
 
 const WAVEFORM_WIDTH = 600;
 const WAVEFORM_HEIGHT = 35;

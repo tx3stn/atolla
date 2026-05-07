@@ -77,11 +77,20 @@ objc_library(
     copts = ["-I."],
     deps = [
         "//atolla:atolla_api_objc",
-        ":waveform_ios_bridge",
     ],
     sdk_frameworks = [
         "AVFoundation",
         "MediaPlayer",
+    ],
+)
+
+objc_library(
+    name = "atolla_waveform_module_factory_ios",
+    srcs = ["ios/AtollaWaveformNativeModuleFactory.m"],
+    copts = ["-I."],
+    deps = [
+        "//atolla:atolla_api_objc",
+        ":waveform_ios_bridge",
     ],
 )
 
@@ -111,11 +120,13 @@ kt_android_library(
         "android/AtollaImageLoaderRegistration.kt",
         "android/AtollaPlaybackService.kt",
         "android/AtollaTrackPlaybackNativeModuleFactory.kt",
+        "android/AtollaWaveformNativeModuleFactory.kt",
         "android/AtollaWaveformWorker.kt",
     ],
     assets = [
         "android/assets/valdi_native_modules/atolla.native.android.AtollaImageLoaderBootstrapModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaTrackPlaybackNativeModuleFactory",
+        "android/assets/valdi_native_modules/atolla.native.android.AtollaWaveformNativeModuleFactory",
     ],
     assets_dir = "android/assets",
     custom_package = "atolla.native.android",
