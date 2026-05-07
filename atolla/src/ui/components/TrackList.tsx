@@ -27,6 +27,7 @@ export interface TrackListEntry {
 }
 
 export interface TrackListViewModel {
+	animationsEnabled?: boolean;
 	imageCache?: ImageCache;
 	noRowBackground?: boolean;
 	onTrackLongPress?: (track: Track) => void;
@@ -378,9 +379,15 @@ export class TrackList extends Component<TrackListViewModel> {
 			return;
 		}
 		ref.setAttribute('opacity', 0.28);
-		setTimeout(() => {
-			ref.setAttribute('opacity', 0);
-		}, 180);
+		if (this.viewModel.animationsEnabled) {
+			this.animate({ curve: AnimationCurve.EaseOut, duration: 0.15 }, () => {
+				ref.setAttribute('opacity', 0);
+			});
+		} else {
+			setTimeout(() => {
+				ref.setAttribute('opacity', 0);
+			}, 180);
+		}
 	}
 
 	private getRowRef(identity: string): ElementRef {

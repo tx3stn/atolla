@@ -466,6 +466,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						<LoadingView />
 					) : (
 						<TrackList
+							animationsEnabled={animationsEnabled}
 							imageCache={imageCache}
 							onTrackLongPress={this.handleTrackLongPress}
 							onTrackTap={this.handleTrackTap}

@@ -654,6 +654,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						<LoadingView />
 					) : (
 						<TrackList
+							animationsEnabled={this.viewModel.animationsEnabled}
 							imageCache={imageCache}
 							onTrackLongPress={this.handleTrackLongPress}
 							onTrackReorder={this.handleTrackReorder}

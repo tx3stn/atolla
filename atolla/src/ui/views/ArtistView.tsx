@@ -544,6 +544,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 								<layout style={styles.section}>
 									<label style={styles.sectionHeader} value={Strings.artistSectionTopTracks()} />
 									<TrackList
+										animationsEnabled={this.viewModel.animationsEnabled}
 										imageCache={imageCache}
 										onTrackLongPress={this.handleTrackLongPress}
 										onTrackTap={this.handleTopTrackTap}

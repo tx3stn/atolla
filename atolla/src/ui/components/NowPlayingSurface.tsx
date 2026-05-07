@@ -646,6 +646,7 @@ export class NowPlayingSurface extends StatefulComponent<
 							</layout>
 							<layout accessibilityLabel='now-playing-queue-list' style={styles.expandedQueueList}>
 								<TrackList
+									animationsEnabled={this.viewModel.animationsEnabled}
 									noRowBackground
 									onTrackLongPress={this.handleTrackLongPress}
 									onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}
