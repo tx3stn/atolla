@@ -1,4 +1,8 @@
 import { Component } from 'valdi_core/src/Component';
+import {
+	DeviceHapticFeedbackType,
+	performHapticFeedback as nativeBridgeHaptic,
+} from 'valdi_core/src/DeviceBridge';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { Asset } from 'valdi_tsx/src/Asset';
@@ -28,6 +32,10 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 		if (!isEnabled) {
 			return;
 		}
+
+		try {
+			nativeBridgeHaptic(DeviceHapticFeedbackType?.SELECTION ?? 'selection');
+		} catch {}
 
 		this.viewModel.onTap?.();
 		if (this.viewModel.animationsEnabled) {

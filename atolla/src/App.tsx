@@ -13,6 +13,7 @@ import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
 import { AuthErrors } from './errors/AuthErrors';
+import { ensureAtollaHapticsBootstrap } from './HapticsBootstrap';
 import {
 	clearAtollaNativeCacheCategories,
 	ensureAtollaImageLoaderBootstrap,
@@ -400,6 +401,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			ensureAtollaImageLoaderBootstrap();
 		} catch {
 			// Android native bootstrap may be unavailable on non-Android targets.
+		}
+		try {
+			ensureAtollaHapticsBootstrap();
+		} catch {
+			// Native bootstrap may be unavailable on non-Android/iOS targets.
 		}
 		this.nativeCacheStatsInterval = setInterval(() => {
 			if (this.state.activeFooterTab === FooterTabs.settings) {

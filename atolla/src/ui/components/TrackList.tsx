@@ -1,8 +1,10 @@
 import res from 'atolla/res';
 import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { Component } from 'valdi_core/src/Component';
-import { Device } from 'valdi_core/src/Device';
-import { DeviceHapticFeedbackType } from 'valdi_core/src/DeviceBridge';
+import {
+	DeviceHapticFeedbackType,
+	performHapticFeedback as nativeBridgeHaptic,
+} from 'valdi_core/src/DeviceBridge';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
@@ -265,6 +267,7 @@ export class TrackList extends Component<TrackListViewModel> {
 											this.suppressNextTap = false;
 											return;
 										}
+										this.performSelectionHaptic();
 										this.triggerTapPulse(rowIdentity);
 										this.viewModel.onTrackTap?.(entry.id);
 									}}
@@ -601,6 +604,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 		this.setRowOffset(rowIdentity, -MAX_SWIPE_DISTANCE);
 		this.suppressNextTap = true;
+		this.performSelectionHaptic();
 		this.viewModel.onTrackSwipeRemove?.(trackId, entryIndex);
 	}
 
@@ -695,11 +699,8 @@ export class TrackList extends Component<TrackListViewModel> {
 
 	private performSelectionHaptic(): void {
 		try {
-			const selectionType = DeviceHapticFeedbackType?.SELECTION ?? 'selection';
-			Device.performHapticFeedback(selectionType);
-		} catch {
-			// Ignore haptic failures so menu actions still proceed.
-		}
+			nativeBridgeHaptic(DeviceHapticFeedbackType?.SELECTION ?? 'selection');
+		} catch {}
 	}
 
 	private cancelLongPress(): void {

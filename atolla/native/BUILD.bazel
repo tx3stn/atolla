@@ -72,6 +72,16 @@ objc_library(
 
 
 objc_library(
+    name = "atolla_haptics_bootstrap_module_factory_ios",
+    srcs = ["ios/AtollaHapticsBootstrapModuleFactory.m"],
+    copts = ["-I."],
+    deps = [
+        "//atolla:atolla_api_objc",
+    ],
+    sdk_frameworks = ["UIKit"],
+)
+
+objc_library(
     name = "atolla_track_playback_module_factory_ios",
     srcs = ["ios/AtollaTrackPlaybackNativeModuleFactory.m"],
     copts = ["-I."],
@@ -115,6 +125,8 @@ kt_android_library(
     name = "atolla_cache_image_loader_android",
     srcs = [
         "android/AtollaCacheImageLoader.kt",
+        "android/AtollaHapticsBootstrap.kt",
+        "android/AtollaHapticsBootstrapModuleFactory.kt",
         "android/AtollaImageLoaderAutoBootstrap.kt",
         "android/AtollaImageLoaderBootstrapModuleFactory.kt",
         "android/AtollaImageLoaderRegistration.kt",
@@ -124,6 +136,7 @@ kt_android_library(
         "android/AtollaWaveformWorker.kt",
     ],
     assets = [
+        "android/assets/valdi_native_modules/atolla.native.android.AtollaHapticsBootstrapModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaImageLoaderBootstrapModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaTrackPlaybackNativeModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaWaveformNativeModuleFactory",

@@ -1,4 +1,8 @@
 import { Component } from 'valdi_core/src/Component';
+import {
+	DeviceHapticFeedbackType,
+	performHapticFeedback as nativeBridgeHaptic,
+} from 'valdi_core/src/DeviceBridge';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Asset } from 'valdi_tsx/src/Asset';
@@ -194,8 +198,15 @@ export class CardGrid extends Component<CardGridViewModel> {
 		this.longPressTimeout = setTimeout(() => {
 			this.longPressTimeout = null;
 			this.suppressNextTap = true;
+			this.performSelectionHaptic();
 			this.viewModel.onCardLongPress?.({ id: cardId, kind });
 		}, CARD_LONG_PRESS_DELAY_MS);
+	}
+
+	private performSelectionHaptic(): void {
+		try {
+			nativeBridgeHaptic(DeviceHapticFeedbackType?.SELECTION ?? 'selection');
+		} catch {}
 	}
 
 	private cancelCardLongPress(): void {
