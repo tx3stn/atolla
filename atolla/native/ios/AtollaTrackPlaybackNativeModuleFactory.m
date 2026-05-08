@@ -74,6 +74,48 @@ static NSMutableSet<NSString *> *sInProgressKeys;
     return [lower hasPrefix:@"audio/"] || [lower containsString:@"octet-stream"];
 }
 
+// Downloads url directly to a temp file on disk (no in-memory buffering).
+// Returns the temp file URL and populates outMimeType on success, nil on failure.
+// Caller is responsible for deleting the temp file.
++ (nullable NSURL *)streamDownloadFromURL:(NSURL *)sourceURL
+                                 mimeType:(NSString * _Nullable * _Nonnull)outMimeType {
+    NSURLSessionConfiguration *config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
+    config.timeoutIntervalForRequest = 30.0;
+    config.timeoutIntervalForResource = 300.0;
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:config];
+
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:sourceURL
+                                                           cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
+                                                       timeoutInterval:30.0];
+    [request setValue:@"audio/*,*/*" forHTTPHeaderField:@"Accept"];
+
+    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+    __block NSURL *tmpResult = nil;
+    __block NSString *mimeResult = nil;
+
+    NSURLSessionDownloadTask *task = [session downloadTaskWithRequest:request
+        completionHandler:^(NSURL *location, NSURLResponse *resp, NSError *error) {
+            NSHTTPURLResponse *httpResp = (NSHTTPURLResponse *)resp;
+            if (!error && location &&
+                httpResp.statusCode >= 200 && httpResp.statusCode < 300) {
+                mimeResult = [httpResp MIMEType] ?: @"application/octet-stream";
+                // location is deleted after this block, so move it somewhere persistent.
+                NSURL *persistentTmp = [[NSURL fileURLWithPath:NSTemporaryDirectory()]
+                    URLByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
+                NSError *moveErr = nil;
+                [[NSFileManager defaultManager] moveItemAtURL:location toURL:persistentTmp error:&moveErr];
+                if (!moveErr) tmpResult = persistentTmp;
+            }
+            dispatch_semaphore_signal(sem);
+        }];
+    [task resume];
+    dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 300 * NSEC_PER_SEC));
+    [session finishTasksAndInvalidate];
+
+    *outMimeType = mimeResult;
+    return tmpResult;
+}
+
 + (nullable NSURL *)resolveExistingTrackFileWithKey:(NSString *)key inDir:(NSURL *)dir {
     NSArray<NSURL *> *files = [[NSFileManager defaultManager]
         contentsOfDirectoryAtURL:dir
@@ -165,7 +207,7 @@ static NSMutableSet<NSString *> *sInProgressKeys;
     [sTrackCacheLock unlock];
 
     // Download without holding the lock so getCachedTrackFileUrl is not blocked
-    // during slow network I/O.
+    // during slow network I/O. Streams directly to disk — no in-memory buffering.
     NSURL *sourceURL = [NSURL URLWithString:url];
     if (!sourceURL) {
         [sTrackCacheLock lock];
@@ -174,46 +216,33 @@ static NSMutableSet<NSString *> *sInProgressKeys;
         return @"";
     }
 
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:sourceURL
-                                                           cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
-                                                       timeoutInterval:30.0];
-    [request setValue:@"audio/*,*/*" forHTTPHeaderField:@"Accept"];
-
-    NSError *downloadError = nil;
-    NSHTTPURLResponse *response = nil;
-    NSData *data = [NSURLConnection sendSynchronousRequest:request
-                                         returningResponse:(NSURLResponse **)&response
-                                                     error:&downloadError];
+    NSString *mimeType = nil;
+    NSURL *downloadedTmp = [self streamDownloadFromURL:sourceURL mimeType:&mimeType];
 
     NSString *result = @"";
-    if (!downloadError && data && data.length > 0 &&
-        response.statusCode >= 200 && response.statusCode < 300) {
-        NSString *mimeType = [response MIMEType] ?: @"application/octet-stream";
-        if ([self isLikelyAudioMimeType:mimeType]) {
-            NSString *ext = [self extensionFromMimeType:mimeType];
-            NSURL *tmp = [dir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.tmp", key]];
-            [[NSFileManager defaultManager] removeItemAtURL:tmp error:nil];
-            if ([data writeToURL:tmp atomically:YES]) {
-                // Brief lock to finalize: delete stale files, rename temp, prune.
-                [sTrackCacheLock lock];
-                NSURL *file = [dir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.%@", key, ext]];
-                [self deleteExistingTrackFilesForKey:key inDir:dir];
-                NSError *moveError = nil;
-                [[NSFileManager defaultManager] moveItemAtURL:tmp toURL:file error:&moveError];
-                if (moveError) {
-                    [data writeToURL:file atomically:YES];
-                    [[NSFileManager defaultManager] removeItemAtURL:tmp error:nil];
-                }
-                [self touchFile:file];
-                [self pruneIfNeededInDir:dir];
-                result = [@"file://" stringByAppendingString:file.path];
-                [sInProgressKeys removeObject:key];
-                [sTrackCacheLock unlock];
-                return result;
-            }
+    if (downloadedTmp && mimeType && [self isLikelyAudioMimeType:mimeType]) {
+        NSString *ext = [self extensionFromMimeType:mimeType];
+        // Brief lock to finalize: delete stale files, rename temp, prune.
+        [sTrackCacheLock lock];
+        NSURL *file = [dir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.%@", key, ext]];
+        [self deleteExistingTrackFilesForKey:key inDir:dir];
+        NSError *moveError = nil;
+        [[NSFileManager defaultManager] moveItemAtURL:downloadedTmp toURL:file error:&moveError];
+        if (moveError) {
+            [[NSFileManager defaultManager] removeItemAtURL:downloadedTmp error:nil];
+        } else {
+            [self touchFile:file];
+            [self pruneIfNeededInDir:dir];
+            result = [@"file://" stringByAppendingString:file.path];
         }
+        [sInProgressKeys removeObject:key];
+        [sTrackCacheLock unlock];
+        return result;
     }
 
+    if (downloadedTmp) {
+        [[NSFileManager defaultManager] removeItemAtURL:downloadedTmp error:nil];
+    }
     [sTrackCacheLock lock];
     [sInProgressKeys removeObject:key];
     [sTrackCacheLock unlock];
@@ -350,7 +379,7 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
     [sDownloadedTrackCacheLock unlock];
 
     // Download without holding the lock so getCachedTrackFileUrl is not blocked
-    // during slow network I/O.
+    // during slow network I/O. Streams directly to disk — no in-memory buffering.
     NSURL *sourceURL = [NSURL URLWithString:url];
     if (!sourceURL) {
         [sDownloadedTrackCacheLock lock];
@@ -359,36 +388,32 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
         return @"";
     }
 
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:sourceURL
-                                                           cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
-                                                       timeoutInterval:30.0];
-    [request setValue:@"audio/*,*/*" forHTTPHeaderField:@"Accept"];
-
-    NSHTTPURLResponse *response = nil;
-    NSData *data = [NSURLConnection sendSynchronousRequest:request
-                                         returningResponse:(NSURLResponse **)&response
-                                                     error:nil];
+    NSString *mimeType = nil;
+    NSURL *downloadedTmp = [AtollaTrackCache streamDownloadFromURL:sourceURL mimeType:&mimeType];
 
     NSString *result = @"";
-    if (data && data.length > 0 &&
-        response.statusCode >= 200 && response.statusCode < 300) {
-        NSString *mimeType = [response MIMEType] ?: @"application/octet-stream";
-        if ([AtollaTrackCache isLikelyAudioMimeType:mimeType]) {
-            NSString *ext = [AtollaTrackCache extensionFromMimeType:mimeType];
-            // Brief lock to finalize: delete stale files, write, touch.
-            [sDownloadedTrackCacheLock lock];
-            NSURL *file = [dir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.%@", key, ext]];
-            [AtollaTrackCache deleteExistingTrackFilesForKey:key inDir:dir];
-            if ([data writeToURL:file atomically:YES]) {
-                [AtollaTrackCache touchFile:file];
-                result = [@"file://" stringByAppendingString:file.path];
-            }
-            [sInProgressDownloadedKeys removeObject:key];
-            [sDownloadedTrackCacheLock unlock];
-            return result;
+    if (downloadedTmp && mimeType && [AtollaTrackCache isLikelyAudioMimeType:mimeType]) {
+        NSString *ext = [AtollaTrackCache extensionFromMimeType:mimeType];
+        // Brief lock to finalize: delete stale files, move temp, touch.
+        [sDownloadedTrackCacheLock lock];
+        NSURL *file = [dir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.%@", key, ext]];
+        [AtollaTrackCache deleteExistingTrackFilesForKey:key inDir:dir];
+        NSError *moveError = nil;
+        [[NSFileManager defaultManager] moveItemAtURL:downloadedTmp toURL:file error:&moveError];
+        if (moveError) {
+            [[NSFileManager defaultManager] removeItemAtURL:downloadedTmp error:nil];
+        } else {
+            [AtollaTrackCache touchFile:file];
+            result = [@"file://" stringByAppendingString:file.path];
         }
+        [sInProgressDownloadedKeys removeObject:key];
+        [sDownloadedTrackCacheLock unlock];
+        return result;
     }
 
+    if (downloadedTmp) {
+        [[NSFileManager defaultManager] removeItemAtURL:downloadedTmp error:nil];
+    }
     [sDownloadedTrackCacheLock lock];
     [sInProgressDownloadedKeys removeObject:key];
     [sDownloadedTrackCacheLock unlock];
