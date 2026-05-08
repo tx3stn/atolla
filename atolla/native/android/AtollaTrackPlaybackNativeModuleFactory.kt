@@ -618,21 +618,34 @@ object AtollaTrackPlaybackNativeCache {
 	@Volatile
 	private var cacheMaxTracks = defaultMaxTracks
 
-	@Synchronized
+	// Tracks which safeKeys are currently being downloaded to prevent duplicate
+	// concurrent downloads writing to the same temp file.
+	private val inProgressKeys = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
 	fun cacheTrackFromUrl(trackId: String, url: String): String {
 		if (trackId.isBlank() || url.isBlank()) {
 			return ""
 		}
 
-		val existingFile = resolveExistingTrackFile(trackId)
-		if (existingFile != null && existingFile.exists() && existingFile.isFile) {
-			touch(existingFile)
-			return toFileUrl(existingFile)
+		// Fast path: already cached — only lock for the filesystem check.
+		synchronized(this) {
+			val existingFile = resolveExistingTrackFile(trackId)
+			if (existingFile != null && existingFile.exists() && existingFile.isFile) {
+				touch(existingFile)
+				return toFileUrl(existingFile)
+			}
 		}
 
 		val cacheDir = resolveCacheDir() ?: return ""
 		val safeKey = safeTrackKey(trackId)
 
+		// Prevent two threads from downloading the same track simultaneously.
+		if (!inProgressKeys.add(safeKey)) {
+			return ""
+		}
+
+		// Download without holding the object lock so that getCachedTrackFileUrl
+		// and other read operations are not blocked during slow network I/O.
 		return try {
 			val connection = (URL(url).openConnection() as HttpURLConnection).apply {
 				connectTimeout = 10_000
@@ -654,9 +667,7 @@ object AtollaTrackPlaybackNativeCache {
 			}
 
 			val extension = extensionFromMimeType(mimeType)
-			val file = File(cacheDir, "$safeKey.$extension")
 			val tempFile = File(cacheDir, "$safeKey.tmp")
-			deleteExistingTrackFiles(cacheDir, safeKey)
 			tempFile.delete()
 			val bytesWritten = try {
 				connection.getInputStream().use { input ->
@@ -673,16 +684,24 @@ object AtollaTrackPlaybackNativeCache {
 				tempFile.delete()
 				return ""
 			}
-			if (!tempFile.renameTo(file)) {
-				tempFile.copyTo(file, overwrite = true)
-				tempFile.delete()
+
+			// Brief lock to finalize: delete stale files, rename temp, prune cache.
+			synchronized(this) {
+				val file = File(cacheDir, "$safeKey.$extension")
+				deleteExistingTrackFiles(cacheDir, safeKey)
+				if (!tempFile.renameTo(file)) {
+					tempFile.copyTo(file, overwrite = true)
+					tempFile.delete()
+				}
+				touch(file)
+				pruneIfNeeded(cacheDir)
+				toFileUrl(file)
 			}
-			touch(file)
-			pruneIfNeeded(cacheDir)
-			toFileUrl(file)
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed to cache track trackId=$trackId", error)
 			""
+		} finally {
+			inProgressKeys.remove(safeKey)
 		}
 	}
 
@@ -891,20 +910,27 @@ object AtollaDownloadedTrackNativeCache {
 	private const val tag = "AtollaDownloadedTrackCache"
 	private const val cacheFolder = "atolla-downloaded-track-cache"
 
-	@Synchronized
+	private val inProgressKeys = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
 	fun cacheTrackFromUrl(trackId: String, url: String): String {
 		if (trackId.isBlank() || url.isBlank()) {
 			return ""
 		}
 
-		val existingFile = resolveExistingTrackFile(trackId)
-		if (existingFile != null && existingFile.exists() && existingFile.isFile) {
-			touch(existingFile)
-			return toFileUrl(existingFile)
+		synchronized(this) {
+			val existingFile = resolveExistingTrackFile(trackId)
+			if (existingFile != null && existingFile.exists() && existingFile.isFile) {
+				touch(existingFile)
+				return toFileUrl(existingFile)
+			}
 		}
 
 		val cacheDir = resolveCacheDir() ?: return ""
 		val safeKey = safeTrackKey(trackId)
+
+		if (!inProgressKeys.add(safeKey)) {
+			return ""
+		}
 
 		return try {
 			val connection = (URL(url).openConnection() as HttpURLConnection).apply {
@@ -927,9 +953,7 @@ object AtollaDownloadedTrackNativeCache {
 			}
 
 			val extension = extensionFromMimeType(mimeType)
-			val file = File(cacheDir, "$safeKey.$extension")
 			val tempFile = File(cacheDir, "$safeKey.tmp")
-			deleteExistingTrackFiles(cacheDir, safeKey)
 			tempFile.delete()
 			val bytesWritten = try {
 				connection.getInputStream().use { input ->
@@ -946,15 +970,22 @@ object AtollaDownloadedTrackNativeCache {
 				tempFile.delete()
 				return ""
 			}
-			if (!tempFile.renameTo(file)) {
-				tempFile.copyTo(file, overwrite = true)
-				tempFile.delete()
+
+			synchronized(this) {
+				val file = File(cacheDir, "$safeKey.$extension")
+				deleteExistingTrackFiles(cacheDir, safeKey)
+				if (!tempFile.renameTo(file)) {
+					tempFile.copyTo(file, overwrite = true)
+					tempFile.delete()
+				}
+				touch(file)
+				toFileUrl(file)
 			}
-			touch(file)
-			toFileUrl(file)
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed to cache downloaded track trackId=$trackId", error)
 			""
+		} finally {
+			inProgressKeys.remove(safeKey)
 		}
 	}
 
