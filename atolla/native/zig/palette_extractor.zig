@@ -202,10 +202,13 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
         const g: u8 = @intCast(bin.sum_g / bin.count);
         const b: u8 = @intCast(bin.sum_b / bin.count);
         const hsl = rgbToHsl(r, g, b);
-        if (hsl.l <= 0.15) continue;
+        if (hsl.l <= 0.08) continue;
         const satWeight = 0.2 + hsl.s * 2.0;
-        const litWeight = clamp(1.0 - @abs(hsl.l - 0.55) * 1.7, 0.35, 1.0);
-        const neutralPenalty: f64 = if (hsl.s < 0.15) 0.4 else 1.0;
+        const litWeight = clamp(1.0 - @abs(hsl.l - 0.45) * 1.7, 0.35, 1.0);
+        // Darker colors need higher saturation to look visually distinct from grey.
+        // At L=0 threshold is 0.40; at L=0.5 it is 0.275; at L=1.0 it is 0.15.
+        const neutralThreshold = 0.15 + (1.0 - hsl.l) * 0.25;
+        const neutralPenalty: f64 = if (hsl.s < neutralThreshold) 0.4 else 1.0;
         const score = @sqrt(@as(f64, @floatFromInt(bin.count))) * satWeight * litWeight * neutralPenalty;
         if (score > bestPrimaryScore) {
             bestPrimaryScore = score;
@@ -1199,6 +1202,31 @@ test "atolla_extract_palette_from_bytes: 1x1 white PNG yields valid palette" {
     try std.testing.expectEqual(@as(u8, '#'), palette.on_surface[0]);
     try std.testing.expectEqual(@as(u8, '#'), palette.muted_on_surface[0]);
     try std.testing.expectEqual(@as(u8, '#'), palette.accent[0]);
+}
+
+test "atolla_extract_palette: dark warm-grey does not beat moderately-saturated cooler mid-tone" {
+    // 16 dark warm-grey pixels (l≈0.38, s≈0.18, hue≈12°): s is just above the old flat 0.15
+    // threshold so it escaped the neutral penalty in the old scoring. The new lightness-aware
+    // threshold (0.15 + (1-l)*0.25 ≈ 0.30 at l=0.38) correctly penalises it.
+    // 4 medium blue pixels (l=0.50, s≈0.30, hue≈220°): s exceeds the new threshold at l=0.5
+    // (0.275) so they score at full weight — and should now win despite fewer pixels.
+    var pixels: [20 * 4]u8 = undefined;
+    for (0..16) |i| {
+        pixels[i * 4 + 0] = 114;
+        pixels[i * 4 + 1] = 86;
+        pixels[i * 4 + 2] = 79;
+        pixels[i * 4 + 3] = 255;
+    }
+    for (16..20) |i| {
+        pixels[i * 4 + 0] = 89;
+        pixels[i * 4 + 1] = 115;
+        pixels[i * 4 + 2] = 166;
+        pixels[i * 4 + 3] = 255;
+    }
+    var palette: Palette = std.mem.zeroes(Palette);
+    _ = atolla_extract_palette(&pixels, 4, 5, &palette);
+    const primary = parseHex(palette.primary);
+    try std.testing.expect(primary.b > primary.r);
 }
 
 test "atolla_extract_palette: saturated minority beats muted majority" {
