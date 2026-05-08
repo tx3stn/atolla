@@ -70,6 +70,32 @@ function createQueueTracks(count: number) {
 	}));
 }
 
+function getQueuePageRows(
+	component: Parameters<typeof componentGetElements>[0],
+	pageLabel: 'now-playing-queue-page-back-to' | 'now-playing-queue-page-up-next',
+): Array<string> {
+	const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+	const accessibilityLabels = views.map((v) => v.getAttribute('accessibilityLabel'));
+
+	const pageStart = accessibilityLabels.indexOf(pageLabel);
+	if (pageStart === -1) return [];
+
+	const otherPageLabel =
+		pageLabel === 'now-playing-queue-page-back-to'
+			? 'now-playing-queue-page-up-next'
+			: 'now-playing-queue-page-back-to';
+	const nextPageStart = accessibilityLabels.indexOf(otherPageLabel, pageStart + 1);
+
+	const pageViews =
+		nextPageStart === -1 ? views.slice(pageStart + 1) : views.slice(pageStart + 1, nextPageStart);
+
+	return pageViews
+		.map((v) => v.getAttribute('accessibilityLabel'))
+		.filter(
+			(label): label is string => typeof label === 'string' && label.startsWith('track-row-track-'),
+		);
+}
+
 describe('NowPlayingSurface', () => {
 	valdiIt('renders compact now-playing content by default', async () => {
 		const instrumented = createComponent(NowPlayingSurface, {
@@ -435,20 +461,11 @@ describe('NowPlayingSurface', () => {
 		});
 		const component = instrumented.getComponent();
 
-		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
 		compactBar?.getAttribute('onTap')?.();
 
-		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const backToTab = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'now-playing-tab-back-to',
-		);
-		backToTab?.getAttribute('onTap')?.();
-
-		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const backToRows = views
-			.map((view) => view.getAttribute('accessibilityLabel'))
-			.filter((label) => typeof label === 'string' && label.startsWith('track-row-track-'));
+		const backToRows = getQueuePageRows(component, 'now-playing-queue-page-back-to');
 
 		expect(backToRows.length).toBe(30);
 		expect(backToRows[0]).toBe('track-row-track-70-0');
@@ -605,5 +622,96 @@ describe('NowPlayingSurface', () => {
 		loopControl?.getAttribute('onTap')?.();
 
 		expect(calls).toBe(1);
+	});
+
+	valdiIt('renders both queue pages simultaneously without requiring a tab switch', async () => {
+		const tracks = [
+			{ ...track, id: 'track-1', name: 'Track One' },
+			{ ...track, id: 'track-2', name: 'Track Two' },
+			{ ...track, id: 'track-3', name: 'Track Three' },
+			{ ...track, id: 'track-4', name: 'Track Four' },
+			{ ...track, id: 'track-5', name: 'Track Five' },
+		];
+
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore: mockPlaybackStore(),
+			track: tracks[2],
+			trackIndex: 2,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+		compactBar?.getAttribute('onTap')?.();
+
+		const backToRows = getQueuePageRows(component, 'now-playing-queue-page-back-to');
+		const upNextRows = getQueuePageRows(component, 'now-playing-queue-page-up-next');
+
+		expect(backToRows).toEqual(['track-row-track-2-0', 'track-row-track-1-1']);
+		expect(upNextRows).toEqual(['track-row-track-4-0', 'track-row-track-5-1']);
+	});
+
+	valdiIt('queue pages show correct tracks after track changes mid-session', async () => {
+		const tracks = createQueueTracks(5);
+
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore: mockPlaybackStore(),
+			track: tracks[1],
+			trackIndex: 1,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+		compactBar?.getAttribute('onTap')?.();
+
+		instrumented.setViewModel({
+			album,
+			artistLogoUrl: null,
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore: mockPlaybackStore(),
+			track: tracks[3],
+			trackIndex: 3,
+			tracks,
+		});
+
+		const backToRows = getQueuePageRows(component, 'now-playing-queue-page-back-to');
+		const upNextRows = getQueuePageRows(component, 'now-playing-queue-page-up-next');
+
+		expect(backToRows).toEqual([
+			'track-row-track-3-0',
+			'track-row-track-2-1',
+			'track-row-track-1-2',
+		]);
+		expect(upNextRows).toEqual(['track-row-track-5-0']);
 	});
 });

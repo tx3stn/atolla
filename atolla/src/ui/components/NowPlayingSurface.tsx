@@ -363,33 +363,30 @@ export class NowPlayingSurface extends StatefulComponent<
 		);
 	};
 
-	private handleQueueListLayout = (frame: { width: number }): void => {
+	private handleQueuePageLayout = (frame: { width: number }): void => {
 		this.queueListWidth = frame.width;
+		if (!this.isQueueSliding) {
+			const targetLeft = this.state.activeQueueTab === 'upNext' ? -frame.width : 0;
+			this.queueSlideRef.setAttribute('left', targetLeft);
+		}
 	};
 
 	private handleQueueTabTap = (tab: QueueTab): void => {
 		if (tab === this.state.activeQueueTab || this.isQueueSliding) return;
+		// Update label styles immediately
+		this.setState({ activeQueueTab: tab });
+		// Back To is the left page (left=0), Up Next is the right page (left=-pageWidth)
+		const targetLeft = tab === 'upNext' ? -(this.queueListWidth ?? 0) : 0;
 		if (!this.viewModel.animationsEnabled || this.queueListWidth == null) {
-			this.setState({ activeQueueTab: tab });
+			this.queueSlideRef.setAttribute('left', targetLeft);
 			return;
 		}
 
 		this.isQueueSliding = true;
-		const width = this.queueListWidth;
-		// Back To is the left tab: tapping it exits current content to the right, new enters from left
-		const exitLeft = tab === 'backTo' ? width : -width;
-		const enterLeft = -exitLeft;
-
-		this.runAnimatePromise({ curve: AnimationCurve.EaseIn, duration: 0.15 }, () => {
-			this.queueSlideRef.setAttribute('left', exitLeft);
+		this.runAnimatePromise({ curve: AnimationCurve.EaseInOut, duration: 0.28 }, () => {
+			this.queueSlideRef.setAttribute('left', targetLeft);
 		}).then(() => {
-			this.setState({ activeQueueTab: tab });
-			this.queueSlideRef.setAttribute('left', enterLeft);
-			this.runAnimatePromise({ curve: AnimationCurve.EaseOut, duration: 0.2 }, () => {
-				this.queueSlideRef.setAttribute('left', 0);
-			}).then(() => {
-				this.isQueueSliding = false;
-			});
+			this.isQueueSliding = false;
 		});
 	};
 
@@ -723,24 +720,48 @@ export class NowPlayingSurface extends StatefulComponent<
 									</layout>
 								</layout>
 							</layout>
-							<layout
-								accessibilityLabel='now-playing-queue-list'
-								onLayout={this.handleQueueListLayout}
-								style={styles.expandedQueueList}
-							>
-								<layout ref={this.queueSlideRef} style={styles.queueListSlide}>
-									<TrackList
-										animationsEnabled={this.viewModel.animationsEnabled}
-										noRowBackground
-										onTrackLongPress={this.handleTrackLongPress}
-										onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}
-										onTrackSwipeRemove={canEditQueue ? this.handleQueueTrackSwipeRemove : undefined}
-										onTrackTap={onTrackTap}
-										palette={palette}
-										showDragHandles
-										tapPulseColor={palette.accent.hex}
-										tracks={activeTab === 'upNext' ? upNextEntries : backToEntries}
-									/>
+							<layout accessibilityLabel='now-playing-queue-list' style={styles.expandedQueueList}>
+								{/* Strip holds both pages side-by-side; sliding it reveals one at a time */}
+								<layout ref={this.queueSlideRef} style={styles.queueListStrip}>
+									<layout
+										accessibilityLabel='now-playing-queue-page-back-to'
+										onLayout={this.handleQueuePageLayout}
+										style={styles.queueListPage}
+									>
+										<TrackList
+											animationsEnabled={this.viewModel.animationsEnabled}
+											noRowBackground
+											onTrackLongPress={this.handleTrackLongPress}
+											onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}
+											onTrackSwipeRemove={
+												canEditQueue ? this.handleQueueTrackSwipeRemove : undefined
+											}
+											onTrackTap={onTrackTap}
+											palette={palette}
+											showDragHandles
+											tapPulseColor={palette.accent.hex}
+											tracks={backToEntries}
+										/>
+									</layout>
+									<layout
+										accessibilityLabel='now-playing-queue-page-up-next'
+										style={styles.queueListPage}
+									>
+										<TrackList
+											animationsEnabled={this.viewModel.animationsEnabled}
+											noRowBackground
+											onTrackLongPress={this.handleTrackLongPress}
+											onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}
+											onTrackSwipeRemove={
+												canEditQueue ? this.handleQueueTrackSwipeRemove : undefined
+											}
+											onTrackTap={onTrackTap}
+											palette={palette}
+											showDragHandles
+											tapPulseColor={palette.accent.hex}
+											tracks={upNextEntries}
+										/>
+									</layout>
 								</layout>
 							</layout>
 						</scroll>
@@ -1082,8 +1103,12 @@ const styles = {
 		top: 2000,
 		zIndex: 30,
 	}),
-	queueListSlide: new Style<Layout>({
-		width: '100%',
+	queueListPage: new Style<Layout>({
+		width: '50%',
+	}),
+	queueListStrip: new Style<Layout>({
+		flexDirection: 'row',
+		width: '200%',
 	}),
 	rootCollapsed: new Style<View>({
 		bottom: 0,
