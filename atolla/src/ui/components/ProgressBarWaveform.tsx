@@ -102,26 +102,28 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 						})
 					: undefined
 			}
-			style={styles.container}
+			style={styles.tapZone}
 		>
-			<image
-				accessibilityLabel='waveform-progress-unplayed'
-				objectFit='fill'
-				src={maskImageUrl}
-				style={mutedImageStyle}
-			/>
-			<view
-				accessibilityLabel='waveform-progress-clip'
-				ref={this.clipRef}
-				style={createClipStyle(progressPercent)}
-			>
+			<view style={styles.container}>
 				<image
-					accessibilityLabel='waveform-progress-played'
+					accessibilityLabel='waveform-progress-unplayed'
 					objectFit='fill'
-					ref={this.accentRef}
 					src={maskImageUrl}
-					style={accentImageStyle}
+					style={mutedImageStyle}
 				/>
+				<view
+					accessibilityLabel='waveform-progress-clip'
+					ref={this.clipRef}
+					style={createClipStyle(progressPercent)}
+				>
+					<image
+						accessibilityLabel='waveform-progress-played'
+						objectFit='fill'
+						ref={this.accentRef}
+						src={maskImageUrl}
+						style={accentImageStyle}
+					/>
+				</view>
 			</view>
 		</view>;
 	}
@@ -165,10 +167,17 @@ function createAccentImageStyle(accentColor: string, progressPercent: number): S
 	});
 }
 
+const TAP_ZONE_HEIGHT = 48;
+
 const styles = {
 	container: new Style<View>({
 		height: WAVEFORM_HEIGHT,
 		position: 'relative',
+		width: '100%',
+	}),
+	tapZone: new Style<View>({
+		height: TAP_ZONE_HEIGHT,
+		justifyContent: 'center',
 		width: '100%',
 	}),
 };
