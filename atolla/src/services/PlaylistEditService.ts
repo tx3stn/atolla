@@ -8,8 +8,14 @@ function extractErrorMessage(e: unknown): string {
 }
 
 export type PlaylistOperation =
-	| { playlistId: string; toIndex: number; trackId: string; type: 'move' }
-	| { playlistId: string; trackId: string; type: 'remove' };
+	| { playlistId: string; playlistName: string; toIndex: number; trackId: string; type: 'move' }
+	| { playlistId: string; playlistName: string; trackId: string; type: 'remove' };
+
+export interface PlaylistEditError {
+	error: string;
+	playlistName: string;
+	type: string;
+}
 
 export interface PlaylistEditStore {
 	fetchString(key: string): Promise<string>;
@@ -50,29 +56,36 @@ export class PlaylistEditService {
 		});
 	}
 
-	async execute(op: PlaylistOperation, transport: Transport): Promise<string | null> {
+	async execute(op: PlaylistOperation, transport: Transport): Promise<PlaylistEditError | null> {
+		const supportsOp =
+			(op.type === 'move' && transport.movePlaylistTrack != null) ||
+			(op.type === 'remove' && transport.removePlaylistTrack != null);
+
+		if (!supportsOp) {
+			this.enqueue(op);
+			return null;
+		}
+
 		try {
-			if (op.type === 'move' && transport.movePlaylistTrack) {
-				await transport.movePlaylistTrack(op.playlistId, op.trackId, op.toIndex);
-			} else if (op.type === 'remove' && transport.removePlaylistTrack) {
-				await transport.removePlaylistTrack(op.playlistId, op.trackId);
+			if (op.type === 'move') {
+				await transport.movePlaylistTrack?.(op.playlistId, op.trackId, op.toIndex);
+			} else if (op.type === 'remove') {
+				await transport.removePlaylistTrack?.(op.playlistId, op.trackId);
 			}
 			return null;
 		} catch (e) {
-			this.enqueue(op);
-			return extractErrorMessage(e);
+			return { error: extractErrorMessage(e), playlistName: op.playlistName, type: op.type };
 		}
 	}
 
-	async flush(transport: Transport): Promise<Array<string>> {
+	async flush(transport: Transport): Promise<Array<PlaylistEditError>> {
 		await this.operationChain;
 		await this.load();
 
 		if (this.pendingOps.length === 0) return [];
 
 		const ops = this.pendingOps;
-		const failed: Array<PlaylistOperation> = [];
-		const errors: Array<string> = [];
+		const errors: Array<PlaylistEditError> = [];
 
 		for (const op of ops) {
 			try {
@@ -82,12 +95,15 @@ export class PlaylistEditService {
 					await transport.removePlaylistTrack(op.playlistId, op.trackId);
 				}
 			} catch (e) {
-				failed.push(op);
-				errors.push(extractErrorMessage(e));
+				errors.push({
+					error: extractErrorMessage(e),
+					playlistName: op.playlistName,
+					type: op.type,
+				});
 			}
 		}
 
-		this.pendingOps = failed;
+		this.pendingOps = [];
 		await this.persist();
 		return errors;
 	}

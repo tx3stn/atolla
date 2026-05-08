@@ -38,6 +38,7 @@ declare const Strings: {
 	nothingElseLinedUp: () => string;
 	playingNextToast: () => string;
 	playNext: () => string;
+	playlistEditErrorBody: (operation: string, playlist: string, error: string) => string;
 	playlistEditErrorTitle: () => string;
 	quickConnectCode: (code: string) => string;
 	randomAlbum: () => string;

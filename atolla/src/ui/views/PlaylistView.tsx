@@ -240,14 +240,15 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			.execute(
 				{
 					playlistId: playlist.id,
+					playlistName: playlist.name,
 					toIndex: toEntryIndex,
 					trackId: movedTrack.playlistItemId ?? movedTrack.id,
 					type: 'move',
 				},
 				transport,
 			)
-			.then((error) => {
-				if (error) this.showEditErrorModal(error);
+			.then((result) => {
+				if (result) this.showEditErrorModal(result.type, result.playlistName, result.error);
 			});
 	};
 
@@ -299,17 +300,20 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		modalSlot?.slotted(() => {});
 		this.setState({ removedTrackPending: null });
 		void playlistEditService
-			.execute({ playlistId, trackId, type: 'remove' }, this.viewModel.transport)
-			.then((error) => {
-				if (error) this.showEditErrorModal(error);
+			.execute(
+				{ playlistId, playlistName: this.viewModel.playlist.name, trackId, type: 'remove' },
+				this.viewModel.transport,
+			)
+			.then((result) => {
+				if (result) this.showEditErrorModal(result.type, result.playlistName, result.error);
 			});
 	};
 
-	private showEditErrorModal(errorMessage: string): void {
+	private showEditErrorModal(operation: string, playlistName: string, errorMessage: string): void {
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		modalSlot?.slotted(() => {
 			<Modal
-				body={errorMessage}
+				body={Strings.playlistEditErrorBody(operation, playlistName, errorMessage)}
 				onClose={() => {
 					modalSlot?.slotted(() => {});
 				}}

@@ -117,6 +117,10 @@
 	"playing_next_toast": {
 		"defaultMessage": "lecture suivante"
 	},
+	"playlist_edit_error_body": {
+		"defaultMessage": "{operation%s} a échoué pour « {playlist%s} »\n{error%s}",
+		"example": "déplacement a échoué pour « Ma Playlist »\nErreur réseau"
+	},
 	"playlist_edit_error_title": {
 		"defaultMessage": "MODIFICATION DE PLAYLIST ÉCHOUÉE"
 	},

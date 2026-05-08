@@ -43,8 +43,20 @@ describe('PlaylistEditService', () => {
 		const service = new PlaylistEditService(store);
 		const { moveCalls, transport } = createTransportMock();
 
-		service.enqueue({ playlistId: 'p1', toIndex: 2, trackId: 't1', type: 'move' });
-		service.enqueue({ playlistId: 'p1', toIndex: 0, trackId: 't2', type: 'move' });
+		service.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Playlist 1',
+			toIndex: 2,
+			trackId: 't1',
+			type: 'move',
+		});
+		service.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Playlist 1',
+			toIndex: 0,
+			trackId: 't2',
+			type: 'move',
+		});
 
 		await service.flush(transport);
 
@@ -59,7 +71,12 @@ describe('PlaylistEditService', () => {
 		const service = new PlaylistEditService(store);
 		const { removeCalls, transport } = createTransportMock();
 
-		service.enqueue({ playlistId: 'p1', trackId: 't3', type: 'remove' });
+		service.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Playlist 1',
+			trackId: 't3',
+			type: 'remove',
+		});
 
 		await service.flush(transport);
 
@@ -71,36 +88,43 @@ describe('PlaylistEditService', () => {
 		const service = new PlaylistEditService(store);
 		const { moveCalls, transport } = createTransportMock();
 
-		service.enqueue({ playlistId: 'p1', toIndex: 0, trackId: 't1', type: 'move' });
+		service.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Playlist 1',
+			toIndex: 0,
+			trackId: 't1',
+			type: 'move',
+		});
 		await service.flush(transport);
 		await service.flush(transport);
 
 		expect(moveCalls).toHaveLength(1);
 	});
 
-	it('retains failed ops for next flush', async () => {
+	it('clears failed ops after flush so they are not retried', async () => {
 		const store = new InMemoryStore();
 		const service = new PlaylistEditService(store);
 
-		let callCount = 0;
 		const failingTransport = {
-			movePlaylistTrack: () => {
-				callCount++;
-				return Promise.reject(new Error('network error'));
-			},
+			movePlaylistTrack: () => Promise.reject(new Error('network error')),
 		} as unknown as Transport;
 
-		service.enqueue({ playlistId: 'p1', toIndex: 0, trackId: 't1', type: 'move' });
+		service.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Playlist 1',
+			toIndex: 0,
+			trackId: 't1',
+			type: 'move',
+		});
 		await service.flush(failingTransport);
 
 		const { moveCalls, transport } = createTransportMock();
 		await service.flush(transport);
 
-		expect(callCount).toBe(1);
-		expect(moveCalls).toHaveLength(1);
+		expect(moveCalls).toHaveLength(0);
 	});
 
-	it('returns error messages for failed ops', async () => {
+	it('returns error details for failed ops', async () => {
 		const store = new InMemoryStore();
 		const service = new PlaylistEditService(store);
 
@@ -109,11 +133,20 @@ describe('PlaylistEditService', () => {
 			removePlaylistTrack: () => Promise.reject(new Error('permission denied')),
 		} as unknown as Transport;
 
-		service.enqueue({ playlistId: 'p1', toIndex: 0, trackId: 't1', type: 'move' });
-		service.enqueue({ playlistId: 'p1', trackId: 't2', type: 'remove' });
+		service.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Mix Tape',
+			toIndex: 0,
+			trackId: 't1',
+			type: 'move',
+		});
+		service.enqueue({ playlistId: 'p1', playlistName: 'Mix Tape', trackId: 't2', type: 'remove' });
 		const errors = await service.flush(failingTransport);
 
-		expect(errors).toEqual(['playlist is read-only', 'permission denied']);
+		expect(errors).toEqual([
+			{ error: 'playlist is read-only', playlistName: 'Mix Tape', type: 'move' },
+			{ error: 'permission denied', playlistName: 'Mix Tape', type: 'remove' },
+		]);
 	});
 
 	it('returns empty array when all ops succeed', async () => {
@@ -121,7 +154,13 @@ describe('PlaylistEditService', () => {
 		const service = new PlaylistEditService(store);
 		const { transport } = createTransportMock();
 
-		service.enqueue({ playlistId: 'p1', toIndex: 0, trackId: 't1', type: 'move' });
+		service.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Playlist 1',
+			toIndex: 0,
+			trackId: 't1',
+			type: 'move',
+		});
 		const errors = await service.flush(transport);
 
 		expect(errors).toEqual([]);
@@ -133,16 +172,16 @@ describe('PlaylistEditService', () => {
 			const service = new PlaylistEditService(store);
 			const { moveCalls, transport } = createTransportMock();
 
-			const error = await service.execute(
-				{ playlistId: 'p1', toIndex: 2, trackId: 't1', type: 'move' },
+			const result = await service.execute(
+				{ playlistId: 'p1', playlistName: 'Playlist 1', toIndex: 2, trackId: 't1', type: 'move' },
 				transport,
 			);
 
-			expect(error).toBeNull();
+			expect(result).toBeNull();
 			expect(moveCalls).toEqual([{ playlistId: 'p1', toIndex: 2, trackId: 't1' }]);
 		});
 
-		it('returns the error message and enqueues for retry on failure', async () => {
+		it('returns the error and does not enqueue for retry when live transport fails', async () => {
 			const store = new InMemoryStore();
 			const service = new PlaylistEditService(store);
 
@@ -150,14 +189,35 @@ describe('PlaylistEditService', () => {
 				removePlaylistTrack: () => Promise.reject(new Error('playlist is read-only')),
 			} as unknown as Transport;
 
-			const error = await service.execute(
-				{ playlistId: 'p1', trackId: 't1', type: 'remove' },
+			const result = await service.execute(
+				{ playlistId: 'p1', playlistName: 'Mix Tape', trackId: 't1', type: 'remove' },
 				failingTransport,
 			);
 
-			expect(error).toBe('playlist is read-only');
+			expect(result).toEqual({
+				error: 'playlist is read-only',
+				playlistName: 'Mix Tape',
+				type: 'remove',
+			});
 
-			// op should have been queued for retry
+			// op should NOT have been queued for retry
+			const { removeCalls, transport } = createTransportMock();
+			await service.flush(transport);
+			expect(removeCalls).toHaveLength(0);
+		});
+
+		it('enqueues for retry when transport is offline (no method)', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+			const offlineTransport = {} as unknown as Transport;
+
+			const result = await service.execute(
+				{ playlistId: 'p1', playlistName: 'Mix Tape', trackId: 't1', type: 'remove' },
+				offlineTransport,
+			);
+
+			expect(result).toBeNull();
+
 			const { removeCalls, transport } = createTransportMock();
 			await service.flush(transport);
 			expect(removeCalls).toHaveLength(1);
@@ -169,7 +229,7 @@ describe('PlaylistEditService', () => {
 			const { moveCalls, transport } = createTransportMock();
 
 			await service.execute(
-				{ playlistId: 'p1', toIndex: 0, trackId: 't1', type: 'move' },
+				{ playlistId: 'p1', playlistName: 'Playlist 1', toIndex: 0, trackId: 't1', type: 'move' },
 				transport,
 			);
 			await service.flush(transport);
@@ -183,9 +243,26 @@ describe('PlaylistEditService', () => {
 		const service = new PlaylistEditService(store);
 		const { moveCalls, removeCalls, transport } = createTransportMock();
 
-		service.enqueue({ playlistId: 'p1', toIndex: 3, trackId: 't1', type: 'move' });
-		service.enqueue({ playlistId: 'p1', trackId: 't2', type: 'remove' });
-		service.enqueue({ playlistId: 'p1', toIndex: 0, trackId: 't3', type: 'move' });
+		service.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Playlist 1',
+			toIndex: 3,
+			trackId: 't1',
+			type: 'move',
+		});
+		service.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Playlist 1',
+			trackId: 't2',
+			type: 'remove',
+		});
+		service.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Playlist 1',
+			toIndex: 0,
+			trackId: 't3',
+			type: 'move',
+		});
 
 		await service.flush(transport);
 
@@ -200,7 +277,13 @@ describe('PlaylistEditService', () => {
 		const store = new InMemoryStore();
 		const service1 = new PlaylistEditService(store);
 
-		service1.enqueue({ playlistId: 'p1', toIndex: 1, trackId: 't1', type: 'move' });
+		service1.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Playlist 1',
+			toIndex: 1,
+			trackId: 't1',
+			type: 'move',
+		});
 
 		// Wait for enqueue to finish persisting
 		const emptyTransport = {} as unknown as Transport;
@@ -218,7 +301,13 @@ describe('PlaylistEditService', () => {
 		const store = new InMemoryStore();
 		const service1 = new PlaylistEditService(store);
 
-		service1.enqueue({ playlistId: 'p1', toIndex: 1, trackId: 't1', type: 'move' });
+		service1.enqueue({
+			playlistId: 'p1',
+			playlistName: 'Playlist 1',
+			toIndex: 1,
+			trackId: 't1',
+			type: 'move',
+		});
 
 		// Drain the enqueue promise by awaiting a no-op flush that won't clear (no transport methods)
 		// Just wait for the chain to settle by accessing the chain indirectly

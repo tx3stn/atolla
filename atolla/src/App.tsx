@@ -882,7 +882,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					);
 					void this.playlistEditService.flush(this.transport).then((errors) => {
 						if (errors.length === 0) return;
-						const errorBody = errors.join('\n');
+						const errorBody = errors
+							.map((e) => Strings.playlistEditErrorBody(e.type, e.playlistName, e.error))
+							.join('\n\n');
 						this.modalSlot.slotted(() => {
 							<Modal
 								body={errorBody}

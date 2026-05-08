@@ -117,6 +117,10 @@
 	"playing_next_toast": {
 		"defaultMessage": "playing next"
 	},
+	"playlist_edit_error_body": {
+		"defaultMessage": "{operation%s} failed for '{playlist%s}'\n{error%s}",
+		"example": "move failed for 'My Playlist'\nNetwork error"
+	},
 	"playlist_edit_error_title": {
 		"defaultMessage": "PLAYLIST EDIT FAILED"
 	},
