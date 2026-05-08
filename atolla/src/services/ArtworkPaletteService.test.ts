@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { ArtworkPaletteService, type PaletteStore } from './ArtworkPaletteService';
 import type { Palette } from './color/types';
-import { NEUTRAL_PALETTE } from './color/types';
 
 // ─── Test doubles ─────────────────────────────────────────────────────────────
 
@@ -43,9 +42,9 @@ const SAMPLE_PALETTE: Palette = {
 
 describe('ArtworkPaletteService', () => {
 	describe('getPalette()', () => {
-		it('returns NEUTRAL_PALETTE before any image is processed', () => {
+		it('returns undefined before any image is processed', () => {
 			const service = new ArtworkPaletteService(new MockPaletteStore());
-			expect(service.getPalette('https://example.com/art.png')).toEqual(NEUTRAL_PALETTE);
+			expect(service.getPalette('https://example.com/art.png')).toBeUndefined();
 		});
 
 		it('reports whether a palette is cached for a url', async () => {
@@ -57,14 +56,14 @@ describe('ArtworkPaletteService', () => {
 			expect(service.hasPalette(url)).toBe(true);
 		});
 
-		it('returns NEUTRAL_PALETTE for null url', () => {
+		it('returns undefined for null url', () => {
 			const service = new ArtworkPaletteService(new MockPaletteStore());
-			expect(service.getPalette(null)).toEqual(NEUTRAL_PALETTE);
+			expect(service.getPalette(null)).toBeUndefined();
 		});
 
-		it('returns NEUTRAL_PALETTE for undefined url', () => {
+		it('returns undefined for undefined url', () => {
 			const service = new ArtworkPaletteService(new MockPaletteStore());
-			expect(service.getPalette(undefined)).toEqual(NEUTRAL_PALETTE);
+			expect(service.getPalette(undefined)).toBeUndefined();
 		});
 	});
 
@@ -99,7 +98,7 @@ describe('ArtworkPaletteService', () => {
 			const service = new ArtworkPaletteService(mockStore);
 			await service.warmUp([url]);
 
-			expect(service.getPalette(url).muted_on_surface.hex).toBeDefined();
+			expect(service.getPalette(url)?.muted_on_surface.hex).toBeDefined();
 		});
 
 		it('backfills accent for persisted palettes from older schema', async () => {
@@ -115,13 +114,13 @@ describe('ArtworkPaletteService', () => {
 			const service = new ArtworkPaletteService(mockStore);
 			await service.warmUp([url]);
 
-			expect(service.getPalette(url).accent.hex).toBe('#8899aa');
+			expect(service.getPalette(url)?.accent.hex).toBe('#8899aa');
 		});
 
 		it('notifies subscribers after warm-up loads a palette', async () => {
 			const mockStore = new MockPaletteStore();
 			const url = 'https://example.com/art.png';
-			mockStore.seed(url, NEUTRAL_PALETTE);
+			mockStore.seed(url, SAMPLE_PALETTE);
 
 			const service = new ArtworkPaletteService(mockStore);
 			let calls = 0;
@@ -138,7 +137,7 @@ describe('ArtworkPaletteService', () => {
 				'https://example.com/b.png',
 				'https://example.com/c.png',
 			];
-			for (const url of urls) mockStore.seed(url, NEUTRAL_PALETTE);
+			for (const url of urls) mockStore.seed(url, SAMPLE_PALETTE);
 
 			const service = new ArtworkPaletteService(mockStore);
 			let calls = 0;

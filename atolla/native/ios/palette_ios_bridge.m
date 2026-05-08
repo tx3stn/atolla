@@ -1,15 +1,38 @@
 #import "palette_ios_bridge.h"
-#include <stdio.h>
+#import <UIKit/UIKit.h>
 #include "palette_extractor.h"
 
 @implementation AtollaPaletteExtractor
 
 + (nullable NSString *)extractPaletteFromData:(nonnull NSData *)imageData {
+    UIImage *image = [UIImage imageWithData:imageData];
+    if (!image) return nil;
+
+    CGImageRef cgImage = image.CGImage;
+    if (!cgImage) return nil;
+
+    const size_t width = CGImageGetWidth(cgImage);
+    const size_t height = CGImageGetHeight(cgImage);
+    if (width == 0 || height == 0) return nil;
+
+    uint8_t *pixels = calloc(width * height * 4, 1);
+    if (!pixels) return nil;
+
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef ctx = CGBitmapContextCreate(pixels, width, height, 8, width * 4,
+        colorSpace, kCGImageAlphaNoneSkipLast | kCGBitmapByteOrderDefault);
+    CGColorSpaceRelease(colorSpace);
+
+    if (!ctx) { free(pixels); return nil; }
+
+    CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), cgImage);
+    CGContextRelease(ctx);
+
     AtollaPalette palette;
-    if (!atolla_extract_palette_from_bytes(
-            (const uint8_t *)imageData.bytes, imageData.length, &palette)) {
-        return nil;
-    }
+    const bool ok = atolla_extract_palette(pixels, (uint32_t)width, (uint32_t)height, &palette);
+    free(pixels);
+    if (!ok) return nil;
+
     char json[256];
     snprintf(json, sizeof(json),
         "{\"primary\":{\"hex\":\"%s\"},\"accent\":{\"hex\":\"%s\"},"

@@ -9,7 +9,6 @@
 #import <UIKit/UIKit.h>
 #import "atolla/native/ios/palette_ios_bridge.h"
 #import "atolla/native/ios/blur_ios_bridge.h"
-#include "atolla/native/zig/palette_extractor.h"
 
 // MARK: - Request Payload
 
@@ -109,6 +108,9 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 }
 
 - (void)clearCategories:(NSArray<NSString *> *)categories {
+    NSMutableSet<NSString *> *expanded = [NSMutableSet setWithArray:categories];
+    if ([expanded containsObject:@"album_art"])
+        [expanded addObjectsFromArray:@[@"album_art_blurred", @"album_art_thumb", @"album_art_palette"]];
     [_mem removeAllObjects];
     dispatch_sync(_diskQ, ^{
         if (!self->_diskDir) return;
@@ -117,7 +119,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
             includingPropertiesForKeys:nil options:0 error:nil];
         for (NSURL *file in files) {
             NSString *name = file.lastPathComponent;
-            for (NSString *cat in categories) {
+            for (NSString *cat in expanded) {
                 if ([name hasPrefix:[cat stringByAppendingString:@"_"]]) {
                     [NSFileManager.defaultManager removeItemAtURL:file error:nil];
                     break;
@@ -350,18 +352,9 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 }
 
 - (void)writePaletteSidecarForData:(NSData *)data url:(NSString *)urlString {
-    AtollaPalette palette;
-    if (!atolla_extract_palette_from_bytes(
-            (const uint8_t *)data.bytes, data.length, &palette)) return;
-    char json[256];
-    snprintf(json, sizeof(json),
-        "{\"primary\":{\"hex\":\"%s\"},\"accent\":{\"hex\":\"%s\"},"
-        "\"surface\":{\"hex\":\"%s\"},\"on_surface\":{\"hex\":\"%s\"},"
-        "\"muted_on_surface\":{\"hex\":\"%s\"}}",
-        palette.primary, palette.accent, palette.surface,
-        palette.on_surface, palette.muted_on_surface);
-    NSData *paletteData = [[NSString stringWithUTF8String:json]
-                           dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *json = [AtollaPaletteExtractor extractPaletteFromData:data];
+    if (!json) return;
+    NSData *paletteData = [json dataUsingEncoding:NSUTF8StringEncoding];
     NSString *paletteKey = [NSString stringWithFormat:@"album_art_palette:%@", urlString];
     [_cache writeData:paletteData forKey:paletteKey];
 }

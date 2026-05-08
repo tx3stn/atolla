@@ -238,27 +238,39 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			val sidecar = memory.get(paletteKey) ?: readFromDisk(paletteKey)
 			if (sidecar != null) return String(sidecar, Charsets.UTF_8)
 		}
-		// Fall back to extracting from raw bytes (handles pre-existing cache entries).
 		val key = "$category:$sourceUrl"
 		val bytes = memory.get(key) ?: readFromDisk(key) ?: return null
-		return try {
-			nativeExtractPaletteFromBytes(bytes)
-		} catch (error: Throwable) {
-			Log.e(tag, "Failed to extract palette for key=$key", error)
-			null
-		}
+		return extractPaletteFromBytes(bytes, key)
 	}
 
 	private fun writePaletteSidecarIfNeeded(sourceUrl: String, category: String, bytes: ByteArray) {
 		if (category != "album_art") return
-		val paletteJson = try { nativeExtractPaletteFromBytes(bytes) } catch (_: Throwable) { null } ?: return
+		val paletteJson = extractPaletteFromBytes(bytes, sourceUrl) ?: return
 		val paletteKey = "album_art_palette:$sourceUrl"
 		val paletteBytes = paletteJson.toByteArray(Charsets.UTF_8)
 		memory.put(paletteKey, paletteBytes)
 		writeToDisk(paletteKey, paletteBytes)
 	}
 
-	private external fun nativeExtractPaletteFromBytes(bytes: ByteArray): String?
+	private fun extractPaletteFromBytes(bytes: ByteArray, logKey: String): String? {
+		val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: run {
+			Log.e(tag, "Failed to decode image for palette extraction: $logKey")
+			return null
+		}
+		val width = bitmap.width
+		val height = bitmap.height
+		val pixels = IntArray(width * height)
+		bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+		bitmap.recycle()
+		return try {
+			nativeExtractPaletteFromPixels(pixels, width, height)
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed to extract palette for key=$logKey", error)
+			null
+		}
+	}
+
+	private external fun nativeExtractPaletteFromPixels(pixels: IntArray, width: Int, height: Int): String?
 	private external fun nativeBlurPixels(pixels: IntArray, width: Int, height: Int, outWidth: Int, outHeight: Int): IntArray?
 
 	fun resolveCachedFileUrl(category: String, sourceUrl: String): String? {

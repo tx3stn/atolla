@@ -1,6 +1,4 @@
-import { mutedTextColor } from './color/colorUtils';
 import type { Palette } from './color/types';
-import { NEUTRAL_PALETTE } from './color/types';
 
 export interface PaletteStore {
 	clearAll(): Promise<void>;
@@ -20,12 +18,12 @@ export class ArtworkPaletteService {
 		return this.cache.size;
 	}
 
-	// Returns the extracted palette for the given artwork URL, or NEUTRAL_PALETTE
-	// if extraction has not yet completed. Always returns synchronously.
-	getPalette(imageUrl: string | null | undefined): Palette {
-		if (!imageUrl) return NEUTRAL_PALETTE;
+	// Returns the extracted palette for the given artwork URL, or undefined if extraction
+	// has not yet completed. Always returns synchronously.
+	getPalette(imageUrl: string | null | undefined): Palette | undefined {
+		if (!imageUrl) return undefined;
 		const cached = this.cache.get(imageUrl);
-		if (!cached) return NEUTRAL_PALETTE;
+		if (!cached) return undefined;
 		return this.normalizePalette(cached);
 	}
 
@@ -74,13 +72,10 @@ export class ArtworkPaletteService {
 	}
 
 	private normalizePalette(palette: Palette): Palette {
-		const accentHex = palette.accent?.hex ?? palette.primary.hex;
-		const mutedOnSurfaceHex =
-			palette.muted_on_surface?.hex ?? mutedTextColor(palette.on_surface, palette.surface).hex;
 		return {
 			...palette,
-			accent: { hex: accentHex },
-			muted_on_surface: { hex: mutedOnSurfaceHex },
+			accent: { hex: palette.accent?.hex ?? palette.primary.hex },
+			muted_on_surface: { hex: palette.muted_on_surface?.hex ?? palette.on_surface.hex },
 		};
 	}
 }

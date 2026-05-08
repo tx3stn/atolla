@@ -37,7 +37,7 @@ objc_library(
     hdrs = ["ios/palette_ios_bridge.h"],
     aspect_hints = [":palette_ios_bridge_swift_interop"],
     deps = ["//atolla/native/zig:palette_algorithm"],
-    sdk_frameworks = ["CoreGraphics"],
+    sdk_frameworks = ["CoreGraphics", "UIKit"],
 )
 
 swift_interop_hint(

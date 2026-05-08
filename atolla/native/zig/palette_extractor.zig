@@ -203,10 +203,10 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
         const b: u8 = @intCast(bin.sum_b / bin.count);
         const hsl = rgbToHsl(r, g, b);
         if (hsl.l <= 0.15) continue;
-        const satWeight = 0.45 + hsl.s * 1.15;
+        const satWeight = 0.2 + hsl.s * 2.0;
         const litWeight = clamp(1.0 - @abs(hsl.l - 0.55) * 1.7, 0.35, 1.0);
-        const neutralPenalty: f64 = if (hsl.s < 0.12) 0.55 else 1.0;
-        const score = @as(f64, @floatFromInt(bin.count)) * satWeight * litWeight * neutralPenalty;
+        const neutralPenalty: f64 = if (hsl.s < 0.15) 0.4 else 1.0;
+        const score = @sqrt(@as(f64, @floatFromInt(bin.count))) * satWeight * litWeight * neutralPenalty;
         if (score > bestPrimaryScore) {
             bestPrimaryScore = score;
             const enhanced = enhancePrimary(r, g, b);
@@ -1199,6 +1199,28 @@ test "atolla_extract_palette_from_bytes: 1x1 white PNG yields valid palette" {
     try std.testing.expectEqual(@as(u8, '#'), palette.on_surface[0]);
     try std.testing.expectEqual(@as(u8, '#'), palette.muted_on_surface[0]);
     try std.testing.expectEqual(@as(u8, '#'), palette.accent[0]);
+}
+
+test "atolla_extract_palette: saturated minority beats muted majority" {
+    // 12 muted blue-grey pixels (s≈0.12, l≈0.5) vs 4 saturated orange pixels (s≈0.83).
+    // With raw count as the multiplier the grey mass would win; sqrt(count) lets saturation dominate.
+    var pixels: [16 * 4]u8 = undefined;
+    for (0..12) |i| {
+        pixels[i * 4 + 0] = 112;
+        pixels[i * 4 + 1] = 127;
+        pixels[i * 4 + 2] = 143;
+        pixels[i * 4 + 3] = 255;
+    }
+    for (12..16) |i| {
+        pixels[i * 4 + 0] = 210;
+        pixels[i * 4 + 1] = 80;
+        pixels[i * 4 + 2] = 20;
+        pixels[i * 4 + 3] = 255;
+    }
+    var palette: Palette = std.mem.zeroes(Palette);
+    _ = atolla_extract_palette(&pixels, 4, 4, &palette);
+    const primary = parseHex(palette.primary);
+    try std.testing.expect(primary.r > primary.b);
 }
 
 test "atolla_extract_palette_from_bytes: blue-dominant 2x2 PNG has blue-ish primary" {

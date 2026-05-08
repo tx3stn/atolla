@@ -8,11 +8,11 @@ import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplat
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
-import { NEUTRAL_PALETTE, type Palette } from '../../services/color/types';
+import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
 import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playback';
-import { theme, topInset, withAlpha } from '../../theme';
+import { paletteDefaults, theme, topInset, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { AddToPlaylistView } from '../views/AddToPlaylistView';
 import { ArtistLogo } from './ArtistLogo';
@@ -456,7 +456,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			onProgressTap,
 			onPrevious,
 			onTrackTap,
-			palette = NEUTRAL_PALETTE,
+			palette,
 			track,
 			trackIndex,
 			tracks,
@@ -492,10 +492,10 @@ export class NowPlayingSurface extends StatefulComponent<
 		const artistLogoSource = artistLogoUrl ?? null;
 
 		// ── Palette-derived colours ──────────────────────────────────────────────
-		const accentColor = palette.accent.hex;
-		const surfaceColor = palette.surface.hex;
-		const onSurfaceColor = palette.on_surface.hex;
-		const mutedOnSurfaceColor = palette.muted_on_surface.hex;
+		const accentColor = palette?.accent.hex ?? paletteDefaults.accent;
+		const surfaceColor = palette?.surface.hex ?? paletteDefaults.surface;
+		const onSurfaceColor = palette?.on_surface.hex ?? paletteDefaults.onSurface;
+		const mutedOnSurfaceColor = palette?.muted_on_surface.hex ?? paletteDefaults.mutedOnSurface;
 
 		const backToLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, activeTab === 'backTo');
 		const upNextLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, activeTab === 'upNext');
@@ -739,7 +739,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											onTrackTap={onTrackTap}
 											palette={palette}
 											showDragHandles
-											tapPulseColor={palette.accent.hex}
+											tapPulseColor={accentColor}
 											tracks={backToEntries}
 										/>
 									</view>
@@ -758,7 +758,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											onTrackTap={onTrackTap}
 											palette={palette}
 											showDragHandles
-											tapPulseColor={palette.accent.hex}
+											tapPulseColor={accentColor}
 											tracks={upNextEntries}
 										/>
 									</view>
@@ -1027,6 +1027,7 @@ const styles = {
 		justifyContent: 'center',
 		paddingLeft: 24,
 		paddingRight: 24,
+		paddingTop: 20,
 		width: '100%',
 	}),
 	expandedInner: new Style({

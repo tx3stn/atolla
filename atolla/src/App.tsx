@@ -1436,6 +1436,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 		if (selection.albumArt) {
 			void this.paletteService?.clearAll();
+			try {
+				clearAtollaNativeCacheCategories(['album_art_palette']);
+			} catch {
+				// Native clear unavailable on non-Android targets.
+			}
 		}
 		if (selection.waveformData) {
 			this.waveformService?.clearAll();

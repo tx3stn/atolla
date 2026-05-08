@@ -21,6 +21,13 @@ const colors = {
 	white: '#d8dee9',
 };
 
+export const paletteDefaults = {
+	accent: colors.active,
+	mutedOnSurface: colors.muted,
+	onSurface: colors.white,
+	surface: colors.bgAccent,
+} as const;
+
 export const theme = {
 	borderRadius: 18,
 	colors: colors,
