@@ -723,7 +723,7 @@ export class NowPlayingSurface extends StatefulComponent<
 							<layout accessibilityLabel='now-playing-queue-list' style={styles.expandedQueueList}>
 								{/* Strip holds both pages side-by-side; sliding it reveals one at a time */}
 								<layout ref={this.queueSlideRef} style={styles.queueListStrip}>
-									<layout
+									<view
 										accessibilityLabel='now-playing-queue-page-back-to'
 										onLayout={this.handleQueuePageLayout}
 										style={styles.queueListPage}
@@ -742,8 +742,8 @@ export class NowPlayingSurface extends StatefulComponent<
 											tapPulseColor={palette.accent.hex}
 											tracks={backToEntries}
 										/>
-									</layout>
-									<layout
+									</view>
+									<view
 										accessibilityLabel='now-playing-queue-page-up-next'
 										style={styles.queueListPage}
 									>
@@ -761,7 +761,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											tapPulseColor={palette.accent.hex}
 											tracks={upNextEntries}
 										/>
-									</layout>
+									</view>
 								</layout>
 							</layout>
 						</scroll>
@@ -1049,7 +1049,8 @@ const styles = {
 		alignItems: 'center',
 		flexGrow: 1,
 		justifyContent: 'flex-end',
-		paddingTop: 4,
+		paddingBottom: 12,
+		paddingTop: 18,
 	}),
 	expandedQueueTabsRow: new Style({
 		borderTopColor: theme.colors.bgAccent,
@@ -1103,7 +1104,7 @@ const styles = {
 		top: 2000,
 		zIndex: 30,
 	}),
-	queueListPage: new Style<Layout>({
+	queueListPage: new Style<View>({
 		width: '50%',
 	}),
 	queueListStrip: new Style<Layout>({
