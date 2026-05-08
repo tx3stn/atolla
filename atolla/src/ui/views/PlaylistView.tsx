@@ -221,8 +221,12 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	handleTrackReorder = (fromEntryIndex: number, toEntryIndex: number): void => {
 		const { playlist, playlistEditService, transport } = this.viewModel;
-		const tracks = [...this.state.tracks];
-		const artistLogoUrls = [...this.state.artistLogoUrls];
+		const prevTracks = this.state.tracks;
+		const prevArtistLogoUrls = this.state.artistLogoUrls;
+		const prevAllTracks = this.allTracks;
+
+		const tracks = [...prevTracks];
+		const artistLogoUrls = [...prevArtistLogoUrls];
 		const [movedTrack] = tracks.splice(fromEntryIndex, 1);
 		const [movedLogo] = artistLogoUrls.splice(fromEntryIndex, 1);
 		tracks.splice(toEntryIndex, 0, movedTrack);
@@ -248,7 +252,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				transport,
 			)
 			.then((result) => {
-				if (result) this.showEditErrorModal(result.type, result.playlistName, result.error);
+				if (result) {
+					this.allTracks = prevAllTracks;
+					this.setState({ artistLogoUrls: prevArtistLogoUrls, tracks: prevTracks });
+					this.showEditErrorModal(result.type, result.playlistName, result.error);
+				}
 			});
 	};
 
@@ -297,6 +305,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		playlistEditService: PlaylistEditService,
 	): void => {
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		const { removedTrackPending } = this.state;
 		modalSlot?.slotted(() => {});
 		this.setState({ removedTrackPending: null });
 		void playlistEditService
@@ -305,7 +314,21 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				this.viewModel.transport,
 			)
 			.then((result) => {
-				if (result) this.showEditErrorModal(result.type, result.playlistName, result.error);
+				if (result) {
+					if (removedTrackPending) {
+						const tracks = [...this.state.tracks];
+						const artistLogoUrls = [...this.state.artistLogoUrls];
+						tracks.splice(removedTrackPending.index, 0, removedTrackPending.track);
+						artistLogoUrls.splice(removedTrackPending.index, 0, null);
+						if (this.allTracks) {
+							const allTracks = [...this.allTracks];
+							allTracks.splice(removedTrackPending.index, 0, removedTrackPending.track);
+							this.allTracks = allTracks;
+						}
+						this.setState({ artistLogoUrls, tracks });
+					}
+					this.showEditErrorModal(result.type, result.playlistName, result.error);
+				}
 			});
 	};
 
