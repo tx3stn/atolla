@@ -640,14 +640,14 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 					{status === 'success' && (
 						<layout style={styles.resultsContainer}>
-							{results.tracks.length > 0 && (
+							{results.artists.length > 0 && (
 								<layout style={styles.section}>
-									{this.renderSectionTitle(Strings.searchSectionTracks())}
-									<TrackList
-										imageCache={imageCache}
-										onTrackLongPress={this.handleTrackLongPress}
-										onTrackTap={this.handleTrackTap}
-										tracks={this.createTrackEntries(results.tracks)}
+									{this.renderSectionTitle(Strings.searchSectionArtists())}
+									<CardGrid
+										accessibilityLabel='search-artists-grid'
+										cards={this.createArtistCards(results.artists)}
+										columnCount={this.viewModel.gridColumns}
+										onCardTap={this.handleArtistCardTap}
 									/>
 								</layout>
 							)}
@@ -664,18 +664,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 								</layout>
 							)}
 
-							{results.artists.length > 0 && (
-								<layout style={styles.section}>
-									{this.renderSectionTitle(Strings.searchSectionArtists())}
-									<CardGrid
-										accessibilityLabel='search-artists-grid'
-										cards={this.createArtistCards(results.artists)}
-										columnCount={this.viewModel.gridColumns}
-										onCardTap={this.handleArtistCardTap}
-									/>
-								</layout>
-							)}
-
 							{results.playlists.length > 0 && (
 								<layout style={styles.section}>
 									{this.renderSectionTitle(Strings.searchSectionPlaylists())}
@@ -684,6 +672,18 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 										cards={this.createPlaylistCards(results.playlists)}
 										columnCount={this.viewModel.gridColumns}
 										onCardTap={this.handlePlaylistCardTap}
+									/>
+								</layout>
+							)}
+
+							{results.tracks.length > 0 && (
+								<layout style={styles.section}>
+									{this.renderSectionTitle(Strings.searchSectionTracks())}
+									<TrackList
+										imageCache={imageCache}
+										onTrackLongPress={this.handleTrackLongPress}
+										onTrackTap={this.handleTrackTap}
+										tracks={this.createTrackEntries(results.tracks)}
 									/>
 								</layout>
 							)}
