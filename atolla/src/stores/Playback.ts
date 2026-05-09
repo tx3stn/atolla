@@ -42,6 +42,7 @@ export class PlaybackStore {
 	private queueStore: PlaybackQueueStore | null = null;
 	private queueStoreLoadToken = 0;
 	private lastPersistedProgressSeconds = 0;
+	private seekPersistTimer: ReturnType<typeof setTimeout> | null = null;
 
 	album: Album | null = null;
 	isPlaying: boolean = false;
@@ -222,7 +223,14 @@ export class PlaybackStore {
 		const clamped = Math.max(0, Math.min(activeTrack.duration, seconds));
 		this.seekTarget = clamped;
 		this.progressSeconds = clamped;
-		this.persistQueue();
+		// Update the persisted baseline so the 5-second step logic in updateProgress
+		// doesn't immediately fire another persist when playback resumes after seeking.
+		this.lastPersistedProgressSeconds = clamped;
+		if (this.seekPersistTimer != null) clearTimeout(this.seekPersistTimer);
+		this.seekPersistTimer = setTimeout(() => {
+			this.seekPersistTimer = null;
+			this.persistQueue();
+		}, 400);
 		this.notify();
 	}
 

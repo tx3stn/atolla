@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <cstdlib>
+#include <cstring>
 #include "image_blur.h"
 
 extern "C" JNIEXPORT jintArray JNICALL
@@ -33,6 +34,9 @@ Java_com_tx3stn_atolla_AtollaCacheImageLoader_nativeBlurPixels(
         std::free(rgba_in);
         return nullptr;
     }
+    // Zero-init so that if atolla_blur_pixels returns early (e.g. internal malloc failure),
+    // rgba_out contains valid black pixels rather than uninitialized heap garbage.
+    std::memset(rgba_out, 0, out_len * 4);
 
     atolla_blur_pixels(
         rgba_in,

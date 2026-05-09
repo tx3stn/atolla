@@ -910,7 +910,7 @@ describe('PlaybackStore', () => {
 			expect(queueStore.writeCount).toBe(writesAfterPlay + 2);
 		});
 
-		it('persists progress immediately on seek and pause', async () => {
+		it('debounces seek persists but persists immediately on pause', async () => {
 			const queueStore = new InMemoryQueueStore();
 			const store = new PlaybackStore();
 
@@ -918,11 +918,13 @@ describe('PlaybackStore', () => {
 			store.playTracks([track1]);
 			const writesAfterPlay = queueStore.writeCount;
 
+			// seekTo debounces the persist — no immediate write
 			store.seekTo(12);
-			expect(queueStore.writeCount).toBe(writesAfterPlay + 1);
+			expect(queueStore.writeCount).toBe(writesAfterPlay);
 
+			// playPause (pause) persists immediately
 			store.playPause();
-			expect(queueStore.writeCount).toBe(writesAfterPlay + 2);
+			expect(queueStore.writeCount).toBe(writesAfterPlay + 1);
 		});
 
 		it('ignores invalid cached payloads', async () => {

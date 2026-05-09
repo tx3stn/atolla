@@ -13,15 +13,30 @@ export interface CachedImageViewModel {
 }
 
 export class CachedImage extends Component<CachedImageViewModel> {
+	private lastUrl?: string | null;
+	private lastCategory?: ImageCategory;
+	private lastCacheVersion?: number;
+	private cachedSource = '';
+
 	onRender(): void {
-		const { category, objectFit = 'cover', style, url } = this.viewModel;
+		const { category, cacheVersion, objectFit = 'cover', style, url } = this.viewModel;
 		if (!url) {
 			return;
 		}
 
+		if (
+			url !== this.lastUrl ||
+			category !== this.lastCategory ||
+			cacheVersion !== this.lastCacheVersion
+		) {
+			this.lastUrl = url;
+			this.lastCategory = category;
+			this.lastCacheVersion = cacheVersion;
+			this.cachedSource = buildImageSource(url, category);
+		}
+
 		const imageStyle = style ?? styles.defaultImage;
-		const source = buildImageSource(url, category);
-		<image objectFit={objectFit} src={source} style={imageStyle} />;
+		<image objectFit={objectFit} src={this.cachedSource} style={imageStyle} />;
 	}
 }
 

@@ -98,6 +98,7 @@ export class DownloadService {
 
 	private queue: Array<{ trackId: string; streamUrl: string }> = [];
 	private activeCount = 0;
+	private operationChain: Promise<void> = Promise.resolve();
 
 	private readonly subscribers = new Set<() => void>();
 	private readonly store: DownloadServiceStore;
@@ -118,6 +119,10 @@ export class DownloadService {
 		this.removeTrackFn = options.removeTrack;
 		this.removeTracksFn = options.removeTracks;
 		this.preloadImagesFn = options.preloadImages;
+	}
+
+	private enqueueOperation(operation: () => Promise<void>): void {
+		this.operationChain = this.operationChain.then(operation, operation);
 	}
 
 	// -------------------------------------------------------------------------
@@ -264,7 +269,8 @@ export class DownloadService {
 		resolvedGenres?: Array<Genre>;
 	}): void {
 		const { album, artistImageUrl, tracks, artistLogoUrl, resolvedGenres = [] } = params;
-		this.ensureLoaded().then(async () => {
+		this.enqueueOperation(async () => {
+			await this.ensureLoaded();
 			this.preloadDownloadImages({
 				albumArtUrls: [album.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
 				artistImageUrls: [artistImageUrl],
@@ -320,7 +326,8 @@ export class DownloadService {
 		resolvedGenres?: Array<Genre>;
 	}): void {
 		const { artists = [], playlist, tracks, resolvedGenres = [] } = params;
-		this.ensureLoaded().then(async () => {
+		this.enqueueOperation(async () => {
+			await this.ensureLoaded();
 			this.preloadDownloadImages({
 				albumArtUrls: [playlist.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
 				artistImageUrls: artists.map((artist) => artist.imageUrl),
@@ -376,7 +383,8 @@ export class DownloadService {
 		resolvedGenres?: Array<Genre>;
 	}): void {
 		const { artists = [], genre, tracks, resolvedGenres = [] } = params;
-		this.ensureLoaded().then(async () => {
+		this.enqueueOperation(async () => {
+			await this.ensureLoaded();
 			this.preloadDownloadImages({
 				albumArtUrls: [genre.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
 				artistImageUrls: artists.map((artist) => artist.imageUrl),
@@ -437,7 +445,8 @@ export class DownloadService {
 		resolvedGenres?: Array<Genre>;
 	}): void {
 		const { artist, albumEntries, artistLogoUrl, resolvedGenres = [] } = params;
-		this.ensureLoaded().then(async () => {
+		this.enqueueOperation(async () => {
+			await this.ensureLoaded();
 			this.preloadDownloadImages({
 				albumArtUrls: albumEntries.flatMap(({ album, tracks }) => [
 					album.imageUrl,

@@ -29,7 +29,6 @@ export class WaveformService {
 		const existing = this.records.get(trackId);
 		if (existing?.status === 'ready' || existing?.status === 'pending') return;
 		this.records.set(trackId, { amps: null, status: 'pending', trackId });
-		void this.persist();
 		this.notify();
 	}
 
