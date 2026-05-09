@@ -95,6 +95,14 @@ export class TrackList extends Component<TrackListViewModel> {
 		}
 		for (const timeout of this.neighborBounceTimeouts.values()) clearTimeout(timeout);
 		this.neighborBounceTimeouts.clear();
+		this.neighborOffsetByIdentity.clear();
+		this.dragHandleRefByIdentity.clear();
+		this.pulseOverlayRefByIdentity.clear();
+		this.removeActionRefByIdentity.clear();
+		this.rowOffsetByIdentity.clear();
+		this.rowRefByIdentity.clear();
+		this.swipeContainerRefByIdentity.clear();
+		this.rowIdentitiesByIndex.length = 0;
 	}
 
 	onViewModelUpdate(prevViewModel: TrackListViewModel): void {

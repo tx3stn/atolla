@@ -700,10 +700,11 @@ export class LiveTransport implements Transport {
 				startIndex,
 			});
 
-			items.push(...list.Items);
-			startIndex += list.Items.length;
+			const page = list.Items ?? [];
+			items.push(...page);
+			startIndex += page.length;
 
-			if (startIndex >= list.TotalRecordCount || list.Items.length === 0) {
+			if (startIndex >= list.TotalRecordCount || page.length === 0) {
 				break;
 			}
 		}

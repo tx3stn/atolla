@@ -130,15 +130,19 @@ export class DownloadService {
 	// -------------------------------------------------------------------------
 
 	onAppReady(): void {
-		this.ensureLoaded().then(() => {
-			// Re-enqueue any tracks that did not finish downloading.
-			for (const entry of Object.values(this.tracks)) {
-				if (!entry.complete) {
-					this.enqueueTrack(entry.track.id, entry.streamUrl);
+		this.ensureLoaded()
+			.then(() => {
+				// Re-enqueue any tracks that did not finish downloading.
+				for (const entry of Object.values(this.tracks)) {
+					if (!entry.complete) {
+						this.enqueueTrack(entry.track.id, entry.streamUrl);
+					}
 				}
-			}
-			this.notify();
-		});
+				this.notify();
+			})
+			.catch((err) => {
+				console.warn('[downloads] failed to load on app ready', err);
+			});
 	}
 
 	// -------------------------------------------------------------------------

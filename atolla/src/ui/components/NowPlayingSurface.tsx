@@ -173,14 +173,14 @@ export class NowPlayingSurface extends StatefulComponent<
 	};
 
 	onViewModelUpdate(prevViewModel: NowPlayingSurfaceViewModel): void {
-		if (!prevViewModel) {
-			if (this.viewModel.playbackStore) {
-				this.unsubscribeProgress = this.viewModel.playbackStore.subscribe(() => {
-					this.updateProgressRefs();
-				});
-			}
-			return;
+		if (!prevViewModel || this.viewModel.playbackStore !== prevViewModel.playbackStore) {
+			this.unsubscribeProgress?.();
+			this.unsubscribeProgress = this.viewModel.playbackStore?.subscribe(() => {
+				this.updateProgressRefs();
+			});
 		}
+
+		if (!prevViewModel) return;
 
 		if (this.viewModel.artistLogoUrl !== prevViewModel.artistLogoUrl) {
 			this.setState({ ...this.state });
