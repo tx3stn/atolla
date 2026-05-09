@@ -18,6 +18,7 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ViewHeader } from '../components/ViewHeader';
+import { hapticFeedback } from '../haptics';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import {
 	createHomeAlbumsSignature,
@@ -353,6 +354,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		id: string;
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
+		hapticFeedback();
+
 		if (card.id === SHUFFLE_LIBRARY_MIX_ID) {
 			void this.startShuffleLibraryMix();
 		} else if (card.id === RANDOM_ALBUM_MIX_ID) {

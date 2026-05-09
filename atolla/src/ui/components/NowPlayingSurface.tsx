@@ -524,9 +524,10 @@ export class NowPlayingSurface extends StatefulComponent<
 		const totalText = formatDuration(track.duration);
 		const loopMode = this.viewModel.loopMode ?? LoopModes.none;
 		const loopIcon = getLoopModeIcon(loopMode);
+		const releaseDateSource = track.releaseDate ?? album?.releaseDate;
 		const trackReleaseYear =
 			track.productionYear ??
-			(track.releaseDate ? extractYearFromDateString(track.releaseDate) : null);
+			(releaseDateSource ? extractYearFromDateString(releaseDateSource) : null);
 		const albumLine =
 			track.albumName != null
 				? trackReleaseYear

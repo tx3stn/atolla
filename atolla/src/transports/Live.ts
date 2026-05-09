@@ -487,6 +487,7 @@ export class LiveTransport implements Transport {
 
 	async getShuffledLibraryTracks(): Promise<Array<Track>> {
 		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			fields: 'MediaSources',
 			includeItemTypes: JellyfinMusicItemTypes.Audio,
 			limit: 500,
 			recursive: true,
@@ -503,6 +504,7 @@ export class LiveTransport implements Transport {
 	): Promise<{ hasMore: boolean; items: Array<Track> }> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			fields: 'MediaSources',
 			includeItemTypes: JellyfinMusicItemTypes.Audio,
 			limit: Math.max(1, pageSize),
 			recursive: true,

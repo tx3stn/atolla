@@ -1,10 +1,6 @@
 import res from 'atolla/res';
 import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import {
-	DeviceHapticFeedbackType,
-	performHapticFeedback as nativeBridgeHaptic,
-} from 'valdi_core/src/DeviceBridge';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
@@ -16,6 +12,7 @@ import type { DownloadState } from '../../services/DownloadService';
 import type { ImageCache, ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
+import { hapticFeedback } from '../haptics';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
 import { FormatBadge } from './FormatBadge';
@@ -133,9 +130,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		const { animationsEnabled, onAddToQueue } = this.viewModel;
 		if (!onAddToQueue) return;
 
-		try {
-			nativeBridgeHaptic(DeviceHapticFeedbackType?.SELECTION ?? 'selection');
-		} catch {}
+		hapticFeedback();
 
 		if (animationsEnabled) {
 			animateRipple(this, this.rippleRef, 40, 1.55);

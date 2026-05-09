@@ -1,10 +1,6 @@
 import res from 'atolla/res';
 import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { Component } from 'valdi_core/src/Component';
-import {
-	DeviceHapticFeedbackType,
-	performHapticFeedback as nativeBridgeHaptic,
-} from 'valdi_core/src/DeviceBridge';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
@@ -14,6 +10,7 @@ import Strings from '../../Strings';
 import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { theme, withAlpha } from '../../theme';
+import { hapticFeedback } from '../haptics';
 import { CachedImage } from './CachedImage';
 import { TouchEventState } from './TouchEventState';
 
@@ -704,9 +701,7 @@ export class TrackList extends Component<TrackListViewModel> {
 	}
 
 	private performSelectionHaptic(): void {
-		try {
-			nativeBridgeHaptic(DeviceHapticFeedbackType?.SELECTION ?? 'selection');
-		} catch {}
+		hapticFeedback();
 	}
 
 	private cancelLongPress(): void {

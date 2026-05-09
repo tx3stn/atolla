@@ -2082,6 +2082,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						id: track.albumId,
 						imageUrl: track.albumImageUrl,
 						name: track.albumName ?? '',
+						releaseDate: track.releaseDate,
 					}
 				: null);
 		if (!resolvedAlbum) {

@@ -1,14 +1,11 @@
 import { Component } from 'valdi_core/src/Component';
-import {
-	DeviceHapticFeedbackType,
-	performHapticFeedback as nativeBridgeHaptic,
-} from 'valdi_core/src/DeviceBridge';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { Asset } from 'valdi_tsx/src/Asset';
 import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
+import { hapticFeedback } from '../haptics';
 
 export interface TappableIconViewModel {
 	accessibilityLabel?: string;
@@ -42,9 +39,7 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 			);
 		}
 
-		try {
-			nativeBridgeHaptic(DeviceHapticFeedbackType?.SELECTION ?? 'selection');
-		} catch {}
+		hapticFeedback();
 
 		this.viewModel.onTap?.();
 	};

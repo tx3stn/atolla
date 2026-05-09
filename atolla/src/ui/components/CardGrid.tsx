@@ -1,8 +1,4 @@
 import { Component } from 'valdi_core/src/Component';
-import {
-	DeviceHapticFeedbackType,
-	performHapticFeedback as nativeBridgeHaptic,
-} from 'valdi_core/src/DeviceBridge';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Asset } from 'valdi_tsx/src/Asset';
@@ -11,6 +7,7 @@ import type { ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateEleme
 import Strings from '../../Strings';
 import type { ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
+import { hapticFeedback } from '../haptics';
 import { CachedImage } from './CachedImage';
 import { TouchEventState } from './TouchEventState';
 
@@ -204,9 +201,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 	}
 
 	private performSelectionHaptic(): void {
-		try {
-			nativeBridgeHaptic(DeviceHapticFeedbackType?.SELECTION ?? 'selection');
-		} catch {}
+		hapticFeedback();
 	}
 
 	private cancelCardLongPress(): void {
