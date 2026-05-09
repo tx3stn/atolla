@@ -61,6 +61,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		return Strings.removeDownloadBody();
 	}
 	private confirmationTimer?: ReturnType<typeof setTimeout>;
+	private checkmarkAnimTimer?: ReturnType<typeof setTimeout>;
 	private removeDownloadTimer?: ReturnType<typeof setTimeout>;
 	private toastTimer?: ReturnType<typeof setTimeout>;
 
@@ -73,6 +74,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 
 	onDestroy(): void {
 		clearTimeout(this.confirmationTimer);
+		clearTimeout(this.checkmarkAnimTimer);
 		clearTimeout(this.removeDownloadTimer);
 		this.toastTimer = clearScheduledToast(this.toastTimer);
 		this.viewModel.modalSlot?.slotted(() => {});
@@ -151,9 +153,12 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		this.setState({ addToQueuePhase: 'confirming', checkmarkAnimated: animated });
 
 		if (animated) {
-			setTimeout(() => {
+			this.checkmarkAnimTimer = setTimeout(() => {
+				if (this.state.addToQueuePhase !== 'confirming') return;
 				this.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.2 }, () => {
-					this.checkmarkRef.setAttribute('opacity', 1);
+					if (this.state.addToQueuePhase === 'confirming') {
+						this.checkmarkRef.setAttribute('opacity', 1);
+					}
 				});
 			}, 0);
 		}
