@@ -627,17 +627,20 @@ object AtollaTrackPlaybackNativeCache {
 			return ""
 		}
 
-		// Fast path: already cached — only lock for the filesystem check.
+		val cacheDir = resolveCacheDir() ?: return ""
+		val safeKey = safeTrackKey(trackId)
+
+		// Check cache and clean up any stale files while holding the lock.
+		// Stale cleanup must happen here (before the temp file is created) because
+		// deleteExistingTrackFiles matches "$safeKey.*" which includes "$safeKey.tmp".
 		synchronized(this) {
 			val existingFile = resolveExistingTrackFile(trackId)
 			if (existingFile != null && existingFile.exists() && existingFile.isFile) {
 				touch(existingFile)
 				return toFileUrl(existingFile)
 			}
+			deleteExistingTrackFiles(cacheDir, safeKey)
 		}
-
-		val cacheDir = resolveCacheDir() ?: return ""
-		val safeKey = safeTrackKey(trackId)
 
 		// Prevent two threads from downloading the same track simultaneously.
 		if (!inProgressKeys.add(safeKey)) {
@@ -685,10 +688,10 @@ object AtollaTrackPlaybackNativeCache {
 				return ""
 			}
 
-			// Brief lock to finalize: delete stale files, rename temp, prune cache.
+			// Brief lock to finalize: rename temp to final location and prune cache.
+			// No deleteExistingTrackFiles here — stale files were already cleaned above.
 			synchronized(this) {
 				val file = File(cacheDir, "$safeKey.$extension")
-				deleteExistingTrackFiles(cacheDir, safeKey)
 				if (!tempFile.renameTo(file)) {
 					tempFile.copyTo(file, overwrite = true)
 					tempFile.delete()
@@ -917,16 +920,17 @@ object AtollaDownloadedTrackNativeCache {
 			return ""
 		}
 
+		val cacheDir = resolveCacheDir() ?: return ""
+		val safeKey = safeTrackKey(trackId)
+
 		synchronized(this) {
 			val existingFile = resolveExistingTrackFile(trackId)
 			if (existingFile != null && existingFile.exists() && existingFile.isFile) {
 				touch(existingFile)
 				return toFileUrl(existingFile)
 			}
+			deleteExistingTrackFiles(cacheDir, safeKey)
 		}
-
-		val cacheDir = resolveCacheDir() ?: return ""
-		val safeKey = safeTrackKey(trackId)
 
 		if (!inProgressKeys.add(safeKey)) {
 			return ""
@@ -971,9 +975,9 @@ object AtollaDownloadedTrackNativeCache {
 				return ""
 			}
 
+			// No deleteExistingTrackFiles here — stale files were already cleaned above.
 			synchronized(this) {
 				val file = File(cacheDir, "$safeKey.$extension")
-				deleteExistingTrackFiles(cacheDir, safeKey)
 				if (!tempFile.renameTo(file)) {
 					tempFile.copyTo(file, overwrite = true)
 					tempFile.delete()
