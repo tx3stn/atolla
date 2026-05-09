@@ -44,8 +44,10 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 	}
 
 	private updateProgressRefs(): void {
-		const { playbackStore, trackDuration } = this.viewModel;
-		if (!playbackStore) return;
+		const { maskImageUrl, playbackStore, trackDuration } = this.viewModel;
+		// clipRef/accentRef are only attached when the waveform branch is rendered.
+		// Calling setAttribute on detached refs causes a native null dereference.
+		if (!playbackStore || !maskImageUrl) return;
 		const clampedRatio = Math.max(
 			0,
 			Math.min(1, trackDuration > 0 ? playbackStore.progressSeconds / trackDuration : 0),
