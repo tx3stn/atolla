@@ -12,7 +12,6 @@
         android:allowBackup="true"
         android:label="atolla"
         android:supportsRtl="true"
-        android:debuggable="true"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"

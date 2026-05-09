@@ -156,6 +156,28 @@ describe('ConnectionView', () => {
 	});
 
 	valdiIt(
+		'does not call onConnect directly when http:// url is entered — modal gate applies',
+		async () => {
+			const calls: Array<string> = [];
+			const instrumented = createComponent(
+				ConnectionView,
+				makeViewModel({
+					onConnect: (serverUrl: string) => {
+						calls.push(serverUrl);
+					},
+				}),
+			);
+			const component = instrumented.getComponent();
+			const textField = getTextField(component);
+
+			textField.getAttribute('onChange')?.('http://192.168.1.1:8096');
+			getConnectButton(component)?.getAttribute('onTap')?.();
+
+			expect(calls).toEqual([]);
+		},
+	);
+
+	valdiIt(
 		'allows retry tap when error is shown even if connecting flag is stale true',
 		async () => {
 			const calls: Array<string> = [];
@@ -172,10 +194,10 @@ describe('ConnectionView', () => {
 			const component = instrumented.getComponent();
 			const textField = getTextField(component);
 
-			textField.getAttribute('onChange')?.('http://127.0.0.1:18096');
+			textField.getAttribute('onChange')?.('https://127.0.0.1:18096');
 			getConnectButton(component)?.getAttribute('onTap')?.();
 
-			expect(calls).toEqual(['http://127.0.0.1:18096']);
+			expect(calls).toEqual(['https://127.0.0.1:18096']);
 		},
 	);
 });

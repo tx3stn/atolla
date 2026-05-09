@@ -2437,6 +2437,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
 						preferences={this.preferences}
 						selectedLanguage={this.state.language}
+						serverUrl={this.state.serverUrlPrefill}
 						trackCacheCachedCount={this.state.trackPlaybackCachedCount}
 						trackCacheMaxTracks={this.state.trackCacheMaxTracks}
 						waveformCount={this.waveformService?.getCount()}

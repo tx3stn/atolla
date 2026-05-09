@@ -18,6 +18,7 @@ const colors = {
 	separator: 'rgba(255,255,255,0.08)',
 	toastGlassBg: 'rgba(16,24,40,0.85)',
 	transparent: 'rgba(0,0,0,0)',
+	warning: '#f5a623',
 	white: '#d8dee9',
 };
 

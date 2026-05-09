@@ -1,4 +1,9 @@
 declare const Strings: {
+	httpWarningModalBody: () => string;
+	httpWarningModalCancel: () => string;
+	httpWarningModalConfirm: () => string;
+	httpWarningModalTitle: () => string;
+	settingsHttpWarning: () => string;
 	addedToPlaylist: () => string;
 	addedToQueueToast: () => string;
 	addToPlaylist: () => string;

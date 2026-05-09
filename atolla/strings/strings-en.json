@@ -92,6 +92,18 @@
 	"home_title": {
 		"defaultMessage": "HOME"
 	},
+	"http_warning_modal_body": {
+		"defaultMessage": "this server uses HTTP\n\nyour credentials and data will be sent unencrypted over the network\n\nonly continue if you trust this network and can't use HTTPS"
+	},
+	"http_warning_modal_cancel": {
+		"defaultMessage": "cancel"
+	},
+	"http_warning_modal_confirm": {
+		"defaultMessage": "connect anyway"
+	},
+	"http_warning_modal_title": {
+		"defaultMessage": "unencrypted connection"
+	},
 	"images_on_disk": {
 		"defaultMessage": "{count%d} images on disk      [ {size%s} ]",
 		"example": "42 images on disk      [ 1.5 MB ]"
@@ -206,6 +218,9 @@
 	},
 	"settings_grid_columns": {
 		"defaultMessage": "grid columns"
+	},
+	"settings_http_warning": {
+		"defaultMessage": "connected via HTTP — credentials are sent unencrypted"
 	},
 	"settings_image_cache_size": {
 		"defaultMessage": "image cache size"

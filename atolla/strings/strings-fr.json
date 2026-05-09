@@ -92,6 +92,18 @@
 	"home_title": {
 		"defaultMessage": "ACCUEIL"
 	},
+	"http_warning_modal_body": {
+		"defaultMessage": "ce serveur utilise HTTP. vos identifiants et données seront envoyés sans chiffrement sur le réseau.\n\ncontinuez uniquement si vous faites confiance à ce réseau et n'avez pas d'autre option."
+	},
+	"http_warning_modal_cancel": {
+		"defaultMessage": "annuler"
+	},
+	"http_warning_modal_confirm": {
+		"defaultMessage": "connecter quand même"
+	},
+	"http_warning_modal_title": {
+		"defaultMessage": "connexion non chiffrée"
+	},
 	"images_on_disk": {
 		"defaultMessage": "{count%d} images sur disque      [ {size%s} ]",
 		"example": "42 images sur disque      [ 1.5 Mo ]"
@@ -206,6 +218,9 @@
 	},
 	"settings_grid_columns": {
 		"defaultMessage": "colonnes de grille"
+	},
+	"settings_http_warning": {
+		"defaultMessage": "connecté via HTTP — les identifiants sont envoyés sans chiffrement"
 	},
 	"settings_image_cache_size": {
 		"defaultMessage": "taille du cache d'images"

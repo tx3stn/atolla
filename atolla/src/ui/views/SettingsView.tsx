@@ -22,7 +22,7 @@ import {
 	type LanguageCode,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from '../../stores/Preferences';
-import { scrollPaddingBottom, theme, topInset } from '../../theme';
+import { scrollPaddingBottom, theme, topInset, withAlpha } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
@@ -115,6 +115,7 @@ export interface SettingsViewModel {
 	onTrackCacheMaxTracksChange?: (count: number) => void;
 	preferences: Preferences;
 	selectedLanguage?: LanguageCode;
+	serverUrl?: string;
 	trackCacheCachedCount?: number;
 	trackCacheMaxTracks?: number;
 	waveformCount?: number;
@@ -307,8 +308,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			jellyfinDeviceIdOverride,
 			onAnimationsChange,
 			onJellyfinDeviceIdOverrideChange,
+			serverUrl,
 			trackCacheMaxTracks,
 		} = this.viewModel;
+		const isHttpServer = typeof serverUrl === 'string' && /^http:\/\//i.test(serverUrl);
 		const selectedGridColumns = gridColumns ?? DEFAULT_GRID_COLUMNS;
 		const selectedTrackCacheLimit = trackCacheMaxTracks ?? DEFAULT_TRACK_CACHE_MAX_TRACKS;
 		const selectedImageCacheSize =
@@ -365,6 +368,14 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 					<label style={styles.sectionTitle} value={Strings.settingsSectionAuth()} />
 					<view style={styles.section}>
+						{isHttpServer && (
+							<view style={styles.httpWarningCallout}>
+								<label
+									style={styles.httpWarningCalloutText}
+									value={Strings.settingsHttpWarning()}
+								/>
+							</view>
+						)}
 						<view style={styles.settingRow}>
 							<label style={styles.settingLabel} value={Strings.settingsDeviceId()} />
 							<view style={styles.authDeviceIdInlineInputContainer}>
@@ -514,6 +525,18 @@ const styles = {
 		...theme.text.main,
 		marginLeft: 18,
 		width: '100%',
+	}),
+	httpWarningCallout: new Style({
+		backgroundColor: withAlpha(theme.colors.warning, 0.12),
+		borderColor: theme.colors.warning,
+		borderLeftWidth: 3,
+		borderRadius: 6,
+		marginBottom: 12,
+		padding: 12,
+	}),
+	httpWarningCalloutText: new Style<Label>({
+		...theme.text.sub,
+		color: theme.colors.warning,
 	}),
 	languageSelectorButton: new Style<View>({
 		alignItems: 'center',

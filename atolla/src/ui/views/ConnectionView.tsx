@@ -9,6 +9,7 @@ import Strings from '../../Strings';
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { Button } from '../components/Button';
+import { HttpWarningModal } from '../components/HttpWarningModal';
 import { LanguageSelectModal } from '../components/LanguageSelectModal';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 
@@ -116,6 +117,20 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 		if (!input || (this.viewModel.isConnecting && !this.viewModel.errorMessage)) {
 			return;
 		}
+
+		if (/^http:\/\//i.test(input)) {
+			this.viewModel.modalSlot?.slotted(() => {
+				<HttpWarningModal
+					onCancel={() => this.viewModel.modalSlot?.slotted(() => {})}
+					onConfirm={() => {
+						this.viewModel.modalSlot?.slotted(() => {});
+						this.viewModel.onConnect(input);
+					}}
+				/>;
+			});
+			return;
+		}
+
 		this.viewModel.onConnect(input);
 	};
 
@@ -193,7 +208,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 const styles = {
 	errorMessage: new Style<Label>({
 		...theme.text.sub,
-		color: '#ff6b6b',
+		color: theme.colors.destructive,
 		marginTop: 10,
 		textAlign: 'center',
 	}),
