@@ -430,6 +430,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 		const releaseDateText = formatReleaseDate(album.releaseDate);
+		const formatText = tracks.find((t) => t.audioFormat != null)?.audioFormat ?? null;
 		const durationText = tracks.length > 0 ? formatDuration(totalDuration) : null;
 
 		const scrollStyle = createScrollStyle(isFooterVisible, isHeaderVisible);
@@ -459,6 +460,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						}}
 						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 						subheaderLineOneLeft={album.name}
+						subheaderLineTwoBadge={formatText}
 						subheaderLineTwoLeft={releaseDateText}
 						subheaderLineTwoRight={durationText}
 					/>

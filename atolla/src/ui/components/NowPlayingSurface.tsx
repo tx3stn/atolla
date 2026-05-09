@@ -18,6 +18,7 @@ import { paletteDefaults, theme, topInset, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { AddToPlaylistView } from '../views/AddToPlaylistView';
 import { ArtistLogo } from './ArtistLogo';
+import { FormatBadge } from './FormatBadge';
 import { ProgressBarWaveform } from './ProgressBarWaveform';
 import { TappableIcon } from './TappableIcon';
 import { Toast } from './Toast';
@@ -661,6 +662,15 @@ export class NowPlayingSurface extends StatefulComponent<
 												style={paletteStyles.expandedTimeLabelStyle}
 												value={elapsedText}
 											/>
+											{track.audioFormat && (
+												<view style={styles.expandedFormatCenter}>
+													<FormatBadge
+														backgroundColor={withAlpha(onSurfaceColor, 0.12)}
+														color={mutedOnSurfaceColor}
+														value={track.audioFormat}
+													/>
+												</view>
+											)}
 											<label
 												ref={this.expandedRemainingRef}
 												style={paletteStyles.expandedTimeLabelStyle}
@@ -1041,6 +1051,13 @@ const styles = {
 	expandedFirstPage: new Style<Layout>({
 		minHeight: '100%',
 		width: '100%',
+	}),
+	expandedFormatCenter: new Style<View>({
+		alignItems: 'center',
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: -3,
 	}),
 	expandedInfoSection: new Style<Layout>({
 		alignItems: 'center',

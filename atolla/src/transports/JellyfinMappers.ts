@@ -6,6 +6,7 @@ import type {
 	JellyfinArtistItem,
 	JellyfinBaseItemDto,
 	JellyfinGenreItem,
+	JellyfinMediaSource,
 	JellyfinNameIdReference,
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
@@ -14,6 +15,38 @@ import type { Playlist } from '../models/Playlist';
 import type { Track } from '../models/Track';
 
 const ticksPerSecond = 10_000_000;
+
+const losslessCodecs = new Set(['flac', 'alac', 'wav', 'aiff', 'pcm']);
+
+export function formatAudioQuality(mediaSources?: Array<JellyfinMediaSource>): string | undefined {
+	const source = mediaSources?.[0];
+	if (!source) return undefined;
+
+	const audioStream = source.MediaStreams?.find((s) => s.Type === 'Audio');
+	if (!audioStream) return undefined;
+
+	const rawCodec = audioStream.Codec ?? source.Container ?? '';
+	const codec = rawCodec.toLowerCase();
+	if (!codec) return undefined;
+
+	if (losslessCodecs.has(codec)) {
+		const khz = audioStream.SampleRate ? audioStream.SampleRate / 1000 : null;
+		const bits = audioStream.BitDepth;
+		if (khz !== null && bits) {
+			const khzStr = String(Math.round(khz));
+			return `${codec} ${khzStr}/${bits}`;
+		}
+
+		return `${codec}`;
+	}
+
+	const bitrate = audioStream.BitRate ?? source.Bitrate;
+	if (bitrate) {
+		return `${codec} ${Math.round(bitrate / 1000)}`;
+	}
+
+	return `${codec}`;
+}
 
 export interface JellyfinImageResolvers {
 	albumPrimaryImageUrl?: (albumId: string, imageTag?: string) => string | undefined;
@@ -147,6 +180,7 @@ export function mapJellyfinTrackToTrack(
 		albumName: item.Album,
 		artistId: primaryArtist?.Id || undefined,
 		artistName: primaryArtist?.Name,
+		audioFormat: formatAudioQuality(item.MediaSources),
 		duration: runTimeTicksToSeconds(item.RunTimeTicks),
 		genres: mapGenreReferences(item),
 		id: item.Id,

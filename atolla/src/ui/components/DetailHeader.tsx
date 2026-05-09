@@ -18,6 +18,7 @@ import { theme } from '../../theme';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
+import { FormatBadge } from './FormatBadge';
 import { LoopingArrowSpinner } from './LoopingArrowSpinner';
 import { Modal } from './Modal';
 import { TappableIcon } from './TappableIcon';
@@ -44,6 +45,7 @@ export interface DetailHeaderViewModel {
 	onShuffle?: () => void;
 	subheaderLineOneLeft?: string | null;
 	subheaderLineOneRight?: string | null;
+	subheaderLineTwoBadge?: string | null;
 	subheaderLineTwoLeft?: string | null;
 	subheaderLineTwoRight?: string | null;
 }
@@ -197,6 +199,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			onShuffle,
 			subheaderLineOneLeft,
 			subheaderLineOneRight,
+			subheaderLineTwoBadge,
 			subheaderLineTwoLeft,
 			subheaderLineTwoRight,
 		} = this.viewModel;
@@ -294,6 +297,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			</layout>
 			{(subheaderLineOneLeft ||
 				subheaderLineOneRight ||
+				subheaderLineTwoBadge ||
 				subheaderLineTwoLeft ||
 				subheaderLineTwoRight) && (
 				<layout style={styles.subheaderLines}>
@@ -309,9 +313,17 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 							)}
 						</layout>
 					)}
-					{(subheaderLineTwoLeft || subheaderLineTwoRight) && (
+					{(subheaderLineTwoLeft || subheaderLineTwoRight || subheaderLineTwoBadge) && (
 						<layout style={styles.subheaderLineRowTwo}>
-							<label style={styles.subheaderLineTwoLeftText} value={subheaderLineTwoLeft ?? ''} />
+							<layout style={styles.subheaderLineTwoLeftGroup}>
+								<label style={styles.subheaderLineTwoLeftText} value={subheaderLineTwoLeft ?? ''} />
+								{subheaderLineTwoBadge && (
+									<FormatBadge
+										backgroundColor={theme.colors.bgRaised}
+										value={subheaderLineTwoBadge}
+									/>
+								)}
+							</layout>
 							{subheaderLineTwoRight && (
 								<label style={styles.subheaderLineTwoRightText} value={subheaderLineTwoRight} />
 							)}
@@ -447,10 +459,16 @@ const styles = {
 		marginTop: 8,
 		width: '100%',
 	}),
-	subheaderLineTwoLeftText: new Style<Label>({
-		...theme.text.sub,
+	subheaderLineTwoLeftGroup: new Style<Layout>({
+		alignItems: 'center',
+		flexDirection: 'row',
+		flexShrink: 1,
 		marginLeft: 12,
 		marginTop: 2,
+	}),
+	subheaderLineTwoLeftText: new Style<Label>({
+		...theme.text.sub,
+		marginRight: 10,
 	}),
 	subheaderLineTwoRightText: new Style<Label>({
 		...theme.text.sub,

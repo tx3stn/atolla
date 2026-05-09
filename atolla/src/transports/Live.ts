@@ -278,6 +278,7 @@ export class LiveTransport implements Transport {
 	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
 		const list = await this.fetchItemsPage<JellyfinTrackItem>({
 			artistIds: artistId,
+			fields: 'Overview,MediaSources',
 			includeItemTypes: JellyfinMusicItemTypes.Audio,
 			limit: 5,
 			recursive: true,
@@ -303,6 +304,7 @@ export class LiveTransport implements Transport {
 		const list = await this.fetchItemsPage<
 			JellyfinAlbumItem | JellyfinArtistItem | JellyfinPlaylistItem | JellyfinTrackItem
 		>({
+			fields: 'Overview,MediaSources',
 			includeItemTypes: [
 				JellyfinMusicItemTypes.MusicArtist,
 				JellyfinMusicItemTypes.MusicAlbum,
@@ -346,6 +348,7 @@ export class LiveTransport implements Transport {
 
 	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
 		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			fields: 'Overview,MediaSources',
 			includeItemTypes: JellyfinMusicItemTypes.Audio,
 			limit: 500,
 			parentId: albumId,
@@ -361,6 +364,7 @@ export class LiveTransport implements Transport {
 	async getTracksByArtist(artistId: string): Promise<Array<Track>> {
 		const list = await this.fetchItemsPage<JellyfinTrackItem>({
 			artistIds: artistId,
+			fields: 'Overview,MediaSources',
 			includeItemTypes: JellyfinMusicItemTypes.Audio,
 			limit: 500,
 			recursive: true,
@@ -374,6 +378,7 @@ export class LiveTransport implements Transport {
 
 	async getTracksByGenre(genreId: string): Promise<Array<Track>> {
 		const items = await this.fetchAllItems<JellyfinTrackItem>({
+			fields: 'Overview,MediaSources',
 			genreIds: genreId,
 			includeItemTypes: JellyfinMusicItemTypes.Audio,
 			recursive: true,
@@ -391,6 +396,7 @@ export class LiveTransport implements Transport {
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			fields: 'Overview,MediaSources',
 			genreIds: genreId,
 			includeItemTypes: JellyfinMusicItemTypes.Audio,
 			limit: Math.max(1, pageSize),
@@ -411,7 +417,7 @@ export class LiveTransport implements Transport {
 		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
 			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
 			{
-				fields: 'Overview,Genres',
+				fields: 'Overview,Genres,MediaSources',
 				limit: 500,
 				startIndex: 0,
 				userId: this.userId,
@@ -430,7 +436,7 @@ export class LiveTransport implements Transport {
 		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
 			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
 			{
-				fields: 'Overview,Genres',
+				fields: 'Overview,Genres,MediaSources',
 				limit: Math.max(1, pageSize),
 				startIndex,
 				userId: this.userId,

@@ -18,6 +18,7 @@ import { mockJellyfinPlaylists } from '../__mocks__/Playlists';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
 import type { Genre } from '../models/Genre';
+import type { JellyfinMediaSource } from '../models/jellyfin/Types';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
@@ -30,6 +31,20 @@ import {
 	mapJellyfinTrackToTrack,
 } from './JellyfinMappers';
 import type { Transport } from './Transport';
+
+const mockFormatCycle: Array<JellyfinMediaSource> = [
+	{ MediaStreams: [{ BitDepth: 24, Codec: 'flac', SampleRate: 96000, Type: 'Audio' }] },
+	{ MediaStreams: [{ BitDepth: 16, Codec: 'flac', SampleRate: 44100, Type: 'Audio' }] },
+	{ MediaStreams: [{ BitRate: 320000, Codec: 'mp3', Type: 'Audio' }] },
+	{ MediaStreams: [{ BitRate: 256000, Codec: 'aac', Type: 'Audio' }] },
+	{ MediaStreams: [{ BitDepth: 24, Codec: 'flac', SampleRate: 44100, Type: 'Audio' }] },
+	{ MediaStreams: [{ BitRate: 192000, Codec: 'vorbis', Type: 'Audio' }] },
+];
+
+function mockMediaSourcesForAlbum(albumId: string | undefined): Array<JellyfinMediaSource> {
+	const num = albumId ? Number.parseInt(albumId.replace(/\D/g, ''), 10) : 0;
+	return [mockFormatCycle[(Number.isNaN(num) ? 0 : num) % mockFormatCycle.length]];
+}
 
 export class MockTransport implements Transport {
 	private static readonly sampleAudioUrl =
@@ -145,7 +160,12 @@ export class MockTransport implements Transport {
 
 		const tracks = mockJellyfinTracks
 			.filter((track) => track.Name.toLowerCase().includes(normalizedQuery))
-			.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+			.map((item) =>
+				mapJellyfinTrackToTrack(
+					{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
+					this.imageResolvers,
+				),
+			);
 
 		return {
 			albums,
@@ -158,7 +178,12 @@ export class MockTransport implements Transport {
 	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
 		return mockJellyfinTracks
 			.filter((track) => track.AlbumId === albumId)
-			.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+			.map((item) =>
+				mapJellyfinTrackToTrack(
+					{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
+					this.imageResolvers,
+				),
+			);
 	}
 
 	async getArtistLogoUrl(artistId: string): Promise<string | null> {
@@ -180,7 +205,12 @@ export class MockTransport implements Transport {
 				const bRelease = (b.AlbumId ? albumsById.get(b.AlbumId)?.PremiereDate : undefined) ?? '';
 				return bRelease.localeCompare(aRelease);
 			})
-			.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+			.map((item) =>
+				mapJellyfinTrackToTrack(
+					{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
+					this.imageResolvers,
+				),
+			);
 	}
 
 	async getTracksByGenre(genreId: string): Promise<Array<Track>> {
@@ -189,7 +219,14 @@ export class MockTransport implements Transport {
 
 		return trackIds.flatMap((trackId) => {
 			const item = tracksById.get(trackId);
-			return item ? [mapJellyfinTrackToTrack(item, this.imageResolvers)] : [];
+			return item
+				? [
+						mapJellyfinTrackToTrack(
+							{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
+							this.imageResolvers,
+						),
+					]
+				: [];
 		});
 	}
 
@@ -220,7 +257,14 @@ export class MockTransport implements Transport {
 
 		return trackIds.flatMap((trackId) => {
 			const item = tracksById.get(trackId);
-			return item ? [mapJellyfinTrackToTrack(item, this.imageResolvers)] : [];
+			return item
+				? [
+						mapJellyfinTrackToTrack(
+							{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
+							this.imageResolvers,
+						),
+					]
+				: [];
 		});
 	}
 
@@ -236,7 +280,10 @@ export class MockTransport implements Transport {
 
 	async getShuffledLibraryTracks(): Promise<Array<Track>> {
 		const tracks = mockJellyfinTracks.map((item) =>
-			mapJellyfinTrackToTrack(item, this.imageResolvers),
+			mapJellyfinTrackToTrack(
+				{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
+				this.imageResolvers,
+			),
 		);
 		return shuffleTracks(tracks);
 	}
@@ -246,7 +293,12 @@ export class MockTransport implements Transport {
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track> }> {
 		const allTracks = mockJellyfinTracks
-			.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers))
+			.map((item) =>
+				mapJellyfinTrackToTrack(
+					{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
+					this.imageResolvers,
+				),
+			)
 			.sort((a, b) => a.id.localeCompare(b.id));
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const items = allTracks.slice(startIndex, startIndex + pageSize);

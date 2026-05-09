@@ -1,3 +1,17 @@
+export interface JellyfinMediaStream {
+	BitDepth?: number;
+	BitRate?: number;
+	Codec?: string;
+	SampleRate?: number;
+	Type?: string;
+}
+
+export interface JellyfinMediaSource {
+	Bitrate?: number;
+	Container?: string;
+	MediaStreams?: Array<JellyfinMediaStream>;
+}
+
 export const JellyfinMusicItemTypes = {
 	Audio: 'Audio',
 	MusicAlbum: 'MusicAlbum',
@@ -33,7 +47,7 @@ export interface JellyfinBaseItemDto extends JellyfinBaseItemIdentity {
 	Genres?: Array<string>;
 	ImageTags?: Record<string, string>;
 	IndexNumber?: number;
-	MediaSources?: Array<unknown>;
+	MediaSources?: Array<JellyfinMediaSource>;
 	Overview?: string;
 	ParentLogoImageTag?: string;
 	ParentLogoItemId?: string;
