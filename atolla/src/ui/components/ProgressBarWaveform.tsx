@@ -80,13 +80,8 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 			return;
 		}
 
-		const clampedRatio = Math.max(
-			0,
-			Math.min(1, trackDuration > 0 ? playbackStore.progressSeconds / trackDuration : 0),
-		);
-		const progressPercent = Math.round(clampedRatio * 100);
 		const mutedImageStyle = createMutedImageStyle(mutedColor);
-		const accentImageStyle = createAccentImageStyle(accentColor, progressPercent);
+		const accentImageStyle = createAccentImageStyle(accentColor);
 
 		<view
 			accessibilityLabel={accessibilityLabel ?? 'waveform-progress-bar'}
@@ -111,11 +106,7 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 					src={maskImageUrl}
 					style={mutedImageStyle}
 				/>
-				<view
-					accessibilityLabel='waveform-progress-clip'
-					ref={this.clipRef}
-					style={createClipStyle(progressPercent)}
-				>
+				<view accessibilityLabel='waveform-progress-clip' ref={this.clipRef} style={styles.clip}>
 					<image
 						accessibilityLabel='waveform-progress-played'
 						objectFit='fill'
@@ -126,6 +117,7 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 				</view>
 			</view>
 		</view>;
+		this.updateProgressRefs();
 	}
 }
 
@@ -140,36 +132,28 @@ function createMutedImageStyle(mutedColor: string): Style<ImageView> {
 	});
 }
 
-function createClipStyle(progressPercent: number): Style<View> {
-	return new Style<View>({
-		bottom: 0,
-		left: 0,
-		position: 'absolute',
-		slowClipping: true,
-		top: 0,
-		width: `${progressPercent}%`,
-	});
-}
-
-function createAccentImageStyle(accentColor: string, progressPercent: number): Style<ImageView> {
-	// The clip container is progressPercent% wide. To render the image at full bar
-	// width (so the waveform shape isn't squished), scale the image to
-	// (100/progressPercent * 100)% of the clip container, which equals 100% of the
-	// full bar. slowClipping on the parent clips the overflow.
-	const stretchPercent = progressPercent > 0 ? Math.round(10000 / progressPercent) : 100;
+function createAccentImageStyle(accentColor: string): Style<ImageView> {
+	// Width is intentionally omitted — set via ref in updateProgressRefs() to avoid
+	// Style applications from re-renders overriding more recent setAttribute calls.
 	return new Style<ImageView>({
 		bottom: 0,
 		left: 0,
 		position: 'absolute',
 		tint: accentColor,
 		top: 0,
-		width: `${stretchPercent}%`,
 	});
 }
 
 const TAP_ZONE_HEIGHT = 48;
 
 const styles = {
+	clip: new Style<View>({
+		bottom: 0,
+		left: 0,
+		position: 'absolute',
+		slowClipping: true,
+		top: 0,
+	}),
 	container: new Style<View>({
 		height: WAVEFORM_HEIGHT,
 		position: 'relative',

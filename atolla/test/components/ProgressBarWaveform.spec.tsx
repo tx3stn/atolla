@@ -135,7 +135,7 @@ describe('ProgressBarWaveform', () => {
 		);
 
 		expect(clipContainer).toBeDefined();
-		expect(clipContainer?.getAttribute('style').attributes.width).toBe('0%');
+		expect(clipContainer?.getAttribute('width')).toBe('0%');
 	});
 
 	valdiIt('calls onProgressTap when the waveform bar is tapped', async () => {

@@ -39,7 +39,7 @@ describe('ProgressBarPlain', () => {
 		expect(root?.getAttribute('style').attributes.width).toBe('100%');
 		expect(track).toBeDefined();
 		expect(fill?.getAttribute('style').attributes.backgroundColor).toBe('#ff2255');
-		expect(fill?.getAttribute('style').attributes.width).toBe('40%');
+		expect(fill?.getAttribute('width')).toBe('40%');
 		expect(playhead).toBeDefined();
 	});
 
@@ -57,7 +57,7 @@ describe('ProgressBarPlain', () => {
 			(view) => view.getAttribute('accessibilityLabel') === 'playback-progress-fill',
 		);
 
-		expect(fill?.getAttribute('style').attributes.width).toBe('100%');
+		expect(fill?.getAttribute('width')).toBe('100%');
 	});
 
 	valdiIt('calls onProgressTap when tapped', async () => {

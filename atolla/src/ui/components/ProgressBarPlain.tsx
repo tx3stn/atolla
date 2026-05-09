@@ -50,19 +50,12 @@ export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 	}
 
 	onRender(): void {
-		const { playbackStore, trackDuration } = this.viewModel;
-		const progressRatio = clamp(
-			trackDuration > 0 ? playbackStore.progressSeconds / trackDuration : 0,
-			0,
-			1,
-		);
 		const trackStyle = createTrackStyle(this.viewModel.thickness ?? 4);
 		const railStyle = createRailStyle(this.viewModel.trackColor, this.viewModel.thickness ?? 4);
-		const fillStyle = createFillStyle(this.viewModel.accentColor, progressRatio);
+		const fillStyle = createFillStyle(this.viewModel.accentColor);
 		const playheadStyle = createPlayheadStyle(
 			this.viewModel.accentColor,
 			this.viewModel.thickness ?? 4,
-			progressRatio > 0 ? 1 : 0,
 		);
 
 		<view accessibilityLabel='playback-progress-bar' style={styles.root}>
@@ -93,6 +86,7 @@ export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 				</view>
 			</view>
 		</view>;
+		this.updateProgressRefs();
 	}
 }
 
@@ -118,7 +112,8 @@ function createRailStyle(trackColor: string, thickness: number): Style<View> {
 	});
 }
 
-function createFillStyle(accentColor: string, progressRatio: number): Style<View> {
+function createFillStyle(accentColor: string): Style<View> {
+	// Width is intentionally omitted — set via ref in updateProgressRefs().
 	return new Style<View>({
 		alignItems: 'flex-end',
 		backgroundColor: accentColor,
@@ -126,11 +121,11 @@ function createFillStyle(accentColor: string, progressRatio: number): Style<View
 		display: 'flex',
 		height: '100%',
 		justifyContent: 'center',
-		width: `${Math.round(progressRatio * 100)}%`,
 	});
 }
 
-function createPlayheadStyle(accentColor: string, thickness: number, opacity: number): Style<View> {
+function createPlayheadStyle(accentColor: string, thickness: number): Style<View> {
+	// Opacity is intentionally omitted — set via ref in updateProgressRefs().
 	const size = Math.max(10, thickness + 6);
 	return new Style<View>({
 		backgroundColor: accentColor,
@@ -140,7 +135,6 @@ function createPlayheadStyle(accentColor: string, thickness: number, opacity: nu
 		boxShadow: '0 1 2 rgba(0,0,0,0.25)',
 		height: size,
 		marginRight: -size / 2,
-		opacity,
 		width: size,
 	});
 }
