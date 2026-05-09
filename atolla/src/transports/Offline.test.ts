@@ -7,6 +7,7 @@ import type {
 	DownloadedPlaylistEntry,
 	DownloadedTrackEntry,
 } from '../services/DownloadService';
+import { PlaylistCreateService } from '../services/PlaylistCreateService';
 import { OfflineTransport } from './Offline';
 
 function createDownloadsMock(params: {
@@ -619,5 +620,115 @@ describe('OfflineTransport', () => {
 		const albums = await transport.getAlbumsByArtist('artist-1');
 
 		expect(albums.map((album) => album.id)).toEqual(['album-new', 'album-old']);
+	});
+
+	describe('createPlaylist (offline)', () => {
+		function createNullStore(): {
+			fetchString: () => Promise<string>;
+			storeString: () => Promise<void>;
+		} {
+			return {
+				fetchString: () => Promise.reject(new Error('not found')),
+				storeString: () => Promise.resolve(),
+			};
+		}
+
+		it('returns a local playlist immediately and stores it as pending', async () => {
+			const playlistCreateService = new PlaylistCreateService(createNullStore());
+			const transport = new OfflineTransport(
+				createDownloadsMock({}) as never,
+				playlistCreateService,
+			);
+
+			const playlist = await transport.createPlaylist('My Offline Playlist', 'track-1');
+
+			expect(playlist.name).toBe('My Offline Playlist');
+			expect(playlist.id).toContain('local-playlist-');
+			expect(playlistCreateService.getPending()).toHaveLength(1);
+			expect(playlistCreateService.getPending()[0].trackId).toBe('track-1');
+		});
+
+		it('rejects when no PlaylistCreateService is provided', async () => {
+			const transport = new OfflineTransport(createDownloadsMock({}) as never);
+
+			await expect(transport.createPlaylist('My Playlist')).rejects.toThrow(
+				TransportErrors.OFFLINE_PLAYLIST_CREATE_UNAVAILABLE.msg(),
+			);
+		});
+
+		it('getAllPlaylists includes pending creates alongside downloaded playlists', async () => {
+			const playlistCreateService = new PlaylistCreateService(createNullStore());
+			playlistCreateService.enqueue('Pending Playlist', 'track-1');
+
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					playlists: [
+						{
+							playlist: { id: 'downloaded-1', name: 'Downloaded Playlist' },
+							trackArtistLogoUrls: {},
+							trackIds: [],
+						},
+					],
+				}) as never,
+				playlistCreateService,
+			);
+
+			const playlists = await transport.getAllPlaylists();
+
+			expect(playlists).toHaveLength(2);
+			expect(playlists.some((p) => p.name === 'Downloaded Playlist')).toBe(true);
+			expect(playlists.some((p) => p.name === 'Pending Playlist')).toBe(true);
+		});
+
+		it('getTracksByPlaylist returns the initial track for a local playlist', async () => {
+			const playlistCreateService = new PlaylistCreateService(createNullStore());
+			const pending = playlistCreateService.enqueue('My Playlist', 'track-42');
+
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					tracks: [
+						{
+							albumIds: [],
+							complete: true,
+							genreIds: [],
+							playlistIds: [],
+							streamUrl: '',
+							track: {
+								albumId: undefined,
+								albumImageUrl: undefined,
+								albumName: undefined,
+								artistId: 'artist-1',
+								artistName: 'Artist One',
+								duration: 180,
+								id: 'track-42',
+								name: 'Track 42',
+								releaseDate: undefined,
+								trackNumber: 1,
+							},
+						},
+					],
+				}) as never,
+				playlistCreateService,
+			);
+
+			const tracks = await transport.getTracksByPlaylist(pending.id);
+
+			expect(tracks).toHaveLength(1);
+			expect(tracks[0].id).toBe('track-42');
+		});
+
+		it('getTracksByPlaylist returns empty array for a local playlist with no track', async () => {
+			const playlistCreateService = new PlaylistCreateService(createNullStore());
+			const pending = playlistCreateService.enqueue('Empty Playlist', '');
+
+			const transport = new OfflineTransport(
+				createDownloadsMock({}) as never,
+				playlistCreateService,
+			);
+
+			const tracks = await transport.getTracksByPlaylist(pending.id);
+
+			expect(tracks).toHaveLength(0);
+		});
 	});
 });

@@ -50,6 +50,9 @@
 	"cache_category_waveform_data": {
 		"defaultMessage": "données de forme d'onde"
 	},
+	"cancel": {
+		"defaultMessage": "annuler"
+	},
 	"clear_cache_modal_title": {
 		"defaultMessage": "VIDER LE CACHE"
 	},
@@ -58,6 +61,15 @@
 	},
 	"connect_to_jellyfin": {
 		"defaultMessage": "connecter à jellyfin"
+	},
+	"create": {
+		"defaultMessage": "créer"
+	},
+	"create_new_playlist": {
+		"defaultMessage": "créer nouveau"
+	},
+	"create_playlist_modal_title": {
+		"defaultMessage": "NOUVELLE PLAYLIST"
 	},
 	"done": {
 		"defaultMessage": "terminé"
@@ -135,6 +147,9 @@
 	},
 	"playlist_edit_error_title": {
 		"defaultMessage": "MODIFICATION DE PLAYLIST ÉCHOUÉE"
+	},
+	"playlist_name_placeholder": {
+		"defaultMessage": "nom de la playlist"
 	},
 	"quick_connect_code": {
 		"defaultMessage": "code : {code%s}",

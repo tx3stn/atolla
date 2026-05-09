@@ -8,6 +8,11 @@ declare const Strings: {
 	addedToQueueToast: () => string;
 	addToPlaylist: () => string;
 	addToQueue: () => string;
+	cancel: () => string;
+	create: () => string;
+	createNewPlaylist: () => string;
+	createPlaylistModalTitle: () => string;
+	playlistNamePlaceholder: () => string;
 	albumFallbackLabel: () => string;
 	artistSectionAlbums: () => string;
 	artistSectionTopTracks: () => string;

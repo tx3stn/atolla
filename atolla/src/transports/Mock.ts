@@ -312,6 +312,10 @@ export class MockTransport implements Transport {
 		return MockTransport.sampleAudioUrl;
 	}
 
+	async createPlaylist(name: string, _trackId?: string): Promise<Playlist> {
+		return { id: `playlist-${Date.now()}`, name };
+	}
+
 	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {}
 
 	private readonly imageResolvers: JellyfinImageResolvers = {

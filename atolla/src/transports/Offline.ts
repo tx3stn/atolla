@@ -8,13 +8,16 @@ import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 import type { DownloadService } from '../services/DownloadService';
+import type { PlaylistCreateService } from '../services/PlaylistCreateService';
 import type { Transport } from './Transport';
 
 export class OfflineTransport implements Transport {
 	private readonly downloads: DownloadService;
+	private readonly playlistCreateService: PlaylistCreateService | null;
 
-	constructor(downloads: DownloadService) {
+	constructor(downloads: DownloadService, playlistCreateService?: PlaylistCreateService) {
 		this.downloads = downloads;
+		this.playlistCreateService = playlistCreateService ?? null;
 	}
 
 	async getAllArtists(): Promise<Array<Artist>> {
@@ -104,7 +107,17 @@ export class OfflineTransport implements Transport {
 	}
 
 	async getAllPlaylists(): Promise<Array<Playlist>> {
-		return this.downloads.getAllPlaylists().map((e) => e.playlist);
+		const downloaded = this.downloads.getAllPlaylists().map((e) => e.playlist);
+		const pending = this.playlistCreateService?.getPending() ?? [];
+		const pendingPlaylists = pending.map((op) => ({ id: op.localId, name: op.name }));
+		return [...downloaded, ...pendingPlaylists];
+	}
+
+	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
+		if (!this.playlistCreateService) {
+			return Promise.reject(new Error(TransportErrors.OFFLINE_PLAYLIST_CREATE_UNAVAILABLE.msg()));
+		}
+		return this.playlistCreateService.enqueue(name, trackId ?? '');
 	}
 
 	async getGenresPage(
@@ -279,6 +292,16 @@ export class OfflineTransport implements Transport {
 	}
 
 	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
+		if (this.playlistCreateService) {
+			const pending = this.playlistCreateService.getPending();
+			const localEntry = pending.find((op) => op.localId === playlistId);
+			if (localEntry) {
+				if (!localEntry.trackId) return [];
+				const trackEntry = this.downloads.getTrack(localEntry.trackId);
+				return trackEntry ? [trackEntry.track] : [];
+			}
+		}
+
 		const playlistEntry = this.downloads.getPlaylist(playlistId);
 		if (!playlistEntry) return [];
 		return playlistEntry.trackIds

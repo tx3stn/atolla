@@ -17,6 +17,10 @@ export const TransportErrors = {
 		'transport_offline_not_implemented',
 		'offline transport not yet implemented',
 	),
+	OFFLINE_PLAYLIST_CREATE_UNAVAILABLE: new ErrorConst(
+		'transport_offline_playlist_create_unavailable',
+		'offline transport cannot create playlists without a playlist create service',
+	),
 	OFFLINE_SCROBBLE_UNAVAILABLE: new ErrorConst(
 		'transport_offline_scrobble_unavailable',
 		'offline transport cannot scrobble while disconnected',

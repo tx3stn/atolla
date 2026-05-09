@@ -42,6 +42,7 @@ import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthSe
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PersistentWaveformStore } from './services/PersistentWaveformStore';
+import { PlaylistCreateService } from './services/PlaylistCreateService';
 import { PlaylistEditService } from './services/PlaylistEditService';
 import { ScrobbleService } from './services/ScrobbleService';
 import { TrackPlaybackNativePrefetchQueue } from './services/TrackPlaybackNativePrefetchQueue';
@@ -263,6 +264,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		fetchString(key: string): Promise<string>;
 		storeString(key: string, value: string): Promise<void>;
 	};
+	private readonly playlistCreateService = new PlaylistCreateService(
+		new PersistentStore('atolla/playlist_creates', { deviceGlobal: true }),
+	);
 	private readonly playlistEditService = new PlaylistEditService(
 		new PersistentStore('atolla/playlist_edits', { deviceGlobal: true }),
 	);
@@ -391,6 +395,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	onCreate(): void {
 		this.bootstrapStartedAt = Date.now();
+		void this.playlistCreateService.load();
 		try {
 			ensureAtollaImageLoaderBootstrap();
 		} catch {
@@ -461,7 +466,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					} else if (mode === ConnectionModes.mock) {
 						this.transport = new MockTransport();
 					} else {
-						this.transport = new OfflineTransport(this.downloadService);
+						this.transport = new OfflineTransport(this.downloadService, this.playlistCreateService);
 					}
 
 					const isAuthRequired = mode === ConnectionModes.online && existingSession == null;
@@ -489,7 +494,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			.catch(() => {
 				if (this.hasBeenDestroyed || this.state.isBootstrapped) return;
 				this.initUserStores('shared');
-				this.transport = new OfflineTransport(this.downloadService);
+				this.transport = new OfflineTransport(this.downloadService, this.playlistCreateService);
 				this.completeBootstrap({ connectionMode: ConnectionModes.offline });
 			});
 		this.downloadService.subscribe(() => {
@@ -881,6 +886,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
 						},
 					);
+					void this.playlistCreateService.flush(this.transport);
 					void this.playlistEditService.flush(this.transport).then((errors) => {
 						if (errors.length === 0) return;
 						const errorBody = errors
@@ -905,7 +911,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 
 			if (mode === ConnectionModes.offline) {
-				this.transport = new OfflineTransport(this.downloadService);
+				this.transport = new OfflineTransport(this.downloadService, this.playlistCreateService);
 			} else {
 				this.transport = new MockTransport();
 			}
@@ -929,7 +935,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				// best effort — clear what we can
 			}
 			this.currentAccessToken = '';
-			this.transport = new OfflineTransport(this.downloadService);
+			this.transport = new OfflineTransport(this.downloadService, this.playlistCreateService);
 			this.playbackStore.stop();
 			this.recentlyPlayedTracks = [];
 			this.lastObservedRecentTrackId = null;

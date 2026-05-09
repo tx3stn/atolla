@@ -154,6 +154,32 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 							onDismiss={() => {
 								modalSlot?.slotted(() => {});
 							}}
+							onOpenPlaylist={(playlist) => {
+								modalSlot?.slotted(() => {});
+								const {
+									animationsEnabled: anim,
+									downloadService,
+									paletteQueue,
+									playlistEditService,
+								} = this.viewModel;
+								this.navigationController.push(
+									PlaylistView,
+									{
+										animationsEnabled: anim,
+										downloadService,
+										gridColumns: this.viewModel.gridColumns,
+										imageCache,
+										navBarContext: this.viewModel.navBarContext,
+										paletteQueue,
+										playbackStore,
+										playlist,
+										playlistEditService,
+										transport,
+									},
+									{},
+									{ animated: anim },
+								);
+							}}
 							track={track}
 							transport={transport}
 						/>;

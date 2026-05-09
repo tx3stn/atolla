@@ -50,6 +50,9 @@
 	"cache_category_waveform_data": {
 		"defaultMessage": "waveforms"
 	},
+	"cancel": {
+		"defaultMessage": "cancel"
+	},
 	"clear_cache_modal_title": {
 		"defaultMessage": "CLEAR CACHE"
 	},
@@ -58,6 +61,15 @@
 	},
 	"connect_to_jellyfin": {
 		"defaultMessage": "connect to jellyfin"
+	},
+	"create": {
+		"defaultMessage": "create"
+	},
+	"create_new_playlist": {
+		"defaultMessage": "create new"
+	},
+	"create_playlist_modal_title": {
+		"defaultMessage": "NEW PLAYLIST"
 	},
 	"done": {
 		"defaultMessage": "done"
@@ -135,6 +147,9 @@
 	},
 	"playlist_edit_error_title": {
 		"defaultMessage": "PLAYLIST EDIT FAILED"
+	},
+	"playlist_name_placeholder": {
+		"defaultMessage": "playlist name"
 	},
 	"quick_connect_code": {
 		"defaultMessage": "code: {code%s}",

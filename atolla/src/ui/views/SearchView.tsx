@@ -291,6 +291,34 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 							onDismiss={() => {
 								modalSlot?.slotted(() => {});
 							}}
+							onOpenPlaylist={(playlist) => {
+								modalSlot?.slotted(() => {});
+								const {
+									animationsEnabled: anim,
+									downloadService,
+									navBarContext,
+									navigationController,
+									paletteQueue,
+									playlistEditService,
+								} = this.viewModel;
+								navigationController.push(
+									PlaylistView,
+									{
+										animationsEnabled: anim,
+										downloadService,
+										gridColumns: this.viewModel.gridColumns,
+										imageCache,
+										navBarContext,
+										paletteQueue,
+										playbackStore,
+										playlist,
+										playlistEditService,
+										transport,
+									},
+									{},
+									{ animated: anim },
+								);
+							}}
 							track={track}
 							transport={transport}
 						/>;

@@ -451,6 +451,13 @@ export class LiveTransport implements Transport {
 		};
 	}
 
+	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
+		const body: Record<string, unknown> = { MediaType: 'Audio', Name: name };
+		if (trackId) body.Ids = [trackId];
+		const result = await this.requestJsonPost<{ Id: string }>('/Playlists', body);
+		return { id: result.Id, name };
+	}
+
 	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
 		await this.requestVoid('POST', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
 			ids: trackId,
@@ -557,6 +564,39 @@ export class LiveTransport implements Transport {
 
 	downloadBinary(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
 		return this.requestBinaryWithRedirects(url, 5);
+	}
+
+	private async requestJsonPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+		const client = this.httpClientFactory(this.baseUrl);
+		if (!client.post) throw new Error('HTTP client does not support POST');
+
+		const encoded = new TextEncoder().encode(JSON.stringify(body));
+		const headers = { ...this.createHeaders(), 'Content-Type': 'application/json' };
+
+		const response = await this.runWithRequestTimeout(client.post(path, encoded, headers));
+
+		if (response.statusCode < 200 || response.statusCode >= 300) {
+			let message = `Request failed [${response.statusCode}]`;
+			if (response.body) {
+				try {
+					const parsed = JSON.parse(new TextDecoder().decode(response.body)) as {
+						Message?: string;
+					};
+					if (parsed.Message) message = `${message}\n${parsed.Message}`;
+				} catch {
+					// ignore parse failure
+				}
+			}
+			throw new Error(message);
+		}
+
+		if (!response.body) throw TransportErrors.LIVE_INVALID_RESPONSE;
+
+		try {
+			return JSON.parse(new TextDecoder().decode(response.body)) as T;
+		} catch {
+			throw TransportErrors.LIVE_INVALID_RESPONSE;
+		}
 	}
 
 	private async requestVoid(

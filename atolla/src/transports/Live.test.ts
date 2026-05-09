@@ -46,6 +46,7 @@ function listResponse<TItem>(
 function createHTTPClientFactory(responses: Array<MockHTTPResponse>) {
 	const calls: Array<{
 		baseUrl: string;
+		body?: Uint8Array;
 		headers?: Record<string, string>;
 		method: 'get' | 'post';
 		pathOrUrl: string;
@@ -62,8 +63,8 @@ function createHTTPClientFactory(responses: Array<MockHTTPResponse>) {
 				}
 				return Promise.resolve(response);
 			},
-			post: (pathOrUrl: string, _body?: Uint8Array, headers?: Record<string, string>) => {
-				calls.push({ baseUrl, headers, method: 'post', pathOrUrl });
+			post: (pathOrUrl: string, body?: Uint8Array, headers?: Record<string, string>) => {
+				calls.push({ baseUrl, body, headers, method: 'post', pathOrUrl });
 				const response = responses.shift();
 				if (!response) {
 					throw new Error('no queued response');
@@ -654,6 +655,41 @@ describe('LiveTransport core collections', () => {
 		const cacheUrl = transport.getTrackCacheUrl('track-123');
 
 		expect(cacheUrl).toContain('deviceId=profile-2-device');
+	});
+
+	it('creates a playlist and returns it with the server id', async () => {
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, { Id: 'server-playlist-id' }),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const playlist = await transport.createPlaylist('My Playlist');
+
+		expect(playlist.id).toBe('server-playlist-id');
+		expect(playlist.name).toBe('My Playlist');
+		expect(calls).toHaveLength(1);
+		expect(calls[0].method).toBe('post');
+		expect(calls[0].pathOrUrl).toBe('/Playlists');
+		const body = JSON.parse(new TextDecoder().decode(calls[0].body)) as Record<string, unknown>;
+		expect(body.Name).toBe('My Playlist');
+		expect(body.MediaType).toBe('Audio');
+		expect(body.Ids).toBeUndefined();
+	});
+
+	it('includes track id in playlist create body when provided', async () => {
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, { Id: 'server-playlist-id' }),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		await transport.createPlaylist('My Playlist', 'track-abc');
+
+		const body = JSON.parse(new TextDecoder().decode(calls[0].body)) as Record<string, unknown>;
+		expect(body.Ids).toEqual(['track-abc']);
 	});
 
 	it('posts scrobble events with datePlayed', async () => {
