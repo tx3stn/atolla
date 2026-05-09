@@ -1,12 +1,14 @@
 import res from 'atolla/res';
 import { AnimationCurve, type AnimationOptions } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
+import { Device } from 'valdi_core/src/Device';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Track } from '../../models/Track';
+import { setAtollaStatusBarColor } from '../../StatusBarNative';
 import Strings from '../../Strings';
 import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
@@ -120,6 +122,10 @@ export class NowPlayingSurface extends StatefulComponent<
 			return;
 		}
 
+		if (Device.isAndroid()) {
+			setAtollaStatusBarColor(this.viewModel.palette?.surface.hex ?? paletteDefaults.surface);
+		}
+
 		this.isTransitioning = true;
 		this.setState({ isExpanded: true });
 		this.expandedScrollRef.setAttribute('contentOffsetY', 0);
@@ -175,6 +181,14 @@ export class NowPlayingSurface extends StatefulComponent<
 			this.setState({ ...this.state });
 		}
 
+		if (Device.isAndroid() && this.state.isExpanded) {
+			const prev = prevViewModel.palette?.surface.hex;
+			const curr = this.viewModel.palette?.surface.hex;
+			if (curr !== prev) {
+				setAtollaStatusBarColor(curr ?? paletteDefaults.surface);
+			}
+		}
+
 		if (this.viewModel.collapseSignal === prevViewModel.collapseSignal) {
 			return;
 		}
@@ -213,6 +227,10 @@ export class NowPlayingSurface extends StatefulComponent<
 	private closeSurface = (): Promise<void> => {
 		if (!this.state.isExpanded || this.isTransitioning) {
 			return Promise.resolve();
+		}
+
+		if (Device.isAndroid()) {
+			setAtollaStatusBarColor(theme.colors.bg);
 		}
 
 		this.isTransitioning = true;

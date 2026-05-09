@@ -131,6 +131,7 @@ kt_android_library(
         "android/AtollaImageLoaderBootstrapModuleFactory.kt",
         "android/AtollaImageLoaderRegistration.kt",
         "android/AtollaPlaybackService.kt",
+        "android/AtollaStatusBarNativeModuleFactory.kt",
         "android/AtollaTrackPlaybackNativeModuleFactory.kt",
         "android/AtollaWaveformNativeModuleFactory.kt",
         "android/AtollaWaveformWorker.kt",
@@ -138,6 +139,7 @@ kt_android_library(
     assets = [
         "android/assets/valdi_native_modules/atolla.native.android.AtollaHapticsBootstrapModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaImageLoaderBootstrapModuleFactory",
+        "android/assets/valdi_native_modules/atolla.native.android.AtollaStatusBarNativeModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaTrackPlaybackNativeModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaWaveformNativeModuleFactory",
     ],

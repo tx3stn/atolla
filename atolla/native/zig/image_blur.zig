@@ -1,4 +1,4 @@
-// Image blur matching the original Android multi-scale pyramid algorithm:
+// Image blur using multi-scale pyramid algorithm:
 //   1. Iterative bilinear halvings from source down to ~8px (many passes
 //      approximate a Gaussian and avoid the linear ramps of a single large
 //      downsample step).
