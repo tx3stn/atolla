@@ -19,7 +19,8 @@
 
 ## Screenshots
 
-Player
+### player
+
 <p align="center">
  <img src="https://github.com/user-attachments/assets/dc0da699-e41f-4cd3-9213-238c3c8d5794" alt="player" width="49%" />
  <img src="https://github.com/user-attachments/assets/ad7f9f64-d32c-4f88-8962-15e3250e48f2" alt="player-play-queue" width="49%" />
@@ -29,19 +30,24 @@ Player
 * Track waveform progress bar
 * Artist logo front and center
 
-Artist View
+### artist view
+
 <p align="center">
  <img src="https://github.com/user-attachments/assets/83438302-2ebb-4cd1-89bf-b970910c585a" alt="artist-1" width="49%" />
  <img src="https://github.com/user-attachments/assets/5af7c50f-7f1b-46d0-a15f-3510361caa9a" alt="artist-2" width="49%" />
 </p>
 
-Library & Album View
+### library & album view
+
 <p align="center">
  <img src="https://github.com/user-attachments/assets/4579959b-97aa-4cd0-a7b3-e35c506cf2b4" alt="artist-1" width="49%" />
  <img src="https://github.com/user-attachments/assets/5d7ef4be-5957-4f3b-a539-10a23d40b569" alt="artist-2" width="49%" />
 </p>
 
-Search & Genre List
+* Floating player progress bar
+
+### search & genre list
+
 <p align="center">
  <img src="https://github.com/user-attachments/assets/a71c81e8-f112-41c2-9b69-d32e380ad394" alt="artist-1" width="49%" />
  <img src="https://github.com/user-attachments/assets/3e43e8b0-d152-4d14-ac06-f06af624bd4e" alt="artist-2" width="49%" />
@@ -49,6 +55,7 @@ Search & Genre List
 
 * Search that works online and offline
 * Genre playlists that work online and offline
+* Genre pills on artists and albums online and offline
 
 ## Why?
 
