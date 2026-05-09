@@ -8,7 +8,6 @@ import type { ImageCache } from '../../services/ImageCache';
 import { theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
-import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { Modal } from '../components/Modal';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
@@ -18,16 +17,13 @@ export interface AddToPlaylistViewModel {
 	gridColumns?: number;
 	imageCache?: ImageCache;
 	onDismiss: () => void;
-	onOpenPlaylist?: (playlist: Playlist) => void;
 	track: Track;
 	transport: Transport;
 }
 
 interface AddToPlaylistState {
 	errorMessage: string | null;
-	isCreating: boolean;
 	isLoading: boolean;
-	isShowingCreateModal: boolean;
 	playlists: Array<Playlist>;
 	toastMessage: string | null;
 }
@@ -41,9 +37,7 @@ export class AddToPlaylistView extends StatefulComponent<
 
 	state: AddToPlaylistState = {
 		errorMessage: null,
-		isCreating: false,
 		isLoading: true,
-		isShowingCreateModal: false,
 		playlists: [],
 		toastMessage: null,
 	};
@@ -105,37 +99,9 @@ export class AddToPlaylistView extends StatefulComponent<
 			});
 	};
 
-	handleCreatePlaylist = (name: string): void => {
-		const { onDismiss, onOpenPlaylist, track, transport } = this.viewModel;
-		if (!transport.createPlaylist) return;
-		this.setState({ isCreating: true });
-		void transport
-			.createPlaylist(name, track.id)
-			.then((playlist) => {
-				if (this.hasBeenDestroyed) return;
-				this.setState({ isCreating: false, isShowingCreateModal: false });
-				if (onOpenPlaylist) {
-					onOpenPlaylist(playlist);
-				} else {
-					onDismiss();
-				}
-			})
-			.catch((e: unknown) => {
-				if (this.hasBeenDestroyed) return;
-				const message =
-					e != null &&
-					typeof e === 'object' &&
-					'message' in e &&
-					typeof (e as { message: unknown }).message === 'string'
-						? (e as { message: string }).message
-						: 'Unknown error';
-				this.setState({ errorMessage: message, isCreating: false });
-			});
-	};
-
 	onRender(): void {
 		const { onDismiss } = this.viewModel;
-		const { errorMessage, isCreating, isShowingCreateModal, playlists, toastMessage } = this.state;
+		const { errorMessage, playlists, toastMessage } = this.state;
 		const gridColumns = this.viewModel.gridColumns ?? 2;
 
 		const cards: Array<Card> = playlists.map((p) => ({
@@ -146,21 +112,8 @@ export class AddToPlaylistView extends StatefulComponent<
 			secondaryText: '',
 		}));
 
-		const canCreate = Boolean(this.viewModel.transport.createPlaylist);
-
 		<view accessibilityLabel='add-to-playlist-view' style={styles.root}>
 			<scroll style={styles.scroll}>
-				{canCreate && (
-					<view
-						accessibilityLabel='create-new-playlist'
-						onTap={() => {
-							this.setState({ isShowingCreateModal: true });
-						}}
-						style={styles.createNewButton}
-					>
-						<label style={styles.createNewLabel} value={Strings.createNewPlaylist()} />
-					</view>
-				)}
 				<CardGrid
 					accessibilityLabel='add-to-playlist-grid'
 					cards={cards}
@@ -188,15 +141,6 @@ export class AddToPlaylistView extends StatefulComponent<
 					title={Strings.playlistEditErrorTitle()}
 				/>
 			)}
-			{isShowingCreateModal && (
-				<CreatePlaylistModal
-					isCreating={isCreating}
-					onCancel={() => {
-						this.setState({ isShowingCreateModal: false });
-					}}
-					onCreate={this.handleCreatePlaylist}
-				/>
-			)}
 		</view>;
 	}
 }
@@ -206,18 +150,6 @@ const styles = {
 		padding: 8,
 	}),
 	closeLabel: new Style<Label>({
-		...theme.text.main,
-		color: theme.colors.active,
-	}),
-	createNewButton: new Style<View>({
-		alignItems: 'center',
-		borderColor: theme.colors.separator,
-		borderRadius: theme.borderRadius,
-		borderWidth: 1,
-		marginBottom: 8,
-		padding: 16,
-	}),
-	createNewLabel: new Style<Label>({
 		...theme.text.main,
 		color: theme.colors.active,
 	}),

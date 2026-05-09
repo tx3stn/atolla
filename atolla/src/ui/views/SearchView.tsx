@@ -25,6 +25,7 @@ import type { SearchStore } from '../../stores/Search';
 import { scrollPaddingBottom, theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { Toast } from '../components/Toast';
 import { TrackContextMenu } from '../components/TrackContextMenu';
@@ -277,6 +278,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.setState({ contextMenuTrack: track });
 		const modalSlot = this.viewModel.navBarContext?.modalSlot;
 		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 		modalSlot?.slotted(() => {
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
@@ -291,8 +293,16 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 							onDismiss={() => {
 								modalSlot?.slotted(() => {});
 							}}
-							onOpenPlaylist={(playlist) => {
-								modalSlot?.slotted(() => {});
+							track={track}
+							transport={transport}
+						/>;
+					});
+				}}
+				onArtistTap={track.artistId ? this.handleContextMenuArtistTap : undefined}
+				onCreatePlaylist={
+					createPlaylistFn
+						? () => {
+								this.setState({ contextMenuTrack: null });
 								const {
 									animationsEnabled: anim,
 									downloadService,
@@ -301,30 +311,38 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 									paletteQueue,
 									playlistEditService,
 								} = this.viewModel;
-								navigationController.push(
-									PlaylistView,
-									{
-										animationsEnabled: anim,
-										downloadService,
-										gridColumns: this.viewModel.gridColumns,
-										imageCache,
-										navBarContext,
-										paletteQueue,
-										playbackStore,
-										playlist,
-										playlistEditService,
-										transport,
-									},
-									{},
-									{ animated: anim },
-								);
-							}}
-							track={track}
-							transport={transport}
-						/>;
-					});
-				}}
-				onArtistTap={track.artistId ? this.handleContextMenuArtistTap : undefined}
+								modalSlot?.slotted(() => {
+									<CreatePlaylistModal
+										onCancel={() => {
+											modalSlot?.slotted(() => {});
+										}}
+										onCreate={(name) => {
+											return createPlaylistFn(name, track.id).then((playlist) => {
+												modalSlot?.slotted(() => {});
+												navigationController.push(
+													PlaylistView,
+													{
+														animationsEnabled: anim,
+														downloadService,
+														gridColumns: this.viewModel.gridColumns,
+														imageCache,
+														navBarContext,
+														paletteQueue,
+														playbackStore,
+														playlist,
+														playlistEditService,
+														transport,
+													},
+													{},
+													{ animated: anim },
+												);
+											});
+										}}
+									/>;
+								});
+							}
+						: undefined
+				}
 				onDismiss={this.handleContextMenuDismiss}
 				playbackStore={playbackStore}
 				track={track}

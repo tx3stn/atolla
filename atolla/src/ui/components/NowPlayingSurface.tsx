@@ -7,6 +7,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
+import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import { setAtollaStatusBarColor } from '../../StatusBarNative';
 import Strings from '../../Strings';
@@ -18,6 +19,7 @@ import { paletteDefaults, theme, topInset, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { AddToPlaylistView } from '../views/AddToPlaylistView';
 import { ArtistLogo } from './ArtistLogo';
+import { CreatePlaylistModal } from './CreatePlaylistModal';
 import { FormatBadge } from './FormatBadge';
 import { ProgressBarWaveform } from './ProgressBarWaveform';
 import { TappableIcon } from './TappableIcon';
@@ -43,6 +45,7 @@ export interface NowPlayingSurfaceViewModel {
 	onDismiss: () => void;
 	onLoopModeToggle?: () => void;
 	onNext: () => void;
+	onOpenPlaylist?: (playlist: Playlist) => void;
 	onPlayPause: () => void;
 	onPrevious: () => void;
 	onProgressTap?: (ratio?: number) => void;
@@ -62,6 +65,7 @@ interface NowPlayingSurfaceState {
 	activeQueueTab: QueueTab;
 	addToPlaylistTrack: Track | null;
 	contextMenuTrack: Track | null;
+	createPlaylistTrack: Track | null;
 	isExpanded: boolean;
 	toastMessage: string | null;
 }
@@ -98,6 +102,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		activeQueueTab: 'upNext',
 		addToPlaylistTrack: null,
 		contextMenuTrack: null,
+		createPlaylistTrack: null,
 		isExpanded: false,
 		toastMessage: null,
 	};
@@ -482,6 +487,9 @@ export class NowPlayingSurface extends StatefulComponent<
 
 		const playbackStore = this.viewModel.playbackStore;
 		const progressSeconds = playbackStore?.progressSeconds ?? 0;
+		const createPlaylistTransport = this.viewModel.transport;
+		const createPlaylistFn = createPlaylistTransport?.createPlaylist?.bind(createPlaylistTransport);
+		const createPlaylistTrack = this.state.createPlaylistTrack;
 
 		const toEntry = (t: Track): TrackListEntry => ({
 			artworkSource: t.albumImageUrl ?? album?.imageUrl ?? null,
@@ -810,6 +818,15 @@ export class NowPlayingSurface extends StatefulComponent<
 							? this.handleContextMenuArtistTap
 							: undefined
 					}
+					onCreatePlaylist={
+						this.viewModel.transport?.createPlaylist
+							? () => {
+									const track = this.state.contextMenuTrack;
+									if (!track) return;
+									this.setState({ contextMenuTrack: null, createPlaylistTrack: track });
+								}
+							: undefined
+					}
 					onDismiss={this.handleContextMenuDismiss}
 					playbackStore={this.viewModel.playbackStore}
 					track={this.state.contextMenuTrack}
@@ -825,6 +842,19 @@ export class NowPlayingSurface extends StatefulComponent<
 					}}
 					track={this.state.addToPlaylistTrack}
 					transport={this.viewModel.transport}
+				/>
+			)}
+			{createPlaylistFn && createPlaylistTrack && (
+				<CreatePlaylistModal
+					onCancel={() => {
+						this.setState({ createPlaylistTrack: null });
+					}}
+					onCreate={(name) => {
+						return createPlaylistFn(name, createPlaylistTrack.id).then((playlist) => {
+							this.setState({ createPlaylistTrack: null });
+							this.viewModel.onOpenPlaylist?.(playlist);
+						});
+					}}
 				/>
 			)}
 			{this.state.toastMessage && <Toast message={this.state.toastMessage} />}

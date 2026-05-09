@@ -2163,6 +2163,52 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		);
 	};
 
+	handleHomeOpenPlaylist = (playlist: Playlist): void => {
+		if (!this.homeNavigationController) return;
+		this.homeNavigationController.push(
+			PlaylistView,
+			{
+				animationsEnabled: this.state.animationsEnabled,
+				downloadService: this.downloadService,
+				gridColumns: this.state.gridColumns,
+				imageCache: this.imageCache,
+				modalSlot: this.modalSlot,
+				navBarContext: this.buildHomeNavBarContext(),
+				paletteQueue: this.paletteQueue,
+				playbackStore: this.playbackStore,
+				playlist,
+				playlistEditService: this.playlistEditService,
+				transport: this.transport,
+			},
+			{},
+			{ animated: this.state.animationsEnabled },
+		);
+	};
+
+	handleNowPlayingOpenPlaylist = (playlist: Playlist): void => {
+		if (this.homeNavigationController) {
+			this.setState({ activeFooterTab: FooterTabs.home });
+			this.homeNavigationController.push(
+				PlaylistView,
+				{
+					animationsEnabled: this.state.animationsEnabled,
+					downloadService: this.downloadService,
+					gridColumns: this.state.gridColumns,
+					imageCache: this.imageCache,
+					modalSlot: this.modalSlot,
+					navBarContext: this.buildHomeNavBarContext(),
+					paletteQueue: this.paletteQueue,
+					playbackStore: this.playbackStore,
+					playlist,
+					playlistEditService: this.playlistEditService,
+					transport: this.transport,
+				},
+				{},
+				{ animated: this.state.animationsEnabled },
+			);
+		}
+	};
+
 	private tryNavigatePendingAlbum(): void {
 		if (
 			!this.pendingAlbum ||
@@ -2353,6 +2399,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 								modalSlot={this.modalSlot}
 								onNavigateToArtist={this.handleHomeArtistTap}
 								onOpenAlbum={this.handleHomeAlbumTap}
+								onOpenPlaylist={this.handleHomeOpenPlaylist}
 								onRequestModeChange={this.requestModeChange}
 								playbackStore={this.playbackStore}
 								recentlyPlayedTracks={this.recentlyPlayedTracks}
@@ -2471,6 +2518,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						onDismiss={this.handleNowPlayingDismiss}
 						onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
 						onNext={this.handleNowPlayingNext}
+						onOpenPlaylist={this.handleNowPlayingOpenPlaylist}
 						onPlayPause={this.handleNowPlayingPlayPause}
 						onPrevious={this.handleNowPlayingPrevious}
 						onProgressTap={this.handleNowPlayingProgressTap}

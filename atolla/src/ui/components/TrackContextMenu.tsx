@@ -19,6 +19,7 @@ export interface TrackContextMenuViewModel {
 	onAddToPlaylist?: () => void;
 	onAlbumTap?: () => void;
 	onArtistTap?: () => void;
+	onCreatePlaylist?: () => void;
 	onDismiss: (toastMessage?: string) => void;
 	playbackStore: PlaybackStore;
 	track: Track;
@@ -39,6 +40,7 @@ export class TrackContextMenu extends StatefulComponent<
 	private playNextRippleRef = new ElementRef();
 	private addToQueueRippleRef = new ElementRef();
 	private addToPlaylistRippleRef = new ElementRef();
+	private createPlaylistRippleRef = new ElementRef();
 
 	state: TrackContextMenuState = {
 		artistLogoUrl: null,
@@ -86,6 +88,14 @@ export class TrackContextMenu extends StatefulComponent<
 		this.runActionWithTapFeedback(this.handleAddToPlaylist, this.addToPlaylistRippleRef);
 	};
 
+	handleCreatePlaylist = (): void => {
+		this.viewModel.onCreatePlaylist?.();
+	};
+
+	handleCreatePlaylistTap = (): void => {
+		this.runActionWithTapFeedback(this.handleCreatePlaylist, this.createPlaylistRippleRef);
+	};
+
 	handleBackdropTap = (): void => {
 		this.viewModel.onDismiss();
 	};
@@ -129,7 +139,7 @@ export class TrackContextMenu extends StatefulComponent<
 	}
 
 	onRender(): void {
-		const { imageCache, track } = this.viewModel;
+		const { imageCache, onCreatePlaylist, track } = this.viewModel;
 		const { artistLogoUrl } = this.state;
 
 		const previewEntry = [
@@ -194,6 +204,18 @@ export class TrackContextMenu extends StatefulComponent<
 						<image src={res.addtoplaylist} style={styles.icon} tint={theme.colors.muted} />
 						<label style={styles.actionLabel} value={Strings.addToPlaylist()} />
 					</view>
+					{onCreatePlaylist && (
+						<view
+							accessibilityLabel='track-context-create-playlist'
+							onLayout={this.handleActionRowLayout}
+							onTap={this.handleCreatePlaylistTap}
+							style={styles.actionRow}
+						>
+							<view ref={this.createPlaylistRippleRef} style={styles.actionRowRipple} />
+							<image src={res.addtoplaylist} style={styles.icon} tint={theme.colors.muted} />
+							<label style={styles.actionLabel} value={Strings.createNewPlaylist()} />
+						</view>
+					)}
 				</view>
 			</layout>
 		</blur>;

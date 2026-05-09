@@ -16,6 +16,7 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
 import type { FooterTab } from '../components/FooterTab';
@@ -48,7 +49,7 @@ export interface PlaylistViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
-	playlistEditService: PlaylistEditService;
+	playlistEditService?: PlaylistEditService;
 	restoreHeaderOnDestroy?: boolean;
 	transport: Transport;
 }
@@ -140,6 +141,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { animationsEnabled, imageCache, onNavigateToArtist, playbackStore, transport } =
 			this.viewModel;
+		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 		modalSlot?.slotted(() => {
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
@@ -154,32 +156,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 							onDismiss={() => {
 								modalSlot?.slotted(() => {});
 							}}
-							onOpenPlaylist={(playlist) => {
-								modalSlot?.slotted(() => {});
-								const {
-									animationsEnabled: anim,
-									downloadService,
-									paletteQueue,
-									playlistEditService,
-								} = this.viewModel;
-								this.navigationController.push(
-									PlaylistView,
-									{
-										animationsEnabled: anim,
-										downloadService,
-										gridColumns: this.viewModel.gridColumns,
-										imageCache,
-										navBarContext: this.viewModel.navBarContext,
-										paletteQueue,
-										playbackStore,
-										playlist,
-										playlistEditService,
-										transport,
-									},
-									{},
-									{ animated: anim },
-								);
-							}}
 							track={track}
 							transport={transport}
 						/>;
@@ -188,6 +164,49 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				onAlbumTap={track.albumId ? this.handleContextMenuAlbumTap : undefined}
 				onArtistTap={
 					onNavigateToArtist && track.artistId ? this.handleContextMenuArtistTap : undefined
+				}
+				onCreatePlaylist={
+					createPlaylistFn
+						? () => {
+								this.setState({ contextMenuTrack: null });
+								const {
+									animationsEnabled: anim,
+									downloadService,
+									navBarContext,
+									paletteQueue,
+									playlistEditService,
+								} = this.viewModel;
+								modalSlot?.slotted(() => {
+									<CreatePlaylistModal
+										onCancel={() => {
+											modalSlot?.slotted(() => {});
+										}}
+										onCreate={(name) => {
+											return createPlaylistFn(name, track.id).then((playlist) => {
+												modalSlot?.slotted(() => {});
+												this.navigationController.push(
+													PlaylistView,
+													{
+														animationsEnabled: anim,
+														downloadService,
+														gridColumns: this.viewModel.gridColumns,
+														imageCache,
+														navBarContext,
+														paletteQueue,
+														playbackStore,
+														playlist,
+														playlistEditService,
+														transport,
+													},
+													{},
+													{ animated: anim },
+												);
+											});
+										}}
+									/>;
+								});
+							}
+						: undefined
 				}
 				onDismiss={this.handleContextMenuDismiss}
 				playbackStore={playbackStore}
@@ -247,6 +266,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	handleTrackReorder = (fromEntryIndex: number, toEntryIndex: number): void => {
 		const { playlist, playlistEditService, transport } = this.viewModel;
+		if (!playlistEditService) return;
 		const prevTracks = this.state.tracks;
 		const prevArtistLogoUrls = this.state.artistLogoUrls;
 		const prevAllTracks = this.allTracks;
@@ -288,6 +308,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	handleTrackSwipeRemove = (_trackId: string, entryIndex: number): void => {
 		const { playlist, playlistEditService } = this.viewModel;
+		if (!playlistEditService) return;
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const tracks = [...this.state.tracks];
 		const artistLogoUrls = [...this.state.artistLogoUrls];

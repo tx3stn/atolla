@@ -10,9 +10,11 @@ import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
+import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
 import type { FooterTab } from '../components/FooterTab';
@@ -26,17 +28,20 @@ import { AddToPlaylistView } from './AddToPlaylistView';
 import { AlbumView } from './AlbumView';
 import { resolveGenreImageUrls } from './GenreNavigationResolver';
 import { TRACK_PAGE_SIZE } from './GridPagination';
+import { PlaylistView } from './PlaylistView';
 
 export interface GenreViewModel {
 	animationsEnabled: boolean;
 	downloadService: DownloadService;
 	genre: Genre;
+	gridColumns?: number;
 	imageCache: ImageCache;
 	isHeaderVisible?: boolean;
 	modalSlot?: DetachedSlot;
 	navBarContext?: NavBarContext;
 	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
+	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	restoreHeaderOnDestroy?: boolean;
 	transport: Transport;
@@ -92,6 +97,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { animationsEnabled, imageCache, onNavigateToArtist, playbackStore, transport } =
 			this.viewModel;
+		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 		modalSlot?.slotted(() => {
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
@@ -113,6 +119,42 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				onAlbumTap={track.albumId ? this.handleContextMenuAlbumTap : undefined}
 				onArtistTap={
 					onNavigateToArtist && track.artistId ? this.handleContextMenuArtistTap : undefined
+				}
+				onCreatePlaylist={
+					createPlaylistFn
+						? () => {
+								this.setState({ contextMenuTrack: null });
+								const { animationsEnabled: anim, downloadService, paletteQueue } = this.viewModel;
+								modalSlot?.slotted(() => {
+									<CreatePlaylistModal
+										onCancel={() => {
+											modalSlot?.slotted(() => {});
+										}}
+										onCreate={(name) => {
+											return createPlaylistFn(name, track.id).then((playlist) => {
+												modalSlot?.slotted(() => {});
+												this.navigationController.push(
+													PlaylistView,
+													{
+														animationsEnabled: anim,
+														downloadService,
+														gridColumns: this.viewModel.gridColumns ?? 2,
+														imageCache,
+														navBarContext: this.viewModel.navBarContext,
+														paletteQueue,
+														playbackStore,
+														playlist,
+														transport,
+													},
+													{},
+													{ animated: anim },
+												);
+											});
+										}}
+									/>;
+								});
+							}
+						: undefined
 				}
 				onDismiss={this.handleContextMenuDismiss}
 				playbackStore={playbackStore}

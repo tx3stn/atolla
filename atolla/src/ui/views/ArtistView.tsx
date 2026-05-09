@@ -18,6 +18,7 @@ import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
 import type { FooterTab } from '../components/FooterTab';
@@ -35,6 +36,7 @@ import { sortArtistAlbums } from './ArtistViewSort';
 import { resolveGenreForNavigation, resolveGenreImageUrls } from './GenreNavigationResolver';
 import { GenreView } from './GenreView';
 import type { LibraryNavContext } from './LibraryView';
+import { PlaylistView } from './PlaylistView';
 
 export interface ArtistViewModel {
 	animationsEnabled: boolean;
@@ -96,6 +98,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.setState({ contextMenuTrack: track });
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 		modalSlot?.slotted(() => {
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
@@ -116,6 +119,42 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					});
 				}}
 				onAlbumTap={track.albumId ? this.handleContextMenuAlbumTap : undefined}
+				onCreatePlaylist={
+					createPlaylistFn
+						? () => {
+								this.setState({ contextMenuTrack: null });
+								const { animationsEnabled: anim, downloadService, paletteQueue } = this.viewModel;
+								modalSlot?.slotted(() => {
+									<CreatePlaylistModal
+										onCancel={() => {
+											modalSlot?.slotted(() => {});
+										}}
+										onCreate={(name) => {
+											return createPlaylistFn(name, track.id).then((playlist) => {
+												modalSlot?.slotted(() => {});
+												this.navigationController.push(
+													PlaylistView,
+													{
+														animationsEnabled: anim,
+														downloadService,
+														gridColumns: this.viewModel.gridColumns,
+														imageCache,
+														navBarContext: this.viewModel.navBarContext,
+														paletteQueue,
+														playbackStore,
+														playlist,
+														transport,
+													},
+													{},
+													{ animated: anim },
+												);
+											});
+										}}
+									/>;
+								});
+							}
+						: undefined
+				}
 				onDismiss={this.handleContextMenuDismiss}
 				playbackStore={playbackStore}
 				track={track}

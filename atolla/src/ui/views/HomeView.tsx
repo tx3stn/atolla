@@ -4,6 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
+import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
@@ -15,6 +16,7 @@ import type { Transport } from '../../transports/Transport';
 import type { CardDetailItem } from '../components/CardDetailList';
 import { CardDetailList } from '../components/CardDetailList';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ViewHeader } from '../components/ViewHeader';
@@ -42,6 +44,7 @@ export interface HomeViewModel {
 	modalSlot?: DetachedSlot;
 	onNavigateToArtist?: (artistId: string) => void;
 	onOpenAlbum: (album: Album) => void;
+	onOpenPlaylist?: (playlist: Playlist) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	playbackStore: PlaybackStore;
 	recentlyPlayedTracks: Array<Track>;
@@ -273,6 +276,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			playbackStore,
 			transport,
 		} = this.viewModel;
+		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 		modalSlot?.slotted(() => {
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
@@ -295,6 +299,26 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				onAlbumTap={track.albumId ? this.handleContextMenuAlbumTap : undefined}
 				onArtistTap={
 					onNavigateToArtist && track.artistId ? this.handleContextMenuArtistTap : undefined
+				}
+				onCreatePlaylist={
+					createPlaylistFn
+						? () => {
+								this.setState({ contextMenuTrack: null });
+								modalSlot?.slotted(() => {
+									<CreatePlaylistModal
+										onCancel={() => {
+											modalSlot?.slotted(() => {});
+										}}
+										onCreate={(name) => {
+											return createPlaylistFn(name, track.id).then((playlist) => {
+												modalSlot?.slotted(() => {});
+												this.viewModel.onOpenPlaylist?.(playlist);
+											});
+										}}
+									/>;
+								});
+							}
+						: undefined
 				}
 				onDismiss={this.handleContextMenuDismiss}
 				playbackStore={playbackStore}

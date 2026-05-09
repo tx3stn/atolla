@@ -5,12 +5,13 @@ import Strings from '../../Strings';
 import { theme } from '../../theme';
 
 export interface CreatePlaylistModalViewModel {
-	isCreating: boolean;
 	onCancel: () => void;
-	onCreate: (name: string) => void;
+	onCreate: (name: string) => Promise<void>;
 }
 
 interface CreatePlaylistModalState {
+	errorMessage: string | null;
+	isCreating: boolean;
 	playlistName: string;
 }
 
@@ -19,12 +20,28 @@ export class CreatePlaylistModal extends StatefulComponent<
 	CreatePlaylistModalState
 > {
 	state: CreatePlaylistModalState = {
+		errorMessage: null,
+		isCreating: false,
 		playlistName: '',
 	};
 
+	handleCreate = (): void => {
+		const { onCancel, onCreate } = this.viewModel;
+		const name = this.state.playlistName.trim();
+		if (!name || this.state.isCreating) return;
+		this.setState({ errorMessage: null, isCreating: true });
+		onCreate(name)
+			.then(() => {
+				onCancel();
+			})
+			.catch((e: unknown) => {
+				this.setState({ errorMessage: extractErrorMessage(e), isCreating: false });
+			});
+	};
+
 	onRender(): void {
-		const { isCreating, onCancel, onCreate } = this.viewModel;
-		const { playlistName } = this.state;
+		const { onCancel } = this.viewModel;
+		const { errorMessage, isCreating, playlistName } = this.state;
 		const canCreate = playlistName.trim().length > 0 && !isCreating;
 
 		<blur blurStyle={theme.modalBlurStyle} onTap={onCancel} style={styles.backdrop}>
@@ -36,20 +53,19 @@ export class CreatePlaylistModal extends StatefulComponent<
 						accessibilityLabel='create-playlist-name-input'
 						autocapitalization='sentences'
 						onChange={(value: unknown) => {
-							this.setState({ playlistName: normalizeInputValue(value) });
+							this.setState({ errorMessage: null, playlistName: normalizeInputValue(value) });
 						}}
 						placeholder={Strings.playlistNamePlaceholder()}
 						style={styles.input}
 						value={playlistName}
 					/>
 				</view>
+				{errorMessage && <label style={styles.errorLabel} value={errorMessage} />}
 				<view style={styles.confirmDivider} />
 				<view style={styles.actions}>
 					<view
 						accessibilityLabel='create-playlist-create-button'
-						onTap={() => {
-							if (canCreate) onCreate(playlistName.trim());
-						}}
+						onTap={this.handleCreate}
 						style={styles.actionButton}
 					>
 						<label
@@ -69,6 +85,13 @@ export class CreatePlaylistModal extends StatefulComponent<
 			</view>
 		</blur>;
 	}
+}
+
+function extractErrorMessage(e: unknown): string {
+	if (e != null && typeof e === 'object' && 'message' in e && typeof e.message === 'string') {
+		return e.message;
+	}
+	return 'Unknown error';
 }
 
 function normalizeInputValue(value: unknown): string {
@@ -148,6 +171,11 @@ const styles = {
 		marginBottom: 14,
 		marginTop: 12,
 		width: '100%',
+	}),
+	errorLabel: new Style<Label>({
+		...theme.text.sub,
+		color: theme.colors.destructive,
+		marginTop: 8,
 	}),
 	input: new Style<TextField>({
 		...theme.text.main,
