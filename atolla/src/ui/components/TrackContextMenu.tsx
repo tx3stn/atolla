@@ -212,7 +212,7 @@ export class TrackContextMenu extends StatefulComponent<
 							style={styles.actionRow}
 						>
 							<view ref={this.createPlaylistRippleRef} style={styles.actionRowRipple} />
-							<image src={res.addtoplaylist} style={styles.icon} tint={theme.colors.muted} />
+							<image src={res.createnewplaylist} style={styles.icon} tint={theme.colors.muted} />
 							<label style={styles.actionLabel} value={Strings.createNewPlaylist()} />
 						</view>
 					)}
