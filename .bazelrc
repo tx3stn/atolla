@@ -76,3 +76,5 @@ build:ios --strategy=ValdiCompile=local
 
 test --spawn_strategy=local
 test --strategy=TestRunner=local
+
+build:prod --define=build_mode=prod

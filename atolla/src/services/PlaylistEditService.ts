@@ -38,10 +38,8 @@ export class PlaylistEditService {
 		if (this.isLoaded) return;
 		try {
 			const raw = await this.store.fetchString(pendingOpsKey);
-			const parsed = JSON.parse(raw);
-			if (Array.isArray(parsed)) {
-				this.pendingOps = parsed as Array<PlaylistOperation>;
-			}
+			const parsed: unknown = JSON.parse(raw);
+			this.pendingOps = Array.isArray(parsed) ? parsed.filter(isPlaylistOperation) : [];
 		} catch {
 			this.pendingOps = [];
 		}
@@ -111,4 +109,22 @@ export class PlaylistEditService {
 	private async persist(): Promise<void> {
 		await this.store.storeString(pendingOpsKey, JSON.stringify(this.pendingOps));
 	}
+}
+
+function isPlaylistOperation(value: unknown): value is PlaylistOperation {
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
+	const candidate = value as Partial<PlaylistOperation>;
+	if (
+		typeof candidate.playlistId !== 'string' ||
+		typeof candidate.trackId !== 'string' ||
+		typeof candidate.playlistName !== 'string'
+	) {
+		return false;
+	}
+	if (candidate.type === 'move') {
+		return typeof (candidate as { toIndex?: unknown }).toIndex === 'number';
+	}
+	return candidate.type === 'remove';
 }

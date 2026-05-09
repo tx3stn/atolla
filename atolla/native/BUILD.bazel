@@ -20,9 +20,17 @@ filegroup(
     ]),
 )
 
+config_setting(
+    name = "prod_build",
+    values = {"define": "build_mode=prod"},
+)
+
 filegroup(
     name = "android_manifest",
-    srcs = ["android/AndroidManifest.xml"],
+    srcs = select({
+        ":prod_build": ["android/AndroidManifest.prod.xml"],
+        "//conditions:default": ["android/AndroidManifest.dev.xml"],
+    }),
 )
 
 swift_interop_hint(

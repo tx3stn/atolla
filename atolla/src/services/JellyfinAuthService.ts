@@ -515,7 +515,6 @@ export class JellyfinAuthService {
 		console.warn('[auth] connection error', {
 			context,
 			detail: this.lastConnectionErrorDetail,
-			error,
 		});
 	}
 
