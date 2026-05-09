@@ -89,6 +89,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private queueListWidth: number | null = null;
 	private isTransitioning = false;
 	private isQueueSliding = false;
+	private hasBeenDestroyed = false;
 	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribeProgress?: () => void;
 
@@ -223,6 +224,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	}
 
 	onDestroy(): void {
+		this.hasBeenDestroyed = true;
 		this.toastTimerId = clearScheduledToast(this.toastTimerId);
 		this.unsubscribeProgress?.();
 	}
@@ -247,6 +249,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	}
 
 	private updateProgressRefs(): void {
+		if (this.hasBeenDestroyed) return;
 		const { playbackStore } = this.viewModel;
 		if (!playbackStore?.track) return;
 		const progressSeconds = playbackStore.progressSeconds;
@@ -370,6 +373,7 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.compactBarRef.setAttribute('left', 8 + offset);
 				this.compactBarRef.setAttribute('right', 8 - offset);
 			}).then(() => {
+				if (this.hasBeenDestroyed) return;
 				this.viewModel.onDismiss();
 			});
 			return;
