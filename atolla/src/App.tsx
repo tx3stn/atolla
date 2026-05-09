@@ -212,19 +212,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				),
 			});
 		} catch {
-			try {
-				return new JellyfinAuthService({
-					...sharedOptions,
-					store: new JellyfinAuthStore(
-						new PersistentStore(authStoreNamespace, { deviceGlobal: true }),
-					),
-				});
-			} catch {
-				return new JellyfinAuthService({
-					...sharedOptions,
-					store: new InMemoryAuthStore(),
-				});
-			}
+			return new JellyfinAuthService({
+				...sharedOptions,
+				store: new InMemoryAuthStore(),
+			});
 		}
 	}
 
