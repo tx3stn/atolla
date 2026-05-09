@@ -71,6 +71,7 @@ declare const Strings: {
 	settingsDeleteAllDownloadsConfirm: () => string;
 	settingsDeviceId: () => string;
 	settingsDeviceIdPlaceholder: () => string;
+	settingsDeviceName: () => string;
 	settingsGridColumns: () => string;
 	settingsImageCacheSize: () => string;
 	settingsLanguage: () => string;
@@ -82,6 +83,7 @@ declare const Strings: {
 	settingsSectionCache: () => string;
 	settingsSectionDownloads: () => string;
 	settingsSectionLanguage: () => string;
+	settingsSectionVersion: () => string;
 	settingsTitle: () => string;
 	shuffleLibrary: () => string;
 	tracksCachedCount: (count: number) => string;

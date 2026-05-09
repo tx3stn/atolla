@@ -14,6 +14,7 @@ import { JellyfinMusicItemTypes } from '../models/jellyfin/Types';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
+import { appVersion } from '../version';
 import {
 	type JellyfinImageResolvers,
 	mapJellyfinAlbumToAlbum,
@@ -94,7 +95,7 @@ function normalizeClientDeviceId(value: string | null | undefined): string {
 }
 
 function createClientHeader(accessToken?: string, clientDeviceId = 'atolla'): string {
-	const base = `MediaBrowser Client="Atolla", Device="Atolla", DeviceId="${clientDeviceId}", Version="0.0.1"`;
+	const base = `MediaBrowser Client="atolla", Device="${clientDeviceId}", DeviceId="${clientDeviceId}", Version="${appVersion}"`;
 	if (!accessToken) {
 		return base;
 	}

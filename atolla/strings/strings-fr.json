@@ -216,6 +216,9 @@
 	"settings_device_id_placeholder": {
 		"defaultMessage": "atolla"
 	},
+	"settings_device_name": {
+		"defaultMessage": "nom de l'appareil"
+	},
 	"settings_grid_columns": {
 		"defaultMessage": "colonnes de grille"
 	},
@@ -251,6 +254,9 @@
 	},
 	"settings_section_language": {
 		"defaultMessage": "LANGUE"
+	},
+	"settings_section_version": {
+		"defaultMessage": "VERSION"
 	},
 	"settings_title": {
 		"defaultMessage": "PARAMÈTRES"

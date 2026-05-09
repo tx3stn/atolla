@@ -200,9 +200,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private createAuthService(): JellyfinAuthService {
 		const authStoreNamespace = `atolla/device-user/${this.deviceUserScopeKey}/jellyfin_auth`;
 		const clientDeviceId = this.getEffectiveJellyfinClientDeviceId();
+		const sharedOptions = { clientDeviceId };
 		try {
 			return new JellyfinAuthService({
-				clientDeviceId,
+				...sharedOptions,
 				store: new JellyfinAuthStore(
 					new PersistentStore(authStoreNamespace, {
 						deviceGlobal: true,
@@ -213,14 +214,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		} catch {
 			try {
 				return new JellyfinAuthService({
-					clientDeviceId,
+					...sharedOptions,
 					store: new JellyfinAuthStore(
 						new PersistentStore(authStoreNamespace, { deviceGlobal: true }),
 					),
 				});
 			} catch {
 				return new JellyfinAuthService({
-					clientDeviceId,
+					...sharedOptions,
 					store: new InMemoryAuthStore(),
 				});
 			}
@@ -462,7 +463,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							existingSession.serverUrl,
 							existingSession.accessToken,
 							existingSession.userId,
-							{ clientDeviceId: this.getEffectiveJellyfinClientDeviceId() },
+							{
+								clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
+							},
 						);
 					} else if (mode === ConnectionModes.mock) {
 						this.transport = new MockTransport();
@@ -883,7 +886,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						session.serverUrl,
 						session.accessToken,
 						session.userId,
-						{ clientDeviceId: this.getEffectiveJellyfinClientDeviceId() },
+						{
+							clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
+						},
 					);
 					void this.playlistEditService.flush(this.transport).then((errors) => {
 						if (errors.length === 0) return;
@@ -1511,7 +1516,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						session.serverUrl,
 						session.accessToken,
 						session.userId,
-						{ clientDeviceId: this.getEffectiveJellyfinClientDeviceId() },
+						{
+							clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
+						},
 					);
 				}
 			}

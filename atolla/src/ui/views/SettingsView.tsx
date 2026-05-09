@@ -24,6 +24,7 @@ import {
 } from '../../stores/Preferences';
 import { scrollPaddingBottom, theme, topInset, withAlpha } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
+import { appVersion } from '../../version';
 import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
 import { LanguageSelectModal } from '../components/LanguageSelectModal';
@@ -503,6 +504,15 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						/>
 					</view>
 
+					<label style={styles.sectionTitle} value={Strings.settingsSectionVersion()} />
+					<view style={styles.section}>
+						<label
+							accessibilityLabel='settings-app-version'
+							style={styles.versionLabel}
+							value={appVersion}
+						/>
+					</view>
+
 					{this.state.showCacheToast && <Toast message={Strings.settingsCacheClearedToast()} />}
 				</view>
 			</scroll>
@@ -637,6 +647,11 @@ const styles = {
 		flexDirection: 'row',
 		marginTop: 10,
 		width: '100%',
+	}),
+	versionLabel: new Style<Label>({
+		...theme.text.sub,
+		color: theme.colors.muted,
+		marginLeft: 4,
 	}),
 	viewRoot: new Style<Layout>({
 		flexGrow: 1,
