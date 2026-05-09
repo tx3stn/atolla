@@ -996,7 +996,7 @@ const styles = {
 		top: 0,
 	}),
 	expandedBottomSection: new Style<Layout>({
-		marginBottom: theme.footerHeight - 24,
+		marginBottom: theme.footerHeight - 40,
 		marginTop: 'auto',
 		width: '100%',
 	}),
