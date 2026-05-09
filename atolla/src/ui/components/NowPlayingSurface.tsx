@@ -122,10 +122,6 @@ export class NowPlayingSurface extends StatefulComponent<
 			return;
 		}
 
-		if (Device.isAndroid()) {
-			setAtollaStatusBarColor(this.viewModel.palette?.surface.hex ?? paletteDefaults.surface);
-		}
-
 		this.isTransitioning = true;
 		this.setState({ isExpanded: true });
 		this.expandedScrollRef.setAttribute('contentOffsetY', 0);
@@ -161,6 +157,9 @@ export class NowPlayingSurface extends StatefulComponent<
 				);
 			})
 			.then(() => {
+				if (Device.isAndroid()) {
+					setAtollaStatusBarColor(this.viewModel.palette?.surface.hex ?? paletteDefaults.surface);
+				}
 				this.transitionArtworkRef.setAttribute('opacity', 0);
 				this.scrollArtworkRef.setAttribute('opacity', 1);
 				this.isTransitioning = false;
@@ -537,7 +536,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		const expandedTrackColor = withAlpha(onSurfaceColor, 0.34);
 		const compactProgressFillStyle = createCompactProgressFillStyle(accentColor, progressRatio);
 		const compactBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.6);
-		const expandedBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.45);
+		const expandedBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.45, 0);
 		const paletteStyles = getPaletteStyles(onSurfaceColor, mutedOnSurfaceColor);
 
 		const rootStyle = this.state.isExpanded ? styles.rootExpanded : styles.rootCollapsed;
@@ -877,10 +876,14 @@ function createCompactProgressFillStyle(accentColor: string, progressRatio: numb
 	});
 }
 
-function getOverlayTintStyle(surfaceColor: string, opacity: number): Style<View> {
+function getOverlayTintStyle(
+	surfaceColor: string,
+	opacity: number,
+	borderRadius: number = theme.borderRadius,
+): Style<View> {
 	return new Style<View>({
 		backgroundColor: withAlpha(surfaceColor, opacity),
-		borderRadius: theme.borderRadius,
+		borderRadius,
 		bottom: 0,
 		left: 0,
 		position: 'absolute',
