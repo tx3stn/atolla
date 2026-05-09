@@ -30,6 +30,18 @@
 * Track waveform progress bar
 * Artist logo front and center
 
+### home tab
+
+<p align="center">
+ <img src="https://github.com/user-attachments/assets/83438302-2ebb-4cd1-89bf-b970910c585a" alt="artist-1" width="49%" />
+ <img src="https://github.com/user-attachments/assets/5af7c50f-7f1b-46d0-a15f-3510361caa9a" alt="artist-2" width="49%" />
+</p>
+
+* Albums release on this day
+* Recently added
+* Recently played
+* Various mixes
+
 ### artist view
 
 <p align="center">
