@@ -8,24 +8,47 @@
   <em>beautiful Jellyfin music player with an offline first playback experience</em>
 </p>
 
-## Screenshots
-
-<p align="center">
- <img src="https://github.com/user-attachments/assets/b36ac87b-eabb-4c9c-a40a-bef7305e6248" alt="pkb" width="49%" />
- <img src="https://github.com/user-attachments/assets/d6dccd9b-2624-4964-980c-540d445c1781" alt="vrsn" width="49%" />
-</p>
-
-<p align="center">
- <img src="https://github.com/user-attachments/assets/512155c3-6bf2-4bb0-a9ec-2abb83831bcd" alt="pair" width="49%" />
- <img src="https://github.com/user-attachments/assets/f4eb7c56-1d15-4be1-b7e6-c2187ef6f05c" alt="plex2pl" width="49%" />
-</p>
-
 ## Features
 
-* Seamless online/offline switching (including offline search & scrobbling)
 * Gapless playback
-* Image focussed UI including artist logos
-* Dynamic colour palette generation from album artwork
+* Seamless online/offline switching (including offline search & scrobbling)
+* Image focussed UI (featuring artist logos)
+* Dynamic colour palettes generated from album artwork
+* Local waveform generation for fancy progress bars
+* Playlist creation & editing
+
+## Screenshots
+
+Player
+<p align="center">
+ <img src="https://github.com/user-attachments/assets/dc0da699-e41f-4cd3-9213-238c3c8d5794" alt="player" width="49%" />
+ <img src="https://github.com/user-attachments/assets/ad7f9f64-d32c-4f88-8962-15e3250e48f2" alt="player-play-queue" width="49%" />
+</p>
+
+* Color palettes generated from album art.
+* Track waveform progress bar
+* Artist logo front and center
+
+Artist View
+<p align="center">
+ <img src="https://github.com/user-attachments/assets/83438302-2ebb-4cd1-89bf-b970910c585a" alt="artist-1" width="49%" />
+ <img src="https://github.com/user-attachments/assets/5af7c50f-7f1b-46d0-a15f-3510361caa9a" alt="artist-2" width="49%" />
+</p>
+
+Library & Album View
+<p align="center">
+ <img src="https://github.com/user-attachments/assets/4579959b-97aa-4cd0-a7b3-e35c506cf2b4" alt="artist-1" width="49%" />
+ <img src="https://github.com/user-attachments/assets/5d7ef4be-5957-4f3b-a539-10a23d40b569" alt="artist-2" width="49%" />
+</p>
+
+Search & Genre List
+<p align="center">
+ <img src="https://github.com/user-attachments/assets/a71c81e8-f112-41c2-9b69-d32e380ad394" alt="artist-1" width="49%" />
+ <img src="https://github.com/user-attachments/assets/3e43e8b0-d152-4d14-ac06-f06af624bd4e" alt="artist-2" width="49%" />
+</p>
+
+* Search that works online and offline
+* Genre playlists that work online and offline
 
 ## Why?
 
@@ -52,6 +75,10 @@ The design is intentionally opinionated, it won't try to give you all of the
 customisation options you want to configure things, that makes it a lot harder
 to maintain. Suggestions for improvements or things that could be editable are
 always welcomed, but they might not be actioned.
+
+## Installing
+
+TBD
 
 ## Feature Requests
 
