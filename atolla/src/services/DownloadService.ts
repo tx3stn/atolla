@@ -507,90 +507,110 @@ export class DownloadService {
 	// -------------------------------------------------------------------------
 
 	removeAlbumDownload(albumId: string): void {
-		this.ensureLoaded().then(async () => {
-			const entry = this.albums[albumId];
-			if (!entry) return;
-			delete this.albums[albumId];
-			this.removeAlbumReferenceFromArtists(albumId);
-			for (const trackId of entry.trackIds) {
-				await this.dereferenceTrack(trackId, albumId, null, null);
-			}
-			this.pruneOrphanArtists();
-			await this.persistAll();
-			this.notify();
-		});
+		this.ensureLoaded()
+			.then(async () => {
+				const entry = this.albums[albumId];
+				if (!entry) return;
+				delete this.albums[albumId];
+				this.removeAlbumReferenceFromArtists(albumId);
+				for (const trackId of entry.trackIds) {
+					await this.dereferenceTrack(trackId, albumId, null, null);
+				}
+				this.pruneOrphanArtists();
+				await this.persistAll();
+				this.notify();
+			})
+			.catch((err) => {
+				console.warn('[downloads] failed to remove album download', err);
+			});
 	}
 
 	removePlaylistDownload(playlistId: string): void {
-		this.ensureLoaded().then(async () => {
-			const entry = this.playlists[playlistId];
-			if (!entry) return;
-			delete this.playlists[playlistId];
-			for (const trackId of entry.trackIds) {
-				await this.dereferenceTrack(trackId, null, null, playlistId);
-			}
-			this.pruneOrphanArtists();
-			await this.persistAll();
-			this.notify();
-		});
+		this.ensureLoaded()
+			.then(async () => {
+				const entry = this.playlists[playlistId];
+				if (!entry) return;
+				delete this.playlists[playlistId];
+				for (const trackId of entry.trackIds) {
+					await this.dereferenceTrack(trackId, null, null, playlistId);
+				}
+				this.pruneOrphanArtists();
+				await this.persistAll();
+				this.notify();
+			})
+			.catch((err) => {
+				console.warn('[downloads] failed to remove playlist download', err);
+			});
 	}
 
 	removeGenreDownload(genreId: string): void {
-		this.ensureLoaded().then(async () => {
-			const entry = this.genres[genreId];
-			if (!entry) return;
-			delete this.genres[genreId];
-			for (const trackId of entry.trackIds) {
-				await this.dereferenceTrack(trackId, null, genreId, null);
-			}
-			this.pruneOrphanArtists();
-			await this.persistAll();
-			this.notify();
-		});
+		this.ensureLoaded()
+			.then(async () => {
+				const entry = this.genres[genreId];
+				if (!entry) return;
+				delete this.genres[genreId];
+				for (const trackId of entry.trackIds) {
+					await this.dereferenceTrack(trackId, null, genreId, null);
+				}
+				this.pruneOrphanArtists();
+				await this.persistAll();
+				this.notify();
+			})
+			.catch((err) => {
+				console.warn('[downloads] failed to remove genre download', err);
+			});
 	}
 
 	removeArtistDownload(artistId: string): void {
-		this.ensureLoaded().then(async () => {
-			const artistEntry = this.artists[artistId];
-			if (!artistEntry) return;
-			delete this.artists[artistId];
-			for (const albumId of artistEntry.albumIds) {
-				const albumEntry = this.albums[albumId];
-				if (!albumEntry) continue;
-				delete this.albums[albumId];
-				for (const trackId of albumEntry.trackIds) {
-					await this.dereferenceTrack(trackId, albumId, null, null);
+		this.ensureLoaded()
+			.then(async () => {
+				const artistEntry = this.artists[artistId];
+				if (!artistEntry) return;
+				delete this.artists[artistId];
+				for (const albumId of artistEntry.albumIds) {
+					const albumEntry = this.albums[albumId];
+					if (!albumEntry) continue;
+					delete this.albums[albumId];
+					for (const trackId of albumEntry.trackIds) {
+						await this.dereferenceTrack(trackId, albumId, null, null);
+					}
 				}
-			}
-			this.pruneOrphanArtists();
-			await this.persistAll();
-			this.notify();
-		});
+				this.pruneOrphanArtists();
+				await this.persistAll();
+				this.notify();
+			})
+			.catch((err) => {
+				console.warn('[downloads] failed to remove artist download', err);
+			});
 	}
 
 	removeAllDownloads(): void {
-		this.ensureLoaded().then(async () => {
-			const trackIds = Object.keys(this.tracks);
-			if (trackIds.length > 0) {
-				if (this.removeTracksFn) {
-					await this.removeTracksFn(trackIds);
-				} else {
-					for (const trackId of trackIds) {
-						await this.removeTrackFn(trackId);
+		this.ensureLoaded()
+			.then(async () => {
+				const trackIds = Object.keys(this.tracks);
+				if (trackIds.length > 0) {
+					if (this.removeTracksFn) {
+						await this.removeTracksFn(trackIds);
+					} else {
+						for (const trackId of trackIds) {
+							await this.removeTrackFn(trackId);
+						}
 					}
 				}
-			}
 
-			this.albums = {};
-			this.genres = {};
-			this.playlists = {};
-			this.artists = {};
-			this.tracks = {};
-			this.queue = [];
+				this.albums = {};
+				this.genres = {};
+				this.playlists = {};
+				this.artists = {};
+				this.tracks = {};
+				this.queue = [];
 
-			await this.persistAll();
-			this.notify();
-		});
+				await this.persistAll();
+				this.notify();
+			})
+			.catch((err) => {
+				console.warn('[downloads] failed to remove all downloads', err);
+			});
 	}
 
 	// -------------------------------------------------------------------------

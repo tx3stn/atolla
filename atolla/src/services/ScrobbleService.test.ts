@@ -261,6 +261,33 @@ describe('ScrobbleService', () => {
 		]);
 	});
 
+	it('delivers two same-timestamp scrobbles for the same track independently', async () => {
+		const seededStore = new InMemoryScrobbleStore();
+		await seededStore.storeString(
+			'pending_scrobbles',
+			JSON.stringify([
+				{ id: 'id-1', trackId: 'track-x', triggeredAt: '2026-01-01T00:00:00.000Z' },
+				{ id: 'id-2', trackId: 'track-x', triggeredAt: '2026-01-01T00:00:00.000Z' },
+			]),
+		);
+
+		const deliveredIds: Array<string | undefined> = [];
+		const { service } = createService({
+			deliverScrobble: (pending) => {
+				deliveredIds.push(pending.id);
+				return Promise.resolve();
+			},
+			store: seededStore,
+		});
+
+		await service.onAppReady();
+
+		expect(deliveredIds).toHaveLength(2);
+		expect(deliveredIds).toContain('id-1');
+		expect(deliveredIds).toContain('id-2');
+		expect(service.getPendingScrobbles()).toHaveLength(0);
+	});
+
 	it('prunes pending scrobbles older than max age before startup retries', async () => {
 		const seededStore = new InMemoryScrobbleStore();
 		await seededStore.storeString(

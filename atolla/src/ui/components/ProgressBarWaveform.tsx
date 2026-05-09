@@ -35,6 +35,7 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 			this.unsubscribeProgress = this.viewModel.playbackStore?.subscribe(() => {
 				this.updateProgressRefs();
 			});
+			this.updateProgressRefs();
 		}
 	}
 
@@ -117,7 +118,6 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 				</view>
 			</view>
 		</view>;
-		this.updateProgressRefs();
 	}
 }
 

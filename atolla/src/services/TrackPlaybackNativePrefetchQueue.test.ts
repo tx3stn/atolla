@@ -110,4 +110,43 @@ describe('TrackPlaybackNativePrefetchQueue', () => {
 
 		expect(attemptedTrackIds).toEqual(['c']);
 	});
+
+	it('does not call onTrackStored for a stale generation when cacheTrack fires late', async () => {
+		const storedTrackIds: Array<string> = [];
+		const cached = new Set<string>();
+		let pendingCallback: ((source: string | null) => void) | null = null;
+
+		const queue = new TrackPlaybackNativePrefetchQueue(
+			(track) => `https://audio/${track.id}`,
+			(trackId) => cached.has(trackId),
+			(trackId, _url, onComplete) => {
+				if (trackId === 'stale') {
+					// Hold the callback — simulates a slow native operation that completes late.
+					pendingCallback = onComplete;
+				} else {
+					cached.add(trackId);
+					onComplete(`file:///tmp/${trackId}.mp3`);
+				}
+			},
+			(trackId) => storedTrackIds.push(trackId),
+		);
+
+		// Start 'stale' — its cacheTrack callback is held.
+		queue.replaceQueue([createTrack('stale')], 0);
+		await waitFor(() => pendingCallback !== null);
+
+		// Replace with a new queue while 'stale' is in flight.
+		queue.replaceQueue([createTrack('x'), createTrack('y')], 0);
+		await waitFor(() => storedTrackIds.includes('x') && storedTrackIds.includes('y'));
+
+		// Fire the stale callback — should be a no-op for the new generation.
+		// biome-ignore lint/style/noNonNullAssertion: set above
+		pendingCallback!('file:///tmp/stale.mp3');
+
+		// Give any unintended side-effects a chance to settle.
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		expect(storedTrackIds).not.toContain('stale');
+		expect(storedTrackIds).toEqual(['x', 'y']);
+	});
 });

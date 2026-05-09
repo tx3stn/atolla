@@ -94,9 +94,13 @@ export function parseHomeAlbumsCache(raw: string): Array<Album> | null {
 		const normalizedAlbums: Array<Album> = [];
 		for (const entry of albums) {
 			if (!isAlbumLike(entry)) {
-				return null;
+				continue;
 			}
 			normalizedAlbums.push(normalizeAlbum(entry));
+		}
+
+		if (normalizedAlbums.length === 0 && albums.length > 0) {
+			return null;
 		}
 
 		return normalizedAlbums;

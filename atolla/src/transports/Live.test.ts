@@ -708,4 +708,15 @@ describe('LiveTransport core collections', () => {
 		expect(queryParam(calls[0].pathOrUrl, 'datePlayed')).toBe('2026-01-01T00:00:00.000Z');
 		expect(queryParam(calls[0].pathOrUrl, 'userId')).toBe('user-1');
 	});
+
+	it('throws SESSION_EXPIRED when the server responds with 401', async () => {
+		const { factory } = createHTTPClientFactory([jsonResponse(401, {})]);
+		const transport = new LiveTransport('https://demo.jellyfin.local/', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		await expect(transport.getAlbumsPage(1, 50)).rejects.toMatchObject({
+			err: 'auth_session_expired',
+		});
+	});
 });

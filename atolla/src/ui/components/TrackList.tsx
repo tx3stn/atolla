@@ -68,10 +68,12 @@ const ROW_SLOT_HEIGHT = REORDER_STEP_HEIGHT + 8; // row height + gap between row
 
 export class TrackList extends Component<TrackListViewModel> {
 	private draggingRowIdentities = new Set<string>();
+	private pulseOverlayStyle = buildPulseOverlayStyle(undefined);
 	private dragHandleRefByIdentity = new Map<string, ElementRef>();
 	private handleBeingPressedIdentity: string | null = null;
 	private hasBeenDestroyed = false;
 	private neighborBounceTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+	private tapPulseTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 	private neighborOffsetByIdentity = new Map<string, number>();
 	private rowIdentitiesByIndex: Array<string> = [];
 	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -95,6 +97,8 @@ export class TrackList extends Component<TrackListViewModel> {
 		}
 		for (const timeout of this.neighborBounceTimeouts.values()) clearTimeout(timeout);
 		this.neighborBounceTimeouts.clear();
+		for (const timeout of this.tapPulseTimeouts.values()) clearTimeout(timeout);
+		this.tapPulseTimeouts.clear();
 		this.neighborOffsetByIdentity.clear();
 		this.dragHandleRefByIdentity.clear();
 		this.pulseOverlayRefByIdentity.clear();
@@ -106,6 +110,14 @@ export class TrackList extends Component<TrackListViewModel> {
 	}
 
 	onViewModelUpdate(prevViewModel: TrackListViewModel): void {
+		if (
+			!prevViewModel ||
+			this.viewModel.tapPulseColor !== prevViewModel.tapPulseColor ||
+			this.viewModel.palette !== prevViewModel.palette
+		) {
+			this.pulseOverlayStyle = buildPulseOverlayStyle(this.viewModel.tapPulseColor);
+		}
+
 		if (!prevViewModel || prevViewModel.tracks.length <= this.viewModel.tracks.length) return;
 
 		const prevTracks = prevViewModel.tracks;
@@ -183,17 +195,6 @@ export class TrackList extends Component<TrackListViewModel> {
 			0.28,
 		);
 		const resolvedStyles = getResolvedTrackListStyles(colors);
-		const pulseColor = this.viewModel.tapPulseColor ?? theme.colors.white;
-		const pulseOverlayStyle = new Style<View>({
-			backgroundColor: pulseColor,
-			borderRadius: theme.borderRadius,
-			bottom: 0,
-			left: 0,
-			opacity: 0,
-			position: 'absolute',
-			right: 0,
-			top: 0,
-		});
 
 		if (this.viewModel.tracks.length === 0) {
 			<label
@@ -251,7 +252,7 @@ export class TrackList extends Component<TrackListViewModel> {
 							ref={this.getRowRef(rowIdentity)}
 							style={resolvedStyles.rowStyle}
 						>
-							<view ref={this.getPulseOverlayRef(rowIdentity)} style={pulseOverlayStyle} />
+							<view ref={this.getPulseOverlayRef(rowIdentity)} style={this.pulseOverlayStyle} />
 							<layout style={styles.rowInteractiveLayout}>
 								<view
 									accessibilityLabel={`track-row-swipe-region-${rowIdentity}`}
@@ -388,9 +389,15 @@ export class TrackList extends Component<TrackListViewModel> {
 				ref.setAttribute('opacity', 0);
 			});
 		} else {
-			setTimeout(() => {
-				ref.setAttribute('opacity', 0);
-			}, 180);
+			const prev = this.tapPulseTimeouts.get(identity);
+			if (prev) clearTimeout(prev);
+			this.tapPulseTimeouts.set(
+				identity,
+				setTimeout(() => {
+					this.tapPulseTimeouts.delete(identity);
+					ref.setAttribute('opacity', 0);
+				}, 180),
+			);
 		}
 	}
 
@@ -789,6 +796,19 @@ function resolveColors(palette?: Palette, noRowBackground?: boolean): TrackListC
 		tileBackground: palette.surface.hex,
 		title: palette.on_surface.hex,
 	};
+}
+
+function buildPulseOverlayStyle(tapPulseColor: string | undefined): Style<View> {
+	return new Style<View>({
+		backgroundColor: tapPulseColor ?? theme.colors.white,
+		borderRadius: theme.borderRadius,
+		bottom: 0,
+		left: 0,
+		opacity: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
+	});
 }
 
 const styles = {

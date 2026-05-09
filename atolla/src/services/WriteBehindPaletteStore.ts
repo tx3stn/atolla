@@ -93,7 +93,7 @@ export class WriteBehindPaletteStore implements PaletteStore {
 		while (this.pendingWrites.size > 0) {
 			const next = this.pendingWrites.entries().next().value;
 			if (!next) {
-				return;
+				break;
 			}
 
 			const [imageUrl, palette] = next;

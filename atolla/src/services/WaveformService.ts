@@ -95,6 +95,10 @@ export class WaveformService {
 		for (const [id, record] of this.records) {
 			snapshot[id] = record;
 		}
-		await this.store.save(snapshot);
+		try {
+			await this.store.save(snapshot);
+		} catch (err) {
+			console.warn('[waveforms] failed to persist records', err);
+		}
 	}
 }

@@ -29,6 +29,7 @@ export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 			this.unsubscribeProgress = this.viewModel.playbackStore?.subscribe(() => {
 				this.updateProgressRefs();
 			});
+			this.updateProgressRefs();
 		}
 	}
 
@@ -86,7 +87,6 @@ export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 				</view>
 			</view>
 		</view>;
-		this.updateProgressRefs();
 	}
 }
 

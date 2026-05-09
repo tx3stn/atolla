@@ -1,4 +1,5 @@
 export interface PendingScrobble {
+	id?: string;
 	trackId: string;
 	triggeredAt: string;
 }
@@ -111,6 +112,7 @@ export class ScrobbleService {
 
 		currentPlay.scrobbleTriggered = true;
 		const pending: PendingScrobble = {
+			id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
 			trackId: currentPlay.trackId,
 			triggeredAt: new Date(this.now()).toISOString(),
 		};
@@ -232,9 +234,10 @@ export class ScrobbleService {
 			return false;
 		}
 
-		const index = this.pendingScrobbles.findIndex(
-			(candidate) =>
-				candidate.trackId === pending.trackId && candidate.triggeredAt === pending.triggeredAt,
+		const index = this.pendingScrobbles.findIndex((candidate) =>
+			pending.id && candidate.id
+				? candidate.id === pending.id
+				: candidate.trackId === pending.trackId && candidate.triggeredAt === pending.triggeredAt,
 		);
 		if (index >= 0) {
 			this.pendingScrobbles.splice(index, 1);

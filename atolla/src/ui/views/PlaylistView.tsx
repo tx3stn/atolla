@@ -286,13 +286,21 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		}
 
 		this.setState({ artistLogoUrls, tracks });
+
+		if (!movedTrack.playlistItemId) {
+			console.warn('[playlist] missing playlistItemId on move, aborting reorder');
+			this.allTracks = prevAllTracks;
+			this.setState({ artistLogoUrls: prevArtistLogoUrls, tracks: prevTracks });
+			return;
+		}
+
 		void playlistEditService
 			.execute(
 				{
 					playlistId: playlist.id,
 					playlistName: playlist.name,
 					toIndex: toEntryIndex,
-					trackId: movedTrack.playlistItemId ?? movedTrack.id,
+					trackId: movedTrack.playlistItemId,
 					type: 'move',
 				},
 				transport,
@@ -309,6 +317,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	handleTrackSwipeRemove = (_trackId: string, entryIndex: number): void => {
 		const { playlist, playlistEditService } = this.viewModel;
 		if (!playlistEditService) return;
+		const trackToRemove = this.state.tracks[entryIndex];
+		if (!trackToRemove?.playlistItemId) {
+			console.warn('[playlist] missing playlistItemId on remove, aborting');
+			return;
+		}
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const tracks = [...this.state.tracks];
 		const artistLogoUrls = [...this.state.artistLogoUrls];
@@ -337,7 +350,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				onConfirm={() => {
 					this.handleConfirmRemoveFromPlaylist(
 						playlist.id,
-						removedTrack.playlistItemId ?? removedTrack.id,
+						// playlistItemId presence is guaranteed by the guard in handleTrackSwipeRemove
+						// biome-ignore lint/style/noNonNullAssertion: guarded above
+						removedTrack.playlistItemId!,
 						playlistEditService,
 					);
 				}}

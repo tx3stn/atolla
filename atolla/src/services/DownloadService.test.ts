@@ -642,4 +642,38 @@ describe('DownloadService', () => {
 			expect(notifyCount).toBe(0);
 		});
 	});
+
+	describe('onAppReady', () => {
+		it('does not throw when the store fails to load', () => {
+			// InMemoryStore rejects fetchString for missing keys — simulates a store with no data.
+			// onAppReady returns void; the internal .catch() absorbs the rejection silently.
+			const { service } = createService();
+			expect(() => service.onAppReady()).not.toThrow();
+		});
+
+		it('re-enqueues incomplete downloads from a persisted store on startup', async () => {
+			const store = new InMemoryStore();
+
+			// Seed the store directly with an incomplete track entry.
+			await store.storeString(
+				'dl_tracks',
+				JSON.stringify({
+					'track-1': {
+						albumIds: ['album-1'],
+						complete: false,
+						genreIds: [],
+						playlistIds: [],
+						streamUrl: 'http://stream/track-1',
+						track: makeTrack('track-1'),
+					},
+				}),
+			);
+
+			const { service, cacheCalls } = createService({ store });
+			service.onAppReady();
+			await flush();
+
+			expect(cacheCalls.some((c) => c.trackId === 'track-1')).toBe(true);
+		});
+	});
 });

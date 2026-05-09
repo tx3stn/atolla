@@ -1,3 +1,4 @@
+import { AuthErrors } from '../errors/AuthErrors';
 import { TransportErrors } from '../errors/TransportErrors';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
@@ -745,6 +746,10 @@ export class LiveTransport implements Transport {
 
 		return this.runWithRequestTimeout(client.get(requestPath, this.createHeaders())).then(
 			(response) => {
+				if (response.statusCode === 401) {
+					throw AuthErrors.SESSION_EXPIRED;
+				}
+
 				if (response.statusCode < 200 || response.statusCode >= 300) {
 					throw TransportErrors.LIVE_REQUEST_FAILED;
 				}

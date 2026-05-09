@@ -92,6 +92,20 @@ export class NowPlayingSurface extends StatefulComponent<
 	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribeProgress?: () => void;
 
+	// Cached palette-derived styles — rebuilt only when palette or activeTab changes
+	private cachedCompactProgressFillStyle = createCompactProgressFillStyle(
+		paletteDefaults.accent,
+		0,
+	);
+	private cachedCompactBgOverlayStyle = getOverlayTintStyle(paletteDefaults.surface, 0.6);
+	private cachedExpandedBgOverlayStyle = getOverlayTintStyle(paletteDefaults.surface, 0.45, 0);
+	private cachedPaletteStyles = getPaletteStyles(
+		paletteDefaults.onSurface,
+		paletteDefaults.mutedOnSurface,
+	);
+	private cachedBackToLabelStyle = getQueueTabLabelStyle(paletteDefaults.mutedOnSurface, false);
+	private cachedUpNextLabelStyle = getQueueTabLabelStyle(paletteDefaults.mutedOnSurface, true);
+
 	private readonly closeDragDistance = 36;
 	private readonly closeDragVelocity = 550;
 	private readonly collapsedInset = 20;
@@ -180,10 +194,13 @@ export class NowPlayingSurface extends StatefulComponent<
 			});
 		}
 
-		if (!prevViewModel) return;
+		if (!prevViewModel) {
+			this.rebuildPaletteStyles(this.viewModel.palette, this.state.activeQueueTab);
+			return;
+		}
 
-		if (this.viewModel.artistLogoUrl !== prevViewModel.artistLogoUrl) {
-			this.setState({ ...this.state });
+		if (this.viewModel.palette !== prevViewModel.palette) {
+			this.rebuildPaletteStyles(this.viewModel.palette, this.state.activeQueueTab);
 		}
 
 		if (Device.isAndroid() && this.state.isExpanded) {
@@ -208,6 +225,25 @@ export class NowPlayingSurface extends StatefulComponent<
 	onDestroy(): void {
 		this.toastTimerId = clearScheduledToast(this.toastTimerId);
 		this.unsubscribeProgress?.();
+	}
+
+	private rebuildPaletteStyles(palette: Palette | undefined, activeTab: QueueTab): void {
+		const accentColor = palette?.accent.hex ?? paletteDefaults.accent;
+		const surfaceColor = palette?.surface.hex ?? paletteDefaults.surface;
+		const onSurfaceColor = palette?.on_surface.hex ?? paletteDefaults.onSurface;
+		const mutedOnSurfaceColor = palette?.muted_on_surface.hex ?? paletteDefaults.mutedOnSurface;
+		this.cachedCompactProgressFillStyle = createCompactProgressFillStyle(accentColor, 0);
+		this.cachedCompactBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.6);
+		this.cachedExpandedBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.45, 0);
+		this.cachedPaletteStyles = getPaletteStyles(onSurfaceColor, mutedOnSurfaceColor);
+		this.cachedBackToLabelStyle = getQueueTabLabelStyle(
+			mutedOnSurfaceColor,
+			activeTab === 'backTo',
+		);
+		this.cachedUpNextLabelStyle = getQueueTabLabelStyle(
+			mutedOnSurfaceColor,
+			activeTab === 'upNext',
+		);
 	}
 
 	private updateProgressRefs(): void {
@@ -396,7 +432,10 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	private handleQueueTabTap = (tab: QueueTab): void => {
 		if (tab === this.state.activeQueueTab || this.isQueueSliding) return;
-		// Update label styles immediately
+		const mutedOnSurfaceColor =
+			this.viewModel.palette?.muted_on_surface.hex ?? paletteDefaults.mutedOnSurface;
+		this.cachedBackToLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, tab === 'backTo');
+		this.cachedUpNextLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, tab === 'upNext');
 		this.setState({ activeQueueTab: tab });
 		// Back To is the left page (left=0), Up Next is the right page (left=-pageWidth)
 		const targetLeft = tab === 'upNext' ? -(this.queueListWidth ?? 0) : 0;
@@ -506,7 +545,6 @@ export class NowPlayingSurface extends StatefulComponent<
 			.slice(Math.max(0, trackIndex - MAX_VISIBLE_QUEUE_TRACKS), trackIndex)
 			.reverse()
 			.map(toEntry);
-		const activeTab = this.state.activeQueueTab;
 		const canEditQueue = Boolean(this.viewModel.playbackStore);
 		const albumImageUrl = track.albumImageUrl ?? album?.imageUrl ?? null;
 		const albumArtworkSource =
@@ -523,10 +561,6 @@ export class NowPlayingSurface extends StatefulComponent<
 		const onSurfaceColor = palette?.on_surface.hex ?? paletteDefaults.onSurface;
 		const mutedOnSurfaceColor = palette?.muted_on_surface.hex ?? paletteDefaults.mutedOnSurface;
 
-		const backToLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, activeTab === 'backTo');
-		const upNextLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, activeTab === 'upNext');
-
-		const progressRatio = track.duration > 0 ? Math.min(progressSeconds / track.duration, 1) : 0;
 		const elapsedText = formatDuration(progressSeconds);
 		const remainingText = `-${formatDuration(Math.max(0, track.duration - progressSeconds))}`;
 		const totalText = formatDuration(track.duration);
@@ -544,10 +578,12 @@ export class NowPlayingSurface extends StatefulComponent<
 				: '';
 
 		const expandedTrackColor = withAlpha(onSurfaceColor, 0.34);
-		const compactProgressFillStyle = createCompactProgressFillStyle(accentColor, progressRatio);
-		const compactBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.6);
-		const expandedBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.45, 0);
-		const paletteStyles = getPaletteStyles(onSurfaceColor, mutedOnSurfaceColor);
+		const backToLabelStyle = this.cachedBackToLabelStyle;
+		const upNextLabelStyle = this.cachedUpNextLabelStyle;
+		const compactProgressFillStyle = this.cachedCompactProgressFillStyle;
+		const compactBgOverlayStyle = this.cachedCompactBgOverlayStyle;
+		const expandedBgOverlayStyle = this.cachedExpandedBgOverlayStyle;
+		const paletteStyles = this.cachedPaletteStyles;
 
 		const rootStyle = this.state.isExpanded ? styles.rootExpanded : styles.rootCollapsed;
 
