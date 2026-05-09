@@ -1029,6 +1029,7 @@ const styles = {
 	expandedBottomSection: new Style<Layout>({
 		marginBottom: theme.footerHeight - 40,
 		marginTop: 'auto',
+		paddingTop: 16,
 		width: '100%',
 	}),
 	expandedContent: new Style<View>({
