@@ -25,6 +25,7 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 	private unsubscribeProgress?: () => void;
 	private clipRef = new ElementRef();
 	private accentRef = new ElementRef();
+	private waveformBranchActive = false;
 
 	private handleTrackLayout = (frame: { width: number }) => {
 		this.trackWidth = frame.width;
@@ -35,7 +36,6 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 			this.unsubscribeProgress = this.viewModel.playbackStore?.subscribe(() => {
 				this.updateProgressRefs();
 			});
-			this.updateProgressRefs();
 		}
 	}
 
@@ -72,6 +72,7 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 		} = this.viewModel;
 
 		if (!maskImageUrl) {
+			this.waveformBranchActive = false;
 			<ProgressBarPlain
 				accentColor={accentColor}
 				onProgressTap={onProgressTap}
@@ -82,6 +83,9 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 			/>;
 			return;
 		}
+
+		const needsInit = !this.waveformBranchActive;
+		this.waveformBranchActive = true;
 
 		const mutedImageStyle = createMutedImageStyle(mutedColor);
 		const accentImageStyle = createAccentImageStyle(accentColor);
@@ -120,6 +124,10 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 				</view>
 			</view>
 		</view>;
+
+		if (needsInit) {
+			this.updateProgressRefs();
+		}
 	}
 }
 

@@ -19,6 +19,7 @@ export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 	private unsubscribeProgress?: () => void;
 	private fillRef = new ElementRef();
 	private playheadRef = new ElementRef();
+	private progressInitialized = false;
 
 	private handleTrackLayout = (frame: { width: number }) => {
 		this.trackWidth = frame.width;
@@ -29,7 +30,6 @@ export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 			this.unsubscribeProgress = this.viewModel.playbackStore?.subscribe(() => {
 				this.updateProgressRefs();
 			});
-			this.updateProgressRefs();
 		}
 	}
 
@@ -87,6 +87,11 @@ export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 				</view>
 			</view>
 		</view>;
+
+		if (!this.progressInitialized) {
+			this.progressInitialized = true;
+			this.updateProgressRefs();
+		}
 	}
 }
 
