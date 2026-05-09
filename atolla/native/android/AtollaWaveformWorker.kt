@@ -22,29 +22,16 @@ object AtollaWaveformRenderTempStore {
 	private const val renderFolder = "atolla-waveform-render"
 	private val counter = AtomicLong(0)
 
-	fun save(pngBytes: ByteArray): String {
+	fun save(cacheDir: File, pngBytes: ByteArray): String {
 		return try {
-			val dir = resolveRenderDir() ?: return ""
+			val dir = File(cacheDir, renderFolder).also { if (!it.exists()) it.mkdirs() }
+			if (!dir.isDirectory) return ""
 			val file = File(dir, "waveform_${counter.incrementAndGet()}.png")
 			file.writeBytes(pngBytes)
 			"file://${file.absolutePath}"
 		} catch (e: Throwable) {
 			Log.e(tag, "Failed to save rendered waveform PNG", e)
 			""
-		}
-	}
-
-	private fun resolveRenderDir(): File? {
-		return try {
-			val activityThreadClass = Class.forName("android.app.ActivityThread")
-			val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)
-			val app = currentApplication as? android.app.Application ?: return null
-			val dir = File(app.cacheDir, renderFolder)
-			if (!dir.exists()) dir.mkdirs()
-			if (dir.isDirectory) dir else null
-		} catch (e: Throwable) {
-			Log.e(tag, "Unable to resolve render temp dir", e)
-			null
 		}
 	}
 }
@@ -75,14 +62,13 @@ class AtollaWaveformWorker {
 			}
 
 			// Normalise: loudest column → 1.0; silence → flat 0.5
-			val maxAmp = smoothed.max()!!
+			val maxAmp = smoothed.max()
 			if (maxAmp < 1e-6f) {
 				smoothed.fill(0.5f)
 			} else {
 				for (i in 0 until n) smoothed[i] /= maxAmp
 			}
 
-			val cx = width / 2f
 			val cy = height / 2f
 			fun xAt(i: Int) = i.toFloat() * (width - 1) / (n - 1)
 			fun yTop(i: Int) = cy - smoothed[i] * cy

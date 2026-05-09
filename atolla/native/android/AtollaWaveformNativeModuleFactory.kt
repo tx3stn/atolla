@@ -2,6 +2,7 @@ package atolla.native.android
 
 import android.util.Base64
 import android.util.Log
+import com.tx3stn.atolla.AtollaCacheImageLoader
 import com.tx3stn.atolla.AtollaWaveformRenderTempStore
 import com.tx3stn.atolla.AtollaWaveformWorker
 import com.snap.modules.atolla.WaveformNativeModule
@@ -38,8 +39,9 @@ class AtollaWaveformNativeModuleFactory : WaveformNativeModuleFactory() {
 						val bb = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
 						val amps = FloatArray(bytes.size / 4) { bb.getFloat() }
 						val pngBytes = AtollaWaveformWorker.renderPng(amps, width.toInt(), height.toInt())
-						if (pngBytes != null && pngBytes.isNotEmpty()) {
-							AtollaWaveformRenderTempStore.save(pngBytes)
+						val cacheDir = AtollaCacheImageLoader.sharedInstance?.resolveAppCacheDir()
+						if (pngBytes != null && pngBytes.isNotEmpty() && cacheDir != null) {
+							AtollaWaveformRenderTempStore.save(cacheDir, pngBytes)
 						} else ""
 					} catch (e: Throwable) {
 						Log.e("AtollaWaveformModule", "Waveform render from amps failed", e)

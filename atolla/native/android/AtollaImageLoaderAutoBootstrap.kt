@@ -100,11 +100,9 @@ object AtollaImageLoaderAutoBootstrap {
 					merged[k] = (merged[k] ?: 0) + v
 				}
 			}
-			buildString {
-				append('{')
-				merged.entries.joinTo(this, ",") { (k, v) -> "\"$k\":$v" }
-				append('}')
-			}
+			val obj = org.json.JSONObject()
+			merged.forEach { (k, v) -> obj.put(k, v) }
+			obj.toString()
 		}
 	}
 

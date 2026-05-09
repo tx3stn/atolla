@@ -192,11 +192,9 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			val cat = name.dropLast(65)
 			if (cat.isNotEmpty()) counts[cat] = (counts[cat] ?: 0) + 1
 		}
-		return buildString {
-			append('{')
-			counts.entries.joinTo(this, ",") { (k, v) -> "\"$k\":$v" }
-			append('}')
-		}
+		val obj = org.json.JSONObject()
+		counts.forEach { (k, v) -> obj.put(k, v) }
+		return obj.toString()
 	}
 
 	fun setDiskCacheMaxBytes(bytes: Long) {
@@ -866,14 +864,13 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		return sampleSize
 	}
 
-	private fun resolveAppCacheDir(): File? {
+	internal fun resolveAppCacheDir(): File? {
 		return try {
 			val activityThreadClass = Class.forName("android.app.ActivityThread")
-			val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)
-			val app = currentApplication as? android.app.Application ?: return null
+			val app = activityThreadClass.getMethod("currentApplication").invoke(null) as? android.app.Application ?: return null
 			app.cacheDir
-		} catch (error: Throwable) {
-			Log.e(tag, "Unable to resolve application cache directory", error)
+		} catch (e: Throwable) {
+			Log.e(tag, "Unable to resolve application cache dir", e)
 			null
 		}
 	}

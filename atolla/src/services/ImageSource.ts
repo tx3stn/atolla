@@ -64,6 +64,10 @@ export function parseImageSource(src: string): AtollaCacheSource | null {
 			return null;
 		}
 
+		if (!url.startsWith('http://') && !url.startsWith('https://')) {
+			return null;
+		}
+
 		if (!isImageCategory(category)) {
 			return null;
 		}

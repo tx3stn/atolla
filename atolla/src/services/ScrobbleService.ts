@@ -251,7 +251,11 @@ function isPendingScrobble(value: unknown): value is PendingScrobble {
 	}
 
 	const candidate = value as Partial<PendingScrobble>;
-	return typeof candidate.trackId === 'string' && typeof candidate.triggeredAt === 'string';
+	return (
+		typeof candidate.trackId === 'string' &&
+		typeof candidate.triggeredAt === 'string' &&
+		!Number.isNaN(Date.parse(candidate.triggeredAt))
+	);
 }
 
 function sanitizeProgress(value: number): number {
