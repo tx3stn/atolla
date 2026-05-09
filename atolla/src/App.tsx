@@ -275,13 +275,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		new PersistentStore('atolla/playlist_edits', { deviceGlobal: true }),
 	);
 	private transport!: Transport;
+	private currentAccessToken = '';
 	private paletteService!: ArtworkPaletteService;
 	private downloadWorkerClient: IWorkerServiceClient<IDownloadNativeWorker> = startWorkerService(
 		DownloadNativeWorkerEntryPoint,
 		[],
 	);
 	private downloadService = new DownloadService({
-		cacheTrack: (trackId, url) => this.downloadWorkerClient.api.cacheDownloadedTrack(trackId, url),
+		cacheTrack: (trackId, url) =>
+			this.downloadWorkerClient.api.cacheDownloadedTrack(trackId, url, this.currentAccessToken),
 		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
 		onTrackDownloaded: (trackId) => this.handleTrackCached(trackId),
@@ -351,7 +353,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		(track) => this.transport.getTrackCacheUrl?.(track.id) ?? null,
 		(trackId) => this.getNativeCachedTrackSource(trackId) != null,
 		(trackId, url, onComplete) => {
-			cacheAtollaTrackFromUrlAsync(trackId, url, (rawSource) => {
+			cacheAtollaTrackFromUrlAsync(trackId, url, this.currentAccessToken, (rawSource) => {
 				onComplete(rawSource ? this.normalizePlaybackFileSource(rawSource) : null);
 			});
 		},
@@ -455,6 +457,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						// Native disk cache unavailable on non-Android targets.
 					}
 					if (mode === ConnectionModes.online && existingSession != null) {
+						this.currentAccessToken = existingSession.accessToken;
 						this.transport = new LiveTransport(
 							existingSession.serverUrl,
 							existingSession.accessToken,
@@ -827,6 +830,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				);
 				await this.authService.saveSession(session);
 
+				this.currentAccessToken = session.accessToken;
 				this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId, {
 					clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
 				});
@@ -874,6 +878,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			if (mode === ConnectionModes.online) {
 				const session = await this.authService.loadSession();
 				if (session != null) {
+					this.currentAccessToken = session.accessToken;
 					this.transport = new LiveTransport(
 						session.serverUrl,
 						session.accessToken,
@@ -927,6 +932,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			} catch {
 				// best effort — clear what we can
 			}
+			this.currentAccessToken = '';
 			this.transport = new OfflineTransport(this.downloadService);
 			this.playbackStore.stop();
 			this.recentlyPlayedTracks = [];
@@ -1244,7 +1250,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				return;
 			}
 
-			cacheAtollaTrackFromUrlAsync(trackId, url, (rawSource) => {
+			cacheAtollaTrackFromUrlAsync(trackId, url, this.currentAccessToken, (rawSource) => {
 				const nativeSource = rawSource ? this.normalizePlaybackFileSource(rawSource) : null;
 				if (nativeSource) {
 					if (requestId !== this.playbackSourceRequestId) {
@@ -1500,6 +1506,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			if (this.state.connectionMode === ConnectionModes.online) {
 				const session = await this.authService.loadSession();
 				if (session != null) {
+					this.currentAccessToken = session.accessToken;
 					this.transport = new LiveTransport(
 						session.serverUrl,
 						session.accessToken,

@@ -6,7 +6,7 @@ import {
 } from '../TrackPlaybackNative';
 
 export interface IDownloadNativeWorker {
-	cacheDownloadedTrack(trackId: string, url: string): Promise<void>;
+	cacheDownloadedTrack(trackId: string, url: string, authToken: string): Promise<void>;
 	removeDownloadedTrack(trackId: string): Promise<void>;
 	removeDownloadedTracks(trackIds: Array<string>): Promise<void>;
 }
@@ -20,9 +20,9 @@ function waitForNextTick(): Promise<void> {
 }
 
 class DownloadNativeWorkerImpl implements IDownloadNativeWorker {
-	cacheDownloadedTrack(trackId: string, url: string): Promise<void> {
+	cacheDownloadedTrack(trackId: string, url: string, authToken: string): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
-			cacheAtollaDownloadedTrackFromUrlAsync(trackId, url, (source) => {
+			cacheAtollaDownloadedTrackFromUrlAsync(trackId, url, authToken, (source) => {
 				if (source) {
 					resolve();
 					return;

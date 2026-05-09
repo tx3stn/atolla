@@ -521,7 +521,6 @@ export class LiveTransport implements Transport {
 		}
 
 		const path = this.buildPath(`/Audio/${encodeURIComponent(trackId)}/stream.mp3`, {
-			api_key: this.accessToken,
 			deviceId: this.clientDeviceId,
 			static: true,
 			userId: this.userId,

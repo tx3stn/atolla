@@ -640,7 +640,7 @@ describe('LiveTransport core collections', () => {
 		const cacheUrl = transport.getTrackCacheUrl('track-123');
 
 		expect(cacheUrl).toContain('/Audio/track-123/stream.mp3?');
-		expect(cacheUrl).toContain('api_key=token-1');
+		expect(cacheUrl).not.toContain('api_key=');
 		expect(cacheUrl).toContain('deviceId=atolla');
 	});
 

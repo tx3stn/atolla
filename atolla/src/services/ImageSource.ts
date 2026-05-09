@@ -4,6 +4,7 @@ export const atollaCacheScheme = 'atolla-cache';
 export const atollaCacheHost = 'image';
 
 export interface AtollaCacheSource {
+	authToken?: string;
 	cacheOnly?: boolean;
 	category: ImageCategory;
 	url: string;
@@ -19,8 +20,25 @@ export function buildImageSource(
 	options?: BuildImageSourceOptions,
 ): string {
 	const effectiveUrl = normalizeImageUrlForCategory(url, category);
+	const { strippedUrl, authToken } = extractAndStripApiKey(effectiveUrl);
 	const cacheOnlyParam = options?.cacheOnly ? '&co=1' : '';
-	return `${atollaCacheScheme}://${atollaCacheHost}?c=${encodeURIComponent(category)}&u=${encodeURIComponent(effectiveUrl)}${cacheOnlyParam}`;
+	const tokenParam = authToken ? `&tok=${encodeURIComponent(authToken)}` : '';
+	return `${atollaCacheScheme}://${atollaCacheHost}?c=${encodeURIComponent(category)}&u=${encodeURIComponent(strippedUrl)}${cacheOnlyParam}${tokenParam}`;
+}
+
+function extractAndStripApiKey(url: string): { strippedUrl: string; authToken: string | null } {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return { authToken: null, strippedUrl: url };
+	}
+	const authToken = parsed.searchParams.get('api_key');
+	if (!authToken) {
+		return { authToken: null, strippedUrl: url };
+	}
+	parsed.searchParams.delete('api_key');
+	return { authToken, strippedUrl: parsed.toString() };
 }
 
 export function normalizeImageUrlForCategory(url: string, category: ImageCategory): string {
@@ -41,6 +59,7 @@ export function parseImageSource(src: string): AtollaCacheSource | null {
 		const category = parsed.searchParams.get('c');
 		const url = parsed.searchParams.get('u');
 		const cacheOnly = parsed.searchParams.get('co') === '1';
+		const authToken = parsed.searchParams.get('tok') ?? undefined;
 		if (!category || !url) {
 			return null;
 		}
@@ -50,6 +69,7 @@ export function parseImageSource(src: string): AtollaCacheSource | null {
 		}
 
 		return {
+			authToken,
 			cacheOnly,
 			category,
 			url,

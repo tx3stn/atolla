@@ -7,7 +7,7 @@
 
 @interface AtollaTrackCache : NSObject
 
-+ (NSString * _Nonnull)cacheTrackFromUrl:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url;
++ (NSString * _Nonnull)cacheTrackFromUrl:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url authToken:(NSString * _Nonnull)authToken;
 + (NSString * _Nonnull)getCachedTrackFileUrl:(NSString * _Nonnull)trackId;
 + (NSInteger)getCacheEntryCount;
 + (void)clearCache;
@@ -78,6 +78,7 @@ static NSMutableSet<NSString *> *sInProgressKeys;
 // Returns the temp file URL and populates outMimeType on success, nil on failure.
 // Caller is responsible for deleting the temp file.
 + (nullable NSURL *)streamDownloadFromURL:(NSURL *)sourceURL
+                               authToken:(NSString * _Nullable)authToken
                                  mimeType:(NSString * _Nullable * _Nonnull)outMimeType {
     NSURLSessionConfiguration *config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
     config.timeoutIntervalForRequest = 30.0;
@@ -88,6 +89,11 @@ static NSMutableSet<NSString *> *sInProgressKeys;
                                                            cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
                                                        timeoutInterval:30.0];
     [request setValue:@"audio/*,*/*" forHTTPHeaderField:@"Accept"];
+    if (authToken.length > 0) {
+        [request setValue:authToken forHTTPHeaderField:@"X-Emby-Token"];
+        [request setValue:[NSString stringWithFormat:@"MediaBrowser Token=\"%@\"", authToken]
+       forHTTPHeaderField:@"Authorization"];
+    }
 
     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
     __block NSURL *tmpResult = nil;
@@ -183,7 +189,7 @@ static NSMutableSet<NSString *> *sInProgressKeys;
     }
 }
 
-+ (NSString * _Nonnull)cacheTrackFromUrl:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url {
++ (NSString * _Nonnull)cacheTrackFromUrl:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url authToken:(NSString * _Nonnull)authToken {
     if (trackId.length == 0 || url.length == 0) return @"";
 
     NSURL *dir = [self resolveCacheDir];
@@ -217,7 +223,7 @@ static NSMutableSet<NSString *> *sInProgressKeys;
     }
 
     NSString *mimeType = nil;
-    NSURL *downloadedTmp = [self streamDownloadFromURL:sourceURL mimeType:&mimeType];
+    NSURL *downloadedTmp = [self streamDownloadFromURL:sourceURL authToken:authToken mimeType:&mimeType];
 
     NSString *result = @"";
     if (downloadedTmp && mimeType && [self isLikelyAudioMimeType:mimeType]) {
@@ -314,7 +320,7 @@ static NSMutableSet<NSString *> *sInProgressKeys;
 
 @interface AtollaDownloadedTrackCache : NSObject
 
-+ (NSString * _Nonnull)cacheTrackFromUrl:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url;
++ (NSString * _Nonnull)cacheTrackFromUrl:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url authToken:(NSString * _Nonnull)authToken;
 + (NSString * _Nonnull)getCachedTrackFileUrl:(NSString * _Nonnull)trackId;
 + (long long)getTotalSizeBytes;
 + (void)removeTrack:(NSString * _Nonnull)trackId;
@@ -355,7 +361,7 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
     return [AtollaTrackCache resolveExistingTrackFileWithKey:key inDir:dir];
 }
 
-+ (NSString * _Nonnull)cacheTrackFromUrl:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url {
++ (NSString * _Nonnull)cacheTrackFromUrl:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url authToken:(NSString * _Nonnull)authToken {
     if (trackId.length == 0 || url.length == 0) return @"";
 
     NSURL *dir = [self resolveFilesDir];
@@ -389,7 +395,7 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
     }
 
     NSString *mimeType = nil;
-    NSURL *downloadedTmp = [AtollaTrackCache streamDownloadFromURL:sourceURL mimeType:&mimeType];
+    NSURL *downloadedTmp = [AtollaTrackCache streamDownloadFromURL:sourceURL authToken:authToken mimeType:&mimeType];
 
     NSString *result = @"";
     if (downloadedTmp && mimeType && [AtollaTrackCache isLikelyAudioMimeType:mimeType]) {
@@ -979,14 +985,15 @@ static BOOL sNextNotificationHasNext = NO;
 @implementation AtollaTrackPlaybackNativeModuleImpl
 
 - (NSString * _Nonnull)cacheAtollaTrackFromUrlWithTrackId:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url {
-    return [AtollaTrackCache cacheTrackFromUrl:trackId url:url];
+    return [AtollaTrackCache cacheTrackFromUrl:trackId url:url authToken:@""];
 }
 
 - (void)cacheAtollaTrackFromUrlAsyncWithTrackId:(NSString * _Nonnull)trackId
                                             url:(NSString * _Nonnull)url
+                                      authToken:(NSString * _Nonnull)authToken
                                      onComplete:(atollaTrackPlaybackNativeModuleCacheAtollaTrackFromUrlAsyncOnCompleteBlock _Nonnull)onComplete {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSString *result = [AtollaTrackCache cacheTrackFromUrl:trackId url:url];
+        NSString *result = [AtollaTrackCache cacheTrackFromUrl:trackId url:url authToken:authToken];
         onComplete(result);
     });
 }
@@ -1009,9 +1016,10 @@ static BOOL sNextNotificationHasNext = NO;
 
 - (void)cacheAtollaDownloadedTrackFromUrlAsyncWithTrackId:(NSString * _Nonnull)trackId
                                                       url:(NSString * _Nonnull)url
+                                                authToken:(NSString * _Nonnull)authToken
                                                onComplete:(atollaTrackPlaybackNativeModuleCacheAtollaDownloadedTrackFromUrlAsyncOnCompleteBlock _Nonnull)onComplete {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSString *result = [AtollaDownloadedTrackCache cacheTrackFromUrl:trackId url:url];
+        NSString *result = [AtollaDownloadedTrackCache cacheTrackFromUrl:trackId url:url authToken:authToken];
         onComplete(result);
     });
 }

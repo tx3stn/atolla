@@ -45,13 +45,13 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 		override fun onLoadModule(): TrackPlaybackNativeModule {
 		return object : TrackPlaybackNativeModule {
 			override fun cacheAtollaTrackFromUrl(trackId: String, url: String): String {
-				return AtollaTrackPlaybackNativeCache.cacheTrackFromUrl(trackId, url)
+				return AtollaTrackPlaybackNativeCache.cacheTrackFromUrl(trackId, url, "")
 			}
 
-			override fun cacheAtollaTrackFromUrlAsync(trackId: String, url: String, onComplete: (String) -> Unit) {
+			override fun cacheAtollaTrackFromUrlAsync(trackId: String, url: String, authToken: String, onComplete: (String) -> Unit) {
 				Thread {
 					val result = try {
-						AtollaTrackPlaybackNativeCache.cacheTrackFromUrl(trackId, url)
+						AtollaTrackPlaybackNativeCache.cacheTrackFromUrl(trackId, url, authToken)
 					} catch (error: Throwable) {
 						Log.e("AtollaTrackCache", "Async track cache failed trackId=$trackId", error)
 						""
@@ -76,10 +76,10 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				AtollaTrackPlaybackNativeCache.setCacheMaxTracks(maxTracks.toInt())
 			}
 
-			override fun cacheAtollaDownloadedTrackFromUrlAsync(trackId: String, url: String, onComplete: (String) -> Unit) {
+			override fun cacheAtollaDownloadedTrackFromUrlAsync(trackId: String, url: String, authToken: String, onComplete: (String) -> Unit) {
 				Thread {
 					val result = try {
-						AtollaDownloadedTrackNativeCache.cacheTrackFromUrl(trackId, url)
+						AtollaDownloadedTrackNativeCache.cacheTrackFromUrl(trackId, url, authToken)
 					} catch (error: Throwable) {
 						Log.e("AtollaDownloadedTrackCache", "Async downloaded track cache failed trackId=$trackId", error)
 						""
@@ -622,7 +622,7 @@ object AtollaTrackPlaybackNativeCache {
 	// concurrent downloads writing to the same temp file.
 	private val inProgressKeys = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
-	fun cacheTrackFromUrl(trackId: String, url: String): String {
+	fun cacheTrackFromUrl(trackId: String, url: String, authToken: String): String {
 		if (trackId.isBlank() || url.isBlank()) {
 			return ""
 		}
@@ -656,6 +656,10 @@ object AtollaTrackPlaybackNativeCache {
 				instanceFollowRedirects = true
 				requestMethod = "GET"
 				setRequestProperty("Accept", "audio/*,*/*")
+				if (authToken.isNotBlank()) {
+					setRequestProperty("X-Emby-Token", authToken)
+					setRequestProperty("Authorization", "MediaBrowser Token=\"$authToken\"")
+				}
 			}
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {
@@ -915,7 +919,7 @@ object AtollaDownloadedTrackNativeCache {
 
 	private val inProgressKeys = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
-	fun cacheTrackFromUrl(trackId: String, url: String): String {
+	fun cacheTrackFromUrl(trackId: String, url: String, authToken: String): String {
 		if (trackId.isBlank() || url.isBlank()) {
 			return ""
 		}
@@ -943,6 +947,10 @@ object AtollaDownloadedTrackNativeCache {
 				instanceFollowRedirects = true
 				requestMethod = "GET"
 				setRequestProperty("Accept", "audio/*,*/*")
+				if (authToken.isNotBlank()) {
+					setRequestProperty("X-Emby-Token", authToken)
+					setRequestProperty("Authorization", "MediaBrowser Token=\"$authToken\"")
+				}
 			}
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {

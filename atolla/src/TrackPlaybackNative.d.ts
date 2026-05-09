@@ -9,6 +9,7 @@ export function cacheAtollaTrackFromUrl(trackId: string, url: string): string;
 export function cacheAtollaTrackFromUrlAsync(
 	trackId: string,
 	url: string,
+	authToken: string,
 	onComplete: (source: string) => void,
 ): void;
 
@@ -28,6 +29,7 @@ export function setAtollaTrackCacheMaxTracks(maxTracks: number): void;
 export function cacheAtollaDownloadedTrackFromUrlAsync(
 	trackId: string,
 	url: string,
+	authToken: string,
 	onComplete: (source: string) => void,
 ): void;
 

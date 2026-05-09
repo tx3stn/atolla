@@ -36,6 +36,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 data class AtollaCacheRequestPayload(
+	val authToken: String?,
 	val cacheOnly: Boolean,
 	val category: String,
 	val sourceUrl: String,
@@ -307,10 +308,11 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		val category = url.getQueryParameter("c")
 		val cacheOnly = url.getQueryParameter("co") == "1"
 		val source = url.getQueryParameter("u")
+		val authToken = url.getQueryParameter("tok")
 		if (url.scheme != "atolla-cache" || url.host != "image" || category.isNullOrBlank() || source.isNullOrBlank()) {
 			throw ValdiException("Invalid atolla-cache image URL")
 		}
-		return AtollaCacheRequestPayload(cacheOnly = cacheOnly, category = category, sourceUrl = source)
+		return AtollaCacheRequestPayload(authToken = authToken, cacheOnly = cacheOnly, category = category, sourceUrl = source)
 	}
 
 		override fun loadImage(
@@ -481,7 +483,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 					}
 					return
 				}
-				val originalBytes = fetchBytes(payload.sourceUrl)
+				val originalBytes = fetchBytes(payload.sourceUrl, payload.authToken)
 				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
 				writePaletteSidecarIfNeeded(payload.sourceUrl, "album_art", originalBytes)
@@ -509,7 +511,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				return
 			}
 
-			val bytes = fetchBytes(payload.sourceUrl)
+			val bytes = fetchBytes(payload.sourceUrl, payload.authToken)
 			Log.d(tag, "network fetch success key=$key bytes=${bytes.size}")
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
@@ -526,11 +528,12 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 	}
 
-	fun preload(sourceUrl: String, category: String) {
-		if (sourceUrl.isBlank() || category.isBlank()) {
+	fun preload(rawSourceUrl: String, category: String) {
+		if (rawSourceUrl.isBlank() || category.isBlank()) {
 			return
 		}
 
+		val (sourceUrl, authToken) = stripApiKeyFromUrl(rawSourceUrl)
 		val key = "$category:$sourceUrl"
 		val bitmapPlan = resolveBitmapDecodePlan(key, category, null)
 
@@ -559,7 +562,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 		executor.execute(
 			LoadTask(LoadPriority.PREFETCH) {
-				executePreloadTask(sourceUrl, category, key, future)
+				executePreloadTask(sourceUrl, category, key, future, authToken)
 			},
 		)
 	}
@@ -576,6 +579,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		category: String,
 		key: String,
 		future: CompletableFuture<ByteArray>,
+		authToken: String? = null,
 	) {
 		try {
 			readFromDisk(key)?.let { bytes ->
@@ -602,7 +606,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 					return
 				}
 
-				val originalBytes = fetchBytes(sourceUrl)
+				val originalBytes = fetchBytes(sourceUrl, authToken)
 				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
 				writePaletteSidecarIfNeeded(sourceUrl, "album_art", originalBytes)
@@ -619,7 +623,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				return
 			}
 
-			val bytes = fetchBytes(sourceUrl)
+			val bytes = fetchBytes(sourceUrl, authToken)
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
 			writePaletteSidecarIfNeeded(sourceUrl, category, bytes)
@@ -642,8 +646,32 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 	}
 
-	private fun fetchBytes(url: String): ByteArray {
-		val request = Request.Builder().url(url).build()
+	private fun stripApiKeyFromUrl(url: String): Pair<String, String?> {
+		return try {
+			val uri = Uri.parse(url)
+			val apiKey = uri.getQueryParameter("api_key")
+			if (apiKey.isNullOrBlank()) {
+				Pair(url, null)
+			} else {
+				val cleaned = uri.buildUpon().clearQuery().also { builder ->
+					for (name in uri.queryParameterNames) {
+						if (name != "api_key") builder.appendQueryParameter(name, uri.getQueryParameter(name))
+					}
+				}.build().toString()
+				Pair(cleaned, apiKey)
+			}
+		} catch (_: Throwable) {
+			Pair(url, null)
+		}
+	}
+
+	private fun fetchBytes(url: String, authToken: String? = null): ByteArray {
+		val builder = Request.Builder().url(url)
+		if (!authToken.isNullOrBlank()) {
+			builder.addHeader("X-Emby-Token", authToken)
+			builder.addHeader("Authorization", "MediaBrowser Token=\"$authToken\"")
+		}
+		val request = builder.build()
 		return httpClient.newCall(request).execute().use { response ->
 			if (!response.isSuccessful) {
 				throw IOException("HTTP ${response.code}")

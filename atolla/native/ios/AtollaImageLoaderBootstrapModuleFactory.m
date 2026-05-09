@@ -15,6 +15,7 @@
 @interface AtollaIOSImageRequestPayload : NSObject
 @property (nonatomic, copy) NSString *category;
 @property (nonatomic, strong) NSURL *sourceURL;
+@property (nonatomic, copy, nullable) NSString *authToken;
 @end
 
 @implementation AtollaIOSImageRequestPayload
@@ -272,10 +273,11 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         return nil;
     }
     NSURLComponents *c = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
-    NSString *category = nil, *sourceURLString = nil;
+    NSString *category = nil, *sourceURLString = nil, *authToken = nil;
     for (NSURLQueryItem *item in c.queryItems) {
         if ([item.name isEqualToString:@"c"]) category = item.value;
         else if ([item.name isEqualToString:@"u"]) sourceURLString = item.value;
+        else if ([item.name isEqualToString:@"tok"]) authToken = item.value;
     }
     NSURL *sourceURL = sourceURLString ? [NSURL URLWithString:sourceURLString] : nil;
     if (!category || !sourceURL) {
@@ -286,7 +288,18 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     AtollaIOSImageRequestPayload *payload = [[AtollaIOSImageRequestPayload alloc] init];
     payload.category = category;
     payload.sourceURL = sourceURL;
+    payload.authToken = authToken;
     return payload;
+}
+
+- (NSMutableURLRequest *)imageRequestForURL:(NSURL *)url authToken:(NSString * _Nullable)authToken {
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    if (authToken.length > 0) {
+        [request setValue:authToken forHTTPHeaderField:@"X-Emby-Token"];
+        [request setValue:[NSString stringWithFormat:@"MediaBrowser Token=\"%@\"", authToken]
+       forHTTPHeaderField:@"Authorization"];
+    }
+    return request;
 }
 
 - (id<SCValdiCancelable>)loadBytesWithRequestPayload:(AtollaIOSImageRequestPayload *)payload
@@ -297,6 +310,8 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         completion(cached, nil);
         return [[AtollaNoopCancelable alloc] init];
     }
+
+    NSMutableURLRequest *request = [self imageRequestForURL:payload.sourceURL authToken:payload.authToken];
 
     if ([payload.category isEqualToString:@"album_art_blurred"]) {
         NSString *originalKey = [NSString stringWithFormat:@"album_art:%@", payload.sourceURL.absoluteString];
@@ -313,7 +328,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
             return [[AtollaNoopCancelable alloc] init];
         }
         NSURLSessionDataTask *task = [NSURLSession.sharedSession
-            dataTaskWithURL:payload.sourceURL
+            dataTaskWithRequest:request
             completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
                 if (!data) { completion(nil, err); return; }
                 [self->_cache writeData:data forKey:originalKey];
@@ -331,7 +346,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     }
 
     NSURLSessionDataTask *task = [NSURLSession.sharedSession
-        dataTaskWithURL:payload.sourceURL
+        dataTaskWithRequest:request
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
             if (!data) { completion(nil, err); return; }
             [self->_cache writeData:data forKey:key];
@@ -373,20 +388,34 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     return [AtollaPaletteExtractor extractPaletteFromData:data];
 }
 
-- (void)preloadURL:(NSString *)url category:(NSString *)category {
-    NSURL *sourceURL = [NSURL URLWithString:url];
+- (void)preloadURL:(NSString *)rawUrl category:(NSString *)category {
+    NSURLComponents *components = [NSURLComponents componentsWithString:rawUrl];
+    if (!components) return;
+    NSString *authToken = nil;
+    NSMutableArray<NSURLQueryItem *> *filteredItems = [NSMutableArray array];
+    for (NSURLQueryItem *item in components.queryItems) {
+        if ([item.name isEqualToString:@"api_key"]) {
+            authToken = item.value;
+        } else {
+            [filteredItems addObject:item];
+        }
+    }
+    components.queryItems = filteredItems.count > 0 ? filteredItems : nil;
+    NSString *cleanUrl = components.URL.absoluteString ?: rawUrl;
+    NSURL *sourceURL = components.URL;
     if (!sourceURL) return;
-    NSString *key = [NSString stringWithFormat:@"%@:%@", category, url];
+    NSString *key = [NSString stringWithFormat:@"%@:%@", category, cleanUrl];
     if ([_cache readForKey:key]) return;
+    NSMutableURLRequest *request = [self imageRequestForURL:sourceURL authToken:authToken];
     NSURLSessionDataTask *task = [NSURLSession.sharedSession
-        dataTaskWithURL:sourceURL
+        dataTaskWithRequest:request
         completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
             if (!data) return;
             [self->_cache writeData:data forKey:key];
             if ([category isEqualToString:@"album_art"]) {
-                [self writePaletteSidecarForData:data url:url];
+                [self writePaletteSidecarForData:data url:cleanUrl];
             }
-            if (self->_imageCachedObserver) self->_imageCachedObserver(url, category);
+            if (self->_imageCachedObserver) self->_imageCachedObserver(cleanUrl, category);
         }];
     [task resume];
 }
