@@ -385,6 +385,11 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.handleSubmitSearch(submittedQuery || this.state.query);
 	};
 
+	handleSearchIconTap = (): void => {
+		this.blurSearchInput();
+		this.handleSubmitSearch(this.state.query);
+	};
+
 	handleQueryChange = (value: unknown): void => {
 		this.setState({ query: normalizeSearchInput(value) });
 	};
@@ -637,7 +642,9 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 				<view style={styles.root}>
 					<view accessibilityLabel='search-bar' style={styles.searchBar}>
-						<image src={res.search} style={styles.searchIcon} tint={theme.colors.white} />
+						<view accessibilityLabel='search-submit' onTap={this.handleSearchIconTap}>
+							<image src={res.search} style={styles.searchIcon} tint={theme.colors.white} />
+						</view>
 						<textfield
 							accessibilityLabel='search-input'
 							autocapitalization='none'

@@ -6,6 +6,7 @@ export class SearchPage extends BasePage {
 	private readonly root: string;
 	private readonly retryButton: string;
 	private readonly searchBar: string;
+	private readonly searchSubmit: string;
 	private readonly albumsGrid: string;
 	private readonly artistsGrid: string;
 	private readonly playlistsGrid: string;
@@ -16,6 +17,7 @@ export class SearchPage extends BasePage {
 		this.root = 'search-view';
 		this.retryButton = 'search-retry';
 		this.searchBar = 'search-bar';
+		this.searchSubmit = 'search-submit';
 		this.albumsGrid = 'search-albums-grid';
 		this.artistsGrid = 'search-artists-grid';
 		this.playlistsGrid = 'search-playlists-grid';
@@ -42,16 +44,14 @@ export class SearchPage extends BasePage {
 		const isAndroid = (this.driver.capabilities.platformName as string).toLowerCase() === 'android';
 		if (isAndroid) {
 			// mobile: type fires onChange/TextWatcher events (unlike setValue which uses setText
-			// and bypasses the listener). addValue('\n') then sends a newline via WebDriver's
-			// sendKeys path, which triggers onEditorAction on the EditText.
+			// and bypasses the listener).
 			await this.elementByID(this.input).clearValue();
 			await this.driver.execute('mobile: type', { text: query });
-			await this.elementByID(this.input).addValue('\n');
 		} else {
 			await this.elementByID(this.input).setValue(query);
-			// U+E007 is the WebDriver Return key — triggers onReturn on iOS textfield
-			await this.driver.keys([String.fromCharCode(0xe007)]);
 		}
+		await this.elementByID(this.searchSubmit).waitForDisplayed();
+		await this.elementByID(this.searchSubmit).click();
 	}
 
 	async tapRetry(): Promise<void> {
