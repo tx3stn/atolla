@@ -87,6 +87,23 @@ export class BasePage {
 		await this.longPressElement(element, durationMs);
 	}
 
+	protected async dismissPermissionDialogIfPresent(): Promise<void> {
+		const isAndroid = (this.driver.capabilities.platformName as string).toLowerCase() === 'android';
+		try {
+			if (isAndroid) {
+				await this.driver.waitUntil(
+					async () => this.driver.$('android=new UiSelector().text("Allow")').isExisting(),
+					{ timeout: 2_000, timeoutMsg: '' },
+				);
+				await this.driver.$('android=new UiSelector().text("Allow")').click();
+			} else {
+				await this.driver.acceptAlert();
+			}
+		} catch {
+			// No permission dialog present
+		}
+	}
+
 	public async swipeBack(): Promise<void> {
 		const rect = await this.driver.getWindowRect();
 		const y = Math.floor(rect.height * 0.45);

@@ -38,11 +38,13 @@ export class TrackContextMenu extends BasePage {
 		const button = this.elementByID(this.addToQueue);
 		await button.waitForDisplayed({ timeoutMsg: 'Add to queue button not displayed' });
 		await button.click();
+		await this.dismissPermissionDialogIfPresent();
 	}
 
 	async tapPlayNext(): Promise<void> {
 		const button = this.elementByID(this.playNext);
 		await button.waitForDisplayed({ timeoutMsg: 'Play next button not displayed' });
 		await button.click();
+		await this.dismissPermissionDialogIfPresent();
 	}
 }

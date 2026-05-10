@@ -1,20 +1,35 @@
+import { ConnectionPage } from '../pages/ConnectionPage';
+import { ConnectivityFabPage } from '../pages/ConnectivityFabPage';
+import { FooterPage } from '../pages/Footer';
+import { HomePage } from '../pages/HomePage';
+
 async function ensureMockMode(): Promise<void> {
-	const connectionInput = browser.$('~connection-server-url-input');
-	if (!(await connectionInput.isExisting())) {
+	const connectionPage = new ConnectionPage(browser);
+	const footer = new FooterPage(browser);
+
+	// Wait for bootstrap: either the connection view or the main app footer must appear
+	await browser.waitUntil(
+		async () => (await connectionPage.isVisible()) || (await footer.isVisible()),
+		{ timeout: 30_000, timeoutMsg: 'App did not finish bootstrapping' },
+	);
+
+	// Case 1: app launched to connection view (first install or logged out)
+	if (await connectionPage.isVisible()) {
+		await connectionPage.connectToMock();
 		return;
 	}
 
-	if (!(await connectionInput.isDisplayed())) {
-		return;
+	// Navigate to home and check whether mock data loads within a short timeout
+	await footer.tapHome();
+	const homePage = new HomePage(browser);
+	if (await homePage.hasAlbumCards()) {
+		return; // Already in mock/online mode
 	}
 
-	await connectionInput.setValue('mock');
-	await browser.$('~connection-connect-btn').waitForDisplayed();
-	await browser.$('~connection-connect-btn').click();
-	await browser.$('~footer-home').waitForDisplayed({
-		timeout: 30_000,
-		timeoutMsg: 'App did not load main UI after mock connection',
-	});
+	// Offline mode — tap connectivity FAB and connect to mock
+	const connectivityFab = new ConnectivityFabPage(browser);
+	await connectivityFab.tap();
+	await connectionPage.connectToMock();
 }
 
 export async function beforeHook(): Promise<void> {

@@ -28,6 +28,7 @@ describe('now playing queue', () => {
 		await nowPlaying.waitForVisible();
 		await nowPlaying.openExpandedSurface();
 		await nowPlaying.waitForQueueList();
+		await nowPlaying.tapUpNextTab();
 	});
 
 	after(async () => {
@@ -35,7 +36,6 @@ describe('now playing queue', () => {
 	});
 
 	it('shows queue list when now playing is expanded', async () => {
-		await nowPlaying.waitForQueueList();
 		await nowPlaying.waitForQueueRowsVisible();
 	});
 

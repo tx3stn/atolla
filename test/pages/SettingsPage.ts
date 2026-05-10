@@ -3,6 +3,7 @@ import { BasePage } from './Base';
 export class SettingsPage extends BasePage {
 	private readonly animationsToggle = 'settings-animations-toggle';
 	private readonly clearCacheButton = 'settings-cache-clear-btn';
+	private readonly cacheClearConfirmButton = 'cache-clear-confirm-btn';
 	private readonly logoutButton = 'settings-logout-btn';
 	private readonly logoutConfirmButton = 'settings-logout-confirm-btn';
 
@@ -24,6 +25,10 @@ export class SettingsPage extends BasePage {
 	async tapClearCache(): Promise<void> {
 		await this.elementByID(this.clearCacheButton).waitForDisplayed();
 		await this.elementByID(this.clearCacheButton).click();
+		await this.elementByID(this.cacheClearConfirmButton).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for cache clear confirm button',
+		});
+		await this.elementByID(this.cacheClearConfirmButton).click();
 	}
 
 	async tapLogout(): Promise<void> {

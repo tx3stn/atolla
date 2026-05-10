@@ -29,7 +29,7 @@ describe('footer navigation', () => {
 		try {
 			await browser.hideKeyboard();
 		} catch {
-			// keyboard already closed / unsupported in this context
+			// keyboard already closed or unsupported in this context
 		}
 	});
 
@@ -47,28 +47,46 @@ describe('footer navigation', () => {
 		expect(await home.tabs.albums.isVisible()).toBe(true);
 	});
 
-	it('should close open detail view when tapping the matching header tab', async () => {
+	describe('should close open detail view when tapping the matching header tab', () => {
 		const artistDetailPage = new ArtistDetailPage(browser);
 		const albumDetailPage = new AlbumDetailPage(browser);
 		const playlistDetailPage = new PlaylistDetailPage(browser);
 
-		await home.openArtistsTab();
-		await home.tabs.artists.tapFirstVisibleCard();
-		await artistDetailPage.waitForLoad();
-		await home.openArtistsTab();
-		expect(await home.tabs.artists.isVisible()).toBe(true);
+		it('artists', async () => {
+			await home.tabs.artists.tapFirstVisibleCard();
+			await artistDetailPage.waitForLoad();
+			await home.openArtistsTab();
+			expect(await home.tabs.artists.isVisible()).toBe(true);
+		});
 
-		await home.openAlbumsTab();
-		await home.tabs.albums.tapFirstVisibleCard();
-		await albumDetailPage.waitForLoad();
-		await home.openAlbumsTab();
-		expect(await home.tabs.albums.isVisible()).toBe(true);
+		it('albums', async () => {
+			await home.openAlbumsTab();
+			await home.tabs.albums.tapFirstVisibleCard();
+			await albumDetailPage.waitForLoad();
+			await home.openAlbumsTab();
+			expect(await home.tabs.albums.isVisible()).toBe(true);
+		});
 
-		await home.openPlaylistsTab();
-		await home.tabs.playlists.tapFirstVisibleCard();
-		await playlistDetailPage.waitForLoad();
-		await home.openPlaylistsTab();
-		expect(await home.tabs.playlists.isVisible()).toBe(true);
+		it('playlist', async () => {
+			await home.openPlaylistsTab();
+			await home.tabs.playlists.tapFirstVisibleCard();
+			await playlistDetailPage.waitForLoad();
+			await home.openPlaylistsTab();
+			expect(await home.tabs.playlists.isVisible()).toBe(true);
+		});
+	});
+});
+
+describe('back navigation', () => {
+	let footer: FooterPage;
+	let home: LibraryPage;
+
+	beforeEach(async () => {
+		footer = new FooterPage(browser);
+		await footer.tapLibrary();
+
+		home = new LibraryPage(browser);
+		await home.waitForLoad();
 	});
 
 	it('should swipe back to artists grid after opening artist via header tab', async () => {

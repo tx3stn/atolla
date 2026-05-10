@@ -20,6 +20,7 @@ export class AlbumDetailPage extends BasePage {
 	async tapPlayButton(): Promise<void> {
 		await this.elementByID(this.playAction).waitForDisplayed();
 		await this.elementByID(this.playAction).click();
+		await this.dismissPermissionDialogIfPresent();
 	}
 
 	async openTrackContextMenuOnFirstVisibleRow(): Promise<void> {

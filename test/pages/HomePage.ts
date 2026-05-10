@@ -13,4 +13,24 @@ export class HomePage extends BasePage {
 	async tapFirstVisibleAlbumCard(): Promise<void> {
 		await this.tapFirstVisibleByAccessibilityPrefix(this.albumCardPrefix);
 	}
+
+	async hasAlbumCards(timeout = 5_000): Promise<boolean> {
+		try {
+			await this.driver.waitUntil(
+				async () => {
+					const elements = await this.driver.$$(
+						`//*[starts-with(@name, "${this.albumCardPrefix}") or starts-with(@content-desc, "${this.albumCardPrefix}")]`,
+					);
+					for (const el of elements) {
+						if (await el.isDisplayed()) return true;
+					}
+					return false;
+				},
+				{ timeout },
+			);
+			return true;
+		} catch {
+			return false;
+		}
+	}
 }

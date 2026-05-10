@@ -33,7 +33,19 @@ export class SearchPage extends BasePage {
 	async enterSearchQuery(query: string): Promise<void> {
 		await this.elementByID(this.input).waitForDisplayed();
 		await this.elementByID(this.input).click();
-		await this.elementByID(this.input).setValue(query);
+		const isAndroid = (this.driver.capabilities.platformName as string).toLowerCase() === 'android';
+		if (isAndroid) {
+			// mobile: type fires onChange/TextWatcher events (unlike setValue which uses setText
+			// and bypasses the listener). KEYCODE_ENTER (66) then triggers onEditorAction on
+			// the single-line EditText, which fires onReturn in the Valdi textfield.
+			await this.elementByID(this.input).clearValue();
+			await this.driver.execute('mobile: type', { text: query });
+			await this.driver.execute('mobile: pressKey', { keycode: 66 });
+		} else {
+			await this.elementByID(this.input).setValue(query);
+			// U+E007 is the WebDriver Return key — triggers onReturn on iOS textfield
+			await this.driver.keys([String.fromCharCode(0xe007)]);
+		}
 	}
 
 	async tapRetry(): Promise<void> {

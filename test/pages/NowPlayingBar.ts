@@ -4,30 +4,39 @@ import { BasePage } from './Base';
 export class NowPlayingFooterPage extends BasePage {
 	private readonly next: string;
 	private readonly previous: string;
-	private readonly queueList: string;
+	private readonly queuePageUpNext: string;
+	private readonly queuePageBackTo: string;
 	private readonly queueTrackRowPrefix: string;
 	private readonly queueTabBackTo: string;
 	private readonly queueTabUpNext: string;
 	private readonly togglePlayback: string;
 	private readonly bar: string;
-	private readonly queueRowsInListXPath: string;
+	private activeTab: 'upNext' | 'backTo';
 
 	constructor(driver: Browser) {
 		super(driver);
 		this.next = 'now-playing-next';
 		this.previous = 'now-playing-previous';
-		this.queueList = 'now-playing-queue-list';
+		this.queuePageUpNext = 'now-playing-queue-page-up-next';
+		this.queuePageBackTo = 'now-playing-queue-page-back-to';
 		this.queueTrackRowPrefix = 'track-row-';
 		this.queueTabBackTo = 'now-playing-tab-back-to';
 		this.queueTabUpNext = 'now-playing-tab-up-next';
 		this.togglePlayback = 'now-playing-play-pause';
 		this.bar = 'now-playing-surface-bar';
-		this.queueRowsInListXPath =
-			`//*[@name="${this.queueList}" or @content-desc="${this.queueList}"]` +
+		this.activeTab = 'upNext';
+	}
+
+	// Scoped to the active tab's page view only. Both page views exist in the tree
+	// simultaneously (side-by-side slider), so we must restrict to the active one to
+	// avoid picking up rows from the off-screen tab.
+	private get queueRowsInListXPath(): string {
+		const pageId = this.activeTab === 'upNext' ? this.queuePageUpNext : this.queuePageBackTo;
+		return (
+			`//*[@name="${pageId}" or @content-desc="${pageId}"]` +
 			`//*[starts-with(@name, "${this.queueTrackRowPrefix}") or ` +
-			`starts-with(@content-desc, "${this.queueTrackRowPrefix}") or ` +
-			`starts-with(@resource-id, "${this.queueTrackRowPrefix}") or ` +
-			`contains(@resource-id, "/${this.queueTrackRowPrefix}")]`;
+			`starts-with(@content-desc, "${this.queueTrackRowPrefix}")]`
+		);
 	}
 
 	async waitForVisible(): Promise<void> {
@@ -64,29 +73,36 @@ export class NowPlayingFooterPage extends BasePage {
 	}
 
 	async tapUpNextTab(): Promise<void> {
+		this.activeTab = 'upNext';
 		await this.elementByID(this.queueTabUpNext).waitForDisplayed();
 		await this.elementByID(this.queueTabUpNext).click();
 	}
 
 	async tapBackToTab(): Promise<void> {
+		this.activeTab = 'backTo';
 		await this.elementByID(this.queueTabBackTo).waitForDisplayed();
 		await this.elementByID(this.queueTabBackTo).click();
 	}
 
 	async waitForQueueList(): Promise<void> {
 		await this.scrollToQueueList();
-		await this.elementByID(this.queueList).waitForExist({
-			timeoutMsg: 'Timed out waiting for now playing queue list to exist',
-		});
+		await this.driver.waitUntil(
+			async () =>
+				(await this.elementByID(this.queuePageUpNext).isExisting()) ||
+				(await this.elementByID(this.queuePageBackTo).isExisting()),
+			{ timeoutMsg: 'Timed out waiting for now playing queue list to exist' },
+		);
 	}
 
+	// isExisting() is used instead of isDisplayed() because the page views live inside
+	// a translated sliding strip — UIAutomator2 reports them as not displayed even when
+	// fully on screen. Existence is a reliable proxy: elements are only in the tree when
+	// the expanded surface is open.
 	async isQueueListVisible(): Promise<boolean> {
-		const queueList = this.elementByID(this.queueList);
-		if (!(await queueList.isExisting())) {
-			return false;
-		}
-
-		return await queueList.isDisplayed();
+		return (
+			(await this.elementByID(this.queuePageUpNext).isExisting()) ||
+			(await this.elementByID(this.queuePageBackTo).isExisting())
+		);
 	}
 
 	async collapseExpandedIfVisible(): Promise<void> {
@@ -146,7 +162,6 @@ export class NowPlayingFooterPage extends BasePage {
 				],
 				id: 'dismiss-now-playing-finger',
 				parameters: { pointerType: 'touch' },
-				type: 'pointer',
 			},
 		]);
 		await this.driver.releaseActions();
@@ -156,26 +171,25 @@ export class NowPlayingFooterPage extends BasePage {
 		});
 	}
 
+	// isExisting() is used instead of isDisplayed() for the same reason as
+	// isQueueListVisible() — elements inside the sliding strip report as not displayed.
 	async waitForQueueRowsVisible(): Promise<void> {
 		await this.waitForQueueList();
 
 		await this.driver.waitUntil(
 			async () => {
-				const rows = await this.driver.$$(this.queueRowsInListXPath);
-
-				for (const row of rows) {
-					if (await row.isDisplayed()) {
-						return true;
-					}
-				}
-
-				return false;
+				const rows = this.driver.$$(this.queueRowsInListXPath);
+				return (await rows.length) > 0;
 			},
 			{ timeoutMsg: 'Timed out waiting for visible queue tracks' },
 		);
 	}
 
 	private async scrollToQueueList(maxSwipes = 6): Promise<void> {
+		if (await this.isQueueListVisible()) {
+			return;
+		}
+
 		for (let attempt = 0; attempt < maxSwipes; attempt += 1) {
 			const rect = await this.driver.getWindowRect();
 			const x = Math.floor(rect.width * 0.5);
@@ -206,13 +220,9 @@ export class NowPlayingFooterPage extends BasePage {
 
 	async firstVisibleQueueTrackRowId(): Promise<string> {
 		await this.waitForQueueRowsVisible();
-		const rows = await this.driver.$$(this.queueRowsInListXPath);
+		const rows = this.driver.$$(this.queueRowsInListXPath);
 
 		for (const row of rows) {
-			if (!(await row.isDisplayed())) {
-				continue;
-			}
-
 			const name = (await row.getAttribute('name')) ?? '';
 			if (name.startsWith(this.queueTrackRowPrefix)) {
 				return name;
@@ -235,13 +245,13 @@ export class NowPlayingFooterPage extends BasePage {
 			}
 		}
 
-		throw new Error('No visible queue track rows found');
+		throw new Error('No queue track rows found');
 	}
 
 	async countQueueRowsById(trackRowId: string): Promise<number> {
 		await this.waitForQueueList();
 		const targetId = this.normalizeTrackRowId(trackRowId);
-		const rows = await this.driver.$$(this.queueRowsInListXPath);
+		const rows = this.driver.$$(this.queueRowsInListXPath);
 
 		let count = 0;
 		for (const row of rows) {
