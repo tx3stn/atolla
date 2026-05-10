@@ -220,9 +220,8 @@ export class NowPlayingFooterPage extends BasePage {
 
 	async firstVisibleQueueTrackRowId(): Promise<string> {
 		await this.waitForQueueRowsVisible();
-		const rows = this.driver.$$(this.queueRowsInListXPath);
 
-		for (const row of rows) {
+		for await (const row of this.driver.$$(this.queueRowsInListXPath)) {
 			const name = (await row.getAttribute('name')) ?? '';
 			if (name.startsWith(this.queueTrackRowPrefix)) {
 				return name;
@@ -251,10 +250,9 @@ export class NowPlayingFooterPage extends BasePage {
 	async countQueueRowsById(trackRowId: string): Promise<number> {
 		await this.waitForQueueList();
 		const targetId = this.normalizeTrackRowId(trackRowId);
-		const rows = this.driver.$$(this.queueRowsInListXPath);
 
 		let count = 0;
-		for (const row of rows) {
+		for await (const row of this.driver.$$(this.queueRowsInListXPath)) {
 			const rowId = await this.extractTrackRowId(row);
 			if (rowId === targetId) {
 				count += 1;

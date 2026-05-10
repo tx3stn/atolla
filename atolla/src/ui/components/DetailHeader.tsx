@@ -226,7 +226,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			style={styles.root}
 		>
 			<layout style={styles.headerRow}>
-				<view style={styles.artworkTile}>
+				<view accessibilityLabel='detail-header-artwork' style={styles.artworkTile}>
 					{artworkSource && (
 						<CachedImage
 							category={this.viewModel.artworkCategory}

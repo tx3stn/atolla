@@ -12,10 +12,9 @@ export class HomePage extends BasePage {
 		try {
 			await this.driver.waitUntil(
 				async () => {
-					const elements = this.driver.$$(
+					for await (const el of this.driver.$$(
 						`//*[starts-with(@name, "${this.albumCardPrefix}") or starts-with(@content-desc, "${this.albumCardPrefix}")]`,
-					);
-					for (const el of elements) {
+					)) {
 						if (await el.isDisplayed()) return true;
 					}
 					return false;

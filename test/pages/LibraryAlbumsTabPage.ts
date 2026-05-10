@@ -27,11 +27,9 @@ export class LibraryAlbumsTabPage extends BasePage {
 	async waitForLoad(): Promise<void> {
 		await this.driver.waitUntil(
 			async () => {
-				const cards = await this.driver.$$(
+				for await (const card of this.driver.$$(
 					`//*[starts-with(@name, "${this.cardPrefix}") or starts-with(@content-desc, "${this.cardPrefix}")]`,
-				);
-
-				for (const card of cards) {
+				)) {
 					if (await card.isDisplayed()) {
 						return true;
 					}

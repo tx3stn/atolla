@@ -16,11 +16,9 @@ export class BasePage {
 	public async waitForVisibleAccessibilityPrefix(prefix: string): Promise<void> {
 		await this.driver.waitUntil(
 			async () => {
-				const elements = await this.driver.$$(
+				for await (const element of this.driver.$$(
 					`//*[starts-with(@name, "${prefix}") or starts-with(@content-desc, "${prefix}")]`,
-				);
-
-				for (const element of elements) {
+				)) {
 					if (await element.isDisplayed()) {
 						return true;
 					}
@@ -34,11 +32,10 @@ export class BasePage {
 
 	public async firstVisibleByAccessibilityPrefix(prefix: string): Promise<WebdriverIO.Element> {
 		await this.waitForVisibleAccessibilityPrefix(prefix);
-		const elements = await this.driver.$$(
-			`//*[starts-with(@name, "${prefix}") or starts-with(@content-desc, "${prefix}")]`,
-		);
 
-		for (const element of elements) {
+		for await (const element of this.driver.$$(
+			`//*[starts-with(@name, "${prefix}") or starts-with(@content-desc, "${prefix}")]`,
+		)) {
 			if (await element.isDisplayed()) {
 				return element;
 			}

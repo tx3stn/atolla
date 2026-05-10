@@ -5,22 +5,27 @@ export class DetailHeaderPage extends BasePage {
 	private readonly artistsTab = 'header-tab-artists';
 	private readonly albumsTab = 'header-tab-albums';
 	private readonly playlistsTab = 'header-tab-playlists';
+	private readonly artwork = 'detail-header-artwork';
 
 	async isHeaderVisible(): Promise<boolean> {
 		return await this.elementByID(this.libraryHeaderNav).isDisplayed();
 	}
 
-	// Swipes down to pull the library header nav back into view when it has been
-	// scrolled off the top of the screen by navigating into a detail view.
+	// Drags down on the detail header artwork to trigger the header's onDrag handler,
+	// which scrolls the library header nav back into view.
 	async swipeDownToRevealHeader(): Promise<void> {
 		if (await this.isHeaderVisible()) {
 			return;
 		}
 
-		const rect = await this.driver.getWindowRect();
-		const x = Math.floor(rect.width * 0.5);
-		const startY = Math.floor(rect.height * 0.35);
-		const endY = Math.floor(rect.height * 0.7);
+		const artworkEl = this.elementByID(this.artwork);
+		await artworkEl.waitForExist({ timeoutMsg: 'Timed out waiting for detail header artwork' });
+		const location = await artworkEl.getLocation();
+		const size = await artworkEl.getSize();
+
+		const x = Math.floor(location.x + size.width * 0.5);
+		const startY = Math.floor(location.y + size.height * 0.3);
+		const endY = Math.floor(location.y + size.height * 0.9);
 
 		await this.driver.performActions([
 			{
@@ -28,7 +33,7 @@ export class DetailHeaderPage extends BasePage {
 					{ duration: 0, type: 'pointerMove', x, y: startY },
 					{ button: 0, type: 'pointerDown' },
 					{ duration: 50, type: 'pause' },
-					{ duration: 250, type: 'pointerMove', x, y: endY },
+					{ duration: 300, type: 'pointerMove', x, y: endY },
 					{ button: 0, type: 'pointerUp' },
 				],
 				id: 'reveal-header-finger',

@@ -23,7 +23,9 @@ export class LibraryPlaylistsTabPage extends BasePage {
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.grid).waitForDisplayed();
+		await this.driver.waitUntil(async () => await this.elementByID(this.grid).isExisting(), {
+			timeoutMsg: 'Timed out waiting for playlists grid',
+		});
 		await this.waitForVisibleAccessibilityPrefix(this.cardPrefix);
 	}
 }

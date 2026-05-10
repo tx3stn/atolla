@@ -1,15 +1,14 @@
-import type { Browser } from 'webdriverio';
 import { BasePage } from './Base';
+import { DetailHeaderPage } from './DetailHeaderPage';
 
 export class ArtistDetailPage extends BasePage {
-	private readonly root: string;
+	private readonly root = 'artist-view';
 
-	constructor(driver: Browser) {
-		super(driver);
-		this.root = 'artist-view';
+	public DetailHeader(): DetailHeaderPage {
+		return new DetailHeaderPage(this.driver);
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.root).waitForDisplayed();
+		await this.elementByID(this.root).waitForExist();
 	}
 }

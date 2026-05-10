@@ -58,10 +58,9 @@ export class AlbumDetailPage extends BasePage {
 
 		await this.driver.waitUntil(
 			async () => {
-				const rows = this.driver.$$(
+				for await (const row of this.driver.$$(
 					`//*[starts-with(@name, "${this.trackRowPrefix}") or starts-with(@content-desc, "${this.trackRowPrefix}")]`,
-				);
-				for (const row of rows) {
+				)) {
 					if (await row.isDisplayed()) {
 						return true;
 					}
@@ -75,11 +74,10 @@ export class AlbumDetailPage extends BasePage {
 
 	private async firstVisibleTrackRow(): Promise<WebdriverIO.Element> {
 		await this.waitForTrackRowsVisible();
-		const rows = this.driver.$$(
-			`//*[starts-with(@name, "${this.trackRowPrefix}") or starts-with(@content-desc, "${this.trackRowPrefix}")]`,
-		);
 
-		for (const row of rows) {
+		for await (const row of this.driver.$$(
+			`//*[starts-with(@name, "${this.trackRowPrefix}") or starts-with(@content-desc, "${this.trackRowPrefix}")]`,
+		)) {
 			if (await row.isDisplayed()) {
 				return row;
 			}
