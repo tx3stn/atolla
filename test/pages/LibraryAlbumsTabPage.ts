@@ -1,23 +1,25 @@
-import { BasePage } from './Base';
+import { BasePage, type PlatformLocator } from './Base';
 
 export class LibraryAlbumsTabPage extends BasePage {
+	private readonly locators = {
+		grid: { android: '~library-albums-grid', ios: '~library-albums-grid' },
+	} satisfies Record<string, PlatformLocator>;
+
 	private readonly cardPrefix = 'card-album-';
-	private readonly grid = 'library-albums-grid';
 
-	async isVisible(): Promise<boolean> {
-		const grid = this.elementByID(this.grid);
-		if (!(await grid.isExisting())) {
-			return false;
-		}
-
-		return await grid.isDisplayed();
+	isVisible(): Promise<boolean> {
+		return this.element(this.locators.grid).isExisting();
 	}
 
 	async tapCardByID(albumId: string): Promise<void> {
-		await this.elementByID(`card-${albumId}`).waitForDisplayed({
+		const locator: PlatformLocator = {
+			android: `~card-${albumId}`,
+			ios: `//*[@name="card-${albumId}"]`,
+		};
+		await this.element(locator).waitForDisplayed({
 			timeoutMsg: `Timed out waiting for album card: card-${albumId}`,
 		});
-		await this.elementByID(`card-${albumId}`).click();
+		await this.element(locator).click();
 	}
 
 	async tapFirstVisibleCard(): Promise<void> {

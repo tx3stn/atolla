@@ -1,7 +1,28 @@
 import type { Browser, ChainablePromiseElement } from 'webdriverio';
 
+// On iOS, Valdi does not expose accessibilityLabel on UIViews — XCUITest has no
+// name/label on container elements. Each locator pair provides the iOS XPath
+// fallback alongside the Android accessibility ID.
+const IOS = 'ios' as const;
+const ANDROID = 'android' as const;
+type Platform = typeof IOS | typeof ANDROID;
+
+export type PlatformLocator = { [IOS]: string; [ANDROID]: string };
+
 export class BasePage {
 	constructor(protected readonly driver: Browser) {}
+
+	protected platform(): Platform {
+		return (this.driver.capabilities.platformName as string).toLowerCase() as Platform;
+	}
+
+	private locator(input: PlatformLocator): string {
+		return input[this.platform()];
+	}
+
+	protected element(locator: PlatformLocator): ChainablePromiseElement {
+		return this.driver.$(this.locator(locator));
+	}
 
 	public elementByID(id: string): ChainablePromiseElement {
 		return this.driver.$(`~${id}`);
@@ -87,7 +108,8 @@ export class BasePage {
 		element: ChainablePromiseElement | WebdriverIO.Element,
 		durationMs = 800,
 	): Promise<void> {
-		const resolvedElement = (await element) as WebdriverIO.Element;
+		// ChainablePromiseElement is a runtime thenable but TS doesn't type it as Promise
+		const resolvedElement = await (element as unknown as Promise<WebdriverIO.Element>);
 		await resolvedElement.waitForDisplayed();
 		const location = await resolvedElement.getLocation();
 		const size = await resolvedElement.getSize();

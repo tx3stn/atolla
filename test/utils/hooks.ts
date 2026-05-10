@@ -6,10 +6,13 @@ import { HomePage } from '../pages/HomePage';
 async function ensureMockMode(): Promise<void> {
 	const connectionPage = new ConnectionPage(browser);
 	const footer = new FooterPage(browser);
+	const connectivityFab = new ConnectivityFabPage(browser);
 
-	// Wait for bootstrap: either the connection view or the main app footer must appear
 	await browser.waitUntil(
-		async () => (await connectionPage.isVisible()) || (await footer.isVisible()),
+		async () =>
+			(await connectionPage.isVisible()) ||
+			(await footer.isVisible()) ||
+			(await connectivityFab.isVisible()),
 		{ timeout: 30_000, timeoutMsg: 'App did not finish bootstrapping' },
 	);
 
@@ -20,7 +23,6 @@ async function ensureMockMode(): Promise<void> {
 	}
 	//
 	// Offline mode — tap connectivity FAB and connect to mock
-	const connectivityFab = new ConnectivityFabPage(browser);
 	await connectivityFab.tap();
 	await connectionPage.connectToMock();
 
@@ -35,12 +37,12 @@ async function ensureMockMode(): Promise<void> {
 export async function beforeHook(): Promise<void> {
 	const isIOS = (browser.capabilities.platformName as string).toLowerCase() === 'ios';
 
-	// iOS exposes the bundle ID directly in capabilities; Android requires a mobile command
 	const appId = isIOS
-		? (browser.capabilities['appium:bundleId'] as string)
+		? (process.env.E2E_BUNDLE_ID ?? 'com.tx3stn.atolla')
 		: ((await browser.execute('mobile: getCurrentPackage')) as string);
 
-	const state = (await browser.execute('mobile: queryAppState', { appId })) as number;
+	const appStateParam = isIOS ? { bundleId: appId } : { appId };
+	const state = (await browser.execute('mobile: queryAppState', appStateParam)) as number;
 	if (state > 1) {
 		await browser.terminateApp(appId);
 	}

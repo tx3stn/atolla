@@ -1,8 +1,15 @@
-import { BasePage } from './Base';
+import { BasePage, type PlatformLocator } from './Base';
 import { DetailHeaderPage } from './DetailHeaderPage';
 
 export class AlbumDetailPage extends BasePage {
-	private readonly playAction = 'detail-header-play-button';
+	private readonly locators = {
+		// On iOS, TappableIcon renders as an XCUIElementTypeImage with the SVG file name
+		playAction: {
+			android: '~detail-header-play-button',
+			ios: '//XCUIElementTypeImage[@name="play"]/..',
+		},
+	} satisfies Record<string, PlatformLocator>;
+
 	private readonly trackRowPrefix = 'track-row-';
 
 	public DetailHeader(): DetailHeaderPage {
@@ -10,14 +17,15 @@ export class AlbumDetailPage extends BasePage {
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.playAction).waitForDisplayed({
+		await this.element(this.locators.playAction).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for album detail play button',
 		});
 	}
 
 	async tapPlayButton(): Promise<void> {
-		await this.elementByID(this.playAction).waitForDisplayed();
-		await this.elementByID(this.playAction).click();
+		const playButton = this.element(this.locators.playAction);
+		await playButton.waitForDisplayed();
+		await playButton.click();
 		await this.dismissPermissionDialogIfPresent();
 	}
 

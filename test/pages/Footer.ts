@@ -1,67 +1,58 @@
-import type { Browser } from 'webdriverio';
-import { BasePage } from './Base';
+import { BasePage, type PlatformLocator } from './Base';
 
 export class FooterPage extends BasePage {
-	private readonly home: string;
-	private readonly library: string;
-	private readonly searchBar: string;
-	private readonly search: string;
-	private readonly settings: string;
-
-	constructor(driver: Browser) {
-		super(driver);
-
-		this.home = 'footer-home';
-		this.library = 'footer-library';
-		this.searchBar = 'search-bar';
-		this.search = 'footer-search';
-		this.settings = 'footer-settings';
-	}
+	private readonly locators = {
+		home: { android: '~footer-home', ios: '//XCUIElementTypeImage[@name="home"]/..' },
+		library: { android: '~footer-library', ios: '//XCUIElementTypeImage[@name="library"]/..' },
+		search: { android: '~footer-search', ios: '//XCUIElementTypeImage[@name="search"]/..' },
+		settings: { android: '~footer-settings', ios: '//XCUIElementTypeImage[@name="settings"]/..' },
+	} satisfies Record<string, PlatformLocator>;
 
 	async tapHome(): Promise<void> {
-		await this.elementByID(this.home).waitForDisplayed({
+		await this.element(this.locators.home).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for footer home button',
 		});
-		await this.elementByID(this.home).click();
+		await this.element(this.locators.home).click();
 	}
 
 	async tapLibrary(): Promise<void> {
-		await this.elementByID(this.library).waitForDisplayed({
+		await this.element(this.locators.library).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for footer library button',
 		});
-		await this.elementByID(this.library).click();
+		await this.element(this.locators.library).click();
 	}
 
 	async tapSearch(): Promise<void> {
-		await this.elementByID(this.search).waitForDisplayed({
+		await this.element(this.locators.search).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for footer search button',
 		});
-		await this.elementByID(this.search).click();
+		await this.element(this.locators.search).click();
 	}
 
 	async tapSearchAndWaitForLoad(): Promise<void> {
-		await this.elementByID(this.search).waitForDisplayed({
+		await this.element(this.locators.search).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for footer search button',
 		});
-		await this.elementByID(this.search).click();
-		await this.elementByID(this.searchBar).waitForDisplayed({
+		await this.element(this.locators.search).click();
+		// search-input is a <textfield> (accessible via ~id on both platforms); search-bar is a <view>
+		await this.elementByID('search-input').waitForDisplayed({
 			timeoutMsg: 'Timed out navigating to search view',
 		});
 	}
 
 	async tapSettings(): Promise<void> {
-		await this.elementByID(this.settings).waitForDisplayed({
+		await this.element(this.locators.settings).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for footer settings button',
 		});
-		await this.elementByID(this.settings).click();
+		await this.element(this.locators.settings).click();
 	}
 
 	async isVisible(): Promise<boolean> {
 		return (
-			(await this.elementByID(this.home).isDisplayed()) &&
-			(await this.elementByID(this.library).isDisplayed()) &&
-			(await this.elementByID(this.search).isDisplayed()) &&
-			(await this.elementByID(this.settings).isDisplayed())
+			(await this.element(this.locators.home).isDisplayed()) &&
+			(await this.element(this.locators.library).isDisplayed()) &&
+			(await this.element(this.locators.search).isDisplayed()) &&
+			(await this.element(this.locators.settings).isDisplayed())
 		);
 	}
 }

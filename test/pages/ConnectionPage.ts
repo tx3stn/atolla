@@ -1,32 +1,42 @@
-import { BasePage } from './Base';
+import { BasePage, type PlatformLocator } from './Base';
 
 export class ConnectionPage extends BasePage {
-	private readonly serverUrlInput = 'connection-server-url-input';
-	private readonly connectButton = 'connection-connect-btn';
-	private readonly footer = 'footer-home';
+	private readonly locators = {
+		connectButton: {
+			android: '~connection-connect-btn',
+			// Button component appends "-btn"; on iOS find the StaticText "connect" and tap its parent view
+			ios: '//XCUIElementTypeStaticText[@name="connect"]/..',
+		},
+		footer: {
+			android: '~footer-home',
+			ios: '//XCUIElementTypeImage[@name="home"]/..',
+		},
+		serverUrlInput: {
+			android: '~connection-server-url-input',
+			ios: '//XCUIElementTypeTextField',
+		},
+	} satisfies Record<string, PlatformLocator>;
 
 	async isVisible(): Promise<boolean> {
-		const el = this.elementByID(this.serverUrlInput);
+		const el = this.element(this.locators.serverUrlInput);
 		if (!(await el.isExisting())) {
 			return false;
 		}
-
-		return await el.isDisplayed();
+		return el.isDisplayed();
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.serverUrlInput).waitForDisplayed({
+		await this.element(this.locators.serverUrlInput).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for connection view',
 		});
 	}
 
 	async connectToMock(): Promise<void> {
-		await this.elementByID(this.serverUrlInput).waitForDisplayed();
-		await this.elementByID(this.serverUrlInput).setValue('mock');
-		await this.elementByID(this.connectButton).waitForDisplayed();
-		await this.elementByID(this.connectButton).click();
-		// Wait for the main app footer to confirm we're in
-		await this.elementByID(this.footer).waitForDisplayed({
+		await this.element(this.locators.serverUrlInput).waitForDisplayed();
+		await this.element(this.locators.serverUrlInput).setValue('mock');
+		await this.element(this.locators.connectButton).waitForDisplayed();
+		await this.element(this.locators.connectButton).click();
+		await this.element(this.locators.footer).waitForDisplayed({
 			timeout: 30_000,
 			timeoutMsg: 'App did not load main UI after mock connection',
 		});

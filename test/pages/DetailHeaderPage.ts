@@ -1,14 +1,30 @@
-import { BasePage } from './Base';
+import { BasePage, type PlatformLocator } from './Base';
 
 export class DetailHeaderPage extends BasePage {
-	private readonly libraryHeaderNav = 'library-header-nav';
-	private readonly artistsTab = 'header-tab-artists';
-	private readonly albumsTab = 'header-tab-albums';
-	private readonly playlistsTab = 'header-tab-playlists';
-	private readonly artwork = 'detail-header-artwork';
+	private readonly locators = {
+		albumsTab: {
+			android: '~header-tab-albums',
+			ios: '//XCUIElementTypeStaticText[@name="ALBUMS"]/..',
+		},
+		artistsTab: {
+			android: '~header-tab-artists',
+			ios: '//XCUIElementTypeStaticText[@name="ARTISTS"]/..',
+		},
+		// On iOS, target the first image in the detail header area to get swipe coordinates
+		artwork: { android: '~detail-header-artwork', ios: '//XCUIElementTypeImage[1]' },
+		// On iOS, use ARTISTS tab text as a proxy for the header nav being visible
+		libraryHeaderNav: {
+			android: '~library-header-nav',
+			ios: '//XCUIElementTypeStaticText[@name="ARTISTS"]',
+		},
+		playlistsTab: {
+			android: '~header-tab-playlists',
+			ios: '//XCUIElementTypeStaticText[@name="PLAYLISTS"]/..',
+		},
+	} satisfies Record<string, PlatformLocator>;
 
-	async isHeaderVisible(): Promise<boolean> {
-		return await this.elementByID(this.libraryHeaderNav).isDisplayed();
+	isHeaderVisible(): Promise<boolean> {
+		return this.element(this.locators.libraryHeaderNav).isDisplayed();
 	}
 
 	// Drags down on the detail header artwork to trigger the header's onDrag handler,
@@ -18,7 +34,7 @@ export class DetailHeaderPage extends BasePage {
 			return;
 		}
 
-		const artworkEl = this.elementByID(this.artwork);
+		const artworkEl = this.element(this.locators.artwork);
 		await artworkEl.waitForExist({ timeoutMsg: 'Timed out waiting for detail header artwork' });
 		const location = await artworkEl.getLocation();
 		const size = await artworkEl.getSize();
@@ -46,24 +62,30 @@ export class DetailHeaderPage extends BasePage {
 
 	async tapArtistsTab(): Promise<void> {
 		await this.swipeDownToRevealHeader();
-		await this.elementByID(this.artistsTab).waitForDisplayed();
-		await this.elementByID(this.artistsTab).click();
+		await this.element(this.locators.artistsTab).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for artists tab',
+		});
+		await this.element(this.locators.artistsTab).click();
 	}
 
 	async tapAlbumsTab(): Promise<void> {
 		await this.swipeDownToRevealHeader();
-		await this.elementByID(this.albumsTab).waitForDisplayed();
-		await this.elementByID(this.albumsTab).click();
+		await this.element(this.locators.albumsTab).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for albums tab',
+		});
+		await this.element(this.locators.albumsTab).click();
 	}
 
 	async tapPlaylistsTab(): Promise<void> {
 		await this.swipeDownToRevealHeader();
-		await this.elementByID(this.playlistsTab).waitForDisplayed();
-		await this.elementByID(this.playlistsTab).click();
+		await this.element(this.locators.playlistsTab).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for playlists tab',
+		});
+		await this.element(this.locators.playlistsTab).click();
 	}
 
 	async waitForHeaderVisible(): Promise<void> {
-		await this.elementByID(this.libraryHeaderNav).waitForDisplayed({
+		await this.element(this.locators.libraryHeaderNav).waitForDisplayed({
 			timeoutMsg: 'timed out waiting for library header nav to appear',
 		});
 	}

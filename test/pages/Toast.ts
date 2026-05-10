@@ -1,40 +1,23 @@
-import type { Browser } from 'webdriverio';
-import { BasePage } from './Base';
+import { BasePage, type PlatformLocator } from './Base';
 
 export class Toast extends BasePage {
-	private readonly root: string;
+	private readonly locators = {
+		root: { android: '~toast', ios: '~toast' },
+	} satisfies Record<string, PlatformLocator>;
 
-	constructor(driver: Browser) {
-		super(driver);
-
-		this.root = 'toast';
-	}
-
-	async isVisible(): Promise<boolean> {
-		const el = this.elementByID(this.root);
-		if (!(await el.isExisting())) {
-			return false;
-		}
-
-		return await el.isDisplayed();
+	isVisible(): Promise<boolean> {
+		return this.element(this.locators.root).isExisting();
 	}
 
 	async waitForVisible(): Promise<void> {
-		await this.elementByID(this.root).waitForDisplayed({
+		await this.element(this.locators.root).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for toast to appear',
 		});
 	}
 
 	async waitForHidden(): Promise<void> {
 		await this.driver.waitUntil(
-			async () => {
-				const el = this.elementByID(this.root);
-				if (!(await el.isExisting())) {
-					return true;
-				}
-
-				return !(await el.isDisplayed());
-			},
+			async () => !(await this.element(this.locators.root).isExisting()),
 			{ timeoutMsg: 'Timed out waiting for toast to dismiss' },
 		);
 	}

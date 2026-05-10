@@ -1,11 +1,14 @@
-import { BasePage } from './Base';
+import { BasePage, type PlatformLocator } from './Base';
 
 export class HomePage extends BasePage {
-	private readonly albumCardPrefix = 'card-album-';
-	private readonly recentlyAddedGrid = 'home-recently-added-grid';
+	private readonly locators = {
+		recentlyAddedGrid: { android: '~home-recently-added-grid', ios: '~home-recently-added-grid' },
+	} satisfies Record<string, PlatformLocator>;
 
-	async isDisplayed(): Promise<boolean> {
-		return await this.elementByID(this.recentlyAddedGrid).isDisplayed();
+	private readonly albumCardPrefix = 'card-album-';
+
+	isDisplayed(): Promise<boolean> {
+		return this.element(this.locators.recentlyAddedGrid).isDisplayed();
 	}
 
 	async hasAlbumCards(timeout = 5_000): Promise<boolean> {
@@ -32,9 +35,8 @@ export class HomePage extends BasePage {
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.driver.waitUntil(
-			async () => await this.elementByID(this.recentlyAddedGrid).isExisting(),
-			{ timeoutMsg: 'Timed out waiting for home view' },
-		);
+		await this.element(this.locators.recentlyAddedGrid).waitForExist({
+			timeoutMsg: 'Timed out waiting for home view',
+		});
 	}
 }

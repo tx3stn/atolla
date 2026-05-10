@@ -1,33 +1,43 @@
-import type { Browser } from 'webdriverio';
-import { BasePage } from './Base';
+import { BasePage, type PlatformLocator } from './Base';
 
 export class NowPlayingFooterPage extends BasePage {
-	private readonly next: string;
-	private readonly previous: string;
-	private readonly queuePageUpNext: string;
-	private readonly queuePageBackTo: string;
-	private readonly queueTrackRowPrefixUpNext: string;
-	private readonly queueTrackRowPrefixBackTo: string;
-	private readonly queueTabBackTo: string;
-	private readonly queueTabUpNext: string;
-	private readonly togglePlayback: string;
-	private readonly bar: string;
-	private activeTab: 'upNext' | 'backTo';
+	private readonly locators = {
+		// On iOS, <view> elements don't expose accessibilityIdentifier; use icon image name
+		bar: {
+			android: '~now-playing-surface-bar',
+			ios: '//XCUIElementTypeImage[@name="pause" or @name="play"]/..',
+		},
+		next: { android: '~now-playing-next', ios: '//XCUIElementTypeImage[@name="next"]/..' },
+		previous: {
+			android: '~now-playing-previous',
+			ios: '//XCUIElementTypeImage[@name="previous"]/..',
+		},
+		// Queue page views: use XPath @name (accessibility label) since ~ (identifier) doesn't work for views
+		queuePageBackTo: {
+			android: '~now-playing-queue-page-back-to',
+			ios: '//*[@name="now-playing-queue-page-back-to"]',
+		},
+		queuePageUpNext: {
+			android: '~now-playing-queue-page-up-next',
+			ios: '//*[@name="now-playing-queue-page-up-next"]',
+		},
+		queueTabBackTo: {
+			android: '~now-playing-tab-back-to',
+			ios: '//XCUIElementTypeStaticText[@name="Back To"]/..',
+		},
+		queueTabUpNext: {
+			android: '~now-playing-tab-up-next',
+			ios: '//XCUIElementTypeStaticText[@name="Up Next"]/..',
+		},
+		togglePlayback: {
+			android: '~now-playing-play-pause',
+			ios: '//XCUIElementTypeImage[@name="pause" or @name="play"]/..',
+		},
+	} satisfies Record<string, PlatformLocator>;
 
-	constructor(driver: Browser) {
-		super(driver);
-		this.next = 'now-playing-next';
-		this.previous = 'now-playing-previous';
-		this.queuePageUpNext = 'now-playing-queue-page-up-next';
-		this.queuePageBackTo = 'now-playing-queue-page-back-to';
-		this.queueTrackRowPrefixUpNext = 'track-row-up-next-';
-		this.queueTrackRowPrefixBackTo = 'track-row-back-to-';
-		this.queueTabBackTo = 'now-playing-tab-back-to';
-		this.queueTabUpNext = 'now-playing-tab-up-next';
-		this.togglePlayback = 'now-playing-play-pause';
-		this.bar = 'now-playing-surface-bar';
-		this.activeTab = 'upNext';
-	}
+	private readonly queueTrackRowPrefixUpNext = 'track-row-up-next-';
+	private readonly queueTrackRowPrefixBackTo = 'track-row-back-to-';
+	private activeTab: 'upNext' | 'backTo' = 'upNext';
 
 	getUpNextTracks(): Promise<Array<WebdriverIO.Element>> {
 		return this.allByAccessibilityPrefix(this.queueTrackRowPrefixUpNext);
@@ -47,50 +57,60 @@ export class NowPlayingFooterPage extends BasePage {
 	}
 
 	async waitForVisible(): Promise<void> {
-		await this.elementByID(this.bar).waitForDisplayed();
+		await this.element(this.locators.bar).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for now playing bar',
+		});
 	}
 
 	async isVisible(): Promise<boolean> {
-		const bar = this.elementByID(this.bar);
-		if (!(await bar.isExisting())) {
-			return false;
-		}
-
-		return await bar.isDisplayed();
+		const el = this.element(this.locators.bar);
+		return (await el.isExisting()) && (await el.isDisplayed());
 	}
 
 	async tapTogglePlayback(): Promise<void> {
-		await this.elementByID(this.togglePlayback).waitForDisplayed();
-		await this.elementByID(this.togglePlayback).click();
+		await this.element(this.locators.togglePlayback).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for playback toggle',
+		});
+		await this.element(this.locators.togglePlayback).click();
 	}
 
 	async tapNext(): Promise<void> {
-		await this.elementByID(this.next).waitForDisplayed();
-		await this.elementByID(this.next).click();
+		await this.element(this.locators.next).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for next button',
+		});
+		await this.element(this.locators.next).click();
 	}
 
 	async openExpandedSurface(): Promise<void> {
-		await this.elementByID(this.bar).waitForDisplayed();
-		await this.elementByID(this.bar).click();
+		await this.element(this.locators.bar).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for now playing bar',
+		});
+		await this.element(this.locators.bar).click();
 	}
 
 	async tapPrevious(): Promise<void> {
-		await this.elementByID(this.previous).waitForDisplayed();
-		await this.elementByID(this.previous).click();
+		await this.element(this.locators.previous).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for previous button',
+		});
+		await this.element(this.locators.previous).click();
 	}
 
 	async tapUpNextTab(): Promise<void> {
 		this.activeTab = 'upNext';
 		await this.swipeUpExpandedSurface();
-		await this.elementByID(this.queueTabUpNext).waitForDisplayed();
-		await this.elementByID(this.queueTabUpNext).click();
+		await this.element(this.locators.queueTabUpNext).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for up next tab',
+		});
+		await this.element(this.locators.queueTabUpNext).click();
 	}
 
 	async tapBackToTab(): Promise<void> {
 		this.activeTab = 'backTo';
 		await this.swipeUpExpandedSurface();
-		await this.elementByID(this.queueTabBackTo).waitForDisplayed();
-		await this.elementByID(this.queueTabBackTo).click();
+		await this.element(this.locators.queueTabBackTo).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for back to tab',
+		});
+		await this.element(this.locators.queueTabBackTo).click();
 	}
 
 	async waitForQueueList(): Promise<void> {
@@ -100,8 +120,8 @@ export class NowPlayingFooterPage extends BasePage {
 		await this.scrollToQueueList();
 		await this.driver.waitUntil(
 			async () =>
-				(await this.elementByID(this.queuePageUpNext).isExisting()) ||
-				(await this.elementByID(this.queuePageBackTo).isExisting()),
+				(await this.element(this.locators.queuePageUpNext).isExisting()) ||
+				(await this.element(this.locators.queuePageBackTo).isExisting()),
 			{ timeoutMsg: 'Timed out waiting for now playing queue list to exist' },
 		);
 	}
@@ -112,8 +132,8 @@ export class NowPlayingFooterPage extends BasePage {
 	// the expanded surface is open.
 	async isQueueListVisible(): Promise<boolean> {
 		return (
-			(await this.elementByID(this.queuePageUpNext).isExisting()) ||
-			(await this.elementByID(this.queuePageBackTo).isExisting())
+			(await this.element(this.locators.queuePageUpNext).isExisting()) ||
+			(await this.element(this.locators.queuePageBackTo).isExisting())
 		);
 	}
 
@@ -176,7 +196,7 @@ export class NowPlayingFooterPage extends BasePage {
 			return;
 		}
 
-		const bar = this.elementByID(this.bar);
+		const bar = this.element(this.locators.bar);
 		await bar.waitForDisplayed();
 		const location = await bar.getLocation();
 		const size = await bar.getSize();

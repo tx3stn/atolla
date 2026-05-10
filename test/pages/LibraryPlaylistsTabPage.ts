@@ -1,21 +1,25 @@
-import { BasePage } from './Base';
+import { BasePage, type PlatformLocator } from './Base';
 
 export class LibraryPlaylistsTabPage extends BasePage {
+	private readonly locators = {
+		grid: { android: '~library-playlists-grid', ios: '~library-playlists-grid' },
+	} satisfies Record<string, PlatformLocator>;
+
 	private readonly cardPrefix = 'card-playlist-';
-	private readonly grid = 'library-playlists-grid';
 
-	async isVisible(): Promise<boolean> {
-		const grid = this.elementByID(this.grid);
-		if (!(await grid.isExisting())) {
-			return false;
-		}
-
-		return await grid.isDisplayed();
+	isVisible(): Promise<boolean> {
+		return this.element(this.locators.grid).isExisting();
 	}
 
 	async tapCardByID(playlistId: string): Promise<void> {
-		await this.elementByID(`card-${playlistId}`).waitForDisplayed();
-		await this.elementByID(`card-${playlistId}`).click();
+		const locator: PlatformLocator = {
+			android: `~card-${playlistId}`,
+			ios: `//*[@name="card-${playlistId}"]`,
+		};
+		await this.element(locator).waitForDisplayed({
+			timeoutMsg: `Timed out waiting for playlist card: card-${playlistId}`,
+		});
+		await this.element(locator).click();
 	}
 
 	async tapFirstVisibleCard(): Promise<void> {
@@ -23,7 +27,7 @@ export class LibraryPlaylistsTabPage extends BasePage {
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.driver.waitUntil(async () => await this.elementByID(this.grid).isExisting(), {
+		await this.element(this.locators.grid).waitForExist({
 			timeoutMsg: 'Timed out waiting for playlists grid',
 		});
 		await this.waitForVisibleAccessibilityPrefix(this.cardPrefix);
