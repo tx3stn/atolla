@@ -5,11 +5,13 @@ import { NowPlayingFooterPage } from '../../pages/NowPlayingBar';
 
 describe('now playing queue', () => {
 	let nowPlaying: NowPlayingFooterPage;
-	let initialUpNextFirstRow: string;
-	let afterNextUpNextFirstRow: string;
+	let firstUpNextTrackName: string;
+	let secondUpNextTrackName: string;
+	let albumDetail: AlbumDetailPage;
 
 	before(async () => {
 		nowPlaying = new NowPlayingFooterPage(browser);
+		albumDetail = new AlbumDetailPage(browser);
 
 		const footer = new FooterPage(browser);
 		await footer.tapLibrary();
@@ -18,53 +20,49 @@ describe('now playing queue', () => {
 		await home.waitForLoad();
 		await home.openAlbumsTab();
 		await home.tabs.albums.waitForLoad();
-		await home.tabs.albums.tapCardByID('album-27');
+		await home.tabs.albums.tapCardByID('album-24');
 
-		const albumDetail = new AlbumDetailPage(browser);
 		await albumDetail.waitForLoad();
 		await albumDetail.waitForTrackRowsVisible();
+	});
+
+	after(async () => {
+		await nowPlaying?.collapseExpandedIfVisible();
+		await nowPlaying?.swipeAwayIfVisible();
+	});
+
+	it('shows queue list when now playing is expanded', async () => {
 		await albumDetail.tapPlayButton();
 
 		await nowPlaying.waitForVisible();
 		await nowPlaying.openExpandedSurface();
 		await nowPlaying.waitForQueueList();
+		expect(await nowPlaying.isQueueListVisible()).toBe(true);
+	});
+
+	it('shows tracks in the up next queue', async () => {
 		await nowPlaying.tapUpNextTab();
+		firstUpNextTrackName = await nowPlaying.firstUpNextTrackName();
+		expect(firstUpNextTrackName).toBeTruthy();
 	});
 
-	after(async () => {
-		await nowPlaying?.swipeAwayIfVisible();
-	});
-
-	it('shows queue list when now playing is expanded', async () => {
-		await nowPlaying.waitForQueueRowsVisible();
-	});
-
-	it('captures the initial first row in up next', async () => {
-		await nowPlaying.tapUpNextTab();
-		await nowPlaying.waitForQueueRowsVisible();
-		initialUpNextFirstRow = await nowPlaying.firstVisibleQueueTrackRowId();
-	});
-
-	it('moves to next track and updates up next queue', async () => {
+	it('advances the queue when next is tapped', async () => {
 		await nowPlaying.tapNext();
-		await nowPlaying.waitForQueueRowsVisible();
-		afterNextUpNextFirstRow = await nowPlaying.firstVisibleQueueTrackRowId();
-		expect(afterNextUpNextFirstRow).not.toBe(initialUpNextFirstRow);
+		secondUpNextTrackName = await nowPlaying.firstUpNextTrackName();
+		expect(secondUpNextTrackName).not.toBe(firstUpNextTrackName);
 	});
 
-	it('shows previously active track in back to after next', async () => {
+	it('moves the played track to back to on the next tap', async () => {
+		await nowPlaying.tapNext();
 		await nowPlaying.tapBackToTab();
-		await nowPlaying.waitForQueueRowsVisible();
-		const backToFirstRow = await nowPlaying.firstVisibleQueueTrackRowId();
-		expect(backToFirstRow).toBe(initialUpNextFirstRow);
+		const backToTrackName = await nowPlaying.firstBackToTrackName();
+		expect(backToTrackName).toBe(firstUpNextTrackName);
 	});
 
-	it('restores prior up next head after tapping previous', async () => {
+	it('restores up next after tapping previous', async () => {
 		await nowPlaying.tapPrevious();
 		await nowPlaying.tapUpNextTab();
-		await nowPlaying.waitForQueueRowsVisible();
-		const afterPreviousUpNextFirstRow = await nowPlaying.firstVisibleQueueTrackRowId();
-		expect(afterPreviousUpNextFirstRow).toBe(initialUpNextFirstRow);
-		expect(afterPreviousUpNextFirstRow).not.toBe(afterNextUpNextFirstRow);
+		const afterPreviousTrackName = await nowPlaying.firstUpNextTrackName();
+		expect(afterPreviousTrackName).toBe(secondUpNextTrackName);
 	});
 });

@@ -13,6 +13,40 @@ export class BasePage {
 		);
 	}
 
+	public async allByAccessibilityPrefix(prefix: string): Promise<Array<WebdriverIO.Element>> {
+		const isAndroid = (this.driver.capabilities.platformName as string).toLowerCase() === 'android';
+		const selector = isAndroid
+			? `android=new UiSelector().descriptionStartsWith("${prefix}")`
+			: `//*[starts-with(@name, "${prefix}")]`;
+		const elements: Array<WebdriverIO.Element> = [];
+		for await (const el of this.driver.$$(selector)) {
+			elements.push(el);
+		}
+		return elements;
+	}
+
+	public async allByAccessibilityPrefixWithin(
+		container: ChainablePromiseElement,
+		prefix: string,
+	): Promise<Array<WebdriverIO.Element>> {
+		const isAndroid = (this.driver.capabilities.platformName as string).toLowerCase() === 'android';
+		const elements: Array<WebdriverIO.Element> = [];
+		if (isAndroid) {
+			// UiSelector scopes correctly to the container element on UIAutomator2;
+			// XPath .//* does not work reliably within an element context on Android.
+			for await (const el of container.$$(
+				`android=new UiSelector().descriptionStartsWith("${prefix}")`,
+			)) {
+				elements.push(el);
+			}
+		} else {
+			for await (const el of container.$$(`.//*[starts-with(@name, "${prefix}")]`)) {
+				elements.push(el);
+			}
+		}
+		return elements;
+	}
+
 	public async waitForVisibleAccessibilityPrefix(prefix: string): Promise<void> {
 		await this.driver.waitUntil(
 			async () => {

@@ -32,6 +32,7 @@ export interface TrackListViewModel {
 	onTrackSwipeRemove?: (trackId: string, entryIndex: number) => void;
 	onTrackTap?: (trackId: string) => void;
 	palette?: Palette;
+	rowIdentityPrefix?: string;
 	showDragHandles?: boolean;
 	tapPulseColor?: string;
 	tracks: Array<TrackListEntry>;
@@ -207,7 +208,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 		<layout style={styles.list}>
 			{this.viewModel.tracks.map((entry: TrackListEntry, index: number) => {
-				const rowIdentity = `${entry.id}-${index}`;
+				const rowIdentity = `${this.viewModel.rowIdentityPrefix ?? ''}${entry.id}-${index}`;
 				this.rowIdentitiesByIndex[index] = rowIdentity;
 				const canSwipe = Boolean(this.viewModel.onTrackSwipeRemove);
 
@@ -307,6 +308,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 										<layout style={styles.textBlock}>
 											<label
+												accessibilityLabel={`track-title-${rowIdentity}`}
 												numberOfLines={2}
 												style={resolvedStyles.titleStyle}
 												textOverflow='ellipsis'

@@ -814,6 +814,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											}
 											onTrackTap={onTrackTap}
 											palette={palette}
+											rowIdentityPrefix='back-to-'
 											showDragHandles
 											tapPulseColor={accentColor}
 											tracks={backToEntries}
@@ -833,6 +834,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											}
 											onTrackTap={onTrackTap}
 											palette={palette}
+											rowIdentityPrefix='up-next-'
 											showDragHandles
 											tapPulseColor={accentColor}
 											tracks={upNextEntries}

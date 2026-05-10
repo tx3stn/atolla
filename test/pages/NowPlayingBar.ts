@@ -6,7 +6,8 @@ export class NowPlayingFooterPage extends BasePage {
 	private readonly previous: string;
 	private readonly queuePageUpNext: string;
 	private readonly queuePageBackTo: string;
-	private readonly queueTrackRowPrefix: string;
+	private readonly queueTrackRowPrefixUpNext: string;
+	private readonly queueTrackRowPrefixBackTo: string;
 	private readonly queueTabBackTo: string;
 	private readonly queueTabUpNext: string;
 	private readonly togglePlayback: string;
@@ -19,7 +20,8 @@ export class NowPlayingFooterPage extends BasePage {
 		this.previous = 'now-playing-previous';
 		this.queuePageUpNext = 'now-playing-queue-page-up-next';
 		this.queuePageBackTo = 'now-playing-queue-page-back-to';
-		this.queueTrackRowPrefix = 'track-row-';
+		this.queueTrackRowPrefixUpNext = 'track-row-up-next-';
+		this.queueTrackRowPrefixBackTo = 'track-row-back-to-';
 		this.queueTabBackTo = 'now-playing-tab-back-to';
 		this.queueTabUpNext = 'now-playing-tab-up-next';
 		this.togglePlayback = 'now-playing-play-pause';
@@ -27,15 +29,20 @@ export class NowPlayingFooterPage extends BasePage {
 		this.activeTab = 'upNext';
 	}
 
-	// Scoped to the active tab's page view only. Both page views exist in the tree
-	// simultaneously (side-by-side slider), so we must restrict to the active one to
-	// avoid picking up rows from the off-screen tab.
-	private get queueRowsInListXPath(): string {
-		const pageId = this.activeTab === 'upNext' ? this.queuePageUpNext : this.queuePageBackTo;
-		return (
-			`//*[@name="${pageId}" or @content-desc="${pageId}"]` +
-			`//*[starts-with(@name, "${this.queueTrackRowPrefix}") or ` +
-			`starts-with(@content-desc, "${this.queueTrackRowPrefix}")]`
+	getUpNextTracks(): Promise<Array<WebdriverIO.Element>> {
+		return this.allByAccessibilityPrefix(this.queueTrackRowPrefixUpNext);
+	}
+
+	getBackToTracks(): Promise<Array<WebdriverIO.Element>> {
+		return this.allByAccessibilityPrefix(this.queueTrackRowPrefixBackTo);
+	}
+
+	async waitForQueueRowsVisible(): Promise<void> {
+		await this.waitForQueueList();
+		const prefix = this.activeTab === 'upNext' ? 'track-title-up-next-' : 'track-title-back-to-';
+		await this.driver.waitUntil(
+			async () => (await this.allByAccessibilityPrefix(prefix)).length > 0,
+			{ timeoutMsg: 'Timed out waiting for visible queue tracks' },
 		);
 	}
 
@@ -74,17 +81,22 @@ export class NowPlayingFooterPage extends BasePage {
 
 	async tapUpNextTab(): Promise<void> {
 		this.activeTab = 'upNext';
+		await this.swipeUpExpandedSurface();
 		await this.elementByID(this.queueTabUpNext).waitForDisplayed();
 		await this.elementByID(this.queueTabUpNext).click();
 	}
 
 	async tapBackToTab(): Promise<void> {
 		this.activeTab = 'backTo';
+		await this.swipeUpExpandedSurface();
 		await this.elementByID(this.queueTabBackTo).waitForDisplayed();
 		await this.elementByID(this.queueTabBackTo).click();
 	}
 
 	async waitForQueueList(): Promise<void> {
+		if (await this.isQueueListVisible()) {
+			return;
+		}
 		await this.scrollToQueueList();
 		await this.driver.waitUntil(
 			async () =>
@@ -110,30 +122,51 @@ export class NowPlayingFooterPage extends BasePage {
 			return;
 		}
 
+		// Scroll back to top so the artwork drag zone is under the collapse swipe
 		const rect = await this.driver.getWindowRect();
 		const x = Math.floor(rect.width * 0.5);
-		const startY = Math.floor(rect.height * 0.12);
-		const endY = Math.floor(rect.height * 0.45);
-
 		await this.driver.performActions([
 			{
 				actions: [
-					{ duration: 0, type: 'pointerMove', x, y: startY },
+					{ duration: 0, type: 'pointerMove', x, y: Math.floor(rect.height * 0.28) },
 					{ button: 0, type: 'pointerDown' },
-					{ duration: 50, type: 'pause' },
-					{ duration: 250, type: 'pointerMove', x, y: endY },
+					{ duration: 40, type: 'pause' },
+					{ duration: 260, type: 'pointerMove', x, y: Math.floor(rect.height * 0.78) },
 					{ button: 0, type: 'pointerUp' },
 				],
-				id: 'collapse-now-playing-finger',
+				id: 'scroll-to-top-finger',
 				parameters: { pointerType: 'touch' },
 				type: 'pointer',
 			},
 		]);
 		await this.driver.releaseActions();
 
-		await this.driver.waitUntil(async () => !(await this.isQueueListVisible()), {
-			timeoutMsg: 'Timed out collapsing expanded now playing surface',
-		});
+		const startY = Math.floor(rect.height * 0.12);
+		const endY = Math.floor(rect.height * 0.45);
+
+		for (let attempt = 0; attempt < 5; attempt += 1) {
+			await this.driver.performActions([
+				{
+					actions: [
+						{ duration: 0, type: 'pointerMove', x, y: startY },
+						{ button: 0, type: 'pointerDown' },
+						{ duration: 50, type: 'pause' },
+						{ duration: 250, type: 'pointerMove', x, y: endY },
+						{ button: 0, type: 'pointerUp' },
+					],
+					id: `collapse-now-playing-finger-${attempt}`,
+					parameters: { pointerType: 'touch' },
+					type: 'pointer',
+				},
+			]);
+			await this.driver.releaseActions();
+
+			if (!(await this.isQueueListVisible())) {
+				return;
+			}
+		}
+
+		throw new Error('Timed out collapsing expanded now playing surface');
 	}
 
 	async swipeAwayIfVisible(): Promise<void> {
@@ -162,6 +195,7 @@ export class NowPlayingFooterPage extends BasePage {
 				],
 				id: 'dismiss-now-playing-finger',
 				parameters: { pointerType: 'touch' },
+				type: 'pointer',
 			},
 		]);
 		await this.driver.releaseActions();
@@ -171,18 +205,29 @@ export class NowPlayingFooterPage extends BasePage {
 		});
 	}
 
-	// isExisting() is used instead of isDisplayed() for the same reason as
-	// isQueueListVisible() — elements inside the sliding strip report as not displayed.
-	async waitForQueueRowsVisible(): Promise<void> {
-		await this.waitForQueueList();
+	// Unconditional swipe-up to push the expanded surface fully above the footer nav bar,
+	// ensuring tab buttons are not intercepted by the footer before we tap them.
+	private async swipeUpExpandedSurface(): Promise<void> {
+		const rect = await this.driver.getWindowRect();
+		const x = Math.floor(rect.width * 0.5);
+		const startY = Math.floor(rect.height * 0.78);
+		const endY = Math.floor(rect.height * 0.28);
 
-		await this.driver.waitUntil(
-			async () => {
-				const rows = this.driver.$$(this.queueRowsInListXPath);
-				return (await rows.length) > 0;
+		await this.driver.performActions([
+			{
+				actions: [
+					{ duration: 0, type: 'pointerMove', x, y: startY },
+					{ button: 0, type: 'pointerDown' },
+					{ duration: 40, type: 'pause' },
+					{ duration: 260, type: 'pointerMove', x, y: endY },
+					{ button: 0, type: 'pointerUp' },
+				],
+				id: 'expand-now-playing-finger',
+				parameters: { pointerType: 'touch' },
+				type: 'pointer',
 			},
-			{ timeoutMsg: 'Timed out waiting for visible queue tracks' },
-		);
+		]);
+		await this.driver.releaseActions();
 	}
 
 	private async scrollToQueueList(maxSwipes = 6): Promise<void> {
@@ -218,86 +263,21 @@ export class NowPlayingFooterPage extends BasePage {
 		}
 	}
 
-	async firstVisibleQueueTrackRowId(): Promise<string> {
+	async firstUpNextTrackName(): Promise<string> {
 		await this.waitForQueueRowsVisible();
-
-		for await (const row of this.driver.$$(this.queueRowsInListXPath)) {
-			const name = (await row.getAttribute('name')) ?? '';
-			if (name.startsWith(this.queueTrackRowPrefix)) {
-				return name;
-			}
-
-			const contentDesc = (await row.getAttribute('content-desc')) ?? '';
-			if (contentDesc.startsWith(this.queueTrackRowPrefix)) {
-				return contentDesc;
-			}
-
-			const resourceId = (await row.getAttribute('resource-id')) ?? '';
-			if (resourceId.startsWith(this.queueTrackRowPrefix)) {
-				return resourceId;
-			}
-
-			const resourceIdSuffix = `/${this.queueTrackRowPrefix}`;
-			const suffixIndex = resourceId.indexOf(resourceIdSuffix);
-			if (suffixIndex !== -1) {
-				return resourceId.slice(suffixIndex + 1);
-			}
+		for (const el of await this.allByAccessibilityPrefix('track-title-up-next-')) {
+			const text = await el.getText();
+			if (text) return text;
 		}
-
-		throw new Error('No queue track rows found');
+		throw new Error('No up next track titles found');
 	}
 
-	async countQueueRowsById(trackRowId: string): Promise<number> {
-		await this.waitForQueueList();
-		const targetId = this.normalizeTrackRowId(trackRowId);
-
-		let count = 0;
-		for await (const row of this.driver.$$(this.queueRowsInListXPath)) {
-			const rowId = await this.extractTrackRowId(row);
-			if (rowId === targetId) {
-				count += 1;
-			}
+	async firstBackToTrackName(): Promise<string> {
+		await this.waitForQueueRowsVisible();
+		for (const el of await this.allByAccessibilityPrefix('track-title-back-to-')) {
+			const text = await el.getText();
+			if (text) return text;
 		}
-
-		return count;
-	}
-
-	private normalizeTrackRowId(trackRowId: string): string {
-		if (trackRowId.startsWith(this.queueTrackRowPrefix)) {
-			return trackRowId;
-		}
-
-		const resourceIdSuffix = `/${this.queueTrackRowPrefix}`;
-		const suffixIndex = trackRowId.indexOf(resourceIdSuffix);
-		if (suffixIndex !== -1) {
-			return trackRowId.slice(suffixIndex + 1);
-		}
-
-		return `${this.queueTrackRowPrefix}${trackRowId}`;
-	}
-
-	private async extractTrackRowId(row: WebdriverIO.Element): Promise<string | null> {
-		const name = (await row.getAttribute('name')) ?? '';
-		if (name.startsWith(this.queueTrackRowPrefix)) {
-			return name;
-		}
-
-		const contentDesc = (await row.getAttribute('content-desc')) ?? '';
-		if (contentDesc.startsWith(this.queueTrackRowPrefix)) {
-			return contentDesc;
-		}
-
-		const resourceId = (await row.getAttribute('resource-id')) ?? '';
-		if (resourceId.startsWith(this.queueTrackRowPrefix)) {
-			return resourceId;
-		}
-
-		const resourceIdSuffix = `/${this.queueTrackRowPrefix}`;
-		const suffixIndex = resourceId.indexOf(resourceIdSuffix);
-		if (suffixIndex !== -1) {
-			return resourceId.slice(suffixIndex + 1);
-		}
-
-		return null;
+		throw new Error('No back to track titles found');
 	}
 }
