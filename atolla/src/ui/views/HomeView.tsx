@@ -482,7 +482,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const recentlyAddedCards = this.createRecentlyAddedCards();
 		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
 
-		<layout style={styles.root}>
+		<layout accessibilityLabel='home-view' style={styles.root}>
 			<ViewHeader
 				animationsEnabled={this.viewModel.animationsEnabled}
 				connectionMode={this.viewModel.connectionMode}

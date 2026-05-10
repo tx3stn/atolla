@@ -18,6 +18,11 @@ async function ensureMockMode(): Promise<void> {
 		await connectionPage.connectToMock();
 		return;
 	}
+	//
+	// Offline mode — tap connectivity FAB and connect to mock
+	const connectivityFab = new ConnectivityFabPage(browser);
+	await connectivityFab.tap();
+	await connectionPage.connectToMock();
 
 	// Navigate to home and check whether mock data loads within a short timeout
 	await footer.tapHome();
@@ -25,11 +30,6 @@ async function ensureMockMode(): Promise<void> {
 	if (await homePage.hasAlbumCards()) {
 		return; // Already in mock/online mode
 	}
-
-	// Offline mode — tap connectivity FAB and connect to mock
-	const connectivityFab = new ConnectivityFabPage(browser);
-	await connectivityFab.tap();
-	await connectionPage.connectToMock();
 }
 
 export async function beforeHook(): Promise<void> {

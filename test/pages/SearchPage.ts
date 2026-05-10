@@ -6,6 +6,9 @@ export class SearchPage extends BasePage {
 	private readonly root: string;
 	private readonly retryButton: string;
 	private readonly searchBar: string;
+	private readonly albumsGrid: string;
+	private readonly artistsGrid: string;
+	private readonly playlistsGrid: string;
 
 	constructor(driver: Browser) {
 		super(driver);
@@ -13,6 +16,9 @@ export class SearchPage extends BasePage {
 		this.root = 'search-view';
 		this.retryButton = 'search-retry';
 		this.searchBar = 'search-bar';
+		this.albumsGrid = 'search-albums-grid';
+		this.artistsGrid = 'search-artists-grid';
+		this.playlistsGrid = 'search-playlists-grid';
 	}
 
 	async waitForLoad(): Promise<void> {
@@ -36,11 +42,11 @@ export class SearchPage extends BasePage {
 		const isAndroid = (this.driver.capabilities.platformName as string).toLowerCase() === 'android';
 		if (isAndroid) {
 			// mobile: type fires onChange/TextWatcher events (unlike setValue which uses setText
-			// and bypasses the listener). KEYCODE_ENTER (66) then triggers onEditorAction on
-			// the single-line EditText, which fires onReturn in the Valdi textfield.
+			// and bypasses the listener). addValue('\n') then sends a newline via WebDriver's
+			// sendKeys path, which triggers onEditorAction on the EditText.
 			await this.elementByID(this.input).clearValue();
 			await this.driver.execute('mobile: type', { text: query });
-			await this.driver.execute('mobile: pressKey', { keycode: 66 });
+			await this.elementByID(this.input).addValue('\n');
 		} else {
 			await this.elementByID(this.input).setValue(query);
 			// U+E007 is the WebDriver Return key — triggers onReturn on iOS textfield
@@ -53,24 +59,16 @@ export class SearchPage extends BasePage {
 		await this.elementByID(this.retryButton).click();
 	}
 
+	// isExisting() is used instead of isDisplayed() because elements inside a ScrollView
+	// on UIAutomator2 may report as not displayed even when fully visible on screen.
+	// Checking the grid containers by existence is a reliable proxy for results being shown.
 	async waitForAnyResultCard(): Promise<void> {
-		const prefixes = ['card-album-', 'card-artist-', 'card-playlist-'];
-		const xpath = prefixes
-			.flatMap((p) => [`starts-with(@name, "${p}")`, `starts-with(@content-desc, "${p}")`])
-			.join(' or ');
-
 		await this.driver.waitUntil(
-			async () => {
-				const elements = await this.driver.$$(`//*[${xpath}]`);
-				for (const el of elements) {
-					if (await el.isDisplayed()) {
-						return true;
-					}
-				}
-
-				return false;
-			},
-			{ timeoutMsg: 'Timed out waiting for search result cards to appear' },
+			async () =>
+				(await this.elementByID(this.albumsGrid).isExisting()) ||
+				(await this.elementByID(this.artistsGrid).isExisting()) ||
+				(await this.elementByID(this.playlistsGrid).isExisting()),
+			{ timeout: 15_000, timeoutMsg: 'Timed out waiting for search result cards to appear' },
 		);
 	}
 }

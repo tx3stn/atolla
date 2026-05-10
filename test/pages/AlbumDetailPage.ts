@@ -1,14 +1,12 @@
-import type { Browser } from 'webdriverio';
 import { BasePage } from './Base';
+import { DetailHeaderPage } from './DetailHeaderPage';
 
 export class AlbumDetailPage extends BasePage {
-	private readonly playAction: string;
-	private readonly trackRowPrefix: string;
+	private readonly playAction = 'detail-header-play-button';
+	private readonly trackRowPrefix = 'track-row-';
 
-	constructor(driver: Browser) {
-		super(driver);
-		this.playAction = 'detail-header-play-button';
-		this.trackRowPrefix = 'track-row-';
+	public DetailHeader(): DetailHeaderPage {
+		return new DetailHeaderPage(this.driver);
 	}
 
 	async waitForLoad(): Promise<void> {
@@ -60,7 +58,7 @@ export class AlbumDetailPage extends BasePage {
 
 		await this.driver.waitUntil(
 			async () => {
-				const rows = await this.driver.$$(
+				const rows = this.driver.$$(
 					`//*[starts-with(@name, "${this.trackRowPrefix}") or starts-with(@content-desc, "${this.trackRowPrefix}")]`,
 				);
 				for (const row of rows) {
@@ -77,7 +75,7 @@ export class AlbumDetailPage extends BasePage {
 
 	private async firstVisibleTrackRow(): Promise<WebdriverIO.Element> {
 		await this.waitForTrackRowsVisible();
-		const rows = await this.driver.$$(
+		const rows = this.driver.$$(
 			`//*[starts-with(@name, "${this.trackRowPrefix}") or starts-with(@content-desc, "${this.trackRowPrefix}")]`,
 		);
 
