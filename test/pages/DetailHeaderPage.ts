@@ -15,7 +15,7 @@ export class DetailHeaderPage extends BasePage {
 		// On iOS, use ARTISTS tab text as a proxy for the header nav being visible
 		libraryHeaderNav: {
 			android: '~library-header-nav',
-			ios: '//XCUIElementTypeStaticText[@name="ARTISTS"]',
+			ios: '//XCUIElementTypeStaticText[@name="ARTISTS"]/..',
 		},
 		playlistsTab: {
 			android: '~header-tab-playlists',
@@ -58,10 +58,10 @@ export class DetailHeaderPage extends BasePage {
 			},
 		]);
 		await this.driver.releaseActions();
+		await this.waitForHeaderVisible();
 	}
 
 	async tapArtistsTab(): Promise<void> {
-		await this.swipeDownToRevealHeader();
 		await this.element(this.locators.artistsTab).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for artists tab',
 		});
@@ -69,7 +69,6 @@ export class DetailHeaderPage extends BasePage {
 	}
 
 	async tapAlbumsTab(): Promise<void> {
-		await this.swipeDownToRevealHeader();
 		await this.element(this.locators.albumsTab).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for albums tab',
 		});
@@ -77,7 +76,6 @@ export class DetailHeaderPage extends BasePage {
 	}
 
 	async tapPlaylistsTab(): Promise<void> {
-		await this.swipeDownToRevealHeader();
 		await this.element(this.locators.playlistsTab).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for playlists tab',
 		});

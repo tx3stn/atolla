@@ -139,7 +139,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 														downloadService,
 														gridColumns: this.viewModel.gridColumns,
 														imageCache,
-														navBarContext: this.viewModel.navBarContext,
+														navBarContext: this.buildChildNavBarContext(),
 														paletteQueue,
 														playbackStore,
 														playlist,
@@ -193,7 +193,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				imageCache,
 				isHeaderVisible: false,
 				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-				navBarContext: this.viewModel.navBarContext,
+				navBarContext: this.buildChildNavBarContext(),
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				paletteQueue,
 				playbackStore,
@@ -309,7 +309,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				imageCache,
 				isHeaderVisible: false,
 				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-				navBarContext: this.viewModel.navBarContext,
+				navBarContext: this.buildChildNavBarContext(),
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				onNavigationContext,
 				paletteQueue,
@@ -367,7 +367,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				genre: resolvedGenre,
 				imageCache,
 				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-				navBarContext: this.viewModel.navBarContext,
+				navBarContext: this.buildChildNavBarContext(),
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				playbackStore,
 				restoreHeaderOnDestroy: false,
@@ -486,6 +486,27 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.navigationController.pop();
 		this.viewModel.navBarContext?.header?.onTabTap(tab);
 	};
+
+	// When a child view (AlbumView, GenreView, PlaylistView) taps a header tab, it only pops
+	// itself. Wrapping onTabTap here ensures ArtistView also pops before handing control to
+	// the library, so the user lands back in the library rather than on the artist detail page.
+	private buildChildNavBarContext(): NavBarContext | undefined {
+		const { navBarContext } = this.viewModel;
+		if (!navBarContext) return undefined;
+		return {
+			...navBarContext,
+			header: navBarContext.header
+				? {
+						...navBarContext.header,
+						onTabTap: (tab: HeaderTab) => {
+							this.viewModel.onHeaderVisibilityChange?.(true);
+							this.navigationController.pop();
+							navBarContext.header?.onTabTap(tab);
+						},
+					}
+				: undefined,
+		};
+	}
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;

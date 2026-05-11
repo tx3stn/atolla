@@ -2,7 +2,12 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class HomePage extends BasePage {
 	private readonly locators = {
-		recentlyAddedGrid: { android: '~home-recently-added-grid', ios: '~home-recently-added-grid' },
+		// On iOS, card containers expose no accessible name; use any visible accessible
+		// StaticText as a content proxy (home page has no tab labels to exclude).
+		recentlyAddedGrid: {
+			android: '~home-recently-added-grid',
+			ios: '//XCUIElementTypeStaticText[@accessible="true"]',
+		},
 	} satisfies Record<string, PlatformLocator>;
 
 	private readonly albumCardPrefix = 'card-album-';
@@ -31,7 +36,21 @@ export class HomePage extends BasePage {
 	}
 
 	async tapFirstVisibleAlbumCard(): Promise<void> {
-		await this.tapFirstVisibleByAccessibilityPrefix(this.albumCardPrefix);
+		if (this.platform() === 'ios') {
+			// StaticText taps don't bubble to the card's press handler on iOS.
+			// Tap the first large artwork image (width > 100 excludes nav icons at ~26px).
+			for await (const el of this.driver.$$(
+				'//XCUIElementTypeImage[@accessible="true" and not(@name) and @width > 100 and @y > 100]',
+			)) {
+				if (await el.isDisplayed()) {
+					await el.click();
+					return;
+				}
+			}
+			throw new Error('No visible album artwork found on iOS home page');
+		} else {
+			await this.tapFirstVisibleByAccessibilityPrefix(this.albumCardPrefix);
+		}
 	}
 
 	async waitForLoad(): Promise<void> {

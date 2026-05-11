@@ -2,13 +2,19 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class SearchPage extends BasePage {
 	private readonly locators = {
-		albumsGrid: { android: '~search-albums-grid', ios: '~search-albums-grid' },
-		artistsGrid: { android: '~search-artists-grid', ios: '~search-artists-grid' },
+		albumsGrid: { android: '~search-albums-grid', ios: '//*[starts-with(@name, "card-album-")]' },
+		artistsGrid: {
+			android: '~search-artists-grid',
+			ios: '//*[starts-with(@name, "card-artist-")]',
+		},
 		input: { android: '~search-input', ios: '~search-input' },
-		playlistsGrid: { android: '~search-playlists-grid', ios: '~search-playlists-grid' },
+		playlistsGrid: {
+			android: '~search-playlists-grid',
+			ios: '//*[starts-with(@name, "card-playlist-")]',
+		},
 		// On iOS, <view> elements use XPath; <textfield> and <layout> use ~id
 		retryButton: { android: '~search-retry', ios: '//XCUIElementTypeStaticText[@name="Retry"]/..' },
-		root: { android: '~search-view', ios: '~search-view' },
+		root: { android: '~search-view', ios: '~search-input' },
 		searchSubmit: { android: '~search-submit', ios: '//XCUIElementTypeImage[@name="search"]/..' },
 	} satisfies Record<string, PlatformLocator>;
 

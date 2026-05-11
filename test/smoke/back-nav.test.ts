@@ -7,40 +7,40 @@ import { PlaylistDetailPage } from '../pages/PlaylistDetailPage';
 
 describe('back navigation', () => {
 	let footer: FooterPage;
-	let home: LibraryPage;
+	let library: LibraryPage;
 
 	beforeEach(async () => {
 		footer = new FooterPage(browser);
 		await footer.tapLibrary();
 
-		home = new LibraryPage(browser);
-		await home.waitForLoad();
+		library = new LibraryPage(browser);
+		await library.waitForLoad();
 	});
 
 	it('should swipe back to artists grid after opening artist via header tab', async () => {
 		const artistDetailPage = new ArtistDetailPage(browser);
 
-		await home.openArtistsTab();
-		await home.tabs.artists.tapFirstVisibleCard();
+		await library.openArtistsTab();
+		await library.tabs.artists.tapFirstVisibleCard();
 		await artistDetailPage.waitForLoad();
 
-		await home.swipeBack();
-		await home.tabs.artists.waitForLoad();
+		await library.swipeBack();
+		await library.tabs.artists.waitForLoad();
 
-		expect(await home.tabs.artists.isVisible()).toBe(true);
+		expect(await library.tabs.artists.isVisible()).toBe(true);
 	});
 
 	it('should swipe back to albums grid after opening album via header tab', async () => {
 		const albumDetailPage = new AlbumDetailPage(browser);
 
-		await home.openAlbumsTab();
-		await home.tabs.albums.tapFirstVisibleCard();
+		await library.openAlbumsTab();
+		await library.tabs.albums.tapFirstVisibleCard();
 		await albumDetailPage.waitForLoad();
 
-		await home.swipeBack();
-		await home.tabs.albums.waitForLoad();
+		await library.swipeBack();
+		await library.tabs.albums.waitForLoad();
 
-		expect(await home.tabs.albums.isVisible()).toBe(true);
+		expect(await library.tabs.albums.isVisible()).toBe(true);
 	});
 
 	it('should return to home when swiping back from an album opened on home', async () => {
@@ -61,14 +61,14 @@ describe('back navigation', () => {
 	it('should swipe back to playlists grid after opening playlist via header tab', async () => {
 		const playlistDetailPage = new PlaylistDetailPage(browser);
 
-		await home.openPlaylistsTab();
-		await home.tabs.playlists.tapFirstVisibleCard();
+		await library.openPlaylistsTab();
+		await library.tabs.playlists.tapFirstVisibleCard();
 		await playlistDetailPage.waitForLoad();
 
-		await home.swipeBack();
-		await home.tabs.playlists.waitForLoad();
+		await library.swipeBack();
+		await library.tabs.playlists.waitForLoad();
 
-		expect(await home.tabs.playlists.isVisible()).toBe(true);
+		expect(await library.tabs.playlists.isVisible()).toBe(true);
 	});
 
 	it('should keep playlists back navigation working after artist and album navigation', async () => {
@@ -76,21 +76,22 @@ describe('back navigation', () => {
 		const albumDetailPage = new AlbumDetailPage(browser);
 		const playlistDetailPage = new PlaylistDetailPage(browser);
 
-		await home.openArtistsTab();
-		await home.tabs.artists.tapFirstVisibleCard();
+		await library.openArtistsTab();
+		await library.tabs.artists.tapFirstVisibleCard();
 		await artistDetailPage.waitForLoad();
 
-		await home.tabs.albums.tapFirstVisibleCard();
+		await library.tabs.albums.tapFirstVisibleCard();
 		await albumDetailPage.waitForLoad();
+
 		await albumDetailPage.DetailHeader().swipeDownToRevealHeader();
 		await albumDetailPage.DetailHeader().tapPlaylistsTab();
 
-		await home.tabs.playlists.tapFirstVisibleCard();
+		await library.tabs.playlists.tapFirstVisibleCard();
 		await playlistDetailPage.waitForLoad();
 
-		await home.swipeBack();
-		await home.tabs.playlists.waitForLoad();
+		await library.swipeBack();
+		await library.tabs.playlists.waitForLoad();
 
-		expect(await home.tabs.playlists.isVisible()).toBe(true);
+		expect(await library.tabs.playlists.isVisible()).toBe(true);
 	});
 });
