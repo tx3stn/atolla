@@ -22,7 +22,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { SearchStore } from '../../stores/Search';
-import { scrollPaddingBottom, theme } from '../../theme';
+import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
@@ -860,6 +860,7 @@ const styles = {
 	}),
 	root: new Style<View>({
 		padding: 20,
+		paddingTop: 20 + topInset,
 		width: '100%',
 	}),
 	searchBar: new Style<View>({
