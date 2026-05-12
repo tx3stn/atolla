@@ -93,6 +93,12 @@ export class MockTransport implements Transport {
 		);
 	}
 
+	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
+		return sortMockAlbumsByDefaultOrder(mockJellyfinAlbums)
+			.slice(0, limit)
+			.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+	}
+
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
 		return sortMockAlbumsByDefaultOrder(
 			mockJellyfinAlbums.filter((album) =>

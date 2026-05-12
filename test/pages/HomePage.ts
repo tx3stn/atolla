@@ -58,4 +58,26 @@ export class HomePage extends BasePage {
 			timeoutMsg: 'Timed out waiting for home view',
 		});
 	}
+
+	async pullToRefresh(): Promise<void> {
+		const { width, height } = await this.driver.getWindowSize();
+		const x = Math.round(width * 0.5);
+		const startY = Math.round(height * 0.25);
+		const endY = Math.round(height * 0.55);
+		await this.driver.performActions([
+			{
+				actions: [
+					{ duration: 0, type: 'pointerMove', x, y: startY },
+					{ button: 0, type: 'pointerDown' },
+					{ duration: 50, type: 'pause' },
+					{ duration: 300, type: 'pointerMove', x, y: endY },
+					{ button: 0, type: 'pointerUp' },
+				],
+				id: 'pull-to-refresh-finger',
+				parameters: { pointerType: 'touch' },
+				type: 'pointer',
+			},
+		]);
+		await this.driver.releaseActions();
+	}
 }

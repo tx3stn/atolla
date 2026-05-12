@@ -60,6 +60,7 @@ interface HomeState {
 	albums: Array<Album>;
 	contextMenuTrack: Track | null;
 	isLoadingAlbums: boolean;
+	recentlyAddedAlbums: Array<Album>;
 }
 
 const HOME_ALBUMS_CACHE_KEY = 'albums_v1';
@@ -75,11 +76,11 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private cachedRecentlyAddedCards: Array<Card> = [];
 	private cachedRecentlyAddedAlbumsRef: Array<Album> | null = null;
 	private cachedRecentlyAddedGridColumns = -1;
-
 	state: HomeState = {
 		albums: [],
 		contextMenuTrack: null,
 		isLoadingAlbums: true,
+		recentlyAddedAlbums: [],
 	};
 
 	onCreate(): void {
@@ -97,8 +98,13 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			return;
 		}
 
-		if (this.viewModel.transport !== prevViewModel.transport) {
+		if (
+			this.viewModel.transport !== prevViewModel.transport ||
+			this.viewModel.connectionMode !== prevViewModel.connectionMode
+		) {
 			this.loadAlbums();
+		} else if (this.viewModel.gridColumns !== prevViewModel.gridColumns) {
+			this.loadRecentlyAdded(this.loadGeneration);
 		}
 	}
 
@@ -114,6 +120,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		}
 
 		this.refreshAlbums(generation);
+		this.loadRecentlyAdded(generation);
 	}
 
 	private restoreCachedAlbums(generation: number): void {
@@ -181,6 +188,19 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			});
 	}
 
+	private loadRecentlyAdded(generation: number): void {
+		const limit = Math.max(1, this.viewModel.gridColumns) * 2;
+		void this.viewModel.transport
+			.getRecentlyAddedAlbums?.(limit)
+			.then((albums) => {
+				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
+					return;
+				}
+				this.setState({ recentlyAddedAlbums: albums });
+			})
+			.catch(() => {});
+	}
+
 	private persistAlbums(albums: Array<Album>): void {
 		const store = this.viewModel.homeAlbumsStore;
 		if (!store) {
@@ -199,25 +219,21 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private createRecentlyAddedCards(): Array<Card> {
 		const { gridColumns } = this.viewModel;
 		if (
-			this.state.albums === this.cachedRecentlyAddedAlbumsRef &&
+			this.state.recentlyAddedAlbums === this.cachedRecentlyAddedAlbumsRef &&
 			gridColumns === this.cachedRecentlyAddedGridColumns
 		) {
 			return this.cachedRecentlyAddedCards;
 		}
 
-		this.cachedRecentlyAddedAlbumsRef = this.state.albums;
+		this.cachedRecentlyAddedAlbumsRef = this.state.recentlyAddedAlbums;
 		this.cachedRecentlyAddedGridColumns = gridColumns;
-		const limit = Math.max(1, gridColumns) * 2;
-		this.cachedRecentlyAddedCards = [...this.state.albums]
-			.sort((left, right) => (right.releaseDate ?? '').localeCompare(left.releaseDate ?? ''))
-			.slice(0, limit)
-			.map((album) => ({
-				artworkKey: album.imageUrl ?? '',
-				id: album.id,
-				kind: 'album',
-				primaryText: album.name,
-				secondaryText: album.artistName,
-			}));
+		this.cachedRecentlyAddedCards = this.state.recentlyAddedAlbums.map((album) => ({
+			artworkKey: album.imageUrl ?? '',
+			id: album.id,
+			kind: 'album' as const,
+			primaryText: album.name,
+			secondaryText: album.artistName,
+		}));
 		return this.cachedRecentlyAddedCards;
 	}
 

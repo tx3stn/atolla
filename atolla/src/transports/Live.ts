@@ -187,6 +187,19 @@ export class LiveTransport implements Transport {
 		return items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
+	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
+		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
+			fields: 'DateCreated',
+			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+			limit: Math.max(1, limit),
+			recursive: true,
+			sortBy: 'DateCreated',
+			sortOrder: 'Descending',
+			startIndex: 0,
+		});
+		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+	}
+
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
 		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
 			albumArtistIds: artistId,

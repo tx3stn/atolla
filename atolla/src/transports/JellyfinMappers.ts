@@ -129,6 +129,7 @@ export function mapJellyfinAlbumToAlbum(
 	const primaryTag = item.ImageTags?.Primary;
 
 	return {
+		addedDate: item.DateCreated,
 		artistId: primaryArtist?.Id ?? '',
 		artistName: primaryArtist?.Name ?? '',
 		bio: item.Overview,
