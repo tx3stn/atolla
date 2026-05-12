@@ -14,18 +14,9 @@ export class LibraryPage extends BasePage {
 	public readonly tabs: LibraryTabs;
 
 	private readonly locators = {
-		albumsHeaderTab: {
-			android: '~header-tab-albums',
-			ios: '//XCUIElementTypeStaticText[@name="ALBUMS"]/..',
-		},
-		artistsHeaderTab: {
-			android: '~header-tab-artists',
-			ios: '//XCUIElementTypeStaticText[@name="ARTISTS"]/..',
-		},
-		playlistsHeaderTab: {
-			android: '~header-tab-playlists',
-			ios: '//XCUIElementTypeStaticText[@name="PLAYLISTS"]/..',
-		},
+		albumsHeaderTab: { android: '~header-tab-albums', ios: '~header-tab-albums' },
+		artistsHeaderTab: { android: '~header-tab-artists', ios: '~header-tab-artists' },
+		playlistsHeaderTab: { android: '~header-tab-playlists', ios: '~header-tab-playlists' },
 	} satisfies Record<string, PlatformLocator>;
 
 	constructor(driver: Browser) {

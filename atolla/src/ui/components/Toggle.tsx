@@ -10,18 +10,19 @@ const THUMB_SIZE = 20;
 const THUMB_MARGIN = 3;
 
 export interface ToggleViewModel {
-	accessibilityLabel?: string;
+	accessibilityId?: string;
 	enabled: boolean;
 	onToggle: (enabled: boolean) => void;
 }
 
 export class Toggle extends Component<ToggleViewModel> {
 	onRender(): void {
-		const { accessibilityLabel, enabled, onToggle } = this.viewModel;
+		const { accessibilityId, enabled, onToggle } = this.viewModel;
 		const thumbOffset = enabled ? TRACK_WIDTH - THUMB_SIZE - THUMB_MARGIN : THUMB_MARGIN;
 
 		<view
-			accessibilityLabel={accessibilityLabel}
+			accessibilityId={accessibilityId}
+			accessibilityLabel={accessibilityId}
 			onTap={createReusableCallback(() => onToggle(!enabled))}
 			style={enabled ? styles.trackOn : styles.trackOff}
 		>

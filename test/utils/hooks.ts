@@ -16,22 +16,15 @@ async function ensureMockMode(): Promise<void> {
 		{ timeout: 30_000, timeoutMsg: 'App did not finish bootstrapping' },
 	);
 
-	// Case 1: app launched to connection view (first install or logged out)
 	if (await connectionPage.isVisible()) {
 		await connectionPage.connectToMock();
-		return;
+	} else {
+		await connectivityFab.tap();
+		await connectionPage.connectToMock();
 	}
-	//
-	// Offline mode — tap connectivity FAB and connect to mock
-	await connectivityFab.tap();
-	await connectionPage.connectToMock();
 
-	// Navigate to home and check whether mock data loads within a short timeout
 	await footer.tapHome();
-	const homePage = new HomePage(browser);
-	if (await homePage.hasAlbumCards()) {
-		return; // Already in mock/online mode
-	}
+	await new HomePage(browser).hasAlbumCards();
 }
 
 export async function beforeHook(): Promise<void> {

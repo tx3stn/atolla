@@ -5,7 +5,7 @@ import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElement
 import { theme } from '../../theme';
 
 export interface FooterIconView {
-	accessibilityLabel?: string;
+	accessibilityId?: string;
 	action: () => void;
 	active?: boolean;
 	badgeCount?: number;
@@ -15,7 +15,8 @@ export interface FooterIconView {
 export class FooterIcon extends Component<FooterIconView> {
 	onRender() {
 		<view
-			accessibilityLabel={this.viewModel.accessibilityLabel}
+			accessibilityId={this.viewModel.accessibilityId}
+			accessibilityLabel={this.viewModel.accessibilityId}
 			onTap={this.viewModel.action}
 			style={styles.footerTabChip}
 		>

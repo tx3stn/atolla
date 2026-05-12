@@ -536,6 +536,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 					)}
 					{!isLoading && this.hasMoreTracks && !nextPageFailed && (
 						<view
+							accessibilityId='genre-load-more-trigger'
 							accessibilityLabel='genre-load-more-trigger'
 							onLayout={() => {
 								this.handleLoadMoreTriggerLayout();
@@ -546,6 +547,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 					{isLoadingNextPage && <label style={styles.loadMoreLabel} value='Loading more...' />}
 					{nextPageFailed && (
 						<view
+							accessibilityId='genre-load-more-retry'
 							accessibilityLabel='genre-load-more-retry'
 							onTap={this.retryLoadMore}
 							style={styles.loadMoreRetryContainer}

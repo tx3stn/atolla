@@ -2,10 +2,10 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class FooterPage extends BasePage {
 	private readonly locators = {
-		home: { android: '~footer-home', ios: '//XCUIElementTypeImage[@name="home"]/..' },
-		library: { android: '~footer-library', ios: '//XCUIElementTypeImage[@name="library"]/..' },
-		search: { android: '~footer-search', ios: '//XCUIElementTypeImage[@name="search"]/..' },
-		settings: { android: '~footer-settings', ios: '//XCUIElementTypeImage[@name="settings"]/..' },
+		home: { android: '~footer-home', ios: '~footer-home' },
+		library: { android: '~footer-library', ios: '~footer-library' },
+		search: { android: '~footer-search', ios: '~footer-search' },
+		settings: { android: '~footer-settings', ios: '~footer-settings' },
 	} satisfies Record<string, PlatformLocator>;
 
 	async tapHome(): Promise<void> {
@@ -34,7 +34,6 @@ export class FooterPage extends BasePage {
 			timeoutMsg: 'Timed out waiting for footer search button',
 		});
 		await this.element(this.locators.search).click();
-		// search-input is a <textfield> (accessible via ~id on both platforms); search-bar is a <view>
 		await this.elementByID('search-input').waitForDisplayed({
 			timeoutMsg: 'Timed out navigating to search view',
 		});

@@ -641,11 +641,20 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		<layout accessibilityLabel='search-view' style={styles.searchRoot}>
 			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 				<view style={styles.root}>
-					<view accessibilityLabel='search-bar' style={styles.searchBar}>
-						<view accessibilityLabel='search-submit' onTap={this.handleSearchIconTap}>
+					<view
+						accessibilityId='search-bar'
+						accessibilityLabel='search-bar'
+						style={styles.searchBar}
+					>
+						<view
+							accessibilityId='search-submit'
+							accessibilityLabel='search-submit'
+							onTap={this.handleSearchIconTap}
+						>
 							<image src={res.search} style={styles.searchIcon} tint={theme.colors.white} />
 						</view>
 						<textfield
+							accessibilityId='search-input'
 							accessibilityLabel='search-input'
 							autocapitalization='none'
 							keyboardAppearance='dark'
@@ -661,7 +670,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 					{status === 'loading' && (
 						<LoopingArrowSpinner
-							accessibilityLabel='search-loading-spinner'
+							accessibilityId='search-loading-spinner'
 							durationSeconds={0.9}
 							label={Strings.searchLoading()}
 							size={20}
@@ -676,6 +685,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 								value={this.state.errorMessage ?? Strings.searchCouldNotSearch()}
 							/>
 							<view
+								accessibilityId='search-retry'
 								accessibilityLabel='search-retry'
 								onTap={this.handleRetryTap}
 								style={styles.retryButton}
@@ -697,7 +707,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 								<layout style={styles.section}>
 									{this.renderSectionTitle(Strings.searchSectionArtists())}
 									<CardGrid
-										accessibilityLabel='search-artists-grid'
+										accessibilityId='search-artists-grid'
 										cards={this.createArtistCards(results.artists)}
 										columnCount={this.viewModel.gridColumns}
 										onCardTap={this.handleArtistCardTap}
@@ -709,7 +719,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 								<layout style={styles.section}>
 									{this.renderSectionTitle(Strings.searchSectionAlbums())}
 									<CardGrid
-										accessibilityLabel='search-albums-grid'
+										accessibilityId='search-albums-grid'
 										cards={this.createAlbumCards(results.albums)}
 										columnCount={this.viewModel.gridColumns}
 										onCardTap={this.handleAlbumCardTap}
@@ -721,7 +731,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 								<layout style={styles.section}>
 									{this.renderSectionTitle(Strings.searchSectionPlaylists())}
 									<CardGrid
-										accessibilityLabel='search-playlists-grid'
+										accessibilityId='search-playlists-grid'
 										cards={this.createPlaylistCards(results.playlists)}
 										columnCount={this.viewModel.gridColumns}
 										onCardTap={this.handlePlaylistCardTap}
@@ -750,7 +760,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 						) : (
 							recentSearches.map((term) => (
 								<view
-									accessibilityLabel={`recent-search-${term}`}
+									accessibilityId={`recent-search-${term}`}
 									key={term}
 									onTap={this.getRecentSearchTapHandler(term)}
 									style={styles.recentSearchChip}

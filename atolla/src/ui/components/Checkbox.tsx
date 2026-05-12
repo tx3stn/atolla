@@ -4,7 +4,7 @@ import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 export interface CheckboxViewModel {
-	accessibilityLabel: string;
+	accessibilityId: string;
 	checked: boolean;
 	label: string;
 	onToggle: () => void;
@@ -12,9 +12,14 @@ export interface CheckboxViewModel {
 
 export class Checkbox extends Component<CheckboxViewModel> {
 	onRender(): void {
-		const { accessibilityLabel, checked, label, onToggle } = this.viewModel;
+		const { accessibilityId, checked, label, onToggle } = this.viewModel;
 
-		<view accessibilityLabel={accessibilityLabel} onTap={onToggle} style={styles.row}>
+		<view
+			accessibilityId={accessibilityId}
+			accessibilityLabel={accessibilityId}
+			onTap={onToggle}
+			style={styles.row}
+		>
 			<view style={checked ? styles.checkboxChecked : styles.checkboxUnchecked}>
 				{checked && <label style={styles.checkmark} value='✓' />}
 			</view>

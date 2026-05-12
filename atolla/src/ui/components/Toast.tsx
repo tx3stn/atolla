@@ -9,7 +9,7 @@ export interface ToastViewModel {
 
 export class Toast extends Component<ToastViewModel> {
 	onRender(): void {
-		<view accessibilityLabel='toast' style={styles.container}>
+		<view accessibilityId='toast' accessibilityLabel='toast' style={styles.container}>
 			<label numberOfLines={5} style={styles.message} value={this.viewModel.message} />
 		</view>;
 	}

@@ -59,8 +59,13 @@ export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 			this.viewModel.thickness ?? 4,
 		);
 
-		<view accessibilityLabel='playback-progress-bar' style={styles.root}>
+		<view
+			accessibilityId='playback-progress-bar'
+			accessibilityLabel='playback-progress-bar'
+			style={styles.root}
+		>
 			<view
+				accessibilityId='playback-progress-track'
 				accessibilityLabel='playback-progress-track'
 				onLayout={this.handleTrackLayout}
 				onTap={
@@ -77,8 +82,14 @@ export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 				style={trackStyle}
 			>
 				<view style={railStyle}>
-					<view accessibilityLabel='playback-progress-fill' ref={this.fillRef} style={fillStyle}>
+					<view
+						accessibilityId='playback-progress-fill'
+						accessibilityLabel='playback-progress-fill'
+						ref={this.fillRef}
+						style={fillStyle}
+					>
 						<view
+							accessibilityId='playback-progress-playhead'
 							accessibilityLabel='playback-progress-playhead'
 							ref={this.playheadRef}
 							style={playheadStyle}

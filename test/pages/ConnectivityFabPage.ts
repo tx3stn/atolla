@@ -2,10 +2,7 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class ConnectivityFabPage extends BasePage {
 	private readonly locators = {
-		fab: {
-			android: '~connectivity-fab',
-			ios: '//XCUIElementTypeImage[@name="logowifioff"]/..',
-		},
+		fab: { android: '~connectivity-fab', ios: '~connectivity-fab' },
 	} satisfies Record<string, PlatformLocator>;
 
 	async isVisible(): Promise<boolean> {

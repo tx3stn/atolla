@@ -591,7 +591,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 										<label style={styles.sectionCount} value={`[ ${albums.length} ]`} />
 									</layout>
 									<CardGrid
-										accessibilityLabel='artist-albums-grid'
+										accessibilityId='artist-albums-grid'
 										cards={albumCards}
 										columnCount={this.viewModel.gridColumns}
 										onCardLongPress={this.handleAlbumCardLongPress}
@@ -624,7 +624,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 							{artistGenres.length > 0 && (
 								<GenrePills
-									accessibilityLabel='artist-genres'
+									accessibilityId='artist-genres'
 									genres={artistGenres}
 									onGenreTap={this.handleGenreTap}
 								/>

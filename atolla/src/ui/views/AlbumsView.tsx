@@ -292,7 +292,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		}));
 		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
-				accessibilityLabel='library-albums-grid'
+				accessibilityId='library-albums-grid'
 				cards={cards}
 				columnCount={this.viewModel.gridColumns}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}

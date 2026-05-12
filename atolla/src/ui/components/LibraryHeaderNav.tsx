@@ -101,6 +101,7 @@ export class LibraryHeaderNav extends StatefulComponent<
 		const { isPanelOpen, activeLetterFilter } = this.state;
 
 		<view
+			accessibilityId='library-header-nav'
 			accessibilityLabel='library-header-nav'
 			onDrag={createReusableCallback((event) => {
 				this.handleDrag(event);

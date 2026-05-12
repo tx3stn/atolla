@@ -2,28 +2,17 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class SettingsPage extends BasePage {
 	private readonly locators = {
-		// Button component renders as <view> on iOS; find by visible text
 		cacheClearConfirmButton: {
 			android: '~cache-clear-confirm-btn',
-			ios: '//XCUIElementTypeStaticText[@name="yes"]/..',
+			ios: '~cache-clear-confirm-btn',
 		},
-		clearCacheButton: {
-			android: '~settings-cache-clear-btn',
-			ios: '//XCUIElementTypeStaticText[@name="Clear Cache"]/..',
-		},
-		logoutButton: {
-			android: '~settings-logout-btn',
-			ios: '//XCUIElementTypeStaticText[@name="Logout"]/..',
-		},
+		clearCacheButton: { android: '~settings-cache-clear-btn', ios: '~settings-cache-clear-btn' },
+		logoutButton: { android: '~settings-logout-btn', ios: '~settings-logout-btn' },
 		logoutConfirmButton: {
 			android: '~settings-logout-confirm-btn',
-			ios: '//XCUIElementTypeStaticText[@name="yes"]/..',
+			ios: '~settings-logout-confirm-btn',
 		},
-		// On iOS, the animations toggle is a custom Valdi view; use device ID textfield as page indicator
-		pageIndicator: {
-			android: '~settings-animations-toggle',
-			ios: '~settings-jellyfin-device-id-input',
-		},
+		pageIndicator: { android: '~settings-animations-toggle', ios: '~settings-animations-toggle' },
 	} satisfies Record<string, PlatformLocator>;
 
 	async waitForLoad(): Promise<void> {

@@ -112,10 +112,14 @@ export class AddToPlaylistView extends StatefulComponent<
 			secondaryText: '',
 		}));
 
-		<view accessibilityLabel='add-to-playlist-view' style={styles.root}>
+		<view
+			accessibilityId='add-to-playlist-view'
+			accessibilityLabel='add-to-playlist-view'
+			style={styles.root}
+		>
 			<scroll style={styles.scroll}>
 				<CardGrid
-					accessibilityLabel='add-to-playlist-grid'
+					accessibilityId='add-to-playlist-grid'
 					cards={cards}
 					columnCount={gridColumns}
 					onCardTap={this.handlePlaylistTap}
@@ -124,6 +128,7 @@ export class AddToPlaylistView extends StatefulComponent<
 			<view style={styles.header}>
 				<label style={styles.title} value={Strings.addToPlaylist().toUpperCase()} />
 				<view
+					accessibilityId='add-to-playlist-close'
 					accessibilityLabel='add-to-playlist-close'
 					onTap={onDismiss}
 					style={styles.closeButton}

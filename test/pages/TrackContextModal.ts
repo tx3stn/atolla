@@ -2,19 +2,9 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class TrackContextMenu extends BasePage {
 	private readonly locators = {
-		// On iOS, <view> elements don't expose accessibilityIdentifier; use visible text XPath
-		addToQueue: {
-			android: '~track-context-add-to-queue',
-			ios: '//XCUIElementTypeStaticText[@name="Add to Queue"]/..',
-		},
-		playNext: {
-			android: '~track-context-play-next',
-			ios: '//XCUIElementTypeStaticText[@name="Play Next"]/..',
-		},
-		root: {
-			android: '~track-context-menu',
-			ios: '//XCUIElementTypeStaticText[@name="Add to Queue"]',
-		},
+		addToQueue: { android: '~track-context-add-to-queue', ios: '~track-context-add-to-queue' },
+		playNext: { android: '~track-context-play-next', ios: '~track-context-play-next' },
+		root: { android: '~track-context-menu', ios: '~track-context-menu' },
 	} satisfies Record<string, PlatformLocator>;
 
 	async waitForVisible(): Promise<void> {

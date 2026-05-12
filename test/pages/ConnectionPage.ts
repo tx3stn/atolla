@@ -2,18 +2,11 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class ConnectionPage extends BasePage {
 	private readonly locators = {
-		connectButton: {
-			android: '~connection-connect-btn',
-			// Button component appends "-btn"; on iOS find the StaticText "connect" and tap its parent view
-			ios: '//XCUIElementTypeStaticText[@name="connect"]/..',
-		},
-		footer: {
-			android: '~footer-home',
-			ios: '//XCUIElementTypeImage[@name="home"]/..',
-		},
+		connectButton: { android: '~connection-connect-btn', ios: '~connection-connect-btn' },
+		footer: { android: '~footer-home', ios: '~footer-home' },
 		serverUrlInput: {
 			android: '~connection-server-url-input',
-			ios: '//XCUIElementTypeTextField',
+			ios: '~connection-server-url-input',
 		},
 	} satisfies Record<string, PlatformLocator>;
 

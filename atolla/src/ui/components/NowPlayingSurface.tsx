@@ -593,6 +593,7 @@ export class NowPlayingSurface extends StatefulComponent<
 
 		<view style={rootStyle}>
 			<view
+				accessibilityId='now-playing-surface-bar'
 				accessibilityLabel='now-playing-surface-bar'
 				id='now-playing-surface-bar'
 				onDrag={this.handleCompactDrag}
@@ -695,7 +696,7 @@ export class NowPlayingSurface extends StatefulComponent<
 										{playbackStore && (
 											<ProgressBarWaveform
 												accentColor={accentColor}
-												accessibilityLabel='now-playing-progress'
+												accessibilityId='now-playing-progress'
 												maskImageUrl={this.viewModel.waveformMaskUrl}
 												mutedColor={mutedOnSurfaceColor}
 												onProgressTap={onProgressTap}
@@ -729,7 +730,7 @@ export class NowPlayingSurface extends StatefulComponent<
 									</layout>
 									<layout style={styles.expandedControlsRow}>
 										<TappableIcon
-											accessibilityLabel='now-playing-loop-mode'
+											accessibilityId='now-playing-loop-mode'
 											animationsEnabled={this.viewModel.animationsEnabled}
 											hitSize={60}
 											icon={loopIcon}
@@ -744,7 +745,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											}
 										/>
 										<TappableIcon
-											accessibilityLabel='now-playing-previous'
+											accessibilityId='now-playing-previous'
 											animationsEnabled={this.viewModel.animationsEnabled}
 											hitSize={70}
 											icon={res.previous}
@@ -755,7 +756,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											tint={onSurfaceColor}
 										/>
 										<TappableIcon
-											accessibilityLabel='now-playing-play-pause'
+											accessibilityId='now-playing-play-pause'
 											animationsEnabled={this.viewModel.animationsEnabled}
 											hitSize={80}
 											icon={isPlaying ? res.pause : res.play}
@@ -766,7 +767,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											tint={onSurfaceColor}
 										/>
 										<TappableIcon
-											accessibilityLabel='now-playing-next'
+											accessibilityId='now-playing-next'
 											animationsEnabled={this.viewModel.animationsEnabled}
 											hitSize={70}
 											icon={res.next}
@@ -780,6 +781,7 @@ export class NowPlayingSurface extends StatefulComponent<
 									</layout>
 									<layout style={styles.expandedQueueTabsRow}>
 										<view
+											accessibilityId='now-playing-tab-back-to'
 											accessibilityLabel='now-playing-tab-back-to'
 											onTap={this.handleBackToTabTap}
 											style={styles.expandedQueueTabButton}
@@ -787,6 +789,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											<label style={backToLabelStyle} value={Strings.backTo()} />
 										</view>
 										<view
+											accessibilityId='now-playing-tab-up-next'
 											accessibilityLabel='now-playing-tab-up-next'
 											onTap={this.handleUpNextTabTap}
 											style={styles.expandedQueueTabButton}
@@ -800,6 +803,7 @@ export class NowPlayingSurface extends StatefulComponent<
 								{/* Strip holds both pages side-by-side; sliding it reveals one at a time */}
 								<layout ref={this.queueSlideRef} style={styles.queueListStrip}>
 									<view
+										accessibilityId='now-playing-queue-page-back-to'
 										accessibilityLabel='now-playing-queue-page-back-to'
 										onLayout={this.handleQueuePageLayout}
 										style={styles.queueListPage}
@@ -821,6 +825,7 @@ export class NowPlayingSurface extends StatefulComponent<
 										/>
 									</view>
 									<view
+										accessibilityId='now-playing-queue-page-up-next'
 										accessibilityLabel='now-playing-queue-page-up-next'
 										style={styles.queueListPage}
 									>

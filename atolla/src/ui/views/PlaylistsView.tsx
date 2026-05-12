@@ -244,7 +244,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		}));
 		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
-				accessibilityLabel='library-playlists-grid'
+				accessibilityId='library-playlists-grid'
 				cards={cards}
 				columnCount={this.viewModel.gridColumns}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}

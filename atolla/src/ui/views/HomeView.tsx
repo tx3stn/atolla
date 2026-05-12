@@ -516,7 +516,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 								<label style={styles.sectionTitle} value={Strings.homeSectionOnThisDay()} />
 								{onThisDayCards.length > 0 ? (
 									<CardDetailList
-										accessibilityLabel='home-on-this-day-grid'
+										accessibilityId='home-on-this-day-grid'
 										cards={onThisDayCards}
 										onCardTap={this.handleAlbumCardTap}
 									/>
@@ -528,7 +528,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							<layout style={styles.section}>
 								<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyAdded()} />
 								<CardGrid
-									accessibilityLabel='home-recently-added-grid'
+									accessibilityId='home-recently-added-grid'
 									cards={recentlyAddedCards}
 									columnCount={this.viewModel.gridColumns}
 									onCardTap={this.handleAlbumCardTap}
@@ -552,7 +552,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							<layout style={styles.section}>
 								<label style={styles.sectionTitle} value={Strings.homeSectionMixes()} />
 								<CardGrid
-									accessibilityLabel='home-mixes-grid'
+									accessibilityId='home-mixes-grid'
 									cards={mixCards}
 									columnCount={this.viewModel.gridColumns}
 									onCardTap={this.handleMixCardTap}

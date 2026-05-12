@@ -166,7 +166,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 
 		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
 			<CardGrid
-				accessibilityLabel='library-genres-grid'
+				accessibilityId='library-genres-grid'
 				cards={cards}
 				columnCount={this.viewModel.gridColumns}
 				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}

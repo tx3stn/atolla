@@ -2,7 +2,7 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class Toast extends BasePage {
 	private readonly locators = {
-		root: { android: '~toast', ios: '//*[@name="toast"]' },
+		root: { android: '~toast', ios: '~toast' },
 	} satisfies Record<string, PlatformLocator>;
 
 	isVisible(): Promise<boolean> {

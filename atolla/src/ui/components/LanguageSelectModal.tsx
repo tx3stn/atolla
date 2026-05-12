@@ -20,6 +20,7 @@ export class LanguageSelectModal extends Component<LanguageSelectModalViewModel>
 		<blur blurStyle={theme.modalBlurStyle} onTap={this.viewModel.onCancel} style={styles.backdrop}>
 			<view onTap={this.viewModel.onCancel} style={styles.centeredContainer}>
 				<view
+					accessibilityId='language-select-modal'
 					accessibilityLabel='language-select-modal'
 					onTap={this.stopPropagation}
 					style={styles.card}
@@ -28,7 +29,7 @@ export class LanguageSelectModal extends Component<LanguageSelectModalViewModel>
 					<view style={styles.divider} />
 					{LANGUAGE_OPTIONS.map((option) => (
 						<view
-							accessibilityLabel={`language-option-${option.code}`}
+							accessibilityId={`language-option-${option.code}`}
 							onTap={() => this.viewModel.onSelect(option.code)}
 							style={option.code === selectedLanguage ? styles.optionSelected : styles.option}
 						>

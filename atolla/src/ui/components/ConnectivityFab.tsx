@@ -143,6 +143,7 @@ export class ConnectivityFab extends StatefulComponent<
 
 		<view style={styles.root}>
 			<view
+				accessibilityId='connectivity-fab'
 				accessibilityLabel='connectivity-fab'
 				onTap={isEnabled ? this.handleTap : undefined}
 				style={styles.hitTarget}

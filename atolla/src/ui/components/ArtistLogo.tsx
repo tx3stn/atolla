@@ -29,6 +29,7 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 		} = this.viewModel;
 
 		<view
+			accessibilityId={testID ?? 'artist-logo'}
 			accessibilityLabel={testID ?? 'artist-logo'}
 			onTap={onTap}
 			style={containerStyle ?? styles.logoArea}

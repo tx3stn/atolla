@@ -4,7 +4,7 @@ import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 export interface ButtonViewModel {
-	accessibilityLabel: string;
+	accessibilityId: string;
 	enabled?: boolean;
 	label: string;
 	onTap: () => void;
@@ -13,7 +13,8 @@ export interface ButtonViewModel {
 export class Button extends Component<ButtonViewModel> {
 	onRender(): void {
 		<view
-			accessibilityLabel={`${this.viewModel.accessibilityLabel}-btn`}
+			accessibilityId={`${this.viewModel.accessibilityId}-btn`}
+			accessibilityLabel={`${this.viewModel.accessibilityId}-btn`}
 			onTap={this.viewModel.enabled !== false ? this.viewModel.onTap : undefined}
 			style={this.viewModel.enabled !== false ? styles.button : styles.buttonDisabled}
 		>

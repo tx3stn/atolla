@@ -214,6 +214,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 				return (
 					<view
+						accessibilityId={`track-row-drag-${rowIdentity}`}
 						accessibilityLabel={`track-row-drag-${rowIdentity}`}
 						key={rowIdentity}
 						onDrag={
@@ -236,11 +237,13 @@ export class TrackList extends Component<TrackListViewModel> {
 					>
 						{canSwipe && this.viewModel.showDragHandles ? (
 							<view
+								accessibilityId={`track-row-remove-action-${rowIdentity}`}
 								accessibilityLabel={`track-row-remove-action-${rowIdentity}`}
 								ref={this.getRemoveActionRef(rowIdentity)}
 								style={styles.swipeRemoveActionContainer}
 							>
 								<image
+									accessibilityId={`track-row-remove-icon-${rowIdentity}`}
 									accessibilityLabel={`track-row-remove-icon-${rowIdentity}`}
 									src={res.trash}
 									style={styles.swipeRemoveActionIcon}
@@ -249,6 +252,7 @@ export class TrackList extends Component<TrackListViewModel> {
 							</view>
 						) : null}
 						<view
+							accessibilityId={`track-row-${rowIdentity}`}
 							accessibilityLabel={`track-row-${rowIdentity}`}
 							ref={this.getRowRef(rowIdentity)}
 							style={resolvedStyles.rowStyle}
@@ -256,6 +260,7 @@ export class TrackList extends Component<TrackListViewModel> {
 							<view ref={this.getPulseOverlayRef(rowIdentity)} style={this.pulseOverlayStyle} />
 							<layout style={styles.rowInteractiveLayout}>
 								<view
+									accessibilityId={`track-row-swipe-region-${rowIdentity}`}
 									accessibilityLabel={`track-row-swipe-region-${rowIdentity}`}
 									onDrag={
 										canSwipe
@@ -308,6 +313,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 										<layout style={styles.textBlock}>
 											<label
+												accessibilityId={`track-title-${rowIdentity}`}
 												accessibilityLabel={`track-title-${rowIdentity}`}
 												numberOfLines={2}
 												style={resolvedStyles.titleStyle}
@@ -326,6 +332,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 								{this.viewModel.showDragHandles ? (
 									<view
+										accessibilityId={`track-row-edit-handle-${rowIdentity}`}
 										accessibilityLabel={`track-row-edit-handle-${rowIdentity}`}
 										onTap={
 											entry.track && this.viewModel.onTrackLongPress

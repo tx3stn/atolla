@@ -8,7 +8,7 @@ import { ProgressBarPlain } from './ProgressBarPlain';
 
 export interface ProgressBarWaveformViewModel {
 	accentColor: string;
-	accessibilityLabel?: string;
+	accessibilityId?: string;
 	maskImageUrl: string | null | undefined;
 	mutedColor: string;
 	onProgressTap?: (ratio?: number) => void;
@@ -61,7 +61,7 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 	onRender(): void {
 		const {
 			accentColor,
-			accessibilityLabel,
+			accessibilityId,
 			maskImageUrl,
 			mutedColor,
 			onProgressTap,
@@ -91,7 +91,8 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 		const accentImageStyle = createAccentImageStyle(accentColor);
 
 		<view
-			accessibilityLabel={accessibilityLabel ?? 'waveform-progress-bar'}
+			accessibilityId={accessibilityId ?? 'waveform-progress-bar'}
+			accessibilityLabel={accessibilityId ?? 'waveform-progress-bar'}
 			onLayout={this.handleTrackLayout}
 			onTap={
 				onProgressTap
@@ -108,13 +109,20 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 		>
 			<view style={styles.container}>
 				<image
+					accessibilityId='waveform-progress-unplayed'
 					accessibilityLabel='waveform-progress-unplayed'
 					objectFit='fill'
 					src={maskImageUrl}
 					style={mutedImageStyle}
 				/>
-				<view accessibilityLabel='waveform-progress-clip' ref={this.clipRef} style={styles.clip}>
+				<view
+					accessibilityId='waveform-progress-clip'
+					accessibilityLabel='waveform-progress-clip'
+					ref={this.clipRef}
+					style={styles.clip}
+				>
 					<image
+						accessibilityId='waveform-progress-played'
 						accessibilityLabel='waveform-progress-played'
 						objectFit='fill'
 						ref={this.accentRef}

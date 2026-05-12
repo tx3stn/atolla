@@ -2,25 +2,11 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class DetailHeaderPage extends BasePage {
 	private readonly locators = {
-		albumsTab: {
-			android: '~header-tab-albums',
-			ios: '//XCUIElementTypeStaticText[@name="ALBUMS"]/..',
-		},
-		artistsTab: {
-			android: '~header-tab-artists',
-			ios: '//XCUIElementTypeStaticText[@name="ARTISTS"]/..',
-		},
-		// On iOS, target the first image in the detail header area to get swipe coordinates
-		artwork: { android: '~detail-header-artwork', ios: '//XCUIElementTypeImage[1]' },
-		// On iOS, use ARTISTS tab text as a proxy for the header nav being visible
-		libraryHeaderNav: {
-			android: '~library-header-nav',
-			ios: '//XCUIElementTypeStaticText[@name="ARTISTS"]/..',
-		},
-		playlistsTab: {
-			android: '~header-tab-playlists',
-			ios: '//XCUIElementTypeStaticText[@name="PLAYLISTS"]/..',
-		},
+		albumsTab: { android: '~header-tab-albums', ios: '~header-tab-albums' },
+		artistsTab: { android: '~header-tab-artists', ios: '~header-tab-artists' },
+		artwork: { android: '~detail-header-artwork', ios: '~detail-header-artwork' },
+		libraryHeaderNav: { android: '~library-header-nav', ios: '~library-header-nav' },
+		playlistsTab: { android: '~header-tab-playlists', ios: '~header-tab-playlists' },
 	} satisfies Record<string, PlatformLocator>;
 
 	isHeaderVisible(): Promise<boolean> {

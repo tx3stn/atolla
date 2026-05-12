@@ -6,12 +6,12 @@ import { CachedImage } from './CachedImage';
 
 export interface ModalViewModel {
 	body: string;
-	cancelAccessibilityLabel?: string;
+	cancelAccessibilityId?: string;
 	cancelLabel?: string;
-	confirmAccessibilityLabel?: string;
+	confirmAccessibilityId?: string;
 	confirmLabel?: string;
 	logoUrl?: string;
-	modalAccessibilityLabel?: string;
+	modalAccessibilityId?: string;
 	onClose: () => void;
 	onConfirm?: () => void;
 	title: string;
@@ -21,12 +21,12 @@ export class Modal extends Component<ModalViewModel> {
 	onRender(): void {
 		const {
 			body,
-			cancelAccessibilityLabel,
+			cancelAccessibilityId,
 			cancelLabel,
-			confirmAccessibilityLabel,
+			confirmAccessibilityId,
 			confirmLabel,
 			logoUrl,
-			modalAccessibilityLabel,
+			modalAccessibilityId,
 			onClose,
 			onConfirm,
 			title,
@@ -34,7 +34,8 @@ export class Modal extends Component<ModalViewModel> {
 		const hasConfirmation = !!onConfirm;
 
 		<blur
-			accessibilityLabel={modalAccessibilityLabel}
+			accessibilityId={modalAccessibilityId}
+			accessibilityLabel={modalAccessibilityId}
 			blurStyle={theme.modalBlurStyle}
 			onTap={onClose}
 			style={styles.backdrop}
@@ -58,7 +59,8 @@ export class Modal extends Component<ModalViewModel> {
 						<view style={styles.confirmDivider} />
 						<view style={styles.actions}>
 							<view
-								accessibilityLabel={confirmAccessibilityLabel}
+								accessibilityId={confirmAccessibilityId}
+								accessibilityLabel={confirmAccessibilityId}
 								onTap={onConfirm}
 								style={styles.actionButton}
 							>
@@ -66,7 +68,8 @@ export class Modal extends Component<ModalViewModel> {
 							</view>
 							<view style={styles.actionSeparator} />
 							<view
-								accessibilityLabel={cancelAccessibilityLabel}
+								accessibilityId={cancelAccessibilityId}
+								accessibilityLabel={cancelAccessibilityId}
 								onTap={onClose}
 								style={styles.actionButton}
 							>

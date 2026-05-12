@@ -1,8 +1,7 @@
 import type { Browser, ChainablePromiseElement } from 'webdriverio';
 
-// On iOS, Valdi does not expose accessibilityLabel on UIViews — XCUITest has no
-// name/label on container elements. Each locator pair provides the iOS XPath
-// fallback alongside the Android accessibility ID.
+// Valdi's accessibilityId maps to UIView.accessibilityIdentifier on iOS, which is
+// what the ~ selector reads in XCUITest. Both platforms use ~id locators.
 const IOS = 'ios' as const;
 const ANDROID = 'android' as const;
 type Platform = typeof IOS | typeof ANDROID;
@@ -155,6 +154,29 @@ export class BasePage {
 		} catch {
 			// No permission dialog present
 		}
+	}
+
+	public async dismissKeyboard(): Promise<void> {
+		const rect = await this.driver.getWindowRect();
+		await this.driver.performActions([
+			{
+				actions: [
+					{
+						duration: 0,
+						type: 'pointerMove',
+						x: Math.floor(rect.width * 0.5),
+						y: Math.floor(rect.height * 0.45),
+					},
+					{ button: 0, type: 'pointerDown' },
+					{ duration: 50, type: 'pause' },
+					{ button: 0, type: 'pointerUp' },
+				],
+				id: 'dismiss-keyboard-finger',
+				parameters: { pointerType: 'touch' },
+				type: 'pointer',
+			},
+		]);
+		await this.driver.releaseActions();
 	}
 
 	public async swipeBack(): Promise<void> {

@@ -9,7 +9,7 @@ import { theme } from '../../theme';
 const fullTurnRadians = Math.PI * 2;
 
 export interface LoopingArrowSpinnerViewModel {
-	accessibilityLabel?: string;
+	accessibilityId?: string;
 	durationSeconds?: number;
 	label?: string;
 	size?: number;
@@ -74,14 +74,15 @@ export class LoopingArrowSpinner extends StatefulComponent<LoopingArrowSpinnerVi
 	}
 
 	onRender(): void {
-		const accessibilityLabel = this.viewModel.accessibilityLabel ?? 'spinner';
+		const accessibilityId = this.viewModel.accessibilityId ?? 'spinner';
 		const label = this.viewModel.label;
 		const size = this.viewModel.size ?? 24;
 		const tint = this.viewModel.tint ?? theme.colors.active;
 		const hasLabel = Boolean(label);
 
 		<view
-			accessibilityLabel={accessibilityLabel}
+			accessibilityId={accessibilityId}
+			accessibilityLabel={accessibilityId}
 			style={hasLabel ? styles.root : getIconOnlyRootStyle(size)}
 		>
 			<image

@@ -50,6 +50,7 @@ export class CreatePlaylistModal extends StatefulComponent<
 				<view style={styles.divider} />
 				<view style={styles.inputContainer}>
 					<textfield
+						accessibilityId='create-playlist-name-input'
 						accessibilityLabel='create-playlist-name-input'
 						autocapitalization='sentences'
 						onChange={(value: unknown) => {
@@ -64,6 +65,7 @@ export class CreatePlaylistModal extends StatefulComponent<
 				<view style={styles.confirmDivider} />
 				<view style={styles.actions}>
 					<view
+						accessibilityId='create-playlist-create-button'
 						accessibilityLabel='create-playlist-create-button'
 						onTap={this.handleCreate}
 						style={styles.actionButton}
@@ -75,6 +77,7 @@ export class CreatePlaylistModal extends StatefulComponent<
 					</view>
 					<view style={styles.actionSeparator} />
 					<view
+						accessibilityId='create-playlist-cancel-button'
 						accessibilityLabel='create-playlist-cancel-button'
 						onTap={onCancel}
 						style={styles.actionButton}

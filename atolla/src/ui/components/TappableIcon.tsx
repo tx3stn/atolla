@@ -8,7 +8,7 @@ import { animateRipple, createRippleStyle } from '../animations/Icons';
 import { hapticFeedback } from '../haptics';
 
 export interface TappableIconViewModel {
-	accessibilityLabel?: string;
+	accessibilityId?: string;
 	animationsEnabled: boolean;
 	disabledTint?: string;
 	enabled?: boolean;
@@ -46,7 +46,7 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 
 	onRender() {
 		const {
-			accessibilityLabel,
+			accessibilityId,
 			disabledTint = theme.colors.muted,
 			hitSize = 40,
 			iconSize = 24,
@@ -60,7 +60,8 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 		const rippleStyle = createRippleStyle(rippleTint ?? resolvedTint, hitSize);
 
 		<view
-			accessibilityLabel={accessibilityLabel}
+			accessibilityId={accessibilityId}
+			accessibilityLabel={accessibilityId}
 			onTap={isEnabled ? this.handleTap : undefined}
 			style={getButtonStyle(hitSize)}
 		>

@@ -3,11 +3,7 @@ import { DetailHeaderPage } from './DetailHeaderPage';
 
 export class AlbumDetailPage extends BasePage {
 	private readonly locators = {
-		// On iOS, TappableIcon renders as an XCUIElementTypeImage with the SVG file name
-		playAction: {
-			android: '~detail-header-play-button',
-			ios: '//XCUIElementTypeImage[@name="play"]/..',
-		},
+		playAction: { android: '~detail-header-play-button', ios: '~detail-header-play-button' },
 	} satisfies Record<string, PlatformLocator>;
 
 	private readonly trackRowPrefix = 'track-row-';

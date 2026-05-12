@@ -14,16 +14,16 @@ export interface CardDetailItem {
 }
 
 export interface CardDetailListViewModel {
-	accessibilityLabel: string;
+	accessibilityId: string;
 	cards: Array<CardDetailItem>;
 	onCardTap: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
 }
 
 export class CardDetailList extends Component<CardDetailListViewModel> {
 	onRender() {
-		const { accessibilityLabel, cards, onCardTap } = this.viewModel;
+		const { accessibilityId, cards, onCardTap } = this.viewModel;
 
-		<layout accessibilityLabel={accessibilityLabel} style={styles.list}>
+		<layout accessibilityLabel={accessibilityId} style={styles.list}>
 			{cards.map((entry, index) => {
 				return (
 					<view
@@ -31,7 +31,7 @@ export class CardDetailList extends Component<CardDetailListViewModel> {
 						style={index === cards.length - 1 ? styles.rowWrapLast : styles.rowWrap}
 					>
 						<CardDetail
-							accessibilityLabel={`card-detail-${entry.id}`}
+							accessibilityId={`card-detail-${entry.id}`}
 							artworkKey={entry.artworkKey}
 							lineOne={entry.lineOne}
 							lineThree={entry.lineThree}

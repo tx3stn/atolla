@@ -152,13 +152,18 @@ export class TrackContextMenu extends StatefulComponent<
 		];
 
 		<blur
+			accessibilityId='track-context-backdrop'
 			accessibilityLabel='track-context-backdrop'
 			blurStyle={theme.modalBlurStyle}
 			onTap={this.handleBackdropTap}
 			style={styles.backdrop}
 		>
 			<layout style={styles.backdropCenter}>
-				<view accessibilityLabel='track-context-menu' style={styles.card}>
+				<view
+					accessibilityId='track-context-menu'
+					accessibilityLabel='track-context-menu'
+					style={styles.card}
+				>
 					<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
 						<ArtistLogo
 							containerStyle={styles.logoContainer}
@@ -175,6 +180,7 @@ export class TrackContextMenu extends StatefulComponent<
 					/>
 					<view style={styles.divider} />
 					<view
+						accessibilityId='track-context-play-next'
 						accessibilityLabel='track-context-play-next'
 						onLayout={this.handleActionRowLayout}
 						onTap={this.handlePlayNextTap}
@@ -185,6 +191,7 @@ export class TrackContextMenu extends StatefulComponent<
 						<label style={styles.actionLabel} value={Strings.playNext()} />
 					</view>
 					<view
+						accessibilityId='track-context-add-to-queue'
 						accessibilityLabel='track-context-add-to-queue'
 						onLayout={this.handleActionRowLayout}
 						onTap={this.handleAddToQueueTap}
@@ -195,6 +202,7 @@ export class TrackContextMenu extends StatefulComponent<
 						<label style={styles.actionLabel} value={Strings.addToQueue()} />
 					</view>
 					<view
+						accessibilityId='track-context-add-to-playlist'
 						accessibilityLabel='track-context-add-to-playlist'
 						onLayout={this.handleActionRowLayout}
 						onTap={this.handleAddToPlaylistTap}
@@ -206,6 +214,7 @@ export class TrackContextMenu extends StatefulComponent<
 					</view>
 					{onCreatePlaylist && (
 						<view
+							accessibilityId='track-context-create-playlist'
 							accessibilityLabel='track-context-create-playlist'
 							onLayout={this.handleActionRowLayout}
 							onTap={this.handleCreatePlaylistTap}

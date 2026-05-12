@@ -14,7 +14,7 @@ export interface ViewHeaderViewModel {
 
 export class ViewHeader extends Component<ViewHeaderViewModel> {
 	onRender(): void {
-		<view accessibilityLabel='view-header' style={styles.root}>
+		<view accessibilityId='view-header' accessibilityLabel='view-header' style={styles.root}>
 			<view style={styles.leadingFabSlot}>
 				<ConnectivityFab
 					connectionMode={this.viewModel.connectionMode}

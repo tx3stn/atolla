@@ -17,7 +17,7 @@ export class FooterNav extends Component<FooterNavViewModel> {
 	onRender() {
 		<view style={styles.footerPinned}>
 			<FooterIcon
-				accessibilityLabel='footer-home'
+				accessibilityId='footer-home'
 				action={createReusableCallback(() => {
 					this.viewModel.onFooterTabTap(FooterTabs.home);
 				})}
@@ -26,7 +26,7 @@ export class FooterNav extends Component<FooterNavViewModel> {
 			/>
 
 			<FooterIcon
-				accessibilityLabel='footer-library'
+				accessibilityId='footer-library'
 				action={createReusableCallback(() => {
 					this.viewModel.onFooterTabTap(FooterTabs.library);
 				})}
@@ -36,7 +36,7 @@ export class FooterNav extends Component<FooterNavViewModel> {
 			/>
 
 			<FooterIcon
-				accessibilityLabel='footer-search'
+				accessibilityId='footer-search'
 				action={createReusableCallback(() => {
 					this.viewModel.onFooterTabTap(FooterTabs.search);
 				})}
@@ -45,7 +45,7 @@ export class FooterNav extends Component<FooterNavViewModel> {
 			/>
 
 			<FooterIcon
-				accessibilityLabel='footer-settings'
+				accessibilityId='footer-settings'
 				action={createReusableCallback(() => {
 					this.viewModel.onFooterTabTap(FooterTabs.settings);
 				})}

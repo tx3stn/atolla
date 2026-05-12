@@ -2,37 +2,20 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class NowPlayingFooterPage extends BasePage {
 	private readonly locators = {
-		// On iOS, <view> elements don't expose accessibilityIdentifier; use icon image name
-		bar: {
-			android: '~now-playing-surface-bar',
-			ios: '//XCUIElementTypeImage[@name="pause" or @name="play"]/..',
-		},
-		next: { android: '~now-playing-next', ios: '//XCUIElementTypeImage[@name="next"]/..' },
-		previous: {
-			android: '~now-playing-previous',
-			ios: '//XCUIElementTypeImage[@name="previous"]/..',
-		},
-		// Queue page views: use XPath @name (accessibility label) since ~ (identifier) doesn't work for views
+		bar: { android: '~now-playing-surface-bar', ios: '~now-playing-surface-bar' },
+		next: { android: '~now-playing-next', ios: '~now-playing-next' },
+		previous: { android: '~now-playing-previous', ios: '~now-playing-previous' },
 		queuePageBackTo: {
 			android: '~now-playing-queue-page-back-to',
-			ios: '//*[@name="now-playing-queue-page-back-to"]',
+			ios: '~now-playing-queue-page-back-to',
 		},
 		queuePageUpNext: {
 			android: '~now-playing-queue-page-up-next',
-			ios: '//*[@name="now-playing-queue-page-up-next"]',
+			ios: '~now-playing-queue-page-up-next',
 		},
-		queueTabBackTo: {
-			android: '~now-playing-tab-back-to',
-			ios: '//XCUIElementTypeStaticText[@name="Back To"]/..',
-		},
-		queueTabUpNext: {
-			android: '~now-playing-tab-up-next',
-			ios: '//XCUIElementTypeStaticText[@name="Up Next"]/..',
-		},
-		togglePlayback: {
-			android: '~now-playing-play-pause',
-			ios: '//XCUIElementTypeImage[@name="pause" or @name="play"]/..',
-		},
+		queueTabBackTo: { android: '~now-playing-tab-back-to', ios: '~now-playing-tab-back-to' },
+		queueTabUpNext: { android: '~now-playing-tab-up-next', ios: '~now-playing-tab-up-next' },
+		togglePlayback: { android: '~now-playing-play-pause', ios: '~now-playing-play-pause' },
 	} satisfies Record<string, PlatformLocator>;
 
 	private readonly queueTrackRowPrefixUpNext = 'track-row-up-next-';

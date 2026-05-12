@@ -151,6 +151,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 
 			<view style={styles.inputContainer}>
 				<textfield
+					accessibilityId='connection-server-url-input'
 					accessibilityLabel='connection-server-url-input'
 					autocapitalization='none'
 					keyboardAppearance='dark'
@@ -164,7 +165,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 			</view>
 
 			<Button
-				accessibilityLabel='connection-connect'
+				accessibilityId='connection-connect'
 				enabled={canConnect}
 				label={Strings.connectButton()}
 				onTap={createReusableCallback(this.onConnectTap)}
@@ -182,7 +183,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				<view style={styles.quickConnectSpinnerSlot}>
 					{this.viewModel.isConnecting && (
 						<LoopingArrowSpinner
-							accessibilityLabel='waiting for quick connect'
+							accessibilityId='waiting for quick connect'
 							durationSeconds={0.9}
 							size={45}
 							tint={theme.colors.active}
@@ -195,6 +196,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 			)}
 
 			<view
+				accessibilityId='connection-language-button'
 				accessibilityLabel='connection-language-button'
 				onTap={this.handleLanguagePress}
 				style={styles.languageButton}

@@ -2,20 +2,13 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class SearchPage extends BasePage {
 	private readonly locators = {
-		albumsGrid: { android: '~search-albums-grid', ios: '//*[starts-with(@name, "card-album-")]' },
-		artistsGrid: {
-			android: '~search-artists-grid',
-			ios: '//*[starts-with(@name, "card-artist-")]',
-		},
+		albumsGrid: { android: '~search-albums-grid', ios: '//*[@name="search-albums-grid"]' },
+		artistsGrid: { android: '~search-artists-grid', ios: '//*[@name="search-artists-grid"]' },
 		input: { android: '~search-input', ios: '~search-input' },
-		playlistsGrid: {
-			android: '~search-playlists-grid',
-			ios: '//*[starts-with(@name, "card-playlist-")]',
-		},
-		// On iOS, <view> elements use XPath; <textfield> and <layout> use ~id
-		retryButton: { android: '~search-retry', ios: '//XCUIElementTypeStaticText[@name="Retry"]/..' },
-		root: { android: '~search-view', ios: '~search-input' },
-		searchSubmit: { android: '~search-submit', ios: '//XCUIElementTypeImage[@name="search"]/..' },
+		playlistsGrid: { android: '~search-playlists-grid', ios: '//*[@name="search-playlists-grid"]' },
+		retryButton: { android: '~search-retry', ios: '~search-retry' },
+		root: { android: '~search-view', ios: '//*[@name="search-view"]' },
+		searchSubmit: { android: '~search-submit', ios: '~search-submit' },
 	} satisfies Record<string, PlatformLocator>;
 
 	async waitForLoad(): Promise<void> {

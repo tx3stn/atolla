@@ -16,6 +16,7 @@ export class HttpWarningModal extends Component<HttpWarningModalViewModel> {
 		<blur blurStyle={theme.modalBlurStyle} onTap={this.viewModel.onCancel} style={styles.backdrop}>
 			<view onTap={this.viewModel.onCancel} style={styles.centeredContainer}>
 				<view
+					accessibilityId='http-warning-modal'
 					accessibilityLabel='http-warning-modal'
 					onTap={this.stopPropagation}
 					style={styles.card}
@@ -35,6 +36,7 @@ export class HttpWarningModal extends Component<HttpWarningModalViewModel> {
 
 					<view style={styles.actions}>
 						<view
+							accessibilityId='http-warning-cancel-btn'
 							accessibilityLabel='http-warning-cancel-btn'
 							onTap={this.viewModel.onCancel}
 							style={styles.cancelButton}
@@ -43,6 +45,7 @@ export class HttpWarningModal extends Component<HttpWarningModalViewModel> {
 						</view>
 						<view style={styles.actionSeparator} />
 						<view
+							accessibilityId='http-warning-confirm-btn'
 							accessibilityLabel='http-warning-confirm-btn'
 							onTap={this.viewModel.onConfirm}
 							style={styles.confirmButton}

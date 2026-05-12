@@ -110,6 +110,7 @@ export class CacheClearModal extends StatefulComponent<
 		<blur blurStyle={theme.modalBlurStyle} onTap={this.viewModel.onCancel} style={styles.backdrop}>
 			<view onTap={this.viewModel.onCancel} style={styles.centeredContainer}>
 				<view
+					accessibilityId='cache-clear-modal'
 					accessibilityLabel='cache-clear-modal'
 					onTap={this.stopPropagation}
 					style={styles.card}
@@ -118,13 +119,13 @@ export class CacheClearModal extends StatefulComponent<
 					<view style={styles.divider} />
 
 					<Checkbox
-						accessibilityLabel='cache-clear-album-art-row'
+						accessibilityId='cache-clear-album-art-row'
 						checked={albumArt}
 						label={this.labelWithCount(Strings.cacheCategoryAlbumArt(), counts?.albumArt)}
 						onToggle={this.toggleAlbumArt}
 					/>
 					<Checkbox
-						accessibilityLabel='cache-clear-album-art-blurred-row'
+						accessibilityId='cache-clear-album-art-blurred-row'
 						checked={albumArtBlurred}
 						label={this.labelWithCount(
 							Strings.cacheCategoryAlbumArtBlurred(),
@@ -133,19 +134,19 @@ export class CacheClearModal extends StatefulComponent<
 						onToggle={this.toggleAlbumArtBlurred}
 					/>
 					<Checkbox
-						accessibilityLabel='cache-clear-artist-image-row'
+						accessibilityId='cache-clear-artist-image-row'
 						checked={artistImage}
 						label={this.labelWithCount(Strings.cacheCategoryArtistImages(), counts?.artistImage)}
 						onToggle={this.toggleArtistImage}
 					/>
 					<Checkbox
-						accessibilityLabel='cache-clear-artist-logo-row'
+						accessibilityId='cache-clear-artist-logo-row'
 						checked={artistLogo}
 						label={this.labelWithCount(Strings.cacheCategoryArtistLogos(), counts?.artistLogo)}
 						onToggle={this.toggleArtistLogo}
 					/>
 					<Checkbox
-						accessibilityLabel='cache-clear-playlist-image-row'
+						accessibilityId='cache-clear-playlist-image-row'
 						checked={playlistImage}
 						label={this.labelWithCount(
 							Strings.cacheCategoryPlaylistImages(),
@@ -154,19 +155,19 @@ export class CacheClearModal extends StatefulComponent<
 						onToggle={this.togglePlaylistImage}
 					/>
 					<Checkbox
-						accessibilityLabel='cache-clear-genre-image-row'
+						accessibilityId='cache-clear-genre-image-row'
 						checked={genreImage}
 						label={this.labelWithCount(Strings.cacheCategoryGenreImages(), counts?.genreImage)}
 						onToggle={this.toggleGenreImage}
 					/>
 					<Checkbox
-						accessibilityLabel='cache-clear-track-row'
+						accessibilityId='cache-clear-track-row'
 						checked={tracks}
 						label={this.labelWithCount(Strings.cacheCategoryTracks(), counts?.tracks)}
 						onToggle={this.toggleTracks}
 					/>
 					<Checkbox
-						accessibilityLabel='cache-clear-waveform-data-row'
+						accessibilityId='cache-clear-waveform-data-row'
 						checked={waveformData}
 						label={this.labelWithCount(Strings.cacheCategoryWaveformData(), counts?.waveformData)}
 						onToggle={this.toggleWaveformData}
@@ -176,6 +177,7 @@ export class CacheClearModal extends StatefulComponent<
 
 					<view style={styles.actions}>
 						<view
+							accessibilityId='cache-clear-confirm-btn'
 							accessibilityLabel='cache-clear-confirm-btn'
 							onTap={anySelected ? this.handleConfirm : undefined}
 							style={anySelected ? styles.confirmButton : styles.confirmButtonDisabled}
@@ -184,6 +186,7 @@ export class CacheClearModal extends StatefulComponent<
 						</view>
 						<view style={styles.actionSeparator} />
 						<view
+							accessibilityId='cache-clear-cancel-btn'
 							accessibilityLabel='cache-clear-cancel-btn'
 							onTap={this.viewModel.onCancel}
 							style={styles.cancelButton}

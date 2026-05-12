@@ -86,9 +86,9 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		this.viewModel.modalSlot?.slotted(() => {
 			<Modal
 				body={this.removeDownloadBody}
-				cancelAccessibilityLabel='detail-header-remove-download-no-btn'
-				confirmAccessibilityLabel='detail-header-remove-download-yes-btn'
-				modalAccessibilityLabel='detail-header-remove-download-modal'
+				cancelAccessibilityId='detail-header-remove-download-no-btn'
+				confirmAccessibilityId='detail-header-remove-download-yes-btn'
+				modalAccessibilityId='detail-header-remove-download-modal'
 				onClose={this.handleRemoveDownloadCancel}
 				onConfirm={this.handleRemoveDownloadConfirm}
 				title={Strings.removeDownloadTitle()}
@@ -226,7 +226,11 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			style={styles.root}
 		>
 			<layout style={styles.headerRow}>
-				<view accessibilityLabel='detail-header-artwork' style={styles.artworkTile}>
+				<view
+					accessibilityId='detail-header-artwork'
+					accessibilityLabel='detail-header-artwork'
+					style={styles.artworkTile}
+				>
 					{artworkSource && (
 						<CachedImage
 							category={this.viewModel.artworkCategory}
@@ -251,25 +255,26 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					<layout style={styles.buttonsRow}>
 						{downloadState === 'downloading' ? (
 							<LoopingArrowSpinner
-								accessibilityLabel='detail-header-downloading-spinner'
+								accessibilityId='detail-header-downloading-spinner'
 								size={24}
 								tint={theme.colors.white}
 							/>
 						) : (
 							<TappableIcon
-								accessibilityLabel='detail-header-download-button'
+								accessibilityId='detail-header-download-button'
 								animationsEnabled={this.viewModel.animationsEnabled}
 								icon={downloadIcon}
 								onTap={onDownloadTap}
 							/>
 						)}
 						<TappableIcon
-							accessibilityLabel='detail-header-shuffle-button'
+							accessibilityId='detail-header-shuffle-button'
 							animationsEnabled={this.viewModel.animationsEnabled}
 							icon={res.shuffle}
 							onTap={onShuffle}
 						/>
 						<view
+							accessibilityId='detail-header-add-to-queue-button'
 							accessibilityLabel='detail-header-add-to-queue-button'
 							onTap={addToQueuePhase === 'idle' ? this.handleAddToQueueTap : undefined}
 							style={styles.addToQueueButton}
@@ -287,7 +292,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 							)}
 						</view>
 						<TappableIcon
-							accessibilityLabel='detail-header-play-button'
+							accessibilityId='detail-header-play-button'
 							animationsEnabled={this.viewModel.animationsEnabled}
 							icon={res.play}
 							onTap={onPlay}
@@ -335,9 +340,9 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			{showRemoveModal && !this.viewModel.modalSlot && (
 				<Modal
 					body={this.removeDownloadBody}
-					cancelAccessibilityLabel='detail-header-remove-download-no-btn'
-					confirmAccessibilityLabel='detail-header-remove-download-yes-btn'
-					modalAccessibilityLabel='detail-header-remove-download-modal'
+					cancelAccessibilityId='detail-header-remove-download-no-btn'
+					confirmAccessibilityId='detail-header-remove-download-yes-btn'
+					modalAccessibilityId='detail-header-remove-download-modal'
 					onClose={this.handleRemoveDownloadCancel}
 					onConfirm={this.handleRemoveDownloadConfirm}
 					title={Strings.removeDownloadTitle()}

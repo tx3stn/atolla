@@ -6,7 +6,7 @@ import Strings from '../../Strings';
 import { theme } from '../../theme';
 
 export interface GenrePillsViewModel {
-	accessibilityLabel: string;
+	accessibilityId: string;
 	genres: Array<Genre>;
 	onGenreTap: (genre: Genre) => void;
 }
@@ -23,7 +23,8 @@ export class GenrePills extends Component<GenrePillsViewModel> {
 			<layout style={styles.pillsRow}>
 				{this.viewModel.genres.map((genre) => (
 					<view
-						accessibilityLabel={`${this.viewModel.accessibilityLabel}-pill-${genre.id}`}
+						accessibilityId={`${this.viewModel.accessibilityId}-pill-${genre.id}`}
+						accessibilityLabel={`${this.viewModel.accessibilityId}-pill-${genre.id}`}
 						onTap={() => {
 							this.viewModel.onGenreTap(genre);
 						}}

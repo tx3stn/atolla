@@ -6,7 +6,7 @@ import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
 
 export interface CardDetailViewModel {
-	accessibilityLabel: string;
+	accessibilityId: string;
 	artworkKey: string;
 	lineOne: string;
 	lineThree: string;
@@ -17,9 +17,14 @@ export interface CardDetailViewModel {
 
 export class CardDetail extends Component<CardDetailViewModel> {
 	onRender() {
-		const { accessibilityLabel, artworkKey, lineOne, lineThree, lineTwo, onTap } = this.viewModel;
+		const { accessibilityId, artworkKey, lineOne, lineThree, lineTwo, onTap } = this.viewModel;
 
-		<view accessibilityLabel={accessibilityLabel} onTap={onTap} style={styles.row}>
+		<view
+			accessibilityId={accessibilityId}
+			accessibilityLabel={accessibilityId}
+			onTap={onTap}
+			style={styles.row}
+		>
 			<view style={styles.artworkTile}>
 				{artworkKey ? (
 					<CachedImage

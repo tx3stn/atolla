@@ -21,7 +21,7 @@ export interface Card {
 }
 
 export interface CardGridViewModel {
-	accessibilityLabel: string;
+	accessibilityId: string;
 	cacheVersion?: number;
 	cards: Array<Card>;
 	columnCount?: number;
@@ -47,7 +47,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 
 	onRender() {
 		const {
-			accessibilityLabel,
+			accessibilityId,
 			cacheVersion,
 			cards,
 			columnCount: rawColumnCount,
@@ -74,7 +74,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 					)
 				: -1;
 
-		<layout accessibilityLabel={accessibilityLabel} style={styles.grid}>
+		<layout accessibilityLabel={accessibilityId} style={styles.grid}>
 			{rows.map((row, rowIndex) => (
 				<layout
 					key={`row-${rowIndex}`}
@@ -88,6 +88,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 						return (
 							<layout key={entry.id} style={createBrowseCardStyle(columnCount)}>
 								<view
+									accessibilityId={`card-${entry.id}`}
 									accessibilityLabel={`card-${entry.id}`}
 									onTap={createReusableCallback(() => {
 										if (this.suppressNextTap) {
@@ -130,6 +131,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 					})}
 					{rowIndex === triggerRowIndex && (
 						<view
+							accessibilityId='grid-prefetch-trigger'
 							accessibilityLabel='grid-prefetch-trigger'
 							onLayout={createReusableCallback(() => {
 								this.handleAutoLoadTriggerLayout();
@@ -143,6 +145,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 				<label style={styles.loadMoreLabel} value={Strings.loadingMore()} />
 			) : onRetryLoadMore ? (
 				<view
+					accessibilityId='grid-load-more-retry'
 					accessibilityLabel='grid-load-more-retry'
 					onTap={createReusableCallback(() => {
 						onRetryLoadMore();

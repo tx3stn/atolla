@@ -16,6 +16,7 @@ export class LibraryHeaderTab extends Component<LibraryHeaderViewModel> {
 	onRender() {
 		<view style={styles.tabWrap}>
 			<view
+				accessibilityId={`header-tab-${this.viewModel.tab.toLowerCase()}`}
 				accessibilityLabel={`header-tab-${this.viewModel.tab.toLowerCase()}`}
 				key={this.viewModel.tab}
 				onTap={createReusableCallback(() => {

@@ -521,7 +521,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					)}
 					{albumGenres.length > 0 && (
 						<GenrePills
-							accessibilityLabel='album-genres'
+							accessibilityId='album-genres'
 							genres={albumGenres}
 							onGenreTap={this.handleGenreTap}
 						/>
