@@ -12,16 +12,13 @@ export class SearchPage extends BasePage {
 	} satisfies Record<string, PlatformLocator>;
 
 	async waitForLoad(): Promise<void> {
-		await this.element(this.locators.root).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for search view',
-		});
 		await this.element(this.locators.input).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for search input',
+			timeoutMsg: 'Timed out waiting for search view',
 		});
 	}
 
 	isVisible(): Promise<boolean> {
-		return this.element(this.locators.root).isExisting();
+		return this.element(this.locators.input).isExisting();
 	}
 
 	async enterSearchQuery(query: string): Promise<void> {

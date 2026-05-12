@@ -25,11 +25,7 @@ describe('footer navigation', () => {
 		await searchPage.waitForLoad();
 
 		expect(await searchPage.isVisible()).toBe(true);
-		try {
-			await browser.hideKeyboard();
-		} catch {
-			// keyboard already closed or unsupported in this context
-		}
+		await searchPage.dismissKeyboard();
 	});
 
 	it('should load settings view when tapping settings tab', async () => {

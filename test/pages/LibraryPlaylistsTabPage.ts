@@ -1,14 +1,11 @@
-import { BasePage, type PlatformLocator } from './Base';
+import { BasePage } from './Base';
 
 export class LibraryPlaylistsTabPage extends BasePage {
-	private readonly locators = {
-		grid: { android: '~library-playlists-grid', ios: '//*[@name="library-playlists-grid"]' },
-	} satisfies Record<string, PlatformLocator>;
-
 	private readonly cardPrefix = 'card-playlist-';
 
-	isVisible(): Promise<boolean> {
-		return this.element(this.locators.grid).isExisting();
+	async isVisible(): Promise<boolean> {
+		const cards = await this.allByAccessibilityPrefix(this.cardPrefix);
+		return cards.length > 0;
 	}
 
 	async tapCardByID(playlistId: string): Promise<void> {
@@ -23,9 +20,6 @@ export class LibraryPlaylistsTabPage extends BasePage {
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.element(this.locators.grid).waitForExist({
-			timeoutMsg: 'Timed out waiting for playlists grid',
-		});
 		await this.waitForVisibleAccessibilityPrefix(this.cardPrefix);
 	}
 }

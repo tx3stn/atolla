@@ -29,6 +29,7 @@ export class ConnectionPage extends BasePage {
 		await this.element(this.locators.serverUrlInput).setValue('mock');
 		await this.element(this.locators.connectButton).waitForDisplayed();
 		await this.element(this.locators.connectButton).click();
+		await this.dismissKeyboard();
 		await this.element(this.locators.footer).waitForDisplayed({
 			timeout: 30_000,
 			timeoutMsg: 'App did not load main UI after mock connection',

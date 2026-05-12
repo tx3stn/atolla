@@ -1,14 +1,11 @@
-import { BasePage, type PlatformLocator } from './Base';
+import { BasePage } from './Base';
 
 export class LibraryAlbumsTabPage extends BasePage {
-	private readonly locators = {
-		grid: { android: '~library-albums-grid', ios: '//*[@name="library-albums-grid"]' },
-	} satisfies Record<string, PlatformLocator>;
-
 	private readonly cardPrefix = 'card-album-';
 
-	isVisible(): Promise<boolean> {
-		return this.element(this.locators.grid).isExisting();
+	async isVisible(): Promise<boolean> {
+		const cards = await this.allByAccessibilityPrefix(this.cardPrefix);
+		return cards.length > 0;
 	}
 
 	async tapCardByID(albumId: string): Promise<void> {
