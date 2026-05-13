@@ -64,6 +64,7 @@ interface HomeState {
 }
 
 const HOME_ALBUMS_CACHE_KEY = 'albums_v1';
+const RECENTLY_ADDED_ALBUMS_CACHE_KEY = 'recently_added_v1';
 const SHUFFLE_LIBRARY_MIX_ID = 'mix-shuffle-library';
 const RANDOM_ALBUM_MIX_ID = 'mix-random-album';
 
@@ -113,6 +114,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.loadGeneration = generation;
 		this.setState({ isLoadingAlbums: true });
 		this.restoreCachedAlbums(generation);
+		this.restoreCachedRecentlyAdded(generation);
 
 		if (!shouldApplyTransportAlbumsToHome(this.viewModel.connectionMode)) {
 			this.setState({ isLoadingAlbums: false });
@@ -188,6 +190,31 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			});
 	}
 
+	private restoreCachedRecentlyAdded(generation: number): void {
+		const store = this.viewModel.homeAlbumsStore;
+		if (!store) {
+			return;
+		}
+
+		store
+			.fetchString(RECENTLY_ADDED_ALBUMS_CACHE_KEY)
+			.then((raw) => {
+				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
+					return;
+				}
+
+				const cachedAlbums = parseHomeAlbumsCache(raw);
+				if (cachedAlbums == null || cachedAlbums.length === 0) {
+					return;
+				}
+
+				if (this.state.recentlyAddedAlbums.length === 0) {
+					this.setState({ recentlyAddedAlbums: cachedAlbums });
+				}
+			})
+			.catch(() => {});
+	}
+
 	private loadRecentlyAdded(generation: number): void {
 		const limit = Math.max(1, this.viewModel.gridColumns) * 2;
 		void this.viewModel.transport
@@ -197,7 +224,19 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					return;
 				}
 				this.setState({ recentlyAddedAlbums: albums });
+				this.persistRecentlyAdded(albums);
 			})
+			.catch(() => {});
+	}
+
+	private persistRecentlyAdded(albums: Array<Album>): void {
+		const store = this.viewModel.homeAlbumsStore;
+		if (!store) {
+			return;
+		}
+
+		void store
+			.storeString(RECENTLY_ADDED_ALBUMS_CACHE_KEY, serializeHomeAlbumsCache(albums))
 			.catch(() => {});
 	}
 
