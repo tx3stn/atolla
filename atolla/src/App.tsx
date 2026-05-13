@@ -345,6 +345,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private readonly imageCache = new ImageCache({});
 	private recentlyPlayedTracks: Array<Track> = [];
 	private lastObservedRecentTrackId: string | null = null;
+	private recentlyPlayedRestoring = false;
 	private trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
 		(track) => this.transport.getTrackCacheUrl?.(track.id) ?? null,
 		(trackId) => this.getNativeCachedTrackSource(trackId) != null,
@@ -544,7 +545,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			activeTrack,
 			...this.recentlyPlayedTracks.filter((track) => track.id !== activeTrack.id),
 		].slice(0, 5);
-		this.persistRecentlyPlayedTracks();
+		if (!this.recentlyPlayedRestoring) {
+			this.persistRecentlyPlayedTracks();
+		}
 	}
 
 	private persistRecentlyPlayedTracks(): void {
@@ -572,17 +575,23 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				const parsed = JSON.parse(raw);
 				if (!Array.isArray(parsed)) {
 					this.recentlyPlayedTracks = [];
-					this.setState({ version: this.state.version + 1 });
-					return;
+				} else {
+					const restored = parsed
+						.filter((track): track is Track => this.isTrack(track))
+						.slice(0, 5);
+					this.recentlyPlayedTracks = restored;
 				}
-
-				const restored = parsed.filter((track): track is Track => this.isTrack(track)).slice(0, 5);
-				this.recentlyPlayedTracks = restored;
+				this.recentlyPlayedRestoring = false;
+				this.lastObservedRecentTrackId = null;
+				this.captureRecentlyPlayedTrack();
 				this.setState({ version: this.state.version + 1 });
 			})
 			.catch(() => {
 				if (this.hasBeenDestroyed) return;
 				this.recentlyPlayedTracks = [];
+				this.recentlyPlayedRestoring = false;
+				this.lastObservedRecentTrackId = null;
+				this.captureRecentlyPlayedTrack();
 				this.setState({ version: this.state.version + 1 });
 			});
 	}
@@ -684,6 +693,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.homeAlbumsStore = new PersistentStore(`atolla/user/${userId}/home`, {
 			deviceGlobal: true,
 		});
+		this.recentlyPlayedRestoring = true;
 		this.recentlyPlayedTracks = [];
 		this.lastObservedRecentTrackId = null;
 		this.restoreRecentlyPlayedTracks();
