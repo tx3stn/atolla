@@ -519,10 +519,9 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							value={appVersion}
 						/>
 					</view>
-
-					{this.state.showCacheToast && <Toast message={Strings.settingsCacheClearedToast()} />}
 				</view>
 			</scroll>
+			{this.state.showCacheToast && <Toast message={Strings.settingsCacheClearedToast()} />}
 		</layout>;
 	}
 }
