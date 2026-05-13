@@ -3,7 +3,7 @@ import { DetailHeaderPage } from './DetailHeaderPage';
 
 export class PlaylistDetailPage extends BasePage {
 	private readonly locators = {
-		root: { android: '~playlist-view', ios: '//*[@name="playlist-view"]' },
+		root: { android: '~playlist-view', ios: '~playlist-view' },
 	} satisfies Record<string, PlatformLocator>;
 
 	public DetailHeader(): DetailHeaderPage {

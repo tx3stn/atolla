@@ -473,7 +473,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const scrollStyle = createScrollStyle(isFooterVisible, isHeaderVisible);
 
 		<layout accessibilityLabel='album-view' style={styles.root}>
-			<view style={styles.fullScreen}>
+			<view accessibilityId='album-view' style={styles.fullScreen}>
 				<scroll style={scrollStyle}>
 					<DetailHeader
 						animationsEnabled={animationsEnabled}

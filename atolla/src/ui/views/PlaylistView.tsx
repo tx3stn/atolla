@@ -709,7 +709,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 
 		<layout accessibilityLabel='playlist-view' style={styles.root}>
-			<view style={styles.fullScreen}>
+			<view accessibilityId='playlist-view' style={styles.fullScreen}>
 				<scroll style={createScrollStyle(isFooterVisible, isHeaderVisible)}>
 					<DetailHeader
 						animationsEnabled={this.viewModel.animationsEnabled}

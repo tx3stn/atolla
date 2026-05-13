@@ -4,6 +4,7 @@ import { DetailHeaderPage } from './DetailHeaderPage';
 export class AlbumDetailPage extends BasePage {
 	private readonly locators = {
 		playAction: { android: '~detail-header-play-button', ios: '~detail-header-play-button' },
+		root: { android: '~album-view', ios: '~album-view' },
 	} satisfies Record<string, PlatformLocator>;
 
 	private readonly trackRowPrefix = 'track-row-';
@@ -13,8 +14,8 @@ export class AlbumDetailPage extends BasePage {
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.element(this.locators.playAction).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for album detail play button',
+		await this.element(this.locators.root).waitForExist({
+			timeoutMsg: 'Timed out waiting for album view',
 		});
 	}
 

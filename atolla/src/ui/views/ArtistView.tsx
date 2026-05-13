@@ -556,7 +556,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		]);
 
 		<layout accessibilityLabel='artist-view' style={styles.root}>
-			<view style={styles.fullScreen}>
+			<view accessibilityId='artist-view' style={styles.fullScreen}>
 				<scroll style={scrollStyle}>
 					<DetailHeader
 						animationsEnabled={animationsEnabled}
