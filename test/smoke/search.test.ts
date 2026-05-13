@@ -11,11 +11,8 @@ describe('search', () => {
 	});
 
 	beforeEach(async () => {
-		// Dismiss keyboard if it is up from a previous test before trying to tap the footer
-		try {
-			await browser.hideKeyboard();
-		} catch {
-			// Keyboard already hidden or platform does not support this call
+		if (await searchPage.isVisible()) {
+			await searchPage.dismissKeyboard();
 		}
 	});
 
@@ -27,9 +24,7 @@ describe('search', () => {
 
 	it('accepts a search query and shows result cards', async () => {
 		await searchPage.enterSearchQuery('a');
-		await searchPage.waitForAnyResultCard();
-
-		expect(await searchPage.isVisible()).toBe(true);
+		expect(await searchPage.waitForAnyResultCard()).toBe(true);
 	});
 
 	it('shows search view after navigating away and back', async () => {

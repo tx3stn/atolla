@@ -156,22 +156,6 @@ export class BasePage {
 		}
 	}
 
-	public async dismissKeyboard(): Promise<void> {
-		const isIOS = (this.driver.capabilities.platformName as string).toLowerCase() === 'ios';
-		if (isIOS) {
-			const searchSubmit = this.driver.$('~search-submit');
-			if (await searchSubmit.isExisting()) {
-				await searchSubmit.click();
-			}
-		} else {
-			try {
-				await this.driver.hideKeyboard();
-			} catch {
-				// keyboard not visible
-			}
-		}
-	}
-
 	public async swipeBack(): Promise<void> {
 		const rect = await this.driver.getWindowRect();
 		const y = Math.floor(rect.height * 0.45);
@@ -193,5 +177,9 @@ export class BasePage {
 			},
 		]);
 		await this.driver.releaseActions();
+	}
+
+	public isIOS(): boolean {
+		return (this.driver.capabilities.platformName as string).toLowerCase() === 'ios';
 	}
 }

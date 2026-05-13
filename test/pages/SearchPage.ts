@@ -2,12 +2,8 @@ import { BasePage, type PlatformLocator } from './Base';
 
 export class SearchPage extends BasePage {
 	private readonly locators = {
-		albumsGrid: { android: '~search-albums-grid', ios: '//*[@name="search-albums-grid"]' },
-		artistsGrid: { android: '~search-artists-grid', ios: '//*[@name="search-artists-grid"]' },
 		input: { android: '~search-input', ios: '~search-input' },
-		playlistsGrid: { android: '~search-playlists-grid', ios: '//*[@name="search-playlists-grid"]' },
 		retryButton: { android: '~search-retry', ios: '~search-retry' },
-		root: { android: '~search-view', ios: '//*[@name="search-view"]' },
 		searchSubmit: { android: '~search-submit', ios: '~search-submit' },
 	} satisfies Record<string, PlatformLocator>;
 
@@ -17,7 +13,19 @@ export class SearchPage extends BasePage {
 		});
 	}
 
-	isVisible(): Promise<boolean> {
+	public async dismissKeyboard(): Promise<void> {
+		if (this.isIOS()) {
+			await this.driver.$('~search-submit').click();
+		} else {
+			try {
+				await this.driver.hideKeyboard();
+			} catch {
+				// keyboard not visible
+			}
+		}
+	}
+
+	public isVisible(): Promise<boolean> {
 		return this.element(this.locators.input).isExisting();
 	}
 
@@ -47,16 +55,8 @@ export class SearchPage extends BasePage {
 		await this.element(this.locators.retryButton).click();
 	}
 
-	// isExisting() is used instead of isDisplayed() because elements inside a ScrollView
-	// on UIAutomator2 may report as not displayed even when fully visible on screen.
-	// Checking the grid containers by existence is a reliable proxy for results being shown.
-	async waitForAnyResultCard(): Promise<void> {
-		await this.driver.waitUntil(
-			async () =>
-				(await this.element(this.locators.albumsGrid).isExisting()) ||
-				(await this.element(this.locators.artistsGrid).isExisting()) ||
-				(await this.element(this.locators.playlistsGrid).isExisting()),
-			{ timeout: 15_000, timeoutMsg: 'Timed out waiting for search result cards to appear' },
-		);
+	async waitForAnyResultCard(): Promise<boolean> {
+		await this.waitForVisibleAccessibilityPrefix('card-');
+		return true;
 	}
 }

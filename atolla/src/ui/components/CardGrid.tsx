@@ -3,7 +3,7 @@ import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Asset } from 'valdi_tsx/src/Asset';
 import type { DragEvent, TouchEvent } from 'valdi_tsx/src/GestureEvents';
-import type { ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import type { ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
@@ -75,6 +75,11 @@ export class CardGrid extends Component<CardGridViewModel> {
 				: -1;
 
 		<layout accessibilityLabel={accessibilityId} style={styles.grid}>
+			<view
+				accessibilityId={accessibilityId}
+				accessibilityLabel={accessibilityId}
+				style={styles.gridMarker}
+			/>
 			{rows.map((row, rowIndex) => (
 				<layout
 					key={`row-${rowIndex}`}
@@ -294,6 +299,11 @@ const styles = {
 	}),
 	grid: new Style({
 		width: '100%',
+	}),
+	gridMarker: new Style<View>({
+		height: 1,
+		position: 'absolute',
+		width: 1,
 	}),
 	loadMoreLabel: new Style<Label>({
 		...theme.text.sub,
