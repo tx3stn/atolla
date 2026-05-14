@@ -2,17 +2,23 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
-import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Genre } from '../../models/Genre';
+import type { Track } from '../../models/Track';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
+import { Toast } from '../components/Toast';
+import { scheduleToastDismiss } from '../components/toastTimer';
 import type { NavBarContext } from '../NavBarContext';
+import { AddToPlaylistView } from './AddToPlaylistView';
 import { GenreView } from './GenreView';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
@@ -34,27 +40,36 @@ interface GenresViewModel {
 }
 
 interface GenresState {
+	addToPlaylistTracks: Array<Track> | null;
+	contextMenuCard: CardContextMenuCard | null;
+	createPlaylistTracks: Array<Track> | null;
 	genres: Array<Genre>;
 	hasMore: boolean;
 	isFooterVisible: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
+	toastMessage: string | null;
 }
 
 export class GenresView extends StatefulComponent<GenresViewModel, GenresState> {
 	private currentPage = 0;
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
+	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 
 	state: GenresState = {
+		addToPlaylistTracks: null,
+		contextMenuCard: null,
+		createPlaylistTracks: null,
 		genres: [],
 		hasMore: true,
 		isFooterVisible: false,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
+		toastMessage: null,
 	};
 
 	onCreate(): void {
@@ -77,6 +92,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		if (this.toastTimerId) clearTimeout(this.toastTimerId);
 	}
 
 	private async loadInitialPages(): Promise<void> {
@@ -143,9 +159,33 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		void this.loadNextPage();
 	}
 
+	handleGenreCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const genre = this.state.genres.find((candidate) => candidate.id === card.id);
+		if (!genre) return;
+		this.setState({ contextMenuCard: { genre, kind: 'genre' } });
+	};
+
+	handleContextMenuDismiss = (toastMessage?: string): void => {
+		this.setState({ contextMenuCard: null });
+		if (toastMessage) {
+			this.toastTimerId = scheduleToastDismiss(
+				this.toastTimerId,
+				(message) => {
+					this.setState({ toastMessage: message });
+				},
+				toastMessage,
+			);
+		}
+	};
+
 	onRender(): void {
 		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
 			this.viewModel;
+		const { contextMenuCard, addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
+		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 		let genres = this.state.genres;
 		if (this.viewModel.letterFilter) {
 			const letter = this.viewModel.letterFilter;
@@ -164,47 +204,130 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			secondaryText: genre.trackCount != null ? `${genre.trackCount} tracks` : '',
 		}));
 
-		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
-			<CardGrid
-				accessibilityId='library-genres-grid'
-				cards={cards}
-				columnCount={this.viewModel.gridColumns}
-				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
-				isLoadingMore={this.state.isLoadingNextPage}
-				onCardTap={(card) => {
-					const genre = this.state.genres.find((candidate) => candidate.id === card.id);
-					if (!genre) {
-						return;
-					}
+		<view style={styles.container}>
+			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
+				<CardGrid
+					accessibilityId='library-genres-grid'
+					cards={cards}
+					columnCount={this.viewModel.gridColumns}
+					infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
+					isLoadingMore={this.state.isLoadingNextPage}
+					onCardLongPress={this.handleGenreCardLongPress}
+					onCardTap={(card) => {
+						const genre = this.state.genres.find((candidate) => candidate.id === card.id);
+						if (!genre) {
+							return;
+						}
 
-					this.viewModel.onNavigationContext?.({ genre, kind: 'genre' });
-					this.viewModel.onHeaderVisibilityChange?.(false);
-					navigationController.push(
-						GenreView,
-						{
-							animationsEnabled,
-							downloadService: this.viewModel.downloadService,
-							genre,
-							imageCache,
-							modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-							navBarContext: this.viewModel.navBarContext,
-							onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-							onNavigateToArtist: this.viewModel.onNavigateToArtist,
-							playbackStore,
-							transport,
-						},
-						{},
-						{ animated: animationsEnabled },
-					);
-				}}
-				onLoadMore={
-					this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
-				}
-				onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
-			/>
-		</scroll>;
+						this.viewModel.onNavigationContext?.({ genre, kind: 'genre' });
+						this.viewModel.onHeaderVisibilityChange?.(false);
+						navigationController.push(
+							GenreView,
+							{
+								animationsEnabled,
+								downloadService: this.viewModel.downloadService,
+								genre,
+								imageCache,
+								modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
+								navBarContext: this.viewModel.navBarContext,
+								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+								onNavigateToArtist: this.viewModel.onNavigateToArtist,
+								playbackStore,
+								transport,
+							},
+							{},
+							{ animated: animationsEnabled },
+						);
+					}}
+					onLoadMore={
+						this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
+					}
+					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
+				/>
+			</scroll>
+			{contextMenuCard && contextMenuCard.kind === 'genre' && (
+				<CardContextMenu
+					animationsEnabled={animationsEnabled}
+					card={contextMenuCard}
+					imageCache={imageCache}
+					onAddToPlaylist={(tracks) => {
+						this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
+					}}
+					onCreatePlaylist={
+						createPlaylistFn
+							? (tracks) => {
+									this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
+								}
+							: undefined
+					}
+					onDismiss={this.handleContextMenuDismiss}
+					onEntityTap={() => {
+						const { genre } = contextMenuCard;
+						this.viewModel.onNavigationContext?.({ genre, kind: 'genre' });
+						this.viewModel.onHeaderVisibilityChange?.(false);
+						navigationController.push(
+							GenreView,
+							{
+								animationsEnabled,
+								downloadService: this.viewModel.downloadService,
+								genre,
+								imageCache,
+								modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
+								navBarContext: this.viewModel.navBarContext,
+								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+								onNavigateToArtist: this.viewModel.onNavigateToArtist,
+								playbackStore,
+								transport,
+							},
+							{},
+							{ animated: animationsEnabled },
+						);
+					}}
+					playbackStore={playbackStore}
+					transport={transport}
+				/>
+			)}
+			{addToPlaylistTracks && (
+				<AddToPlaylistView
+					animationsEnabled={animationsEnabled}
+					gridColumns={this.viewModel.gridColumns}
+					imageCache={imageCache}
+					onDismiss={() => {
+						this.setState({ addToPlaylistTracks: null });
+					}}
+					tracks={addToPlaylistTracks}
+					transport={transport}
+				/>
+			)}
+			{createPlaylistTracks && createPlaylistFn && (
+				<CreatePlaylistModal
+					onCancel={() => {
+						this.setState({ createPlaylistTracks: null });
+					}}
+					onCreate={(name) => {
+						return createPlaylistFn(name).then((playlist) => {
+							const addAll = createPlaylistTracks.reduce<Promise<void>>(
+								(chain, track) =>
+									chain.then(() => transport.addItemToPlaylist?.(playlist.id, track.id)),
+								Promise.resolve(),
+							);
+							return addAll.then(() => {
+								this.setState({ createPlaylistTracks: null });
+							});
+						});
+					}}
+				/>
+			)}
+			{toastMessage && <Toast message={toastMessage} />}
+		</view>;
 	}
 }
+
+const styles = {
+	container: new Style<View>({
+		flexGrow: 1,
+	}),
+};
 
 function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
 	return new Style<ScrollView>({

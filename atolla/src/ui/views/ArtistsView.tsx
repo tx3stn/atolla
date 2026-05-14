@@ -2,9 +2,10 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
-import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Artist } from '../../models/Artist';
+import type { Track } from '../../models/Track';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
@@ -12,9 +13,14 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
+import { Toast } from '../components/Toast';
+import { scheduleToastDismiss } from '../components/toastTimer';
 import type { NavBarContext } from '../NavBarContext';
+import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortArtists } from './ArtistsSort';
 import { ArtistView } from './ArtistView';
 import { gridPaginationConfig } from './GridPagination';
@@ -39,12 +45,16 @@ export interface ArtistsViewModel {
 }
 
 interface ArtistsState {
+	addToPlaylistTracks: Array<Track> | null;
 	artists: Array<Artist>;
+	contextMenuCard: CardContextMenuCard | null;
+	createPlaylistTracks: Array<Track> | null;
 	hasMore: boolean;
 	isFooterVisible: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
+	toastMessage: string | null;
 }
 
 interface ArtistPageResult {
@@ -61,6 +71,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private currentPage = 0;
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
+	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 	private cachedDisplayArtists: Array<Artist> = [];
 	private cachedDisplayArtistsRef: Array<Artist> | null = null;
@@ -69,12 +80,16 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private cachedDisplayIsOffline = false;
 
 	state: ArtistsState = {
+		addToPlaylistTracks: null,
 		artists: [],
+		contextMenuCard: null,
+		createPlaylistTracks: null,
 		hasMore: true,
 		isFooterVisible: false,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
+		toastMessage: null,
 	};
 
 	onCreate(): void {
@@ -95,6 +110,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		if (this.toastTimerId) clearTimeout(this.toastTimerId);
 	}
 
 	onViewModelUpdate(prevViewModel?: ArtistsViewModel): void {
@@ -227,18 +243,21 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
 		const artist = this.state.artists.find((candidate) => candidate.id === card.id);
-		if (!artist) {
-			return;
+		if (!artist) return;
+		this.setState({ contextMenuCard: { artist, kind: 'artist' } });
+	};
+
+	handleContextMenuDismiss = (toastMessage?: string): void => {
+		this.setState({ contextMenuCard: null });
+		if (toastMessage) {
+			this.toastTimerId = scheduleToastDismiss(
+				this.toastTimerId,
+				(message) => {
+					this.setState({ toastMessage: message });
+				},
+				toastMessage,
+			);
 		}
-
-		this.viewModel.transport.getTracksByArtist(artist.id).then((tracks) => {
-			if (tracks.length === 0) {
-				return;
-			}
-
-			this.viewModel.playbackStore.playTracks(tracks);
-			this.viewModel.playbackStore.setArtistLogoUrl(artist.logoUrl ?? null);
-		});
 	};
 
 	private getDisplayArtists(): Array<Artist> {
@@ -281,6 +300,8 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			playbackStore,
 			transport,
 		} = this.viewModel;
+		const { contextMenuCard, addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
+		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 
 		const artists = this.getDisplayArtists();
 
@@ -291,17 +312,57 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			primaryText: artist.name,
 			secondaryText: '',
 		}));
-		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
-			<CardGrid
-				accessibilityId='library-artists-grid'
-				cards={cards}
-				columnCount={this.viewModel.gridColumns}
-				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
-				isLoadingMore={this.state.isLoadingNextPage}
-				onCardLongPress={this.handleArtistCardLongPress}
-				onCardTap={(card) => {
-					const artist = this.state.artists.find((a) => a.id === card.id);
-					if (artist) {
+		<view style={styles.container}>
+			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
+				<CardGrid
+					accessibilityId='library-artists-grid'
+					cards={cards}
+					columnCount={this.viewModel.gridColumns}
+					infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
+					isLoadingMore={this.state.isLoadingNextPage}
+					onCardLongPress={this.handleArtistCardLongPress}
+					onCardTap={(card) => {
+						const artist = this.state.artists.find((a) => a.id === card.id);
+						if (artist) {
+							this.viewModel.onNavigationContext?.({ artist, kind: 'artist' });
+							this.viewModel.onHeaderVisibilityChange?.(false);
+							navigationController.push(
+								ArtistView,
+								{
+									animationsEnabled,
+									artist,
+									downloadService: this.viewModel.downloadService,
+									gridColumns: this.viewModel.gridColumns,
+									imageCache,
+									modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
+									navBarContext: this.viewModel.navBarContext,
+									onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+									onNavigationContext: this.viewModel.onNavigationContext,
+									paletteQueue,
+									playbackStore,
+									transport,
+								},
+								{},
+								{ animated: animationsEnabled },
+							);
+						}
+					}}
+					onLoadMore={
+						this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
+					}
+					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
+				/>
+			</scroll>
+			{contextMenuCard && contextMenuCard.kind === 'artist' && (
+				<CardContextMenu
+					animationsEnabled={animationsEnabled}
+					card={contextMenuCard}
+					imageCache={imageCache}
+					onAddToPlaylist={(tracks) => {
+						this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
+					}}
+					onArtistTap={() => {
+						const { artist } = contextMenuCard;
 						this.viewModel.onNavigationContext?.({ artist, kind: 'artist' });
 						this.viewModel.onHeaderVisibilityChange?.(false);
 						navigationController.push(
@@ -323,14 +384,76 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 							{},
 							{ animated: animationsEnabled },
 						);
+					}}
+					onCreatePlaylist={
+						createPlaylistFn
+							? (tracks) => {
+									this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
+								}
+							: undefined
 					}
-				}}
-				onLoadMore={
-					this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
-				}
-				onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
-			/>
-		</scroll>;
+					onDismiss={this.handleContextMenuDismiss}
+					onEntityTap={() => {
+						const { artist } = contextMenuCard;
+						this.viewModel.onNavigationContext?.({ artist, kind: 'artist' });
+						this.viewModel.onHeaderVisibilityChange?.(false);
+						navigationController.push(
+							ArtistView,
+							{
+								animationsEnabled,
+								artist,
+								downloadService: this.viewModel.downloadService,
+								gridColumns: this.viewModel.gridColumns,
+								imageCache,
+								modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
+								navBarContext: this.viewModel.navBarContext,
+								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+								onNavigationContext: this.viewModel.onNavigationContext,
+								paletteQueue,
+								playbackStore,
+								transport,
+							},
+							{},
+							{ animated: animationsEnabled },
+						);
+					}}
+					playbackStore={playbackStore}
+					transport={transport}
+				/>
+			)}
+			{addToPlaylistTracks && (
+				<AddToPlaylistView
+					animationsEnabled={animationsEnabled}
+					gridColumns={this.viewModel.gridColumns}
+					imageCache={imageCache}
+					onDismiss={() => {
+						this.setState({ addToPlaylistTracks: null });
+					}}
+					tracks={addToPlaylistTracks}
+					transport={transport}
+				/>
+			)}
+			{createPlaylistTracks && createPlaylistFn && (
+				<CreatePlaylistModal
+					onCancel={() => {
+						this.setState({ createPlaylistTracks: null });
+					}}
+					onCreate={(name) => {
+						return createPlaylistFn(name).then((playlist) => {
+							const addAll = createPlaylistTracks.reduce<Promise<void>>(
+								(chain, track) =>
+									chain.then(() => transport.addItemToPlaylist?.(playlist.id, track.id)),
+								Promise.resolve(),
+							);
+							return addAll.then(() => {
+								this.setState({ createPlaylistTracks: null });
+							});
+						});
+					}}
+				/>
+			)}
+			{toastMessage && <Toast message={toastMessage} />}
+		</view>;
 	}
 }
 
@@ -364,6 +487,12 @@ function matchesArtistLetterFilter(name: string, letter: string): boolean {
 	}
 	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
 }
+
+const styles = {
+	container: new Style<View>({
+		flexGrow: 1,
+	}),
+};
 
 function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
 	return new Style<ScrollView>({

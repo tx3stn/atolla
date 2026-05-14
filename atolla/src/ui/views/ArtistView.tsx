@@ -17,6 +17,7 @@ import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { BioSection } from '../components/BioSection';
+import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { DetailHeader } from '../components/DetailHeader';
@@ -60,6 +61,7 @@ interface ArtistState {
 	albums: Array<Album>;
 	albumsLoaded: boolean;
 	allTracks: Array<Track>;
+	contextMenuCard: CardContextMenuCard | null;
 	contextMenuTrack: Track | null;
 	downloadState: DownloadState;
 	isFooterVisible: boolean;
@@ -86,6 +88,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		albums: [],
 		albumsLoaded: false,
 		allTracks: [],
+		contextMenuCard: null,
 		contextMenuTrack: null,
 		downloadState: 'not_downloaded',
 		isFooterVisible: false,
@@ -113,7 +116,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 							onDismiss={() => {
 								modalSlot?.slotted(() => {});
 							}}
-							track={track}
+							tracks={[track]}
 							transport={transport}
 						/>;
 					});
@@ -208,7 +211,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	handleContextMenuDismiss = (): void => {
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		modalSlot?.slotted(() => {});
-		this.setState({ contextMenuTrack: null });
+		this.setState({ contextMenuCard: null, contextMenuTrack: null });
 	};
 
 	handleHeaderPlayTap = (): void => {
@@ -324,17 +327,83 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	handleAlbumCardLongPress = (card: { id: string; kind: Card['kind'] }): void => {
 		const album = this.state.albums.find((candidate) => candidate.id === card.id);
-		if (!album) {
-			return;
-		}
+		if (!album) return;
 
-		this.viewModel.transport.getTracksByAlbum(album.id).then((tracks) => {
-			if (tracks.length === 0) {
-				return;
-			}
+		this.setState({ contextMenuCard: { album, kind: 'album' } });
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 
-			this.viewModel.playbackStore.play(tracks, album);
-			this.viewModel.playbackStore.setArtistLogoUrl(this.viewModel.artist.logoUrl || null);
+		modalSlot?.slotted(() => {
+			<CardContextMenu
+				animationsEnabled={animationsEnabled}
+				card={{ album, kind: 'album' }}
+				imageCache={imageCache}
+				onAddToPlaylist={(tracks) => {
+					this.setState({ contextMenuCard: null });
+					modalSlot?.slotted(() => {
+						<AddToPlaylistView
+							animationsEnabled={animationsEnabled}
+							gridColumns={this.viewModel.gridColumns}
+							imageCache={imageCache}
+							onDismiss={() => {
+								modalSlot?.slotted(() => {});
+							}}
+							tracks={tracks}
+							transport={transport}
+						/>;
+					});
+				}}
+				onCreatePlaylist={
+					createPlaylistFn
+						? (tracks) => {
+								this.setState({ contextMenuCard: null });
+								modalSlot?.slotted(() => {
+									<CreatePlaylistModal
+										onCancel={() => {
+											modalSlot?.slotted(() => {});
+										}}
+										onCreate={(name) => {
+											return createPlaylistFn(name).then((playlist) => {
+												const addAll = tracks.reduce<Promise<void>>(
+													(chain, track) =>
+														chain.then(() => transport.addItemToPlaylist?.(playlist.id, track.id)),
+													Promise.resolve(),
+												);
+												return addAll.then(() => {
+													modalSlot?.slotted(() => {});
+													this.navigationController.push(
+														PlaylistView,
+														{
+															animationsEnabled,
+															downloadService: this.viewModel.downloadService,
+															gridColumns: this.viewModel.gridColumns,
+															imageCache,
+															navBarContext: this.buildChildNavBarContext(),
+															paletteQueue: this.viewModel.paletteQueue,
+															playbackStore,
+															playlist,
+															transport,
+														},
+														{},
+														{ animated: animationsEnabled },
+													);
+												});
+											});
+										}}
+									/>;
+								});
+							}
+						: undefined
+				}
+				onDismiss={this.handleContextMenuDismiss}
+				onEntityTap={() => {
+					this.handleContextMenuDismiss();
+					this.handleAlbumCardTap(card);
+				}}
+				playbackStore={playbackStore}
+				transport={transport}
+			/>;
 		});
 	};
 

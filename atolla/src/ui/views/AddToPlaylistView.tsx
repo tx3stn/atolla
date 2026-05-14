@@ -17,7 +17,7 @@ export interface AddToPlaylistViewModel {
 	gridColumns?: number;
 	imageCache?: ImageCache;
 	onDismiss: () => void;
-	track: Track;
+	tracks: Array<Track>;
 	transport: Transport;
 }
 
@@ -69,11 +69,15 @@ export class AddToPlaylistView extends StatefulComponent<
 		id: string;
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
-		const { track, transport } = this.viewModel;
+		const { tracks, transport } = this.viewModel;
 		if (!transport.addItemToPlaylist) return;
 
-		void transport
-			.addItemToPlaylist(card.id, track.id)
+		const addAll = tracks.reduce<Promise<void>>(
+			(chain, track) => chain.then(() => transport.addItemToPlaylist?.(card.id, track.id)),
+			Promise.resolve(),
+		);
+
+		void addAll
 			.then(() => {
 				if (this.hasBeenDestroyed) return;
 				this.toastTimerId = scheduleToastDismiss(

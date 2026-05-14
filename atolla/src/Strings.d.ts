@@ -46,7 +46,9 @@ declare const Strings: {
 	loadingMore: () => string;
 	no: () => string;
 	nothingElseLinedUp: () => string;
+	play: () => string;
 	playingNextToast: () => string;
+	playingNowToast: () => string;
 	playNext: () => string;
 	playlistEditErrorBody: (operation: string, playlist: string, error: string) => string;
 	playlistEditErrorTitle: () => string;

@@ -63,7 +63,7 @@ type QueueTab = 'backTo' | 'upNext';
 
 interface NowPlayingSurfaceState {
 	activeQueueTab: QueueTab;
-	addToPlaylistTrack: Track | null;
+	addToPlaylistTracks: Array<Track> | null;
 	contextMenuTrack: Track | null;
 	createPlaylistTrack: Track | null;
 	isExpanded: boolean;
@@ -115,7 +115,7 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	state: NowPlayingSurfaceState = {
 		activeQueueTab: 'upNext',
-		addToPlaylistTrack: null,
+		addToPlaylistTracks: null,
 		contextMenuTrack: null,
 		createPlaylistTrack: null,
 		isExpanded: false,
@@ -858,7 +858,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					onAddToPlaylist={() => {
 						const track = this.state.contextMenuTrack;
 						if (!track) return;
-						this.setState({ addToPlaylistTrack: track, contextMenuTrack: null });
+						this.setState({ addToPlaylistTracks: [track], contextMenuTrack: null });
 					}}
 					onArtistTap={
 						this.state.contextMenuTrack.artistId && this.viewModel.onArtistTap
@@ -880,14 +880,14 @@ export class NowPlayingSurface extends StatefulComponent<
 					transport={this.viewModel.transport}
 				/>
 			)}
-			{this.state.addToPlaylistTrack && this.viewModel.transport && (
+			{this.state.addToPlaylistTracks && this.viewModel.transport && (
 				<AddToPlaylistView
 					animationsEnabled={this.viewModel.animationsEnabled}
 					imageCache={this.viewModel.imageCache}
 					onDismiss={() => {
-						this.setState({ addToPlaylistTrack: null });
+						this.setState({ addToPlaylistTracks: null });
 					}}
-					track={this.state.addToPlaylistTrack}
+					tracks={this.state.addToPlaylistTracks}
 					transport={this.viewModel.transport}
 				/>
 			)}

@@ -135,11 +135,17 @@
 	"nothing_else_lined_up": {
 		"defaultMessage": "nothing else lined up"
 	},
+	"play": {
+		"defaultMessage": "play"
+	},
 	"play_next": {
 		"defaultMessage": "play next"
 	},
 	"playing_next_toast": {
 		"defaultMessage": "playing next"
+	},
+	"playing_now_toast": {
+		"defaultMessage": "playing now"
 	},
 	"playlist_edit_error_body": {
 		"defaultMessage": "{operation%s} failed for '{playlist%s}'\n{error%s}",

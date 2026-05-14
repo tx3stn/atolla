@@ -101,35 +101,27 @@ describe('ArtistsView', () => {
 		expect(pushedViewModel?.artist?.id).toBe('artist-1');
 	});
 
-	valdiIt('plays artist tracks when card is long pressed', async () => {
+	valdiIt('opens context menu when card is long pressed', async () => {
 		const artists = [
 			{ id: 'artist-1', logoUrl: 'https://example.com/logo.jpg', name: 'Artist One' },
 		];
-		const artistTracks = [{ duration: 210, id: 'track-1', name: 'Track One' }];
 		const transport = {
 			getAllArtists: async () => artists,
-			getTracksByArtist: async () => artistTracks,
 		};
-
-		const playbackStore = new PlaybackStore();
-		spyOn(playbackStore, 'playTracks');
-		spyOn(playbackStore, 'setArtistLogoUrl');
 
 		const instrumented = createComponent(ArtistsView, {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
-			playbackStore,
+			playbackStore: new PlaybackStore(),
 			transport,
 		});
 		const component = instrumented.getComponent();
 		component.setState({ artists });
 
 		component.handleArtistCardLongPress({ id: 'artist-1', kind: 'artist' });
-		await Promise.resolve();
 
-		expect(playbackStore.playTracks).toHaveBeenCalledWith(artistTracks);
-		expect(playbackStore.setArtistLogoUrl).toHaveBeenCalledWith('https://example.com/logo.jpg');
+		expect(component.state.contextMenuCard).toEqual({ artist: artists[0], kind: 'artist' });
 	});
 
 	valdiIt('loads next artist page when prefetch trigger is laid out', async () => {

@@ -156,7 +156,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 							onDismiss={() => {
 								modalSlot?.slotted(() => {});
 							}}
-							track={track}
+							tracks={[track]}
 							transport={transport}
 						/>;
 					});

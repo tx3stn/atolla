@@ -24,6 +24,7 @@ import type { PlaybackStore } from '../../stores/Playback';
 import type { SearchStore } from '../../stores/Search';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
@@ -61,6 +62,7 @@ export type SearchLibraryNavigationTarget =
 	| { kind: 'playlist'; playlist: Playlist };
 
 interface SearchState {
+	contextMenuCard: CardContextMenuCard | null;
 	contextMenuTrack: Track | null;
 	errorMessage: string | null;
 	isFooterVisible: boolean;
@@ -112,6 +114,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private unsubscribePlayback?: () => void;
 
 	state: SearchState = {
+		contextMenuCard: null,
 		contextMenuTrack: null,
 		errorMessage: null,
 		isFooterVisible: false,
@@ -293,7 +296,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 							onDismiss={() => {
 								modalSlot?.slotted(() => {});
 							}}
-							track={track}
+							tracks={[track]}
 							transport={transport}
 						/>;
 					});
@@ -353,7 +356,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.viewModel.navBarContext?.modalSlot?.slotted(() => {});
-		this.setState({ contextMenuTrack: null });
+		this.setState({ contextMenuCard: null, contextMenuTrack: null });
 		if (toastMessage) {
 			this.toastTimerId = scheduleToastDismiss(
 				this.toastTimerId,
@@ -364,6 +367,167 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			);
 		}
 	};
+
+	handleAlbumCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const album = this.state.results.albums.find((a) => a.id === card.id);
+		if (!album) return;
+		this.setState({ contextMenuCard: { album, kind: 'album' } });
+		this.openCardContextMenu({ album, kind: 'album' });
+	};
+
+	handleArtistCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const artist = this.state.results.artists.find((a) => a.id === card.id);
+		if (!artist) return;
+		this.setState({ contextMenuCard: { artist, kind: 'artist' } });
+		this.openCardContextMenu({ artist, kind: 'artist' });
+	};
+
+	handlePlaylistCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const playlist = this.state.results.playlists.find((p) => p.id === card.id);
+		if (!playlist) return;
+		this.setState({ contextMenuCard: { kind: 'playlist', playlist } });
+		this.openCardContextMenu({ kind: 'playlist', playlist });
+	};
+
+	private openCardContextMenu(card: CardContextMenuCard): void {
+		const modalSlot = this.viewModel.navBarContext?.modalSlot;
+		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
+			this.viewModel;
+		const createPlaylistFn = transport.createPlaylist?.bind(transport);
+
+		const onEntityTap = (): void => {
+			this.handleContextMenuDismiss();
+			if (card.kind === 'album') {
+				this.handleAlbumTap(card.album.id);
+			} else if (card.kind === 'artist') {
+				this.handleArtistTap(card.artist.id);
+			} else if (card.kind === 'playlist') {
+				this.handlePlaylistTap(card.playlist.id);
+			}
+		};
+
+		const navigateToArtist = (artistId: string): void => {
+			transport.getArtist(artistId).then((artist) => {
+				if (!artist) return;
+				navigationController.push(
+					ArtistView,
+					{
+						animationsEnabled,
+						artist,
+						downloadService: this.viewModel.downloadService,
+						gridColumns: this.viewModel.gridColumns,
+						imageCache,
+						navBarContext: this.viewModel.navBarContext,
+						paletteQueue: this.viewModel.paletteQueue,
+						playbackStore,
+						transport,
+					},
+					{},
+					{ animated: animationsEnabled },
+				);
+			});
+		};
+
+		const onArtistTap =
+			card.kind === 'album' || card.kind === 'artist'
+				? (): void => {
+						this.handleContextMenuDismiss();
+						if (card.kind === 'album') {
+							navigateToArtist(card.album.artistId);
+						} else if (card.kind === 'artist') {
+							this.handleArtistTap(card.artist.id);
+						}
+					}
+				: undefined;
+
+		modalSlot?.slotted(() => {
+			<CardContextMenu
+				animationsEnabled={animationsEnabled}
+				card={card}
+				imageCache={imageCache}
+				onAddToPlaylist={(tracks) => {
+					this.setState({ contextMenuCard: null });
+					modalSlot?.slotted(() => {
+						<AddToPlaylistView
+							animationsEnabled={animationsEnabled}
+							gridColumns={this.viewModel.gridColumns}
+							imageCache={imageCache}
+							onDismiss={() => {
+								modalSlot?.slotted(() => {});
+							}}
+							tracks={tracks}
+							transport={transport}
+						/>;
+					});
+				}}
+				onArtistTap={onArtistTap}
+				onCreatePlaylist={
+					createPlaylistFn
+						? (tracks) => {
+								this.setState({ contextMenuCard: null });
+								const {
+									animationsEnabled: anim,
+									downloadService,
+									navBarContext,
+									navigationController,
+									paletteQueue,
+									playlistEditService,
+								} = this.viewModel;
+								modalSlot?.slotted(() => {
+									<CreatePlaylistModal
+										onCancel={() => {
+											modalSlot?.slotted(() => {});
+										}}
+										onCreate={(name) => {
+											return createPlaylistFn(name).then((playlist) => {
+												const addAll = tracks.reduce<Promise<void>>(
+													(chain, track) =>
+														chain.then(() => transport.addItemToPlaylist?.(playlist.id, track.id)),
+													Promise.resolve(),
+												);
+												return addAll.then(() => {
+													modalSlot?.slotted(() => {});
+													navigationController.push(
+														PlaylistView,
+														{
+															animationsEnabled: anim,
+															downloadService,
+															gridColumns: this.viewModel.gridColumns,
+															imageCache,
+															navBarContext,
+															paletteQueue,
+															playbackStore,
+															playlist,
+															playlistEditService,
+															transport,
+														},
+														{},
+														{ animated: anim },
+													);
+												});
+											});
+										}}
+									/>;
+								});
+							}
+						: undefined
+				}
+				onDismiss={this.handleContextMenuDismiss}
+				onEntityTap={onEntityTap}
+				playbackStore={playbackStore}
+				transport={transport}
+			/>;
+		});
+	}
 
 	handleTrackTap = (trackId: string): void => {
 		const trackIndex = this.state.results.tracks.findIndex((track) => track.id === trackId);
@@ -710,6 +874,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 										accessibilityId='search-artists-grid'
 										cards={this.createArtistCards(results.artists)}
 										columnCount={this.viewModel.gridColumns}
+										onCardLongPress={this.handleArtistCardLongPress}
 										onCardTap={this.handleArtistCardTap}
 									/>
 								</layout>
@@ -722,6 +887,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 										accessibilityId='search-albums-grid'
 										cards={this.createAlbumCards(results.albums)}
 										columnCount={this.viewModel.gridColumns}
+										onCardLongPress={this.handleAlbumCardLongPress}
 										onCardTap={this.handleAlbumCardTap}
 									/>
 								</layout>
@@ -734,6 +900,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 										accessibilityId='search-playlists-grid'
 										cards={this.createPlaylistCards(results.playlists)}
 										columnCount={this.viewModel.gridColumns}
+										onCardLongPress={this.handlePlaylistCardLongPress}
 										onCardTap={this.handlePlaylistCardTap}
 									/>
 								</layout>

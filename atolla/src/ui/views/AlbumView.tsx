@@ -195,7 +195,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 							onDismiss={() => {
 								modalSlot?.slotted(() => {});
 							}}
-							track={track}
+							tracks={[track]}
 							transport={transport}
 						/>;
 					});

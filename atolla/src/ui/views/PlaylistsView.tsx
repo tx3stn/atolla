@@ -2,9 +2,10 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
-import type { ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Playlist } from '../../models/Playlist';
+import type { Track } from '../../models/Track';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
@@ -13,9 +14,14 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
+import { Toast } from '../components/Toast';
+import { scheduleToastDismiss } from '../components/toastTimer';
 import type { NavBarContext } from '../NavBarContext';
+import { AddToPlaylistView } from './AddToPlaylistView';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
 import { sortPlaylists } from './PlaylistsSort';
@@ -41,12 +47,16 @@ export interface PlaylistsViewModel {
 }
 
 interface PlaylistsState {
+	addToPlaylistTracks: Array<Track> | null;
+	contextMenuCard: CardContextMenuCard | null;
+	createPlaylistTracks: Array<Track> | null;
 	hasMore: boolean;
 	isFooterVisible: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
 	playlists: Array<Playlist>;
+	toastMessage: string | null;
 }
 
 interface PlaylistPageResult {
@@ -63,15 +73,20 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	private currentPage = 0;
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
+	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 
 	state: PlaylistsState = {
+		addToPlaylistTracks: null,
+		contextMenuCard: null,
+		createPlaylistTracks: null,
 		hasMore: true,
 		isFooterVisible: false,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
 		playlists: [],
+		toastMessage: null,
 	};
 
 	onCreate(): void {
@@ -92,6 +107,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
+		if (this.toastTimerId) clearTimeout(this.toastTimerId);
 	}
 
 	onViewModelUpdate(prevViewModel?: PlaylistsViewModel): void {
@@ -199,22 +215,21 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
 		const playlist = this.state.playlists.find((candidate) => candidate.id === card.id);
-		if (!playlist) {
-			return;
-		}
+		if (!playlist) return;
+		this.setState({ contextMenuCard: { kind: 'playlist', playlist } });
+	};
 
-		this.viewModel.transport.getTracksByPlaylist(playlist.id).then(async (tracks) => {
-			if (tracks.length === 0) {
-				return;
-			}
-
-			const artistLogoUrls = await Promise.all(
-				tracks.map((track) =>
-					track.artistId ? this.viewModel.transport.getArtistLogoUrl(track.artistId) : null,
-				),
+	handleContextMenuDismiss = (toastMessage?: string): void => {
+		this.setState({ contextMenuCard: null });
+		if (toastMessage) {
+			this.toastTimerId = scheduleToastDismiss(
+				this.toastTimerId,
+				(message) => {
+					this.setState({ toastMessage: message });
+				},
+				toastMessage,
 			);
-			this.viewModel.playbackStore.playWithArtistLogos(tracks, artistLogoUrls);
-		});
+		}
 	};
 
 	onRender(): void {
@@ -227,6 +242,8 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			playbackStore,
 			transport,
 		} = this.viewModel;
+		const { contextMenuCard, addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
+		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 
 		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
 		let playlists = sortPlaylists(this.state.playlists, sort);
@@ -242,17 +259,67 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			primaryText: playlist.name,
 			secondaryText: '',
 		}));
-		<scroll style={createScrollStyle(this.state.isFooterVisible)}>
-			<CardGrid
-				accessibilityId='library-playlists-grid'
-				cards={cards}
-				columnCount={this.viewModel.gridColumns}
-				infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
-				isLoadingMore={this.state.isLoadingNextPage}
-				onCardLongPress={this.handlePlaylistCardLongPress}
-				onCardTap={(card) => {
-					const playlist = this.state.playlists.find((p) => p.id === card.id);
-					if (playlist) {
+		<view style={styles.container}>
+			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
+				<CardGrid
+					accessibilityId='library-playlists-grid'
+					cards={cards}
+					columnCount={this.viewModel.gridColumns}
+					infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
+					isLoadingMore={this.state.isLoadingNextPage}
+					onCardLongPress={this.handlePlaylistCardLongPress}
+					onCardTap={(card) => {
+						const playlist = this.state.playlists.find((p) => p.id === card.id);
+						if (playlist) {
+							this.viewModel.onNavigationContext?.({ kind: 'playlist', playlist });
+							this.viewModel.onHeaderVisibilityChange?.(false);
+							navigationController.push(
+								PlaylistView,
+								{
+									animationsEnabled,
+									downloadService: this.viewModel.downloadService,
+									gridColumns: this.viewModel.gridColumns,
+									imageCache,
+									modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
+									navBarContext: this.viewModel.navBarContext,
+									onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+									onNavigateToArtist,
+									onNavigationContext: this.viewModel.onNavigationContext,
+									paletteQueue,
+									playbackStore,
+									playlist,
+									playlistEditService: this.viewModel.playlistEditService,
+									transport,
+								},
+								{},
+								{ animated: animationsEnabled },
+							);
+						}
+					}}
+					onLoadMore={
+						this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
+					}
+					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
+				/>
+			</scroll>
+			{contextMenuCard && contextMenuCard.kind === 'playlist' && (
+				<CardContextMenu
+					animationsEnabled={animationsEnabled}
+					card={contextMenuCard}
+					imageCache={imageCache}
+					onAddToPlaylist={(tracks) => {
+						this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
+					}}
+					onCreatePlaylist={
+						createPlaylistFn
+							? (tracks) => {
+									this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
+								}
+							: undefined
+					}
+					onDismiss={this.handleContextMenuDismiss}
+					onEntityTap={() => {
+						const { playlist } = contextMenuCard;
 						this.viewModel.onNavigationContext?.({ kind: 'playlist', playlist });
 						this.viewModel.onHeaderVisibilityChange?.(false);
 						navigationController.push(
@@ -276,14 +343,44 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 							{},
 							{ animated: animationsEnabled },
 						);
-					}
-				}}
-				onLoadMore={
-					this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
-				}
-				onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
-			/>
-		</scroll>;
+					}}
+					playbackStore={playbackStore}
+					transport={transport}
+				/>
+			)}
+			{addToPlaylistTracks && (
+				<AddToPlaylistView
+					animationsEnabled={animationsEnabled}
+					gridColumns={this.viewModel.gridColumns}
+					imageCache={imageCache}
+					onDismiss={() => {
+						this.setState({ addToPlaylistTracks: null });
+					}}
+					tracks={addToPlaylistTracks}
+					transport={transport}
+				/>
+			)}
+			{createPlaylistTracks && createPlaylistFn && (
+				<CreatePlaylistModal
+					onCancel={() => {
+						this.setState({ createPlaylistTracks: null });
+					}}
+					onCreate={(name) => {
+						return createPlaylistFn(name).then((playlist) => {
+							const addAll = createPlaylistTracks.reduce<Promise<void>>(
+								(chain, track) =>
+									chain.then(() => transport.addItemToPlaylist?.(playlist.id, track.id)),
+								Promise.resolve(),
+							);
+							return addAll.then(() => {
+								this.setState({ createPlaylistTracks: null });
+							});
+						});
+					}}
+				/>
+			)}
+			{toastMessage && <Toast message={toastMessage} />}
+		</view>;
 	}
 }
 
@@ -293,6 +390,12 @@ function matchesLetterFilter(name: string, letter: string): boolean {
 	}
 	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
 }
+
+const styles = {
+	container: new Style<View>({
+		flexGrow: 1,
+	}),
+};
 
 function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
 	return new Style<ScrollView>({

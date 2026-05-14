@@ -111,7 +111,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 							onDismiss={() => {
 								modalSlot?.slotted(() => {});
 							}}
-							track={track}
+							tracks={[track]}
 							transport={transport}
 						/>;
 					});
