@@ -451,6 +451,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const { artistLogoUrl, downloadState, isFooterVisible, isHeaderVisible, isLoading, tracks } =
 			this.state;
 		const { album, animationsEnabled, imageCache } = this.viewModel;
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const albumGenres = normalizeGenres(album.genres);
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => {
@@ -537,6 +538,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				{this.viewModel.navBarContext?.nowPlayingOverlaySlot && (
 					<DetachedSlotRenderer detachedSlot={this.viewModel.navBarContext.nowPlayingOverlaySlot} />
 				)}
+				{modalSlot && <DetachedSlotRenderer detachedSlot={modalSlot} />}
 				{this.viewModel.navBarContext?.header && isHeaderVisible && (
 					<LibraryHeaderNav
 						activeTab={this.viewModel.navBarContext.header.activeTab}

@@ -482,6 +482,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			tracks,
 		} = this.state;
 		const { genre, imageCache } = this.viewModel;
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
@@ -566,6 +567,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				{this.viewModel.navBarContext?.nowPlayingOverlaySlot && (
 					<DetachedSlotRenderer detachedSlot={this.viewModel.navBarContext.nowPlayingOverlaySlot} />
 				)}
+				{modalSlot && <DetachedSlotRenderer detachedSlot={modalSlot} />}
 				{this.viewModel.navBarContext?.header && isHeaderVisible && (
 					<LibraryHeaderNav
 						activeTab={this.viewModel.navBarContext.header.activeTab}

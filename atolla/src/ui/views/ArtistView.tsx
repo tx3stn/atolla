@@ -521,6 +521,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 	onRender(): void {
 		const { artist, animationsEnabled, imageCache } = this.viewModel;
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const {
 			albums,
 			albumsLoaded,
@@ -642,6 +643,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				{this.viewModel.navBarContext?.nowPlayingOverlaySlot && (
 					<DetachedSlotRenderer detachedSlot={this.viewModel.navBarContext.nowPlayingOverlaySlot} />
 				)}
+				{modalSlot && <DetachedSlotRenderer detachedSlot={modalSlot} />}
 				{this.viewModel.navBarContext?.header && isHeaderVisible && (
 					<LibraryHeaderNav
 						activeTab={this.viewModel.navBarContext.header.activeTab}

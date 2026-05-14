@@ -697,6 +697,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const { downloadState, isFooterVisible, isHeaderVisible, isLoading, totalTrackCount, tracks } =
 			this.state;
 		const { imageCache } = this.viewModel;
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
@@ -764,6 +765,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				{this.viewModel.navBarContext?.nowPlayingOverlaySlot && (
 					<DetachedSlotRenderer detachedSlot={this.viewModel.navBarContext.nowPlayingOverlaySlot} />
 				)}
+				{modalSlot && <DetachedSlotRenderer detachedSlot={modalSlot} />}
 				{this.viewModel.navBarContext?.header && isHeaderVisible && (
 					<LibraryHeaderNav
 						activeTab={this.viewModel.navBarContext.header.activeTab}
