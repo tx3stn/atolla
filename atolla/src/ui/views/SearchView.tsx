@@ -2,6 +2,7 @@ import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type {
 	ImageView,
@@ -46,6 +47,7 @@ export interface SearchViewModel {
 	focusSignal?: number;
 	gridColumns: number;
 	imageCache: ImageCache;
+	modalSlot?: DetachedSlot;
 	navBarContext?: NavBarContext;
 	navigationController: NavigationController;
 	onNavigateToLibraryResult?: (target: SearchLibraryNavigationTarget) => void;
@@ -279,7 +281,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	handleTrackLongPress = (track: Track): void => {
 		this.setState({ contextMenuTrack: track });
-		const modalSlot = this.viewModel.navBarContext?.modalSlot;
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 		modalSlot?.slotted(() => {
@@ -355,7 +357,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	};
 
 	handleContextMenuDismiss = (toastMessage?: string): void => {
-		this.viewModel.navBarContext?.modalSlot?.slotted(() => {});
+		(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot)?.slotted(() => {});
 		this.setState({ contextMenuCard: null, contextMenuTrack: null });
 		if (toastMessage) {
 			this.toastTimerId = scheduleToastDismiss(
@@ -399,7 +401,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	};
 
 	private openCardContextMenu(card: CardContextMenuCard): void {
-		const modalSlot = this.viewModel.navBarContext?.modalSlot;
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
 			this.viewModel;
 		const createPlaylistFn = transport.createPlaylist?.bind(transport);

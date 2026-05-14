@@ -23,6 +23,7 @@ import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortAlbums } from './AlbumsSort';
 import { AlbumView } from './AlbumView';
+import { ArtistView } from './ArtistView';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
 
@@ -358,6 +359,41 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 					onAddToPlaylist={(tracks) => {
 						this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
 					}}
+					onArtistTap={
+						contextMenuCard.kind === 'album' && contextMenuCard.album.artistId
+							? () => {
+									const { album } = contextMenuCard;
+									this.handleContextMenuDismiss();
+									transport.getArtist(album.artistId).then((artist) => {
+										const resolvedArtist = artist ?? {
+											id: album.artistId,
+											name: album.artistName,
+										};
+										navigationController.push(
+											ArtistView,
+											{
+												animationsEnabled,
+												artist: resolvedArtist,
+												downloadService: this.viewModel.downloadService,
+												gridColumns: this.viewModel.gridColumns,
+												imageCache,
+												isHeaderVisible: false,
+												modalSlot:
+													this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
+												navBarContext: this.viewModel.navBarContext,
+												onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+												paletteQueue,
+												playbackStore,
+												restoreHeaderOnDestroy: false,
+												transport,
+											},
+											{},
+											{ animated: animationsEnabled },
+										);
+									});
+								}
+							: undefined
+					}
 					onCreatePlaylist={
 						createPlaylistFn
 							? (tracks) => {

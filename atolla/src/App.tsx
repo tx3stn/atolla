@@ -2450,6 +2450,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 								focusSignal={this.state.searchFocusSignal}
 								gridColumns={this.state.gridColumns}
 								imageCache={this.imageCache}
+								modalSlot={this.modalSlot}
 								navBarContext={this.buildSearchNavBarContext()}
 								navigationController={navigationController}
 								onNavigateToLibraryResult={this.handleSearchResultNavigation}

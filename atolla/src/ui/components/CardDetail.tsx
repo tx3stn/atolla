@@ -11,17 +11,20 @@ export interface CardDetailViewModel {
 	lineOne: string;
 	lineThree: string;
 	lineTwo: string;
+	onLongPress?: () => void;
 	onTap?: () => void;
 	testID?: string;
 }
 
 export class CardDetail extends Component<CardDetailViewModel> {
 	onRender() {
-		const { accessibilityId, artworkKey, lineOne, lineThree, lineTwo, onTap } = this.viewModel;
+		const { accessibilityId, artworkKey, lineOne, lineThree, lineTwo, onLongPress, onTap } =
+			this.viewModel;
 
 		<view
 			accessibilityId={accessibilityId}
 			accessibilityLabel={accessibilityId}
+			onLongPress={onLongPress}
 			onTap={onTap}
 			style={styles.row}
 		>

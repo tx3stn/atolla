@@ -444,6 +444,92 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						/>;
 					});
 				}}
+				onArtistTap={
+					album.artistId
+						? () => {
+								this.handleContextMenuDismiss();
+								this.viewModel.onNavigateToArtist?.(album.artistId);
+							}
+						: undefined
+				}
+				onCreatePlaylist={
+					createPlaylistFn
+						? (tracks) => {
+								this.setState({ contextMenuCard: null });
+								modalSlot?.slotted(() => {
+									<CreatePlaylistModal
+										onCancel={() => {
+											modalSlot?.slotted(() => {});
+										}}
+										onCreate={(name) => {
+											return createPlaylistFn(name).then((playlist) => {
+												const addAll = tracks.reduce<Promise<void>>(
+													(chain, track) =>
+														chain.then(() => transport.addItemToPlaylist?.(playlist.id, track.id)),
+													Promise.resolve(),
+												);
+												return addAll.then(() => {
+													modalSlot?.slotted(() => {});
+													this.viewModel.onOpenPlaylist?.(playlist);
+												});
+											});
+										}}
+									/>;
+								});
+							}
+						: undefined
+				}
+				onDismiss={this.handleContextMenuDismiss}
+				onEntityTap={() => {
+					this.handleContextMenuDismiss();
+					this.viewModel.onOpenAlbum(album);
+				}}
+				playbackStore={playbackStore}
+				transport={transport}
+			/>;
+		});
+	};
+
+	private handleOnThisDayCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const album = this.state.albums.find((a) => a.id === card.id);
+		if (!album) return;
+		hapticFeedback();
+
+		this.setState({ contextMenuCard: { album, kind: 'album' } });
+		const { animationsEnabled, imageCache, modalSlot, playbackStore, transport } = this.viewModel;
+		const createPlaylistFn = transport.createPlaylist?.bind(transport);
+
+		modalSlot?.slotted(() => {
+			<CardContextMenu
+				animationsEnabled={animationsEnabled}
+				card={{ album, kind: 'album' }}
+				imageCache={imageCache}
+				onAddToPlaylist={(tracks) => {
+					this.setState({ contextMenuCard: null });
+					modalSlot?.slotted(() => {
+						<AddToPlaylistView
+							animationsEnabled={animationsEnabled}
+							gridColumns={this.viewModel.gridColumns}
+							imageCache={imageCache}
+							onDismiss={() => {
+								modalSlot?.slotted(() => {});
+							}}
+							tracks={tracks}
+							transport={transport}
+						/>;
+					});
+				}}
+				onArtistTap={
+					album.artistId
+						? () => {
+								this.handleContextMenuDismiss();
+								this.viewModel.onNavigateToArtist?.(album.artistId);
+							}
+						: undefined
+				}
 				onCreatePlaylist={
 					createPlaylistFn
 						? (tracks) => {
@@ -631,6 +717,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 									<CardDetailList
 										accessibilityId='home-on-this-day-grid'
 										cards={onThisDayCards}
+										onCardLongPress={this.handleOnThisDayCardLongPress}
 										onCardTap={this.handleAlbumCardTap}
 									/>
 								) : (

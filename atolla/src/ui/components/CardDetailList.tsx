@@ -16,12 +16,13 @@ export interface CardDetailItem {
 export interface CardDetailListViewModel {
 	accessibilityId: string;
 	cards: Array<CardDetailItem>;
+	onCardLongPress?: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
 	onCardTap: (card: { id: string; kind: 'album' | 'artist' | 'playlist' }) => void;
 }
 
 export class CardDetailList extends Component<CardDetailListViewModel> {
 	onRender() {
-		const { accessibilityId, cards, onCardTap } = this.viewModel;
+		const { accessibilityId, cards, onCardLongPress, onCardTap } = this.viewModel;
 
 		<layout accessibilityLabel={accessibilityId} style={styles.list}>
 			{cards.map((entry, index) => {
@@ -36,6 +37,13 @@ export class CardDetailList extends Component<CardDetailListViewModel> {
 							lineOne={entry.lineOne}
 							lineThree={entry.lineThree}
 							lineTwo={entry.lineTwo}
+							onLongPress={
+								onCardLongPress
+									? createReusableCallback(() => {
+											onCardLongPress({ id: entry.id, kind: entry.kind });
+										})
+									: undefined
+							}
 							onTap={createReusableCallback(() => {
 								onCardTap({ id: entry.id, kind: entry.kind });
 							})}
