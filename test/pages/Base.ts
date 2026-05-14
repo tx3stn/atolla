@@ -158,25 +158,35 @@ export class BasePage {
 
 	public async swipeBack(): Promise<void> {
 		const rect = await this.driver.getWindowRect();
-		const y = Math.floor(rect.height * 0.45);
-		const startX = Math.floor(rect.width * 0.02);
-		const endX = Math.floor(rect.width * 0.7);
+		if (this.isIOS()) {
+			await this.driver.execute('mobile: dragFromToForDuration', {
+				duration: 0.4,
+				fromX: 2,
+				fromY: Math.floor(rect.height * 0.5),
+				toX: Math.floor(rect.width * 0.75),
+				toY: Math.floor(rect.height * 0.5),
+			});
+		} else {
+			const y = Math.floor(rect.height * 0.45);
+			const startX = Math.floor(rect.width * 0.02);
+			const endX = Math.floor(rect.width * 0.7);
 
-		await this.driver.performActions([
-			{
-				actions: [
-					{ duration: 0, type: 'pointerMove', x: startX, y },
-					{ button: 0, type: 'pointerDown' },
-					{ duration: 100, type: 'pause' },
-					{ duration: 250, type: 'pointerMove', x: endX, y },
-					{ button: 0, type: 'pointerUp' },
-				],
-				id: 'swipe-back-finger',
-				parameters: { pointerType: 'touch' },
-				type: 'pointer',
-			},
-		]);
-		await this.driver.releaseActions();
+			await this.driver.performActions([
+				{
+					actions: [
+						{ duration: 0, type: 'pointerMove', x: startX, y },
+						{ button: 0, type: 'pointerDown' },
+						{ duration: 100, type: 'pause' },
+						{ duration: 250, type: 'pointerMove', x: endX, y },
+						{ button: 0, type: 'pointerUp' },
+					],
+					id: 'swipe-back-finger',
+					parameters: { pointerType: 'touch' },
+					type: 'pointer',
+				},
+			]);
+			await this.driver.releaseActions();
+		}
 	}
 
 	public isIOS(): boolean {
