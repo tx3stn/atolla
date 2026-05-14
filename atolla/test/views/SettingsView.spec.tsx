@@ -239,7 +239,7 @@ describe('SettingsView', () => {
 			IRenderedElementViewClass.View,
 		);
 		const option = updatedViews.find(
-			(v) => v.getAttribute('accessibilityLabel') === 'settings-track-cache-limit-option-25',
+			(v) => v.getAttribute('accessibilityId') === 'settings-track-cache-limit-option-25',
 		);
 
 		expect(option).toBeTruthy();
@@ -266,7 +266,7 @@ describe('SettingsView', () => {
 			IRenderedElementViewClass.View,
 		);
 		updatedViews
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-track-cache-limit-option-30')
+			.find((v) => v.getAttribute('accessibilityId') === 'settings-track-cache-limit-option-30')
 			?.getAttribute('onTap')?.();
 
 		expect(selected).toBe(30);
@@ -289,7 +289,7 @@ describe('SettingsView', () => {
 			IRenderedElementViewClass.View,
 		);
 		const option = updatedViews.find(
-			(v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-option-4',
+			(v) => v.getAttribute('accessibilityId') === 'settings-grid-columns-option-4',
 		);
 
 		expect(option).toBeTruthy();
@@ -316,7 +316,7 @@ describe('SettingsView', () => {
 			IRenderedElementViewClass.View,
 		);
 		updatedViews
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-option-4')
+			.find((v) => v.getAttribute('accessibilityId') === 'settings-grid-columns-option-4')
 			?.getAttribute('onTap')?.();
 
 		expect(selected).toBe(4);

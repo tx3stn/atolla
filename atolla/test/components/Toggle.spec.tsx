@@ -63,7 +63,7 @@ describe('Toggle', () => {
 
 	valdiIt('sets accessibilityLabel on the track', async () => {
 		const instrumented = createComponent(Toggle, {
-			accessibilityLabel: 'settings-animations-toggle',
+			accessibilityId: 'settings-animations-toggle',
 			enabled: false,
 			onToggle: () => {},
 		});

@@ -57,7 +57,7 @@ describe('FooterIcon', () => {
 
 	valdiIt('sets accessibilityLabel on the tap target', async () => {
 		const instrumented = createComponent(FooterIcon, {
-			accessibilityLabel: 'footer-library',
+			accessibilityId: 'footer-library',
 			action: () => {},
 			icon,
 		});

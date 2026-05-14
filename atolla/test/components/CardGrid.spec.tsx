@@ -17,7 +17,7 @@ describe('CardGrid', () => {
 	valdiIt('renders a tappable tile for each card', async () => {
 		const cards = [makeCard('1'), makeCard('2'), makeCard('3')];
 		const instrumented = createComponent(CardGrid, {
-			accessibilityLabel: 'grid',
+			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
 			onCardTap: () => {},
@@ -25,14 +25,15 @@ describe('CardGrid', () => {
 		});
 		const component = instrumented.getComponent();
 
-		const tiles = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const tiles = views.filter((v) => v.getAttribute('accessibilityLabel')?.startsWith('card-'));
 		expect(tiles.length).toBe(3);
 	});
 
 	valdiIt('renders primary and secondary text labels for each card', async () => {
 		const cards = [makeCard('1', 'My Album', '2023')];
 		const instrumented = createComponent(CardGrid, {
-			accessibilityLabel: 'grid',
+			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
 			onCardTap: () => {},
@@ -53,7 +54,7 @@ describe('CardGrid', () => {
 		const cards = [makeCard('album-42', 'Tap Target', '2020')];
 		const captured: { tapped: { id: string; kind: string } | null } = { tapped: null };
 		const instrumented = createComponent(CardGrid, {
-			accessibilityLabel: 'grid',
+			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
 			onCardTap: (card: { id: string; kind: string }) => {
@@ -63,8 +64,9 @@ describe('CardGrid', () => {
 		});
 		const component = instrumented.getComponent();
 
-		const tiles = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		tiles[0].getAttribute('onTap')?.();
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const tile = views.find((v) => v.getAttribute('accessibilityLabel') === 'card-album-42');
+		tile?.getAttribute('onTap')?.();
 
 		expect(captured.tapped).not.toBeNull();
 		expect(captured.tapped?.id).toBe('album-42');
@@ -78,7 +80,7 @@ describe('CardGrid', () => {
 			let tapped = false;
 			const captured: { longPressed: { id: string; kind: string } | null } = { longPressed: null };
 			const instrumented = createComponent(CardGrid, {
-				accessibilityLabel: 'grid',
+				accessibilityId: 'grid',
 				cards,
 				columnCount: 3,
 				onCardLongPress: (card: {
@@ -94,13 +96,14 @@ describe('CardGrid', () => {
 			});
 			const component = instrumented.getComponent();
 
-			const tiles = elementTypeFind(
+			const views = elementTypeFind(
 				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
-			tiles[0].getAttribute('onTouch')?.({ state: 0 });
+			const tile = views.find((v) => v.getAttribute('accessibilityLabel') === 'card-album-42');
+			tile?.getAttribute('onTouch')?.({ state: 0 });
 			jasmine.clock().tick(500);
-			tiles[0].getAttribute('onTap')?.();
+			tile?.getAttribute('onTap')?.();
 
 			expect(captured.longPressed).not.toBeNull();
 			expect(captured.longPressed?.id).toBe('album-42');
@@ -114,7 +117,7 @@ describe('CardGrid', () => {
 	valdiIt('shows fallback label when no artwork source is resolved', async () => {
 		const cards = [makeCard('1', 'Title', '2021')];
 		const instrumented = createComponent(CardGrid, {
-			accessibilityLabel: 'grid',
+			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
 			onCardTap: () => {},
@@ -133,7 +136,7 @@ describe('CardGrid', () => {
 	valdiIt('renders an image when artwork source is provided', async () => {
 		const cards = [makeCard('1')];
 		const instrumented = createComponent(CardGrid, {
-			accessibilityLabel: 'grid',
+			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
 			onCardTap: () => {},
@@ -153,7 +156,7 @@ describe('CardGrid', () => {
 		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
 		let loadMoreCalls = 0;
 		const instrumented = createComponent(CardGrid, {
-			accessibilityLabel: 'grid',
+			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
 			onCardTap: () => {},
@@ -179,7 +182,7 @@ describe('CardGrid', () => {
 	valdiIt('shows loading spinner label while loading next page', async () => {
 		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
 		const instrumented = createComponent(CardGrid, {
-			accessibilityLabel: 'grid',
+			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
 			isLoadingMore: true,
@@ -200,7 +203,7 @@ describe('CardGrid', () => {
 	valdiIt('places prefetch trigger after first row when using 4 columns', async () => {
 		const cards = Array.from({ length: 8 }, (_, index) => makeCard(String(index + 1)));
 		const instrumented = createComponent(CardGrid, {
-			accessibilityLabel: 'grid',
+			accessibilityId: 'grid',
 			cards,
 			columnCount: 4,
 			onCardTap: () => {},

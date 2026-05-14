@@ -27,7 +27,7 @@
 		"android:fast": "FAST_DEV_BUILD=1 ./.scripts/start-android-emulator.sh",
 		"appium:inspect": "./.scripts/start-appium-inspector.sh",
 		"check": "bun run format && bun run lint && bun run compile && bun run test && bun run format:zig && bun run check:zig && bun run test:zig",
-		"check:full": "bun run check && bun run test:components",
+		"check:full": "bun run check && bun run test:components && bun run android:fast && bun run ios:fast && bun run test:e2e",
 		"check:zig": "bazel build //atolla/native/zig:atolla_algorithms_zig",
 		"compile": "bunx tsc --noEmit",
 		"format": "biome format --write .",

@@ -73,7 +73,7 @@ describe('ProgressBarWaveform', () => {
 	valdiIt('uses the provided accessibilityLabel on the waveform bar', async () => {
 		const instrumented = createComponent(ProgressBarWaveform, {
 			accentColor: '#ff2255',
-			accessibilityLabel: 'now-playing-progress',
+			accessibilityId: 'now-playing-progress',
 			maskImageUrl: 'mask://track-1.png',
 			mutedColor: 'rgba(255,34,85,0.3)',
 			playbackStore: mockStore(50),

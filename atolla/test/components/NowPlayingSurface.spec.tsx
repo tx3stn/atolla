@@ -89,11 +89,13 @@ function getQueuePageRows(
 	const pageViews =
 		nextPageStart === -1 ? views.slice(pageStart + 1) : views.slice(pageStart + 1, nextPageStart);
 
+	const rowPrefix =
+		pageLabel === 'now-playing-queue-page-back-to'
+			? 'track-row-back-to-track-'
+			: 'track-row-up-next-track-';
 	return pageViews
 		.map((v) => v.getAttribute('accessibilityLabel'))
-		.filter(
-			(label): label is string => typeof label === 'string' && label.startsWith('track-row-track-'),
-		);
+		.filter((label): label is string => typeof label === 'string' && label.startsWith(rowPrefix));
 }
 
 describe('NowPlayingSurface', () => {
@@ -226,14 +228,16 @@ describe('NowPlayingSurface', () => {
 
 			views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 			const artworkTouch = views.find(
-				(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-3-0',
+				(view) =>
+					view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-up-next-track-3-0',
 			);
 			artworkTouch?.getAttribute('onTouch')?.({ state: 0 });
 			jasmine.clock().tick(500);
 
 			views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 			const upNextRowSwipeRegion = views.find(
-				(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-3-0',
+				(view) =>
+					view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-up-next-track-3-0',
 			);
 			upNextRowSwipeRegion?.getAttribute('onDrag')?.({
 				deltaX: -72,
@@ -290,7 +294,7 @@ describe('NowPlayingSurface', () => {
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const firstUpNextHandle = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-3-0',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-up-next-track-3-0',
 		);
 		firstUpNextHandle?.getAttribute('onDrag')?.({
 			deltaX: 0,
@@ -344,7 +348,7 @@ describe('NowPlayingSurface', () => {
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const firstBackToHandle = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-2-0',
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-back-to-track-2-0',
 		);
 		firstBackToHandle?.getAttribute('onDrag')?.({
 			deltaX: 0,
@@ -395,12 +399,12 @@ describe('NowPlayingSurface', () => {
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const backToRows = views
 			.map((view) => view.getAttribute('accessibilityLabel'))
-			.filter((label) => typeof label === 'string' && label.startsWith('track-row-track-'));
+			.filter((label) => typeof label === 'string' && label.startsWith('track-row-back-to-track-'));
 
 		expect(backToRows).toEqual([
-			'track-row-track-3-0',
-			'track-row-track-2-1',
-			'track-row-track-1-2',
+			'track-row-back-to-track-3-0',
+			'track-row-back-to-track-2-1',
+			'track-row-back-to-track-1-2',
 		]);
 	});
 
@@ -432,12 +436,12 @@ describe('NowPlayingSurface', () => {
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const upNextRows = views
 			.map((view) => view.getAttribute('accessibilityLabel'))
-			.filter((label) => typeof label === 'string' && label.startsWith('track-row-track-'));
+			.filter((label) => typeof label === 'string' && label.startsWith('track-row-up-next-track-'));
 
 		expect(upNextRows.length).toBe(30);
-		expect(upNextRows[0]).toBe('track-row-track-2-0');
-		expect(upNextRows[29]).toBe('track-row-track-31-29');
-		expect(upNextRows).not.toContain('track-row-track-32-30');
+		expect(upNextRows[0]).toBe('track-row-up-next-track-2-0');
+		expect(upNextRows[29]).toBe('track-row-up-next-track-31-29');
+		expect(upNextRows).not.toContain('track-row-up-next-track-32-30');
 	});
 
 	valdiIt('caps back-to queue display to thirty tracks', async () => {
@@ -468,9 +472,9 @@ describe('NowPlayingSurface', () => {
 		const backToRows = getQueuePageRows(component, 'now-playing-queue-page-back-to');
 
 		expect(backToRows.length).toBe(30);
-		expect(backToRows[0]).toBe('track-row-track-70-0');
-		expect(backToRows[29]).toBe('track-row-track-41-29');
-		expect(backToRows).not.toContain('track-row-track-40-30');
+		expect(backToRows[0]).toBe('track-row-back-to-track-70-0');
+		expect(backToRows[29]).toBe('track-row-back-to-track-41-29');
+		expect(backToRows).not.toContain('track-row-back-to-track-40-30');
 	});
 
 	valdiIt('handles collapse signal update while expanded', async () => {
@@ -658,8 +662,8 @@ describe('NowPlayingSurface', () => {
 		const backToRows = getQueuePageRows(component, 'now-playing-queue-page-back-to');
 		const upNextRows = getQueuePageRows(component, 'now-playing-queue-page-up-next');
 
-		expect(backToRows).toEqual(['track-row-track-2-0', 'track-row-track-1-1']);
-		expect(upNextRows).toEqual(['track-row-track-4-0', 'track-row-track-5-1']);
+		expect(backToRows).toEqual(['track-row-back-to-track-2-0', 'track-row-back-to-track-1-1']);
+		expect(upNextRows).toEqual(['track-row-up-next-track-4-0', 'track-row-up-next-track-5-1']);
 	});
 
 	valdiIt('queue pages show correct tracks after track changes mid-session', async () => {
@@ -708,10 +712,10 @@ describe('NowPlayingSurface', () => {
 		const upNextRows = getQueuePageRows(component, 'now-playing-queue-page-up-next');
 
 		expect(backToRows).toEqual([
-			'track-row-track-3-0',
-			'track-row-track-2-1',
-			'track-row-track-1-2',
+			'track-row-back-to-track-3-0',
+			'track-row-back-to-track-2-1',
+			'track-row-back-to-track-1-2',
 		]);
-		expect(upNextRows).toEqual(['track-row-track-5-0']);
+		expect(upNextRows).toEqual(['track-row-up-next-track-5-0']);
 	});
 });
