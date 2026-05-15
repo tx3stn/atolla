@@ -77,8 +77,8 @@ describe('header tab navigation', () => {
 		await library.openAlbumsTab();
 		await library.tabs.albums.tapFirstVisibleCard();
 		await albumDetailPage.waitForLoad();
-		await albumDetailPage.detailHeader.swipeDownToRevealHeader();
-		await albumDetailPage.detailHeader.tapAlbumsTab();
+		await albumDetailPage.DetailHeader().swipeDownToRevealHeader();
+		await albumDetailPage.DetailHeader().tapAlbumsTab();
 		expect(await library.tabs.albums.isVisible()).toBe(true);
 	});
 
