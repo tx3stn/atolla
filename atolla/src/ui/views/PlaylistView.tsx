@@ -678,6 +678,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	private handleHeaderNavTabTap = (tab: HeaderTab): void => {
+		this.viewModel.onHeaderVisibilityChange?.(true);
 		this.navigationController.pop();
 		this.viewModel.navBarContext?.header?.onTabTap(tab);
 	};

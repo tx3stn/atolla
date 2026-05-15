@@ -432,6 +432,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	private handleHeaderNavTabTap = (tab: HeaderTab): void => {
+		this.viewModel.onHeaderVisibilityChange?.(true);
 		this.navigationController.pop();
 		this.viewModel.navBarContext?.header?.onTabTap(tab);
 	};
