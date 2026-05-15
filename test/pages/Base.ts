@@ -1,41 +1,22 @@
 import type { Browser, ChainablePromiseElement } from 'webdriverio';
 
-// Valdi's accessibilityId maps to UIView.accessibilityIdentifier on iOS, which is
-// what the ~ selector reads in XCUITest. Both platforms use ~id locators.
-const IOS = 'ios' as const;
-const ANDROID = 'android' as const;
-type Platform = typeof IOS | typeof ANDROID;
-
-export type PlatformLocator = { [IOS]: string; [ANDROID]: string };
-
 export class BasePage {
 	constructor(protected readonly driver: Browser) {}
 
-	protected platform(): Platform {
-		return (this.driver.capabilities.platformName as string).toLowerCase() as Platform;
+	public isIOS(): boolean {
+		return (this.driver.capabilities.platformName as string).toLowerCase() === 'ios';
 	}
 
-	private locator(input: PlatformLocator): string {
-		return input[this.platform()];
-	}
-
-	protected element(locator: PlatformLocator): ChainablePromiseElement {
-		return this.driver.$(this.locator(locator));
+	protected isAndroid(): boolean {
+		return !this.isIOS();
 	}
 
 	public elementByID(id: string): ChainablePromiseElement {
 		return this.driver.$(`~${id}`);
 	}
 
-	public elementByAccessibilityPrefix(prefix: string): ChainablePromiseElement {
-		return this.driver.$(
-			`//*[starts-with(@name, "${prefix}") or starts-with(@content-desc, "${prefix}")]`,
-		);
-	}
-
 	public async allByAccessibilityPrefix(prefix: string): Promise<Array<WebdriverIO.Element>> {
-		const isAndroid = (this.driver.capabilities.platformName as string).toLowerCase() === 'android';
-		const selector = isAndroid
+		const selector = this.isAndroid()
 			? `android=new UiSelector().descriptionStartsWith("${prefix}")`
 			: `//*[starts-with(@name, "${prefix}")]`;
 		const elements: Array<WebdriverIO.Element> = [];
@@ -49,11 +30,8 @@ export class BasePage {
 		container: ChainablePromiseElement,
 		prefix: string,
 	): Promise<Array<WebdriverIO.Element>> {
-		const isAndroid = (this.driver.capabilities.platformName as string).toLowerCase() === 'android';
 		const elements: Array<WebdriverIO.Element> = [];
-		if (isAndroid) {
-			// UiSelector scopes correctly to the container element on UIAutomator2;
-			// XPath .//* does not work reliably within an element context on Android.
+		if (this.isAndroid()) {
 			for await (const el of container.$$(
 				`android=new UiSelector().descriptionStartsWith("${prefix}")`,
 			)) {
@@ -77,7 +55,6 @@ export class BasePage {
 						return true;
 					}
 				}
-
 				return false;
 			},
 			{ timeoutMsg: `Timed out waiting for visible accessibility prefix: ${prefix}` },
@@ -140,9 +117,8 @@ export class BasePage {
 	}
 
 	protected async dismissPermissionDialogIfPresent(): Promise<void> {
-		const isAndroid = (this.driver.capabilities.platformName as string).toLowerCase() === 'android';
 		try {
-			if (isAndroid) {
+			if (this.isAndroid()) {
 				await this.driver.waitUntil(
 					async () => this.driver.$('android=new UiSelector().text("Allow")').isExisting(),
 					{ timeout: 2_000, timeoutMsg: '' },
@@ -168,16 +144,13 @@ export class BasePage {
 			});
 		} else {
 			const y = Math.floor(rect.height * 0.45);
-			const startX = Math.floor(rect.width * 0.02);
-			const endX = Math.floor(rect.width * 0.7);
-
 			await this.driver.performActions([
 				{
 					actions: [
-						{ duration: 0, type: 'pointerMove', x: startX, y },
+						{ duration: 0, type: 'pointerMove', x: Math.floor(rect.width * 0.02), y },
 						{ button: 0, type: 'pointerDown' },
 						{ duration: 100, type: 'pause' },
-						{ duration: 250, type: 'pointerMove', x: endX, y },
+						{ duration: 250, type: 'pointerMove', x: Math.floor(rect.width * 0.7), y },
 						{ button: 0, type: 'pointerUp' },
 					],
 					id: 'swipe-back-finger',
@@ -187,9 +160,5 @@ export class BasePage {
 			]);
 			await this.driver.releaseActions();
 		}
-	}
-
-	public isIOS(): boolean {
-		return (this.driver.capabilities.platformName as string).toLowerCase() === 'ios';
 	}
 }

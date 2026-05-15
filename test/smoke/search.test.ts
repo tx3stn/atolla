@@ -17,7 +17,7 @@ describe('search', () => {
 	});
 
 	it('shows search view when tapping the search tab', async () => {
-		await footer.tapSearchAndWaitForLoad();
+		await footer.tapSearch();
 		await searchPage.waitForLoad();
 		expect(await searchPage.isVisible()).toBe(true);
 	});
@@ -29,7 +29,7 @@ describe('search', () => {
 
 	it('shows search view after navigating away and back', async () => {
 		await footer.tapLibrary();
-		await footer.tapSearchAndWaitForLoad();
+		await footer.tapSearch();
 		await searchPage.waitForLoad();
 
 		expect(await searchPage.isVisible()).toBe(true);

@@ -1,26 +1,26 @@
 import { AlbumDetailPage } from '../../pages/AlbumDetailPage';
 import { FooterPage } from '../../pages/Footer';
 import { LibraryPage } from '../../pages/LibraryPage';
-import { NowPlayingFooterPage } from '../../pages/NowPlayingBar';
+import { NowPlayingBar } from '../../pages/NowPlayingBar';
 
 describe('now playing queue', () => {
-	let nowPlaying: NowPlayingFooterPage;
+	let nowPlaying: NowPlayingBar;
 	let firstUpNextTrackName: string;
 	let secondUpNextTrackName: string;
 	let albumDetail: AlbumDetailPage;
 
 	before(async () => {
-		nowPlaying = new NowPlayingFooterPage(browser);
+		nowPlaying = new NowPlayingBar(browser);
 		albumDetail = new AlbumDetailPage(browser);
 
 		const footer = new FooterPage(browser);
 		await footer.tapLibrary();
 
-		const home = new LibraryPage(browser);
-		await home.waitForLoad();
-		await home.openAlbumsTab();
-		await home.tabs.albums.waitForLoad();
-		await home.tabs.albums.tapCardByID('album-24');
+		const library = new LibraryPage(browser);
+		await library.waitForLoad();
+		await library.openAlbumsTab();
+		await library.tabs.albums.waitForLoad();
+		await library.tabs.albums.tapCardByID('album-24');
 
 		await albumDetail.waitForLoad();
 		await albumDetail.waitForTrackRowsVisible();

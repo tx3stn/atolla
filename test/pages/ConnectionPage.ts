@@ -1,35 +1,30 @@
-import { BasePage, type PlatformLocator } from './Base';
+import { BasePage } from './Base';
 
 export class ConnectionPage extends BasePage {
-	private readonly locators = {
-		connectButton: { android: '~connection-connect-btn', ios: '~connection-connect-btn' },
-		footer: { android: '~footer-home', ios: '~footer-home' },
-		serverUrlInput: {
-			android: '~connection-server-url-input',
-			ios: '~connection-server-url-input',
-		},
-	} satisfies Record<string, PlatformLocator>;
+	private readonly serverUrlInput = 'connection-server-url-input';
+	private readonly connectButton = 'connection-connect-btn';
+	private readonly footer = 'footer-home';
 
 	async isVisible(): Promise<boolean> {
-		const el = this.element(this.locators.serverUrlInput);
-		if (!(await el.isExisting())) {
-			return false;
-		}
+		const el = this.elementByID(this.serverUrlInput);
+		if (!(await el.isExisting())) return false;
 		return el.isDisplayed();
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.element(this.locators.serverUrlInput).waitForDisplayed({
+		await this.elementByID(this.serverUrlInput).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for connection view',
 		});
 	}
 
 	async connectToMock(): Promise<void> {
-		await this.element(this.locators.serverUrlInput).waitForDisplayed();
-		await this.element(this.locators.serverUrlInput).setValue('mock');
-		await this.element(this.locators.connectButton).waitForDisplayed();
-		await this.element(this.locators.connectButton).click();
-		await this.element(this.locators.footer).waitForDisplayed({
+		const input = this.elementByID(this.serverUrlInput);
+		await input.waitForDisplayed();
+		await input.setValue('mock');
+		const connectBtn = this.elementByID(this.connectButton);
+		await connectBtn.waitForDisplayed();
+		await connectBtn.click();
+		await this.elementByID(this.footer).waitForDisplayed({
 			timeout: 30_000,
 			timeoutMsg: 'App did not load main UI after mock connection',
 		});

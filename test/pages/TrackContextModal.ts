@@ -1,34 +1,31 @@
-import { BasePage, type PlatformLocator } from './Base';
+import { BasePage } from './Base';
 
 export class TrackContextMenu extends BasePage {
-	private readonly locators = {
-		addToQueue: { android: '~track-context-add-to-queue', ios: '~track-context-add-to-queue' },
-		playNext: { android: '~track-context-play-next', ios: '~track-context-play-next' },
-		root: { android: '~track-context-menu', ios: '~track-context-menu' },
-	} satisfies Record<string, PlatformLocator>;
+	private readonly root = 'track-context-menu';
+	private readonly addToQueue = 'track-context-add-to-queue';
+	private readonly playNext = 'track-context-play-next';
 
 	async waitForVisible(): Promise<void> {
-		await this.element(this.locators.root).waitForDisplayed({
+		await this.elementByID(this.root).waitForDisplayed({
 			timeoutMsg: 'Track context menu not visible',
 		});
 	}
 
 	async waitForHidden(): Promise<void> {
-		await this.driver.waitUntil(
-			async () => !(await this.element(this.locators.root).isExisting()),
-			{ timeoutMsg: 'Track context menu did not dismiss' },
-		);
+		await this.driver.waitUntil(async () => !(await this.elementByID(this.root).isExisting()), {
+			timeoutMsg: 'Track context menu did not dismiss',
+		});
 	}
 
 	async tapAddToQueue(): Promise<void> {
-		const button = this.element(this.locators.addToQueue);
+		const button = this.elementByID(this.addToQueue);
 		await button.waitForDisplayed({ timeoutMsg: 'Add to queue button not visible' });
 		await button.click();
 		await this.dismissPermissionDialogIfPresent();
 	}
 
 	async tapPlayNext(): Promise<void> {
-		const button = this.element(this.locators.playNext);
+		const button = this.elementByID(this.playNext);
 		await button.waitForDisplayed({ timeoutMsg: 'Play next button not visible' });
 		await button.click();
 		await this.dismissPermissionDialogIfPresent();

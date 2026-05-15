@@ -1,19 +1,15 @@
-import { BasePage, type PlatformLocator } from './Base';
+import { BasePage } from './Base';
 
 export class ConnectivityFabPage extends BasePage {
-	private readonly locators = {
-		fab: { android: '~connectivity-fab', ios: '~connectivity-fab' },
-	} satisfies Record<string, PlatformLocator>;
+	private readonly fab = 'connectivity-fab';
 
 	async isVisible(): Promise<boolean> {
-		const el = this.element(this.locators.fab);
-		if (!(await el.isExisting())) {
-			return false;
-		}
+		const el = this.elementByID(this.fab);
+		if (!(await el.isExisting())) return false;
 		return el.isDisplayed();
 	}
 
 	async tap(): Promise<void> {
-		await this.element(this.locators.fab).click();
+		await this.elementByID(this.fab).click();
 	}
 }

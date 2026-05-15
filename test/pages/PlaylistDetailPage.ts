@@ -1,18 +1,20 @@
-import { BasePage, type PlatformLocator } from './Base';
+import type { Browser } from 'webdriverio';
+import { BasePage } from './Base';
 import { DetailHeaderPage } from './DetailHeaderPage';
 
 export class PlaylistDetailPage extends BasePage {
-	private readonly locators = {
-		root: { android: '~playlist-view', ios: '~playlist-view' },
-	} satisfies Record<string, PlatformLocator>;
+	public readonly detailHeader: DetailHeaderPage;
 
-	public DetailHeader(): DetailHeaderPage {
-		return new DetailHeaderPage(this.driver);
+	private readonly root = 'playlist-view';
+
+	constructor(driver: Browser) {
+		super(driver);
+		this.detailHeader = new DetailHeaderPage(driver);
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.element(this.locators.root).waitForExist({
-			timeoutMsg: 'timed out waiting for playlist view',
+		await this.elementByID(this.root).waitForExist({
+			timeoutMsg: 'Timed out waiting for playlist view',
 		});
 	}
 }

@@ -8,20 +8,20 @@ import { SettingsPage } from '../pages/SettingsPage';
 
 describe('footer navigation', () => {
 	let footer: FooterPage;
-	let home: LibraryPage;
+	let library: LibraryPage;
 
 	beforeEach(async () => {
 		footer = new FooterPage(browser);
 		await footer.tapLibrary();
 
-		home = new LibraryPage(browser);
-		await home.waitForLoad();
+		library = new LibraryPage(browser);
+		await library.waitForLoad();
 	});
 
 	it('should load search view when tapping search tab', async () => {
 		const searchPage = new SearchPage(browser);
 
-		await footer.tapSearchAndWaitForLoad();
+		await footer.tapSearch();
 		await searchPage.waitForLoad();
 
 		expect(await searchPage.isVisible()).toBe(true);
@@ -38,8 +38,8 @@ describe('footer navigation', () => {
 	});
 
 	it('should load the albums grid on the albums tab', async () => {
-		await home.openAlbumsTab();
-		expect(await home.tabs.albums.isVisible()).toBe(true);
+		await library.openAlbumsTab();
+		expect(await library.tabs.albums.isVisible()).toBe(true);
 	});
 });
 
@@ -48,7 +48,7 @@ describe('header tab navigation', () => {
 	let albumDetailPage: AlbumDetailPage;
 	let playlistDetailPage: PlaylistDetailPage;
 	let footer: FooterPage;
-	let home: LibraryPage;
+	let library: LibraryPage;
 
 	before(() => {
 		artistDetailPage = new ArtistDetailPage(browser);
@@ -60,34 +60,34 @@ describe('header tab navigation', () => {
 		footer = new FooterPage(browser);
 		await footer.tapLibrary();
 
-		home = new LibraryPage(browser);
-		await home.waitForLoad();
+		library = new LibraryPage(browser);
+		await library.waitForLoad();
 	});
 
 	it('should close artist detail view when tapping the artist header tab', async () => {
-		await home.openArtistsTab();
-		await home.tabs.artists.tapFirstVisibleCard();
+		await library.openArtistsTab();
+		await library.tabs.artists.tapFirstVisibleCard();
 		await artistDetailPage.waitForLoad();
-		await artistDetailPage.DetailHeader().swipeDownToRevealHeader();
-		await artistDetailPage.DetailHeader().tapArtistsTab();
-		expect(await home.tabs.artists.isVisible()).toBe(true);
+		await artistDetailPage.detailHeader.swipeDownToRevealHeader();
+		await artistDetailPage.detailHeader.tapArtistsTab();
+		expect(await library.tabs.artists.isVisible()).toBe(true);
 	});
 
 	it('should close album detail view when tapping the album header tab', async () => {
-		await home.openAlbumsTab();
-		await home.tabs.albums.tapFirstVisibleCard();
+		await library.openAlbumsTab();
+		await library.tabs.albums.tapFirstVisibleCard();
 		await albumDetailPage.waitForLoad();
-		await albumDetailPage.DetailHeader().swipeDownToRevealHeader();
-		await albumDetailPage.DetailHeader().tapAlbumsTab();
-		expect(await home.tabs.albums.isVisible()).toBe(true);
+		await albumDetailPage.detailHeader.swipeDownToRevealHeader();
+		await albumDetailPage.detailHeader.tapAlbumsTab();
+		expect(await library.tabs.albums.isVisible()).toBe(true);
 	});
 
 	it('should close playlist detail view when tapping the playlist header tab', async () => {
-		await home.openPlaylistsTab();
-		await home.tabs.playlists.tapFirstVisibleCard();
+		await library.openPlaylistsTab();
+		await library.tabs.playlists.tapFirstVisibleCard();
 		await playlistDetailPage.waitForLoad();
-		await playlistDetailPage.DetailHeader().swipeDownToRevealHeader();
-		await playlistDetailPage.DetailHeader().tapPlaylistsTab();
-		expect(await home.tabs.playlists.isVisible()).toBe(true);
+		await playlistDetailPage.detailHeader.swipeDownToRevealHeader();
+		await playlistDetailPage.detailHeader.tapPlaylistsTab();
+		expect(await library.tabs.playlists.isVisible()).toBe(true);
 	});
 });

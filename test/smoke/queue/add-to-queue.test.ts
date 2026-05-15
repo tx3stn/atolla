@@ -1,18 +1,18 @@
-import { TrackContextMenu } from 'test/pages/TrackContextModal';
 import { AlbumDetailPage } from '../../pages/AlbumDetailPage';
 import { FooterPage } from '../../pages/Footer';
 import { LibraryPage } from '../../pages/LibraryPage';
+import { TrackContextMenu } from '../../pages/TrackContextModal';
 
 describe('add to queue', () => {
 	before(async () => {
 		const footer = new FooterPage(browser);
 		await footer.tapLibrary();
 
-		const home = new LibraryPage(browser);
-		await home.waitForLoad();
-		await home.openAlbumsTab();
-		await home.tabs.albums.waitForLoad();
-		await home.tabs.albums.tapCardByID('album-27');
+		const library = new LibraryPage(browser);
+		await library.waitForLoad();
+		await library.openAlbumsTab();
+		await library.tabs.albums.waitForLoad();
+		await library.tabs.albums.tapCardByID('album-27');
 
 		const albumDetail = new AlbumDetailPage(browser);
 		await albumDetail.waitForLoad();

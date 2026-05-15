@@ -1,21 +1,23 @@
-import { BasePage, type PlatformLocator } from './Base';
+import { BasePage } from './Base';
 
 export class SearchPage extends BasePage {
-	private readonly locators = {
-		input: { android: '~search-input', ios: '~search-input' },
-		retryButton: { android: '~search-retry', ios: '~search-retry' },
-		searchSubmit: { android: '~search-submit', ios: '~search-submit' },
-	} satisfies Record<string, PlatformLocator>;
+	private readonly input = 'search-input';
+	private readonly searchSubmit = 'search-submit';
+	private readonly retryButton = 'search-retry';
 
 	async waitForLoad(): Promise<void> {
-		await this.element(this.locators.input).waitForDisplayed({
+		await this.elementByID(this.input).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for search view',
 		});
 	}
 
-	public async dismissKeyboard(): Promise<void> {
+	isVisible(): Promise<boolean> {
+		return this.elementByID(this.input).isExisting();
+	}
+
+	async dismissKeyboard(): Promise<void> {
 		if (this.isIOS()) {
-			await this.driver.$('~search-submit').click();
+			await this.elementByID(this.searchSubmit).click();
 		} else {
 			try {
 				await this.driver.hideKeyboard();
@@ -25,34 +27,27 @@ export class SearchPage extends BasePage {
 		}
 	}
 
-	public isVisible(): Promise<boolean> {
-		return this.element(this.locators.input).isExisting();
-	}
-
 	async enterSearchQuery(query: string): Promise<void> {
-		await this.element(this.locators.input).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for search input',
-		});
-		await this.element(this.locators.input).click();
-		if (this.platform() === 'android') {
+		const input = this.elementByID(this.input);
+		await input.waitForDisplayed({ timeoutMsg: 'Timed out waiting for search input' });
+		await input.click();
+		if (this.isAndroid()) {
 			// mobile: type fires onChange/TextWatcher events (unlike setValue which uses setText
 			// and bypasses the listener).
-			await this.element(this.locators.input).clearValue();
+			await input.clearValue();
 			await this.driver.execute('mobile: type', { text: query });
 		} else {
-			await this.element(this.locators.input).setValue(query);
+			await input.setValue(query);
 		}
-		await this.element(this.locators.searchSubmit).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for search submit',
-		});
-		await this.element(this.locators.searchSubmit).click();
+		const submit = this.elementByID(this.searchSubmit);
+		await submit.waitForDisplayed({ timeoutMsg: 'Timed out waiting for search submit' });
+		await submit.click();
 	}
 
 	async tapRetry(): Promise<void> {
-		await this.element(this.locators.retryButton).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for retry button',
-		});
-		await this.element(this.locators.retryButton).click();
+		const el = this.elementByID(this.retryButton);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for retry button' });
+		await el.click();
 	}
 
 	async waitForAnyResultCard(): Promise<boolean> {

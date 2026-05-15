@@ -24,7 +24,7 @@ async function ensureMockMode(): Promise<void> {
 	}
 
 	await footer.tapHome();
-	await new HomePage(browser).hasAlbumCards();
+	await new HomePage(browser).waitForAlbumCards();
 }
 
 export async function beforeHook(): Promise<void> {

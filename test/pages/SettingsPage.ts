@@ -1,49 +1,39 @@
-import { BasePage, type PlatformLocator } from './Base';
+import { BasePage } from './Base';
 
 export class SettingsPage extends BasePage {
-	private readonly locators = {
-		cacheClearConfirmButton: {
-			android: '~cache-clear-confirm-btn',
-			ios: '~cache-clear-confirm-btn',
-		},
-		clearCacheButton: { android: '~settings-cache-clear-btn', ios: '~settings-cache-clear-btn' },
-		logoutButton: { android: '~settings-logout-btn', ios: '~settings-logout-btn' },
-		logoutConfirmButton: {
-			android: '~settings-logout-confirm-btn',
-			ios: '~settings-logout-confirm-btn',
-		},
-		pageIndicator: { android: '~settings-animations-toggle', ios: '~settings-animations-toggle' },
-	} satisfies Record<string, PlatformLocator>;
+	private readonly pageIndicator = 'settings-animations-toggle';
+	private readonly clearCacheButton = 'settings-cache-clear-btn';
+	private readonly cacheClearConfirmButton = 'cache-clear-confirm-btn';
+	private readonly logoutButton = 'settings-logout-btn';
+	private readonly logoutConfirmButton = 'settings-logout-confirm-btn';
 
 	async waitForLoad(): Promise<void> {
-		await this.element(this.locators.pageIndicator).waitForDisplayed({
+		await this.elementByID(this.pageIndicator).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for settings view',
 		});
 	}
 
 	isVisible(): Promise<boolean> {
-		return this.element(this.locators.pageIndicator).isExisting();
+		return this.elementByID(this.pageIndicator).isExisting();
 	}
 
 	async tapClearCache(): Promise<void> {
-		await this.element(this.locators.clearCacheButton).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for clear cache button',
-		});
-		await this.element(this.locators.clearCacheButton).click();
-		await this.element(this.locators.cacheClearConfirmButton).waitForDisplayed({
+		const clearBtn = this.elementByID(this.clearCacheButton);
+		await clearBtn.waitForDisplayed({ timeoutMsg: 'Timed out waiting for clear cache button' });
+		await clearBtn.click();
+		const confirmBtn = this.elementByID(this.cacheClearConfirmButton);
+		await confirmBtn.waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for cache clear confirm button',
 		});
-		await this.element(this.locators.cacheClearConfirmButton).click();
+		await confirmBtn.click();
 	}
 
 	async tapLogout(): Promise<void> {
-		await this.element(this.locators.logoutButton).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for logout button',
-		});
-		await this.element(this.locators.logoutButton).click();
-		await this.element(this.locators.logoutConfirmButton).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for logout confirmation',
-		});
-		await this.element(this.locators.logoutConfirmButton).click();
+		const logoutBtn = this.elementByID(this.logoutButton);
+		await logoutBtn.waitForDisplayed({ timeoutMsg: 'Timed out waiting for logout button' });
+		await logoutBtn.click();
+		const confirmBtn = this.elementByID(this.logoutConfirmButton);
+		await confirmBtn.waitForDisplayed({ timeoutMsg: 'Timed out waiting for logout confirmation' });
+		await confirmBtn.click();
 	}
 }

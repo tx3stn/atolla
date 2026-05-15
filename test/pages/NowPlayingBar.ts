@@ -1,112 +1,79 @@
-import { BasePage, type PlatformLocator } from './Base';
+import { BasePage } from './Base';
 
-export class NowPlayingFooterPage extends BasePage {
-	private readonly locators = {
-		bar: { android: '~now-playing-surface-bar', ios: '~now-playing-surface-bar' },
-		next: { android: '~now-playing-next', ios: '~now-playing-next' },
-		previous: { android: '~now-playing-previous', ios: '~now-playing-previous' },
-		queuePageBackTo: {
-			android: '~now-playing-queue-page-back-to',
-			ios: '~now-playing-queue-page-back-to',
-		},
-		queuePageUpNext: {
-			android: '~now-playing-queue-page-up-next',
-			ios: '~now-playing-queue-page-up-next',
-		},
-		queueTabBackTo: { android: '~now-playing-tab-back-to', ios: '~now-playing-tab-back-to' },
-		queueTabUpNext: { android: '~now-playing-tab-up-next', ios: '~now-playing-tab-up-next' },
-		togglePlayback: { android: '~now-playing-play-pause', ios: '~now-playing-play-pause' },
-	} satisfies Record<string, PlatformLocator>;
+export class NowPlayingBar extends BasePage {
+	private readonly bar = 'now-playing-surface-bar';
+	private readonly togglePlayback = 'now-playing-play-pause';
+	private readonly next = 'now-playing-next';
+	private readonly previous = 'now-playing-previous';
+	private readonly queueTabUpNext = 'now-playing-tab-up-next';
+	private readonly queueTabBackTo = 'now-playing-tab-back-to';
+	private readonly queuePageUpNext = 'now-playing-queue-page-up-next';
+	private readonly queuePageBackTo = 'now-playing-queue-page-back-to';
 
-	private readonly queueTrackRowPrefixUpNext = 'track-row-up-next-';
-	private readonly queueTrackRowPrefixBackTo = 'track-row-back-to-';
+	private readonly trackTitleUpNextPrefix = 'track-title-up-next-';
+	private readonly trackTitleBackToPrefix = 'track-title-back-to-';
+	private readonly trackRowUpNextPrefix = 'track-row-up-next-';
+	private readonly trackRowBackToPrefix = 'track-row-back-to-';
+
 	private activeTab: 'upNext' | 'backTo' = 'upNext';
 
 	getUpNextTracks(): Promise<Array<WebdriverIO.Element>> {
-		return this.allByAccessibilityPrefix(this.queueTrackRowPrefixUpNext);
+		return this.allByAccessibilityPrefix(this.trackRowUpNextPrefix);
 	}
 
 	getBackToTracks(): Promise<Array<WebdriverIO.Element>> {
-		return this.allByAccessibilityPrefix(this.queueTrackRowPrefixBackTo);
-	}
-
-	async waitForQueueRowsVisible(): Promise<void> {
-		await this.waitForQueueList();
-		const prefix = this.activeTab === 'upNext' ? 'track-title-up-next-' : 'track-title-back-to-';
-		await this.driver.waitUntil(
-			async () => (await this.allByAccessibilityPrefix(prefix)).length > 0,
-			{ timeoutMsg: 'Timed out waiting for visible queue tracks' },
-		);
+		return this.allByAccessibilityPrefix(this.trackRowBackToPrefix);
 	}
 
 	async waitForVisible(): Promise<void> {
-		await this.element(this.locators.bar).waitForDisplayed({
+		await this.elementByID(this.bar).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for now playing bar',
 		});
 	}
 
 	async isVisible(): Promise<boolean> {
-		const el = this.element(this.locators.bar);
+		const el = this.elementByID(this.bar);
 		return (await el.isExisting()) && (await el.isDisplayed());
 	}
 
+	async openExpandedSurface(): Promise<void> {
+		const el = this.elementByID(this.bar);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for now playing bar' });
+		await el.click();
+	}
+
 	async tapTogglePlayback(): Promise<void> {
-		await this.element(this.locators.togglePlayback).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for playback toggle',
-		});
-		await this.element(this.locators.togglePlayback).click();
+		const el = this.elementByID(this.togglePlayback);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for playback toggle' });
+		await el.click();
 	}
 
 	async tapNext(): Promise<void> {
-		await this.element(this.locators.next).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for next button',
-		});
-		await this.element(this.locators.next).click();
-	}
-
-	async openExpandedSurface(): Promise<void> {
-		await this.element(this.locators.bar).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for now playing bar',
-		});
-		await this.element(this.locators.bar).click();
+		const el = this.elementByID(this.next);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for next button' });
+		await el.click();
 	}
 
 	async tapPrevious(): Promise<void> {
-		await this.element(this.locators.previous).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for previous button',
-		});
-		await this.element(this.locators.previous).click();
+		const el = this.elementByID(this.previous);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for previous button' });
+		await el.click();
 	}
 
 	async tapUpNextTab(): Promise<void> {
 		this.activeTab = 'upNext';
-		await this.swipeUpExpandedSurface();
-		await this.element(this.locators.queueTabUpNext).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for up next tab',
-		});
-		await this.element(this.locators.queueTabUpNext).click();
+		await this.swipeUpSurface('expand-for-up-next-tab');
+		const el = this.elementByID(this.queueTabUpNext);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for up next tab' });
+		await el.click();
 	}
 
 	async tapBackToTab(): Promise<void> {
 		this.activeTab = 'backTo';
-		await this.swipeUpExpandedSurface();
-		await this.element(this.locators.queueTabBackTo).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for back to tab',
-		});
-		await this.element(this.locators.queueTabBackTo).click();
-	}
-
-	async waitForQueueList(): Promise<void> {
-		if (await this.isQueueListVisible()) {
-			return;
-		}
-		await this.scrollToQueueList();
-		await this.driver.waitUntil(
-			async () =>
-				(await this.element(this.locators.queuePageUpNext).isExisting()) ||
-				(await this.element(this.locators.queuePageBackTo).isExisting()),
-			{ timeoutMsg: 'Timed out waiting for now playing queue list to exist' },
-		);
+		await this.swipeUpSurface('expand-for-back-to-tab');
+		const el = this.elementByID(this.queueTabBackTo);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for back to tab' });
+		await el.click();
 	}
 
 	// isExisting() is used instead of isDisplayed() because the page views live inside
@@ -115,58 +82,59 @@ export class NowPlayingFooterPage extends BasePage {
 	// the expanded surface is open.
 	async isQueueListVisible(): Promise<boolean> {
 		return (
-			(await this.element(this.locators.queuePageUpNext).isExisting()) ||
-			(await this.element(this.locators.queuePageBackTo).isExisting())
+			(await this.elementByID(this.queuePageUpNext).isExisting()) ||
+			(await this.elementByID(this.queuePageBackTo).isExisting())
 		);
 	}
 
-	async collapseExpandedIfVisible(): Promise<void> {
-		if (!(await this.isQueueListVisible())) {
-			return;
+	async waitForQueueList(): Promise<void> {
+		if (await this.isQueueListVisible()) return;
+		await this.scrollToQueueList();
+		await this.driver.waitUntil(
+			async () =>
+				(await this.elementByID(this.queuePageUpNext).isExisting()) ||
+				(await this.elementByID(this.queuePageBackTo).isExisting()),
+			{ timeoutMsg: 'Timed out waiting for now playing queue list to exist' },
+		);
+	}
+
+	async waitForQueueRowsVisible(): Promise<void> {
+		await this.waitForQueueList();
+		const prefix =
+			this.activeTab === 'upNext' ? this.trackTitleUpNextPrefix : this.trackTitleBackToPrefix;
+		await this.driver.waitUntil(
+			async () => (await this.allByAccessibilityPrefix(prefix)).length > 0,
+			{ timeoutMsg: 'Timed out waiting for visible queue tracks' },
+		);
+	}
+
+	async firstUpNextTrackName(): Promise<string> {
+		await this.waitForQueueRowsVisible();
+		for (const el of await this.allByAccessibilityPrefix(this.trackTitleUpNextPrefix)) {
+			const text = await el.getText();
+			if (text) return text;
 		}
+		throw new Error('No up next track titles found');
+	}
+
+	async firstBackToTrackName(): Promise<string> {
+		await this.waitForQueueRowsVisible();
+		for (const el of await this.allByAccessibilityPrefix(this.trackTitleBackToPrefix)) {
+			const text = await el.getText();
+			if (text) return text;
+		}
+		throw new Error('No back to track titles found');
+	}
+
+	async collapseExpandedIfVisible(): Promise<void> {
+		if (!(await this.isQueueListVisible())) return;
 
 		// Scroll back to top so the artwork drag zone is under the collapse swipe
-		const rect = await this.driver.getWindowRect();
-		const x = Math.floor(rect.width * 0.5);
-		await this.driver.performActions([
-			{
-				actions: [
-					{ duration: 0, type: 'pointerMove', x, y: Math.floor(rect.height * 0.28) },
-					{ button: 0, type: 'pointerDown' },
-					{ duration: 40, type: 'pause' },
-					{ duration: 260, type: 'pointerMove', x, y: Math.floor(rect.height * 0.78) },
-					{ button: 0, type: 'pointerUp' },
-				],
-				id: 'scroll-to-top-finger',
-				parameters: { pointerType: 'touch' },
-				type: 'pointer',
-			},
-		]);
-		await this.driver.releaseActions();
-
-		const startY = Math.floor(rect.height * 0.12);
-		const endY = Math.floor(rect.height * 0.45);
+		await this.swipeVertical('scroll-to-top', 0.28, 0.78);
 
 		for (let attempt = 0; attempt < 5; attempt += 1) {
-			await this.driver.performActions([
-				{
-					actions: [
-						{ duration: 0, type: 'pointerMove', x, y: startY },
-						{ button: 0, type: 'pointerDown' },
-						{ duration: 50, type: 'pause' },
-						{ duration: 250, type: 'pointerMove', x, y: endY },
-						{ button: 0, type: 'pointerUp' },
-					],
-					id: `collapse-now-playing-finger-${attempt}`,
-					parameters: { pointerType: 'touch' },
-					type: 'pointer',
-				},
-			]);
-			await this.driver.releaseActions();
-
-			if (!(await this.isQueueListVisible())) {
-				return;
-			}
+			await this.swipeVertical(`collapse-${attempt}`, 0.12, 0.45, 50, 250);
+			if (!(await this.isQueueListVisible())) return;
 		}
 
 		throw new Error('Timed out collapsing expanded now playing surface');
@@ -174,12 +142,9 @@ export class NowPlayingFooterPage extends BasePage {
 
 	async swipeAwayIfVisible(): Promise<void> {
 		await this.collapseExpandedIfVisible();
+		if (!(await this.isVisible())) return;
 
-		if (!(await this.isVisible())) {
-			return;
-		}
-
-		const bar = this.element(this.locators.bar);
+		const bar = this.elementByID(this.bar);
 		await bar.waitForDisplayed();
 		const location = await bar.getLocation();
 		const size = await bar.getSize();
@@ -210,77 +175,41 @@ export class NowPlayingFooterPage extends BasePage {
 
 	// Unconditional swipe-up to push the expanded surface fully above the footer nav bar,
 	// ensuring tab buttons are not intercepted by the footer before we tap them.
-	private async swipeUpExpandedSurface(): Promise<void> {
+	private async swipeUpSurface(id: string): Promise<void> {
+		await this.swipeVertical(id, 0.78, 0.28);
+	}
+
+	private async scrollToQueueList(maxSwipes = 6): Promise<void> {
+		if (await this.isQueueListVisible()) return;
+		for (let attempt = 0; attempt < maxSwipes; attempt += 1) {
+			await this.swipeUpSurface(`queue-scroll-${attempt}`);
+			if (await this.isQueueListVisible()) return;
+		}
+	}
+
+	private async swipeVertical(
+		id: string,
+		fromRatio: number,
+		toRatio: number,
+		pauseMs = 40,
+		durationMs = 260,
+	): Promise<void> {
 		const rect = await this.driver.getWindowRect();
 		const x = Math.floor(rect.width * 0.5);
-		const startY = Math.floor(rect.height * 0.78);
-		const endY = Math.floor(rect.height * 0.28);
-
 		await this.driver.performActions([
 			{
 				actions: [
-					{ duration: 0, type: 'pointerMove', x, y: startY },
+					{ duration: 0, type: 'pointerMove', x, y: Math.floor(rect.height * fromRatio) },
 					{ button: 0, type: 'pointerDown' },
-					{ duration: 40, type: 'pause' },
-					{ duration: 260, type: 'pointerMove', x, y: endY },
+					{ duration: pauseMs, type: 'pause' },
+					{ duration: durationMs, type: 'pointerMove', x, y: Math.floor(rect.height * toRatio) },
 					{ button: 0, type: 'pointerUp' },
 				],
-				id: 'expand-now-playing-finger',
+				id,
 				parameters: { pointerType: 'touch' },
 				type: 'pointer',
 			},
 		]);
 		await this.driver.releaseActions();
-	}
-
-	private async scrollToQueueList(maxSwipes = 6): Promise<void> {
-		if (await this.isQueueListVisible()) {
-			return;
-		}
-
-		for (let attempt = 0; attempt < maxSwipes; attempt += 1) {
-			const rect = await this.driver.getWindowRect();
-			const x = Math.floor(rect.width * 0.5);
-			const startY = Math.floor(rect.height * 0.78);
-			const endY = Math.floor(rect.height * 0.28);
-
-			await this.driver.performActions([
-				{
-					actions: [
-						{ duration: 0, type: 'pointerMove', x, y: startY },
-						{ button: 0, type: 'pointerDown' },
-						{ duration: 40, type: 'pause' },
-						{ duration: 260, type: 'pointerMove', x, y: endY },
-						{ button: 0, type: 'pointerUp' },
-					],
-					id: `queue-scroll-finger-${attempt}`,
-					parameters: { pointerType: 'touch' },
-					type: 'pointer',
-				},
-			]);
-			await this.driver.releaseActions();
-
-			if (await this.isQueueListVisible()) {
-				return;
-			}
-		}
-	}
-
-	async firstUpNextTrackName(): Promise<string> {
-		await this.waitForQueueRowsVisible();
-		for (const el of await this.allByAccessibilityPrefix('track-title-up-next-')) {
-			const text = await el.getText();
-			if (text) return text;
-		}
-		throw new Error('No up next track titles found');
-	}
-
-	async firstBackToTrackName(): Promise<string> {
-		await this.waitForQueueRowsVisible();
-		for (const el of await this.allByAccessibilityPrefix('track-title-back-to-')) {
-			const text = await el.getText();
-			if (text) return text;
-		}
-		throw new Error('No back to track titles found');
 	}
 }

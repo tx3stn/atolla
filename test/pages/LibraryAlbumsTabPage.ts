@@ -4,35 +4,20 @@ export class LibraryAlbumsTabPage extends BasePage {
 	private readonly cardPrefix = 'card-album-';
 
 	async isVisible(): Promise<boolean> {
-		const cards = await this.allByAccessibilityPrefix(this.cardPrefix);
-		return cards.length > 0;
+		return (await this.allByAccessibilityPrefix(this.cardPrefix)).length > 0;
+	}
+
+	async waitForLoad(): Promise<void> {
+		await this.waitForVisibleAccessibilityPrefix(this.cardPrefix);
 	}
 
 	async tapCardByID(albumId: string): Promise<void> {
-		await this.elementByID(`card-${albumId}`).waitForDisplayed({
-			timeoutMsg: `Timed out waiting for album card: card-${albumId}`,
-		});
-		await this.elementByID(`card-${albumId}`).click();
+		const el = this.elementByID(`card-${albumId}`);
+		await el.waitForDisplayed({ timeoutMsg: `Timed out waiting for album card: card-${albumId}` });
+		await el.click();
 	}
 
 	async tapFirstVisibleCard(): Promise<void> {
 		await this.tapFirstVisibleByAccessibilityPrefix(this.cardPrefix);
-	}
-
-	async waitForLoad(): Promise<void> {
-		await this.driver.waitUntil(
-			async () => {
-				for await (const card of this.driver.$$(
-					`//*[starts-with(@name, "${this.cardPrefix}") or starts-with(@content-desc, "${this.cardPrefix}")]`,
-				)) {
-					if (await card.isDisplayed()) {
-						return true;
-					}
-				}
-
-				return false;
-			},
-			{ timeoutMsg: 'Timed out waiting for visible album cards' },
-		);
 	}
 }

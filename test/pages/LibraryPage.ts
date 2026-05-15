@@ -1,5 +1,5 @@
 import type { Browser } from 'webdriverio';
-import { BasePage, type PlatformLocator } from './Base';
+import { BasePage } from './Base';
 import { LibraryAlbumsTabPage } from './LibraryAlbumsTabPage';
 import { LibraryArtistsTabPage } from './LibraryArtistsTabPage';
 import { LibraryPlaylistsTabPage } from './LibraryPlaylistsTabPage';
@@ -13,11 +13,9 @@ interface LibraryTabs {
 export class LibraryPage extends BasePage {
 	public readonly tabs: LibraryTabs;
 
-	private readonly locators = {
-		albumsHeaderTab: { android: '~header-tab-albums', ios: '~header-tab-albums' },
-		artistsHeaderTab: { android: '~header-tab-artists', ios: '~header-tab-artists' },
-		playlistsHeaderTab: { android: '~header-tab-playlists', ios: '~header-tab-playlists' },
-	} satisfies Record<string, PlatformLocator>;
+	private readonly albumsHeaderTab = 'header-tab-albums';
+	private readonly artistsHeaderTab = 'header-tab-artists';
+	private readonly playlistsHeaderTab = 'header-tab-playlists';
 
 	constructor(driver: Browser) {
 		super(driver);
@@ -28,39 +26,36 @@ export class LibraryPage extends BasePage {
 		};
 	}
 
-	async openAlbumsTab(): Promise<void> {
-		await this.element(this.locators.albumsHeaderTab).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for albums header tab',
+	async waitForLoad(): Promise<void> {
+		await this.elementByID(this.albumsHeaderTab).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for albums header tab on library',
 		});
-		await this.element(this.locators.albumsHeaderTab).click();
+		await this.elementByID(this.artistsHeaderTab).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for artists header tab on library',
+		});
+		await this.elementByID(this.playlistsHeaderTab).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for playlists header tab on library',
+		});
+	}
+
+	async openAlbumsTab(): Promise<void> {
+		const el = this.elementByID(this.albumsHeaderTab);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for albums header tab' });
+		await el.click();
 		await this.tabs.albums.waitForLoad();
 	}
 
 	async openArtistsTab(): Promise<void> {
-		await this.element(this.locators.artistsHeaderTab).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for artists header tab',
-		});
-		await this.element(this.locators.artistsHeaderTab).click();
+		const el = this.elementByID(this.artistsHeaderTab);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for artists header tab' });
+		await el.click();
 		await this.tabs.artists.waitForLoad();
 	}
 
 	async openPlaylistsTab(): Promise<void> {
-		await this.element(this.locators.playlistsHeaderTab).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for playlists header tab',
-		});
-		await this.element(this.locators.playlistsHeaderTab).click();
+		const el = this.elementByID(this.playlistsHeaderTab);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for playlists header tab' });
+		await el.click();
 		await this.tabs.playlists.waitForLoad();
-	}
-
-	async waitForLoad(): Promise<void> {
-		await this.element(this.locators.artistsHeaderTab).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for artists header tab on library',
-		});
-		await this.element(this.locators.albumsHeaderTab).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for albums header tab on library',
-		});
-		await this.element(this.locators.playlistsHeaderTab).waitForDisplayed({
-			timeoutMsg: 'Timed out waiting for playlists header tab on library',
-		});
 	}
 }
