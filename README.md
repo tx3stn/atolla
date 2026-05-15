@@ -99,11 +99,12 @@ always welcomed, but they might not be actioned.
 
 TBD
 
-> [!IMPORTANT] the iOS app is in beta
+> [!IMPORTANT]
+> **The iOS app is in beta.**
 >
 > It has been tested a lot in an emulator, but I don't have an iPhone, so can't test
 > it on device.
-> As such I can't gurantee it will work as well as the Android version which I have
+> As such I can't guarantee it will work as well as the Android version which I have
 > been using daily for weeks.
 >
 > If you run into issues please raise them. If you can create a PR to fix the
