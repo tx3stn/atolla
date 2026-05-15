@@ -99,7 +99,7 @@ always welcomed, but they might not be actioned.
 
 TBD
 
-> [!WARNING] the iOS app is in beta
+> [!IMPORTANT] the iOS app is in beta
 >
 > It has been tested a lot in an emulator, but I don't have an iPhone, so can't test
 > it on device.
