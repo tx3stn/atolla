@@ -1,7 +1,6 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
-import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme, topInset } from '../../theme';
@@ -97,16 +96,34 @@ export class LibraryHeaderNav extends StatefulComponent<
 		this.viewModel.onAlphabetLetterTap?.(next);
 	};
 
+	private handleArtistsTabTap = (): void => {
+		this.viewModel.onTabTap(HeaderTabs.artists);
+	};
+
+	private handleAlbumsTabTap = (): void => {
+		this.viewModel.onTabTap(HeaderTabs.albums);
+	};
+
+	private handlePlaylistsTabTap = (): void => {
+		this.viewModel.onTabTap(HeaderTabs.playlists);
+	};
+
+	private handleGenresTabTap = (): void => {
+		this.viewModel.onTabTap(HeaderTabs.genres);
+	};
+
+	private isVerticalDrag = (event: DragEvent): boolean => {
+		return Math.abs(event.deltaY) > Math.abs(event.deltaX);
+	};
+
 	onRender() {
 		const { isPanelOpen, activeLetterFilter } = this.state;
 
 		<view
 			accessibilityId='library-header-nav'
 			accessibilityLabel='library-header-nav'
-			onDrag={createReusableCallback((event) => {
-				this.handleDrag(event);
-			})}
-			onDragPredicate={(event) => Math.abs(event.deltaY) > Math.abs(event.deltaX)}
+			onDrag={this.handleDrag}
+			onDragPredicate={this.isVerticalDrag}
 			ref={this.rootRef}
 			style={isPanelOpen ? styles.libraryTabsOpen : styles.libraryTabs}
 		>
@@ -121,30 +138,22 @@ export class LibraryHeaderNav extends StatefulComponent<
 					<view style={styles.tabsRow}>
 						<LibraryHeaderTab
 							active={this.viewModel.activeTab === HeaderTabs.artists}
-							onTap={createReusableCallback(() => {
-								this.viewModel.onTabTap(HeaderTabs.artists);
-							})}
+							onTap={this.handleArtistsTabTap}
 							tab={HeaderTabs.artists}
 						/>
 						<LibraryHeaderTab
 							active={this.viewModel.activeTab === HeaderTabs.albums}
-							onTap={createReusableCallback(() => {
-								this.viewModel.onTabTap(HeaderTabs.albums);
-							})}
+							onTap={this.handleAlbumsTabTap}
 							tab={HeaderTabs.albums}
 						/>
 						<LibraryHeaderTab
 							active={this.viewModel.activeTab === HeaderTabs.playlists}
-							onTap={createReusableCallback(() => {
-								this.viewModel.onTabTap(HeaderTabs.playlists);
-							})}
+							onTap={this.handlePlaylistsTabTap}
 							tab={HeaderTabs.playlists}
 						/>
 						<LibraryHeaderTab
 							active={this.viewModel.activeTab === HeaderTabs.genres}
-							onTap={createReusableCallback(() => {
-								this.viewModel.onTabTap(HeaderTabs.genres);
-							})}
+							onTap={this.handleGenresTabTap}
 							tab={HeaderTabs.genres}
 						/>
 						<view style={styles.trailingSpacer} />

@@ -60,6 +60,9 @@ function normalizeInputValue(value: unknown): string {
 }
 
 export class ConnectionView extends StatefulComponent<ConnectionViewModel, ConnectionState> {
+	private pendingConnectInput: string | null = null;
+	private readonly renderEmptySlot = (): void => {};
+
 	state: ConnectionState = {
 		serverUrlInput: this.viewModel.serverUrl,
 	};
@@ -77,11 +80,35 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 
 	private handleLanguageSelect = (code: LanguageCode) => {
 		this.viewModel.onLanguageChange?.(code);
-		this.viewModel.modalSlot?.slotted(() => {});
+		this.viewModel.modalSlot?.slotted(this.renderEmptySlot);
 	};
 
 	private handleLanguageCancel = () => {
-		this.viewModel.modalSlot?.slotted(() => {});
+		this.viewModel.modalSlot?.slotted(this.renderEmptySlot);
+	};
+
+	private handleHttpWarningCancel = (): void => {
+		this.viewModel.modalSlot?.slotted(this.renderEmptySlot);
+	};
+
+	private handleHttpWarningConfirm = (): void => {
+		this.viewModel.modalSlot?.slotted(this.renderEmptySlot);
+		if (!this.pendingConnectInput) {
+			return;
+		}
+
+		this.viewModel.onConnect(this.pendingConnectInput);
+	};
+
+	private renderHttpWarningModal = (): void => {
+		<HttpWarningModal
+			onCancel={this.handleHttpWarningCancel}
+			onConfirm={this.handleHttpWarningConfirm}
+		/>;
+	};
+
+	private handleServerUrlChange = (value: unknown): void => {
+		this.setState({ serverUrlInput: normalizeInputValue(value) });
 	};
 
 	onViewModelUpdate(prevViewModel?: ConnectionViewModel): void {
@@ -119,15 +146,8 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 		}
 
 		if (/^http:\/\//i.test(input)) {
-			this.viewModel.modalSlot?.slotted(() => {
-				<HttpWarningModal
-					onCancel={() => this.viewModel.modalSlot?.slotted(() => {})}
-					onConfirm={() => {
-						this.viewModel.modalSlot?.slotted(() => {});
-						this.viewModel.onConnect(input);
-					}}
-				/>;
-			});
+			this.pendingConnectInput = input;
+			this.viewModel.modalSlot?.slotted(this.renderHttpWarningModal);
 			return;
 		}
 
@@ -155,9 +175,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 					accessibilityLabel='connection-server-url-input'
 					autocapitalization='none'
 					keyboardAppearance='dark'
-					onChange={(value: unknown) => {
-						this.setState({ serverUrlInput: normalizeInputValue(value) });
-					}}
+					onChange={this.handleServerUrlChange}
 					placeholder={Strings.serverUrlPlaceholder()}
 					style={styles.input}
 					value={this.state.serverUrlInput}

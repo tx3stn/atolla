@@ -13,6 +13,20 @@ export interface LanguageSelectModalViewModel {
 
 export class LanguageSelectModal extends Component<LanguageSelectModalViewModel> {
 	private stopPropagation = () => {};
+	private readonly selectHandlers = new Map<LanguageCode, () => void>();
+
+	private getSelectHandler = (code: LanguageCode): (() => void) => {
+		const existing = this.selectHandlers.get(code);
+		if (existing) {
+			return existing;
+		}
+
+		const handler = (): void => {
+			this.viewModel.onSelect(code);
+		};
+		this.selectHandlers.set(code, handler);
+		return handler;
+	};
 
 	onRender(): void {
 		const { selectedLanguage } = this.viewModel;
@@ -30,7 +44,7 @@ export class LanguageSelectModal extends Component<LanguageSelectModalViewModel>
 					{LANGUAGE_OPTIONS.map((option) => (
 						<view
 							accessibilityId={`language-option-${option.code}`}
-							onTap={() => this.viewModel.onSelect(option.code)}
+							onTap={this.getSelectHandler(option.code)}
 							style={option.code === selectedLanguage ? styles.optionSelected : styles.option}
 						>
 							<label style={styles.optionLabel} value={`${option.flag}  ${option.name}`} />

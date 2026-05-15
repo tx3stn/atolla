@@ -34,6 +34,9 @@ export class AddToPlaylistView extends StatefulComponent<
 > {
 	private hasBeenDestroyed = false;
 	private toastTimerId?: ReturnType<typeof setTimeout>;
+	private clearErrorMessage = (): void => {
+		this.setState({ errorMessage: null });
+	};
 
 	state: AddToPlaylistState = {
 		errorMessage: null,
@@ -144,9 +147,7 @@ export class AddToPlaylistView extends StatefulComponent<
 			{errorMessage && (
 				<Modal
 					body={errorMessage}
-					onClose={() => {
-						this.setState({ errorMessage: null });
-					}}
+					onClose={this.clearErrorMessage}
 					title={Strings.playlistEditErrorTitle()}
 				/>
 			)}

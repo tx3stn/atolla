@@ -19,6 +19,8 @@ export class CreatePlaylistModal extends StatefulComponent<
 	CreatePlaylistModalViewModel,
 	CreatePlaylistModalState
 > {
+	private handleCardTap = (): void => {};
+
 	state: CreatePlaylistModalState = {
 		errorMessage: null,
 		isCreating: false,
@@ -39,13 +41,17 @@ export class CreatePlaylistModal extends StatefulComponent<
 			});
 	};
 
+	handleNameChange = (value: unknown): void => {
+		this.setState({ errorMessage: null, playlistName: normalizeInputValue(value) });
+	};
+
 	onRender(): void {
 		const { onCancel } = this.viewModel;
 		const { errorMessage, isCreating, playlistName } = this.state;
 		const canCreate = playlistName.trim().length > 0 && !isCreating;
 
 		<blur blurStyle={theme.modalBlurStyle} onTap={onCancel} style={styles.backdrop}>
-			<view onTap={() => {}} style={styles.card}>
+			<view onTap={this.handleCardTap} style={styles.card}>
 				<label style={styles.title} value={Strings.createPlaylistModalTitle()} />
 				<view style={styles.divider} />
 				<view style={styles.inputContainer}>
@@ -53,9 +59,7 @@ export class CreatePlaylistModal extends StatefulComponent<
 						accessibilityId='create-playlist-name-input'
 						accessibilityLabel='create-playlist-name-input'
 						autocapitalization='sentences'
-						onChange={(value: unknown) => {
-							this.setState({ errorMessage: null, playlistName: normalizeInputValue(value) });
-						}}
+						onChange={this.handleNameChange}
 						placeholder={Strings.playlistNamePlaceholder()}
 						style={styles.input}
 						value={playlistName}

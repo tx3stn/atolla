@@ -16,8 +16,23 @@ export interface SortNavPanelViewModel {
 }
 
 export class SortNavPanel extends Component<SortNavPanelViewModel> {
+	private readonly letterTapHandlers = new Map<string, () => void>();
+
+	private getLetterTapHandler = (letter: string): (() => void) => {
+		const existing = this.letterTapHandlers.get(letter);
+		if (existing) {
+			return existing;
+		}
+
+		const handler = (): void => {
+			this.viewModel.onLetterTap?.(letter);
+		};
+		this.letterTapHandlers.set(letter, handler);
+		return handler;
+	};
+
 	onRender() {
-		const { activeLetterFilter, onLetterTap } = this.viewModel;
+		const { activeLetterFilter } = this.viewModel;
 
 		<view style={styles.panel}>
 			<view style={styles.alphabetGrid}>
@@ -25,7 +40,7 @@ export class SortNavPanel extends Component<SortNavPanelViewModel> {
 					{ALPHA_TOP.map((letter) => (
 						<view
 							key={letter}
-							onTap={() => onLetterTap?.(letter)}
+							onTap={this.getLetterTapHandler(letter)}
 							style={
 								activeLetterFilter === letter ? styles.letterButtonActive : styles.letterButton
 							}
@@ -46,7 +61,7 @@ export class SortNavPanel extends Component<SortNavPanelViewModel> {
 					{ALPHA_BOTTOM.map((letter) => (
 						<view
 							key={letter}
-							onTap={() => onLetterTap?.(letter)}
+							onTap={this.getLetterTapHandler(letter)}
 							style={
 								activeLetterFilter === letter ? styles.letterButtonActive : styles.letterButton
 							}

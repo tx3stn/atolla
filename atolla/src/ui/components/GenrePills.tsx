@@ -12,6 +12,21 @@ export interface GenrePillsViewModel {
 }
 
 export class GenrePills extends Component<GenrePillsViewModel> {
+	private readonly genreTapHandlers = new Map<string, () => void>();
+
+	private getGenreTapHandler = (genre: Genre): (() => void) => {
+		const existing = this.genreTapHandlers.get(genre.id);
+		if (existing) {
+			return existing;
+		}
+
+		const handler = (): void => {
+			this.viewModel.onGenreTap(genre);
+		};
+		this.genreTapHandlers.set(genre.id, handler);
+		return handler;
+	};
+
 	onRender(): void {
 		if (this.viewModel.genres.length === 0) {
 			<layout />;
@@ -25,9 +40,7 @@ export class GenrePills extends Component<GenrePillsViewModel> {
 					<view
 						accessibilityId={`${this.viewModel.accessibilityId}-pill-${genre.id}`}
 						accessibilityLabel={`${this.viewModel.accessibilityId}-pill-${genre.id}`}
-						onTap={() => {
-							this.viewModel.onGenreTap(genre);
-						}}
+						onTap={this.getGenreTapHandler(genre)}
 						style={styles.pill}
 					>
 						<label style={styles.pillLabel} value={genre.name} />

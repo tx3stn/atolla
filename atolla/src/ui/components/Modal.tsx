@@ -18,6 +18,8 @@ export interface ModalViewModel {
 }
 
 export class Modal extends Component<ModalViewModel> {
+	private handleCardTap = (): void => {};
+
 	onRender(): void {
 		const {
 			body,
@@ -40,7 +42,7 @@ export class Modal extends Component<ModalViewModel> {
 			onTap={onClose}
 			style={styles.backdrop}
 		>
-			<view onTap={() => {}} style={styles.card}>
+			<view onTap={this.handleCardTap} style={styles.card}>
 				{logoUrl && (
 					<CachedImage
 						category='artist_logo'

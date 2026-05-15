@@ -4,7 +4,6 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
-import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
@@ -57,6 +56,7 @@ interface DetailHeaderState {
 export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, DetailHeaderState> {
 	private checkmarkRef = new ElementRef();
 	private rippleRef = new ElementRef();
+	private readonly emptySlot = (): void => {};
 	private get removeDownloadBody(): string {
 		return Strings.removeDownloadBody();
 	}
@@ -77,7 +77,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		clearTimeout(this.checkmarkAnimTimer);
 		clearTimeout(this.removeDownloadTimer);
 		this.toastTimer = clearScheduledToast(this.toastTimer);
-		this.viewModel.modalSlot?.slotted(() => {});
+		this.viewModel.modalSlot?.slotted(this.emptySlot);
 	}
 
 	private handleRemoveDownloadTap = (): void => {
@@ -97,12 +97,12 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 	};
 
 	private handleRemoveDownloadCancel = (): void => {
-		this.viewModel.modalSlot?.slotted(() => {});
+		this.viewModel.modalSlot?.slotted(this.emptySlot);
 		this.setState({ removeDownloadPhase: 'idle' });
 	};
 
 	private handleRemoveDownloadConfirm = (): void => {
-		this.viewModel.modalSlot?.slotted(() => {});
+		this.viewModel.modalSlot?.slotted(this.emptySlot);
 		this.viewModel.onRemoveDownload?.();
 
 		if (this.removeDownloadTimer) {
@@ -123,7 +123,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			this.viewModel.downloadState !== 'downloaded' &&
 			this.state.removeDownloadPhase !== 'idle'
 		) {
-			this.viewModel.modalSlot?.slotted(() => {});
+			this.viewModel.modalSlot?.slotted(this.emptySlot);
 			this.setState({ removeDownloadPhase: 'idle' });
 		}
 	}
@@ -187,6 +187,10 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		}
 	};
 
+	private isVerticalDrag = (event: DragEvent): boolean => {
+		return Math.abs(event.deltaY) > Math.abs(event.deltaX);
+	};
+
 	onRender() {
 		const {
 			artworkSource,
@@ -218,13 +222,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 				: downloadState === 'downloaded'
 					? this.handleRemoveDownloadTap
 					: onDownload;
-		<view
-			onDrag={createReusableCallback((event) => {
-				this.handleHeaderDrag(event);
-			})}
-			onDragPredicate={(event) => Math.abs(event.deltaY) > Math.abs(event.deltaX)}
-			style={styles.root}
-		>
+		<view onDrag={this.handleHeaderDrag} onDragPredicate={this.isVerticalDrag} style={styles.root}>
 			<layout style={styles.headerRow}>
 				<view
 					accessibilityId='detail-header-artwork'

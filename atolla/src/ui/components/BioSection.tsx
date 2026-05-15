@@ -14,23 +14,27 @@ export interface BioSectionViewModel {
 }
 
 export class BioSection extends Component<BioSectionViewModel> {
+	private closeModal = (): void => {
+		this.viewModel.modalSlot?.slotted(this.renderEmptyModalSlot);
+	};
+
+	private openBioModal = (): void => {
+		this.viewModel.modalSlot?.slotted(this.renderBioModal);
+	};
+
+	private renderBioModal = (): void => {
+		const { bio, logoUrl, title } = this.viewModel;
+		<Modal body={bio} logoUrl={logoUrl} onClose={this.closeModal} title={title} />;
+	};
+
+	private renderEmptyModalSlot = (): void => {};
+
 	onRender(): void {
-		const { bio, logoUrl, modalSlot, title } = this.viewModel;
+		const { bio } = this.viewModel;
 
 		<layout style={styles.section}>
 			<label style={styles.sectionHeader} value={Strings.bio()} />
-			<view
-				onTap={() => {
-					modalSlot?.slotted(() => {
-						<Modal
-							body={bio}
-							logoUrl={logoUrl}
-							onClose={() => modalSlot?.slotted(() => {})}
-							title={title}
-						/>;
-					});
-				}}
-			>
+			<view onTap={this.openBioModal}>
 				<label numberOfLines={3} style={styles.bioText} textOverflow='ellipsis' value={bio} />
 			</view>
 		</layout>;
