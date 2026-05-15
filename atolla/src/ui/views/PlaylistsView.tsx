@@ -73,6 +73,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	private currentPage = 0;
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
+	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 
@@ -232,7 +233,19 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		}
 	};
 
-	onRender(): void {
+	private handlePlaylistCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const playlist = this.state.playlists.find((p) => p.id === card.id);
+		if (!playlist) {
+			return;
+		}
+
+		this.navigateToPlaylist(playlist);
+	};
+
+	private navigateToPlaylist(playlist: Playlist): void {
 		const {
 			animationsEnabled,
 			imageCache,
@@ -242,6 +255,80 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			playbackStore,
 			transport,
 		} = this.viewModel;
+		this.viewModel.onNavigationContext?.({ kind: 'playlist', playlist });
+		this.viewModel.onHeaderVisibilityChange?.(false);
+		navigationController.push(
+			PlaylistView,
+			{
+				animationsEnabled,
+				downloadService: this.viewModel.downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache,
+				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
+				navBarContext: this.viewModel.navBarContext,
+				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+				onNavigateToArtist,
+				onNavigationContext: this.viewModel.onNavigationContext,
+				paletteQueue,
+				playbackStore,
+				playlist,
+				playlistEditService: this.viewModel.playlistEditService,
+				transport,
+			},
+			{},
+			{ animated: animationsEnabled },
+		);
+	}
+
+	private handleContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
+		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
+	};
+
+	private handleContextMenuEntityTap = (): void => {
+		const card = this.state.contextMenuCard;
+		if (!card || card.kind !== 'playlist') {
+			return;
+		}
+		this.handleContextMenuDismiss();
+		this.navigateToPlaylist(card.playlist);
+	};
+
+	private handleAddToPlaylistDismiss = (): void => {
+		this.setState({ addToPlaylistTracks: null });
+	};
+
+	private handleCreatePlaylistRequest = (tracks: Array<Track>): void => {
+		this.pendingCreatePlaylistTracks = tracks;
+		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
+	};
+
+	private handleCreatePlaylistCancel = (): void => {
+		this.setState({ createPlaylistTracks: null });
+		this.pendingCreatePlaylistTracks = null;
+	};
+
+	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
+		const createPlaylistFn = this.viewModel.transport.createPlaylist?.bind(
+			this.viewModel.transport,
+		);
+		const tracks = this.pendingCreatePlaylistTracks;
+		if (!createPlaylistFn || !tracks) {
+			return;
+		}
+
+		const playlist = await createPlaylistFn(name);
+		const addAll = tracks.reduce<Promise<void>>(
+			(chain, track) =>
+				chain.then(() => this.viewModel.transport.addItemToPlaylist?.(playlist.id, track.id)),
+			Promise.resolve(),
+		);
+		await addAll;
+		this.pendingCreatePlaylistTracks = null;
+		this.setState({ createPlaylistTracks: null });
+	};
+
+	onRender(): void {
+		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 		const { contextMenuCard, addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
 		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 
@@ -268,34 +355,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 					isLoadingMore={this.state.isLoadingNextPage}
 					onCardLongPress={this.handlePlaylistCardLongPress}
-					onCardTap={(card) => {
-						const playlist = this.state.playlists.find((p) => p.id === card.id);
-						if (playlist) {
-							this.viewModel.onNavigationContext?.({ kind: 'playlist', playlist });
-							this.viewModel.onHeaderVisibilityChange?.(false);
-							navigationController.push(
-								PlaylistView,
-								{
-									animationsEnabled,
-									downloadService: this.viewModel.downloadService,
-									gridColumns: this.viewModel.gridColumns,
-									imageCache,
-									modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-									navBarContext: this.viewModel.navBarContext,
-									onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-									onNavigateToArtist,
-									onNavigationContext: this.viewModel.onNavigationContext,
-									paletteQueue,
-									playbackStore,
-									playlist,
-									playlistEditService: this.viewModel.playlistEditService,
-									transport,
-								},
-								{},
-								{ animated: animationsEnabled },
-							);
-						}
-					}}
+					onCardTap={this.handlePlaylistCardTap}
 					onLoadMore={
 						this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
 					}
@@ -307,43 +367,10 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					animationsEnabled={animationsEnabled}
 					card={contextMenuCard}
 					imageCache={imageCache}
-					onAddToPlaylist={(tracks) => {
-						this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
-					}}
-					onCreatePlaylist={
-						createPlaylistFn
-							? (tracks) => {
-									this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
-								}
-							: undefined
-					}
+					onAddToPlaylist={this.handleContextMenuAddToPlaylist}
+					onCreatePlaylist={createPlaylistFn ? this.handleCreatePlaylistRequest : undefined}
 					onDismiss={this.handleContextMenuDismiss}
-					onEntityTap={() => {
-						const { playlist } = contextMenuCard;
-						this.viewModel.onNavigationContext?.({ kind: 'playlist', playlist });
-						this.viewModel.onHeaderVisibilityChange?.(false);
-						navigationController.push(
-							PlaylistView,
-							{
-								animationsEnabled,
-								downloadService: this.viewModel.downloadService,
-								gridColumns: this.viewModel.gridColumns,
-								imageCache,
-								modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-								navBarContext: this.viewModel.navBarContext,
-								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-								onNavigateToArtist,
-								onNavigationContext: this.viewModel.onNavigationContext,
-								paletteQueue,
-								playbackStore,
-								playlist,
-								playlistEditService: this.viewModel.playlistEditService,
-								transport,
-							},
-							{},
-							{ animated: animationsEnabled },
-						);
-					}}
+					onEntityTap={this.handleContextMenuEntityTap}
 					playbackStore={playbackStore}
 					transport={transport}
 				/>
@@ -353,30 +380,15 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					animationsEnabled={animationsEnabled}
 					gridColumns={this.viewModel.gridColumns}
 					imageCache={imageCache}
-					onDismiss={() => {
-						this.setState({ addToPlaylistTracks: null });
-					}}
+					onDismiss={this.handleAddToPlaylistDismiss}
 					tracks={addToPlaylistTracks}
 					transport={transport}
 				/>
 			)}
 			{createPlaylistTracks && createPlaylistFn && (
 				<CreatePlaylistModal
-					onCancel={() => {
-						this.setState({ createPlaylistTracks: null });
-					}}
-					onCreate={(name) => {
-						return createPlaylistFn(name).then((playlist) => {
-							const addAll = createPlaylistTracks.reduce<Promise<void>>(
-								(chain, track) =>
-									chain.then(() => transport.addItemToPlaylist?.(playlist.id, track.id)),
-								Promise.resolve(),
-							);
-							return addAll.then(() => {
-								this.setState({ createPlaylistTracks: null });
-							});
-						});
-					}}
+					onCancel={this.handleCreatePlaylistCancel}
+					onCreate={this.handleCreatePlaylistConfirm}
 				/>
 			)}
 			{toastMessage && <Toast message={toastMessage} />}
