@@ -85,6 +85,31 @@ export class TrackList extends Component<TrackListViewModel> {
 	private rowOffsetByIdentity = new Map<string, number>();
 	private rowRefByIdentity = new Map<string, ElementRef>();
 	private swipeContainerRefByIdentity = new Map<string, ElementRef>();
+	private rowTapHandlerByIdentity = new Map<string, () => void>();
+
+	private canStartHorizontalSwipe = (event: DragEvent): boolean => {
+		return this.draggingRowIdentities.size === 0 && Math.abs(event.deltaX) > Math.abs(event.deltaY);
+	};
+
+	private getRowTapHandler = (rowIdentity: string, trackId: string): (() => void) => {
+		const existing = this.rowTapHandlerByIdentity.get(rowIdentity);
+		if (existing) {
+			return existing;
+		}
+
+		const handler = (): void => {
+			if (this.suppressNextTap) {
+				this.suppressNextTap = false;
+				return;
+			}
+			this.performSelectionHaptic();
+			this.triggerTapPulse(rowIdentity);
+			this.viewModel.onTrackTap?.(trackId);
+		};
+
+		this.rowTapHandlerByIdentity.set(rowIdentity, handler);
+		return handler;
+	};
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
@@ -107,6 +132,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.rowOffsetByIdentity.clear();
 		this.rowRefByIdentity.clear();
 		this.swipeContainerRefByIdentity.clear();
+		this.rowTapHandlerByIdentity.clear();
 		this.rowIdentitiesByIndex.length = 0;
 	}
 
@@ -270,19 +296,8 @@ export class TrackList extends Component<TrackListViewModel> {
 											: undefined
 									}
 									onDragDisabled={!canSwipe}
-									onDragPredicate={(event) =>
-										this.draggingRowIdentities.size === 0 &&
-										Math.abs(event.deltaX) > Math.abs(event.deltaY)
-									}
-									onTap={() => {
-										if (this.suppressNextTap) {
-											this.suppressNextTap = false;
-											return;
-										}
-										this.performSelectionHaptic();
-										this.triggerTapPulse(rowIdentity);
-										this.viewModel.onTrackTap?.(entry.id);
-									}}
+									onDragPredicate={this.canStartHorizontalSwipe}
+									onTap={this.getRowTapHandler(rowIdentity, entry.id)}
 									onTouch={
 										entry.track && this.viewModel.onTrackLongPress
 											? ((track) => (event) => {

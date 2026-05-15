@@ -55,11 +55,7 @@ import { WaveformGenerationQueue } from './services/WaveformGenerationQueue';
 import { WaveformRenderCache } from './services/WaveformRenderCache';
 import { WaveformService } from './services/WaveformService';
 import { WriteBehindPaletteStore } from './services/WriteBehindPaletteStore';
-import {
-	JellyfinAuthStore,
-	type JellyfinAuthStoreLike,
-	type StoredAuthSession,
-} from './stores/JellyfinAuthStore';
+import { InMemoryAuthStore, JellyfinAuthStore } from './stores/JellyfinAuthStore';
 import { PlaybackStore } from './stores/Playback';
 import {
 	DEFAULT_GRID_COLUMNS,
@@ -153,41 +149,11 @@ interface AppState {
 	version: number;
 }
 
-class InMemoryAuthStore implements JellyfinAuthStoreLike {
-	private session: StoredAuthSession | null = null;
-	private serverUrl = '';
-
-	loadSession(): Promise<StoredAuthSession | null> {
-		return Promise.resolve(this.session);
-	}
-
-	saveSession(session: StoredAuthSession): Promise<void> {
-		this.session = {
-			accessToken: session.accessToken,
-			serverId: session.serverId,
-			serverUrl: session.serverUrl,
-			userId: session.userId,
-		};
-		this.serverUrl = session.serverUrl;
-		return Promise.resolve();
-	}
-
-	clearSession(): Promise<void> {
-		this.session = null;
-		return Promise.resolve();
-	}
-
-	rememberServerUrl(serverUrl: string): Promise<void> {
-		this.serverUrl = serverUrl;
-		return Promise.resolve();
-	}
-
-	loadRememberedServerUrl(): Promise<string> {
-		return Promise.resolve(this.serverUrl);
-	}
-}
-
 export class App extends StatefulComponent<AppViewModel, AppState> {
+	private readonly renderEmptySlot = (): void => {};
+	private closeModalSlot = (): void => {
+		this.modalSlot.slotted(this.renderEmptySlot);
+	};
 	private playbackStore = new PlaybackStore();
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
 	private readonly defaultJellyfinClientDeviceId = `atolla-${this.deviceUserScopeKey}`;
@@ -905,9 +871,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						this.modalSlot.slotted(() => {
 							<Modal
 								body={errorBody}
-								onClose={() => {
-									this.modalSlot.slotted(() => {});
-								}}
+								onClose={this.closeModalSlot}
 								title={Strings.playlistEditErrorTitle()}
 							/>;
 						});

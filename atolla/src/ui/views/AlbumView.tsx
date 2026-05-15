@@ -180,64 +180,15 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.setState({ contextMenuTrack: track });
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
-		const createPlaylistFn = transport.createPlaylist?.bind(transport);
+		const canCreatePlaylist = Boolean(transport.createPlaylist);
 		modalSlot?.slotted(() => {
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
 				imageCache={imageCache}
-				onAddToPlaylist={() => {
-					this.setState({ contextMenuTrack: null });
-					modalSlot?.slotted(() => {
-						<AddToPlaylistView
-							animationsEnabled={animationsEnabled}
-							gridColumns={this.viewModel.gridColumns}
-							imageCache={imageCache}
-							onDismiss={() => {
-								modalSlot?.slotted(() => {});
-							}}
-							tracks={[track]}
-							transport={transport}
-						/>;
-					});
-				}}
+				onAddToPlaylist={this.handleContextMenuAddToPlaylist}
 				onAlbumTap={this.handleContextMenuDismiss}
 				onArtistTap={this.handleArtistLogoTap}
-				onCreatePlaylist={
-					createPlaylistFn
-						? () => {
-								this.setState({ contextMenuTrack: null });
-								const { animationsEnabled: anim, downloadService, paletteQueue } = this.viewModel;
-								modalSlot?.slotted(() => {
-									<CreatePlaylistModal
-										onCancel={() => {
-											modalSlot?.slotted(() => {});
-										}}
-										onCreate={(name) => {
-											return createPlaylistFn(name, track.id).then((playlist) => {
-												modalSlot?.slotted(() => {});
-												this.navigationController.push(
-													PlaylistView,
-													{
-														animationsEnabled: anim,
-														downloadService,
-														gridColumns: this.viewModel.gridColumns,
-														imageCache,
-														navBarContext: this.viewModel.navBarContext,
-														paletteQueue,
-														playbackStore,
-														playlist,
-														transport,
-													},
-													{},
-													{ animated: anim },
-												);
-											});
-										}}
-									/>;
-								});
-							}
-						: undefined
-				}
+				onCreatePlaylist={canCreatePlaylist ? this.handleContextMenuCreatePlaylist : undefined}
 				onDismiss={this.handleContextMenuDismiss}
 				playbackStore={playbackStore}
 				track={track}
@@ -246,9 +197,73 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		});
 	};
 
-	handleContextMenuDismiss = (): void => {
+	private createPlaylistTrack: Track | null = null;
+
+	private renderEmptySlot = (): void => {};
+
+	private closeModalSlot = (): void => {
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		modalSlot?.slotted(() => {});
+		modalSlot?.slotted(this.renderEmptySlot);
+	};
+
+	private handleContextMenuAddToPlaylist = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track) return;
+		this.setState({ contextMenuTrack: null });
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		modalSlot?.slotted(() => {
+			<AddToPlaylistView
+				animationsEnabled={this.viewModel.animationsEnabled}
+				gridColumns={this.viewModel.gridColumns}
+				imageCache={this.viewModel.imageCache}
+				onDismiss={this.closeModalSlot}
+				tracks={[track]}
+				transport={this.viewModel.transport}
+			/>;
+		});
+	};
+
+	private handleContextMenuCreatePlaylist = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track) return;
+		this.createPlaylistTrack = track;
+		this.setState({ contextMenuTrack: null });
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		modalSlot?.slotted(() => {
+			<CreatePlaylistModal
+				onCancel={this.closeModalSlot}
+				onCreate={this.handleContextMenuCreate}
+			/>;
+		});
+	};
+
+	private handleContextMenuCreate = async (name: string): Promise<void> => {
+		const track = this.createPlaylistTrack;
+		if (!track || !this.viewModel.transport.createPlaylist) return;
+		const playlist = await this.viewModel.transport.createPlaylist(name, track.id);
+		this.createPlaylistTrack = null;
+		this.closeModalSlot();
+		const { animationsEnabled, downloadService, paletteQueue } = this.viewModel;
+		this.navigationController.push(
+			PlaylistView,
+			{
+				animationsEnabled,
+				downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache: this.viewModel.imageCache,
+				navBarContext: this.viewModel.navBarContext,
+				paletteQueue,
+				playbackStore: this.viewModel.playbackStore,
+				playlist,
+				transport: this.viewModel.transport,
+			},
+			{},
+			{ animated: animationsEnabled },
+		);
+	};
+
+	handleContextMenuDismiss = (): void => {
+		this.closeModalSlot();
 		this.setState({ contextMenuTrack: null });
 	};
 
@@ -437,6 +452,14 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.viewModel.navBarContext?.header?.onTabTap(tab);
 	};
 
+	private handleHideHeaderGesture = (): void => {
+		this.setHeaderVisibility(false);
+	};
+
+	private handleRevealHeaderGesture = (): void => {
+		this.setHeaderVisibility(true);
+	};
+
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
@@ -489,14 +512,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 						onArtistTap={this.handleArtistLogoTap}
 						onDownload={this.handleDownloadTap}
-						onHideHeaderGesture={() => {
-							this.setHeaderVisibility(false);
-						}}
+						onHideHeaderGesture={this.handleHideHeaderGesture}
 						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 						onRemoveDownload={this.handleRemoveDownloadTap}
-						onRevealHeaderGesture={() => {
-							this.setHeaderVisibility(true);
-						}}
+						onRevealHeaderGesture={this.handleRevealHeaderGesture}
 						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 						subheaderLineOneLeft={album.name}
 						subheaderLineTwoBadge={formatText}

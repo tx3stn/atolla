@@ -78,3 +78,37 @@ export class JellyfinAuthStore implements JellyfinAuthStoreLike {
 		}
 	}
 }
+
+export class InMemoryAuthStore implements JellyfinAuthStoreLike {
+	private session: StoredAuthSession | null = null;
+	private serverUrl = '';
+
+	loadSession(): Promise<StoredAuthSession | null> {
+		return Promise.resolve(this.session);
+	}
+
+	saveSession(session: StoredAuthSession): Promise<void> {
+		this.session = {
+			accessToken: session.accessToken,
+			serverId: session.serverId,
+			serverUrl: session.serverUrl,
+			userId: session.userId,
+		};
+		this.serverUrl = session.serverUrl;
+		return Promise.resolve();
+	}
+
+	clearSession(): Promise<void> {
+		this.session = null;
+		return Promise.resolve();
+	}
+
+	rememberServerUrl(serverUrl: string): Promise<void> {
+		this.serverUrl = serverUrl;
+		return Promise.resolve();
+	}
+
+	loadRememberedServerUrl(): Promise<string> {
+		return Promise.resolve(this.serverUrl);
+	}
+}

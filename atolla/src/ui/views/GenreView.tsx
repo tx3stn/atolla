@@ -92,76 +92,91 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		tracks: [],
 	};
 
+	private createPlaylistTrack: Track | null = null;
+	private renderEmptySlot = (): void => {};
+
+	private closeModalSlot = (): void => {
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		modalSlot?.slotted(this.renderEmptySlot);
+	};
+
 	handleTrackLongPress = (track: Track): void => {
 		this.setState({ contextMenuTrack: track });
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { animationsEnabled, imageCache, onNavigateToArtist, playbackStore, transport } =
 			this.viewModel;
-		const createPlaylistFn = transport.createPlaylist?.bind(transport);
+		const canCreatePlaylist = Boolean(transport.createPlaylist);
 		modalSlot?.slotted(() => {
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
 				imageCache={imageCache}
-				onAddToPlaylist={() => {
-					this.setState({ contextMenuTrack: null });
-					modalSlot?.slotted(() => {
-						<AddToPlaylistView
-							animationsEnabled={animationsEnabled}
-							imageCache={imageCache}
-							onDismiss={() => {
-								modalSlot?.slotted(() => {});
-							}}
-							tracks={[track]}
-							transport={transport}
-						/>;
-					});
-				}}
+				onAddToPlaylist={this.handleContextMenuAddToPlaylist}
 				onAlbumTap={track.albumId ? this.handleContextMenuAlbumTap : undefined}
 				onArtistTap={
 					onNavigateToArtist && track.artistId ? this.handleContextMenuArtistTap : undefined
 				}
-				onCreatePlaylist={
-					createPlaylistFn
-						? () => {
-								this.setState({ contextMenuTrack: null });
-								const { animationsEnabled: anim, downloadService, paletteQueue } = this.viewModel;
-								modalSlot?.slotted(() => {
-									<CreatePlaylistModal
-										onCancel={() => {
-											modalSlot?.slotted(() => {});
-										}}
-										onCreate={(name) => {
-											return createPlaylistFn(name, track.id).then((playlist) => {
-												modalSlot?.slotted(() => {});
-												this.navigationController.push(
-													PlaylistView,
-													{
-														animationsEnabled: anim,
-														downloadService,
-														gridColumns: this.viewModel.gridColumns ?? 2,
-														imageCache,
-														navBarContext: this.viewModel.navBarContext,
-														paletteQueue,
-														playbackStore,
-														playlist,
-														transport,
-													},
-													{},
-													{ animated: anim },
-												);
-											});
-										}}
-									/>;
-								});
-							}
-						: undefined
-				}
+				onCreatePlaylist={canCreatePlaylist ? this.handleContextMenuCreatePlaylist : undefined}
 				onDismiss={this.handleContextMenuDismiss}
 				playbackStore={playbackStore}
 				track={track}
 				transport={transport}
 			/>;
 		});
+	};
+
+	private handleContextMenuAddToPlaylist = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track) return;
+		this.setState({ contextMenuTrack: null });
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		modalSlot?.slotted(() => {
+			<AddToPlaylistView
+				animationsEnabled={this.viewModel.animationsEnabled}
+				imageCache={this.viewModel.imageCache}
+				onDismiss={this.closeModalSlot}
+				tracks={[track]}
+				transport={this.viewModel.transport}
+			/>;
+		});
+	};
+
+	private handleContextMenuCreatePlaylist = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track) return;
+		this.createPlaylistTrack = track;
+		this.setState({ contextMenuTrack: null });
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		modalSlot?.slotted(() => {
+			<CreatePlaylistModal
+				onCancel={this.closeModalSlot}
+				onCreate={this.handleContextMenuCreate}
+			/>;
+		});
+	};
+
+	private handleContextMenuCreate = async (name: string): Promise<void> => {
+		const track = this.createPlaylistTrack;
+		if (!track || !this.viewModel.transport.createPlaylist) return;
+		const playlist = await this.viewModel.transport.createPlaylist(name, track.id);
+		this.createPlaylistTrack = null;
+		this.closeModalSlot();
+		const { animationsEnabled, downloadService, paletteQueue } = this.viewModel;
+		this.navigationController.push(
+			PlaylistView,
+			{
+				animationsEnabled,
+				downloadService,
+				gridColumns: this.viewModel.gridColumns ?? 2,
+				imageCache: this.viewModel.imageCache,
+				navBarContext: this.viewModel.navBarContext,
+				paletteQueue,
+				playbackStore: this.viewModel.playbackStore,
+				playlist,
+				transport: this.viewModel.transport,
+			},
+			{},
+			{ animated: animationsEnabled },
+		);
 	};
 
 	handleContextMenuAlbumTap = (): void => {
@@ -199,8 +214,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	};
 
 	handleContextMenuDismiss = (): void => {
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		modalSlot?.slotted(() => {});
+		this.closeModalSlot();
 		this.setState({ contextMenuTrack: null });
 	};
 
@@ -428,7 +442,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		});
 	}
 
-	private handleLoadMoreTriggerLayout(): void {
+	private handleLoadMoreTriggerLayout = (): void => {
 		if (
 			this.isLoadingPage ||
 			this.state.nextPageFailed ||
@@ -444,7 +458,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 		this.triggeredAutoLoadForTrackCount = this.state.tracks.length;
 		void this.loadNextPage();
-	}
+	};
 
 	retryLoadMore = (): void => {
 		this.triggeredAutoLoadForTrackCount = null;
@@ -460,6 +474,14 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		this.viewModel.onHeaderVisibilityChange?.(true);
 		this.navigationController.pop();
 		this.viewModel.navBarContext?.header?.onTabTap(tab);
+	};
+
+	private handleHideHeaderGesture = (): void => {
+		this.setHeaderVisibility(false);
+	};
+
+	private handleRevealHeaderGesture = (): void => {
+		this.setHeaderVisibility(true);
 	};
 
 	onDestroy(): void {
@@ -508,14 +530,10 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 						modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
 						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 						onDownload={this.handleDownloadTap}
-						onHideHeaderGesture={() => {
-							this.setHeaderVisibility(false);
-						}}
+						onHideHeaderGesture={this.handleHideHeaderGesture}
 						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 						onRemoveDownload={this.handleRemoveDownloadTap}
-						onRevealHeaderGesture={() => {
-							this.setHeaderVisibility(true);
-						}}
+						onRevealHeaderGesture={this.handleRevealHeaderGesture}
 						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 						subheaderLineOneLeft={
 							totalTrackCount != null
@@ -540,9 +558,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 						<view
 							accessibilityId='genre-load-more-trigger'
 							accessibilityLabel='genre-load-more-trigger'
-							onLayout={() => {
-								this.handleLoadMoreTriggerLayout();
-							}}
+							onLayout={this.handleLoadMoreTriggerLayout}
 							style={styles.loadMoreTrigger}
 						/>
 					)}

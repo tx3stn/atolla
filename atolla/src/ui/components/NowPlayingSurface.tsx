@@ -511,6 +511,36 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 	};
 
+	private handleContextMenuAddToPlaylist = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track) return;
+		this.setState({ addToPlaylistTracks: [track], contextMenuTrack: null });
+	};
+
+	private handleContextMenuCreatePlaylist = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track) return;
+		this.setState({ contextMenuTrack: null, createPlaylistTrack: track });
+	};
+
+	private handleAddToPlaylistDismiss = (): void => {
+		this.setState({ addToPlaylistTracks: null });
+	};
+
+	private handleCreatePlaylistCancel = (): void => {
+		this.setState({ createPlaylistTrack: null });
+	};
+
+	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
+		const createPlaylistTransport = this.viewModel.transport;
+		const createPlaylistFn = createPlaylistTransport?.createPlaylist?.bind(createPlaylistTransport);
+		const createPlaylistTrack = this.state.createPlaylistTrack;
+		if (!createPlaylistFn || !createPlaylistTrack) return;
+		const playlist = await createPlaylistFn(name, createPlaylistTrack.id);
+		this.setState({ createPlaylistTrack: null });
+		this.viewModel.onOpenPlaylist?.(playlist);
+	};
+
 	onRender(): void {
 		const {
 			album,
@@ -855,11 +885,7 @@ export class NowPlayingSurface extends StatefulComponent<
 				<TrackContextMenu
 					animationsEnabled={this.viewModel.animationsEnabled}
 					imageCache={this.viewModel.imageCache}
-					onAddToPlaylist={() => {
-						const track = this.state.contextMenuTrack;
-						if (!track) return;
-						this.setState({ addToPlaylistTracks: [track], contextMenuTrack: null });
-					}}
+					onAddToPlaylist={this.handleContextMenuAddToPlaylist}
 					onArtistTap={
 						this.state.contextMenuTrack.artistId && this.viewModel.onArtistTap
 							? this.handleContextMenuArtistTap
@@ -867,11 +893,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					}
 					onCreatePlaylist={
 						this.viewModel.transport?.createPlaylist
-							? () => {
-									const track = this.state.contextMenuTrack;
-									if (!track) return;
-									this.setState({ contextMenuTrack: null, createPlaylistTrack: track });
-								}
+							? this.handleContextMenuCreatePlaylist
 							: undefined
 					}
 					onDismiss={this.handleContextMenuDismiss}
@@ -884,24 +906,15 @@ export class NowPlayingSurface extends StatefulComponent<
 				<AddToPlaylistView
 					animationsEnabled={this.viewModel.animationsEnabled}
 					imageCache={this.viewModel.imageCache}
-					onDismiss={() => {
-						this.setState({ addToPlaylistTracks: null });
-					}}
+					onDismiss={this.handleAddToPlaylistDismiss}
 					tracks={this.state.addToPlaylistTracks}
 					transport={this.viewModel.transport}
 				/>
 			)}
 			{createPlaylistFn && createPlaylistTrack && (
 				<CreatePlaylistModal
-					onCancel={() => {
-						this.setState({ createPlaylistTrack: null });
-					}}
-					onCreate={(name) => {
-						return createPlaylistFn(name, createPlaylistTrack.id).then((playlist) => {
-							this.setState({ createPlaylistTrack: null });
-							this.viewModel.onOpenPlaylist?.(playlist);
-						});
-					}}
+					onCancel={this.handleCreatePlaylistCancel}
+					onCreate={this.handleCreatePlaylistConfirm}
 				/>
 			)}
 			{this.state.toastMessage && <Toast message={this.state.toastMessage} />}

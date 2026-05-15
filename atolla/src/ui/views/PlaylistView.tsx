@@ -77,6 +77,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private hasMoreTracks = true;
 	private loadGeneration = 0;
 	private isLoadingPage = false;
+	private createPlaylistTrack: Track | null = null;
 	private unsubscribePlayback?: () => void;
 	private unsubscribeDownloads?: () => void;
 	private readonly setHeaderVisibility = (isVisible: boolean): void => {
@@ -141,79 +142,88 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { animationsEnabled, imageCache, onNavigateToArtist, playbackStore, transport } =
 			this.viewModel;
-		const createPlaylistFn = transport.createPlaylist?.bind(transport);
+		const canCreatePlaylist = Boolean(transport.createPlaylist);
 		modalSlot?.slotted(() => {
 			<TrackContextMenu
 				animationsEnabled={animationsEnabled}
 				imageCache={imageCache}
-				onAddToPlaylist={() => {
-					this.setState({ contextMenuTrack: null });
-					modalSlot?.slotted(() => {
-						<AddToPlaylistView
-							animationsEnabled={animationsEnabled}
-							gridColumns={this.viewModel.gridColumns}
-							imageCache={imageCache}
-							onDismiss={() => {
-								modalSlot?.slotted(() => {});
-							}}
-							tracks={[track]}
-							transport={transport}
-						/>;
-					});
-				}}
+				onAddToPlaylist={this.handleContextMenuAddToPlaylist}
 				onAlbumTap={track.albumId ? this.handleContextMenuAlbumTap : undefined}
 				onArtistTap={
 					onNavigateToArtist && track.artistId ? this.handleContextMenuArtistTap : undefined
 				}
-				onCreatePlaylist={
-					createPlaylistFn
-						? () => {
-								this.setState({ contextMenuTrack: null });
-								const {
-									animationsEnabled: anim,
-									downloadService,
-									navBarContext,
-									paletteQueue,
-									playlistEditService,
-								} = this.viewModel;
-								modalSlot?.slotted(() => {
-									<CreatePlaylistModal
-										onCancel={() => {
-											modalSlot?.slotted(() => {});
-										}}
-										onCreate={(name) => {
-											return createPlaylistFn(name, track.id).then((playlist) => {
-												modalSlot?.slotted(() => {});
-												this.navigationController.push(
-													PlaylistView,
-													{
-														animationsEnabled: anim,
-														downloadService,
-														gridColumns: this.viewModel.gridColumns,
-														imageCache,
-														navBarContext,
-														paletteQueue,
-														playbackStore,
-														playlist,
-														playlistEditService,
-														transport,
-													},
-													{},
-													{ animated: anim },
-												);
-											});
-										}}
-									/>;
-								});
-							}
-						: undefined
-				}
+				onCreatePlaylist={canCreatePlaylist ? this.handleContextMenuCreatePlaylist : undefined}
 				onDismiss={this.handleContextMenuDismiss}
 				playbackStore={playbackStore}
 				track={track}
 				transport={transport}
 			/>;
 		});
+	};
+
+	private closeModalSlot = (): void => {
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		modalSlot?.slotted(this.renderEmptySlot);
+	};
+
+	private renderEmptySlot = (): void => {};
+
+	private handleContextMenuAddToPlaylist = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track) return;
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		this.setState({ contextMenuTrack: null });
+		modalSlot?.slotted(() => {
+			<AddToPlaylistView
+				animationsEnabled={this.viewModel.animationsEnabled}
+				gridColumns={this.viewModel.gridColumns}
+				imageCache={this.viewModel.imageCache}
+				onDismiss={this.closeModalSlot}
+				tracks={[track]}
+				transport={this.viewModel.transport}
+			/>;
+		});
+	};
+
+	private handleContextMenuCreatePlaylist = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track) return;
+		this.createPlaylistTrack = track;
+		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		this.setState({ contextMenuTrack: null });
+		modalSlot?.slotted(() => {
+			<CreatePlaylistModal
+				onCancel={this.closeModalSlot}
+				onCreate={this.handleContextMenuCreate}
+			/>;
+		});
+	};
+
+	private handleContextMenuCreate = async (name: string): Promise<void> => {
+		const track = this.createPlaylistTrack;
+		if (!track || !this.viewModel.transport.createPlaylist) return;
+		const playlist = await this.viewModel.transport.createPlaylist(name, track.id);
+		this.createPlaylistTrack = null;
+		this.closeModalSlot();
+		const { animationsEnabled, downloadService, navBarContext, paletteQueue, playlistEditService } =
+			this.viewModel;
+		this.navigationController.push(
+			PlaylistView,
+			{
+				animationsEnabled,
+				downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache: this.viewModel.imageCache,
+				navBarContext,
+				paletteQueue,
+				playbackStore: this.viewModel.playbackStore,
+				playlist,
+				playlistEditService,
+				transport: this.viewModel.transport,
+			},
+			{},
+			{ animated: animationsEnabled },
+		);
 	};
 
 	handleContextMenuAlbumTap = (): void => {
@@ -259,8 +269,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	handleContextMenuDismiss = (): void => {
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		modalSlot?.slotted(() => {});
+		this.closeModalSlot();
 		this.setState({ contextMenuTrack: null });
 	};
 
@@ -315,7 +324,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	handleTrackSwipeRemove = (_trackId: string, entryIndex: number): void => {
-		const { playlist, playlistEditService } = this.viewModel;
+		const { playlistEditService } = this.viewModel;
 		if (!playlistEditService) return;
 		const trackToRemove = this.state.tracks[entryIndex];
 		if (!trackToRemove?.playlistItemId) {
@@ -347,32 +356,23 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				confirmAccessibilityId='playlist-remove-confirm-btn'
 				modalAccessibilityId='playlist-remove-modal'
 				onClose={this.handleCancelRemoveFromPlaylist}
-				onConfirm={() => {
-					this.handleConfirmRemoveFromPlaylist(
-						playlist.id,
-						// playlistItemId presence is guaranteed by the guard in handleTrackSwipeRemove
-						// biome-ignore lint/style/noNonNullAssertion: guarded above
-						removedTrack.playlistItemId!,
-						playlistEditService,
-					);
-				}}
+				onConfirm={this.handleConfirmRemoveFromPlaylistTap}
 				title={Strings.removeFromPlaylistTitle()}
 			/>;
 		});
 	};
 
-	private handleConfirmRemoveFromPlaylist = (
-		playlistId: string,
-		trackId: string,
-		playlistEditService: PlaylistEditService,
-	): void => {
+	private handleConfirmRemoveFromPlaylistTap = (): void => {
+		const { playlist, playlistEditService } = this.viewModel;
+		const trackId = this.state.removedTrackPending?.track.playlistItemId;
+		if (!playlistEditService || !trackId) return;
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { removedTrackPending } = this.state;
-		modalSlot?.slotted(() => {});
+		modalSlot?.slotted(this.renderEmptySlot);
 		this.setState({ removedTrackPending: null });
 		void playlistEditService
 			.execute(
-				{ playlistId, playlistName: this.viewModel.playlist.name, trackId, type: 'remove' },
+				{ playlistId: playlist.id, playlistName: playlist.name, trackId, type: 'remove' },
 				this.viewModel.transport,
 			)
 			.then((result) => {
@@ -399,9 +399,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		modalSlot?.slotted(() => {
 			<Modal
 				body={Strings.playlistEditErrorBody(operation, playlistName, errorMessage)}
-				onClose={() => {
-					modalSlot?.slotted(() => {});
-				}}
+				onClose={this.closeModalSlot}
 				title={Strings.playlistEditErrorTitle()}
 			/>;
 		});
@@ -410,7 +408,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private handleCancelRemoveFromPlaylist = (): void => {
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { removedTrackPending } = this.state;
-		modalSlot?.slotted(() => {});
+		modalSlot?.slotted(this.renderEmptySlot);
 
 		if (!removedTrackPending) return;
 
@@ -683,6 +681,14 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.viewModel.navBarContext?.header?.onTabTap(tab);
 	};
 
+	private handleHideHeaderGesture = (): void => {
+		this.setHeaderVisibility(false);
+	};
+
+	private handleRevealHeaderGesture = (): void => {
+		this.setHeaderVisibility(true);
+	};
+
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
@@ -723,14 +729,10 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
 						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 						onDownload={this.handleDownloadTap}
-						onHideHeaderGesture={() => {
-							this.setHeaderVisibility(false);
-						}}
+						onHideHeaderGesture={this.handleHideHeaderGesture}
 						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
 						onRemoveDownload={this.handleRemoveDownloadTap}
-						onRevealHeaderGesture={() => {
-							this.setHeaderVisibility(true);
-						}}
+						onRevealHeaderGesture={this.handleRevealHeaderGesture}
 						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
 						subheaderLineOneLeft={
 							totalTrackCount != null
