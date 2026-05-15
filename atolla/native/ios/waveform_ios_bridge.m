@@ -5,9 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const NSInteger kDefaultWaveformWidth   = 500;
-static const NSInteger kDefaultWaveformHeight  = 100;
-static const NSInteger kWaveformControlPoints  = 300;
+static const NSInteger kDefaultWaveformWidth = 500;
+static const NSInteger kDefaultWaveformHeight = 100;
+
+enum {
+    kWaveformControlPoints = 300,
+};
 
 @implementation AtollaWaveformGenerator
 

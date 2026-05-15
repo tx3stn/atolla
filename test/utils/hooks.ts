@@ -46,8 +46,10 @@ export async function beforeHook(): Promise<void> {
 		await browser.waitUntil(
 			async () => {
 				try {
-					const connection = (await browser.getNetworkConnection()) as number;
-					return (connection & 6) !== 0;
+					const connectivity = (await browser.execute('mobile: getConnectivity', {
+						services: ['wifi', 'data'],
+					})) as { data?: unknown; wifi?: unknown };
+					return connectivity.wifi === true || connectivity.data === true;
 				} catch {
 					return true;
 				}

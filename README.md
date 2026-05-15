@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <em>beautiful Jellyfin music player with an offline first playback experience</em>
+  <em>beautiful Jellyfin music player for android and ios with an offline first playback experience</em>
 </p>
 
 ## Features
@@ -98,6 +98,16 @@ always welcomed, but they might not be actioned.
 ## Installing
 
 TBD
+
+> [!WARNING] the iOS app is in beta
+>
+> It has been tested a lot in an emulator, but I don't have an iPhone, so can't test
+> it on device.
+> As such I can't gurantee it will work as well as the Android version which I have
+> been using daily for weeks.
+>
+> If you run into issues please raise them. If you can create a PR to fix the
+> issues and test it out on your own device, even better.
 
 ## Feature Requests
 
