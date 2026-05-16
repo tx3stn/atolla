@@ -30,4 +30,10 @@ export class TrackContextMenu extends BasePage {
 		await button.click();
 		await this.dismissPermissionDialogIfPresent();
 	}
+
+	async tapBackdrop(): Promise<void> {
+		const backdrop = this.elementByID('track-context-backdrop');
+		await backdrop.waitForDisplayed({ timeoutMsg: 'Track context backdrop not visible' });
+		await backdrop.click();
+	}
 }

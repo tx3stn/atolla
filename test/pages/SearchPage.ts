@@ -54,4 +54,20 @@ export class SearchPage extends BasePage {
 		await this.waitForVisibleAccessibilityPrefix('card-');
 		return true;
 	}
+
+	async waitForTrackResults(): Promise<void> {
+		await this.waitForVisibleAccessibilityPrefix('track-row-');
+	}
+
+	async openTrackContextMenuOnFirstVisibleTrackRow(): Promise<void> {
+		await this.longPressFirstVisibleByAccessibilityPrefix('track-row-');
+	}
+
+	async waitForCardResults(): Promise<void> {
+		await this.waitForVisibleAccessibilityPrefix('card-');
+	}
+
+	async longPressFirstVisibleCard(): Promise<void> {
+		await this.longPressFirstVisibleByAccessibilityPrefix('card-');
+	}
 }

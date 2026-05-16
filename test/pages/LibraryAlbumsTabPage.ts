@@ -20,4 +20,8 @@ export class LibraryAlbumsTabPage extends BasePage {
 	async tapFirstVisibleCard(): Promise<void> {
 		await this.tapFirstVisibleByAccessibilityPrefix(this.cardPrefix);
 	}
+
+	async longPressFirstVisibleCard(): Promise<void> {
+		await this.longPressFirstVisibleByAccessibilityPrefix(this.cardPrefix);
+	}
 }

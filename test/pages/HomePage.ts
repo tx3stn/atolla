@@ -22,6 +22,10 @@ export class HomePage extends BasePage {
 		await this.tapFirstVisibleByAccessibilityPrefix(this.albumCardPrefix);
 	}
 
+	async longPressFirstVisibleAlbumCard(): Promise<void> {
+		await this.longPressFirstVisibleByAccessibilityPrefix(this.albumCardPrefix);
+	}
+
 	async pullToRefresh(): Promise<void> {
 		const { width, height } = await this.driver.getWindowSize();
 		const x = Math.round(width * 0.5);
