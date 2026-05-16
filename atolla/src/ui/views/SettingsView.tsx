@@ -32,6 +32,7 @@ import { Modal } from '../components/Modal';
 import { Toast } from '../components/Toast';
 import { Toggle } from '../components/Toggle';
 import { ViewHeader } from '../components/ViewHeader';
+import { closeSlot, openSlot } from '../flows/modalSlotFlow';
 
 const GB = 1024 * 1024 * 1024;
 
@@ -148,7 +149,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 	private handleClearCachePress = () => {
 		const vm = this.viewModel;
-		vm.modalSlot?.slotted(() => {
+		openSlot(vm.modalSlot, () => {
 			<CacheClearModal
 				counts={{
 					albumArt:
@@ -193,7 +194,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		if (this.toastTimer != null) {
 			clearTimeout(this.toastTimer);
 		}
-		this.viewModel.modalSlot?.slotted(() => {});
+		closeSlot(this.viewModel.modalSlot);
 		this.setState({ showCacheToast: true });
 		this.toastTimer = setTimeout(() => {
 			this.setState({ showCacheToast: false });
@@ -201,11 +202,11 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 	};
 
 	private handleCacheClearCancel = () => {
-		this.viewModel.modalSlot?.slotted(() => {});
+		closeSlot(this.viewModel.modalSlot);
 	};
 
 	private handleLogoutPress = () => {
-		this.viewModel.modalSlot?.slotted(() => {
+		openSlot(this.viewModel.modalSlot, () => {
 			<Modal
 				body={Strings.settingsLogoutConfirm()}
 				cancelAccessibilityId='settings-logout-cancel-btn'
@@ -220,15 +221,15 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 	private handleLogoutConfirm = () => {
 		this.viewModel.onLogout?.();
-		this.viewModel.modalSlot?.slotted(() => {});
+		closeSlot(this.viewModel.modalSlot);
 	};
 
 	private handleLogoutCancel = () => {
-		this.viewModel.modalSlot?.slotted(() => {});
+		closeSlot(this.viewModel.modalSlot);
 	};
 
 	private handleClearDownloadsPress = () => {
-		this.viewModel.modalSlot?.slotted(() => {
+		openSlot(this.viewModel.modalSlot, () => {
 			<Modal
 				body={Strings.settingsDeleteAllDownloadsConfirm()}
 				cancelAccessibilityId='settings-downloads-clear-cancel-btn'
@@ -243,11 +244,11 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 	private handleClearDownloadsConfirm = () => {
 		this.viewModel.onClearDownloads?.();
-		this.viewModel.modalSlot?.slotted(() => {});
+		closeSlot(this.viewModel.modalSlot);
 	};
 
 	private handleClearDownloadsCancel = () => {
-		this.viewModel.modalSlot?.slotted(() => {});
+		closeSlot(this.viewModel.modalSlot);
 	};
 
 	private handleTrackCacheLimitToggle = () => {
@@ -321,7 +322,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 	private handleLanguagePress = () => {
 		const selectedLanguage = this.viewModel.selectedLanguage ?? DEFAULT_LANGUAGE;
-		this.viewModel.modalSlot?.slotted(() => {
+		openSlot(this.viewModel.modalSlot, () => {
 			<LanguageSelectModal
 				onCancel={this.handleLanguageCancel}
 				onSelect={this.handleLanguageSelect}
@@ -332,11 +333,11 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 	private handleLanguageSelect = (code: LanguageCode) => {
 		this.viewModel.onLanguageChange?.(code);
-		this.viewModel.modalSlot?.slotted(() => {});
+		closeSlot(this.viewModel.modalSlot);
 	};
 
 	private handleLanguageCancel = () => {
-		this.viewModel.modalSlot?.slotted(() => {});
+		closeSlot(this.viewModel.modalSlot);
 	};
 
 	onRender(): void {

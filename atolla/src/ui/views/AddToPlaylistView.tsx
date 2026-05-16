@@ -11,6 +11,7 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { Modal } from '../components/Modal';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
+import { addTracksToPlaylist } from '../flows/playlistFlow';
 
 export interface AddToPlaylistViewModel {
 	animationsEnabled: boolean;
@@ -73,14 +74,8 @@ export class AddToPlaylistView extends StatefulComponent<
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
 		const { tracks, transport } = this.viewModel;
-		if (!transport.addItemToPlaylist) return;
 
-		const addAll = tracks.reduce<Promise<void>>(
-			(chain, track) => chain.then(() => transport.addItemToPlaylist?.(card.id, track.id)),
-			Promise.resolve(),
-		);
-
-		void addAll
+		void addTracksToPlaylist(card.id, tracks, transport.addItemToPlaylist?.bind(transport))
 			.then(() => {
 				if (this.hasBeenDestroyed) return;
 				this.toastTimerId = scheduleToastDismiss(
