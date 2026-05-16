@@ -17,13 +17,14 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
-import { buildGenreViewNavigationParams } from '../flows/navigationFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
+import { bindFooterVisibility } from './footerVisibility';
 import { GenreView } from './GenreView';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
+import { createPagedGridController } from './pagination/createPagedGridController';
 
 interface GenresViewModel {
 	animationsEnabled: boolean;
@@ -55,9 +56,26 @@ interface GenresState {
 }
 
 export class GenresView extends StatefulComponent<GenresViewModel, GenresState> {
-	private currentPage = 0;
 	private hasBeenDestroyed = false;
-	private isLoadingPage = false;
+	private readonly pagedGridController = createPagedGridController<Genre>({
+		appendItems: (current, pageItems, isFirstPage) =>
+			isFirstPage ? pageItems : [...current, ...pageItems],
+		fetchPage: (page) =>
+			this.viewModel.transport.getGenresPage(page, gridPaginationConfig.pageSize),
+		getHasMore: () => this.state.hasMore,
+		getItems: () => this.state.genres,
+		isDestroyed: () => this.hasBeenDestroyed,
+		onPageLoaded: (items) => this.preloadGenreImages(items),
+		setState: (patch) => {
+			this.setState({
+				genres: patch.items ?? this.state.genres,
+				hasMore: patch.hasMore ?? this.state.hasMore,
+				isLoadingNextPage: patch.isLoadingNextPage ?? this.state.isLoadingNextPage,
+				nextPageFailed: patch.nextPageFailed ?? this.state.nextPageFailed,
+				page: patch.page ?? this.state.page,
+			});
+		},
+	});
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
@@ -77,17 +95,13 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
-			const isFooterVisible = this.viewModel.playbackStore.track !== null;
-			if (isFooterVisible !== this.state.isFooterVisible) {
+		this.unsubscribePlayback = bindFooterVisibility({
+			getIsFooterVisible: () => this.state.isFooterVisible,
+			playbackStore: this.viewModel.playbackStore,
+			setIsFooterVisible: (isFooterVisible) => {
 				this.setState({ isFooterVisible });
-			}
+			},
 		});
-
-		const isFooterVisible = this.viewModel.playbackStore.track !== null;
-		if (isFooterVisible !== this.state.isFooterVisible) {
-			this.setState({ isFooterVisible });
-		}
 
 		void this.loadInitialPages();
 	}
@@ -99,67 +113,29 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	}
 
 	private async loadInitialPages(): Promise<void> {
-		await this.loadNextPage();
+		await this.pagedGridController.loadNextPage();
 	}
 
-	private async loadNextPage(): Promise<void> {
-		if (this.hasBeenDestroyed || this.isLoadingPage || !this.state.hasMore) {
-			return;
-		}
-
-		const nextPage = this.currentPage + 1;
-		const isFirstPage = nextPage === 1;
-		this.isLoadingPage = true;
-		if (!isFirstPage) {
-			this.setState({ isLoadingNextPage: true, nextPageFailed: false });
-		}
-
+	private preloadGenreImages(items: Array<Genre>): void {
 		try {
-			const page = await this.viewModel.transport.getGenresPage(
-				nextPage,
-				gridPaginationConfig.pageSize,
+			preloadAtollaImages(
+				items
+					.map((g) => g.imageUrl)
+					.filter((url): url is string => url != null)
+					.map((url) => normalizeImageUrlForCategory(url, 'genre_art')),
+				'genre_art',
 			);
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-
-			const genres = isFirstPage ? page.items : [...this.state.genres, ...page.items];
-			this.currentPage = nextPage;
-			this.isLoadingPage = false;
-			try {
-				preloadAtollaImages(
-					page.items
-						.map((g) => g.imageUrl)
-						.filter((url): url is string => url != null)
-						.map((url) => normalizeImageUrlForCategory(url, 'genre_art')),
-					'genre_art',
-				);
-			} catch {
-				// Non-Android targets do not provide native preload bridge.
-			}
-			this.setState({
-				genres,
-				hasMore: page.hasMore,
-				isLoadingNextPage: false,
-				nextPageFailed: false,
-				page: nextPage,
-			});
 		} catch {
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-
-			this.isLoadingPage = false;
-			this.setState({ isLoadingNextPage: false, nextPageFailed: true });
+			// Non-Android targets do not provide native preload bridge.
 		}
 	}
 
 	retryLoadMore(): void {
-		void this.loadNextPage();
+		void this.pagedGridController.loadNextPage();
 	}
 
 	loadMore(): void {
-		void this.loadNextPage();
+		void this.pagedGridController.loadNextPage();
 	}
 
 	handleGenreCardLongPress = (card: {
@@ -191,7 +167,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		navigationController.push(
 			GenreView,
-			buildGenreViewNavigationParams({
+			{
 				animationsEnabled,
 				downloadService: this.viewModel.downloadService,
 				genre,
@@ -202,7 +178,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 				onNavigateToArtist: this.viewModel.onNavigateToArtist,
 				playbackStore,
 				transport,
-			}),
+			},
 			{},
 			{ animated: animationsEnabled },
 		);

@@ -31,10 +31,6 @@ import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { closeSlot, openSlot } from '../flows/modalSlotFlow';
-import {
-	buildGenreViewNavigationParams,
-	buildPlaylistViewNavigationParams,
-} from '../flows/navigationFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
@@ -218,7 +214,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.closeModalSlot();
 		this.navigationController.push(
 			PlaylistView,
-			buildPlaylistViewNavigationParams({
+			{
 				animationsEnabled: this.viewModel.animationsEnabled,
 				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
@@ -228,7 +224,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				playbackStore: this.viewModel.playbackStore,
 				playlist,
 				transport: this.viewModel.transport,
-			}),
+			},
 			{},
 			{ animated: this.viewModel.animationsEnabled },
 		);
@@ -411,7 +407,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.closeModalSlot();
 		this.navigationController.push(
 			PlaylistView,
-			buildPlaylistViewNavigationParams({
+			{
 				animationsEnabled: this.viewModel.animationsEnabled,
 				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
@@ -421,7 +417,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				playbackStore: this.viewModel.playbackStore,
 				playlist,
 				transport: this.viewModel.transport,
-			}),
+			},
 			{},
 			{ animated: this.viewModel.animationsEnabled },
 		);
@@ -458,17 +454,16 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.navigationController.push(
 			GenreView,
 			{
-				...buildGenreViewNavigationParams({
-					animationsEnabled,
-					downloadService,
-					genre: resolvedGenre,
-					imageCache,
-					navBarContext: this.buildChildNavBarContext(),
-					onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-					playbackStore,
-					transport,
-				}),
+				animationsEnabled,
+				downloadService,
+				genre: resolvedGenre,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache,
+				navBarContext: this.buildChildNavBarContext(),
+				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+				playbackStore,
 				restoreHeaderOnDestroy: false,
+				transport,
 			},
 			{},
 			{ animated: animationsEnabled },

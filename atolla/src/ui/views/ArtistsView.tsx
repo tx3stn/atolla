@@ -19,14 +19,15 @@ import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
-import { buildArtistViewNavigationParams } from '../flows/navigationFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortArtists } from './ArtistsSort';
 import { ArtistView } from './ArtistView';
+import { bindFooterVisibility } from './footerVisibility';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
+import { createPagedGridController } from './pagination/createPagedGridController';
 
 export interface ArtistsViewModel {
 	animationsEnabled: boolean;
@@ -70,9 +71,25 @@ interface PagedArtistsTransport {
 
 export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsState> {
 	private allArtists: Array<Artist> | null = null;
-	private currentPage = 0;
 	private hasBeenDestroyed = false;
-	private isLoadingPage = false;
+	private readonly pagedGridController = createPagedGridController<Artist>({
+		appendItems: (current, pageItems, isFirstPage) =>
+			isFirstPage ? pageItems : [...current, ...pageItems],
+		fetchPage: (page) => this.fetchPage(page),
+		getHasMore: () => this.state.hasMore,
+		getItems: () => this.state.artists,
+		isDestroyed: () => this.hasBeenDestroyed,
+		onPageLoaded: (items) => this.preloadArtistImages(items),
+		setState: (patch) => {
+			this.setState({
+				artists: patch.items ?? this.state.artists,
+				hasMore: patch.hasMore ?? this.state.hasMore,
+				isLoadingNextPage: patch.isLoadingNextPage ?? this.state.isLoadingNextPage,
+				nextPageFailed: patch.nextPageFailed ?? this.state.nextPageFailed,
+				page: patch.page ?? this.state.page,
+			});
+		},
+	});
 	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 	private cachedDisplayArtists: Array<Artist> = [];
@@ -97,16 +114,13 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
-			const isFooterVisible = this.viewModel.playbackStore.track !== null;
-			if (isFooterVisible !== this.state.isFooterVisible) {
+		this.unsubscribePlayback = bindFooterVisibility({
+			getIsFooterVisible: () => this.state.isFooterVisible,
+			playbackStore: this.viewModel.playbackStore,
+			setIsFooterVisible: (isFooterVisible) => {
 				this.setState({ isFooterVisible });
-			}
+			},
 		});
-		const isFooterVisible = this.viewModel.playbackStore.track !== null;
-		if (isFooterVisible !== this.state.isFooterVisible) {
-			this.setState({ isFooterVisible });
-		}
 		void this.loadInitialPages();
 	}
 
@@ -129,8 +143,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		}
 
 		this.allArtists = null;
-		this.currentPage = 0;
-		this.isLoadingPage = false;
+		this.pagedGridController.reset();
 		this.setState({
 			artists: [],
 			hasMore: true,
@@ -142,55 +155,20 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	private async loadInitialPages(): Promise<void> {
-		await this.loadNextPage();
+		await this.pagedGridController.loadNextPage();
 	}
 
-	private async loadNextPage(): Promise<void> {
-		if (this.hasBeenDestroyed || this.isLoadingPage || !this.state.hasMore) {
-			return;
-		}
-
-		const nextPage = this.currentPage + 1;
-		const isFirstPage = nextPage === 1;
-		this.isLoadingPage = true;
-		if (!isFirstPage) {
-			this.setState({ isLoadingNextPage: true, nextPageFailed: false });
-		}
-
+	private preloadArtistImages(items: Array<Artist>): void {
 		try {
-			const page = await this.fetchPage(nextPage);
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-
-			const artists = isFirstPage ? page.items : [...this.state.artists, ...page.items];
-			this.currentPage = nextPage;
-			this.isLoadingPage = false;
-			try {
-				preloadAtollaImages(
-					page.items
-						.map((a) => a.imageUrl)
-						.filter((url): url is string => url != null)
-						.map((url) => normalizeImageUrlForCategory(url, 'artist_image_thumb')),
-					'artist_image_thumb',
-				);
-			} catch {
-				// Non-Android targets do not provide native preload bridge.
-			}
-			this.setState({
-				artists,
-				hasMore: page.hasMore,
-				isLoadingNextPage: false,
-				nextPageFailed: false,
-				page: nextPage,
-			});
+			preloadAtollaImages(
+				items
+					.map((a) => a.imageUrl)
+					.filter((url): url is string => url != null)
+					.map((url) => normalizeImageUrlForCategory(url, 'artist_image_thumb')),
+				'artist_image_thumb',
+			);
 		} catch {
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-
-			this.isLoadingPage = false;
-			this.setState({ isLoadingNextPage: false, nextPageFailed: true });
+			// Non-Android targets do not provide native preload bridge.
 		}
 	}
 
@@ -234,11 +212,11 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	retryLoadMore(): void {
-		void this.loadNextPage();
+		void this.pagedGridController.loadNextPage();
 	}
 
 	loadMore(): void {
-		void this.loadNextPage();
+		void this.pagedGridController.loadNextPage();
 	}
 
 	handleArtistCardLongPress = (card: {
@@ -276,7 +254,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		navigationController.push(
 			ArtistView,
-			buildArtistViewNavigationParams({
+			{
 				animationsEnabled,
 				artist,
 				downloadService: this.viewModel.downloadService,
@@ -288,7 +266,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				paletteQueue,
 				playbackStore,
 				transport,
-			}),
+			},
 			{},
 			{ animated: animationsEnabled },
 		);

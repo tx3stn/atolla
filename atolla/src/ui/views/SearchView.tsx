@@ -34,15 +34,12 @@ import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { clearScheduledToast, scheduleToastDismiss } from '../components/toastTimer';
 import { closeSlot, openSlot } from '../flows/modalSlotFlow';
-import {
-	buildArtistViewNavigationParams,
-	buildPlaylistViewNavigationParams,
-} from '../flows/navigationFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
+import { bindFooterVisibility } from './footerVisibility';
 import { PlaylistView } from './PlaylistView';
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
@@ -145,16 +142,13 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
 		this.focusSearchInput();
-		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
-			const isFooterVisible = this.viewModel.playbackStore.track !== null;
-			if (isFooterVisible !== this.state.isFooterVisible) {
+		this.unsubscribePlayback = bindFooterVisibility({
+			getIsFooterVisible: () => this.state.isFooterVisible,
+			playbackStore: this.viewModel.playbackStore,
+			setIsFooterVisible: (isFooterVisible) => {
 				this.setState({ isFooterVisible });
-			}
+			},
 		});
-		const isFooterVisible = this.viewModel.playbackStore.track !== null;
-		if (isFooterVisible !== this.state.isFooterVisible) {
-			this.setState({ isFooterVisible });
-		}
 
 		this.viewModel.searchStore.getRecentSearches().then((recentSearches) => {
 			if (this.hasBeenDestroyed) {
@@ -366,7 +360,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.closeModalSlot();
 		this.viewModel.navigationController.push(
 			PlaylistView,
-			buildPlaylistViewNavigationParams({
+			{
 				animationsEnabled: this.viewModel.animationsEnabled,
 				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
@@ -377,7 +371,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				playlist,
 				playlistEditService: this.viewModel.playlistEditService,
 				transport: this.viewModel.transport,
-			}),
+			},
 			{},
 			{ animated: this.viewModel.animationsEnabled },
 		);
@@ -464,7 +458,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			if (!artist) return;
 			this.viewModel.navigationController.push(
 				ArtistView,
-				buildArtistViewNavigationParams({
+				{
 					animationsEnabled: this.viewModel.animationsEnabled,
 					artist,
 					downloadService: this.viewModel.downloadService,
@@ -474,7 +468,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					paletteQueue: this.viewModel.paletteQueue,
 					playbackStore: this.viewModel.playbackStore,
 					transport: this.viewModel.transport,
-				}),
+				},
 				{},
 				{ animated: this.viewModel.animationsEnabled },
 			);
@@ -522,7 +516,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.closeModalSlot();
 		this.viewModel.navigationController.push(
 			PlaylistView,
-			buildPlaylistViewNavigationParams({
+			{
 				animationsEnabled: this.viewModel.animationsEnabled,
 				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
@@ -533,7 +527,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				playlist,
 				playlistEditService: this.viewModel.playlistEditService,
 				transport: this.viewModel.transport,
-			}),
+			},
 			{},
 			{ animated: this.viewModel.animationsEnabled },
 		);

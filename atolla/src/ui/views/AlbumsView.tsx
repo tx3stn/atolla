@@ -25,8 +25,10 @@ import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortAlbums } from './AlbumsSort';
 import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
+import { bindFooterVisibility } from './footerVisibility';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
+import { createPagedGridController } from './pagination/createPagedGridController';
 
 export interface AlbumsViewModel {
 	animationsEnabled: boolean;
@@ -70,9 +72,25 @@ interface PagedAlbumsTransport {
 
 export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> {
 	private allAlbums: Array<Album> | null = null;
-	private currentPage = 0;
 	private hasBeenDestroyed = false;
-	private isLoadingPage = false;
+	private readonly pagedGridController = createPagedGridController<Album>({
+		appendItems: (current, pageItems, isFirstPage) =>
+			isFirstPage ? pageItems : [...current, ...pageItems],
+		fetchPage: (page) => this.fetchPage(page),
+		getHasMore: () => this.state.hasMore,
+		getItems: () => this.state.albums,
+		isDestroyed: () => this.hasBeenDestroyed,
+		onPageLoaded: (items) => this.preloadAlbumImages(items),
+		setState: (patch) => {
+			this.setState({
+				albums: patch.items ?? this.state.albums,
+				hasMore: patch.hasMore ?? this.state.hasMore,
+				isLoadingNextPage: patch.isLoadingNextPage ?? this.state.isLoadingNextPage,
+				nextPageFailed: patch.nextPageFailed ?? this.state.nextPageFailed,
+				page: patch.page ?? this.state.page,
+			});
+		},
+	});
 	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 	private cachedDisplayAlbums: Array<Album> = [];
@@ -97,16 +115,13 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
-			const isFooterVisible = this.viewModel.playbackStore.track !== null;
-			if (isFooterVisible !== this.state.isFooterVisible) {
+		this.unsubscribePlayback = bindFooterVisibility({
+			getIsFooterVisible: () => this.state.isFooterVisible,
+			playbackStore: this.viewModel.playbackStore,
+			setIsFooterVisible: (isFooterVisible) => {
 				this.setState({ isFooterVisible });
-			}
+			},
 		});
-		const isFooterVisible = this.viewModel.playbackStore.track !== null;
-		if (isFooterVisible !== this.state.isFooterVisible) {
-			this.setState({ isFooterVisible });
-		}
 		void this.loadInitialPages();
 	}
 
@@ -129,8 +144,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		}
 
 		this.allAlbums = null;
-		this.currentPage = 0;
-		this.isLoadingPage = false;
+		this.pagedGridController.reset();
 		this.setState({
 			albums: [],
 			hasMore: true,
@@ -142,55 +156,20 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	private async loadInitialPages(): Promise<void> {
-		await this.loadNextPage();
+		await this.pagedGridController.loadNextPage();
 	}
 
-	private async loadNextPage(): Promise<void> {
-		if (this.hasBeenDestroyed || this.isLoadingPage || !this.state.hasMore) {
-			return;
-		}
-
-		const nextPage = this.currentPage + 1;
-		const isFirstPage = nextPage === 1;
-		this.isLoadingPage = true;
-		if (!isFirstPage) {
-			this.setState({ isLoadingNextPage: true, nextPageFailed: false });
-		}
-
+	private preloadAlbumImages(items: Array<Album>): void {
 		try {
-			const page = await this.fetchPage(nextPage);
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-
-			const albums = isFirstPage ? page.items : [...this.state.albums, ...page.items];
-			this.currentPage = nextPage;
-			this.isLoadingPage = false;
-			try {
-				preloadAtollaImages(
-					page.items
-						.map((a) => a.imageUrl)
-						.filter((url): url is string => url != null)
-						.map((url) => normalizeImageUrlForCategory(url, 'album_art_thumb')),
-					'album_art_thumb',
-				);
-			} catch {
-				// Non-Android targets do not provide native preload bridge.
-			}
-			this.setState({
-				albums,
-				hasMore: page.hasMore,
-				isLoadingNextPage: false,
-				nextPageFailed: false,
-				page: nextPage,
-			});
+			preloadAtollaImages(
+				items
+					.map((a) => a.imageUrl)
+					.filter((url): url is string => url != null)
+					.map((url) => normalizeImageUrlForCategory(url, 'album_art_thumb')),
+				'album_art_thumb',
+			);
 		} catch {
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-
-			this.isLoadingPage = false;
-			this.setState({ isLoadingNextPage: false, nextPageFailed: true });
+			// Non-Android targets do not provide native preload bridge.
 		}
 	}
 
@@ -231,11 +210,11 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	retryLoadMore(): void {
-		void this.loadNextPage();
+		void this.pagedGridController.loadNextPage();
 	}
 
 	loadMore(): void {
-		void this.loadNextPage();
+		void this.pagedGridController.loadNextPage();
 	}
 
 	handleAlbumCardLongPress = (card: {

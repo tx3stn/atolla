@@ -20,14 +20,15 @@ import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
-import { buildPlaylistViewNavigationParams } from '../flows/navigationFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
+import { bindFooterVisibility } from './footerVisibility';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
 import { sortPlaylists } from './PlaylistsSort';
 import { PlaylistView } from './PlaylistView';
+import { createPagedGridController } from './pagination/createPagedGridController';
 
 export interface PlaylistsViewModel {
 	animationsEnabled: boolean;
@@ -72,9 +73,25 @@ interface PagedPlaylistsTransport {
 
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
 	private allPlaylists: Array<Playlist> | null = null;
-	private currentPage = 0;
 	private hasBeenDestroyed = false;
-	private isLoadingPage = false;
+	private readonly pagedGridController = createPagedGridController<Playlist>({
+		appendItems: (current, pageItems, isFirstPage) =>
+			isFirstPage ? pageItems : [...current, ...pageItems],
+		fetchPage: (page) => this.fetchPage(page),
+		getHasMore: () => this.state.hasMore,
+		getItems: () => this.state.playlists,
+		isDestroyed: () => this.hasBeenDestroyed,
+		onPageLoaded: (items) => this.preloadPlaylistImages(items),
+		setState: (patch) => {
+			this.setState({
+				hasMore: patch.hasMore ?? this.state.hasMore,
+				isLoadingNextPage: patch.isLoadingNextPage ?? this.state.isLoadingNextPage,
+				nextPageFailed: patch.nextPageFailed ?? this.state.nextPageFailed,
+				page: patch.page ?? this.state.page,
+				playlists: patch.items ?? this.state.playlists,
+			});
+		},
+	});
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
@@ -94,16 +111,13 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		this.unsubscribePlayback = this.viewModel.playbackStore.subscribe(() => {
-			const isFooterVisible = this.viewModel.playbackStore.track !== null;
-			if (isFooterVisible !== this.state.isFooterVisible) {
+		this.unsubscribePlayback = bindFooterVisibility({
+			getIsFooterVisible: () => this.state.isFooterVisible,
+			playbackStore: this.viewModel.playbackStore,
+			setIsFooterVisible: (isFooterVisible) => {
 				this.setState({ isFooterVisible });
-			}
+			},
 		});
-		const isFooterVisible = this.viewModel.playbackStore.track !== null;
-		if (isFooterVisible !== this.state.isFooterVisible) {
-			this.setState({ isFooterVisible });
-		}
 		void this.loadInitialPages();
 	}
 
@@ -122,8 +136,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		}
 
 		this.allPlaylists = null;
-		this.currentPage = 0;
-		this.isLoadingPage = false;
+		this.pagedGridController.reset();
 		this.setState({
 			hasMore: true,
 			isLoadingNextPage: false,
@@ -135,55 +148,20 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	private async loadInitialPages(): Promise<void> {
-		await this.loadNextPage();
+		await this.pagedGridController.loadNextPage();
 	}
 
-	private async loadNextPage(): Promise<void> {
-		if (this.hasBeenDestroyed || this.isLoadingPage || !this.state.hasMore) {
-			return;
-		}
-
-		const nextPage = this.currentPage + 1;
-		const isFirstPage = nextPage === 1;
-		this.isLoadingPage = true;
-		if (!isFirstPage) {
-			this.setState({ isLoadingNextPage: true, nextPageFailed: false });
-		}
-
+	private preloadPlaylistImages(items: Array<Playlist>): void {
 		try {
-			const page = await this.fetchPage(nextPage);
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-
-			const playlists = isFirstPage ? page.items : [...this.state.playlists, ...page.items];
-			this.currentPage = nextPage;
-			this.isLoadingPage = false;
-			try {
-				preloadAtollaImages(
-					page.items
-						.map((p) => p.imageUrl)
-						.filter((url): url is string => url != null)
-						.map((url) => normalizeImageUrlForCategory(url, 'playlist_image_thumb')),
-					'playlist_image_thumb',
-				);
-			} catch {
-				// Non-Android targets do not provide native preload bridge.
-			}
-			this.setState({
-				hasMore: page.hasMore,
-				isLoadingNextPage: false,
-				nextPageFailed: false,
-				page: nextPage,
-				playlists,
-			});
+			preloadAtollaImages(
+				items
+					.map((p) => p.imageUrl)
+					.filter((url): url is string => url != null)
+					.map((url) => normalizeImageUrlForCategory(url, 'playlist_image_thumb')),
+				'playlist_image_thumb',
+			);
 		} catch {
-			if (this.hasBeenDestroyed) {
-				return;
-			}
-
-			this.isLoadingPage = false;
-			this.setState({ isLoadingNextPage: false, nextPageFailed: true });
+			// Non-Android targets do not provide native preload bridge.
 		}
 	}
 
@@ -206,11 +184,11 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	retryLoadMore(): void {
-		void this.loadNextPage();
+		void this.pagedGridController.loadNextPage();
 	}
 
 	loadMore(): void {
-		void this.loadNextPage();
+		void this.pagedGridController.loadNextPage();
 	}
 
 	handlePlaylistCardLongPress = (card: {
@@ -261,7 +239,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		navigationController.push(
 			PlaylistView,
-			buildPlaylistViewNavigationParams({
+			{
 				animationsEnabled,
 				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
@@ -275,7 +253,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				playlist,
 				playlistEditService: this.viewModel.playlistEditService,
 				transport,
-			}),
+			},
 			{},
 			{ animated: animationsEnabled },
 		);
