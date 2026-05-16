@@ -231,7 +231,7 @@ export class CardContextMenu extends StatefulComponent<
 								style={styles.entityArtwork}
 								url={card.album.imageUrl}
 							/>
-							<label numberOfLines={1} style={styles.entityLabel} value={card.album.name} />
+							<label numberOfLines={2} style={styles.entityLabel} value={card.album.name} />
 						</view>
 					)}
 					{card.kind === 'artist' && (
@@ -252,7 +252,7 @@ export class CardContextMenu extends StatefulComponent<
 								style={styles.entityArtwork}
 								url={card.playlist.imageUrl}
 							/>
-							<label numberOfLines={1} style={styles.entityLabel} value={card.playlist.name} />
+							<label numberOfLines={2} style={styles.entityLabel} value={card.playlist.name} />
 						</view>
 					)}
 					{card.kind === 'genre' && (
@@ -262,7 +262,7 @@ export class CardContextMenu extends StatefulComponent<
 								style={styles.entityArtwork}
 								url={card.genre.imageUrl}
 							/>
-							<label numberOfLines={1} style={styles.entityLabel} value={card.genre.name} />
+							<label numberOfLines={2} style={styles.entityLabel} value={card.genre.name} />
 						</view>
 					)}
 					<view style={styles.divider} />
@@ -333,7 +333,7 @@ interface Animatable {
 	animatePromise(options: object, callback: () => void): Promise<void>;
 }
 
-function animateRowPressOverlay(
+async function animateRowPressOverlay(
 	component: Animatable,
 	ref: ElementRef,
 	rowWidth: number,
@@ -353,25 +353,22 @@ function animateRowPressOverlay(
 	ref.setAttribute('borderRadius', Math.max(2, safeHeight * 0.16));
 	ref.setAttribute('opacity', 0);
 
-	return component
-		.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.04 }, () => {
-			ref.setAttribute('left', centerX - impactWidth / 2);
-			ref.setAttribute('top', centerY - impactHeight / 2);
-			ref.setAttribute('width', impactWidth);
-			ref.setAttribute('height', impactHeight);
-			ref.setAttribute('borderRadius', Math.max(2, impactHeight * 0.25));
-			ref.setAttribute('opacity', 0.26);
-		})
-		.then(() => {
-			return component.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.14 }, () => {
-				ref.setAttribute('left', 0);
-				ref.setAttribute('top', 0);
-				ref.setAttribute('width', safeWidth);
-				ref.setAttribute('height', safeHeight);
-				ref.setAttribute('borderRadius', 0);
-				ref.setAttribute('opacity', 0);
-			});
-		});
+	await component.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.04 }, () => {
+		ref.setAttribute('left', centerX - impactWidth / 2);
+		ref.setAttribute('top', centerY - impactHeight / 2);
+		ref.setAttribute('width', impactWidth);
+		ref.setAttribute('height', impactHeight);
+		ref.setAttribute('borderRadius', Math.max(2, impactHeight * 0.25));
+		ref.setAttribute('opacity', 0.26);
+	});
+	return await component.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.14 }, () => {
+		ref.setAttribute('left', 0);
+		ref.setAttribute('top', 0);
+		ref.setAttribute('width', safeWidth);
+		ref.setAttribute('height', safeHeight);
+		ref.setAttribute('borderRadius', 0);
+		ref.setAttribute('opacity', 0);
+	});
 }
 
 const styles = {

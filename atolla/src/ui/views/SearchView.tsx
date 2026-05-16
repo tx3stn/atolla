@@ -30,11 +30,11 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { Toast } from '../components/Toast';
-import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { clearScheduledToast, scheduleToastDismiss } from '../components/toastTimer';
 import { closeSlot, openSlot } from '../flows/modalSlotFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
+import { openTrackContextMenu } from '../flows/trackContextMenuController';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { AlbumView } from './AlbumView';
@@ -68,7 +68,6 @@ export type SearchLibraryNavigationTarget =
 
 interface SearchState {
 	contextMenuCard: CardContextMenuCard | null;
-	contextMenuTrack: Track | null;
 	errorMessage: string | null;
 	isFooterVisible: boolean;
 	lastSubmittedQuery: string;
@@ -114,7 +113,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private hasBeenDestroyed = false;
 	private cardContextMenuCard: CardContextMenuCard | null = null;
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
-	private pendingCreatePlaylistTrack: Track | null = null;
 	private requestVersion = 0;
 	private recentSearchTapHandlers = new Map<string, () => void>();
 	private searchInputRef = new ElementRef();
@@ -123,7 +121,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	state: SearchState = {
 		contextMenuCard: null,
-		contextMenuTrack: null,
 		errorMessage: null,
 		isFooterVisible: false,
 		lastSubmittedQuery: '',
@@ -283,28 +280,50 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	};
 
 	handleTrackLongPress = (track: Track): void => {
-		this.setState({ contextMenuTrack: track });
+		const {
+			animationsEnabled,
+			downloadService,
+			gridColumns,
+			imageCache,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
-		const canCreatePlaylist = Boolean(transport.createPlaylist);
-		modalSlot?.slotted(() => {
-			<TrackContextMenu
-				animationsEnabled={animationsEnabled}
-				imageCache={imageCache}
-				onAddToPlaylist={this.handleTrackContextMenuAddToPlaylist}
-				onArtistTap={track.artistId ? this.handleContextMenuArtistTap : undefined}
-				onCreatePlaylist={canCreatePlaylist ? this.handleTrackContextMenuCreatePlaylist : undefined}
-				onDismiss={this.handleContextMenuDismiss}
-				playbackStore={playbackStore}
-				track={track}
-				transport={transport}
-			/>;
+		openTrackContextMenu(track, modalSlot, {
+			animationsEnabled,
+			gridColumns,
+			imageCache,
+			onAlbumTap: undefined,
+			onArtistTap: track.artistId ? () => this.handleContextMenuArtistTap(track) : undefined,
+			onDismiss: () => {},
+			onPlaylistCreated: (playlist) => {
+				this.viewModel.navigationController.push(
+					PlaylistView,
+					{
+						animationsEnabled,
+						downloadService,
+						gridColumns,
+						imageCache,
+						navBarContext: this.viewModel.navBarContext,
+						paletteQueue,
+						playbackStore,
+						playlist,
+						playlistEditService: this.viewModel.playlistEditService,
+						transport,
+					},
+					{},
+					{ animated: animationsEnabled },
+				);
+			},
+			playbackStore,
+			transport,
 		});
 	};
 
 	handleContextMenuDismiss = (toastMessage?: string): void => {
 		closeSlot(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot);
-		this.setState({ contextMenuCard: null, contextMenuTrack: null });
+		this.setState({ contextMenuCard: null });
 		if (toastMessage) {
 			this.toastTimerId = scheduleToastDismiss(
 				this.toastTimerId,
@@ -318,63 +337,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	private closeModalSlot = (): void => {
 		closeSlot(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot);
-	};
-
-	private handleTrackContextMenuAddToPlaylist = (): void => {
-		const track = this.state.contextMenuTrack;
-		if (!track) return;
-		this.setState({ contextMenuTrack: null });
-		openSlot(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, () => {
-			<AddToPlaylistView
-				animationsEnabled={this.viewModel.animationsEnabled}
-				gridColumns={this.viewModel.gridColumns}
-				imageCache={this.viewModel.imageCache}
-				onDismiss={this.closeModalSlot}
-				tracks={[track]}
-				transport={this.viewModel.transport}
-			/>;
-		});
-	};
-
-	private handleTrackContextMenuCreatePlaylist = (): void => {
-		const track = this.state.contextMenuTrack;
-		if (!track) return;
-		this.pendingCreatePlaylistTrack = track;
-		this.setState({ contextMenuTrack: null });
-		openSlot(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, () => {
-			<CreatePlaylistModal
-				onCancel={this.closeModalSlot}
-				onCreate={this.handleTrackContextMenuCreatePlaylistConfirm}
-			/>;
-		});
-	};
-
-	private handleTrackContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const track = this.pendingCreatePlaylistTrack;
-		const createPlaylistFn = this.viewModel.transport.createPlaylist?.bind(
-			this.viewModel.transport,
-		);
-		if (!track || !createPlaylistFn) return;
-		const playlist = await createPlaylistFn(name, track.id);
-		this.pendingCreatePlaylistTrack = null;
-		this.closeModalSlot();
-		this.viewModel.navigationController.push(
-			PlaylistView,
-			{
-				animationsEnabled: this.viewModel.animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				navBarContext: this.viewModel.navBarContext,
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				playlist,
-				playlistEditService: this.viewModel.playlistEditService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
 	};
 
 	handleAlbumCardLongPress = (card: {
@@ -587,8 +549,8 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.handlePlaylistTap(card.id);
 	};
 
-	handleContextMenuArtistTap = (): void => {
-		const artistId = this.state.contextMenuTrack?.artistId;
+	handleContextMenuArtistTap = (track: Track): void => {
+		const { artistId } = track;
 		if (!artistId) {
 			return;
 		}
