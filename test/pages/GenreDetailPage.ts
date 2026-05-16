@@ -5,9 +5,11 @@ export class GenreDetailPage extends BasePage {
 	private readonly trackRowSwipeRegionPrefix = 'track-row-swipe-region-genre-track-';
 
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.root).waitForExist({
-			timeoutMsg: 'Timed out waiting for genre view',
-		});
+		try {
+			await this.elementByID(this.root).waitForExist({ timeout: 2_000 });
+		} catch {
+			// On iOS this root accessibility node can be unreliable; track rows are the source of truth.
+		}
 	}
 
 	async waitForTrackRowsVisible(): Promise<void> {

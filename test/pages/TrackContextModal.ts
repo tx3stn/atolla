@@ -34,6 +34,12 @@ export class TrackContextMenu extends BasePage {
 	async tapBackdrop(): Promise<void> {
 		const backdrop = this.elementByID('track-context-backdrop');
 		await backdrop.waitForDisplayed({ timeoutMsg: 'Track context backdrop not visible' });
+
+		if (this.isIOS()) {
+			await backdrop.click();
+			return;
+		}
+
 		const location = await backdrop.getLocation();
 		const size = await backdrop.getSize();
 		await this.driver.performActions([
