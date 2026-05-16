@@ -20,10 +20,14 @@ export class CardContextMenuPage extends BasePage {
 	}
 
 	async tapBackdrop(): Promise<void> {
-		const el = this.elementByID(this.backdrop);
-		await el.waitForDisplayed({ timeoutMsg: 'Card context backdrop not visible' });
-		const location = await el.getLocation();
-		const size = await el.getSize();
+		const backdrop = this.elementByID(this.backdrop);
+		await backdrop.waitForDisplayed({ timeoutMsg: 'Card context backdrop not visible' });
+		if (this.isIOS()) {
+			await backdrop.click();
+			return;
+		}
+		const location = await backdrop.getLocation();
+		const size = await backdrop.getSize();
 		await this.driver.performActions([
 			{
 				actions: [
