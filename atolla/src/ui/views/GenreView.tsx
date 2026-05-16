@@ -23,6 +23,7 @@ import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { closeSlot } from '../flows/modalSlotFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { AlbumView } from './AlbumView';
@@ -93,11 +94,10 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	};
 
 	private createPlaylistTrack: Track | null = null;
-	private renderEmptySlot = (): void => {};
 
 	private closeModalSlot = (): void => {
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		modalSlot?.slotted(this.renderEmptySlot);
+		closeSlot(modalSlot);
 	};
 
 	handleTrackLongPress = (track: Track): void => {

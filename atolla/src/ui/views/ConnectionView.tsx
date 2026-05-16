@@ -12,6 +12,7 @@ import { Button } from '../components/Button';
 import { HttpWarningModal } from '../components/HttpWarningModal';
 import { LanguageSelectModal } from '../components/LanguageSelectModal';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
+import { closeSlot, openSlot } from '../flows/modalSlotFlow';
 
 export interface ConnectionViewModel {
 	errorMessage: string | null;
@@ -61,7 +62,6 @@ function normalizeInputValue(value: unknown): string {
 
 export class ConnectionView extends StatefulComponent<ConnectionViewModel, ConnectionState> {
 	private pendingConnectInput: string | null = null;
-	private readonly renderEmptySlot = (): void => {};
 
 	state: ConnectionState = {
 		serverUrlInput: this.viewModel.serverUrl,
@@ -69,7 +69,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 
 	private handleLanguagePress = () => {
 		const selectedLanguage = this.viewModel.selectedLanguage ?? DEFAULT_LANGUAGE;
-		this.viewModel.modalSlot?.slotted(() => {
+		openSlot(this.viewModel.modalSlot, () => {
 			<LanguageSelectModal
 				onCancel={this.handleLanguageCancel}
 				onSelect={this.handleLanguageSelect}
@@ -80,19 +80,19 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 
 	private handleLanguageSelect = (code: LanguageCode) => {
 		this.viewModel.onLanguageChange?.(code);
-		this.viewModel.modalSlot?.slotted(this.renderEmptySlot);
+		closeSlot(this.viewModel.modalSlot);
 	};
 
 	private handleLanguageCancel = () => {
-		this.viewModel.modalSlot?.slotted(this.renderEmptySlot);
+		closeSlot(this.viewModel.modalSlot);
 	};
 
 	private handleHttpWarningCancel = (): void => {
-		this.viewModel.modalSlot?.slotted(this.renderEmptySlot);
+		closeSlot(this.viewModel.modalSlot);
 	};
 
 	private handleHttpWarningConfirm = (): void => {
-		this.viewModel.modalSlot?.slotted(this.renderEmptySlot);
+		closeSlot(this.viewModel.modalSlot);
 		if (!this.pendingConnectInput) {
 			return;
 		}

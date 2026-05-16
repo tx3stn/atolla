@@ -19,6 +19,8 @@ import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
+import { buildArtistViewNavigationParams } from '../flows/navigationFlow';
+import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortArtists } from './ArtistsSort';
@@ -78,6 +80,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private cachedDisplaySortOrder: SortOrder | undefined = undefined;
 	private cachedDisplayLetterFilter: string | null | undefined = undefined;
 	private cachedDisplayIsOffline = false;
+	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 
 	state: ArtistsState = {
 		addToPlaylistTracks: null,
@@ -260,6 +263,90 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		}
 	};
 
+	private navigateToArtist = (artist: Artist): void => {
+		const {
+			animationsEnabled,
+			imageCache,
+			navigationController,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
+		this.viewModel.onNavigationContext?.({ artist, kind: 'artist' });
+		this.viewModel.onHeaderVisibilityChange?.(false);
+		navigationController.push(
+			ArtistView,
+			buildArtistViewNavigationParams({
+				animationsEnabled,
+				artist,
+				downloadService: this.viewModel.downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache,
+				navBarContext: this.viewModel.navBarContext,
+				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+				onNavigationContext: this.viewModel.onNavigationContext,
+				paletteQueue,
+				playbackStore,
+				transport,
+			}),
+			{},
+			{ animated: animationsEnabled },
+		);
+	};
+
+	private handleArtistCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const artist = this.state.artists.find((a) => a.id === card.id);
+		if (!artist) return;
+		this.navigateToArtist(artist);
+	};
+
+	private handleContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
+		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
+	};
+
+	private handleContextMenuArtistTap = (): void => {
+		const card = this.state.contextMenuCard;
+		if (!card || card.kind !== 'artist') return;
+		this.navigateToArtist(card.artist);
+	};
+
+	private handleContextMenuEntityTap = (): void => {
+		this.handleContextMenuArtistTap();
+	};
+
+	private handleCreatePlaylistRequest = (tracks: Array<Track>): void => {
+		this.pendingCreatePlaylistTracks = tracks;
+		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
+	};
+
+	private handleAddToPlaylistDismiss = (): void => {
+		this.setState({ addToPlaylistTracks: null });
+	};
+
+	private handleCreatePlaylistCancel = (): void => {
+		this.pendingCreatePlaylistTracks = null;
+		this.setState({ createPlaylistTracks: null });
+	};
+
+	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
+		const createPlaylistFn = this.viewModel.transport.createPlaylist?.bind(
+			this.viewModel.transport,
+		);
+		const tracks = this.pendingCreatePlaylistTracks;
+		if (!createPlaylistFn || !tracks) return;
+		await createPlaylistAndAddTracks(
+			name,
+			createPlaylistFn,
+			this.viewModel.transport.addItemToPlaylist?.bind(this.viewModel.transport),
+			tracks,
+		);
+		this.pendingCreatePlaylistTracks = null;
+		this.setState({ createPlaylistTracks: null });
+	};
+
 	private getDisplayArtists(): Array<Artist> {
 		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
 		const letterFilter = this.viewModel.letterFilter;
@@ -292,14 +379,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	onRender(): void {
-		const {
-			imageCache,
-			animationsEnabled,
-			navigationController,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
+		const { imageCache, animationsEnabled, playbackStore, transport } = this.viewModel;
 		const { contextMenuCard, addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
 		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 
@@ -321,32 +401,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 					isLoadingMore={this.state.isLoadingNextPage}
 					onCardLongPress={this.handleArtistCardLongPress}
-					onCardTap={(card) => {
-						const artist = this.state.artists.find((a) => a.id === card.id);
-						if (artist) {
-							this.viewModel.onNavigationContext?.({ artist, kind: 'artist' });
-							this.viewModel.onHeaderVisibilityChange?.(false);
-							navigationController.push(
-								ArtistView,
-								{
-									animationsEnabled,
-									artist,
-									downloadService: this.viewModel.downloadService,
-									gridColumns: this.viewModel.gridColumns,
-									imageCache,
-									modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-									navBarContext: this.viewModel.navBarContext,
-									onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-									onNavigationContext: this.viewModel.onNavigationContext,
-									paletteQueue,
-									playbackStore,
-									transport,
-								},
-								{},
-								{ animated: animationsEnabled },
-							);
-						}
-					}}
+					onCardTap={this.handleArtistCardTap}
 					onLoadMore={
 						this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
 					}
@@ -358,65 +413,11 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					animationsEnabled={animationsEnabled}
 					card={contextMenuCard}
 					imageCache={imageCache}
-					onAddToPlaylist={(tracks) => {
-						this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
-					}}
-					onArtistTap={() => {
-						const { artist } = contextMenuCard;
-						this.viewModel.onNavigationContext?.({ artist, kind: 'artist' });
-						this.viewModel.onHeaderVisibilityChange?.(false);
-						navigationController.push(
-							ArtistView,
-							{
-								animationsEnabled,
-								artist,
-								downloadService: this.viewModel.downloadService,
-								gridColumns: this.viewModel.gridColumns,
-								imageCache,
-								modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-								navBarContext: this.viewModel.navBarContext,
-								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-								onNavigationContext: this.viewModel.onNavigationContext,
-								paletteQueue,
-								playbackStore,
-								transport,
-							},
-							{},
-							{ animated: animationsEnabled },
-						);
-					}}
-					onCreatePlaylist={
-						createPlaylistFn
-							? (tracks) => {
-									this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
-								}
-							: undefined
-					}
+					onAddToPlaylist={this.handleContextMenuAddToPlaylist}
+					onArtistTap={this.handleContextMenuArtistTap}
+					onCreatePlaylist={createPlaylistFn ? this.handleCreatePlaylistRequest : undefined}
 					onDismiss={this.handleContextMenuDismiss}
-					onEntityTap={() => {
-						const { artist } = contextMenuCard;
-						this.viewModel.onNavigationContext?.({ artist, kind: 'artist' });
-						this.viewModel.onHeaderVisibilityChange?.(false);
-						navigationController.push(
-							ArtistView,
-							{
-								animationsEnabled,
-								artist,
-								downloadService: this.viewModel.downloadService,
-								gridColumns: this.viewModel.gridColumns,
-								imageCache,
-								modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-								navBarContext: this.viewModel.navBarContext,
-								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-								onNavigationContext: this.viewModel.onNavigationContext,
-								paletteQueue,
-								playbackStore,
-								transport,
-							},
-							{},
-							{ animated: animationsEnabled },
-						);
-					}}
+					onEntityTap={this.handleContextMenuEntityTap}
 					playbackStore={playbackStore}
 					transport={transport}
 				/>
@@ -426,30 +427,15 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					animationsEnabled={animationsEnabled}
 					gridColumns={this.viewModel.gridColumns}
 					imageCache={imageCache}
-					onDismiss={() => {
-						this.setState({ addToPlaylistTracks: null });
-					}}
+					onDismiss={this.handleAddToPlaylistDismiss}
 					tracks={addToPlaylistTracks}
 					transport={transport}
 				/>
 			)}
 			{createPlaylistTracks && createPlaylistFn && (
 				<CreatePlaylistModal
-					onCancel={() => {
-						this.setState({ createPlaylistTracks: null });
-					}}
-					onCreate={(name) => {
-						return createPlaylistFn(name).then((playlist) => {
-							const addAll = createPlaylistTracks.reduce<Promise<void>>(
-								(chain, track) =>
-									chain.then(() => transport.addItemToPlaylist?.(playlist.id, track.id)),
-								Promise.resolve(),
-							);
-							return addAll.then(() => {
-								this.setState({ createPlaylistTracks: null });
-							});
-						});
-					}}
+					onCancel={this.handleCreatePlaylistCancel}
+					onCreate={this.handleCreatePlaylistConfirm}
 				/>
 			)}
 			{toastMessage && <Toast message={toastMessage} />}

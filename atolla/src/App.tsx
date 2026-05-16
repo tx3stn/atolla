@@ -97,6 +97,7 @@ import { MockPlayer } from './ui/components/MockPlayer';
 import { Modal } from './ui/components/Modal';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { Toast } from './ui/components/Toast';
+import { closeSlot } from './ui/flows/modalSlotFlow';
 import type { NavBarContext } from './ui/NavBarContext';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
@@ -150,9 +151,8 @@ interface AppState {
 }
 
 export class App extends StatefulComponent<AppViewModel, AppState> {
-	private readonly renderEmptySlot = (): void => {};
 	private closeModalSlot = (): void => {
-		this.modalSlot.slotted(this.renderEmptySlot);
+		closeSlot(this.modalSlot);
 	};
 	private playbackStore = new PlaybackStore();
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();

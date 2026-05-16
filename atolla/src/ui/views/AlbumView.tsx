@@ -27,6 +27,7 @@ import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { closeSlot } from '../flows/modalSlotFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { ArtistView } from './ArtistView';
@@ -199,11 +200,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 	private createPlaylistTrack: Track | null = null;
 
-	private renderEmptySlot = (): void => {};
-
 	private closeModalSlot = (): void => {
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		modalSlot?.slotted(this.renderEmptySlot);
+		closeSlot(modalSlot);
 	};
 
 	private handleContextMenuAddToPlaylist = (): void => {

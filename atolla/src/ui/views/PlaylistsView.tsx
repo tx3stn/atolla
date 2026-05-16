@@ -20,6 +20,8 @@ import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
+import { buildPlaylistViewNavigationParams } from '../flows/navigationFlow';
+import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { gridPaginationConfig } from './GridPagination';
@@ -259,12 +261,11 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		navigationController.push(
 			PlaylistView,
-			{
+			buildPlaylistViewNavigationParams({
 				animationsEnabled,
 				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache,
-				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
 				navBarContext: this.viewModel.navBarContext,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				onNavigateToArtist,
@@ -274,7 +275,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				playlist,
 				playlistEditService: this.viewModel.playlistEditService,
 				transport,
-			},
+			}),
 			{},
 			{ animated: animationsEnabled },
 		);
@@ -316,13 +317,12 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			return;
 		}
 
-		const playlist = await createPlaylistFn(name);
-		const addAll = tracks.reduce<Promise<void>>(
-			(chain, track) =>
-				chain.then(() => this.viewModel.transport.addItemToPlaylist?.(playlist.id, track.id)),
-			Promise.resolve(),
+		await createPlaylistAndAddTracks(
+			name,
+			createPlaylistFn,
+			this.viewModel.transport.addItemToPlaylist?.bind(this.viewModel.transport),
+			tracks,
 		);
-		await addAll;
 		this.pendingCreatePlaylistTracks = null;
 		this.setState({ createPlaylistTracks: null });
 	};

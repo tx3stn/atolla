@@ -17,6 +17,8 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
+import { buildGenreViewNavigationParams } from '../flows/navigationFlow';
+import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { GenreView } from './GenreView';
@@ -56,6 +58,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	private currentPage = 0;
 	private hasBeenDestroyed = false;
 	private isLoadingPage = false;
+	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 
@@ -181,9 +184,81 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		}
 	};
 
-	onRender(): void {
+	private navigateToGenre = (genre: Genre): void => {
 		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
 			this.viewModel;
+		this.viewModel.onNavigationContext?.({ genre, kind: 'genre' });
+		this.viewModel.onHeaderVisibilityChange?.(false);
+		navigationController.push(
+			GenreView,
+			buildGenreViewNavigationParams({
+				animationsEnabled,
+				downloadService: this.viewModel.downloadService,
+				genre,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache,
+				navBarContext: this.viewModel.navBarContext,
+				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+				onNavigateToArtist: this.viewModel.onNavigateToArtist,
+				playbackStore,
+				transport,
+			}),
+			{},
+			{ animated: animationsEnabled },
+		);
+	};
+
+	private handleGenreCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const genre = this.state.genres.find((candidate) => candidate.id === card.id);
+		if (!genre) return;
+		this.navigateToGenre(genre);
+	};
+
+	private handleContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
+		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
+	};
+
+	private handleContextMenuEntityTap = (): void => {
+		const card = this.state.contextMenuCard;
+		if (!card || card.kind !== 'genre') return;
+		this.navigateToGenre(card.genre);
+	};
+
+	private handleCreatePlaylistRequest = (tracks: Array<Track>): void => {
+		this.pendingCreatePlaylistTracks = tracks;
+		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
+	};
+
+	private handleAddToPlaylistDismiss = (): void => {
+		this.setState({ addToPlaylistTracks: null });
+	};
+
+	private handleCreatePlaylistCancel = (): void => {
+		this.pendingCreatePlaylistTracks = null;
+		this.setState({ createPlaylistTracks: null });
+	};
+
+	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
+		const createPlaylistFn = this.viewModel.transport.createPlaylist?.bind(
+			this.viewModel.transport,
+		);
+		const tracks = this.pendingCreatePlaylistTracks;
+		if (!createPlaylistFn || !tracks) return;
+		await createPlaylistAndAddTracks(
+			name,
+			createPlaylistFn,
+			this.viewModel.transport.addItemToPlaylist?.bind(this.viewModel.transport),
+			tracks,
+		);
+		this.pendingCreatePlaylistTracks = null;
+		this.setState({ createPlaylistTracks: null });
+	};
+
+	onRender(): void {
+		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
 		const { contextMenuCard, addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
 		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 		let genres = this.state.genres;
@@ -213,32 +288,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 					infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 					isLoadingMore={this.state.isLoadingNextPage}
 					onCardLongPress={this.handleGenreCardLongPress}
-					onCardTap={(card) => {
-						const genre = this.state.genres.find((candidate) => candidate.id === card.id);
-						if (!genre) {
-							return;
-						}
-
-						this.viewModel.onNavigationContext?.({ genre, kind: 'genre' });
-						this.viewModel.onHeaderVisibilityChange?.(false);
-						navigationController.push(
-							GenreView,
-							{
-								animationsEnabled,
-								downloadService: this.viewModel.downloadService,
-								genre,
-								imageCache,
-								modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-								navBarContext: this.viewModel.navBarContext,
-								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-								onNavigateToArtist: this.viewModel.onNavigateToArtist,
-								playbackStore,
-								transport,
-							},
-							{},
-							{ animated: animationsEnabled },
-						);
-					}}
+					onCardTap={this.handleGenreCardTap}
 					onLoadMore={
 						this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
 					}
@@ -250,39 +300,10 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 					animationsEnabled={animationsEnabled}
 					card={contextMenuCard}
 					imageCache={imageCache}
-					onAddToPlaylist={(tracks) => {
-						this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
-					}}
-					onCreatePlaylist={
-						createPlaylistFn
-							? (tracks) => {
-									this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
-								}
-							: undefined
-					}
+					onAddToPlaylist={this.handleContextMenuAddToPlaylist}
+					onCreatePlaylist={createPlaylistFn ? this.handleCreatePlaylistRequest : undefined}
 					onDismiss={this.handleContextMenuDismiss}
-					onEntityTap={() => {
-						const { genre } = contextMenuCard;
-						this.viewModel.onNavigationContext?.({ genre, kind: 'genre' });
-						this.viewModel.onHeaderVisibilityChange?.(false);
-						navigationController.push(
-							GenreView,
-							{
-								animationsEnabled,
-								downloadService: this.viewModel.downloadService,
-								genre,
-								imageCache,
-								modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-								navBarContext: this.viewModel.navBarContext,
-								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-								onNavigateToArtist: this.viewModel.onNavigateToArtist,
-								playbackStore,
-								transport,
-							},
-							{},
-							{ animated: animationsEnabled },
-						);
-					}}
+					onEntityTap={this.handleContextMenuEntityTap}
 					playbackStore={playbackStore}
 					transport={transport}
 				/>
@@ -292,30 +313,15 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 					animationsEnabled={animationsEnabled}
 					gridColumns={this.viewModel.gridColumns}
 					imageCache={imageCache}
-					onDismiss={() => {
-						this.setState({ addToPlaylistTracks: null });
-					}}
+					onDismiss={this.handleAddToPlaylistDismiss}
 					tracks={addToPlaylistTracks}
 					transport={transport}
 				/>
 			)}
 			{createPlaylistTracks && createPlaylistFn && (
 				<CreatePlaylistModal
-					onCancel={() => {
-						this.setState({ createPlaylistTracks: null });
-					}}
-					onCreate={(name) => {
-						return createPlaylistFn(name).then((playlist) => {
-							const addAll = createPlaylistTracks.reduce<Promise<void>>(
-								(chain, track) =>
-									chain.then(() => transport.addItemToPlaylist?.(playlist.id, track.id)),
-								Promise.resolve(),
-							);
-							return addAll.then(() => {
-								this.setState({ createPlaylistTracks: null });
-							});
-						});
-					}}
+					onCancel={this.handleCreatePlaylistCancel}
+					onCreate={this.handleCreatePlaylistConfirm}
 				/>
 			)}
 			{toastMessage && <Toast message={toastMessage} />}

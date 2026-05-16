@@ -26,6 +26,7 @@ import { LoadingView } from '../components/LoadingView';
 import { Modal } from '../components/Modal';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { closeSlot } from '../flows/modalSlotFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { AlbumView } from './AlbumView';
@@ -163,10 +164,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	private closeModalSlot = (): void => {
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		modalSlot?.slotted(this.renderEmptySlot);
+		closeSlot(modalSlot);
 	};
-
-	private renderEmptySlot = (): void => {};
 
 	private handleContextMenuAddToPlaylist = (): void => {
 		const track = this.state.contextMenuTrack;
@@ -368,7 +367,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		if (!playlistEditService || !trackId) return;
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { removedTrackPending } = this.state;
-		modalSlot?.slotted(this.renderEmptySlot);
+		closeSlot(modalSlot);
 		this.setState({ removedTrackPending: null });
 		void playlistEditService
 			.execute(
@@ -408,7 +407,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private handleCancelRemoveFromPlaylist = (): void => {
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { removedTrackPending } = this.state;
-		modalSlot?.slotted(this.renderEmptySlot);
+		closeSlot(modalSlot);
 
 		if (!removedTrackPending) return;
 

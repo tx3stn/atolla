@@ -277,6 +277,48 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		this.setState({ showImageCacheOptions: false });
 	};
 
+	private handleAnimationsToggle = (enabled: boolean): void => {
+		this.viewModel.onAnimationsChange?.(enabled);
+	};
+
+	private handleDeviceIdInputChange = (value: unknown): void => {
+		this.viewModel.onJellyfinDeviceIdOverrideChange?.(normalizeInputValue(value));
+	};
+
+	private gridColumnOptionTapHandlers = new Map<number, () => void>();
+	private imageCacheOptionTapHandlers = new Map<number, () => void>();
+	private trackCacheOptionTapHandlers = new Map<number, () => void>();
+
+	private getGridColumnOptionTapHandler = (option: number): (() => void) => {
+		const existing = this.gridColumnOptionTapHandlers.get(option);
+		if (existing) return existing;
+		const handler = (): void => {
+			this.handleGridColumnsSelect(option);
+		};
+		this.gridColumnOptionTapHandlers.set(option, handler);
+		return handler;
+	};
+
+	private getImageCacheOptionTapHandler = (option: number): (() => void) => {
+		const existing = this.imageCacheOptionTapHandlers.get(option);
+		if (existing) return existing;
+		const handler = (): void => {
+			this.handleImageCacheSelect(option);
+		};
+		this.imageCacheOptionTapHandlers.set(option, handler);
+		return handler;
+	};
+
+	private getTrackCacheOptionTapHandler = (option: number): (() => void) => {
+		const existing = this.trackCacheOptionTapHandlers.get(option);
+		if (existing) return existing;
+		const handler = (): void => {
+			this.handleTrackCacheLimitSelect(option);
+		};
+		this.trackCacheOptionTapHandlers.set(option, handler);
+		return handler;
+	};
+
 	private handleLanguagePress = () => {
 		const selectedLanguage = this.viewModel.selectedLanguage ?? DEFAULT_LANGUAGE;
 		this.viewModel.modalSlot?.slotted(() => {
@@ -307,8 +349,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			imageCacheDiskBytes,
 			imageCacheDiskCount,
 			jellyfinDeviceIdOverride,
-			onAnimationsChange,
-			onJellyfinDeviceIdOverrideChange,
 			serverUrl,
 			trackCacheMaxTracks,
 		} = this.viewModel;
@@ -335,7 +375,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 							<Toggle
 								accessibilityId='settings-animations-toggle'
 								enabled={animationsEnabled}
-								onToggle={(enabled) => onAnimationsChange?.(enabled)}
+								onToggle={this.handleAnimationsToggle}
 							/>
 						</view>
 						<view style={styles.trackCacheLimitContainer}>
@@ -354,7 +394,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								{GRID_COLUMN_OPTIONS.map((option) => (
 									<view
 										accessibilityId={`settings-grid-columns-option-${option}`}
-										onTap={() => this.handleGridColumnsSelect(option)}
+										onTap={this.getGridColumnOptionTapHandler(option)}
 										style={
 											option === selectedGridColumns
 												? styles.trackCacheLimitOptionSelected
@@ -385,9 +425,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 									accessibilityId='settings-jellyfin-device-id-input'
 									accessibilityLabel='settings-jellyfin-device-id-input'
 									autocapitalization='none'
-									onChange={(value: unknown) => {
-										onJellyfinDeviceIdOverrideChange?.(normalizeInputValue(value));
-									}}
+									onChange={this.handleDeviceIdInputChange}
 									placeholder={defaultJellyfinDeviceId ?? Strings.settingsDeviceIdPlaceholder()}
 									style={styles.authDeviceIdInput}
 									value={jellyfinDeviceIdOverride ?? ''}
@@ -422,7 +460,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								{IMAGE_CACHE_SIZE_OPTIONS.map((option) => (
 									<view
 										accessibilityId={`settings-image-cache-size-option-${option}`}
-										onTap={() => this.handleImageCacheSelect(option)}
+										onTap={this.getImageCacheOptionTapHandler(option)}
 										style={
 											option === selectedImageCacheSize
 												? styles.trackCacheLimitOptionSelected
@@ -464,7 +502,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								{TRACK_CACHE_LIMIT_OPTIONS.map((option) => (
 									<view
 										accessibilityId={`settings-track-cache-limit-option-${option}`}
-										onTap={() => this.handleTrackCacheLimitSelect(option)}
+										onTap={this.getTrackCacheOptionTapHandler(option)}
 										style={
 											option === selectedTrackCacheLimit
 												? styles.trackCacheLimitOptionSelected
