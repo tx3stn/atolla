@@ -254,6 +254,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache,
+				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
 				navBarContext: this.viewModel.navBarContext,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				onNavigateToArtist,

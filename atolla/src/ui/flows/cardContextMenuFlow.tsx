@@ -4,7 +4,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Transport } from '../../transports/Transport';
 import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
-import { openSlot } from './modalSlotFlow';
+import { closeSlot, openSlot } from './modalSlotFlow';
 
 export interface OpenCardContextMenuOptions {
 	animationsEnabled: boolean;
@@ -23,6 +23,11 @@ export function openCardContextMenu(
 	modalSlot: DetachedSlot | undefined,
 	options: OpenCardContextMenuOptions,
 ): void {
+	const dismiss = (toastMessage?: string): void => {
+		closeSlot(modalSlot);
+		options.onDismiss(toastMessage);
+	};
+
 	openSlot(modalSlot, () => {
 		<CardContextMenu
 			animationsEnabled={options.animationsEnabled}
@@ -31,7 +36,7 @@ export function openCardContextMenu(
 			onAddToPlaylist={options.onAddToPlaylist}
 			onArtistTap={options.onArtistTap}
 			onCreatePlaylist={options.transport.createPlaylist ? options.onCreatePlaylist : undefined}
-			onDismiss={options.onDismiss}
+			onDismiss={dismiss}
 			onEntityTap={options.onEntityTap}
 			playbackStore={options.playbackStore}
 			transport={options.transport}

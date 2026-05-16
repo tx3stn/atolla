@@ -1,6 +1,7 @@
 import { AlbumDetailPage } from '../pages/AlbumDetailPage';
 import { ArtistDetailPage } from '../pages/ArtistDetailPage';
 import { FooterPage } from '../pages/Footer';
+import { GenreDetailPage } from '../pages/GenreDetailPage';
 import { LibraryPage } from '../pages/LibraryPage';
 import { PlaylistDetailPage } from '../pages/PlaylistDetailPage';
 import { SearchPage } from '../pages/SearchPage';
@@ -80,6 +81,24 @@ const scenarios: Array<Scenario> = [
 		openMenu: async () => {
 			const searchPage = new SearchPage(browser);
 			await searchPage.openTrackContextMenuOnFirstVisibleTrackRow();
+		},
+	},
+	{
+		label: 'genre detail',
+		navigate: async () => {
+			const footer = new FooterPage(browser);
+			await footer.tapLibrary();
+			const library = new LibraryPage(browser);
+			await library.waitForLoad();
+			await library.openGenresTab();
+			await library.tabs.genres.waitForLoad();
+			await library.tabs.genres.tapFirstVisibleCard();
+			const genreDetail = new GenreDetailPage(browser);
+			await genreDetail.waitForTrackRowsVisible();
+		},
+		openMenu: async () => {
+			const genreDetail = new GenreDetailPage(browser);
+			await genreDetail.openTrackContextMenuOnFirstVisibleRow();
 		},
 	},
 ];

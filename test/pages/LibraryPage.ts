@@ -2,11 +2,13 @@ import type { Browser } from 'webdriverio';
 import { BasePage } from './Base';
 import { LibraryAlbumsTabPage } from './LibraryAlbumsTabPage';
 import { LibraryArtistsTabPage } from './LibraryArtistsTabPage';
+import { LibraryGenresTabPage } from './LibraryGenresTabPage';
 import { LibraryPlaylistsTabPage } from './LibraryPlaylistsTabPage';
 
 interface LibraryTabs {
 	albums: LibraryAlbumsTabPage;
 	artists: LibraryArtistsTabPage;
+	genres: LibraryGenresTabPage;
 	playlists: LibraryPlaylistsTabPage;
 }
 
@@ -15,6 +17,7 @@ export class LibraryPage extends BasePage {
 
 	private readonly albumsHeaderTab = 'header-tab-albums';
 	private readonly artistsHeaderTab = 'header-tab-artists';
+	private readonly genresHeaderTab = 'header-tab-genres';
 	private readonly playlistsHeaderTab = 'header-tab-playlists';
 
 	constructor(driver: Browser) {
@@ -22,6 +25,7 @@ export class LibraryPage extends BasePage {
 		this.tabs = {
 			albums: new LibraryAlbumsTabPage(driver),
 			artists: new LibraryArtistsTabPage(driver),
+			genres: new LibraryGenresTabPage(driver),
 			playlists: new LibraryPlaylistsTabPage(driver),
 		};
 	}
@@ -50,6 +54,13 @@ export class LibraryPage extends BasePage {
 		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for artists header tab' });
 		await el.click();
 		await this.tabs.artists.waitForLoad();
+	}
+
+	async openGenresTab(): Promise<void> {
+		const el = this.elementByID(this.genresHeaderTab);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for genres header tab' });
+		await el.click();
+		await this.tabs.genres.waitForLoad();
 	}
 
 	async openPlaylistsTab(): Promise<void> {

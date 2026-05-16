@@ -141,6 +141,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	}): void => {
 		const genre = this.state.genres.find((candidate) => candidate.id === card.id);
 		if (!genre) return;
+		this.setState({ contextMenuCard: { genre, kind: 'genre' } });
 		openCardContextMenu(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.animationsEnabled,
 			card: { genre, kind: 'genre' },
@@ -182,6 +183,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 				genre,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache,
+				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
 				navBarContext: this.viewModel.navBarContext,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				onNavigateToArtist: this.viewModel.onNavigateToArtist,

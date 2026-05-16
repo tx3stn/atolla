@@ -42,6 +42,7 @@
 		"test:e2e": "E2E_ANDROID_APP_PATH=$PWD/build/atolla_android.apk E2E_IOS_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./test/wdio.conf.parallel.ts",
 		"test:e2e:android": "E2E_APP_PATH=$PWD/build/atolla_android.apk wdio run ./test/wdio.conf.ts",
 		"test:e2e:ios": "E2E_PLATFORM=iOS E2E_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./test/wdio.conf.ts",
+		"test:e2e:smoke": "E2E_ANDROID_APP_PATH=$PWD/build/atolla_android.apk E2E_IOS_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./test/wdio.conf.parallel.ts --spec test/smoke",
 		"test:zig": "./.scripts/test-zig.sh"
 	},
 	"version": "0.0.1"

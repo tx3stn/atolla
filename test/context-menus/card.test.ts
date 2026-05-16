@@ -85,6 +85,21 @@ const scenarios: Array<Scenario> = [
 			await homePage.longPressFirstVisibleAlbumCard();
 		},
 	},
+	{
+		label: 'library genres grid',
+		navigate: async () => {
+			const footer = new FooterPage(browser);
+			await footer.tapLibrary();
+			const library = new LibraryPage(browser);
+			await library.waitForLoad();
+			await library.openGenresTab();
+			await library.tabs.genres.waitForLoad();
+		},
+		openMenu: async () => {
+			const library = new LibraryPage(browser);
+			await library.tabs.genres.longPressFirstVisibleCard();
+		},
+	},
 ];
 
 for (const scenario of scenarios) {
