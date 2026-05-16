@@ -1,3 +1,4 @@
+/** biome-ignore-all assist/source/useSortedKeys: **/
 import { AlbumDetailPage } from '../pages/AlbumDetailPage';
 import { ArtistDetailPage } from '../pages/ArtistDetailPage';
 import { FooterPage } from '../pages/Footer';
@@ -6,17 +7,12 @@ import { LibraryPage } from '../pages/LibraryPage';
 import { PlaylistDetailPage } from '../pages/PlaylistDetailPage';
 import { SearchPage } from '../pages/SearchPage';
 import { TrackContextMenu } from '../pages/TrackContextModal';
-
-interface Scenario {
-	label: string;
-	navigate: () => Promise<void>;
-	openMenu: () => Promise<void>;
-}
+import type { Scenario } from '../utils/table';
 
 const scenarios: Array<Scenario> = [
 	{
 		label: 'album detail',
-		navigate: async () => {
+		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
@@ -27,14 +23,14 @@ const scenarios: Array<Scenario> = [
 			const albumDetail = new AlbumDetailPage(browser);
 			await albumDetail.waitForTrackRowsVisible();
 		},
-		openMenu: async () => {
+		act: async () => {
 			const albumDetail = new AlbumDetailPage(browser);
 			await albumDetail.openTrackContextMenuOnFirstVisibleRow();
 		},
 	},
 	{
 		label: 'playlist detail',
-		navigate: async () => {
+		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
@@ -45,14 +41,14 @@ const scenarios: Array<Scenario> = [
 			const playlistDetail = new PlaylistDetailPage(browser);
 			await playlistDetail.waitForTrackRowsVisible();
 		},
-		openMenu: async () => {
+		act: async () => {
 			const playlistDetail = new PlaylistDetailPage(browser);
 			await playlistDetail.openTrackContextMenuOnFirstVisibleRow();
 		},
 	},
 	{
 		label: 'artist detail',
-		navigate: async () => {
+		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
@@ -63,14 +59,14 @@ const scenarios: Array<Scenario> = [
 			const artistDetail = new ArtistDetailPage(browser);
 			await artistDetail.waitForTrackRowsVisible();
 		},
-		openMenu: async () => {
+		act: async () => {
 			const artistDetail = new ArtistDetailPage(browser);
 			await artistDetail.openTrackContextMenuOnFirstVisibleRow();
 		},
 	},
 	{
 		label: 'search results',
-		navigate: async () => {
+		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapSearch();
 			const searchPage = new SearchPage(browser);
@@ -78,14 +74,14 @@ const scenarios: Array<Scenario> = [
 			await searchPage.enterSearchQuery('bod');
 			await searchPage.waitForTrackResults();
 		},
-		openMenu: async () => {
+		act: async () => {
 			const searchPage = new SearchPage(browser);
 			await searchPage.openTrackContextMenuOnFirstVisibleTrackRow();
 		},
 	},
 	{
 		label: 'genre detail',
-		navigate: async () => {
+		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
@@ -96,19 +92,19 @@ const scenarios: Array<Scenario> = [
 			const genreDetail = new GenreDetailPage(browser);
 			await genreDetail.waitForTrackRowsVisible();
 		},
-		openMenu: async () => {
+		act: async () => {
 			const genreDetail = new GenreDetailPage(browser);
 			await genreDetail.openTrackContextMenuOnFirstVisibleRow();
 		},
 	},
 ];
 
-for (const scenario of scenarios) {
-	describe(`track context menu from ${scenario.label}`, () => {
-		before(() => scenario.navigate());
+for (const testCase of scenarios) {
+	describe(`track context menu from ${testCase.label}`, () => {
+		before(() => testCase.arrange());
 
 		it('opens the context menu on long press', async () => {
-			await scenario.openMenu();
+			await testCase.act();
 			const menu = new TrackContextMenu(browser);
 			await menu.waitForVisible();
 			await menu.tapBackdrop();
@@ -116,7 +112,7 @@ for (const scenario of scenarios) {
 		});
 
 		it('dismisses when the backdrop is tapped', async () => {
-			await scenario.openMenu();
+			await testCase.act();
 			const menu = new TrackContextMenu(browser);
 			await menu.waitForVisible();
 			await menu.tapBackdrop();
@@ -124,19 +120,35 @@ for (const scenario of scenarios) {
 		});
 
 		it('dismisses after adding to queue', async () => {
-			await scenario.openMenu();
+			await testCase.act();
 			const menu = new TrackContextMenu(browser);
 			await menu.waitForVisible();
 			await menu.tapAddToQueue();
 			await menu.waitForHidden();
+			// TODO: assert item is actually added to queue
 		});
 
 		it('dismisses after play next', async () => {
-			await scenario.openMenu();
+			await testCase.act();
 			const menu = new TrackContextMenu(browser);
 			await menu.waitForVisible();
 			await menu.tapPlayNext();
 			await menu.waitForHidden();
+			// TODO: assert item is actually added to play next
 		});
+
+		// it('opens the artist when tapping on the artist header', async () => {
+		// 	await testCase.act();
+		// 	const menu = new TrackContextMenu(browser);
+		// 	await menu.waitForVisible();
+		// 	// TODO: assert artist navigation
+		// });
+		//
+		// it('opens the album when tapping on the album track row', async () => {
+		// 	await testCase.act();
+		// 	const menu = new TrackContextMenu(browser);
+		// 	await menu.waitForHidden();
+		// 	// TODO: assert artist navigation
+		// });
 	});
 }

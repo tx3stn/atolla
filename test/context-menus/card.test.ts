@@ -1,19 +1,15 @@
+/** biome-ignore-all assist/source/useSortedKeys: **/
 import { CardContextMenuPage } from '../pages/CardContextMenuPage';
 import { FooterPage } from '../pages/Footer';
 import { HomePage } from '../pages/HomePage';
 import { LibraryPage } from '../pages/LibraryPage';
 import { SearchPage } from '../pages/SearchPage';
-
-interface Scenario {
-	label: string;
-	navigate: () => Promise<void>;
-	openMenu: () => Promise<void>;
-}
+import type { Scenario } from '../utils/table';
 
 const scenarios: Array<Scenario> = [
 	{
 		label: 'library albums grid',
-		navigate: async () => {
+		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
@@ -21,14 +17,14 @@ const scenarios: Array<Scenario> = [
 			await library.openAlbumsTab();
 			await library.tabs.albums.waitForLoad();
 		},
-		openMenu: async () => {
+		act: async () => {
 			const library = new LibraryPage(browser);
 			await library.tabs.albums.longPressFirstVisibleCard();
 		},
 	},
 	{
 		label: 'library artists grid',
-		navigate: async () => {
+		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
@@ -36,14 +32,14 @@ const scenarios: Array<Scenario> = [
 			await library.openArtistsTab();
 			await library.tabs.artists.waitForLoad();
 		},
-		openMenu: async () => {
+		act: async () => {
 			const library = new LibraryPage(browser);
 			await library.tabs.artists.longPressFirstVisibleCard();
 		},
 	},
 	{
 		label: 'library playlists grid',
-		navigate: async () => {
+		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
@@ -51,14 +47,14 @@ const scenarios: Array<Scenario> = [
 			await library.openPlaylistsTab();
 			await library.tabs.playlists.waitForLoad();
 		},
-		openMenu: async () => {
+		act: async () => {
 			const library = new LibraryPage(browser);
 			await library.tabs.playlists.longPressFirstVisibleCard();
 		},
 	},
 	{
 		label: 'search results',
-		navigate: async () => {
+		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapSearch();
 			const searchPage = new SearchPage(browser);
@@ -66,28 +62,28 @@ const scenarios: Array<Scenario> = [
 			await searchPage.enterSearchQuery('a');
 			await searchPage.waitForCardResults();
 		},
-		openMenu: async () => {
+		act: async () => {
 			const searchPage = new SearchPage(browser);
 			await searchPage.longPressFirstVisibleCard();
 		},
 	},
 	{
 		label: 'home',
-		navigate: async () => {
+		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapHome();
 			const homePage = new HomePage(browser);
 			await homePage.waitForLoad();
 			await homePage.waitForAlbumCards();
 		},
-		openMenu: async () => {
+		act: async () => {
 			const homePage = new HomePage(browser);
 			await homePage.longPressFirstVisibleAlbumCard();
 		},
 	},
 	{
 		label: 'library genres grid',
-		navigate: async () => {
+		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
@@ -95,7 +91,7 @@ const scenarios: Array<Scenario> = [
 			await library.openGenresTab();
 			await library.tabs.genres.waitForLoad();
 		},
-		openMenu: async () => {
+		act: async () => {
 			const library = new LibraryPage(browser);
 			await library.tabs.genres.longPressFirstVisibleCard();
 		},
@@ -104,10 +100,10 @@ const scenarios: Array<Scenario> = [
 
 for (const scenario of scenarios) {
 	describe(`card context menu from ${scenario.label}`, () => {
-		before(() => scenario.navigate());
+		before(() => scenario.arrange());
 
 		it('opens the context menu on long press', async () => {
-			await scenario.openMenu();
+			await scenario.act();
 			const menu = new CardContextMenuPage(browser);
 			await menu.waitForVisible();
 			await menu.tapBackdrop();
@@ -115,7 +111,7 @@ for (const scenario of scenarios) {
 		});
 
 		it('dismisses when the backdrop is tapped', async () => {
-			await scenario.openMenu();
+			await scenario.act();
 			const menu = new CardContextMenuPage(browser);
 			await menu.waitForVisible();
 			await menu.tapBackdrop();
@@ -123,7 +119,7 @@ for (const scenario of scenarios) {
 		});
 
 		it('dismisses after play', async () => {
-			await scenario.openMenu();
+			await scenario.act();
 			const menu = new CardContextMenuPage(browser);
 			await menu.waitForVisible();
 			await menu.tapPlay();
@@ -131,7 +127,7 @@ for (const scenario of scenarios) {
 		});
 
 		it('dismisses after adding to queue', async () => {
-			await scenario.openMenu();
+			await scenario.act();
 			const menu = new CardContextMenuPage(browser);
 			await menu.waitForVisible();
 			await menu.tapAddToQueue();
@@ -139,7 +135,7 @@ for (const scenario of scenarios) {
 		});
 
 		it('dismisses after play next', async () => {
-			await scenario.openMenu();
+			await scenario.act();
 			const menu = new CardContextMenuPage(browser);
 			await menu.waitForVisible();
 			await menu.tapPlayNext();

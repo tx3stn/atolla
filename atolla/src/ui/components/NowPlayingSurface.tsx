@@ -81,6 +81,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private expandedScrollRef = new ElementRef();
 	private transitionArtworkRef = new ElementRef();
 	private scrollArtworkRef = new ElementRef();
+	private scrollArtworkStyle = styles.expandedScrollArtwork;
 	private compactFillRef = new ElementRef();
 	private compactTimeLabelRef = new ElementRef();
 	private expandedElapsedRef = new ElementRef();
@@ -182,6 +183,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					setAtollaStatusBarColor(this.viewModel.palette?.surface.hex ?? paletteDefaults.surface);
 				}
 				this.transitionArtworkRef.setAttribute('opacity', 0);
+				this.scrollArtworkStyle = styles.expandedScrollArtworkVisible;
 				this.scrollArtworkRef.setAttribute('opacity', 1);
 				this.isTransitioning = false;
 			});
@@ -204,12 +206,8 @@ export class NowPlayingSurface extends StatefulComponent<
 			this.rebuildPaletteStyles(this.viewModel.palette, this.state.activeQueueTab);
 		}
 
-		if (Device.isAndroid() && this.state.isExpanded) {
-			const prev = prevViewModel.palette?.surface.hex;
-			const curr = this.viewModel.palette?.surface.hex;
-			if (curr !== prev) {
-				setAtollaStatusBarColor(curr ?? paletteDefaults.surface);
-			}
+		if (Device.isAndroid() && this.state.isExpanded && !this.isTransitioning) {
+			setAtollaStatusBarColor(this.viewModel.palette?.surface.hex ?? paletteDefaults.surface);
 		}
 
 		if (this.viewModel.collapseSignal === prevViewModel.collapseSignal) {
@@ -278,6 +276,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		this.isTransitioning = true;
+		this.scrollArtworkStyle = styles.expandedScrollArtwork;
 		this.scrollArtworkRef.setAttribute('opacity', 0);
 		this.transitionArtworkRef.setAttribute('opacity', 1);
 
@@ -335,6 +334,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.expandedContentRef.setAttribute('opacity', 0);
 		this.expandedContentRef.setAttribute('right', 14);
 		this.expandedContentRef.setAttribute('top', 0);
+		this.scrollArtworkStyle = styles.expandedScrollArtwork;
 		this.scrollArtworkRef.setAttribute('opacity', 0);
 		this.transitionArtworkRef.setAttribute('left', 12);
 		this.transitionArtworkRef.setAttribute('marginTop', 0);
@@ -692,7 +692,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											objectFit='cover'
 											ref={this.scrollArtworkRef}
 											src={albumArtworkSource}
-											style={styles.expandedScrollArtwork}
+											style={this.scrollArtworkStyle}
 										/>
 									</view>
 								)}
@@ -1193,6 +1193,10 @@ const styles = {
 	expandedScrollArtwork: new Style<ImageView>({
 		aspectRatio: 1,
 		opacity: 0,
+		width: '100%',
+	}),
+	expandedScrollArtworkVisible: new Style<ImageView>({
+		aspectRatio: 1,
 		width: '100%',
 	}),
 	expandedTimeRow: new Style<Layout>({
