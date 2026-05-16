@@ -13,12 +13,13 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
+import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
+import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
@@ -73,11 +74,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private allArtists: Array<Artist> | null = null;
 	private hasBeenDestroyed = false;
 	private readonly pagedGridController = createPagedGridController<Artist>({
-		appendItems: (current, pageItems, isFirstPage) =>
-			isFirstPage ? pageItems : [...current, ...pageItems],
 		fetchPage: (page) => this.fetchPage(page),
-		getHasMore: () => this.state.hasMore,
-		getItems: () => this.state.artists,
 		isDestroyed: () => this.hasBeenDestroyed,
 		onPageLoaded: (items) => this.preloadArtistImages(items),
 		setState: (patch) => {
@@ -226,6 +223,20 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		const artist = this.state.artists.find((candidate) => candidate.id === card.id);
 		if (!artist) return;
 		this.setState({ contextMenuCard: { artist, kind: 'artist' } });
+		openCardContextMenu(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			card: { artist, kind: 'artist' },
+			imageCache: this.viewModel.imageCache,
+			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
+			onArtistTap: this.handleContextMenuArtistTap,
+			onCreatePlaylist: this.viewModel.transport.createPlaylist
+				? this.handleCreatePlaylistRequest
+				: undefined,
+			onDismiss: this.handleContextMenuDismiss,
+			onEntityTap: this.handleContextMenuEntityTap,
+			playbackStore: this.viewModel.playbackStore,
+			transport: this.viewModel.transport,
+		});
 	};
 
 	handleContextMenuDismiss = (toastMessage?: string): void => {
@@ -357,8 +368,8 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	onRender(): void {
-		const { imageCache, animationsEnabled, playbackStore, transport } = this.viewModel;
-		const { contextMenuCard, addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
+		const { imageCache, animationsEnabled, transport } = this.viewModel;
+		const { addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
 		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 
 		const artists = this.getDisplayArtists();
@@ -386,20 +397,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 				/>
 			</scroll>
-			{contextMenuCard && contextMenuCard.kind === 'artist' && (
-				<CardContextMenu
-					animationsEnabled={animationsEnabled}
-					card={contextMenuCard}
-					imageCache={imageCache}
-					onAddToPlaylist={this.handleContextMenuAddToPlaylist}
-					onArtistTap={this.handleContextMenuArtistTap}
-					onCreatePlaylist={createPlaylistFn ? this.handleCreatePlaylistRequest : undefined}
-					onDismiss={this.handleContextMenuDismiss}
-					onEntityTap={this.handleContextMenuEntityTap}
-					playbackStore={playbackStore}
-					transport={transport}
-				/>
-			)}
+
 			{addToPlaylistTracks && (
 				<AddToPlaylistView
 					animationsEnabled={animationsEnabled}

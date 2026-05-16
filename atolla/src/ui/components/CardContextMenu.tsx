@@ -433,6 +433,8 @@ const styles = {
 	}),
 	entityLabel: new Style<Label>({
 		...theme.text.main,
+		flexGrow: 1,
+		flexShrink: 1,
 	}),
 	entityRow: new Style({
 		alignItems: 'center' as const,
@@ -440,7 +442,7 @@ const styles = {
 		marginBottom: 4,
 		paddingBottom: 8,
 		paddingLeft: 10,
-		paddingRight: 10,
+		paddingRight: 12,
 		paddingTop: 8,
 		width: '100%',
 	}),

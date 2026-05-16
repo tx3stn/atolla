@@ -13,12 +13,13 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
+import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
+import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
@@ -74,11 +75,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	private allAlbums: Array<Album> | null = null;
 	private hasBeenDestroyed = false;
 	private readonly pagedGridController = createPagedGridController<Album>({
-		appendItems: (current, pageItems, isFirstPage) =>
-			isFirstPage ? pageItems : [...current, ...pageItems],
 		fetchPage: (page) => this.fetchPage(page),
-		getHasMore: () => this.state.hasMore,
-		getItems: () => this.state.albums,
 		isDestroyed: () => this.hasBeenDestroyed,
 		onPageLoaded: (items) => this.preloadAlbumImages(items),
 		setState: (patch) => {
@@ -224,6 +221,58 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		const album = this.state.albums.find((candidate) => candidate.id === card.id);
 		if (!album) return;
 		this.setState({ contextMenuCard: { album, kind: 'album' } });
+		const {
+			animationsEnabled,
+			imageCache,
+			navigationController,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
+		openCardContextMenu(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, {
+			animationsEnabled,
+			card: { album, kind: 'album' },
+			imageCache,
+			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
+			onArtistTap: album.artistId
+				? () => {
+						this.handleContextMenuDismiss();
+						transport.getArtist(album.artistId).then((artist) => {
+							const resolvedArtist = artist ?? {
+								id: album.artistId,
+								name: album.artistName,
+							};
+							navigationController.push(
+								ArtistView,
+								{
+									animationsEnabled,
+									artist: resolvedArtist,
+									downloadService: this.viewModel.downloadService,
+									gridColumns: this.viewModel.gridColumns,
+									imageCache,
+									isHeaderVisible: false,
+									modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
+									navBarContext: this.viewModel.navBarContext,
+									onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+									paletteQueue,
+									playbackStore,
+									restoreHeaderOnDestroy: false,
+									transport,
+								},
+								{},
+								{ animated: animationsEnabled },
+							);
+						});
+					}
+				: undefined,
+			onCreatePlaylist: this.viewModel.transport.createPlaylist
+				? this.handleCreatePlaylistRequest
+				: undefined,
+			onDismiss: this.handleContextMenuDismiss,
+			onEntityTap: this.handleContextMenuEntityTap,
+			playbackStore,
+			transport,
+		});
 	};
 
 	handleContextMenuDismiss = (toastMessage?: string): void => {
@@ -385,15 +434,8 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	onRender(): void {
-		const {
-			imageCache,
-			animationsEnabled,
-			navigationController,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
-		const { contextMenuCard, addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
+		const { imageCache, animationsEnabled, transport } = this.viewModel;
+		const { addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
 		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 
 		const albums = this.getDisplayAlbums();
@@ -421,54 +463,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 				/>
 			</scroll>
-			{contextMenuCard && contextMenuCard.kind === 'album' && (
-				<CardContextMenu
-					animationsEnabled={animationsEnabled}
-					card={contextMenuCard}
-					imageCache={imageCache}
-					onAddToPlaylist={this.handleContextMenuAddToPlaylist}
-					onArtistTap={
-						contextMenuCard.kind === 'album' && contextMenuCard.album.artistId
-							? () => {
-									const { album } = contextMenuCard;
-									this.handleContextMenuDismiss();
-									transport.getArtist(album.artistId).then((artist) => {
-										const resolvedArtist = artist ?? {
-											id: album.artistId,
-											name: album.artistName,
-										};
-										navigationController.push(
-											ArtistView,
-											{
-												animationsEnabled,
-												artist: resolvedArtist,
-												downloadService: this.viewModel.downloadService,
-												gridColumns: this.viewModel.gridColumns,
-												imageCache,
-												isHeaderVisible: false,
-												modalSlot:
-													this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-												navBarContext: this.viewModel.navBarContext,
-												onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-												paletteQueue,
-												playbackStore,
-												restoreHeaderOnDestroy: false,
-												transport,
-											},
-											{},
-											{ animated: animationsEnabled },
-										);
-									});
-								}
-							: undefined
-					}
-					onCreatePlaylist={createPlaylistFn ? this.handleCreatePlaylistRequest : undefined}
-					onDismiss={this.handleContextMenuDismiss}
-					onEntityTap={this.handleContextMenuEntityTap}
-					playbackStore={playbackStore}
-					transport={transport}
-				/>
-			)}
+
 			{addToPlaylistTracks && (
 				<AddToPlaylistView
 					animationsEnabled={animationsEnabled}

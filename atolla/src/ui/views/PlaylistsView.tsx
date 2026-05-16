@@ -14,12 +14,13 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
+import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
+import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
@@ -75,11 +76,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	private allPlaylists: Array<Playlist> | null = null;
 	private hasBeenDestroyed = false;
 	private readonly pagedGridController = createPagedGridController<Playlist>({
-		appendItems: (current, pageItems, isFirstPage) =>
-			isFirstPage ? pageItems : [...current, ...pageItems],
 		fetchPage: (page) => this.fetchPage(page),
-		getHasMore: () => this.state.hasMore,
-		getItems: () => this.state.playlists,
 		isDestroyed: () => this.hasBeenDestroyed,
 		onPageLoaded: (items) => this.preloadPlaylistImages(items),
 		setState: (patch) => {
@@ -198,6 +195,19 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		const playlist = this.state.playlists.find((candidate) => candidate.id === card.id);
 		if (!playlist) return;
 		this.setState({ contextMenuCard: { kind: 'playlist', playlist } });
+		openCardContextMenu(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			card: { kind: 'playlist', playlist },
+			imageCache: this.viewModel.imageCache,
+			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
+			onCreatePlaylist: this.viewModel.transport.createPlaylist
+				? this.handleCreatePlaylistRequest
+				: undefined,
+			onDismiss: this.handleContextMenuDismiss,
+			onEntityTap: this.handleContextMenuEntityTap,
+			playbackStore: this.viewModel.playbackStore,
+			transport: this.viewModel.transport,
+		});
 	};
 
 	handleContextMenuDismiss = (toastMessage?: string): void => {
@@ -306,8 +316,8 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	};
 
 	onRender(): void {
-		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
-		const { contextMenuCard, addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
+		const { animationsEnabled, imageCache, transport } = this.viewModel;
+		const { addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
 		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 
 		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
@@ -340,19 +350,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 				/>
 			</scroll>
-			{contextMenuCard && contextMenuCard.kind === 'playlist' && (
-				<CardContextMenu
-					animationsEnabled={animationsEnabled}
-					card={contextMenuCard}
-					imageCache={imageCache}
-					onAddToPlaylist={this.handleContextMenuAddToPlaylist}
-					onCreatePlaylist={createPlaylistFn ? this.handleCreatePlaylistRequest : undefined}
-					onDismiss={this.handleContextMenuDismiss}
-					onEntityTap={this.handleContextMenuEntityTap}
-					playbackStore={playbackStore}
-					transport={transport}
-				/>
-			)}
+
 			{addToPlaylistTracks && (
 				<AddToPlaylistView
 					animationsEnabled={animationsEnabled}

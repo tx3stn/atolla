@@ -12,11 +12,12 @@ import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
+import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
+import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
@@ -58,12 +59,8 @@ interface GenresState {
 export class GenresView extends StatefulComponent<GenresViewModel, GenresState> {
 	private hasBeenDestroyed = false;
 	private readonly pagedGridController = createPagedGridController<Genre>({
-		appendItems: (current, pageItems, isFirstPage) =>
-			isFirstPage ? pageItems : [...current, ...pageItems],
 		fetchPage: (page) =>
 			this.viewModel.transport.getGenresPage(page, gridPaginationConfig.pageSize),
-		getHasMore: () => this.state.hasMore,
-		getItems: () => this.state.genres,
 		isDestroyed: () => this.hasBeenDestroyed,
 		onPageLoaded: (items) => this.preloadGenreImages(items),
 		setState: (patch) => {
@@ -144,7 +141,19 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	}): void => {
 		const genre = this.state.genres.find((candidate) => candidate.id === card.id);
 		if (!genre) return;
-		this.setState({ contextMenuCard: { genre, kind: 'genre' } });
+		openCardContextMenu(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			card: { genre, kind: 'genre' },
+			imageCache: this.viewModel.imageCache,
+			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
+			onCreatePlaylist: this.viewModel.transport.createPlaylist
+				? this.handleCreatePlaylistRequest
+				: undefined,
+			onDismiss: this.handleContextMenuDismiss,
+			onEntityTap: this.handleContextMenuEntityTap,
+			playbackStore: this.viewModel.playbackStore,
+			transport: this.viewModel.transport,
+		});
 	};
 
 	handleContextMenuDismiss = (toastMessage?: string): void => {
@@ -234,8 +243,8 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	};
 
 	onRender(): void {
-		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
-		const { contextMenuCard, addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
+		const { animationsEnabled, imageCache, transport } = this.viewModel;
+		const { addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
 		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 		let genres = this.state.genres;
 		if (this.viewModel.letterFilter) {
@@ -271,19 +280,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 				/>
 			</scroll>
-			{contextMenuCard && contextMenuCard.kind === 'genre' && (
-				<CardContextMenu
-					animationsEnabled={animationsEnabled}
-					card={contextMenuCard}
-					imageCache={imageCache}
-					onAddToPlaylist={this.handleContextMenuAddToPlaylist}
-					onCreatePlaylist={createPlaylistFn ? this.handleCreatePlaylistRequest : undefined}
-					onDismiss={this.handleContextMenuDismiss}
-					onEntityTap={this.handleContextMenuEntityTap}
-					playbackStore={playbackStore}
-					transport={transport}
-				/>
-			)}
+
 			{addToPlaylistTracks && (
 				<AddToPlaylistView
 					animationsEnabled={animationsEnabled}

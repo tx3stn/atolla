@@ -14,14 +14,7 @@ interface PagedGridState<TItem> {
 type PagedGridPatch<TItem> = Partial<PagedGridState<TItem>>;
 
 interface CreatePagedGridControllerArgs<TItem> {
-	appendItems: (
-		current: Array<TItem>,
-		pageItems: Array<TItem>,
-		isFirstPage: boolean,
-	) => Array<TItem>;
 	fetchPage: (page: number) => Promise<PagedResult<TItem>>;
-	getHasMore: () => boolean;
-	getItems: () => Array<TItem>;
 	isDestroyed: () => boolean;
 	onPageLoaded?: (items: Array<TItem>) => void;
 	setState: (patch: PagedGridPatch<TItem>) => void;
@@ -37,14 +30,18 @@ export function createPagedGridController<TItem>(
 ): PagedGridController {
 	let currentPage = 0;
 	let isLoadingPage = false;
+	let hasMore = true;
+	let currentItems: Array<TItem> = [];
 
 	const reset = (): void => {
 		currentPage = 0;
 		isLoadingPage = false;
+		hasMore = true;
+		currentItems = [];
 	};
 
 	const loadNextPage = async (): Promise<void> => {
-		if (args.isDestroyed() || isLoadingPage || !args.getHasMore()) {
+		if (args.isDestroyed() || isLoadingPage || !hasMore) {
 			return;
 		}
 
@@ -64,13 +61,14 @@ export function createPagedGridController<TItem>(
 
 			currentPage = nextPage;
 			isLoadingPage = false;
+			hasMore = page.hasMore;
+			currentItems = isFirstPage ? page.items : [...currentItems, ...page.items];
 			args.onPageLoaded?.(page.items);
 
-			const items = args.appendItems(args.getItems(), page.items, isFirstPage);
 			args.setState({
 				hasMore: page.hasMore,
 				isLoadingNextPage: false,
-				items,
+				items: currentItems,
 				nextPageFailed: false,
 				page: nextPage,
 			});

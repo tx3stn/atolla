@@ -24,11 +24,7 @@ describe('createPagedGridController', () => {
 		};
 
 		const controller = createPagedGridController<TestItem>({
-			appendItems: (current, pageItems, isFirstPage) =>
-				isFirstPage ? pageItems : [...current, ...pageItems],
 			fetchPage: async () => ({ hasMore: true, items: [{ id: 'one' }] }),
-			getHasMore: () => state.hasMore,
-			getItems: () => state.items,
 			isDestroyed: () => false,
 			setState: (patch) => {
 				state = { ...state, ...patch };
@@ -55,8 +51,6 @@ describe('createPagedGridController', () => {
 		let request = 0;
 
 		const controller = createPagedGridController<TestItem>({
-			appendItems: (current, pageItems, isFirstPage) =>
-				isFirstPage ? pageItems : [...current, ...pageItems],
 			fetchPage: () => {
 				request += 1;
 				if (request === 1) {
@@ -64,8 +58,6 @@ describe('createPagedGridController', () => {
 				}
 				return Promise.resolve({ hasMore: false, items: [{ id: 'two' }] });
 			},
-			getHasMore: () => state.hasMore,
-			getItems: () => state.items,
 			isDestroyed: () => false,
 			setState: (patch) => {
 				state = { ...state, ...patch };
@@ -95,13 +87,7 @@ describe('createPagedGridController', () => {
 		};
 
 		const controller = createPagedGridController<TestItem>({
-			appendItems: (current, pageItems, isFirstPage) =>
-				isFirstPage ? pageItems : [...current, ...pageItems],
-			fetchPage: () => {
-				return Promise.reject(new Error('failure'));
-			},
-			getHasMore: () => state.hasMore,
-			getItems: () => state.items,
+			fetchPage: () => Promise.reject(new Error('failure')),
 			isDestroyed: () => false,
 			setState: (patch) => {
 				state = { ...state, ...patch };
@@ -126,15 +112,11 @@ describe('createPagedGridController', () => {
 		let calls = 0;
 
 		const controller = createPagedGridController<TestItem>({
-			appendItems: (current, pageItems, isFirstPage) =>
-				isFirstPage ? pageItems : [...current, ...pageItems],
 			fetchPage: async () => {
 				calls += 1;
 				await Promise.resolve();
 				return { hasMore: false, items: [{ id: 'one' }] };
 			},
-			getHasMore: () => state.hasMore,
-			getItems: () => state.items,
 			isDestroyed: () => false,
 			setState: (patch) => {
 				state = { ...state, ...patch };
@@ -157,14 +139,10 @@ describe('createPagedGridController', () => {
 		let request = 0;
 
 		const controller = createPagedGridController<TestItem>({
-			appendItems: (current, pageItems, isFirstPage) =>
-				isFirstPage ? pageItems : [...current, ...pageItems],
 			fetchPage: (page) => {
 				request += 1;
 				return Promise.resolve({ hasMore: request < 2, items: [{ id: `${page}` }] });
 			},
-			getHasMore: () => state.hasMore,
-			getItems: () => state.items,
 			isDestroyed: () => false,
 			setState: (patch) => {
 				state = { ...state, ...patch };

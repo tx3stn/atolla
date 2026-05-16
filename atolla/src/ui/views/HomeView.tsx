@@ -13,13 +13,14 @@ import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
-import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
+import type { CardContextMenuCard } from '../components/CardContextMenu';
 import type { CardDetailItem } from '../components/CardDetailList';
 import { CardDetailList } from '../components/CardDetailList';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ViewHeader } from '../components/ViewHeader';
+import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { closeSlot, openSlot } from '../flows/modalSlotFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import { openTrackContextMenu } from '../flows/trackContextMenuController';
@@ -425,6 +426,22 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.viewModel.onOpenAlbum(album);
 	};
 
+	private openAlbumCardContextMenu(album: Album): void {
+		const { animationsEnabled, imageCache, modalSlot, playbackStore, transport } = this.viewModel;
+		openCardContextMenu(modalSlot, {
+			animationsEnabled,
+			card: { album, kind: 'album' },
+			imageCache,
+			onAddToPlaylist: this.handleAlbumContextMenuAddToPlaylist,
+			onArtistTap: album.artistId ? this.handleAlbumContextMenuArtistTap : undefined,
+			onCreatePlaylist: this.handleAlbumContextMenuCreatePlaylist,
+			onDismiss: this.handleContextMenuDismiss,
+			onEntityTap: this.handleAlbumContextMenuEntityTap,
+			playbackStore,
+			transport,
+		});
+	}
+
 	private handleRecentlyAddedCardLongPress = (card: {
 		id: string;
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
@@ -436,23 +453,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 		this.setState({ contextMenuCard: { album, kind: 'album' } });
 		this.contextMenuAlbum = album;
-		const { animationsEnabled, imageCache, modalSlot, playbackStore, transport } = this.viewModel;
-		const canCreatePlaylist = Boolean(transport.createPlaylist);
-
-		modalSlot?.slotted(() => {
-			<CardContextMenu
-				animationsEnabled={animationsEnabled}
-				card={{ album, kind: 'album' }}
-				imageCache={imageCache}
-				onAddToPlaylist={this.handleAlbumContextMenuAddToPlaylist}
-				onArtistTap={album.artistId ? this.handleAlbumContextMenuArtistTap : undefined}
-				onCreatePlaylist={canCreatePlaylist ? this.handleAlbumContextMenuCreatePlaylist : undefined}
-				onDismiss={this.handleContextMenuDismiss}
-				onEntityTap={this.handleAlbumContextMenuEntityTap}
-				playbackStore={playbackStore}
-				transport={transport}
-			/>;
-		});
+		this.openAlbumCardContextMenu(album);
 	};
 
 	private handleOnThisDayCardLongPress = (card: {
@@ -465,23 +466,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 		this.setState({ contextMenuCard: { album, kind: 'album' } });
 		this.contextMenuAlbum = album;
-		const { animationsEnabled, imageCache, modalSlot, playbackStore, transport } = this.viewModel;
-		const canCreatePlaylist = Boolean(transport.createPlaylist);
-
-		modalSlot?.slotted(() => {
-			<CardContextMenu
-				animationsEnabled={animationsEnabled}
-				card={{ album, kind: 'album' }}
-				imageCache={imageCache}
-				onAddToPlaylist={this.handleAlbumContextMenuAddToPlaylist}
-				onArtistTap={album.artistId ? this.handleAlbumContextMenuArtistTap : undefined}
-				onCreatePlaylist={canCreatePlaylist ? this.handleAlbumContextMenuCreatePlaylist : undefined}
-				onDismiss={this.handleContextMenuDismiss}
-				onEntityTap={this.handleAlbumContextMenuEntityTap}
-				playbackStore={playbackStore}
-				transport={transport}
-			/>;
-		});
+		this.openAlbumCardContextMenu(album);
 	};
 
 	private createMixCards(): Array<Card> {

@@ -25,13 +25,14 @@ import type { PlaybackStore } from '../../stores/Playback';
 import type { SearchStore } from '../../stores/Search';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
+import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { Toast } from '../components/Toast';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { clearScheduledToast, scheduleToastDismiss } from '../components/toastTimer';
+import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { closeSlot, openSlot } from '../flows/modalSlotFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import { openTrackContextMenu } from '../flows/trackContextMenuController';
@@ -378,23 +379,17 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				? this.handleCardContextMenuArtistTap
 				: undefined;
 
-		openSlot(modalSlot, () => {
-			<CardContextMenu
-				animationsEnabled={animationsEnabled}
-				card={card}
-				imageCache={imageCache}
-				onAddToPlaylist={this.handleCardContextMenuAddToPlaylist}
-				onArtistTap={onArtistTap}
-				onCreatePlaylist={
-					this.viewModel.transport.createPlaylist
-						? this.handleCardContextMenuCreatePlaylistRequest
-						: undefined
-				}
-				onDismiss={this.handleContextMenuDismiss}
-				onEntityTap={this.handleCardContextMenuEntityTap}
-				playbackStore={playbackStore}
-				transport={transport}
-			/>;
+		openCardContextMenu(modalSlot, {
+			animationsEnabled,
+			card,
+			imageCache,
+			onAddToPlaylist: this.handleCardContextMenuAddToPlaylist,
+			onArtistTap: onArtistTap,
+			onCreatePlaylist: this.handleCardContextMenuCreatePlaylistRequest,
+			onDismiss: this.handleContextMenuDismiss,
+			onEntityTap: this.handleCardContextMenuEntityTap,
+			playbackStore,
+			transport,
 		});
 	}
 
