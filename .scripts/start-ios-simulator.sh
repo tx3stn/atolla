@@ -27,7 +27,7 @@ fi
 
 echo "Using macOS SDK version: $MACOS_SDK_VERSION"
 
-SIMULATOR_ID="$(xcrun simctl list devices available --json |
+SIMULATOR_ID="${SIMULATOR_ID:-$(xcrun simctl list devices available --json |
 	python3 -c "
 import json, sys
 data = json.load(sys.stdin)
@@ -43,7 +43,7 @@ for runtime, devices in data.get('devices', {}).items():
             print(d['udid'])
             sys.exit(0)
 sys.exit(1)
-" 2>/dev/null || true)"
+" 2>/dev/null || true)}"
 
 if [[ -z "$SIMULATOR_ID" ]]; then
 	echo "No simulator found matching '$SIMULATOR_NAME'."

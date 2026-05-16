@@ -37,7 +37,11 @@ export async function beforeHook(): Promise<void> {
 	const appStateParam = isIOS ? { bundleId: appId } : { appId };
 	const state = (await browser.execute('mobile: queryAppState', appStateParam)) as number;
 	if (state > 1) {
-		await browser.terminateApp(appId);
+		try {
+			await browser.terminateApp(appId);
+		} catch {
+			// Best effort cleanup: on highly parallel iOS startup WDA can restart.
+		}
 	}
 
 	// On Android the emulator network stack may not be ready immediately after boot.
@@ -58,7 +62,13 @@ export async function beforeHook(): Promise<void> {
 		);
 	}
 
-	await browser.activateApp(appId);
+	try {
+		await browser.activateApp(appId);
+	} catch {
+		// WDA may have restarted; pause briefly and retry once
+		await browser.pause(2000);
+		await browser.activateApp(appId);
+	}
 	await ensureMockMode();
 }
 
@@ -68,6 +78,10 @@ export async function afterTestHook(
 	{ error }: { error?: Error },
 ): Promise<void> {
 	if (error) {
-		await browser.takeScreenshot();
+		try {
+			await browser.takeScreenshot();
+		} catch {
+			// session may already be broken; screenshot is best-effort
+		}
 	}
 }

@@ -100,11 +100,11 @@ else
 	echo "Emulator log: $EMULATOR_LOG"
 fi
 
-echo "Waiting for device..."
-adb wait-for-device
-adb devices
-
 ANDROID_DEVICE_ID="${ANDROID_DEVICE_ID:-$(adb devices | awk '/\tdevice$/ {print $1; exit}')}"
+
+echo "Waiting for device..."
+adb -s "$ANDROID_DEVICE_ID" wait-for-device
+adb devices
 if [[ -z "$ANDROID_DEVICE_ID" ]]; then
 	echo "No Android device detected after adb wait-for-device."
 	exit 1
