@@ -474,6 +474,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 							imageCache={imageCache}
 							onTrackLongPress={this.handleTrackLongPress}
 							onTrackTap={this.handleTrackTap}
+							rowIdentityPrefix='album-track-'
 							tracks={entries}
 						/>
 					)}

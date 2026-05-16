@@ -271,6 +271,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache,
+				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
 				navBarContext: this.viewModel.navBarContext,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				onNavigationContext: this.viewModel.onNavigationContext,

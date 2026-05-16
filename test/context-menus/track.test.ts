@@ -75,7 +75,7 @@ const scenarios: Array<Scenario> = [
 			await footer.tapSearch();
 			const searchPage = new SearchPage(browser);
 			await searchPage.waitForLoad();
-			await searchPage.enterSearchQuery('a');
+			await searchPage.enterSearchQuery('bod');
 			await searchPage.waitForTrackResults();
 		},
 		openMenu: async () => {

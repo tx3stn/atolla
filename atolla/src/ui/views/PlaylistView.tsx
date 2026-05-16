@@ -686,6 +686,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 							onTrackReorder={this.handleTrackReorder}
 							onTrackSwipeRemove={this.handleTrackSwipeRemove}
 							onTrackTap={this.handleTrackTap}
+							rowIdentityPrefix='playlist-track-'
 							showDragHandles={true}
 							tracks={entries}
 						/>

@@ -479,6 +479,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 							imageCache={imageCache}
 							onTrackLongPress={this.handleTrackLongPress}
 							onTrackTap={this.handleTrackTap}
+							rowIdentityPrefix='genre-track-'
 							tracks={entries}
 						/>
 					)}

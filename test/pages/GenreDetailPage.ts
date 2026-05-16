@@ -2,7 +2,7 @@ import { BasePage } from './Base';
 
 export class GenreDetailPage extends BasePage {
 	private readonly root = 'genre-view';
-	private readonly trackRowPrefix = 'track-row-';
+	private readonly trackRowSwipeRegionPrefix = 'track-row-swipe-region-genre-track-';
 
 	async waitForLoad(): Promise<void> {
 		await this.elementByID(this.root).waitForExist({
@@ -12,11 +12,11 @@ export class GenreDetailPage extends BasePage {
 
 	async waitForTrackRowsVisible(): Promise<void> {
 		await this.waitForLoad();
-		await this.waitForVisibleAccessibilityPrefix(this.trackRowPrefix);
+		await this.waitForVisibleAccessibilityPrefix(this.trackRowSwipeRegionPrefix);
 	}
 
 	async openTrackContextMenuOnFirstVisibleRow(): Promise<void> {
-		const row = await this.firstVisibleByAccessibilityPrefix(this.trackRowPrefix);
+		const row = await this.firstVisibleByAccessibilityPrefix(this.trackRowSwipeRegionPrefix);
 		await this.longPressElement(row);
 	}
 }

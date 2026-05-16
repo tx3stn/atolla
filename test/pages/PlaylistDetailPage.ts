@@ -4,15 +4,13 @@ import { DetailHeaderPage } from './DetailHeaderPage';
 
 export class PlaylistDetailPage extends BasePage {
 	public readonly detailHeader: DetailHeaderPage;
-
 	private readonly root = 'playlist-view';
+	private readonly trackRowSwipeRegionPrefix = 'track-row-swipe-region-playlist-track-';
 
 	constructor(driver: Browser) {
 		super(driver);
 		this.detailHeader = new DetailHeaderPage(driver);
 	}
-
-	private readonly trackRowPrefix = 'track-row-';
 
 	async waitForLoad(): Promise<void> {
 		await this.elementByID(this.root).waitForExist({
@@ -22,11 +20,11 @@ export class PlaylistDetailPage extends BasePage {
 
 	async waitForTrackRowsVisible(): Promise<void> {
 		await this.waitForLoad();
-		await this.waitForVisibleAccessibilityPrefix(this.trackRowPrefix);
+		await this.waitForVisibleAccessibilityPrefix(this.trackRowSwipeRegionPrefix);
 	}
 
 	async openTrackContextMenuOnFirstVisibleRow(): Promise<void> {
-		const row = await this.firstVisibleByAccessibilityPrefix(this.trackRowPrefix);
+		const row = await this.firstVisibleByAccessibilityPrefix(this.trackRowSwipeRegionPrefix);
 		await this.longPressElement(row);
 	}
 }

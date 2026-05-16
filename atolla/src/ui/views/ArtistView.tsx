@@ -655,6 +655,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 										imageCache={imageCache}
 										onTrackLongPress={this.handleTrackLongPress}
 										onTrackTap={this.handleTopTrackTap}
+										rowIdentityPrefix='artist-top-track-'
 										tracks={trackEntries}
 									/>
 								</layout>
