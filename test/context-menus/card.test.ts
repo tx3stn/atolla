@@ -1,5 +1,5 @@
 /** biome-ignore-all assist/source/useSortedKeys: **/
-import { CardContextMenuPage } from '../pages/CardContextMenuPage';
+import { CardContextMenu } from '../pages/CardContextMenuModal';
 import { FooterPage } from '../pages/Footer';
 import { HomePage } from '../pages/HomePage';
 import { LibraryPage } from '../pages/LibraryPage';
@@ -98,47 +98,56 @@ const scenarios: Array<Scenario> = [
 	},
 ];
 
-for (const scenario of scenarios) {
-	describe(`card context menu from ${scenario.label}`, () => {
-		before(() => scenario.arrange());
+for (const testCase of scenarios) {
+	describe(`card context menu from ${testCase.label}`, () => {
+		before(() => testCase.arrange());
 
 		it('opens the context menu on long press', async () => {
-			await scenario.act();
-			const menu = new CardContextMenuPage(browser);
+			await testCase.act();
+			const menu = new CardContextMenu(browser);
 			await menu.waitForVisible();
 			await menu.tapBackdrop();
 			await menu.waitForHidden();
 		});
 
 		it('dismisses when the backdrop is tapped', async () => {
-			await scenario.act();
-			const menu = new CardContextMenuPage(browser);
+			await testCase.act();
+			const menu = new CardContextMenu(browser);
 			await menu.waitForVisible();
 			await menu.tapBackdrop();
 			await menu.waitForHidden();
 		});
 
 		it('dismisses after play', async () => {
-			await scenario.act();
-			const menu = new CardContextMenuPage(browser);
+			await testCase.act();
+			const menu = new CardContextMenu(browser);
 			await menu.waitForVisible();
 			await menu.tapPlay();
 			await menu.waitForHidden();
 		});
 
 		it('dismisses after adding to queue', async () => {
-			await scenario.act();
-			const menu = new CardContextMenuPage(browser);
+			await testCase.act();
+			const menu = new CardContextMenu(browser);
 			await menu.waitForVisible();
 			await menu.tapAddToQueue();
 			await menu.waitForHidden();
+			// FIXME: assert item is actually added to queue
 		});
 
 		it('dismisses after play next', async () => {
-			await scenario.act();
-			const menu = new CardContextMenuPage(browser);
+			await testCase.act();
+			const menu = new CardContextMenu(browser);
 			await menu.waitForVisible();
 			await menu.tapPlayNext();
+			await menu.waitForHidden();
+			// FIXME: assert item is actually added to play next
+		});
+
+		// FIXME: actually implement
+		it('navigates to the correct place when tapping the header', async () => {
+			await testCase.act();
+			const menu = new CardContextMenu(browser);
 			await menu.waitForHidden();
 		});
 	});

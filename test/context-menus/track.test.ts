@@ -4,6 +4,7 @@ import { ArtistDetailPage } from '../pages/ArtistDetailPage';
 import { FooterPage } from '../pages/Footer';
 import { GenreDetailPage } from '../pages/GenreDetailPage';
 import { LibraryPage } from '../pages/LibraryPage';
+import { NowPlayingBar } from '../pages/NowPlayingBar';
 import { PlaylistDetailPage } from '../pages/PlaylistDetailPage';
 import { SearchPage } from '../pages/SearchPage';
 import { TrackContextMenu } from '../pages/TrackContextModal';
@@ -20,6 +21,7 @@ const scenarios: Array<Scenario> = [
 			await library.openAlbumsTab();
 			await library.tabs.albums.waitForLoad();
 			await library.tabs.albums.tapFirstVisibleCard();
+
 			const albumDetail = new AlbumDetailPage(browser);
 			await albumDetail.waitForTrackRowsVisible();
 		},
@@ -123,32 +125,53 @@ for (const testCase of scenarios) {
 			await testCase.act();
 			const menu = new TrackContextMenu(browser);
 			await menu.waitForVisible();
+			const trackTitle = await menu.getTrackTitle();
 			await menu.tapAddToQueue();
 			await menu.waitForHidden();
-			// TODO: assert item is actually added to queue
+			const nowPlaying = new NowPlayingBar(browser);
+			await nowPlaying.waitForVisible();
+			await nowPlaying.openExpandedSurface();
+			await nowPlaying.tapUpNextTab();
+			await nowPlaying.waitForQueueRowsVisible();
+			expect(await nowPlaying.firstUpNextTrackName()).toBe(trackTitle);
+			await nowPlaying.collapseExpandedIfVisible();
 		});
 
 		it('dismisses after play next', async () => {
 			await testCase.act();
 			const menu = new TrackContextMenu(browser);
 			await menu.waitForVisible();
+			const trackTitle = await menu.getTrackTitle();
 			await menu.tapPlayNext();
 			await menu.waitForHidden();
-			// TODO: assert item is actually added to play next
+			const nowPlaying = new NowPlayingBar(browser);
+			await nowPlaying.waitForVisible();
+			await nowPlaying.openExpandedSurface();
+			await nowPlaying.tapUpNextTab();
+			await nowPlaying.waitForQueueRowsVisible();
+			expect(await nowPlaying.firstUpNextTrackName()).toBe(trackTitle);
+			await nowPlaying.collapseExpandedIfVisible();
 		});
 
-		// it('opens the artist when tapping on the artist header', async () => {
-		// 	await testCase.act();
-		// 	const menu = new TrackContextMenu(browser);
-		// 	await menu.waitForVisible();
-		// 	// TODO: assert artist navigation
-		// });
-		//
-		// it('opens the album when tapping on the album track row', async () => {
-		// 	await testCase.act();
-		// 	const menu = new TrackContextMenu(browser);
-		// 	await menu.waitForHidden();
-		// 	// TODO: assert artist navigation
-		// });
+		it('opens the artist when tapping on the artist header', async () => {
+			await testCase.act();
+			const menu = new TrackContextMenu(browser);
+			await menu.waitForVisible();
+			await menu.tapArtist();
+			await menu.waitForHidden();
+			const artistDetail = new ArtistDetailPage(browser);
+			await artistDetail.waitForLoad();
+			await artistDetail.swipeBack();
+		});
+
+		it('opens the album when tapping on the album track row', async () => {
+			await testCase.act();
+			const menu = new TrackContextMenu(browser);
+			await menu.waitForVisible();
+			await menu.tapAlbumRow();
+			await menu.waitForHidden();
+			const albumDetail = new AlbumDetailPage(browser);
+			await albumDetail.waitForLoad();
+		});
 	});
 }

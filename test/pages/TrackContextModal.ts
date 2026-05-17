@@ -31,6 +31,23 @@ export class TrackContextMenu extends BasePage {
 		await this.dismissPermissionDialogIfPresent();
 	}
 
+	async getTrackTitle(): Promise<string> {
+		const els = await this.allByAccessibilityPrefix('track-title-');
+		if (els.length === 0) throw new Error('No track title found in context menu');
+		return els[0].getText();
+	}
+
+	async tapArtist(): Promise<void> {
+		const el = this.elementByID('artist-logo');
+		await el.waitForDisplayed({ timeoutMsg: 'Artist logo not visible in context menu' });
+		await el.click();
+	}
+
+	async tapAlbumRow(): Promise<void> {
+		const row = await this.firstVisibleByAccessibilityPrefix('track-row-');
+		await row.click();
+	}
+
 	async tapBackdrop(): Promise<void> {
 		const backdrop = this.elementByID('track-context-backdrop');
 		await backdrop.waitForDisplayed({ timeoutMsg: 'Track context backdrop not visible' });

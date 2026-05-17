@@ -1,3 +1,5 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { ConnectionPage } from '../pages/ConnectionPage';
 import { ConnectivityFabPage } from '../pages/ConnectivityFabPage';
 import { FooterPage } from '../pages/Footer';
@@ -25,6 +27,22 @@ async function ensureMockMode(): Promise<void> {
 
 	await footer.tapHome();
 	await new HomePage(browser).waitForAlbumCards();
+}
+
+export function onCompleteHook(): void {
+	const manifest = path.join('test/screenshots', 'manifest.txt');
+	try {
+		const contents = fs.readFileSync(manifest, 'utf8').trim();
+		if (!contents) return;
+		console.error('\n--- Failed test screenshots ---');
+		for (const line of contents.split('\n')) {
+			console.error(`  file://${line}`);
+		}
+		console.error('------------------------------\n');
+		fs.unlinkSync(manifest);
+	} catch {
+		// no manifest means no failures; nothing to print
+	}
 }
 
 export async function beforeHook(): Promise<void> {
@@ -72,16 +90,36 @@ export async function beforeHook(): Promise<void> {
 	await ensureMockMode();
 }
 
+async function saveFailureScreenshot(subject: unknown): Promise<void> {
+	try {
+		const screenshot = await browser.takeScreenshot();
+		const dir = 'test/screenshots';
+		fs.mkdirSync(dir, { recursive: true });
+		const title =
+			(subject as { fullTitle?: string }).fullTitle ??
+			(subject as { title?: string }).title ??
+			'unknown';
+		const safeName = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+		const file = path.join(dir, `${Date.now()}-${safeName}.png`);
+		fs.writeFileSync(file, Buffer.from(screenshot, 'base64'));
+		fs.appendFileSync(path.join(dir, 'manifest.txt'), `${path.resolve(file)}\n`);
+	} catch {
+		// session may already be broken; screenshot is best-effort
+	}
+}
+
 export async function afterTestHook(
-	_test: unknown,
+	test: unknown,
 	_context: unknown,
 	{ error }: { error?: Error },
 ): Promise<void> {
-	if (error) {
-		try {
-			await browser.takeScreenshot();
-		} catch {
-			// session may already be broken; screenshot is best-effort
-		}
-	}
+	if (error) await saveFailureScreenshot(test);
+}
+
+export async function afterHookHook(
+	hook: unknown,
+	_context: unknown,
+	{ error }: { error?: Error },
+): Promise<void> {
+	if (error) await saveFailureScreenshot(hook);
 }

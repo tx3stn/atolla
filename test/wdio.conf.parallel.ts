@@ -1,7 +1,7 @@
 import { readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { getAndroidCapabilities, getIOSCapabilities } from './utils/device';
-import { afterTestHook, beforeHook } from './utils/hooks';
+import { afterHookHook, afterTestHook, beforeHook, onCompleteHook } from './utils/hooks';
 
 function collectSpecFiles(dir: string): Array<string> {
 	const entries = readdirSync(dir, { withFileTypes: true });
@@ -47,8 +47,10 @@ const shardedCapabilities = [
 ];
 
 export const config = {
+	afterHook: afterHookHook,
 	afterTest: afterTestHook,
 	before: beforeHook,
+	onComplete: onCompleteHook,
 	capabilities: shardedCapabilities,
 	connectionRetryCount: 3,
 	connectionRetryTimeout: 300_000,

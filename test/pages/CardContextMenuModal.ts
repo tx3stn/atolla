@@ -1,6 +1,6 @@
 import { BasePage } from './Base';
 
-export class CardContextMenuPage extends BasePage {
+export class CardContextMenu extends BasePage {
 	private readonly root = 'card-context-menu';
 	private readonly backdrop = 'card-context-backdrop';
 	private readonly play = 'card-context-play';

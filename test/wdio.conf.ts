@@ -1,11 +1,13 @@
 import { getCapabilities, Platforms } from './utils/device';
-import { afterTestHook, beforeHook } from './utils/hooks';
+import { afterHookHook, afterTestHook, beforeHook, onCompleteHook } from './utils/hooks';
 
 const platform = process.env.E2E_PLATFORM === 'iOS' ? Platforms.iOS : Platforms.Android;
 
 export const config = {
+	afterHook: afterHookHook,
 	afterTest: afterTestHook,
 	before: beforeHook,
+	onComplete: onCompleteHook,
 	capabilities: getCapabilities(platform),
 	connectionRetryCount: 3,
 	connectionRetryTimeout: 300_000,
