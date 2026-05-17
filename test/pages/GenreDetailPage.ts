@@ -1,8 +1,13 @@
 import { BasePage } from './Base';
+import { DetailHeaderPage } from './DetailHeaderPage';
 
 export class GenreDetailPage extends BasePage {
 	private readonly root = 'genre-view';
 	private readonly trackRowSwipeRegionPrefix = 'track-row-swipe-region-genre-track-';
+
+	DetailHeader(): DetailHeaderPage {
+		return new DetailHeaderPage(this.driver);
+	}
 
 	async waitForLoad(): Promise<void> {
 		try {

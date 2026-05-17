@@ -1,15 +1,12 @@
-import type { Browser } from 'webdriverio';
 import { BasePage } from './Base';
 import { DetailHeaderPage } from './DetailHeaderPage';
 
 export class PlaylistDetailPage extends BasePage {
-	public readonly detailHeader: DetailHeaderPage;
 	private readonly root = 'playlist-view';
 	private readonly trackRowSwipeRegionPrefix = 'track-row-swipe-region-playlist-track-';
 
-	constructor(driver: Browser) {
-		super(driver);
-		this.detailHeader = new DetailHeaderPage(driver);
+	DetailHeader(): DetailHeaderPage {
+		return new DetailHeaderPage(this.driver);
 	}
 
 	async waitForLoad(): Promise<void> {

@@ -1,5 +1,12 @@
 import { getCapabilities, Platforms } from './utils/device';
-import { afterHookHook, afterTestHook, beforeHook, onCompleteHook } from './utils/hooks';
+import {
+	afterHookHook,
+	afterTestHook,
+	beforeHook,
+	beforeSuiteHook,
+	beforeTestHook,
+	onCompleteHook,
+} from './utils/hooks';
 
 const platform = process.env.E2E_PLATFORM === 'iOS' ? Platforms.iOS : Platforms.Android;
 
@@ -7,7 +14,8 @@ export const config = {
 	afterHook: afterHookHook,
 	afterTest: afterTestHook,
 	before: beforeHook,
-	onComplete: onCompleteHook,
+	beforeSuite: beforeSuiteHook,
+	beforeTest: beforeTestHook,
 	capabilities: getCapabilities(platform),
 	connectionRetryCount: 3,
 	connectionRetryTimeout: 300_000,
@@ -20,6 +28,7 @@ export const config = {
 		bail: 1,
 		timeout: 120_000,
 	},
+	onComplete: onCompleteHook,
 	reporters: ['spec'],
 	runner: 'local',
 	services: ['appium'],

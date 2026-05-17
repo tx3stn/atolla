@@ -108,6 +108,15 @@ async function saveFailureScreenshot(subject: unknown): Promise<void> {
 	}
 }
 
+export function beforeSuiteHook(suite: { title?: string }): void {
+	console.log(`󰙨 ${suite.title ?? 'unknown'}`);
+}
+
+export function beforeTestHook(test: { fullTitle?: string; title?: string }): void {
+	const title = test.fullTitle ?? test.title ?? 'unknown';
+	console.log(`  step: ${title}`);
+}
+
 export async function afterTestHook(
 	test: unknown,
 	_context: unknown,

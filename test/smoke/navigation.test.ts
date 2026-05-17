@@ -68,8 +68,8 @@ describe('header tab navigation', () => {
 		await library.openArtistsTab();
 		await library.tabs.artists.tapFirstVisibleCard();
 		await artistDetailPage.waitForLoad();
-		await artistDetailPage.detailHeader.swipeDownToRevealHeader();
-		await artistDetailPage.detailHeader.tapArtistsTab();
+		await artistDetailPage.DetailHeader().swipeDownToRevealHeader();
+		await artistDetailPage.DetailHeader().tapArtistsTab();
 		expect(await library.tabs.artists.isVisible()).toBe(true);
 	});
 
@@ -86,8 +86,8 @@ describe('header tab navigation', () => {
 		await library.openPlaylistsTab();
 		await library.tabs.playlists.tapFirstVisibleCard();
 		await playlistDetailPage.waitForLoad();
-		await playlistDetailPage.detailHeader.swipeDownToRevealHeader();
-		await playlistDetailPage.detailHeader.tapPlaylistsTab();
+		await playlistDetailPage.DetailHeader().swipeDownToRevealHeader();
+		await playlistDetailPage.DetailHeader().tapPlaylistsTab();
 		expect(await library.tabs.playlists.isVisible()).toBe(true);
 	});
 });

@@ -4,6 +4,10 @@ export class TrackContextMenu extends BasePage {
 	private readonly root = 'track-context-menu';
 	private readonly addToQueue = 'track-context-add-to-queue';
 	private readonly playNext = 'track-context-play-next';
+	private readonly artistLogo = 'artist-logo';
+	private readonly backdrop = 'track-context-backdrop';
+	private readonly trackRowSwipeRegionPrefix = 'track-row-swipe-region-';
+	private readonly trackTitlePrefix = 'track-title-';
 
 	async waitForVisible(): Promise<void> {
 		await this.elementByID(this.root).waitForDisplayed({
@@ -32,24 +36,27 @@ export class TrackContextMenu extends BasePage {
 	}
 
 	async getTrackTitle(): Promise<string> {
-		const els = await this.allByAccessibilityPrefix('track-title-');
+		const menu = this.elementByID(this.root);
+		const els = await this.allByAccessibilityPrefixWithin(menu, this.trackTitlePrefix);
 		if (els.length === 0) throw new Error('No track title found in context menu');
 		return els[0].getText();
 	}
 
 	async tapArtist(): Promise<void> {
-		const el = this.elementByID('artist-logo');
+		const el = this.elementByID(this.artistLogo);
 		await el.waitForDisplayed({ timeoutMsg: 'Artist logo not visible in context menu' });
 		await el.click();
 	}
 
 	async tapAlbumRow(): Promise<void> {
-		const row = await this.firstVisibleByAccessibilityPrefix('track-row-');
-		await row.click();
+		const menu = this.elementByID(this.root);
+		const rows = await this.allByAccessibilityPrefixWithin(menu, this.trackRowSwipeRegionPrefix);
+		if (rows.length === 0) throw new Error('No track row found in track context menu');
+		await rows[0].click();
 	}
 
 	async tapBackdrop(): Promise<void> {
-		const backdrop = this.elementByID('track-context-backdrop');
+		const backdrop = this.elementByID(this.backdrop);
 		await backdrop.waitForDisplayed({ timeoutMsg: 'Track context backdrop not visible' });
 
 		if (this.isIOS()) {

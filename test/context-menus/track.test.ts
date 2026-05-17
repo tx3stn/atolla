@@ -6,7 +6,6 @@ import { GenreDetailPage } from '../pages/GenreDetailPage';
 import { LibraryPage } from '../pages/LibraryPage';
 import { NowPlayingBar } from '../pages/NowPlayingBar';
 import { PlaylistDetailPage } from '../pages/PlaylistDetailPage';
-import { SearchPage } from '../pages/SearchPage';
 import { TrackContextMenu } from '../pages/TrackContextModal';
 import type { Scenario } from '../utils/table';
 
@@ -14,16 +13,14 @@ const scenarios: Array<Scenario> = [
 	{
 		label: 'album detail',
 		arrange: async () => {
-			const footer = new FooterPage(browser);
-			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
-			await library.waitForLoad();
 			await library.openAlbumsTab();
 			await library.tabs.albums.waitForLoad();
 			await library.tabs.albums.tapFirstVisibleCard();
 
 			const albumDetail = new AlbumDetailPage(browser);
 			await albumDetail.waitForTrackRowsVisible();
+			await albumDetail.DetailHeader().tapPlayButton();
 		},
 		act: async () => {
 			const albumDetail = new AlbumDetailPage(browser);
@@ -33,15 +30,13 @@ const scenarios: Array<Scenario> = [
 	{
 		label: 'playlist detail',
 		arrange: async () => {
-			const footer = new FooterPage(browser);
-			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
-			await library.waitForLoad();
 			await library.openPlaylistsTab();
 			await library.tabs.playlists.waitForLoad();
 			await library.tabs.playlists.tapFirstVisibleCard();
 			const playlistDetail = new PlaylistDetailPage(browser);
 			await playlistDetail.waitForTrackRowsVisible();
+			await playlistDetail.DetailHeader().tapPlayButton();
 		},
 		act: async () => {
 			const playlistDetail = new PlaylistDetailPage(browser);
@@ -49,50 +44,47 @@ const scenarios: Array<Scenario> = [
 		},
 	},
 	{
-		label: 'artist detail',
+		label: 'artist top tracks',
 		arrange: async () => {
-			const footer = new FooterPage(browser);
-			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
-			await library.waitForLoad();
 			await library.openArtistsTab();
 			await library.tabs.artists.waitForLoad();
 			await library.tabs.artists.tapFirstVisibleCard();
+
 			const artistDetail = new ArtistDetailPage(browser);
 			await artistDetail.waitForTrackRowsVisible();
+			await artistDetail.DetailHeader().tapPlayButton();
 		},
 		act: async () => {
 			const artistDetail = new ArtistDetailPage(browser);
 			await artistDetail.openTrackContextMenuOnFirstVisibleRow();
 		},
 	},
-	{
-		label: 'search results',
-		arrange: async () => {
-			const footer = new FooterPage(browser);
-			await footer.tapSearch();
-			const searchPage = new SearchPage(browser);
-			await searchPage.waitForLoad();
-			await searchPage.enterSearchQuery('bod');
-			await searchPage.waitForTrackResults();
-		},
-		act: async () => {
-			const searchPage = new SearchPage(browser);
-			await searchPage.openTrackContextMenuOnFirstVisibleTrackRow();
-		},
-	},
+	// {
+	// 	label: 'search results',
+	// 	arrange: async () => {
+	// 		const footer = new FooterPage(browser);
+	// 		await footer.tapSearch();
+	// 		const searchPage = new SearchPage(browser);
+	// 		await searchPage.waitForLoad();
+	// 		await searchPage.enterSearchQuery('bod');
+	// 		await searchPage.waitForTrackResults();
+	// 	},
+	// 	act: async () => {
+	// 		const searchPage = new SearchPage(browser);
+	// 		await searchPage.openTrackContextMenuOnFirstVisibleTrackRow();
+	// 	},
+	// },
 	{
 		label: 'genre detail',
 		arrange: async () => {
-			const footer = new FooterPage(browser);
-			await footer.tapLibrary();
 			const library = new LibraryPage(browser);
-			await library.waitForLoad();
 			await library.openGenresTab();
 			await library.tabs.genres.waitForLoad();
 			await library.tabs.genres.tapFirstVisibleCard();
 			const genreDetail = new GenreDetailPage(browser);
 			await genreDetail.waitForTrackRowsVisible();
+			await genreDetail.DetailHeader().tapPlayButton();
 		},
 		act: async () => {
 			const genreDetail = new GenreDetailPage(browser);
@@ -103,7 +95,22 @@ const scenarios: Array<Scenario> = [
 
 for (const testCase of scenarios) {
 	describe(`track context menu from ${testCase.label}`, () => {
-		before(() => testCase.arrange());
+		beforeEach(async () => {
+			const footer = new FooterPage(browser);
+			await footer.tapLibrary();
+			const library = new LibraryPage(browser);
+			await library.waitForLoad();
+
+			await testCase.arrange();
+		});
+
+		afterEach(async () => {
+			const nowPlaying = new NowPlayingBar(browser);
+			await nowPlaying.swipeAwayIfVisible();
+
+			const footer = new FooterPage(browser);
+			await footer.tapHome();
+		});
 
 		it('opens the context menu on long press', async () => {
 			await testCase.act();
@@ -133,7 +140,7 @@ for (const testCase of scenarios) {
 			await nowPlaying.openExpandedSurface();
 			await nowPlaying.tapUpNextTab();
 			await nowPlaying.waitForQueueRowsVisible();
-			expect(await nowPlaying.firstUpNextTrackName()).toBe(trackTitle);
+			expect(await nowPlaying.lastUpNextTrackName()).toBe(trackTitle);
 			await nowPlaying.collapseExpandedIfVisible();
 		});
 

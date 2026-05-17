@@ -32,7 +32,7 @@ describe('now playing queue', () => {
 	});
 
 	it('shows queue list when now playing is expanded', async () => {
-		await albumDetail.tapPlayButton();
+		await albumDetail.DetailHeader().tapPlayButton();
 
 		await nowPlaying.waitForVisible();
 		await nowPlaying.openExpandedSurface();

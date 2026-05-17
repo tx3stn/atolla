@@ -117,6 +117,16 @@ export class NowPlayingBar extends BasePage {
 		throw new Error('No up next track titles found');
 	}
 
+	async lastUpNextTrackName(): Promise<string> {
+		await this.waitForQueueRowsVisible();
+		const els = await this.allByAccessibilityPrefix(this.trackTitleUpNextPrefix);
+		for (let i = els.length - 1; i >= 0; i--) {
+			const text = await els[i].getText();
+			if (text) return text;
+		}
+		throw new Error('No up next track titles found');
+	}
+
 	async firstBackToTrackName(): Promise<string> {
 		await this.waitForQueueRowsVisible();
 		for (const el of await this.allByAccessibilityPrefix(this.trackTitleBackToPrefix)) {

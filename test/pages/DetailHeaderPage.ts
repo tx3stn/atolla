@@ -6,9 +6,17 @@ export class DetailHeaderPage extends BasePage {
 	private readonly albumsTab = 'header-tab-albums';
 	private readonly artistsTab = 'header-tab-artists';
 	private readonly playlistsTab = 'header-tab-playlists';
+	private readonly playAction = 'detail-header-play-button';
 
 	isHeaderVisible(): Promise<boolean> {
 		return this.elementByID(this.libraryHeaderNav).isDisplayed();
+	}
+
+	async tapPlayButton(): Promise<void> {
+		const el = this.elementByID(this.playAction);
+		await el.waitForDisplayed();
+		await el.click();
+		await this.dismissPermissionDialogIfPresent();
 	}
 
 	async waitForHeaderVisible(): Promise<void> {

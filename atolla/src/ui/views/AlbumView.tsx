@@ -187,6 +187,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			animationsEnabled,
 			gridColumns,
 			imageCache,
+			onAlbumTap: () => {},
+			onArtistTap: this.handleArtistLogoTap,
 			onDismiss: () => {},
 			onPlaylistCreated: (playlist) => {
 				this.navigationController.push(

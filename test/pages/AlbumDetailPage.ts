@@ -3,7 +3,6 @@ import { DetailHeaderPage } from './DetailHeaderPage';
 
 export class AlbumDetailPage extends BasePage {
 	private readonly root = 'album-view';
-	private readonly playAction = 'detail-header-play-button';
 	private readonly trackRowSwipeRegionPrefix = 'track-row-swipe-region-album-track-';
 
 	DetailHeader(): DetailHeaderPage {
@@ -14,13 +13,6 @@ export class AlbumDetailPage extends BasePage {
 		await this.elementByID(this.root).waitForExist({
 			timeoutMsg: 'Timed out waiting for album view',
 		});
-	}
-
-	async tapPlayButton(): Promise<void> {
-		const el = this.elementByID(this.playAction);
-		await el.waitForDisplayed();
-		await el.click();
-		await this.dismissPermissionDialogIfPresent();
 	}
 
 	async waitForTrackRowsVisible(): Promise<void> {
