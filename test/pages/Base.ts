@@ -125,7 +125,7 @@ export class BasePage {
 				);
 				await this.driver.$('android=new UiSelector().text("Allow")').click();
 			} else {
-				await this.driver.acceptAlert();
+				// await this.driver.acceptAlert();
 			}
 		} catch {
 			// No permission dialog present
