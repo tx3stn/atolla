@@ -2,6 +2,8 @@ import { BasePage } from './Base';
 
 export class NowPlayingBar extends BasePage {
 	private readonly bar = 'now-playing-surface-bar';
+	private readonly trackName = 'now-playing-track-name';
+	private readonly progress = 'now-playing-progress';
 	private readonly togglePlayback = 'now-playing-play-pause';
 	private readonly next = 'now-playing-next';
 	private readonly previous = 'now-playing-previous';
@@ -23,6 +25,37 @@ export class NowPlayingBar extends BasePage {
 
 	getBackToTracks(): Promise<Array<WebdriverIO.Element>> {
 		return this.allByAccessibilityPrefix(this.trackRowBackToPrefix);
+	}
+
+	async currentTrackName(): Promise<string> {
+		const el = this.elementByID(this.trackName);
+		await el.waitForExist({ timeoutMsg: 'Timed out waiting for track name' });
+		return (await el.getText()) ?? '';
+	}
+
+	// Taps the progress bar at 92% of its width to seek near the end of the track.
+	// Requires the expanded surface to be open (the progress bar is only rendered there).
+	async seekToNearEnd(): Promise<void> {
+		const el = this.elementByID(this.progress);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for progress bar' });
+		const location = await el.getLocation();
+		const size = await el.getSize();
+		const x = Math.floor(location.x + size.width * 0.92);
+		const y = Math.floor(location.y + size.height * 0.5);
+		await this.driver.performActions([
+			{
+				actions: [
+					{ duration: 0, type: 'pointerMove', x, y },
+					{ button: 0, type: 'pointerDown' },
+					{ duration: 50, type: 'pause' },
+					{ button: 0, type: 'pointerUp' },
+				],
+				id: 'seek-near-end-finger',
+				parameters: { pointerType: 'touch' },
+				type: 'pointer',
+			},
+		]);
+		await this.driver.releaseActions();
 	}
 
 	async waitForVisible(): Promise<void> {

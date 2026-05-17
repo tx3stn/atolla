@@ -645,7 +645,12 @@ export class NowPlayingSurface extends StatefulComponent<
 					<image objectFit='cover' src={albumArtworkSource} style={styles.artwork} />
 				)}
 				<layout style={styles.info}>
-					<label numberOfLines={2} style={paletteStyles.trackNameStyle} value={track.name} />
+					<label
+						accessibilityId='now-playing-track-name'
+						numberOfLines={2}
+						style={paletteStyles.trackNameStyle}
+						value={track.name}
+					/>
 					<label
 						numberOfLines={1}
 						style={paletteStyles.artistNameStyle}

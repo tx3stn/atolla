@@ -47,6 +47,16 @@ maven_install(
     ],
 )
 
+maven_install(
+    name = "test_mvn",
+    artifacts = [
+        "junit:junit:4.13.2",
+    ],
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
+)
+
 load("@aspect_bazel_lib//lib:repositories.bzl", "aspect_bazel_lib_dependencies", "aspect_bazel_lib_register_toolchains", "register_yq_toolchains")
 
 register_yq_toolchains()

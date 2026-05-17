@@ -250,10 +250,7 @@ object AtollaGaplessAudioEngine {
 				return
 			}
 
-			if (
-				reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS ||
-				reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY
-			) {
+			if (AtollaPlaybackGuards.shouldEmitPauseForReason(reason)) {
 				enqueueEvent("pause-requested")
 			}
 		}
@@ -1256,6 +1253,11 @@ object AtollaTrackPlaybackMediaSession {
 		activeHasPrevious = false
 		activeHasNext = false
 		currentArtworkBitmap = null
+
+		if (AtollaPlaybackGuards.shouldPreserveServiceOnClear(AtollaGaplessAudioEngine.isActive())) {
+			return
+		}
+
 		cancelNotification()
 		releaseMediaSession()
 	}

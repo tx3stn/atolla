@@ -1,7 +1,14 @@
 import { readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { getAndroidCapabilities, getIOSCapabilities } from './utils/device';
-import { afterHookHook, afterTestHook, beforeHook, beforeSuiteHook, beforeTestHook, onCompleteHook } from './utils/hooks';
+import {
+	afterHookHook,
+	afterTestHook,
+	beforeHook,
+	beforeSuiteHook,
+	beforeTestHook,
+	onCompleteHook,
+} from './utils/hooks';
 
 function collectSpecFiles(dir: string): Array<string> {
 	const entries = readdirSync(dir, { withFileTypes: true });
@@ -14,7 +21,11 @@ function collectSpecFiles(dir: string): Array<string> {
 			continue;
 		}
 
-		if (entry.isFile() && entry.name.endsWith('.test.ts')) {
+		if (
+			entry.isFile() &&
+			entry.name.endsWith('.test.ts') &&
+			!fullPath.includes('/context-menus/')
+		) {
 			specs.push(fullPath);
 		}
 	}

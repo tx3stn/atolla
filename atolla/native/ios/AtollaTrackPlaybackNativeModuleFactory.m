@@ -836,6 +836,11 @@ static BOOL sNextNotificationHasNext = NO;
         AVAudioSessionInterruptionType type = [note.userInfo[AVAudioSessionInterruptionTypeKey] unsignedIntegerValue];
         if (type == AVAudioSessionInterruptionTypeBegan) {
             [self enqueueEvent:@"pause-requested"];
+        } else if (type == AVAudioSessionInterruptionTypeEnded) {
+            NSUInteger options = [note.userInfo[AVAudioSessionInterruptionOptionKey] unsignedIntegerValue];
+            if (options & AVAudioSessionInterruptionOptionShouldResume) {
+                [self enqueueEvent:@"play-requested"];
+            }
         }
     }];
 }

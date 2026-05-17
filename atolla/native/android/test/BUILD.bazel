@@ -1,0 +1,13 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+
+kt_jvm_test(
+    name = "AtollaPlaybackGuardsTest",
+    size = "small",
+    srcs = ["AtollaPlaybackGuardsTest.kt"],
+    jvm_flags = ["-Djava.security.manager=allow"],
+    test_class = "atolla.native.android.AtollaPlaybackGuardsTest",
+    deps = [
+        "//atolla/native:atolla_playback_guards",
+        "@test_mvn//:junit_junit",
+    ],
+)

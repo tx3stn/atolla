@@ -292,7 +292,9 @@ export class NativeAudioPlayer extends StatefulComponent<
 			const nativeAction = normalizeNativeAudioPlaybackEventAction(event);
 			if (nativeAction !== '') {
 				applyNativeAudioPlaybackEventAction(this.viewModel.playbackStore, nativeAction);
-				this.viewModel.onPlaybackEvent?.('pause-requested');
+				this.viewModel.onPlaybackEvent?.(
+					nativeAction === 'play' ? 'play-requested' : 'pause-requested',
+				);
 			}
 		}
 	}
