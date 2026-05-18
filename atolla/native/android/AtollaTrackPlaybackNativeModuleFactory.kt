@@ -332,21 +332,41 @@ object AtollaGaplessAudioEngine {
 		this.nextTrackId = nextTrackId
 		this.nextDurationMs = nextDurationMs.coerceAtLeast(0L)
 
+		val capturedSourceUrl = currentSourceUrl
+		// Snapshot playbackRate now so the posted lambda uses the rate that was current when
+		// this configure() was called. Without a snapshot, the restore's lambda (posted with
+		// playbackRate=0) can read playbackRate=1 at execution time — after the user's
+		// setPlaybackRate(1) has already run on the JS thread — and mistakenly set
+		// playWhenReady=true on the stale/expired restored URL before ExoPlayer can load it.
+		val capturedPlaybackRate = playbackRate
 		mainHandler.post {
 			val player = ensurePlayer() ?: return@post
-			syncQueue(player)
+			// A newer configure() call has already updated sourceUrl; its own lambda will run
+			// syncQueue() for the correct media. Running here would call replaceQueue() with
+			// playWhenReady=true against the stale/expired URL and trigger an error + rapid
+			// reconfigure cycle that crashes ExoPlayer on some Android versions.
+			if (sourceUrl != capturedSourceUrl) {
+				return@post
+			}
+			syncQueue(player, capturedPlaybackRate)
 		}
 	}
 
 	fun setPlaybackRate(rate: Float) {
 		playbackRate = rate
+		val capturedSourceUrl = sourceUrl
 		mainHandler.post {
 			val player = ensurePlayer() ?: return@post
 			if (playbackRate <= 0f) {
 				player.playWhenReady = false
 				return@post
 			}
-
+			// If source changed since this call was made, configure()'s replaceQueue()
+			// will set playWhenReady once the correct media is loaded. Avoid touching
+			// the player here so we don't start streaming a stale/expired URL.
+			if (sourceUrl != capturedSourceUrl) {
+				return@post
+			}
 			player.setPlaybackParameters(PlaybackParameters(playbackRate))
 			player.playWhenReady = true
 		}
@@ -466,14 +486,14 @@ object AtollaGaplessAudioEngine {
 		return player
 	}
 
-	private fun syncQueue(player: ExoPlayer) {
+	private fun syncQueue(player: ExoPlayer, capturedPlaybackRate: Float = playbackRate) {
 		if (sourceUrl.isBlank()) {
 			return
 		}
 
 		val currentItem = player.currentMediaItem
 		if (currentItem == null || !mediaItemMatches(currentItem, sourceUrl, sourceTrackId)) {
-			replaceQueue(player)
+			replaceQueue(player, capturedPlaybackRate)
 			return
 		}
 
@@ -488,7 +508,7 @@ object AtollaGaplessAudioEngine {
 		}
 	}
 
-	private fun replaceQueue(player: ExoPlayer) {
+	private fun replaceQueue(player: ExoPlayer, capturedPlaybackRate: Float = playbackRate) {
 		if (sourceUrl.isBlank()) {
 			return
 		}
@@ -500,8 +520,8 @@ object AtollaGaplessAudioEngine {
 
 		player.setMediaItems(items, 0, 0L)
 		player.prepare()
-		if (playbackRate > 0f) {
-			player.setPlaybackParameters(PlaybackParameters(playbackRate))
+		if (capturedPlaybackRate > 0f) {
+			player.setPlaybackParameters(PlaybackParameters(capturedPlaybackRate))
 			player.playWhenReady = true
 		} else {
 			player.playWhenReady = false

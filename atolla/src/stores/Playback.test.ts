@@ -938,5 +938,105 @@ describe('PlaybackStore', () => {
 			expect(store.track).toBeNull();
 			expect(store.trackIndex).toBe(0);
 		});
+
+		it('does not overwrite user-initiated play() if it races the async restore', async () => {
+			let resolveRead!: (value: string) => void;
+			const deferredStore = {
+				fetchString: (_key: string): Promise<string> =>
+					new Promise((resolve) => {
+						resolveRead = resolve;
+					}),
+				storeString: (_key: string, _value: string): Promise<void> => Promise.resolve(),
+			};
+
+			const store = new PlaybackStore();
+			const restorePromise = store.setQueueStore(deferredStore);
+
+			// User plays before the restore finishes
+			store.play([track1, track2], album, 0);
+			expect(store.track).toBe(track1);
+			expect(store.isPlaying).toBe(true);
+
+			// Resolve the restore with different data
+			resolveRead(
+				JSON.stringify({
+					album: { ...album, id: 'old-album' },
+					artistLogoUrls: [null],
+					progressSeconds: 99,
+					trackIndex: 0,
+					tracks: [track3],
+				}),
+			);
+			await restorePromise;
+
+			// User-initiated state must be preserved
+			expect(store.tracks).toEqual([track1, track2]);
+			expect(store.track).toBe(track1);
+			expect(store.isPlaying).toBe(true);
+			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('does not overwrite user-initiated stop() if it races the async restore', async () => {
+			let resolveRead!: (value: string) => void;
+			const deferredStore = {
+				fetchString: (_key: string): Promise<string> =>
+					new Promise((resolve) => {
+						resolveRead = resolve;
+					}),
+				storeString: (_key: string, _value: string): Promise<void> => Promise.resolve(),
+			};
+
+			const store = new PlaybackStore();
+			const restorePromise = store.setQueueStore(deferredStore);
+
+			store.stop();
+			expect(store.tracks).toEqual([]);
+			expect(store.isPlaying).toBe(false);
+
+			resolveRead(
+				JSON.stringify({
+					album,
+					artistLogoUrls: [null],
+					progressSeconds: 10,
+					trackIndex: 0,
+					tracks: [track1],
+				}),
+			);
+			await restorePromise;
+
+			// stop() must not be undone by the restore
+			expect(store.tracks).toEqual([]);
+			expect(store.track).toBeNull();
+			expect(store.isPlaying).toBe(false);
+		});
+
+		it('restores normally when no play action races it', async () => {
+			let resolveRead!: (value: string) => void;
+			const deferredStore = {
+				fetchString: (_key: string): Promise<string> =>
+					new Promise((resolve) => {
+						resolveRead = resolve;
+					}),
+				storeString: (_key: string, _value: string): Promise<void> => Promise.resolve(),
+			};
+
+			const store = new PlaybackStore();
+			const restorePromise = store.setQueueStore(deferredStore);
+
+			resolveRead(
+				JSON.stringify({
+					album,
+					artistLogoUrls: [null, null],
+					progressSeconds: 42,
+					trackIndex: 1,
+					tracks: [track1, track2],
+				}),
+			);
+			await restorePromise;
+
+			expect(store.tracks).toEqual([track1, track2]);
+			expect(store.track).toEqual(track2);
+			expect(store.progressSeconds).toBe(42);
+		});
 	});
 });

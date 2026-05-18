@@ -41,6 +41,7 @@ export class PlaybackStore {
 	private _artistLogoUrls: Array<string | null> = [];
 	private queueStore: PlaybackQueueStore | null = null;
 	private queueStoreLoadToken = 0;
+	private queueRestoreSuperseded = false;
 	private lastPersistedProgressSeconds = 0;
 	private seekPersistTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -58,6 +59,7 @@ export class PlaybackStore {
 	): Promise<void> {
 		this.queueStore = store;
 		const token = ++this.queueStoreLoadToken;
+		this.queueRestoreSuperseded = false;
 
 		if (!store) {
 			return;
@@ -65,7 +67,11 @@ export class PlaybackStore {
 
 		try {
 			const raw = await store.fetchString(playbackQueueCacheKey);
-			if (token !== this.queueStoreLoadToken || this.queueStore !== store) {
+			if (
+				token !== this.queueStoreLoadToken ||
+				this.queueStore !== store ||
+				this.queueRestoreSuperseded
+			) {
 				return;
 			}
 
@@ -123,6 +129,7 @@ export class PlaybackStore {
 	}
 
 	play(tracks: Array<Track>, album: Album, startIndex = 0): void {
+		this.queueRestoreSuperseded = true;
 		this.tracks = tracks;
 		this.album = album;
 		this.trackIndex = startIndex;
@@ -135,6 +142,7 @@ export class PlaybackStore {
 	}
 
 	jumpToIndex(index: number): void {
+		this.queueRestoreSuperseded = true;
 		const clamped = Math.max(0, Math.min(this.tracks.length - 1, index));
 		this.trackIndex = clamped;
 		this.progressSeconds = 0;
@@ -243,6 +251,7 @@ export class PlaybackStore {
 	}
 
 	stop(): void {
+		this.queueRestoreSuperseded = true;
 		this.tracks = [];
 		this.album = null;
 		this._artistLogoUrls = [];
@@ -254,6 +263,7 @@ export class PlaybackStore {
 	}
 
 	playTracks(tracks: Array<Track>, startIndex = 0): void {
+		this.queueRestoreSuperseded = true;
 		this.tracks = tracks;
 		this.album = null;
 		this.trackIndex = startIndex;
@@ -265,6 +275,7 @@ export class PlaybackStore {
 	}
 
 	playWithArtistLogos(tracks: Array<Track>, logoUrls: Array<string | null>, startIndex = 0): void {
+		this.queueRestoreSuperseded = true;
 		this.tracks = tracks;
 		this.album = null;
 		this.trackIndex = startIndex;

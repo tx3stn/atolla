@@ -114,6 +114,13 @@ export class NativeAudioPlayer extends StatefulComponent<
 			this.lastCompletedToken = '';
 			this.hasReportedProgressForSource = false;
 			this.configurePlayback(source, this.viewModel.nextPlaybackSourceUrl ?? null);
+			// Apply rate directly from store state — onViewModelUpdate fires synchronously
+			// during the parent's setState (before the PlaybackStore subscriber fires on
+			// NativeAudioPlayer), so we cannot rely on the subscriber having set any
+			// deferred rate field yet.
+			const rate =
+				this.viewModel.isActive !== false && this.viewModel.playbackStore.isPlaying ? 1 : 0;
+			this.safeSetPlaybackRate(rate);
 			// Skip the initial seek when re-attaching to an already-running player
 			// (app remount while background playback was in progress) — ExoPlayer is
 			// already at the right position and seeking would cause a re-buffer stutter.
