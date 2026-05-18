@@ -111,6 +111,12 @@ export class NativeAudioPlayer extends StatefulComponent<
 
 		if (source !== this.lastSourceUrl) {
 			const isReattach = !this.hasEverBoundSource;
+			// On cold restore with no active playback, skip configure so ExoPlayer isn't
+			// loaded with a stale source. The next onViewModelUpdate after the user taps
+			// play will still see source !== lastSourceUrl and configure normally.
+			if (isReattach && !this.viewModel.playbackStore.isPlaying) {
+				return;
+			}
 			this.hasEverBoundSource = true;
 			DebugLogger.log('NativeAudioPlayer', 'source changed', {
 				isPlaying: this.viewModel.playbackStore.isPlaying,

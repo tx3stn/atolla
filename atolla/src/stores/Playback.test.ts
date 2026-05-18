@@ -942,10 +942,12 @@ describe('PlaybackStore', () => {
 		it('does not overwrite user-initiated play() if it races the async restore', async () => {
 			let resolveRead!: (value: string) => void;
 			const deferredStore = {
-				fetchString: (_key: string): Promise<string> =>
-					new Promise((resolve) => {
-						resolveRead = resolve;
-					}),
+				fetchString: (key: string): Promise<string> =>
+					key === 'queue_active'
+						? Promise.reject(new Error('missing'))
+						: new Promise((resolve) => {
+								resolveRead = resolve;
+							}),
 				storeString: (_key: string, _value: string): Promise<void> => Promise.resolve(),
 			};
 
@@ -979,10 +981,12 @@ describe('PlaybackStore', () => {
 		it('does not overwrite user-initiated stop() if it races the async restore', async () => {
 			let resolveRead!: (value: string) => void;
 			const deferredStore = {
-				fetchString: (_key: string): Promise<string> =>
-					new Promise((resolve) => {
-						resolveRead = resolve;
-					}),
+				fetchString: (key: string): Promise<string> =>
+					key === 'queue_active'
+						? Promise.reject(new Error('missing'))
+						: new Promise((resolve) => {
+								resolveRead = resolve;
+							}),
 				storeString: (_key: string, _value: string): Promise<void> => Promise.resolve(),
 			};
 
@@ -1013,10 +1017,12 @@ describe('PlaybackStore', () => {
 		it('restores normally when no play action races it', async () => {
 			let resolveRead!: (value: string) => void;
 			const deferredStore = {
-				fetchString: (_key: string): Promise<string> =>
-					new Promise((resolve) => {
-						resolveRead = resolve;
-					}),
+				fetchString: (key: string): Promise<string> =>
+					key === 'queue_active'
+						? Promise.reject(new Error('missing'))
+						: new Promise((resolve) => {
+								resolveRead = resolve;
+							}),
 				storeString: (_key: string, _value: string): Promise<void> => Promise.resolve(),
 			};
 
@@ -1037,6 +1043,49 @@ describe('PlaybackStore', () => {
 			expect(store.tracks).toEqual([track1, track2]);
 			expect(store.track).toEqual(track2);
 			expect(store.progressSeconds).toBe(42);
+		});
+
+		it('skips restore when queue_active marker is false', async () => {
+			const queueStore = new InMemoryQueueStore();
+			queueStore.values.set('queue_active', 'false');
+			queueStore.values.set(
+				'queue',
+				JSON.stringify({
+					album,
+					artistLogoUrls: [null],
+					progressSeconds: 10,
+					trackIndex: 0,
+					tracks: [track1],
+				}),
+			);
+
+			const store = new PlaybackStore();
+			await store.setQueueStore(queueStore);
+
+			expect(store.tracks).toEqual([]);
+			expect(store.track).toBeNull();
+			expect(store.isPlaying).toBe(false);
+		});
+
+		it('stop() writes queue_active=false before full queue write', async () => {
+			const writes: Array<{ key: string; value: string }> = [];
+			const trackingStore = {
+				fetchString: (_key: string): Promise<string> => Promise.reject(new Error('missing')),
+				storeString: (key: string, value: string): Promise<void> => {
+					writes.push({ key, value });
+					return Promise.resolve();
+				},
+			};
+
+			const store = new PlaybackStore();
+			await store.setQueueStore(trackingStore);
+			store.playTracks([track1]);
+			writes.length = 0;
+
+			store.stop();
+
+			expect(writes[0]).toEqual({ key: 'queue_active', value: 'false' });
+			expect(writes[1]?.key).toBe('queue');
 		});
 	});
 });

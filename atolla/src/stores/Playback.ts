@@ -18,6 +18,7 @@ interface PersistedPlaybackQueue {
 }
 
 const playbackQueueCacheKey = 'queue';
+const playbackActiveKey = 'queue_active';
 const progressPersistStepSeconds = 5;
 
 export const LoopModes = {
@@ -67,7 +68,10 @@ export class PlaybackStore {
 		}
 
 		try {
-			const raw = await store.fetchString(playbackQueueCacheKey);
+			const [activeMarker, raw] = await Promise.all([
+				store.fetchString(playbackActiveKey).catch(() => ''),
+				store.fetchString(playbackQueueCacheKey),
+			]);
 			if (
 				token !== this.queueStoreLoadToken ||
 				this.queueStore !== store ||
@@ -78,6 +82,11 @@ export class PlaybackStore {
 					superseded: this.queueRestoreSuperseded,
 					tokenMismatch: token !== this.queueStoreLoadToken,
 				});
+				return;
+			}
+
+			if (activeMarker === 'false') {
+				DebugLogger.log('PlaybackStore', 'queue restore skipped: inactive marker set');
 				return;
 			}
 
@@ -155,6 +164,8 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this.seekTarget = null;
 		this._artistLogoUrls = [];
+		// Clear inactive marker so the next cold start can restore this queue.
+		void this.queueStore?.storeString(playbackActiveKey, 'true').catch(() => {});
 		this.persistQueue();
 		this.notify();
 	}
@@ -281,6 +292,10 @@ export class PlaybackStore {
 		this.isPlaying = false;
 		this.progressSeconds = 0;
 		this.trackIndex = 0;
+		// Write the inactive marker before the full queue payload so that if the
+		// process is killed between these two writes, setQueueStore will see active=false
+		// and skip restoration even though the queue payload still has tracks.
+		void this.queueStore?.storeString(playbackActiveKey, 'false').catch(() => {});
 		this.persistQueue();
 		this.notify();
 	}
@@ -293,6 +308,7 @@ export class PlaybackStore {
 		this.isPlaying = true;
 		this.progressSeconds = 0;
 		this._artistLogoUrls = [];
+		void this.queueStore?.storeString(playbackActiveKey, 'true').catch(() => {});
 		this.persistQueue();
 		this.notify();
 	}
@@ -305,6 +321,7 @@ export class PlaybackStore {
 		this.isPlaying = true;
 		this.progressSeconds = 0;
 		this._artistLogoUrls = tracks.map((_, index) => logoUrls[index] ?? null);
+		void this.queueStore?.storeString(playbackActiveKey, 'true').catch(() => {});
 		this.persistQueue();
 		this.notify();
 	}
