@@ -219,6 +219,23 @@
 	"settings_clear_cache_button": {
 		"defaultMessage": "vider le cache"
 	},
+	"settings_debug_log_clear_button": {
+		"defaultMessage": "effacer le log"
+	},
+	"settings_debug_log_export_button": {
+		"defaultMessage": "exporter vers téléchargements"
+	},
+	"settings_debug_log_exported_path": {
+		"defaultMessage": "exporté : {path%s}",
+		"example": "exporté : /storage/downloads/atolla-debug.log"
+	},
+	"settings_debug_log_file_path": {
+		"defaultMessage": "fichier log : {path%s}",
+		"example": "fichier log : /data/user/0/app/debug.log"
+	},
+	"settings_debug_logging": {
+		"defaultMessage": "logs de debug"
+	},
 	"settings_delete_all_downloads_button": {
 		"defaultMessage": "supprimer tous les téléchargements"
 	},
@@ -263,6 +280,9 @@
 	},
 	"settings_section_cache": {
 		"defaultMessage": "CACHE"
+	},
+	"settings_section_debug": {
+		"defaultMessage": "DEBUG"
 	},
 	"settings_section_downloads": {
 		"defaultMessage": "TÉLÉCHARGEMENTS"

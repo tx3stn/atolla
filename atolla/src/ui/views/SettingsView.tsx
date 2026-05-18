@@ -88,6 +88,9 @@ function normalizeInputValue(value: unknown): string {
 export interface SettingsViewModel {
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
+	debugExportPath?: string | null;
+	debugLogFilePath?: string | null;
+	debugLoggingEnabled?: boolean;
 	defaultJellyfinDeviceId?: string;
 	downloadedSizeBytes?: number;
 	downloadedTrackCount?: number;
@@ -108,7 +111,10 @@ export interface SettingsViewModel {
 	onAnimationsChange?: (enabled: boolean) => void;
 	onCacheSizeChange?: (bytes: number) => void;
 	onClearCache?: (selection: ClearCacheSelection) => void;
+	onClearDebugLog?: () => void;
 	onClearDownloads?: () => void;
+	onDebugLoggingChange?: (enabled: boolean) => void;
+	onExportDebugLog?: () => void;
 	onGridColumnsChange?: (count: number) => void;
 	onJellyfinDeviceIdOverrideChange?: (value: string) => void;
 	onLanguageChange?: (code: LanguageCode) => void;
@@ -280,6 +286,18 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 	private handleAnimationsToggle = (enabled: boolean): void => {
 		this.viewModel.onAnimationsChange?.(enabled);
+	};
+
+	private handleDebugLoggingToggle = (enabled: boolean): void => {
+		this.viewModel.onDebugLoggingChange?.(enabled);
+	};
+
+	private handleClearDebugLogPress = (): void => {
+		this.viewModel.onClearDebugLog?.();
+	};
+
+	private handleExportDebugLogPress = (): void => {
+		this.viewModel.onExportDebugLog?.();
 	};
 
 	private handleDeviceIdInputChange = (value: unknown): void => {
@@ -522,6 +540,50 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 						/>
 					</view>
 
+					<label style={styles.sectionTitle} value={Strings.settingsSectionDebug()} />
+					<view style={styles.section}>
+						<view style={styles.settingRow}>
+							<label style={styles.settingLabel} value={Strings.settingsDebugLogging()} />
+							<Toggle
+								accessibilityId='settings-debug-logging-toggle'
+								enabled={this.viewModel.debugLoggingEnabled ?? false}
+								onToggle={this.handleDebugLoggingToggle}
+							/>
+						</view>
+						{this.viewModel.debugLogFilePath != null && (
+							<label
+								accessibilityId='settings-debug-log-path'
+								accessibilityLabel='settings-debug-log-path'
+								numberOfLines={2}
+								style={styles.debugLogPathLabel}
+								value={Strings.settingsDebugLogFilePath(this.viewModel.debugLogFilePath)}
+							/>
+						)}
+						{(this.viewModel.debugLoggingEnabled ?? false) && (
+							<Button
+								accessibilityId='settings-debug-log-export'
+								label={Strings.settingsDebugLogExportButton()}
+								onTap={this.handleExportDebugLogPress}
+							/>
+						)}
+						{this.viewModel.debugExportPath != null && (
+							<label
+								accessibilityId='settings-debug-export-path'
+								accessibilityLabel='settings-debug-export-path'
+								numberOfLines={2}
+								style={styles.debugLogPathLabel}
+								value={Strings.settingsDebugLogExportedPath(this.viewModel.debugExportPath)}
+							/>
+						)}
+						{(this.viewModel.debugLoggingEnabled ?? false) && (
+							<Button
+								accessibilityId='settings-debug-log-clear'
+								label={Strings.settingsDebugLogClearButton()}
+								onTap={this.handleClearDebugLogPress}
+							/>
+						)}
+					</view>
+
 					<label style={styles.sectionTitle} value={Strings.settingsSectionDownloads()} />
 					<view style={styles.section}>
 						<label
@@ -580,6 +642,12 @@ const styles = {
 		...theme.text.main,
 		marginLeft: 18,
 		width: '100%',
+	}),
+	debugLogPathLabel: new Style<Label>({
+		...theme.text.sub,
+		color: theme.colors.muted,
+		marginLeft: 4,
+		marginTop: 8,
 	}),
 	httpWarningCallout: new Style({
 		backgroundColor: withAlpha(theme.colors.warning, 0.12),

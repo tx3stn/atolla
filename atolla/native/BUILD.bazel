@@ -81,6 +81,15 @@ objc_library(
 
 
 objc_library(
+    name = "atolla_debug_logger_module_factory_ios",
+    srcs = ["ios/AtollaDebugLoggerNativeModuleFactory.m"],
+    copts = ["-I."],
+    deps = [
+        "//atolla:atolla_api_objc",
+    ],
+)
+
+objc_library(
     name = "atolla_haptics_bootstrap_module_factory_ios",
     srcs = ["ios/AtollaHapticsBootstrapModuleFactory.m"],
     copts = ["-I."],
@@ -134,6 +143,7 @@ kt_android_library(
     name = "atolla_cache_image_loader_android",
     srcs = [
         "android/AtollaCacheImageLoader.kt",
+        "android/AtollaDebugLoggerNativeModuleFactory.kt",
         "android/AtollaHapticsBootstrap.kt",
         "android/AtollaHapticsBootstrapModuleFactory.kt",
         "android/AtollaPlaybackGuards.kt",
@@ -147,6 +157,7 @@ kt_android_library(
         "android/AtollaWaveformWorker.kt",
     ],
     assets = [
+        "android/assets/valdi_native_modules/atolla.native.android.AtollaDebugLoggerNativeModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaHapticsBootstrapModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaImageLoaderBootstrapModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaStatusBarNativeModuleFactory",
@@ -157,6 +168,7 @@ kt_android_library(
     custom_package = "atolla.native.android",
     deps = [
         "//atolla:atolla_api_kt",
+        "@media3_mvn//:androidx_core_core",
         "@media3_mvn//:androidx_media3_media3_exoplayer",
         "@android_mvn//:com_squareup_okhttp3_okhttp",
         "@valdi//valdi:valdi_java",

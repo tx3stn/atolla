@@ -76,6 +76,11 @@ declare const Strings: {
 	settingsClearCacheButton: () => string;
 	settingsDeleteAllDownloadsButton: () => string;
 	settingsDeleteAllDownloadsConfirm: () => string;
+	settingsDebugLogClearButton: () => string;
+	settingsDebugLogExportButton: () => string;
+	settingsDebugLogExportedPath: (path: string) => string;
+	settingsDebugLogFilePath: (path: string) => string;
+	settingsDebugLogging: () => string;
 	settingsDeviceId: () => string;
 	settingsDeviceIdPlaceholder: () => string;
 	settingsDeviceName: () => string;
@@ -88,6 +93,7 @@ declare const Strings: {
 	settingsSectionAppearance: () => string;
 	settingsSectionAuth: () => string;
 	settingsSectionCache: () => string;
+	settingsSectionDebug: () => string;
 	settingsSectionDownloads: () => string;
 	settingsSectionLanguage: () => string;
 	settingsSectionVersion: () => string;

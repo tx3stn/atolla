@@ -1,4 +1,5 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
+import { DebugLogger } from '../../services/DebugLogger';
 import {
 	applyNativeAudioPlaybackEventAction,
 	normalizeNativeAudioPlaybackEventAction,
@@ -42,6 +43,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 
 	private unsubscribePlaybackStore?: () => void;
 	private progressInterval: ReturnType<typeof setInterval> | null = null;
+	private destroyed = false;
 	private lastSourceUrl = '';
 	private lastNextSourceUrl = '';
 	private lastCompletedToken = '';
@@ -83,6 +85,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 	}
 
 	onDestroy(): void {
+		this.destroyed = true;
 		this.unsubscribePlaybackStore?.();
 		if (this.progressInterval != null) {
 			clearInterval(this.progressInterval);
@@ -109,6 +112,13 @@ export class NativeAudioPlayer extends StatefulComponent<
 		if (source !== this.lastSourceUrl) {
 			const isReattach = !this.hasEverBoundSource;
 			this.hasEverBoundSource = true;
+			DebugLogger.log('NativeAudioPlayer', 'source changed', {
+				isPlaying: this.viewModel.playbackStore.isPlaying,
+				isReattach,
+				next: source,
+				prev: this.lastSourceUrl || '(none)',
+				trackId: this.viewModel.playbackStore.track?.id,
+			});
 			this.lastSourceUrl = source;
 			this.lastNextSourceUrl = next;
 			this.lastCompletedToken = '';
@@ -148,6 +158,15 @@ export class NativeAudioPlayer extends StatefulComponent<
 		const nextTrackId = this.resolveNextTrackId() ?? '';
 		const currentDurationMs = this.resolveCurrentTrackDurationMs() ?? 0;
 		const nextDurationMs = this.resolveNextTrackDurationMs() ?? 0;
+
+		DebugLogger.log('NativeAudioPlayer', 'configurePlayback', {
+			currentDurationMs,
+			currentTrackId,
+			hasNext: !!normalizedNext,
+			nextDurationMs,
+			nextTrackId,
+			rate: this.viewModel.isActive !== false && this.viewModel.playbackStore.isPlaying ? 1 : 0,
+		});
 
 		try {
 			configureAtollaAudioPlayback(
@@ -235,6 +254,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 	}
 
 	private syncProgressAndEvents(): void {
+		if (this.destroyed) return;
 		try {
 			const positionMs = getAtollaAudioPlaybackPositionMs();
 			if (Number.isFinite(positionMs) && positionMs >= 0 && this.viewModel.isActive !== false) {
@@ -270,6 +290,10 @@ export class NativeAudioPlayer extends StatefulComponent<
 				const activeTrackId = this.viewModel.playbackStore.track?.id ?? '';
 				const activeSourceUrl = this.viewModel.playbackSourceUrl ?? '';
 				const completionToken = `${activeTrackId}|${activeSourceUrl}`;
+				DebugLogger.log('NativeAudioPlayer', 'event:completed', {
+					isDuplicate: completionToken === this.lastCompletedToken,
+					trackId: activeTrackId,
+				});
 				if (completionToken !== this.lastCompletedToken) {
 					this.lastCompletedToken = completionToken;
 					if (this.viewModel.onTrackCompleted) {
@@ -291,6 +315,10 @@ export class NativeAudioPlayer extends StatefulComponent<
 			}
 
 			if (event.startsWith('error:')) {
+				DebugLogger.log('NativeAudioPlayer', 'event:error', {
+					error: event.slice('error:'.length),
+					trackId: this.viewModel.playbackStore.track?.id,
+				});
 				this.viewModel.onPlaybackEvent?.('error');
 				this.viewModel.onPlaybackError?.(`native audio error: ${event.slice('error:'.length)}`);
 				continue;
@@ -298,6 +326,9 @@ export class NativeAudioPlayer extends StatefulComponent<
 
 			const nativeAction = normalizeNativeAudioPlaybackEventAction(event);
 			if (nativeAction !== '') {
+				DebugLogger.log('NativeAudioPlayer', `event:${nativeAction}-requested`, {
+					trackId: this.viewModel.playbackStore.track?.id,
+				});
 				applyNativeAudioPlaybackEventAction(this.viewModel.playbackStore, nativeAction);
 				this.viewModel.onPlaybackEvent?.(
 					nativeAction === 'play' ? 'play-requested' : 'pause-requested',

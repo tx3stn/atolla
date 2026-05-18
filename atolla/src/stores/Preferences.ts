@@ -18,6 +18,7 @@ export type LanguageCode = (typeof LANGUAGE_OPTIONS)[number]['code'];
 export const DEFAULT_LANGUAGE: LanguageCode = 'en';
 
 const PreferenceKeys = {
+	debugLoggingEnabled: 'debug_logging_enabled',
 	gridColumns: 'grid_columns',
 	imageCacheMaxBytes: 'image_cache_max_bytes',
 	jellyfinClientDeviceIdOverride: 'jellyfin_client_device_id_override',
@@ -148,5 +149,17 @@ export class Preferences {
 
 	async setLanguage(code: LanguageCode): Promise<void> {
 		await this.store.storeString(PreferenceKeys.language, code);
+	}
+
+	async getDebugLoggingEnabled(): Promise<boolean> {
+		try {
+			return (await this.store.fetchString(PreferenceKeys.debugLoggingEnabled)) === 'true';
+		} catch {
+			return false;
+		}
+	}
+
+	async setDebugLoggingEnabled(enabled: boolean): Promise<void> {
+		await this.store.storeString(PreferenceKeys.debugLoggingEnabled, String(enabled));
 	}
 }

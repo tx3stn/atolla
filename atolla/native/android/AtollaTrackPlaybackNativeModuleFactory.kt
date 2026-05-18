@@ -250,16 +250,20 @@ object AtollaGaplessAudioEngine {
 				return
 			}
 
-			if (AtollaPlaybackGuards.shouldEmitPauseForReason(reason)) {
+			val emitPause = AtollaPlaybackGuards.shouldEmitPauseForReason(reason)
+			Log.d(tag, "onPlayWhenReadyChanged playWhenReady=$playWhenReady reason=$reason emitPause=$emitPause")
+			if (emitPause) {
 				enqueueEvent("pause-requested")
 			}
 		}
 
 		override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
 			if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+				Log.d(tag, "onMediaItemTransition skipped reason=$reason")
 				return
 			}
 
+			Log.d(tag, "onMediaItemTransition auto trackId=${mediaItem?.mediaId}")
 			enqueueEvent("completed")
 			if (mediaItem != null) {
 				sourceTrackId = mediaItem.mediaId
@@ -325,6 +329,7 @@ object AtollaGaplessAudioEngine {
 		nextTrackId: String,
 		nextDurationMs: Long,
 	) {
+		Log.d(tag, "configure trackId=$currentTrackId rate=$playbackRate hasNext=${nextSourceUrl.isNotBlank()} thread=${Thread.currentThread().name}")
 		this.sourceUrl = currentSourceUrl
 		this.sourceTrackId = currentTrackId
 		this.sourceDurationMs = currentDurationMs.coerceAtLeast(0L)
@@ -493,10 +498,12 @@ object AtollaGaplessAudioEngine {
 
 		val currentItem = player.currentMediaItem
 		if (currentItem == null || !mediaItemMatches(currentItem, sourceUrl, sourceTrackId)) {
+			Log.d(tag, "syncQueue->replaceQueue: currentItem mismatch trackId=$sourceTrackId rate=$capturedPlaybackRate")
 			replaceQueue(player, capturedPlaybackRate)
 			return
 		}
 
+		Log.d(tag, "syncQueue: updating next item trackId=$sourceTrackId hasNext=${nextSourceUrl.isNotBlank()}")
 		trimPlayedItems()
 		val itemCount = player.mediaItemCount
 		if (itemCount > 1) {
@@ -513,6 +520,7 @@ object AtollaGaplessAudioEngine {
 			return
 		}
 
+		Log.d(tag, "replaceQueue trackId=$sourceTrackId rate=$capturedPlaybackRate pendingSeek=$pendingSeekToMs")
 		val items = mutableListOf(buildMediaItem(sourceUrl, sourceTrackId))
 		if (nextSourceUrl.isNotBlank() && nextSourceUrl != sourceUrl) {
 			items.add(buildMediaItem(nextSourceUrl, nextTrackId))

@@ -1,6 +1,8 @@
 package atolla.native.android
 
 import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -23,6 +25,7 @@ import android.os.IBinder
 class AtollaPlaybackService : Service() {
     companion object {
         private const val NOTIFICATION_ID = 4002
+        private const val NOTIFICATION_CHANNEL_ID = "atolla_track_playback"
 
         /**
          * Pending notification to show as soon as onStartCommand fires.
@@ -72,12 +75,39 @@ class AtollaPlaybackService : Service() {
         if (notification == null) {
             // pendingNotification is only null when the OS restarts this service via
             // START_STICKY after the process was killed. There is no active playback
-            // to resume, so stop immediately rather than show a stale placeholder.
+            // to resume, so stop immediately. Android 8+ requires startForeground()
+            // to be called in onStartCommand before stopSelf(), even when stopping
+            // right away — skipping it causes ForegroundServiceDidNotStartInTimeException.
+            startForeground(NOTIFICATION_ID, buildPlaceholderNotification())
             stopSelf(startId)
             return START_NOT_STICKY
         }
         startForeground(NOTIFICATION_ID, notification)
         return START_STICKY
+    }
+
+    private fun buildPlaceholderNotification(): Notification {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            if (manager?.getNotificationChannel(NOTIFICATION_CHANNEL_ID) == null) {
+                val channel = NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID,
+                    "Playback",
+                    NotificationManager.IMPORTANCE_LOW
+                )
+                channel.setShowBadge(false)
+                manager?.createNotificationChannel(channel)
+            }
+            return Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_media_play)
+                .setContentTitle("")
+                .build()
+        }
+        @Suppress("DEPRECATION")
+        return Notification.Builder(this)
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentTitle("")
+            .build()
     }
 
     /** Replace the foreground notification with an updated one. */

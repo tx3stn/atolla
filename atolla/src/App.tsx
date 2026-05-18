@@ -12,6 +12,13 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
+import {
+	clearAtollaDebugLog,
+	exportAtollaDebugLog,
+	getAtollaDebugLogFilePath,
+	shareAtollaDebugLog,
+	writeAtollaDebugLog,
+} from './DebugLoggerNative';
 import { AuthErrors } from './errors/AuthErrors';
 import { ensureAtollaHapticsBootstrap } from './HapticsBootstrap';
 import {
@@ -31,6 +38,7 @@ import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
 import Strings from './Strings';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
+import { DebugLogger } from './services/DebugLogger';
 import {
 	DownloadNativeWorkerEntryPoint,
 	type IDownloadNativeWorker,
@@ -120,6 +128,9 @@ interface AppState {
 	authErrorMessage: string | null;
 	authToastMessage: string | null;
 	connectionMode: ConnectionMode;
+	debugExportPath: string | null;
+	debugLogFilePath: string | null;
+	debugLoggingEnabled: boolean;
 	downloadedSizeBytes: number | null;
 	downloadedTrackCount: number;
 	downloadingCount: number;
@@ -330,6 +341,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		authErrorMessage: null,
 		authToastMessage: null,
 		connectionMode: ConnectionModes.offline,
+		debugExportPath: null,
+		debugLogFilePath: null,
+		debugLoggingEnabled: false,
 		downloadedSizeBytes: null,
 		downloadedTrackCount: 0,
 		downloadingCount: 0,
@@ -362,6 +376,17 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	onCreate(): void {
 		this.bootstrapStartedAt = Date.now();
+		try {
+			DebugLogger.register({
+				clearLog: clearAtollaDebugLog,
+				exportLog: exportAtollaDebugLog,
+				getLogFilePath: getAtollaDebugLogFilePath,
+				shareLog: shareAtollaDebugLog,
+				writeLog: writeAtollaDebugLog,
+			});
+		} catch {
+			// Native logger unavailable (e.g. desktop/test environment)
+		}
 		void this.playlistCreateService.load();
 		try {
 			ensureAtollaImageLoaderBootstrap();
@@ -392,6 +417,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.preferences.getLanguage(),
 				this.authService.loadSession(),
 				this.authService.loadRememberedServerUrl(),
+				this.preferences.getDebugLoggingEnabled(),
 			]),
 			new Promise<never>((_, reject) =>
 				setTimeout(() => reject(new Error('preferences load timeout')), 5000),
@@ -408,6 +434,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					language,
 					existingSession,
 					rememberedServerUrl,
+					debugLoggingEnabled,
 				]) => {
 					if (this.hasBeenDestroyed) return;
 					this.jellyfinClientDeviceIdOverride = this.normalizeJellyfinClientDeviceIdOverride(
@@ -443,6 +470,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					if (language !== DEFAULT_LANGUAGE) {
 						overrideLocales(Strings, () => [new Locale(language, undefined)]);
 					}
+					DebugLogger.setEnabled(debugLoggingEnabled);
+					this.setState({
+						debugLogFilePath: DebugLogger.getLogFilePath() || null,
+						debugLoggingEnabled,
+					});
 					this.completeBootstrap({
 						animationsEnabled,
 						authErrorMessage: null,
@@ -1452,6 +1484,25 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({ animationsEnabled: enabled });
 	};
 
+	handleDebugLoggingChange = (enabled: boolean): void => {
+		void this.preferences.setDebugLoggingEnabled(enabled);
+		DebugLogger.setEnabled(enabled);
+		this.setState({ debugLoggingEnabled: enabled });
+	};
+
+	handleClearDebugLog = (): void => {
+		DebugLogger.clearLog();
+	};
+
+	handleExportDebugLog = (): void => {
+		const dest = DebugLogger.exportLog();
+		this.setState({ debugExportPath: dest || null });
+	};
+
+	handleShareDebugLog = (): void => {
+		DebugLogger.shareLog();
+	};
+
 	handleTrackCacheMaxTracksChange = (count: number): void => {
 		this.preferences.setTrackCacheMaxTracks(count);
 		this.setState({ trackCacheMaxTracks: count });
@@ -2431,6 +2482,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					<SettingsView
 						animationsEnabled={this.state.animationsEnabled}
 						connectionMode={this.state.connectionMode}
+						debugExportPath={this.state.debugExportPath}
+						debugLogFilePath={this.state.debugLogFilePath}
+						debugLoggingEnabled={this.state.debugLoggingEnabled}
 						defaultJellyfinDeviceId={this.defaultJellyfinClientDeviceId}
 						downloadedSizeBytes={this.state.downloadedSizeBytes ?? undefined}
 						downloadedTrackCount={this.state.downloadedTrackCount}
@@ -2462,7 +2516,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						onAnimationsChange={this.handleAnimationsChange}
 						onCacheSizeChange={this.handleCacheSizeChange}
 						onClearCache={this.handleClearCache}
+						onClearDebugLog={this.handleClearDebugLog}
 						onClearDownloads={this.handleClearDownloads}
+						onDebugLoggingChange={this.handleDebugLoggingChange}
+						onExportDebugLog={this.handleExportDebugLog}
 						onGridColumnsChange={this.handleGridColumnsChange}
 						onJellyfinDeviceIdOverrideChange={this.handleJellyfinClientDeviceIdOverrideChange}
 						onLanguageChange={this.handleLanguageChange}

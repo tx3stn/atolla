@@ -39,6 +39,7 @@ load("@rules_jvm_external//:defs.bzl", "maven_install")
 maven_install(
     name = "media3_mvn",
     artifacts = [
+        "androidx.core:core:1.13.1",
         "androidx.media3:media3-exoplayer:1.3.1",
     ],
     repositories = [
