@@ -5,15 +5,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
-# Start devices first so they're booted and ready before the build steps.
-"$SCRIPT_DIR/start-e2e-devices.sh"
-# shellcheck source=/dev/null
-source /tmp/atolla-e2e-devices.env
-
-# Target the first device of each platform for the build/install step —
-# android:fast and ios:fast only need one device each to validate the build.
-FIRST_ANDROID_SERIAL=$(echo "$E2E_ANDROID_SERIALS" | cut -d',' -f1)
-FIRST_IOS_UDID=$(echo "$E2E_IOS_UDIDS" | cut -d',' -f1)
+# Start devices in the background so they boot while other checks run.
+"$SCRIPT_DIR/start-e2e-devices.sh" &
+DEVICES_PID=$!
 
 echo ""
 echo "=== Running checks ==="
@@ -22,6 +16,18 @@ bun run check
 echo ""
 echo "=== Running component tests ==="
 bun run test:components
+
+# Wait for devices to be ready now that we actually need them.
+echo ""
+echo "=== Waiting for e2e devices ==="
+wait $DEVICES_PID
+# shellcheck source=/dev/null
+source /tmp/atolla-e2e-devices.env
+
+# Target the first device of each platform for the build/install step —
+# android:fast and ios:fast only need one device each to validate the build.
+FIRST_ANDROID_SERIAL=$(echo "$E2E_ANDROID_SERIALS" | cut -d',' -f1)
+FIRST_IOS_UDID=$(echo "$E2E_IOS_UDIDS" | cut -d',' -f1)
 
 echo ""
 echo "=== Building and installing Android app ==="
