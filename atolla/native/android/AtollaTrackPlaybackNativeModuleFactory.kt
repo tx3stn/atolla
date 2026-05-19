@@ -1177,7 +1177,7 @@ object AtollaTrackPlaybackMediaSession {
 
 	@Volatile private var mediaSession: MediaSession? = null
 	@Volatile private var notificationManager: NotificationManager? = null
-	@Volatile private var pendingAction: String = ""
+	private val pendingActions = kotlin.collections.ArrayDeque<String>()
 	@Volatile private var activeTrackName: String = ""
 	@Volatile private var activeArtistName: String = ""
 	@Volatile private var activeAlbumName: String = ""
@@ -1287,27 +1287,28 @@ object AtollaTrackPlaybackMediaSession {
 		}
 
 		cancelNotification()
-		releaseMediaSession()
+		deactivateMediaSession()
 	}
 
 	@Synchronized
 	fun consumeAction(): String {
-		val action = pendingAction
-		pendingAction = ""
-		return action
+		return pendingActions.removeFirstOrNull() ?: ""
 	}
 
 	@Synchronized
 	fun onAction(action: String?) {
-		pendingAction =
+		val mapped =
 			when (action) {
 				actionPlay -> "play"
 				actionPause -> "pause"
 				actionPrevious -> "previous"
 				actionNext -> "next"
 				actionStop -> "stop"
-				else -> ""
+				else -> return
 			}
+		if (pendingActions.size < 2) {
+			pendingActions.addLast(mapped)
+		}
 	}
 
 	private fun resolveApplicationContext(): Context? {
@@ -1352,7 +1353,11 @@ object AtollaTrackPlaybackMediaSession {
 
 	@Synchronized
 	private fun ensureMediaSessionInitializedOnMainThread(context: Context) {
-		if (mediaSession != null) {
+		val existing = mediaSession
+		if (existing != null) {
+			if (!existing.isActive) {
+				existing.isActive = true
+			}
 			return
 		}
 
@@ -1412,6 +1417,7 @@ object AtollaTrackPlaybackMediaSession {
 				// Atolla app currently handles seek from its own UI.
 			}
 			},
+			Handler(Looper.getMainLooper()),
 		)
 		session.isActive = true
 		mediaSession = session
@@ -1681,6 +1687,23 @@ object AtollaTrackPlaybackMediaSession {
 		try {
 			// Fallback: cancel via NotificationManager in case the service never started.
 			notificationManager?.cancel(notificationId)
+		} catch (_: Throwable) {
+			// ignored
+		}
+	}
+
+	private fun deactivateMediaSession() {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+			return
+		}
+
+		val session = mediaSession ?: return
+		try {
+			// Set inactive so the system stops showing media controls, but keep the
+			// session alive so any in-flight callbacks can still dispatch their action.
+			// State/metadata are refreshed by updateMediaState/updateMediaMetadata when
+			// the next track calls publishNotificationSnapshot.
+			session.isActive = false
 		} catch (_: Throwable) {
 			// ignored
 		}
