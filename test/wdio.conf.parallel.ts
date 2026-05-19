@@ -21,11 +21,7 @@ function collectSpecFiles(dir: string): Array<string> {
 			continue;
 		}
 
-		if (
-			entry.isFile() &&
-			entry.name.endsWith('.test.ts') &&
-			!fullPath.includes('/context-menus/')
-		) {
+		if (entry.isFile() && entry.name.endsWith('.test.ts')) {
 			specs.push(fullPath);
 		}
 	}

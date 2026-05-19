@@ -1,4 +1,3 @@
-/** biome-ignore-all assist/source/useSortedKeys: **/
 import { CardContextMenu } from '../pages/CardContextMenuModal';
 import { FooterPage } from '../pages/Footer';
 import { HomePage } from '../pages/HomePage';
@@ -8,7 +7,10 @@ import type { Scenario } from '../utils/table';
 
 const scenarios: Array<Scenario> = [
 	{
-		label: 'library albums grid',
+		act: async () => {
+			const library = new LibraryPage(browser);
+			await library.tabs.albums.longPressFirstVisibleCard();
+		},
 		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
@@ -17,13 +19,13 @@ const scenarios: Array<Scenario> = [
 			await library.openAlbumsTab();
 			await library.tabs.albums.waitForLoad();
 		},
-		act: async () => {
-			const library = new LibraryPage(browser);
-			await library.tabs.albums.longPressFirstVisibleCard();
-		},
+		label: 'library albums grid',
 	},
 	{
-		label: 'library artists grid',
+		act: async () => {
+			const library = new LibraryPage(browser);
+			await library.tabs.artists.longPressFirstVisibleCard();
+		},
 		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
@@ -32,13 +34,13 @@ const scenarios: Array<Scenario> = [
 			await library.openArtistsTab();
 			await library.tabs.artists.waitForLoad();
 		},
-		act: async () => {
-			const library = new LibraryPage(browser);
-			await library.tabs.artists.longPressFirstVisibleCard();
-		},
+		label: 'library artists grid',
 	},
 	{
-		label: 'library playlists grid',
+		act: async () => {
+			const library = new LibraryPage(browser);
+			await library.tabs.playlists.longPressFirstVisibleCard();
+		},
 		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
@@ -47,13 +49,13 @@ const scenarios: Array<Scenario> = [
 			await library.openPlaylistsTab();
 			await library.tabs.playlists.waitForLoad();
 		},
-		act: async () => {
-			const library = new LibraryPage(browser);
-			await library.tabs.playlists.longPressFirstVisibleCard();
-		},
+		label: 'library playlists grid',
 	},
 	{
-		label: 'search results',
+		act: async () => {
+			const searchPage = new SearchPage(browser);
+			await searchPage.longPressFirstVisibleCard();
+		},
 		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapSearch();
@@ -62,13 +64,13 @@ const scenarios: Array<Scenario> = [
 			await searchPage.enterSearchQuery('a');
 			await searchPage.waitForCardResults();
 		},
-		act: async () => {
-			const searchPage = new SearchPage(browser);
-			await searchPage.longPressFirstVisibleCard();
-		},
+		label: 'search results',
 	},
 	{
-		label: 'home',
+		act: async () => {
+			const homePage = new HomePage(browser);
+			await homePage.longPressFirstVisibleAlbumCard();
+		},
 		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapHome();
@@ -76,13 +78,13 @@ const scenarios: Array<Scenario> = [
 			await homePage.waitForLoad();
 			await homePage.waitForAlbumCards();
 		},
-		act: async () => {
-			const homePage = new HomePage(browser);
-			await homePage.longPressFirstVisibleAlbumCard();
-		},
+		label: 'home',
 	},
 	{
-		label: 'library genres grid',
+		act: async () => {
+			const library = new LibraryPage(browser);
+			await library.tabs.genres.longPressFirstVisibleCard();
+		},
 		arrange: async () => {
 			const footer = new FooterPage(browser);
 			await footer.tapLibrary();
@@ -91,10 +93,7 @@ const scenarios: Array<Scenario> = [
 			await library.openGenresTab();
 			await library.tabs.genres.waitForLoad();
 		},
-		act: async () => {
-			const library = new LibraryPage(browser);
-			await library.tabs.genres.longPressFirstVisibleCard();
-		},
+		label: 'library genres grid',
 	},
 ];
 
@@ -144,11 +143,25 @@ for (const testCase of scenarios) {
 			// FIXME: assert item is actually added to play next
 		});
 
-		// FIXME: actually implement
-		it('navigates to the correct place when tapping the header', async () => {
-			await testCase.act();
-			const menu = new CardContextMenu(browser);
-			await menu.waitForHidden();
-		});
+		// it('navigates to the correct place when tapping the header', async () => {
+		// 	await testCase.act();
+		// 	let menu = new CardContextMenu(browser);
+		// 	await menu.waitForVisible();
+		// 	await menu.tapAlbumRow();
+		// 	await menu.waitForHidden();
+		//
+		// 	const albumDetail = new AlbumDetailPage(browser);
+		// 	await albumDetail.waitForLoad();
+		//
+		// 	await testCase.arrange();
+		// 	await testCase.act();
+		// 	menu = new CardContextMenu(browser);
+		// 	await menu.waitForVisible();
+		// 	await menu.tapArtist();
+		// 	await menu.waitForHidden();
+		//
+		// 	const artistDetail = new ArtistDetailPage(browser);
+		// 	await artistDetail.waitForLoad();
+		// });
 	});
 }

@@ -6,6 +6,8 @@ export class CardContextMenu extends BasePage {
 	private readonly play = 'card-context-play';
 	private readonly playNext = 'card-context-play-next';
 	private readonly addToQueue = 'card-context-add-to-queue';
+	private readonly album = 'card-context-menu-album';
+	private readonly artistLogo = 'artist-logo';
 
 	async waitForVisible(): Promise<void> {
 		await this.elementByID(this.root).waitForDisplayed({
@@ -17,6 +19,18 @@ export class CardContextMenu extends BasePage {
 		await this.driver.waitUntil(async () => !(await this.elementByID(this.root).isExisting()), {
 			timeoutMsg: 'Card context menu did not dismiss',
 		});
+	}
+
+	async tapAlbumRow(): Promise<void> {
+		const rows = await this.allByAccessibilityPrefixWithin(this.elementByID(this.root), this.album);
+		if (rows.length === 0) throw new Error('No track row found in card context menu');
+		await rows[0].click();
+	}
+
+	async tapArtist(): Promise<void> {
+		const el = this.elementByID(this.artistLogo);
+		await el.waitForDisplayed({ timeoutMsg: 'Artist logo not visible in context menu' });
+		await el.click();
 	}
 
 	async tapBackdrop(): Promise<void> {

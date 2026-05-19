@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import chalk from 'chalk';
 import { ConnectionPage } from '../pages/ConnectionPage';
 import { ConnectivityFabPage } from '../pages/ConnectivityFabPage';
 import { FooterPage } from '../pages/Footer';
@@ -108,13 +109,22 @@ async function saveFailureScreenshot(subject: unknown): Promise<void> {
 	}
 }
 
-export function beforeSuiteHook(suite: { title?: string }): void {
-	console.log(`󰙨 ${suite.title ?? 'unknown'}`);
-}
+let lastSuiteTitle = '';
 
-export function beforeTestHook(test: { fullTitle?: string; title?: string }): void {
-	const title = test.fullTitle ?? test.title ?? 'unknown';
-	console.log(`  step: ${title}`);
+export function beforeSuiteHook(_suite: { title?: string }): void {}
+
+export function beforeTestHook(test: {
+	fullTitle?: string;
+	title?: string;
+	parent?: string;
+}): void {
+	const suite = test.parent ?? '';
+	if (suite && suite !== lastSuiteTitle) {
+		lastSuiteTitle = suite;
+		console.log(chalk.bold.green(`󰙨 ${suite}`));
+	}
+
+	console.log(`${chalk.blue(' ')} ${test.title ?? 'unknown'}`);
 }
 
 export async function afterTestHook(

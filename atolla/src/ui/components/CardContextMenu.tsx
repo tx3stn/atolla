@@ -225,7 +225,12 @@ export class CardContextMenu extends StatefulComponent<
 						</view>
 					)}
 					{card.kind === 'album' && (
-						<view onTap={this.handleEntityTap} style={styles.entityRow}>
+						<view
+							accessibilityId='card-context-menu-album'
+							accessibilityLabel='card-context-menu-album'
+							onTap={this.handleEntityTap}
+							style={styles.entityRow}
+						>
 							<CachedImage
 								category='album_art_thumb'
 								style={styles.entityArtwork}
