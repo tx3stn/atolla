@@ -69,9 +69,11 @@ export class NativeAudioPlayer extends StatefulComponent<
 				this.viewModel.isActive !== false && this.viewModel.playbackStore.isPlaying ? 1 : 0;
 			if (nextRate !== this.state.playbackRate) {
 				this.setState({ playbackRate: nextRate });
+				if (this.destroyed) return;
 				this.safeSetPlaybackRate(nextRate);
 			}
 
+			if (this.destroyed) return;
 			const seekTarget = this.viewModel.playbackStore.seekTarget;
 			if (seekTarget != null && seekTarget !== this.lastSeekTargetSeconds) {
 				this.lastSeekTargetSeconds = seekTarget;
@@ -275,11 +277,13 @@ export class NativeAudioPlayer extends StatefulComponent<
 						? Math.min(positionSeconds, Math.max(0, trackDurationSeconds - 0.05))
 						: positionSeconds;
 				this.viewModel.playbackStore.updateProgress(safePositionSeconds);
+				if (this.destroyed) return;
 			}
 		} catch {
 			// best effort poll
 		}
 
+		if (this.destroyed) return;
 		while (true) {
 			let event = '';
 			try {
