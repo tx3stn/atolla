@@ -73,8 +73,27 @@ describe('TrackPlaybackNotificationSync', () => {
 		expect(store.track).toBeNull();
 	});
 
+	it('toggle action plays when paused and pauses when playing', () => {
+		const store = new PlaybackStore();
+		store.playTracks([{ duration: 100, id: 'track-1', name: 'First' }], 0);
+
+		expect(store.isPlaying).toBe(true);
+		applyTrackPlaybackNotificationAction(store, 'toggle');
+		expect(store.isPlaying).toBe(false);
+
+		applyTrackPlaybackNotificationAction(store, 'toggle');
+		expect(store.isPlaying).toBe(true);
+	});
+
+	it('toggle action is a no-op when no track is loaded', () => {
+		const store = new PlaybackStore();
+		applyTrackPlaybackNotificationAction(store, 'toggle');
+		expect(store.track).toBeNull();
+	});
+
 	it('normalizes native action payloads', () => {
 		expect(normalizeTrackPlaybackNotificationAction(' PLAY ')).toBe('play');
+		expect(normalizeTrackPlaybackNotificationAction(' TOGGLE ')).toBe('toggle');
 		expect(normalizeTrackPlaybackNotificationAction('unknown')).toBe('');
 	});
 });

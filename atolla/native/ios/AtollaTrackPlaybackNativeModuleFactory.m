@@ -499,13 +499,14 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
 
 @implementation AtollaMediaSession
 
-static NSString *sPendingAction = @"";
+static NSMutableArray<NSString *> *sPendingActions;
 static NSLock *sMediaSessionLock;
 static BOOL sCommandsRegistered = NO;
 
 + (void)initialize {
     if (self == [AtollaMediaSession class]) {
         sMediaSessionLock = [[NSLock alloc] init];
+        sPendingActions = [NSMutableArray array];
     }
 }
 
@@ -517,42 +518,44 @@ static BOOL sCommandsRegistered = NO;
 
     [cc.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
         [sMediaSessionLock lock];
-        sPendingAction = @"play";
+        if (sPendingActions.count < 2) [sPendingActions addObject:@"play"];
         [sMediaSessionLock unlock];
         return MPRemoteCommandHandlerStatusSuccess;
     }];
 
     [cc.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
         [sMediaSessionLock lock];
-        sPendingAction = @"pause";
+        if (sPendingActions.count < 2) [sPendingActions addObject:@"pause"];
         [sMediaSessionLock unlock];
         return MPRemoteCommandHandlerStatusSuccess;
     }];
 
+    // togglePlayPauseCommand fires from headphone/AirPods button — must toggle regardless of
+    // current state, so it uses "toggle" rather than "play" (which is a no-op when already playing).
     [cc.togglePlayPauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
         [sMediaSessionLock lock];
-        sPendingAction = @"play";
+        if (sPendingActions.count < 2) [sPendingActions addObject:@"toggle"];
         [sMediaSessionLock unlock];
         return MPRemoteCommandHandlerStatusSuccess;
     }];
 
     [cc.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
         [sMediaSessionLock lock];
-        sPendingAction = @"next";
+        if (sPendingActions.count < 2) [sPendingActions addObject:@"next"];
         [sMediaSessionLock unlock];
         return MPRemoteCommandHandlerStatusSuccess;
     }];
 
     [cc.previousTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
         [sMediaSessionLock lock];
-        sPendingAction = @"previous";
+        if (sPendingActions.count < 2) [sPendingActions addObject:@"previous"];
         [sMediaSessionLock unlock];
         return MPRemoteCommandHandlerStatusSuccess;
     }];
 
     [cc.stopCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
         [sMediaSessionLock lock];
-        sPendingAction = @"pause";
+        if (sPendingActions.count < 2) [sPendingActions addObject:@"pause"];
         [sMediaSessionLock unlock];
         return MPRemoteCommandHandlerStatusSuccess;
     }];
@@ -614,8 +617,8 @@ static BOOL sCommandsRegistered = NO;
 
 + (NSString * _Nonnull)consumeAction {
     [sMediaSessionLock lock];
-    NSString *action = sPendingAction;
-    sPendingAction = @"";
+    NSString *action = sPendingActions.firstObject ?: @"";
+    if (sPendingActions.count > 0) [sPendingActions removeObjectAtIndex:0];
     [sMediaSessionLock unlock];
     return action;
 }

@@ -14,7 +14,14 @@ export interface TrackPlaybackNotificationPayload {
 	trackName: string;
 }
 
-export type TrackPlaybackNotificationAction = 'next' | 'pause' | 'play' | 'previous' | 'stop' | '';
+export type TrackPlaybackNotificationAction =
+	| 'next'
+	| 'pause'
+	| 'play'
+	| 'previous'
+	| 'stop'
+	| 'toggle'
+	| '';
 
 export function normalizeTrackPlaybackNotificationAction(
 	rawAction: string,
@@ -25,7 +32,8 @@ export function normalizeTrackPlaybackNotificationAction(
 		action === 'pause' ||
 		action === 'next' ||
 		action === 'previous' ||
-		action === 'stop'
+		action === 'stop' ||
+		action === 'toggle'
 	) {
 		return action;
 	}
@@ -64,6 +72,12 @@ export function applyTrackPlaybackNotificationAction(
 		}
 		case 'stop': {
 			playbackStore.stop();
+			break;
+		}
+		case 'toggle': {
+			if (playbackStore.track != null) {
+				playbackStore.playPause();
+			}
 			break;
 		}
 	}
