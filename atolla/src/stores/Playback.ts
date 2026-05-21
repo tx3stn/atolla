@@ -156,10 +156,12 @@ export class PlaybackStore {
 			startIndex,
 			trackCount: tracks.length,
 		});
+		const sanitizedTracks = sanitizeTracks(tracks);
+		const clampedIndex = Math.max(0, Math.min(sanitizedTracks.length - 1, startIndex));
 		this.queueRestoreSuperseded = true;
-		this.tracks = tracks;
+		this.tracks = sanitizedTracks;
 		this.album = album;
-		this.trackIndex = startIndex;
+		this.trackIndex = clampedIndex;
 		this.isPlaying = true;
 		this.progressSeconds = 0;
 		this.seekTarget = null;
@@ -301,10 +303,12 @@ export class PlaybackStore {
 	}
 
 	playTracks(tracks: Array<Track>, startIndex = 0): void {
+		const sanitizedTracks = sanitizeTracks(tracks);
+		const clampedIndex = Math.max(0, Math.min(sanitizedTracks.length - 1, startIndex));
 		this.queueRestoreSuperseded = true;
-		this.tracks = sanitizeTracks(tracks);
+		this.tracks = sanitizedTracks;
 		this.album = null;
-		this.trackIndex = startIndex;
+		this.trackIndex = clampedIndex;
 		this.isPlaying = true;
 		this.progressSeconds = 0;
 		this._artistLogoUrls = [];
@@ -314,10 +318,12 @@ export class PlaybackStore {
 	}
 
 	playWithArtistLogos(tracks: Array<Track>, logoUrls: Array<string | null>, startIndex = 0): void {
+		const sanitizedTracks = sanitizeTracks(tracks);
+		const clampedIndex = Math.max(0, Math.min(sanitizedTracks.length - 1, startIndex));
 		this.queueRestoreSuperseded = true;
-		this.tracks = sanitizeTracks(tracks);
+		this.tracks = sanitizedTracks;
 		this.album = null;
-		this.trackIndex = startIndex;
+		this.trackIndex = clampedIndex;
 		this.isPlaying = true;
 		this.progressSeconds = 0;
 		this._artistLogoUrls = tracks.map((_, index) => logoUrls[index] ?? null);

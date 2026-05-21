@@ -35,7 +35,7 @@ import {
 import type { Album } from './models/Album';
 import type { Artist } from './models/Artist';
 import type { Playlist } from './models/Playlist';
-import type { Track } from './models/Track';
+import { sanitizeTracks, type Track } from './models/Track';
 import Strings from './Strings';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { DebugLogger } from './services/DebugLogger';
@@ -574,9 +574,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				if (!Array.isArray(parsed)) {
 					this.recentlyPlayedTracks = [];
 				} else {
-					const restored = parsed
-						.filter((track): track is Track => this.isTrack(track))
-						.slice(0, 5);
+					const restored = sanitizeTracks(
+						parsed.filter((track): track is Track => this.isTrack(track)).slice(0, 5),
+					);
 					this.recentlyPlayedTracks = restored;
 				}
 				this.recentlyPlayedRestoring = false;

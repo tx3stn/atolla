@@ -98,6 +98,32 @@ describe('PlaybackStore', () => {
 			expect(store.track).toBe(track3);
 		});
 
+		it('clamps a negative start index to zero', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, -1);
+			expect(store.trackIndex).toBe(0);
+			expect(store.track).toBe(track1);
+		});
+
+		it('clamps a start index beyond track count to the final track', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 999);
+			expect(store.trackIndex).toBe(2);
+			expect(store.track).toBe(track3);
+		});
+
+		it('sanitizes invalid track fields before storing queue', () => {
+			const store = new PlaybackStore();
+			const unsafeTracks = [
+				{ duration: Number.NaN, id: 'track-unsafe', name: '' } as unknown as Track,
+			];
+
+			store.play(unsafeTracks, album);
+
+			expect(store.track?.duration).toBe(0);
+			expect(store.track?.name).toBe('Unknown');
+		});
+
 		it('resets artistLogoUrl', () => {
 			const store = new PlaybackStore();
 			store.setArtistLogoUrl('https://example.com/logo.png');
@@ -545,6 +571,20 @@ describe('PlaybackStore', () => {
 			expect(store.track).toBe(track3);
 		});
 
+		it('clamps a negative start index to zero', () => {
+			const store = new PlaybackStore();
+			store.playTracks(tracks, -1);
+			expect(store.trackIndex).toBe(0);
+			expect(store.track).toBe(track1);
+		});
+
+		it('clamps a start index beyond track count to the final track', () => {
+			const store = new PlaybackStore();
+			store.playTracks(tracks, 999);
+			expect(store.trackIndex).toBe(2);
+			expect(store.track).toBe(track3);
+		});
+
 		it('resets artistLogoUrl', () => {
 			const store = new PlaybackStore();
 			store.setArtistLogoUrl('https://example.com/logo.png');
@@ -688,6 +728,20 @@ describe('PlaybackStore', () => {
 			expect(store.artistLogoUrl).toBeNull();
 			store.next();
 			expect(store.artistLogoUrl).toBe('logo2');
+		});
+
+		it('clamps a negative start index to zero', () => {
+			const store = new PlaybackStore();
+			store.playWithArtistLogos(tracks, ['logo1', 'logo2', 'logo3'], -1);
+			expect(store.trackIndex).toBe(0);
+			expect(store.track).toBe(track1);
+		});
+
+		it('clamps a start index beyond track count to the final track', () => {
+			const store = new PlaybackStore();
+			store.playWithArtistLogos(tracks, ['logo1', 'logo2', 'logo3'], 999);
+			expect(store.trackIndex).toBe(2);
+			expect(store.track).toBe(track3);
 		});
 
 		it('notifies listeners', () => {
