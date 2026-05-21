@@ -99,6 +99,9 @@ export class NowPlayingBar extends BasePage {
 		const el = this.elementByID(this.queueTabUpNext);
 		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for up next tab' });
 		await el.click();
+		await this.elementByID(this.queuePageUpNext).waitForExist({
+			timeoutMsg: 'Timed out waiting for up next queue page to appear',
+		});
 	}
 
 	async tapBackToTab(): Promise<void> {
@@ -107,6 +110,9 @@ export class NowPlayingBar extends BasePage {
 		const el = this.elementByID(this.queueTabBackTo);
 		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for back to tab' });
 		await el.click();
+		await this.elementByID(this.queuePageBackTo).waitForExist({
+			timeoutMsg: 'Timed out waiting for back to queue page to appear',
+		});
 	}
 
 	// isExisting() is used instead of isDisplayed() because the page views live inside

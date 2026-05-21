@@ -1,5 +1,5 @@
 import type { Album } from '../models/Album';
-import type { Track } from '../models/Track';
+import { sanitizeTracks, type Track } from '../models/Track';
 import { DebugLogger } from '../services/DebugLogger';
 
 type PlaybackListener = () => void;
@@ -96,7 +96,7 @@ export class PlaybackStore {
 				return;
 			}
 
-			this.tracks = parsed.tracks;
+			this.tracks = sanitizeTracks(parsed.tracks);
 			this.album = parsed.album;
 			this.trackIndex = Math.max(0, Math.min(parsed.trackIndex, parsed.tracks.length - 1));
 			this._artistLogoUrls = parsed.tracks.map((_, index) => parsed.artistLogoUrls[index] ?? null);
@@ -302,7 +302,7 @@ export class PlaybackStore {
 
 	playTracks(tracks: Array<Track>, startIndex = 0): void {
 		this.queueRestoreSuperseded = true;
-		this.tracks = tracks;
+		this.tracks = sanitizeTracks(tracks);
 		this.album = null;
 		this.trackIndex = startIndex;
 		this.isPlaying = true;
@@ -315,7 +315,7 @@ export class PlaybackStore {
 
 	playWithArtistLogos(tracks: Array<Track>, logoUrls: Array<string | null>, startIndex = 0): void {
 		this.queueRestoreSuperseded = true;
-		this.tracks = tracks;
+		this.tracks = sanitizeTracks(tracks);
 		this.album = null;
 		this.trackIndex = startIndex;
 		this.isPlaying = true;
@@ -333,7 +333,7 @@ export class PlaybackStore {
 	}
 
 	addToQueue(tracks: Array<Track>): void {
-		this.tracks = [...this.tracks, ...tracks];
+		this.tracks = [...this.tracks, ...sanitizeTracks(tracks)];
 		this._artistLogoUrls = [...this._artistLogoUrls, ...tracks.map(() => null)];
 		this.persistQueue();
 		this.notify();
@@ -341,7 +341,8 @@ export class PlaybackStore {
 
 	playNext(tracks: Array<Track>): void {
 		const insertAt = this.trackIndex + 1;
-		this.tracks = [...this.tracks.slice(0, insertAt), ...tracks, ...this.tracks.slice(insertAt)];
+		const sanitized = sanitizeTracks(tracks);
+		this.tracks = [...this.tracks.slice(0, insertAt), ...sanitized, ...this.tracks.slice(insertAt)];
 		this._artistLogoUrls = [
 			...this._artistLogoUrls.slice(0, insertAt),
 			...tracks.map(() => null),

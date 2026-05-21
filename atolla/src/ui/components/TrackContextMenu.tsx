@@ -164,15 +164,14 @@ export class TrackContextMenu extends StatefulComponent<
 					accessibilityLabel='track-context-menu'
 					style={styles.card}
 				>
-					<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
-						<ArtistLogo
-							containerStyle={styles.logoContainer}
-							fallbackText={track.artistName ?? null}
-							imageCache={imageCache}
-							logoSource={artistLogoUrl}
-							logoStyle={styles.logoImage}
-						/>
-					</view>
+					<ArtistLogo
+						containerStyle={styles.logoContainer}
+						fallbackText={track.artistName ?? null}
+						imageCache={imageCache}
+						logoSource={artistLogoUrl}
+						logoStyle={styles.logoImage}
+						onTap={this.handleArtistTap}
+					/>
 					<TrackList
 						imageCache={imageCache}
 						onTrackTap={this.viewModel.onAlbumTap ? this.handleAlbumTap : undefined}
@@ -345,9 +344,6 @@ const styles = {
 	logoImage: new Style({
 		height: '100%',
 		objectFit: 'contain' as const,
-		width: '100%',
-	}),
-	logoTapArea: new Style({
 		width: '100%',
 	}),
 };

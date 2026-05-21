@@ -14,6 +14,15 @@ interface BuildImageSourceOptions {
 	cacheOnly?: boolean;
 }
 
+export function buildSafeImageSource(
+	url: string | null | undefined,
+	category: ImageCategory,
+	options?: BuildImageSourceOptions,
+): string | null {
+	if (!url) return null;
+	return buildImageSource(url, category, options);
+}
+
 export function buildImageSource(
 	url: string,
 	category: ImageCategory,

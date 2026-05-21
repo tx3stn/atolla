@@ -99,6 +99,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		paletteDefaults.accent,
 		0,
 	);
+	private cachedCompactSolidBgStyle = getOverlayTintStyle(paletteDefaults.surface, 1);
+	private cachedExpandedSolidBgStyle = getOverlayTintStyle(paletteDefaults.surface, 1, 0);
 	private cachedCompactBgOverlayStyle = getOverlayTintStyle(paletteDefaults.surface, 0.6);
 	private cachedExpandedBgOverlayStyle = getOverlayTintStyle(paletteDefaults.surface, 0.45, 0);
 	private cachedPaletteStyles = getPaletteStyles(
@@ -233,6 +235,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		const onSurfaceColor = palette?.on_surface.hex ?? paletteDefaults.onSurface;
 		const mutedOnSurfaceColor = palette?.muted_on_surface.hex ?? paletteDefaults.mutedOnSurface;
 		this.cachedCompactProgressFillStyle = createCompactProgressFillStyle(accentColor, 0);
+		this.cachedCompactSolidBgStyle = getOverlayTintStyle(surfaceColor, 1);
+		this.cachedExpandedSolidBgStyle = getOverlayTintStyle(surfaceColor, 1, 0);
 		this.cachedCompactBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.6);
 		this.cachedExpandedBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.45, 0);
 		this.cachedPaletteStyles = getPaletteStyles(onSurfaceColor, mutedOnSurfaceColor);
@@ -615,6 +619,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		const backToLabelStyle = this.cachedBackToLabelStyle;
 		const upNextLabelStyle = this.cachedUpNextLabelStyle;
 		const compactProgressFillStyle = this.cachedCompactProgressFillStyle;
+		const compactSolidBgStyle = this.cachedCompactSolidBgStyle;
+		const expandedSolidBgStyle = this.cachedExpandedSolidBgStyle;
 		const compactBgOverlayStyle = this.cachedCompactBgOverlayStyle;
 		const expandedBgOverlayStyle = this.cachedExpandedBgOverlayStyle;
 		const paletteStyles = this.cachedPaletteStyles;
@@ -631,6 +637,7 @@ export class NowPlayingSurface extends StatefulComponent<
 				ref={this.compactBarRef}
 				style={styles.compactBar}
 			>
+				<view style={compactSolidBgStyle} />
 				{albumArtworkSource && (
 					<image objectFit='cover' src={albumArtworkSource} style={styles.compactBgArtwork} />
 				)}
@@ -666,6 +673,8 @@ export class NowPlayingSurface extends StatefulComponent<
 
 			<view id='now-playing-surface-overlay' ref={this.overlayRef} style={styles.overlayRoot}>
 				<view ref={this.overlayCardRef} style={styles.overlayCard}>
+					{/* Layer 0: solid surface colour — visible before artwork loads or on load failure. */}
+					<view style={expandedSolidBgStyle} />
 					{/* Layer 1: regular artwork — always visible as fallback. */}
 					{albumArtworkSource && (
 						<image objectFit='cover' src={albumArtworkSource} style={styles.expandedBgArtwork} />

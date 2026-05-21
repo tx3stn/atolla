@@ -3,6 +3,7 @@ import {
 	atollaCacheHost,
 	atollaCacheScheme,
 	buildImageSource,
+	buildSafeImageSource,
 	imageCacheKey,
 	normalizeImageUrlForCategory,
 	parseImageSource,
@@ -82,5 +83,24 @@ describe('ImageSource', () => {
 		expect(imageCacheKey('https://example.com/image.jpg', 'playlist_image')).toBe(
 			'playlist_image:https://example.com/image.jpg',
 		);
+	});
+});
+
+describe('buildSafeImageSource', () => {
+	it('returns a source string for a valid url', () => {
+		const result = buildSafeImageSource('https://example.com/image.jpg', 'album_art');
+		expect(result).toBe(buildImageSource('https://example.com/image.jpg', 'album_art'));
+	});
+
+	it('returns null for null url', () => {
+		expect(buildSafeImageSource(null, 'album_art')).toBeNull();
+	});
+
+	it('returns null for undefined url', () => {
+		expect(buildSafeImageSource(undefined, 'album_art')).toBeNull();
+	});
+
+	it('returns null for empty string url', () => {
+		expect(buildSafeImageSource('', 'album_art')).toBeNull();
 	});
 });
