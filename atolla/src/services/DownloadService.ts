@@ -333,13 +333,14 @@ export class DownloadService {
 		this.enqueueOperation(async () => {
 			await this.ensureLoaded();
 			this.preloadDownloadImages({
-				albumArtUrls: [playlist.imageUrl, ...tracks.map(({ track }) => track.albumImageUrl)],
+				albumArtUrls: tracks.map(({ track }) => track.albumImageUrl),
 				artistImageUrls: artists.map((artist) => artist.imageUrl),
 				artistLogoUrls: tracks.map(({ artistLogoUrl }) => artistLogoUrl),
 				genreArtUrls: [
 					...resolvedGenres.map((g) => g.imageUrl),
 					...tracks.flatMap(({ track }) => (track.genres ?? []).map((g) => g.imageUrl)),
 				],
+				playlistImageUrls: [playlist.imageUrl],
 			});
 
 			for (const artist of artists) {
@@ -790,15 +791,22 @@ export class DownloadService {
 		artistImageUrls: Array<string | null | undefined>;
 		artistLogoUrls: Array<string | null | undefined>;
 		genreArtUrls: Array<string | null | undefined>;
+		playlistImageUrls?: Array<string | null | undefined>;
 	}): void {
 		if (!this.preloadImagesFn) {
 			return;
 		}
 
 		this.preloadCategory(params.albumArtUrls, 'album_art');
+		this.preloadCategory(params.albumArtUrls, 'album_art_thumb');
 		this.preloadCategory(params.genreArtUrls, 'genre_art');
 		this.preloadCategory(params.artistImageUrls, 'artist_image');
+		this.preloadCategory(params.artistImageUrls, 'artist_image_thumb');
 		this.preloadCategory(params.artistLogoUrls, 'artist_logo');
+		if (params.playlistImageUrls) {
+			this.preloadCategory(params.playlistImageUrls, 'playlist_image');
+			this.preloadCategory(params.playlistImageUrls, 'playlist_image_thumb');
+		}
 	}
 
 	private upsertArtistEntry(entry: DownloadedArtistEntry): void {
