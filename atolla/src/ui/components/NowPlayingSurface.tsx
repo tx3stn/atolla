@@ -91,6 +91,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private isTransitioning = false;
 	private isQueueSliding = false;
 	private hasBeenDestroyed = false;
+	private hasRendered = false;
 	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribeProgress?: () => void;
 
@@ -251,7 +252,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	}
 
 	private updateProgressRefs(): void {
-		if (this.hasBeenDestroyed) return;
+		if (this.hasBeenDestroyed || !this.hasRendered) return;
 		const { playbackStore } = this.viewModel;
 		if (!playbackStore?.track) return;
 		const progressSeconds = playbackStore.progressSeconds;
@@ -546,6 +547,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	};
 
 	onRender(): void {
+		this.hasRendered = true;
 		const {
 			album,
 			artistLogoUrl,
@@ -561,6 +563,8 @@ export class NowPlayingSurface extends StatefulComponent<
 			trackIndex,
 			tracks,
 		} = this.viewModel;
+
+		if (!track) return;
 
 		const playbackStore = this.viewModel.playbackStore;
 		const progressSeconds = playbackStore?.progressSeconds ?? 0;
