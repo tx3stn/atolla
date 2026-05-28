@@ -364,6 +364,59 @@ describe('DownloadService', () => {
 		});
 	});
 
+	describe('artist normalisation', () => {
+		it('normalises a track artistId to the album artistId when they differ', async () => {
+			const { service } = createService();
+			const album = makeAlbum('album-1'); // artistId: 'artist-1'
+			const track = {
+				...makeTrack('track-1'),
+				artistId: 'artist-typo',
+				artistName: 'Artist (typo)',
+			};
+
+			service.downloadAlbum({
+				album,
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track }],
+			});
+
+			await flush();
+
+			expect(service.getTrack('track-1')?.track.artistId).toBe('artist-1');
+			expect(service.getAllArtists()).toHaveLength(1);
+			expect(service.getAllArtists()[0].artist.id).toBe('artist-1');
+		});
+
+		it('normalises a track artistId when the track was already stored from a playlist', async () => {
+			const { service } = createService();
+			const album = makeAlbum('album-1'); // artistId: 'artist-1'
+			const playlist = makePlaylist('playlist-1');
+			const track = {
+				...makeTrack('track-1'),
+				artistId: 'artist-typo',
+				artistName: 'Artist (typo)',
+			};
+
+			service.downloadPlaylist({
+				playlist,
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track }],
+			});
+			await flush();
+
+			expect(service.getTrack('track-1')?.track.artistId).toBe('artist-typo');
+
+			service.downloadAlbum({
+				album,
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track }],
+			});
+			await flush();
+
+			expect(service.getTrack('track-1')?.track.artistId).toBe('artist-1');
+			expect(service.getAllArtists().map((e) => e.artist.id)).toContain('artist-1');
+		});
+	});
+
 	describe('reference counting', () => {
 		it('keeps a track that belongs to both an album and a genre after genre removed', async () => {
 			const { removeCalls, service } = createService();

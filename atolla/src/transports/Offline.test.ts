@@ -12,7 +12,7 @@ import { OfflineTransport } from './Offline';
 
 function createDownloadsMock(params: {
 	albums?: Array<DownloadedAlbumEntry>;
-	artistEntry?: DownloadedArtistEntry;
+	artists?: Array<DownloadedArtistEntry>;
 	genres?: Array<DownloadedGenreEntry>;
 	playlists?: Array<DownloadedPlaylistEntry>;
 	tracks?: Array<DownloadedTrackEntry>;
@@ -21,9 +21,10 @@ function createDownloadsMock(params: {
 	const genres = params.genres ?? [];
 	const playlists = params.playlists ?? [];
 	const tracks = params.tracks ?? [];
-	const artistById: Record<string, DownloadedArtistEntry> = params.artistEntry
-		? { [params.artistEntry.artist.id]: params.artistEntry }
-		: {};
+	const artistById: Record<string, DownloadedArtistEntry> = {};
+	for (const entry of params.artists ?? []) {
+		artistById[entry.artist.id] = entry;
+	}
 	const albumById = new Map(albums.map((entry) => [entry.album.id, entry]));
 	const genreById = new Map(genres.map((entry) => [entry.genre.id, entry]));
 	const playlistById = new Map(playlists.map((entry) => [entry.playlist.id, entry]));
@@ -32,7 +33,7 @@ function createDownloadsMock(params: {
 	return {
 		getAlbum: (albumId: string) => albumById.get(albumId),
 		getAllAlbums: () => albums,
-		getAllArtists: () => [],
+		getAllArtists: () => Object.values(artistById),
 		getAllGenres: () => genres,
 		getAllPlaylists: () => playlists,
 		getAllTracks: () => tracks,
@@ -386,6 +387,89 @@ describe('OfflineTransport', () => {
 		]);
 	});
 
+	it('does not duplicate an artist that is in the dict and also has a downloaded album', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albums: [
+					{
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-1',
+							name: 'Album One',
+						},
+						artistLogoUrl: 'https://img/logo-artist-1.png',
+						trackIds: [],
+					},
+				],
+				artists: [
+					{
+						albumIds: ['album-1'],
+						artist: { id: 'artist-1', name: 'Artist One' },
+					},
+				],
+			}) as never,
+		);
+
+		const artists = await transport.getAllArtists();
+
+		expect(artists).toHaveLength(1);
+		expect(artists[0].id).toBe('artist-1');
+	});
+
+	it('does not duplicate an artist that is in the dict and also referenced by a downloaded track', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				artists: [
+					{
+						albumIds: [],
+						artist: { id: 'artist-1', name: 'Artist One' },
+					},
+				],
+				tracks: [
+					{
+						albumIds: [],
+						complete: true,
+						genreIds: [],
+						playlistIds: ['playlist-1'],
+						streamUrl: 'file:///track-1.mp3',
+						track: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							duration: 180,
+							id: 'track-1',
+							name: 'Track One',
+						},
+					},
+				],
+			}) as never,
+		);
+
+		const artists = await transport.getAllArtists();
+
+		expect(artists).toHaveLength(1);
+		expect(artists[0].id).toBe('artist-1');
+	});
+
+	it('includes an artist from the dict even without album or track fallbacks', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				artists: [
+					{
+						albumIds: [],
+						artist: { id: 'artist-1', imageUrl: 'https://img/artist-1.jpg', name: 'Artist One' },
+					},
+				],
+			}) as never,
+		);
+
+		const artists = await transport.getAllArtists();
+
+		expect(artists).toEqual([
+			{ id: 'artist-1', imageUrl: 'https://img/artist-1.jpg', name: 'Artist One' },
+		]);
+	});
+
 	it('sorts tracks from a directly downloaded album by track number', async () => {
 		const transport = new OfflineTransport(
 			createDownloadsMock({
@@ -610,10 +694,9 @@ describe('OfflineTransport', () => {
 						trackIds: [],
 					},
 				],
-				artistEntry: {
-					albumIds: ['album-new', 'album-old'],
-					artist: { id: 'artist-1', name: 'Artist One' },
-				},
+				artists: [
+					{ albumIds: ['album-new', 'album-old'], artist: { id: 'artist-1', name: 'Artist One' } },
+				],
 			}) as never,
 		);
 

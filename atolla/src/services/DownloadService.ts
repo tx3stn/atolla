@@ -303,7 +303,7 @@ export class DownloadService {
 			};
 			for (const { track, streamUrl } of tracks) {
 				this.addTrackRef(
-					track,
+					this.normalizeTrackArtist(track, album),
 					streamUrl,
 					album.id,
 					null,
@@ -480,7 +480,7 @@ export class DownloadService {
 				};
 				for (const { track, streamUrl } of tracks) {
 					this.addTrackRef(
-						track,
+						this.normalizeTrackArtist(track, album),
 						streamUrl,
 						album.id,
 						null,
@@ -618,6 +618,11 @@ export class DownloadService {
 	// Internal helpers
 	// -------------------------------------------------------------------------
 
+	private normalizeTrackArtist(track: Track, album: Album): Track {
+		if (!album.artistId || track.artistId === album.artistId) return track;
+		return { ...track, artistId: album.artistId, artistName: album.artistName };
+	}
+
 	private addTrackRef(
 		track: Track,
 		streamUrl: string,
@@ -646,6 +651,13 @@ export class DownloadService {
 		if (existing) {
 			if (albumId && !existing.albumIds.includes(albumId)) {
 				existing.albumIds.push(albumId);
+				// Propagate the normalized artistId to the stored track. The caller
+				// normalizes album tracks via normalizeTrackArtist, so if the stored
+				// entry was created earlier (e.g. from a playlist) with a mismatched
+				// track-level artistId, this brings it in line with the album's artist.
+				if (track.artistId && existing.track.artistId !== track.artistId) {
+					existing.track = { ...existing.track, artistId: track.artistId, artistName: track.artistName };
+				}
 			}
 			for (const explicitGenreId of explicitGenreIds) {
 				if (!existing.genreIds.includes(explicitGenreId)) {
