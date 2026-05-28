@@ -292,6 +292,17 @@ describe('PlaybackStore', () => {
 			expect(store.seekTarget).toBe(0);
 		});
 
+		it('advances to next track when completing a mid-queue track', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+
+			store.updateProgress(track1.duration);
+
+			expect(store.trackIndex).toBe(1);
+			expect(store.progressSeconds).toBe(0);
+			expect(store.isPlaying).toBe(true);
+		});
+
 		it('stops playback at final track when loop mode is none', () => {
 			const store = new PlaybackStore();
 			store.play(tracks, album, 2);

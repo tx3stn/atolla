@@ -656,7 +656,11 @@ export class DownloadService {
 				// entry was created earlier (e.g. from a playlist) with a mismatched
 				// track-level artistId, this brings it in line with the album's artist.
 				if (track.artistId && existing.track.artistId !== track.artistId) {
-					existing.track = { ...existing.track, artistId: track.artistId, artistName: track.artistName };
+					existing.track = {
+						...existing.track,
+						artistId: track.artistId,
+						artistName: track.artistName,
+					};
 				}
 			}
 			for (const explicitGenreId of explicitGenreIds) {

@@ -17,6 +17,8 @@ import {
 } from '../../TrackPlaybackNative';
 
 const PROGRESS_POLL_INTERVAL_MS = 200;
+const STALL_DETECT_REMAINING_S = 1.5;
+const STALL_TIMEOUT_MS = 5000;
 
 export interface NativeAudioPlayerViewModel {
 	isActive?: boolean;
@@ -51,6 +53,8 @@ export class NativeAudioPlayer extends StatefulComponent<
 	private hasReportedProgressForSource = false;
 	private hasEverBoundSource = false;
 	private lastConfiguredTrackId = '';
+	private lastNativePositionSeconds = -1;
+	private stallDetectedAtMs: number | null = null;
 
 	onCreate(): void {
 		const isActive = this.viewModel.isActive !== false;
@@ -132,6 +136,8 @@ export class NativeAudioPlayer extends StatefulComponent<
 			this.lastNextSourceUrl = next;
 			this.lastCompletedToken = '';
 			this.hasReportedProgressForSource = false;
+			this.lastNativePositionSeconds = -1;
+			this.stallDetectedAtMs = null;
 			this.configurePlayback(source, this.viewModel.nextPlaybackSourceUrl ?? null);
 			// Apply rate directly from store state — onViewModelUpdate fires synchronously
 			// during the parent's setState (before the PlaybackStore subscriber fires on
@@ -287,6 +293,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 						trackDurationSeconds > 0
 							? Math.min(positionSeconds, Math.max(0, trackDurationSeconds - 0.05))
 							: positionSeconds;
+					this.lastNativePositionSeconds = safePositionSeconds;
 					this.viewModel.playbackStore.updateProgress(safePositionSeconds);
 					if (this.destroyed) return;
 				}
@@ -295,6 +302,10 @@ export class NativeAudioPlayer extends StatefulComponent<
 		} catch {
 			// best effort poll
 		}
+
+		if (this.destroyed) return;
+
+		this.checkForStall();
 
 		if (this.destroyed) return;
 		while (true) {
@@ -319,14 +330,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 				});
 				if (completionToken !== this.lastCompletedToken) {
 					this.lastCompletedToken = completionToken;
-					if (this.viewModel.onTrackCompleted) {
-						this.viewModel.onTrackCompleted();
-					} else {
-						const track = this.viewModel.playbackStore.track;
-						if (track) {
-							this.viewModel.playbackStore.updateProgress(track.duration);
-						}
-					}
+					this.triggerTrackCompletion();
 					this.viewModel.onPlaybackEvent?.('completed');
 				}
 				continue;
@@ -344,6 +348,9 @@ export class NativeAudioPlayer extends StatefulComponent<
 				});
 				this.viewModel.onPlaybackEvent?.('error');
 				this.viewModel.onPlaybackError?.(`native audio error: ${event.slice('error:'.length)}`);
+				if (this.viewModel.playbackStore.isPlaying) {
+					this.triggerTrackCompletion();
+				}
 				continue;
 			}
 
@@ -458,6 +465,38 @@ export class NativeAudioPlayer extends StatefulComponent<
 			clearAtollaAudioPlayback();
 		} catch {
 			// best effort
+		}
+	}
+
+	private checkForStall(): void {
+		if (!this.viewModel.playbackStore.isPlaying || this.lastNativePositionSeconds < 0) {
+			return;
+		}
+		const stallTrack = this.viewModel.playbackStore.track;
+		if (!stallTrack) {
+			return;
+		}
+		const remaining = stallTrack.duration - this.lastNativePositionSeconds;
+		if (remaining <= STALL_DETECT_REMAINING_S) {
+			if (this.stallDetectedAtMs == null) {
+				this.stallDetectedAtMs = Date.now();
+			} else if (Date.now() - this.stallDetectedAtMs >= STALL_TIMEOUT_MS) {
+				this.stallDetectedAtMs = null;
+				this.triggerTrackCompletion();
+			}
+		} else {
+			this.stallDetectedAtMs = null;
+		}
+	}
+
+	private triggerTrackCompletion(): void {
+		if (this.viewModel.onTrackCompleted) {
+			this.viewModel.onTrackCompleted();
+		} else {
+			const track = this.viewModel.playbackStore.track;
+			if (track) {
+				this.viewModel.playbackStore.updateProgress(track.duration);
+			}
 		}
 	}
 
