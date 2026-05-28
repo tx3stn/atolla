@@ -136,7 +136,9 @@ export function mapJellyfinAlbumToAlbum(
 		genres: mapGenreReferences(item),
 		id: item.Id,
 		imageUrl: imageResolvers.itemPrimaryImageUrl?.(item.Id, primaryTag),
-		name: item.Name,
+		// name must never be null/undefined: it renders into a native <label> and
+		// a null value crashes the render thread.
+		name: item.Name || 'Unknown Album',
 		releaseDate: item.PremiereDate,
 	};
 }

@@ -50,7 +50,8 @@ import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PersistentWaveformStore } from './services/PersistentWaveformStore';
 import { PlaylistCreateService } from './services/PlaylistCreateService';
-import { PlaylistEditService } from './services/PlaylistEditService';
+import { type PlaylistEditError, PlaylistEditService } from './services/PlaylistEditService';
+import { ReconnectSyncCoordinator, type SyncProgress } from './services/ReconnectSyncCoordinator';
 import { ScrobbleService } from './services/ScrobbleService';
 import { TrackPlaybackNativePrefetchQueue } from './services/TrackPlaybackNativePrefetchQueue';
 import {
@@ -104,6 +105,7 @@ import { LibraryHeaderNav } from './ui/components/LibraryHeaderNav';
 import { MockPlayer } from './ui/components/MockPlayer';
 import { Modal } from './ui/components/Modal';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
+import { SyncStatusBanner } from './ui/components/SyncStatusBanner';
 import { Toast } from './ui/components/Toast';
 import { closeSlot } from './ui/flows/modalSlotFlow';
 import type { NavBarContext } from './ui/NavBarContext';
@@ -116,6 +118,7 @@ import { type LibraryNavContext, LibraryView } from './ui/views/LibraryView';
 import { PlaylistView } from './ui/views/PlaylistView';
 import { type SearchLibraryNavigationTarget, SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
+import { fireAndForget } from './utils/async';
 
 export type AppViewModel = Record<string, never>;
 
@@ -155,6 +158,7 @@ interface AppState {
 	quickConnectCode: string | null;
 	searchFocusSignal: number;
 	serverUrlPrefill: string;
+	syncProgress: SyncProgress | null;
 	trackCacheMaxTracks: number;
 	trackPlaybackCachedCount: number;
 	trackPlaybackSourceUrl: string | null;
@@ -248,6 +252,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		new PersistentStore('atolla/playlist_edits', { deviceGlobal: true }),
 	);
 	private transport!: Transport;
+	private reconnectSync?: ReconnectSyncCoordinator;
+	private lastSyncEditErrors: Array<PlaylistEditError> = [];
+	private syncBannerTimer?: ReturnType<typeof setTimeout>;
 	private currentAccessToken = '';
 	private paletteService!: ArtworkPaletteService;
 	private downloadWorkerClient: IWorkerServiceClient<IDownloadNativeWorker> = startWorkerService(
@@ -370,6 +377,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		quickConnectCode: null,
 		searchFocusSignal: 0,
 		serverUrlPrefill: '',
+		syncProgress: null,
 		trackCacheMaxTracks: DEFAULT_TRACK_CACHE_MAX_TRACKS,
 		trackPlaybackCachedCount: 0,
 		trackPlaybackSourceUrl: null,
@@ -389,6 +397,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		} catch {
 			// Native logger unavailable (e.g. desktop/test environment)
 		}
+		this.installGlobalRejectionHandler();
 		void this.playlistCreateService.load();
 		try {
 			ensureAtollaImageLoaderBootstrap();
@@ -638,6 +647,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.playbackToastTimer) {
 			clearTimeout(this.playbackToastTimer);
 		}
+		if (this.syncBannerTimer) {
+			clearTimeout(this.syncBannerTimer);
+		}
 		if (this.playbackSourceBoundTimeout) {
 			clearTimeout(this.playbackSourceBoundTimeout);
 		}
@@ -735,6 +747,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 		this.syncScrobblePlaybackSnapshot();
 		void this.scrobbleService.onAppReady();
+		this.reconnectSync = new ReconnectSyncCoordinator({
+			downloadService: this.downloadService,
+			playlistCreateService: this.playlistCreateService,
+			playlistEditService: this.playlistEditService,
+			scrobbleService: this.scrobbleService,
+		});
 		try {
 			setAtollaImageCachedObserver((url, category) => {
 				if (category !== 'album_art' || this.paletteService.hasPalette(url)) {
@@ -910,21 +928,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
 						},
 					);
-					void this.playlistCreateService.flush(this.transport);
-					void this.playlistEditService.flush(this.transport).then((errors) => {
-						if (errors.length === 0) return;
-						const errorBody = errors
-							.map((e) => Strings.playlistEditErrorBody(e.type, e.playlistName, e.error))
-							.join('\n\n');
-						this.modalSlot.slotted(() => {
-							<Modal
-								body={errorBody}
-								onClose={this.closeModalSlot}
-								title={Strings.playlistEditErrorTitle()}
-							/>;
-						});
-					});
 					this.setState({ connectionMode: mode, isAuthRequired: false });
+					this.startReconnectSync();
 					return true;
 				}
 
@@ -948,6 +953,100 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	handleModeChange = (mode: ConnectionMode): void => {
 		void this.requestModeChange(mode);
 	};
+
+	// Flush queued work (playlist edits/creates, scrobbles) and resume downloads
+	// after reconnecting, reporting progress to the banner. The coordinator never
+	// rejects, and the whole chain is guarded so this can never crash the toggle.
+	private startReconnectSync(): void {
+		const coordinator = this.reconnectSync;
+		if (!coordinator) return;
+		const transport = this.transport;
+		fireAndForget(
+			'reconnect-sync',
+			coordinator
+				.run(transport, (progress) => {
+					if (this.hasBeenDestroyed) return;
+					this.setState({ syncProgress: progress });
+				})
+				.then((result) => {
+					if (this.hasBeenDestroyed) return;
+					this.lastSyncEditErrors = result.playlistEditErrors;
+					if (result.total === 0) {
+						this.setState({ syncProgress: null });
+						return;
+					}
+					this.setState({ syncProgress: result });
+					this.scheduleSyncBannerDismiss(result.status === 'partial' ? 6000 : 2500);
+				}),
+		);
+	}
+
+	private scheduleSyncBannerDismiss(durationMs: number): void {
+		if (this.syncBannerTimer) {
+			clearTimeout(this.syncBannerTimer);
+		}
+		this.syncBannerTimer = setTimeout(() => {
+			this.syncBannerTimer = undefined;
+			if (this.hasBeenDestroyed) return;
+			this.setState({ syncProgress: null });
+		}, durationMs);
+	}
+
+	private handleSyncBannerTap = (): void => {
+		if (this.syncBannerTimer) {
+			clearTimeout(this.syncBannerTimer);
+			this.syncBannerTimer = undefined;
+		}
+		this.setState({ syncProgress: null });
+		const errors = this.lastSyncEditErrors;
+		if (errors.length === 0) return;
+		const errorBody = errors
+			.map((e) => Strings.playlistEditErrorBody(e.type, e.playlistName, e.error))
+			.join('\n\n');
+		this.modalSlot.slotted(() => {
+			<Modal
+				body={errorBody}
+				onClose={this.closeModalSlot}
+				title={Strings.playlistEditErrorTitle()}
+			/>;
+		});
+	};
+
+	// Logs and swallows a rejection from a deliberately detached promise so it can
+	// never surface as an unhandled rejection (which crashes the app).
+	private handleSwallowedAsyncError = (error: unknown): void => {
+		DebugLogger.log('async', 'swallowed async error', {
+			message: error instanceof Error ? error.message : String(error),
+		});
+	};
+
+	// Best-effort global backstop: catch any unhandled rejection the per-call
+	// guards miss. The runtime may not expose this hook, so it is feature-detected
+	// and is a safety net, not the primary defense.
+	private installGlobalRejectionHandler(): void {
+		try {
+			const globalScope = globalThis as unknown as {
+				addEventListener?: (type: string, handler: (event: unknown) => void) => void;
+				onunhandledrejection?: ((event: unknown) => void) | null;
+			};
+			const handler = (event: unknown): void => {
+				const reason = (event as { reason?: unknown })?.reason ?? event;
+				this.handleSwallowedAsyncError(reason);
+				try {
+					(event as { preventDefault?: () => void })?.preventDefault?.();
+				} catch {
+					// preventDefault not supported — logging already done.
+				}
+			};
+			if (typeof globalScope.addEventListener === 'function') {
+				globalScope.addEventListener('unhandledrejection', handler);
+			} else {
+				globalScope.onunhandledrejection = handler;
+			}
+		} catch {
+			// Runtime does not support a global rejection hook — per-call guards cover us.
+		}
+	}
 
 	handleLogout = (): void => {
 		void (async () => {
@@ -1006,11 +1105,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (!imageUrl || imageUrl === this.lastArtworkUrl) return;
 		this.lastArtworkUrl = imageUrl;
 		this.prewarmNowPlayingArtwork(imageUrl);
-		void this.paletteService.warmUp([imageUrl]).then(() => {
-			if (!this.paletteService.hasPalette(imageUrl)) {
-				this.paletteQueue.prioritize(imageUrl);
-			}
-		});
+		void this.paletteService
+			.warmUp([imageUrl])
+			.then(() => {
+				if (!this.paletteService.hasPalette(imageUrl)) {
+					this.paletteQueue.prioritize(imageUrl);
+				}
+			})
+			.catch(this.handleSwallowedAsyncError);
 	}
 
 	private prewarmNowPlayingArtwork(imageUrl: string): void {
@@ -1718,16 +1820,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		};
 
 		if (context.kind === 'artist') {
-			this.transport.getArtist(context.artist.id).then((artist) => {
-				if (!nav) return;
-				nav.push(
-					ArtistView,
-					{ ...shared, artist: artist ?? context.artist },
-					{},
-					{ animated: false },
-				);
-				this.currentLibraryNavContext = { artist: artist ?? context.artist, kind: 'artist' };
-			});
+			this.transport
+				.getArtist(context.artist.id)
+				.then((artist) => {
+					if (!nav) return;
+					nav.push(
+						ArtistView,
+						{ ...shared, artist: artist ?? context.artist },
+						{},
+						{ animated: false },
+					);
+					this.currentLibraryNavContext = { artist: artist ?? context.artist, kind: 'artist' };
+				})
+				.catch(this.handleSwallowedAsyncError);
 		} else if (context.kind === 'album') {
 			nav.push(AlbumView, { ...shared, album: context.album }, {}, { animated: false });
 			this.currentLibraryNavContext = context;
@@ -2016,28 +2121,31 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 		const navigationController = this.libraryNavigationController;
-		this.transport.getArtist(artistId).then((artist) => {
-			if (!artist) return;
-			navigationController.push(
-				ArtistView,
-				{
-					animationsEnabled: this.state.animationsEnabled,
-					artist,
-					downloadService: this.downloadService,
-					gridColumns: this.state.gridColumns,
-					imageCache: this.imageCache,
-					isHeaderVisible: false,
-					modalSlot: this.modalSlot,
-					navBarContext: this.buildLibraryNavBarContext(),
-					onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
-					paletteQueue: this.paletteQueue,
-					playbackStore: this.playbackStore,
-					transport: this.transport,
-				},
-				{},
-				{ animated: this.state.animationsEnabled },
-			);
-		});
+		this.transport
+			.getArtist(artistId)
+			.then((artist) => {
+				if (!artist) return;
+				navigationController.push(
+					ArtistView,
+					{
+						animationsEnabled: this.state.animationsEnabled,
+						artist,
+						downloadService: this.downloadService,
+						gridColumns: this.state.gridColumns,
+						imageCache: this.imageCache,
+						isHeaderVisible: false,
+						modalSlot: this.modalSlot,
+						navBarContext: this.buildLibraryNavBarContext(),
+						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
+						paletteQueue: this.paletteQueue,
+						playbackStore: this.playbackStore,
+						transport: this.transport,
+					},
+					{},
+					{ animated: this.state.animationsEnabled },
+				);
+			})
+			.catch(this.handleSwallowedAsyncError);
 	};
 
 	handleNowPlayingArtistTap = (): void => {
@@ -2150,28 +2258,31 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 		const navigationController = this.homeNavigationController;
-		this.transport.getArtist(artistId).then((artist) => {
-			if (!artist) return;
-			navigationController.push(
-				ArtistView,
-				{
-					animationsEnabled: this.state.animationsEnabled,
-					artist,
-					downloadService: this.downloadService,
-					gridColumns: this.state.gridColumns,
-					imageCache: this.imageCache,
-					isHeaderVisible: false,
-					modalSlot: this.modalSlot,
-					navBarContext: this.buildHomeNavBarContext(),
-					onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
-					paletteQueue: this.paletteQueue,
-					playbackStore: this.playbackStore,
-					transport: this.transport,
-				},
-				{},
-				{ animated: this.state.animationsEnabled },
-			);
-		});
+		this.transport
+			.getArtist(artistId)
+			.then((artist) => {
+				if (!artist) return;
+				navigationController.push(
+					ArtistView,
+					{
+						animationsEnabled: this.state.animationsEnabled,
+						artist,
+						downloadService: this.downloadService,
+						gridColumns: this.state.gridColumns,
+						imageCache: this.imageCache,
+						isHeaderVisible: false,
+						modalSlot: this.modalSlot,
+						navBarContext: this.buildHomeNavBarContext(),
+						onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
+						paletteQueue: this.paletteQueue,
+						playbackStore: this.playbackStore,
+						transport: this.transport,
+					},
+					{},
+					{ animated: this.state.animationsEnabled },
+				);
+			})
+			.catch(this.handleSwallowedAsyncError);
 	};
 
 	handleHomeAlbumTap = (album: Album): void => {
@@ -2604,6 +2715,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 				{this.state.authToastMessage && <Toast message={this.state.authToastMessage} />}
 				{this.state.playbackToastMessage && <Toast message={this.state.playbackToastMessage} />}
+				{this.state.syncProgress && (
+					<SyncStatusBanner
+						completed={this.state.syncProgress.completed}
+						onTap={this.handleSyncBannerTap}
+						status={this.state.syncProgress.status}
+						total={this.state.syncProgress.total}
+					/>
+				)}
 			</view>
 
 			<FooterNav

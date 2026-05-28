@@ -24,6 +24,22 @@ export interface AuthSession {
 	userId: string;
 }
 
+// A persisted session is only usable if the identity fields we marshal into
+// native calls (HTTP headers, the download worker, the native track cache) are
+// all non-empty strings. Partial / legacy / corrupt persisted data must be
+// treated as signed-out so we never hand `undefined` across the native bridge.
+function isUsableSession(session: AuthSession | null | undefined): session is AuthSession {
+	return (
+		session != null &&
+		typeof session.serverUrl === 'string' &&
+		session.serverUrl.length > 0 &&
+		typeof session.accessToken === 'string' &&
+		session.accessToken.length > 0 &&
+		typeof session.userId === 'string' &&
+		session.userId.length > 0
+	);
+}
+
 export interface QuickConnectStartResult {
 	code: string;
 	secret: string;
@@ -198,7 +214,7 @@ export class JellyfinAuthService {
 	}
 
 	loadSession(): Promise<AuthSession | null> {
-		return this.store.loadSession().then((session) => session ?? null);
+		return this.store.loadSession().then((session) => (isUsableSession(session) ? session : null));
 	}
 
 	async saveSession(session: AuthSession): Promise<void> {

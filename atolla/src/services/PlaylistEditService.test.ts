@@ -297,6 +297,53 @@ describe('PlaylistEditService', () => {
 		expect(moveCalls).toHaveLength(0);
 	});
 
+	describe('getPendingCount', () => {
+		it('returns 0 when nothing is queued', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+
+			expect(await service.getPendingCount()).toBe(0);
+		});
+
+		it('counts queued ops before they are flushed', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+
+			service.enqueue({
+				playlistId: 'p1',
+				playlistName: 'Playlist 1',
+				toIndex: 1,
+				trackId: 't1',
+				type: 'move',
+			});
+			service.enqueue({
+				playlistId: 'p1',
+				playlistName: 'Playlist 1',
+				trackId: 't2',
+				type: 'remove',
+			});
+
+			expect(await service.getPendingCount()).toBe(2);
+		});
+
+		it('returns 0 again after a successful flush', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+			const { transport } = createTransportMock();
+
+			service.enqueue({
+				playlistId: 'p1',
+				playlistName: 'Playlist 1',
+				toIndex: 0,
+				trackId: 't1',
+				type: 'move',
+			});
+			await service.flush(transport);
+
+			expect(await service.getPendingCount()).toBe(0);
+		});
+	});
+
 	it('persists pending ops so a new instance can pick them up before flush', async () => {
 		const store = new InMemoryStore();
 		const service1 = new PlaylistEditService(store);

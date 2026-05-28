@@ -806,22 +806,30 @@ export class LiveTransport implements Transport {
 
 	private createHeaders(): Record<string, string> {
 		const authHeader = createClientHeader(this.accessToken, this.clientDeviceId);
-		return {
+		const headers: Record<string, string> = {
 			Accept: 'application/json',
 			Authorization: authHeader,
 			'X-Emby-Authorization': authHeader,
-			'X-Emby-Token': this.accessToken,
 		};
+		// Only emit the token header when it is a non-empty string — a native
+		// header map must never receive an `undefined`/`null` value.
+		if (this.accessToken) {
+			headers['X-Emby-Token'] = this.accessToken;
+		}
+		return headers;
 	}
 
 	private createBinaryHeaders(): Record<string, string> {
 		const authHeader = createClientHeader(this.accessToken, this.clientDeviceId);
-		return {
+		const headers: Record<string, string> = {
 			Accept: '*/*',
 			Authorization: authHeader,
 			'X-Emby-Authorization': authHeader,
-			'X-Emby-Token': this.accessToken,
 		};
+		if (this.accessToken) {
+			headers['X-Emby-Token'] = this.accessToken;
+		}
+		return headers;
 	}
 
 	private normalizeBaseUrl(url: string): string {

@@ -97,6 +97,27 @@ describe('OfflineTransport', () => {
 		expect(logoUrl).toBe('https://img/logo-artist-1.png');
 	});
 
+	it('defaults missing name/artist on a downloaded album so the grid never renders null text', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albums: [
+					{
+						album: { artistId: 'artist-1', id: 'album-x' },
+						artistLogoUrl: '',
+						trackIds: [],
+						// Simulates a legacy/incomplete persisted album missing name + artistName.
+					} as unknown as DownloadedAlbumEntry,
+				],
+			}) as never,
+		);
+
+		const albums = await transport.getAllAlbums();
+
+		expect(albums).toHaveLength(1);
+		expect(albums[0].name).toBe('Unknown Album');
+		expect(albums[0].artistName).toBe('');
+	});
+
 	it('resolves artist logo fallback from downloaded playlist track metadata', async () => {
 		const transport = new OfflineTransport(
 			createDownloadsMock({

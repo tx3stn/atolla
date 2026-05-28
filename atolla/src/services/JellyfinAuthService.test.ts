@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { AuthErrors } from '../errors/AuthErrors';
-import { JellyfinAuthService } from './JellyfinAuthService';
+import { type AuthSession, JellyfinAuthService } from './JellyfinAuthService';
 
 // --- Helpers ---
 
@@ -153,6 +153,34 @@ describe('client device ID', () => {
 		service.setClientDeviceId('updated-device');
 		await service.startQuickConnect('https://demo.jellyfin.local');
 		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="updated-device"');
+	});
+});
+
+describe('loadSession', () => {
+	const serviceWithStored = (stored: AuthSession | null) =>
+		new JellyfinAuthService({
+			store: { ...createStore(), loadSession: () => Promise.resolve(stored) },
+		});
+
+	it('returns the session when all identity fields are non-empty strings', async () => {
+		expect(await serviceWithStored(validSession).loadSession()).toEqual(validSession);
+	});
+
+	it('returns null when the persisted session is null', async () => {
+		expect(await serviceWithStored(null).loadSession()).toBeNull();
+	});
+
+	it('returns null for a partial/legacy session missing the access token', async () => {
+		const partial = {
+			serverId: 's',
+			serverUrl: 'https://x',
+			userId: 'u',
+		} as unknown as AuthSession;
+		expect(await serviceWithStored(partial).loadSession()).toBeNull();
+	});
+
+	it('returns null when an identity field is an empty string', async () => {
+		expect(await serviceWithStored({ ...validSession, accessToken: '' }).loadSession()).toBeNull();
 	});
 });
 

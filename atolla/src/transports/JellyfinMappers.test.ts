@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'bun:test';
-import { formatAudioQuality } from './JellyfinMappers';
+import { formatAudioQuality, mapJellyfinAlbumToAlbum } from './JellyfinMappers';
+
+describe('mapJellyfinAlbumToAlbum', () => {
+	type AlbumItem = Parameters<typeof mapJellyfinAlbumToAlbum>[0];
+
+	it('defaults a missing album name so it never renders a null label', () => {
+		const album = mapJellyfinAlbumToAlbum({ Id: 'a1' } as AlbumItem);
+		expect(album.name).toBe('Unknown Album');
+		expect(album.artistName).toBe('');
+	});
+
+	it('keeps the provided name when present', () => {
+		const album = mapJellyfinAlbumToAlbum({ Id: 'a1', Name: 'Discovery' } as AlbumItem);
+		expect(album.name).toBe('Discovery');
+	});
+});
 
 describe('formatAudioQuality', () => {
 	it('returns undefined for missing mediaSources', () => {

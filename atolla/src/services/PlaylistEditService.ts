@@ -76,6 +76,12 @@ export class PlaylistEditService {
 		}
 	}
 
+	async getPendingCount(): Promise<number> {
+		await this.operationChain;
+		await this.load();
+		return this.pendingOps.length;
+	}
+
 	async flush(transport: Transport): Promise<Array<PlaylistEditError>> {
 		await this.operationChain;
 		await this.load();

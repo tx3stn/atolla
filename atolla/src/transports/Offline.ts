@@ -69,7 +69,7 @@ export class OfflineTransport implements Transport {
 		const albumsById = new Map<string, Album>();
 
 		for (const entry of this.downloads.getAllAlbums()) {
-			albumsById.set(entry.album.id, entry.album);
+			albumsById.set(entry.album.id, normalizeAlbum(entry.album));
 		}
 
 		for (const trackEntry of this.downloads.getAllTracks()) {
@@ -379,6 +379,18 @@ export class OfflineTransport implements Transport {
 
 function sortTracksByNumber(tracks: Array<Track>): Array<Track> {
 	return [...tracks].sort((a, b) => (a.trackNumber ?? 0) - (b.trackNumber ?? 0));
+}
+
+// Persisted album records can predate current metadata rules (or come from an
+// incomplete download), so the typed `string` fields may actually be missing at
+// runtime. Guarantee non-null text before it reaches the render thread — a null
+// album name/artist renders into a native <label> and crashes the render thread.
+function normalizeAlbum(album: Album): Album {
+	return {
+		...album,
+		artistName: album.artistName || '',
+		name: album.name || 'Unknown Album',
+	};
 }
 
 function sortAlbumsByDefaultOrder(albums: Array<Album>): Array<Album> {
