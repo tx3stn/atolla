@@ -319,6 +319,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastWaveformPriorityTrackIndex = -1;
 	private lastTrackNotificationStateKey = '';
 	private lastTrackNotificationPositionBucket = -1;
+	private lastPlaybackSignature = '';
 	private readonly imageCache = new ImageCache({});
 	private recentlyPlayedTracks: Array<Track> = [];
 	private lastObservedRecentTrackId: string | null = null;
@@ -505,13 +506,22 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 		this.downloadService.onAppReady();
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
+			// Always run progress-sensitive work — these are cheap and need every tick.
 			this.syncScrobblePlaybackSnapshot();
+			this.syncTrackPlaybackNotification();
+
+			// Gate everything else (and the re-render) behind a structural signature.
+			// The visible progress bar is driven by ref-based subscriptions and doesn't need a full re-render.
+			const { track, trackIndex, tracks, album, isPlaying, loopMode } = this.playbackStore;
+			const sig = `${track?.id ?? ''}|${trackIndex}|${tracks.length}|${album?.id ?? ''}|${isPlaying}|${loopMode}`;
+			if (sig === this.lastPlaybackSignature) return;
+			this.lastPlaybackSignature = sig;
+
 			this.handleAlbumChange();
 			this.handleTrackPlaybackSourceChange();
 			this.handleNextTrackPreload();
 			this.handleTrackPrefetchQueueChange();
 			this.captureRecentlyPlayedTrack();
-			this.syncTrackPlaybackNotification();
 			this.handleWaveformPriority();
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
