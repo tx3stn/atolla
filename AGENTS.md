@@ -15,7 +15,7 @@ This project uses Valdi, Typescript, biome.js (for linting/formatting) and webdr
 
 Unit tests should live next to the files they are testing and are written with bun. Run with `bun run test`
 
-Component tests are required when the thing being tested imports valdi as these need to be run with bazel. They are written with jasmine & valid and live in `atolla/test`. Do not run these, the bazel build is slow and will time out, prompt the user to run them.
+Component tests are required when the thing being tested imports valdi as these need to be run with bazel. They are written with jasmine & valid and live in `atolla/test`. Run with `bun run test:components`
 
 @.ai/e2e-tests.md
 

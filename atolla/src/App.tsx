@@ -96,6 +96,7 @@ import { type ConnectionMode, ConnectionModes } from './transports/Model';
 import { OfflineTransport } from './transports/Offline';
 import type { Transport } from './transports/Transport';
 import { BootSplash } from './ui/components/BootSplash';
+import { ErrorBoundary } from './ui/components/ErrorBoundary';
 import { FooterNav } from './ui/components/FooterNav';
 import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { GaplessPlayer } from './ui/components/GaplessPlayer';
@@ -1893,31 +1894,33 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.playbackStore;
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
 		if (!track) return;
-		<NowPlayingSurface
-			album={album}
-			animationsEnabled={this.state.animationsEnabled}
-			artistLogoUrl={artistLogoUrl}
-			collapseSignal={this.state.nowPlayingCollapseSignal}
-			isPlaying={isPlaying}
-			language={this.state.language}
-			loopMode={loopMode}
-			onAlbumTap={this.handleNowPlayingAlbumTap}
-			onArtistTap={this.handleNowPlayingArtistTap}
-			onDismiss={this.handleNowPlayingDismiss}
-			onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
-			onNext={this.handleNowPlayingNext}
-			onPlayPause={this.handleNowPlayingPlayPause}
-			onPrevious={this.handleNowPlayingPrevious}
-			onProgressTap={this.handleNowPlayingProgressTap}
-			onTrackTap={this.handleNowPlayingTrackTap}
-			palette={palette}
-			playbackStore={this.playbackStore}
-			track={track}
-			trackIndex={trackIndex}
-			tracks={tracks}
-			transport={this.transport}
-			waveformMaskUrl={this.getWaveformMaskUrl(track.id)}
-		/>;
+		<ErrorBoundary resetKey={track.id}>
+			<NowPlayingSurface
+				album={album}
+				animationsEnabled={this.state.animationsEnabled}
+				artistLogoUrl={artistLogoUrl}
+				collapseSignal={this.state.nowPlayingCollapseSignal}
+				isPlaying={isPlaying}
+				language={this.state.language}
+				loopMode={loopMode}
+				onAlbumTap={this.handleNowPlayingAlbumTap}
+				onArtistTap={this.handleNowPlayingArtistTap}
+				onDismiss={this.handleNowPlayingDismiss}
+				onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
+				onNext={this.handleNowPlayingNext}
+				onPlayPause={this.handleNowPlayingPlayPause}
+				onPrevious={this.handleNowPlayingPrevious}
+				onProgressTap={this.handleNowPlayingProgressTap}
+				onTrackTap={this.handleNowPlayingTrackTap}
+				palette={palette}
+				playbackStore={this.playbackStore}
+				track={track}
+				trackIndex={trackIndex}
+				tracks={tracks}
+				transport={this.transport}
+				waveformMaskUrl={this.getWaveformMaskUrl(track.id)}
+			/>
+		</ErrorBoundary>;
 	};
 
 	handleNowPlayingNext = (): void => {
@@ -2411,158 +2414,161 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						playbackStore={this.playbackStore}
 					/>
 				)}
-				{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeNavigationMounted && (
-					<NavigationRoot>
-						{$slot((navigationController) => {
-							this.handleHomeNavigationControllerChange(navigationController);
-							<HomeView
-								animationsEnabled={this.state.animationsEnabled}
-								connectionMode={this.state.connectionMode}
-								gridColumns={this.state.gridColumns}
-								homeAlbumsStore={this.homeAlbumsStore}
-								imageCache={this.imageCache}
-								modalSlot={this.modalSlot}
-								onNavigateToArtist={this.handleHomeArtistTap}
-								onOpenAlbum={this.handleHomeAlbumTap}
-								onOpenPlaylist={this.handleHomeOpenPlaylist}
-								onRequestModeChange={this.requestModeChange}
-								playbackStore={this.playbackStore}
-								recentlyPlayedTracks={this.recentlyPlayedTracks}
-								transport={this.transport}
-							/>;
-						})}
-					</NavigationRoot>
-				)}
+				<ErrorBoundary resetKey={this.state.activeFooterTab}>
+					{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeNavigationMounted && (
+						<NavigationRoot>
+							{$slot((navigationController) => {
+								this.handleHomeNavigationControllerChange(navigationController);
+								<HomeView
+									animationsEnabled={this.state.animationsEnabled}
+									connectionMode={this.state.connectionMode}
+									gridColumns={this.state.gridColumns}
+									homeAlbumsStore={this.homeAlbumsStore}
+									imageCache={this.imageCache}
+									modalSlot={this.modalSlot}
+									onNavigateToArtist={this.handleHomeArtistTap}
+									onOpenAlbum={this.handleHomeAlbumTap}
+									onOpenPlaylist={this.handleHomeOpenPlaylist}
+									onRequestModeChange={this.requestModeChange}
+									playbackStore={this.playbackStore}
+									recentlyPlayedTracks={this.recentlyPlayedTracks}
+									transport={this.transport}
+								/>;
+							})}
+						</NavigationRoot>
+					)}
 
-				{this.state.activeFooterTab === FooterTabs.library && (
-					<LibraryView
-						activeTab={this.state.activeLibraryTab}
-						animationsEnabled={this.state.animationsEnabled}
-						connectionMode={this.state.connectionMode}
-						downloadService={this.downloadService}
-						gridColumns={this.state.gridColumns}
-						imageCache={this.imageCache}
-						letterFilter={this.state.libraryLetterFilter}
-						modalSlot={this.modalSlot}
-						navBarContext={this.buildLibraryNavBarContext()}
-						onHeaderVisibilityChange={this.handleLibraryHeaderVisibilityChange}
-						onNavigateToArtist={this.handleNavigateToArtist}
-						onNavigationContext={this.handleNavigationContext}
-						onNavigationControllerChange={this.handleLibraryNavigationControllerChange}
-						paletteQueue={this.paletteQueue}
-						playbackStore={this.playbackStore}
-						playlistEditService={this.playlistEditService}
-						resetSignal={this.state.libraryResetNonce}
-						transport={this.transport}
-					/>
-				)}
-				{this.state.activeFooterTab === FooterTabs.search && (
-					<NavigationRoot>
-						{$slot((navigationController) => {
-							<SearchView
-								animationsEnabled={this.state.animationsEnabled}
-								downloadService={this.downloadService}
-								focusSignal={this.state.searchFocusSignal}
-								gridColumns={this.state.gridColumns}
-								imageCache={this.imageCache}
-								modalSlot={this.modalSlot}
-								navBarContext={this.buildSearchNavBarContext()}
-								navigationController={navigationController}
-								onNavigateToLibraryResult={this.handleSearchResultNavigation}
-								paletteQueue={this.paletteQueue}
-								playbackStore={this.playbackStore}
-								playlistEditService={this.playlistEditService}
-								searchStore={this.searchStore}
-								transport={this.transport}
-							/>;
-						})}
-					</NavigationRoot>
-				)}
-				{this.state.activeFooterTab === FooterTabs.settings && (
-					<SettingsView
-						animationsEnabled={this.state.animationsEnabled}
-						connectionMode={this.state.connectionMode}
-						debugExportPath={this.state.debugExportPath}
-						debugLogFilePath={this.state.debugLogFilePath}
-						debugLoggingEnabled={this.state.debugLoggingEnabled}
-						defaultJellyfinDeviceId={this.defaultJellyfinClientDeviceId}
-						downloadedSizeBytes={this.state.downloadedSizeBytes ?? undefined}
-						downloadedTrackCount={this.state.downloadedTrackCount}
-						downloadingCount={this.state.downloadingCount}
-						gridColumns={this.state.gridColumns}
-						imageCacheDiskBytes={this.state.nativeImageCacheDiskBytes ?? undefined}
-						imageCacheDiskCount={this.state.nativeImageCacheDiskCount ?? undefined}
-						imageCacheError={null}
-						imageCacheMaxBytes={this.state.imageCacheMaxBytes}
-						imageCategoryAlbumArtBlurredCount={
-							this.state.imageCategoryCounts.album_art_blurred ?? 0
-						}
-						imageCategoryAlbumArtCount={
-							(this.state.imageCategoryCounts.album_art ?? 0) +
-							(this.state.imageCategoryCounts.album_art_thumb ?? 0)
-						}
-						imageCategoryArtistImageCount={
-							(this.state.imageCategoryCounts.artist_image ?? 0) +
-							(this.state.imageCategoryCounts.artist_image_thumb ?? 0)
-						}
-						imageCategoryArtistLogoCount={this.state.imageCategoryCounts.artist_logo ?? 0}
-						imageCategoryGenreImageCount={this.state.imageCategoryCounts.genre_art ?? 0}
-						imageCategoryPlaylistImageCount={
-							(this.state.imageCategoryCounts.playlist_image ?? 0) +
-							(this.state.imageCategoryCounts.playlist_image_thumb ?? 0)
-						}
-						jellyfinDeviceIdOverride={this.state.jellyfinClientDeviceIdOverride}
-						modalSlot={this.modalSlot}
-						onAnimationsChange={this.handleAnimationsChange}
-						onCacheSizeChange={this.handleCacheSizeChange}
-						onClearCache={this.handleClearCache}
-						onClearDebugLog={this.handleClearDebugLog}
-						onClearDownloads={this.handleClearDownloads}
-						onDebugLoggingChange={this.handleDebugLoggingChange}
-						onExportDebugLog={this.handleExportDebugLog}
-						onGridColumnsChange={this.handleGridColumnsChange}
-						onJellyfinDeviceIdOverrideChange={this.handleJellyfinClientDeviceIdOverrideChange}
-						onLanguageChange={this.handleLanguageChange}
-						onLogout={this.handleLogout}
-						onRequestModeChange={this.requestModeChange}
-						onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
-						preferences={this.preferences}
-						selectedLanguage={this.state.language}
-						serverUrl={this.state.serverUrlPrefill}
-						trackCacheCachedCount={this.state.trackPlaybackCachedCount}
-						trackCacheMaxTracks={this.state.trackCacheMaxTracks}
-						waveformCount={this.waveformService?.getCount()}
-						waveformReadyCount={this.waveformService?.getReadyCount()}
-					/>
-				)}
-
+					{this.state.activeFooterTab === FooterTabs.library && (
+						<LibraryView
+							activeTab={this.state.activeLibraryTab}
+							animationsEnabled={this.state.animationsEnabled}
+							connectionMode={this.state.connectionMode}
+							downloadService={this.downloadService}
+							gridColumns={this.state.gridColumns}
+							imageCache={this.imageCache}
+							letterFilter={this.state.libraryLetterFilter}
+							modalSlot={this.modalSlot}
+							navBarContext={this.buildLibraryNavBarContext()}
+							onHeaderVisibilityChange={this.handleLibraryHeaderVisibilityChange}
+							onNavigateToArtist={this.handleNavigateToArtist}
+							onNavigationContext={this.handleNavigationContext}
+							onNavigationControllerChange={this.handleLibraryNavigationControllerChange}
+							paletteQueue={this.paletteQueue}
+							playbackStore={this.playbackStore}
+							playlistEditService={this.playlistEditService}
+							resetSignal={this.state.libraryResetNonce}
+							transport={this.transport}
+						/>
+					)}
+					{this.state.activeFooterTab === FooterTabs.search && (
+						<NavigationRoot>
+							{$slot((navigationController) => {
+								<SearchView
+									animationsEnabled={this.state.animationsEnabled}
+									downloadService={this.downloadService}
+									focusSignal={this.state.searchFocusSignal}
+									gridColumns={this.state.gridColumns}
+									imageCache={this.imageCache}
+									modalSlot={this.modalSlot}
+									navBarContext={this.buildSearchNavBarContext()}
+									navigationController={navigationController}
+									onNavigateToLibraryResult={this.handleSearchResultNavigation}
+									paletteQueue={this.paletteQueue}
+									playbackStore={this.playbackStore}
+									playlistEditService={this.playlistEditService}
+									searchStore={this.searchStore}
+									transport={this.transport}
+								/>;
+							})}
+						</NavigationRoot>
+					)}
+					{this.state.activeFooterTab === FooterTabs.settings && (
+						<SettingsView
+							animationsEnabled={this.state.animationsEnabled}
+							connectionMode={this.state.connectionMode}
+							debugExportPath={this.state.debugExportPath}
+							debugLogFilePath={this.state.debugLogFilePath}
+							debugLoggingEnabled={this.state.debugLoggingEnabled}
+							defaultJellyfinDeviceId={this.defaultJellyfinClientDeviceId}
+							downloadedSizeBytes={this.state.downloadedSizeBytes ?? undefined}
+							downloadedTrackCount={this.state.downloadedTrackCount}
+							downloadingCount={this.state.downloadingCount}
+							gridColumns={this.state.gridColumns}
+							imageCacheDiskBytes={this.state.nativeImageCacheDiskBytes ?? undefined}
+							imageCacheDiskCount={this.state.nativeImageCacheDiskCount ?? undefined}
+							imageCacheError={null}
+							imageCacheMaxBytes={this.state.imageCacheMaxBytes}
+							imageCategoryAlbumArtBlurredCount={
+								this.state.imageCategoryCounts.album_art_blurred ?? 0
+							}
+							imageCategoryAlbumArtCount={
+								(this.state.imageCategoryCounts.album_art ?? 0) +
+								(this.state.imageCategoryCounts.album_art_thumb ?? 0)
+							}
+							imageCategoryArtistImageCount={
+								(this.state.imageCategoryCounts.artist_image ?? 0) +
+								(this.state.imageCategoryCounts.artist_image_thumb ?? 0)
+							}
+							imageCategoryArtistLogoCount={this.state.imageCategoryCounts.artist_logo ?? 0}
+							imageCategoryGenreImageCount={this.state.imageCategoryCounts.genre_art ?? 0}
+							imageCategoryPlaylistImageCount={
+								(this.state.imageCategoryCounts.playlist_image ?? 0) +
+								(this.state.imageCategoryCounts.playlist_image_thumb ?? 0)
+							}
+							jellyfinDeviceIdOverride={this.state.jellyfinClientDeviceIdOverride}
+							modalSlot={this.modalSlot}
+							onAnimationsChange={this.handleAnimationsChange}
+							onCacheSizeChange={this.handleCacheSizeChange}
+							onClearCache={this.handleClearCache}
+							onClearDebugLog={this.handleClearDebugLog}
+							onClearDownloads={this.handleClearDownloads}
+							onDebugLoggingChange={this.handleDebugLoggingChange}
+							onExportDebugLog={this.handleExportDebugLog}
+							onGridColumnsChange={this.handleGridColumnsChange}
+							onJellyfinDeviceIdOverrideChange={this.handleJellyfinClientDeviceIdOverrideChange}
+							onLanguageChange={this.handleLanguageChange}
+							onLogout={this.handleLogout}
+							onRequestModeChange={this.requestModeChange}
+							onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
+							preferences={this.preferences}
+							selectedLanguage={this.state.language}
+							serverUrl={this.state.serverUrlPrefill}
+							trackCacheCachedCount={this.state.trackPlaybackCachedCount}
+							trackCacheMaxTracks={this.state.trackCacheMaxTracks}
+							waveformCount={this.waveformService?.getCount()}
+							waveformReadyCount={this.waveformService?.getReadyCount()}
+						/>
+					)}
+				</ErrorBoundary>
 				{track && (
-					<NowPlayingSurface
-						album={album}
-						animationsEnabled={this.state.animationsEnabled}
-						artistLogoUrl={artistLogoUrl}
-						collapseSignal={this.state.nowPlayingCollapseSignal}
-						isPlaying={isPlaying}
-						language={this.state.language}
-						loopMode={loopMode}
-						onAlbumTap={this.handleNowPlayingAlbumTap}
-						onArtistTap={this.handleNowPlayingArtistTap}
-						onDismiss={this.handleNowPlayingDismiss}
-						onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
-						onNext={this.handleNowPlayingNext}
-						onOpenPlaylist={this.handleNowPlayingOpenPlaylist}
-						onPlayPause={this.handleNowPlayingPlayPause}
-						onPrevious={this.handleNowPlayingPrevious}
-						onProgressTap={this.handleNowPlayingProgressTap}
-						onTrackTap={this.handleNowPlayingTrackTap}
-						palette={palette}
-						playbackStore={this.playbackStore}
-						track={track}
-						trackIndex={trackIndex}
-						tracks={tracks}
-						transport={this.transport}
-						waveformMaskUrl={this.getWaveformMaskUrl(track.id)}
-					/>
+					<ErrorBoundary resetKey={track.id}>
+						<NowPlayingSurface
+							album={album}
+							animationsEnabled={this.state.animationsEnabled}
+							artistLogoUrl={artistLogoUrl}
+							collapseSignal={this.state.nowPlayingCollapseSignal}
+							isPlaying={isPlaying}
+							language={this.state.language}
+							loopMode={loopMode}
+							onAlbumTap={this.handleNowPlayingAlbumTap}
+							onArtistTap={this.handleNowPlayingArtistTap}
+							onDismiss={this.handleNowPlayingDismiss}
+							onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
+							onNext={this.handleNowPlayingNext}
+							onOpenPlaylist={this.handleNowPlayingOpenPlaylist}
+							onPlayPause={this.handleNowPlayingPlayPause}
+							onPrevious={this.handleNowPlayingPrevious}
+							onProgressTap={this.handleNowPlayingProgressTap}
+							onTrackTap={this.handleNowPlayingTrackTap}
+							palette={palette}
+							playbackStore={this.playbackStore}
+							track={track}
+							trackIndex={trackIndex}
+							tracks={tracks}
+							transport={this.transport}
+							waveformMaskUrl={this.getWaveformMaskUrl(track.id)}
+						/>
+					</ErrorBoundary>
 				)}
 
 				{this.state.activeFooterTab === FooterTabs.library && this.state.isLibraryHeaderVisible && (
