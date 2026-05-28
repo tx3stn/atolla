@@ -24,7 +24,6 @@ import { ensureAtollaHapticsBootstrap } from './HapticsBootstrap';
 import {
 	clearAtollaNativeCacheCategories,
 	ensureAtollaImageLoaderBootstrap,
-	extractAtollaPaletteFromCache,
 	getAtollaImageLoaderDiskCacheByteSize,
 	getAtollaImageLoaderDiskCacheCategoryCountsJson,
 	getAtollaImageLoaderDiskCacheEntryCount,
@@ -703,10 +702,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				),
 			),
 		);
-		this.paletteQueue = new PaletteGenerationQueue(
-			this.paletteService,
-			extractAtollaPaletteFromCache,
-		);
+		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
 		this.scrobbleService = new ScrobbleService({
 			deliverScrobble: (pending) => {
 				if (!this.transport.scrobbleTrackPlayed) {
