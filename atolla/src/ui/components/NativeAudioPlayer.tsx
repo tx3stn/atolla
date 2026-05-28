@@ -50,6 +50,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 	private lastSeekTargetSeconds: number | null = null;
 	private hasReportedProgressForSource = false;
 	private hasEverBoundSource = false;
+	private lastConfiguredTrackId = '';
 
 	onCreate(): void {
 		const isActive = this.viewModel.isActive !== false;
@@ -163,6 +164,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 		const normalizedSource = this.normalizeLocalFileSource(sourceUrl);
 		const normalizedNext = nextSourceUrl ? this.normalizeLocalFileSource(nextSourceUrl) : '';
 		const currentTrackId = this.viewModel.playbackStore.track?.id ?? '';
+		this.lastConfiguredTrackId = currentTrackId;
 		const nextTrackId = this.resolveNextTrackId() ?? '';
 		const currentDurationMs = this.resolveCurrentTrackDurationMs() ?? 0;
 		const nextDurationMs = this.resolveNextTrackDurationMs() ?? 0;
@@ -270,13 +272,24 @@ export class NativeAudioPlayer extends StatefulComponent<
 					this.hasReportedProgressForSource = true;
 					this.viewModel.onPlaybackEvent?.('progress');
 				}
-				const trackDurationSeconds = this.viewModel.playbackStore.track?.duration ?? 0;
-				const positionSeconds = positionMs / 1000;
-				const safePositionSeconds =
-					trackDurationSeconds > 0
-						? Math.min(positionSeconds, Math.max(0, trackDurationSeconds - 0.05))
-						: positionSeconds;
-				this.viewModel.playbackStore.updateProgress(safePositionSeconds);
+				// Guard: skip if the native player is still configured for a different
+				// track (e.g. the 200ms tick fires between PlaybackStore.next() resetting
+				// progressSeconds to 0 and the Valdi render that reconfigures the player).
+				// Without this, the old track's position gets written into the new track's
+				// progressSeconds and applyInitialSeekForSource seeks to the wrong position,
+				// causing a native audio source error.
+				if (this.viewModel.playbackStore.track?.id !== this.lastConfiguredTrackId) {
+					if (this.destroyed) return;
+				} else {
+					const trackDurationSeconds = this.viewModel.playbackStore.track?.duration ?? 0;
+					const positionSeconds = positionMs / 1000;
+					const safePositionSeconds =
+						trackDurationSeconds > 0
+							? Math.min(positionSeconds, Math.max(0, trackDurationSeconds - 0.05))
+							: positionSeconds;
+					this.viewModel.playbackStore.updateProgress(safePositionSeconds);
+					if (this.destroyed) return;
+				}
 				if (this.destroyed) return;
 			}
 		} catch {

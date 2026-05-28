@@ -1089,9 +1089,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 
-		if (this.state.trackPlaybackSourceUrl == null) {
-			this.handleTrackPlaybackSourceChange(true);
-		}
+		this.handleTrackPlaybackSourceChange(true);
 		this.handleNextTrackPreload();
 	}
 
@@ -1269,7 +1267,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		try {
 			const url = resolvedStreamSource ?? this.getTrackStreamSource(trackId);
 			if (!url) {
-				this.showPlaybackToast('cache download failed: no url');
 				this.handleTrackCacheFetchFailed(trackId, 'no url');
 				return;
 			}
@@ -1289,7 +1286,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					return;
 				}
 
-				this.showPlaybackToast('cache download failed: native cache failed');
 				this.handleTrackCacheFetchFailed(trackId, 'native cache failed');
 			});
 			return;
