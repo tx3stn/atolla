@@ -320,6 +320,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastTrackNotificationStateKey = '';
 	private lastTrackNotificationPositionBucket = -1;
 	private lastPlaybackSignature = '';
+	private lastPlaybackTickAt = 0;
 	private readonly imageCache = new ImageCache({});
 	private recentlyPlayedTracks: Array<Track> = [];
 	private lastObservedRecentTrackId: string | null = null;
@@ -512,6 +513,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 			// Gate everything else (and the re-render) behind a structural signature.
 			// The visible progress bar is driven by ref-based subscriptions and doesn't need a full re-render.
+			// If more than 1s has passed since the last tick, the app was backgrounded — reset the
+			// signature so the first tick after foregrounding re-runs all handlers (palette, overlay, etc.).
+			const now = Date.now();
+			if (this.lastPlaybackTickAt > 0 && now - this.lastPlaybackTickAt > 1000) {
+				this.lastPlaybackSignature = '';
+			}
+			this.lastPlaybackTickAt = now;
+
 			const { track, trackIndex, tracks, album, isPlaying, loopMode } = this.playbackStore;
 			const sig = `${track?.id ?? ''}|${trackIndex}|${tracks.length}|${album?.id ?? ''}|${isPlaying}|${loopMode}`;
 			if (sig === this.lastPlaybackSignature) return;
