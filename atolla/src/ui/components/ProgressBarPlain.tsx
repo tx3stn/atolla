@@ -134,7 +134,7 @@ function createFillStyle(accentColor: string): Style<View> {
 	return new Style<View>({
 		alignItems: 'flex-end',
 		backgroundColor: accentColor,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		display: 'flex',
 		height: '100%',
 		justifyContent: 'center',

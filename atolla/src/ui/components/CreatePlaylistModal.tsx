@@ -159,7 +159,7 @@ const styles = {
 	card: new Style<View>({
 		backgroundColor: theme.colors.bg,
 		borderColor: theme.colors.separator,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		borderWidth: 1,
 		padding: 20,
 		slowClipping: true,
@@ -190,7 +190,7 @@ const styles = {
 	}),
 	inputContainer: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		paddingBottom: 12,
 		paddingLeft: 12,
 		paddingRight: 12,

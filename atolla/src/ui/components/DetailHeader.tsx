@@ -371,14 +371,14 @@ const styles = {
 		width: '88%',
 	}),
 	artworkImage: new Style<ImageView>({
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		height: '100%',
 		width: '100%',
 	}),
 	artworkTile: new Style<View>({
 		aspectRatio: 1,
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		slowClipping: true,
 		width: '50%',
 	}),

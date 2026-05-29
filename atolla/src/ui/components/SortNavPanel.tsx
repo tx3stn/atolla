@@ -103,7 +103,7 @@ const styles = {
 	}),
 	letterButtonActive: new Style({
 		alignItems: 'center' as const,
-		borderRadius: 12,
+		borderRadius: theme.radius.pill,
 		height: 24,
 		justifyContent: 'center' as const,
 		marginLeft: 1,
@@ -113,7 +113,7 @@ const styles = {
 		width: 24,
 	}),
 	letterGradient: new Style<ImageView>({
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		bottom: 0,
 		left: 0,
 		position: 'absolute' as const,
@@ -129,7 +129,7 @@ const styles = {
 	}),
 	panel: new Style({
 		backgroundColor: theme.colors.bgFrosted,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		left: 16,
 		paddingBottom: 10,
 		paddingTop: 10,

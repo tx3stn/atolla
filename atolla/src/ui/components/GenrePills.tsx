@@ -55,7 +55,7 @@ const styles = {
 	pill: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgRaised,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		borderWidth: 1,
 		justifyContent: 'center',
 		marginRight: 4,

@@ -57,7 +57,7 @@ const styles = {
 	}),
 	titleContainer: new Style<View>({
 		backgroundColor: theme.colors.bgFrosted,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		padding: 6,
 		paddingLeft: 12,
 		paddingRight: 12,

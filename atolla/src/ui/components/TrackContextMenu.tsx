@@ -316,7 +316,7 @@ const styles = {
 	card: new Style({
 		backgroundColor: theme.colors.bg,
 		borderColor: theme.colors.separator,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		borderWidth: 1,
 		padding: 16,
 		slowClipping: true,

@@ -38,7 +38,7 @@ const styles = {
 	badge: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.active,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		justifyContent: 'center',
 		minWidth: 18,
 		paddingBottom: 2,

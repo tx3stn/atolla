@@ -31,12 +31,19 @@ export const paletteDefaults = {
 } as const;
 
 export const theme = {
-	borderRadius: 18,
 	colors: colors,
 	footerHeight: 52,
 	headerHeight: 52,
 	modalBackdropColor: isAndroid ? 'rgba(0,0,0,0.72)' : colors.transparent,
 	modalBlurStyle: 'regular',
+	radius: {
+		/** Small rounding for chips, badges, checkboxes, list rows. */
+		card: 6,
+		/** Default rounding for cards, tiles, artwork, modals. */
+		default: 18,
+		/** Fully rounded — pills, circular buttons, capsule controls. */
+		pill: 999,
+	},
 	scrollPaddingBottom: 80 * 3,
 	text: {
 		display: {

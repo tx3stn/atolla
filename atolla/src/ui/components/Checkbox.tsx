@@ -34,7 +34,7 @@ const styles = {
 	checkboxChecked: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgRaised,
-		borderRadius: 4,
+		borderRadius: theme.radius.card,
 		height: CHECKBOX_SIZE,
 		justifyContent: 'center',
 		marginRight: 12,
@@ -43,7 +43,7 @@ const styles = {
 	checkboxUnchecked: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
 		borderColor: theme.colors.separator,
-		borderRadius: 4,
+		borderRadius: theme.radius.card,
 		borderWidth: 1,
 		height: CHECKBOX_SIZE,
 		marginRight: 12,

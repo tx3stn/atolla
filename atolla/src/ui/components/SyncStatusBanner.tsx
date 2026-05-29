@@ -48,7 +48,7 @@ const styles = {
 	container: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.toastGlassBg,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		boxShadow: `0 6 12 ${theme.colors.bg}`,
 		flexDirection: 'row',
 		left: 12,

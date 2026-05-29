@@ -80,7 +80,7 @@ const styles = {
 		backgroundColor: withAlpha(theme.colors.warning, 0.12),
 		borderColor: theme.colors.warning,
 		borderLeftWidth: 3,
-		borderRadius: 6,
+		borderRadius: theme.radius.card,
 		marginBottom: 4,
 		padding: 12,
 	}),
@@ -100,7 +100,7 @@ const styles = {
 	card: new Style({
 		backgroundColor: theme.colors.bg,
 		borderColor: theme.colors.separator,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		borderWidth: 1,
 		padding: 20,
 		width: '90%',

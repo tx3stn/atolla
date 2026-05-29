@@ -69,7 +69,7 @@ const styles = {
 	card: new Style<View>({
 		backgroundColor: theme.colors.bg,
 		borderColor: theme.colors.separator,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		borderWidth: 1,
 		padding: 20,
 		width: '90%',
@@ -89,7 +89,7 @@ const styles = {
 		width: '100%',
 	}),
 	option: new Style<View>({
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		marginBottom: 4,
 		paddingBottom: 14,
 		paddingLeft: 12,
@@ -100,7 +100,7 @@ const styles = {
 	}),
 	optionSelected: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		marginBottom: 4,
 		paddingBottom: 14,
 		paddingLeft: 12,

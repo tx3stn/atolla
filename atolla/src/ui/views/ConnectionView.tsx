@@ -239,7 +239,7 @@ const styles = {
 	}),
 	inputContainer: new Style({
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		marginTop: 16,
 		padding: 14,
 		width: '100%',
@@ -247,7 +247,7 @@ const styles = {
 	languageButton: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgRaised,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		bottom: 32,
 		height: 48,
 		justifyContent: 'center',

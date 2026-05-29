@@ -770,7 +770,7 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 		artworkTileStyle: new Style<View>({
 			aspectRatio: 1,
 			backgroundColor: colors.tileBackground,
-			borderRadius: theme.borderRadius / 2,
+			borderRadius: theme.radius.default / 2,
 			slowClipping: true,
 			width: 42,
 		}),
@@ -793,7 +793,7 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 		}),
 		rowStyle: new Style<View>({
 			backgroundColor: colors.rowBackground,
-			borderRadius: theme.borderRadius,
+			borderRadius: theme.radius.default,
 			paddingBottom: 8,
 			paddingLeft: 10,
 			paddingRight: 10,
@@ -825,7 +825,7 @@ function resolveColors(palette?: Palette, noRowBackground?: boolean): TrackListC
 function buildPulseOverlayStyle(tapPulseColor: string | undefined): Style<View> {
 	return new Style<View>({
 		backgroundColor: tapPulseColor ?? theme.colors.white,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		bottom: 0,
 		left: 0,
 		opacity: 0,
@@ -837,7 +837,7 @@ function buildPulseOverlayStyle(tapPulseColor: string | undefined): Style<View> 
 
 const styles = {
 	artwork: new Style<ImageView>({
-		borderRadius: theme.borderRadius / 2,
+		borderRadius: theme.radius.default / 2,
 		height: '100%',
 		width: '100%',
 	}),

@@ -22,7 +22,7 @@ export class FormatBadge extends Component<FormatBadgeViewModel> {
 function createContainerStyle(backgroundColor: string): Style<View> {
 	return new Style<View>({
 		backgroundColor,
-		borderRadius: 5,
+		borderRadius: theme.radius.card,
 		paddingBottom: 3,
 		paddingLeft: 7,
 		paddingRight: 7,

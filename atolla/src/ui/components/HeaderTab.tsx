@@ -38,7 +38,7 @@ export class LibraryHeaderTab extends Component<LibraryHeaderViewModel> {
 
 const styles = {
 	activeGradient: new Style<View>({
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		bottom: 0,
 		left: 0,
 		position: 'absolute',
@@ -53,7 +53,7 @@ const styles = {
 	header: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgFrosted,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		flexGrow: 0,
 		justifyContent: 'center',
 		minHeight: 25,
@@ -67,7 +67,7 @@ const styles = {
 	}),
 	headerActive: new Style<View>({
 		alignItems: 'center',
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		flexGrow: 0,
 		justifyContent: 'center',
 		minHeight: 25,

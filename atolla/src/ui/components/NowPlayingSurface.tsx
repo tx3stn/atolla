@@ -291,7 +291,7 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.overlayRef.setAttribute('top', 0);
 				this.compactBarRef.setAttribute('opacity', 1);
 				this.overlayCardRef.setAttribute('bottom', this.collapsedBottom);
-				this.overlayCardRef.setAttribute('borderRadius', theme.borderRadius);
+				this.overlayCardRef.setAttribute('borderRadius', theme.radius.default);
 				this.overlayCardRef.setAttribute('height', this.collapsedHeight);
 				this.overlayCardRef.setAttribute('left', this.collapsedInset);
 				this.overlayCardRef.setAttribute('right', this.collapsedInset);
@@ -331,7 +331,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private setCollapsedGeometry(): void {
 		this.compactBarRef.setAttribute('opacity', 1);
 		this.overlayCardRef.setAttribute('bottom', this.collapsedBottom);
-		this.overlayCardRef.setAttribute('borderRadius', theme.borderRadius);
+		this.overlayCardRef.setAttribute('borderRadius', theme.radius.default);
 		this.overlayCardRef.setAttribute('height', this.collapsedHeight);
 		this.overlayCardRef.setAttribute('left', this.collapsedInset);
 		this.overlayCardRef.setAttribute('right', this.collapsedInset);
@@ -984,7 +984,7 @@ function createCompactProgressFillStyle(accentColor: string, progressRatio: numb
 	const progressPercent = Math.round(progressRatio * 100);
 	return new Style<View>({
 		backgroundColor: accentColor,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		bottom: 0,
 		left: 0,
 		opacity: 0.68,
@@ -998,7 +998,7 @@ function createCompactProgressFillStyle(accentColor: string, progressRatio: numb
 function getOverlayTintStyle(
 	surfaceColor: string,
 	opacity: number,
-	borderRadius: number = theme.borderRadius,
+	borderRadius: number = theme.radius.default,
 ): Style<View> {
 	return new Style<View>({
 		backgroundColor: withAlpha(surfaceColor, opacity),
@@ -1075,7 +1075,7 @@ function getTopInsetBarStyle(surfaceColor: string): Style<View> {
 
 const styles = {
 	artwork: new Style<ImageView>({
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		flexShrink: 0,
 		height: 75,
 		marginRight: 14,
@@ -1083,7 +1083,7 @@ const styles = {
 	}),
 	compactBar: new Style<View>({
 		alignItems: 'center',
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		bottom: theme.footerHeight * 1.2,
 		boxShadow: '0 10 18 rgba(0,0,0,0.35)',
 		flexDirection: 'row',
@@ -1096,7 +1096,7 @@ const styles = {
 		zIndex: 25,
 	}),
 	compactBgArtwork: new Style<ImageView>({
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		bottom: 0,
 		left: 0,
 		position: 'absolute',
@@ -1104,7 +1104,7 @@ const styles = {
 		top: 0,
 	}),
 	compactProgressContainer: new Style<View>({
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		bottom: 0,
 		left: 50,
 		position: 'absolute',
@@ -1241,7 +1241,7 @@ const styles = {
 		marginRight: 12,
 	}),
 	overlayCard: new Style<View>({
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		bottom: theme.footerHeight * 0.8,
 		height: 84,
 		left: 20,

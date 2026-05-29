@@ -986,7 +986,7 @@ const styles = {
 	}),
 	retryButton: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		paddingBottom: 8,
 		paddingLeft: 12,
 		paddingRight: 12,
@@ -1005,7 +1005,7 @@ const styles = {
 		alignItems: 'center',
 		backgroundColor: 'transparent',
 		borderColor: theme.colors.white,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		borderWidth: 1,
 		flexDirection: 'row',
 		marginBottom: 20,

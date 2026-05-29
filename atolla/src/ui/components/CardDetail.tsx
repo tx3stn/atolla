@@ -57,7 +57,7 @@ const styles = {
 		textAlign: 'center',
 	}),
 	artworkImage: new Style<ImageView>({
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		flexShrink: 0,
 		height: '100%',
 		width: '100%',
@@ -65,7 +65,7 @@ const styles = {
 	artworkTile: new Style<View>({
 		alignItems: 'center',
 		aspectRatio: 1,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		flexShrink: 0,
 		justifyContent: 'center',
 		marginRight: 14,
@@ -85,7 +85,7 @@ const styles = {
 	row: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgRaised,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		flexDirection: 'row',
 		minHeight: 75,
 		paddingRight: 12,

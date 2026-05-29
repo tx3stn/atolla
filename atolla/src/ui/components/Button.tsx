@@ -38,7 +38,7 @@ const styles = {
 	button: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		marginBottom: 5,
 		marginTop: 5,
 		padding: 10,
@@ -47,7 +47,7 @@ const styles = {
 	buttonDisabled: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgDim,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		marginBottom: 5,
 		marginTop: 5,
 		padding: 10,

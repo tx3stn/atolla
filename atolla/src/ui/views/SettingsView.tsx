@@ -658,7 +658,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 const styles = {
 	authDeviceIdInlineInputContainer: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		flexGrow: 1,
 		marginLeft: 10,
 		paddingBottom: 10,
@@ -681,7 +681,7 @@ const styles = {
 		backgroundColor: withAlpha(theme.colors.warning, 0.12),
 		borderColor: theme.colors.warning,
 		borderLeftWidth: 3,
-		borderRadius: 6,
+		borderRadius: theme.radius.card,
 		marginBottom: 12,
 		padding: 12,
 	}),
@@ -692,7 +692,7 @@ const styles = {
 	languageSelectorButton: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: 999,
+		borderRadius: theme.radius.pill,
 		flexGrow: 1,
 		marginLeft: 10,
 		paddingBottom: 10,
@@ -747,7 +747,7 @@ const styles = {
 	trackCacheLimitButton: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		minWidth: 84,
 		paddingBottom: 12,
 		paddingLeft: 18,
@@ -765,7 +765,7 @@ const styles = {
 	trackCacheLimitOption: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		flexGrow: 1,
 		marginRight: 8,
 		paddingBottom: 8,
@@ -778,7 +778,7 @@ const styles = {
 	trackCacheLimitOptionSelected: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.active,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		flexGrow: 1,
 		marginRight: 8,
 		paddingBottom: 8,

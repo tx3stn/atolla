@@ -417,7 +417,7 @@ const styles = {
 	card: new Style({
 		backgroundColor: theme.colors.bg,
 		borderColor: theme.colors.separator,
-		borderRadius: theme.borderRadius,
+		borderRadius: theme.radius.default,
 		borderWidth: 1,
 		padding: 16,
 		slowClipping: true,
@@ -431,7 +431,7 @@ const styles = {
 		width: '100%',
 	}),
 	entityArtwork: new Style<ImageView>({
-		borderRadius: 4,
+		borderRadius: theme.radius.card,
 		height: 40,
 		marginRight: 12,
 		width: 40,
