@@ -1,8 +1,10 @@
 interface DebugLoggerNativeFns {
 	clearLog(): void;
 	exportLog(): string;
+	exportTextFile(fileName: string, contents: string): string;
 	getLogFilePath(): string;
 	shareLog(): void;
+	shareTextFile(fileName: string, contents: string): void;
 	writeLog(entry: string): void;
 }
 
@@ -62,6 +64,22 @@ class DebugLoggerService {
 	shareLog(): void {
 		try {
 			this.fns?.shareLog();
+		} catch {
+			// best effort
+		}
+	}
+
+	exportTextFile(fileName: string, contents: string): string {
+		try {
+			return this.fns?.exportTextFile(fileName, contents) ?? '';
+		} catch {
+			return '';
+		}
+	}
+
+	shareTextFile(fileName: string, contents: string): void {
+		try {
+			this.fns?.shareTextFile(fileName, contents);
 		} catch {
 			// best effort
 		}

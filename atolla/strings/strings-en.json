@@ -228,6 +228,9 @@
 	"settings_debug_log_clear_button": {
 		"defaultMessage": "clear log"
 	},
+	"settings_debug_log_cleared_toast": {
+		"defaultMessage": "log cleared"
+	},
 	"settings_debug_log_export_button": {
 		"defaultMessage": "export to downloads"
 	},
@@ -257,6 +260,9 @@
 	"settings_device_name": {
 		"defaultMessage": "device name"
 	},
+	"settings_export_offline_status_button": {
+		"defaultMessage": "export offline status"
+	},
 	"settings_grid_columns": {
 		"defaultMessage": "grid columns"
 	},
@@ -274,6 +280,13 @@
 	},
 	"settings_logout_confirm": {
 		"defaultMessage": "are you sure you want to log out?"
+	},
+	"settings_offline_status_exported_path": {
+		"defaultMessage": "exported: {path%s}",
+		"example": "exported: /storage/downloads/atolla-offline-status.json"
+	},
+	"settings_offline_status_exported_toast": {
+		"defaultMessage": "offline status exported"
 	},
 	"settings_play_queue_cached_tracks": {
 		"defaultMessage": "play queue cached tracks"

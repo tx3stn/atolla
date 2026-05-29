@@ -108,6 +108,7 @@ export interface SettingsViewModel {
 	imageCategoryPlaylistImageCount?: number;
 	jellyfinDeviceIdOverride?: string;
 	modalSlot?: DetachedSlot;
+	offlineStatusExportPath?: string | null;
 	onAnimationsChange?: (enabled: boolean) => void;
 	onCacheSizeChange?: (bytes: number) => void;
 	onClearCache?: (selection: ClearCacheSelection) => void;
@@ -115,6 +116,7 @@ export interface SettingsViewModel {
 	onClearDownloads?: () => void;
 	onDebugLoggingChange?: (enabled: boolean) => void;
 	onExportDebugLog?: () => void;
+	onExportOfflineStatus?: () => void | Promise<void>;
 	onGridColumnsChange?: (count: number) => void;
 	onJellyfinDeviceIdOverrideChange?: (value: string) => void;
 	onLanguageChange?: (code: LanguageCode) => void;
@@ -131,18 +133,18 @@ export interface SettingsViewModel {
 }
 
 interface SettingsState {
-	showCacheToast: boolean;
 	showGridColumnsOptions: boolean;
 	showImageCacheOptions: boolean;
 	showTrackCacheLimitOptions: boolean;
+	toastMessage: string | null;
 }
 
 export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsState> {
 	state: SettingsState = {
-		showCacheToast: false,
 		showGridColumnsOptions: false,
 		showImageCacheOptions: false,
 		showTrackCacheLimitOptions: false,
+		toastMessage: null,
 	};
 
 	private toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -152,6 +154,16 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			clearTimeout(this.toastTimer);
 		}
 	}
+
+	private showToast = (message: string): void => {
+		if (this.toastTimer != null) {
+			clearTimeout(this.toastTimer);
+		}
+		this.setState({ toastMessage: message });
+		this.toastTimer = setTimeout(() => {
+			this.setState({ toastMessage: null });
+		}, 2500);
+	};
 
 	private handleClearCachePress = () => {
 		const vm = this.viewModel;
@@ -197,14 +209,8 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 	private handleCacheClearConfirm = (selection: ClearCacheSelection) => {
 		this.viewModel.onClearCache?.(selection);
-		if (this.toastTimer != null) {
-			clearTimeout(this.toastTimer);
-		}
 		closeSlot(this.viewModel.modalSlot);
-		this.setState({ showCacheToast: true });
-		this.toastTimer = setTimeout(() => {
-			this.setState({ showCacheToast: false });
-		}, 2500);
+		this.showToast(Strings.settingsCacheClearedToast());
 	};
 
 	private handleCacheClearCancel = () => {
@@ -294,10 +300,16 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 	private handleClearDebugLogPress = (): void => {
 		this.viewModel.onClearDebugLog?.();
+		this.showToast(Strings.settingsDebugLogClearedToast());
 	};
 
 	private handleExportDebugLogPress = (): void => {
 		this.viewModel.onExportDebugLog?.();
+	};
+
+	private handleExportOfflineStatusPress = async (): Promise<void> => {
+		await this.viewModel.onExportOfflineStatus?.();
+		this.showToast(Strings.settingsOfflineStatusExportedToast());
 	};
 
 	private handleDeviceIdInputChange = (value: unknown): void => {
@@ -582,6 +594,22 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								onTap={this.handleClearDebugLogPress}
 							/>
 						)}
+						<Button
+							accessibilityId='settings-export-offline-status'
+							label={Strings.settingsExportOfflineStatusButton()}
+							onTap={this.handleExportOfflineStatusPress}
+						/>
+						{this.viewModel.offlineStatusExportPath != null && (
+							<label
+								accessibilityId='settings-offline-status-export-path'
+								accessibilityLabel='settings-offline-status-export-path'
+								numberOfLines={2}
+								style={styles.debugLogPathLabel}
+								value={Strings.settingsOfflineStatusExportedPath(
+									this.viewModel.offlineStatusExportPath,
+								)}
+							/>
+						)}
 					</view>
 
 					<label style={styles.sectionTitle} value={Strings.settingsSectionDownloads()} />
@@ -622,7 +650,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 					</view>
 				</view>
 			</scroll>
-			{this.state.showCacheToast && <Toast message={Strings.settingsCacheClearedToast()} />}
+			{this.state.toastMessage != null && <Toast message={this.state.toastMessage} />}
 		</layout>;
 	}
 }

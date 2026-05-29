@@ -2,6 +2,7 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
+import { hapticFeedback } from '../haptics';
 
 export interface ButtonViewModel {
 	accessibilityId: string;
@@ -11,11 +12,21 @@ export interface ButtonViewModel {
 }
 
 export class Button extends Component<ButtonViewModel> {
+	private handleTap = (): void => {
+		if (this.viewModel.enabled === false) {
+			return;
+		}
+
+		hapticFeedback();
+
+		this.viewModel.onTap();
+	};
+
 	onRender(): void {
 		<view
 			accessibilityId={`${this.viewModel.accessibilityId}-btn`}
 			accessibilityLabel={`${this.viewModel.accessibilityId}-btn`}
-			onTap={this.viewModel.enabled !== false ? this.viewModel.onTap : undefined}
+			onTap={this.viewModel.enabled !== false ? this.handleTap : undefined}
 			style={this.viewModel.enabled !== false ? styles.button : styles.buttonDisabled}
 		>
 			<label style={styles.buttonLabel} value={this.viewModel.label} />

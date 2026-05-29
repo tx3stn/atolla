@@ -222,6 +222,57 @@ describe('SettingsView', () => {
 		expect(toast).toBeTruthy();
 	});
 
+	valdiIt('shows toast after clearing the debug log', async () => {
+		const instrumented = createComponent(SettingsView, {
+			debugLoggingEnabled: true,
+			onClearDebugLog: () => {},
+			preferences: mockPreferences(),
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-debug-log-clear-btn')
+			?.getAttribute('onTap')?.();
+
+		const updatedViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		const toast = updatedViews.find((v) => v.getAttribute('accessibilityLabel') === 'toast');
+
+		expect(toast).toBeTruthy();
+	});
+
+	valdiIt('shows toast after exporting offline status completes', async () => {
+		let called = false;
+		const instrumented = createComponent(SettingsView, {
+			onExportOfflineStatus: () => {
+				called = true;
+			},
+			preferences: mockPreferences(),
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-export-offline-status-btn')
+			?.getAttribute('onTap')?.();
+
+		// The export handler is async; let the awaited export resolve before the
+		// toast is shown.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const updatedViews = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		);
+		const toast = updatedViews.find((v) => v.getAttribute('accessibilityLabel') === 'toast');
+
+		expect(called).toBe(true);
+		expect(toast).toBeTruthy();
+	});
+
 	valdiIt('shows cached tracks dropdown options when tapped', async () => {
 		const instrumented = createComponent(SettingsView, {
 			preferences: mockPreferences(),

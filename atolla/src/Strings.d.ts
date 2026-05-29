@@ -77,6 +77,7 @@ declare const Strings: {
 	settingsDeleteAllDownloadsButton: () => string;
 	settingsDeleteAllDownloadsConfirm: () => string;
 	settingsDebugLogClearButton: () => string;
+	settingsDebugLogClearedToast: () => string;
 	settingsDebugLogExportButton: () => string;
 	settingsDebugLogExportedPath: (path: string) => string;
 	settingsDebugLogFilePath: (path: string) => string;
@@ -84,11 +85,14 @@ declare const Strings: {
 	settingsDeviceId: () => string;
 	settingsDeviceIdPlaceholder: () => string;
 	settingsDeviceName: () => string;
+	settingsExportOfflineStatusButton: () => string;
 	settingsGridColumns: () => string;
 	settingsImageCacheSize: () => string;
 	settingsLanguage: () => string;
 	settingsLogoutButton: () => string;
 	settingsLogoutConfirm: () => string;
+	settingsOfflineStatusExportedPath: (path: string) => string;
+	settingsOfflineStatusExportedToast: () => string;
 	settingsPlayQueueCachedTracks: () => string;
 	settingsSectionAppearance: () => string;
 	settingsSectionAuth: () => string;

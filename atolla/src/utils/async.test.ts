@@ -26,8 +26,10 @@ describe('fireAndForget', () => {
 		DebugLogger.register({
 			clearLog: () => {},
 			exportLog: () => '',
+			exportTextFile: () => '',
 			getLogFilePath: () => '',
 			shareLog: () => {},
+			shareTextFile: () => {},
 			writeLog: (entry: string) => writes.push(entry),
 		});
 		DebugLogger.setEnabled(true);

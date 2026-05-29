@@ -84,7 +84,67 @@ class AtollaDebugLoggerNativeModuleFactory : DebugLoggerNativeModuleFactory() {
                     Log.e(TAG, "Failed to share debug log", e)
                 }
             }
+
+            override fun exportAtollaTextFile(fileName: String, contents: String): String {
+                return try {
+                    val downloads = Environment.getExternalStoragePublicDirectory(
+                        Environment.DIRECTORY_DOWNLOADS
+                    )
+                    downloads.mkdirs()
+                    val dest = File(downloads, safeFileName(fileName))
+                    dest.writeText(contents)
+                    dest.absolutePath
+                } catch (e: Throwable) {
+                    Log.e(TAG, "Failed to export text file", e)
+                    ""
+                }
+            }
+
+            override fun shareAtollaTextFile(fileName: String, contents: String) {
+                try {
+                    val app = resolveApp() ?: return
+                    val safeName = safeFileName(fileName)
+                    val dir = File(app.applicationContext.cacheDir, "atolla-debug")
+                    dir.mkdirs()
+                    val file = File(dir, safeName)
+                    file.writeText(contents)
+                    val uri: Uri = FileProvider.getUriForFile(
+                        app.applicationContext,
+                        "${app.packageName}.fileprovider",
+                        file
+                    )
+                    val mime = if (safeName.endsWith(".json")) "application/json" else "text/plain"
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = mime
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    app.applicationContext.startActivity(
+                        Intent.createChooser(intent, "Share $safeName").apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    )
+                } catch (e: Throwable) {
+                    Log.e(TAG, "Failed to share text file", e)
+                }
+            }
         }
+    }
+
+    private fun resolveApp(): android.app.Application? {
+        return try {
+            val activityThreadClass = Class.forName("android.app.ActivityThread")
+            val currentApplication = activityThreadClass.getMethod("currentApplication").invoke(null)
+            currentApplication as? android.app.Application
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to resolve application", e)
+            null
+        }
+    }
+
+    private fun safeFileName(fileName: String): String {
+        val name = File(fileName).name
+        return if (name.isBlank()) "atolla-export.txt" else name
     }
 
     private fun resolveLogFile(): File? {

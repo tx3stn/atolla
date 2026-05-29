@@ -15,8 +15,10 @@ import { startWorkerService } from 'worker/src/WorkerService';
 import {
 	clearAtollaDebugLog,
 	exportAtollaDebugLog,
+	exportAtollaTextFile,
 	getAtollaDebugLogFilePath,
 	shareAtollaDebugLog,
+	shareAtollaTextFile,
 	writeAtollaDebugLog,
 } from './DebugLoggerNative';
 import { AuthErrors } from './errors/AuthErrors';
@@ -46,6 +48,10 @@ import { DownloadService } from './services/DownloadService';
 import { type ClearCacheSelection, ImageCache } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
+import {
+	buildOfflineDiagnosticsReport,
+	serializeOfflineDiagnostics,
+} from './services/OfflineDiagnostics';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PersistentWaveformStore } from './services/PersistentWaveformStore';
@@ -119,6 +125,7 @@ import { PlaylistView } from './ui/views/PlaylistView';
 import { type SearchLibraryNavigationTarget, SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
 import { fireAndForget } from './utils/async';
+import { appVersion } from './version';
 
 export type AppViewModel = Record<string, never>;
 
@@ -154,6 +161,7 @@ interface AppState {
 	nativeImageCacheDiskCount: number | null;
 	nextTrackSourceUrl: string | null;
 	nowPlayingCollapseSignal: number;
+	offlineStatusExportPath: string | null;
 	playbackToastMessage: string | null;
 	quickConnectCode: string | null;
 	searchFocusSignal: number;
@@ -373,6 +381,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		nativeImageCacheDiskCount: null,
 		nextTrackSourceUrl: null,
 		nowPlayingCollapseSignal: 0,
+		offlineStatusExportPath: null,
 		playbackToastMessage: null,
 		quickConnectCode: null,
 		searchFocusSignal: 0,
@@ -390,8 +399,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			DebugLogger.register({
 				clearLog: clearAtollaDebugLog,
 				exportLog: exportAtollaDebugLog,
+				exportTextFile: exportAtollaTextFile,
 				getLogFilePath: getAtollaDebugLogFilePath,
 				shareLog: shareAtollaDebugLog,
+				shareTextFile: shareAtollaTextFile,
 				writeLog: writeAtollaDebugLog,
 			});
 		} catch {
@@ -1613,6 +1624,58 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.setState({ debugExportPath: dest || null });
 	};
 
+	handleExportOfflineStatus = async (): Promise<void> => {
+		try {
+			const fetchRaw = (
+				store: { fetchString(key: string): Promise<string> } | undefined,
+				key: string,
+			): Promise<string | undefined> =>
+				store ? store.fetchString(key).catch(() => undefined) : Promise.resolve(undefined);
+
+			// Home cache keys mirror HomeView's HOME_ALBUMS_CACHE_KEY /
+			// RECENTLY_ADDED_ALBUMS_CACHE_KEY; 'queue' mirrors PlaybackStore's queue key.
+			const [recentlyPlayed, nowPlayingQueue, homeAlbums, homeRecentlyAdded, playlistEdits] =
+				await Promise.all([
+					fetchRaw(this.recentlyPlayedStore, RECENTLY_PLAYED_TRACKS_KEY),
+					fetchRaw(this.nowPlayingQueueStore, 'queue'),
+					fetchRaw(this.homeAlbumsStore, 'albums_v1'),
+					fetchRaw(this.homeAlbumsStore, 'recently_added_v1'),
+					this.playlistEditService.getPendingCount().catch(() => undefined),
+				]);
+
+			const report = buildOfflineDiagnosticsReport({
+				appVersion,
+				connectionMode: this.state.connectionMode,
+				debugLoggingEnabled: this.state.debugLoggingEnabled,
+				downloads: this.downloadService,
+				generatedAt: new Date().toISOString(),
+				pending: {
+					playlistCreates: this.playlistCreateService.getPending().length,
+					playlistEdits,
+					scrobbles: this.scrobbleService?.getPendingScrobbles().length,
+				},
+				platform: Device.isAndroid() ? 'android' : 'ios',
+				rawPersisted: { homeAlbums, homeRecentlyAdded, nowPlayingQueue, recentlyPlayed },
+				settings: {
+					gridColumns: this.state.gridColumns,
+					imageCacheMaxBytes: this.state.imageCacheMaxBytes,
+					trackCacheMaxTracks: this.state.trackCacheMaxTracks,
+				},
+				totalDownloadedSizeBytes: this.downloadService.getTotalDownloadedSizeBytes(),
+			});
+
+			const json = serializeOfflineDiagnostics(report);
+			const fileName = 'atolla-offline-status.json';
+			const dest = DebugLogger.exportTextFile(fileName, json);
+			this.setState({ offlineStatusExportPath: dest || null });
+			DebugLogger.shareTextFile(fileName, json);
+		} catch (error) {
+			DebugLogger.log('diagnostics', 'offline status export failed', {
+				message: error instanceof Error ? error.message : String(error),
+			});
+		}
+	};
+
 	handleShareDebugLog = (): void => {
 		DebugLogger.shareLog();
 	};
@@ -2639,6 +2702,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							}
 							jellyfinDeviceIdOverride={this.state.jellyfinClientDeviceIdOverride}
 							modalSlot={this.modalSlot}
+							offlineStatusExportPath={this.state.offlineStatusExportPath}
 							onAnimationsChange={this.handleAnimationsChange}
 							onCacheSizeChange={this.handleCacheSizeChange}
 							onClearCache={this.handleClearCache}
@@ -2646,6 +2710,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							onClearDownloads={this.handleClearDownloads}
 							onDebugLoggingChange={this.handleDebugLoggingChange}
 							onExportDebugLog={this.handleExportDebugLog}
+							onExportOfflineStatus={this.handleExportOfflineStatus}
 							onGridColumnsChange={this.handleGridColumnsChange}
 							onJellyfinDeviceIdOverrideChange={this.handleJellyfinClientDeviceIdOverrideChange}
 							onLanguageChange={this.handleLanguageChange}
