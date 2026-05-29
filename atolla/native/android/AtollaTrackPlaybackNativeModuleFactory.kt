@@ -373,6 +373,13 @@ object AtollaGaplessAudioEngine {
 				return@post
 			}
 			player.setPlaybackParameters(PlaybackParameters(playbackRate))
+			// playWhenReady = true is a no-op once the player has reached STATE_ENDED
+			// (e.g. after an offline gapless transition reached end-of-queue). Seek back
+			// into the item first so the resume actually starts audio — otherwise the JS
+			// store shows "playing" but nothing plays until the user manually seeks.
+			if (AtollaPlaybackGuards.shouldSeekToRecoverEndedState(player.playbackState)) {
+				player.seekToDefaultPosition()
+			}
 			player.playWhenReady = true
 		}
 	}
@@ -497,8 +504,14 @@ object AtollaGaplessAudioEngine {
 		}
 
 		val currentItem = player.currentMediaItem
-		if (currentItem == null || !mediaItemMatches(currentItem, sourceUrl, sourceTrackId)) {
-			Log.d(tag, "syncQueue->replaceQueue: currentItem mismatch trackId=$sourceTrackId rate=$capturedPlaybackRate")
+		val currentItemMatches = currentItem != null && mediaItemMatches(currentItem, sourceUrl, sourceTrackId)
+		val isEnded = player.playbackState == AtollaPlaybackGuards.STATE_ENDED
+		// Take the fast-path (only update the gapless next item) ONLY when the current
+		// item matches AND the player is not ended. If the player ended on this item
+		// (offline transition reached end-of-queue) we must re-prepare it via replaceQueue,
+		// otherwise it would keep matching forever and never resume.
+		if (AtollaPlaybackGuards.shouldRebuildQueueForState(isEnded, currentItemMatches)) {
+			Log.d(tag, "syncQueue->replaceQueue: rebuild trackId=$sourceTrackId rate=$capturedPlaybackRate ended=$isEnded matches=$currentItemMatches")
 			replaceQueue(player, capturedPlaybackRate)
 			return
 		}

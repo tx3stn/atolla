@@ -557,8 +557,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.lastPlaybackSignature = sig;
 
 			this.handleAlbumChange();
-			this.handleTrackPlaybackSourceChange();
-			this.handleNextTrackPreload();
+			if (!this.handleTrackPlaybackSourceChange()) {
+				this.handleNextTrackPreload();
+			}
 			this.handleTrackPrefetchQueueChange();
 			this.captureRecentlyPlayedTrack();
 			this.handleWaveformPriority();
@@ -568,8 +569,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.syncScrobblePlaybackSnapshot();
 		// Handle any track already playing at startup
 		this.handleAlbumChange();
-		this.handleTrackPlaybackSourceChange();
-		this.handleNextTrackPreload();
+		if (!this.handleTrackPlaybackSourceChange()) {
+			this.handleNextTrackPreload();
+		}
 		this.handleTrackPrefetchQueueChange();
 		this.captureRecentlyPlayedTrack();
 		this.syncTrackPlaybackNotification();
@@ -1357,8 +1359,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 
-		this.handleTrackPlaybackSourceChange(true);
-		this.handleNextTrackPreload();
+		if (!this.handleTrackPlaybackSourceChange(true)) {
+			this.handleNextTrackPreload();
+		}
 	}
 
 	private getWaveformMaskUrl(trackId: string): string | null {
@@ -1397,7 +1400,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.showPlaybackToast(`cache failed: ${reason}`);
 	}
 
-	private handleTrackPlaybackSourceChange(force = false): void {
+	// Returns true when it has already applied the gapless "next" source (via
+	// applyPlaybackSources) so callers can skip a redundant handleNextTrackPreload() — the
+	// next source is otherwise recomputed (and re-read from the native cache) for nothing.
+	private handleTrackPlaybackSourceChange(force = false): boolean {
 		const activeTrack = this.playbackStore.track;
 
 		if (!activeTrack) {
@@ -1406,14 +1412,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			if (this.state.trackPlaybackSourceUrl != null) {
 				this.setState({ trackPlaybackSourceUrl: null });
 			}
-			return;
+			return false;
 		}
 
 		if (!force && this.lastTrackSourceTrackId === activeTrack.id) {
 			const shouldRetryForMissingSource =
 				this.playbackStore.isPlaying && this.state.trackPlaybackSourceUrl == null;
 			if (!shouldRetryForMissingSource) {
-				return;
+				return false;
 			}
 		}
 
@@ -1422,18 +1428,22 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.playbackSourceRequestId = requestId;
 		const nativeSource = this.getNativeCachedTrackSource(activeTrack.id);
 		if (nativeSource) {
+			let appliedNext = false;
 			if (this.state.trackPlaybackSourceUrl !== nativeSource) {
-				this.setState({ trackPlaybackSourceUrl: nativeSource });
+				this.applyPlaybackSources(nativeSource);
+				appliedNext = true;
 			}
 			// Local file available — start waveform generation immediately without
 			// waiting for handleTrackCached (covers already-cached and downloaded tracks).
 			this.enqueueWaveformIfNeeded(activeTrack.id, nativeSource);
-			return;
+			return appliedNext;
 		}
 
 		const streamUrl = this.getTrackStreamSource(activeTrack.id);
+		let appliedNext = false;
 		if (streamUrl && this.state.trackPlaybackSourceUrl !== streamUrl) {
-			this.setState({ trackPlaybackSourceUrl: streamUrl });
+			this.applyPlaybackSources(streamUrl);
+			appliedNext = true;
 		}
 
 		if (this.playbackStore.isPlaying && !this.isOfflinePlaybackMode()) {
@@ -1444,6 +1454,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.enqueueWaveformIfNeeded(activeTrack.id, streamUrl);
 			}
 		}
+
+		return appliedNext;
 	}
 
 	private enqueueWaveformIfNeeded(trackId: string, audioPath: string): void {
@@ -1464,23 +1476,43 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	};
 
-	private handleNextTrackPreload(): void {
+	private computeNextTrackSource(): string | null {
 		const { loopMode, trackIndex, tracks } = this.playbackStore;
 		let nextIndex = trackIndex + 1;
 		if (nextIndex >= tracks.length) {
 			if (loopMode === 'queue' && tracks.length > 0) {
 				nextIndex = 0;
 			} else {
-				if (this.state.nextTrackSourceUrl !== null) {
-					this.setState({ nextTrackSourceUrl: null });
-				}
-				return;
+				return null;
 			}
 		}
 		const nextTrack = tracks[nextIndex];
-		const source = nextTrack
+		return nextTrack
 			? (this.getNativeCachedTrackSource(nextTrack.id) ?? this.getTrackStreamSource(nextTrack.id))
 			: null;
+	}
+
+	// Apply the current source and the gapless "next" source in a single state update.
+	// On a track transition the store advances current and next together; updating them in
+	// one setState avoids a momentary render where the native player sees the previous
+	// "next" (now the current track) and drops the gapless preload. That gap is what lets
+	// offline playback reach end-of-queue and stall between tracks.
+	private applyPlaybackSources(currentSource: string | null): void {
+		const nextSource = this.computeNextTrackSource();
+		if (
+			this.state.trackPlaybackSourceUrl === currentSource &&
+			this.state.nextTrackSourceUrl === nextSource
+		) {
+			return;
+		}
+		this.setState({
+			nextTrackSourceUrl: nextSource,
+			trackPlaybackSourceUrl: currentSource,
+		});
+	}
+
+	private handleNextTrackPreload(): void {
+		const source = this.computeNextTrackSource();
 		if (this.state.nextTrackSourceUrl !== source) {
 			this.setState({ nextTrackSourceUrl: source });
 		}

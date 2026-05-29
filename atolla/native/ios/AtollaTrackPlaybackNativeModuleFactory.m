@@ -718,12 +718,17 @@ static BOOL sNextNotificationHasNext = NO;
             [self registerPlayerObservers];
         }
 
-        BOOL currentMatches = NO;
+        // Match on the actual current item's URL. The previous trackId comparison was
+        // against sCurrentTrackId, which configure() assigns above before this block runs —
+        // so it was always true whenever any current item existed, and a stale/ended item
+        // was never replaced. Also treat an ended item as a mismatch so it gets re-prepared
+        // (the offline gapless transition can leave the player parked at end-of-queue, where
+        // [play] alone won't restart it).
         AVPlayerItem *currentItem = sPlayer.currentItem;
-        if (currentItem) {
+        BOOL currentMatches = NO;
+        if (currentItem && ![self isItemAtEnd:currentItem]) {
             NSString *currentUrl = [(AVURLAsset *)currentItem.asset URL].absoluteString;
-            currentMatches = ([currentUrl isEqualToString:currentSourceUrl] ||
-                              [currentTrackId isEqualToString:sCurrentTrackId]);
+            currentMatches = [currentUrl isEqualToString:currentSourceUrl];
         }
 
         if (!currentMatches) {
@@ -738,6 +743,8 @@ static BOOL sNextNotificationHasNext = NO;
             if (sPlaybackRate > 0) sPlayer.rate = sPlaybackRate;
             [self applyPendingSeekIfNeeded];
         } else {
+            // currentMatches implies the item is not at its end (see the isItemAtEnd guard
+            // above), so no end-of-item recovery seek is needed on this fast path.
             [self syncQueueWithNext:nextSourceUrl];
             if (sPlaybackRate > 0) {
                 [sPlayer play];
@@ -750,6 +757,29 @@ static BOOL sNextNotificationHasNext = NO;
 + (AVPlayerItem *)playerItemForUrl:(NSString *)urlString {
     NSURL *url = [NSURL URLWithString:urlString];
     return [AVPlayerItem playerItemWithURL:url];
+}
+
+// True when the item has effectively played to its end. A play/resume request cannot
+// restart such an item without a seek, mirroring ExoPlayer's STATE_ENDED behaviour.
++ (BOOL)isItemAtEnd:(AVPlayerItem *)item {
+    if (!item) return NO;
+    CMTime duration = item.duration;
+    if (!CMTIME_IS_VALID(duration) || CMTIME_IS_INDEFINITE(duration) || CMTimeGetSeconds(duration) <= 0) {
+        return NO;
+    }
+    CMTime current = item.currentTime;
+    if (!CMTIME_IS_VALID(current)) return NO;
+    // Within ~250ms of the end counts as ended.
+    return CMTimeGetSeconds(current) >= CMTimeGetSeconds(duration) - 0.25;
+}
+
+// Seek the current item back to the start if it has parked at its end, so a subsequent
+// [play] actually produces audio instead of silently no-oping.
++ (void)seekCurrentItemToStartIfEnded {
+    AVPlayerItem *currentItem = sPlayer.currentItem;
+    if ([self isItemAtEnd:currentItem]) {
+        [sPlayer seekToTime:kCMTimeZero toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero];
+    }
 }
 
 + (void)syncQueueWithNext:(NSString *)nextSourceUrl {
@@ -865,6 +895,9 @@ static BOOL sNextNotificationHasNext = NO;
         if (rate <= 0) {
             [sPlayer pause];
         } else {
+            // A resume request can't restart an item parked at its end; seek it back to
+            // the start first so playback actually resumes (offline transition stall).
+            [self seekCurrentItemToStartIfEnded];
             [sPlayer play];
             sPlayer.rate = rate;
         }
