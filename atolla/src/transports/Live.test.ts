@@ -360,40 +360,50 @@ describe('LiveTransport core collections', () => {
 		expect(calls).toHaveLength(0);
 	});
 
-	it('loads all artists through paginated /Items requests', async () => {
-		const firstArtist: JellyfinArtistItem = {
-			Id: 'artist-1',
-			ImageTags: { Primary: 'artist-tag-1' },
-			Name: 'Artist A',
-			Type: 'MusicArtist',
-		};
-		const secondArtist: JellyfinArtistItem = {
-			Id: 'artist-2',
-			Name: 'Artist B',
-			Type: 'MusicArtist',
+	it('maps a letter startsWith filter to nameStartsWith on the albums page query', async () => {
+		const album: JellyfinAlbumItem = {
+			AlbumArtist: 'Artist A',
+			Id: 'album-1',
+			Name: 'Album A',
+			Type: 'MusicAlbum',
 		};
 		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([firstArtist], 2, 0)),
-			jsonResponse(200, listResponse([secondArtist], 2, 1)),
+			jsonResponse(200, listResponse([album], 1, 0)),
 		]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
 			httpClientFactory: factory,
 		});
 
-		const artists = await transport.getAllArtists();
+		await transport.getAlbumsPage(1, 50, { startsWith: 'a' });
 
-		expect(calls).toHaveLength(2);
-		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('0');
-		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('100');
-		expect(queryParam(calls[1].pathOrUrl, 'startIndex')).toBe('1');
-		expect(artists.map((artist) => artist.id)).toEqual(['artist-1', 'artist-2']);
-		expect(artists[0].imageUrl).toContain('/Items/artist-1/Images/Primary');
+		expect(calls).toHaveLength(1);
+		expect(queryParam(calls[0].pathOrUrl, 'nameStartsWith')).toBe('a');
+		expect(queryParam(calls[0].pathOrUrl, 'nameLessThan')).toBeNull();
 	});
 
-	it('loads all playlists for library tab', async () => {
+	it('maps the digit startsWith bucket to nameLessThan=A on the artists page query', async () => {
+		const artist: JellyfinArtistItem = {
+			Id: 'artist-1',
+			Name: '5 Seconds',
+			Type: 'MusicArtist',
+		};
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([artist], 1, 0)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		await transport.getArtistsPage(1, 50, { startsWith: '0' });
+
+		expect(calls).toHaveLength(1);
+		expect(queryParam(calls[0].pathOrUrl, 'nameLessThan')).toBe('A');
+		expect(queryParam(calls[0].pathOrUrl, 'nameStartsWith')).toBeNull();
+	});
+
+	it('omits name filter params when no startsWith is provided on the playlists page query', async () => {
 		const playlist: JellyfinPlaylistItem = {
 			Id: 'playlist-1',
-			ImageTags: { Primary: 'playlist-tag-1' },
 			Name: 'Playlist A',
 			Type: 'Playlist',
 		};
@@ -404,52 +414,12 @@ describe('LiveTransport core collections', () => {
 			httpClientFactory: factory,
 		});
 
-		const playlists = await transport.getAllPlaylists();
+		await transport.getPlaylistsPage(1, 50);
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('Playlist');
-		expect(playlists).toHaveLength(1);
-		expect(playlists[0]).toEqual(
-			expect.objectContaining({
-				id: 'playlist-1',
-				name: 'Playlist A',
-			}),
-		);
-		expect(playlists[0].imageUrl).toContain('/Items/playlist-1/Images/Primary');
-	});
-
-	it('loads all albums with release-date-desc sort query', async () => {
-		const firstAlbum: JellyfinAlbumItem = {
-			AlbumArtist: 'Artist A',
-			Id: 'album-1',
-			Name: 'Album A',
-			Type: 'MusicAlbum',
-		};
-		const secondAlbum: JellyfinAlbumItem = {
-			AlbumArtist: 'Artist B',
-			Id: 'album-2',
-			Name: 'Album B',
-			Type: 'MusicAlbum',
-		};
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([firstAlbum], 2, 0)),
-			jsonResponse(200, listResponse([secondAlbum], 2, 1)),
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
-
-		const albums = await transport.getAllAlbums();
-
-		expect(calls).toHaveLength(2);
-		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('MusicAlbum');
-		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('PremiereDate,SortName');
-		expect(queryParam(calls[0].pathOrUrl, 'sortOrder')).toBe('Descending,Ascending');
-		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBe('Overview,Genres');
-		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('0');
-		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('100');
-		expect(queryParam(calls[1].pathOrUrl, 'startIndex')).toBe('1');
-		expect(albums.map((album) => album.id)).toEqual(['album-1', 'album-2']);
+		expect(queryParam(calls[0].pathOrUrl, 'nameStartsWith')).toBeNull();
+		expect(queryParam(calls[0].pathOrUrl, 'nameLessThan')).toBeNull();
 	});
 
 	it('fetches artists page with paging query and hasMore', async () => {

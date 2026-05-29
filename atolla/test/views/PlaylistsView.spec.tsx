@@ -51,7 +51,7 @@ describe('PlaylistsView', () => {
 			{ id: 'playlist-2', name: 'Night Run' },
 		];
 		const transport = {
-			getAllPlaylists: async () => playlists,
+			getPlaylistsPage: async () => ({ hasMore: false, items: playlists }),
 		};
 
 		const instrumented = createComponent(PlaylistsView, {
@@ -77,7 +77,7 @@ describe('PlaylistsView', () => {
 	valdiIt('pushes PlaylistView when card is tapped', async () => {
 		const playlists = [{ id: 'playlist-1', name: 'Roadtrip' }];
 		const transport = {
-			getAllPlaylists: async () => playlists,
+			getPlaylistsPage: async () => ({ hasMore: false, items: playlists }),
 		};
 
 		const navigationController = makeNavigationController();
@@ -106,7 +106,7 @@ describe('PlaylistsView', () => {
 	valdiIt('opens context menu when card is long pressed', async () => {
 		const playlists = [{ id: 'playlist-1', name: 'Roadtrip' }];
 		const transport = {
-			getAllPlaylists: async () => playlists,
+			getPlaylistsPage: async () => ({ hasMore: false, items: playlists }),
 		};
 
 		const instrumented = createComponent(PlaylistsView, {
@@ -122,6 +122,31 @@ describe('PlaylistsView', () => {
 		component.handlePlaylistCardLongPress({ id: 'playlist-1', kind: 'playlist' });
 
 		expect(component.state.contextMenuCard).toEqual({ kind: 'playlist', playlist: playlists[0] });
+	});
+
+	valdiIt('requests a server-side prefix filter when a letter filter is active', async () => {
+		const requestedStartsWith: Array<string | undefined> = [];
+		const transport = {
+			getPlaylistsPage: (_page: number, _size: number, options?: { startsWith?: string }) => {
+				requestedStartsWith.push(options?.startsWith);
+				return Promise.resolve({ hasMore: false, items: makePlaylists(3) });
+			},
+		};
+
+		const instrumented = createComponent(PlaylistsView, {
+			gridColumns: 3,
+			imageCache: stubImageCache,
+			letterFilter: 'a',
+			navigationController: makeNavigationController(),
+			playbackStore,
+			transport,
+		});
+		instrumented.getComponent();
+
+		await flushAsyncWork();
+		await flushAsyncWork();
+
+		expect(requestedStartsWith).toContain('a');
 	});
 
 	valdiIt('loads next playlist page when prefetch trigger is laid out', async () => {

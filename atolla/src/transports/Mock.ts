@@ -41,6 +41,19 @@ const mockFormatCycle: Array<JellyfinMediaSource> = [
 	{ MediaStreams: [{ BitRate: 192000, Codec: 'vorbis', Type: 'Audio' }] },
 ];
 
+// Mirrors the library views' letter filter so fixtures behave like the server's
+// prefix filtering: a-z matches by leading letter, '0' matches leading-digit names.
+function matchesNamePrefix(name: string, startsWith: string | undefined): boolean {
+	const token = startsWith?.trim();
+	if (!token) {
+		return true;
+	}
+	if (token === '0') {
+		return /^\d/.test(name.trim());
+	}
+	return name.trim().toLowerCase().startsWith(token.toLowerCase());
+}
+
 function mockMediaSourcesForAlbum(albumId: string | undefined): Array<JellyfinMediaSource> {
 	const num = albumId ? Number.parseInt(albumId.replace(/\D/g, ''), 10) : 0;
 	return [mockFormatCycle[(Number.isNaN(num) ? 0 : num) % mockFormatCycle.length]];
@@ -53,9 +66,12 @@ export class MockTransport implements Transport {
 	async getAlbumsPage(
 		page: number,
 		pageSize: number,
+		options?: { startsWith?: string },
 	): Promise<{ hasMore: boolean; items: Array<Album> }> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
-		const sortedAlbums = sortMockAlbumsByDefaultOrder(mockJellyfinAlbums);
+		const sortedAlbums = sortMockAlbumsByDefaultOrder(mockJellyfinAlbums).filter((item) =>
+			matchesNamePrefix(item.Name, options?.startsWith),
+		);
 		const pageItems = sortedAlbums.slice(startIndex, startIndex + pageSize);
 
 		return {
@@ -67,9 +83,12 @@ export class MockTransport implements Transport {
 	async getArtistsPage(
 		page: number,
 		pageSize: number,
+		options?: { startsWith?: string },
 	): Promise<{ hasMore: boolean; items: Array<Artist> }> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
-		const sortedArtists = [...mockJellyfinArtists].sort((a, b) => a.Name.localeCompare(b.Name));
+		const sortedArtists = [...mockJellyfinArtists]
+			.sort((a, b) => a.Name.localeCompare(b.Name))
+			.filter((item) => matchesNamePrefix(item.Name, options?.startsWith));
 		const pageItems = sortedArtists.slice(startIndex, startIndex + pageSize);
 
 		return {
@@ -78,16 +97,12 @@ export class MockTransport implements Transport {
 		};
 	}
 
-	async getAllArtists(): Promise<Array<Artist>> {
-		return mockJellyfinArtists.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers));
-	}
-
 	async getArtist(artistId: string): Promise<Artist | null> {
 		const item = mockJellyfinArtists.find((artist) => artist.Id === artistId);
 		return item ? mapJellyfinArtistToArtist(item, this.imageResolvers) : null;
 	}
 
-	async getAllAlbums(): Promise<Array<Album>> {
+	private buildAllAlbums(): Array<Album> {
 		return sortMockAlbumsByDefaultOrder(mockJellyfinAlbums).map((item) =>
 			mapJellyfinAlbumToAlbum(item, this.imageResolvers),
 		);
@@ -103,7 +118,7 @@ export class MockTransport implements Transport {
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }> {
-		const all = await this.getAllAlbums();
+		const all = this.buildAllAlbums();
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const slice = all.slice(startIndex, startIndex + Math.max(1, pageSize));
 		return {
@@ -114,7 +129,7 @@ export class MockTransport implements Transport {
 
 	async getAlbumsByIds(ids: Array<string>): Promise<Array<Album>> {
 		const wanted = new Set(ids);
-		return (await this.getAllAlbums()).filter((album) => wanted.has(album.id));
+		return this.buildAllAlbums().filter((album) => wanted.has(album.id));
 	}
 
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
@@ -125,18 +140,15 @@ export class MockTransport implements Transport {
 		).map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
-	async getAllPlaylists(): Promise<Array<Playlist>> {
-		return mockJellyfinPlaylists.map((item) =>
-			mapJellyfinPlaylistToPlaylist(item, this.imageResolvers),
-		);
-	}
-
 	async getPlaylistsPage(
 		page: number,
 		pageSize: number,
+		options?: { startsWith?: string },
 	): Promise<{ hasMore: boolean; items: Array<Playlist> }> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
-		const sortedPlaylists = [...mockJellyfinPlaylists].sort((a, b) => a.Name.localeCompare(b.Name));
+		const sortedPlaylists = [...mockJellyfinPlaylists]
+			.sort((a, b) => a.Name.localeCompare(b.Name))
+			.filter((item) => matchesNamePrefix(item.Name, options?.startsWith));
 		const pageItems = sortedPlaylists.slice(startIndex, startIndex + pageSize);
 
 		return {

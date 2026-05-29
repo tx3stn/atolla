@@ -67,12 +67,7 @@ interface AlbumPageResult {
 	items: Array<Album>;
 }
 
-interface PagedAlbumsTransport {
-	getAlbumsPage: (page: number, pageSize: number) => Promise<AlbumPageResult>;
-}
-
 export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> {
-	private allAlbums: Array<Album> | null = null;
 	private hasBeenDestroyed = false;
 	private readonly pagedGridController = createPagedGridController<Album>({
 		fetchPage: (page) => this.fetchPage(page),
@@ -140,7 +135,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			return;
 		}
 
-		this.allAlbums = null;
 		this.pagedGridController.reset();
 		this.setState({
 			albums: [],
@@ -171,39 +165,9 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	private fetchPage(page: number): Promise<AlbumPageResult> {
-		const sort = this.viewModel.sortOrder ?? SortOrders.newToOld;
-
-		if (shouldUseLocalSortedList(this.viewModel)) {
-			if (!this.allAlbums) {
-				return this.viewModel.transport.getAllAlbums().then((albums) => {
-					this.allAlbums = sortAlbumsForView(albums, sort, true);
-					return { hasMore: false, items: this.allAlbums };
-				});
-			}
-
-			this.allAlbums = sortAlbumsForView(this.allAlbums, sort, true);
-			return Promise.resolve({ hasMore: false, items: this.allAlbums });
-		}
-
-		const transport = this.viewModel.transport as Transport & Partial<PagedAlbumsTransport>;
-		if (transport.getAlbumsPage) {
-			return transport.getAlbumsPage(page, gridPaginationConfig.pageSize);
-		}
-
-		if (!this.allAlbums) {
-			return this.viewModel.transport.getAllAlbums().then((albums) => {
-				this.allAlbums = albums;
-				const sorted = sortAlbumsForView(this.allAlbums, sort, false);
-				const start = (page - 1) * gridPaginationConfig.pageSize;
-				const end = start + gridPaginationConfig.pageSize;
-				return { hasMore: end < sorted.length, items: sorted.slice(start, end) };
-			});
-		}
-
-		const sorted = sortAlbumsForView(this.allAlbums, sort, false);
-		const start = (page - 1) * gridPaginationConfig.pageSize;
-		const end = start + gridPaginationConfig.pageSize;
-		return Promise.resolve({ hasMore: end < sorted.length, items: sorted.slice(start, end) });
+		return this.viewModel.transport.getAlbumsPage(page, gridPaginationConfig.pageSize, {
+			startsWith: this.viewModel.letterFilter ?? undefined,
+		});
 	}
 
 	retryLoadMore(): void {
@@ -421,11 +385,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		this.cachedDisplayLetterFilter = letterFilter;
 		this.cachedDisplayIsOffline = isOffline;
 
-		let albums = sortAlbumsForView(
-			this.state.albums,
-			sort,
-			shouldUseLocalSortedList(this.viewModel),
-		);
+		let albums = sortAlbumsForView(this.state.albums, sort, this.viewModel.isOfflineMode);
 		if (letterFilter) {
 			albums = albums.filter((a) => matchesLetterFilter(a.name, letterFilter));
 		}
@@ -494,18 +454,6 @@ function sortAlbumsForView(
 		return albums;
 	}
 	return sortAlbums(albums, sort);
-}
-
-function shouldUseLocalSortedList(viewModel: AlbumsViewModel): boolean {
-	if (viewModel.isOfflineMode) {
-		return true;
-	}
-	if (viewModel.letterFilter) {
-		return true;
-	}
-
-	const transport = viewModel.transport as Transport & Partial<PagedAlbumsTransport>;
-	return !transport.getAlbumsPage;
 }
 
 function matchesLetterFilter(name: string, letter: string): boolean {

@@ -68,12 +68,7 @@ interface PlaylistPageResult {
 	items: Array<Playlist>;
 }
 
-interface PagedPlaylistsTransport {
-	getPlaylistsPage: (page: number, pageSize: number) => Promise<PlaylistPageResult>;
-}
-
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
-	private allPlaylists: Array<Playlist> | null = null;
 	private hasBeenDestroyed = false;
 	private readonly pagedGridController = createPagedGridController<Playlist>({
 		fetchPage: (page) => this.fetchPage(page),
@@ -132,7 +127,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			return;
 		}
 
-		this.allPlaylists = null;
 		this.pagedGridController.reset();
 		this.setState({
 			hasMore: true,
@@ -163,21 +157,9 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	private fetchPage(page: number): Promise<PlaylistPageResult> {
-		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
-		const transport = this.viewModel.transport as Transport & Partial<PagedPlaylistsTransport>;
-
-		if (this.viewModel.letterFilter || !transport.getPlaylistsPage) {
-			if (!this.allPlaylists) {
-				return this.viewModel.transport.getAllPlaylists().then((playlists) => {
-					this.allPlaylists = sortPlaylists(playlists, sort);
-					return { hasMore: false, items: this.allPlaylists };
-				});
-			}
-			this.allPlaylists = sortPlaylists(this.allPlaylists, sort);
-			return Promise.resolve({ hasMore: false, items: this.allPlaylists });
-		}
-
-		return transport.getPlaylistsPage(page, gridPaginationConfig.pageSize);
+		return this.viewModel.transport.getPlaylistsPage(page, gridPaginationConfig.pageSize, {
+			startsWith: this.viewModel.letterFilter ?? undefined,
+		});
 	}
 
 	retryLoadMore(): void {

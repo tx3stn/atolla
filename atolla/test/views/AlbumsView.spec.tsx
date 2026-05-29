@@ -192,13 +192,38 @@ describe('AlbumsView', () => {
 		expect(component.state.albums.length).toBe(90);
 	});
 
+	valdiIt('requests a server-side prefix filter when a letter filter is active', async () => {
+		const requestedStartsWith: Array<string | undefined> = [];
+		const transport = {
+			getAlbumsPage: (_page: number, _size: number, options?: { startsWith?: string }) => {
+				requestedStartsWith.push(options?.startsWith);
+				return Promise.resolve({ hasMore: false, items: makeAlbums(3) });
+			},
+		};
+
+		const instrumented = createComponent(AlbumsView, {
+			gridColumns: 3,
+			imageCache: stubImageCache,
+			letterFilter: 'a',
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			transport,
+		});
+		instrumented.getComponent();
+
+		await flushAsyncWork();
+		await flushAsyncWork();
+
+		expect(requestedStartsWith).toContain('a');
+	});
+
 	valdiIt('renders album titles from state', async () => {
 		const albums = [
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
 			{ artistId: 'artist-2', artistName: 'Artist Two', id: 'album-2', name: 'Second Album' },
 		];
 		const transport = {
-			getAllAlbums: async () => albums,
+			getAlbumsPage: async () => ({ hasMore: false, items: albums }),
 		};
 
 		const instrumented = createComponent(AlbumsView, {
@@ -226,7 +251,7 @@ describe('AlbumsView', () => {
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
 		];
 		const transport = {
-			getAllAlbums: async () => albums,
+			getAlbumsPage: async () => ({ hasMore: false, items: albums }),
 		};
 
 		const navigationController = makeNavigationController();
@@ -257,7 +282,7 @@ describe('AlbumsView', () => {
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
 		];
 		const transport = {
-			getAllAlbums: async () => albums,
+			getAlbumsPage: async () => ({ hasMore: false, items: albums }),
 			getArtistLogoUrl: async () => null,
 		};
 

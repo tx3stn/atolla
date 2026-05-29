@@ -111,7 +111,7 @@ describe('OfflineTransport', () => {
 			}) as never,
 		);
 
-		const albums = await transport.getAllAlbums();
+		const albums = (await transport.getAlbumsPage(1, 1000)).items;
 
 		expect(albums).toHaveLength(1);
 		expect(albums[0].name).toBe('Unknown Album');
@@ -252,8 +252,8 @@ describe('OfflineTransport', () => {
 			}) as never,
 		);
 
-		const artists = await transport.getAllArtists();
-		const albums = await transport.getAllAlbums();
+		const artists = (await transport.getArtistsPage(1, 1000)).items;
+		const albums = (await transport.getAlbumsPage(1, 1000)).items;
 		const albumsByArtist = await transport.getAlbumsByArtist('artist-1');
 		const tracksByArtist = await transport.getTracksByArtist('artist-1');
 		const tracksByAlbum = await transport.getTracksByAlbum('album-1');
@@ -331,8 +331,8 @@ describe('OfflineTransport', () => {
 			}) as never,
 		);
 
-		const artists = await transport.getAllArtists();
-		const albums = await transport.getAllAlbums();
+		const artists = (await transport.getArtistsPage(1, 1000)).items;
+		const albums = (await transport.getAlbumsPage(1, 1000)).items;
 
 		expect(artists.map((artist) => artist.name)).toEqual(['alpha artist', 'Bravo Artist']);
 		expect(albums.map((album) => album.name)).toEqual(['alpha album', 'Bravo Album']);
@@ -374,7 +374,7 @@ describe('OfflineTransport', () => {
 			}) as never,
 		);
 
-		const artists = await transport.getAllArtists();
+		const artists = (await transport.getArtistsPage(1, 1000)).items;
 
 		expect(artists.map((artist) => artist.name)).toEqual(['Arcade Fire', 'The Beatles']);
 	});
@@ -397,7 +397,7 @@ describe('OfflineTransport', () => {
 			}) as never,
 		);
 
-		const artists = await transport.getAllArtists();
+		const artists = (await transport.getArtistsPage(1, 1000)).items;
 
 		expect(artists).toEqual([
 			{
@@ -432,7 +432,7 @@ describe('OfflineTransport', () => {
 			}) as never,
 		);
 
-		const artists = await transport.getAllArtists();
+		const artists = (await transport.getArtistsPage(1, 1000)).items;
 
 		expect(artists).toHaveLength(1);
 		expect(artists[0].id).toBe('artist-1');
@@ -466,7 +466,7 @@ describe('OfflineTransport', () => {
 			}) as never,
 		);
 
-		const artists = await transport.getAllArtists();
+		const artists = (await transport.getArtistsPage(1, 1000)).items;
 
 		expect(artists).toHaveLength(1);
 		expect(artists[0].id).toBe('artist-1');
@@ -484,7 +484,7 @@ describe('OfflineTransport', () => {
 			}) as never,
 		);
 
-		const artists = await transport.getAllArtists();
+		const artists = (await transport.getArtistsPage(1, 1000)).items;
 
 		expect(artists).toEqual([
 			{ id: 'artist-1', imageUrl: 'https://img/artist-1.jpg', name: 'Artist One' },
@@ -638,7 +638,7 @@ describe('OfflineTransport', () => {
 			}) as never,
 		);
 
-		const albums = await transport.getAllAlbums();
+		const albums = (await transport.getAlbumsPage(1, 1000)).items;
 
 		expect(albums[0].releaseDate).toBe('2023-06-15');
 	});
@@ -683,7 +683,7 @@ describe('OfflineTransport', () => {
 			}) as never,
 		);
 
-		const albums = await transport.getAllAlbums();
+		const albums = (await transport.getAlbumsPage(1, 1000)).items;
 
 		expect(albums.map((album) => album.id)).toEqual(['album-new', 'album-old', 'album-no-date']);
 	});
@@ -777,7 +777,7 @@ describe('OfflineTransport', () => {
 				playlistCreateService,
 			);
 
-			const playlists = await transport.getAllPlaylists();
+			const playlists = (await transport.getPlaylistsPage(1, 1000)).items;
 
 			expect(playlists).toHaveLength(2);
 			expect(playlists.some((p) => p.name === 'Downloaded Playlist')).toBe(true);

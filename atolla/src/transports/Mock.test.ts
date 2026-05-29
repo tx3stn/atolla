@@ -58,7 +58,7 @@ describe('MockTransport pagination', () => {
 	it('orders albums by release date descending for all and paged responses', async () => {
 		const transport = new MockTransport();
 
-		const allAlbums = await transport.getAllAlbums();
+		const allAlbums = (await transport.getAlbumsPage(1, 1000)).items;
 		const firstPage = await transport.getAlbumsPage(1, 5);
 
 		expect(firstPage.items.map((album) => album.id)).toEqual(

@@ -66,12 +66,7 @@ interface ArtistPageResult {
 	items: Array<Artist>;
 }
 
-interface PagedArtistsTransport {
-	getArtistsPage: (page: number, pageSize: number) => Promise<ArtistPageResult>;
-}
-
 export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsState> {
-	private allArtists: Array<Artist> | null = null;
 	private hasBeenDestroyed = false;
 	private readonly pagedGridController = createPagedGridController<Artist>({
 		fetchPage: (page) => this.fetchPage(page),
@@ -139,7 +134,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			return;
 		}
 
-		this.allArtists = null;
 		this.pagedGridController.reset();
 		this.setState({
 			artists: [],
@@ -170,41 +164,8 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	private fetchPage(page: number): Promise<ArtistPageResult> {
-		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
-
-		if (shouldUseLocalSortedList(this.viewModel)) {
-			if (!this.allArtists) {
-				return this.viewModel.transport.getAllArtists().then((artists) => {
-					this.allArtists = sortArtistsForView(artists, sort, true);
-					return { hasMore: false, items: this.allArtists };
-				});
-			}
-
-			this.allArtists = sortArtistsForView(this.allArtists, sort, true);
-			return Promise.resolve({ hasMore: false, items: this.allArtists });
-		}
-
-		const transport = this.viewModel.transport as Transport & Partial<PagedArtistsTransport>;
-		if (transport.getArtistsPage) {
-			return transport.getArtistsPage(page, gridPaginationConfig.pageSize);
-		}
-
-		if (!this.allArtists) {
-			return this.viewModel.transport.getAllArtists().then((artists) => {
-				this.allArtists = sortArtistsForView(artists, sort, false);
-				const start = (page - 1) * gridPaginationConfig.pageSize;
-				const end = start + gridPaginationConfig.pageSize;
-				return { hasMore: end < this.allArtists.length, items: this.allArtists.slice(start, end) };
-			});
-		}
-
-		this.allArtists = sortArtistsForView(this.allArtists, sort, false);
-
-		const start = (page - 1) * gridPaginationConfig.pageSize;
-		const end = start + gridPaginationConfig.pageSize;
-		return Promise.resolve({
-			hasMore: end < this.allArtists.length,
-			items: this.allArtists.slice(start, end),
+		return this.viewModel.transport.getArtistsPage(page, gridPaginationConfig.pageSize, {
+			startsWith: this.viewModel.letterFilter ?? undefined,
 		});
 	}
 
@@ -356,11 +317,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		this.cachedDisplayLetterFilter = letterFilter;
 		this.cachedDisplayIsOffline = isOffline;
 
-		let artists = sortArtistsForView(
-			this.state.artists,
-			sort,
-			shouldUseLocalSortedList(this.viewModel),
-		);
+		let artists = sortArtistsForView(this.state.artists, sort, this.viewModel.isOfflineMode);
 		if (letterFilter) {
 			artists = artists.filter((a) => matchesArtistLetterFilter(a.name, letterFilter));
 		}
@@ -430,18 +387,6 @@ function sortArtistsForView(
 	}
 
 	return sortArtists(artists, sort);
-}
-
-function shouldUseLocalSortedList(viewModel: ArtistsViewModel): boolean {
-	if (viewModel.isOfflineMode) {
-		return true;
-	}
-	if (viewModel.letterFilter) {
-		return true;
-	}
-
-	const transport = viewModel.transport as Transport & Partial<PagedArtistsTransport>;
-	return !transport.getArtistsPage;
 }
 
 function matchesArtistLetterFilter(name: string, letter: string): boolean {

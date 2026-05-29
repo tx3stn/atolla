@@ -119,84 +119,36 @@ describe('HomeView cache helpers', () => {
 		expect(logoUrls).toEqual([null, 'artist-2-logo']);
 	});
 
-	it('uses transport shuffled library endpoint in online mode when available', async () => {
+	it('returns tracks from the transport shuffled library endpoint', async () => {
 		const remoteTracks: Array<Track> = [
 			{ duration: 120, id: 'track-2', name: 'Track Two' },
 			{ duration: 120, id: 'track-1', name: 'Track One' },
 		];
-		let calledGetAllAlbums = false;
 
-		const queue = await buildShuffleLibraryQueue(ConnectionModes.online, {
-			getAllAlbums: () => {
-				calledGetAllAlbums = true;
-				return Promise.resolve([]);
-			},
+		const queue = await buildShuffleLibraryQueue({
 			getShuffledLibraryTracks: async () => remoteTracks,
-			getTracksByAlbum: async () => [],
 		});
 
 		expect(queue).toEqual(remoteTracks);
-		expect(calledGetAllAlbums).toBe(false);
 	});
 
-	it('builds a local shuffled queue in offline mode', async () => {
-		const trackOne: Track = { albumId: 'album-1', duration: 120, id: 'track-1', name: 'Track One' };
-		const trackTwo: Track = { albumId: 'album-2', duration: 120, id: 'track-2', name: 'Track Two' };
+	it('returns an empty queue when the shuffled library endpoint rejects', async () => {
+		const queue = await buildShuffleLibraryQueue({
+			getShuffledLibraryTracks: () => Promise.reject(new Error('network failure')),
+		});
 
-		const queue = await buildShuffleLibraryQueue(
-			ConnectionModes.offline,
-			{
-				getAllAlbums: async () => [
-					{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'Album One' },
-					{ artistId: 'artist-2', artistName: 'Artist Two', id: 'album-2', name: 'Album Two' },
-				],
-				getShuffledLibraryTracks: async () => [trackTwo],
-				getTracksByAlbum: (albumId: string) => {
-					if (albumId === 'album-1') {
-						return Promise.resolve([trackOne]);
-					}
-					return Promise.resolve([trackTwo, trackOne]);
-				},
-			},
-			(tracks) => [...tracks].reverse(),
-		);
-
-		expect(queue).toEqual([trackTwo, trackOne]);
-	});
-
-	it('falls back to local shuffle when online instant shuffle returns no tracks', async () => {
-		const trackOne: Track = { albumId: 'album-1', duration: 120, id: 'track-1', name: 'Track One' };
-		const trackTwo: Track = { albumId: 'album-1', duration: 120, id: 'track-2', name: 'Track Two' };
-
-		const queue = await buildShuffleLibraryQueue(
-			ConnectionModes.online,
-			{
-				getAllAlbums: async () => [
-					{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'Album One' },
-				],
-				getShuffledLibraryTracks: async () => [],
-				getTracksByAlbum: async () => [trackOne, trackTwo],
-			},
-			(tracks) => tracks,
-		);
-
-		expect(queue).toEqual([trackOne, trackTwo]);
+		expect(queue).toEqual([]);
 	});
 });
 
 describe('getRandomAlbumTracks', () => {
-	it('uses getRandomAlbum from transport when available', async () => {
+	it('returns the tracks of the album chosen by getRandomAlbum', async () => {
 		const tracks: Array<Track> = [
 			{ duration: 180, id: 'track-1', name: 'Track One' },
 			{ duration: 200, id: 'track-2', name: 'Track Two' },
 		];
-		let calledGetAllAlbums = false;
 
 		const result = await getRandomAlbumTracks({
-			getAllAlbums: () => {
-				calledGetAllAlbums = true;
-				return Promise.resolve([]);
-			},
 			getRandomAlbum: async () => ({
 				artistId: 'artist-1',
 				artistName: 'Artist One',
@@ -207,50 +159,28 @@ describe('getRandomAlbumTracks', () => {
 		});
 
 		expect(result).toEqual(tracks);
-		expect(calledGetAllAlbums).toBe(false);
 	});
 
-	it('falls back to picking from getAllAlbums when getRandomAlbum is not available', async () => {
-		const trackOne: Track = { duration: 120, id: 'track-1', name: 'Track One' };
+	it('returns an empty array without fetching tracks when getRandomAlbum returns null', async () => {
+		let calledGetTracks = false;
 
-		const result = await getRandomAlbumTracks(
-			{
-				getAllAlbums: async () => [
-					{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'Album One' },
-				],
-				getTracksByAlbum: async () => [trackOne],
+		const result = await getRandomAlbumTracks({
+			getRandomAlbum: () => Promise.resolve(null),
+			getTracksByAlbum: () => {
+				calledGetTracks = true;
+				return Promise.resolve([]);
 			},
-			(albums) => albums[0] ?? null,
-		);
+		});
 
-		expect(result).toEqual([trackOne]);
+		expect(result).toEqual([]);
+		expect(calledGetTracks).toBe(false);
 	});
 
-	it('falls back to getAllAlbums when getRandomAlbum returns null', async () => {
-		const trackOne: Track = { duration: 120, id: 'track-1', name: 'Track One' };
-
-		const result = await getRandomAlbumTracks(
-			{
-				getAllAlbums: async () => [
-					{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'Album One' },
-				],
-				getRandomAlbum: async () => null,
-				getTracksByAlbum: async () => [trackOne],
-			},
-			(albums) => albums[0] ?? null,
-		);
-
-		expect(result).toEqual([trackOne]);
-	});
-
-	it('returns empty array when no albums exist', async () => {
-		const result = await getRandomAlbumTracks(
-			{
-				getAllAlbums: async () => [],
-				getTracksByAlbum: async () => [],
-			},
-			() => null,
-		);
+	it('returns an empty array when getRandomAlbum rejects', async () => {
+		const result = await getRandomAlbumTracks({
+			getRandomAlbum: () => Promise.reject(new Error('network failure')),
+			getTracksByAlbum: async () => [{ duration: 120, id: 'track-1', name: 'Track One' }],
+		});
 
 		expect(result).toEqual([]);
 	});

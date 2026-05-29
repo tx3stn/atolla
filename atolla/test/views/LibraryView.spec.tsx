@@ -13,12 +13,12 @@ const stubImageCache = {
 
 const stubTransport = {
 	getAlbumsByArtist: () => Promise.resolve([]),
-	getAllAlbums: () => Promise.resolve([]),
-	getAllArtists: () => Promise.resolve([]),
-	getAllPlaylists: () => Promise.resolve([]),
+	getAlbumsPage: () => Promise.resolve({ hasMore: false, items: [] }),
 	getArtist: () => Promise.resolve(null),
 	getArtistLogoUrl: () => Promise.resolve(null),
+	getArtistsPage: () => Promise.resolve({ hasMore: false, items: [] }),
 	getArtistTopTracks: () => Promise.resolve([]),
+	getPlaylistsPage: () => Promise.resolve({ hasMore: false, items: [] }),
 	getTracksByAlbum: () => Promise.resolve([]),
 	getTracksByArtist: () => Promise.resolve([]),
 	getTracksByPlaylist: () => Promise.resolve([]),

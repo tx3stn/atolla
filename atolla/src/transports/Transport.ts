@@ -15,31 +15,31 @@ export interface Transport {
 	) => Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }>;
 	getAlbumsByArtist(artistId: string): Promise<Array<Album>>;
 	getAlbumsByIds?(ids: Array<string>): Promise<Array<Album>>;
-	getAlbumsPage?: (
+	getAlbumsPage: (
 		page: number,
 		pageSize: number,
+		options?: { startsWith?: string },
 	) => Promise<{ hasMore: boolean; items: Array<Album> }>;
-	getAllAlbums(): Promise<Array<Album>>;
-	getAllArtists(): Promise<Array<Artist>>;
-	getAllPlaylists(): Promise<Array<Playlist>>;
 	getArtist(artistId: string): Promise<Artist | null>;
 	getArtistLogoUrl(artistId: string): Promise<string | null>;
-	getArtistsPage?: (
+	getArtistsPage: (
 		page: number,
 		pageSize: number,
+		options?: { startsWith?: string },
 	) => Promise<{ hasMore: boolean; items: Array<Artist> }>;
 	getArtistTopTracks(artistId: string): Promise<Array<Track>>;
 	getGenresPage: (
 		page: number,
 		pageSize: number,
 	) => Promise<{ hasMore: boolean; items: Array<Genre> }>;
-	getPlaylistsPage?: (
+	getPlaylistsPage: (
 		page: number,
 		pageSize: number,
+		options?: { startsWith?: string },
 	) => Promise<{ hasMore: boolean; items: Array<Playlist> }>;
-	getRandomAlbum?(): Promise<Album | null>;
+	getRandomAlbum(): Promise<Album | null>;
 	getRecentlyAddedAlbums?(limit: number): Promise<Array<Album>>;
-	getShuffledLibraryTracks?(): Promise<Array<Track>>;
+	getShuffledLibraryTracks(): Promise<Array<Track>>;
 	getShuffledLibraryTracksPage?(
 		page: number,
 		pageSize: number,

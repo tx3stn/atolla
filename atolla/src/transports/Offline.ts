@@ -20,7 +20,17 @@ export class OfflineTransport implements Transport {
 		this.playlistCreateService = playlistCreateService ?? null;
 	}
 
-	async getAllArtists(): Promise<Array<Artist>> {
+	async getArtistsPage(
+		page: number,
+		pageSize: number,
+		_options?: { startsWith?: string },
+	): Promise<{ hasMore: boolean; items: Array<Artist> }> {
+		// Downloaded data is local and bounded, so the offline grid loads the full
+		// list as a single page; the view's render-layer letter filter narrows it.
+		return singleLocalPage(this.collectAllArtists(), page, pageSize);
+	}
+
+	private collectAllArtists(): Array<Artist> {
 		const artistsById = new Map<string, Artist>();
 
 		for (const entry of this.downloads.getAllArtists()) {
@@ -65,7 +75,15 @@ export class OfflineTransport implements Transport {
 		return sortArtistsByName(Array.from(artistsById.values()));
 	}
 
-	async getAllAlbums(): Promise<Array<Album>> {
+	async getAlbumsPage(
+		page: number,
+		pageSize: number,
+		_options?: { startsWith?: string },
+	): Promise<{ hasMore: boolean; items: Array<Album> }> {
+		return singleLocalPage(this.collectAllAlbums(), page, pageSize);
+	}
+
+	private collectAllAlbums(): Array<Album> {
 		const albumsById = new Map<string, Album>();
 
 		for (const entry of this.downloads.getAllAlbums()) {
@@ -95,7 +113,7 @@ export class OfflineTransport implements Transport {
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }> {
-		const all = await this.getAllAlbums();
+		const all = this.collectAllAlbums();
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const slice = all.slice(startIndex, startIndex + Math.max(1, pageSize));
 		return {
@@ -106,7 +124,7 @@ export class OfflineTransport implements Transport {
 
 	async getAlbumsByIds(ids: Array<string>): Promise<Array<Album>> {
 		const wanted = new Set(ids);
-		return (await this.getAllAlbums()).filter((album) => wanted.has(album.id));
+		return this.collectAllAlbums().filter((album) => wanted.has(album.id));
 	}
 
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
@@ -120,11 +138,19 @@ export class OfflineTransport implements Transport {
 			}
 		}
 
-		const allAlbums = await this.getAllAlbums();
+		const allAlbums = this.collectAllAlbums();
 		return allAlbums.filter((album) => album.artistId === artistId);
 	}
 
-	async getAllPlaylists(): Promise<Array<Playlist>> {
+	async getPlaylistsPage(
+		page: number,
+		pageSize: number,
+		_options?: { startsWith?: string },
+	): Promise<{ hasMore: boolean; items: Array<Playlist> }> {
+		return singleLocalPage(this.collectAllPlaylists(), page, pageSize);
+	}
+
+	private collectAllPlaylists(): Array<Playlist> {
 		const downloaded = this.downloads.getAllPlaylists().map((e) => e.playlist);
 		const pending = this.playlistCreateService?.getPending() ?? [];
 		const pendingPlaylists = pending.map((op) => ({ id: op.localId, name: op.name }));
@@ -328,7 +354,7 @@ export class OfflineTransport implements Transport {
 	}
 
 	async getRandomAlbum(): Promise<Album | null> {
-		const albums = await this.getAllAlbums();
+		const albums = this.collectAllAlbums();
 		if (albums.length === 0) {
 			return null;
 		}
@@ -397,6 +423,21 @@ export class OfflineTransport implements Transport {
 
 function sortTracksByNumber(tracks: Array<Track>): Array<Track> {
 	return [...tracks].sort((a, b) => (a.trackNumber ?? 0) - (b.trackNumber ?? 0));
+}
+
+// Offline collections are local and bounded, so paginated reads return the whole
+// list as one page (page 1) with `hasMore: false`. This satisfies the paginated
+// Transport contract without truly paging downloaded data.
+function singleLocalPage<T>(
+	items: Array<T>,
+	page: number,
+	pageSize: number,
+): { hasMore: boolean; items: Array<T> } {
+	const startIndex = Math.max(0, page - 1) * pageSize;
+	if (startIndex > 0) {
+		return { hasMore: false, items: [] };
+	}
+	return { hasMore: false, items };
 }
 
 // Persisted album records can predate current metadata rules (or come from an

@@ -504,7 +504,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			return;
 		}
 
-		const queue = await buildShuffleLibraryQueue(connectionMode, transport);
+		const queue = await buildShuffleLibraryQueue(transport);
 
 		if (this.hasBeenDestroyed || token !== this.shuffleLoadToken) {
 			return;

@@ -49,7 +49,7 @@ describe('ArtistsView', () => {
 			{ id: 'artist-2', name: 'Artist Two' },
 		];
 		const transport = {
-			getAllArtists: async () => artists,
+			getArtistsPage: async () => ({ hasMore: false, items: artists }),
 		};
 
 		const instrumented = createComponent(ArtistsView, {
@@ -75,7 +75,7 @@ describe('ArtistsView', () => {
 	valdiIt('pushes ArtistView when card is tapped', async () => {
 		const artists = [{ id: 'artist-1', name: 'Artist One' }];
 		const transport = {
-			getAllArtists: async () => artists,
+			getArtistsPage: async () => ({ hasMore: false, items: artists }),
 		};
 
 		const navigationController = makeNavigationController();
@@ -106,7 +106,7 @@ describe('ArtistsView', () => {
 			{ id: 'artist-1', logoUrl: 'https://example.com/logo.jpg', name: 'Artist One' },
 		];
 		const transport = {
-			getAllArtists: async () => artists,
+			getArtistsPage: async () => ({ hasMore: false, items: artists }),
 		};
 
 		const instrumented = createComponent(ArtistsView, {
@@ -122,6 +122,31 @@ describe('ArtistsView', () => {
 		component.handleArtistCardLongPress({ id: 'artist-1', kind: 'artist' });
 
 		expect(component.state.contextMenuCard).toEqual({ artist: artists[0], kind: 'artist' });
+	});
+
+	valdiIt('requests a server-side prefix filter when a letter filter is active', async () => {
+		const requestedStartsWith: Array<string | undefined> = [];
+		const transport = {
+			getArtistsPage: (_page: number, _size: number, options?: { startsWith?: string }) => {
+				requestedStartsWith.push(options?.startsWith);
+				return Promise.resolve({ hasMore: false, items: makeArtists(3) });
+			},
+		};
+
+		const instrumented = createComponent(ArtistsView, {
+			gridColumns: 3,
+			imageCache: stubImageCache,
+			letterFilter: 'a',
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			transport,
+		});
+		instrumented.getComponent();
+
+		await flushAsyncWork();
+		await flushAsyncWork();
+
+		expect(requestedStartsWith).toContain('a');
 	});
 
 	valdiIt('loads next artist page when prefetch trigger is laid out', async () => {

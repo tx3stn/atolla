@@ -12,6 +12,8 @@ import { Modal } from '../components/Modal';
 import { Toast } from '../components/Toast';
 import { scheduleToastDismiss } from '../components/toastTimer';
 import { addTracksToPlaylist } from '../flows/playlistFlow';
+import { gridPaginationConfig } from './GridPagination';
+import { createPagedGridController } from './pagination/createPagedGridController';
 
 export interface AddToPlaylistViewModel {
 	animationsEnabled: boolean;
@@ -24,7 +26,10 @@ export interface AddToPlaylistViewModel {
 
 interface AddToPlaylistState {
 	errorMessage: string | null;
-	isLoading: boolean;
+	hasMore: boolean;
+	isLoadingNextPage: boolean;
+	nextPageFailed: boolean;
+	page: number;
 	playlists: Array<Playlist>;
 	toastMessage: string | null;
 }
@@ -35,31 +40,37 @@ export class AddToPlaylistView extends StatefulComponent<
 > {
 	private hasBeenDestroyed = false;
 	private toastTimerId?: ReturnType<typeof setTimeout>;
+	private readonly pagedGridController = createPagedGridController<Playlist>({
+		fetchPage: (page) =>
+			this.viewModel.transport.getPlaylistsPage(page, gridPaginationConfig.pageSize),
+		isDestroyed: () => this.hasBeenDestroyed,
+		setState: (patch) => {
+			this.setState({
+				hasMore: patch.hasMore ?? this.state.hasMore,
+				isLoadingNextPage: patch.isLoadingNextPage ?? this.state.isLoadingNextPage,
+				nextPageFailed: patch.nextPageFailed ?? this.state.nextPageFailed,
+				page: patch.page ?? this.state.page,
+				playlists: patch.items ?? this.state.playlists,
+			});
+		},
+	});
 	private clearErrorMessage = (): void => {
 		this.setState({ errorMessage: null });
 	};
 
 	state: AddToPlaylistState = {
 		errorMessage: null,
-		isLoading: true,
+		hasMore: true,
+		isLoadingNextPage: false,
+		nextPageFailed: false,
+		page: 0,
 		playlists: [],
 		toastMessage: null,
 	};
 
 	onCreate(): void {
 		this.hasBeenDestroyed = false;
-		void this.viewModel.transport
-			.getAllPlaylists()
-			.then((playlists) => {
-				if (!this.hasBeenDestroyed) {
-					this.setState({ isLoading: false, playlists });
-				}
-			})
-			.catch(() => {
-				if (!this.hasBeenDestroyed) {
-					this.setState({ isLoading: false });
-				}
-			});
+		void this.pagedGridController.loadNextPage();
 	}
 
 	onDestroy(): void {
@@ -68,6 +79,10 @@ export class AddToPlaylistView extends StatefulComponent<
 			clearTimeout(this.toastTimerId);
 		}
 	}
+
+	loadMore = (): void => {
+		void this.pagedGridController.loadNextPage();
+	};
 
 	handlePlaylistTap = (card: {
 		id: string;
@@ -124,7 +139,11 @@ export class AddToPlaylistView extends StatefulComponent<
 					accessibilityId='add-to-playlist-grid'
 					cards={cards}
 					columnCount={gridColumns}
+					infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
+					isLoadingMore={this.state.isLoadingNextPage}
 					onCardTap={this.handlePlaylistTap}
+					onLoadMore={this.state.hasMore && !this.state.nextPageFailed ? this.loadMore : undefined}
+					onRetryLoadMore={this.state.nextPageFailed ? this.loadMore : undefined}
 				/>
 			</scroll>
 			<view style={styles.header}>

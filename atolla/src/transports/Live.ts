@@ -82,6 +82,24 @@ interface AlbumsPageResult {
 const defaultPageSize = 100;
 const defaultSearchLimit = 100;
 
+// Maps a library letter-filter token to Jellyfin `/Items` query params so prefix
+// filtering happens server-side. Letters a-z become `nameStartsWith`; the '0'
+// bucket ("starts with a digit") maps to `nameLessThan: 'A'`, which returns every
+// item sorting before "A" (digits and symbols) — the client-side letter filter
+// then narrows that to leading-digit names.
+function nameFilterParams(
+	startsWith: string | undefined,
+): Record<string, string | number | boolean | undefined> {
+	const token = startsWith?.trim();
+	if (!token) {
+		return {};
+	}
+	if (token === '0') {
+		return { nameLessThan: 'A' };
+	}
+	return { nameStartsWith: token };
+}
+
 function normalizeClientDeviceId(value: string | null | undefined): string {
 	if (typeof value !== 'string') {
 		return 'atolla';
@@ -126,7 +144,11 @@ export class LiveTransport implements Transport {
 		this.requestTimeoutMs = options.requestTimeoutMs ?? 10_000;
 	}
 
-	async getAlbumsPage(page: number, pageSize: number): Promise<AlbumsPageResult> {
+	async getAlbumsPage(
+		page: number,
+		pageSize: number,
+		options?: { startsWith?: string },
+	): Promise<AlbumsPageResult> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
 			fields: 'Overview,Genres',
@@ -136,6 +158,7 @@ export class LiveTransport implements Transport {
 			sortBy: 'PremiereDate,SortName',
 			sortOrder: 'Descending,Ascending',
 			startIndex,
+			...nameFilterParams(options?.startsWith),
 		});
 
 		return {
@@ -144,20 +167,10 @@ export class LiveTransport implements Transport {
 		};
 	}
 
-	async getAllArtists(): Promise<Array<Artist>> {
-		const items = await this.fetchAllItems<JellyfinArtistItem>({
-			includeItemTypes: JellyfinMusicItemTypes.MusicArtist,
-			recursive: true,
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
-		});
-
-		return items.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers));
-	}
-
 	async getArtistsPage(
 		page: number,
 		pageSize: number,
+		options?: { startsWith?: string },
 	): Promise<{ hasMore: boolean; items: Array<Artist> }> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const list = await this.fetchItemsPage<JellyfinArtistItem>({
@@ -167,24 +180,13 @@ export class LiveTransport implements Transport {
 			sortBy: 'SortName',
 			sortOrder: 'Ascending',
 			startIndex,
+			...nameFilterParams(options?.startsWith),
 		});
 
 		return {
 			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
 			items: list.Items.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers)),
 		};
-	}
-
-	async getAllAlbums(): Promise<Array<Album>> {
-		const items = await this.fetchAllItems<JellyfinAlbumItem>({
-			fields: 'Overview,Genres',
-			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-			recursive: true,
-			sortBy: 'PremiereDate,SortName',
-			sortOrder: 'Descending,Ascending',
-		});
-
-		return items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
 	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
@@ -259,17 +261,6 @@ export class LiveTransport implements Transport {
 		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
-	async getAllPlaylists(): Promise<Array<Playlist>> {
-		const items = await this.fetchAllItems<JellyfinPlaylistItem>({
-			includeItemTypes: JellyfinMusicItemTypes.Playlist,
-			recursive: true,
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
-		});
-
-		return items.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers));
-	}
-
 	async getGenresPage(
 		page: number,
 		pageSize: number,
@@ -293,6 +284,7 @@ export class LiveTransport implements Transport {
 	async getPlaylistsPage(
 		page: number,
 		pageSize: number,
+		options?: { startsWith?: string },
 	): Promise<{ hasMore: boolean; items: Array<Playlist> }> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const list = await this.fetchItemsPage<JellyfinPlaylistItem>({
@@ -302,6 +294,7 @@ export class LiveTransport implements Transport {
 			sortBy: 'SortName',
 			sortOrder: 'Ascending',
 			startIndex,
+			...nameFilterParams(options?.startsWith),
 		});
 
 		return {

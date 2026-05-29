@@ -23,20 +23,20 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 		it('returns contract-compliant tracks from album, artist and playlist endpoints', async () => {
 			const transport = createTransport();
 
-			const [albums, artists, playlists] = await Promise.all([
-				transport.getAllAlbums(),
-				transport.getAllArtists(),
-				transport.getAllPlaylists(),
+			const [albumsPage, artistsPage, playlistsPage] = await Promise.all([
+				transport.getAlbumsPage(1, 50),
+				transport.getArtistsPage(1, 50),
+				transport.getPlaylistsPage(1, 50),
 			]);
 
-			expect(albums.length).toBeGreaterThan(0);
-			expect(artists.length).toBeGreaterThan(0);
-			expect(playlists.length).toBeGreaterThan(0);
+			expect(albumsPage.items.length).toBeGreaterThan(0);
+			expect(artistsPage.items.length).toBeGreaterThan(0);
+			expect(playlistsPage.items.length).toBeGreaterThan(0);
 
 			const [albumTracks, artistTracks, playlistTracks] = await Promise.all([
-				transport.getTracksByAlbum(albums[0].id),
-				transport.getTracksByArtist(artists[0].id),
-				transport.getTracksByPlaylist(playlists[0].id),
+				transport.getTracksByAlbum(albumsPage.items[0].id),
+				transport.getTracksByArtist(artistsPage.items[0].id),
+				transport.getTracksByPlaylist(playlistsPage.items[0].id),
 			]);
 
 			expect(albumTracks.length).toBeGreaterThan(0);
@@ -50,7 +50,7 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 
 		it('keeps release metadata stable for same track across endpoints', async () => {
 			const transport = createTransport();
-			const playlists = await transport.getAllPlaylists();
+			const playlists = (await transport.getPlaylistsPage(1, 50)).items;
 			expect(playlists.length).toBeGreaterThan(0);
 
 			const playlistTracks = await transport.getTracksByPlaylist(playlists[0].id);
@@ -68,6 +68,34 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 
 			expect(matchingAlbumTrack?.releaseDate).toBe(playlistTrack.releaseDate);
 			expect(matchingAlbumTrack?.productionYear).toBe(playlistTrack.productionYear);
+		});
+
+		it('narrows album, artist and playlist pages by a startsWith prefix', async () => {
+			const transport = createTransport();
+
+			const [albums, artists, playlists] = await Promise.all([
+				transport.getAlbumsPage(1, 50).then((page) => page.items),
+				transport.getArtistsPage(1, 50).then((page) => page.items),
+				transport.getPlaylistsPage(1, 50).then((page) => page.items),
+			]);
+
+			const prefixOf = (name: string): string => name.trim().charAt(0).toLowerCase();
+			const albumPrefix = albums.map((a) => prefixOf(a.name)).find((p) => /[a-z]/.test(p));
+			expect(albumPrefix).toBeDefined();
+			if (!albumPrefix) {
+				return;
+			}
+
+			const filtered = await transport.getAlbumsPage(1, 50, { startsWith: albumPrefix });
+			expect(filtered.items.length).toBeGreaterThan(0);
+			filtered.items.forEach((album) => {
+				expect(prefixOf(album.name)).toBe(albumPrefix);
+			});
+
+			// The prefix filter must not change the shape of the result set type for
+			// artists/playlists either — exercise them so every transport honours the arg.
+			await transport.getArtistsPage(1, 50, { startsWith: prefixOf(artists[0].name) });
+			await transport.getPlaylistsPage(1, 50, { startsWith: prefixOf(playlists[0].name) });
 		});
 
 		it('returns genre pages and genre tracks with contract-compliant tracks', async () => {
