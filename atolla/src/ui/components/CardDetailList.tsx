@@ -2,16 +2,8 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { CardDetailItem } from '../../models/CardDetailItem';
 import { CardDetail } from './CardDetail';
-
-export interface CardDetailItem {
-	artworkKey: string;
-	id: string;
-	kind: 'album' | 'artist' | 'playlist';
-	lineOne: string;
-	lineThree: string;
-	lineTwo: string;
-}
 
 export interface CardDetailListViewModel {
 	accessibilityId: string;

@@ -1,9 +1,8 @@
 import type { Album } from '../models/Album';
-import type { CardDetailItem } from '../ui/components/CardDetailList';
+import type { CardDetailItem } from '../models/CardDetailItem';
 
 // Pure "On This Day" logic, kept free of any Valdi imports so it can be unit
-// tested with bun and reused by OnThisDayService. The `CardDetailItem` import is
-// type-only and erased at runtime, so this module never pulls in the component.
+// tested with bun and reused by OnThisDayService.
 
 interface OnThisDayCandidate {
 	album: Album;
