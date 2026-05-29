@@ -4,6 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { PlaybackStore } from '../../stores/Playback';
+import { theme } from '../../theme';
 
 export interface ProgressBarPlainViewModel {
 	accentColor: string;
@@ -145,7 +146,7 @@ function createPlayheadStyle(accentColor: string, thickness: number): Style<View
 	const size = Math.max(10, thickness + 6);
 	return new Style<View>({
 		backgroundColor: accentColor,
-		borderColor: '#ffffff',
+		borderColor: theme.colors.pureWhite,
 		borderRadius: size / 2,
 		borderWidth: 1,
 		boxShadow: '0 1 2 rgba(0,0,0,0.25)',

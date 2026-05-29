@@ -947,7 +947,7 @@ const styles = {
 	}),
 	errorTitle: new Style<Label>({
 		...theme.text.mainBold,
-		color: '#ff6b6b',
+		color: theme.colors.destructive,
 		textAlign: 'center',
 	}),
 	infoContainer: new Style<Layout>({

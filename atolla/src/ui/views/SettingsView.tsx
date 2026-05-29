@@ -702,7 +702,7 @@ const styles = {
 	}),
 	paletteError: new Style<Label>({
 		...theme.text.sub,
-		color: '#ff6b6b',
+		color: theme.colors.destructive,
 		marginLeft: 4,
 		marginTop: 8,
 	}),
