@@ -15,6 +15,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { retryResolve } from '../../utils/async';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
@@ -237,7 +238,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 		const artistLogoUrlPromise = this.state.artistLogoUrl
 			? Promise.resolve(this.state.artistLogoUrl)
-			: transport.getArtistLogoUrl(album.artistId).catch(() => null);
+			: retryResolve(() => transport.getArtistLogoUrl(album.artistId)).catch(() => null);
 
 		const allGenres = [
 			...(album.genres ?? []),

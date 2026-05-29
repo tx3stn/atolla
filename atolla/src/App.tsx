@@ -45,7 +45,7 @@ import {
 	type IDownloadNativeWorker,
 } from './services/DownloadNativeWorker';
 import { DownloadService } from './services/DownloadService';
-import { type ClearCacheSelection, ImageCache } from './services/ImageCache';
+import { type ClearCacheSelection, ImageCache, type ImageCategory } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
 import {
@@ -131,6 +131,13 @@ import { appVersion } from './version';
 export type AppViewModel = Record<string, never>;
 
 const RECENTLY_PLAYED_TRACKS_KEY = 'recently_played_tracks';
+/**
+ * Safety-net wait for the native "image cached" observer. Cache hits and successful
+ * fetches report back promptly, so this only bounds the rare case where the observer
+ * never fires (e.g. native that predates the cache-hit notification) before the
+ * download is allowed to complete regardless.
+ */
+const IMAGE_CACHE_RESOLVE_TIMEOUT_MS = 6000;
 
 interface AppState {
 	activeFooterTab: FooterTab;
@@ -275,22 +282,18 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		[],
 	);
 	private downloadService = new DownloadService({
+		cacheImage: (url, category) => this.cacheImageAsset(url, category),
 		cacheTrack: (trackId, url) =>
 			this.downloadWorkerClient.api.cacheDownloadedTrack(trackId, url, this.currentAccessToken),
 		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
 		onTrackDownloaded: (trackId) => this.handleTrackCached(trackId),
-		preloadImages: (urls, category) => {
-			try {
-				preloadAtollaImages(urls, category);
-			} catch {
-				// Non-Android targets do not provide native preload bridge.
-			}
-		},
 		removeTrack: (trackId) => this.downloadWorkerClient.api.removeDownloadedTrack(trackId),
 		removeTracks: (trackIds) => this.downloadWorkerClient.api.removeDownloadedTracks(trackIds),
 		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
 	});
+	/** Resolvers waiting on the native "image cached" observer, keyed by category + stripped url. */
+	private readonly pendingImageCacheResolvers = new Map<string, Array<() => void>>();
 	private paletteQueue!: PaletteGenerationQueue;
 	private waveformService!: WaveformService;
 	private waveformQueue!: WaveformGenerationQueue;
@@ -785,6 +788,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 		try {
 			setAtollaImageCachedObserver((url, category) => {
+				// Let any in-progress downloads waiting on this image complete.
+				this.resolveCachedImageWaiters(url, category);
 				if (category !== 'album_art' || this.paletteService.hasPalette(url)) {
 					return;
 				}
@@ -1256,6 +1261,82 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 		}
 		this.waveformQueue.reorderToMatch(this.getPlaybackTrackIds());
+	}
+
+	// -------------------------------------------------------------------------
+	// Offline image caching bridge (native, best-effort)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Identity used to match a cache request against the native "image cached"
+	 * observer. The url we hand to the native loader carries `api_key` (needed for
+	 * the fetch) while the observer reports the stripped url, and query encoding can
+	 * differ between the two — so we match on the stable parts only: category, path,
+	 * and the Jellyfin image `tag`. Non-Jellyfin urls fall back to path identity.
+	 */
+	private imageFingerprint(url: string, category: string): string {
+		try {
+			const parsed = new URL(url);
+			const tag = parsed.searchParams.get('tag') ?? '';
+			return `${category}\n${parsed.origin}${parsed.pathname}\n${tag}`;
+		} catch {
+			return `${category}\n${url}`;
+		}
+	}
+
+	/**
+	 * Ask the native loader to ensure an image is cached, resolving once it reports
+	 * the asset cached via the observer. The native loader fetches only when the
+	 * asset is missing and reports cached for hits too, so this resolves promptly
+	 * whether the image was already present or freshly downloaded. As a safety net
+	 * (e.g. the observer never fires) a bounded timeout resolves anyway — the asset
+	 * has either been cached or is fetched again on demand, so the download counter
+	 * never wedges.
+	 */
+	private cacheImageAsset(url: string, category: ImageCategory): Promise<void> {
+		return new Promise<void>((resolve) => {
+			const key = this.imageFingerprint(url, category);
+			let settled = false;
+			let timer: ReturnType<typeof setTimeout> | undefined;
+
+			const done = (): void => {
+				if (settled) return;
+				settled = true;
+				if (timer) clearTimeout(timer);
+				const list = this.pendingImageCacheResolvers.get(key);
+				if (list) {
+					const index = list.indexOf(done);
+					if (index >= 0) list.splice(index, 1);
+					if (list.length === 0) this.pendingImageCacheResolvers.delete(key);
+				}
+				resolve();
+			};
+
+			const list = this.pendingImageCacheResolvers.get(key) ?? [];
+			list.push(done);
+			this.pendingImageCacheResolvers.set(key, list);
+
+			try {
+				preloadAtollaImages([url], category);
+			} catch {
+				// No native preload bridge on this platform — treat as done so the
+				// counter never wedges; the image is fetched on demand when shown.
+				done();
+				return;
+			}
+
+			timer = setTimeout(done, IMAGE_CACHE_RESOLVE_TIMEOUT_MS);
+		});
+	}
+
+	/** Resolve any downloads waiting on an image the native loader just cached. */
+	private resolveCachedImageWaiters(url: string, category: string): void {
+		const key = this.imageFingerprint(url, category);
+		const resolvers = this.pendingImageCacheResolvers.get(key);
+		if (!resolvers || resolvers.length === 0) return;
+		for (const resolve of [...resolvers]) {
+			resolve();
+		}
 	}
 
 	private handleTrackCached(trackId: string): void {

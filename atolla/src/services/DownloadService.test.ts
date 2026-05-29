@@ -50,6 +50,7 @@ function makeGenre(id: string): Genre {
 }
 
 type CacheCall = { trackId: string; url: string };
+type ImageCall = { category: string; url: string };
 
 function createService(
 	options: Partial<DownloadServiceOptions> & {
@@ -61,22 +62,23 @@ function createService(
 	store: InMemoryStore;
 	cacheCalls: Array<CacheCall>;
 	removeCalls: Array<string>;
-	preloadCalls: Array<{ category: string; urls: Array<string> }>;
+	imageCalls: Array<ImageCall>;
 } {
 	const store = options.store ?? new InMemoryStore();
 	const cacheCalls: Array<CacheCall> = [];
 	const removeCalls: Array<string> = [];
-	const preloadCalls: Array<{ category: string; urls: Array<string> }> = [];
+	const imageCalls: Array<ImageCall> = [];
 
 	const service = new DownloadService({
+		cacheImage: (url, category) => {
+			imageCalls.push({ category, url });
+			return Promise.resolve();
+		},
 		cacheTrack: (trackId, url) => {
 			cacheCalls.push({ trackId, url });
 			return Promise.resolve();
 		},
 		getTrackPlaybackUrl: (trackId) => `file://${trackId}`,
-		preloadImages: (urls, category) => {
-			preloadCalls.push({ category, urls });
-		},
 		removeTrack: (trackId) => {
 			removeCalls.push(trackId);
 		},
@@ -84,7 +86,7 @@ function createService(
 		...options,
 	});
 
-	return { cacheCalls, preloadCalls, removeCalls, service, store };
+	return { cacheCalls, imageCalls, removeCalls, service, store };
 }
 
 // Drain the microtask / Promise queue so async effects settle.
@@ -176,8 +178,8 @@ describe('DownloadService', () => {
 			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
 		});
 
-		it('preloads artist logos and album artwork for offline image cache', async () => {
-			const { preloadCalls, service } = createService();
+		it('caches artist logos and full + thumb album artwork for offline use', async () => {
+			const { imageCalls, service } = createService();
 			const album = { ...makeAlbum('album-1'), imageUrl: 'https://img/album-1.jpg' };
 			const trackA = { ...makeTrack('track-1'), albumImageUrl: 'https://img/album-1.jpg' };
 			const trackB = { ...makeTrack('track-2'), albumImageUrl: 'https://img/album-2.jpg' };
@@ -194,19 +196,35 @@ describe('DownloadService', () => {
 
 			await flush();
 
-			expect(preloadCalls).toEqual([
-				{
-					category: 'album_art',
-					urls: ['https://img/album-1.jpg', 'https://img/album-2.jpg'],
-				},
-				{
-					category: 'album_art_thumb',
-					urls: ['https://img/album-1.jpg', 'https://img/album-2.jpg'],
-				},
-				{ category: 'artist_image', urls: ['https://img/artist-1.jpg'] },
-				{ category: 'artist_image_thumb', urls: ['https://img/artist-1.jpg'] },
-				{ category: 'artist_logo', urls: ['https://img/logo-artist.jpg'] },
-			]);
+			// Full `album_art` is required (the blurred backdrop is generated from it).
+			expect(imageCalls).toContainEqual({ category: 'album_art', url: 'https://img/album-1.jpg' });
+			expect(imageCalls).toContainEqual({
+				category: 'album_art_thumb',
+				url: 'https://img/album-1.jpg',
+			});
+			expect(imageCalls).toContainEqual({ category: 'album_art', url: 'https://img/album-2.jpg' });
+			expect(imageCalls).toContainEqual({
+				category: 'album_art_thumb',
+				url: 'https://img/album-2.jpg',
+			});
+			expect(imageCalls).toContainEqual({
+				category: 'artist_image',
+				url: 'https://img/artist-1.jpg',
+			});
+			expect(imageCalls).toContainEqual({
+				category: 'artist_image_thumb',
+				url: 'https://img/artist-1.jpg',
+			});
+			expect(imageCalls).toContainEqual({
+				category: 'artist_logo',
+				url: 'https://img/logo-artist.jpg',
+			});
+			// The blurred variant is generated on device, never fetched.
+			expect(imageCalls.some((c) => c.category === 'album_art_blurred')).toBe(false);
+			// Each unique asset is fetched once.
+			expect(
+				imageCalls.filter((c) => c.category === 'album_art' && c.url.includes('album-1')),
+			).toHaveLength(1);
 		});
 
 		it('indexes album genres for offline genre pages', async () => {
@@ -257,8 +275,8 @@ describe('DownloadService', () => {
 			expect(service.getPlaylistDownloadState('playlist-1')).toBe('downloaded');
 		});
 
-		it('indexes playlist track genres and preloads genre images', async () => {
-			const { preloadCalls, service } = createService();
+		it('indexes playlist track genres and caches genre images', async () => {
+			const { imageCalls, service } = createService();
 			const playlist = makePlaylist('playlist-1');
 			const track = {
 				...makeTrack('track-1'),
@@ -274,14 +292,36 @@ describe('DownloadService', () => {
 
 			expect(service.getAllGenres().map((entry) => entry.genre.id)).toEqual(['genre-1']);
 			expect(service.getAllGenres()[0].trackIds).toEqual(['track-1']);
-			expect(preloadCalls).toContainEqual({
+			expect(imageCalls).toContainEqual({
 				category: 'genre_art',
-				urls: ['https://img/genre-1.jpg'],
+				url: 'https://img/genre-1.jpg',
 			});
 		});
 
-		it('preloads artist images when artists are provided', async () => {
-			const { preloadCalls, service } = createService();
+		it('caches the playlist cover image', async () => {
+			const { imageCalls, service } = createService();
+			const playlist = { ...makePlaylist('playlist-1'), imageUrl: 'https://img/playlist-1.jpg' };
+			const track = makeTrack('track-1');
+
+			service.downloadPlaylist({
+				playlist,
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track }],
+			});
+
+			await flush();
+
+			expect(imageCalls).toContainEqual({
+				category: 'playlist_image',
+				url: 'https://img/playlist-1.jpg',
+			});
+			expect(imageCalls).toContainEqual({
+				category: 'playlist_image_thumb',
+				url: 'https://img/playlist-1.jpg',
+			});
+		});
+
+		it('caches artist images when artists are provided', async () => {
+			const { imageCalls, service } = createService();
 			const playlist = makePlaylist('playlist-1');
 			const track = makeTrack('track-1');
 			const artist = { ...makeArtist('artist-1'), imageUrl: 'https://img/artist-1.jpg' };
@@ -294,14 +334,14 @@ describe('DownloadService', () => {
 
 			await flush();
 
-			expect(preloadCalls).toContainEqual({
+			expect(imageCalls).toContainEqual({
 				category: 'artist_image',
-				urls: ['https://img/artist-1.jpg'],
+				url: 'https://img/artist-1.jpg',
 			});
 		});
 
-		it('preloads genre art and stores genre imageUrls when resolvedGenres are provided', async () => {
-			const { preloadCalls, service } = createService();
+		it('caches genre art and stores genre imageUrls when resolvedGenres are provided', async () => {
+			const { imageCalls, service } = createService();
 			const playlist = makePlaylist('playlist-1');
 			const track = { ...makeTrack('track-1'), genres: [{ id: 'genre-1', name: 'Rock' }] };
 			const resolvedGenre = { id: 'genre-1', imageUrl: 'https://img/genre-1.jpg', name: 'Rock' };
@@ -314,9 +354,9 @@ describe('DownloadService', () => {
 
 			await flush();
 
-			expect(preloadCalls).toContainEqual({
+			expect(imageCalls).toContainEqual({
 				category: 'genre_art',
-				urls: ['https://img/genre-1.jpg'],
+				url: 'https://img/genre-1.jpg',
 			});
 
 			const genre = service.getAllGenres().find((e) => e.genre.id === 'genre-1');
@@ -342,6 +382,27 @@ describe('DownloadService', () => {
 			await flush();
 
 			expect(service.getGenreDownloadState('genre-1')).toBe('downloaded');
+		});
+
+		it('caches the genre image only as genre art, never as album art', async () => {
+			const { imageCalls, service } = createService();
+			const genre = { ...makeGenre('genre-1'), imageUrl: 'https://img/genre-1.jpg' };
+
+			service.downloadGenre({
+				genre,
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+
+			await flush();
+
+			expect(imageCalls).toContainEqual({ category: 'genre_art', url: 'https://img/genre-1.jpg' });
+			expect(
+				imageCalls.some(
+					(c) => c.url === 'https://img/genre-1.jpg' && c.category.startsWith('album_art'),
+				),
+			).toBe(false);
 		});
 	});
 
@@ -732,6 +793,178 @@ describe('DownloadService', () => {
 			await flush();
 
 			expect(cacheCalls.some((c) => c.trackId === 'track-1')).toBe(true);
+		});
+	});
+
+	describe('image-gated completion', () => {
+		function albumWithArt() {
+			return { ...makeAlbum('album-1'), imageUrl: 'https://img/album-1.jpg' };
+		}
+		function trackWithArt() {
+			return { ...makeTrack('track-1'), albumImageUrl: 'https://img/album-1.jpg' };
+		}
+
+		it('completes the item on audio alone, caching images in the background', async () => {
+			let imageRequests = 0;
+			let resolveImage!: () => void;
+			const { service } = createService({
+				cacheImage: () => {
+					imageRequests += 1;
+					return new Promise<void>((resolve) => {
+						resolveImage = resolve;
+					});
+				},
+			});
+
+			service.downloadAlbum({
+				album: albumWithArt(),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: trackWithArt() }],
+			});
+
+			await flush();
+
+			// Audio is cached, so the counter clears and the item shows downloaded
+			// immediately — image caching continues in the background without gating.
+			expect(service.isTrackDownloaded('track-1')).toBe(true);
+			expect(service.getDownloadingCount()).toBe(0);
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
+			// The required images were still requested for offline use.
+			expect(imageRequests).toBeGreaterThan(0);
+
+			resolveImage();
+			await flush();
+
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
+		});
+
+		it('does not re-request an image already cached for another item', async () => {
+			const { imageCalls, service } = createService();
+
+			service.downloadAlbum({
+				album: albumWithArt(),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: trackWithArt() }],
+			});
+			await flush();
+
+			const callsAfterAlbum = imageCalls.length;
+			expect(callsAfterAlbum).toBeGreaterThan(0);
+
+			// The same track (and its album art) added to a playlist must not re-fetch
+			// the already-cached album artwork.
+			service.downloadPlaylist({
+				playlist: makePlaylist('playlist-1'),
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: trackWithArt() }],
+			});
+			await flush();
+
+			expect(
+				imageCalls.filter((c) => c.category === 'album_art' && c.url === 'https://img/album-1.jpg'),
+			).toHaveLength(1);
+		});
+
+		it('retries a failing image up to the cap, then completes best-effort', async () => {
+			const { imageCalls, service } = createService({
+				cacheImage: (url, category) => {
+					imageCalls.push({ category, url });
+					return Promise.reject(new Error('boom'));
+				},
+			});
+
+			service.downloadAlbum({
+				album: albumWithArt(),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: trackWithArt() }],
+			});
+
+			// Allow retries (no backoff) to play out across several macrotasks.
+			for (let i = 0; i < 6; i += 1) await flush();
+
+			// The full album_art asset is retried exactly IMAGE_MAX_ATTEMPTS times.
+			expect(
+				imageCalls.filter((c) => c.category === 'album_art' && c.url === 'https://img/album-1.jpg'),
+			).toHaveLength(3);
+			// Best-effort exhaustion lets the item complete so it never stays stuck.
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
+		});
+
+		it('retries incomplete (non-exhausted) images on app ready', async () => {
+			const store = new InMemoryStore();
+
+			// Seed an incomplete, non-exhausted image plus the track that requires it,
+			// as if the app was killed mid-download before retries were exhausted.
+			const imageKey = 'album_art:https://img/album-1.jpg';
+			await store.storeString(
+				'dl_tracks',
+				JSON.stringify({
+					'track-1': {
+						albumIds: ['album-1'],
+						complete: true,
+						genreIds: [],
+						playlistIds: [],
+						requiredImageKeys: [imageKey],
+						streamUrl: 'http://s/track-1',
+						track: makeTrack('track-1'),
+					},
+				}),
+			);
+			await store.storeString(
+				'dl_albums',
+				JSON.stringify({
+					'album-1': { album: makeAlbum('album-1'), artistLogoUrl: null, trackIds: ['track-1'] },
+				}),
+			);
+			await store.storeString(
+				'dl_images',
+				JSON.stringify({
+					[imageKey]: {
+						attempts: 1,
+						category: 'album_art',
+						complete: false,
+						exhausted: false,
+						url: 'https://img/album-1.jpg',
+					},
+				}),
+			);
+
+			const imageCalls: Array<ImageCall> = [];
+			const service = new DownloadService({
+				cacheImage: (url, category) => {
+					imageCalls.push({ category, url });
+					return Promise.resolve();
+				},
+				cacheTrack: () => Promise.resolve(),
+				getTrackPlaybackUrl: (id) => `file://${id}`,
+				removeTrack: () => {},
+				store,
+			});
+
+			expect(service.getAlbumDownloadState('album-1')).toBe('not_downloaded'); // not loaded yet
+
+			service.onAppReady();
+			for (let i = 0; i < 4; i += 1) await flush();
+
+			expect(imageCalls).toContainEqual({ category: 'album_art', url: 'https://img/album-1.jpg' });
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
+		});
+
+		it('prunes tracked images when the owning item is removed', async () => {
+			const store = new InMemoryStore();
+			const { service } = createService({ store });
+
+			service.downloadAlbum({
+				album: albumWithArt(),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: trackWithArt() }],
+			});
+			await flush();
+
+			service.removeAlbumDownload('album-1');
+			await flush();
+
+			const persistedImages = JSON.parse(await store.fetchString('dl_images'));
+			expect(Object.keys(persistedImages)).toEqual([]);
 		});
 	});
 });

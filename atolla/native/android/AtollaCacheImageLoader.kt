@@ -535,8 +535,12 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		val key = "$category:$sourceUrl"
 		val bitmapPlan = resolveBitmapDecodePlan(key, category, null)
 
-		// Bitmap already decoded and cached — nothing to do.
-		if (bitmapMemory.get(bitmapPlan.bitmapKey) != null) return
+		// Bitmap already decoded and cached — nothing to do, but still report it as
+		// cached so callers waiting on offline availability (e.g. downloads) resolve.
+		if (bitmapMemory.get(bitmapPlan.bitmapKey) != null) {
+			notifyImageCached(sourceUrl, category)
+			return
+		}
 
 		// Bytes in memory but bitmap not yet decoded. Warm the bitmap cache on a
 		// background thread so subsequent loadImage calls can serve synchronously.
@@ -546,6 +550,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 					warmBitmapCache(key, bytes, category)
 				})
 			}
+			notifyImageCached(sourceUrl, category)
 			return
 		}
 
@@ -585,6 +590,8 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				inFlight.remove(key)
 				future.complete(bytes)
 				warmBitmapCache(key, bytes, category)
+				// Already on disk — report cached so offline-availability waiters resolve.
+				notifyImageCached(sourceUrl, category)
 				return
 			}
 

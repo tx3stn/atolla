@@ -16,6 +16,7 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { retryResolve } from '../../utils/async';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
 import type { FooterTab } from '../components/FooterTab';
@@ -404,7 +405,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.setState({ downloadState: 'downloading' });
 		Promise.all([
 			Promise.all(
-				uniqueArtistIds.map((artistId) => transport.getArtist(artistId).catch(() => null)),
+				uniqueArtistIds.map((artistId) =>
+					retryResolve(() => transport.getArtist(artistId)).catch(() => null),
+				),
 			),
 			resolveGenreImageUrls(transport, allGenres),
 		]).then(([artistResults, resolvedGenres]) => {

@@ -14,6 +14,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { retryResolve } from '../../utils/async';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
 import type { FooterTab } from '../components/FooterTab';
@@ -190,12 +191,13 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 					return { artistLogoUrl: existingLogoUrl, streamUrl, track };
 				}
 
-				if (!track.artistId) {
+				const artistId = track.artistId;
+				if (!artistId) {
 					return { artistLogoUrl: null, streamUrl, track };
 				}
 
 				try {
-					const resolvedLogoUrl = await transport.getArtistLogoUrl(track.artistId);
+					const resolvedLogoUrl = await retryResolve(() => transport.getArtistLogoUrl(artistId));
 					return { artistLogoUrl: resolvedLogoUrl, streamUrl, track };
 				} catch {
 					return { artistLogoUrl: null, streamUrl, track };
@@ -218,7 +220,9 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 			Promise.all([
 				Promise.all(
-					uniqueArtistIds.map((artistId) => transport.getArtist(artistId).catch(() => null)),
+					uniqueArtistIds.map((artistId) =>
+						retryResolve(() => transport.getArtist(artistId)).catch(() => null),
+					),
 				),
 				resolveGenreImageUrls(transport, allTrackGenres),
 			]).then(([artistResults, resolvedGenres]) => {

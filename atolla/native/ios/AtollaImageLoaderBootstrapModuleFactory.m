@@ -405,7 +405,11 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     NSURL *sourceURL = components.URL;
     if (!sourceURL) return;
     NSString *key = [NSString stringWithFormat:@"%@:%@", category, cleanUrl];
-    if ([_cache readForKey:key]) return;
+    if ([_cache readForKey:key]) {
+        // Already cached — still report it so offline-availability waiters resolve.
+        if (_imageCachedObserver) _imageCachedObserver(cleanUrl, category);
+        return;
+    }
     NSMutableURLRequest *request = [self imageRequestForURL:sourceURL authToken:authToken];
     NSURLSessionDataTask *task = [NSURLSession.sharedSession
         dataTaskWithRequest:request

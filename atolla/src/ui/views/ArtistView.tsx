@@ -16,6 +16,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { retryResolve } from '../../utils/async';
 import { BioSection } from '../components/BioSection';
 import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
@@ -195,7 +196,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		const { artist, downloadService, transport } = this.viewModel;
 		const artistLogoUrlPromise = artist.logoUrl
 			? Promise.resolve(artist.logoUrl)
-			: transport.getArtistLogoUrl(artist.id).catch(() => null);
+			: retryResolve(() => transport.getArtistLogoUrl(artist.id)).catch(() => null);
 
 		const albumEntriesPromise = Promise.all(
 			this.state.albums.map((album) =>
