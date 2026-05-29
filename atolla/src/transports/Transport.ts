@@ -9,7 +9,12 @@ export interface Transport {
 	addItemToPlaylist?(playlistId: string, trackId: string): Promise<void>;
 	createPlaylist?(name: string, trackId?: string): Promise<Playlist>;
 	downloadBinary?(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null>;
+	getAlbumReleaseDatesPage?: (
+		page: number,
+		pageSize: number,
+	) => Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }>;
 	getAlbumsByArtist(artistId: string): Promise<Array<Album>>;
+	getAlbumsByIds?(ids: Array<string>): Promise<Array<Album>>;
 	getAlbumsPage?: (
 		page: number,
 		pageSize: number,

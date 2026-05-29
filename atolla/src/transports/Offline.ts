@@ -91,6 +91,24 @@ export class OfflineTransport implements Transport {
 		return sortAlbumsByDefaultOrder(Array.from(albumsById.values()));
 	}
 
+	async getAlbumReleaseDatesPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }> {
+		const all = await this.getAllAlbums();
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const slice = all.slice(startIndex, startIndex + Math.max(1, pageSize));
+		return {
+			hasMore: startIndex + slice.length < all.length,
+			items: slice.map((album) => ({ id: album.id, releaseDate: album.releaseDate })),
+		};
+	}
+
+	async getAlbumsByIds(ids: Array<string>): Promise<Array<Album>> {
+		const wanted = new Set(ids);
+		return (await this.getAllAlbums()).filter((album) => wanted.has(album.id));
+	}
+
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
 		const artistEntry = this.downloads.getArtist(artistId);
 		if (artistEntry) {

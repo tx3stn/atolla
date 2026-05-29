@@ -271,11 +271,28 @@ function summarizeBlob(raw: string | undefined): BlobSummary {
 				: Array.isArray(obj.albums)
 					? obj.albums
 					: undefined;
+			if (nested) {
+				return { bytes, count: nested.length, kind: 'object', parseOk: true, present: true };
+			}
+			// On This Day cache shape: { today: { albums }, tomorrow: { albums } }.
+			const todayAlbums = (obj.today as { albums?: unknown } | undefined)?.albums;
+			const tomorrowAlbums = (obj.tomorrow as { albums?: unknown } | undefined)?.albums;
+			if (Array.isArray(todayAlbums) || Array.isArray(tomorrowAlbums)) {
+				const today = Array.isArray(todayAlbums) ? todayAlbums.length : 0;
+				const tomorrow = Array.isArray(tomorrowAlbums) ? tomorrowAlbums.length : 0;
+				return {
+					bytes,
+					count: today + tomorrow,
+					kind: 'object',
+					note: `onThisDay today=${today} tomorrow=${tomorrow}`,
+					parseOk: true,
+					present: true,
+				};
+			}
 			return {
 				bytes,
-				count: nested?.length,
 				kind: 'object',
-				note: nested ? undefined : `keys: ${Object.keys(obj).slice(0, 20).join(',')}`,
+				note: `keys: ${Object.keys(obj).slice(0, 20).join(',')}`,
 				parseOk: true,
 				present: true,
 			};

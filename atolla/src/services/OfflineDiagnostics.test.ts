@@ -148,6 +148,20 @@ describe('buildOfflineDiagnosticsReport', () => {
 		expect(report?.persisted.recentlyPlayed.present).toBe(true);
 		expect(report?.persisted.recentlyPlayed.parseOk).toBe(false);
 	});
+
+	it('summarizes the On This Day cache with today/tomorrow album counts', () => {
+		const homeAlbums = JSON.stringify({
+			today: { albums: [{ id: 'a' }, { id: 'b' }], date: '2026-05-29' },
+			tomorrow: { albums: [{ id: 'c' }], date: '2026-05-30' },
+			version: 1,
+		});
+		const report = buildOfflineDiagnosticsReport(deps({ rawPersisted: { homeAlbums } }));
+
+		expect(report.persisted.homeAlbums.present).toBe(true);
+		expect(report.persisted.homeAlbums.parseOk).toBe(true);
+		expect(report.persisted.homeAlbums.count).toBe(3);
+		expect(report.persisted.homeAlbums.note).toBe('onThisDay today=2 tomorrow=1');
+	});
 });
 
 describe('serializeOfflineDiagnostics', () => {

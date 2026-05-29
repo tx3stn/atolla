@@ -39,6 +39,47 @@ static NSString *writeTempArtifact(NSString *fileName, NSString *contents) {
     return error ? nil : path;
 }
 
+static void appendCrashLine(NSString *entry) {
+    NSString *path = resolveLogFilePath();
+    rotateLogIfNeeded(path);
+    NSString *line = [entry stringByAppendingString:@"\n"];
+    NSData *data = [line dataUsingEncoding:NSUTF8StringEncoding];
+    if (!data) return;
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        [[NSFileManager defaultManager] createFileAtPath:path contents:data attributes:nil];
+        return;
+    }
+    NSFileHandle *handle = [NSFileHandle fileHandleForWritingAtPath:path];
+    if (!handle) return;
+    [handle seekToEndOfFile];
+    [handle writeData:data];
+    [handle closeFile];
+}
+
+// Records a managed (NSException) uncaught exception into the debug log before
+// the process dies, then chains to any previously installed handler. A native
+// signal crash (SIGSEGV) bypasses this entirely — that is surfaced by the JS
+// unclean-shutdown sentinel instead.
+static void (*gPreviousUncaughtExceptionHandler)(NSException *) = NULL;
+
+static void atollaUncaughtExceptionHandler(NSException *exception) {
+    @try {
+        NSString *timestamp = [[NSISO8601DateFormatter new] stringFromDate:[NSDate date]];
+        NSString *stack = [exception.callStackSymbols componentsJoinedByString:@"\n"];
+        NSString *entry = [NSString stringWithFormat:@"%@ [CRASH] %@: %@\n%@",
+                                                     timestamp,
+                                                     exception.name ?: @"NSException",
+                                                     exception.reason ?: @"",
+                                                     stack ?: @""];
+        appendCrashLine(entry);
+    } @catch (__unused NSException *ignored) {
+        // Never let the crash handler itself throw.
+    }
+    if (gPreviousUncaughtExceptionHandler) {
+        gPreviousUncaughtExceptionHandler(exception);
+    }
+}
+
 static UIViewController *topViewController(void) {
     UIWindow *keyWindow = nil;
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
@@ -148,6 +189,11 @@ static void presentShareForPath(NSString *path) {
 VALDI_REGISTER_MODULE()
 
 - (id<atollaDebugLoggerNativeModule> _Nonnull)onLoadModule {
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        gPreviousUncaughtExceptionHandler = NSGetUncaughtExceptionHandler();
+        NSSetUncaughtExceptionHandler(&atollaUncaughtExceptionHandler);
+    });
     return [[AtollaDebugLoggerNativeModuleImpl alloc] init];
 }
 

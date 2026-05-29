@@ -303,6 +303,63 @@ describe('LiveTransport core collections', () => {
 		expect(page.items[0].imageUrl).toContain('api_key=token-1');
 	});
 
+	it('fetches a minimal album release-dates page (no Overview, images/userData disabled)', async () => {
+		const album: JellyfinAlbumItem = {
+			Id: 'album-9',
+			Name: 'Album Nine',
+			PremiereDate: '2001-06-15T00:00:00.0000000Z',
+			Type: 'MusicAlbum',
+		};
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([album], 5, 0)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const page = await transport.getAlbumReleaseDatesPage(1, 2);
+
+		expect(calls).toHaveLength(1);
+		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('0');
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('2');
+		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('MusicAlbum');
+		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('PremiereDate');
+		expect(queryParam(calls[0].pathOrUrl, 'enableImages')).toBe('false');
+		expect(queryParam(calls[0].pathOrUrl, 'enableUserData')).toBe('false');
+		// Minimal projection — the heavy Overview/Genres fields must not be requested.
+		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBeNull();
+		expect(page.hasMore).toBe(true);
+		expect(page.items).toEqual([{ id: 'album-9', releaseDate: '2001-06-15T00:00:00.0000000Z' }]);
+	});
+
+	it('hydrates albums by id in a single ids= request', async () => {
+		const albumA: JellyfinAlbumItem = { Id: 'a', Name: 'A', Type: 'MusicAlbum' };
+		const albumB: JellyfinAlbumItem = { Id: 'b', Name: 'B', Type: 'MusicAlbum' };
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([albumA, albumB], 2, 0)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const albums = await transport.getAlbumsByIds(['a', 'b']);
+
+		expect(calls).toHaveLength(1);
+		expect(queryParam(calls[0].pathOrUrl, 'ids')).toBe('a,b');
+		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('MusicAlbum');
+		expect(albums.map((album) => album.id)).toEqual(['a', 'b']);
+	});
+
+	it('returns no albums and makes no request for an empty id list', async () => {
+		const { calls, factory } = createHTTPClientFactory([]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		expect(await transport.getAlbumsByIds([])).toEqual([]);
+		expect(calls).toHaveLength(0);
+	});
+
 	it('loads all artists through paginated /Items requests', async () => {
 		const firstArtist: JellyfinArtistItem = {
 			Id: 'artist-1',

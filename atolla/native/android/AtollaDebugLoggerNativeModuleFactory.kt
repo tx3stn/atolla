@@ -9,6 +9,10 @@ import com.snap.modules.atolla.DebugLoggerNativeModule
 import com.snap.modules.atolla.DebugLoggerNativeModuleFactory
 import com.snap.valdi.modules.RegisterValdiModule
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 private const val TAG = "AtollaDebugLogger"
 private const val LOG_FILE_NAME = "atolla-debug.log"
@@ -17,7 +21,10 @@ private const val MAX_LOG_BYTES = 2 * 1024 * 1024L
 @RegisterValdiModule
 class AtollaDebugLoggerNativeModuleFactory : DebugLoggerNativeModuleFactory() {
 
+    private var crashHandlerInstalled = false
+
     override fun onLoadModule(): DebugLoggerNativeModule {
+        installCrashHandler()
         return object : DebugLoggerNativeModule {
             override fun getAtollaDebugLogFilePath(): String {
                 return resolveLogFile()?.absolutePath ?: ""
@@ -128,6 +135,42 @@ class AtollaDebugLoggerNativeModuleFactory : DebugLoggerNativeModuleFactory() {
                     Log.e(TAG, "Failed to share text file", e)
                 }
             }
+        }
+    }
+
+    // Records a managed (JVM) uncaught exception into the debug log before the
+    // process dies, then chains to the previous handler so the OS still reports
+    // it. A native SIGSEGV bypasses this entirely — that is surfaced by the JS
+    // unclean-shutdown sentinel instead.
+    private fun installCrashHandler() {
+        if (crashHandlerInstalled) return
+        crashHandlerInstalled = true
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            try {
+                val timestamp = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }.format(Date())
+                appendCrashLine(
+                    "$timestamp [CRASH] uncaught on thread ${thread.name}\n" +
+                        Log.getStackTraceString(throwable),
+                )
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to record crash", e)
+            }
+            previous?.uncaughtException(thread, throwable)
+        }
+    }
+
+    private fun appendCrashLine(entry: String) {
+        val file = resolveLogFile() ?: return
+        try {
+            if (file.length() > MAX_LOG_BYTES) {
+                rotateLog(file)
+            }
+            file.appendText("$entry\n")
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to write crash entry", e)
         }
     }
 

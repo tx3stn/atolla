@@ -52,6 +52,7 @@ import {
 	buildOfflineDiagnosticsReport,
 	serializeOfflineDiagnostics,
 } from './services/OfflineDiagnostics';
+import { OnThisDayService } from './services/OnThisDayService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PersistentWaveformStore } from './services/PersistentWaveformStore';
@@ -259,8 +260,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private readonly playlistEditService = new PlaylistEditService(
 		new PersistentStore('atolla/playlist_edits', { deviceGlobal: true }),
 	);
+	private readonly diagnosticsStore = new PersistentStore('atolla/diagnostics', {
+		deviceGlobal: true,
+	});
 	private transport!: Transport;
 	private reconnectSync?: ReconnectSyncCoordinator;
+	private onThisDayService?: OnThisDayService;
 	private lastSyncEditErrors: Array<PlaylistEditError> = [];
 	private syncBannerTimer?: ReturnType<typeof setTimeout>;
 	private currentAccessToken = '';
@@ -409,6 +414,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			// Native logger unavailable (e.g. desktop/test environment)
 		}
 		this.installGlobalRejectionHandler();
+		this.installGlobalErrorHandler();
 		void this.playlistCreateService.load();
 		try {
 			ensureAtollaImageLoaderBootstrap();
@@ -493,6 +499,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						overrideLocales(Strings, () => [new Locale(language, undefined)]);
 					}
 					DebugLogger.setEnabled(debugLoggingEnabled);
+					this.markSessionStartAndDetectPriorCrash();
 					this.setState({
 						debugLogFilePath: DebugLogger.getLogFilePath() || null,
 						debugLoggingEnabled,
@@ -648,6 +655,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
+		// Clean shutdown: clear the crash sentinel so the next launch doesn't report
+		// a false crash. A real crash (or OS task-kill) skips this, leaving it set.
+		void this.diagnosticsStore.storeString('session_active', '0').catch(() => {});
 		this.playbackStore.persistNow();
 		if (this.bootstrapCommitTimer) {
 			clearTimeout(this.bootstrapCommitTimer);
@@ -733,6 +743,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.homeAlbumsStore = new PersistentStore(`atolla/user/${userId}/home`, {
 			deviceGlobal: true,
 		});
+		// Purge the legacy whole-library home cache (could be ~1MB+); "On This Day"
+		// now keeps only today's/tomorrow's matches via OnThisDayService.
+		void (this.homeAlbumsStore as { remove?(key: string): Promise<void> })
+			.remove?.('albums_v1')
+			.catch(() => {});
+		this.onThisDayService = new OnThisDayService(this.homeAlbumsStore);
+		// Warm the in-memory cache from disk; HomeView reads it and triggers the
+		// background rebuild itself, so display owns its own re-render.
+		void this.onThisDayService.ensureLoaded();
 		this.recentlyPlayedRestoring = true;
 		this.recentlyPlayedTracks = [];
 		this.lastObservedRecentTrackId = null;
@@ -922,6 +941,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	private requestModeChange = async (mode: ConnectionMode): Promise<boolean> => {
+		// Breadcrumbs trace the offline<->online toggle: the last one written before
+		// a crash localizes where the process died (paired with the crash sentinel).
+		DebugLogger.log('mode', 'requestModeChange begin', { mode });
 		try {
 			this.pendingNavRestoreContext = this.currentLibraryNavContext;
 			await this.preferences.setMode(mode);
@@ -929,6 +951,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 			if (mode === ConnectionModes.online) {
 				const session = await this.authService.loadSession();
+				DebugLogger.log('mode', 'session loaded', { hasSession: session != null });
 				if (session != null) {
 					this.currentAccessToken = session.accessToken;
 					this.transport = new LiveTransport(
@@ -939,6 +962,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
 						},
 					);
+					DebugLogger.log('mode', 'live transport ready, applying state');
 					this.setState({ connectionMode: mode, isAuthRequired: false });
 					this.startReconnectSync();
 					return true;
@@ -954,9 +978,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.transport = new MockTransport();
 			}
 
+			DebugLogger.log('mode', 'offline/mock transport ready, applying state', { mode });
 			this.setState({ connectionMode: mode, isAuthRequired: false });
 			return true;
-		} catch {
+		} catch (error) {
+			DebugLogger.log('mode', 'requestModeChange failed', {
+				message: error instanceof Error ? error.message : String(error),
+			});
 			return false;
 		}
 	};
@@ -969,6 +997,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	// after reconnecting, reporting progress to the banner. The coordinator never
 	// rejects, and the whole chain is guarded so this can never crash the toggle.
 	private startReconnectSync(): void {
+		DebugLogger.log('mode', 'startReconnectSync');
 		const coordinator = this.reconnectSync;
 		if (!coordinator) return;
 		const transport = this.transport;
@@ -1057,6 +1086,51 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		} catch {
 			// Runtime does not support a global rejection hook — per-call guards cover us.
 		}
+	}
+
+	// Best-effort backstop for synchronous uncaught JS errors, mirroring the
+	// rejection hook. A crash record only reaches the exported log if debug
+	// logging is on; native crashes (SIGSEGV) bypass JS entirely and are instead
+	// surfaced by the unclean-shutdown sentinel below.
+	private installGlobalErrorHandler(): void {
+		try {
+			const globalScope = globalThis as unknown as {
+				addEventListener?: (type: string, handler: (event: unknown) => void) => void;
+				onerror?: ((...args: Array<unknown>) => void) | null;
+			};
+			const handler = (raw: unknown): void => {
+				const error =
+					(raw as { error?: unknown })?.error ?? (raw as { message?: unknown })?.message ?? raw;
+				DebugLogger.log('crash', 'uncaught error', {
+					message: error instanceof Error ? error.message : String(error),
+					stack: error instanceof Error ? error.stack : undefined,
+				});
+			};
+			if (typeof globalScope.addEventListener === 'function') {
+				globalScope.addEventListener('error', handler);
+			} else {
+				// Classic onerror signature is (message, source, lineno, colno, error).
+				globalScope.onerror = (...args: Array<unknown>) => handler(args[4] ?? args[0]);
+			}
+		} catch {
+			// Runtime does not support a global error hook — per-call guards cover us.
+		}
+	}
+
+	// Detects a previous session that ended without a clean onDestroy (a crash or
+	// OS task-kill) using a persisted sentinel, then re-arms it for this session.
+	// This is the only signal that surfaces a native SIGSEGV, which no JS or
+	// managed-exception handler can catch.
+	private markSessionStartAndDetectPriorCrash(): void {
+		void this.diagnosticsStore
+			.fetchString('session_active')
+			.then((value) => {
+				if (value === '1') {
+					DebugLogger.log('crash', 'previous session ended without clean shutdown');
+				}
+				return this.diagnosticsStore.storeString('session_active', '1');
+			})
+			.catch(() => {});
 	}
 
 	handleLogout = (): void => {
@@ -1632,13 +1706,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			): Promise<string | undefined> =>
 				store ? store.fetchString(key).catch(() => undefined) : Promise.resolve(undefined);
 
-			// Home cache keys mirror HomeView's HOME_ALBUMS_CACHE_KEY /
-			// RECENTLY_ADDED_ALBUMS_CACHE_KEY; 'queue' mirrors PlaybackStore's queue key.
+			// Home cache keys: 'on_this_day_v1' is OnThisDayService's date-keyed cache
+			// (replaced the old whole-library 'albums_v1' blob), 'recently_added_v1'
+			// mirrors HomeView's recently-added cache; 'queue' mirrors PlaybackStore.
 			const [recentlyPlayed, nowPlayingQueue, homeAlbums, homeRecentlyAdded, playlistEdits] =
 				await Promise.all([
 					fetchRaw(this.recentlyPlayedStore, RECENTLY_PLAYED_TRACKS_KEY),
 					fetchRaw(this.nowPlayingQueueStore, 'queue'),
-					fetchRaw(this.homeAlbumsStore, 'albums_v1'),
+					fetchRaw(this.homeAlbumsStore, 'on_this_day_v1'),
 					fetchRaw(this.homeAlbumsStore, 'recently_added_v1'),
 					this.playlistEditService.getPendingCount().catch(() => undefined),
 				]);
@@ -2615,6 +2690,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 									onOpenAlbum={this.handleHomeAlbumTap}
 									onOpenPlaylist={this.handleHomeOpenPlaylist}
 									onRequestModeChange={this.requestModeChange}
+									onThisDayService={this.onThisDayService}
 									playbackStore={this.playbackStore}
 									recentlyPlayedTracks={this.recentlyPlayedTracks}
 									transport={this.transport}

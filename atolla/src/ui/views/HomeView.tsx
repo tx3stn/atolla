@@ -7,7 +7,10 @@ import type { Album } from '../../models/Album';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
+import { DebugLogger } from '../../services/DebugLogger';
 import type { ImageCache } from '../../services/ImageCache';
+import { createOnThisDayCardDetails } from '../../services/OnThisDay';
+import type { OnThisDayService } from '../../services/OnThisDayService';
 import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
@@ -26,11 +29,7 @@ import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import { openTrackContextMenu } from '../flows/trackContextMenuController';
 import { hapticFeedback } from '../haptics';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import {
-	createHomeAlbumsSignature,
-	parseHomeAlbumsCache,
-	serializeHomeAlbumsCache,
-} from './HomeAlbumsCache';
+import { parseHomeAlbumsCache, serializeHomeAlbumsCache } from './HomeAlbumsCache';
 import {
 	buildShuffleLibraryQueue,
 	getRandomAlbumTracks,
@@ -50,6 +49,7 @@ export interface HomeViewModel {
 	onOpenAlbum: (album: Album) => void;
 	onOpenPlaylist?: (playlist: Playlist) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
+	onThisDayService?: OnThisDayService;
 	playbackStore: PlaybackStore;
 	recentlyPlayedTracks: Array<Track>;
 	transport: Transport;
@@ -61,20 +61,17 @@ export interface HomeAlbumsPersistence {
 }
 
 interface HomeState {
-	albums: Array<Album>;
 	contextMenuCard: CardContextMenuCard | null;
-	isLoadingAlbums: boolean;
+	onThisDayAlbums: Array<Album>;
 	recentlyAddedAlbums: Array<Album>;
 }
 
-const HOME_ALBUMS_CACHE_KEY = 'albums_v1';
 const RECENTLY_ADDED_ALBUMS_CACHE_KEY = 'recently_added_v1';
 const SHUFFLE_LIBRARY_MIX_ID = 'mix-shuffle-library';
 const RANDOM_ALBUM_MIX_ID = 'mix-random-album';
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private hasBeenDestroyed = false;
-	private lastAlbumsSignature = '';
 	private loadGeneration = 0;
 	private shuffleLoader: ShuffleQueueLoader | null = null;
 	private shuffleLoadToken = 0;
@@ -84,9 +81,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 	private contextMenuAlbum: Album | null = null;
 	state: HomeState = {
-		albums: [],
 		contextMenuCard: null,
-		isLoadingAlbums: true,
+		onThisDayAlbums: [],
 		recentlyAddedAlbums: [],
 	};
 
@@ -109,6 +105,10 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			this.viewModel.transport !== prevViewModel.transport ||
 			this.viewModel.connectionMode !== prevViewModel.connectionMode
 		) {
+			DebugLogger.log('home', 'transport/mode changed, reloading', {
+				connectionMode: this.viewModel.connectionMode,
+				onThisDay: this.state.onThisDayAlbums.length,
+			});
 			this.loadAlbums();
 		} else if (this.viewModel.gridColumns !== prevViewModel.gridColumns) {
 			this.loadRecentlyAdded(this.loadGeneration);
@@ -118,82 +118,46 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private loadAlbums(): void {
 		const generation = this.loadGeneration + 1;
 		this.loadGeneration = generation;
-		this.setState({ isLoadingAlbums: true });
-		this.restoreCachedAlbums(generation);
+		this.loadOnThisDay(generation);
 		this.restoreCachedRecentlyAdded(generation);
 
-		if (!shouldApplyTransportAlbumsToHome(this.viewModel.connectionMode)) {
-			this.setState({ isLoadingAlbums: false });
+		if (shouldApplyTransportAlbumsToHome(this.viewModel.connectionMode)) {
+			this.loadRecentlyAdded(generation);
+		}
+	}
+
+	// Shows the cached anniversary albums immediately, then (online) rebuilds them
+	// in the background via OnThisDayService and re-renders from its own state — so
+	// display never depends on a parent re-render arriving at the right moment.
+	private loadOnThisDay(generation: number): void {
+		const service = this.viewModel.onThisDayService;
+		if (!service) {
 			return;
 		}
 
-		this.refreshAlbums(generation);
-		this.loadRecentlyAdded(generation);
-	}
-
-	private restoreCachedAlbums(generation: number): void {
-		const store = this.viewModel.homeAlbumsStore;
-		if (!store) {
-			return;
-		}
-
-		store
-			.fetchString(HOME_ALBUMS_CACHE_KEY)
-			.then((raw) => {
+		void service
+			.ensureLoaded()
+			.then(() => {
 				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
 					return;
 				}
+				const cached = service.getAlbumsForDate(new Date());
+				DebugLogger.log('home', 'on-this-day from cache', { count: cached.length });
+				this.setState({ onThisDayAlbums: cached });
 
-				const cachedAlbums = parseHomeAlbumsCache(raw);
-				if (cachedAlbums == null) {
-					return;
+				if (!shouldApplyTransportAlbumsToHome(this.viewModel.connectionMode)) {
+					return undefined;
 				}
 
-				this.lastAlbumsSignature = createHomeAlbumsSignature(cachedAlbums);
-				this.setState({ albums: cachedAlbums, isLoadingAlbums: false });
-			})
-			.catch(() => {
-				// No cache available yet.
-			});
-	}
-
-	private refreshAlbums(generation: number): void {
-		const shouldApplyTransportAlbums = shouldApplyTransportAlbumsToHome(
-			this.viewModel.connectionMode,
-		);
-		this.viewModel.transport
-			.getAllAlbums()
-			.then((albums) => {
-				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
-					return;
-				}
-
-				if (!shouldApplyTransportAlbums) {
-					if (this.state.isLoadingAlbums) {
-						this.setState({ isLoadingAlbums: false });
+				return service.refresh(this.viewModel.transport, new Date()).then((summary) => {
+					if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
+						return;
 					}
-					return;
-				}
-
-				const nextSignature = createHomeAlbumsSignature(albums);
-				const hasChanged = nextSignature !== this.lastAlbumsSignature;
-				this.lastAlbumsSignature = nextSignature;
-
-				if (hasChanged || this.state.isLoadingAlbums) {
-					this.setState({ albums, isLoadingAlbums: false });
-				}
-
-				this.persistAlbums(albums);
+					DebugLogger.log('home', 'on-this-day refreshed', summary);
+					this.setState({ onThisDayAlbums: service.getAlbumsForDate(new Date()) });
+				});
 			})
-			.catch(() => {
-				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
-					return;
-				}
-
-				if (this.state.isLoadingAlbums) {
-					this.setState({ isLoadingAlbums: false });
-				}
-			});
+			.catch(() => {});
 	}
 
 	private restoreCachedRecentlyAdded(generation: number): void {
@@ -246,19 +210,15 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			.catch(() => {});
 	}
 
-	private persistAlbums(albums: Array<Album>): void {
-		const store = this.viewModel.homeAlbumsStore;
-		if (!store) {
-			return;
-		}
-
-		void store.storeString(HOME_ALBUMS_CACHE_KEY, serializeHomeAlbumsCache(albums)).catch(() => {
-			// Cache persistence is best-effort only.
-		});
+	private createOnThisDayCards(): Array<CardDetailItem> {
+		return createOnThisDayCardDetails(this.state.onThisDayAlbums, new Date());
 	}
 
-	private createOnThisDayCards(): Array<CardDetailItem> {
-		return createOnThisDayCardDetails(this.state.albums, new Date());
+	private findHomeAlbum(id: string): Album | undefined {
+		return (
+			this.state.recentlyAddedAlbums.find((album) => album.id === id) ??
+			this.state.onThisDayAlbums.find((album) => album.id === id)
+		);
 	}
 
 	private createRecentlyAddedCards(): Array<Card> {
@@ -301,7 +261,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			return;
 		}
 
-		const album = this.state.albums.find((candidate) => candidate.id === card.id);
+		const album = this.findHomeAlbum(card.id);
 		if (!album) {
 			return;
 		}
@@ -446,9 +406,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		id: string;
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
-		const album =
-			this.state.recentlyAddedAlbums.find((a) => a.id === card.id) ??
-			this.state.albums.find((a) => a.id === card.id);
+		const album = this.findHomeAlbum(card.id);
 		if (!album) return;
 
 		this.setState({ contextMenuCard: { album, kind: 'album' } });
@@ -460,7 +418,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		id: string;
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
-		const album = this.state.albums.find((a) => a.id === card.id);
+		const album = this.findHomeAlbum(card.id);
 		if (!album) return;
 		hapticFeedback();
 
@@ -598,6 +556,14 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const recentlyAddedCards = this.createRecentlyAddedCards();
 		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
 
+		// Last breadcrumb before the native card lists render — pinpoints a
+		// render-thread crash on the offline->online toggle.
+		DebugLogger.log('home', 'render', {
+			onThisDay: onThisDayCards.length,
+			recentlyAdded: recentlyAddedCards.length,
+			recentlyPlayed: recentlyPlayedTracks.length,
+		});
+
 		<layout accessibilityLabel='home-view' style={styles.root}>
 			<ViewHeader
 				animationsEnabled={this.viewModel.animationsEnabled}
@@ -608,60 +574,56 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 			<scroll style={createScrollStyle(this.viewModel.playbackStore.track !== null)}>
 				<layout style={styles.content}>
-					{this.state.isLoadingAlbums ? (
-						<label style={styles.emptyState} value={Strings.loadingHome()} />
-					) : (
-						<layout style={styles.sections}>
-							<layout style={styles.section}>
-								<label style={styles.sectionTitle} value={Strings.homeSectionOnThisDay()} />
-								{onThisDayCards.length > 0 ? (
-									<CardDetailList
-										accessibilityId='home-on-this-day-grid'
-										cards={onThisDayCards}
-										onCardLongPress={this.handleOnThisDayCardLongPress}
-										onCardTap={this.handleAlbumCardTap}
-									/>
-								) : (
-									<label style={styles.emptyState} value={Strings.homeNoAnniversaries()} />
-								)}
-							</layout>
-
-							<layout style={styles.section}>
-								<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyAdded()} />
-								<CardGrid
-									accessibilityId='home-recently-added-grid'
-									cards={recentlyAddedCards}
-									columnCount={this.viewModel.gridColumns}
-									onCardLongPress={this.handleRecentlyAddedCardLongPress}
+					<layout style={styles.sections}>
+						<layout style={styles.section}>
+							<label style={styles.sectionTitle} value={Strings.homeSectionOnThisDay()} />
+							{onThisDayCards.length > 0 ? (
+								<CardDetailList
+									accessibilityId='home-on-this-day-grid'
+									cards={onThisDayCards}
+									onCardLongPress={this.handleOnThisDayCardLongPress}
 									onCardTap={this.handleAlbumCardTap}
 								/>
-							</layout>
-
-							<layout style={styles.section}>
-								<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyPlayed()} />
-								{recentlyPlayedTracks.length > 0 ? (
-									<TrackList
-										imageCache={this.viewModel.imageCache}
-										onTrackLongPress={this.handleRecentlyPlayedTrackLongPress}
-										onTrackTap={this.handleRecentlyPlayedTrackTap}
-										tracks={recentlyPlayedTracks}
-									/>
-								) : (
-									<label style={styles.emptyState} value={Strings.homeNothingPlayed()} />
-								)}
-							</layout>
-
-							<layout style={styles.section}>
-								<label style={styles.sectionTitle} value={Strings.homeSectionMixes()} />
-								<CardGrid
-									accessibilityId='home-mixes-grid'
-									cards={mixCards}
-									columnCount={this.viewModel.gridColumns}
-									onCardTap={this.handleMixCardTap}
-								/>
-							</layout>
+							) : (
+								<label style={styles.emptyState} value={Strings.homeNoAnniversaries()} />
+							)}
 						</layout>
-					)}
+
+						<layout style={styles.section}>
+							<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyAdded()} />
+							<CardGrid
+								accessibilityId='home-recently-added-grid'
+								cards={recentlyAddedCards}
+								columnCount={this.viewModel.gridColumns}
+								onCardLongPress={this.handleRecentlyAddedCardLongPress}
+								onCardTap={this.handleAlbumCardTap}
+							/>
+						</layout>
+
+						<layout style={styles.section}>
+							<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyPlayed()} />
+							{recentlyPlayedTracks.length > 0 ? (
+								<TrackList
+									imageCache={this.viewModel.imageCache}
+									onTrackLongPress={this.handleRecentlyPlayedTrackLongPress}
+									onTrackTap={this.handleRecentlyPlayedTrackTap}
+									tracks={recentlyPlayedTracks}
+								/>
+							) : (
+								<label style={styles.emptyState} value={Strings.homeNothingPlayed()} />
+							)}
+						</layout>
+
+						<layout style={styles.section}>
+							<label style={styles.sectionTitle} value={Strings.homeSectionMixes()} />
+							<CardGrid
+								accessibilityId='home-mixes-grid'
+								cards={mixCards}
+								columnCount={this.viewModel.gridColumns}
+								onCardTap={this.handleMixCardTap}
+							/>
+						</layout>
+					</layout>
 				</layout>
 			</scroll>
 		</layout>;
@@ -715,68 +677,3 @@ const styles = {
 		marginBottom: 8,
 	}),
 };
-
-interface OnThisDayCandidate {
-	album: Album;
-	originalReleaseDate: Date;
-	originalReleaseYear: number;
-}
-
-export function createOnThisDayCardDetails(albums: Array<Album>, now: Date): Array<CardDetailItem> {
-	const month = now.getMonth() + 1;
-	const day = now.getDate();
-	const currentYear = now.getFullYear();
-
-	return albums
-		.map((album): OnThisDayCandidate | null => {
-			if (!album.releaseDate || !album.name.trim() || !album.artistName.trim()) {
-				return null;
-			}
-
-			const originalReleaseDate = new Date(album.releaseDate);
-			if (Number.isNaN(originalReleaseDate.getTime())) {
-				return null;
-			}
-
-			const originalReleaseYear = originalReleaseDate.getFullYear();
-			if (originalReleaseYear >= currentYear) {
-				return null;
-			}
-
-			if (originalReleaseDate.getMonth() + 1 !== month || originalReleaseDate.getDate() !== day) {
-				return null;
-			}
-
-			return {
-				album,
-				originalReleaseDate,
-				originalReleaseYear,
-			};
-		})
-		.filter((candidate): candidate is OnThisDayCandidate => candidate !== null)
-		.sort((left, right) => {
-			if (left.originalReleaseYear !== right.originalReleaseYear) {
-				return left.originalReleaseYear - right.originalReleaseYear;
-			}
-
-			const byName = left.album.name.localeCompare(right.album.name);
-			if (byName !== 0) {
-				return byName;
-			}
-
-			return left.originalReleaseDate.getTime() - right.originalReleaseDate.getTime();
-		})
-		.map(({ album, originalReleaseYear }) => {
-			const yearsAgo = currentYear - originalReleaseYear;
-			const yearsAgoText = yearsAgo === 1 ? '1 YEAR AGO' : `${yearsAgo} YEARS AGO`;
-
-			return {
-				artworkKey: album.imageUrl ?? '',
-				id: album.id,
-				kind: 'album',
-				lineOne: yearsAgoText,
-				lineThree: album.artistName,
-				lineTwo: album.name,
-			};
-		});
-}

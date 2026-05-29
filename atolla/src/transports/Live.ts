@@ -200,6 +200,50 @@ export class LiveTransport implements Transport {
 		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
+	async getAlbumReleaseDatesPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
+			enableImages: false,
+			enableUserData: false,
+			// Minimal projection for the On This Day discovery sweep: an empty
+			// `fields` is dropped by buildPath, so the server returns only the base
+			// item DTO (id + PremiereDate) with no heavy Overview/Genres payload.
+			fields: '',
+			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+			limit: Math.max(1, pageSize),
+			recursive: true,
+			sortBy: 'PremiereDate',
+			sortOrder: 'Descending',
+			startIndex,
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => ({ id: item.Id, releaseDate: item.PremiereDate })),
+		};
+	}
+
+	async getAlbumsByIds(ids: Array<string>): Promise<Array<Album>> {
+		const cleaned = ids.filter((id) => id.length > 0);
+		if (cleaned.length === 0) {
+			return [];
+		}
+
+		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
+			fields: 'Overview,Genres',
+			ids: cleaned.join(','),
+			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+			limit: cleaned.length,
+			recursive: true,
+			startIndex: 0,
+		});
+
+		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+	}
+
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
 		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
 			albumArtistIds: artistId,
