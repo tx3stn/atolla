@@ -335,15 +335,19 @@ export class DownloadService {
 				artistLogoUrl,
 				trackIds: tracks.map((t) => t.track.id),
 			};
-			const albumGenres = [...(album.genres ?? []), ...resolvedGenres];
+			// Album-level genres apply to every track; track-level genres stay per-track.
+			// resolvedGenres (the union) only supplies resolved image urls.
+			const enrichGenres = this.genreEnricher(resolvedGenres);
+			const albumGenres = enrichGenres(album.genres ?? []);
 			for (const { track, streamUrl } of tracks) {
 				const normalized = this.normalizeTrackArtist(track, album);
-				this.addTrackRef(normalized, streamUrl, album.id, null, null, albumGenres, artistLogoUrl);
+				const trackGenres = [...albumGenres, ...enrichGenres(track.genres ?? [])];
+				this.addTrackRef(normalized, streamUrl, album.id, null, null, trackGenres, artistLogoUrl);
 				this.addTrackImageRequirements(normalized.id, [
 					...this.albumArtReqs(track.albumImageUrl),
 					...this.albumArtReqs(album.imageUrl),
 					...this.artistReqs(artistImageUrl, artistLogoUrl),
-					...this.genreArtReqs([...albumGenres, ...(track.genres ?? [])]),
+					...this.genreArtReqs(trackGenres),
 				]);
 			}
 			await this.persistAll();
@@ -389,20 +393,17 @@ export class DownloadService {
 				...this.playlistImageReqs(playlist.imageUrl),
 				...artists.flatMap((artist) => this.artistReqs(artist.imageUrl, null)),
 			];
+			// resolvedGenres is the union of every track's genres (with image urls
+			// resolved); use it only to enrich each track's own genres, never to assign
+			// the whole playlist's genres to every track.
+			const enrichGenres = this.genreEnricher(resolvedGenres);
 			for (const { artistLogoUrl, streamUrl, track } of tracks) {
-				this.addTrackRef(
-					track,
-					streamUrl,
-					null,
-					null,
-					playlist.id,
-					[...(track.genres ?? []), ...resolvedGenres],
-					artistLogoUrl,
-				);
+				const trackGenres = enrichGenres(track.genres ?? []);
+				this.addTrackRef(track, streamUrl, null, null, playlist.id, trackGenres, artistLogoUrl);
 				this.addTrackImageRequirements(track.id, [
 					...this.albumArtReqs(track.albumImageUrl),
 					...this.artistReqs(null, artistLogoUrl),
-					...this.genreArtReqs([...(track.genres ?? []), ...resolvedGenres]),
+					...this.genreArtReqs(trackGenres),
 					...sharedReqs,
 				]);
 			}
@@ -450,20 +451,16 @@ export class DownloadService {
 				...this.genreArtReqs([genre]),
 				...artists.flatMap((artist) => this.artistReqs(artist.imageUrl, null)),
 			];
+			// Each track belongs to the genre being downloaded plus its own genres; the
+			// resolvedGenres union only enriches a track's own genres with image urls.
+			const enrichGenres = this.genreEnricher(resolvedGenres);
 			for (const { artistLogoUrl, streamUrl, track } of tracks) {
-				this.addTrackRef(
-					track,
-					streamUrl,
-					null,
-					genre.id,
-					null,
-					[...(track.genres ?? []), genre, ...resolvedGenres],
-					artistLogoUrl,
-				);
+				const trackGenres = [genre, ...enrichGenres(track.genres ?? [])];
+				this.addTrackRef(track, streamUrl, null, genre.id, null, trackGenres, artistLogoUrl);
 				this.addTrackImageRequirements(track.id, [
 					...this.albumArtReqs(track.albumImageUrl),
 					...this.artistReqs(null, artistLogoUrl),
-					...this.genreArtReqs([...(track.genres ?? []), ...resolvedGenres]),
+					...this.genreArtReqs(trackGenres),
 					...sharedReqs,
 				]);
 			}
@@ -742,6 +739,21 @@ export class DownloadService {
 			this.pruneOrphanImages();
 			await this.removeTrackFn(trackId);
 		}
+	}
+
+	/**
+	 * Builds a function that enriches a track's own genres with resolved image urls
+	 * (and other fields) from the resolution pool, keyed by id. The track's genre
+	 * membership is preserved exactly — no genres are added or removed.
+	 */
+	private genreEnricher(resolved: Array<Genre>): (genres: Array<Genre>) => Array<Genre> {
+		const byId = new Map(resolved.map((g) => [g.id, g]));
+		return (genres) =>
+			genres.map((g) => ({
+				...byId.get(g.id),
+				...g,
+				imageUrl: g.imageUrl ?? byId.get(g.id)?.imageUrl,
+			}));
 	}
 
 	private normalizeGenres(genres: Array<Genre>): Array<Genre> {

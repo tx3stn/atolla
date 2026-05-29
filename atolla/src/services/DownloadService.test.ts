@@ -340,6 +340,38 @@ describe('DownloadService', () => {
 			});
 		});
 
+		it('only indexes each track under its own genres, not every playlist genre', async () => {
+			const { service } = createService();
+			const playlist = makePlaylist('playlist-1');
+			const rockTrack = {
+				...makeTrack('track-1'),
+				genres: [{ id: 'genre-rock', name: 'Rock' }],
+			};
+			const jazzTrack = {
+				...makeTrack('track-2'),
+				genres: [{ id: 'genre-jazz', name: 'Jazz' }],
+			};
+			// resolvedGenres is the union of every track's genres across the playlist.
+			const resolvedGenres = [
+				{ id: 'genre-rock', imageUrl: 'https://img/rock.jpg', name: 'Rock' },
+				{ id: 'genre-jazz', imageUrl: 'https://img/jazz.jpg', name: 'Jazz' },
+			];
+
+			service.downloadPlaylist({
+				playlist,
+				resolvedGenres,
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: rockTrack },
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-2', track: jazzTrack },
+				],
+			});
+
+			await flush();
+
+			expect(service.getGenre('genre-rock')?.trackIds).toEqual(['track-1']);
+			expect(service.getGenre('genre-jazz')?.trackIds).toEqual(['track-2']);
+		});
+
 		it('caches genre art and stores genre imageUrls when resolvedGenres are provided', async () => {
 			const { imageCalls, service } = createService();
 			const playlist = makePlaylist('playlist-1');
@@ -382,6 +414,34 @@ describe('DownloadService', () => {
 			await flush();
 
 			expect(service.getGenreDownloadState('genre-1')).toBe('downloaded');
+		});
+
+		it('indexes each track only under the downloaded genre and its own genres', async () => {
+			const { service } = createService();
+			const genre = makeGenre('genre-1');
+			const rockTrack = { ...makeTrack('track-1'), genres: [{ id: 'genre-rock', name: 'Rock' }] };
+			const jazzTrack = { ...makeTrack('track-2'), genres: [{ id: 'genre-jazz', name: 'Jazz' }] };
+			const resolvedGenres = [
+				{ id: 'genre-rock', imageUrl: 'https://img/rock.jpg', name: 'Rock' },
+				{ id: 'genre-jazz', imageUrl: 'https://img/jazz.jpg', name: 'Jazz' },
+			];
+
+			service.downloadGenre({
+				genre,
+				resolvedGenres,
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: rockTrack },
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-2', track: jazzTrack },
+				],
+			});
+
+			await flush();
+
+			// Both tracks belong to the downloaded genre.
+			expect(service.getGenre('genre-1')?.trackIds).toEqual(['track-1', 'track-2']);
+			// But each track's own sub-genre only contains that track.
+			expect(service.getGenre('genre-rock')?.trackIds).toEqual(['track-1']);
+			expect(service.getGenre('genre-jazz')?.trackIds).toEqual(['track-2']);
 		});
 
 		it('caches the genre image only as genre art, never as album art', async () => {
