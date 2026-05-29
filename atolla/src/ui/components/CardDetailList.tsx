@@ -39,7 +39,6 @@ export class CardDetailList extends Component<CardDetailListViewModel> {
 							onTap={createReusableCallback(() => {
 								onCardTap({ id: entry.id, kind: entry.kind });
 							})}
-							testID={`card-detail-${entry.id}`}
 						/>
 					</view>
 				);

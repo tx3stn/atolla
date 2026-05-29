@@ -241,13 +241,13 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 				<layout style={styles.rightColumn}>
 					<layout style={styles.logoArea}>
 						<ArtistLogo
+							accessibilityId='detail-header-artist-logo'
 							containerStyle={styles.artistLogoContainer}
 							fallbackText={fallbackText}
 							imageCache={this.viewModel.imageCache}
 							logoSource={logoSource}
 							logoStyle={styles.artistLogoImage}
 							onTap={onArtistTap}
-							testID='detail-header-artist-logo'
 						/>
 					</layout>
 					<layout style={styles.buttonsRow}>

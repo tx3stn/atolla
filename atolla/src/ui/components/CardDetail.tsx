@@ -13,7 +13,6 @@ export interface CardDetailViewModel {
 	lineTwo: string;
 	onLongPress?: () => void;
 	onTap?: () => void;
-	testID?: string;
 }
 
 export class CardDetail extends Component<CardDetailViewModel> {

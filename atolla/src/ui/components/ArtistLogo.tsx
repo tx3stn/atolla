@@ -6,6 +6,7 @@ import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
 
 export interface ArtistLogoViewModel {
+	accessibilityId?: string;
 	containerStyle?: Style<View>;
 	fallbackText?: string | null;
 	fallbackTextStyle?: Style<Label>;
@@ -13,24 +14,23 @@ export interface ArtistLogoViewModel {
 	logoSource?: string | null;
 	logoStyle?: Style<ImageView>;
 	onTap?: () => void;
-	testID?: string;
 }
 
 export class ArtistLogo extends Component<ArtistLogoViewModel> {
 	onRender() {
 		const {
+			accessibilityId,
 			containerStyle,
 			fallbackText,
 			fallbackTextStyle,
 			logoSource,
 			logoStyle,
 			onTap,
-			testID,
 		} = this.viewModel;
 
 		<view
-			accessibilityId={testID ?? 'artist-logo'}
-			accessibilityLabel={testID ?? 'artist-logo'}
+			accessibilityId={accessibilityId ?? 'artist-logo'}
+			accessibilityLabel={accessibilityId ?? 'artist-logo'}
 			onTap={onTap}
 			style={containerStyle ?? styles.logoArea}
 		>
