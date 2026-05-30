@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include "waveform_generator.h"
 
 static const NSInteger kDefaultWaveformWidth = 500;
 static const NSInteger kDefaultWaveformHeight = 100;
@@ -125,70 +126,30 @@ enum {
     const uint32_t numAmps = (uint32_t)(ampsData.length / sizeof(float));
     if (numAmps < 2) return nil;
 
-    float amps[300];
-    const uint32_t n = numAmps < 300 ? numAmps : 300;
-    memcpy(amps, ampsData.bytes, n * sizeof(float));
-
-    // 5-point centred moving average — removes RMS noise, curves handle visual smoothness
-    if (n >= 3) {
-        float tmp[300];
-        memcpy(tmp, amps, n * sizeof(float));
-        for (uint32_t i = 0; i < n; i++) {
-            uint32_t lo = i > 2 ? i - 2 : 0;
-            uint32_t hi = (i + 2 < n) ? i + 2 : n - 1;
-            float s = 0.0f; uint32_t cnt = 0;
-            for (uint32_t j = lo; j <= hi; j++) { s += tmp[j]; cnt++; }
-            amps[i] = s / cnt;
-        }
+    // Smoothing, normalisation and Catmull-Rom → cubic-Bézier control points are
+    // computed once in shared Zig (waveform_generator.zig); we replay the returned
+    // outline into a UIBezierPath and let CoreGraphics anti-alias the fill.
+    const uint32_t capacity = 2 + (2 * numAmps - 1) * 6;
+    float *pts = (float *)malloc(capacity * sizeof(float));
+    if (!pts) return nil;
+    uint32_t count = 0;
+    const bool ok = atolla_waveform_build_path((const float *)ampsData.bytes, numAmps,
+                                               (float)width, (float)height,
+                                               pts, capacity, &count);
+    if (!ok || count < 8) {
+        free(pts);
+        return nil;
     }
 
-    // Normalise: loudest column → 1.0; silence → flat 0.5
-    float maxAmp = 0.0f;
-    for (uint32_t i = 0; i < n; i++) if (amps[i] > maxAmp) maxAmp = amps[i];
-    if (maxAmp < 1e-6f) {
-        for (uint32_t i = 0; i < n; i++) amps[i] = 0.5f;
-    } else {
-        for (uint32_t i = 0; i < n; i++) amps[i] /= maxAmp;
-    }
-
-    const CGFloat cx = width / 2.0;
-    const CGFloat cy = height / 2.0;
-
-    CGPoint topPts[300], botPts[300];
-    for (uint32_t i = 0; i < n; i++) {
-        CGFloat x = (n > 1) ? (CGFloat)i * (width - 1) / (n - 1) : cx;
-        topPts[i] = CGPointMake(x, cy - amps[i] * cy);
-        botPts[i] = CGPointMake(x, cy + amps[i] * cy);
-    }
-
-    // Catmull-Rom → cubic Bézier: cp1 = p1+(p2-p0)/6, cp2 = p2-(p3-p1)/6
     UIBezierPath *path = [UIBezierPath bezierPath];
-
-    // Top edge: left → right
-    [path moveToPoint:topPts[0]];
-    for (uint32_t i = 0; i < n - 1; i++) {
-        CGPoint p0 = (i > 0) ? topPts[i-1] : topPts[0];
-        CGPoint p1 = topPts[i];
-        CGPoint p2 = topPts[i+1];
-        CGPoint p3 = (i + 2 < n) ? topPts[i+2] : topPts[n-1];
-        CGPoint cp1 = CGPointMake(p1.x + (p2.x - p0.x) / 6.0, p1.y + (p2.y - p0.y) / 6.0);
-        CGPoint cp2 = CGPointMake(p2.x - (p3.x - p1.x) / 6.0, p2.y - (p3.y - p1.y) / 6.0);
-        [path addCurveToPoint:p2 controlPoint1:cp1 controlPoint2:cp2];
+    [path moveToPoint:CGPointMake(pts[0], pts[1])];
+    for (uint32_t i = 2; i + 6 <= count; i += 6) {
+        [path addCurveToPoint:CGPointMake(pts[i + 4], pts[i + 5])
+                controlPoint1:CGPointMake(pts[i],     pts[i + 1])
+                controlPoint2:CGPointMake(pts[i + 2], pts[i + 3])];
     }
-
-    // Bottom edge: right → left
-    [path addLineToPoint:botPts[n-1]];
-    for (NSInteger i = (NSInteger)n - 2; i >= 0; i--) {
-        CGPoint p0 = (i < (NSInteger)n - 2) ? botPts[i+2] : botPts[n-1];
-        CGPoint p1 = botPts[i+1];
-        CGPoint p2 = botPts[i];
-        CGPoint p3 = (i > 0) ? botPts[i-1] : botPts[0];
-        CGPoint cp1 = CGPointMake(p1.x + (p2.x - p0.x) / 6.0, p1.y + (p2.y - p0.y) / 6.0);
-        CGPoint cp2 = CGPointMake(p2.x - (p3.x - p1.x) / 6.0, p2.y - (p3.y - p1.y) / 6.0);
-        [path addCurveToPoint:p2 controlPoint1:cp1 controlPoint2:cp2];
-    }
-
     [path closePath];
+    free(pts);
 
     CGFloat scale = [UIScreen mainScreen].scale;
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(width, height), NO, scale);

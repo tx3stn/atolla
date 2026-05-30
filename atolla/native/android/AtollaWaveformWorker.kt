@@ -37,9 +37,17 @@ object AtollaWaveformRenderTempStore {
 }
 
 class AtollaWaveformWorker {
+	// Bridged to shared Zig (waveform_generator.zig) via JNI (waveform_jni.cpp).
+	// Declared as a class instance method so the generated JNI symbol matches the
+	// other native bridges: Java_com_tx3stn_atolla_AtollaWaveformWorker_nativeBuildWaveformPath.
+	private external fun nativeBuildWaveformPath(amps: FloatArray, width: Int, height: Int): FloatArray?
+
 	companion object {
 		private const val tag = "AtollaWaveformWorker"
 		private const val waveformControlPoints = 300
+
+		// Reused instance solely to reach the JNI bridge from the (static) render path.
+		private val bridge = AtollaWaveformWorker()
 
 		fun extractAmps(audioPath: String): FloatArray? = decodeToAmplitudes(audioPath)
 
@@ -50,55 +58,19 @@ class AtollaWaveformWorker {
 			val n = amps.size
 			if (n < 2) return null
 
-			// 5-point centred moving average — removes RMS noise, curves handle visual smoothness
-			val smoothed = amps.copyOf()
-			val tmp = smoothed.copyOf()
-			for (i in 0 until n) {
-				val lo = maxOf(0, i - 2)
-				val hi = minOf(n - 1, i + 2)
-				var s = 0f
-				for (j in lo..hi) s += tmp[j]
-				smoothed[i] = s / (hi - lo + 1)
-			}
+			// Smoothing, normalisation and Catmull-Rom → cubic-Bézier control points are
+			// computed once in shared Zig (waveform_generator.zig); we replay the returned
+			// outline into a Path and let Canvas anti-alias the fill.
+			val pts = bridge.nativeBuildWaveformPath(amps, width, height) ?: return null
+			if (pts.size < 8 || (pts.size - 2) % 6 != 0) return null
 
-			// Normalise: loudest column → 1.0; silence → flat 0.5
-			val maxAmp = smoothed.max()
-			if (maxAmp < 1e-6f) {
-				smoothed.fill(0.5f)
-			} else {
-				for (i in 0 until n) smoothed[i] /= maxAmp
-			}
-
-			val cy = height / 2f
-			fun xAt(i: Int) = i.toFloat() * (width - 1) / (n - 1)
-			fun yTop(i: Int) = cy - smoothed[i] * cy
-			fun yBot(i: Int) = cy + smoothed[i] * cy
-
-			// Catmull-Rom → cubic Bézier: cp1 = p1+(p2-p0)/6, cp2 = p2-(p3-p1)/6
 			val path = Path()
-
-			// Top edge: left → right
-			path.moveTo(xAt(0), yTop(0))
-			for (i in 0 until n - 1) {
-				val p0i = maxOf(0, i - 1); val p3i = minOf(n - 1, i + 2)
-				val cp1x = xAt(i) + (xAt(i + 1) - xAt(p0i)) / 6f
-				val cp1y = yTop(i) + (yTop(i + 1) - yTop(p0i)) / 6f
-				val cp2x = xAt(i + 1) - (xAt(p3i) - xAt(i)) / 6f
-				val cp2y = yTop(i + 1) - (yTop(p3i) - yTop(i)) / 6f
-				path.cubicTo(cp1x, cp1y, cp2x, cp2y, xAt(i + 1), yTop(i + 1))
+			path.moveTo(pts[0], pts[1])
+			var i = 2
+			while (i + 6 <= pts.size) {
+				path.cubicTo(pts[i], pts[i + 1], pts[i + 2], pts[i + 3], pts[i + 4], pts[i + 5])
+				i += 6
 			}
-
-			// Bottom edge: right → left
-			path.lineTo(xAt(n - 1), yBot(n - 1))
-			for (i in n - 2 downTo 0) {
-				val p0i = minOf(n - 1, i + 2); val p3i = maxOf(0, i - 1)
-				val cp1x = xAt(i + 1) + (xAt(i) - xAt(p0i)) / 6f
-				val cp1y = yBot(i + 1) + (yBot(i) - yBot(p0i)) / 6f
-				val cp2x = xAt(i) - (xAt(p3i) - xAt(i + 1)) / 6f
-				val cp2y = yBot(i) - (yBot(p3i) - yBot(i + 1)) / 6f
-				path.cubicTo(cp1x, cp1y, cp2x, cp2y, xAt(i), yBot(i))
-			}
-
 			path.close()
 
 			val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
