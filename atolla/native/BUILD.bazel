@@ -105,6 +105,7 @@ objc_library(
     copts = ["-I."],
     deps = [
         "//atolla:atolla_api_objc",
+        ":atolla_playback_guards_ios",
     ],
     sdk_frameworks = [
         "AVFoundation",
@@ -128,6 +129,7 @@ objc_library(
     copts = ["-I."],
     deps = [
         "//atolla:atolla_api_objc",
+        ":atolla_image_fallback_ios",
         ":blur_ios_bridge",
         ":palette_ios_bridge",
     ],
@@ -137,6 +139,23 @@ objc_library(
     name = "atolla_swipe_back_fix_ios",
     srcs = ["ios/AtollaSwipeBackFix.m"],
     sdk_frameworks = ["UIKit"],
+)
+
+# Pure, framework-free logic extracted from the iOS module factories so it can be unit tested on
+# the host (no UIKit/AVFoundation/Valdi), mirroring the Android atolla_image_fallback /
+# atolla_playback_guards kt_jvm_library targets.
+objc_library(
+    name = "atolla_image_fallback_ios",
+    srcs = ["ios/AtollaImageFallback.m"],
+    hdrs = ["ios/AtollaImageFallback.h"],
+    copts = ["-I."],
+)
+
+objc_library(
+    name = "atolla_playback_guards_ios",
+    srcs = ["ios/AtollaPlaybackGuards.m"],
+    hdrs = ["ios/AtollaPlaybackGuards.h"],
+    copts = ["-I."],
 )
 
 kt_android_library(

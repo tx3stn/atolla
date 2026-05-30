@@ -9,6 +9,7 @@
 #import <UIKit/UIKit.h>
 #import "atolla/native/ios/palette_ios_bridge.h"
 #import "atolla/native/ios/blur_ios_bridge.h"
+#import "atolla/native/ios/AtollaImageFallback.h"
 
 // MARK: - Request Payload
 
@@ -246,17 +247,6 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 - (NSString *)diskCategoryCountsJson;
 @end
 
-// When a full-size variant isn't cached we serve its smaller thumbnail so something displays; the
-// thumb sibling of an eligible full variant is simply the category + "_thumb". Mirrors
-// AtollaImageFallback.thumbFallbackCategory on Android. Categories without a smaller variant return
-// nil.
-static NSString * _Nullable AtollaThumbFallbackCategory(NSString *category) {
-    if ([category isEqualToString:@"album_art"]) return @"album_art_thumb";
-    if ([category isEqualToString:@"artist_image"]) return @"artist_image_thumb";
-    if ([category isEqualToString:@"playlist_image"]) return @"playlist_image_thumb";
-    return nil;
-}
-
 @implementation AtollaIOSImageLoader {
     AtollaIOSImageCacheStore *_cache;
     void (^_imageCachedObserver)(NSString *, NSString *);
@@ -325,11 +315,16 @@ static NSString * _Nullable AtollaThumbFallbackCategory(NSString *category) {
     NSMutableURLRequest *request = [self imageRequestForURL:payload.sourceURL authToken:payload.authToken];
 
     if ([payload.category isEqualToString:@"album_art_blurred"]) {
-        NSString *originalKey = [NSString stringWithFormat:@"album_art:%@", payload.sourceURL.absoluteString];
         // The blur is downsampled before storage, so prefer the (always-downloaded) thumb and fall
         // back to the full original; only fetch from network if neither is cached.
-        NSString *thumbKey = [NSString stringWithFormat:@"album_art_thumb:%@", payload.sourceURL.absoluteString];
-        NSData *originalData = [_cache readForKey:thumbKey] ?: [_cache readForKey:originalKey];
+        NSArray<NSString *> *blurKeys = AtollaBlurSourceKeys(payload.sourceURL.absoluteString);
+        // The full-size original is the last key; a network fetch is cached under it below.
+        NSString *originalKey = blurKeys.lastObject;
+        NSData *originalData = nil;
+        for (NSString *blurKey in blurKeys) {
+            originalData = [_cache readForKey:blurKey];
+            if (originalData) break;
+        }
         if (originalData) {
             NSData *blurred = [self generateBlurredDataFrom:originalData];
             if (blurred) {

@@ -3,6 +3,7 @@
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 #import <Foundation/Foundation.h>
+#import "atolla/native/ios/AtollaPlaybackGuards.h"
 // MARK: - Track File Cache
 
 @interface AtollaTrackCache : NSObject
@@ -769,8 +770,7 @@ static BOOL sNextNotificationHasNext = NO;
     }
     CMTime current = item.currentTime;
     if (!CMTIME_IS_VALID(current)) return NO;
-    // Within ~250ms of the end counts as ended.
-    return CMTimeGetSeconds(current) >= CMTimeGetSeconds(duration) - 0.25;
+    return AtollaIsItemAtEnd(CMTimeGetSeconds(current), CMTimeGetSeconds(duration));
 }
 
 // Seek the current item back to the start if it has parked at its end, so a subsequent

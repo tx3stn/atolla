@@ -1,0 +1,34 @@
+load("@build_bazel_rules_apple//apple:macos.bzl", "macos_unit_test")
+
+# Host (macOS) logic tests for the framework-free iOS native helpers. These mirror the Android
+# kt_jvm_test targets in //atolla/native/android/test and run without a simulator.
+
+objc_library(
+    name = "AtollaImageFallbackTestLib",
+    testonly = True,
+    srcs = ["AtollaImageFallbackTest.m"],
+    copts = ["-I."],
+    deps = ["//atolla/native:atolla_image_fallback_ios"],
+)
+
+macos_unit_test(
+    name = "AtollaImageFallbackTest",
+    size = "small",
+    minimum_os_version = "12.0",
+    deps = [":AtollaImageFallbackTestLib"],
+)
+
+objc_library(
+    name = "AtollaPlaybackGuardsTestLib",
+    testonly = True,
+    srcs = ["AtollaPlaybackGuardsTest.m"],
+    copts = ["-I."],
+    deps = ["//atolla/native:atolla_playback_guards_ios"],
+)
+
+macos_unit_test(
+    name = "AtollaPlaybackGuardsTest",
+    size = "small",
+    minimum_os_version = "12.0",
+    deps = [":AtollaPlaybackGuardsTestLib"],
+)
