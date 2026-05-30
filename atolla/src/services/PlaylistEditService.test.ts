@@ -344,6 +344,159 @@ describe('PlaylistEditService', () => {
 		});
 	});
 
+	describe('remapPlaylistIds', () => {
+		it('replaces local playlist ids with server ids in pending ops', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+
+			service.enqueue({
+				playlistId: 'local-playlist-1',
+				playlistName: 'My Mix',
+				trackId: 't1',
+				type: 'add',
+			});
+			service.enqueue({
+				playlistId: 'local-playlist-1',
+				playlistName: 'My Mix',
+				trackId: 't2',
+				type: 'add',
+			});
+			service.enqueue({
+				playlistId: 'other-playlist',
+				playlistName: 'Other',
+				trackId: 't3',
+				type: 'remove',
+			});
+
+			service.remapPlaylistIds([{ localId: 'local-playlist-1', serverId: 'server-abc' }]);
+
+			const { transport } = createTransportMock();
+			const addCalls: Array<{ playlistId: string; trackId: string }> = [];
+			const fullTransport = {
+				...transport,
+				addItemToPlaylist: (playlistId: string, trackId: string) => {
+					addCalls.push({ playlistId, trackId });
+					return Promise.resolve();
+				},
+			} as unknown as Transport;
+
+			await service.flush(fullTransport);
+
+			expect(addCalls[0].playlistId).toBe('server-abc');
+			expect(addCalls[1].playlistId).toBe('server-abc');
+		});
+
+		it('leaves ops with unknown ids unchanged', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+
+			service.enqueue({ playlistId: 'unrelated', playlistName: 'X', trackId: 't1', type: 'add' });
+			service.remapPlaylistIds([{ localId: 'local-playlist-1', serverId: 'server-abc' }]);
+
+			const addCalls: Array<{ playlistId: string; trackId: string }> = [];
+			const transport = {
+				addItemToPlaylist: (playlistId: string, trackId: string) => {
+					addCalls.push({ playlistId, trackId });
+					return Promise.resolve();
+				},
+			} as unknown as Transport;
+
+			await service.flush(transport);
+
+			expect(addCalls[0].playlistId).toBe('unrelated');
+		});
+
+		it('persists the remapped ops to storage', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+
+			service.enqueue({
+				playlistId: 'local-playlist-1',
+				playlistName: 'My Mix',
+				trackId: 't1',
+				type: 'add',
+			});
+			service.remapPlaylistIds([{ localId: 'local-playlist-1', serverId: 'server-abc' }]);
+
+			await service.getPendingCount(); // drain the operation chain
+
+			const service2 = new PlaylistEditService(store);
+			const addCalls: Array<{ playlistId: string; trackId: string }> = [];
+			const transport = {
+				addItemToPlaylist: (playlistId: string, trackId: string) => {
+					addCalls.push({ playlistId, trackId });
+					return Promise.resolve();
+				},
+			} as unknown as Transport;
+			await service2.flush(transport);
+
+			expect(addCalls[0].playlistId).toBe('server-abc');
+		});
+	});
+
+	describe('collectAddedTrackIds', () => {
+		it('returns add-op track ids grouped by the requested local playlist ids', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+
+			service.enqueue({ playlistId: 'local-1', playlistName: 'Mix', trackId: 't1', type: 'add' });
+			service.enqueue({ playlistId: 'local-1', playlistName: 'Mix', trackId: 't2', type: 'add' });
+			service.enqueue({ playlistId: 'local-2', playlistName: 'Other', trackId: 't3', type: 'add' });
+
+			const result = await service.collectAddedTrackIds(['local-1', 'local-2']);
+
+			expect(result.get('local-1')).toEqual(['t1', 't2']);
+			expect(result.get('local-2')).toEqual(['t3']);
+		});
+
+		it('ignores move and remove ops', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+
+			service.enqueue({ playlistId: 'local-1', playlistName: 'Mix', trackId: 't1', type: 'add' });
+			service.enqueue({
+				playlistId: 'local-1',
+				playlistName: 'Mix',
+				trackId: 't2',
+				type: 'remove',
+			});
+			service.enqueue({
+				playlistId: 'local-1',
+				playlistName: 'Mix',
+				toIndex: 0,
+				trackId: 't1',
+				type: 'move',
+			});
+
+			const result = await service.collectAddedTrackIds(['local-1']);
+
+			expect(result.get('local-1')).toEqual(['t1']);
+		});
+
+		it('returns an empty map when no matching local ids have add ops', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+
+			service.enqueue({ playlistId: 'other', playlistName: 'X', trackId: 't1', type: 'add' });
+
+			const result = await service.collectAddedTrackIds(['local-1']);
+
+			expect(result.size).toBe(0);
+		});
+
+		it('does not include ops for ids not in the requested list', async () => {
+			const store = new InMemoryStore();
+			const service = new PlaylistEditService(store);
+
+			service.enqueue({ playlistId: 'local-1', playlistName: 'Mix', trackId: 't1', type: 'add' });
+			service.enqueue({ playlistId: 'local-2', playlistName: 'Other', trackId: 't2', type: 'add' });
+
+			const result = await service.collectAddedTrackIds(['local-1']);
+
+			expect(result.has('local-2')).toBe(false);
+		});
+	});
+
 	it('persists pending ops so a new instance can pick them up before flush', async () => {
 		const store = new InMemoryStore();
 		const service1 = new PlaylistEditService(store);

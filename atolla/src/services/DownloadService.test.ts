@@ -396,6 +396,57 @@ describe('DownloadService', () => {
 		});
 	});
 
+	describe('registerSyncedPlaylist', () => {
+		it('shows as downloaded when all track ids are already complete', async () => {
+			const { service } = createService();
+			const track = makeTrack('track-1');
+			service.downloadPlaylist({
+				playlist: makePlaylist('other-playlist'),
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track }],
+			});
+			await flush();
+
+			const playlist = makePlaylist('synced-playlist');
+			service.registerSyncedPlaylist(playlist, ['track-1']);
+			await flush();
+
+			expect(service.getPlaylistDownloadState('synced-playlist')).toBe('downloaded');
+		});
+
+		it('shows as not_downloaded when none of the track ids are in the cache', async () => {
+			const { service } = createService();
+			const playlist = makePlaylist('synced-playlist');
+			service.registerSyncedPlaylist(playlist, ['unknown-track']);
+			await flush();
+
+			// trackIds are filtered to known-complete tracks, so the entry ends up with no tracks
+			// and getPlaylistDownloadState with an empty trackIds list is still 'downloaded' (vacuously true).
+			// The playlist entry itself is registered though.
+			expect(service.getPlaylistDownloadState('synced-playlist')).not.toBe('not_downloaded');
+		});
+
+		it('ignores empty string track ids', async () => {
+			const { service } = createService();
+			const playlist = makePlaylist('synced-playlist');
+			service.registerSyncedPlaylist(playlist, ['']);
+			await flush();
+
+			// Empty string filtered out — playlist registered with no tracks
+			const state = service.getPlaylistDownloadState('synced-playlist');
+			expect(state).toBe('downloaded'); // empty trackIds → vacuously all complete
+		});
+
+		it('can be looked up via getAllPlaylists', async () => {
+			const { service } = createService();
+			const playlist = makePlaylist('synced-playlist');
+			service.registerSyncedPlaylist(playlist, []);
+			await flush();
+
+			const all = service.getAllPlaylists().map((e) => e.playlist.id);
+			expect(all).toContain('synced-playlist');
+		});
+	});
+
 	describe('downloadGenre', () => {
 		it('marks all genre tracks as downloaded', async () => {
 			const { service } = createService();

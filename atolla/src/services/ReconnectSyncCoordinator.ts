@@ -1,3 +1,4 @@
+import type { Playlist } from '../models/Playlist';
 import type { Transport } from '../transports/Transport';
 import type { PlaylistEditError } from './PlaylistEditService';
 
@@ -17,23 +18,31 @@ export interface SyncResult extends SyncProgress {
 // Narrow structural interfaces (DI-friendly, testable without the concrete
 // services or Valdi). Each captures only the methods the coordinator touches.
 interface PlaylistCreateLike {
-	flush(transport: Transport): Promise<Array<{ error: string; name: string }>>;
+	flush(transport: Transport): Promise<{
+		errors: Array<{ error: string; name: string }>;
+		idMappings: Array<{ initialTrackId: string; localId: string; name: string; serverId: string }>;
+	}>;
 	getPending(): ReadonlyArray<unknown>;
 	load(): Promise<void>;
 }
 
 interface PlaylistEditLike {
+	collectAddedTrackIds(
+		localIds: ReadonlyArray<string>,
+	): Promise<Map<string, ReadonlyArray<string>>>;
 	flush(transport: Transport): Promise<Array<PlaylistEditError>>;
 	getPendingCount(): Promise<number>;
+	remapPlaylistIds(mapping: ReadonlyArray<{ localId: string; serverId: string }>): void;
+}
+
+interface DownloadLike {
+	onAppReady(): void;
+	registerSyncedPlaylist(playlist: Playlist, trackIds: ReadonlyArray<string>): void;
 }
 
 interface ScrobbleLike {
 	getPendingScrobbles(): Array<unknown>;
 	onAppReady(): Promise<void>;
-}
-
-interface DownloadLike {
-	onAppReady(): void;
 }
 
 export interface ReconnectSyncDeps {
@@ -98,9 +107,21 @@ export class ReconnectSyncCoordinator {
 		emit('syncing');
 
 		try {
-			const errors = await playlistCreateService.flush(transport);
+			const { errors, idMappings } = await playlistCreateService.flush(transport);
 			failed += errors.length;
 			completed += Math.max(0, createBefore - errors.length);
+			if (idMappings.length > 0) {
+				const localIds = idMappings.map(({ localId }) => localId);
+				const addedByLocalId = await playlistEditService.collectAddedTrackIds(localIds);
+				playlistEditService.remapPlaylistIds(
+					idMappings.map(({ localId, serverId }) => ({ localId, serverId })),
+				);
+				for (const { initialTrackId, localId, name, serverId } of idMappings) {
+					const added = addedByLocalId.get(localId) ?? [];
+					const allTrackIds = initialTrackId ? [initialTrackId, ...added] : [...added];
+					downloadService.registerSyncedPlaylist({ id: serverId, name }, allTrackIds);
+				}
+			}
 		} catch {
 			failed += createBefore;
 		}

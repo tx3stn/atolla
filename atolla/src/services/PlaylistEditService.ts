@@ -70,6 +70,38 @@ export class PlaylistEditService {
 		}
 	}
 
+	async collectAddedTrackIds(
+		localIds: ReadonlyArray<string>,
+	): Promise<Map<string, ReadonlyArray<string>>> {
+		await this.operationChain;
+		await this.load();
+		const localIdSet = new Set(localIds);
+		const result = new Map<string, Array<string>>();
+		for (const op of this.pendingOps) {
+			if (op.type === 'add' && localIdSet.has(op.playlistId)) {
+				const existing = result.get(op.playlistId) ?? [];
+				existing.push(op.trackId);
+				result.set(op.playlistId, existing);
+			}
+		}
+		return result;
+	}
+
+	remapPlaylistIds(mapping: ReadonlyArray<{ localId: string; serverId: string }>): void {
+		this.operationChain = this.operationChain.then(async () => {
+			await this.load();
+			const map = new Map(mapping.map(({ localId, serverId }) => [localId, serverId]));
+			let changed = false;
+			this.pendingOps = this.pendingOps.map((op) => {
+				const newId = map.get(op.playlistId);
+				if (!newId) return op;
+				changed = true;
+				return { ...op, playlistId: newId };
+			});
+			if (changed) await this.persist();
+		});
+	}
+
 	async getPendingCount(): Promise<number> {
 		await this.operationChain;
 		await this.load();

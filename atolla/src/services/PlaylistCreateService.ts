@@ -52,16 +52,31 @@ export class PlaylistCreateService {
 		return this.pending;
 	}
 
-	async flush(transport: Transport): Promise<Array<{ error: string; name: string }>> {
+	async flush(transport: Transport): Promise<{
+		errors: Array<{ error: string; name: string }>;
+		idMappings: Array<{ initialTrackId: string; localId: string; name: string; serverId: string }>;
+	}> {
 		await this.load();
-		if (this.pending.length === 0) return [];
+		if (this.pending.length === 0) return { errors: [], idMappings: [] };
 
 		const ops = [...this.pending];
 		const errors: Array<{ error: string; name: string }> = [];
+		const idMappings: Array<{
+			initialTrackId: string;
+			localId: string;
+			name: string;
+			serverId: string;
+		}> = [];
 
 		for (const op of ops) {
 			try {
-				await transport.createPlaylist(op.name, op.trackId);
+				const created = await transport.createPlaylist(op.name, op.trackId);
+				idMappings.push({
+					initialTrackId: op.trackId,
+					localId: op.localId,
+					name: op.name,
+					serverId: created.id,
+				});
 				const idx = this.pending.findIndex((p) => p.localId === op.localId);
 				if (idx >= 0) this.pending.splice(idx, 1);
 			} catch (e: unknown) {
@@ -70,7 +85,7 @@ export class PlaylistCreateService {
 		}
 
 		await this.persist();
-		return errors;
+		return { errors, idMappings };
 	}
 
 	private async persist(): Promise<void> {

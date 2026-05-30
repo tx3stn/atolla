@@ -121,13 +121,13 @@ describe('PlaylistCreateService.load', () => {
 });
 
 describe('PlaylistCreateService.flush', () => {
-	it('creates playlists and clears pending after flush', async () => {
+	it('creates playlists, clears pending, and returns id mappings after flush', async () => {
 		const service = new PlaylistCreateService(createStoreMock());
-		service.enqueue('Playlist A', 'track-1');
-		service.enqueue('Playlist B', 'track-2');
+		const p1 = service.enqueue('Playlist A', 'track-1');
+		const p2 = service.enqueue('Playlist B', 'track-2');
 
 		const transport = createTransportMock();
-		const errors = await service.flush(transport as never);
+		const { errors, idMappings } = await service.flush(transport as never);
 
 		expect(errors).toHaveLength(0);
 		expect(transport.createdPlaylists).toHaveLength(2);
@@ -136,6 +136,14 @@ describe('PlaylistCreateService.flush', () => {
 		expect(transport.createdPlaylists[1].name).toBe('Playlist B');
 		expect(transport.createdPlaylists[1].trackId).toBe('track-2');
 		expect(service.getPending()).toHaveLength(0);
+
+		expect(idMappings).toHaveLength(2);
+		expect(idMappings[0].localId).toBe(p1.id);
+		expect(idMappings[0].serverId).toBe('playlist-1');
+		expect(idMappings[0].name).toBe('Playlist A');
+		expect(idMappings[0].initialTrackId).toBe('track-1');
+		expect(idMappings[1].localId).toBe(p2.id);
+		expect(idMappings[1].serverId).toBe('playlist-2');
 	});
 
 	it('returns errors without removing them from pending on failure', async () => {
@@ -143,19 +151,21 @@ describe('PlaylistCreateService.flush', () => {
 		service.enqueue('Bad Playlist', 'track-1');
 
 		const transport = createTransportMock({ failCreate: true });
-		const errors = await service.flush(transport as never);
+		const { errors, idMappings } = await service.flush(transport as never);
 
 		expect(errors).toHaveLength(1);
 		expect(errors[0].name).toBe('Bad Playlist');
 		expect(errors[0].error).toContain('server error');
+		expect(idMappings).toHaveLength(0);
 	});
 
-	it('returns empty array when there is nothing to flush', async () => {
+	it('returns empty errors and idMappings when there is nothing to flush', async () => {
 		const service = new PlaylistCreateService(createStoreMock());
 		const transport = createTransportMock();
-		const errors = await service.flush(transport as never);
+		const { errors, idMappings } = await service.flush(transport as never);
 
 		expect(errors).toHaveLength(0);
+		expect(idMappings).toHaveLength(0);
 		expect(transport.createdPlaylists).toHaveLength(0);
 	});
 
@@ -166,7 +176,7 @@ describe('PlaylistCreateService.flush', () => {
 		const failingTransport = {
 			createPlaylist: () => Promise.reject(new Error('network error')),
 		} as unknown as Transport;
-		const errors = await service.flush(failingTransport);
+		const { errors } = await service.flush(failingTransport);
 
 		expect(errors).toHaveLength(1);
 		expect(service.getPending()).toHaveLength(1);

@@ -403,18 +403,26 @@ export class OfflineTransport implements Transport {
 	}
 
 	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
-		const playlistName = this.downloads.getPlaylist(playlistId)?.playlist.name ?? '';
+		const playlistName = this.resolvePlaylistName(playlistId);
 		this.playlistEditService?.enqueue({ playlistId, playlistName, trackId, type: 'add' });
 	}
 
 	async movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void> {
-		const playlistName = this.downloads.getPlaylist(playlistId)?.playlist.name ?? '';
+		const playlistName = this.resolvePlaylistName(playlistId);
 		this.playlistEditService?.enqueue({ playlistId, playlistName, toIndex, trackId, type: 'move' });
 	}
 
 	async removePlaylistTrack(playlistId: string, trackId: string): Promise<void> {
-		const playlistName = this.downloads.getPlaylist(playlistId)?.playlist.name ?? '';
+		const playlistName = this.resolvePlaylistName(playlistId);
 		this.playlistEditService?.enqueue({ playlistId, playlistName, trackId, type: 'remove' });
+	}
+
+	private resolvePlaylistName(playlistId: string): string {
+		return (
+			this.downloads.getPlaylist(playlistId)?.playlist.name ??
+			this.playlistCreateService?.getPending().find((p) => p.localId === playlistId)?.name ??
+			''
+		);
 	}
 
 	async getRandomAlbum(): Promise<Album | null> {

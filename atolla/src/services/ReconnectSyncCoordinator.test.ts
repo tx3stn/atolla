@@ -9,9 +9,15 @@ import {
 
 const transport = {} as unknown as Transport;
 
+type IdMapping = { initialTrackId: string; localId: string; name: string; serverId: string };
+
 interface FakeConfig {
-	createFlush?: () => Promise<Array<{ error: string; name: string }>>;
+	createFlush?: () => Promise<{
+		errors: Array<{ error: string; name: string }>;
+		idMappings: Array<IdMapping>;
+	}>;
 	createPending?: number;
+	editAddedTracks?: Map<string, ReadonlyArray<string>>;
 	editFlush?: () => Promise<Array<PlaylistEditError>>;
 	editPending?: number;
 	scrobbleAfter?: number;
@@ -19,25 +25,49 @@ interface FakeConfig {
 	scrobblePending?: number;
 }
 
-function makeDeps(config: FakeConfig): { deps: ReconnectSyncDeps; downloadResumed: () => number } {
+function makeDeps(config: FakeConfig): {
+	deps: ReconnectSyncDeps;
+	downloadResumed: () => number;
+	registeredPlaylists: () => Array<{
+		playlist: { id: string; name: string };
+		trackIds: ReadonlyArray<string>;
+	}>;
+	remappedIds: () => Array<ReadonlyArray<{ localId: string; serverId: string }>>;
+} {
 	let downloadResumeCount = 0;
 	const scrobbleAfter = config.scrobbleAfter ?? 0;
+	const registered: Array<{
+		playlist: { id: string; name: string };
+		trackIds: ReadonlyArray<string>;
+	}> = [];
+	const remapped: Array<ReadonlyArray<{ localId: string; serverId: string }>> = [];
 
 	const deps: ReconnectSyncDeps = {
 		downloadService: {
 			onAppReady: () => {
 				downloadResumeCount += 1;
 			},
+			registerSyncedPlaylist: (playlist, trackIds) => {
+				registered.push({ playlist: { id: playlist.id, name: playlist.name }, trackIds });
+			},
 		},
 		playlistCreateService: {
-			flush:
-				config.createFlush ?? (() => Promise.resolve([] as Array<{ error: string; name: string }>)),
+			flush: config.createFlush ?? (() => Promise.resolve({ errors: [], idMappings: [] })),
 			getPending: () => new Array(config.createPending ?? 0).fill({}),
 			load: () => Promise.resolve(),
 		},
 		playlistEditService: {
+			collectAddedTrackIds: (ids) =>
+				Promise.resolve(
+					config.editAddedTracks
+						? new Map([...config.editAddedTracks].filter(([k]) => ids.includes(k)))
+						: new Map(),
+				),
 			flush: config.editFlush ?? (() => Promise.resolve([] as Array<PlaylistEditError>)),
 			getPendingCount: () => Promise.resolve(config.editPending ?? 0),
+			remapPlaylistIds: (mapping) => {
+				remapped.push(mapping);
+			},
 		},
 		scrobbleService: {
 			getPendingScrobbles: (() => {
@@ -52,7 +82,12 @@ function makeDeps(config: FakeConfig): { deps: ReconnectSyncDeps; downloadResume
 		},
 	};
 
-	return { deps, downloadResumed: () => downloadResumeCount };
+	return {
+		deps,
+		downloadResumed: () => downloadResumeCount,
+		registeredPlaylists: () => registered,
+		remappedIds: () => remapped,
+	};
 }
 
 describe('ReconnectSyncCoordinator', () => {
@@ -120,6 +155,65 @@ describe('ReconnectSyncCoordinator', () => {
 		expect(result.failed).toBe(1);
 		expect(result.status).toBe('partial');
 		expect(result.playlistEditErrors).toEqual(editErrors);
+	});
+
+	it('remaps edit ops and registers playlists after successful creates', async () => {
+		const mappings: Array<IdMapping> = [
+			{
+				initialTrackId: 'track-1',
+				localId: 'local-playlist-1',
+				name: 'My Mix',
+				serverId: 'server-abc',
+			},
+		];
+		const { deps, registeredPlaylists, remappedIds } = makeDeps({
+			createFlush: () => Promise.resolve({ errors: [], idMappings: mappings }),
+			createPending: 1,
+		});
+		const coordinator = new ReconnectSyncCoordinator(deps);
+
+		await coordinator.run(transport, () => {});
+
+		expect(remappedIds()).toHaveLength(1);
+		expect(remappedIds()[0]).toEqual([{ localId: 'local-playlist-1', serverId: 'server-abc' }]);
+		expect(registeredPlaylists()).toHaveLength(1);
+		expect(registeredPlaylists()[0].playlist).toEqual({ id: 'server-abc', name: 'My Mix' });
+		expect(registeredPlaylists()[0].trackIds).toEqual(['track-1']);
+	});
+
+	it('includes all offline-added tracks when registering a synced playlist', async () => {
+		const mappings: Array<IdMapping> = [
+			{
+				initialTrackId: 'track-1',
+				localId: 'local-playlist-1',
+				name: 'My Mix',
+				serverId: 'server-abc',
+			},
+		];
+		const addedTracks = new Map([['local-playlist-1', ['track-2', 'track-3']]]);
+		const { deps, registeredPlaylists } = makeDeps({
+			createFlush: () => Promise.resolve({ errors: [], idMappings: mappings }),
+			createPending: 1,
+			editAddedTracks: addedTracks,
+		});
+		const coordinator = new ReconnectSyncCoordinator(deps);
+
+		await coordinator.run(transport, () => {});
+
+		expect(registeredPlaylists()[0].trackIds).toEqual(['track-1', 'track-2', 'track-3']);
+	});
+
+	it('skips remap and register when no id mappings are returned', async () => {
+		const { deps, registeredPlaylists, remappedIds } = makeDeps({
+			createFlush: () => Promise.resolve({ errors: [], idMappings: [] }),
+			createPending: 0,
+		});
+		const coordinator = new ReconnectSyncCoordinator(deps);
+
+		await coordinator.run(transport, () => {});
+
+		expect(remappedIds()).toHaveLength(0);
+		expect(registeredPlaylists()).toHaveLength(0);
 	});
 
 	it('never rejects even when a flush throws, counting the batch as failed', async () => {

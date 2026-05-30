@@ -8,14 +8,28 @@
   <em>beautiful Jellyfin music player for android and ios with an offline first playback experience</em>
 </p>
 
+## TOC
+
+* [Features](#features)
+* [Screenshots](#screenshots)
+  * [player](#player)
+  * [home tab](#home-tab)
+  * [artist view](#artist-view)
+  * [library & album view](#library-&-album-view)
+  * [seach & genre list](#search-&-genre-list)
+* [Why?](#why)
+* [Installing](#installing)
+* [Feature Requests](#feature-requests)
+* [Contributing](#contributing)
+
 ## Features
 
 * Gapless playback
-* Seamless online/offline switching (including offline search & scrobbling)
 * Image focussed UI (featuring artist logos)
 * Dynamic colour palettes generated from album artwork
 * Local waveform generation for fancy progress bars
 * Playlist creation & editing
+* Seamless offline experience, everything that works online also works offline (including search, scrobbling, playlist creation and editing)
 
 ## Screenshots
 

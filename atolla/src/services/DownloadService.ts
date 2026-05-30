@@ -546,6 +546,20 @@ export class DownloadService {
 			});
 	}
 
+	registerSyncedPlaylist(playlist: Playlist, trackIds: ReadonlyArray<string>): void {
+		this.enqueueOperation(async () => {
+			await this.ensureLoaded();
+			const knownTrackIds = trackIds.filter((id) => id !== '' && this.tracks[id] !== undefined);
+			this.playlists[playlist.id] = {
+				playlist,
+				trackArtistLogoUrls: {},
+				trackIds: knownTrackIds,
+			};
+			await this.persistAll();
+			this.notify();
+		});
+	}
+
 	removePlaylistDownload(playlistId: string): void {
 		this.ensureLoaded()
 			.then(async () => {
