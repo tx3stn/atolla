@@ -233,7 +233,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const { album, downloadService, transport } = this.viewModel;
 		const tracks = this.state.tracks
 			.map((track) => {
-				const streamUrl = transport.getTrackCacheUrl?.(track.id);
+				const streamUrl = transport.getTrackCacheUrl(track.id);
 				return streamUrl ? { streamUrl, track } : null;
 			})
 			.filter((t): t is { streamUrl: string; track: Track } => t !== null);

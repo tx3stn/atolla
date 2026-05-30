@@ -182,9 +182,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			card: { kind: 'playlist', playlist },
 			imageCache: this.viewModel.imageCache,
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
-			onCreatePlaylist: this.viewModel.transport.createPlaylist
-				? this.handleCreatePlaylistRequest
-				: undefined,
+			onCreatePlaylist: this.handleCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
 			playbackStore: this.viewModel.playbackStore,
@@ -280,18 +278,15 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	};
 
 	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const createPlaylistFn = this.viewModel.transport.createPlaylist?.bind(
-			this.viewModel.transport,
-		);
 		const tracks = this.pendingCreatePlaylistTracks;
-		if (!createPlaylistFn || !tracks) {
+		if (!tracks) {
 			return;
 		}
 
 		await createPlaylistAndAddTracks(
 			name,
-			createPlaylistFn,
-			this.viewModel.transport.addItemToPlaylist?.bind(this.viewModel.transport),
+			this.viewModel.transport.createPlaylist.bind(this.viewModel.transport),
+			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
 			tracks,
 		);
 		this.pendingCreatePlaylistTracks = null;
@@ -301,7 +296,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	onRender(): void {
 		const { animationsEnabled, imageCache, transport } = this.viewModel;
 		const { addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
-		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 
 		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
 		let playlists = sortPlaylists(this.state.playlists, sort);
@@ -344,7 +338,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					transport={transport}
 				/>
 			)}
-			{createPlaylistTracks && createPlaylistFn && (
+			{createPlaylistTracks && (
 				<CreatePlaylistModal
 					onCancel={this.handleCreatePlaylistCancel}
 					onCreate={this.handleCreatePlaylistConfirm}

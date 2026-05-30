@@ -206,21 +206,21 @@ describe('PlaylistEditService', () => {
 			expect(removeCalls).toHaveLength(0);
 		});
 
-		it('enqueues for retry when transport is offline (no method)', async () => {
+		it('returns an error when the transport method throws', async () => {
 			const store = new InMemoryStore();
 			const service = new PlaylistEditService(store);
-			const offlineTransport = {} as unknown as Transport;
+			const failingTransport = {
+				removePlaylistTrack: () => Promise.reject(new Error('network error')),
+			} as unknown as Transport;
 
 			const result = await service.execute(
 				{ playlistId: 'p1', playlistName: 'Mix Tape', trackId: 't1', type: 'remove' },
-				offlineTransport,
+				failingTransport,
 			);
 
-			expect(result).toBeNull();
-
-			const { removeCalls, transport } = createTransportMock();
-			await service.flush(transport);
-			expect(removeCalls).toHaveLength(1);
+			expect(result).not.toBeNull();
+			expect(result?.type).toBe('remove');
+			expect(result?.playlistName).toBe('Mix Tape');
 		});
 
 		it('does not enqueue on success so flush is a no-op', async () => {

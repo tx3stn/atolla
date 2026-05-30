@@ -190,9 +190,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			imageCache: this.viewModel.imageCache,
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onArtistTap: this.handleContextMenuArtistTap,
-			onCreatePlaylist: this.viewModel.transport.createPlaylist
-				? this.handleCreatePlaylistRequest
-				: undefined,
+			onCreatePlaylist: this.handleCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
 			playbackStore: this.viewModel.playbackStore,
@@ -283,15 +281,12 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	};
 
 	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const createPlaylistFn = this.viewModel.transport.createPlaylist?.bind(
-			this.viewModel.transport,
-		);
 		const tracks = this.pendingCreatePlaylistTracks;
-		if (!createPlaylistFn || !tracks) return;
+		if (!tracks) return;
 		await createPlaylistAndAddTracks(
 			name,
-			createPlaylistFn,
-			this.viewModel.transport.addItemToPlaylist?.bind(this.viewModel.transport),
+			this.viewModel.transport.createPlaylist.bind(this.viewModel.transport),
+			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
 			tracks,
 		);
 		this.pendingCreatePlaylistTracks = null;
@@ -328,7 +323,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	onRender(): void {
 		const { imageCache, animationsEnabled, transport } = this.viewModel;
 		const { addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
-		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 
 		const artists = this.getDisplayArtists();
 
@@ -366,7 +360,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					transport={transport}
 				/>
 			)}
-			{createPlaylistTracks && createPlaylistFn && (
+			{createPlaylistTracks && (
 				<CreatePlaylistModal
 					onCancel={this.handleCreatePlaylistCancel}
 					onCreate={this.handleCreatePlaylistConfirm}

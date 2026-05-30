@@ -35,7 +35,7 @@ export function openCardContextMenu(
 			imageCache={options.imageCache}
 			onAddToPlaylist={options.onAddToPlaylist}
 			onArtistTap={options.onArtistTap}
-			onCreatePlaylist={options.transport.createPlaylist ? options.onCreatePlaylist : undefined}
+			onCreatePlaylist={options.onCreatePlaylist}
 			onDismiss={dismiss}
 			onEntityTap={options.onEntityTap}
 			playbackStore={options.playbackStore}

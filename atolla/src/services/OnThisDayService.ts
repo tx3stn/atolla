@@ -1,4 +1,5 @@
 import type { Album } from '../models/Album';
+import type { Transport } from '../transports/Transport';
 import { matchOnThisDay } from './OnThisDay';
 
 // Discovers and caches the albums whose anniversary falls today or tomorrow, so
@@ -23,13 +24,7 @@ export interface OnThisDayStore {
 	storeString(key: string, value: string): Promise<void>;
 }
 
-export interface OnThisDayTransport {
-	getAlbumReleaseDatesPage?: (
-		page: number,
-		pageSize: number,
-	) => Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }>;
-	getAlbumsByIds?: (ids: Array<string>) => Promise<Array<Album>>;
-}
+export type OnThisDayTransport = Pick<Transport, 'getAlbumReleaseDatesPage' | 'getAlbumsByIds'>;
 
 /** Funnel counts from a refresh, for diagnosing where an empty result originated. */
 export interface OnThisDayRefreshSummary {
@@ -188,11 +183,8 @@ export class OnThisDayService {
 
 		// Bind to the transport — these are class methods that use `this` internally,
 		// so calling an extracted reference unbound would throw.
-		const discover = transport.getAlbumReleaseDatesPage?.bind(transport);
-		const hydrate = transport.getAlbumsByIds?.bind(transport);
-		if (!discover || !hydrate) {
-			return summary; // transport can't refresh; keep the cache
-		}
+		const discover = transport.getAlbumReleaseDatesPage.bind(transport);
+		const hydrate = transport.getAlbumsByIds.bind(transport);
 
 		summary.ran = true;
 		try {
@@ -229,7 +221,7 @@ export class OnThisDayService {
 	}
 
 	private async discoverMatchedIds(
-		discover: NonNullable<OnThisDayTransport['getAlbumReleaseDatesPage']>,
+		discover: Transport['getAlbumReleaseDatesPage'],
 		today: Date,
 		tomorrow: Date,
 	): Promise<{ ids: Array<string>; scanned: number; withReleaseDate: number }> {

@@ -349,7 +349,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastObservedRecentTrackId: string | null = null;
 	private recentlyPlayedRestoring = false;
 	private trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
-		(track) => this.transport.getTrackCacheUrl?.(track.id) ?? null,
+		(track) => this.transport.getTrackCacheUrl(track.id),
 		(trackId) => this.getNativeCachedTrackSource(trackId) != null,
 		(trackId, url, onComplete) => {
 			cacheAtollaTrackFromUrlAsync(trackId, url, this.currentAccessToken, (rawSource) => {
@@ -491,7 +491,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					} else if (mode === ConnectionModes.mock) {
 						this.transport = new MockTransport();
 					} else {
-						this.transport = new OfflineTransport(this.downloadService, this.playlistCreateService);
+						this.transport = new OfflineTransport(
+							this.downloadService,
+							this.playlistCreateService,
+							this.playlistEditService,
+						);
 					}
 
 					const isAuthRequired = mode === ConnectionModes.online && existingSession == null;
@@ -525,7 +529,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			.catch(() => {
 				if (this.hasBeenDestroyed || this.state.isBootstrapped) return;
 				this.initUserStores('shared');
-				this.transport = new OfflineTransport(this.downloadService, this.playlistCreateService);
+				this.transport = new OfflineTransport(
+					this.downloadService,
+					this.playlistCreateService,
+					this.playlistEditService,
+				);
 				this.completeBootstrap({ connectionMode: ConnectionModes.offline });
 			});
 		this.downloadService.subscribe(() => {
@@ -771,9 +779,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
 		this.scrobbleService = new ScrobbleService({
 			deliverScrobble: (pending) => {
-				if (!this.transport.scrobbleTrackPlayed) {
-					return Promise.reject(new Error('scrobble delivery unavailable'));
-				}
 				return this.transport.scrobbleTrackPlayed(pending.trackId, pending.triggeredAt);
 			},
 			store: new PersistentStore(`atolla/user/${userId}/pending_scrobbles`, {
@@ -980,7 +985,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 
 			if (mode === ConnectionModes.offline) {
-				this.transport = new OfflineTransport(this.downloadService, this.playlistCreateService);
+				this.transport = new OfflineTransport(
+					this.downloadService,
+					this.playlistCreateService,
+					this.playlistEditService,
+				);
 			} else {
 				this.transport = new MockTransport();
 			}
@@ -1148,7 +1157,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				// best effort — clear what we can
 			}
 			this.currentAccessToken = '';
-			this.transport = new OfflineTransport(this.downloadService, this.playlistCreateService);
+			this.transport = new OfflineTransport(
+				this.downloadService,
+				this.playlistCreateService,
+				this.playlistEditService,
+			);
 			this.playbackStore.stop();
 			this.recentlyPlayedTracks = [];
 			this.lastObservedRecentTrackId = null;
@@ -1605,7 +1618,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	private getTrackStreamSource(trackId: string): string | null {
-		const url = this.transport.getTrackCacheUrl?.(trackId) ?? null;
+		const url = this.transport.getTrackCacheUrl(trackId);
 		if (!url) {
 			return null;
 		}

@@ -458,15 +458,13 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	};
 
 	private handleCardContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const createPlaylistFn = this.viewModel.transport.createPlaylist?.bind(
-			this.viewModel.transport,
-		);
+		const createPlaylistFn = this.viewModel.transport.createPlaylist.bind(this.viewModel.transport);
 		const tracks = this.pendingCreatePlaylistTracks;
 		if (!createPlaylistFn || !tracks) return;
 		const playlist = await createPlaylistAndAddTracks(
 			name,
 			createPlaylistFn,
-			this.viewModel.transport.addItemToPlaylist?.bind(this.viewModel.transport),
+			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
 			tracks,
 		);
 		this.pendingCreatePlaylistTracks = null;

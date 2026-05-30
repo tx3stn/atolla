@@ -204,7 +204,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					album,
 					tracks: tracks
 						.map((track) => {
-							const streamUrl = transport.getTrackCacheUrl?.(track.id);
+							const streamUrl = transport.getTrackCacheUrl(track.id);
 							return streamUrl ? { streamUrl, track } : null;
 						})
 						.filter((t): t is { streamUrl: string; track: Track } => t !== null),
@@ -299,15 +299,13 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.contextMenuAlbumCard = card;
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
-		const canCreatePlaylist = Boolean(transport.createPlaylist);
-
 		modalSlot?.slotted(() => {
 			<CardContextMenu
 				animationsEnabled={animationsEnabled}
 				card={{ album, kind: 'album' }}
 				imageCache={imageCache}
 				onAddToPlaylist={this.handleAlbumContextMenuAddToPlaylist}
-				onCreatePlaylist={canCreatePlaylist ? this.handleAlbumContextMenuCreatePlaylist : undefined}
+				onCreatePlaylist={this.handleAlbumContextMenuCreatePlaylist}
 				onDismiss={this.handleContextMenuDismiss}
 				onEntityTap={this.handleAlbumContextMenuEntityTap}
 				playbackStore={playbackStore}
@@ -342,15 +340,13 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	};
 
 	private handleAlbumContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const createPlaylistFn = this.viewModel.transport.createPlaylist?.bind(
-			this.viewModel.transport,
-		);
+		const createPlaylistFn = this.viewModel.transport.createPlaylist.bind(this.viewModel.transport);
 		const tracks = this.pendingCreatePlaylistTracks;
 		if (!createPlaylistFn || !tracks) return;
 		const playlist = await createPlaylistAndAddTracks(
 			name,
 			createPlaylistFn,
-			this.viewModel.transport.addItemToPlaylist?.bind(this.viewModel.transport),
+			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
 			tracks,
 		);
 		this.pendingCreatePlaylistTracks = null;

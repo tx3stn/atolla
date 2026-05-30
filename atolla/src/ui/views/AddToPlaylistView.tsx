@@ -90,7 +90,7 @@ export class AddToPlaylistView extends StatefulComponent<
 	}): void => {
 		const { tracks, transport } = this.viewModel;
 
-		void addTracksToPlaylist(card.id, tracks, transport.addItemToPlaylist?.bind(transport))
+		void addTracksToPlaylist(card.id, tracks, transport.addItemToPlaylist.bind(transport))
 			.then(() => {
 				if (this.hasBeenDestroyed) return;
 				this.toastTimerId = scheduleToastDismiss(

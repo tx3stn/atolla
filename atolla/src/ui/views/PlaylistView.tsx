@@ -70,7 +70,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	PlaylistViewModel,
 	PlaylistState
 > {
-	private allTracks: Array<Track> | null = null;
 	private currentPage = 0;
 	private hasBeenDestroyed = false;
 	private hasMoreTracks = true;
@@ -221,7 +220,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		if (!playlistEditService) return;
 		const prevTracks = this.state.tracks;
 		const prevArtistLogoUrls = this.state.artistLogoUrls;
-		const prevAllTracks = this.allTracks;
 
 		const tracks = [...prevTracks];
 		const artistLogoUrls = [...prevArtistLogoUrls];
@@ -230,18 +228,10 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		tracks.splice(toEntryIndex, 0, movedTrack);
 		artistLogoUrls.splice(toEntryIndex, 0, movedLogo);
 
-		if (this.allTracks) {
-			const allTracks = [...this.allTracks];
-			const [movedAll] = allTracks.splice(fromEntryIndex, 1);
-			allTracks.splice(toEntryIndex, 0, movedAll);
-			this.allTracks = allTracks;
-		}
-
 		this.setState({ artistLogoUrls, tracks });
 
 		if (!movedTrack.playlistItemId) {
 			console.warn('[playlist] missing playlistItemId on move, aborting reorder');
-			this.allTracks = prevAllTracks;
 			this.setState({ artistLogoUrls: prevArtistLogoUrls, tracks: prevTracks });
 			return;
 		}
@@ -259,7 +249,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			)
 			.then((result) => {
 				if (result) {
-					this.allTracks = prevAllTracks;
 					this.setState({ artistLogoUrls: prevArtistLogoUrls, tracks: prevTracks });
 					this.showEditErrorModal(result.type, result.playlistName, result.error);
 				}
@@ -279,12 +268,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const artistLogoUrls = [...this.state.artistLogoUrls];
 		const [removedTrack] = tracks.splice(entryIndex, 1);
 		artistLogoUrls.splice(entryIndex, 1);
-
-		if (this.allTracks) {
-			const allTracks = [...this.allTracks];
-			allTracks.splice(entryIndex, 1);
-			this.allTracks = allTracks;
-		}
 
 		this.setState({
 			artistLogoUrls,
@@ -325,11 +308,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						const artistLogoUrls = [...this.state.artistLogoUrls];
 						tracks.splice(removedTrackPending.index, 0, removedTrackPending.track);
 						artistLogoUrls.splice(removedTrackPending.index, 0, null);
-						if (this.allTracks) {
-							const allTracks = [...this.allTracks];
-							allTracks.splice(removedTrackPending.index, 0, removedTrackPending.track);
-							this.allTracks = allTracks;
-						}
 						this.setState({ artistLogoUrls, tracks });
 					}
 					this.showEditErrorModal(result.type, result.playlistName, result.error);
@@ -360,12 +338,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		tracks.splice(removedTrackPending.index, 0, removedTrackPending.track);
 		artistLogoUrls.splice(removedTrackPending.index, 0, null);
 
-		if (this.allTracks) {
-			const allTracks = [...this.allTracks];
-			allTracks.splice(removedTrackPending.index, 0, removedTrackPending.track);
-			this.allTracks = allTracks;
-		}
-
 		this.setState({ artistLogoUrls, removedTrackPending: null, tracks });
 	};
 
@@ -373,7 +345,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const { downloadService, playlist, transport } = this.viewModel;
 		const tracks = this.state.tracks
 			.map((track, i) => {
-				const streamUrl = transport.getTrackCacheUrl?.(track.id);
+				const streamUrl = transport.getTrackCacheUrl(track.id);
 				if (!streamUrl) {
 					return null;
 				}
@@ -468,7 +440,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	private resetAndLoadPlaylistData(): void {
 		this.loadGeneration += 1;
-		this.allTracks = null;
 		this.currentPage = 0;
 		this.hasMoreTracks = true;
 		this.isLoadingPage = false;
@@ -580,30 +551,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		page: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
 		const { playlist, transport } = this.viewModel;
-		if (transport.getTracksByPlaylistPage) {
-			return transport.getTracksByPlaylistPage(playlist.id, page, TRACK_PAGE_SIZE);
-		}
-
-		if (!this.allTracks) {
-			return transport.getTracksByPlaylist(playlist.id).then((tracks) => {
-				this.allTracks = tracks;
-				const start = (page - 1) * TRACK_PAGE_SIZE;
-				const end = start + TRACK_PAGE_SIZE;
-				return {
-					hasMore: end < tracks.length,
-					items: tracks.slice(start, end),
-					totalCount: tracks.length,
-				};
-			});
-		}
-
-		const start = (page - 1) * TRACK_PAGE_SIZE;
-		const end = start + TRACK_PAGE_SIZE;
-		return Promise.resolve({
-			hasMore: end < this.allTracks.length,
-			items: this.allTracks.slice(start, end),
-			totalCount: this.allTracks.length,
-		});
+		return transport.getTracksByPlaylistPage(playlist.id, page, TRACK_PAGE_SIZE);
 	}
 
 	private handleFooterNavTabTap = (tab: FooterTab): void => {

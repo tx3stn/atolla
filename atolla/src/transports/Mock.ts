@@ -352,6 +352,31 @@ export class MockTransport implements Transport {
 		return { id: `playlist-${Date.now()}`, name };
 	}
 
+	async addItemToPlaylist(_playlistId: string, _trackId: string): Promise<void> {}
+
+	async movePlaylistTrack(_playlistId: string, _trackId: string, _toIndex: number): Promise<void> {}
+
+	async removePlaylistTrack(_playlistId: string, _trackId: string): Promise<void> {}
+
+	async getTracksByPlaylistPage(
+		playlistId: string,
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
+		const allTracks = await this.getTracksByPlaylist(playlistId);
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const items = allTracks.slice(startIndex, startIndex + pageSize);
+		return {
+			hasMore: startIndex + items.length < allTracks.length,
+			items,
+			totalCount: allTracks.length,
+		};
+	}
+
+	async downloadBinary(_url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
+		return null;
+	}
+
 	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {}
 
 	private readonly imageResolvers: JellyfinImageResolvers = {

@@ -188,7 +188,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private loadRecentlyAdded(generation: number): void {
 		const limit = Math.max(1, this.viewModel.gridColumns) * 2;
 		void this.viewModel.transport
-			.getRecentlyAddedAlbums?.(limit)
+			.getRecentlyAddedAlbums(limit)
 			.then((albums) => {
 				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
 					return;
@@ -363,15 +363,13 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	private handleAlbumContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const createPlaylistFn = this.viewModel.transport.createPlaylist?.bind(
-			this.viewModel.transport,
-		);
+		const createPlaylistFn = this.viewModel.transport.createPlaylist.bind(this.viewModel.transport);
 		const tracks = this.pendingCreatePlaylistTracks;
 		if (!createPlaylistFn || !tracks) return;
 		const playlist = await createPlaylistAndAddTracks(
 			name,
 			createPlaylistFn,
-			this.viewModel.transport.addItemToPlaylist?.bind(this.viewModel.transport),
+			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
 			tracks,
 		);
 		this.pendingCreatePlaylistTracks = null;
@@ -468,9 +466,9 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 		const { connectionMode, playbackStore, transport } = this.viewModel;
 
-		if (connectionMode === ConnectionModes.online && transport.getShuffledLibraryTracksPage) {
-			const getPage = transport.getShuffledLibraryTracksPage;
-			const fetchPage = (page: number, pageSize: number) => getPage.call(transport, page, pageSize);
+		if (connectionMode === ConnectionModes.online) {
+			const fetchPage = (page: number, pageSize: number) =>
+				transport.getShuffledLibraryTracksPage(page, pageSize);
 
 			let result: { hasMore: boolean; items: Array<Track> };
 			try {

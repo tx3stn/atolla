@@ -9,15 +9,22 @@ import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 import type { DownloadService } from '../services/DownloadService';
 import type { PlaylistCreateService } from '../services/PlaylistCreateService';
+import type { PlaylistEditService } from '../services/PlaylistEditService';
 import type { Transport } from './Transport';
 
 export class OfflineTransport implements Transport {
 	private readonly downloads: DownloadService;
 	private readonly playlistCreateService: PlaylistCreateService | null;
+	private readonly playlistEditService: PlaylistEditService | null;
 
-	constructor(downloads: DownloadService, playlistCreateService?: PlaylistCreateService) {
+	constructor(
+		downloads: DownloadService,
+		playlistCreateService?: PlaylistCreateService,
+		playlistEditService?: PlaylistEditService,
+	) {
 		this.downloads = downloads;
 		this.playlistCreateService = playlistCreateService ?? null;
+		this.playlistEditService = playlistEditService ?? null;
 	}
 
 	async getArtistsPage(
@@ -107,6 +114,16 @@ export class OfflineTransport implements Transport {
 		}
 
 		return sortAlbumsByDefaultOrder(Array.from(albumsById.values()));
+	}
+
+	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
+		return [...this.collectAllAlbums()]
+			.sort((a, b) => compareDatesDescending(a.addedDate, b.addedDate))
+			.slice(0, Math.max(1, limit));
+	}
+
+	async downloadBinary(_url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
+		return null;
 	}
 
 	async getAlbumReleaseDatesPage(
@@ -336,21 +353,68 @@ export class OfflineTransport implements Transport {
 	}
 
 	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
+		let trackIds: Array<string>;
+
 		if (this.playlistCreateService) {
 			const pending = this.playlistCreateService.getPending();
 			const localEntry = pending.find((op) => op.localId === playlistId);
 			if (localEntry) {
-				if (!localEntry.trackId) return [];
-				const trackEntry = this.downloads.getTrack(localEntry.trackId);
-				return trackEntry ? [trackEntry.track] : [];
+				trackIds = localEntry.trackId ? [localEntry.trackId] : [];
+			} else {
+				trackIds = this.downloads.getPlaylist(playlistId)?.trackIds ?? [];
+			}
+		} else {
+			trackIds = this.downloads.getPlaylist(playlistId)?.trackIds ?? [];
+		}
+
+		if (this.playlistEditService) {
+			const ops = await this.playlistEditService.getPendingOpsForPlaylist(playlistId);
+			for (const op of ops) {
+				if (op.type === 'add') {
+					if (!trackIds.includes(op.trackId)) {
+						trackIds = [...trackIds, op.trackId];
+					}
+				} else if (op.type === 'remove') {
+					trackIds = trackIds.filter((id) => id !== op.trackId);
+				} else if (op.type === 'move') {
+					const from = trackIds.indexOf(op.trackId);
+					if (from >= 0) {
+						const reordered = [...trackIds];
+						reordered.splice(from, 1);
+						reordered.splice(op.toIndex, 0, op.trackId);
+						trackIds = reordered;
+					}
+				}
 			}
 		}
 
-		const playlistEntry = this.downloads.getPlaylist(playlistId);
-		if (!playlistEntry) return [];
-		return playlistEntry.trackIds
+		return trackIds
 			.map((id) => this.downloads.getTrack(id)?.track)
 			.filter((t): t is Track => t != null);
+	}
+
+	async getTracksByPlaylistPage(
+		playlistId: string,
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
+		const all = await this.getTracksByPlaylist(playlistId);
+		return singleLocalPage(all, page, pageSize);
+	}
+
+	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
+		const playlistName = this.downloads.getPlaylist(playlistId)?.playlist.name ?? '';
+		this.playlistEditService?.enqueue({ playlistId, playlistName, trackId, type: 'add' });
+	}
+
+	async movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void> {
+		const playlistName = this.downloads.getPlaylist(playlistId)?.playlist.name ?? '';
+		this.playlistEditService?.enqueue({ playlistId, playlistName, toIndex, trackId, type: 'move' });
+	}
+
+	async removePlaylistTrack(playlistId: string, trackId: string): Promise<void> {
+		const playlistName = this.downloads.getPlaylist(playlistId)?.playlist.name ?? '';
+		this.playlistEditService?.enqueue({ playlistId, playlistName, trackId, type: 'remove' });
 	}
 
 	async getRandomAlbum(): Promise<Album | null> {

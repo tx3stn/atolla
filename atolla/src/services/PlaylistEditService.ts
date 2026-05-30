@@ -8,6 +8,7 @@ function extractErrorMessage(e: unknown): string {
 }
 
 export type PlaylistOperation =
+	| { playlistId: string; playlistName: string; trackId: string; type: 'add' }
 	| { playlistId: string; playlistName: string; toIndex: number; trackId: string; type: 'move' }
 	| { playlistId: string; playlistName: string; trackId: string; type: 'remove' };
 
@@ -55,20 +56,13 @@ export class PlaylistEditService {
 	}
 
 	async execute(op: PlaylistOperation, transport: Transport): Promise<PlaylistEditError | null> {
-		const supportsOp =
-			(op.type === 'move' && transport.movePlaylistTrack != null) ||
-			(op.type === 'remove' && transport.removePlaylistTrack != null);
-
-		if (!supportsOp) {
-			this.enqueue(op);
-			return null;
-		}
-
 		try {
-			if (op.type === 'move') {
-				await transport.movePlaylistTrack?.(op.playlistId, op.trackId, op.toIndex);
+			if (op.type === 'add') {
+				await transport.addItemToPlaylist(op.playlistId, op.trackId);
+			} else if (op.type === 'move') {
+				await transport.movePlaylistTrack(op.playlistId, op.trackId, op.toIndex);
 			} else if (op.type === 'remove') {
-				await transport.removePlaylistTrack?.(op.playlistId, op.trackId);
+				await transport.removePlaylistTrack(op.playlistId, op.trackId);
 			}
 			return null;
 		} catch (e) {
@@ -82,6 +76,12 @@ export class PlaylistEditService {
 		return this.pendingOps.length;
 	}
 
+	async getPendingOpsForPlaylist(playlistId: string): Promise<Array<PlaylistOperation>> {
+		await this.operationChain;
+		await this.load();
+		return this.pendingOps.filter((op) => op.playlistId === playlistId);
+	}
+
 	async flush(transport: Transport): Promise<Array<PlaylistEditError>> {
 		await this.operationChain;
 		await this.load();
@@ -93,9 +93,11 @@ export class PlaylistEditService {
 
 		for (const op of ops) {
 			try {
-				if (op.type === 'move' && transport.movePlaylistTrack) {
+				if (op.type === 'add') {
+					await transport.addItemToPlaylist(op.playlistId, op.trackId);
+				} else if (op.type === 'move') {
 					await transport.movePlaylistTrack(op.playlistId, op.trackId, op.toIndex);
-				} else if (op.type === 'remove' && transport.removePlaylistTrack) {
+				} else if (op.type === 'remove') {
 					await transport.removePlaylistTrack(op.playlistId, op.trackId);
 				}
 			} catch (e) {
@@ -128,6 +130,9 @@ function isPlaylistOperation(value: unknown): value is PlaylistOperation {
 		typeof candidate.playlistName !== 'string'
 	) {
 		return false;
+	}
+	if (candidate.type === 'add') {
+		return true;
 	}
 	if (candidate.type === 'move') {
 		return typeof (candidate as { toIndex?: unknown }).toIndex === 'number';

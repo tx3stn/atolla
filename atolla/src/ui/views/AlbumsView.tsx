@@ -229,9 +229,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 						});
 					}
 				: undefined,
-			onCreatePlaylist: this.viewModel.transport.createPlaylist
-				? this.handleCreatePlaylistRequest
-				: undefined,
+			onCreatePlaylist: this.handleCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
 			playbackStore,
@@ -348,18 +346,15 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	};
 
 	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const createPlaylistFn = this.viewModel.transport.createPlaylist?.bind(
-			this.viewModel.transport,
-		);
 		const tracks = this.pendingCreatePlaylistTracks;
-		if (!createPlaylistFn || !tracks) {
+		if (!tracks) {
 			return;
 		}
 
 		await createPlaylistAndAddTracks(
 			name,
-			createPlaylistFn,
-			this.viewModel.transport.addItemToPlaylist?.bind(this.viewModel.transport),
+			this.viewModel.transport.createPlaylist.bind(this.viewModel.transport),
+			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
 			tracks,
 		);
 		this.pendingCreatePlaylistTracks = null;
@@ -396,7 +391,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	onRender(): void {
 		const { imageCache, animationsEnabled, transport } = this.viewModel;
 		const { addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
-		const createPlaylistFn = transport.createPlaylist?.bind(transport);
 
 		const albums = this.getDisplayAlbums();
 
@@ -434,7 +428,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 					transport={transport}
 				/>
 			)}
-			{createPlaylistTracks && createPlaylistFn && (
+			{createPlaylistTracks && (
 				<CreatePlaylistModal
 					onCancel={this.handleCreatePlaylistCancel}
 					onCreate={this.handleCreatePlaylistConfirm}

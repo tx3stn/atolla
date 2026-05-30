@@ -6,61 +6,58 @@ import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 
 export interface Transport {
-	addItemToPlaylist?(playlistId: string, trackId: string): Promise<void>;
-	createPlaylist?(name: string, trackId?: string): Promise<Playlist>;
-	downloadBinary?(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null>;
-	getAlbumReleaseDatesPage?: (
+	addItemToPlaylist(playlistId: string, trackId: string): Promise<void>;
+	createPlaylist(name: string, trackId?: string): Promise<Playlist>;
+	downloadBinary(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null>;
+	getAlbumReleaseDatesPage(
 		page: number,
 		pageSize: number,
-	) => Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }>;
+	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }>;
 	getAlbumsByArtist(artistId: string): Promise<Array<Album>>;
 	getAlbumsByIds(ids: Array<string>): Promise<Array<Album>>;
-	getAlbumsPage: (
+	getAlbumsPage(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
-	) => Promise<{ hasMore: boolean; items: Array<Album> }>;
+	): Promise<{ hasMore: boolean; items: Array<Album> }>;
 	getArtist(artistId: string): Promise<Artist | null>;
 	getArtistLogoUrl(artistId: string): Promise<string | null>;
-	getArtistsPage: (
+	getArtistsPage(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
-	) => Promise<{ hasMore: boolean; items: Array<Artist> }>;
+	): Promise<{ hasMore: boolean; items: Array<Artist> }>;
 	getArtistTopTracks(artistId: string): Promise<Array<Track>>;
-	getGenresPage: (
-		page: number,
-		pageSize: number,
-	) => Promise<{ hasMore: boolean; items: Array<Genre> }>;
-	getPlaylistsPage: (
+	getGenresPage(page: number, pageSize: number): Promise<{ hasMore: boolean; items: Array<Genre> }>;
+	getPlaylistsPage(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
-	) => Promise<{ hasMore: boolean; items: Array<Playlist> }>;
+	): Promise<{ hasMore: boolean; items: Array<Playlist> }>;
 	getRandomAlbum(): Promise<Album | null>;
-	getRecentlyAddedAlbums?(limit: number): Promise<Array<Album>>;
+	getRecentlyAddedAlbums(limit: number): Promise<Array<Album>>;
 	getShuffledLibraryTracks(): Promise<Array<Track>>;
-	getShuffledLibraryTracksPage?(
+	getShuffledLibraryTracksPage(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track> }>;
-	getTrackCacheUrl?(trackId: string): string | null;
+	getTrackCacheUrl(trackId: string): string | null;
 	getTracksByAlbum(albumId: string): Promise<Array<Track>>;
 	getTracksByArtist(artistId: string): Promise<Array<Track>>;
 	getTracksByGenre(genreId: string): Promise<Array<Track>>;
-	getTracksByGenrePage?: (
+	getTracksByGenrePage(
 		genreId: string,
 		page: number,
 		pageSize: number,
-	) => Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }>;
+	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }>;
 	getTracksByPlaylist(playlistId: string): Promise<Array<Track>>;
-	getTracksByPlaylistPage?: (
+	getTracksByPlaylistPage(
 		playlistId: string,
 		page: number,
 		pageSize: number,
-	) => Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }>;
-	movePlaylistTrack?(playlistId: string, trackId: string, toIndex: number): Promise<void>;
-	removePlaylistTrack?(playlistId: string, trackId: string): Promise<void>;
-	scrobbleTrackPlayed?(trackId: string, datePlayed: string): Promise<void>;
+	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }>;
+	movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void>;
+	removePlaylistTrack(playlistId: string, trackId: string): Promise<void>;
+	scrobbleTrackPlayed(trackId: string, datePlayed: string): Promise<void>;
 	search(query: string): Promise<SearchResults>;
 }

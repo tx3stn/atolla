@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { Transport } from '../transports/Transport';
 import { PlaylistCreateService } from './PlaylistCreateService';
 
 function createStoreMock(initial: string | null = null): {
@@ -158,13 +159,16 @@ describe('PlaylistCreateService.flush', () => {
 		expect(transport.createdPlaylists).toHaveLength(0);
 	});
 
-	it('skips and retains pending items when transport has no createPlaylist', async () => {
+	it('retains pending items and returns errors when createPlaylist throws', async () => {
 		const service = new PlaylistCreateService(createStoreMock());
 		service.enqueue('My Playlist', 'track-1');
 
-		const errors = await service.flush({} as never);
+		const failingTransport = {
+			createPlaylist: () => Promise.reject(new Error('network error')),
+		} as unknown as Transport;
+		const errors = await service.flush(failingTransport);
 
-		expect(errors).toHaveLength(0);
+		expect(errors).toHaveLength(1);
 		expect(service.getPending()).toHaveLength(1);
 	});
 });

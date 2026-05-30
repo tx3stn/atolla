@@ -179,13 +179,17 @@ describe('OnThisDayService.refresh', () => {
 		expect(transport.discoverCalls).toBeGreaterThan(callsAfterFirst);
 	});
 
-	it('is a no-op when the transport cannot discover or hydrate', async () => {
+	it('runs but stores an empty result when the transport returns no items', async () => {
 		const store = memoryStore();
 		const service = new OnThisDayService(store);
 
-		await service.refresh({}, NOW);
+		const emptyTransport: OnThisDayTransport = {
+			getAlbumReleaseDatesPage: () => Promise.resolve({ hasMore: false, items: [] }),
+			getAlbumsByIds: () => Promise.resolve([]),
+		};
+		await service.refresh(emptyTransport, NOW);
 
-		expect(store.value()).toBeUndefined();
+		expect(store.value()).toBeDefined();
 		expect(service.getAlbumsForDate(NOW)).toEqual([]);
 	});
 

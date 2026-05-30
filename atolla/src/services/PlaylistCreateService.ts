@@ -61,7 +61,6 @@ export class PlaylistCreateService {
 
 		for (const op of ops) {
 			try {
-				if (!transport.createPlaylist) continue;
 				await transport.createPlaylist(op.name, op.trackId);
 				const idx = this.pending.findIndex((p) => p.localId === op.localId);
 				if (idx >= 0) this.pending.splice(idx, 1);

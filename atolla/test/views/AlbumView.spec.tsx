@@ -50,6 +50,7 @@ describe('AlbumView', () => {
 			{ duration: 90, id: 'track-2', name: 'Song Two', trackNumber: 2 },
 		];
 		const transport = {
+			getAlbumsByIds: async () => [],
 			getArtist: async () => ({ id: 'artist-1', logoUrl: 'https://logo.png', name: 'Artist One' }),
 			getTracksByAlbum: async () => tracks,
 		};
@@ -82,6 +83,7 @@ describe('AlbumView', () => {
 		};
 		const tracks = [{ duration: 120, id: 'track-1', name: 'Song One', trackNumber: 1 }];
 		const transport = {
+			getAlbumsByIds: async () => [],
 			getArtist: async () => ({ id: 'artist-1', logoUrl: 'https://logo.png', name: 'Artist One' }),
 			getTracksByAlbum: async () => tracks,
 		};
@@ -133,6 +135,7 @@ describe('AlbumView', () => {
 			track: null,
 		};
 		const transport = {
+			getAlbumsByIds: async () => [],
 			getArtist: async () => null,
 			getTracksByAlbum: async () => [],
 		};
@@ -157,6 +160,7 @@ describe('AlbumView', () => {
 			name: 'First Album',
 		};
 		const transport = {
+			getAlbumsByIds: async () => [],
 			getArtist: async () => ({ id: 'artist-1', logoUrl: 'https://logo.png', name: 'Artist One' }),
 			getTracksByAlbum: async () => [],
 		};
@@ -212,6 +216,7 @@ describe('AlbumView', () => {
 				releaseDate: '2024-01-01T12:34:56.0000000Z',
 			};
 			const transport = {
+				getAlbumsByIds: async () => [],
 				getArtist: async () => null,
 				getTracksByAlbum: async () => [
 					{ duration: 60, id: 'track-1', name: 'Song One', trackNumber: 1 },

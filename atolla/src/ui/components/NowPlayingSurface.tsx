@@ -55,7 +55,7 @@ export interface NowPlayingSurfaceViewModel {
 	track: Track;
 	trackIndex: number;
 	tracks: Array<Track>;
-	transport?: Transport;
+	transport: Transport;
 	waveformMaskUrl?: string | null;
 }
 
@@ -537,11 +537,9 @@ export class NowPlayingSurface extends StatefulComponent<
 	};
 
 	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const createPlaylistTransport = this.viewModel.transport;
-		const createPlaylistFn = createPlaylistTransport?.createPlaylist?.bind(createPlaylistTransport);
 		const createPlaylistTrack = this.state.createPlaylistTrack;
-		if (!createPlaylistFn || !createPlaylistTrack) return;
-		const playlist = await createPlaylistFn(name, createPlaylistTrack.id);
+		if (!createPlaylistTrack) return;
+		const playlist = await this.viewModel.transport.createPlaylist(name, createPlaylistTrack.id);
 		this.setState({ createPlaylistTrack: null });
 		this.viewModel.onOpenPlaylist?.(playlist);
 	};
@@ -568,8 +566,6 @@ export class NowPlayingSurface extends StatefulComponent<
 
 		const playbackStore = this.viewModel.playbackStore;
 		const progressSeconds = playbackStore?.progressSeconds ?? 0;
-		const createPlaylistTransport = this.viewModel.transport;
-		const createPlaylistFn = createPlaylistTransport?.createPlaylist?.bind(createPlaylistTransport);
 		const createPlaylistTrack = this.state.createPlaylistTrack;
 
 		const toEntry = (t: Track): TrackListEntry => ({
@@ -909,18 +905,14 @@ export class NowPlayingSurface extends StatefulComponent<
 							? this.handleContextMenuArtistTap
 							: undefined
 					}
-					onCreatePlaylist={
-						this.viewModel.transport?.createPlaylist
-							? this.handleContextMenuCreatePlaylist
-							: undefined
-					}
+					onCreatePlaylist={this.handleContextMenuCreatePlaylist}
 					onDismiss={this.handleContextMenuDismiss}
 					playbackStore={this.viewModel.playbackStore}
 					track={this.state.contextMenuTrack}
 					transport={this.viewModel.transport}
 				/>
 			)}
-			{this.state.addToPlaylistTracks && this.viewModel.transport && (
+			{this.state.addToPlaylistTracks && (
 				<AddToPlaylistView
 					animationsEnabled={this.viewModel.animationsEnabled}
 					imageCache={this.viewModel.imageCache}
@@ -929,7 +921,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					transport={this.viewModel.transport}
 				/>
 			)}
-			{createPlaylistFn && createPlaylistTrack && (
+			{createPlaylistTrack && (
 				<CreatePlaylistModal
 					onCancel={this.handleCreatePlaylistCancel}
 					onCreate={this.handleCreatePlaylistConfirm}

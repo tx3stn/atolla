@@ -49,7 +49,6 @@ export function openTrackContextMenu(
 			<CreatePlaylistModal
 				onCancel={() => closeSlot(modalSlot)}
 				onCreate={async (name: string) => {
-					if (!options.transport.createPlaylist) return;
 					const playlist = await options.transport.createPlaylist(name, track.id);
 					closeSlot(modalSlot);
 					options.onPlaylistCreated?.(playlist);
@@ -65,7 +64,7 @@ export function openTrackContextMenu(
 			onAddToPlaylist={onAddToPlaylist}
 			onAlbumTap={track.albumId && options.onAlbumTap ? options.onAlbumTap : undefined}
 			onArtistTap={options.onArtistTap}
-			onCreatePlaylist={options.transport.createPlaylist ? onCreatePlaylist : undefined}
+			onCreatePlaylist={onCreatePlaylist}
 			onDismiss={dismiss}
 			playbackStore={options.playbackStore}
 			track={track}

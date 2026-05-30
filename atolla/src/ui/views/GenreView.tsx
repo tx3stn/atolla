@@ -60,7 +60,6 @@ interface GenreState {
 
 @NavigationPage(module)
 export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, GenreState> {
-	private allTracks: Array<Track> | null = null;
 	private currentPage = 0;
 	private hasBeenDestroyed = false;
 	private hasMoreTracks = true;
@@ -181,7 +180,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		const { downloadService, genre, transport } = this.viewModel;
 		Promise.all(
 			this.state.tracks.map(async (track, i) => {
-				const streamUrl = transport.getTrackCacheUrl?.(track.id);
+				const streamUrl = transport.getTrackCacheUrl(track.id);
 				if (!streamUrl) {
 					return null;
 				}
@@ -348,30 +347,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		page: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
 		const { genre, transport } = this.viewModel;
-		if (transport.getTracksByGenrePage) {
-			return transport.getTracksByGenrePage(genre.id, page, TRACK_PAGE_SIZE);
-		}
-
-		if (!this.allTracks) {
-			return transport.getTracksByGenre(genre.id).then((tracks) => {
-				this.allTracks = tracks;
-				const start = (page - 1) * TRACK_PAGE_SIZE;
-				const end = start + TRACK_PAGE_SIZE;
-				return {
-					hasMore: end < tracks.length,
-					items: tracks.slice(start, end),
-					totalCount: tracks.length,
-				};
-			});
-		}
-
-		const start = (page - 1) * TRACK_PAGE_SIZE;
-		const end = start + TRACK_PAGE_SIZE;
-		return Promise.resolve({
-			hasMore: end < this.allTracks.length,
-			items: this.allTracks.slice(start, end),
-			totalCount: this.allTracks.length,
-		});
+		return transport.getTracksByGenrePage(genre.id, page, TRACK_PAGE_SIZE);
 	}
 
 	private handleLoadMoreTriggerLayout = (): void => {
