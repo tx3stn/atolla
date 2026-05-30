@@ -191,7 +191,7 @@ export class LiveTransport implements Transport {
 
 	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
 		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
-			fields: 'DateCreated',
+			fields: 'DateCreated,Genres,Overview',
 			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 			limit: Math.max(1, limit),
 			recursive: true,

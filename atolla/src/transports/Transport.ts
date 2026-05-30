@@ -14,7 +14,7 @@ export interface Transport {
 		pageSize: number,
 	) => Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }>;
 	getAlbumsByArtist(artistId: string): Promise<Array<Album>>;
-	getAlbumsByIds?(ids: Array<string>): Promise<Array<Album>>;
+	getAlbumsByIds(ids: Array<string>): Promise<Array<Album>>;
 	getAlbumsPage: (
 		page: number,
 		pageSize: number,

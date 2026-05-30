@@ -57,6 +57,7 @@ interface AlbumState {
 	artist: Artist | null;
 	artistLogoUrl: string | null;
 	downloadState: DownloadState;
+	fullAlbum: Album | null;
 	isFooterVisible: boolean;
 	isHeaderVisible: boolean;
 	isLoading: boolean;
@@ -81,6 +82,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		artist: null,
 		artistLogoUrl: null,
 		downloadState: 'not_downloaded',
+		fullAlbum: null,
 		isFooterVisible: false,
 		isHeaderVisible: false,
 		isLoading: true,
@@ -318,7 +320,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 		const { album, paletteQueue, transport } = this.viewModel;
 		paletteQueue?.prioritize(album.imageUrl);
-		this.setState({ isLoading: true });
+		this.setState({ fullAlbum: null, isLoading: true });
+
+		const needsFullAlbum = album.genres === undefined;
 
 		Promise.all([
 			transport
@@ -329,7 +333,13 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				.getArtist(album.artistId)
 				.then((v) => ({ status: 'fulfilled' as const, value: v }))
 				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-		]).then(([tracksResult, artistResult]) => {
+			needsFullAlbum
+				? transport
+						.getAlbumsByIds([album.id])
+						.then((v) => ({ status: 'fulfilled' as const, value: v }))
+						.catch((r) => ({ reason: r, status: 'rejected' as const }))
+				: Promise.resolve({ status: 'fulfilled' as const, value: [] as Array<Album> }),
+		]).then(([tracksResult, artistResult, fullAlbumResult]) => {
 			if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
 				return;
 			}
@@ -337,10 +347,13 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			const tracks = tracksResult.status === 'fulfilled' ? tracksResult.value : [];
 			const artist = artistResult.status === 'fulfilled' ? artistResult.value : null;
 			const logoUrl = artist?.logoUrl || null;
+			const fullAlbum =
+				fullAlbumResult.status === 'fulfilled' ? (fullAlbumResult.value[0] ?? null) : null;
 
 			this.setState({
 				artist: artist ?? null,
 				artistLogoUrl: logoUrl,
+				fullAlbum,
 				isLoading: false,
 				tracks,
 			});
@@ -419,9 +432,17 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	onRender(): void {
-		const { artistLogoUrl, downloadState, isFooterVisible, isHeaderVisible, isLoading, tracks } =
-			this.state;
-		const { album, animationsEnabled, imageCache } = this.viewModel;
+		const {
+			artistLogoUrl,
+			downloadState,
+			fullAlbum,
+			isFooterVisible,
+			isHeaderVisible,
+			isLoading,
+			tracks,
+		} = this.state;
+		const { album: partialAlbum, animationsEnabled, imageCache } = this.viewModel;
+		const album = fullAlbum ?? partialAlbum;
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const albumGenres = normalizeGenres(album.genres);
 
