@@ -100,47 +100,40 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			playbackStore,
 			transport,
 		} = this.viewModel;
-		const navigationController = this.navigationController;
-		const pushArtistView = (artist: Artist) => {
-			this.setHeaderVisibility(false);
-			navigationController.push(
-				ArtistView,
-				{
-					animationsEnabled,
-					artist,
-					downloadService,
-					gridColumns,
-					imageCache,
-					isHeaderVisible: false,
-					modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-					navBarContext: this.viewModel.navBarContext,
-					onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-					paletteQueue,
-					playbackStore,
-					restoreHeaderOnDestroy: false,
-					transport,
-				},
-				{},
-				{ animated: animationsEnabled },
-			);
-		};
 
-		if (this.state.artist) {
-			pushArtistView(this.state.artist);
-			return;
-		}
+		// Push synchronously with the data already in hand so the navigation can
+		// never be lost to a slow or rejected getArtist call (the context menu
+		// dismisses immediately after this runs). ArtistView loads its own data
+		// from artist.id.
+		const artist =
+			this.state.artist ??
+			({
+				id: album.artistId,
+				logoUrl: this.state.artistLogoUrl ?? null,
+				name: album.artistName,
+			} as Artist);
 
-		transport.getArtist(album.artistId).then((artist) => {
-			const resolvedArtist =
-				artist ??
-				({
-					id: album.artistId,
-					logoUrl: this.state.artistLogoUrl ?? null,
-					name: album.artistName,
-				} as Artist);
-			this.setState({ artist: resolvedArtist, artistLogoUrl: resolvedArtist.logoUrl ?? null });
-			pushArtistView(resolvedArtist);
-		});
+		this.setHeaderVisibility(false);
+		this.navigationController.push(
+			ArtistView,
+			{
+				animationsEnabled,
+				artist,
+				downloadService,
+				gridColumns,
+				imageCache,
+				isHeaderVisible: false,
+				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
+				navBarContext: this.viewModel.navBarContext,
+				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+				paletteQueue,
+				playbackStore,
+				restoreHeaderOnDestroy: false,
+				transport,
+			},
+			{},
+			{ animated: animationsEnabled },
+		);
 	};
 
 	handleTrackTap = (trackId: string): void => {
@@ -190,6 +183,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			animationsEnabled,
 			gridColumns,
 			imageCache,
+			// Tracks here belong to the album we're already viewing, so tapping the
+			// row preview just closes the menu (onDismiss) rather than re-navigating.
 			onAlbumTap: () => {},
 			onArtistTap: this.handleArtistLogoTap,
 			onDismiss: () => {},

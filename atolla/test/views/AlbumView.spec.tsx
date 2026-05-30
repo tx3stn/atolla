@@ -205,6 +205,55 @@ describe('AlbumView', () => {
 		expect(captured.pushedPage?.componentViewModel?.artist?.id).toBe('artist-1');
 	});
 
+	valdiIt('pushes ArtistView synchronously even when the artist has not loaded yet', async () => {
+		const album = {
+			artistId: 'artist-1',
+			artistName: 'Artist One',
+			id: 'album-1',
+			name: 'First Album',
+		};
+		// getArtist never resolves, so state.artist stays null. The push must not
+		// wait on it — it should navigate immediately using album fallback data.
+		const transport = {
+			getAlbumsByIds: async () => [],
+			getArtist: () => new Promise(() => {}),
+			getTracksByAlbum: async () => [],
+		};
+		const playbackStore = {
+			play: () => {},
+			setArtistLogoUrl: () => {},
+			subscribe: () => () => {},
+			track: null,
+		};
+
+		const captured: {
+			pushedPage: {
+				componentPath?: unknown;
+				componentViewModel?: { artist?: { id?: string; name?: string } };
+			} | null;
+		} = { pushedPage: null };
+		const trackingNavigator = {
+			...mockNavigator,
+			__shouldDisableMakeOpaque: true,
+			pushComponent: (page: typeof captured.pushedPage) => {
+				captured.pushedPage = page;
+			},
+		};
+		const instrumented = createComponent(
+			AlbumView,
+			{ album, downloadService, playbackStore, transport },
+			{ navigator: trackingNavigator },
+		);
+		const component = instrumented.getComponent();
+
+		expect(component.state.artist).toBeNull();
+		component.handleArtistLogoTap();
+
+		expect(captured.pushedPage?.componentPath).toBe(ArtistView.componentPath);
+		expect(captured.pushedPage?.componentViewModel?.artist?.id).toBe('artist-1');
+		expect(captured.pushedPage?.componentViewModel?.artist?.name).toBe('Artist One');
+	});
+
 	valdiIt(
 		'renders date-only release date and total duration in separate subheader columns when tracks are loaded',
 		async () => {

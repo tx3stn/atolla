@@ -62,7 +62,7 @@ export function openTrackContextMenu(
 			animationsEnabled={options.animationsEnabled}
 			imageCache={options.imageCache}
 			onAddToPlaylist={onAddToPlaylist}
-			onAlbumTap={track.albumId && options.onAlbumTap ? options.onAlbumTap : undefined}
+			onAlbumTap={options.onAlbumTap}
 			onArtistTap={options.onArtistTap}
 			onCreatePlaylist={onCreatePlaylist}
 			onDismiss={dismiss}
