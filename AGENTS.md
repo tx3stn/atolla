@@ -19,6 +19,11 @@ Component tests are required when the thing being tested imports valdi as these 
 
 @.ai/e2e-tests.md
 
+Native code should always be tested too, and will need to be run via bazel.
+
+Zig tests can be run with `bun run test:zig`.
+Kotlin tests can be run with `bun run test:android`.
+
 ## Commands
 
 Commands are defined in @package.json and run with `bun run ...`

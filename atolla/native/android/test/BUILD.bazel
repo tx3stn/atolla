@@ -11,3 +11,15 @@ kt_jvm_test(
         "@test_mvn//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "AtollaImageFallbackTest",
+    size = "small",
+    srcs = ["AtollaImageFallbackTest.kt"],
+    jvm_flags = ["-Djava.security.manager=allow"],
+    test_class = "atolla.native.android.AtollaImageFallbackTest",
+    deps = [
+        "//atolla/native:atolla_image_fallback",
+        "@test_mvn//:junit_junit",
+    ],
+)

@@ -246,6 +246,17 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 - (NSString *)diskCategoryCountsJson;
 @end
 
+// When a full-size variant isn't cached we serve its smaller thumbnail so something displays; the
+// thumb sibling of an eligible full variant is simply the category + "_thumb". Mirrors
+// AtollaImageFallback.thumbFallbackCategory on Android. Categories without a smaller variant return
+// nil.
+static NSString * _Nullable AtollaThumbFallbackCategory(NSString *category) {
+    if ([category isEqualToString:@"album_art"]) return @"album_art_thumb";
+    if ([category isEqualToString:@"artist_image"]) return @"artist_image_thumb";
+    if ([category isEqualToString:@"playlist_image"]) return @"playlist_image_thumb";
+    return nil;
+}
+
 @implementation AtollaIOSImageLoader {
     AtollaIOSImageCacheStore *_cache;
     void (^_imageCachedObserver)(NSString *, NSString *);
@@ -315,7 +326,10 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 
     if ([payload.category isEqualToString:@"album_art_blurred"]) {
         NSString *originalKey = [NSString stringWithFormat:@"album_art:%@", payload.sourceURL.absoluteString];
-        NSData *originalData = [_cache readForKey:originalKey];
+        // The blur is downsampled before storage, so prefer the (always-downloaded) thumb and fall
+        // back to the full original; only fetch from network if neither is cached.
+        NSString *thumbKey = [NSString stringWithFormat:@"album_art_thumb:%@", payload.sourceURL.absoluteString];
+        NSData *originalData = [_cache readForKey:thumbKey] ?: [_cache readForKey:originalKey];
         if (originalData) {
             NSData *blurred = [self generateBlurredDataFrom:originalData];
             if (blurred) {
@@ -343,6 +357,32 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
             }];
         [task resume];
         return [[AtollaURLTaskCancelable alloc] initWithTask:task];
+    }
+
+    // Full-variant fallback: the requested full-size variant isn't cached. If its thumbnail is,
+    // deliver that now so something shows immediately, then fetch the full variant in the
+    // background to populate the cache for the next render (without calling completion again).
+    NSString *thumbCategory = AtollaThumbFallbackCategory(payload.category);
+    if (thumbCategory) {
+        NSString *thumbKey = [NSString stringWithFormat:@"%@:%@", thumbCategory, payload.sourceURL.absoluteString];
+        NSData *thumbData = [_cache readForKey:thumbKey];
+        if (thumbData) {
+            completion(thumbData, nil);
+            NSURLSessionDataTask *bgTask = [NSURLSession.sharedSession
+                dataTaskWithRequest:request
+                completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
+                    if (!data) { return; }
+                    [self->_cache writeData:data forKey:key];
+                    if ([payload.category isEqualToString:@"album_art"]) {
+                        [self writePaletteSidecarForData:data url:payload.sourceURL.absoluteString];
+                    }
+                    if (self->_imageCachedObserver) {
+                        self->_imageCachedObserver(payload.sourceURL.absoluteString, payload.category);
+                    }
+                }];
+            [bgTask resume];
+            return [[AtollaURLTaskCancelable alloc] initWithTask:bgTask];
+        }
     }
 
     NSURLSessionDataTask *task = [NSURLSession.sharedSession

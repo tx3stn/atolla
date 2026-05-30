@@ -146,6 +146,7 @@ kt_android_library(
         "android/AtollaDebugLoggerNativeModuleFactory.kt",
         "android/AtollaHapticsBootstrap.kt",
         "android/AtollaHapticsBootstrapModuleFactory.kt",
+        "android/AtollaImageFallback.kt",
         "android/AtollaPlaybackGuards.kt",
         "android/AtollaImageLoaderAutoBootstrap.kt",
         "android/AtollaImageLoaderBootstrapModuleFactory.kt",
@@ -178,4 +179,9 @@ kt_android_library(
 kt_jvm_library(
     name = "atolla_playback_guards",
     srcs = ["android/AtollaPlaybackGuards.kt"],
+)
+
+kt_jvm_library(
+    name = "atolla_image_fallback",
+    srcs = ["android/AtollaImageFallback.kt"],
 )

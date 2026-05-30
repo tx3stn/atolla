@@ -1,5 +1,6 @@
 package com.tx3stn.atolla
 
+import atolla.native.android.AtollaImageFallback
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -450,6 +451,11 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		cancelled: java.util.concurrent.atomic.AtomicBoolean,
 		future: CompletableFuture<ByteArray>,
 	) {
+		// When the requested full-size variant is missing we may serve its thumbnail as a
+		// stop-gap; these track that so the fetch paths below don't re-deliver to the (one-shot)
+		// completion and resolve deduped followers with the thumb when the full fetch fails.
+		var deliveredFallback = false
+		var fallbackBytes: ByteArray? = null
 		try {
 			// Disk hit: promote to memory and complete.
 			readFromDisk(key)?.let { bytes ->
@@ -461,11 +467,13 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				return
 			}
 
-			// Blurred art: generate from the cached original, fetching from
-			// network if the original isn't cached yet.
+			// Blurred art: generate from a cached source, preferring the thumbnail (the blur is
+			// downsampled to 200x200 so the thumb is plenty and is always downloaded), then the
+			// full original; only fetch the full from network if neither is cached.
 			if (payload.category == "album_art_blurred") {
 				val originalKey = "album_art:${payload.sourceUrl}"
-				val cachedOriginal = memory.get(originalKey) ?: readFromDisk(originalKey)
+				val cachedOriginal = AtollaImageFallback.blurSourceKeys(payload.sourceUrl)
+					.firstNotNullOfOrNull { k -> memory.get(k) ?: readFromDisk(k) }
 				if (cachedOriginal != null) {
 					val blurredBytes = generateBlurredBytes(cachedOriginal)
 					inFlight.remove(key)
@@ -501,8 +509,26 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				return
 			}
 
+			// Full-variant fallback: the requested full-size variant isn't cached. If its
+			// thumbnail is, deliver that now so something shows immediately; the full variant
+			// still fetches below to populate the cache for the next render.
+			AtollaImageFallback.thumbFallbackCategory(payload.category)?.let { thumbCategory ->
+				val thumbKey = "$thumbCategory:${payload.sourceUrl}"
+				val thumbBytes = memory.get(thumbKey) ?: readFromDisk(thumbKey)
+				if (thumbBytes != null) {
+					Log.d(tag, "serving thumb fallback $thumbKey for missing $key")
+					completeFromBytes(thumbKey, thumbBytes, options, completion, cancelled)
+					fallbackBytes = thumbBytes
+					deliveredFallback = true
+				}
+			}
+
 			if (payload.cacheOnly) {
 				inFlight.remove(key)
+				if (deliveredFallback) {
+					future.complete(fallbackBytes!!)
+					return
+				}
 				val ex = ValdiException("Cache miss for cache-only request")
 				future.completeExceptionally(ex)
 				deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, ex) }
@@ -516,11 +542,21 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			writePaletteSidecarIfNeeded(payload.sourceUrl, payload.category, bytes)
 			inFlight.remove(key)
 			future.complete(bytes)
-			completeFromBytes(key, bytes, options, completion, cancelled)
+			// If we already served the thumb, don't re-deliver to the one-shot completion; the
+			// full bytes are now cached and will be served on the next render.
+			if (!deliveredFallback) {
+				completeFromBytes(key, bytes, options, completion, cancelled)
+			}
 			notifyImageCached(payload.sourceUrl, payload.category)
 		} catch (error: Throwable) {
 			Log.e(tag, "load failed key=$key", error)
 			inFlight.remove(key)
+			if (deliveredFallback) {
+				// The thumb was already delivered; the full fetch failed (likely offline). Resolve
+				// deduped followers with the thumb so they show something too, rather than an error.
+				future.complete(fallbackBytes!!)
+				return
+			}
 			future.completeExceptionally(error)
 			deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, error) }
 		}
@@ -597,7 +633,8 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 			if (category == "album_art_blurred") {
 				val originalKey = "album_art:$sourceUrl"
-				val cachedOriginal = memory.get(originalKey) ?: readFromDisk(originalKey)
+				val cachedOriginal = AtollaImageFallback.blurSourceKeys(sourceUrl)
+					.firstNotNullOfOrNull { k -> memory.get(k) ?: readFromDisk(k) }
 				if (cachedOriginal != null) {
 					val blurredBytes = generateBlurredBytes(cachedOriginal)
 					inFlight.remove(key)

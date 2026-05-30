@@ -39,7 +39,7 @@
 		"reload": "./.scripts/android-hotreload.sh",
 		"start:e2e-devices": "./.scripts/start-e2e-devices.sh",
 		"test": "bun test ./atolla/src",
-		"test:android": "bazel test //atolla/native/android/test:AtollaPlaybackGuardsTest --legacy_external_runfiles --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
+		"test:android": "bazel test //atolla/native/android/test/... --legacy_external_runfiles --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
 		"test:components": "bazel test //atolla:test --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
 		"test:e2e": "./.scripts/test-e2e-parallel.sh",
 		"test:e2e:android": "E2E_APP_PATH=$PWD/build/atolla_android.apk wdio run ./test/wdio.conf.ts",

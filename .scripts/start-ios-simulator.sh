@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -euo pipefail
 
 SIMULATOR_NAME="${SIMULATOR_NAME:-iPhone 17}"
@@ -84,8 +85,8 @@ bazel build "$IPA_TARGET" "${BAZEL_ARGS_ARRAY[@]}"
 
 # Use cquery to locate the IPA — rules_apple outputs land in an iOS-specific
 # config transition directory that bazel info bazel-bin doesn't reflect.
-IPA_SRC="$(bazel cquery --output=files "$IPA_TARGET" "${BAZEL_ARGS_ARRAY[@]}" 2>/dev/null \
-	| grep '\.ipa$' | grep -v '/runfiles/' | head -1)"
+IPA_SRC="$(bazel cquery --output=files "$IPA_TARGET" "${BAZEL_ARGS_ARRAY[@]}" 2>/dev/null |
+	grep '\.ipa$' | grep -v '/runfiles/' | head -1)"
 if [[ ! -f "$IPA_SRC" ]]; then
 	echo "Error: could not locate atolla_ios.ipa (cquery returned: '${IPA_SRC}')" >&2
 	exit 1
