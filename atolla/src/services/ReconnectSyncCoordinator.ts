@@ -20,7 +20,13 @@ export interface SyncResult extends SyncProgress {
 interface PlaylistCreateLike {
 	flush(transport: Transport): Promise<{
 		errors: Array<{ error: string; name: string }>;
-		idMappings: Array<{ initialTrackId: string; localId: string; name: string; serverId: string }>;
+		idMappings: Array<{
+			imageUrl?: string;
+			initialTrackId: string;
+			localId: string;
+			name: string;
+			serverId: string;
+		}>;
 	}>;
 	getPending(): ReadonlyArray<unknown>;
 	load(): Promise<void>;
@@ -116,10 +122,10 @@ export class ReconnectSyncCoordinator {
 				playlistEditService.remapPlaylistIds(
 					idMappings.map(({ localId, serverId }) => ({ localId, serverId })),
 				);
-				for (const { initialTrackId, localId, name, serverId } of idMappings) {
+				for (const { imageUrl, initialTrackId, localId, name, serverId } of idMappings) {
 					const added = addedByLocalId.get(localId) ?? [];
 					const allTrackIds = initialTrackId ? [initialTrackId, ...added] : [...added];
-					downloadService.registerSyncedPlaylist({ id: serverId, name }, allTrackIds);
+					downloadService.registerSyncedPlaylist({ id: serverId, imageUrl, name }, allTrackIds);
 				}
 			}
 		} catch {

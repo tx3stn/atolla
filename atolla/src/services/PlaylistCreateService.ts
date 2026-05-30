@@ -54,7 +54,13 @@ export class PlaylistCreateService {
 
 	async flush(transport: Transport): Promise<{
 		errors: Array<{ error: string; name: string }>;
-		idMappings: Array<{ initialTrackId: string; localId: string; name: string; serverId: string }>;
+		idMappings: Array<{
+			imageUrl?: string;
+			initialTrackId: string;
+			localId: string;
+			name: string;
+			serverId: string;
+		}>;
 	}> {
 		await this.load();
 		if (this.pending.length === 0) return { errors: [], idMappings: [] };
@@ -62,6 +68,7 @@ export class PlaylistCreateService {
 		const ops = [...this.pending];
 		const errors: Array<{ error: string; name: string }> = [];
 		const idMappings: Array<{
+			imageUrl: string | undefined;
 			initialTrackId: string;
 			localId: string;
 			name: string;
@@ -72,6 +79,7 @@ export class PlaylistCreateService {
 			try {
 				const created = await transport.createPlaylist(op.name, op.trackId);
 				idMappings.push({
+					imageUrl: created.imageUrl,
 					initialTrackId: op.trackId,
 					localId: op.localId,
 					name: op.name,

@@ -26,7 +26,10 @@ function createStoreMock(initial: string | null = null): {
 
 function createTransportMock(options: { failCreate?: boolean } = {}): {
 	addItemToPlaylist: (playlistId: string, trackId: string) => Promise<void>;
-	createPlaylist: (name: string, trackId?: string) => Promise<{ id: string; name: string }>;
+	createPlaylist: (
+		name: string,
+		trackId?: string,
+	) => Promise<{ id: string; imageUrl?: string; name: string }>;
 	addedItems: Array<{ playlistId: string; trackId: string }>;
 	createdPlaylists: Array<{ name: string; trackId?: string }>;
 } {
@@ -43,7 +46,11 @@ function createTransportMock(options: { failCreate?: boolean } = {}): {
 		createPlaylist: (name: string, trackId?: string) => {
 			if (options.failCreate) return Promise.reject(new Error('server error'));
 			createdPlaylists.push({ name, trackId });
-			return Promise.resolve({ id: `playlist-${idCounter++}`, name });
+			return Promise.resolve({
+				id: `playlist-${idCounter++}`,
+				imageUrl: `https://img/playlist-${idCounter - 1}.jpg`,
+				name,
+			});
 		},
 	};
 }
@@ -142,6 +149,7 @@ describe('PlaylistCreateService.flush', () => {
 		expect(idMappings[0].serverId).toBe('playlist-1');
 		expect(idMappings[0].name).toBe('Playlist A');
 		expect(idMappings[0].initialTrackId).toBe('track-1');
+		expect(idMappings[0].imageUrl).toBe('https://img/playlist-1.jpg');
 		expect(idMappings[1].localId).toBe(p2.id);
 		expect(idMappings[1].serverId).toBe('playlist-2');
 	});

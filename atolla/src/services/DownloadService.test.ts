@@ -413,6 +413,41 @@ describe('DownloadService', () => {
 			expect(service.getPlaylistDownloadState('synced-playlist')).toBe('downloaded');
 		});
 
+		it('caches the playlist cover image when imageUrl is present', async () => {
+			const { imageCalls, service } = createService();
+			const track = makeTrack('track-1');
+			service.downloadPlaylist({
+				playlist: makePlaylist('other-playlist'),
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track }],
+			});
+			await flush();
+
+			const playlist = { ...makePlaylist('synced-playlist'), imageUrl: 'https://img/synced.jpg' };
+			service.registerSyncedPlaylist(playlist, ['track-1']);
+			await flush();
+
+			const playlistImageCalls = imageCalls.filter((c) => c.url === 'https://img/synced.jpg');
+			expect(playlistImageCalls.length).toBeGreaterThan(0);
+			expect(playlistImageCalls.some((c) => c.category === 'playlist_image')).toBe(true);
+			expect(playlistImageCalls.some((c) => c.category === 'playlist_image_thumb')).toBe(true);
+		});
+
+		it('does not attempt image caching when imageUrl is absent', async () => {
+			const { imageCalls, service } = createService();
+			const track = makeTrack('track-1');
+			service.downloadPlaylist({
+				playlist: makePlaylist('other-playlist'),
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track }],
+			});
+			await flush();
+			const countBefore = imageCalls.length;
+
+			service.registerSyncedPlaylist(makePlaylist('synced-playlist'), ['track-1']);
+			await flush();
+
+			expect(imageCalls.length).toBe(countBefore);
+		});
+
 		it('shows as not_downloaded when none of the track ids are in the cache', async () => {
 			const { service } = createService();
 			const playlist = makePlaylist('synced-playlist');

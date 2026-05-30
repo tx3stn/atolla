@@ -9,7 +9,13 @@ import {
 
 const transport = {} as unknown as Transport;
 
-type IdMapping = { initialTrackId: string; localId: string; name: string; serverId: string };
+type IdMapping = {
+	imageUrl?: string;
+	initialTrackId: string;
+	localId: string;
+	name: string;
+	serverId: string;
+};
 
 interface FakeConfig {
 	createFlush?: () => Promise<{
@@ -29,7 +35,7 @@ function makeDeps(config: FakeConfig): {
 	deps: ReconnectSyncDeps;
 	downloadResumed: () => number;
 	registeredPlaylists: () => Array<{
-		playlist: { id: string; name: string };
+		playlist: { id: string; imageUrl?: string; name: string };
 		trackIds: ReadonlyArray<string>;
 	}>;
 	remappedIds: () => Array<ReadonlyArray<{ localId: string; serverId: string }>>;
@@ -37,7 +43,7 @@ function makeDeps(config: FakeConfig): {
 	let downloadResumeCount = 0;
 	const scrobbleAfter = config.scrobbleAfter ?? 0;
 	const registered: Array<{
-		playlist: { id: string; name: string };
+		playlist: { id: string; imageUrl?: string; name: string };
 		trackIds: ReadonlyArray<string>;
 	}> = [];
 	const remapped: Array<ReadonlyArray<{ localId: string; serverId: string }>> = [];
@@ -48,7 +54,10 @@ function makeDeps(config: FakeConfig): {
 				downloadResumeCount += 1;
 			},
 			registerSyncedPlaylist: (playlist, trackIds) => {
-				registered.push({ playlist: { id: playlist.id, name: playlist.name }, trackIds });
+				registered.push({
+					playlist: { id: playlist.id, imageUrl: playlist.imageUrl, name: playlist.name },
+					trackIds,
+				});
 			},
 		},
 		playlistCreateService: {
@@ -160,6 +169,7 @@ describe('ReconnectSyncCoordinator', () => {
 	it('remaps edit ops and registers playlists after successful creates', async () => {
 		const mappings: Array<IdMapping> = [
 			{
+				imageUrl: 'https://img/mix.jpg',
 				initialTrackId: 'track-1',
 				localId: 'local-playlist-1',
 				name: 'My Mix',
@@ -177,7 +187,11 @@ describe('ReconnectSyncCoordinator', () => {
 		expect(remappedIds()).toHaveLength(1);
 		expect(remappedIds()[0]).toEqual([{ localId: 'local-playlist-1', serverId: 'server-abc' }]);
 		expect(registeredPlaylists()).toHaveLength(1);
-		expect(registeredPlaylists()[0].playlist).toEqual({ id: 'server-abc', name: 'My Mix' });
+		expect(registeredPlaylists()[0].playlist).toEqual({
+			id: 'server-abc',
+			imageUrl: 'https://img/mix.jpg',
+			name: 'My Mix',
+		});
 		expect(registeredPlaylists()[0].trackIds).toEqual(['track-1']);
 	});
 

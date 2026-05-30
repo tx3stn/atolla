@@ -555,6 +555,10 @@ export class DownloadService {
 				trackArtistLogoUrls: {},
 				trackIds: knownTrackIds,
 			};
+			const imageReqs = this.playlistImageReqs(playlist.imageUrl);
+			for (const trackId of knownTrackIds) {
+				this.addTrackImageRequirements(trackId, imageReqs);
+			}
 			await this.persistAll();
 			this.notify();
 		});

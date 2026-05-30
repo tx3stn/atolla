@@ -684,9 +684,15 @@ describe('LiveTransport core collections', () => {
 		expect(cacheUrl).toContain('deviceId=profile-2-device');
 	});
 
-	it('creates a playlist and returns it with the server id', async () => {
+	it('creates a playlist and returns it with the server id and imageUrl', async () => {
 		const { calls, factory } = createHTTPClientFactory([
 			jsonResponse(200, { Id: 'server-playlist-id' }),
+			jsonResponse(200, {
+				Id: 'server-playlist-id',
+				ImageTags: { Primary: 'tag-abc' },
+				Name: 'My Playlist',
+				Type: 'Playlist',
+			}),
 		]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
 			httpClientFactory: factory,
@@ -696,18 +702,28 @@ describe('LiveTransport core collections', () => {
 
 		expect(playlist.id).toBe('server-playlist-id');
 		expect(playlist.name).toBe('My Playlist');
-		expect(calls).toHaveLength(1);
+		expect(playlist.imageUrl).toContain('/Items/server-playlist-id/Images/Primary');
+		expect(playlist.imageUrl).toContain('tag=tag-abc');
+		expect(calls).toHaveLength(2);
 		expect(calls[0].method).toBe('post');
 		expect(calls[0].pathOrUrl).toBe('/Playlists');
 		const body = JSON.parse(new TextDecoder().decode(calls[0].body)) as Record<string, unknown>;
 		expect(body.Name).toBe('My Playlist');
 		expect(body.MediaType).toBe('Audio');
 		expect(body.Ids).toBeUndefined();
+		expect(calls[1].method).toBe('get');
+		expect(calls[1].pathOrUrl).toContain('/Items/server-playlist-id');
 	});
 
 	it('includes track id in playlist create body when provided', async () => {
 		const { calls, factory } = createHTTPClientFactory([
 			jsonResponse(200, { Id: 'server-playlist-id' }),
+			jsonResponse(200, {
+				Id: 'server-playlist-id',
+				ImageTags: { Primary: 'tag-abc' },
+				Name: 'My Playlist',
+				Type: 'Playlist',
+			}),
 		]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
 			httpClientFactory: factory,

@@ -506,6 +506,13 @@ export class LiveTransport implements Transport {
 		const body: Record<string, unknown> = { MediaType: 'Audio', Name: name };
 		if (trackId) body.Ids = [trackId];
 		const result = await this.requestJsonPost<{ Id: string }>('/Playlists', body);
+		// Fetch the full item to get ImageTags (Jellyfin generates the collage image
+		// synchronously when the first track is provided). This gives us the correct
+		// tagged imageUrl so the playlist cover can be cached for offline use.
+		const item = await this.getItem<JellyfinPlaylistItem>(result.Id);
+		if (item) {
+			return mapJellyfinPlaylistToPlaylist(item, this.imageResolvers);
+		}
 		return { id: result.Id, name };
 	}
 
