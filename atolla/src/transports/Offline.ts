@@ -494,8 +494,8 @@ function sortArtistsByName(artists: Array<Artist>): Array<Artist> {
 }
 
 function compareNamesCaseInsensitive(left: string, right: string): number {
-	const leftLower = left.trim().toLocaleLowerCase();
-	const rightLower = right.trim().toLocaleLowerCase();
+	const leftLower = left.trim().toLowerCase();
+	const rightLower = right.trim().toLowerCase();
 	if (leftLower < rightLower) {
 		return -1;
 	}

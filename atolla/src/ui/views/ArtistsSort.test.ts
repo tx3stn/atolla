@@ -32,6 +32,26 @@ describe('sortArtists', () => {
 		]);
 	});
 
+	it('sorts artists a-z regardless of case', () => {
+		const mixedCase: Array<Artist> = [
+			{ id: '1', name: 'Zebra' },
+			{ id: '2', name: 'apple' },
+			{ id: '3', name: 'Banana' },
+			{ id: '4', name: 'aardvark' },
+			{ id: '5', name: 'beta' },
+		];
+
+		const sorted = sortArtists(mixedCase, ArtistSorts.aToZ);
+
+		expect(sorted.map((artist) => artist.name)).toEqual([
+			'aardvark',
+			'apple',
+			'Banana',
+			'beta',
+			'Zebra',
+		]);
+	});
+
 	it('sorts artists new-old by dateAdded and puts missing dates last', () => {
 		const sorted = sortArtists(artists, ArtistSorts.newToOld);
 

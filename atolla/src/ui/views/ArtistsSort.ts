@@ -35,12 +35,12 @@ function sortAlphabetically(artists: Array<Artist>): Array<Artist> {
 
 function normalizeArtistName(name: string): string {
 	const trimmed = name.trim();
-	return (/^the\s+/i.test(trimmed) ? trimmed.replace(/^the\s+/i, '') : trimmed).toLocaleLowerCase();
+	return (/^the\s+/i.test(trimmed) ? trimmed.replace(/^the\s+/i, '') : trimmed).toLowerCase();
 }
 
 function compareCaseInsensitive(left: string, right: string): number {
-	const leftLower = left.trim().toLocaleLowerCase();
-	const rightLower = right.trim().toLocaleLowerCase();
+	const leftLower = left.trim().toLowerCase();
+	const rightLower = right.trim().toLowerCase();
 	if (leftLower < rightLower) {
 		return -1;
 	}
