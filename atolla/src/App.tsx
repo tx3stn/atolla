@@ -165,8 +165,8 @@ interface AppState {
 	language: LanguageCode;
 	libraryLetterFilter: string | null;
 	libraryResetNonce: number;
-	nativeImageCacheDiskBytes: number | null;
-	nativeImageCacheDiskCount: number | null;
+	nativeImageCacheDiskBytes: number;
+	nativeImageCacheDiskCount: number;
 	nextTrackSourceUrl: string | null;
 	nowPlayingCollapseSignal: number;
 	offlineStatusExportPath: string | null;
@@ -385,8 +385,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		language: DEFAULT_LANGUAGE,
 		libraryLetterFilter: null,
 		libraryResetNonce: 0,
-		nativeImageCacheDiskBytes: null,
-		nativeImageCacheDiskCount: null,
+		nativeImageCacheDiskBytes: 0,
+		nativeImageCacheDiskCount: 0,
 		nextTrackSourceUrl: null,
 		nowPlayingCollapseSignal: 0,
 		offlineStatusExportPath: null,
@@ -2881,8 +2881,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							downloadedTrackCount={this.state.downloadedTrackCount}
 							downloadingCount={this.state.downloadingCount}
 							gridColumns={this.state.gridColumns}
-							imageCacheDiskBytes={this.state.nativeImageCacheDiskBytes ?? undefined}
-							imageCacheDiskCount={this.state.nativeImageCacheDiskCount ?? undefined}
+							imageCacheDiskBytes={this.state.nativeImageCacheDiskBytes}
+							imageCacheDiskCount={this.state.nativeImageCacheDiskCount}
 							imageCacheError={null}
 							imageCacheMaxBytes={this.state.imageCacheMaxBytes}
 							imageCategoryAlbumArtBlurredCount={
@@ -2924,8 +2924,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							serverUrl={this.state.serverUrlPrefill}
 							trackCacheCachedCount={this.state.trackPlaybackCachedCount}
 							trackCacheMaxTracks={this.state.trackCacheMaxTracks}
-							waveformCount={this.waveformService?.getCount()}
-							waveformReadyCount={this.waveformService?.getReadyCount()}
+							waveformReadyCount={this.waveformService.getReadyCount()}
 						/>
 					)}
 				</ErrorBoundary>

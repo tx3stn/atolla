@@ -6,24 +6,19 @@ import type { ClearCacheSelection } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { Checkbox } from './Checkbox';
 
-export interface CacheClearModalCount {
-	ready?: number;
-	total: number;
-}
-
 export interface CacheClearModalCounts {
-	albumArt?: CacheClearModalCount;
-	albumArtBlurred?: CacheClearModalCount;
-	artistImage?: CacheClearModalCount;
-	artistLogo?: CacheClearModalCount;
-	genreImage?: CacheClearModalCount;
-	playlistImage?: CacheClearModalCount;
-	tracks?: CacheClearModalCount;
-	waveformData?: CacheClearModalCount;
+	albumArt: number;
+	albumArtBlurred: number;
+	artistImage: number;
+	artistLogo: number;
+	genreImage: number;
+	playlistImage: number;
+	tracks: number;
+	waveformData: number;
 }
 
 export interface CacheClearModalViewModel {
-	counts?: CacheClearModalCounts;
+	counts: CacheClearModalCounts;
 	onCancel: () => void;
 	onConfirm: (selection: ClearCacheSelection) => void;
 }
@@ -79,10 +74,8 @@ export class CacheClearModal extends StatefulComponent<
 		});
 	};
 
-	private labelWithCount(label: string, count: CacheClearModalCount | undefined): string {
-		if (count == null) return label;
-		const suffix = count.ready != null ? `${count.ready}/${count.total}` : `${count.total}`;
-		return `[ ${suffix} ] ${label}`;
+	private labelWithCount(label: string, count: number): string {
+		return `[ ${count} ] ${label}`;
 	}
 
 	onRender(): void {
@@ -121,7 +114,7 @@ export class CacheClearModal extends StatefulComponent<
 					<Checkbox
 						accessibilityId='cache-clear-album-art-row'
 						checked={albumArt}
-						label={this.labelWithCount(Strings.cacheCategoryAlbumArt(), counts?.albumArt)}
+						label={this.labelWithCount(Strings.cacheCategoryAlbumArt(), counts.albumArt)}
 						onToggle={this.toggleAlbumArt}
 					/>
 					<Checkbox
@@ -129,47 +122,44 @@ export class CacheClearModal extends StatefulComponent<
 						checked={albumArtBlurred}
 						label={this.labelWithCount(
 							Strings.cacheCategoryAlbumArtBlurred(),
-							counts?.albumArtBlurred,
+							counts.albumArtBlurred,
 						)}
 						onToggle={this.toggleAlbumArtBlurred}
 					/>
 					<Checkbox
 						accessibilityId='cache-clear-artist-image-row'
 						checked={artistImage}
-						label={this.labelWithCount(Strings.cacheCategoryArtistImages(), counts?.artistImage)}
+						label={this.labelWithCount(Strings.cacheCategoryArtistImages(), counts.artistImage)}
 						onToggle={this.toggleArtistImage}
 					/>
 					<Checkbox
 						accessibilityId='cache-clear-artist-logo-row'
 						checked={artistLogo}
-						label={this.labelWithCount(Strings.cacheCategoryArtistLogos(), counts?.artistLogo)}
+						label={this.labelWithCount(Strings.cacheCategoryArtistLogos(), counts.artistLogo)}
 						onToggle={this.toggleArtistLogo}
 					/>
 					<Checkbox
 						accessibilityId='cache-clear-playlist-image-row'
 						checked={playlistImage}
-						label={this.labelWithCount(
-							Strings.cacheCategoryPlaylistImages(),
-							counts?.playlistImage,
-						)}
+						label={this.labelWithCount(Strings.cacheCategoryPlaylistImages(), counts.playlistImage)}
 						onToggle={this.togglePlaylistImage}
 					/>
 					<Checkbox
 						accessibilityId='cache-clear-genre-image-row'
 						checked={genreImage}
-						label={this.labelWithCount(Strings.cacheCategoryGenreImages(), counts?.genreImage)}
+						label={this.labelWithCount(Strings.cacheCategoryGenreImages(), counts.genreImage)}
 						onToggle={this.toggleGenreImage}
 					/>
 					<Checkbox
 						accessibilityId='cache-clear-track-row'
 						checked={tracks}
-						label={this.labelWithCount(Strings.cacheCategoryTracks(), counts?.tracks)}
+						label={this.labelWithCount(Strings.cacheCategoryTracks(), counts.tracks)}
 						onToggle={this.toggleTracks}
 					/>
 					<Checkbox
 						accessibilityId='cache-clear-waveform-data-row'
 						checked={waveformData}
-						label={this.labelWithCount(Strings.cacheCategoryWaveformData(), counts?.waveformData)}
+						label={this.labelWithCount(Strings.cacheCategoryWaveformData(), counts.waveformData)}
 						onToggle={this.toggleWaveformData}
 					/>
 

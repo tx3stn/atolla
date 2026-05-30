@@ -9,6 +9,16 @@ import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 describe('CacheClearModal', () => {
 	valdiIt('renders title and all cache type rows', async () => {
 		const instrumented = createComponent(CacheClearModal, {
+			counts: {
+				albumArt: 0,
+				albumArtBlurred: 0,
+				artistImage: 0,
+				artistLogo: 0,
+				genreImage: 0,
+				playlistImage: 0,
+				tracks: 0,
+				waveformData: 0,
+			},
 			onCancel: () => {},
 			onConfirm: () => {},
 		});
@@ -21,18 +31,28 @@ describe('CacheClearModal', () => {
 		const values = labels.map((label) => label.getAttribute('value'));
 
 		expect(values).toContain('CLEAR CACHE');
-		expect(values).toContain('artist images');
-		expect(values).toContain('artist logos');
-		expect(values).toContain('album art');
-		expect(values).toContain('blurred album art');
-		expect(values).toContain('playlist images');
-		expect(values).toContain('genre images');
-		expect(values).toContain('tracks');
-		expect(values).toContain('waveforms');
+		expect(values).toContain('[ 0 ] artist images');
+		expect(values).toContain('[ 0 ] artist logos');
+		expect(values).toContain('[ 0 ] album art');
+		expect(values).toContain('[ 0 ] blurred album art');
+		expect(values).toContain('[ 0 ] playlist images');
+		expect(values).toContain('[ 0 ] genre images');
+		expect(values).toContain('[ 0 ] tracks');
+		expect(values).toContain('[ 0 ] waveforms');
 	});
 
 	valdiIt('confirm button is enabled when all checkboxes are checked by default', async () => {
 		const instrumented = createComponent(CacheClearModal, {
+			counts: {
+				albumArt: 0,
+				albumArtBlurred: 0,
+				artistImage: 0,
+				artistLogo: 0,
+				genreImage: 0,
+				playlistImage: 0,
+				tracks: 0,
+				waveformData: 0,
+			},
 			onCancel: () => {},
 			onConfirm: () => {},
 		});
@@ -48,6 +68,16 @@ describe('CacheClearModal', () => {
 
 	valdiIt('confirm button is disabled when all checkboxes are unchecked', async () => {
 		const instrumented = createComponent(CacheClearModal, {
+			counts: {
+				albumArt: 0,
+				albumArtBlurred: 0,
+				artistImage: 0,
+				artistLogo: 0,
+				genreImage: 0,
+				playlistImage: 0,
+				tracks: 0,
+				waveformData: 0,
+			},
 			onCancel: () => {},
 			onConfirm: () => {},
 		});
@@ -93,6 +123,16 @@ describe('CacheClearModal', () => {
 	valdiIt('calls onConfirm with full selection when confirmed with defaults', async () => {
 		let received: unknown;
 		const instrumented = createComponent(CacheClearModal, {
+			counts: {
+				albumArt: 0,
+				albumArtBlurred: 0,
+				artistImage: 0,
+				artistLogo: 0,
+				genreImage: 0,
+				playlistImage: 0,
+				tracks: 0,
+				waveformData: 0,
+			},
 			onCancel: () => {},
 			onConfirm: (selection: ClearCacheSelection) => {
 				received = selection;
@@ -120,6 +160,16 @@ describe('CacheClearModal', () => {
 	valdiIt('calls onConfirm reflecting unchecked items', async () => {
 		let received: unknown;
 		const instrumented = createComponent(CacheClearModal, {
+			counts: {
+				albumArt: 0,
+				albumArtBlurred: 0,
+				artistImage: 0,
+				artistLogo: 0,
+				genreImage: 0,
+				playlistImage: 0,
+				tracks: 0,
+				waveformData: 0,
+			},
 			onCancel: () => {},
 			onConfirm: (selection: ClearCacheSelection) => {
 				received = selection;
@@ -155,6 +205,16 @@ describe('CacheClearModal', () => {
 	valdiIt('calls onCancel when cancel button is tapped', async () => {
 		let cancelled = false;
 		const instrumented = createComponent(CacheClearModal, {
+			counts: {
+				albumArt: 0,
+				albumArtBlurred: 0,
+				artistImage: 0,
+				artistLogo: 0,
+				genreImage: 0,
+				playlistImage: 0,
+				tracks: 0,
+				waveformData: 0,
+			},
 			onCancel: () => {
 				cancelled = true;
 			},

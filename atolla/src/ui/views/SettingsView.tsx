@@ -29,6 +29,7 @@ import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
 import { LanguageSelectModal } from '../components/LanguageSelectModal';
 import { Modal } from '../components/Modal';
+import { SelectOption } from '../components/SelectOption';
 import { Toast } from '../components/Toast';
 import { Toggle } from '../components/Toggle';
 import { ViewHeader } from '../components/ViewHeader';
@@ -93,19 +94,19 @@ export interface SettingsViewModel {
 	debugLoggingEnabled?: boolean;
 	defaultJellyfinDeviceId?: string;
 	downloadedSizeBytes?: number;
-	downloadedTrackCount?: number;
+	downloadedTrackCount: number;
 	downloadingCount: number;
 	gridColumns?: number;
 	imageCacheDiskBytes?: number;
-	imageCacheDiskCount?: number;
+	imageCacheDiskCount: number;
 	imageCacheError?: string | null;
 	imageCacheMaxBytes?: number;
-	imageCategoryAlbumArtBlurredCount?: number;
-	imageCategoryAlbumArtCount?: number;
-	imageCategoryArtistImageCount?: number;
-	imageCategoryArtistLogoCount?: number;
-	imageCategoryGenreImageCount?: number;
-	imageCategoryPlaylistImageCount?: number;
+	imageCategoryAlbumArtBlurredCount: number;
+	imageCategoryAlbumArtCount: number;
+	imageCategoryArtistImageCount: number;
+	imageCategoryArtistLogoCount: number;
+	imageCategoryGenreImageCount: number;
+	imageCategoryPlaylistImageCount: number;
 	jellyfinDeviceIdOverride?: string;
 	modalSlot?: DetachedSlot;
 	offlineStatusExportPath?: string | null;
@@ -126,24 +127,17 @@ export interface SettingsViewModel {
 	preferences: Preferences;
 	selectedLanguage?: LanguageCode;
 	serverUrl?: string;
-	trackCacheCachedCount?: number;
+	trackCacheCachedCount: number;
 	trackCacheMaxTracks?: number;
-	waveformCount?: number;
-	waveformReadyCount?: number;
+	waveformReadyCount: number;
 }
 
 interface SettingsState {
-	showGridColumnsOptions: boolean;
-	showImageCacheOptions: boolean;
-	showTrackCacheLimitOptions: boolean;
 	toastMessage: string | null;
 }
 
 export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsState> {
 	state: SettingsState = {
-		showGridColumnsOptions: false,
-		showImageCacheOptions: false,
-		showTrackCacheLimitOptions: false,
 		toastMessage: null,
 	};
 
@@ -170,36 +164,14 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		openSlot(vm.modalSlot, () => {
 			<CacheClearModal
 				counts={{
-					albumArt:
-						vm.imageCategoryAlbumArtCount != null
-							? { total: vm.imageCategoryAlbumArtCount }
-							: undefined,
-					albumArtBlurred:
-						vm.imageCategoryAlbumArtBlurredCount != null
-							? { total: vm.imageCategoryAlbumArtBlurredCount }
-							: undefined,
-					artistImage:
-						vm.imageCategoryArtistImageCount != null
-							? { total: vm.imageCategoryArtistImageCount }
-							: undefined,
-					artistLogo:
-						vm.imageCategoryArtistLogoCount != null
-							? { total: vm.imageCategoryArtistLogoCount }
-							: undefined,
-					genreImage:
-						vm.imageCategoryGenreImageCount != null
-							? { total: vm.imageCategoryGenreImageCount }
-							: undefined,
-					playlistImage:
-						vm.imageCategoryPlaylistImageCount != null
-							? { total: vm.imageCategoryPlaylistImageCount }
-							: undefined,
-					tracks:
-						vm.trackCacheCachedCount != null ? { total: vm.trackCacheCachedCount } : undefined,
-					waveformData:
-						vm.waveformCount != null
-							? { ready: vm.waveformReadyCount, total: vm.waveformCount }
-							: undefined,
+					albumArt: vm.imageCategoryAlbumArtCount,
+					albumArtBlurred: vm.imageCategoryAlbumArtBlurredCount,
+					artistImage: vm.imageCategoryArtistImageCount,
+					artistLogo: vm.imageCategoryArtistLogoCount,
+					genreImage: vm.imageCategoryGenreImageCount,
+					playlistImage: vm.imageCategoryPlaylistImageCount,
+					tracks: vm.trackCacheCachedCount,
+					waveformData: vm.waveformReadyCount,
 				}}
 				onCancel={this.handleCacheClearCancel}
 				onConfirm={this.handleCacheClearConfirm}
@@ -263,31 +235,16 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 		closeSlot(this.viewModel.modalSlot);
 	};
 
-	private handleTrackCacheLimitToggle = () => {
-		this.setState({ showTrackCacheLimitOptions: !this.state.showTrackCacheLimitOptions });
-	};
-
 	private handleTrackCacheLimitSelect = (count: number) => {
 		this.viewModel.onTrackCacheMaxTracksChange?.(count);
-		this.setState({ showTrackCacheLimitOptions: false });
-	};
-
-	private handleGridColumnsToggle = () => {
-		this.setState({ showGridColumnsOptions: !this.state.showGridColumnsOptions });
 	};
 
 	private handleGridColumnsSelect = (count: number) => {
 		this.viewModel.onGridColumnsChange?.(count);
-		this.setState({ showGridColumnsOptions: false });
-	};
-
-	private handleImageCacheToggle = () => {
-		this.setState({ showImageCacheOptions: !this.state.showImageCacheOptions });
 	};
 
 	private handleImageCacheSelect = (bytes: number) => {
 		this.viewModel.onCacheSizeChange?.(bytes);
-		this.setState({ showImageCacheOptions: false });
 	};
 
 	private handleAnimationsToggle = (enabled: boolean): void => {
@@ -314,40 +271,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 	private handleDeviceIdInputChange = (value: unknown): void => {
 		this.viewModel.onJellyfinDeviceIdOverrideChange?.(normalizeInputValue(value));
-	};
-
-	private gridColumnOptionTapHandlers = new Map<number, () => void>();
-	private imageCacheOptionTapHandlers = new Map<number, () => void>();
-	private trackCacheOptionTapHandlers = new Map<number, () => void>();
-
-	private getGridColumnOptionTapHandler = (option: number): (() => void) => {
-		const existing = this.gridColumnOptionTapHandlers.get(option);
-		if (existing) return existing;
-		const handler = (): void => {
-			this.handleGridColumnsSelect(option);
-		};
-		this.gridColumnOptionTapHandlers.set(option, handler);
-		return handler;
-	};
-
-	private getImageCacheOptionTapHandler = (option: number): (() => void) => {
-		const existing = this.imageCacheOptionTapHandlers.get(option);
-		if (existing) return existing;
-		const handler = (): void => {
-			this.handleImageCacheSelect(option);
-		};
-		this.imageCacheOptionTapHandlers.set(option, handler);
-		return handler;
-	};
-
-	private getTrackCacheOptionTapHandler = (option: number): (() => void) => {
-		const existing = this.trackCacheOptionTapHandlers.get(option);
-		if (existing) return existing;
-		const handler = (): void => {
-			this.handleTrackCacheLimitSelect(option);
-		};
-		this.trackCacheOptionTapHandlers.set(option, handler);
-		return handler;
 	};
 
 	private handleLanguagePress = () => {
@@ -409,34 +332,13 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								onToggle={this.handleAnimationsToggle}
 							/>
 						</view>
-						<view style={styles.trackCacheLimitContainer}>
-							<label style={styles.settingLabel} value={Strings.settingsGridColumns()} />
-							<view
-								accessibilityId='settings-grid-columns-dropdown'
-								accessibilityLabel='settings-grid-columns-dropdown'
-								onTap={this.handleGridColumnsToggle}
-								style={styles.trackCacheLimitButton}
-							>
-								<label style={styles.trackCacheLimitButtonLabel} value={`${selectedGridColumns}`} />
-							</view>
-						</view>
-						{this.state.showGridColumnsOptions && (
-							<view style={styles.trackCacheLimitOptionsList}>
-								{GRID_COLUMN_OPTIONS.map((option) => (
-									<view
-										accessibilityId={`settings-grid-columns-option-${option}`}
-										onTap={this.getGridColumnOptionTapHandler(option)}
-										style={
-											option === selectedGridColumns
-												? styles.trackCacheLimitOptionSelected
-												: styles.trackCacheLimitOption
-										}
-									>
-										<label style={styles.trackCacheLimitOptionLabel} value={`${option}`} />
-									</view>
-								))}
-							</view>
-						)}
+						<SelectOption
+							accessibilityId='settings-grid-columns'
+							label={Strings.settingsGridColumns()}
+							onSelect={this.handleGridColumnsSelect}
+							options={GRID_COLUMN_OPTIONS}
+							selectedValue={selectedGridColumns}
+						/>
 					</view>
 
 					<label style={styles.sectionTitle} value={Strings.settingsSectionAuth()} />
@@ -472,40 +374,14 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 
 					<label style={styles.sectionTitle} value={Strings.settingsSectionCache()} />
 					<view style={styles.section}>
-						<view style={styles.trackCacheLimitContainer}>
-							<label style={styles.settingLabel} value={Strings.settingsImageCacheSize()} />
-							<view
-								accessibilityId='settings-image-cache-size-dropdown'
-								accessibilityLabel='settings-image-cache-size-dropdown'
-								onTap={this.handleImageCacheToggle}
-								style={styles.trackCacheLimitButton}
-							>
-								<label
-									style={styles.trackCacheLimitButtonLabel}
-									value={formatCacheSizeLabel(selectedImageCacheSize)}
-								/>
-							</view>
-						</view>
-						{this.state.showImageCacheOptions && (
-							<view style={styles.trackCacheLimitOptionsList}>
-								{IMAGE_CACHE_SIZE_OPTIONS.map((option) => (
-									<view
-										accessibilityId={`settings-image-cache-size-option-${option}`}
-										onTap={this.getImageCacheOptionTapHandler(option)}
-										style={
-											option === selectedImageCacheSize
-												? styles.trackCacheLimitOptionSelected
-												: styles.trackCacheLimitOption
-										}
-									>
-										<label
-											style={styles.trackCacheLimitOptionLabel}
-											value={formatCacheSizeLabel(option)}
-										/>
-									</view>
-								))}
-							</view>
-						)}
+						<SelectOption
+							accessibilityId='settings-image-cache-size'
+							formatValue={formatCacheSizeLabel}
+							label={Strings.settingsImageCacheSize()}
+							onSelect={this.handleImageCacheSelect}
+							options={IMAGE_CACHE_SIZE_OPTIONS}
+							selectedValue={selectedImageCacheSize}
+						/>
 						{imageCacheDiskCount != null && imageCacheDiskBytes != null && (
 							<label
 								accessibilityId='settings-disk-cache-usage'
@@ -514,37 +390,13 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								value={Strings.imagesOnDisk(imageCacheDiskCount, formatBytes(imageCacheDiskBytes))}
 							/>
 						)}
-						<view style={styles.trackCacheLimitContainer}>
-							<label style={styles.settingLabel} value={Strings.settingsPlayQueueCachedTracks()} />
-							<view
-								accessibilityId='settings-track-cache-limit-dropdown'
-								accessibilityLabel='settings-track-cache-limit-dropdown'
-								onTap={this.handleTrackCacheLimitToggle}
-								style={styles.trackCacheLimitButton}
-							>
-								<label
-									style={styles.trackCacheLimitButtonLabel}
-									value={`${selectedTrackCacheLimit}`}
-								/>
-							</view>
-						</view>
-						{this.state.showTrackCacheLimitOptions && (
-							<view style={styles.trackCacheLimitOptionsList}>
-								{TRACK_CACHE_LIMIT_OPTIONS.map((option) => (
-									<view
-										accessibilityId={`settings-track-cache-limit-option-${option}`}
-										onTap={this.getTrackCacheOptionTapHandler(option)}
-										style={
-											option === selectedTrackCacheLimit
-												? styles.trackCacheLimitOptionSelected
-												: styles.trackCacheLimitOption
-										}
-									>
-										<label style={styles.trackCacheLimitOptionLabel} value={`${option}`} />
-									</view>
-								))}
-							</view>
-						)}
+						<SelectOption
+							accessibilityId='settings-track-cache-limit'
+							label={Strings.settingsPlayQueueCachedTracks()}
+							onSelect={this.handleTrackCacheLimitSelect}
+							options={TRACK_CACHE_LIMIT_OPTIONS}
+							selectedValue={selectedTrackCacheLimit}
+						/>
 						<Button
 							accessibilityId='settings-cache-clear'
 							label={Strings.settingsClearCacheButton()}
@@ -743,51 +595,6 @@ const styles = {
 		...theme.text.sub,
 		marginBottom: 16,
 		marginLeft: 4,
-	}),
-	trackCacheLimitButton: new Style<View>({
-		alignItems: 'center',
-		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.radius.default,
-		minWidth: 84,
-		paddingBottom: 12,
-		paddingLeft: 18,
-		paddingRight: 18,
-		paddingTop: 12,
-	}),
-	trackCacheLimitButtonLabel: new Style<Label>({
-		...theme.text.main,
-	}),
-	trackCacheLimitContainer: new Style<Layout>({
-		alignItems: 'center',
-		flexDirection: 'row',
-		marginTop: 10,
-	}),
-	trackCacheLimitOption: new Style<View>({
-		alignItems: 'center',
-		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.radius.default,
-		flexGrow: 1,
-		marginRight: 8,
-		paddingBottom: 8,
-		paddingTop: 8,
-	}),
-	trackCacheLimitOptionLabel: new Style<Label>({
-		...theme.text.sub,
-		color: theme.colors.bg,
-	}),
-	trackCacheLimitOptionSelected: new Style<View>({
-		alignItems: 'center',
-		backgroundColor: theme.colors.active,
-		borderRadius: theme.radius.default,
-		flexGrow: 1,
-		marginRight: 8,
-		paddingBottom: 8,
-		paddingTop: 8,
-	}),
-	trackCacheLimitOptionsList: new Style<Layout>({
-		flexDirection: 'row',
-		marginTop: 10,
-		width: '100%',
 	}),
 	versionLabel: new Style<Label>({
 		...theme.text.sub,
