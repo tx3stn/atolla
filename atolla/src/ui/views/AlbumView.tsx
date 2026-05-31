@@ -31,7 +31,7 @@ import type { NavBarContext } from '../NavBarContext';
 import { ArtistView } from './ArtistView';
 import { resolveGenreForNavigation, resolveGenreImageUrls } from './GenreNavigationResolver';
 import { GenreView } from './GenreView';
-import { isSameTrackQueue, resolveArtistLogoUrlsForTracks } from './HomeViewLogic';
+import { syncArtistLogosForQueue } from './HomeViewLogic';
 import type { LibraryNavContext } from './LibraryView';
 import { PlaylistView } from './PlaylistView';
 
@@ -149,10 +149,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		playbackStore.play(tracks, album, trackIndex);
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 
-		void resolveArtistLogoUrlsForTracks(tracks, transport).then((logoUrls) => {
-			if (!isSameTrackQueue(playbackStore.tracks, tracks)) return;
-			playbackStore.setArtistLogoUrls(logoUrls);
-		});
+		void syncArtistLogosForQueue(playbackStore, tracks, transport);
 	};
 
 	handleHeaderPlayTap = (): void => {
@@ -162,10 +159,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		playbackStore.play(tracks, album);
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 
-		void resolveArtistLogoUrlsForTracks(tracks, transport).then((logoUrls) => {
-			if (!isSameTrackQueue(playbackStore.tracks, tracks)) return;
-			playbackStore.setArtistLogoUrls(logoUrls);
-		});
+		void syncArtistLogosForQueue(playbackStore, tracks, transport);
 	};
 
 	handleTrackLongPress = (track: Track): void => {
@@ -218,10 +212,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		playbackStore.play(shuffledTracks, album);
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 
-		void resolveArtistLogoUrlsForTracks(shuffledTracks, transport).then((logoUrls) => {
-			if (!isSameTrackQueue(playbackStore.tracks, shuffledTracks)) return;
-			playbackStore.setArtistLogoUrls(logoUrls);
-		});
+		void syncArtistLogosForQueue(playbackStore, shuffledTracks, transport);
 	};
 
 	handleDownloadTap = (): void => {

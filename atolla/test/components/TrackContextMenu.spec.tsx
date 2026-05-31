@@ -17,13 +17,19 @@ const track = {
 
 function createViewModel(overrides = {}) {
 	const callOrder: Array<string> = [];
+	const appliedLogoUrls: Array<Array<string | null>> = [];
 	const playbackStore = {
 		addToQueue: (tracks: Array<typeof track>) => {
 			callOrder.push(`addToQueue:${tracks[0]?.id ?? 'unknown'}`);
 		},
 		playNext: (tracks: Array<typeof track>) => {
 			callOrder.push(`playNext:${tracks[0]?.id ?? 'unknown'}`);
+			playbackStore.tracks = tracks;
 		},
+		setArtistLogoUrls: (urls: Array<string | null>) => {
+			appliedLogoUrls.push(urls);
+		},
+		tracks: [] as Array<typeof track>,
 	};
 
 	const dismissMessages: Array<string | undefined> = [];
@@ -41,7 +47,7 @@ function createViewModel(overrides = {}) {
 		...overrides,
 	};
 
-	return { callOrder, dismissMessages, viewModel };
+	return { appliedLogoUrls, callOrder, dismissMessages, viewModel };
 }
 
 describe('TrackContextMenu', () => {
@@ -75,6 +81,26 @@ describe('TrackContextMenu', () => {
 
 		expect(callOrder).toEqual(['playNext:track-1', 'dismiss:playing next']);
 		expect(dismissMessages).toEqual(['playing next']);
+	});
+
+	valdiIt('resolves the artist logo for the queued track when playing next', async () => {
+		const { appliedLogoUrls, viewModel } = createViewModel({
+			transport: {
+				getArtistLogoUrl: () => Promise.resolve('https://example.com/logo.png'),
+			},
+		});
+		const instrumented = createComponent(TrackContextMenu, viewModel);
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const playNextAction = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-context-play-next',
+		);
+
+		playNextAction?.getAttribute('onTap')?.();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(appliedLogoUrls).toEqual([['https://example.com/logo.png']]);
 	});
 
 	valdiIt('dismisses without toast when backdrop is tapped', async () => {

@@ -12,6 +12,7 @@ import {
 	getRandomAlbumTracks,
 	resolveArtistLogoUrlsForTracks,
 	shouldApplyTransportAlbumsToHome,
+	syncArtistLogosForQueue,
 } from './HomeViewLogic';
 
 const sampleAlbums: Array<Album> = [
@@ -138,6 +139,45 @@ describe('HomeView cache helpers', () => {
 		});
 
 		expect(queue).toEqual([]);
+	});
+});
+
+describe('syncArtistLogosForQueue', () => {
+	const tracks: Array<Track> = [
+		{ artistId: 'artist-1', duration: 120, id: 'track-1', name: 'Track One' },
+		{ artistId: 'artist-2', duration: 120, id: 'track-2', name: 'Track Two' },
+	];
+
+	it('applies resolved logos when the queue still matches the tracks', async () => {
+		const applied: Array<Array<string | null>> = [];
+		const store = {
+			setArtistLogoUrls: (urls: Array<string | null>) => {
+				applied.push(urls);
+			},
+			tracks,
+		};
+
+		await syncArtistLogosForQueue(store, tracks, {
+			getArtistLogoUrl: (artistId: string) => Promise.resolve(`${artistId}-logo`),
+		});
+
+		expect(applied).toEqual([['artist-1-logo', 'artist-2-logo']]);
+	});
+
+	it('does not apply logos when the queue has diverged', async () => {
+		let called = false;
+		const store = {
+			setArtistLogoUrls: () => {
+				called = true;
+			},
+			tracks: [{ artistId: 'artist-9', duration: 120, id: 'track-9', name: 'Other Track' }],
+		};
+
+		await syncArtistLogosForQueue(store, tracks, {
+			getArtistLogoUrl: (artistId: string) => Promise.resolve(`${artistId}-logo`),
+		});
+
+		expect(called).toBe(false);
 	});
 });
 

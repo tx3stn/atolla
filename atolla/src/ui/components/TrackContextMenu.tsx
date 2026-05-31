@@ -8,6 +8,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { syncArtistLogosForQueue } from '../views/HomeViewLogic';
 import { ArtistLogo } from './ArtistLogo';
 import { ContextMenuActionRow } from './ContextMenuActionRow';
 import { ModalBase } from './ModalBase';
@@ -57,7 +58,9 @@ export class TrackContextMenu extends StatefulComponent<
 	}
 
 	handlePlayNext = (): void => {
-		this.viewModel.playbackStore.playNext([this.viewModel.track]);
+		const { playbackStore, track, transport } = this.viewModel;
+		playbackStore.playNext([track]);
+		void syncArtistLogosForQueue(playbackStore, [track], transport);
 		this.viewModel.onDismiss(Strings.playingNextToast());
 	};
 
