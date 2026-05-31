@@ -346,6 +346,11 @@ export class PlaybackStore {
 	}
 
 	playNext(tracks: Array<Track>): void {
+		if (this.tracks.length === 0) {
+			this.playTracks(tracks, 0);
+			return;
+		}
+
 		const insertAt = this.trackIndex + 1;
 		const sanitized = sanitizeTracks(tracks);
 		this.tracks = [...this.tracks.slice(0, insertAt), ...sanitized, ...this.tracks.slice(insertAt)];

@@ -697,6 +697,31 @@ describe('PlaybackStore', () => {
 			store.playNext([track1]);
 			expect(calls).toBe(1);
 		});
+
+		it('starts playback when the queue is empty', () => {
+			const store = new PlaybackStore();
+			store.playNext([track1]);
+			expect(store.tracks).toEqual([track1]);
+			expect(store.trackIndex).toBe(0);
+			expect(store.track).toBe(track1);
+			expect(store.isPlaying).toBe(true);
+		});
+
+		it('plays the first track when the queue is empty and several are added', () => {
+			const store = new PlaybackStore();
+			store.playNext([track1, track2]);
+			expect(store.tracks).toEqual([track1, track2]);
+			expect(store.track).toBe(track1);
+			expect(store.isPlaying).toBe(true);
+		});
+
+		it('does not start playback when adding to a non-empty queue', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			store.playPause();
+			store.playNext([track1]);
+			expect(store.isPlaying).toBe(false);
+		});
 	});
 
 	describe('playWithArtistLogos()', () => {
