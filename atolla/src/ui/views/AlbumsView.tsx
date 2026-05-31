@@ -196,7 +196,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		openCardContextMenu(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, {
 			animationsEnabled,
 			card: { album, kind: 'album' },
-			imageCache,
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onArtistTap: album.artistId
 				? () => {

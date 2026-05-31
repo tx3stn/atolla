@@ -187,7 +187,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		openCardContextMenu(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.animationsEnabled,
 			card: { artist, kind: 'artist' },
-			imageCache: this.viewModel.imageCache,
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onArtistTap: this.handleContextMenuArtistTap,
 			onCreatePlaylist: this.handleCreatePlaylistRequest,

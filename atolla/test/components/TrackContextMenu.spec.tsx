@@ -1,9 +1,9 @@
 import 'jasmine/src/jasmine';
 import { TrackContextMenu } from 'atolla/src/ui/components/TrackContextMenu';
-import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { renderedElements } from './renderedElements';
 
 const track = {
 	albumImageUrl: 'https://example.com/album.jpg',
@@ -28,6 +28,7 @@ function createViewModel(overrides = {}) {
 
 	const dismissMessages: Array<string | undefined> = [];
 	const viewModel = {
+		animationsEnabled: false,
 		onDismiss: (message?: string) => {
 			callOrder.push(`dismiss:${message ?? 'none'}`);
 			dismissMessages.push(message);
@@ -49,7 +50,7 @@ describe('TrackContextMenu', () => {
 		const instrumented = createComponent(TrackContextMenu, viewModel);
 		const component = instrumented.getComponent();
 
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		const addToQueueAction = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-context-add-to-queue',
 		);
@@ -65,7 +66,7 @@ describe('TrackContextMenu', () => {
 		const instrumented = createComponent(TrackContextMenu, viewModel);
 		const component = instrumented.getComponent();
 
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		const playNextAction = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-context-play-next',
 		);
@@ -81,7 +82,7 @@ describe('TrackContextMenu', () => {
 		const instrumented = createComponent(TrackContextMenu, viewModel);
 		const component = instrumented.getComponent();
 
-		const backdrop = componentGetElements(component).find(
+		const backdrop = renderedElements(component).find(
 			(element) => element.getAttribute('accessibilityLabel') === 'track-context-backdrop',
 		);
 

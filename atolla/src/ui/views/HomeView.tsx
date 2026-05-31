@@ -385,11 +385,10 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	private openAlbumCardContextMenu(album: Album): void {
-		const { animationsEnabled, imageCache, modalSlot, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, modalSlot, playbackStore, transport } = this.viewModel;
 		openCardContextMenu(modalSlot, {
 			animationsEnabled,
 			card: { album, kind: 'album' },
-			imageCache,
 			onAddToPlaylist: this.handleAlbumContextMenuAddToPlaylist,
 			onArtistTap: album.artistId ? this.handleAlbumContextMenuArtistTap : undefined,
 			onCreatePlaylist: this.handleAlbumContextMenuCreatePlaylist,

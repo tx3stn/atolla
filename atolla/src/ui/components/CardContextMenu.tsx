@@ -1,21 +1,20 @@
 import res from 'atolla/res';
-import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
-import type { BlurView, ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
-import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
+import { ContextMenuActionRow } from './ContextMenuActionRow';
+import { ModalBase } from './ModalBase';
 
 export type CardContextMenuCard =
 	| { kind: 'album'; album: Album }
@@ -24,9 +23,8 @@ export type CardContextMenuCard =
 	| { kind: 'playlist'; playlist: Playlist };
 
 export interface CardContextMenuViewModel {
-	animationsEnabled?: boolean;
+	animationsEnabled: boolean;
 	card: CardContextMenuCard;
-	imageCache?: ImageCache;
 	onAddToPlaylist?: (tracks: Array<Track>) => void;
 	onArtistTap?: () => void;
 	onCreatePlaylist?: (tracks: Array<Track>) => void;
@@ -45,13 +43,6 @@ export class CardContextMenu extends StatefulComponent<
 	CardContextMenuState
 > {
 	private hasBeenDestroyed = false;
-	private actionRowHeight = 48;
-	private actionRowWidth = 280;
-	private playRippleRef = new ElementRef();
-	private playNextRippleRef = new ElementRef();
-	private addToQueueRippleRef = new ElementRef();
-	private addToPlaylistRippleRef = new ElementRef();
-	private createPlaylistRippleRef = new ElementRef();
 
 	state: CardContextMenuState = {
 		artistLogoUrl: null,
@@ -134,26 +125,6 @@ export class CardContextMenu extends StatefulComponent<
 		this.viewModel.onDismiss();
 	};
 
-	handlePlayTap = (): void => {
-		this.runActionWithTapFeedback(this.handlePlay, this.playRippleRef);
-	};
-
-	handlePlayNextTap = (): void => {
-		this.runActionWithTapFeedback(this.handlePlayNext, this.playNextRippleRef);
-	};
-
-	handleAddToQueueTap = (): void => {
-		this.runActionWithTapFeedback(this.handleAddToQueue, this.addToQueueRippleRef);
-	};
-
-	handleAddToPlaylistTap = (): void => {
-		this.runActionWithTapFeedback(this.handleAddToPlaylist, this.addToPlaylistRippleRef);
-	};
-
-	handleCreatePlaylistTap = (): void => {
-		this.runActionWithTapFeedback(this.handleCreatePlaylist, this.createPlaylistRippleRef);
-	};
-
 	handleBackdropTap = (): void => {
 		this.viewModel.onDismiss();
 	};
@@ -172,249 +143,115 @@ export class CardContextMenu extends StatefulComponent<
 		this.viewModel.onDismiss();
 	};
 
-	handleActionRowLayout = (frame: { height: number; width: number }): void => {
-		if (frame?.width > 0) {
-			this.actionRowWidth = frame.width;
-		}
-		if (frame?.height > 0) {
-			this.actionRowHeight = frame.height;
-		}
-	};
-
-	private runActionWithTapFeedback(action: () => void, rippleRef: ElementRef): void {
-		if (!this.viewModel.animationsEnabled) {
-			action();
-			return;
-		}
-
-		animateRowPressOverlay(this, rippleRef, this.actionRowWidth, this.actionRowHeight)
-			.then(() => {
-				action();
-			})
-			.catch(() => {
-				action();
-			});
-	}
-
 	onRender(): void {
-		const { card, imageCache, onCreatePlaylist } = this.viewModel;
+		const { animationsEnabled, card, onCreatePlaylist } = this.viewModel;
 		const { artistLogoUrl } = this.state;
 
-		<blur
-			accessibilityId='card-context-backdrop'
-			accessibilityLabel='card-context-backdrop'
-			blurStyle={theme.modalBlurStyle}
-			onTap={this.handleBackdropTap}
-			style={styles.backdrop}
+		<ModalBase
+			accessibilityId='card-context-menu'
+			backdropAccessibilityId='card-context-backdrop'
+			cardStyle={styles.card}
+			onDismiss={this.handleBackdropTap}
 		>
-			<layout style={styles.backdropCenter}>
-				<view
-					accessibilityId='card-context-menu'
-					accessibilityLabel='card-context-menu'
-					style={styles.card}
-				>
-					{card.kind === 'album' && (
-						<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
-							<ArtistLogo
-								containerStyle={styles.logoContainer}
-								fallbackText={card.album.artistName}
-								imageCache={imageCache}
-								logoSource={artistLogoUrl}
-								logoStyle={styles.logoImage}
-							/>
-						</view>
-					)}
-					{card.kind === 'album' && (
-						<view
-							accessibilityId='card-context-menu-album'
-							accessibilityLabel='card-context-menu-album'
-							onTap={this.handleEntityTap}
-							style={styles.entityRow}
-						>
-							<CachedImage
-								category='album_art_thumb'
-								style={styles.entityArtwork}
-								url={card.album.imageUrl}
-							/>
-							<label numberOfLines={2} style={styles.entityLabel} value={card.album.name} />
-						</view>
-					)}
-					{card.kind === 'artist' && (
-						<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
-							<ArtistLogo
-								containerStyle={styles.logoContainer}
-								fallbackText={card.artist.name}
-								imageCache={imageCache}
-								logoSource={artistLogoUrl}
-								logoStyle={styles.logoImage}
-							/>
-						</view>
-					)}
-					{card.kind === 'playlist' && (
-						<view onTap={this.handleEntityTap} style={styles.entityRow}>
-							<CachedImage
-								category='playlist_image_thumb'
-								style={styles.entityArtwork}
-								url={card.playlist.imageUrl}
-							/>
-							<label numberOfLines={2} style={styles.entityLabel} value={card.playlist.name} />
-						</view>
-					)}
-					{card.kind === 'genre' && (
-						<view onTap={this.handleEntityTap} style={styles.entityRow}>
-							<CachedImage
-								category='genre_art'
-								style={styles.entityArtwork}
-								url={card.genre.imageUrl}
-							/>
-							<label numberOfLines={2} style={styles.entityLabel} value={card.genre.name} />
-						</view>
-					)}
-					<view style={styles.divider} />
-					<view
-						accessibilityId='card-context-play'
-						accessibilityLabel='card-context-play'
-						onLayout={this.handleActionRowLayout}
-						onTap={this.handlePlayTap}
-						style={styles.actionRow}
-					>
-						<view ref={this.playRippleRef} style={styles.actionRowRipple} />
-						<image src={res.play} style={styles.icon} tint={theme.colors.muted} />
-						<label style={styles.actionLabel} value={Strings.play()} />
-					</view>
-					<view
-						accessibilityId='card-context-play-next'
-						accessibilityLabel='card-context-play-next'
-						onLayout={this.handleActionRowLayout}
-						onTap={this.handlePlayNextTap}
-						style={styles.actionRow}
-					>
-						<view ref={this.playNextRippleRef} style={styles.actionRowRipple} />
-						<image src={res.playnext} style={styles.icon} tint={theme.colors.muted} />
-						<label style={styles.actionLabel} value={Strings.playNext()} />
-					</view>
-					<view
-						accessibilityId='card-context-add-to-queue'
-						accessibilityLabel='card-context-add-to-queue'
-						onLayout={this.handleActionRowLayout}
-						onTap={this.handleAddToQueueTap}
-						style={styles.actionRow}
-					>
-						<view ref={this.addToQueueRippleRef} style={styles.actionRowRipple} />
-						<image src={res.addtoqueue} style={styles.icon} tint={theme.colors.muted} />
-						<label style={styles.actionLabel} value={Strings.addToQueue()} />
-					</view>
-					<view
-						accessibilityId='card-context-add-to-playlist'
-						accessibilityLabel='card-context-add-to-playlist'
-						onLayout={this.handleActionRowLayout}
-						onTap={this.handleAddToPlaylistTap}
-						style={styles.actionRow}
-					>
-						<view ref={this.addToPlaylistRippleRef} style={styles.actionRowRipple} />
-						<image src={res.addtoplaylist} style={styles.icon} tint={theme.colors.muted} />
-						<label style={styles.actionLabel} value={Strings.addToPlaylist()} />
-					</view>
-					{onCreatePlaylist && (
-						<view
-							accessibilityId='card-context-create-playlist'
-							accessibilityLabel='card-context-create-playlist'
-							onLayout={this.handleActionRowLayout}
-							onTap={this.handleCreatePlaylistTap}
-							style={styles.actionRow}
-						>
-							<view ref={this.createPlaylistRippleRef} style={styles.actionRowRipple} />
-							<image src={res.createnewplaylist} style={styles.icon} tint={theme.colors.muted} />
-							<label style={styles.actionLabel} value={Strings.createNewPlaylist()} />
-						</view>
-					)}
+			{card.kind === 'album' && (
+				<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
+					<ArtistLogo
+						containerStyle={styles.logoContainer}
+						fallbackText={card.album.artistName}
+						logoSource={artistLogoUrl}
+						logoStyle={styles.logoImage}
+					/>
 				</view>
-			</layout>
-		</blur>;
+			)}
+			{card.kind === 'album' && (
+				<view
+					accessibilityId='card-context-menu-album'
+					accessibilityLabel='card-context-menu-album'
+					onTap={this.handleEntityTap}
+					style={styles.entityRow}
+				>
+					<CachedImage
+						category='album_art_thumb'
+						style={styles.entityArtwork}
+						url={card.album.imageUrl}
+					/>
+					<label numberOfLines={2} style={styles.entityLabel} value={card.album.name} />
+				</view>
+			)}
+			{card.kind === 'artist' && (
+				<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
+					<ArtistLogo
+						containerStyle={styles.logoContainer}
+						fallbackText={card.artist.name}
+						logoSource={artistLogoUrl}
+						logoStyle={styles.logoImage}
+					/>
+				</view>
+			)}
+			{card.kind === 'playlist' && (
+				<view onTap={this.handleEntityTap} style={styles.entityRow}>
+					<CachedImage
+						category='playlist_image_thumb'
+						style={styles.entityArtwork}
+						url={card.playlist.imageUrl}
+					/>
+					<label numberOfLines={2} style={styles.entityLabel} value={card.playlist.name} />
+				</view>
+			)}
+			{card.kind === 'genre' && (
+				<view onTap={this.handleEntityTap} style={styles.entityRow}>
+					<CachedImage
+						category='genre_art'
+						style={styles.entityArtwork}
+						url={card.genre.imageUrl}
+					/>
+					<label numberOfLines={2} style={styles.entityLabel} value={card.genre.name} />
+				</view>
+			)}
+			<view style={styles.divider} />
+			<ContextMenuActionRow
+				accessibilityId='card-context-play'
+				animationsEnabled={animationsEnabled}
+				icon={res.play}
+				label={Strings.play()}
+				onPress={this.handlePlay}
+			/>
+			<ContextMenuActionRow
+				accessibilityId='card-context-play-next'
+				animationsEnabled={animationsEnabled}
+				icon={res.playnext}
+				label={Strings.playNext()}
+				onPress={this.handlePlayNext}
+			/>
+			<ContextMenuActionRow
+				accessibilityId='card-context-add-to-queue'
+				animationsEnabled={animationsEnabled}
+				icon={res.addtoqueue}
+				label={Strings.addToQueue()}
+				onPress={this.handleAddToQueue}
+			/>
+			<ContextMenuActionRow
+				accessibilityId='card-context-add-to-playlist'
+				animationsEnabled={animationsEnabled}
+				icon={res.addtoplaylist}
+				label={Strings.addToPlaylist()}
+				onPress={this.handleAddToPlaylist}
+			/>
+			{onCreatePlaylist && (
+				<ContextMenuActionRow
+					accessibilityId='card-context-create-playlist'
+					animationsEnabled={animationsEnabled}
+					icon={res.createnewplaylist}
+					label={Strings.createNewPlaylist()}
+					onPress={this.handleCreatePlaylist}
+				/>
+			)}
+		</ModalBase>;
 	}
-}
-
-interface Animatable {
-	animatePromise(options: object, callback: () => void): Promise<void>;
-}
-
-async function animateRowPressOverlay(
-	component: Animatable,
-	ref: ElementRef,
-	rowWidth: number,
-	rowHeight: number,
-): Promise<void> {
-	const safeWidth = Math.max(1, rowWidth);
-	const safeHeight = Math.max(1, rowHeight);
-	const centerX = safeWidth / 2;
-	const centerY = safeHeight / 2;
-	const impactWidth = safeWidth * 0.2;
-	const impactHeight = safeHeight * 0.45;
-
-	ref.setAttribute('left', centerX);
-	ref.setAttribute('top', centerY);
-	ref.setAttribute('width', 0);
-	ref.setAttribute('height', 0);
-	ref.setAttribute('borderRadius', Math.max(2, safeHeight * 0.16));
-	ref.setAttribute('opacity', 0);
-
-	await component.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.04 }, () => {
-		ref.setAttribute('left', centerX - impactWidth / 2);
-		ref.setAttribute('top', centerY - impactHeight / 2);
-		ref.setAttribute('width', impactWidth);
-		ref.setAttribute('height', impactHeight);
-		ref.setAttribute('borderRadius', Math.max(2, impactHeight * 0.25));
-		ref.setAttribute('opacity', 0.26);
-	});
-	return await component.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.14 }, () => {
-		ref.setAttribute('left', 0);
-		ref.setAttribute('top', 0);
-		ref.setAttribute('width', safeWidth);
-		ref.setAttribute('height', safeHeight);
-		ref.setAttribute('borderRadius', 0);
-		ref.setAttribute('opacity', 0);
-	});
 }
 
 const styles = {
-	actionLabel: new Style<Label>({
-		...theme.text.subLarger,
-	}),
-	actionRow: new Style({
-		...theme.text.subLarger,
-		flexDirection: 'row' as const,
-		padding: 4,
-		position: 'relative' as const,
-		width: '100%',
-	}),
-	actionRowRipple: new Style({
-		backgroundColor: theme.colors.white,
-		height: 0,
-		left: 0,
-		opacity: 0,
-		position: 'absolute' as const,
-		top: 0,
-		width: 0,
-		zIndex: 2,
-	}),
-	backdrop: new Style<BlurView>({
-		backgroundColor: theme.modalBackdropColor,
-		bottom: 0,
-		height: '100%',
-		left: 0,
-		position: 'absolute',
-		right: 0,
-		top: 0,
-		width: '100%',
-		zIndex: 100,
-	}),
-	backdropCenter: new Style<Layout>({
-		alignItems: 'center',
-		height: '100%',
-		justifyContent: 'center',
-		width: '100%',
-	}),
-	card: new Style({
+	card: new Style<View>({
 		backgroundColor: theme.colors.bg,
 		borderColor: theme.colors.separator,
 		borderRadius: theme.radius.default,
@@ -450,11 +287,6 @@ const styles = {
 		paddingRight: 12,
 		paddingTop: 8,
 		width: '100%',
-	}),
-	icon: new Style<ImageView>({
-		height: 18,
-		margin: 10,
-		width: 18,
 	}),
 	logoContainer: new Style({
 		alignItems: 'center' as const,

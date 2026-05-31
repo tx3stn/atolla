@@ -6,8 +6,7 @@ export function syncStatusBannerText(
 	progress: Pick<SyncProgress, 'completed' | 'status' | 'total'>,
 ): string {
 	if (progress.status === 'syncing') {
-		const noun = progress.total === 1 ? 'change' : 'changes';
-		return `syncing ${progress.total} ${noun}…`;
+		return `syncing ${progress.total} ${progress.total === 1 ? 'change' : 'changes'}…`;
 	}
 	if (progress.status === 'partial') {
 		return `${progress.completed} of ${progress.total} synced`;

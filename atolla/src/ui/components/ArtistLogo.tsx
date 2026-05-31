@@ -1,7 +1,6 @@
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { ImageCache } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
 
@@ -10,7 +9,6 @@ export interface ArtistLogoViewModel {
 	containerStyle?: Style<View>;
 	fallbackText?: string | null;
 	fallbackTextStyle?: Style<Label>;
-	imageCache?: ImageCache;
 	logoSource?: string | null;
 	logoStyle?: Style<ImageView>;
 	onTap?: () => void;

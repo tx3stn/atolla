@@ -145,7 +145,6 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		openCardContextMenu(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.animationsEnabled,
 			card: { genre, kind: 'genre' },
-			imageCache: this.viewModel.imageCache,
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onCreatePlaylist: this.handleCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,

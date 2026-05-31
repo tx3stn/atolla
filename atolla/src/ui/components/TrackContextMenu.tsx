@@ -1,9 +1,7 @@
 import res from 'atolla/res';
-import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
-import type { BlurView, ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
+import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
@@ -11,10 +9,12 @@ import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
+import { ContextMenuActionRow } from './ContextMenuActionRow';
+import { ModalBase } from './ModalBase';
 import { TrackList } from './TrackList';
 
 export interface TrackContextMenuViewModel {
-	animationsEnabled?: boolean;
+	animationsEnabled: boolean;
 	imageCache?: ImageCache;
 	onAddToPlaylist?: () => void;
 	onAlbumTap?: () => void;
@@ -35,12 +35,6 @@ export class TrackContextMenu extends StatefulComponent<
 	TrackContextMenuState
 > {
 	private hasBeenDestroyed = false;
-	private actionRowHeight = 48;
-	private actionRowWidth = 280;
-	private playNextRippleRef = new ElementRef();
-	private addToQueueRippleRef = new ElementRef();
-	private addToPlaylistRippleRef = new ElementRef();
-	private createPlaylistRippleRef = new ElementRef();
 
 	state: TrackContextMenuState = {
 		artistLogoUrl: null,
@@ -76,37 +70,12 @@ export class TrackContextMenu extends StatefulComponent<
 		this.viewModel.onAddToPlaylist?.();
 	};
 
-	handlePlayNextTap = (): void => {
-		this.runActionWithTapFeedback(this.handlePlayNext, this.playNextRippleRef);
-	};
-
-	handleAddToQueueTap = (): void => {
-		this.runActionWithTapFeedback(this.handleAddToQueue, this.addToQueueRippleRef);
-	};
-
-	handleAddToPlaylistTap = (): void => {
-		this.runActionWithTapFeedback(this.handleAddToPlaylist, this.addToPlaylistRippleRef);
-	};
-
 	handleCreatePlaylist = (): void => {
 		this.viewModel.onCreatePlaylist?.();
 	};
 
-	handleCreatePlaylistTap = (): void => {
-		this.runActionWithTapFeedback(this.handleCreatePlaylist, this.createPlaylistRippleRef);
-	};
-
 	handleBackdropTap = (): void => {
 		this.viewModel.onDismiss();
-	};
-
-	handleActionRowLayout = (frame: { height: number; width: number }): void => {
-		if (frame?.width > 0) {
-			this.actionRowWidth = frame.width;
-		}
-		if (frame?.height > 0) {
-			this.actionRowHeight = frame.height;
-		}
 	};
 
 	handleAlbumTap = (_trackId: string): void => {
@@ -123,23 +92,8 @@ export class TrackContextMenu extends StatefulComponent<
 		this.viewModel.onDismiss();
 	};
 
-	private runActionWithTapFeedback(action: () => void, rippleRef: ElementRef): void {
-		if (!this.viewModel.animationsEnabled) {
-			action();
-			return;
-		}
-
-		animateRowPressOverlay(this, rippleRef, this.actionRowWidth, this.actionRowHeight)
-			.then(() => {
-				action();
-			})
-			.catch(() => {
-				action();
-			});
-	}
-
 	onRender(): void {
-		const { imageCache, onCreatePlaylist, track } = this.viewModel;
+		const { animationsEnabled, imageCache, onCreatePlaylist, track } = this.viewModel;
 		const { artistLogoUrl } = this.state;
 
 		const previewEntry = [
@@ -151,172 +105,64 @@ export class TrackContextMenu extends StatefulComponent<
 			},
 		];
 
-		<blur
-			accessibilityId='track-context-backdrop'
-			accessibilityLabel='track-context-backdrop'
-			blurStyle={theme.modalBlurStyle}
-			onTap={this.handleBackdropTap}
-			style={styles.backdrop}
+		<ModalBase
+			accessibilityId='track-context-menu'
+			backdropAccessibilityId='track-context-backdrop'
+			cardStyle={styles.card}
+			onDismiss={this.handleBackdropTap}
 		>
-			<layout style={styles.backdropCenter}>
-				<view
-					accessibilityId='track-context-menu'
-					accessibilityLabel='track-context-menu'
-					style={styles.card}
-				>
-					<ArtistLogo
-						accessibilityId='track-context-artist-logo'
-						containerStyle={styles.logoContainer}
-						fallbackText={track.artistName ?? null}
-						imageCache={imageCache}
-						logoSource={artistLogoUrl}
-						logoStyle={styles.logoImage}
-						onTap={this.handleArtistTap}
-					/>
-					<view accessibilityId='track-context-track' accessibilityLabel='track-context-track'>
-						<TrackList
-							imageCache={imageCache}
-							onTrackTap={this.viewModel.onAlbumTap ? this.handleAlbumTap : undefined}
-							tracks={previewEntry}
-						/>
-					</view>
-					<view style={styles.divider} />
-					<view
-						accessibilityId='track-context-play-next'
-						accessibilityLabel='track-context-play-next'
-						onLayout={this.handleActionRowLayout}
-						onTap={this.handlePlayNextTap}
-						style={styles.actionRow}
-					>
-						<view ref={this.playNextRippleRef} style={styles.actionRowRipple} />
-						<image src={res.playnext} style={styles.icon} tint={theme.colors.muted} />
-						<label style={styles.actionLabel} value={Strings.playNext()} />
-					</view>
-					<view
-						accessibilityId='track-context-add-to-queue'
-						accessibilityLabel='track-context-add-to-queue'
-						onLayout={this.handleActionRowLayout}
-						onTap={this.handleAddToQueueTap}
-						style={styles.actionRow}
-					>
-						<view ref={this.addToQueueRippleRef} style={styles.actionRowRipple} />
-						<image src={res.addtoqueue} style={styles.icon} tint={theme.colors.muted} />
-						<label style={styles.actionLabel} value={Strings.addToQueue()} />
-					</view>
-					<view
-						accessibilityId='track-context-add-to-playlist'
-						accessibilityLabel='track-context-add-to-playlist'
-						onLayout={this.handleActionRowLayout}
-						onTap={this.handleAddToPlaylistTap}
-						style={styles.actionRow}
-					>
-						<view ref={this.addToPlaylistRippleRef} style={styles.actionRowRipple} />
-						<image src={res.addtoplaylist} style={styles.icon} tint={theme.colors.muted} />
-						<label style={styles.actionLabel} value={Strings.addToPlaylist()} />
-					</view>
-					{onCreatePlaylist && (
-						<view
-							accessibilityId='track-context-create-playlist'
-							accessibilityLabel='track-context-create-playlist'
-							onLayout={this.handleActionRowLayout}
-							onTap={this.handleCreatePlaylistTap}
-							style={styles.actionRow}
-						>
-							<view ref={this.createPlaylistRippleRef} style={styles.actionRowRipple} />
-							<image src={res.createnewplaylist} style={styles.icon} tint={theme.colors.muted} />
-							<label style={styles.actionLabel} value={Strings.createNewPlaylist()} />
-						</view>
-					)}
-				</view>
-			</layout>
-		</blur>;
+			<ArtistLogo
+				accessibilityId='track-context-artist-logo'
+				containerStyle={styles.logoContainer}
+				fallbackText={track.artistName ?? null}
+				logoSource={artistLogoUrl}
+				logoStyle={styles.logoImage}
+				onTap={this.handleArtistTap}
+			/>
+			<view accessibilityId='track-context-track' accessibilityLabel='track-context-track'>
+				<TrackList
+					imageCache={imageCache}
+					onTrackTap={this.viewModel.onAlbumTap ? this.handleAlbumTap : undefined}
+					tracks={previewEntry}
+				/>
+			</view>
+			<view style={styles.divider} />
+			<ContextMenuActionRow
+				accessibilityId='track-context-play-next'
+				animationsEnabled={animationsEnabled}
+				icon={res.playnext}
+				label={Strings.playNext()}
+				onPress={this.handlePlayNext}
+			/>
+			<ContextMenuActionRow
+				accessibilityId='track-context-add-to-queue'
+				animationsEnabled={animationsEnabled}
+				icon={res.addtoqueue}
+				label={Strings.addToQueue()}
+				onPress={this.handleAddToQueue}
+			/>
+			<ContextMenuActionRow
+				accessibilityId='track-context-add-to-playlist'
+				animationsEnabled={animationsEnabled}
+				icon={res.addtoplaylist}
+				label={Strings.addToPlaylist()}
+				onPress={this.handleAddToPlaylist}
+			/>
+			{onCreatePlaylist && (
+				<ContextMenuActionRow
+					accessibilityId='track-context-create-playlist'
+					animationsEnabled={animationsEnabled}
+					icon={res.createnewplaylist}
+					label={Strings.createNewPlaylist()}
+					onPress={this.handleCreatePlaylist}
+				/>
+			)}
+		</ModalBase>;
 	}
 }
 
-interface Animatable {
-	animatePromise(options: object, callback: () => void): Promise<void>;
-}
-
-function animateRowPressOverlay(
-	component: Animatable,
-	ref: ElementRef,
-	rowWidth: number,
-	rowHeight: number,
-): Promise<void> {
-	const safeWidth = Math.max(1, rowWidth);
-	const safeHeight = Math.max(1, rowHeight);
-	const centerX = safeWidth / 2;
-	const centerY = safeHeight / 2;
-	const impactWidth = safeWidth * 0.2;
-	const impactHeight = safeHeight * 0.45;
-
-	ref.setAttribute('left', centerX);
-	ref.setAttribute('top', centerY);
-	ref.setAttribute('width', 0);
-	ref.setAttribute('height', 0);
-	ref.setAttribute('borderRadius', Math.max(2, safeHeight * 0.16));
-	ref.setAttribute('opacity', 0);
-
-	return component
-		.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.04 }, () => {
-			ref.setAttribute('left', centerX - impactWidth / 2);
-			ref.setAttribute('top', centerY - impactHeight / 2);
-			ref.setAttribute('width', impactWidth);
-			ref.setAttribute('height', impactHeight);
-			ref.setAttribute('borderRadius', Math.max(2, impactHeight * 0.25));
-			ref.setAttribute('opacity', 0.26);
-		})
-		.then(() => {
-			return component.animatePromise({ curve: AnimationCurve.EaseOut, duration: 0.14 }, () => {
-				ref.setAttribute('left', 0);
-				ref.setAttribute('top', 0);
-				ref.setAttribute('width', safeWidth);
-				ref.setAttribute('height', safeHeight);
-				ref.setAttribute('borderRadius', 0);
-				ref.setAttribute('opacity', 0);
-			});
-		});
-}
-
 const styles = {
-	actionLabel: new Style<Label>({
-		...theme.text.subLarger,
-	}),
-	actionRow: new Style({
-		...theme.text.subLarger,
-		flexDirection: 'row' as const,
-		padding: 4,
-		position: 'relative' as const,
-		width: '100%',
-	}),
-	actionRowRipple: new Style({
-		backgroundColor: theme.colors.white,
-		height: 0,
-		left: 0,
-		opacity: 0,
-		position: 'absolute' as const,
-		top: 0,
-		width: 0,
-		zIndex: 2,
-	}),
-	backdrop: new Style<BlurView>({
-		backgroundColor: theme.modalBackdropColor,
-		bottom: 0,
-		height: '100%',
-		left: 0,
-		position: 'absolute',
-		right: 0,
-		top: 0,
-		width: '100%',
-		zIndex: 100,
-	}),
-	backdropCenter: new Style<Layout>({
-		alignItems: 'center',
-		height: '100%',
-		justifyContent: 'center',
-		width: '100%',
-	}),
-	card: new Style({
+	card: new Style<View>({
 		backgroundColor: theme.colors.bg,
 		borderColor: theme.colors.separator,
 		borderRadius: theme.radius.default,
@@ -331,11 +177,6 @@ const styles = {
 		marginBottom: 8,
 		marginTop: 8,
 		width: '100%',
-	}),
-	icon: new Style<ImageView>({
-		height: 18,
-		margin: 10,
-		width: 18,
 	}),
 	logoContainer: new Style({
 		alignItems: 'center' as const,

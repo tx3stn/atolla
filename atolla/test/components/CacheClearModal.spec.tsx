@@ -1,10 +1,10 @@
 import 'jasmine/src/jasmine';
 import type { ClearCacheSelection } from 'atolla/src/services/ImageCache';
 import { CacheClearModal } from 'atolla/src/ui/components/CacheClearModal';
-import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { renderedElements } from './renderedElements';
 
 describe('CacheClearModal', () => {
 	valdiIt('renders title and all cache type rows', async () => {
@@ -24,10 +24,7 @@ describe('CacheClearModal', () => {
 		});
 		const component = instrumented.getComponent();
 
-		const labels = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.Label,
-		);
+		const labels = elementTypeFind(renderedElements(component), IRenderedElementViewClass.Label);
 		const values = labels.map((label) => label.getAttribute('value'));
 
 		expect(values).toContain('CLEAR CACHE');
@@ -58,7 +55,7 @@ describe('CacheClearModal', () => {
 		});
 		const component = instrumented.getComponent();
 
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		const confirmBtn = views.find(
 			(v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn',
 		);
@@ -83,7 +80,7 @@ describe('CacheClearModal', () => {
 		});
 		const component = instrumented.getComponent();
 
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-artist-image-row')
 			?.getAttribute('onTap')?.();
@@ -110,7 +107,7 @@ describe('CacheClearModal', () => {
 			?.getAttribute('onTap')?.();
 
 		const updatedViews = elementTypeFind(
-			componentGetElements(component),
+			renderedElements(component),
 			IRenderedElementViewClass.View,
 		);
 		const confirmBtn = updatedViews.find(
@@ -140,7 +137,7 @@ describe('CacheClearModal', () => {
 		});
 		const component = instrumented.getComponent();
 
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
 			?.getAttribute('onTap')?.();
@@ -177,13 +174,13 @@ describe('CacheClearModal', () => {
 		});
 		const component = instrumented.getComponent();
 
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-album-art-row')
 			?.getAttribute('onTap')?.();
 
 		const updatedViews = elementTypeFind(
-			componentGetElements(component),
+			renderedElements(component),
 			IRenderedElementViewClass.View,
 		);
 		updatedViews
@@ -222,7 +219,7 @@ describe('CacheClearModal', () => {
 		});
 		const component = instrumented.getComponent();
 
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-cancel-btn')
 			?.getAttribute('onTap')?.();

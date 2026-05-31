@@ -469,7 +469,6 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						artworkSource={album.imageUrl ?? null}
 						downloadState={downloadState}
 						fallbackText={album.artistName}
-						imageCache={imageCache}
 						logoSource={artistLogoUrl}
 						modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
 						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}

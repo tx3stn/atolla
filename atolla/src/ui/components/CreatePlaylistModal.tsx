@@ -1,8 +1,9 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { Label, Layout, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import { theme } from '../../theme';
+import { ModalBase, modalStyles } from './ModalBase';
 
 export interface CreatePlaylistModalViewModel {
 	onCancel: () => void;
@@ -19,8 +20,6 @@ export class CreatePlaylistModal extends StatefulComponent<
 	CreatePlaylistModalViewModel,
 	CreatePlaylistModalState
 > {
-	private handleCardTap = (): void => {};
-
 	state: CreatePlaylistModalState = {
 		errorMessage: null,
 		isCreating: false,
@@ -50,47 +49,45 @@ export class CreatePlaylistModal extends StatefulComponent<
 		const { errorMessage, isCreating, playlistName } = this.state;
 		const canCreate = playlistName.trim().length > 0 && !isCreating;
 
-		<blur blurStyle={theme.modalBlurStyle} onTap={onCancel} style={styles.backdrop}>
-			<view onTap={this.handleCardTap} style={styles.card}>
-				<label style={styles.title} value={Strings.createPlaylistModalTitle()} />
-				<view style={styles.divider} />
-				<view style={styles.inputContainer}>
-					<textfield
-						accessibilityId='create-playlist-name-input'
-						accessibilityLabel='create-playlist-name-input'
-						autocapitalization='sentences'
-						onChange={this.handleNameChange}
-						placeholder={Strings.playlistNamePlaceholder()}
-						style={styles.input}
-						value={playlistName}
+		<ModalBase onDismiss={onCancel}>
+			<label style={modalStyles.title} value={Strings.createPlaylistModalTitle()} />
+			<view style={modalStyles.divider} />
+			<view style={styles.inputContainer}>
+				<textfield
+					accessibilityId='create-playlist-name-input'
+					accessibilityLabel='create-playlist-name-input'
+					autocapitalization='sentences'
+					onChange={this.handleNameChange}
+					placeholder={Strings.playlistNamePlaceholder()}
+					style={styles.input}
+					value={playlistName}
+				/>
+			</view>
+			{errorMessage && <label style={styles.errorLabel} value={errorMessage} />}
+			<view style={styles.confirmDivider} />
+			<view style={modalStyles.actions}>
+				<view
+					accessibilityId='create-playlist-create-button'
+					accessibilityLabel='create-playlist-create-button'
+					onTap={this.handleCreate}
+					style={modalStyles.actionButton}
+				>
+					<label
+						style={canCreate ? styles.actionLabelActive : styles.actionLabelDisabled}
+						value={Strings.create()}
 					/>
 				</view>
-				{errorMessage && <label style={styles.errorLabel} value={errorMessage} />}
-				<view style={styles.confirmDivider} />
-				<view style={styles.actions}>
-					<view
-						accessibilityId='create-playlist-create-button'
-						accessibilityLabel='create-playlist-create-button'
-						onTap={this.handleCreate}
-						style={styles.actionButton}
-					>
-						<label
-							style={canCreate ? styles.actionLabelActive : styles.actionLabelDisabled}
-							value={Strings.create()}
-						/>
-					</view>
-					<view style={styles.actionSeparator} />
-					<view
-						accessibilityId='create-playlist-cancel-button'
-						accessibilityLabel='create-playlist-cancel-button'
-						onTap={onCancel}
-						style={styles.actionButton}
-					>
-						<label style={styles.actionLabel} value={Strings.cancel()} />
-					</view>
+				<view style={modalStyles.actionSeparator} />
+				<view
+					accessibilityId='create-playlist-cancel-button'
+					accessibilityLabel='create-playlist-cancel-button'
+					onTap={onCancel}
+					style={modalStyles.actionButton}
+				>
+					<label style={modalStyles.actionLabel} value={Strings.cancel()} />
 				</view>
 			</view>
-		</blur>;
+		</ModalBase>;
 	}
 }
 
@@ -117,15 +114,6 @@ function normalizeInputValue(value: unknown): string {
 }
 
 const styles = {
-	actionButton: new Style<Layout>({
-		alignItems: 'center',
-		padding: 14,
-		width: '50%',
-	}),
-	actionLabel: new Style<Label>({
-		...theme.text.main,
-		textAlign: 'center',
-	}),
 	actionLabelActive: new Style<Label>({
 		...theme.text.main,
 		color: theme.colors.active,
@@ -136,47 +124,11 @@ const styles = {
 		color: theme.colors.grey,
 		textAlign: 'center',
 	}),
-	actionSeparator: new Style({
-		backgroundColor: theme.colors.separator,
-		width: 1,
-	}),
-	actions: new Style<Layout>({
-		flexDirection: 'row',
-	}),
-	backdrop: new Style({
-		alignItems: 'center' as const,
-		backgroundColor: theme.modalBackdropColor,
-		bottom: 0,
-		height: '100%',
-		justifyContent: 'center' as const,
-		left: 0,
-		position: 'absolute' as const,
-		right: 0,
-		top: 0,
-		width: '100%',
-		zIndex: 100,
-	}),
-	card: new Style<View>({
-		backgroundColor: theme.colors.bg,
-		borderColor: theme.colors.separator,
-		borderRadius: theme.radius.default,
-		borderWidth: 1,
-		padding: 20,
-		slowClipping: true,
-		width: '90%',
-	}),
 	confirmDivider: new Style({
 		backgroundColor: theme.colors.separator,
 		height: 1,
 		marginBottom: 14,
 		marginTop: 14,
-		width: '100%',
-	}),
-	divider: new Style({
-		backgroundColor: theme.colors.separator,
-		height: 1,
-		marginBottom: 14,
-		marginTop: 12,
 		width: '100%',
 	}),
 	errorLabel: new Style<Label>({
@@ -195,8 +147,5 @@ const styles = {
 		paddingLeft: 12,
 		paddingRight: 12,
 		paddingTop: 12,
-	}),
-	title: new Style<Label>({
-		...theme.text.title,
 	}),
 };

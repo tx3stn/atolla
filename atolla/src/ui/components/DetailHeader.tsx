@@ -8,7 +8,7 @@ import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import type { DownloadState } from '../../services/DownloadService';
-import type { ImageCache, ImageCategory } from '../../services/ImageCache';
+import type { ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
 import { hapticFeedback } from '../haptics';
@@ -28,7 +28,6 @@ export interface DetailHeaderViewModel {
 	artworkSource: string | null;
 	downloadState?: DownloadState;
 	fallbackText?: string | null;
-	imageCache?: ImageCache;
 	logoSource?: string | null;
 	modalSlot?: DetachedSlot;
 	onAddToQueue?: () => Promise<void>;
@@ -244,7 +243,6 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 							accessibilityId='detail-header-artist-logo'
 							containerStyle={styles.artistLogoContainer}
 							fallbackText={fallbackText}
-							imageCache={this.viewModel.imageCache}
 							logoSource={logoSource}
 							logoStyle={styles.artistLogoImage}
 							onTap={onArtistTap}

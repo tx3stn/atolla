@@ -434,7 +434,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 						artworkSource={genre.imageUrl ?? null}
 						downloadState={downloadState}
 						fallbackText={genre.name}
-						imageCache={this.viewModel.imageCache}
 						modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
 						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 						onDownload={this.handleDownloadTap}

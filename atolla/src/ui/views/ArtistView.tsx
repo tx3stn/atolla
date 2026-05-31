@@ -298,12 +298,11 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.setState({ contextMenuCard: { album, kind: 'album' } });
 		this.contextMenuAlbumCard = card;
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, playbackStore, transport } = this.viewModel;
 		modalSlot?.slotted(() => {
 			<CardContextMenu
 				animationsEnabled={animationsEnabled}
 				card={{ album, kind: 'album' }}
-				imageCache={imageCache}
 				onAddToPlaylist={this.handleAlbumContextMenuAddToPlaylist}
 				onCreatePlaylist={this.handleAlbumContextMenuCreatePlaylist}
 				onDismiss={this.handleContextMenuDismiss}
@@ -612,7 +611,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						artworkSource={artist.imageUrl ?? null}
 						downloadState={downloadState}
 						fallbackText={artist.name}
-						imageCache={imageCache}
 						logoSource={artist.logoUrl || null}
 						modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
 						onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}

@@ -180,7 +180,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		openCardContextMenu(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.animationsEnabled,
 			card: { kind: 'playlist', playlist },
-			imageCache: this.viewModel.imageCache,
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onCreatePlaylist: this.handleCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,

@@ -373,7 +373,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private openCardContextMenu(card: CardContextMenuCard): void {
 		this.cardContextMenuCard = card;
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		const { animationsEnabled, imageCache, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, playbackStore, transport } = this.viewModel;
 		const onArtistTap =
 			card.kind === 'album' || card.kind === 'artist'
 				? this.handleCardContextMenuArtistTap
@@ -382,7 +382,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		openCardContextMenu(modalSlot, {
 			animationsEnabled,
 			card,
-			imageCache,
 			onAddToPlaylist: this.handleCardContextMenuAddToPlaylist,
 			onArtistTap: onArtistTap,
 			onCreatePlaylist: this.handleCardContextMenuCreatePlaylistRequest,

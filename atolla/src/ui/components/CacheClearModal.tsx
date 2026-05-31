@@ -1,10 +1,9 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { BlurView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import type { ClearCacheSelection } from '../../services/ImageCache';
-import { theme } from '../../theme';
 import { Checkbox } from './Checkbox';
+import { ModalBase, modalStyles } from './ModalBase';
 
 export interface CacheClearModalCounts {
 	albumArt: number;
@@ -48,8 +47,6 @@ export class CacheClearModal extends StatefulComponent<
 		tracks: true,
 		waveformData: true,
 	};
-
-	private stopPropagation = () => {};
 
 	private toggleArtistImage = () => this.setState({ artistImage: !this.state.artistImage });
 	private toggleArtistLogo = () => this.setState({ artistLogo: !this.state.artistLogo });
@@ -100,156 +97,89 @@ export class CacheClearModal extends StatefulComponent<
 			tracks ||
 			waveformData;
 
-		<blur blurStyle={theme.modalBlurStyle} onTap={this.viewModel.onCancel} style={styles.backdrop}>
-			<view onTap={this.viewModel.onCancel} style={styles.centeredContainer}>
+		<ModalBase accessibilityId='cache-clear-modal' onDismiss={this.viewModel.onCancel}>
+			<label style={modalStyles.title} value={Strings.clearCacheModalTitle()} />
+			<view style={modalStyles.divider} />
+
+			<Checkbox
+				accessibilityId='cache-clear-album-art-row'
+				checked={albumArt}
+				label={this.labelWithCount(Strings.cacheCategoryAlbumArt(), counts.albumArt)}
+				onToggle={this.toggleAlbumArt}
+			/>
+			<Checkbox
+				accessibilityId='cache-clear-album-art-blurred-row'
+				checked={albumArtBlurred}
+				label={this.labelWithCount(Strings.cacheCategoryAlbumArtBlurred(), counts.albumArtBlurred)}
+				onToggle={this.toggleAlbumArtBlurred}
+			/>
+			<Checkbox
+				accessibilityId='cache-clear-artist-image-row'
+				checked={artistImage}
+				label={this.labelWithCount(Strings.cacheCategoryArtistImages(), counts.artistImage)}
+				onToggle={this.toggleArtistImage}
+			/>
+			<Checkbox
+				accessibilityId='cache-clear-artist-logo-row'
+				checked={artistLogo}
+				label={this.labelWithCount(Strings.cacheCategoryArtistLogos(), counts.artistLogo)}
+				onToggle={this.toggleArtistLogo}
+			/>
+			<Checkbox
+				accessibilityId='cache-clear-playlist-image-row'
+				checked={playlistImage}
+				label={this.labelWithCount(Strings.cacheCategoryPlaylistImages(), counts.playlistImage)}
+				onToggle={this.togglePlaylistImage}
+			/>
+			<Checkbox
+				accessibilityId='cache-clear-genre-image-row'
+				checked={genreImage}
+				label={this.labelWithCount(Strings.cacheCategoryGenreImages(), counts.genreImage)}
+				onToggle={this.toggleGenreImage}
+			/>
+			<Checkbox
+				accessibilityId='cache-clear-track-row'
+				checked={tracks}
+				label={this.labelWithCount(Strings.cacheCategoryTracks(), counts.tracks)}
+				onToggle={this.toggleTracks}
+			/>
+			<Checkbox
+				accessibilityId='cache-clear-waveform-data-row'
+				checked={waveformData}
+				label={this.labelWithCount(Strings.cacheCategoryWaveformData(), counts.waveformData)}
+				onToggle={this.toggleWaveformData}
+			/>
+
+			<view style={modalStyles.divider} />
+
+			<view style={modalStyles.actions}>
 				<view
-					accessibilityId='cache-clear-modal'
-					accessibilityLabel='cache-clear-modal'
-					onTap={this.stopPropagation}
-					style={styles.card}
+					accessibilityId='cache-clear-confirm-btn'
+					accessibilityLabel='cache-clear-confirm-btn'
+					onTap={anySelected ? this.handleConfirm : undefined}
+					style={anySelected ? modalStyles.actionButton : styles.confirmButtonDisabled}
 				>
-					<label style={styles.title} value={Strings.clearCacheModalTitle()} />
-					<view style={styles.divider} />
-
-					<Checkbox
-						accessibilityId='cache-clear-album-art-row'
-						checked={albumArt}
-						label={this.labelWithCount(Strings.cacheCategoryAlbumArt(), counts.albumArt)}
-						onToggle={this.toggleAlbumArt}
-					/>
-					<Checkbox
-						accessibilityId='cache-clear-album-art-blurred-row'
-						checked={albumArtBlurred}
-						label={this.labelWithCount(
-							Strings.cacheCategoryAlbumArtBlurred(),
-							counts.albumArtBlurred,
-						)}
-						onToggle={this.toggleAlbumArtBlurred}
-					/>
-					<Checkbox
-						accessibilityId='cache-clear-artist-image-row'
-						checked={artistImage}
-						label={this.labelWithCount(Strings.cacheCategoryArtistImages(), counts.artistImage)}
-						onToggle={this.toggleArtistImage}
-					/>
-					<Checkbox
-						accessibilityId='cache-clear-artist-logo-row'
-						checked={artistLogo}
-						label={this.labelWithCount(Strings.cacheCategoryArtistLogos(), counts.artistLogo)}
-						onToggle={this.toggleArtistLogo}
-					/>
-					<Checkbox
-						accessibilityId='cache-clear-playlist-image-row'
-						checked={playlistImage}
-						label={this.labelWithCount(Strings.cacheCategoryPlaylistImages(), counts.playlistImage)}
-						onToggle={this.togglePlaylistImage}
-					/>
-					<Checkbox
-						accessibilityId='cache-clear-genre-image-row'
-						checked={genreImage}
-						label={this.labelWithCount(Strings.cacheCategoryGenreImages(), counts.genreImage)}
-						onToggle={this.toggleGenreImage}
-					/>
-					<Checkbox
-						accessibilityId='cache-clear-track-row'
-						checked={tracks}
-						label={this.labelWithCount(Strings.cacheCategoryTracks(), counts.tracks)}
-						onToggle={this.toggleTracks}
-					/>
-					<Checkbox
-						accessibilityId='cache-clear-waveform-data-row'
-						checked={waveformData}
-						label={this.labelWithCount(Strings.cacheCategoryWaveformData(), counts.waveformData)}
-						onToggle={this.toggleWaveformData}
-					/>
-
-					<view style={styles.divider} />
-
-					<view style={styles.actions}>
-						<view
-							accessibilityId='cache-clear-confirm-btn'
-							accessibilityLabel='cache-clear-confirm-btn'
-							onTap={anySelected ? this.handleConfirm : undefined}
-							style={anySelected ? styles.confirmButton : styles.confirmButtonDisabled}
-						>
-							<label style={styles.actionLabel} value={Strings.yes()} />
-						</view>
-						<view style={styles.actionSeparator} />
-						<view
-							accessibilityId='cache-clear-cancel-btn'
-							accessibilityLabel='cache-clear-cancel-btn'
-							onTap={this.viewModel.onCancel}
-							style={styles.cancelButton}
-						>
-							<label style={styles.actionLabel} value={Strings.no()} />
-						</view>
-					</view>
+					<label style={modalStyles.actionLabel} value={Strings.yes()} />
+				</view>
+				<view style={modalStyles.actionSeparator} />
+				<view
+					accessibilityId='cache-clear-cancel-btn'
+					accessibilityLabel='cache-clear-cancel-btn'
+					onTap={this.viewModel.onCancel}
+					style={modalStyles.actionButton}
+				>
+					<label style={modalStyles.actionLabel} value={Strings.no()} />
 				</view>
 			</view>
-		</blur>;
+		</ModalBase>;
 	}
 }
 
 const styles = {
-	actionLabel: new Style<Label>({
-		...theme.text.main,
-		textAlign: 'center',
-	}),
-	actionSeparator: new Style({
-		backgroundColor: theme.colors.separator,
-		width: 1,
-	}),
-	actions: new Style<Layout>({
-		flexDirection: 'row',
-	}),
-	backdrop: new Style<BlurView>({
-		backgroundColor: theme.modalBackdropColor,
-		bottom: 0,
-		left: 0,
-		position: 'absolute',
-		right: 0,
-		top: 0,
-		zIndex: 100,
-	}),
-	cancelButton: new Style<Layout>({
-		alignItems: 'center',
-		padding: 14,
-		width: '50%',
-	}),
-	card: new Style({
-		backgroundColor: theme.colors.bg,
-		borderColor: theme.colors.separator,
-		borderRadius: theme.radius.default,
-		borderWidth: 1,
-		padding: 20,
-		width: '90%',
-	}),
-	centeredContainer: new Style<Layout>({
-		alignItems: 'center',
-		flexGrow: 1,
-		height: '100%',
-		justifyContent: 'center',
-		width: '100%',
-	}),
-	confirmButton: new Style<Layout>({
-		alignItems: 'center',
-		padding: 14,
-		width: '50%',
-	}),
 	confirmButtonDisabled: new Style({
 		alignItems: 'center' as const,
 		opacity: 0.4,
 		padding: 14,
 		width: '50%',
-	}),
-	divider: new Style({
-		backgroundColor: theme.colors.separator,
-		height: 1,
-		marginBottom: 14,
-		marginTop: 12,
-		width: '100%',
-	}),
-	title: new Style<Label>({
-		...theme.text.title,
 	}),
 };

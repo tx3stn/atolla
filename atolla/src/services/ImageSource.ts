@@ -28,8 +28,9 @@ export function buildImageSource(
 	category: ImageCategory,
 	options?: BuildImageSourceOptions,
 ): string {
-	const effectiveUrl = normalizeImageUrlForCategory(url, category);
-	const { strippedUrl, authToken } = extractAndStripApiKey(effectiveUrl);
+	const { strippedUrl, authToken } = extractAndStripApiKey(
+		normalizeImageUrlForCategory(url, category),
+	);
 	const cacheOnlyParam = options?.cacheOnly ? '&co=1' : '';
 	const tokenParam = authToken ? `&tok=${encodeURIComponent(authToken)}` : '';
 	return `${atollaCacheScheme}://${atollaCacheHost}?c=${encodeURIComponent(category)}&u=${encodeURIComponent(strippedUrl)}${cacheOnlyParam}${tokenParam}`;

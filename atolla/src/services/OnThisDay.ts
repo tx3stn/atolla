@@ -76,13 +76,12 @@ export function createOnThisDayCardDetails(albums: Array<Album>, now: Date): Arr
 		})
 		.map(({ album, originalReleaseYear }) => {
 			const yearsAgo = currentYear - originalReleaseYear;
-			const yearsAgoText = yearsAgo === 1 ? '1 YEAR AGO' : `${yearsAgo} YEARS AGO`;
 
 			return {
 				artworkKey: album.imageUrl ?? '',
 				id: album.id,
 				kind: 'album',
-				lineOne: yearsAgoText,
+				lineOne: yearsAgo === 1 ? '1 YEAR AGO' : `${yearsAgo} YEARS AGO`,
 				lineThree: album.artistName,
 				lineTwo: album.name,
 			};
