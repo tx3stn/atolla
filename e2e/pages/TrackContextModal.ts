@@ -15,8 +15,19 @@ export class TrackContextMenu extends BasePage {
 		});
 	}
 
-	async waitForHidden(): Promise<void> {
+	async isDisplayed(): Promise<boolean> {
+		return await this.elementByID(this.root).isDisplayed();
+	}
+
+	async dismissIfVisible(): Promise<void> {
+		if (!(await this.elementByID(this.root).isExisting())) return;
+		await this.tapBackdrop();
+		await this.waitForHidden();
+	}
+
+	async waitForHidden(timeout = 10_000): Promise<void> {
 		await this.driver.waitUntil(async () => !(await this.elementByID(this.root).isExisting()), {
+			timeout,
 			timeoutMsg: 'Track context menu did not dismiss',
 		});
 	}

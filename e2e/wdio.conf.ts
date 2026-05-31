@@ -32,6 +32,6 @@ export const config = {
 	reporters: ['spec'],
 	runner: 'local',
 	services: ['appium'],
-	specs: ['./**/*.test.ts'],
+	specs: ['./tests/**/*.test.ts'],
 	waitforTimeout: 10_000,
 };

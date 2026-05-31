@@ -11,8 +11,7 @@ source /tmp/atolla-e2e-devices.env
 echo ""
 echo "=== Running e2e tests ==="
 
-exec env \
-	E2E_ANDROID_APP_PATH="${E2E_ANDROID_APP_PATH:-$PWD/build/atolla_android.apk}" \
+E2E_ANDROID_APP_PATH="${E2E_ANDROID_APP_PATH:-$PWD/build/atolla_android.apk}" \
 	E2E_IOS_APP_PATH="${E2E_IOS_APP_PATH:-$PWD/build/atolla_ios.ipa}" \
 	E2E_ANDROID_INSTANCES="$E2E_ANDROID_INSTANCES" \
 	E2E_IOS_INSTANCES="$E2E_IOS_INSTANCES" \
@@ -20,4 +19,4 @@ exec env \
 	E2E_IOS_UDIDS="$E2E_IOS_UDIDS" \
 	E2E_ANDROID_DEVICE_NAMES="$E2E_ANDROID_DEVICE_NAMES" \
 	E2E_IOS_DEVICE_NAMES="$E2E_IOS_DEVICE_NAMES" \
-	wdio run ./test/wdio.conf.parallel.ts "$@"
+	wdio run ./e2e/wdio.conf.parallel.ts "$@"

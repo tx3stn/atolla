@@ -1,7 +1,7 @@
-import { AlbumDetailPage } from '../../pages/AlbumDetailPage';
-import { FooterPage } from '../../pages/Footer';
-import { LibraryPage } from '../../pages/LibraryPage';
-import { TrackContextMenu } from '../../pages/TrackContextModal';
+import { AlbumDetailPage } from '../../../pages/AlbumDetailPage';
+import { FooterPage } from '../../../pages/Footer';
+import { LibraryPage } from '../../../pages/LibraryPage';
+import { TrackContextMenu } from '../../../pages/TrackContextModal';
 
 describe('add to queue', () => {
 	before(async () => {

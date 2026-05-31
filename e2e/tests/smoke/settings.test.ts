@@ -1,7 +1,7 @@
-import { ConnectionPage } from '../pages/ConnectionPage';
-import { FooterPage } from '../pages/Footer';
-import { SettingsPage } from '../pages/SettingsPage';
-import { Toast } from '../pages/Toast';
+import { ConnectionPage } from '../../pages/ConnectionPage';
+import { FooterPage } from '../../pages/Footer';
+import { SettingsPage } from '../../pages/SettingsPage';
+import { Toast } from '../../pages/Toast';
 
 describe('settings', () => {
 	let footer: FooterPage;

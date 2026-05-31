@@ -1,5 +1,5 @@
-import { FooterPage } from '../pages/Footer';
-import { SearchPage } from '../pages/SearchPage';
+import { FooterPage } from '../../pages/Footer';
+import { SearchPage } from '../../pages/SearchPage';
 
 describe('search', () => {
 	let footer: FooterPage;

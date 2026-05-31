@@ -11,5 +11,5 @@
 		"target": "ES2022",
 		"types": ["bun-types", "mocha", "node", "@wdio/globals/types"]
 	},
-	"include": ["app/**/*.ts", "app/**/*.tsx", "app/**/*.d.ts", "test/**/*.ts"]
+	"include": ["e2e/**/*.ts"]
 }

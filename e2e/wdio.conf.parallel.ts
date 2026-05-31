@@ -42,7 +42,7 @@ function splitSpecsAcrossWorkers(specs: Array<string>, workers: number): Array<A
 const androidCaps = getAndroidCapabilities();
 const iosCaps = getIOSCapabilities();
 const workerCount = androidCaps.length + iosCaps.length;
-const specRoot = resolve(process.cwd(), 'test');
+const specRoot = resolve(process.cwd(), 'e2e/tests');
 const allSpecs = collectSpecFiles(specRoot).sort();
 
 const androidShards = splitSpecsAcrossWorkers(allSpecs, androidCaps.length);
@@ -75,6 +75,6 @@ export const config = {
 	reporters: ['spec'],
 	runner: 'local',
 	services: ['appium'],
-	specs: ['./**/*.test.ts'],
+	specs: ['./tests/**/*.test.ts'],
 	waitforTimeout: 10_000,
 };

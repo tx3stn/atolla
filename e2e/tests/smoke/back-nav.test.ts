@@ -1,9 +1,9 @@
-import { AlbumDetailPage } from '../pages/AlbumDetailPage';
-import { ArtistDetailPage } from '../pages/ArtistDetailPage';
-import { FooterPage } from '../pages/Footer';
-import { HomePage } from '../pages/HomePage';
-import { LibraryPage } from '../pages/LibraryPage';
-import { PlaylistDetailPage } from '../pages/PlaylistDetailPage';
+import { AlbumDetailPage } from '../../pages/AlbumDetailPage';
+import { ArtistDetailPage } from '../../pages/ArtistDetailPage';
+import { FooterPage } from '../../pages/Footer';
+import { HomePage } from '../../pages/HomePage';
+import { LibraryPage } from '../../pages/LibraryPage';
+import { PlaylistDetailPage } from '../../pages/PlaylistDetailPage';
 
 describe('back navigation', () => {
 	let footer: FooterPage;

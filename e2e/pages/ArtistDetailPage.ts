@@ -9,8 +9,9 @@ export class ArtistDetailPage extends BasePage {
 		return new DetailHeaderPage(this.driver);
 	}
 
-	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.root).waitForExist({
+	async waitForLoad(timeout = 10_000): Promise<void> {
+		await this.elementByID(this.root).waitForDisplayed({
+			timeout,
 			timeoutMsg: 'Timed out waiting for artist view',
 		});
 	}

@@ -9,8 +9,9 @@ export class AlbumDetailPage extends BasePage {
 		return new DetailHeaderPage(this.driver);
 	}
 
-	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.root).waitForExist({
+	async waitForLoad(timeout = 10_000): Promise<void> {
+		await this.elementByID(this.root).waitForDisplayed({
+			timeout,
 			timeoutMsg: 'Timed out waiting for album view',
 		});
 	}

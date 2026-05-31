@@ -42,9 +42,9 @@
 		"test:android": "bazel test //atolla/native/android/test/... --legacy_external_runfiles --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
 		"test:components": "bazel test //atolla:test --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
 		"test:e2e": "./.scripts/test-e2e-parallel.sh",
-		"test:e2e:android": "E2E_APP_PATH=$PWD/build/atolla_android.apk wdio run ./test/wdio.conf.ts",
-		"test:e2e:ios": "E2E_PLATFORM=iOS E2E_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./test/wdio.conf.ts",
-		"test:e2e:smoke": "E2E_ANDROID_APP_PATH=$PWD/build/atolla_android.apk E2E_IOS_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./test/wdio.conf.parallel.ts --spec test/smoke",
+		"test:e2e:android": "E2E_APP_PATH=$PWD/build/atolla_android.apk wdio run ./e2e/wdio.conf.ts",
+		"test:e2e:ios": "E2E_PLATFORM=iOS E2E_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./e2e/wdio.conf.ts",
+		"test:e2e:smoke": "E2E_ANDROID_APP_PATH=$PWD/build/atolla_android.apk E2E_IOS_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./e2e/wdio.conf.parallel.ts --spec test/smoke",
 		"test:ios": "bazel test //atolla/native/ios/test/... --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
 		"test:zig": "./.scripts/test-zig.sh"
 	},

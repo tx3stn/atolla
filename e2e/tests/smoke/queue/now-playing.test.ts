@@ -1,7 +1,7 @@
-import { AlbumDetailPage } from '../../pages/AlbumDetailPage';
-import { FooterPage } from '../../pages/Footer';
-import { LibraryPage } from '../../pages/LibraryPage';
-import { NowPlayingBar } from '../../pages/NowPlayingBar';
+import { AlbumDetailPage } from '../../../pages/AlbumDetailPage';
+import { FooterPage } from '../../../pages/Footer';
+import { LibraryPage } from '../../../pages/LibraryPage';
+import { NowPlayingBar } from '../../../pages/NowPlayingBar';
 
 describe('now playing queue', () => {
 	let nowPlaying: NowPlayingBar;

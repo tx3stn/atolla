@@ -1,9 +1,9 @@
-import { CardContextMenu } from '../pages/CardContextMenuModal';
-import { FooterPage } from '../pages/Footer';
-import { HomePage } from '../pages/HomePage';
-import { LibraryPage } from '../pages/LibraryPage';
-import { SearchPage } from '../pages/SearchPage';
-import type { Scenario } from '../utils/table';
+import { CardContextMenu } from '../../pages/CardContextMenuModal';
+import { FooterPage } from '../../pages/Footer';
+import { HomePage } from '../../pages/HomePage';
+import { LibraryPage } from '../../pages/LibraryPage';
+import { SearchPage } from '../../pages/SearchPage';
+import type { Scenario } from '../../utils/table';
 
 const scenarios: Array<Scenario> = [
 	{
