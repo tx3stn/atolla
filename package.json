@@ -23,7 +23,7 @@
 	"private": true,
 	"scripts": {
 		"adb:reload": "adb shell am force-stop com.tx3stn.atolla && adb shell monkey -p com.tx3stn.atolla -c android.intent.category.LAUNCHER 1",
-		"android": "bun run icons:generate && /.scripts/start-android-emulator.sh",
+		"android": "./.scripts/start-android-emulator.sh",
 		"android:fast": "FAST_DEV_BUILD=1 ./.scripts/start-android-emulator.sh",
 		"appium:inspect": "./.scripts/start-appium-inspector.sh",
 		"check": "bun run format && bun run lint && bun run compile && bun run test && bun run format:zig && bun run check:zig && bun run test:zig && bun run test:android && bun run test:ios",
@@ -33,7 +33,7 @@
 		"format": "biome format --write .",
 		"format:zig": "zig fmt ./atolla/native/zig/",
 		"icons:generate": "bun ./.scripts/generate-icons.ts",
-		"ios": "bun run icons:generate && ./.scripts/start-ios-simulator.sh",
+		"ios": "./.scripts/start-ios-simulator.sh",
 		"ios:fast": "FAST_DEV_BUILD=1 ./.scripts/start-ios-simulator.sh",
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true --unsafe .",
 		"reload": "./.scripts/android-hotreload.sh",
@@ -44,7 +44,7 @@
 		"test:e2e": "./.scripts/test-e2e-parallel.sh",
 		"test:e2e:android": "E2E_APP_PATH=$PWD/build/atolla_android.apk wdio run ./e2e/wdio.conf.ts",
 		"test:e2e:ios": "E2E_PLATFORM=iOS E2E_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./e2e/wdio.conf.ts",
-		"test:e2e:smoke": "E2E_ANDROID_APP_PATH=$PWD/build/atolla_android.apk E2E_IOS_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./e2e/wdio.conf.parallel.ts --spec test/smoke",
+		"test:e2e:smoke": "E2E_ANDROID_APP_PATH=$PWD/build/atolla_android.apk E2E_IOS_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./e2e/wdio.conf.parallel.ts --spec e2e/tests/smoke",
 		"test:ios": "bazel test //atolla/native/ios/test/... --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
 		"test:zig": "./.scripts/test-zig.sh"
 	},

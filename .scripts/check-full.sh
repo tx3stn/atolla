@@ -31,11 +31,11 @@ FIRST_IOS_UDID=$(echo "$E2E_IOS_UDIDS" | cut -d',' -f1)
 
 echo ""
 echo "=== Building and installing Android app ==="
-FAST_DEV_BUILD=1 ANDROID_DEVICE_ID="$FIRST_ANDROID_SERIAL" "$SCRIPT_DIR/start-android-emulator.sh"
+ANDROID_DEVICE_ID="$FIRST_ANDROID_SERIAL" "$SCRIPT_DIR/start-android-emulator.sh"
 
 echo ""
 echo "=== Building and installing iOS app ==="
-FAST_DEV_BUILD=1 SIMULATOR_ID="$FIRST_IOS_UDID" "$SCRIPT_DIR/start-ios-simulator.sh"
+SIMULATOR_ID="$FIRST_IOS_UDID" "$SCRIPT_DIR/start-ios-simulator.sh"
 
 echo ""
 echo "=== Running e2e tests ==="

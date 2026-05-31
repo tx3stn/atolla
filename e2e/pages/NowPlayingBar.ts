@@ -72,7 +72,28 @@ export class NowPlayingBar extends BasePage {
 	async openExpandedSurface(): Promise<void> {
 		const el = this.elementByID(this.bar);
 		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for now playing bar' });
-		await el.click();
+
+		// Tapping the collapsed bar kicks off a ~0.4s expand animation. Returning before it
+		// settles is the cold-start flake: the expanded overlay — and its queue tab — is still
+		// parked off-screen by the footer (collapsed overlay top:2000), so the later tab tap
+		// lands on the footer nav (search) instead. Confirm the surface genuinely expanded via
+		// queue-page existence (the reliable expanded signal — isDisplayed lies at alpha 0),
+		// re-tapping if the gesture was dropped. Re-tapping while already expanded is a no-op.
+		for (let attempt = 0; attempt < 4; attempt += 1) {
+			if (await this.isQueueListVisible()) return;
+			await el.click();
+			try {
+				await this.driver.waitUntil(async () => this.isQueueListVisible(), {
+					timeout: 4000,
+					timeoutMsg: '',
+				});
+				return;
+			} catch {
+				// Expand gesture dropped (cold start under load) — re-tap and retry.
+			}
+		}
+
+		throw new Error('Timed out expanding now playing surface');
 	}
 
 	async tapTogglePlayback(): Promise<void> {

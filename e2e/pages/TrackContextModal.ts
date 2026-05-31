@@ -47,6 +47,9 @@ export class TrackContextMenu extends BasePage {
 	}
 
 	async getTrackTitle(): Promise<string> {
+		// Scope the lookup to the menu root. The menu holds exactly one preview row, so the
+		// base `track-title-` prefix is unambiguous here — unlike a global query, which would
+		// also match the detail list and the now-playing queue rows.
 		const menu = this.elementByID(this.root);
 		const els = await this.allByAccessibilityPrefixWithin(menu, this.trackTitlePrefix);
 		if (els.length === 0) throw new Error('No track title found in context menu');
@@ -54,12 +57,18 @@ export class TrackContextMenu extends BasePage {
 	}
 
 	async tapArtist(): Promise<void> {
-		const el = this.elementByID(this.artistLogo);
+		// Scope to the menu root: the menu has a single `artist-logo`, so this can't match the
+		// now-playing surface's logo in the main tree (the old global ~artist-logo did — the
+		// original flake, tapping the wrong logo so the menu dismissed without navigating).
+		const menu = this.elementByID(this.root);
+		const el = menu.$(`~${this.artistLogo}`);
 		await el.waitForDisplayed({ timeoutMsg: 'Artist logo not visible in context menu' });
 		await el.click();
 	}
 
 	async tapAlbumRow(): Promise<void> {
+		// Scoped within the menu root: the menu holds exactly one row, so the base prefix pins
+		// it to this menu's preview row rather than a background detail/now-playing row.
 		const menu = this.elementByID(this.root);
 		const rows = await this.allByAccessibilityPrefixWithin(menu, this.trackRowSwipeRegionPrefix);
 		if (rows.length === 0) throw new Error('No track row found in track context menu');

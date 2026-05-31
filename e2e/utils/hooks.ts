@@ -6,6 +6,8 @@ import { ConnectivityFabPage } from '../pages/ConnectivityFabPage';
 import { FooterPage } from '../pages/Footer';
 import { HomePage } from '../pages/HomePage';
 
+const SCREENSHOT_DIR = 'e2e/screenshots';
+
 async function ensureMockMode(): Promise<void> {
 	const connectionPage = new ConnectionPage(browser);
 	const footer = new FooterPage(browser);
@@ -31,7 +33,7 @@ async function ensureMockMode(): Promise<void> {
 }
 
 export function onCompleteHook(): void {
-	const manifest = path.join('test/screenshots', 'manifest.txt');
+	const manifest = path.join(SCREENSHOT_DIR, 'manifest.txt');
 	try {
 		const contents = fs.readFileSync(manifest, 'utf8').trim();
 		if (!contents) return;
@@ -94,16 +96,15 @@ export async function beforeHook(): Promise<void> {
 async function saveFailureScreenshot(subject: unknown): Promise<void> {
 	try {
 		const screenshot = await browser.takeScreenshot();
-		const dir = 'test/screenshots';
-		fs.mkdirSync(dir, { recursive: true });
+		fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 		const title =
 			(subject as { fullTitle?: string }).fullTitle ??
 			(subject as { title?: string }).title ??
 			'unknown';
 		const safeName = title.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-		const file = path.join(dir, `${Date.now()}-${safeName}.png`);
+		const file = path.join(SCREENSHOT_DIR, `${Date.now()}-${safeName}.png`);
 		fs.writeFileSync(file, Buffer.from(screenshot, 'base64'));
-		fs.appendFileSync(path.join(dir, 'manifest.txt'), `${path.resolve(file)}\n`);
+		fs.appendFileSync(path.join(SCREENSHOT_DIR, 'manifest.txt'), `${path.resolve(file)}\n`);
 	} catch {
 		// session may already be broken; screenshot is best-effort
 	}
