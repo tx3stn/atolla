@@ -493,6 +493,26 @@ describe('SettingsView', () => {
 		expect(received).toEqual(['custom-profile-device']);
 	});
 
+	valdiIt('renders the server name in a disabled field', async () => {
+		const instrumented = createComponent(SettingsView, {
+			preferences: mockPreferences(),
+			serverName: 'Living Room Server',
+		});
+		const component = instrumented.getComponent();
+		const textFields = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.TextField,
+		);
+		const serverNameField = textFields.find(
+			(field) => field.getAttribute('accessibilityLabel') === 'settings-jellyfin-server-name-input',
+		);
+
+		expect(serverNameField).toBeTruthy();
+		expect(serverNameField?.getAttribute('value')).toBe('Living Room Server');
+		expect(serverNameField?.getAttribute('enabled')).toBe(false);
+		expect(serverNameField?.getAttribute('onChange')).toBeUndefined();
+	});
+
 	valdiIt('does not render auth device id reset button', async () => {
 		const instrumented = createComponent(SettingsView, {
 			preferences: mockPreferences(),

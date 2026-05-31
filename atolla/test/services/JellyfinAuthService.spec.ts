@@ -165,6 +165,7 @@ describe('JellyfinAuthService', () => {
 				ServerId: 'server-1',
 				User: { Id: 'user-1' },
 			}),
+			jsonResponse(200, { ServerName: 'Demo Server' }),
 		]);
 		const service = new JellyfinAuthService({ httpClientFactory: factory, store: createStore() });
 
@@ -176,6 +177,7 @@ describe('JellyfinAuthService', () => {
 		expect(session).toEqual({
 			accessToken: 'token-1',
 			serverId: 'server-1',
+			serverName: 'Demo Server',
 			serverUrl: 'https://demo.jellyfin.local',
 			userId: 'user-1',
 		});

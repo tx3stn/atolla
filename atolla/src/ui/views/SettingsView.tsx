@@ -126,6 +126,7 @@ export interface SettingsViewModel {
 	onTrackCacheMaxTracksChange?: (count: number) => void;
 	preferences: Preferences;
 	selectedLanguage?: LanguageCode;
+	serverName?: string;
 	serverUrl?: string;
 	trackCacheCachedCount: number;
 	trackCacheMaxTracks?: number;
@@ -303,6 +304,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 			imageCacheDiskBytes,
 			imageCacheDiskCount,
 			jellyfinDeviceIdOverride,
+			serverName,
 			serverUrl,
 			trackCacheMaxTracks,
 		} = this.viewModel;
@@ -351,6 +353,18 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 								/>
 							</view>
 						)}
+						<view style={styles.settingRow}>
+							<label style={styles.settingLabel} value={Strings.settingsServerName()} />
+							<view style={styles.authDeviceIdInlineInputContainer}>
+								<textfield
+									accessibilityId='settings-jellyfin-server-name-input'
+									accessibilityLabel='settings-jellyfin-server-name-input'
+									enabled={false}
+									style={styles.authDeviceIdInput}
+									value={serverName ?? ''}
+								/>
+							</view>
+						</view>
 						<view style={styles.settingRow}>
 							<label style={styles.settingLabel} value={Strings.settingsDeviceId()} />
 							<view style={styles.authDeviceIdInlineInputContainer}>
@@ -511,6 +525,7 @@ const styles = {
 	authDeviceIdInlineInputContainer: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.radius.pill,
+		flexBasis: 0,
 		flexGrow: 1,
 		marginLeft: 10,
 		paddingBottom: 10,
@@ -584,12 +599,14 @@ const styles = {
 	}),
 	settingLabel: new Style<Label>({
 		...theme.text.sub,
+		flexBasis: 0,
 		flexGrow: 1,
 		marginLeft: 4,
 	}),
 	settingRow: new Style<Layout>({
 		alignItems: 'center',
 		flexDirection: 'row',
+		marginBottom: 4,
 	}),
 	trackCacheCountLabel: new Style<Label>({
 		...theme.text.sub,

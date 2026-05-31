@@ -3,6 +3,7 @@ import type { PersistentStore } from 'persistence/src/PersistentStore';
 export interface StoredAuthSession {
 	accessToken: string;
 	serverId: string;
+	serverName: string;
 	serverUrl: string;
 	userId: string;
 }
@@ -32,6 +33,7 @@ export class JellyfinAuthStore implements JellyfinAuthStoreLike {
 				typeof parsed.serverUrl !== 'string' ||
 				typeof parsed.accessToken !== 'string' ||
 				typeof parsed.serverId !== 'string' ||
+				typeof parsed.serverName !== 'string' ||
 				typeof parsed.userId !== 'string'
 			) {
 				return null;
@@ -39,6 +41,7 @@ export class JellyfinAuthStore implements JellyfinAuthStoreLike {
 			return {
 				accessToken: parsed.accessToken,
 				serverId: parsed.serverId,
+				serverName: parsed.serverName,
 				serverUrl: parsed.serverUrl,
 				userId: parsed.userId,
 			};
@@ -53,6 +56,7 @@ export class JellyfinAuthStore implements JellyfinAuthStoreLike {
 			typeof session.serverUrl !== 'string' ||
 			typeof session.accessToken !== 'string' ||
 			typeof session.serverId !== 'string' ||
+			typeof session.serverName !== 'string' ||
 			typeof session.userId !== 'string'
 		) {
 			throw new Error('invalid session');
@@ -91,6 +95,7 @@ export class InMemoryAuthStore implements JellyfinAuthStoreLike {
 		this.session = {
 			accessToken: session.accessToken,
 			serverId: session.serverId,
+			serverName: session.serverName,
 			serverUrl: session.serverUrl,
 			userId: session.userId,
 		};

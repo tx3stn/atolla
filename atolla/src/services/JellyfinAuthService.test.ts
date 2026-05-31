@@ -70,6 +70,7 @@ function makeService(options: ConstructorParameters<typeof JellyfinAuthService>[
 const validSession = {
 	accessToken: 'token-1',
 	serverId: 'server-1',
+	serverName: 'Demo Server',
 	serverUrl: 'https://demo.jellyfin.local',
 	userId: 'user-1',
 };
@@ -326,6 +327,85 @@ describe('authenticateWithQuickConnect', () => {
 				'secret',
 			),
 		).rejects.toBe(AuthErrors.CONNECTION_ERROR);
+	});
+
+	it('returns a session including the server name from /System/Info/Public', async () => {
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, { AccessToken: 'tok', ServerId: 's1', User: { Id: 'u1' } }),
+			jsonResponse(200, { ServerName: 'Living Room Server' }),
+		]);
+		const session = await makeService({ httpClientFactory: factory }).authenticateWithQuickConnect(
+			'https://demo.jellyfin.local',
+			'secret',
+		);
+		expect(session).toEqual({
+			accessToken: 'tok',
+			serverId: 's1',
+			serverName: 'Living Room Server',
+			serverUrl: 'https://demo.jellyfin.local',
+			userId: 'u1',
+		});
+		expect(calls[1].pathOrUrl).toBe('/System/Info/Public');
+	});
+
+	it('still authenticates with an empty server name when the info fetch fails', async () => {
+		const { factory } = createHTTPClientFactory([
+			jsonResponse(200, { AccessToken: 'tok', ServerId: 's1', User: { Id: 'u1' } }),
+			new Error('network down'),
+		]);
+		const session = await makeService({ httpClientFactory: factory }).authenticateWithQuickConnect(
+			'https://demo.jellyfin.local',
+			'secret',
+		);
+		expect(session.serverName).toBe('');
+		expect(session.accessToken).toBe('tok');
+	});
+});
+
+describe('fetchServerDetails', () => {
+	it('returns the server name from /System/Info/Public', async () => {
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, { ServerName: 'My Jellyfin', Version: '10.9.0' }),
+		]);
+		const details = await makeService({ httpClientFactory: factory }).fetchServerDetails(
+			'https://demo.jellyfin.local',
+		);
+		expect(details.ServerName).toBe('My Jellyfin');
+		expect(calls[0].pathOrUrl).toBe('/System/Info/Public');
+	});
+
+	it('returns an empty result on a non-success status', async () => {
+		const { factory } = createHTTPClientFactory([jsonResponse(500, {})]);
+		const details = await makeService({ httpClientFactory: factory }).fetchServerDetails(
+			'https://demo.jellyfin.local',
+		);
+		expect(details.ServerName).toBeUndefined();
+	});
+
+	it('returns an empty result on a network error', async () => {
+		const { factory } = createHTTPClientFactory([new Error('network error')]);
+		const details = await makeService({ httpClientFactory: factory }).fetchServerDetails(
+			'https://demo.jellyfin.local',
+		);
+		expect(details.ServerName).toBeUndefined();
+	});
+
+	it('returns an empty result for a malformed body', async () => {
+		const { factory } = createHTTPClientFactory([jsonResponse(200)]);
+		const details = await makeService({ httpClientFactory: factory }).fetchServerDetails(
+			'https://demo.jellyfin.local',
+		);
+		expect(details.ServerName).toBeUndefined();
+	});
+
+	it('mock mode returns the mock server name without a request', async () => {
+		const { calls, factory } = createHTTPClientFactory([]);
+		const details = await makeService({
+			httpClientFactory: factory,
+			isMockMode: true,
+		}).fetchServerDetails('https://demo.jellyfin.local');
+		expect(details.ServerName).toBe('atolla mock server');
+		expect(calls.length).toBe(0);
 	});
 });
 

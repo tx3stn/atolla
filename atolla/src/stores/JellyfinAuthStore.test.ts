@@ -33,6 +33,7 @@ function createStore(): { store: JellyfinAuthStore; backing: MockPersistentStore
 const validSession: StoredAuthSession = {
 	accessToken: 'token-123',
 	serverId: 'server-abc',
+	serverName: 'Home Jellyfin',
 	serverUrl: 'https://jellyfin.example.com',
 	userId: 'user-xyz',
 };
@@ -90,6 +91,27 @@ describe('JellyfinAuthStore', () => {
 		});
 	});
 
+	describe('server name', () => {
+		it('persists and reads back the server name', async () => {
+			const { store } = createStore();
+			await store.saveSession({ ...validSession, serverName: 'Living Room Server' });
+			expect((await store.loadSession())?.serverName).toBe('Living Room Server');
+		});
+
+		it('preserves an empty server name when the server has no name', async () => {
+			const { store } = createStore();
+			await store.saveSession({ ...validSession, serverName: '' });
+			expect((await store.loadSession())?.serverName).toBe('');
+		});
+
+		it('returns null when the server name field is missing', async () => {
+			const { store, backing } = createStore();
+			const { serverName, ...withoutName } = validSession;
+			backing.values.set('session', JSON.stringify(withoutName));
+			expect(await store.loadSession()).toBeNull();
+		});
+	});
+
 	describe('clearSession', () => {
 		it('removes the persisted session', async () => {
 			const { store, backing } = createStore();
@@ -138,6 +160,13 @@ describe('InMemoryAuthStore', () => {
 		await store.saveSession(validSession);
 		expect(await store.loadSession()).toEqual(validSession);
 		expect(await store.loadRememberedServerUrl()).toBe(validSession.serverUrl);
+	});
+
+	it('round-trips the server name', async () => {
+		const store = new InMemoryAuthStore();
+		const withName: StoredAuthSession = { ...validSession, serverName: 'Other Server' };
+		await store.saveSession(withName);
+		expect(await store.loadSession()).toEqual(withName);
 	});
 
 	it('clears a saved session', async () => {

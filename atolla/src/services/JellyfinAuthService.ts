@@ -17,9 +17,14 @@ interface QuickConnectAuthenticationResult {
 	};
 }
 
+interface SystemInfoPublicResult {
+	ServerName?: string;
+}
+
 export interface AuthSession {
 	accessToken: string;
 	serverId: string;
+	serverName: string;
 	serverUrl: string;
 	userId: string;
 }
@@ -364,6 +369,7 @@ export class JellyfinAuthService {
 			return {
 				accessToken: `mock-token-${secret || 'default'}`,
 				serverId: 'mock-server-id',
+				serverName: 'atolla mock server',
 				serverUrl: normalizedUrl,
 				userId: 'mock-user-id',
 			};
@@ -400,12 +406,34 @@ export class JellyfinAuthService {
 			throw AuthErrors.CONNECTION_ERROR;
 		}
 
+		const details = await this.fetchServerDetails(normalizedUrl);
+
 		return {
 			accessToken: parsed.AccessToken,
 			serverId: parsed.ServerId,
+			serverName: details.ServerName ?? '',
 			serverUrl: normalizedUrl,
 			userId: parsed.User.Id,
 		};
+	}
+
+	async fetchServerDetails(serverUrl: string): Promise<SystemInfoPublicResult> {
+		const normalizedUrl = normalizeServerUrl(serverUrl);
+		if (this.isMockMode) {
+			return { ServerName: 'atolla mock server' };
+		}
+
+		try {
+			const response = await this.runWithRequestTimeout(
+				this.createHttpClient(normalizedUrl).get('/System/Info/Public', this.createHeaders()),
+			);
+			if (!this.isSuccessStatus(response.statusCode)) {
+				return {};
+			}
+			return this.parseJSON<SystemInfoPublicResult>(response);
+		} catch {
+			return {};
+		}
 	}
 
 	async validateSession(session: AuthSession): Promise<boolean> {

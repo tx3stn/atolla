@@ -173,6 +173,7 @@ interface AppState {
 	playbackToastMessage: string | null;
 	quickConnectCode: string | null;
 	searchFocusSignal: number;
+	serverName: string;
 	serverUrlPrefill: string;
 	syncProgress: SyncProgress | null;
 	trackCacheMaxTracks: number;
@@ -393,6 +394,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		playbackToastMessage: null,
 		quickConnectCode: null,
 		searchFocusSignal: 0,
+		serverName: '',
 		serverUrlPrefill: '',
 		syncProgress: null,
 		trackCacheMaxTracks: DEFAULT_TRACK_CACHE_MAX_TRACKS,
@@ -520,6 +522,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						isAuthRequired,
 						jellyfinClientDeviceIdOverride: this.jellyfinClientDeviceIdOverride,
 						language,
+						serverName: existingSession != null ? existingSession.serverName : '',
 						serverUrlPrefill: rememberedServerUrl,
 						trackCacheMaxTracks,
 					});
@@ -925,6 +928,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					isAuthenticating: false,
 					isAuthRequired: false,
 					quickConnectCode: null,
+					serverName: session.serverName,
 				});
 				this.showAuthToast('connected');
 
@@ -1171,6 +1175,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				isAuthenticating: false,
 				isAuthRequired: true,
 				quickConnectCode: null,
+				serverName: '',
 				serverUrlPrefill: '',
 				version: this.state.version + 1,
 			});
@@ -2679,6 +2684,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				| 'isAuthRequired'
 				| 'jellyfinClientDeviceIdOverride'
 				| 'language'
+				| 'serverName'
 				| 'serverUrlPrefill'
 				| 'trackCacheMaxTracks'
 			>
@@ -2921,6 +2927,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
 							preferences={this.preferences}
 							selectedLanguage={this.state.language}
+							serverName={this.state.serverName}
 							serverUrl={this.state.serverUrlPrefill}
 							trackCacheCachedCount={this.state.trackPlaybackCachedCount}
 							trackCacheMaxTracks={this.state.trackCacheMaxTracks}

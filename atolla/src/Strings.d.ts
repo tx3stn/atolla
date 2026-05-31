@@ -101,6 +101,7 @@ declare const Strings: {
 	settingsSectionDownloads: () => string;
 	settingsSectionLanguage: () => string;
 	settingsSectionVersion: () => string;
+	settingsServerName: () => string;
 	settingsTitle: () => string;
 	shuffleLibrary: () => string;
 	tracksCachedCount: (count: number) => string;

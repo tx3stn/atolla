@@ -306,6 +306,9 @@
 	"settings_section_version": {
 		"defaultMessage": "VERSION"
 	},
+	"settings_server_name": {
+		"defaultMessage": "nom du serveur"
+	},
 	"settings_title": {
 		"defaultMessage": "PARAMÈTRES"
 	},

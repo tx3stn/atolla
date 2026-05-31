@@ -10,6 +10,7 @@ This project uses Valdi, Typescript, biome.js (for linting/formatting) and webdr
 * components should be kept simple
 * use dependency injection to pass stores/services to components so they are easy to test and logic is kept simple
 * styling should ALWAYS use the theme so things can be easily tweaked
+* don't add comments unless they explain a decision that might not be obvious
 
 ## Tests
 

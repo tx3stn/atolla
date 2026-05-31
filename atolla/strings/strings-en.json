@@ -312,6 +312,9 @@
 	"settings_section_version": {
 		"defaultMessage": "VERSION"
 	},
+	"settings_server_name": {
+		"defaultMessage": "server name"
+	},
 	"settings_title": {
 		"defaultMessage": "SETTINGS"
 	},
