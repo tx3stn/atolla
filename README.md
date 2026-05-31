@@ -19,13 +19,13 @@
   * [seach & genre list](#search-&-genre-list)
 * [Installing](#installing)
 * [Why?](#why)
-* [How does it compare?][#how-does-it-compare]
+* [How does `atolla` compare?](#how-does-atolla-compare)
 * [Feature Requests](#feature-requests)
 * [Contributing](#contributing)
 
 ## Features
 
-* Gapless playback
+* Gap-less playback
 * Image focussed UI (featuring artist logos)
 * Dynamic colour palettes generated from album artwork
 * Local waveform generation for fancy progress bars
@@ -123,29 +123,31 @@ customisation options you might want to configure things, that makes it a lot ha
 to maintain. Suggestions for improvements or things that could be tweakable are
 always welcomed, but they might not be actioned.
 
-## How does it compare?
+## How does `atolla` compare?
 
 There are other Jellyfin music apps out there, you might already be using one of them,
 so I thought it was worth giving a comparison to the alternatives.
 
-It's always good to have more options, and I mean no disrespect to the maintainers
-of these apps or the hard work they put in creating and maintaining these with
-my criticisms, I'm simply saying why they weren't the right choice for me personally.
+It's always good to have more options. Thank you to the people putting in the
+hardwork and spending their time to create and maintain these apps 🖤
+
+I mean no disrespect to anyone with my criticisms, I'm simply saying why they
+weren't the right choice for me personally. If they work for you great!
 
 ### [Finamp](https://github.com/UnicornsOnLSD/finamp)
 
-Finamp has a more comprehensive feature set that atolla, and they're making good
-(albeit slow) progress with the UI rework, but it's just not what I want out of a
-music player.
+Finamp has a more comprehensive feature set that atolla it can do a lot,
+Whilst they are aware the UI needs work and are working on a rework, it's very
+slow progress so I think it's a long way off being a polished and pretty app.
 
-* It's **very** slow to load for my music library.
+* It's **very** slow to load for my music library, like painfully slow at times.
 * The UI is ugly (to me).
 * It's trying to be everything to everyone, with a huge amount of options and customisation.
 
-atolla loads the same library **significantly** quicker. It's designed from the
-ground up for efficiency, making heavy use of caching and pagination for API
-requests to ensure everything loads as quickly as possible so you can get straight
-to listening.
+atolla loads the same library instantly. It has designed from the
+ground up for efficiency, making heavy use of caching, paginated API requests and
+background workers to ensure everything loads as quickly as possible so you can get
+straight to listening.
 
 ### [Jellify](https://github.com/Jellify-Music/App)
 
@@ -155,6 +157,29 @@ the things that made me dismiss it in my search for the right Jellyfin music pla
 * The UI is ugly (to me), it's inconsistent, with lots of wasted space and tiny artwork.
 * Looking at the issues it's missing a lot of features I'd consider important for a music app (which atolla has implemented).
 * It has a very long list of dependencies which in the age of supply chain attacks becomes more concerning by the day.
+
+### What atolla does differently
+
+#### Seamless offline mode
+
+Offline mode works just likes online mode so the app is consistent to use whether
+you have a connection to your server or not. It's not relegated to it's own
+non searchable tab like Plexamp. Offline mode is a first class citizen.
+
+Actions that require the connection to work like playlist creation or editing
+get queued until you next have a connection so you can create a playlist fully offline
+whenever you want, and have it auto sync the next time you connect to your server.
+
+When you download a playlist, the playlist tracks will show up in the library
+artists and albums view for a truly online like experience.
+
+#### Artist logos
+
+This is such a tiny thing but it's honestly one of my favourite things Jellyfin
+supports that Plex doesn't.
+
+Everyone wants to see the unreadable logos of their top black metal bands prominently
+displayed in their music apps right?
 
 ## Feature Requests
 
