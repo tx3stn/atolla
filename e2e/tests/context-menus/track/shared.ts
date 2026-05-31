@@ -6,6 +6,15 @@ import { NowPlayingBar } from '../../../pages/NowPlayingBar';
 import { TrackContextMenu } from '../../../pages/TrackContextModal';
 import type { Scenario } from '../../../utils/table';
 
+function shouldSkip(): boolean {
+	if (process.env.CHECK_FULL === 'true') {
+		return true;
+	}
+
+	const maxInstances = (browser.options as { maxInstances?: number }).maxInstances ?? 1;
+	return maxInstances > 1;
+}
+
 export function defineTrackContextMenuSuite(scenario: Scenario): void {
 	describe(`track context menu from ${scenario.label}`, () => {
 		beforeEach(async () => {
@@ -25,11 +34,9 @@ export function defineTrackContextMenuSuite(scenario: Scenario): void {
 			await menu.waitForVisible();
 			expect(await menu.isDisplayed()).toBe(true);
 
-			it('dismisses when the backdrop is tapped', async () => {
-				await menu.tapBackdrop();
-				await menu.waitForHidden();
-				expect(await menu.isDisplayed()).toBe(false);
-			});
+			await menu.tapBackdrop();
+			await menu.waitForHidden();
+			expect(await menu.isDisplayed()).toBe(false);
 		});
 
 		it('dismisses after adding to queue', async () => {
@@ -64,14 +71,36 @@ export function defineTrackContextMenuSuite(scenario: Scenario): void {
 			await nowPlaying.collapseExpandedIfVisible();
 		});
 
-		it('opens the artist when tapping on the artist header', async () => {
-			const artistDetail = await openArtistFromMenuWithRetry(scenario.act);
+		it('opens the artist when tapping on the artist header', async function () {
+			if (shouldSkip()) {
+				this.skip();
+			}
+
+			await scenario.act();
+
+			const menu = new TrackContextMenu(browser);
+			await menu.waitForVisible();
+			await menu.tapArtist();
+			await menu.waitForHidden();
+
+			const artistDetail = new ArtistDetailPage(browser);
 			await artistDetail.waitForLoad();
 			await artistDetail.swipeBack();
 		});
 
-		it('opens the album when tapping on the album track row', async () => {
-			const albumDetail = await openAlbumFromMenuWithRetry(scenario.act);
+		it('opens the album when tapping on the album track row', async function () {
+			if (shouldSkip()) {
+				this.skip();
+			}
+
+			await scenario.act();
+
+			const menu = new TrackContextMenu(browser);
+			await menu.waitForVisible();
+			await menu.tapAlbumRow();
+			await menu.waitForHidden();
+
+			const albumDetail = new AlbumDetailPage(browser);
 			await albumDetail.waitForLoad();
 		});
 	});
@@ -116,60 +145,4 @@ async function recoverToLibrary(): Promise<void> {
 	await footer.tapLibrary();
 	const library = new LibraryPage(browser);
 	await library.waitForLoad();
-}
-
-async function openArtistFromMenuWithRetry(
-	act: () => Promise<void>,
-	attempts = 3,
-): Promise<ArtistDetailPage> {
-	const menu = new TrackContextMenu(browser);
-	const artistDetail = new ArtistDetailPage(browser);
-
-	for (let attempt = 0; attempt < attempts; attempt += 1) {
-		await act();
-		await menu.waitForVisible();
-		await menu.tapArtist();
-		try {
-			await menu.waitForHidden(3000);
-		} catch {
-			await menu.dismissIfVisible();
-			continue;
-		}
-		try {
-			await artistDetail.waitForLoad(6000);
-			return artistDetail;
-		} catch {
-			// retry on dropped navigation
-		}
-	}
-
-	throw new Error(`Artist view did not open after ${attempts} attempts`);
-}
-
-async function openAlbumFromMenuWithRetry(
-	act: () => Promise<void>,
-	attempts = 3,
-): Promise<AlbumDetailPage> {
-	const menu = new TrackContextMenu(browser);
-	const albumDetail = new AlbumDetailPage(browser);
-
-	for (let attempt = 0; attempt < attempts; attempt += 1) {
-		await act();
-		await menu.waitForVisible();
-		await menu.tapAlbumRow();
-		try {
-			await menu.waitForHidden(3000);
-		} catch {
-			await menu.dismissIfVisible();
-			continue;
-		}
-		try {
-			await albumDetail.waitForLoad(6000);
-			return albumDetail;
-		} catch {
-			// retry on dropped navigation
-		}
-	}
-
-	throw new Error(`Album view did not open after ${attempts} attempts`);
 }

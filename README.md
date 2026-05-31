@@ -17,8 +17,9 @@
   * [artist view](#artist-view)
   * [library & album view](#library-&-album-view)
   * [seach & genre list](#search-&-genre-list)
-* [Why?](#why)
 * [Installing](#installing)
+* [Why?](#why)
+* [How does it compare?][#how-does-it-compare]
 * [Feature Requests](#feature-requests)
 * [Contributing](#contributing)
 
@@ -83,12 +84,25 @@
 * Genre playlists that work online and offline
 * Genre pills on artists and albums online and offline
 
+## Installing
+
+TBD
+
+> [!IMPORTANT]
+> **The iOS app is in beta.**
+>
+> It has been tested a lot in an emulator, but I don't have an iPhone, so can't test
+> it on device.
+> As such I can't guarantee it will work as well as the Android version which I have
+> been using daily for weeks.
+>
+> If you run into issues please raise them. If you can create a PR to fix the
+> issues and test it out on your own device, even better.
+
 ## Why?
 
 I switched from Plex to Jellyfin several years ago, but could never find a
-Jellyfin music player as good as Plexamp. Findroid is great, it's got a more
-comprehensive feature set that atolla, and they're making good progress with
-the UI rework, but it's just not what I want out of a music player.
+Jellyfin music player as good as Plexamp.
 So I built my own one. This is the music app I want to use.
 
 However, there are a few things I'd like to stress that this app isn't:
@@ -105,30 +119,52 @@ atolla doesn't, and some things atolla does that Plexamp doesn't.
 
 **It's not a fully customisable 'make it your own' app.**
 The design is intentionally opinionated, it won't try to give you all of the
-customisation options you want to configure things, that makes it a lot harder
-to maintain. Suggestions for improvements or things that could be editable are
+customisation options you might want to configure things, that makes it a lot harder
+to maintain. Suggestions for improvements or things that could be tweakable are
 always welcomed, but they might not be actioned.
 
-## Installing
+## How does it compare?
 
-TBD
+There are other Jellyfin music apps out there, you might already be using one of them,
+so I thought it was worth giving a comparison to the alternatives.
 
-> [!IMPORTANT]
-> **The iOS app is in beta.**
->
-> It has been tested a lot in an emulator, but I don't have an iPhone, so can't test
-> it on device.
-> As such I can't guarantee it will work as well as the Android version which I have
-> been using daily for weeks.
->
-> If you run into issues please raise them. If you can create a PR to fix the
-> issues and test it out on your own device, even better.
+It's always good to have more options, and I mean no disrespect to the maintainers
+of these apps or the hard work they put in creating and maintaining these with
+my criticisms, I'm simply saying why they weren't the right choice for me personally.
+
+### [Finamp](https://github.com/UnicornsOnLSD/finamp)
+
+Finamp has a more comprehensive feature set that atolla, and they're making good
+(albeit slow) progress with the UI rework, but it's just not what I want out of a
+music player.
+
+* It's **very** slow to load for my music library.
+* The UI is ugly (to me).
+* It's trying to be everything to everyone, with a huge amount of options and customisation.
+
+atolla loads the same library **significantly** quicker. It's designed from the
+ground up for efficiency, making heavy use of caching and pagination for API
+requests to ensure everything loads as quickly as possible so you can get straight
+to listening.
+
+### [Jellify](https://github.com/Jellify-Music/App)
+
+I haven't used Jellify personally so can't speak on it's performance, but these are
+the things that made me dismiss it in my search for the right Jellyfin music player.
+
+* The UI is ugly (to me), it's inconsistent, with lots of wasted space and tiny artwork.
+* Looking at the issues it's missing a lot of features I'd consider important for a music app (which atolla has implemented).
+* It has a very long list of dependencies which in the age of supply chain attacks becomes more concerning by the day.
 
 ## Feature Requests
 
-Got something you'd like to see?
+**Got something you'd like to see?**
 
-Create an issue and label it as 'feature request'.
+Create a new 'feature request' issue.
+
+**Like an idea someone else has requested?**
+
+Add a reaction to the request (thumbs up/plus 1/whatever). Don't add a comment to it just saying +1, nobody likes those.
 
 ## Contributing
 

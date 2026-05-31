@@ -4,9 +4,9 @@ export class TrackContextMenu extends BasePage {
 	private readonly root = 'track-context-menu';
 	private readonly addToQueue = 'track-context-add-to-queue';
 	private readonly playNext = 'track-context-play-next';
-	private readonly artistLogo = 'artist-logo';
+	private readonly artistLogo = 'track-context-artist-logo';
+	private readonly trackPreview = 'track-context-track';
 	private readonly backdrop = 'track-context-backdrop';
-	private readonly trackRowSwipeRegionPrefix = 'track-row-swipe-region-';
 	private readonly trackTitlePrefix = 'track-title-';
 
 	async waitForVisible(): Promise<void> {
@@ -47,9 +47,6 @@ export class TrackContextMenu extends BasePage {
 	}
 
 	async getTrackTitle(): Promise<string> {
-		// Scope the lookup to the menu root. The menu holds exactly one preview row, so the
-		// base `track-title-` prefix is unambiguous here — unlike a global query, which would
-		// also match the detail list and the now-playing queue rows.
 		const menu = this.elementByID(this.root);
 		const els = await this.allByAccessibilityPrefixWithin(menu, this.trackTitlePrefix);
 		if (els.length === 0) throw new Error('No track title found in context menu');
@@ -57,22 +54,59 @@ export class TrackContextMenu extends BasePage {
 	}
 
 	async tapArtist(): Promise<void> {
-		// Scope to the menu root: the menu has a single `artist-logo`, so this can't match the
-		// now-playing surface's logo in the main tree (the old global ~artist-logo did — the
-		// original flake, tapping the wrong logo so the menu dismissed without navigating).
-		const menu = this.elementByID(this.root);
-		const el = menu.$(`~${this.artistLogo}`);
-		await el.waitForDisplayed({ timeoutMsg: 'Artist logo not visible in context menu' });
+		const el = await this.waitForVisibleElementByID(
+			this.artistLogo,
+			'Artist logo not visible in context menu',
+		);
 		await el.click();
 	}
 
 	async tapAlbumRow(): Promise<void> {
-		// Scoped within the menu root: the menu holds exactly one row, so the base prefix pins
-		// it to this menu's preview row rather than a background detail/now-playing row.
-		const menu = this.elementByID(this.root);
-		const rows = await this.allByAccessibilityPrefixWithin(menu, this.trackRowSwipeRegionPrefix);
-		if (rows.length === 0) throw new Error('No track row found in track context menu');
-		await rows[0].click();
+		const el = await this.waitForVisibleElementByID(
+			this.trackPreview,
+			'Track preview not visible in context menu',
+		);
+		await el.click();
+	}
+
+	private async waitForVisibleElementByID(
+		id: string,
+		timeoutMsg: string,
+	): Promise<WebdriverIO.Element> {
+		const attempts = 3;
+		const timeoutPerAttemptMs = 2_000;
+		const selector = `//*[(@name="${id}" or @content-desc="${id}")]`;
+
+		for (let attempt = 1; attempt <= attempts; attempt += 1) {
+			try {
+				let visibleElement: WebdriverIO.Element | undefined;
+				await this.driver.waitUntil(
+					async () => {
+						for await (const element of this.driver.$$(selector)) {
+							if (await element.isDisplayed()) {
+								visibleElement = element;
+								return true;
+							}
+						}
+
+						return false;
+					},
+					{ timeout: timeoutPerAttemptMs, timeoutMsg },
+				);
+
+				if (visibleElement) {
+					return visibleElement;
+				}
+			} catch {
+				// Retry to account for flaky rendering timing during parallel runs.
+			}
+
+			if (attempt < attempts) {
+				await this.driver.pause(250);
+			}
+		}
+
+		throw new Error(timeoutMsg);
 	}
 
 	async tapBackdrop(): Promise<void> {

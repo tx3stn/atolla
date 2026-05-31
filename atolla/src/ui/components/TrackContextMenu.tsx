@@ -165,6 +165,7 @@ export class TrackContextMenu extends StatefulComponent<
 					style={styles.card}
 				>
 					<ArtistLogo
+						accessibilityId='track-context-artist-logo'
 						containerStyle={styles.logoContainer}
 						fallbackText={track.artistName ?? null}
 						imageCache={imageCache}
@@ -172,11 +173,13 @@ export class TrackContextMenu extends StatefulComponent<
 						logoStyle={styles.logoImage}
 						onTap={this.handleArtistTap}
 					/>
-					<TrackList
-						imageCache={imageCache}
-						onTrackTap={this.viewModel.onAlbumTap ? this.handleAlbumTap : undefined}
-						tracks={previewEntry}
-					/>
+					<view accessibilityId='track-context-track' accessibilityLabel='track-context-track'>
+						<TrackList
+							imageCache={imageCache}
+							onTrackTap={this.viewModel.onAlbumTap ? this.handleAlbumTap : undefined}
+							tracks={previewEntry}
+						/>
+					</view>
 					<view style={styles.divider} />
 					<view
 						accessibilityId='track-context-play-next'
