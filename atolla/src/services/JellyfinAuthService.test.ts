@@ -63,7 +63,7 @@ function createStore() {
 	};
 }
 
-function makeService(options: ConstructorParameters<typeof JellyfinAuthService>[0] = {}) {
+function makeService(options: Partial<ConstructorParameters<typeof JellyfinAuthService>[0]> = {}) {
 	return new JellyfinAuthService({ store: createStore(), ...options });
 }
 

@@ -29,7 +29,7 @@
 		"check": "bun run format && bun run lint && bun run compile && bun run test && bun run format:zig && bun run check:zig && bun run test:zig && bun run test:android && bun run test:ios",
 		"check:full": "./.scripts/check-full.sh",
 		"check:zig": "bazel build //atolla/native/zig:atolla_algorithms_zig",
-		"compile": "bunx tsc --noEmit",
+		"compile": "bunx tsc --noEmit -p tsconfig.json && bunx tsc --noEmit -p atolla/tsconfig.src.json && bunx tsc --noEmit -p atolla/tsconfig.tests.json",
 		"format": "biome format --write .",
 		"format:zig": "zig fmt ./atolla/native/zig/",
 		"icons:generate": "bun ./.scripts/generate-icons.ts",

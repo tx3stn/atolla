@@ -29,6 +29,7 @@ function trackEntry(
 		complete,
 		genreIds: [],
 		playlistIds: [],
+		requiredImageKeys: [],
 		streamUrl: '',
 		track: track as DownloadedTrackEntry['track'],
 	};
@@ -139,14 +140,14 @@ describe('buildOfflineDiagnosticsReport', () => {
 	});
 
 	it('never throws on malformed persisted blobs and records the parse failure', () => {
-		let report: ReturnType<typeof buildOfflineDiagnosticsReport> | null = null;
+		let report!: ReturnType<typeof buildOfflineDiagnosticsReport>;
 		expect(() => {
 			report = buildOfflineDiagnosticsReport(
 				deps({ rawPersisted: { recentlyPlayed: '{ not json' } }),
 			);
 		}).not.toThrow();
-		expect(report?.persisted.recentlyPlayed.present).toBe(true);
-		expect(report?.persisted.recentlyPlayed.parseOk).toBe(false);
+		expect(report.persisted.recentlyPlayed.present).toBe(true);
+		expect(report.persisted.recentlyPlayed.parseOk).toBe(false);
 	});
 
 	it('summarizes the On This Day cache with today/tomorrow album counts', () => {

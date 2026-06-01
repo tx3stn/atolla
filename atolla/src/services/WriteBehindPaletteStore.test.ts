@@ -31,6 +31,10 @@ class CapturingStore implements PaletteStore {
 		});
 	}
 
+	clearAll(): Promise<void> {
+		return Promise.resolve();
+	}
+
 	flush(): void {
 		for (const resolve of this.resolvers) resolve();
 		this.resolvers = [];
@@ -63,6 +67,7 @@ describe('WriteBehindPaletteStore', () => {
 
 		it('does not propagate errors from the inner store', async () => {
 			const inner: PaletteStore = {
+				clearAll: () => Promise.resolve(),
 				loadPalette: () => Promise.resolve(null),
 				savePalette: () => Promise.reject(new Error('disk full')),
 			};

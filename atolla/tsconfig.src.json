@@ -1,0 +1,12 @@
+{
+	"compilerOptions": {
+		"skipLibCheck": true,
+		"types": [
+			"../bazel-atolla/external/valdi/modules/types/globals",
+			"../bazel-atolla/external/valdi/modules/types/Long"
+		]
+	},
+	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/Strings.d.ts"],
+	"extends": "./tsconfig.json",
+	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"]
+}

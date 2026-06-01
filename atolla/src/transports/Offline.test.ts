@@ -136,6 +136,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: 'file:///track-1.mp3',
 						track: {
 							artistId: 'artist-1',
@@ -169,6 +170,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: ['genre-1'],
 						playlistIds: [],
+						requiredImageKeys: [],
 						streamUrl: 'file:///track-1.mp3',
 						track: {
 							artistId: 'artist-1',
@@ -219,6 +221,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: 'file:///track-1.mp3',
 						track: {
 							albumId: 'album-1',
@@ -236,6 +239,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: 'file:///track-2.mp3',
 						track: {
 							albumId: 'album-2',
@@ -300,6 +304,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: 'file:///track-1.mp3',
 						track: {
 							albumId: 'album-a',
@@ -316,6 +321,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: 'file:///track-2.mp3',
 						track: {
 							albumId: 'album-b',
@@ -347,6 +353,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: 'file:///track-1.mp3',
 						track: {
 							artistId: 'artist-1',
@@ -361,6 +368,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: 'file:///track-2.mp3',
 						track: {
 							artistId: 'artist-2',
@@ -453,6 +461,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: 'file:///track-1.mp3',
 						track: {
 							artistId: 'artist-1',
@@ -512,6 +521,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: [],
+						requiredImageKeys: [],
 						streamUrl: '',
 						track: {
 							albumId: 'album-1',
@@ -526,6 +536,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: [],
+						requiredImageKeys: [],
 						streamUrl: '',
 						track: {
 							albumId: 'album-1',
@@ -540,6 +551,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: [],
+						requiredImageKeys: [],
 						streamUrl: '',
 						track: {
 							albumId: 'album-1',
@@ -567,6 +579,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: '',
 						track: {
 							albumId: 'album-1',
@@ -581,6 +594,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: '',
 						track: {
 							albumId: 'album-1',
@@ -595,6 +609,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: '',
 						track: {
 							albumId: 'album-1',
@@ -622,6 +637,7 @@ describe('OfflineTransport', () => {
 						complete: true,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
+						requiredImageKeys: [],
 						streamUrl: '',
 						track: {
 							albumId: 'album-1',
@@ -796,6 +812,7 @@ describe('OfflineTransport', () => {
 							complete: true,
 							genreIds: [],
 							playlistIds: [],
+							requiredImageKeys: [],
 							streamUrl: '',
 							track: {
 								albumId: undefined,
