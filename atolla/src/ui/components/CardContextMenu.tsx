@@ -11,7 +11,6 @@ import Strings from '../../Strings';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { syncArtistLogosForQueue } from '../views/HomeViewLogic';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
 import { ContextMenuActionRow } from './ContextMenuActionRow';
@@ -82,7 +81,7 @@ export class CardContextMenu extends StatefulComponent<
 	}
 
 	handlePlay = (): void => {
-		const { card, playbackStore, transport } = this.viewModel;
+		const { card, playbackStore } = this.viewModel;
 		this.fetchTracks().then((tracks) => {
 			if (tracks.length === 0) return;
 			if (card.kind === 'album') {
@@ -90,17 +89,15 @@ export class CardContextMenu extends StatefulComponent<
 			} else {
 				playbackStore.playTracks(tracks);
 			}
-			void syncArtistLogosForQueue(playbackStore, tracks, transport);
 		});
 		this.viewModel.onDismiss(Strings.playingNowToast());
 	};
 
 	handlePlayNext = (): void => {
-		const { playbackStore, transport } = this.viewModel;
+		const { playbackStore } = this.viewModel;
 		this.fetchTracks().then((tracks) => {
 			if (tracks.length === 0) return;
 			playbackStore.playNext(tracks);
-			void syncArtistLogosForQueue(playbackStore, tracks, transport);
 		});
 		this.viewModel.onDismiss(Strings.playingNextToast());
 	};

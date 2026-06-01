@@ -308,6 +308,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
 	private nativePlaybackActionInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
+	private resolvingArtistLogoId: string | null = null;
 	private homeNavigationController?: NavigationController;
 	private homeNavigationNonce = 0;
 	private libraryNavigationController?: NavigationController;
@@ -582,6 +583,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.handleTrackPrefetchQueueChange();
 			this.captureRecentlyPlayedTrack();
 			this.handleWaveformPriority();
+			this.resolveCurrentArtistLogo();
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
 		});
@@ -593,6 +595,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 		this.handleTrackPrefetchQueueChange();
 		this.captureRecentlyPlayedTrack();
+		this.resolveCurrentArtistLogo();
 		this.syncTrackPlaybackNotification();
 		this.refreshTrackCachedCount();
 	}
@@ -1216,6 +1219,34 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				}
 			})
 			.catch(this.handleSwallowedAsyncError);
+	}
+
+	// The artist logo is resolved from the track's artistId, never stored on the
+	// track itself, so any queue path that makes a track current without a logo
+	// (add-to-queue, restore, etc.) leaves it missing. Resolve it lazily here so
+	// every path is covered in one place rather than at each queue mutation.
+	private resolveCurrentArtistLogo(): void {
+		const artistId = this.playbackStore.unresolvedArtistLogoArtistId;
+		if (!artistId || this.resolvingArtistLogoId === artistId) return;
+
+		this.resolvingArtistLogoId = artistId;
+		void this.transport
+			.getArtistLogoUrl(artistId)
+			.then((logoUrl) => {
+				this.resolvingArtistLogoId = null;
+				if (!logoUrl) return;
+				// Bail if the current track changed (or already got a logo) while resolving.
+				if (this.playbackStore.unresolvedArtistLogoArtistId !== artistId) return;
+				this.playbackStore.setArtistLogoUrl(logoUrl);
+				// setArtistLogoUrl notifies, but the playback subscription bails on an
+				// unchanged signature, so re-slot the overlay explicitly the way the
+				// palette and waveform subscriptions do.
+				this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
+				this.setState({ version: this.state.version + 1 });
+			})
+			.catch(() => {
+				this.resolvingArtistLogoId = null;
+			});
 	}
 
 	private prewarmNowPlayingArtwork(imageUrl: string): void {

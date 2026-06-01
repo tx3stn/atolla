@@ -655,6 +655,59 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('unresolvedArtistLogoArtistId', () => {
+		const artistTrack: Track = {
+			artistId: 'artist-7',
+			duration: 120,
+			id: 'track-artist-7',
+			name: 'Artist Seven Track',
+		};
+
+		it('is null when there is no current track', () => {
+			const store = new PlaybackStore();
+			expect(store.unresolvedArtistLogoArtistId).toBeNull();
+		});
+
+		it('returns the current track artist id when its logo is missing', () => {
+			const store = new PlaybackStore();
+			store.addToQueue([artistTrack]);
+			expect(store.unresolvedArtistLogoArtistId).toBe('artist-7');
+		});
+
+		it('is null once the current track already has a logo', () => {
+			const store = new PlaybackStore();
+			store.addToQueue([artistTrack]);
+			store.setArtistLogoUrl('https://example.com/logo.png');
+			expect(store.unresolvedArtistLogoArtistId).toBeNull();
+		});
+
+		it('falls back to the album artist id when the track has none', () => {
+			const store = new PlaybackStore();
+			store.play([track1], album);
+			expect(store.unresolvedArtistLogoArtistId).toBe(album.artistId);
+		});
+
+		it('tracks the artist of a queued track once it becomes current', () => {
+			const store = new PlaybackStore();
+			const opening: Track = {
+				artistId: 'artist-1',
+				duration: 10,
+				id: 'opening',
+				name: 'Opening',
+			};
+			store.play([opening], album);
+			store.setArtistLogoUrl('https://example.com/artist-one.png');
+			store.addToQueue([artistTrack]);
+
+			expect(store.unresolvedArtistLogoArtistId).toBeNull();
+
+			store.updateProgress(opening.duration);
+
+			expect(store.track).toBe(artistTrack);
+			expect(store.unresolvedArtistLogoArtistId).toBe('artist-7');
+		});
+	});
+
 	describe('playNext()', () => {
 		it('inserts tracks immediately after the current track', () => {
 			const store = new PlaybackStore();
@@ -785,41 +838,6 @@ describe('PlaybackStore', () => {
 			let calls = 0;
 			store.subscribe(() => calls++);
 			store.playWithArtistLogos(tracks, []);
-			expect(calls).toBe(1);
-		});
-	});
-
-	describe('setArtistLogoUrls()', () => {
-		it('updates queued logo urls without resetting playback state', () => {
-			const store = new PlaybackStore();
-			store.playTracks(tracks, 1);
-			store.updateProgress(37);
-
-			store.setArtistLogoUrls(['logo1', 'logo2', 'logo3']);
-
-			expect(store.trackIndex).toBe(1);
-			expect(store.progressSeconds).toBe(37);
-			expect(store.artistLogoUrl).toBe('logo2');
-		});
-
-		it('fills missing entries with null', () => {
-			const store = new PlaybackStore();
-			store.playTracks(tracks);
-
-			store.setArtistLogoUrls(['logo1']);
-			store.next();
-
-			expect(store.artistLogoUrl).toBeNull();
-		});
-
-		it('notifies listeners', () => {
-			const store = new PlaybackStore();
-			store.playTracks(tracks);
-			let calls = 0;
-			store.subscribe(() => calls++);
-
-			store.setArtistLogoUrls(['logo1', 'logo2', 'logo3']);
-
 			expect(calls).toBe(1);
 		});
 	});

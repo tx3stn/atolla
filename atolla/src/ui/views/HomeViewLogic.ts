@@ -1,5 +1,4 @@
 import type { Track } from '../../models/Track';
-import type { PlaybackStore } from '../../stores/Playback';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 
@@ -29,28 +28,6 @@ export function resolveArtistLogoUrlsForTracks(
 			return request;
 		}),
 	);
-}
-
-export function isSameTrackQueue(
-	currentTracks: Array<Track>,
-	expectedTracks: Array<Track>,
-): boolean {
-	if (currentTracks.length !== expectedTracks.length) {
-		return false;
-	}
-
-	return currentTracks.every((track, index) => track.id === expectedTracks[index]?.id);
-}
-
-export function syncArtistLogosForQueue(
-	playbackStore: Pick<PlaybackStore, 'tracks' | 'setArtistLogoUrls'>,
-	tracks: Array<Track>,
-	transport: Pick<Transport, 'getArtistLogoUrl'>,
-): Promise<void> {
-	return resolveArtistLogoUrlsForTracks(tracks, transport).then((logoUrls) => {
-		if (!isSameTrackQueue(playbackStore.tracks, tracks)) return;
-		playbackStore.setArtistLogoUrls(logoUrls);
-	});
 }
 
 type RandomAlbumTransport = Pick<Transport, 'getRandomAlbum' | 'getTracksByAlbum'>;

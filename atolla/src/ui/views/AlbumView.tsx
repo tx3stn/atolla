@@ -32,7 +32,6 @@ import type { NavBarContext } from '../NavBarContext';
 import { ArtistView } from './ArtistView';
 import { resolveGenreForNavigation, resolveGenreImageUrls } from './GenreNavigationResolver';
 import { GenreView } from './GenreView';
-import { syncArtistLogosForQueue } from './HomeViewLogic';
 import type { LibraryNavContext } from './LibraryView';
 import { PlaylistView } from './PlaylistView';
 
@@ -147,22 +146,18 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			return;
 		}
 
-		const { album, playbackStore, transport } = this.viewModel;
+		const { album, playbackStore } = this.viewModel;
 		const tracks = this.state.tracks;
 		playbackStore.play(tracks, album, trackIndex);
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
-
-		void syncArtistLogosForQueue(playbackStore, tracks, transport);
 	};
 
 	handleHeaderPlayTap = (): void => {
 		if (this.state.tracks.length === 0) return;
-		const { album, playbackStore, transport } = this.viewModel;
+		const { album, playbackStore } = this.viewModel;
 		const tracks = this.state.tracks;
 		playbackStore.play(tracks, album);
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
-
-		void syncArtistLogosForQueue(playbackStore, tracks, transport);
 	};
 
 	handleTrackLongPress = (track: Track): void => {
@@ -212,12 +207,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 	handleHeaderShuffleTap = (): void => {
 		if (this.state.tracks.length === 0) return;
-		const { album, playbackStore, transport } = this.viewModel;
+		const { album, playbackStore } = this.viewModel;
 		const shuffledTracks = shuffleArray(this.state.tracks);
 		playbackStore.play(shuffledTracks, album);
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
-
-		void syncArtistLogosForQueue(playbackStore, shuffledTracks, transport);
 	};
 
 	handleDownloadTap = (): void => {

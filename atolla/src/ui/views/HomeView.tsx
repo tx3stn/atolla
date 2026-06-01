@@ -34,9 +34,7 @@ import { parseHomeAlbumsCache, serializeHomeAlbumsCache } from './HomeAlbumsCach
 import {
 	buildShuffleLibraryQueue,
 	getRandomAlbumTracks,
-	resolveArtistLogoUrlsForTracks,
 	shouldApplyTransportAlbumsToHome,
-	syncArtistLogosForQueue,
 } from './HomeViewLogic';
 
 export interface HomeViewModel {
@@ -279,8 +277,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		}
 
 		this.viewModel.playbackStore.playTracks(queue, trackIndex);
-
-		void syncArtistLogosForQueue(this.viewModel.playbackStore, queue, this.viewModel.transport);
 	};
 
 	private handleRecentlyPlayedTrackLongPress = (track: Track): void => {
@@ -490,13 +486,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				this.shuffleLoader = loader;
 			}
 
-			const initialItems = result.items;
-			void resolveArtistLogoUrlsForTracks(initialItems, transport).then((logoUrls) => {
-				if (playbackStore.tracks[0]?.id !== initialItems[0]?.id) {
-					return;
-				}
-				playbackStore.setArtistLogoUrls(logoUrls);
-			});
 			return;
 		}
 
@@ -510,8 +499,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		}
 
 		playbackStore.playTracks(queue, 0);
-
-		void syncArtistLogosForQueue(playbackStore, queue, transport);
 	}
 
 	private async startRandomAlbumMix(): Promise<void> {
@@ -532,8 +519,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		}
 
 		playbackStore.playTracks(tracks, 0);
-
-		void syncArtistLogosForQueue(playbackStore, tracks, transport);
 	}
 
 	onRender(): void {

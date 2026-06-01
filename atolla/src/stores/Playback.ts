@@ -141,6 +141,13 @@ export class PlaybackStore {
 		return this._artistLogoUrls[this.trackIndex] ?? null;
 	}
 
+	// The artist id whose logo is missing for the current track, or null when
+	// there is already a logo, no current track, or nothing to resolve from.
+	get unresolvedArtistLogoArtistId(): string | null {
+		if (!this.track || this.artistLogoUrl) return null;
+		return this.track.artistId ?? this.album?.artistId ?? null;
+	}
+
 	get track(): Track | null {
 		return this.tracks[this.trackIndex] ?? null;
 	}
@@ -328,12 +335,6 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this._artistLogoUrls = tracks.map((_, index) => logoUrls[index] ?? null);
 		void this.queueStore?.storeString(playbackActiveKey, 'true').catch(() => {});
-		this.persistQueue();
-		this.notify();
-	}
-
-	setArtistLogoUrls(logoUrls: Array<string | null>): void {
-		this._artistLogoUrls = this.tracks.map((_, index) => logoUrls[index] ?? null);
 		this.persistQueue();
 		this.notify();
 	}
