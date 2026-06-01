@@ -110,13 +110,11 @@ function normalizeSearchInput(value: unknown): string {
 }
 
 export class SearchView extends StatefulComponent<SearchViewModel, SearchState> {
-	private hasBeenDestroyed = false;
 	private cardContextMenuCard: CardContextMenuCard | null = null;
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 	private requestVersion = 0;
 	private recentSearchTapHandlers = new Map<string, () => void>();
 	private searchInputRef = new ElementRef();
-	private unsubscribePlayback?: () => void;
 
 	state: SearchState = {
 		contextMenuCard: null,
@@ -135,18 +133,19 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	};
 
 	onCreate(): void {
-		this.hasBeenDestroyed = false;
 		this.focusSearchInput();
-		this.unsubscribePlayback = bindFooterVisibility({
-			getIsFooterVisible: () => this.state.isFooterVisible,
-			playbackStore: this.viewModel.playbackStore,
-			setIsFooterVisible: (isFooterVisible) => {
-				this.setState({ isFooterVisible });
-			},
-		});
+		this.registerDisposable(
+			bindFooterVisibility({
+				getIsFooterVisible: () => this.state.isFooterVisible,
+				playbackStore: this.viewModel.playbackStore,
+				setIsFooterVisible: (isFooterVisible) => {
+					this.setState({ isFooterVisible });
+				},
+			}),
+		);
 
 		this.viewModel.searchStore.getRecentSearches().then((recentSearches) => {
-			if (this.hasBeenDestroyed) {
+			if (this.isDestroyed()) {
 				return;
 			}
 			this.setState({ recentSearches });
@@ -169,7 +168,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	private focusSearchInput(): void {
 		Promise.resolve().then(() => {
-			if (this.hasBeenDestroyed) {
+			if (this.isDestroyed()) {
 				return;
 			}
 			this.searchInputRef.setAttribute('focused', true);
@@ -178,7 +177,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				this.state.query.length,
 			]);
 			setTimeout(() => {
-				if (this.hasBeenDestroyed) {
+				if (this.isDestroyed()) {
 					return;
 				}
 				this.searchInputRef.setAttribute('focused', true);
@@ -192,11 +191,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	private blurSearchInput(): void {
 		this.searchInputRef.setAttribute('focused', false);
-	}
-
-	onDestroy(): void {
-		this.hasBeenDestroyed = true;
-		this.unsubscribePlayback?.();
 	}
 
 	handleSubmitSearch = (query: unknown): void => {
@@ -233,7 +227,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		});
 
 		this.viewModel.searchStore.addRecentSearch(trimmedQuery).then((recentSearches) => {
-			if (this.hasBeenDestroyed || currentRequestVersion !== this.requestVersion) {
+			if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
 				return;
 			}
 
@@ -243,7 +237,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.viewModel.transport
 			.search(trimmedQuery)
 			.then((results) => {
-				if (this.hasBeenDestroyed || currentRequestVersion !== this.requestVersion) {
+				if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
 					return;
 				}
 
@@ -259,7 +253,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				});
 			})
 			.catch((error) => {
-				if (this.hasBeenDestroyed || currentRequestVersion !== this.requestVersion) {
+				if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
 					return;
 				}
 

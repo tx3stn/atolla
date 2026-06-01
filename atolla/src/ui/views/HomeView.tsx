@@ -71,7 +71,6 @@ const SHUFFLE_LIBRARY_MIX_ID = 'mix-shuffle-library';
 const RANDOM_ALBUM_MIX_ID = 'mix-random-album';
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
-	private hasBeenDestroyed = false;
 	private loadGeneration = 0;
 	private shuffleLoader: ShuffleQueueLoader | null = null;
 	private shuffleLoadToken = 0;
@@ -87,12 +86,10 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	onCreate(): void {
-		this.hasBeenDestroyed = false;
 		this.loadAlbums();
 	}
 
 	onDestroy(): void {
-		this.hasBeenDestroyed = true;
 		this.shuffleLoader?.dispose();
 	}
 
@@ -138,7 +135,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		void service
 			.ensureLoaded()
 			.then(() => {
-				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
+				if (this.isDestroyed() || generation !== this.loadGeneration) {
 					return;
 				}
 				const cached = service.getAlbumsForDate(new Date());
@@ -150,7 +147,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				}
 
 				return service.refresh(this.viewModel.transport, new Date()).then((summary) => {
-					if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
+					if (this.isDestroyed() || generation !== this.loadGeneration) {
 						return;
 					}
 					DebugLogger.log('home', 'on-this-day refreshed', summary);
@@ -169,7 +166,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		store
 			.fetchString(RECENTLY_ADDED_ALBUMS_CACHE_KEY)
 			.then((raw) => {
-				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
+				if (this.isDestroyed() || generation !== this.loadGeneration) {
 					return;
 				}
 
@@ -190,7 +187,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		void this.viewModel.transport
 			.getRecentlyAddedAlbums(limit)
 			.then((albums) => {
-				if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
+				if (this.isDestroyed() || generation !== this.loadGeneration) {
 					return;
 				}
 				this.setState({ recentlyAddedAlbums: albums });
@@ -471,7 +468,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				return;
 			}
 
-			if (this.hasBeenDestroyed || token !== this.shuffleLoadToken) {
+			if (this.isDestroyed() || token !== this.shuffleLoadToken) {
 				return;
 			}
 			if (result.items.length === 0) {
@@ -491,7 +488,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 		const queue = await buildShuffleLibraryQueue(transport);
 
-		if (this.hasBeenDestroyed || token !== this.shuffleLoadToken) {
+		if (this.isDestroyed() || token !== this.shuffleLoadToken) {
 			return;
 		}
 		if (queue.length === 0) {
@@ -511,7 +508,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			return;
 		}
 
-		if (this.hasBeenDestroyed) {
+		if (this.isDestroyed()) {
 			return;
 		}
 		if (tracks.length === 0) {

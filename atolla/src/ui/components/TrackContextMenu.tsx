@@ -34,26 +34,19 @@ export class TrackContextMenu extends StatefulComponent<
 	TrackContextMenuViewModel,
 	TrackContextMenuState
 > {
-	private hasBeenDestroyed = false;
-
 	state: TrackContextMenuState = {
 		artistLogoUrl: null,
 	};
 
 	onCreate(): void {
-		this.hasBeenDestroyed = false;
 		const { track, transport } = this.viewModel;
 		if (track.artistId) {
 			transport.getArtistLogoUrl(track.artistId).then((artistLogoUrl) => {
-				if (!this.hasBeenDestroyed) {
+				if (!this.isDestroyed()) {
 					this.setState({ artistLogoUrl });
 				}
 			});
 		}
-	}
-
-	onDestroy(): void {
-		this.hasBeenDestroyed = true;
 	}
 
 	handlePlayNext = (): void => {

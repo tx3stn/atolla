@@ -42,28 +42,21 @@ export class CardContextMenu extends StatefulComponent<
 	CardContextMenuViewModel,
 	CardContextMenuState
 > {
-	private hasBeenDestroyed = false;
-
 	state: CardContextMenuState = {
 		artistLogoUrl: null,
 	};
 
 	onCreate(): void {
-		this.hasBeenDestroyed = false;
 		const { card, transport } = this.viewModel;
 		if (card.kind === 'album') {
 			transport.getArtistLogoUrl(card.album.artistId).then((artistLogoUrl) => {
-				if (!this.hasBeenDestroyed) {
+				if (!this.isDestroyed()) {
 					this.setState({ artistLogoUrl });
 				}
 			});
 		} else if (card.kind === 'artist' && card.artist.logoUrl) {
 			this.setState({ artistLogoUrl: card.artist.logoUrl });
 		}
-	}
-
-	onDestroy(): void {
-		this.hasBeenDestroyed = true;
 	}
 
 	private fetchTracks(): Promise<Array<Track>> {

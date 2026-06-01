@@ -66,10 +66,9 @@ interface ArtistPageResult {
 }
 
 export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsState> {
-	private hasBeenDestroyed = false;
 	private readonly pagedGridController = createPagedGridController<Artist>({
 		fetchPage: (page) => this.fetchPage(page),
-		isDestroyed: () => this.hasBeenDestroyed,
+		isDestroyed: () => this.isDestroyed(),
 		onPageLoaded: (items) => this.preloadArtistImages(items),
 		setState: (patch) => {
 			this.setState({
@@ -81,7 +80,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			});
 		},
 	});
-	private unsubscribePlayback?: () => void;
 	private cachedDisplayArtists: Array<Artist> = [];
 	private cachedDisplayArtistsRef: Array<Artist> | null = null;
 	private cachedDisplaySortOrder: SortOrder | undefined = undefined;
@@ -102,20 +100,16 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	};
 
 	onCreate(): void {
-		this.hasBeenDestroyed = false;
-		this.unsubscribePlayback = bindFooterVisibility({
-			getIsFooterVisible: () => this.state.isFooterVisible,
-			playbackStore: this.viewModel.playbackStore,
-			setIsFooterVisible: (isFooterVisible) => {
-				this.setState({ isFooterVisible });
-			},
-		});
+		this.registerDisposable(
+			bindFooterVisibility({
+				getIsFooterVisible: () => this.state.isFooterVisible,
+				playbackStore: this.viewModel.playbackStore,
+				setIsFooterVisible: (isFooterVisible) => {
+					this.setState({ isFooterVisible });
+				},
+			}),
+		);
 		void this.loadInitialPages();
-	}
-
-	onDestroy(): void {
-		this.hasBeenDestroyed = true;
-		this.unsubscribePlayback?.();
 	}
 
 	onViewModelUpdate(prevViewModel?: ArtistsViewModel): void {

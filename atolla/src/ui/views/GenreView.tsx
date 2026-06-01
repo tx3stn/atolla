@@ -63,12 +63,9 @@ interface GenreState {
 @NavigationPage(module)
 export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, GenreState> {
 	private currentPage = 0;
-	private hasBeenDestroyed = false;
 	private hasMoreTracks = true;
 	private isLoadingPage = false;
 	private triggeredAutoLoadForTrackCount: number | null = null;
-	private unsubscribeDownloads?: () => void;
-	private unsubscribePlayback?: () => void;
 	private readonly setHeaderVisibility = (isVisible: boolean): void => {
 		if (this.state.isHeaderVisible === isVisible) {
 			return;
@@ -269,16 +266,19 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				this.navigationController.disableDismissalGesture()();
 			}
 		});
-		this.hasBeenDestroyed = false;
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
 		const { downloadService, playbackStore } = this.viewModel;
-		this.unsubscribePlayback = playbackStore.subscribe(() => {
-			this.setState({ isFooterVisible: playbackStore.track !== null });
-		});
-		this.unsubscribeDownloads = downloadService.subscribe(() => {
-			this.syncDownloadState();
-		});
+		this.registerDisposable(
+			playbackStore.subscribe(() => {
+				this.setState({ isFooterVisible: playbackStore.track !== null });
+			}),
+		);
+		this.registerDisposable(
+			downloadService.subscribe(() => {
+				this.syncDownloadState();
+			}),
+		);
 		this.setState({ isFooterVisible: playbackStore.track !== null });
 		this.syncDownloadState();
 		void this.loadNextPage();
@@ -298,7 +298,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	}
 
 	private async loadNextPage(): Promise<void> {
-		if (this.hasBeenDestroyed || this.isLoadingPage || !this.hasMoreTracks) {
+		if (this.isDestroyed() || this.isLoadingPage || !this.hasMoreTracks) {
 			return;
 		}
 
@@ -311,14 +311,14 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 		try {
 			const result = await this.fetchPage(nextPage);
-			if (this.hasBeenDestroyed) return;
+			if (this.isDestroyed()) return;
 
 			const artistLogoUrls = await Promise.all(
 				result.items.map((t) =>
 					t.artistId ? this.viewModel.transport.getArtistLogoUrl(t.artistId) : null,
 				),
 			);
-			if (this.hasBeenDestroyed) return;
+			if (this.isDestroyed()) return;
 
 			const tracks = isFirstPage ? result.items : [...this.state.tracks, ...result.items];
 			const allArtistLogoUrls = isFirstPage
@@ -342,7 +342,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				tracks,
 			});
 		} catch {
-			if (this.hasBeenDestroyed) return;
+			if (this.isDestroyed()) return;
 			this.isLoadingPage = false;
 			this.setState({ isLoading: false, isLoadingNextPage: false, nextPageFailed: true });
 		}
@@ -398,9 +398,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	};
 
 	onDestroy(): void {
-		this.hasBeenDestroyed = true;
-		this.unsubscribeDownloads?.();
-		this.unsubscribePlayback?.();
 		if (this.viewModel.restoreHeaderOnDestroy ?? true) {
 			this.viewModel.onHeaderVisibilityChange?.(true);
 		}

@@ -45,7 +45,6 @@ export class NativeAudioPlayer extends StatefulComponent<
 
 	private unsubscribePlaybackStore?: () => void;
 	private progressInterval: ReturnType<typeof setInterval> | null = null;
-	private destroyed = false;
 	private lastSourceUrl = '';
 	private lastNextSourceUrl = '';
 	private lastCompletedToken = '';
@@ -74,11 +73,11 @@ export class NativeAudioPlayer extends StatefulComponent<
 				this.viewModel.isActive !== false && this.viewModel.playbackStore.isPlaying ? 1 : 0;
 			if (nextRate !== this.state.playbackRate) {
 				this.setState({ playbackRate: nextRate });
-				if (this.destroyed) return;
+				if (this.isDestroyed()) return;
 				this.safeSetPlaybackRate(nextRate);
 			}
 
-			if (this.destroyed) return;
+			if (this.isDestroyed()) return;
 			const seekTarget = this.viewModel.playbackStore.seekTarget;
 			if (seekTarget != null && seekTarget !== this.lastSeekTargetSeconds) {
 				this.lastSeekTargetSeconds = seekTarget;
@@ -92,7 +91,6 @@ export class NativeAudioPlayer extends StatefulComponent<
 	}
 
 	onDestroy(): void {
-		this.destroyed = true;
 		this.unsubscribePlaybackStore?.();
 		if (this.progressInterval != null) {
 			clearInterval(this.progressInterval);
@@ -270,7 +268,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 	}
 
 	private syncProgressAndEvents(): void {
-		if (this.destroyed) return;
+		if (this.isDestroyed()) return;
 		try {
 			const positionMs = getAtollaAudioPlaybackPositionMs();
 			if (Number.isFinite(positionMs) && positionMs >= 0 && this.viewModel.isActive !== false) {
@@ -285,7 +283,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 				// progressSeconds and applyInitialSeekForSource seeks to the wrong position,
 				// causing a native audio source error.
 				if (this.viewModel.playbackStore.track?.id !== this.lastConfiguredTrackId) {
-					if (this.destroyed) return;
+					if (this.isDestroyed()) return;
 				} else {
 					const trackDurationSeconds = this.viewModel.playbackStore.track?.duration ?? 0;
 					const positionSeconds = positionMs / 1000;
@@ -295,19 +293,19 @@ export class NativeAudioPlayer extends StatefulComponent<
 							: positionSeconds;
 					this.lastNativePositionSeconds = safePositionSeconds;
 					this.viewModel.playbackStore.updateProgress(safePositionSeconds);
-					if (this.destroyed) return;
+					if (this.isDestroyed()) return;
 				}
-				if (this.destroyed) return;
+				if (this.isDestroyed()) return;
 			}
 		} catch {
 			// best effort poll
 		}
 
-		if (this.destroyed) return;
+		if (this.isDestroyed()) return;
 
 		this.checkForStall();
 
-		if (this.destroyed) return;
+		if (this.isDestroyed()) return;
 		while (true) {
 			let event = '';
 			try {

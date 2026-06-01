@@ -67,10 +67,7 @@ interface AlbumState {
 
 @NavigationPage(module)
 export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, AlbumState> {
-	private hasBeenDestroyed = false;
 	private loadGeneration = 0;
-	private unsubscribePlayback?: () => void;
-	private unsubscribeDownloads?: () => void;
 	private readonly setHeaderVisibility = (isVisible: boolean): void => {
 		if (this.state.isHeaderVisible === isVisible) {
 			return;
@@ -267,7 +264,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const navigationController = this.navigationController;
 		const resolvedGenre = await resolveGenreForNavigation(transport, genre);
 
-		if (this.hasBeenDestroyed) {
+		if (this.isDestroyed()) {
 			return;
 		}
 
@@ -325,7 +322,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						.catch((r) => ({ reason: r, status: 'rejected' as const }))
 				: Promise.resolve({ status: 'fulfilled' as const, value: [] as Array<Album> }),
 		]).then(([tracksResult, artistResult, fullAlbumResult]) => {
-			if (this.hasBeenDestroyed || generation !== this.loadGeneration) {
+			if (this.isDestroyed() || generation !== this.loadGeneration) {
 				return;
 			}
 
@@ -351,16 +348,19 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				this.navigationController.disableDismissalGesture()();
 			}
 		});
-		this.hasBeenDestroyed = false;
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
 		const { downloadService, playbackStore } = this.viewModel;
-		this.unsubscribePlayback = playbackStore.subscribe(() => {
-			this.setState({ isFooterVisible: playbackStore.track !== null });
-		});
-		this.unsubscribeDownloads = downloadService.subscribe(() => {
-			this.syncDownloadState();
-		});
+		this.registerDisposable(
+			playbackStore.subscribe(() => {
+				this.setState({ isFooterVisible: playbackStore.track !== null });
+			}),
+		);
+		this.registerDisposable(
+			downloadService.subscribe(() => {
+				this.syncDownloadState();
+			}),
+		);
 		this.setState({ isFooterVisible: playbackStore.track !== null });
 		this.syncDownloadState();
 		this.loadAlbumData();
@@ -406,9 +406,6 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	onDestroy(): void {
-		this.hasBeenDestroyed = true;
-		this.unsubscribePlayback?.();
-		this.unsubscribeDownloads?.();
 		if (this.viewModel.restoreHeaderOnDestroy ?? true) {
 			this.viewModel.onHeaderVisibilityChange?.(true);
 		}

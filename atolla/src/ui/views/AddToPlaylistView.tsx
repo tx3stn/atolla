@@ -39,11 +39,10 @@ export class AddToPlaylistView extends StatefulComponent<
 	AddToPlaylistViewModel,
 	AddToPlaylistState
 > {
-	private hasBeenDestroyed = false;
 	private readonly pagedGridController = createPagedGridController<Playlist>({
 		fetchPage: (page) =>
 			this.viewModel.transport.getPlaylistsPage(page, gridPaginationConfig.pageSize),
-		isDestroyed: () => this.hasBeenDestroyed,
+		isDestroyed: () => this.isDestroyed(),
 		setState: (patch) => {
 			this.setState({
 				hasMore: patch.hasMore ?? this.state.hasMore,
@@ -69,12 +68,7 @@ export class AddToPlaylistView extends StatefulComponent<
 	};
 
 	onCreate(): void {
-		this.hasBeenDestroyed = false;
 		void this.pagedGridController.loadNextPage();
-	}
-
-	onDestroy(): void {
-		this.hasBeenDestroyed = true;
 	}
 
 	loadMore = (): void => {
@@ -92,11 +86,11 @@ export class AddToPlaylistView extends StatefulComponent<
 		void addTracksToPlaylist(card.id, tracks, transport.addItemToPlaylist.bind(transport))
 			.then(() => {
 				toastService.show(Strings.addedToPlaylist());
-				if (this.hasBeenDestroyed) return;
+				if (this.isDestroyed()) return;
 				onDismiss();
 			})
 			.catch((e: unknown) => {
-				if (this.hasBeenDestroyed) return;
+				if (this.isDestroyed()) return;
 				const message =
 					e != null &&
 					typeof e === 'object' &&

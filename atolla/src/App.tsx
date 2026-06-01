@@ -298,7 +298,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private waveformService!: WaveformService;
 	private waveformQueue!: WaveformGenerationQueue;
 	private waveformRenderCache!: WaveformRenderCache;
-	private hasBeenDestroyed = false;
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
 	private unsubscribeWaveform?: () => void;
@@ -478,7 +477,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					rememberedServerUrl,
 					debugLoggingEnabled,
 				]) => {
-					if (this.hasBeenDestroyed) return;
+					if (this.isDestroyed()) return;
 					this.jellyfinClientDeviceIdOverride = this.normalizeJellyfinClientDeviceIdOverride(
 						jellyfinClientDeviceIdOverride,
 					);
@@ -539,7 +538,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				},
 			)
 			.catch(() => {
-				if (this.hasBeenDestroyed || this.state.isBootstrapped) return;
+				if (this.isDestroyed() || this.state.isBootstrapped) return;
 				this.initUserStores('shared');
 				this.transport = new OfflineTransport(
 					this.downloadService,
@@ -642,7 +641,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		void store
 			.fetchString(RECENTLY_PLAYED_TRACKS_KEY)
 			.then((raw) => {
-				if (this.hasBeenDestroyed) return;
+				if (this.isDestroyed()) return;
 				const parsed = JSON.parse(raw);
 				if (!Array.isArray(parsed)) {
 					this.recentlyPlayedTracks = [];
@@ -658,7 +657,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.setState({ version: this.state.version + 1 });
 			})
 			.catch(() => {
-				if (this.hasBeenDestroyed) return;
+				if (this.isDestroyed()) return;
 				this.recentlyPlayedTracks = [];
 				this.recentlyPlayedRestoring = false;
 				this.lastObservedRecentTrackId = null;
@@ -681,7 +680,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	onDestroy(): void {
-		this.hasBeenDestroyed = true;
 		// Clean shutdown: clear the crash sentinel so the next launch doesn't report
 		// a false crash. A real crash (or OS task-kill) skips this, leaving it set.
 		void this.diagnosticsStore.storeString('session_active', '0').catch(() => {});
@@ -1021,11 +1019,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			'reconnect-sync',
 			coordinator
 				.run(transport, (progress) => {
-					if (this.hasBeenDestroyed) return;
+					if (this.isDestroyed()) return;
 					this.setState({ syncProgress: progress });
 				})
 				.then((result) => {
-					if (this.hasBeenDestroyed) return;
+					if (this.isDestroyed()) return;
 					this.lastSyncEditErrors = result.playlistEditErrors;
 					if (result.total === 0) {
 						this.setState({ syncProgress: null });
@@ -1043,7 +1041,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 		this.syncBannerTimer = setTimeout(() => {
 			this.syncBannerTimer = undefined;
-			if (this.hasBeenDestroyed) return;
+			if (this.isDestroyed()) return;
 			this.setState({ syncProgress: null });
 		}, durationMs);
 	}

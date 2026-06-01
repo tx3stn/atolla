@@ -72,7 +72,6 @@ export class TrackList extends Component<TrackListViewModel> {
 	private pulseOverlayStyle = buildPulseOverlayStyle(undefined);
 	private dragHandleRefByIdentity = new Map<string, ElementRef>();
 	private handleBeingPressedIdentity: string | null = null;
-	private hasBeenDestroyed = false;
 	private neighborBounceTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 	private tapPulseTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 	private neighborOffsetByIdentity = new Map<string, number>();
@@ -112,7 +111,6 @@ export class TrackList extends Component<TrackListViewModel> {
 	};
 
 	onDestroy(): void {
-		this.hasBeenDestroyed = true;
 		if (this.longPressTimeout) {
 			clearTimeout(this.longPressTimeout);
 			this.longPressTimeout = null;
@@ -167,7 +165,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		if (this.removeAnimationTimeout) clearTimeout(this.removeAnimationTimeout);
 		this.removeAnimationTimeout = setTimeout(() => {
 			this.removeAnimationTimeout = null;
-			if (this.hasBeenDestroyed) return;
+			if (this.isDestroyed()) return;
 			for (const identity of shiftedIdentities) {
 				const containerRef = this.swipeContainerRefByIdentity.get(identity);
 				if (!containerRef) continue;
@@ -187,7 +185,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 			this.removeAnimationTimeout = setTimeout(() => {
 				this.removeAnimationTimeout = null;
-				if (this.hasBeenDestroyed) return;
+				if (this.isDestroyed()) return;
 				this.animate(
 					{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.1 },
 					() => {

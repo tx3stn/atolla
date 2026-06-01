@@ -56,11 +56,10 @@ interface GenresState {
 }
 
 export class GenresView extends StatefulComponent<GenresViewModel, GenresState> {
-	private hasBeenDestroyed = false;
 	private readonly pagedGridController = createPagedGridController<Genre>({
 		fetchPage: (page) =>
 			this.viewModel.transport.getGenresPage(page, gridPaginationConfig.pageSize),
-		isDestroyed: () => this.hasBeenDestroyed,
+		isDestroyed: () => this.isDestroyed(),
 		onPageLoaded: (items) => this.preloadGenreImages(items),
 		setState: (patch) => {
 			this.setState({
@@ -73,7 +72,6 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		},
 	});
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
-	private unsubscribePlayback?: () => void;
 
 	state: GenresState = {
 		addToPlaylistTracks: null,
@@ -88,21 +86,17 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	};
 
 	onCreate(): void {
-		this.hasBeenDestroyed = false;
-		this.unsubscribePlayback = bindFooterVisibility({
-			getIsFooterVisible: () => this.state.isFooterVisible,
-			playbackStore: this.viewModel.playbackStore,
-			setIsFooterVisible: (isFooterVisible) => {
-				this.setState({ isFooterVisible });
-			},
-		});
+		this.registerDisposable(
+			bindFooterVisibility({
+				getIsFooterVisible: () => this.state.isFooterVisible,
+				playbackStore: this.viewModel.playbackStore,
+				setIsFooterVisible: (isFooterVisible) => {
+					this.setState({ isFooterVisible });
+				},
+			}),
+		);
 
 		void this.loadInitialPages();
-	}
-
-	onDestroy(): void {
-		this.hasBeenDestroyed = true;
-		this.unsubscribePlayback?.();
 	}
 
 	private async loadInitialPages(): Promise<void> {
