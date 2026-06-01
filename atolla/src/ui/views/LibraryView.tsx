@@ -1,5 +1,6 @@
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
+import { setTimeoutInterruptible } from 'valdi_core/src/SetTimeout';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
@@ -139,7 +140,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 				return;
 			}
 
-			this.tabTransitionTimer = setTimeout(
+			this.tabTransitionTimer = setTimeoutInterruptible(
 				() => {
 					if (version !== this.transitionVersion) {
 						return;

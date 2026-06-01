@@ -2,6 +2,7 @@ import res from 'atolla/res';
 import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { Component } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
+import { setTimeoutInterruptible } from 'valdi_core/src/SetTimeout';
 import { Style } from 'valdi_core/src/Style';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
@@ -163,7 +164,7 @@ export class TrackList extends Component<TrackListViewModel> {
 			.map((entry, i) => `${entry.id}-${removedIndex + i}`);
 
 		if (this.removeAnimationTimeout) clearTimeout(this.removeAnimationTimeout);
-		this.removeAnimationTimeout = setTimeout(() => {
+		this.removeAnimationTimeout = setTimeoutInterruptible(() => {
 			this.removeAnimationTimeout = null;
 			if (this.isDestroyed()) return;
 			for (const identity of shiftedIdentities) {
@@ -183,7 +184,7 @@ export class TrackList extends Component<TrackListViewModel> {
 				},
 			);
 
-			this.removeAnimationTimeout = setTimeout(() => {
+			this.removeAnimationTimeout = setTimeoutInterruptible(() => {
 				this.removeAnimationTimeout = null;
 				if (this.isDestroyed()) return;
 				this.animate(
