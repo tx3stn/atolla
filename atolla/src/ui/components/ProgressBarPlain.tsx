@@ -149,7 +149,7 @@ function createPlayheadStyle(accentColor: string, thickness: number): Style<View
 		borderColor: theme.colors.pureWhite,
 		borderRadius: size / 2,
 		borderWidth: 1,
-		boxShadow: '0 1 2 rgba(0,0,0,0.25)',
+		boxShadow: theme.shadow.playhead,
 		height: size,
 		marginRight: -size / 2,
 		width: size,

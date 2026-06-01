@@ -1067,7 +1067,7 @@ const styles = {
 		alignItems: 'center',
 		borderRadius: theme.radius.default,
 		bottom: theme.footerHeight * 1.2,
-		boxShadow: '0 10 18 rgba(0,0,0,0.35)',
+		boxShadow: theme.shadow.floating,
 		flexDirection: 'row',
 		left: 8,
 		marginLeft: 10,

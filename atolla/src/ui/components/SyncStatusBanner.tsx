@@ -49,7 +49,7 @@ const styles = {
 		alignItems: 'center',
 		backgroundColor: theme.colors.toastGlassBg,
 		borderRadius: theme.radius.pill,
-		boxShadow: `0 6 12 ${theme.colors.bg}`,
+		boxShadow: theme.shadow.raised,
 		flexDirection: 'row',
 		left: 12,
 		maxWidth: '80%',

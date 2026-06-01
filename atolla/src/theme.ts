@@ -45,6 +45,14 @@ export const theme = {
 		pill: 999,
 	},
 	scrollPaddingBottom: 80 * 3,
+	shadow: {
+		/** Subtle lift for small controls — the progress playhead. */
+		playhead: '0 1 2 rgba(0,0,0,0.25)',
+		/** Raised surfaces resting on the background — toasts, banners. */
+		raised: `0 6 12 ${colors.bg}`,
+		/** Strong elevation for floating overlays — now playing surface. */
+		floating: '0 10 18 rgba(0,0,0,0.35)',
+	},
 	text: {
 		display: {
 			color: colors.white,

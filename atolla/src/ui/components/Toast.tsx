@@ -21,7 +21,7 @@ const styles = {
 		backgroundColor: theme.colors.toastGlassBg,
 		borderRadius: theme.radius.pill,
 		bottom: 40,
-		boxShadow: `0 6 12 ${theme.colors.bg}`,
+		boxShadow: theme.shadow.raised,
 		left: '20%',
 		marginBottom: 14,
 		padding: 12,
