@@ -23,11 +23,10 @@ import { CreatePlaylistModal } from './CreatePlaylistModal';
 import { FormatBadge } from './FormatBadge';
 import { ProgressBarWaveform } from './ProgressBarWaveform';
 import { TappableIcon } from './TappableIcon';
-import { Toast } from './Toast';
+import type { ToastService } from './ToastService';
 import { TouchEventState } from './TouchEventState';
 import { TrackContextMenu } from './TrackContextMenu';
 import { TrackList, type TrackListEntry } from './TrackList';
-import { clearScheduledToast, scheduleToastDismiss } from './toastTimer';
 
 const MAX_VISIBLE_QUEUE_TRACKS = 30;
 
@@ -52,6 +51,7 @@ export interface NowPlayingSurfaceViewModel {
 	onTrackTap?: (trackId: string) => void;
 	palette?: Palette;
 	playbackStore?: PlaybackStore;
+	toastService: ToastService;
 	track: Track;
 	trackIndex: number;
 	tracks: Array<Track>;
@@ -67,7 +67,6 @@ interface NowPlayingSurfaceState {
 	contextMenuTrack: Track | null;
 	createPlaylistTrack: Track | null;
 	isExpanded: boolean;
-	toastMessage: string | null;
 }
 
 export class NowPlayingSurface extends StatefulComponent<
@@ -92,7 +91,6 @@ export class NowPlayingSurface extends StatefulComponent<
 	private isQueueSliding = false;
 	private hasBeenDestroyed = false;
 	private hasRendered = false;
-	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribeProgress?: () => void;
 
 	// Cached palette-derived styles — rebuilt only when palette or activeTab changes
@@ -123,7 +121,6 @@ export class NowPlayingSurface extends StatefulComponent<
 		contextMenuTrack: null,
 		createPlaylistTrack: null,
 		isExpanded: false,
-		toastMessage: null,
 	};
 
 	private runAnimate(options: AnimationOptions, callback: () => void): void {
@@ -226,7 +223,6 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
-		this.toastTimerId = clearScheduledToast(this.toastTimerId);
 		this.unsubscribeProgress?.();
 	}
 
@@ -506,13 +502,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuTrack: null });
 		if (toastMessage) {
-			this.toastTimerId = scheduleToastDismiss(
-				this.toastTimerId,
-				(message) => {
-					this.setState({ toastMessage: message });
-				},
-				toastMessage,
-			);
+			this.viewModel.toastService.show(toastMessage);
 		}
 	};
 
@@ -917,6 +907,7 @@ export class NowPlayingSurface extends StatefulComponent<
 					animationsEnabled={this.viewModel.animationsEnabled}
 					imageCache={this.viewModel.imageCache}
 					onDismiss={this.handleAddToPlaylistDismiss}
+					toastService={this.viewModel.toastService}
 					tracks={this.state.addToPlaylistTracks}
 					transport={this.viewModel.transport}
 				/>
@@ -927,7 +918,6 @@ export class NowPlayingSurface extends StatefulComponent<
 					onCreate={this.handleCreatePlaylistConfirm}
 				/>
 			)}
-			{this.state.toastMessage && <Toast message={this.state.toastMessage} />}
 		</view>;
 	}
 }

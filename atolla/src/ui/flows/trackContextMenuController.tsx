@@ -5,6 +5,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Transport } from '../../transports/Transport';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
+import type { ToastService } from '../components/ToastService';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { AddToPlaylistView } from '../views/AddToPlaylistView';
 import { closeSlot, openSlot } from './modalSlotFlow';
@@ -18,6 +19,7 @@ export interface OpenTrackContextMenuOptions {
 	onDismiss: () => void;
 	onPlaylistCreated?: (playlist: Playlist) => void;
 	playbackStore: PlaybackStore;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -38,6 +40,7 @@ export function openTrackContextMenu(
 				gridColumns={options.gridColumns}
 				imageCache={options.imageCache}
 				onDismiss={() => closeSlot(modalSlot)}
+				toastService={options.toastService}
 				tracks={[track]}
 				transport={options.transport}
 			/>;

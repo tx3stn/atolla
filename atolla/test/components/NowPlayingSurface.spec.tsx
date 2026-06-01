@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
 import { NowPlayingSurface } from 'atolla/src/ui/components/NowPlayingSurface';
+import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
@@ -152,6 +153,7 @@ describe('NowPlayingSurface', () => {
 		const transport = {
 			getArtistLogoUrl: () => Promise.resolve(null),
 		};
+		const toastService = new ToastService();
 
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
@@ -165,6 +167,7 @@ describe('NowPlayingSurface', () => {
 			onPlayPause: () => {},
 			onPrevious: () => {},
 			playbackStore,
+			toastService,
 			track,
 			trackIndex: 0,
 			tracks: [track],
@@ -180,14 +183,8 @@ describe('NowPlayingSurface', () => {
 		);
 		addToQueueAction?.getAttribute('onTap')?.();
 
-		const labels = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.Label,
-		);
-		const values = labels.map((label) => label.getAttribute('value'));
-
 		expect(addToQueueCalls).toBe(1);
-		expect(values).toContain('added to queue');
+		expect(toastService.getMessage()).toBe('added to queue');
 	});
 
 	valdiIt('removes a queued track by swipe after entering queue edit mode', async () => {

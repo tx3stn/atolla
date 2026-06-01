@@ -17,8 +17,7 @@ import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
-import { Toast } from '../components/Toast';
-import { scheduleToastDismiss } from '../components/toastTimer';
+import type { ToastService } from '../components/ToastService';
 import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
@@ -46,6 +45,7 @@ export interface AlbumsViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	sortOrder?: SortOrder;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -59,7 +59,6 @@ interface AlbumsState {
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
-	toastMessage: string | null;
 }
 
 interface AlbumPageResult {
@@ -83,7 +82,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			});
 		},
 	});
-	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 	private cachedDisplayAlbums: Array<Album> = [];
 	private cachedDisplayAlbumsRef: Array<Album> | null = null;
@@ -102,7 +100,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
-		toastMessage: null,
 	};
 
 	onCreate(): void {
@@ -120,7 +117,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
-		if (this.toastTimerId) clearTimeout(this.toastTimerId);
 	}
 
 	onViewModelUpdate(prevViewModel?: AlbumsViewModel): void {
@@ -220,6 +216,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 									paletteQueue,
 									playbackStore,
 									restoreHeaderOnDestroy: false,
+									toastService: this.viewModel.toastService,
 									transport,
 								},
 								{},
@@ -239,13 +236,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuCard: null });
 		if (toastMessage) {
-			this.toastTimerId = scheduleToastDismiss(
-				this.toastTimerId,
-				(message) => {
-					this.setState({ toastMessage: message });
-				},
-				toastMessage,
-			);
+			this.viewModel.toastService.show(toastMessage);
 		}
 	};
 
@@ -282,6 +273,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				onNavigationContext: this.viewModel.onNavigationContext,
 				paletteQueue,
 				playbackStore,
+				toastService: this.viewModel.toastService,
 				transport,
 			},
 			{},
@@ -323,6 +315,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				onNavigationContext: this.viewModel.onNavigationContext,
 				paletteQueue,
 				playbackStore,
+				toastService: this.viewModel.toastService,
 				transport,
 			},
 			{},
@@ -388,8 +381,8 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	onRender(): void {
-		const { imageCache, animationsEnabled, transport } = this.viewModel;
-		const { addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
+		const { imageCache, animationsEnabled, toastService, transport } = this.viewModel;
+		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
 
 		const albums = this.getDisplayAlbums();
 
@@ -423,6 +416,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 					gridColumns={this.viewModel.gridColumns}
 					imageCache={imageCache}
 					onDismiss={this.handleAddToPlaylistDismiss}
+					toastService={toastService}
 					tracks={addToPlaylistTracks}
 					transport={transport}
 				/>
@@ -433,7 +427,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 					onCreate={this.handleCreatePlaylistConfirm}
 				/>
 			)}
-			{toastMessage && <Toast message={toastMessage} />}
 		</view>;
 	}
 }

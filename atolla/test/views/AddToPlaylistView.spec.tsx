@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { AddToPlaylistView } from 'atolla/src/ui/views/AddToPlaylistView';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
@@ -43,6 +44,7 @@ describe('AddToPlaylistView', () => {
 			gridColumns: 2,
 			imageCache: stubImageCache,
 			onDismiss: () => {},
+			toastService: new ToastService(),
 			tracks: [{ duration: 120, id: 'track-1', name: 'Track One' }],
 			transport,
 		});
@@ -73,6 +75,7 @@ describe('AddToPlaylistView', () => {
 			gridColumns: 2,
 			imageCache: stubImageCache,
 			onDismiss: () => {},
+			toastService: new ToastService(),
 			tracks: [],
 			transport,
 		});
@@ -87,5 +90,72 @@ describe('AddToPlaylistView', () => {
 
 		expect(component.state.playlists.length).toBe(40);
 		expect(component.state.hasMore).toBeFalse();
+	});
+
+	valdiIt('marks adding, toasts, and dismisses when a playlist is selected', async () => {
+		const added: Array<[string, string]> = [];
+		let dismissed = false;
+		const toastService = new ToastService();
+		const transport = {
+			addItemToPlaylist: (playlistId: string, trackId: string) => {
+				added.push([playlistId, trackId]);
+				return Promise.resolve();
+			},
+			getPlaylistsPage: () => Promise.resolve({ hasMore: false, items: makePlaylists(2) }),
+		};
+
+		const instrumented = createComponent(AddToPlaylistView, {
+			animationsEnabled: false,
+			gridColumns: 2,
+			imageCache: stubImageCache,
+			onDismiss: () => {
+				dismissed = true;
+			},
+			toastService,
+			tracks: [{ duration: 120, id: 'track-1', name: 'Track One' }],
+			transport,
+		});
+		const component = instrumented.getComponent();
+		await flushAsyncWork();
+
+		component.handlePlaylistTap({ id: 'playlist-0', kind: 'playlist' });
+		expect(component.state.isAddingToPlaylist).toBeTrue();
+
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await flushAsyncWork();
+
+		expect(added).toEqual([['playlist-0', 'track-1']]);
+		expect(toastService.getMessage()).not.toBeNull();
+		expect(dismissed).toBeTrue();
+	});
+
+	valdiIt('reverts the adding state and surfaces an error when adding fails', async () => {
+		let dismissed = false;
+		const transport = {
+			addItemToPlaylist: () => Promise.reject(new Error('could not add')),
+			getPlaylistsPage: () => Promise.resolve({ hasMore: false, items: makePlaylists(2) }),
+		};
+
+		const instrumented = createComponent(AddToPlaylistView, {
+			animationsEnabled: false,
+			gridColumns: 2,
+			imageCache: stubImageCache,
+			onDismiss: () => {
+				dismissed = true;
+			},
+			toastService: new ToastService(),
+			tracks: [{ duration: 120, id: 'track-1', name: 'Track One' }],
+			transport,
+		});
+		const component = instrumented.getComponent();
+		await flushAsyncWork();
+
+		component.handlePlaylistTap({ id: 'playlist-0', kind: 'playlist' });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await flushAsyncWork();
+
+		expect(component.state.isAddingToPlaylist).toBeFalse();
+		expect(component.state.errorMessage).toBe('could not add');
+		expect(dismissed).toBeFalse();
 	});
 });

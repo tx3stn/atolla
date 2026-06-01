@@ -29,9 +29,8 @@ import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
-import { Toast } from '../components/Toast';
+import type { ToastService } from '../components/ToastService';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
-import { clearScheduledToast, scheduleToastDismiss } from '../components/toastTimer';
 import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { closeSlot, openSlot } from '../flows/modalSlotFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
@@ -59,6 +58,7 @@ export interface SearchViewModel {
 	playbackStore: PlaybackStore;
 	playlistEditService: PlaylistEditService;
 	searchStore: SearchStore;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -76,7 +76,6 @@ interface SearchState {
 	recentSearches: Array<string>;
 	results: SearchResults;
 	status: SearchStatus;
-	toastMessage: string | null;
 }
 
 function normalizeSearchInput(value: unknown): string {
@@ -117,7 +116,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private requestVersion = 0;
 	private recentSearchTapHandlers = new Map<string, () => void>();
 	private searchInputRef = new ElementRef();
-	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 
 	state: SearchState = {
@@ -134,7 +132,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			tracks: [],
 		},
 		status: 'idle',
-		toastMessage: null,
 	};
 
 	onCreate(): void {
@@ -200,7 +197,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
-		this.toastTimerId = clearScheduledToast(this.toastTimerId);
 	}
 
 	handleSubmitSearch = (query: unknown): void => {
@@ -311,6 +307,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 						playbackStore,
 						playlist,
 						playlistEditService: this.viewModel.playlistEditService,
+						toastService: this.viewModel.toastService,
 						transport,
 					},
 					{},
@@ -318,6 +315,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				);
 			},
 			playbackStore,
+			toastService: this.viewModel.toastService,
 			transport,
 		});
 	};
@@ -326,13 +324,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		closeSlot(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot);
 		this.setState({ contextMenuCard: null });
 		if (toastMessage) {
-			this.toastTimerId = scheduleToastDismiss(
-				this.toastTimerId,
-				(message) => {
-					this.setState({ toastMessage: message });
-				},
-				toastMessage,
-			);
+			this.viewModel.toastService.show(toastMessage);
 		}
 	};
 
@@ -423,6 +415,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					navBarContext: this.viewModel.navBarContext,
 					paletteQueue: this.viewModel.paletteQueue,
 					playbackStore: this.viewModel.playbackStore,
+					toastService: this.viewModel.toastService,
 					transport: this.viewModel.transport,
 				},
 				{},
@@ -439,6 +432,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				gridColumns={this.viewModel.gridColumns}
 				imageCache={this.viewModel.imageCache}
 				onDismiss={this.closeModalSlot}
+				toastService={this.viewModel.toastService}
 				tracks={tracks}
 				transport={this.viewModel.transport}
 			/>;
@@ -480,6 +474,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				playbackStore: this.viewModel.playbackStore,
 				playlist,
 				playlistEditService: this.viewModel.playlistEditService,
+				toastService: this.viewModel.toastService,
 				transport: this.viewModel.transport,
 			},
 			{},
@@ -570,6 +565,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					navBarContext: this.viewModel.navBarContext,
 					paletteQueue,
 					playbackStore,
+					toastService: this.viewModel.toastService,
 					transport,
 				},
 				{},
@@ -615,6 +611,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				navBarContext: this.viewModel.navBarContext,
 				paletteQueue: this.viewModel.paletteQueue,
 				playbackStore: this.viewModel.playbackStore,
+				toastService: this.viewModel.toastService,
 				transport: this.viewModel.transport,
 			},
 			{},
@@ -644,6 +641,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				navBarContext: this.viewModel.navBarContext,
 				paletteQueue: this.viewModel.paletteQueue,
 				playbackStore: this.viewModel.playbackStore,
+				toastService: this.viewModel.toastService,
 				transport: this.viewModel.transport,
 			},
 			{},
@@ -694,6 +692,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 								navBarContext,
 								paletteQueue,
 								playbackStore,
+								toastService: this.viewModel.toastService,
 								transport,
 							},
 							{},
@@ -705,6 +704,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				playbackStore,
 				playlist,
 				playlistEditService: this.viewModel.playlistEditService,
+				toastService: this.viewModel.toastService,
 				transport,
 			},
 			{},
@@ -757,7 +757,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	}
 
 	onRender(): void {
-		const { query, recentSearches, results, status, toastMessage } = this.state;
+		const { query, recentSearches, results, status } = this.state;
 		const { imageCache } = this.viewModel;
 
 		<layout accessibilityLabel='search-view' style={styles.searchRoot}>
@@ -902,7 +902,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					</layout>
 				</view>
 			</scroll>
-			{toastMessage && <Toast message={toastMessage} />}
 		</layout>;
 	}
 }

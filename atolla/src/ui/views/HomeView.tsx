@@ -21,6 +21,7 @@ import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { CardDetailList } from '../components/CardDetailList';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
+import type { ToastService } from '../components/ToastService';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ViewHeader } from '../components/ViewHeader';
 import { openCardContextMenu } from '../flows/cardContextMenuFlow';
@@ -52,6 +53,7 @@ export interface HomeViewModel {
 	onThisDayService?: OnThisDayService;
 	playbackStore: PlaybackStore;
 	recentlyPlayedTracks: Array<Track>;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -282,7 +284,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	private handleRecentlyPlayedTrackLongPress = (track: Track): void => {
-		const { animationsEnabled, gridColumns, imageCache, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, gridColumns, imageCache, playbackStore, toastService, transport } =
+			this.viewModel;
 		const { albumId, artistId } = track;
 		openTrackContextMenu(track, this.viewModel.modalSlot, {
 			animationsEnabled,
@@ -310,6 +313,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				this.viewModel.onOpenPlaylist?.(playlist);
 			},
 			playbackStore,
+			toastService,
 			transport,
 		});
 	};
@@ -332,6 +336,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				gridColumns={this.viewModel.gridColumns}
 				imageCache={this.viewModel.imageCache}
 				onDismiss={this.closeModalSlot}
+				toastService={this.viewModel.toastService}
 				tracks={tracks}
 				transport={this.viewModel.transport}
 			/>;

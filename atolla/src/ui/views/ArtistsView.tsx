@@ -17,8 +17,7 @@ import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
-import { Toast } from '../components/Toast';
-import { scheduleToastDismiss } from '../components/toastTimer';
+import type { ToastService } from '../components/ToastService';
 import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
@@ -45,6 +44,7 @@ export interface ArtistsViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	sortOrder?: SortOrder;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -58,7 +58,6 @@ interface ArtistsState {
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
-	toastMessage: string | null;
 }
 
 interface ArtistPageResult {
@@ -82,7 +81,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			});
 		},
 	});
-	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 	private cachedDisplayArtists: Array<Artist> = [];
 	private cachedDisplayArtistsRef: Array<Artist> | null = null;
@@ -101,7 +99,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
-		toastMessage: null,
 	};
 
 	onCreate(): void {
@@ -119,7 +116,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
-		if (this.toastTimerId) clearTimeout(this.toastTimerId);
 	}
 
 	onViewModelUpdate(prevViewModel?: ArtistsViewModel): void {
@@ -200,13 +196,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuCard: null });
 		if (toastMessage) {
-			this.toastTimerId = scheduleToastDismiss(
-				this.toastTimerId,
-				(message) => {
-					this.setState({ toastMessage: message });
-				},
-				toastMessage,
-			);
+			this.viewModel.toastService.show(toastMessage);
 		}
 	};
 
@@ -235,6 +225,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				onNavigationContext: this.viewModel.onNavigationContext,
 				paletteQueue,
 				playbackStore,
+				toastService: this.viewModel.toastService,
 				transport,
 			},
 			{},
@@ -320,8 +311,8 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	onRender(): void {
-		const { imageCache, animationsEnabled, transport } = this.viewModel;
-		const { addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
+		const { imageCache, animationsEnabled, toastService, transport } = this.viewModel;
+		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
 
 		const artists = this.getDisplayArtists();
 
@@ -355,6 +346,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					gridColumns={this.viewModel.gridColumns}
 					imageCache={imageCache}
 					onDismiss={this.handleAddToPlaylistDismiss}
+					toastService={toastService}
 					tracks={addToPlaylistTracks}
 					transport={transport}
 				/>
@@ -365,7 +357,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					onCreate={this.handleCreatePlaylistConfirm}
 				/>
 			)}
-			{toastMessage && <Toast message={toastMessage} />}
 		</view>;
 	}
 }

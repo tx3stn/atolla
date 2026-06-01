@@ -15,8 +15,7 @@ import type { Transport } from '../../transports/Transport';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
-import { Toast } from '../components/Toast';
-import { scheduleToastDismiss } from '../components/toastTimer';
+import type { ToastService } from '../components/ToastService';
 import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
@@ -40,6 +39,7 @@ interface GenresViewModel {
 	onNavigateToArtist?: (artistId: string) => void;
 	onNavigationContext?: (context: LibraryNavContext | null) => void;
 	playbackStore: PlaybackStore;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -53,7 +53,6 @@ interface GenresState {
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
-	toastMessage: string | null;
 }
 
 export class GenresView extends StatefulComponent<GenresViewModel, GenresState> {
@@ -74,7 +73,6 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		},
 	});
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
-	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private unsubscribePlayback?: () => void;
 
 	state: GenresState = {
@@ -87,7 +85,6 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
-		toastMessage: null,
 	};
 
 	onCreate(): void {
@@ -106,7 +103,6 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
 		this.unsubscribePlayback?.();
-		if (this.toastTimerId) clearTimeout(this.toastTimerId);
 	}
 
 	private async loadInitialPages(): Promise<void> {
@@ -157,13 +153,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuCard: null });
 		if (toastMessage) {
-			this.toastTimerId = scheduleToastDismiss(
-				this.toastTimerId,
-				(message) => {
-					this.setState({ toastMessage: message });
-				},
-				toastMessage,
-			);
+			this.viewModel.toastService.show(toastMessage);
 		}
 	};
 
@@ -185,6 +175,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				onNavigateToArtist: this.viewModel.onNavigateToArtist,
 				playbackStore,
+				toastService: this.viewModel.toastService,
 				transport,
 			},
 			{},
@@ -239,8 +230,8 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	};
 
 	onRender(): void {
-		const { animationsEnabled, imageCache, transport } = this.viewModel;
-		const { addToPlaylistTracks, createPlaylistTracks, toastMessage } = this.state;
+		const { animationsEnabled, imageCache, toastService, transport } = this.viewModel;
+		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
 		let genres = this.state.genres;
 		if (this.viewModel.letterFilter) {
 			const letter = this.viewModel.letterFilter;
@@ -282,6 +273,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 					gridColumns={this.viewModel.gridColumns}
 					imageCache={imageCache}
 					onDismiss={this.handleAddToPlaylistDismiss}
+					toastService={toastService}
 					tracks={addToPlaylistTracks}
 					transport={transport}
 				/>
@@ -292,7 +284,6 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 					onCreate={this.handleCreatePlaylistConfirm}
 				/>
 			)}
-			{toastMessage && <Toast message={toastMessage} />}
 		</view>;
 	}
 }

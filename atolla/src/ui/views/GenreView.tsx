@@ -21,6 +21,7 @@ import type { FooterTab } from '../components/FooterTab';
 import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
+import type { ToastService } from '../components/ToastService';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { openTrackContextMenu } from '../flows/trackContextMenuController';
 import type { NavBarContext } from '../NavBarContext';
@@ -43,6 +44,7 @@ export interface GenreViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	restoreHeaderOnDestroy?: boolean;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -120,6 +122,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 								playbackStore,
 								restoreHeaderOnDestroy: false,
+								toastService: this.viewModel.toastService,
 								transport,
 							},
 							{},
@@ -144,6 +147,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 						paletteQueue: this.viewModel.paletteQueue,
 						playbackStore,
 						playlist,
+						toastService: this.viewModel.toastService,
 						transport,
 					},
 					{},
@@ -151,6 +155,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				);
 			},
 			playbackStore,
+			toastService: this.viewModel.toastService,
 			transport,
 		});
 	};

@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import type { ClearCacheSelection } from 'atolla/src/services/ImageCache';
 import { Preferences } from 'atolla/src/stores/Preferences';
+import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { SettingsView, type SettingsViewModel } from 'atolla/src/ui/views/SettingsView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
@@ -165,6 +166,7 @@ describe('SettingsView', () => {
 				received = selection;
 			},
 			preferences: mockPreferences(),
+			toastService: new ToastService(),
 		});
 		const component = instrumented.getComponent();
 
@@ -194,9 +196,11 @@ describe('SettingsView', () => {
 	});
 
 	valdiIt('shows toast after confirming cache clear', async () => {
+		const toastService = new ToastService();
 		const instrumented = createComponent(SettingsViewWithSlot, {
 			onClearCache: () => {},
 			preferences: mockPreferences(),
+			toastService,
 		});
 		const component = instrumented.getComponent();
 
@@ -213,20 +217,16 @@ describe('SettingsView', () => {
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
 			?.getAttribute('onTap')?.();
 
-		const updatedViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		const toast = updatedViews.find((v) => v.getAttribute('accessibilityLabel') === 'toast');
-
-		expect(toast).toBeTruthy();
+		expect(toastService.getMessage()).toBeTruthy();
 	});
 
 	valdiIt('shows toast after clearing the debug log', async () => {
+		const toastService = new ToastService();
 		const instrumented = createComponent(SettingsView, {
 			debugLoggingEnabled: true,
 			onClearDebugLog: () => {},
 			preferences: mockPreferences(),
+			toastService,
 		});
 		const component = instrumented.getComponent();
 
@@ -235,22 +235,18 @@ describe('SettingsView', () => {
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-debug-log-clear-btn')
 			?.getAttribute('onTap')?.();
 
-		const updatedViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		const toast = updatedViews.find((v) => v.getAttribute('accessibilityLabel') === 'toast');
-
-		expect(toast).toBeTruthy();
+		expect(toastService.getMessage()).toBeTruthy();
 	});
 
 	valdiIt('shows toast after exporting offline status completes', async () => {
 		let called = false;
+		const toastService = new ToastService();
 		const instrumented = createComponent(SettingsView, {
 			onExportOfflineStatus: () => {
 				called = true;
 			},
 			preferences: mockPreferences(),
+			toastService,
 		});
 		const component = instrumented.getComponent();
 
@@ -263,14 +259,8 @@ describe('SettingsView', () => {
 		// toast is shown.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
-		const updatedViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		const toast = updatedViews.find((v) => v.getAttribute('accessibilityLabel') === 'toast');
-
 		expect(called).toBe(true);
-		expect(toast).toBeTruthy();
+		expect(toastService.getMessage()).toBeTruthy();
 	});
 
 	valdiIt('shows cached tracks dropdown options when tapped', async () => {

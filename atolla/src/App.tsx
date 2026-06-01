@@ -114,7 +114,8 @@ import { Modal } from './ui/components/Modal';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { SyncStatusBanner } from './ui/components/SyncStatusBanner';
 import { Toast } from './ui/components/Toast';
-import { closeSlot } from './ui/flows/modalSlotFlow';
+import { ToastService } from './ui/components/ToastService';
+import { closeSlot, EMPTY_SLOT_RENDERER } from './ui/flows/modalSlotFlow';
 import type { NavBarContext } from './ui/NavBarContext';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
@@ -144,7 +145,6 @@ interface AppState {
 	activeLibraryTab: HeaderTab;
 	animationsEnabled: boolean;
 	authErrorMessage: string | null;
-	authToastMessage: string | null;
 	connectionMode: ConnectionMode;
 	debugExportPath: string | null;
 	debugLogFilePath: string | null;
@@ -170,7 +170,6 @@ interface AppState {
 	nextTrackSourceUrl: string | null;
 	nowPlayingCollapseSignal: number;
 	offlineStatusExportPath: string | null;
-	playbackToastMessage: string | null;
 	quickConnectCode: string | null;
 	searchFocusSignal: number;
 	serverName: string;
@@ -304,9 +303,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private unsubscribePalette?: () => void;
 	private unsubscribeWaveform?: () => void;
 	private unsubscribeWaveformRender?: () => void;
+	private unsubscribeToast?: () => void;
 	private scrobbleService?: ScrobbleService;
-	private authToastTimer?: ReturnType<typeof setTimeout>;
-	private playbackToastTimer?: ReturnType<typeof setTimeout>;
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
 	private nativePlaybackActionInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
@@ -324,6 +322,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private returnToSearchOnDetailClose = false;
 	private nowPlayingOverlaySlot = new DetachedSlot();
 	private modalSlot = new DetachedSlot();
+	private toastSlot = new DetachedSlot();
+	private readonly toastService = new ToastService();
 	private pendingNavRestoreContext: LibraryNavContext | null = null;
 	private readonly minimumBootSplashMs = 750;
 	private bootstrapStartedAt = Date.now();
@@ -365,7 +365,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		activeLibraryTab: HeaderTabs.artists,
 		animationsEnabled: true,
 		authErrorMessage: null,
-		authToastMessage: null,
 		connectionMode: ConnectionModes.offline,
 		debugExportPath: null,
 		debugLogFilePath: null,
@@ -391,7 +390,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		nextTrackSourceUrl: null,
 		nowPlayingCollapseSignal: 0,
 		offlineStatusExportPath: null,
-		playbackToastMessage: null,
 		quickConnectCode: null,
 		searchFocusSignal: 0,
 		serverName: '',
@@ -405,6 +403,16 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	onCreate(): void {
 		this.bootstrapStartedAt = Date.now();
+		this.unsubscribeToast = this.toastService.subscribe(() => {
+			const message = this.toastService.getMessage();
+			this.toastSlot.slotted(
+				message
+					? () => {
+							<Toast message={message} />;
+						}
+					: EMPTY_SLOT_RENDERER,
+			);
+		});
 		try {
 			DebugLogger.register({
 				clearLog: clearAtollaDebugLog,
@@ -678,11 +686,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.bootstrapCommitTimer) {
 			clearTimeout(this.bootstrapCommitTimer);
 		}
-		if (this.authToastTimer) {
-			clearTimeout(this.authToastTimer);
-		}
-		if (this.playbackToastTimer) {
-			clearTimeout(this.playbackToastTimer);
+		if (this.unsubscribeToast) {
+			this.unsubscribeToast();
 		}
 		if (this.syncBannerTimer) {
 			clearTimeout(this.syncBannerTimer);
@@ -831,23 +836,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	private showAuthToast(message: string): void {
-		if (this.authToastTimer) {
-			clearTimeout(this.authToastTimer);
-		}
-		this.setState({ authToastMessage: message });
-		this.authToastTimer = setTimeout(() => {
-			this.setState({ authToastMessage: null });
-		}, 2500);
+		this.toastService.show(message, 2500);
 	}
 
 	private showPlaybackToast(message: string): void {
-		if (this.playbackToastTimer) {
-			clearTimeout(this.playbackToastTimer);
-		}
-		this.setState({ playbackToastMessage: message });
-		this.playbackToastTimer = setTimeout(() => {
-			this.setState({ playbackToastMessage: null });
-		}, 3000);
+		this.toastService.show(message, 3000);
 	}
 
 	private refreshTrackCachedCount(): void {
@@ -2085,6 +2078,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			onNavigationContext: this.handleNavigationContext,
 			paletteQueue: this.paletteQueue,
 			playbackStore: this.playbackStore,
+			toastService: this.toastService,
 			transport: this.transport,
 		};
 
@@ -2204,6 +2198,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
+						toastService: this.toastService,
 						transport: this.transport,
 					},
 					{},
@@ -2227,6 +2222,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
+						toastService: this.toastService,
 						transport: this.transport,
 					},
 					{},
@@ -2251,6 +2247,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						playbackStore: this.playbackStore,
 						playlist: target.playlist as Playlist,
 						playlistEditService: this.playlistEditService,
+						toastService: this.toastService,
 						transport: this.transport,
 					},
 					{},
@@ -2299,6 +2296,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				onTrackTap={this.handleNowPlayingTrackTap}
 				palette={palette}
 				playbackStore={this.playbackStore}
+				toastService={this.toastService}
 				track={track}
 				trackIndex={trackIndex}
 				tracks={tracks}
@@ -2408,6 +2406,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
+						toastService: this.toastService,
 						transport: this.transport,
 					},
 					{},
@@ -2477,6 +2476,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
+						toastService: this.toastService,
 						transport: this.transport,
 					},
 					{},
@@ -2545,6 +2545,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 						onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
 						paletteQueue: this.paletteQueue,
 						playbackStore: this.playbackStore,
+						toastService: this.toastService,
 						transport: this.transport,
 					},
 					{},
@@ -2575,6 +2576,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				paletteQueue: this.paletteQueue,
 				playbackStore: this.playbackStore,
 				restoreHeaderOnDestroy: false,
+				toastService: this.toastService,
 				transport: this.transport,
 			},
 			{},
@@ -2597,6 +2599,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				playbackStore: this.playbackStore,
 				playlist,
 				playlistEditService: this.playlistEditService,
+				toastService: this.toastService,
 				transport: this.transport,
 			},
 			{},
@@ -2620,6 +2623,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					playbackStore: this.playbackStore,
 					playlist,
 					playlistEditService: this.playlistEditService,
+					toastService: this.toastService,
 					transport: this.transport,
 				},
 				{},
@@ -2662,6 +2666,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
 					paletteQueue: this.paletteQueue,
 					playbackStore: this.playbackStore,
+					toastService: this.toastService,
 					transport: this.transport,
 				},
 				{},
@@ -2782,8 +2787,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					selectedLanguage={this.state.language}
 					serverUrl={this.state.serverUrlPrefill}
 				/>
-				{this.state.authToastMessage && <Toast message={this.state.authToastMessage} />}
 				<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+				<DetachedSlotRenderer detachedSlot={this.toastSlot} />
 			</view>;
 			return;
 		}
@@ -2825,6 +2830,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 									onThisDayService={this.onThisDayService}
 									playbackStore={this.playbackStore}
 									recentlyPlayedTracks={this.recentlyPlayedTracks}
+									toastService={this.toastService}
 									transport={this.transport}
 								/>;
 							})}
@@ -2850,6 +2856,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							playbackStore={this.playbackStore}
 							playlistEditService={this.playlistEditService}
 							resetSignal={this.state.libraryResetNonce}
+							toastService={this.toastService}
 							transport={this.transport}
 						/>
 					)}
@@ -2870,6 +2877,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 									playbackStore={this.playbackStore}
 									playlistEditService={this.playlistEditService}
 									searchStore={this.searchStore}
+									toastService={this.toastService}
 									transport={this.transport}
 								/>;
 							})}
@@ -2929,6 +2937,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							selectedLanguage={this.state.language}
 							serverName={this.state.serverName}
 							serverUrl={this.state.serverUrlPrefill}
+							toastService={this.toastService}
 							trackCacheCachedCount={this.state.trackPlaybackCachedCount}
 							trackCacheMaxTracks={this.state.trackCacheMaxTracks}
 							waveformReadyCount={this.waveformService.getReadyCount()}
@@ -2957,6 +2966,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							onTrackTap={this.handleNowPlayingTrackTap}
 							palette={palette}
 							playbackStore={this.playbackStore}
+							toastService={this.toastService}
 							track={track}
 							trackIndex={trackIndex}
 							tracks={tracks}
@@ -2986,8 +2996,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					/>
 				)}
 
-				{this.state.authToastMessage && <Toast message={this.state.authToastMessage} />}
-				{this.state.playbackToastMessage && <Toast message={this.state.playbackToastMessage} />}
 				{this.state.syncProgress && (
 					<SyncStatusBanner
 						completed={this.state.syncProgress.completed}
@@ -3004,6 +3012,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				onFooterTabTap={this.handleFooterTabTap}
 			/>
 			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+			<DetachedSlotRenderer detachedSlot={this.toastSlot} />
 		</view>;
 	}
 }

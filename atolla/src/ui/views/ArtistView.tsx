@@ -29,6 +29,7 @@ import { mergeGenreCollections } from '../components/GenrePillsData';
 import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
+import type { ToastService } from '../components/ToastService';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { closeSlot, openSlot } from '../flows/modalSlotFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
@@ -57,6 +58,7 @@ export interface ArtistViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	restoreHeaderOnDestroy?: boolean;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -139,6 +141,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 								paletteQueue,
 								playbackStore,
 								restoreHeaderOnDestroy: false,
+								toastService: this.viewModel.toastService,
 								transport,
 							},
 							{},
@@ -159,6 +162,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						paletteQueue,
 						playbackStore,
 						playlist,
+						toastService: this.viewModel.toastService,
 						transport,
 					},
 					{},
@@ -166,6 +170,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				);
 			},
 			playbackStore,
+			toastService: this.viewModel.toastService,
 			transport,
 		});
 	};
@@ -284,6 +289,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				paletteQueue,
 				playbackStore,
 				restoreHeaderOnDestroy: false,
+				toastService: this.viewModel.toastService,
 				transport,
 			},
 			{},
@@ -321,6 +327,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				gridColumns={this.viewModel.gridColumns}
 				imageCache={this.viewModel.imageCache}
 				onDismiss={this.closeModalSlot}
+				toastService={this.viewModel.toastService}
 				tracks={tracks}
 				transport={this.viewModel.transport}
 			/>;
@@ -361,6 +368,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				paletteQueue: this.viewModel.paletteQueue,
 				playbackStore: this.viewModel.playbackStore,
 				playlist,
+				toastService: this.viewModel.toastService,
 				transport: this.viewModel.transport,
 			},
 			{},
@@ -408,6 +416,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
 				playbackStore,
 				restoreHeaderOnDestroy: false,
+				toastService: this.viewModel.toastService,
 				transport,
 			},
 			{},

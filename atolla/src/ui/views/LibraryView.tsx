@@ -19,6 +19,7 @@ import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
 import type { SortOrder } from '../components/SortNavPanel';
+import type { ToastService } from '../components/ToastService';
 import type { NavBarContext } from '../NavBarContext';
 import { AlbumsView } from './AlbumsView';
 import { ArtistsView } from './ArtistsView';
@@ -50,6 +51,7 @@ export interface LibraryViewModel {
 	playlistEditService: PlaylistEditService;
 	resetSignal: number;
 	sortOrder?: SortOrder;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -170,6 +172,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 			sortOrder,
 		} = this.viewModel;
 		const transport = this.viewModel.transport;
+		const toastService = this.viewModel.toastService;
 		const isOfflineMode = this.viewModel.connectionMode === ConnectionModes.offline;
 
 		<view style={styles.root}>
@@ -192,6 +195,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
 							sortOrder={sortOrder}
+							toastService={toastService}
 							transport={transport}
 						/>;
 					})}
@@ -217,6 +221,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							paletteQueue={paletteQueue}
 							playbackStore={playbackStore}
 							sortOrder={sortOrder}
+							toastService={toastService}
 							transport={transport}
 						/>;
 					})}
@@ -243,6 +248,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							playbackStore={playbackStore}
 							playlistEditService={this.viewModel.playlistEditService}
 							sortOrder={sortOrder}
+							toastService={toastService}
 							transport={transport}
 						/>;
 					})}
@@ -266,6 +272,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryStat
 							onNavigateToArtist={onNavigateToArtist}
 							onNavigationContext={onNavigationContext}
 							playbackStore={playbackStore}
+							toastService={toastService}
 							transport={transport}
 						/>;
 					})}

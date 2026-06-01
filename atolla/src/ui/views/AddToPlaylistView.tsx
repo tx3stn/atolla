@@ -8,9 +8,9 @@ import type { ImageCache } from '../../services/ImageCache';
 import { theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { Modal } from '../components/Modal';
-import { Toast } from '../components/Toast';
-import { scheduleToastDismiss } from '../components/toastTimer';
+import type { ToastService } from '../components/ToastService';
 import { addTracksToPlaylist } from '../flows/playlistFlow';
 import { gridPaginationConfig } from './GridPagination';
 import { createPagedGridController } from './pagination/createPagedGridController';
@@ -20,6 +20,7 @@ export interface AddToPlaylistViewModel {
 	gridColumns?: number;
 	imageCache?: ImageCache;
 	onDismiss: () => void;
+	toastService: ToastService;
 	tracks: Array<Track>;
 	transport: Transport;
 }
@@ -27,11 +28,11 @@ export interface AddToPlaylistViewModel {
 interface AddToPlaylistState {
 	errorMessage: string | null;
 	hasMore: boolean;
+	isAddingToPlaylist: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
 	playlists: Array<Playlist>;
-	toastMessage: string | null;
 }
 
 export class AddToPlaylistView extends StatefulComponent<
@@ -39,7 +40,6 @@ export class AddToPlaylistView extends StatefulComponent<
 	AddToPlaylistState
 > {
 	private hasBeenDestroyed = false;
-	private toastTimerId?: ReturnType<typeof setTimeout>;
 	private readonly pagedGridController = createPagedGridController<Playlist>({
 		fetchPage: (page) =>
 			this.viewModel.transport.getPlaylistsPage(page, gridPaginationConfig.pageSize),
@@ -61,11 +61,11 @@ export class AddToPlaylistView extends StatefulComponent<
 	state: AddToPlaylistState = {
 		errorMessage: null,
 		hasMore: true,
+		isAddingToPlaylist: false,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
 		playlists: [],
-		toastMessage: null,
 	};
 
 	onCreate(): void {
@@ -75,9 +75,6 @@ export class AddToPlaylistView extends StatefulComponent<
 
 	onDestroy(): void {
 		this.hasBeenDestroyed = true;
-		if (this.toastTimerId) {
-			clearTimeout(this.toastTimerId);
-		}
 	}
 
 	loadMore = (): void => {
@@ -88,20 +85,15 @@ export class AddToPlaylistView extends StatefulComponent<
 		id: string;
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
-		const { tracks, transport } = this.viewModel;
+		if (this.state.isAddingToPlaylist) return;
+		const { tracks, transport, toastService, onDismiss } = this.viewModel;
 
+		this.setState({ isAddingToPlaylist: true });
 		void addTracksToPlaylist(card.id, tracks, transport.addItemToPlaylist.bind(transport))
 			.then(() => {
+				toastService.show(Strings.addedToPlaylist());
 				if (this.hasBeenDestroyed) return;
-				this.toastTimerId = scheduleToastDismiss(
-					this.toastTimerId,
-					(message) => {
-						if (this.hasBeenDestroyed) return;
-						this.setState({ toastMessage: message });
-						if (message === null) this.viewModel.onDismiss();
-					},
-					Strings.addedToPlaylist(),
-				);
+				onDismiss();
 			})
 			.catch((e: unknown) => {
 				if (this.hasBeenDestroyed) return;
@@ -112,13 +104,13 @@ export class AddToPlaylistView extends StatefulComponent<
 					typeof (e as { message: unknown }).message === 'string'
 						? (e as { message: string }).message
 						: 'Unknown error';
-				this.setState({ errorMessage: message });
+				this.setState({ errorMessage: message, isAddingToPlaylist: false });
 			});
 	};
 
 	onRender(): void {
 		const { onDismiss } = this.viewModel;
-		const { errorMessage, playlists, toastMessage } = this.state;
+		const { errorMessage, isAddingToPlaylist, playlists } = this.state;
 		const gridColumns = this.viewModel.gridColumns ?? 2;
 
 		const cards: Array<Card> = playlists.map((p) => ({
@@ -148,16 +140,25 @@ export class AddToPlaylistView extends StatefulComponent<
 			</scroll>
 			<view style={styles.header}>
 				<label style={styles.title} value={Strings.addToPlaylist().toUpperCase()} />
-				<view
-					accessibilityId='add-to-playlist-close'
-					accessibilityLabel='add-to-playlist-close'
-					onTap={onDismiss}
-					style={styles.closeButton}
-				>
-					<label style={styles.closeLabel} value={Strings.done()} />
-				</view>
+				{isAddingToPlaylist ? (
+					<view style={styles.closeButton}>
+						<LoopingArrowSpinner
+							accessibilityId='add-to-playlist-adding-spinner'
+							size={20}
+							tint={theme.colors.active}
+						/>
+					</view>
+				) : (
+					<view
+						accessibilityId='add-to-playlist-cancel'
+						accessibilityLabel='add-to-playlist-cancel'
+						onTap={onDismiss}
+						style={styles.closeButton}
+					>
+						<label style={styles.closeLabel} value={Strings.cancel()} />
+					</view>
+				)}
 			</view>
-			{toastMessage && <Toast message={toastMessage} />}
 			{errorMessage && (
 				<Modal
 					body={errorMessage}

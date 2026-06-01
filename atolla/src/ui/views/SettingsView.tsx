@@ -1,4 +1,4 @@
-import { StatefulComponent } from 'valdi_core/src/Component';
+import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type {
@@ -30,7 +30,7 @@ import { CacheClearModal } from '../components/CacheClearModal';
 import { LanguageSelectModal } from '../components/LanguageSelectModal';
 import { Modal } from '../components/Modal';
 import { SelectOption } from '../components/SelectOption';
-import { Toast } from '../components/Toast';
+import type { ToastService } from '../components/ToastService';
 import { Toggle } from '../components/Toggle';
 import { ViewHeader } from '../components/ViewHeader';
 import { closeSlot, openSlot } from '../flows/modalSlotFlow';
@@ -128,36 +128,15 @@ export interface SettingsViewModel {
 	selectedLanguage?: LanguageCode;
 	serverName?: string;
 	serverUrl?: string;
+	toastService: ToastService;
 	trackCacheCachedCount: number;
 	trackCacheMaxTracks?: number;
 	waveformReadyCount: number;
 }
 
-interface SettingsState {
-	toastMessage: string | null;
-}
-
-export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsState> {
-	state: SettingsState = {
-		toastMessage: null,
-	};
-
-	private toastTimer: ReturnType<typeof setTimeout> | null = null;
-
-	onDestroy(): void {
-		if (this.toastTimer != null) {
-			clearTimeout(this.toastTimer);
-		}
-	}
-
+export class SettingsView extends Component<SettingsViewModel> {
 	private showToast = (message: string): void => {
-		if (this.toastTimer != null) {
-			clearTimeout(this.toastTimer);
-		}
-		this.setState({ toastMessage: message });
-		this.toastTimer = setTimeout(() => {
-			this.setState({ toastMessage: null });
-		}, 2500);
+		this.viewModel.toastService.show(message, 2500);
 	};
 
 	private handleClearCachePress = () => {
@@ -516,7 +495,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsS
 					</view>
 				</view>
 			</scroll>
-			{this.state.toastMessage != null && <Toast message={this.state.toastMessage} />}
 		</layout>;
 	}
 }

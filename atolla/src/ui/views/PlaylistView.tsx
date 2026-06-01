@@ -24,6 +24,7 @@ import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { Modal } from '../components/Modal';
+import type { ToastService } from '../components/ToastService';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { closeSlot } from '../flows/modalSlotFlow';
 import { openTrackContextMenu } from '../flows/trackContextMenuController';
@@ -51,6 +52,7 @@ export interface PlaylistViewModel {
 	playlist: Playlist;
 	playlistEditService?: PlaylistEditService;
 	restoreHeaderOnDestroy?: boolean;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -125,6 +127,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					paletteQueue,
 					playbackStore,
 					restoreHeaderOnDestroy: false,
+					toastService: this.viewModel.toastService,
 					transport,
 				},
 				{},
@@ -173,6 +176,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 								paletteQueue,
 								playbackStore,
 								restoreHeaderOnDestroy: false,
+								toastService: this.viewModel.toastService,
 								transport,
 							},
 							{},
@@ -199,6 +203,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						playbackStore,
 						playlist,
 						playlistEditService,
+						toastService: this.viewModel.toastService,
 						transport,
 					},
 					{},
@@ -206,6 +211,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				);
 			},
 			playbackStore,
+			toastService: this.viewModel.toastService,
 			transport,
 		});
 	};
