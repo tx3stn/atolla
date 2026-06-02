@@ -63,6 +63,10 @@ export class MockTransport implements Transport {
 	private static readonly sampleAudioUrl =
 		'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
 
+	// In-memory reorder overrides so drag-to-reorder persists for the session without
+	// mutating the shared fixtures. Keyed by playlist id; holds the track id order.
+	private readonly playlistItemOrder = new Map<string, Array<string>>();
+
 	async getAlbumsPage(
 		page: number,
 		pageSize: number,
@@ -288,7 +292,7 @@ export class MockTransport implements Transport {
 			return [];
 		}
 
-		const trackIds = playlist.ItemIds ?? [];
+		const trackIds = this.playlistItemOrder.get(playlistId) ?? playlist.ItemIds ?? [];
 		const tracksById = new Map(mockJellyfinTracks.map((track) => [track.Id, track]));
 
 		return trackIds.flatMap((trackId) => {
@@ -296,7 +300,11 @@ export class MockTransport implements Transport {
 			return item
 				? [
 						mapJellyfinTrackToTrack(
-							{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
+							{
+								...item,
+								MediaSources: mockMediaSourcesForAlbum(item.AlbumId),
+								PlaylistItemId: trackId,
+							},
 							this.imageResolvers,
 						),
 					]
@@ -354,7 +362,23 @@ export class MockTransport implements Transport {
 
 	async addItemToPlaylist(_playlistId: string, _trackId: string): Promise<void> {}
 
-	async movePlaylistTrack(_playlistId: string, _trackId: string, _toIndex: number): Promise<void> {}
+	async movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void> {
+		const playlist = mockJellyfinPlaylists.find((candidate) => candidate.Id === playlistId);
+		if (!playlist) {
+			return;
+		}
+
+		const order = [...(this.playlistItemOrder.get(playlistId) ?? playlist.ItemIds ?? [])];
+		const fromIndex = order.indexOf(trackId);
+		if (fromIndex === -1) {
+			return;
+		}
+
+		const [moved] = order.splice(fromIndex, 1);
+		const clampedIndex = Math.max(0, Math.min(order.length, toIndex));
+		order.splice(clampedIndex, 0, moved);
+		this.playlistItemOrder.set(playlistId, order);
+	}
 
 	async removePlaylistTrack(_playlistId: string, _trackId: string): Promise<void> {}
 

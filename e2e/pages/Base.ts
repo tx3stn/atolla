@@ -132,6 +132,48 @@ export class BasePage {
 		}
 	}
 
+	public async sortedByY(
+		elements: Array<WebdriverIO.Element>,
+	): Promise<Array<WebdriverIO.Element>> {
+		const positioned = await Promise.all(
+			elements.map(async (element) => ({ element, y: (await element.getLocation()).y })),
+		);
+		return positioned.sort((a, b) => a.y - b.y).map((entry) => entry.element);
+	}
+
+	// Drags the first row's handle just past the second row to reorder it down one slot.
+	// `handles` must be the drag handles sorted top-to-bottom.
+	public async dragFirstHandleBelowSecond(handles: Array<WebdriverIO.Element>): Promise<void> {
+		if (handles.length < 2) {
+			throw new Error('Need at least two rows to reorder');
+		}
+
+		const startLocation = await handles[0].getLocation();
+		const startSize = await handles[0].getSize();
+		const secondLocation = await handles[1].getLocation();
+		const x = Math.floor(startLocation.x + startSize.width / 2);
+		const startY = Math.floor(startLocation.y + startSize.height / 2);
+		const rowGap = Math.max(1, Math.floor(secondLocation.y - startLocation.y));
+
+		await this.driver.performActions([
+			{
+				actions: [
+					{ duration: 0, type: 'pointerMove', x, y: startY },
+					{ button: 0, type: 'pointerDown' },
+					{ duration: 300, type: 'pause' },
+					{ duration: 250, type: 'pointerMove', x, y: startY + Math.floor(rowGap * 0.6) },
+					{ duration: 250, type: 'pointerMove', x, y: startY + Math.floor(rowGap * 1.2) },
+					{ duration: 150, type: 'pause' },
+					{ button: 0, type: 'pointerUp' },
+				],
+				id: 'reorder-finger',
+				parameters: { pointerType: 'touch' },
+				type: 'pointer',
+			},
+		]);
+		await this.driver.releaseActions();
+	}
+
 	public async swipeBack(): Promise<void> {
 		const rect = await this.driver.getWindowRect();
 		if (this.isIOS()) {

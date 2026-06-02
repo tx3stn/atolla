@@ -1,3 +1,4 @@
+import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
@@ -24,6 +25,7 @@ import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { Modal } from '../components/Modal';
+import { ScrollDragAutoScroller } from '../components/ScrollDragAutoScroller';
 import type { ToastService } from '../components/ToastService';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { closeSlot } from '../flows/modalSlotFlow';
@@ -76,6 +78,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private hasMoreTracks = true;
 	private loadGeneration = 0;
 	private isLoadingPage = false;
+	private scrollRef = new ElementRef();
+	private dragAutoScroller = new ScrollDragAutoScroller(this.scrollRef);
 	private readonly setHeaderVisibility = (isVisible: boolean): void => {
 		if (this.state.isHeaderVisible === isVisible) {
 			return;
@@ -605,7 +609,12 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 		<layout accessibilityLabel='playlist-view' style={styles.root}>
 			<view accessibilityId='playlist-view' style={styles.fullScreen}>
-				<scroll style={createScrollStyle(isFooterVisible, isHeaderVisible)}>
+				<scroll
+					onContentSizeChange={(size) => this.dragAutoScroller.setContentHeight(size.height)}
+					onScroll={(event) => this.dragAutoScroller.setOffset(event.y)}
+					ref={this.scrollRef}
+					style={createScrollStyle(isFooterVisible, isHeaderVisible)}
+				>
 					<DetailHeader
 						animationsEnabled={this.viewModel.animationsEnabled}
 						artworkCategory='playlist_image'
@@ -634,6 +643,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					) : (
 						<TrackList
 							animationsEnabled={this.viewModel.animationsEnabled}
+							dragScroller={this.dragAutoScroller}
 							imageCache={imageCache}
 							onTrackLongPress={this.handleTrackLongPress}
 							onTrackReorder={this.handleTrackReorder}

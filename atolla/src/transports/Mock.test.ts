@@ -82,3 +82,52 @@ describe('MockTransport pagination', () => {
 		}
 	});
 });
+
+describe('MockTransport playlist reorder', () => {
+	it('exposes a playlistItemId for each playlist track', async () => {
+		const transport = new MockTransport();
+		const tracks = await transport.getTracksByPlaylist('playlist-1');
+
+		expect(tracks.length).toBeGreaterThan(1);
+		for (const track of tracks) {
+			expect(track.playlistItemId).toBe(track.id);
+		}
+	});
+
+	it('persists a reordered playlist track for the session', async () => {
+		const transport = new MockTransport();
+		const before = await transport.getTracksByPlaylist('playlist-1');
+		const movedId = before[0].playlistItemId;
+		expect(movedId).toBeDefined();
+
+		await transport.movePlaylistTrack('playlist-1', movedId ?? '', 2);
+
+		const after = await transport.getTracksByPlaylist('playlist-1');
+		expect(after.map((track) => track.id)).toEqual([
+			before[1].id,
+			before[2].id,
+			before[0].id,
+			before[3].id,
+		]);
+	});
+
+	it('reflects the reorder through getTracksByPlaylistPage', async () => {
+		const transport = new MockTransport();
+		const before = await transport.getTracksByPlaylist('playlist-1');
+		const movedId = before[0].playlistItemId ?? '';
+
+		await transport.movePlaylistTrack('playlist-1', movedId, 2);
+
+		const page = await transport.getTracksByPlaylistPage('playlist-1', 1, 10);
+		expect(page.items[2].id).toBe(before[0].id);
+	});
+
+	it('does not leak reorder state across transport instances', async () => {
+		const transport = new MockTransport();
+		const original = await transport.getTracksByPlaylist('playlist-1');
+		await transport.movePlaylistTrack('playlist-1', original[0].playlistItemId ?? '', 2);
+
+		const fresh = await new MockTransport().getTracksByPlaylist('playlist-1');
+		expect(fresh.map((track) => track.id)).toEqual(original.map((track) => track.id));
+	});
+});

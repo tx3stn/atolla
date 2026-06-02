@@ -22,6 +22,7 @@ import { ArtistLogo } from './ArtistLogo';
 import { CreatePlaylistModal } from './CreatePlaylistModal';
 import { FormatBadge } from './FormatBadge';
 import { ProgressBarWaveform } from './ProgressBarWaveform';
+import { ScrollDragAutoScroller } from './ScrollDragAutoScroller';
 import { TappableIcon } from './TappableIcon';
 import type { ToastService } from './ToastService';
 import { TouchEventState } from './TouchEventState';
@@ -78,6 +79,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private compactBarRef = new ElementRef();
 	private expandedContentRef = new ElementRef();
 	private expandedScrollRef = new ElementRef();
+	private dragAutoScroller = new ScrollDragAutoScroller(this.expandedScrollRef);
 	private transitionArtworkRef = new ElementRef();
 	private scrollArtworkRef = new ElementRef();
 	private scrollArtworkStyle = styles.expandedScrollArtwork;
@@ -681,7 +683,12 @@ export class NowPlayingSurface extends StatefulComponent<
 						/>
 					)}
 					<view ref={this.expandedContentRef} style={styles.expandedContent}>
-						<scroll ref={this.expandedScrollRef} style={styles.expandedInner}>
+						<scroll
+							onContentSizeChange={(size) => this.dragAutoScroller.setContentHeight(size.height)}
+							onScroll={(event) => this.dragAutoScroller.setOffset(event.y)}
+							ref={this.expandedScrollRef}
+							style={styles.expandedInner}
+						>
 							<layout style={styles.expandedFirstPage}>
 								{topInset > 0 && <view style={getTopInsetBarStyle(surfaceColor)} />}
 								{albumArtworkSource && (
@@ -842,6 +849,7 @@ export class NowPlayingSurface extends StatefulComponent<
 									>
 										<TrackList
 											animationsEnabled={this.viewModel.animationsEnabled}
+											dragScroller={this.dragAutoScroller}
 											noRowBackground
 											onTrackLongPress={this.handleTrackLongPress}
 											onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}
@@ -863,6 +871,7 @@ export class NowPlayingSurface extends StatefulComponent<
 									>
 										<TrackList
 											animationsEnabled={this.viewModel.animationsEnabled}
+											dragScroller={this.dragAutoScroller}
 											noRowBackground
 											onTrackLongPress={this.handleTrackLongPress}
 											onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}

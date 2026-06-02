@@ -382,6 +382,55 @@ describe('TrackList', () => {
 		expect(toIndex as number | null).toBe(0);
 	});
 
+	valdiIt('auto-scrolls when a row is dragged to the viewport edge', async () => {
+		const scrollCalls: Array<number> = [];
+		const dragScroller = {
+			scrollBy: (delta: number) => {
+				scrollCalls.push(delta);
+				return delta;
+			},
+			viewport: () => ({ bottom: 100, top: 0 }),
+		};
+		const tracks = [
+			{ id: 'track-1', meta: '1:00', title: 'One' },
+			{ id: 'track-2', meta: '1:10', title: 'Two' },
+			{ id: 'track-3', meta: '1:20', title: 'Three' },
+		];
+		const instrumented = createComponent(TrackList, {
+			dragScroller,
+			onTrackReorder: () => {},
+			showDragHandles: true,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const dragContainer = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
+		);
+
+		// absoluteY 96 sits inside the bottom edge zone of a 0..100 viewport.
+		dragContainer?.getAttribute('onDrag')?.({
+			absoluteY: 96,
+			deltaX: 0,
+			deltaY: 40,
+			state: 1,
+			velocityY: 0,
+		});
+
+		expect(scrollCalls.length).toBeGreaterThan(0);
+		expect(scrollCalls[0]).toBeGreaterThan(0);
+
+		// End the drag so the auto-scroll timer is cleared.
+		dragContainer?.getAttribute('onDrag')?.({
+			absoluteY: 96,
+			deltaX: 0,
+			deltaY: 40,
+			state: 2,
+			velocityY: 0,
+		});
+	});
+
 	valdiIt('renders leading label when no artwork is provided', async () => {
 		const tracks = [{ id: 'a', leadingLabel: '1', meta: '1:00', title: 'Track' }];
 		const instrumented = createComponent(TrackList, { tracks });

@@ -16,6 +16,7 @@ export class NowPlayingBar extends BasePage {
 	private readonly trackTitleBackToPrefix = 'track-title-back-to-';
 	private readonly trackRowUpNextPrefix = 'track-row-up-next-';
 	private readonly trackRowBackToPrefix = 'track-row-back-to-';
+	private readonly trackHandleUpNextPrefix = 'track-row-edit-handle-up-next-';
 
 	private activeTab: 'upNext' | 'backTo' = 'upNext';
 
@@ -185,6 +186,26 @@ export class NowPlayingBar extends BasePage {
 			if (text) return text;
 		}
 		throw new Error('No up next track titles found');
+	}
+
+	async upNextTrackNames(): Promise<Array<string>> {
+		await this.waitForQueueRowsVisible();
+		const labels = await this.sortedByY(
+			await this.allByAccessibilityPrefix(this.trackTitleUpNextPrefix),
+		);
+		const names: Array<string> = [];
+		for (const label of labels) {
+			names.push(await label.getText());
+		}
+		return names;
+	}
+
+	async reorderFirstUpNextRowBelowSecond(): Promise<void> {
+		await this.waitForQueueRowsVisible();
+		const handles = await this.sortedByY(
+			await this.allByAccessibilityPrefix(this.trackHandleUpNextPrefix),
+		);
+		await this.dragFirstHandleBelowSecond(handles);
 	}
 
 	async firstBackToTrackName(): Promise<string> {

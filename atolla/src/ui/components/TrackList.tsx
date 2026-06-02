@@ -14,6 +14,25 @@ import { theme, withAlpha } from '../../theme';
 import { hapticFeedback } from '../haptics';
 import { CachedImage } from './CachedImage';
 import { TouchEventState } from './TouchEventState';
+import {
+	edgeScrollDelta,
+	neighbourShifts,
+	type RowSlot,
+	resolveReorderTarget,
+	snapDisplacement,
+} from './trackReorder';
+
+/**
+ * Lets the scroll owner expose just enough of its `<scroll>` for the list to
+ * auto-scroll while a row is dragged to a viewport edge, without TrackList
+ * needing to know about scroll plumbing.
+ */
+export interface DragAutoScroller {
+	/** Scroll by `delta` points (clamped to content bounds); returns the delta actually applied. */
+	scrollBy(delta: number): number;
+	/** Screen-space vertical bounds of the scrollable viewport, if measured. */
+	viewport(): { bottom: number; top: number } | undefined;
+}
 
 export interface TrackListEntry {
 	artworkSource?: string | null;
@@ -26,6 +45,7 @@ export interface TrackListEntry {
 
 export interface TrackListViewModel {
 	animationsEnabled?: boolean;
+	dragScroller?: DragAutoScroller;
 	imageCache?: ImageCache;
 	noRowBackground?: boolean;
 	onTrackLongPress?: (track: Track) => void;
@@ -65,8 +85,12 @@ const defaultColors: TrackListColors = {
 const MAX_SWIPE_DISTANCE = 88;
 const REMOVE_SWIPE_DISTANCE = 64;
 const REMOVE_SWIPE_VELOCITY = 700;
-const REORDER_STEP_HEIGHT = 64;
-const ROW_SLOT_HEIGHT = REORDER_STEP_HEIGHT + 8; // row height + gap between rows
+// Fallback slot height, used only when live row geometry is unavailable (before the
+// first layout pass or in unit tests). Real drags measure each row's frame instead.
+const ROW_SLOT_HEIGHT = 72;
+const AUTO_SCROLL_EDGE = 72;
+const AUTO_SCROLL_STEP = 14;
+const AUTO_SCROLL_INTERVAL = 16;
 
 export class TrackList extends Component<TrackListViewModel> {
 	private draggingRowIdentities = new Set<string>();
@@ -86,6 +110,12 @@ export class TrackList extends Component<TrackListViewModel> {
 	private rowRefByIdentity = new Map<string, ElementRef>();
 	private swipeContainerRefByIdentity = new Map<string, ElementRef>();
 	private rowTapHandlerByIdentity = new Map<string, () => void>();
+	private dragSlots: Array<RowSlot> = [];
+	private dragFromIndex = -1;
+	private dragRowIdentity: string | null = null;
+	private dragScrollAccum = 0;
+	private lastDragEvent: DragEvent | null = null;
+	private autoScrollTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	private canStartHorizontalSwipe = (event: DragEvent): boolean => {
 		return this.draggingRowIdentities.size === 0 && Math.abs(event.deltaX) > Math.abs(event.deltaY);
@@ -112,6 +142,8 @@ export class TrackList extends Component<TrackListViewModel> {
 	};
 
 	onDestroy(): void {
+		this.stopAutoScroll();
+		this.resetDragState();
 		if (this.longPressTimeout) {
 			clearTimeout(this.longPressTimeout);
 			this.longPressTimeout = null;
@@ -206,8 +238,11 @@ export class TrackList extends Component<TrackListViewModel> {
 			for (const timeout of this.neighborBounceTimeouts.values()) clearTimeout(timeout);
 			this.neighborBounceTimeouts.clear();
 			this.neighborOffsetByIdentity.clear();
+			const prefix = this.viewModel.rowIdentityPrefix ?? '';
 			for (let i = 0; i < this.viewModel.tracks.length; i++) {
-				const ref = this.swipeContainerRefByIdentity.get(`${this.viewModel.tracks[i].id}-${i}`);
+				const ref = this.swipeContainerRefByIdentity.get(
+					`${prefix}${this.viewModel.tracks[i].id}-${i}`,
+				);
 				if (ref) {
 					ref.setAttribute('top', 0);
 					ref.setAttribute('bottom', 0);
@@ -534,22 +569,18 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.setRowOffset(identity, 0);
 	}
 
-	private updateNeighborOffsets(draggingIndex: number, targetStep: number): void {
-		const lastIndex = this.viewModel.tracks.length - 1;
-		const clampedStep = Math.max(-draggingIndex, Math.min(lastIndex - draggingIndex, targetStep));
+	private updateNeighbourOffsets(targetIndex: number): void {
+		const shifts = new Map<number, number>();
+		for (const shift of neighbourShifts(this.dragSlots, this.dragFromIndex, targetIndex)) {
+			shifts.set(shift.index, shift.offset);
+		}
 
 		for (let i = 0; i < this.rowIdentitiesByIndex.length; i++) {
-			if (i === draggingIndex) continue;
+			if (i === this.dragFromIndex) continue;
 			const identity = this.rowIdentitiesByIndex[i];
 			if (!identity) continue;
 
-			let offset = 0;
-			if (clampedStep > 0 && i > draggingIndex && i <= draggingIndex + clampedStep) {
-				offset = -ROW_SLOT_HEIGHT;
-			} else if (clampedStep < 0 && i < draggingIndex && i >= draggingIndex + clampedStep) {
-				offset = ROW_SLOT_HEIGHT;
-			}
-
+			const offset = shifts.get(i) ?? 0;
 			const current = this.neighborOffsetByIdentity.get(identity) ?? 0;
 			if (offset === current) continue;
 
@@ -661,64 +692,211 @@ export class TrackList extends Component<TrackListViewModel> {
 		}
 
 		if (event.state === TouchEventState.Started) {
-			this.setRowDraggingAppearance(rowIdentity, true, defaultBackgroundColor, dragBackgroundColor);
+			this.beginHandleDrag(entryIndex, rowIdentity, defaultBackgroundColor, dragBackgroundColor);
 			return;
 		}
 
 		if (event.state === TouchEventState.Changed) {
-			if (!this.draggingRowIdentities.has(rowIdentity)) {
-				this.setRowDraggingAppearance(
-					rowIdentity,
-					true,
-					defaultBackgroundColor,
-					dragBackgroundColor,
-				);
+			if (this.dragFromIndex !== entryIndex) {
+				this.beginHandleDrag(entryIndex, rowIdentity, defaultBackgroundColor, dragBackgroundColor);
 			}
-			this.setRowVerticalOffset(rowIdentity, event.deltaY);
-			this.updateNeighborOffsets(entryIndex, Math.round(event.deltaY / REORDER_STEP_HEIGHT));
+			this.lastDragEvent = event;
+			this.updateAutoScroll(event);
+			this.applyDragPosition(event.deltaY);
 			return;
 		}
+
+		this.stopAutoScroll();
 
 		if (event.state !== TouchEventState.Ended) {
-			this.setRowVerticalOffset(rowIdentity, 0);
-			this.resetNeighborOffsets(rowIdentity);
-			this.setRowDraggingAppearance(
-				rowIdentity,
-				false,
-				defaultBackgroundColor,
-				dragBackgroundColor,
-			);
+			this.cancelDrag(rowIdentity, defaultBackgroundColor, dragBackgroundColor);
 			return;
 		}
 
-		const movementSteps = Math.round(event.deltaY / REORDER_STEP_HEIGHT);
-		const lastIndex = this.viewModel.tracks.length - 1;
-		const targetIndex = Math.max(0, Math.min(lastIndex, entryIndex + movementSteps));
+		const slots = this.slotsFor(entryIndex);
+		const scrollAccum = this.dragFromIndex === entryIndex ? this.dragScrollAccum : 0;
+		const slot = slots[entryIndex];
+		const targetIndex = slot
+			? resolveReorderTarget(
+					slots,
+					entryIndex,
+					slot.top + slot.height / 2 + event.deltaY + scrollAccum,
+				)
+			: entryIndex;
 
-		if (targetIndex === entryIndex) {
-			this.setRowVerticalOffset(rowIdentity, 0);
-			this.resetNeighborOffsets(rowIdentity);
-			this.setRowDraggingAppearance(
-				rowIdentity,
-				false,
-				defaultBackgroundColor,
-				dragBackgroundColor,
-			);
+		if (!slot || targetIndex === entryIndex) {
+			this.cancelDrag(rowIdentity, defaultBackgroundColor, dragBackgroundColor);
 			return;
 		}
 
-		// Snap dragged row to its final slot; leave neighbors shifted — the re-render
+		// Snap dragged row to its final slot; leave neighbours shifted — the re-render
 		// from onTrackReorder will replace this state seamlessly without a flash.
-		this.setRowVerticalOffset(rowIdentity, (targetIndex - entryIndex) * ROW_SLOT_HEIGHT);
+		this.setRowVerticalOffset(rowIdentity, snapDisplacement(slots, entryIndex, targetIndex));
 		this.setRowDraggingAppearance(rowIdentity, false, defaultBackgroundColor, dragBackgroundColor);
 		this.resetRowOffset(rowIdentity);
 		this.suppressNextTap = true;
 		// Clear stale offset tracking so future drags don't skip animations for
-		// elements that happen to share an identity with a previous neighbor.
+		// elements that happen to share an identity with a previous neighbour.
+		this.clearNeighbourTracking();
+		this.resetDragState();
+		this.viewModel.onTrackReorder(entryIndex, targetIndex);
+	}
+
+	private beginHandleDrag(
+		entryIndex: number,
+		rowIdentity: string,
+		defaultBackgroundColor: string,
+		dragBackgroundColor: string,
+	): void {
+		this.setRowDraggingAppearance(rowIdentity, true, defaultBackgroundColor, dragBackgroundColor);
+		this.dragSlots = this.buildDragSlots();
+		this.dragFromIndex = entryIndex;
+		this.dragRowIdentity = rowIdentity;
+		this.dragScrollAccum = 0;
+	}
+
+	private applyDragPosition(deltaY: number): void {
+		if (this.dragFromIndex < 0 || !this.dragRowIdentity) {
+			return;
+		}
+		const slot = this.dragSlots[this.dragFromIndex];
+		if (!slot) {
+			return;
+		}
+
+		this.setRowVerticalOffset(this.dragRowIdentity, deltaY + this.dragScrollAccum);
+		const centre = slot.top + slot.height / 2 + deltaY + this.dragScrollAccum;
+		this.updateNeighbourOffsets(resolveReorderTarget(this.dragSlots, this.dragFromIndex, centre));
+	}
+
+	private cancelDrag(
+		rowIdentity: string,
+		defaultBackgroundColor: string,
+		dragBackgroundColor: string,
+	): void {
+		this.setRowVerticalOffset(rowIdentity, 0);
+		this.resetNeighborOffsets(rowIdentity);
+		this.setRowDraggingAppearance(rowIdentity, false, defaultBackgroundColor, dragBackgroundColor);
+		this.resetDragState();
+	}
+
+	private resetDragState(): void {
+		this.stopAutoScroll();
+		this.dragSlots = [];
+		this.dragFromIndex = -1;
+		this.dragRowIdentity = null;
+		this.dragScrollAccum = 0;
+		this.lastDragEvent = null;
+	}
+
+	private clearNeighbourTracking(): void {
 		for (const timeout of this.neighborBounceTimeouts.values()) clearTimeout(timeout);
 		this.neighborBounceTimeouts.clear();
 		this.neighborOffsetByIdentity.clear();
-		this.viewModel.onTrackReorder(entryIndex, targetIndex);
+	}
+
+	// Live slots snapshotted at drag start; rebuilt fresh if this row isn't the
+	// active drag (e.g. an isolated Ended event in a unit test).
+	private slotsFor(entryIndex: number): Array<RowSlot> {
+		if (
+			this.dragFromIndex === entryIndex &&
+			this.dragSlots.length === this.viewModel.tracks.length
+		) {
+			return this.dragSlots;
+		}
+		return this.buildDragSlots();
+	}
+
+	// Measure each row's natural top/height; fall back to a uniform slot height when
+	// geometry is unavailable (before first layout, or in unit tests).
+	private buildDragSlots(): Array<RowSlot> {
+		const count = this.viewModel.tracks.length;
+		const measured: Array<RowSlot> = [];
+		for (let i = 0; i < count; i++) {
+			const identity = this.rowIdentitiesByIndex[i];
+			const frame = identity
+				? this.swipeContainerRefByIdentity.get(identity)?.all()?.[0]?.frame
+				: undefined;
+			if (!frame?.height) break;
+			measured.push({ height: frame.height, top: frame.y });
+		}
+
+		if (measured.length === count) {
+			return measured;
+		}
+
+		const slots: Array<RowSlot> = [];
+		for (let i = 0; i < count; i++) {
+			slots.push({ height: ROW_SLOT_HEIGHT, top: i * ROW_SLOT_HEIGHT });
+		}
+		return slots;
+	}
+
+	private updateAutoScroll(event: DragEvent): void {
+		const scroller = this.viewModel.dragScroller;
+		if (!scroller) {
+			return;
+		}
+		const viewport = scroller.viewport();
+		const desired = viewport
+			? edgeScrollDelta(event.absoluteY, viewport, AUTO_SCROLL_EDGE, AUTO_SCROLL_STEP)
+			: 0;
+
+		if (desired === 0) {
+			this.stopAutoScroll();
+			return;
+		}
+
+		// Scroll once immediately on reaching an edge for responsiveness, then keep
+		// scrolling on a timer while the finger is held there.
+		if (this.autoScrollTimeout === null) {
+			this.performAutoScrollStep(event);
+			this.autoScrollTimeout = setTimeoutInterruptible(this.autoScrollTick, AUTO_SCROLL_INTERVAL);
+		}
+	}
+
+	private performAutoScrollStep(event: DragEvent): void {
+		const scroller = this.viewModel.dragScroller;
+		const viewport = scroller?.viewport();
+		if (!scroller || !viewport) {
+			return;
+		}
+		const desired = edgeScrollDelta(event.absoluteY, viewport, AUTO_SCROLL_EDGE, AUTO_SCROLL_STEP);
+		if (desired === 0) {
+			return;
+		}
+		const applied = scroller.scrollBy(desired);
+		if (applied === 0) {
+			return;
+		}
+		this.dragScrollAccum += applied;
+		this.applyDragPosition(event.deltaY);
+	}
+
+	private autoScrollTick = (): void => {
+		this.autoScrollTimeout = null;
+		if (this.isDestroyed()) {
+			return;
+		}
+		const event = this.lastDragEvent;
+		if (!event) {
+			return;
+		}
+
+		const before = this.dragScrollAccum;
+		this.performAutoScrollStep(event);
+		// Stop if the edge was left or a scroll bound was hit (no movement applied).
+		if (this.dragScrollAccum === before) {
+			return;
+		}
+		this.autoScrollTimeout = setTimeoutInterruptible(this.autoScrollTick, AUTO_SCROLL_INTERVAL);
+	};
+
+	private stopAutoScroll(): void {
+		if (this.autoScrollTimeout) {
+			clearTimeout(this.autoScrollTimeout);
+			this.autoScrollTimeout = null;
+		}
 	}
 
 	private scheduleLongPress(track?: Track): void {
