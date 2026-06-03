@@ -48,11 +48,11 @@
 ### home tab
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/83438302-2ebb-4cd1-89bf-b970910c585a" alt="artist-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/5af7c50f-7f1b-46d0-a15f-3510361caa9a" alt="artist-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/be27c459-f952-469e-ac76-e5f2f79a6adb" alt="artist-1" width="49%" />
+ <img src="https://github.com/user-attachments/assets/afe71749-36f0-4830-b10c-b0b26ecb3c9f" alt="artist-2" width="49%" />
 </p>
 
-* Albums release on this day
+* Albums released on this day
 * Recently added
 * Recently played
 * Various mixes
