@@ -1,10 +1,11 @@
 import res from 'atolla/res';
 import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { Component } from 'valdi_core/src/Component';
+import { Device } from 'valdi_core/src/Device';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { setTimeoutInterruptible } from 'valdi_core/src/SetTimeout';
 import { Style } from 'valdi_core/src/Style';
-import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
+import type { DragEvent, TouchEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
@@ -30,6 +31,8 @@ import {
 export interface DragAutoScroller {
 	/** Scroll by `delta` points (clamped to content bounds); returns the delta actually applied. */
 	scrollBy(delta: number): number;
+	/** Enable/disable the user's scroll pan, so a row drag can't fight it. */
+	setScrollEnabled(enabled: boolean): void;
 	/** Screen-space vertical bounds of the scrollable viewport, if measured. */
 	viewport(): { bottom: number; top: number } | undefined;
 }
@@ -46,6 +49,12 @@ export interface TrackListEntry {
 export interface TrackListViewModel {
 	animationsEnabled?: boolean;
 	dragScroller?: DragAutoScroller;
+	/**
+	 * Arm reordering with a long-press on the handle and track movement via onTouch,
+	 * instead of an onDrag on the row. Defaults to platform: required on iOS, where the
+	 * ancestor scroll's pan otherwise races (and cancels) the row's drag recogniser.
+	 */
+	holdToReorder?: boolean;
 	imageCache?: ImageCache;
 	noRowBackground?: boolean;
 	onTrackLongPress?: (track: Track) => void;
@@ -91,6 +100,11 @@ const ROW_SLOT_HEIGHT = 72;
 const AUTO_SCROLL_EDGE = 72;
 const AUTO_SCROLL_STEP = 14;
 const AUTO_SCROLL_INTERVAL = 16;
+// The ancestor scroll delays delivering touches to its content on iOS, so the
+// recogniser's timer starts late; with the delay the effective hold is ~250ms,
+// matching the platform-standard lift. At the 0.25s default the long press fired
+// only after the finger had started moving, and failed its movement tolerance.
+const HANDLE_LONG_PRESS_SECONDS = 0.1;
 
 export class TrackList extends Component<TrackListViewModel> {
 	private draggingRowIdentities = new Set<string>();
@@ -114,8 +128,13 @@ export class TrackList extends Component<TrackListViewModel> {
 	private dragFromIndex = -1;
 	private dragRowIdentity: string | null = null;
 	private dragScrollAccum = 0;
+	private armedDragOriginY = 0;
 	private lastDragEvent: DragEvent | null = null;
 	private autoScrollTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	private get holdToReorder(): boolean {
+		return this.viewModel.holdToReorder ?? Device.isIOS();
+	}
 
 	private canStartHorizontalSwipe = (event: DragEvent): boolean => {
 		return this.draggingRowIdentities.size === 0 && Math.abs(event.deltaX) > Math.abs(event.deltaY);
@@ -271,6 +290,11 @@ export class TrackList extends Component<TrackListViewModel> {
 				const rowIdentity = `${this.viewModel.rowIdentityPrefix ?? ''}${entry.id}-${index}`;
 				this.rowIdentitiesByIndex[index] = rowIdentity;
 				const canSwipe = Boolean(this.viewModel.onTrackSwipeRemove);
+				const canReorder = Boolean(this.viewModel.onTrackReorder);
+				// On iOS the row's drag recogniser races the ancestor scroll's pan (which
+				// force-cancels descendant gestures once it wins), so reordering is armed by
+				// a long-press on the handle instead and movement is read from onTouch.
+				const dragToReorder = canReorder && !this.holdToReorder;
 
 				return (
 					<view
@@ -278,20 +302,24 @@ export class TrackList extends Component<TrackListViewModel> {
 						accessibilityLabel={`track-row-drag-${rowIdentity}`}
 						key={rowIdentity}
 						onDrag={
-							this.viewModel.onTrackReorder
+							dragToReorder
 								? ((entryIndex, identity, rowBg, activeDragColor) => (event) => {
 										this.handleHandleDrag(event, entryIndex, identity, rowBg, activeDragColor);
 									})(index, rowIdentity, colors.rowBackground, dragHighlightColor)
 								: undefined
 						}
-						onDragDisabled={!this.viewModel.onTrackReorder}
-						onDragPredicate={(
-							(identity) => (event) =>
-								((this.handleBeingPressedIdentity === identity &&
-									this.draggingRowIdentities.size === 0) ||
-									this.draggingRowIdentities.has(identity)) &&
-								Math.abs(event.deltaY) > Math.abs(event.deltaX)
-						)(rowIdentity)}
+						onDragDisabled={!dragToReorder}
+						onDragPredicate={
+							dragToReorder
+								? (
+										(identity) => (event) =>
+											((this.handleBeingPressedIdentity === identity &&
+												this.draggingRowIdentities.size === 0) ||
+												this.draggingRowIdentities.has(identity)) &&
+											Math.abs(event.deltaY) > Math.abs(event.deltaX)
+									)(rowIdentity)
+								: undefined
+						}
 						ref={this.getSwipeContainerRef(rowIdentity)}
 						style={styles.swipeContainer}
 					>
@@ -383,6 +411,18 @@ export class TrackList extends Component<TrackListViewModel> {
 									<view
 										accessibilityId={`track-row-edit-handle-${rowIdentity}`}
 										accessibilityLabel={`track-row-edit-handle-${rowIdentity}`}
+										longPressDuration={HANDLE_LONG_PRESS_SECONDS}
+										onLongPress={
+											canReorder && this.holdToReorder
+												? (
+														(entryIndex, identity, rowBg, activeDragColor) =>
+														(event: TouchEvent) => {
+															this.armReorder(event, entryIndex, identity, rowBg, activeDragColor);
+														}
+													)(index, rowIdentity, colors.rowBackground, dragHighlightColor)
+												: undefined
+										}
+										onLongPressDisabled={!(canReorder && this.holdToReorder)}
 										onTap={
 											entry.track && this.viewModel.onTrackLongPress
 												? ((track) => () => {
@@ -396,16 +436,19 @@ export class TrackList extends Component<TrackListViewModel> {
 												: undefined
 										}
 										onTouch={
-											this.viewModel.onTrackReorder
-												? ((identity) => (event) => {
-														if (event.state === TouchEventState.Started) {
-															this.handleBeingPressedIdentity = identity;
-														} else if (event.state !== TouchEventState.Changed) {
-															if (this.handleBeingPressedIdentity === identity) {
-																this.handleBeingPressedIdentity = null;
-															}
+											canReorder
+												? (
+														(entryIndex, identity, rowBg, activeDragColor) =>
+														(event: TouchEvent) => {
+															this.handleReorderHandleTouch(
+																event,
+																entryIndex,
+																identity,
+																rowBg,
+																activeDragColor,
+															);
 														}
-													})(rowIdentity)
+													)(index, rowIdentity, colors.rowBackground, dragHighlightColor)
 												: undefined
 										}
 										ref={this.getDragHandleRef(rowIdentity)}
@@ -522,21 +565,31 @@ export class TrackList extends Component<TrackListViewModel> {
 			return;
 		}
 
+		// Valdi applies zIndex by removing and re-inserting the native view
+		// (ViewNode::setZIndex → removeViewFromParent). On iOS that cancels every
+		// in-flight touch in the subtree — including the very gesture driving the
+		// drag — so the hold-to-reorder path must not touch z-order mid-gesture.
+		const canRestack = !this.holdToReorder;
+
 		if (isDragging) {
 			this.draggingRowIdentities.add(identity);
-			rowRef.setAttribute('zIndex', 20);
-			rowRef.setAttribute('elevation', 12);
+			if (canRestack) {
+				rowRef.setAttribute('zIndex', 20);
+				rowRef.setAttribute('elevation', 12);
+				containerRef?.setAttribute('zIndex', 100);
+			}
 			rowRef.setAttribute('backgroundColor', dragBackgroundColor);
-			containerRef?.setAttribute('zIndex', 100);
 			return;
 		}
 
 		this.draggingRowIdentities.delete(identity);
 		this.handleBeingPressedIdentity = null;
-		rowRef.setAttribute('zIndex', 0);
-		rowRef.setAttribute('elevation', 0);
+		if (canRestack) {
+			rowRef.setAttribute('zIndex', 0);
+			rowRef.setAttribute('elevation', 0);
+			containerRef?.setAttribute('zIndex', 0);
+		}
 		rowRef.setAttribute('backgroundColor', defaultBackgroundColor);
-		containerRef?.setAttribute('zIndex', 0);
 	}
 
 	private getRemoveActionRef(identity: string): ElementRef {
@@ -755,6 +808,65 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.dragScrollAccum = 0;
 	}
 
+	// Hold-to-reorder arm: the native long-press recogniser staying active is what
+	// stops the ancestor scroll's pan from starting for the rest of this touch;
+	// disabling the scroll is belt-and-braces on top of that.
+	private armReorder(
+		event: TouchEvent,
+		entryIndex: number,
+		rowIdentity: string,
+		defaultBackgroundColor: string,
+		dragBackgroundColor: string,
+	): void {
+		if (!this.viewModel.onTrackReorder || this.draggingRowIdentities.size > 0) {
+			return;
+		}
+		this.cancelLongPress();
+		this.beginHandleDrag(entryIndex, rowIdentity, defaultBackgroundColor, dragBackgroundColor);
+		this.armedDragOriginY = event.absoluteY;
+		this.performSelectionHaptic();
+		this.viewModel.dragScroller?.setScrollEnabled(false);
+	}
+
+	private handleReorderHandleTouch(
+		event: TouchEvent,
+		entryIndex: number,
+		rowIdentity: string,
+		defaultBackgroundColor: string,
+		dragBackgroundColor: string,
+	): void {
+		if (event.state === TouchEventState.Started) {
+			this.handleBeingPressedIdentity = rowIdentity;
+		} else if (event.state !== TouchEventState.Changed) {
+			if (this.handleBeingPressedIdentity === rowIdentity) {
+				this.handleBeingPressedIdentity = null;
+			}
+		}
+
+		// Once armed, the touch stream drives the drag (it keeps delivering even while
+		// the long-press recogniser is active, unlike onDrag).
+		if (!this.holdToReorder || this.dragRowIdentity !== rowIdentity) {
+			return;
+		}
+		if (event.state === TouchEventState.Started) {
+			return;
+		}
+
+		this.handleHandleDrag(
+			{
+				...event,
+				deltaX: 0,
+				deltaY: event.absoluteY - this.armedDragOriginY,
+				velocityX: 0,
+				velocityY: 0,
+			},
+			entryIndex,
+			rowIdentity,
+			defaultBackgroundColor,
+			dragBackgroundColor,
+		);
+	}
+
 	private applyDragPosition(deltaY: number): void {
 		if (this.dragFromIndex < 0 || !this.dragRowIdentity) {
 			return;
@@ -786,7 +898,11 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.dragFromIndex = -1;
 		this.dragRowIdentity = null;
 		this.dragScrollAccum = 0;
+		this.armedDragOriginY = 0;
 		this.lastDragEvent = null;
+		if (this.holdToReorder) {
+			this.viewModel.dragScroller?.setScrollEnabled(true);
+		}
 	}
 
 	private clearNeighbourTracking(): void {

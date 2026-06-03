@@ -291,14 +291,11 @@ describe('NowPlayingSurface', () => {
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const firstUpNextHandle = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-up-next-track-3-0',
+			(view) =>
+				view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-up-next-track-3-0',
 		);
-		firstUpNextHandle?.getAttribute('onDrag')?.({
-			deltaX: 0,
-			deltaY: 90,
-			state: 2,
-			velocityY: 120,
-		});
+		firstUpNextHandle?.getAttribute('onLongPress')?.({ absoluteY: 0, state: 0 });
+		firstUpNextHandle?.getAttribute('onTouch')?.({ absoluteY: 90, state: 2 });
 
 		expect(playbackStore.moveQueueTrack).toHaveBeenCalledWith(2, 3);
 	});
@@ -345,14 +342,11 @@ describe('NowPlayingSurface', () => {
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const firstBackToHandle = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-back-to-track-2-0',
+			(view) =>
+				view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-back-to-track-2-0',
 		);
-		firstBackToHandle?.getAttribute('onDrag')?.({
-			deltaX: 0,
-			deltaY: 90,
-			state: 2,
-			velocityY: 120,
-		});
+		firstBackToHandle?.getAttribute('onLongPress')?.({ absoluteY: 0, state: 0 });
+		firstBackToHandle?.getAttribute('onTouch')?.({ absoluteY: 90, state: 2 });
 
 		expect(playbackStore.moveQueueTrack).toHaveBeenCalledWith(1, 0);
 	});

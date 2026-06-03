@@ -304,6 +304,7 @@ describe('TrackList', () => {
 			{ id: 'track-3', meta: '1:20', title: 'Three' },
 		];
 		const instrumented = createComponent(TrackList, {
+			holdToReorder: false,
 			onTrackReorder: (fromIndex: number, toIndex: number) => {
 				reordered.push(fromIndex, toIndex);
 			},
@@ -327,6 +328,7 @@ describe('TrackList', () => {
 			{ id: 'track-2', meta: '1:10', title: 'Two' },
 		];
 		const instrumented = createComponent(TrackList, {
+			holdToReorder: false,
 			onTrackReorder: () => {},
 			showDragHandles: true,
 			tracks,
@@ -363,6 +365,7 @@ describe('TrackList', () => {
 			{ id: 'track-3', meta: '1:20', title: 'Three' },
 		];
 		const instrumented = createComponent(TrackList, {
+			holdToReorder: false,
 			onTrackReorder: (from: number, to: number) => {
 				fromIndex = from;
 				toIndex = to;
@@ -389,6 +392,7 @@ describe('TrackList', () => {
 				scrollCalls.push(delta);
 				return delta;
 			},
+			setScrollEnabled: () => {},
 			viewport: () => ({ bottom: 100, top: 0 }),
 		};
 		const tracks = [
@@ -398,6 +402,7 @@ describe('TrackList', () => {
 		];
 		const instrumented = createComponent(TrackList, {
 			dragScroller,
+			holdToReorder: false,
 			onTrackReorder: () => {},
 			showDragHandles: true,
 			tracks,
@@ -428,6 +433,190 @@ describe('TrackList', () => {
 			deltaY: 40,
 			state: 2,
 			velocityY: 0,
+		});
+	});
+
+	describe('hold to reorder', () => {
+		const tracks = [
+			{ id: 'track-1', meta: '1:00', title: 'One' },
+			{ id: 'track-2', meta: '1:10', title: 'Two' },
+			{ id: 'track-3', meta: '1:20', title: 'Three' },
+		];
+
+		valdiIt('arms with the handle long press instead of a row drag', async () => {
+			const instrumented = createComponent(TrackList, {
+				holdToReorder: true,
+				onTrackReorder: () => {},
+				showDragHandles: true,
+				tracks,
+			});
+			const views = elementTypeFind(
+				componentGetElements(instrumented.getComponent()),
+				IRenderedElementViewClass.View,
+			);
+
+			const dragContainer = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
+			);
+			const handle = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
+			);
+
+			expect(dragContainer?.getAttribute('onDrag')).toBeUndefined();
+			expect(dragContainer?.getAttribute('onDragDisabled')).toBe(true);
+			expect(handle?.getAttribute('onLongPress')).toBeDefined();
+			expect(handle?.getAttribute('onLongPressDisabled')).toBe(false);
+		});
+
+		valdiIt('calls onTrackReorder after long press arm and touch movement', async () => {
+			const reordered: Array<number> = [];
+			const instrumented = createComponent(TrackList, {
+				holdToReorder: true,
+				onTrackReorder: (fromIndex: number, toIndex: number) => {
+					reordered.push(fromIndex, toIndex);
+				},
+				showDragHandles: true,
+				tracks,
+			});
+			const views = elementTypeFind(
+				componentGetElements(instrumented.getComponent()),
+				IRenderedElementViewClass.View,
+			);
+			const handle = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
+			);
+
+			handle?.getAttribute('onLongPress')?.({ absoluteY: 10, state: 0 });
+			handle?.getAttribute('onTouch')?.({ absoluteY: 80, state: 1 });
+			handle?.getAttribute('onTouch')?.({ absoluteY: 80, state: 2 });
+
+			expect(reordered).toEqual([0, 1]);
+		});
+
+		valdiIt('moves the row visually while the armed handle is touched', async () => {
+			const instrumented = createComponent(TrackList, {
+				holdToReorder: true,
+				onTrackReorder: () => {},
+				showDragHandles: true,
+				tracks,
+			});
+			const views = elementTypeFind(
+				componentGetElements(instrumented.getComponent()),
+				IRenderedElementViewClass.View,
+			);
+			const dragContainer = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
+			);
+			const row = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-track-1-0',
+			);
+			const handle = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
+			);
+
+			handle?.getAttribute('onLongPress')?.({ absoluteY: 10, state: 0 });
+			expect(row?.getAttribute('backgroundColor')).toBe('rgba(45,120,206,0.28)');
+			// zIndex must stay untouched mid-gesture: Valdi applies it by re-inserting
+			// the native view, which cancels the in-flight touch on iOS.
+			expect(row?.getAttribute('zIndex')).toBeUndefined();
+
+			handle?.getAttribute('onTouch')?.({ absoluteY: 52, state: 1 });
+			expect(dragContainer?.getAttribute('top')).toBe(42);
+			expect(dragContainer?.getAttribute('bottom')).toBe(-42);
+		});
+
+		valdiIt('suspends scrolling while armed and restores it after release', async () => {
+			const scrollEnabledCalls: Array<boolean> = [];
+			const dragScroller = {
+				scrollBy: () => 0,
+				setScrollEnabled: (enabled: boolean) => {
+					scrollEnabledCalls.push(enabled);
+				},
+				viewport: () => undefined,
+			};
+			const instrumented = createComponent(TrackList, {
+				dragScroller,
+				holdToReorder: true,
+				onTrackReorder: () => {},
+				showDragHandles: true,
+				tracks,
+			});
+			const views = elementTypeFind(
+				componentGetElements(instrumented.getComponent()),
+				IRenderedElementViewClass.View,
+			);
+			const handle = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
+			);
+
+			handle?.getAttribute('onLongPress')?.({ absoluteY: 10, state: 0 });
+			expect(scrollEnabledCalls).toEqual([false]);
+
+			handle?.getAttribute('onTouch')?.({ absoluteY: 80, state: 2 });
+			expect(scrollEnabledCalls).toEqual([false, true]);
+		});
+
+		valdiIt('does not reorder when released without movement', async () => {
+			const reordered: Array<number> = [];
+			const scrollEnabledCalls: Array<boolean> = [];
+			const dragScroller = {
+				scrollBy: () => 0,
+				setScrollEnabled: (enabled: boolean) => {
+					scrollEnabledCalls.push(enabled);
+				},
+				viewport: () => undefined,
+			};
+			const instrumented = createComponent(TrackList, {
+				dragScroller,
+				holdToReorder: true,
+				onTrackReorder: (fromIndex: number, toIndex: number) => {
+					reordered.push(fromIndex, toIndex);
+				},
+				showDragHandles: true,
+				tracks,
+			});
+			const views = elementTypeFind(
+				componentGetElements(instrumented.getComponent()),
+				IRenderedElementViewClass.View,
+			);
+			const handle = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
+			);
+
+			handle?.getAttribute('onLongPress')?.({ absoluteY: 10, state: 0 });
+			handle?.getAttribute('onTouch')?.({ absoluteY: 10, state: 2 });
+
+			expect(reordered).toEqual([]);
+			expect(scrollEnabledCalls).toEqual([false, true]);
+		});
+
+		valdiIt('ignores handle touches when not armed', async () => {
+			const reordered: Array<number> = [];
+			const instrumented = createComponent(TrackList, {
+				holdToReorder: true,
+				onTrackReorder: (fromIndex: number, toIndex: number) => {
+					reordered.push(fromIndex, toIndex);
+				},
+				showDragHandles: true,
+				tracks,
+			});
+			const views = elementTypeFind(
+				componentGetElements(instrumented.getComponent()),
+				IRenderedElementViewClass.View,
+			);
+			const dragContainer = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
+			);
+			const handle = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
+			);
+
+			handle?.getAttribute('onTouch')?.({ absoluteY: 10, state: 0 });
+			handle?.getAttribute('onTouch')?.({ absoluteY: 80, state: 1 });
+			handle?.getAttribute('onTouch')?.({ absoluteY: 80, state: 2 });
+
+			expect(reordered).toEqual([]);
+			expect(dragContainer?.getAttribute('top')).toBeUndefined();
 		});
 	});
 

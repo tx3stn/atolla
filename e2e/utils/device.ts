@@ -56,7 +56,7 @@ export function getDeviceConfig(device: Platform, index = 0): DeviceConfig {
 				mjpegServerPort: IOS_MJPEG_PORT_BASE + index,
 				newCommandTimeout: 240,
 				platformName: 'iOS',
-				platformVersion: process.env.E2E_PLATFORM_VERSION ?? '26.4',
+				platformVersion: process.env.E2E_PLATFORM_VERSION ?? '26.5',
 				udid: iosUdids[index],
 				wdaLocalPort: IOS_WDA_PORT_BASE + index,
 			};

@@ -22,6 +22,10 @@ export class ScrollDragAutoScroller implements DragAutoScroller {
 		this.contentHeight = height;
 	}
 
+	setScrollEnabled(enabled: boolean): void {
+		this.scrollRef.setAttribute('scrollEnabled', enabled);
+	}
+
 	viewport(): { bottom: number; top: number } | undefined {
 		const element = this.scrollRef.all()[0];
 		const height = element?.frame?.height;
