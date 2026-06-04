@@ -18,9 +18,12 @@
   * [library & album view](#library-&-album-view)
   * [seach & genre list](#search-&-genre-list)
 * [Installing](#installing)
+  * [Android](#android)
+  * [iOS](#ios)
 * [Why?](#why)
 * [How does `atolla` compare?](#how-does-atolla-compare)
 * [Feature Requests](#feature-requests)
+* [Bug Reports](#bug-reports)
 * [Contributing](#contributing)
 
 ## Features
@@ -86,7 +89,15 @@
 
 ## Installing
 
-TBD
+You can download the relevant `.apk` and `.ipa` files from the releases section.
+
+### Android
+
+Install via [Obtainium](https://github.com/ImranR98/Obtainium)
+
+### iOS
+
+Install via your sideloading method of choice.
 
 > [!IMPORTANT]
 > **The iOS app is in beta.**
@@ -103,13 +114,14 @@ TBD
 
 I switched from Plex to Jellyfin several years ago, but could never find a
 Jellyfin music player as good as Plexamp.
-So I built my own one. This is the music app I want to use.
+So I built my own.
+This is the music app I want to use.
 
 However, there are a few things I'd like to stress that this app isn't:
 
 **It's not a comprehensive Jellyfin music management solution**
 The focus is on the listening experience not managing the data on your server.
-There will also be some functionality that's available in Jellyfin but not in
+There will always be some functionality that's available in Jellyfin but not in
 the app as it's not a good fit, and that's fine.
 
 **It's not a feature compatible alternative to Plexamp.**
@@ -119,9 +131,9 @@ atolla doesn't, and some things atolla does that Plexamp doesn't.
 
 **It's not a fully customisable 'make it your own' app.**
 The design is intentionally opinionated, it won't try to give you all of the
-customisation options you might want to configure things, that makes it a lot harder
+customisation options you *might* want, as that makes it a lot harder
 to maintain. Suggestions for improvements or things that could be tweakable are
-always welcomed, but they might not be actioned.
+always welcomed, but they **might not** be actioned.
 
 ## How does `atolla` compare?
 
@@ -132,19 +144,21 @@ It's always good to have more options. Thank you to the people putting in the
 hardwork and spending their time to create and maintain these apps 🖤
 
 I mean no disrespect to anyone with my criticisms, I'm simply saying why they
-weren't the right choice for me personally. If they work for you great!
+weren't the right choice for me personally. If they work for you, or you prefer
+them to atolla great!
 
 ### [Finamp](https://github.com/UnicornsOnLSD/finamp)
 
-Finamp has a more comprehensive feature set that atolla it can do a lot,
+Finamp has a more comprehensive feature set than atolla, it can do a lot.
 Whilst they are aware the UI needs work and are working on a rework, it's very
-slow progress so I think it's a long way off being a polished and pretty app.
+slow progress and I think it's a long way off being a polished app with a good
+user experience.
 
-* It's **very** slow to load for my music library, like painfully slow at times.
-* The UI is ugly (to me).
+* It's **very** slow to load for my music library. Painfully so at times.
+* The UI is ugly (to me) and dated.
 * It's trying to be everything to everyone, with a huge amount of options and customisation.
 
-atolla loads the same library instantly. It has designed from the
+atolla loads the same library instantly. It has been designed from the
 ground up for efficiency, making heavy use of caching, paginated API requests and
 background workers to ensure everything loads as quickly as possible so you can get
 straight to listening.
@@ -156,30 +170,35 @@ the things that made me dismiss it in my search for the right Jellyfin music pla
 
 * The UI is ugly (to me), it's inconsistent, with lots of wasted space and tiny artwork.
 * Looking at the issues it's missing a lot of features I'd consider important for a music app (which atolla has implemented).
-* It has a very long list of dependencies which in the age of supply chain attacks becomes more concerning by the day.
+
+It has a very long list of dependencies. We're living in the age of supply chain
+attacks with every dependency increasing the surface of poential issues.
+I'm not saying everyone should re-invent every wheel but tha build of atolla is
+intentionally minimal to reduce the security maintenance burdern.
 
 ### What atolla does differently
 
 #### Seamless offline mode
 
-Offline mode works just likes online mode so the app is consistent to use whether
-you have a connection to your server or not. It's not relegated to it's own
-non searchable tab like Plexamp. Offline mode is a first class citizen.
+Offline mode works just likes online mode so the app is always consistent to use.
+It's not relegated to it's own non searchable tab like Plexamp where most of the
+app becomes unusable without data.
+Offline mode is a first class citizen.
 
-Actions that require the connection to work like playlist creation or editing
-get queued until you next have a connection so you can create a playlist fully offline
+Actions that require the connection to work (like playlist creation or editing)
+get queued until you next have a connection. You can create a playlist fully offline
 whenever you want, and have it auto sync the next time you connect to your server.
 
 When you download a playlist, the playlist tracks will show up in the library
-artists and albums view for a truly online like experience.
+artists, albums and genres views for an experience truely on par with online mode.
 
 #### Artist logos
 
 This is such a tiny thing but it's honestly one of my favourite things Jellyfin
 supports that Plex doesn't.
 
-Everyone wants to see the unreadable logos of their top black metal bands prominently
-displayed in their music apps right?
+Everyone wants to see the unreadable logos of most listened to black metal bands
+prominently displayed in their music apps right?
 
 ## Feature Requests
 
@@ -191,6 +210,13 @@ Create a new 'feature request' issue.
 
 Add a reaction to the request (thumbs up/plus 1/whatever). Don't add a comment to it just saying +1, nobody likes those.
 
+## Bug Reports
+
+Something broken or not working as expected?
+
+Please fill in a bug report and complete all of the details requested to ensure
+it can be properly investigated.
+
 ## Contributing
 
-See CONTRIBUTING.md for details on building and developing.
+See [CONTRIBUTING.md](/CONTRIBUTING.md) for details on building and developing.
