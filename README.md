@@ -219,4 +219,4 @@ it can be properly investigated.
 
 ## Contributing
 
-See [CONTRIBUTING.md](/CONTRIBUTING.md) for details on building and developing.
+See [CONTRIBUTING.md](/.github/CONTRIBUTING.md) for details on building and developing.
