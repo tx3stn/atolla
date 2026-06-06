@@ -38,26 +38,50 @@ jobs:
           wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
           sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
 
-      - name: Cache bazel repository cache
-        uses: actions/cache@v5
+      # skipped (and harmless) until the BUILDBUDDY_API_KEY secret exists —
+      # dependabot/fork PRs don't get secrets and fall back to the GH caches below
+      - name: Enable remote bazel cache
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          if [ -n "$BUILDBUDDY_API_KEY" ]; then
+            echo "common --config=remote-cache" >> ~/.bazelrc
+            echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
+          fi
+
+      # bazel caches use split restore/save (instead of actions/cache) so failed
+      # runs still bank artifacts — actions/cache only saves on job success.
+      # Both jobs share one key family and warm-start from whichever job saved
+      # last; bazel's caches are content-addressed so mixing configs is safe.
+      # Repo cache contents are deterministic per dep-set, so it saves once per
+      # hash+job instead of re-uploading 1.6GB every run.
+      - name: Restore bazel repository cache
+        id: restore-bazel-repo
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
           restore-keys: |
+            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
             bazel-repo-${{ runner.os }}-
 
-      - name: Cache bazel disk cache
-        uses: actions/cache@v5
+      - name: Restore bazel disk cache
+        id: restore-bazel-disk
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel-disk
-          key: bazel-disk-static-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+          key: bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           restore-keys: |
-            bazel-disk-static-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
-            bazel-disk-static-${{ runner.os }}-
+            bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-disk-${{ runner.os }}-
 
       # materialises bazel-atolla/external/valdi, which the tsconfigs extend
       # and pull types from; node_modules/.bin is not on PATH in actions, so bunx
       - run: bunx valdi projectsync
+
+      # projectsync writes paths via the bzlmod canonical repo name (bazel-_main);
+      # bazel names the real symlink after the directory (bazel-atolla)
+      - run: ln -sfn bazel-atolla bazel-_main
 
       # Same zig version rules_zig pins in MODULE.bazel
       - uses: mlugg/setup-zig@v2
@@ -72,9 +96,27 @@ jobs:
       - name: Fail on formatting or lint drift
         run: git diff --exit-code -- . ':!atolla/tsconfig.json'
 
+      - name: Save bazel repository cache
+        if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+
+      # bootstrap-only: this job's bazel graph is a small subset of bazel-tests',
+      # so once any disk cache exists, re-uploading it from here is pure waste
+      - name: Save bazel disk cache
+        if: always() && steps.restore-bazel-disk.outputs.cache-matched-key == ''
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/bazel-disk
+          key: bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+
   bazel-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # backstop only — the step timeouts below fire first, failing the step
+    # instead of cancelling the job, so the cache saves still run
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v6
 
@@ -96,30 +138,63 @@ jobs:
           wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
           sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
 
-      - name: Cache bazel repository cache
-        uses: actions/cache@v5
+      - name: Enable remote bazel cache
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          if [ -n "$BUILDBUDDY_API_KEY" ]; then
+            echo "common --config=remote-cache" >> ~/.bazelrc
+            echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
+          fi
+
+      - name: Restore bazel repository cache
+        id: restore-bazel-repo
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
           restore-keys: |
+            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
             bazel-repo-${{ runner.os }}-
 
-      # github.sha suffix forces a fresh save each run; restore-keys warm-start
-      # from the newest previous cache
-      - name: Cache bazel disk cache
-        uses: actions/cache@v5
+      - name: Restore bazel disk cache
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel-disk
-          key: bazel-disk-default-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+          key: bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           restore-keys: |
-            bazel-disk-default-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
-            bazel-disk-default-${{ runner.os }}-
+            bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-disk-${{ runner.os }}-
 
       - run: bun run check:zig
 
-      - run: bun run test:android
-
+      # cold build needs ~125 min; if the budget blows, the step fails (not the
+      # job), the partial disk cache still saves, and the next run resumes from it
       - run: bun run test:components
+        timeout-minutes: 150
+
+      # last because it's the only step passing --legacy_external_runfiles, and
+      # every flip of that flag discards bazel's analysis cache for ~35k targets.
+      # !cancelled() so it still runs (and banks artifacts) when components fails
+      - run: bun run test:android
+        timeout-minutes: 30
+        if: ${{ !cancelled() }}
+
+      - name: Save bazel repository cache
+        if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+
+      # always saved (unlike static-checks): this job owns the full build graph,
+      # so its disk cache must keep growing with every source change
+      - name: Save bazel disk cache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/bazel-disk
+          key: bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
 
   # macos_unit_test targets need Xcode/Apple SDKs — the only tests that can't run on linux
   # ios-tests:

@@ -25,6 +25,10 @@ build --copt=-Wno-deprecated-builtins
 build --copt=-Wno-deprecated-literal-operator
 build --copt=-Wno-nontrivial-memcall
 build --copt=-Wno-deprecated
+# Hermetic linux clang predates Clang 26 and doesn't know the -Wno flags above;
+# without this, targets built with -Werror (protobuf) fail on -Wunknown-warning-option
+build:linux --copt=-Wno-unknown-warning-option
+build:linux --host_copt=-Wno-unknown-warning-option
 build --flag_alias=snap_flavor=@snap_platforms//flavors:snap_flavor
 build --snap_flavor=platform_development
 build --flag_alias=valdi_js_engine=@valdi//bzl/valdi:js_engine
@@ -53,6 +57,15 @@ build --watchfs
 # change every session and bust the entire disk cache
 build --incompatible_strict_action_env
 
+# Remote cache — CI opts in by appending to ~/.bazelrc when the
+# BUILDBUDDY_API_KEY secret exists (the key itself never lives in this file).
+# Local builds can opt in too with a personal key via ~/.bazelrc.
+build:remote-cache --remote_cache=grpcs://remote.buildbuddy.io
+build:remote-cache --remote_timeout=3600
+build:remote-cache --remote_cache_compression
+build:remote-cache --bes_backend=grpcs://remote.buildbuddy.io
+build:remote-cache --bes_results_url=https://app.buildbuddy.io/invocation/
+
 # Android-specific — applied via --config=android in start-android-emulator.sh
 build:android --disk_cache=~/.cache/bazel-disk-android
 build:android --copt=-DANDROID_WITH_JNI
@@ -78,3 +91,6 @@ test --spawn_strategy=local
 test --strategy=TestRunner=local
 
 build:prod --define=build_mode=prod
+
+# Per-machine settings (gitignored) — e.g. a personal remote-cache key
+try-import %workspace%/.bazelrc.user
