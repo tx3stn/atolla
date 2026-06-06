@@ -28,12 +28,12 @@
 
 ## Features
 
+* Seamless offline experience, everything that works online also works offline (including search, scrobbling, playlist creation and editing)
 * Gap-less playback
-* Image focussed UI (featuring artist logos)
 * Dynamic colour palettes generated from album artwork
 * Local waveform generation for fancy progress bars
+* Image focussed UI (featuring artist logos)
 * Playlist creation & editing
-* Seamless offline experience, everything that works online also works offline (including search, scrobbling, playlist creation and editing)
 
 ## Screenshots
 
@@ -220,3 +220,9 @@ it can be properly investigated.
 ## Contributing
 
 See [CONTRIBUTING.md](/.github/CONTRIBUTING.md) for details on building and developing.
+
+## Migrating from Plexamp?
+
+If you are migrating from Plexamp and want to sync all of your playlists you might
+like [plex2pl](https://github.com/tx3stn/plex2pl), which can create jellyfin
+native versions of all of your playlists.

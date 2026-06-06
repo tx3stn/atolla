@@ -24,7 +24,7 @@ import {
 } from '../../stores/Preferences';
 import { scrollPaddingBottom, theme, topInset, withAlpha } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
-import { appVersion } from '../../version';
+import { version } from '../../version';
 import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
 import { LanguageSelectModal } from '../components/LanguageSelectModal';
@@ -490,7 +490,7 @@ export class SettingsView extends Component<SettingsViewModel> {
 							accessibilityId='settings-app-version'
 							accessibilityLabel='settings-app-version'
 							style={styles.versionLabel}
-							value={appVersion}
+							value={version}
 						/>
 					</view>
 				</view>

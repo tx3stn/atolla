@@ -26,8 +26,12 @@
 		"android": "./.scripts/start-android-emulator.sh",
 		"android:fast": "FAST_DEV_BUILD=1 ./.scripts/start-android-emulator.sh",
 		"appium:inspect": "./.scripts/start-appium-inspector.sh",
-		"check": "bun run format && bun run lint && bun run compile && bun run test && bun run format:zig && bun run check:zig && bun run test:zig && bun run test:android && bun run test:ios",
+		"build:apk": "./.scripts/build-android-apk.sh",
+		"build:ipa": "./.scripts/build-ios-ipa.sh",
+		"check": "bun run check:static && bun run check:bazel",
+		"check:bazel": "bun run check:zig && bun run test:android && bun run test:ios",
 		"check:full": "./.scripts/check-full.sh",
+		"check:static": "bun run format && bun run lint && bun run compile && bun run test && bun run format:zig && bun run test:zig",
 		"check:zig": "bazel build //atolla/native/zig:atolla_algorithms_zig",
 		"compile": "bunx tsc --noEmit -p tsconfig.json && bunx tsc --noEmit -p atolla/tsconfig.src.json && bunx tsc --noEmit -p atolla/tsconfig.tests.json",
 		"format": "biome format --write .",
@@ -36,6 +40,7 @@
 		"ios": "./.scripts/start-ios-simulator.sh",
 		"ios:fast": "FAST_DEV_BUILD=1 ./.scripts/start-ios-simulator.sh",
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true --unsafe .",
+		"release": "./.scripts/release.sh",
 		"reload": "./.scripts/android-hotreload.sh",
 		"start:e2e-devices": "./.scripts/start-e2e-devices.sh",
 		"test": "bun test ./atolla/src",
@@ -48,5 +53,5 @@
 		"test:ios": "bazel test //atolla/native/ios/test/... --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
 		"test:zig": "./.scripts/test-zig.sh"
 	},
-	"version": "0.0.1"
+	"version": "0.0.12"
 }

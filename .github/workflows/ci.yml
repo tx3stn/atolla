@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - run: bun install --frozen-lockfile
+
+      # Same zig version rules_zig pins in MODULE.bazel
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+
+      - run: bun run check:static
+
+      # format, lint and format:zig fix in place, so drift only shows up as a dirty tree
+      - name: Fail on formatting or lint drift
+        run: git diff --exit-code
+
+  bazel-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - run: bun install --frozen-lockfile
+
+      - name: Cache bazel repository cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}
+          restore-keys: |
+            bazel-repo-${{ runner.os }}-
+
+      # github.sha suffix forces a fresh save each run; restore-keys warm-start
+      # from the newest previous cache
+      - name: Cache bazel disk cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/bazel-disk
+          key: bazel-disk-default-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+          restore-keys: |
+            bazel-disk-default-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-disk-default-${{ runner.os }}-
+
+      - run: bun run check:zig
+
+      - run: bun run test:android
+
+      - run: bun run test:components
+
+  # macos_unit_test targets need Xcode/Apple SDKs — the only tests that can't run on linux
+  # ios-tests:
+  #   runs-on: macos-latest
+  #   timeout-minutes: 60
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #
+  #     - uses: oven-sh/setup-bun@v2
+  #
+  #     - name: Cache bun dependencies
+  #       uses: actions/cache@v5
+  #       with:
+  #         path: ~/.bun/install/cache
+  #         key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+  #         restore-keys: |
+  #           bun-${{ runner.os }}-
+  #
+  #     - run: bun install --frozen-lockfile
+  #
+  #     - name: Cache bazel repository cache
+  #       uses: actions/cache@v5
+  #       with:
+  #         path: ~/.cache/bazel-repo
+  #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}
+  #         restore-keys: |
+  #           bazel-repo-${{ runner.os }}-
+  #
+  #     - name: Cache bazel disk cache
+  #       uses: actions/cache@v5
+  #       with:
+  #         path: ~/.cache/bazel-disk
+  #         key: bazel-disk-default-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+  #         restore-keys: |
+  #           bazel-disk-default-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+  #           bazel-disk-default-${{ runner.os }}-
+  #
+  #     - run: bun run test:ios

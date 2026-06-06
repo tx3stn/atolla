@@ -13,7 +13,7 @@ valdi_application(
     ios_families = ["iphone"],
     root_component_path = "App@atolla/src/App",
     title = "atolla",
-    version = "0.0.1",
+    version = "0.0.12",
     deps = ["//atolla"],
 )
 

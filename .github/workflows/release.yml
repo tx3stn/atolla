@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check tag matches package.json version
+        run: |
+          version="$(jq -r .version package.json)"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+
+  checks:
+    needs: verify
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  build-android:
+    needs: verify
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - run: bun install --frozen-lockfile
+
+      - name: Cache bazel repository cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}
+          restore-keys: |
+            bazel-repo-${{ runner.os }}-
+
+      - name: Cache bazel disk cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/bazel-disk-android
+          key: bazel-disk-android-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+          restore-keys: |
+            bazel-disk-android-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-disk-android-${{ runner.os }}-
+
+      - name: Build APK
+        run: JAVA_HOME="$JAVA_HOME_17_arm64" bun run build:apk
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: build/atolla_android.apk
+          if-no-files-found: error
+
+  build-ios:
+    needs: verify
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Cache bun dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - run: bun install --frozen-lockfile
+
+      - name: Cache bazel repository cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}
+          restore-keys: |
+            bazel-repo-${{ runner.os }}-
+
+      - name: Cache bazel disk cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/bazel-disk-ios
+          key: bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+          restore-keys: |
+            bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-disk-ios-${{ runner.os }}-
+
+      # Simulator build — device (arm64) builds need an ios_provisioning_profile
+      # on valdi_application plus signing secrets in CI
+      - name: Build simulator IPA
+        run: IOS_CPUS=sim_arm64 bun run build:ipa
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ios-ipa
+          path: build/atolla_ios.ipa
+          if-no-files-found: error
+
+  release:
+    needs: [checks, build-android, build-ios]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          merge-multiple: true
+          path: artifacts
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mv artifacts/atolla_android.apk "atolla-$GITHUB_REF_NAME.apk"
+          mv artifacts/atolla_ios.ipa "atolla-$GITHUB_REF_NAME.ipa"
+          gh release create "$GITHUB_REF_NAME" \
+            "atolla-$GITHUB_REF_NAME.apk" \
+            "atolla-$GITHUB_REF_NAME.ipa" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes

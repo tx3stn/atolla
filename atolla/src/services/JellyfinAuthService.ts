@@ -1,7 +1,7 @@
 import { AuthErrors } from '../errors/AuthErrors';
 import type { ErrorConst } from '../errors/Const';
 import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
-import { appVersion } from '../version';
+import { version } from '../version';
 
 interface QuickConnectResult {
 	Authenticated?: boolean;
@@ -107,7 +107,7 @@ function normalizeClientDeviceId(value: string | null | undefined): string {
 }
 
 function createClientHeaderWithDeviceId(clientDeviceId: string): string {
-	return `MediaBrowser Client="atolla", Device="${clientDeviceId}", DeviceId="${clientDeviceId}", Version="${appVersion}"`;
+	return `MediaBrowser Client="atolla", Device="${clientDeviceId}", DeviceId="${clientDeviceId}", Version="${version}"`;
 }
 
 function sanitizeErrorDetail(value: unknown): string | null {

@@ -127,7 +127,7 @@ import { PlaylistView } from './ui/views/PlaylistView';
 import { type SearchLibraryNavigationTarget, SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
 import { fireAndForget } from './utils/async';
-import { appVersion } from './version';
+import { version } from './version';
 
 export type AppViewModel = Record<string, never>;
 
@@ -1872,7 +1872,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				]);
 
 			const report = buildOfflineDiagnosticsReport({
-				appVersion,
+				appVersion: version,
 				connectionMode: this.state.connectionMode,
 				debugLoggingEnabled: this.state.debugLoggingEnabled,
 				downloads: this.downloadService,

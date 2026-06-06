@@ -4,7 +4,7 @@
 		"paths": {
 			"atolla/*": [
 				"./*",
-				"../bazel-out/darwin_arm64-fastbuild/bin/atolla/.valdi_build/compile/generated_ts/atolla/*"
+				"../bazel-out/darwin_arm64-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts/atolla/*"
 			],
 			"coreutils/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/coreutils/*"],
 			"file_system/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/file_system/*"],
