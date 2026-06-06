@@ -1,11 +1,11 @@
 # Contributing to `atolla`
 
-## Follow the guidlines
+## Follow the guidelines
 
-Humans and AI agents should follow the guidelines outlined in [AGENTS.md](./AGENTS.md).
+Humans and AI agents should follow the guidelines outlined in [AGENTS.md](../AGENTS.md).
 
 AI contributions will be considered as long as they follow the guidelines and
-you can explain how they work and why they have been implemented they way they have.
+you can explain how they work and why they have been implemented the way they have.
 
 ## What to contribute
 
