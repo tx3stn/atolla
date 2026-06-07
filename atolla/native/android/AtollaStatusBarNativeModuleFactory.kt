@@ -105,7 +105,7 @@ class AtollaStatusBarNativeModuleFactory : StatusBarNativeModuleFactory() {
 				val activityField = cls.getDeclaredField("activity")
 				activityField.isAccessible = true
 				val activity = activityField.get(record) as? Activity
-				if (activity != null) return activity
+				if (activity != null && !activity.isFinishing && !activity.isDestroyed) return activity
 			}
 			null
 		} catch (_: Throwable) {

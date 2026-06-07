@@ -221,13 +221,13 @@ export class NowPlayingSurface extends StatefulComponent<
 
 		if (this.viewModel.palette !== prevViewModel.palette) {
 			this.rebuildPaletteStyles(this.viewModel.palette, this.state.activeQueueTab);
-		}
 
-		if (this.state.isExpanded && !this.isTransitioning) {
-			const surfaceColor = this.viewModel.palette?.surface.hex ?? paletteDefaults.surface;
-			this.viewModel.barColors.setHeaderColor(surfaceColor);
-			this.viewModel.barColors.setNavigationBarColor(surfaceColor);
-			this.viewModel.barColors.setFooter(this.expandedFooterColors());
+			if (this.state.isExpanded && !this.isTransitioning) {
+				const surfaceColor = this.viewModel.palette?.surface.hex ?? paletteDefaults.surface;
+				this.viewModel.barColors.setHeaderColor(surfaceColor);
+				this.viewModel.barColors.setNavigationBarColor(surfaceColor);
+				this.viewModel.barColors.setFooter(this.expandedFooterColors());
+			}
 		}
 
 		if (this.viewModel.collapseSignal === prevViewModel.collapseSignal) {
