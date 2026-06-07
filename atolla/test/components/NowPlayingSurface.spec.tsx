@@ -1,7 +1,7 @@
 import 'jasmine/src/jasmine';
 import { BarColorStore, defaultFooterColors } from 'atolla/src/stores/BarColor';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
-import { paletteDefaults, withAlpha } from 'atolla/src/theme';
+import { paletteDefaults, theme, withAlpha } from 'atolla/src/theme';
 import { NowPlayingSurface } from 'atolla/src/ui/components/NowPlayingSurface';
 import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -147,42 +147,56 @@ describe('NowPlayingSurface', () => {
 		expect(overlay?.getAttribute('top')).toBe(0);
 	});
 
-	valdiIt('tints the footer when expanded and resets it when torn down', async () => {
-		const barColors = new BarColorStore();
-		const instrumented = createComponent(NowPlayingSurface, {
-			album,
-			artistLogoUrl: null,
-			barColors,
-			collapseSignal: 0,
-			isPlaying: true,
-			loopMode: 'none',
-			onDismiss: () => {},
-			onLoopModeToggle: () => {},
-			onNext: () => {},
-			onPlayPause: () => {},
-			onPrevious: () => {},
-			playbackStore: mockPlaybackStore(),
-			track,
-			trackIndex: 0,
-			tracks: [track],
-		});
-		const component = instrumented.getComponent();
+	valdiIt(
+		'tints the footer and device nav bar when expanded and resets when torn down',
+		async () => {
+			const barColors = new BarColorStore();
+			const navBarColors: Array<string> = [];
+			barColors.setNavigationBarColor = (color: string) => {
+				navBarColors.push(color);
+			};
+			const instrumented = createComponent(NowPlayingSurface, {
+				album,
+				artistLogoUrl: null,
+				barColors,
+				collapseSignal: 0,
+				isPlaying: true,
+				loopMode: 'none',
+				onDismiss: () => {},
+				onLoopModeToggle: () => {},
+				onNext: () => {},
+				onPlayPause: () => {},
+				onPrevious: () => {},
+				playbackStore: mockPlaybackStore(),
+				track,
+				trackIndex: 0,
+				tracks: [track],
+			});
+			const component = instrumented.getComponent();
 
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+			const views = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			);
+			const compactBar = views.find(
+				(view) => view.getAttribute('id') === 'now-playing-surface-bar',
+			);
 
-		expect(barColors.footer).toEqual(defaultFooterColors);
+			expect(barColors.footer).toEqual(defaultFooterColors);
 
-		compactBar?.getAttribute('onTap')?.();
-		expect(barColors.footer).toEqual({
-			activeIconColor: paletteDefaults.onSurface,
-			background: withAlpha(paletteDefaults.surface, 0.8),
-			inactiveIconColor: withAlpha(paletteDefaults.mutedOnSurface, 0.58),
-		});
+			compactBar?.getAttribute('onTap')?.();
+			expect(barColors.footer).toEqual({
+				activeIconColor: paletteDefaults.onSurface,
+				background: withAlpha(paletteDefaults.surface, 0.8),
+				inactiveIconColor: withAlpha(paletteDefaults.mutedOnSurface, 0.58),
+			});
+			expect(navBarColors).toContain(paletteDefaults.surface);
 
-		instrumented.destroy();
-		expect(barColors.footer).toEqual(defaultFooterColors);
-	});
+			instrumented.destroy();
+			expect(barColors.footer).toEqual(defaultFooterColors);
+			expect(navBarColors).toContain(theme.colors.bg);
+		},
+	);
 
 	valdiIt('shows add-to-queue toast when context menu action is tapped', async () => {
 		let addToQueueCalls = 0;

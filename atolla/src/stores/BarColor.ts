@@ -1,5 +1,5 @@
 import { Device } from 'valdi_core/src/Device';
-import { setAtollaStatusBarColor } from '../StatusBarNative';
+import { setAtollaNavigationBarColor, setAtollaStatusBarColor } from '../StatusBarNative';
 import { theme } from '../theme';
 
 type BarColorListener = () => void;
@@ -53,6 +53,12 @@ export class BarColorStore {
 	setHeaderColor(color: string): void {
 		if (Device.isAndroid()) {
 			setAtollaStatusBarColor(color);
+		}
+	}
+
+	setNavigationBarColor(color: string): void {
+		if (Device.isAndroid()) {
+			setAtollaNavigationBarColor(color);
 		}
 	}
 

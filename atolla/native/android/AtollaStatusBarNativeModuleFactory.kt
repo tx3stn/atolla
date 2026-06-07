@@ -25,6 +25,12 @@ class AtollaStatusBarNativeModuleFactory : StatusBarNativeModuleFactory() {
 					applyStatusBarColor(colorHex)
 				}
 			}
+
+			override fun setAtollaNavigationBarColor(colorHex: String) {
+				mainHandler.post {
+					applyNavigationBarColor(colorHex)
+				}
+			}
 		}
 	}
 
@@ -52,6 +58,33 @@ class AtollaStatusBarNativeModuleFactory : StatusBarNativeModuleFactory() {
 			}
 		} catch (e: Throwable) {
 			Log.e(TAG, "Failed to set status bar color: $colorHex", e)
+		}
+	}
+
+	private fun applyNavigationBarColor(colorHex: String) {
+		val activity = resolveForegroundActivity() ?: return
+		val window = activity.window ?: return
+		try {
+			val color = Color.parseColor(colorHex)
+			window.navigationBarColor = color
+
+			val luminance = computeLuminance(color)
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+				val controller = window.insetsController ?: return
+				controller.setSystemBarsAppearance(
+					if (luminance < 0.5) 0 else WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+					WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+				)
+			} else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+				@Suppress("DEPRECATION")
+				val flags = window.decorView.systemUiVisibility
+				@Suppress("DEPRECATION")
+				window.decorView.systemUiVisibility =
+					if (luminance < 0.5) flags and android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+					else flags or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+			}
+		} catch (e: Throwable) {
+			Log.e(TAG, "Failed to set navigation bar color: $colorHex", e)
 		}
 	}
 

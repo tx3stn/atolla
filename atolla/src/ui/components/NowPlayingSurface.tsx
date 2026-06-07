@@ -159,6 +159,9 @@ export class NowPlayingSurface extends StatefulComponent<
 
 		this.isTransitioning = true;
 		this.viewModel.barColors.setFooter(this.expandedFooterColors());
+		this.viewModel.barColors.setNavigationBarColor(
+			this.viewModel.palette?.surface.hex ?? paletteDefaults.surface,
+		);
 		this.setState({ isExpanded: true });
 		this.expandedScrollRef.setAttribute('contentOffsetY', 0);
 		this.overlayRef.setAttribute('top', 0);
@@ -221,9 +224,9 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		if (this.state.isExpanded && !this.isTransitioning) {
-			this.viewModel.barColors.setHeaderColor(
-				this.viewModel.palette?.surface.hex ?? paletteDefaults.surface,
-			);
+			const surfaceColor = this.viewModel.palette?.surface.hex ?? paletteDefaults.surface;
+			this.viewModel.barColors.setHeaderColor(surfaceColor);
+			this.viewModel.barColors.setNavigationBarColor(surfaceColor);
 			this.viewModel.barColors.setFooter(this.expandedFooterColors());
 		}
 
@@ -241,6 +244,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	onDestroy(): void {
 		if (this.state.isExpanded) {
 			this.viewModel.barColors.setHeaderColor(theme.colors.bg);
+			this.viewModel.barColors.setNavigationBarColor(theme.colors.bg);
 			this.viewModel.barColors.resetFooter();
 		}
 		this.unsubscribeProgress?.();
@@ -293,6 +297,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		this.viewModel.barColors.resetFooter();
+		this.viewModel.barColors.setNavigationBarColor(theme.colors.bg);
 		this.viewModel.barColors.setHeaderColor(theme.colors.bg);
 
 		this.isTransitioning = true;
