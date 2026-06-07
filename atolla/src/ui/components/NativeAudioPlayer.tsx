@@ -3,6 +3,7 @@ import { DebugLogger } from '../../services/DebugLogger';
 import {
 	applyNativeAudioPlaybackEventAction,
 	normalizeNativeAudioPlaybackEventAction,
+	parseNativeAudioCompletedEvent,
 } from '../../services/NativeAudioPlaybackEventSync';
 import type { PlaybackStore } from '../../stores/Playback';
 import {
@@ -318,7 +319,21 @@ export class NativeAudioPlayer extends StatefulComponent<
 				break;
 			}
 
-			if (event === 'completed') {
+			const completedEvent = parseNativeAudioCompletedEvent(event);
+			if (completedEvent.isCompleted) {
+				if (completedEvent.finishedTrackId) {
+					// Carries the finished track, so reconcile against it directly —
+					// advancePastTrackId is idempotent for stale/duplicate completions,
+					// and several buffered events (background transitions) land on the
+					// correct track without step-counting.
+					DebugLogger.log('NativeAudioPlayer', 'event:completed', {
+						finishedTrackId: completedEvent.finishedTrackId,
+					});
+					this.viewModel.playbackStore.advancePastTrackId(completedEvent.finishedTrackId);
+					this.viewModel.onPlaybackEvent?.('completed');
+					continue;
+				}
+
 				const activeTrackId = this.viewModel.playbackStore.track?.id ?? '';
 				const activeSourceUrl = this.viewModel.playbackSourceUrl ?? '';
 				const completionToken = `${activeTrackId}|${activeSourceUrl}`;

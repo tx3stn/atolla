@@ -656,6 +656,7 @@ static BOOL sCommandsRegistered = NO;
                      durationSeconds:(double)durationSeconds
                          hasPrevious:(BOOL)hasPrevious
                              hasNext:(BOOL)hasNext;
++ (void)setUpcomingQueue:(NSString *)queueJson;
 
 @end
 
@@ -681,18 +682,135 @@ static double sNextNotificationDurationSeconds = 0;
 static BOOL sNextNotificationHasPrevious = NO;
 static BOOL sNextNotificationHasNext = NO;
 
+// Ordered buffer of the tracks after the current one (dictionaries from setUpcomingQueue's
+// JSON). Lets the engine keep topping the AVQueuePlayer up at each item boundary so background
+// playback survives multiple track transitions while the JS runtime is frozen. Replaced as a
+// whole under sEngineLock so readers always see a consistent snapshot.
+static NSArray<NSDictionary *> *sUpcomingQueue = nil;
+static const NSInteger kAtollaLookaheadTargetAhead = 2;
+
 + (void)initialize {
     if (self == [AtollaGaplessAudioEngine class]) {
         sEventQueue = [NSMutableArray array];
         sEngineLock = [[NSLock alloc] init];
+        sUpcomingQueue = @[];
     }
 }
 
 + (void)enqueueEvent:(NSString *)event {
     [sEngineLock lock];
-    if (sEventQueue.count >= 32) [sEventQueue removeObjectAtIndex:0];
+    // Sized for long backgrounded sessions where every transition queues a completed event
+    // that JS only drains on wake.
+    if (sEventQueue.count >= 128) [sEventQueue removeObjectAtIndex:0];
     [sEventQueue addObject:event];
     [sEngineLock unlock];
+}
+
++ (NSString *)urlStringForItem:(AVPlayerItem *)item {
+    AVAsset *asset = item.asset;
+    if (![asset isKindOfClass:[AVURLAsset class]]) return @"";
+    return ((AVURLAsset *)asset).URL.absoluteString ?: @"";
+}
+
++ (NSDictionary * _Nullable)upcomingEntryForUrl:(NSString *)sourceUrl {
+    if (sourceUrl.length == 0) return nil;
+    [sEngineLock lock];
+    NSArray<NSDictionary *> *upcoming = sUpcomingQueue;
+    [sEngineLock unlock];
+    for (NSDictionary *entry in upcoming) {
+        if ([entry[@"sourceUrl"] isEqualToString:sourceUrl]) return entry;
+    }
+    return nil;
+}
+
+// Tops the player queue up to kAtollaLookaheadTargetAhead items beyond the current one from
+// the upcoming buffer, chaining successors from the last queued item's URL. Main thread only.
++ (void)ensureLookahead {
+    if (!sPlayer) return;
+    [sEngineLock lock];
+    NSArray<NSDictionary *> *upcoming = sUpcomingQueue;
+    NSString *currentUrl = sCurrentSourceUrl;
+    [sEngineLock unlock];
+    if (upcoming.count == 0) return;
+
+    NSMutableArray<NSString *> *upcomingUrls = [NSMutableArray arrayWithCapacity:upcoming.count];
+    for (NSDictionary *entry in upcoming) {
+        [upcomingUrls addObject:entry[@"sourceUrl"] ?: @""];
+    }
+
+    while ((NSInteger)sPlayer.items.count - 1 < kAtollaLookaheadTargetAhead) {
+        NSArray<AVPlayerItem *> *items = sPlayer.items;
+        if (items.count == 0) return;
+        NSString *lastUrl = [self urlStringForItem:items.lastObject];
+        NSInteger nextIndex = AtollaNextUpcomingIndex(upcomingUrls, lastUrl, currentUrl);
+        if (nextIndex < 0) return;
+        NSDictionary *entry = upcoming[nextIndex];
+        AVPlayerItem *item = [self playerItemForUrl:entry[@"sourceUrl"]];
+        if (![sPlayer canInsertItem:item afterItem:items.lastObject]) return;
+        [sPlayer insertItem:item afterItem:items.lastObject];
+    }
+}
+
+// On a buffer refresh, drop queued lookahead items that no longer match the buffer's successor
+// chain (queue was reordered/edited), then top back up. Leaves the queue alone when the buffer
+// is empty so the legacy single-next path keeps working. Main thread only.
++ (void)reconcileLookahead {
+    if (!sPlayer) return;
+    [sEngineLock lock];
+    NSArray<NSDictionary *> *upcoming = sUpcomingQueue;
+    NSString *currentUrl = sCurrentSourceUrl;
+    [sEngineLock unlock];
+    if (upcoming.count == 0) return;
+
+    NSMutableArray<NSString *> *upcomingUrls = [NSMutableArray arrayWithCapacity:upcoming.count];
+    for (NSDictionary *entry in upcoming) {
+        [upcomingUrls addObject:entry[@"sourceUrl"] ?: @""];
+    }
+
+    NSArray<AVPlayerItem *> *items = sPlayer.items;
+    if (items.count > 0) {
+        NSString *previousUrl = [self urlStringForItem:items.firstObject];
+        for (NSUInteger index = 1; index < items.count; index++) {
+            NSInteger expectedIndex = AtollaNextUpcomingIndex(upcomingUrls, previousUrl, currentUrl);
+            NSString *queuedUrl = [self urlStringForItem:items[index]];
+            if (expectedIndex < 0 || ![upcomingUrls[expectedIndex] isEqualToString:queuedUrl]) {
+                for (NSUInteger removeIndex = index; removeIndex < items.count; removeIndex++) {
+                    [sPlayer removeItem:items[removeIndex]];
+                }
+                break;
+            }
+            previousUrl = queuedUrl;
+        }
+    }
+    [self ensureLookahead];
+}
+
++ (void)setUpcomingQueue:(NSString *)queueJson {
+    NSArray<NSDictionary *> *parsed = @[];
+    if (queueJson.length > 0) {
+        NSData *data = [queueJson dataUsingEncoding:NSUTF8StringEncoding];
+        id decoded = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+        if ([decoded isKindOfClass:[NSArray class]]) {
+            NSMutableArray<NSDictionary *> *entries = [NSMutableArray array];
+            for (id candidate in (NSArray *)decoded) {
+                if (![candidate isKindOfClass:[NSDictionary class]]) continue;
+                NSDictionary *entry = (NSDictionary *)candidate;
+                NSString *sourceUrl = [entry[@"sourceUrl"] isKindOfClass:[NSString class]] ? entry[@"sourceUrl"] : @"";
+                NSString *trackId = [entry[@"trackId"] isKindOfClass:[NSString class]] ? entry[@"trackId"] : @"";
+                if (sourceUrl.length == 0 || trackId.length == 0) continue;
+                [entries addObject:entry];
+            }
+            parsed = entries;
+        }
+    }
+
+    [sEngineLock lock];
+    sUpcomingQueue = parsed;
+    [sEngineLock unlock];
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self reconcileLookahead];
+    });
 }
 
 + (void)configureWithCurrentSourceUrl:(NSString *)currentSourceUrl
@@ -740,6 +858,7 @@ static BOOL sNextNotificationHasNext = NO;
                 AVPlayerItem *nextItem = [self playerItemForUrl:nextSourceUrl];
                 [sPlayer insertItem:nextItem afterItem:item];
             }
+            [self ensureLookahead];
             [sPlayer play];
             if (sPlaybackRate > 0) sPlayer.rate = sPlaybackRate;
             [self applyPendingSeekIfNeeded];
@@ -747,6 +866,7 @@ static BOOL sNextNotificationHasNext = NO;
             // currentMatches implies the item is not at its end (see the isItemAtEnd guard
             // above), so no end-of-item recovery seek is needed on this fast path.
             [self syncQueueWithNext:nextSourceUrl];
+            [self ensureLookahead];
             if (sPlaybackRate > 0) {
                 [sPlayer play];
                 sPlayer.rate = sPlaybackRate;
@@ -805,9 +925,8 @@ static BOOL sNextNotificationHasNext = NO;
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification *note) {
-        [self enqueueEvent:@"completed"];
-
         [sEngineLock lock];
+        NSString *finishedTrackId = sCurrentTrackId;
         NSString *nextSrc = sNextSourceUrl;
         NSString *nextId = sNextTrackId;
         NSString *notifTrackName = sNextNotificationTrackName;
@@ -817,8 +936,6 @@ static BOOL sNextNotificationHasNext = NO;
         double notifDuration = sNextNotificationDurationSeconds;
         BOOL notifHasPrevious = sNextNotificationHasPrevious;
         BOOL notifHasNext = sNextNotificationHasNext;
-        sCurrentSourceUrl = nextSrc;
-        sCurrentTrackId = nextId;
         sNextSourceUrl = @"";
         sNextTrackId = @"";
         sNextNotificationTrackName = @"";
@@ -830,7 +947,42 @@ static BOOL sNextNotificationHasNext = NO;
         sNextNotificationHasNext = NO;
         [sEngineLock unlock];
 
-        if (notifTrackName.length > 0) {
+        // Carry the finished trackId so JS can reconcile deterministically after being
+        // frozen across several background transitions.
+        [self enqueueEvent:(finishedTrackId.length > 0
+                                ? [@"completed:" stringByAppendingString:finishedTrackId]
+                                : @"completed")];
+
+        // Prefer the upcoming buffer for the new current track — it survives multiple
+        // transitions, unlike the single configure()-supplied next. AVQueuePlayer has
+        // already advanced, so currentItem is the item now playing.
+        NSString *newCurrentUrl = sPlayer.currentItem ? [self urlStringForItem:sPlayer.currentItem] : @"";
+        NSDictionary *upcomingEntry = [self upcomingEntryForUrl:newCurrentUrl];
+
+        [sEngineLock lock];
+        if (upcomingEntry) {
+            sCurrentSourceUrl = upcomingEntry[@"sourceUrl"];
+            sCurrentTrackId = upcomingEntry[@"trackId"] ?: @"";
+        } else {
+            sCurrentSourceUrl = nextSrc;
+            sCurrentTrackId = nextId;
+        }
+        sPendingSeekMs = -1;
+        [sEngineLock unlock];
+
+        [self ensureLookahead];
+
+        if (upcomingEntry) {
+            [AtollaMediaSession updateNowPlayingWithTrackName:(upcomingEntry[@"trackName"] ?: @"")
+                                                  artistName:(upcomingEntry[@"artistName"] ?: @"")
+                                                   albumName:(upcomingEntry[@"albumName"] ?: @"")
+                                                  artworkUrl:(upcomingEntry[@"artworkUrl"] ?: @"")
+                                                   isPlaying:YES
+                                             positionSeconds:0
+                                             durationSeconds:[upcomingEntry[@"durationSeconds"] doubleValue]
+                                                 hasPrevious:[upcomingEntry[@"hasPrevious"] boolValue]
+                                                     hasNext:[upcomingEntry[@"hasNext"] boolValue]];
+        } else if (notifTrackName.length > 0) {
             [AtollaMediaSession updateNowPlayingWithTrackName:notifTrackName
                                                   artistName:notifArtistName
                                                    albumName:notifAlbumName
@@ -986,6 +1138,7 @@ static BOOL sNextNotificationHasNext = NO;
     sNextSourceUrl = @"";
     sNextTrackId = @"";
     sPendingSeekMs = -1;
+    sUpcomingQueue = @[];
     [sEventQueue removeAllObjects];
     [sEngineLock unlock];
 
@@ -1173,6 +1326,10 @@ static BOOL sNextNotificationHasNext = NO;
                                           durationSeconds:durationSeconds
                                               hasPrevious:hasPrevious
                                                   hasNext:hasNext];
+}
+
+- (void)setAtollaAudioPlaybackUpcomingQueueWithQueueJson:(NSString * _Nonnull)queueJson {
+    [AtollaGaplessAudioEngine setUpcomingQueue:queueJson];
 }
 
 @end

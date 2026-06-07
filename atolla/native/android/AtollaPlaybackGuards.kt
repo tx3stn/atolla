@@ -25,6 +25,10 @@ object AtollaPlaybackGuards {
 	// state without a media3 dependency.
 	const val STATE_ENDED = 4
 
+	// Mirrors Player.STATE_IDLE (media3 = 1) — the state ExoPlayer drops into after a
+	// playback error (or stop()), where playWhenReady = true is a no-op without prepare().
+	const val STATE_IDLE = 1
+
 	// A resume/play request (playWhenReady = true) is a no-op once ExoPlayer has reached
 	// STATE_ENDED — the player must be seeked back into the item to leave the ended state.
 	// This is the offline track-transition stall: the JS store still believes playback is
@@ -32,11 +36,49 @@ object AtollaPlaybackGuards {
 	// position before setting playWhenReady when this returns true.
 	fun shouldSeekToRecoverEndedState(playbackState: Int): Boolean = playbackState == STATE_ENDED
 
+	// After a player error ExoPlayer parks in STATE_IDLE; playWhenReady alone never restarts
+	// it. Callers must prepare() again before resuming when this returns true.
+	fun shouldPrepareBeforeResume(playbackState: Int): Boolean = playbackState == STATE_IDLE
+
 	// configure()/syncQueue() normally take a fast-path that only updates the gapless "next"
 	// item when the current media item already matches the requested source. That fast-path
-	// must NOT be taken when the player is ended: the matching item has played out and needs
-	// to be re-prepared (replaceQueue) so it actually plays. Rebuild whenever the player is
-	// ended OR the current item does not match the requested source.
-	fun shouldRebuildQueueForState(isEnded: Boolean, currentItemMatches: Boolean): Boolean =
-		isEnded || !currentItemMatches
+	// must NOT be taken when the player is ended (the matching item has played out) or idle
+	// (an error un-prepared the player) — both need replaceQueue so prepare() runs and the
+	// item actually plays. Rebuild whenever the player is ended, idle, or the current item
+	// does not match the requested source.
+	fun shouldRebuildQueueForState(isEnded: Boolean, isIdle: Boolean, currentItemMatches: Boolean): Boolean =
+		isEnded || isIdle || !currentItemMatches
+
+	// How many media items must be appended so the player holds targetAhead items beyond the
+	// current one. Background playback can only auto-advance through items that are already
+	// queued — JS is frozen and cannot top the queue up at each transition.
+	fun lookaheadAppendCount(itemCount: Int, currentIndex: Int, targetAhead: Int): Int {
+		if (itemCount <= 0 || currentIndex < 0 || targetAhead <= 0) {
+			return 0
+		}
+		val ahead = itemCount - 1 - currentIndex
+		return (targetAhead - ahead).coerceAtLeast(0)
+	}
+
+	// Index in the ordered upcoming buffer of the entry to append after the last queued item,
+	// or null when the buffer has no known successor. The buffer starts at the track after
+	// currentTrackId, so when the last queued item IS the current track the successor is the
+	// first buffer entry. Matching uses the first occurrence of an id: for loop buffers with
+	// repeated ids the successor is identical at every occurrence, so this stays correct.
+	fun nextUpcomingIndex(
+		upcomingTrackIds: List<String>,
+		lastQueuedTrackId: String,
+		currentTrackId: String,
+	): Int? {
+		if (upcomingTrackIds.isEmpty() || lastQueuedTrackId.isBlank()) {
+			return null
+		}
+
+		val lastIndex = upcomingTrackIds.indexOf(lastQueuedTrackId)
+		if (lastIndex >= 0) {
+			return if (lastIndex + 1 < upcomingTrackIds.size) lastIndex + 1 else null
+		}
+
+		return if (lastQueuedTrackId == currentTrackId) 0 else null
+	}
 }

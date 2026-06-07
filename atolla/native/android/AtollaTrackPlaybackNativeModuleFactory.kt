@@ -215,6 +215,10 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				)
 			}
 
+			override fun setAtollaAudioPlaybackUpcomingQueue(queueJson: String) {
+				AtollaGaplessAudioEngine.setUpcomingQueue(queueJson)
+			}
+
 		}
 	}
 }
@@ -242,6 +246,26 @@ object AtollaGaplessAudioEngine {
 	@Volatile private var nextNotificationHasPrevious: Boolean = false
 	@Volatile private var nextNotificationHasNext: Boolean = false
 
+	private data class UpcomingTrack(
+		val sourceUrl: String,
+		val trackId: String,
+		val durationMs: Long,
+		val trackName: String,
+		val artistName: String,
+		val albumName: String,
+		val artworkUrl: String,
+		val durationSeconds: Double,
+		val hasPrevious: Boolean,
+		val hasNext: Boolean,
+	)
+
+	// Ordered buffer of the tracks after the current one. Lets the engine keep topping up the
+	// ExoPlayer queue at each auto-transition so background playback survives multiple track
+	// boundaries while the JS runtime (and its 200ms event poll) is frozen. Immutable list,
+	// swapped as a whole so the main thread always reads a consistent snapshot.
+	@Volatile private var upcomingQueue: List<UpcomingTrack> = emptyList()
+	private const val lookaheadTargetAhead = 2
+
 	private var exoPlayer: ExoPlayer? = null
 
 	private val playerListener = object : Player.Listener {
@@ -263,8 +287,12 @@ object AtollaGaplessAudioEngine {
 				return
 			}
 
-			Log.d(tag, "onMediaItemTransition auto trackId=${mediaItem?.mediaId}")
-			enqueueEvent("completed")
+			val finishedTrackId = sourceTrackId
+			Log.d(tag, "onMediaItemTransition auto trackId=${mediaItem?.mediaId} finished=$finishedTrackId")
+			// Carry the finished trackId so JS can reconcile deterministically after being
+			// frozen across several transitions (it advances past the last finished id rather
+			// than counting events).
+			enqueueEvent(if (finishedTrackId.isBlank()) "completed" else "completed:$finishedTrackId")
 			if (mediaItem != null) {
 				sourceTrackId = mediaItem.mediaId
 				sourceUrl = mediaItem.localConfiguration?.uri?.toString() ?: sourceUrl
@@ -273,7 +301,11 @@ object AtollaGaplessAudioEngine {
 			nextSourceUrl = ""
 			nextTrackId = ""
 			nextDurationMs = 0L
+			// Any unapplied seek belonged to the track that just finished; applying it to
+			// the new track would jump playback to an arbitrary position.
+			pendingSeekToMs = null
 			trimPlayedItems()
+			exoPlayer?.let { ensureLookahead(it) }
 
 			val trackName = nextNotificationTrackName
 			val artistName = nextNotificationArtistName
@@ -289,7 +321,22 @@ object AtollaGaplessAudioEngine {
 			nextNotificationDurationSeconds = 0.0
 			nextNotificationHasPrevious = false
 			nextNotificationHasNext = false
-			if (trackName.isNotBlank()) {
+
+			val upcomingEntry = upcomingQueue.firstOrNull { it.trackId == sourceTrackId }
+			if (upcomingEntry != null) {
+				sourceDurationMs = upcomingEntry.durationMs.coerceAtLeast(0L)
+				AtollaTrackPlaybackMediaSession.updateNotification(
+					trackName = upcomingEntry.trackName,
+					artistName = upcomingEntry.artistName,
+					albumName = upcomingEntry.albumName,
+					artworkUrl = upcomingEntry.artworkUrl,
+					isPlaying = true,
+					positionSeconds = 0.0,
+					durationSeconds = upcomingEntry.durationSeconds,
+					hasPrevious = upcomingEntry.hasPrevious,
+					hasNext = upcomingEntry.hasNext,
+				)
+			} else if (trackName.isNotBlank()) {
 				AtollaTrackPlaybackMediaSession.updateNotification(
 					trackName = trackName,
 					artistName = artistName,
@@ -312,7 +359,8 @@ object AtollaGaplessAudioEngine {
 			}
 
 			if (playbackState == Player.STATE_ENDED) {
-				enqueueEvent("completed")
+				val endedTrackId = sourceTrackId
+				enqueueEvent(if (endedTrackId.isBlank()) "completed" else "completed:$endedTrackId")
 			}
 		}
 
@@ -380,6 +428,11 @@ object AtollaGaplessAudioEngine {
 			if (AtollaPlaybackGuards.shouldSeekToRecoverEndedState(player.playbackState)) {
 				player.seekToDefaultPosition()
 			}
+			// An errored player parks in STATE_IDLE where playWhenReady is equally a no-op
+			// without re-preparing the current media items.
+			if (AtollaPlaybackGuards.shouldPrepareBeforeResume(player.playbackState)) {
+				player.prepare()
+			}
 			player.playWhenReady = true
 		}
 	}
@@ -446,6 +499,106 @@ object AtollaGaplessAudioEngine {
 		nextNotificationHasNext = hasNext
 	}
 
+	fun setUpcomingQueue(queueJson: String) {
+		val parsed = parseUpcomingQueue(queueJson)
+		upcomingQueue = parsed
+		Log.d(tag, "setUpcomingQueue size=${parsed.size}")
+		mainHandler.post {
+			val player = exoPlayer ?: return@post
+			reconcileLookahead(player)
+		}
+	}
+
+	private fun parseUpcomingQueue(queueJson: String): List<UpcomingTrack> {
+		if (queueJson.isBlank()) {
+			return emptyList()
+		}
+
+		return try {
+			val array = org.json.JSONArray(queueJson)
+			val entries = mutableListOf<UpcomingTrack>()
+			for (index in 0 until array.length()) {
+				val entry = array.optJSONObject(index) ?: continue
+				val sourceUrl = entry.optString("sourceUrl", "")
+				val trackId = entry.optString("trackId", "")
+				if (sourceUrl.isBlank() || trackId.isBlank()) {
+					continue
+				}
+				entries.add(
+					UpcomingTrack(
+						sourceUrl = sourceUrl,
+						trackId = trackId,
+						durationMs = entry.optLong("durationMs", 0L),
+						trackName = entry.optString("trackName", ""),
+						artistName = entry.optString("artistName", ""),
+						albumName = entry.optString("albumName", ""),
+						artworkUrl = entry.optString("artworkUrl", ""),
+						durationSeconds = entry.optDouble("durationSeconds", 0.0),
+						hasPrevious = entry.optBoolean("hasPrevious", false),
+						hasNext = entry.optBoolean("hasNext", false),
+					),
+				)
+			}
+			entries
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed to parse upcoming queue", error)
+			emptyList()
+		}
+	}
+
+	// Tops the player queue up to lookaheadTargetAhead items beyond the current one from the
+	// upcoming buffer, chaining successors from the last queued item's trackId.
+	private fun ensureLookahead(player: ExoPlayer) {
+		val upcoming = upcomingQueue
+		if (upcoming.isEmpty()) {
+			return
+		}
+
+		val upcomingIds = upcoming.map { it.trackId }
+		var appendCount = AtollaPlaybackGuards.lookaheadAppendCount(
+			player.mediaItemCount,
+			player.currentMediaItemIndex,
+			lookaheadTargetAhead,
+		)
+		while (appendCount > 0) {
+			val itemCount = player.mediaItemCount
+			if (itemCount <= 0) {
+				return
+			}
+			val lastItem = player.getMediaItemAt(itemCount - 1)
+			val nextIndex = AtollaPlaybackGuards.nextUpcomingIndex(upcomingIds, lastItem.mediaId, sourceTrackId)
+				?: return
+			val entry = upcoming[nextIndex]
+			Log.d(tag, "ensureLookahead append trackId=${entry.trackId}")
+			player.addMediaItem(buildMediaItem(entry.sourceUrl, entry.trackId))
+			appendCount -= 1
+		}
+	}
+
+	// On a buffer refresh, drop queued lookahead items that no longer match the buffer's
+	// successor chain (queue was reordered/edited), then top back up. The configure()-managed
+	// next item is part of the chain check, so a still-valid queue is left untouched.
+	private fun reconcileLookahead(player: ExoPlayer) {
+		val currentIndex = player.currentMediaItemIndex
+		if (currentIndex >= 0 && currentIndex < player.mediaItemCount) {
+			val upcomingIds = upcomingQueue.map { it.trackId }
+			var previousId = player.getMediaItemAt(currentIndex).mediaId
+			var index = currentIndex + 1
+			while (index < player.mediaItemCount) {
+				val expectedIndex = AtollaPlaybackGuards.nextUpcomingIndex(upcomingIds, previousId, sourceTrackId)
+				val queuedId = player.getMediaItemAt(index).mediaId
+				if (expectedIndex == null || upcomingIds[expectedIndex] != queuedId) {
+					Log.d(tag, "reconcileLookahead drop from index=$index queuedId=$queuedId")
+					player.removeMediaItems(index, player.mediaItemCount)
+					break
+				}
+				previousId = queuedId
+				index += 1
+			}
+		}
+		ensureLookahead(player)
+	}
+
 	fun consumeEvent(): String {
 		synchronized(eventQueue) {
 			return if (eventQueue.isEmpty()) "" else eventQueue.removeFirst()
@@ -460,6 +613,7 @@ object AtollaGaplessAudioEngine {
 		nextTrackId = ""
 		nextDurationMs = 0L
 		pendingSeekToMs = null
+		upcomingQueue = emptyList()
 		synchronized(eventQueue) {
 			eventQueue.clear()
 		}
@@ -506,12 +660,13 @@ object AtollaGaplessAudioEngine {
 		val currentItem = player.currentMediaItem
 		val currentItemMatches = currentItem != null && mediaItemMatches(currentItem, sourceUrl, sourceTrackId)
 		val isEnded = player.playbackState == AtollaPlaybackGuards.STATE_ENDED
+		val isIdle = player.playbackState == AtollaPlaybackGuards.STATE_IDLE
 		// Take the fast-path (only update the gapless next item) ONLY when the current
-		// item matches AND the player is not ended. If the player ended on this item
-		// (offline transition reached end-of-queue) we must re-prepare it via replaceQueue,
-		// otherwise it would keep matching forever and never resume.
-		if (AtollaPlaybackGuards.shouldRebuildQueueForState(isEnded, currentItemMatches)) {
-			Log.d(tag, "syncQueue->replaceQueue: rebuild trackId=$sourceTrackId rate=$capturedPlaybackRate ended=$isEnded matches=$currentItemMatches")
+		// item matches AND the player is not ended/idle. If the player ended on this item
+		// (offline transition reached end-of-queue) or errored into idle, we must re-prepare
+		// it via replaceQueue, otherwise it would keep matching forever and never resume.
+		if (AtollaPlaybackGuards.shouldRebuildQueueForState(isEnded, isIdle, currentItemMatches)) {
+			Log.d(tag, "syncQueue->replaceQueue: rebuild trackId=$sourceTrackId rate=$capturedPlaybackRate ended=$isEnded idle=$isIdle matches=$currentItemMatches")
 			replaceQueue(player, capturedPlaybackRate)
 			return
 		}
@@ -526,6 +681,7 @@ object AtollaGaplessAudioEngine {
 		if (nextSourceUrl.isNotBlank() && nextSourceUrl != sourceUrl) {
 			player.addMediaItem(buildMediaItem(nextSourceUrl, nextTrackId))
 		}
+		ensureLookahead(player)
 	}
 
 	private fun replaceQueue(player: ExoPlayer, capturedPlaybackRate: Float = playbackRate) {
@@ -541,6 +697,7 @@ object AtollaGaplessAudioEngine {
 
 		player.setMediaItems(items, 0, 0L)
 		player.prepare()
+		ensureLookahead(player)
 		if (capturedPlaybackRate > 0f) {
 			player.setPlaybackParameters(PlaybackParameters(capturedPlaybackRate))
 			player.playWhenReady = true
@@ -586,7 +743,9 @@ object AtollaGaplessAudioEngine {
 
 	private fun enqueueEvent(event: String) {
 		synchronized(eventQueue) {
-			if (eventQueue.size >= 32) {
+			// Sized for long screen-off sessions where every transition queues a completed
+			// event that JS only drains on wake.
+			if (eventQueue.size >= 128) {
 				eventQueue.removeFirst()
 			}
 			eventQueue.addLast(event)

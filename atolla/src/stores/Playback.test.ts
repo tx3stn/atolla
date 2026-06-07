@@ -182,6 +182,94 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('advancePastTrackId()', () => {
+		it('advances to the track after the finished one', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.advancePastTrackId('track-1');
+			expect(store.trackIndex).toBe(1);
+			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('jumps multiple tracks when several completions were missed', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.advancePastTrackId('track-2');
+			expect(store.trackIndex).toBe(2);
+			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('keeps playing state across the advance', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.advancePastTrackId('track-1');
+			expect(store.isPlaying).toBe(true);
+		});
+
+		it('ignores a stale completion for a track already passed', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			store.advancePastTrackId('track-1');
+			expect(store.trackIndex).toBe(2);
+		});
+
+		it('ignores unknown track ids', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.advancePastTrackId('not-in-queue');
+			expect(store.trackIndex).toBe(1);
+		});
+
+		it('stops playback when the last track finishes without looping', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			store.advancePastTrackId('track-3');
+			expect(store.trackIndex).toBe(2);
+			expect(store.isPlaying).toBe(false);
+			expect(store.progressSeconds).toBe(track3.duration);
+		});
+
+		it('wraps to the first track when the last finishes under queue loop', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			store.cycleLoopMode();
+			expect(store.loopMode).toBe('queue');
+			store.advancePastTrackId('track-3');
+			expect(store.trackIndex).toBe(0);
+			expect(store.isPlaying).toBe(true);
+			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('stays on the current track under track loop and resets progress', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.cycleLoopMode();
+			store.cycleLoopMode();
+			expect(store.loopMode).toBe('track');
+			store.updateProgress(100);
+			store.advancePastTrackId('track-2');
+			expect(store.trackIndex).toBe(1);
+			expect(store.progressSeconds).toBe(0);
+			expect(store.isPlaying).toBe(true);
+		});
+
+		it('does not set a seek target so the native player is left untouched', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.advancePastTrackId('track-1');
+			expect(store.seekTarget).toBeNull();
+		});
+
+		it('notifies listeners on advance', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.advancePastTrackId('track-1');
+			expect(calls).toBe(1);
+		});
+	});
+
 	describe('previous()', () => {
 		it('goes back to the previous track', () => {
 			const store = new PlaybackStore();

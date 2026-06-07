@@ -202,6 +202,54 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	// Reconciles the store with native auto-advances that happened while JS was frozen in
+	// the background: the engine reports the trackId that finished and the store jumps to
+	// the track after it. Never sets seekTarget — the native player has already moved on
+	// and must not be seeked. Idempotent for stale/duplicate completions.
+	advancePastTrackId(finishedTrackId: string): void {
+		if (this.tracks.length === 0 || !finishedTrackId) {
+			return;
+		}
+
+		if (this.loopMode === LoopModes.track) {
+			if (this.track?.id !== finishedTrackId) {
+				return;
+			}
+			this.progressSeconds = 0;
+			this.persistQueue();
+			this.notify();
+			return;
+		}
+
+		let finishedIndex = -1;
+		for (let index = this.trackIndex; index < this.tracks.length; index++) {
+			if (this.tracks[index]?.id === finishedTrackId) {
+				finishedIndex = index;
+				break;
+			}
+		}
+		if (finishedIndex === -1) {
+			return;
+		}
+
+		if (finishedIndex >= this.tracks.length - 1) {
+			if (this.loopMode === LoopModes.queue) {
+				this.trackIndex = 0;
+				this.progressSeconds = 0;
+			} else {
+				this.trackIndex = finishedIndex;
+				this.progressSeconds = this.tracks[finishedIndex]?.duration ?? 0;
+				this.isPlaying = false;
+			}
+		} else {
+			this.trackIndex = finishedIndex + 1;
+			this.progressSeconds = 0;
+		}
+
+		this.persistQueue();
+		this.notify();
+	}
+
 	previous(): void {
 		this.trackIndex = Math.max(this.trackIndex - 1, 0);
 		this.progressSeconds = 0;

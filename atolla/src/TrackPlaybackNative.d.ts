@@ -111,3 +111,6 @@ export function setAtollaAudioPlaybackNextNotification(
 	hasPrevious: boolean,
 	hasNext: boolean,
 ): void;
+
+// @ExportFunction
+export function setAtollaAudioPlaybackUpcomingQueue(queueJson: string): void;

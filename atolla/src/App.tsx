@@ -66,6 +66,10 @@ import {
 	buildTrackPlaybackNotificationPayload,
 	normalizeTrackPlaybackNotificationAction,
 } from './services/TrackPlaybackNotificationSync';
+import {
+	buildUpcomingQueueEntries,
+	serializeUpcomingQueue,
+} from './services/TrackPlaybackUpcomingQueue';
 import { WaveformGenerationQueue } from './services/WaveformGenerationQueue';
 import { WaveformRenderCache } from './services/WaveformRenderCache';
 import { WaveformService } from './services/WaveformService';
@@ -93,6 +97,7 @@ import {
 	getAtollaDownloadedCacheTotalSizeBytes,
 	getAtollaDownloadedTrackFileUrl,
 	getAtollaTrackCacheEntryCount,
+	setAtollaAudioPlaybackUpcomingQueue,
 	setAtollaTrackCacheMaxTracks,
 	updateAtollaTrackPlaybackNotification,
 } from './TrackPlaybackNative';
@@ -345,6 +350,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastTrackNotificationPositionBucket = -1;
 	private lastPlaybackSignature = '';
 	private lastPlaybackTickAt = 0;
+	private lastUpcomingQueueKey = '';
 	private readonly imageCache = new ImageCache({});
 	private recentlyPlayedTracks: Array<Track> = [];
 	private lastObservedRecentTrackId: string | null = null;
@@ -579,6 +585,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			if (!this.handleTrackPlaybackSourceChange()) {
 				this.handleNextTrackPreload();
 			}
+			this.syncUpcomingQueue();
 			this.handleTrackPrefetchQueueChange();
 			this.captureRecentlyPlayedTrack();
 			this.handleWaveformPriority();
@@ -592,6 +599,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (!this.handleTrackPlaybackSourceChange()) {
 			this.handleNextTrackPreload();
 		}
+		this.syncUpcomingQueue();
 		this.handleTrackPrefetchQueueChange();
 		this.captureRecentlyPlayedTrack();
 		this.resolveCurrentArtistLogo();
@@ -1396,12 +1404,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		if (this.playbackStore.track?.id !== trackId) {
 			this.handleNextTrackPreload();
+			this.syncUpcomingQueue();
 			return;
 		}
 
 		if (!this.handleTrackPlaybackSourceChange(true)) {
 			this.handleNextTrackPreload();
 		}
+		this.syncUpcomingQueue();
 	}
 
 	private getWaveformMaskUrl(trackId: string): string | null {
@@ -1555,6 +1565,28 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		const source = this.computeNextTrackSource();
 		if (this.state.nextTrackSourceUrl !== source) {
 			this.setState({ nextTrackSourceUrl: source });
+		}
+	}
+
+	// Hands the native engine an ordered buffer of upcoming track sources so it can keep
+	// auto-advancing (and updating the notification) across multiple track boundaries while
+	// the JS runtime is frozen in the background — without this only the single preloaded
+	// next item survives backgrounding and playback stops at the following boundary.
+	private syncUpcomingQueue(): void {
+		const entries = buildUpcomingQueueEntries(
+			this.playbackStore,
+			(trackId) => this.getNativeCachedTrackSource(trackId) ?? this.getTrackStreamSource(trackId),
+		);
+		const payload = serializeUpcomingQueue(entries);
+		if (payload === this.lastUpcomingQueueKey) {
+			return;
+		}
+
+		this.lastUpcomingQueueKey = payload;
+		try {
+			setAtollaAudioPlaybackUpcomingQueue(payload);
+		} catch {
+			// Native module without upcoming queue support (e.g. mock platform builds).
 		}
 	}
 

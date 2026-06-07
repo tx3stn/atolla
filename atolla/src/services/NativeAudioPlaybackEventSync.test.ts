@@ -3,12 +3,40 @@ import { PlaybackStore } from '../stores/Playback';
 import {
 	applyNativeAudioPlaybackEventAction,
 	normalizeNativeAudioPlaybackEventAction,
+	parseNativeAudioCompletedEvent,
 } from './NativeAudioPlaybackEventSync';
 
 describe('NativeAudioPlaybackEventSync', () => {
 	it('normalizes pause interruption event', () => {
 		expect(normalizeNativeAudioPlaybackEventAction(' pause-requested ')).toBe('pause');
 		expect(normalizeNativeAudioPlaybackEventAction('completed')).toBe('');
+	});
+
+	it('parses a bare completed event without a track id', () => {
+		expect(parseNativeAudioCompletedEvent('completed')).toEqual({
+			finishedTrackId: null,
+			isCompleted: true,
+		});
+	});
+
+	it('parses the finished track id from a completed event', () => {
+		expect(parseNativeAudioCompletedEvent('completed:abc123')).toEqual({
+			finishedTrackId: 'abc123',
+			isCompleted: true,
+		});
+	});
+
+	it('treats a completed event with an empty id as bare', () => {
+		expect(parseNativeAudioCompletedEvent('completed:')).toEqual({
+			finishedTrackId: null,
+			isCompleted: true,
+		});
+	});
+
+	it('does not match other events', () => {
+		expect(parseNativeAudioCompletedEvent('loaded').isCompleted).toBe(false);
+		expect(parseNativeAudioCompletedEvent('error:completed').isCompleted).toBe(false);
+		expect(parseNativeAudioCompletedEvent('').isCompleted).toBe(false);
 	});
 
 	it('pauses playback store on pause action only when playing', () => {
