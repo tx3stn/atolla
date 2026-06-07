@@ -1,10 +1,9 @@
 import res from 'atolla/res';
-import { Component } from 'valdi_core/src/Component';
-import { ElementRef } from 'valdi_core/src/ElementRef';
+import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { BarColorStore } from '../../stores/BarColor';
+import { type BarColorStore, defaultFooterColors, type FooterColors } from '../../stores/BarColor';
 import { theme } from '../../theme';
 import { FooterIcon } from './FooterIcon';
 import { type FooterTab, FooterTabs } from './FooterTab';
@@ -16,30 +15,34 @@ export interface FooterNavViewModel {
 	onFooterTabTap: (tabId: FooterTab) => void;
 }
 
-export class FooterNav extends Component<FooterNavViewModel> {
-	private rootRef = new ElementRef();
+interface FooterNavState {
+	footer: FooterColors;
+}
+
+export class FooterNav extends StatefulComponent<FooterNavViewModel, FooterNavState> {
+	state: FooterNavState = { footer: defaultFooterColors };
 
 	onCreate(): void {
-		this.registerDisposable(
-			this.viewModel.barColors.subscribe(() => {
-				this.rootRef.setAttribute('backgroundColor', this.viewModel.barColors.footerColor);
-			}),
-		);
+		this.syncFooter();
+		this.registerDisposable(this.viewModel.barColors.subscribe(() => this.syncFooter()));
+	}
+
+	private syncFooter(): void {
+		this.setState({ footer: this.viewModel.barColors.footer });
 	}
 
 	onRender() {
-		<view
-			backgroundColor={this.viewModel.barColors.footerColor}
-			ref={this.rootRef}
-			style={styles.footerPinned}
-		>
+		const { footer } = this.state;
+		<view backgroundColor={footer.background} style={styles.footerPinned}>
 			<FooterIcon
 				accessibilityId='footer-home'
 				action={createReusableCallback(() => {
 					this.viewModel.onFooterTabTap(FooterTabs.home);
 				})}
 				active={this.viewModel.activeTab === FooterTabs.home}
+				activeColor={footer.activeIconColor}
 				icon={res.home}
+				inactiveColor={footer.inactiveIconColor}
 			/>
 
 			<FooterIcon
@@ -48,8 +51,10 @@ export class FooterNav extends Component<FooterNavViewModel> {
 					this.viewModel.onFooterTabTap(FooterTabs.library);
 				})}
 				active={this.viewModel.activeTab === FooterTabs.library}
+				activeColor={footer.activeIconColor}
 				badgeCount={this.viewModel.downloadingCount}
 				icon={res.library}
+				inactiveColor={footer.inactiveIconColor}
 			/>
 
 			<FooterIcon
@@ -58,7 +63,9 @@ export class FooterNav extends Component<FooterNavViewModel> {
 					this.viewModel.onFooterTabTap(FooterTabs.search);
 				})}
 				active={this.viewModel.activeTab === FooterTabs.search}
+				activeColor={footer.activeIconColor}
 				icon={res.search}
+				inactiveColor={footer.inactiveIconColor}
 			/>
 
 			<FooterIcon
@@ -67,7 +74,9 @@ export class FooterNav extends Component<FooterNavViewModel> {
 					this.viewModel.onFooterTabTap(FooterTabs.settings);
 				})}
 				active={this.viewModel.activeTab === FooterTabs.settings}
+				activeColor={footer.activeIconColor}
 				icon={res.settings}
+				inactiveColor={footer.inactiveIconColor}
 			/>
 		</view>;
 	}

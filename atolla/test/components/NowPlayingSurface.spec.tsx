@@ -1,7 +1,7 @@
 import 'jasmine/src/jasmine';
-import { BarColorStore } from 'atolla/src/stores/BarColor';
+import { BarColorStore, defaultFooterColors } from 'atolla/src/stores/BarColor';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
-import { paletteDefaults, theme, withAlpha } from 'atolla/src/theme';
+import { paletteDefaults, withAlpha } from 'atolla/src/theme';
 import { NowPlayingSurface } from 'atolla/src/ui/components/NowPlayingSurface';
 import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -171,13 +171,17 @@ describe('NowPlayingSurface', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
 
-		expect(barColors.footerColor).toBe(theme.colors.bgFrosted);
+		expect(barColors.footer).toEqual(defaultFooterColors);
 
 		compactBar?.getAttribute('onTap')?.();
-		expect(barColors.footerColor).toBe(withAlpha(paletteDefaults.surface, 0.8));
+		expect(barColors.footer).toEqual({
+			activeIconColor: paletteDefaults.onSurface,
+			background: withAlpha(paletteDefaults.surface, 0.8),
+			inactiveIconColor: withAlpha(paletteDefaults.mutedOnSurface, 0.58),
+		});
 
 		instrumented.destroy();
-		expect(barColors.footerColor).toBe(theme.colors.bgFrosted);
+		expect(barColors.footer).toEqual(defaultFooterColors);
 	});
 
 	valdiIt('shows add-to-queue toast when context menu action is tapped', async () => {

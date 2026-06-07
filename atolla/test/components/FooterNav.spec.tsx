@@ -13,33 +13,47 @@ function getRootView(component: Parameters<typeof componentGetElements>[0]) {
 	return views[0];
 }
 
+function getIconTints(component: Parameters<typeof componentGetElements>[0]) {
+	return elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Image).map(
+		(image) => image.getAttribute('tint'),
+	);
+}
+
+function createFooterNav(barColors: BarColorStore) {
+	return createComponent(FooterNav, {
+		activeTab: FooterTabs.home,
+		barColors,
+		downloadingCount: 0,
+		onFooterTabTap: () => {},
+	});
+}
+
 describe('FooterNav', () => {
-	valdiIt('renders the bar store footer colour', async () => {
-		const barColors = new BarColorStore();
-		const instrumented = createComponent(FooterNav, {
-			activeTab: FooterTabs.home,
-			barColors,
-			downloadingCount: 0,
-			onFooterTabTap: () => {},
-		});
-		const component = instrumented.getComponent();
+	valdiIt('renders the default footer colours', async () => {
+		const component = createFooterNav(new BarColorStore()).getComponent();
 
 		expect(getRootView(component).getAttribute('backgroundColor')).toBe(theme.colors.bgFrosted);
+
+		const tints = getIconTints(component);
+		expect(tints[0]).toBe(undefined);
+		expect(tints[1]).toBe(theme.colors.grey);
 	});
 
-	valdiIt('updates the footer colour when the bar store changes', async () => {
+	valdiIt('reflects the bar store footer colours', async () => {
+		const footer = {
+			activeIconColor: '#d8dee9',
+			background: 'rgba(17,26,43,0.8)',
+			inactiveIconColor: '#667085',
+		};
 		const barColors = new BarColorStore();
-		const instrumented = createComponent(FooterNav, {
-			activeTab: FooterTabs.home,
-			barColors,
-			downloadingCount: 0,
-			onFooterTabTap: () => {},
-		});
-		const component = instrumented.getComponent();
+		const component = createFooterNav(barColors).getComponent();
 
-		const newColor = 'rgba(17,26,43,0.8)';
-		barColors.setFooterColor(newColor);
+		barColors.setFooter(footer);
 
-		expect(getRootView(component).getAttribute('backgroundColor')).toBe(newColor);
+		expect(getRootView(component).getAttribute('backgroundColor')).toBe(footer.background);
+
+		const tints = getIconTints(component);
+		expect(tints[0]).toBe(footer.activeIconColor);
+		expect(tints[1]).toBe(footer.inactiveIconColor);
 	});
 });

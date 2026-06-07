@@ -8,8 +8,10 @@ export interface FooterIconView {
 	accessibilityId?: string;
 	action: () => void;
 	active?: boolean;
+	activeColor?: string;
 	badgeCount?: number;
 	icon: string | Asset;
+	inactiveColor?: string;
 }
 
 export class FooterIcon extends Component<FooterIconView> {
@@ -23,7 +25,11 @@ export class FooterIcon extends Component<FooterIconView> {
 			<image
 				src={this.viewModel.icon}
 				style={styles.footerTabIconImage}
-				tint={this.viewModel.active ? undefined : theme.colors.grey}
+				tint={
+					this.viewModel.active
+						? this.viewModel.activeColor
+						: (this.viewModel.inactiveColor ?? theme.colors.grey)
+				}
 			/>
 			{(this.viewModel.badgeCount ?? 0) > 0 && (
 				<view style={styles.badge}>

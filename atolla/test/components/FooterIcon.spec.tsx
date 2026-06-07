@@ -55,6 +55,38 @@ describe('FooterIcon', () => {
 		expect(images[0].getAttribute('tint')).toBe(theme.colors.grey);
 	});
 
+	valdiIt('applies activeColor when active', async () => {
+		const instrumented = createComponent(FooterIcon, {
+			action: () => {},
+			active: true,
+			activeColor: '#abcdef',
+			icon,
+		});
+		const component = instrumented.getComponent();
+
+		const images = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		);
+		expect(images[0].getAttribute('tint')).toBe('#abcdef');
+	});
+
+	valdiIt('applies inactiveColor when not active', async () => {
+		const instrumented = createComponent(FooterIcon, {
+			action: () => {},
+			active: false,
+			icon,
+			inactiveColor: '#123456',
+		});
+		const component = instrumented.getComponent();
+
+		const images = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		);
+		expect(images[0].getAttribute('tint')).toBe('#123456');
+	});
+
 	valdiIt('sets accessibilityLabel on the tap target', async () => {
 		const instrumented = createComponent(FooterIcon, {
 			accessibilityId: 'footer-library',

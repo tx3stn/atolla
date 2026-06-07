@@ -12,7 +12,7 @@ import Strings from '../../Strings';
 import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
-import type { BarColorStore } from '../../stores/BarColor';
+import type { BarColorStore, FooterColors } from '../../stores/BarColor';
 import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playback';
 import { paletteDefaults, theme, topInset, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -140,15 +140,25 @@ export class NowPlayingSurface extends StatefulComponent<
 		return Promise.resolve();
 	}
 
+	private expandedFooterColors(): FooterColors {
+		const palette = this.viewModel.palette;
+		return {
+			activeIconColor: palette?.on_surface.hex ?? paletteDefaults.onSurface,
+			background: withAlpha(palette?.surface.hex ?? paletteDefaults.surface, 0.8),
+			inactiveIconColor: withAlpha(
+				palette?.muted_on_surface.hex ?? paletteDefaults.mutedOnSurface,
+				0.58,
+			),
+		};
+	}
+
 	private openSurface = (): void => {
 		if (this.state.isExpanded || this.isTransitioning) {
 			return;
 		}
 
 		this.isTransitioning = true;
-		this.viewModel.barColors.setFooterColor(
-			withAlpha(this.viewModel.palette?.surface.hex ?? paletteDefaults.surface, 0.8),
-		);
+		this.viewModel.barColors.setFooter(this.expandedFooterColors());
 		this.setState({ isExpanded: true });
 		this.expandedScrollRef.setAttribute('contentOffsetY', 0);
 		this.overlayRef.setAttribute('top', 0);
@@ -211,9 +221,10 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		if (this.state.isExpanded && !this.isTransitioning) {
-			const surfaceColor = this.viewModel.palette?.surface.hex ?? paletteDefaults.surface;
-			this.viewModel.barColors.setHeaderColor(surfaceColor);
-			this.viewModel.barColors.setFooterColor(withAlpha(surfaceColor, 0.8));
+			this.viewModel.barColors.setHeaderColor(
+				this.viewModel.palette?.surface.hex ?? paletteDefaults.surface,
+			);
+			this.viewModel.barColors.setFooter(this.expandedFooterColors());
 		}
 
 		if (this.viewModel.collapseSignal === prevViewModel.collapseSignal) {
@@ -230,7 +241,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	onDestroy(): void {
 		if (this.state.isExpanded) {
 			this.viewModel.barColors.setHeaderColor(theme.colors.bg);
-			this.viewModel.barColors.setFooterColor(theme.colors.bgFrosted);
+			this.viewModel.barColors.resetFooter();
 		}
 		this.unsubscribeProgress?.();
 	}
@@ -281,7 +292,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			return Promise.resolve();
 		}
 
-		this.viewModel.barColors.setFooterColor(theme.colors.bgFrosted);
+		this.viewModel.barColors.resetFooter();
 		this.viewModel.barColors.setHeaderColor(theme.colors.bg);
 
 		this.isTransitioning = true;
