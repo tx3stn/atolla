@@ -240,7 +240,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 	private handleContextMenuEntityTap = (): void => {
 		const card = this.state.contextMenuCard;
-		if (!card || card.kind !== 'playlist') {
+		if (card?.kind !== 'playlist') {
 			return;
 		}
 		this.handleContextMenuDismiss();

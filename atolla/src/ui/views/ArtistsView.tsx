@@ -242,7 +242,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 	private handleContextMenuArtistTap = (): void => {
 		const card = this.state.contextMenuCard;
-		if (!card || card.kind !== 'artist') return;
+		if (card?.kind !== 'artist') return;
 		this.navigateToArtist(card.artist);
 	};
 

@@ -192,7 +192,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 
 	private handleContextMenuEntityTap = (): void => {
 		const card = this.state.contextMenuCard;
-		if (!card || card.kind !== 'genre') return;
+		if (card?.kind !== 'genre') return;
 		this.navigateToGenre(card.genre);
 	};
 

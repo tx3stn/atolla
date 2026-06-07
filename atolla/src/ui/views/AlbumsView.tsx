@@ -281,7 +281,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 	private handleContextMenuEntityTap = (): void => {
 		const card = this.state.contextMenuCard;
-		if (!card || card.kind !== 'album') {
+		if (card?.kind !== 'album') {
 			return;
 		}
 		this.handleContextMenuDismiss();
