@@ -682,18 +682,22 @@ static double sNextNotificationDurationSeconds = 0;
 static BOOL sNextNotificationHasPrevious = NO;
 static BOOL sNextNotificationHasNext = NO;
 
-// Ordered buffer of the tracks after the current one (dictionaries from setUpcomingQueue's
-// JSON). Lets the engine keep topping the AVQueuePlayer up at each item boundary so background
-// playback survives multiple track transitions while the JS runtime is frozen. Replaced as a
-// whole under sEngineLock so readers always see a consistent snapshot.
-static NSArray<NSDictionary *> *sUpcomingQueue = nil;
+// Ordered window of the play queue around the current track ([history..., current,
+// upcoming...]; dictionaries from setUpcomingQueue's JSON). Lets the engine keep topping the
+// AVQueuePlayer up at each item boundary so background playback survives multiple track
+// transitions while the JS runtime is frozen. AVQueuePlayer is forward-only, so unlike
+// Android the history entries are informational (anchor/notification) — no native previous.
+// Replaced as a whole under sEngineLock so readers always see a consistent snapshot.
+// sWindowAnchorHint is the engine's running cursor for the current track's window position.
+static NSArray<NSDictionary *> *sQueueWindow = nil;
+static NSInteger sWindowAnchorHint = 0;
 static const NSInteger kAtollaLookaheadTargetAhead = 2;
 
 + (void)initialize {
     if (self == [AtollaGaplessAudioEngine class]) {
         sEventQueue = [NSMutableArray array];
         sEngineLock = [[NSLock alloc] init];
-        sUpcomingQueue = @[];
+        sQueueWindow = @[];
     }
 }
 
@@ -712,104 +716,109 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
     return ((AVURLAsset *)asset).URL.absoluteString ?: @"";
 }
 
-+ (NSDictionary * _Nullable)upcomingEntryForUrl:(NSString *)sourceUrl {
-    if (sourceUrl.length == 0) return nil;
+// The window's URL list plus the anchor (current item's window index), resolved under the
+// lock. Returns NO when the window is empty or the current URL cannot be located.
++ (BOOL)snapshotWindow:(NSArray<NSDictionary *> **)outWindow
+                  urls:(NSArray<NSString *> **)outUrls
+                anchor:(NSInteger *)outAnchor {
     [sEngineLock lock];
-    NSArray<NSDictionary *> *upcoming = sUpcomingQueue;
-    [sEngineLock unlock];
-    for (NSDictionary *entry in upcoming) {
-        if ([entry[@"sourceUrl"] isEqualToString:sourceUrl]) return entry;
-    }
-    return nil;
-}
-
-// Tops the player queue up to kAtollaLookaheadTargetAhead items beyond the current one from
-// the upcoming buffer, chaining successors from the last queued item's URL. Main thread only.
-+ (void)ensureLookahead {
-    if (!sPlayer) return;
-    [sEngineLock lock];
-    NSArray<NSDictionary *> *upcoming = sUpcomingQueue;
+    NSArray<NSDictionary *> *window = sQueueWindow;
+    NSInteger hint = sWindowAnchorHint;
     NSString *currentUrl = sCurrentSourceUrl;
     [sEngineLock unlock];
-    if (upcoming.count == 0) return;
+    if (window.count == 0) return NO;
 
-    NSMutableArray<NSString *> *upcomingUrls = [NSMutableArray arrayWithCapacity:upcoming.count];
-    for (NSDictionary *entry in upcoming) {
-        [upcomingUrls addObject:entry[@"sourceUrl"] ?: @""];
+    NSMutableArray<NSString *> *urls = [NSMutableArray arrayWithCapacity:window.count];
+    for (NSDictionary *entry in window) {
+        [urls addObject:([entry[@"sourceUrl"] isKindOfClass:[NSString class]] ? entry[@"sourceUrl"] : @"")];
+    }
+
+    NSInteger anchor = AtollaResolveWindowAnchor(urls, hint, currentUrl);
+    if (anchor < 0) return NO;
+
+    [sEngineLock lock];
+    sWindowAnchorHint = anchor;
+    [sEngineLock unlock];
+
+    *outWindow = window;
+    *outUrls = urls;
+    *outAnchor = anchor;
+    return YES;
+}
+
+// Aligns the AVQueuePlayer with the window after the current item: drops queued items that
+// diverge from the window order, then tops up to kAtollaLookaheadTargetAhead items ahead.
+// AVQueuePlayer is forward-only so the window's history entries are never queued.
+// Main thread only.
++ (void)ensureWindow {
+    if (!sPlayer) return;
+    NSArray<NSDictionary *> *window = nil;
+    NSArray<NSString *> *urls = nil;
+    NSInteger anchor = 0;
+    if (![self snapshotWindow:&window urls:&urls anchor:&anchor]) return;
+
+    NSArray<AVPlayerItem *> *items = sPlayer.items;
+    for (NSUInteger index = 1; index < items.count; index++) {
+        NSString *expectedUrl = (anchor + (NSInteger)index < (NSInteger)urls.count) ? urls[anchor + index] : nil;
+        NSString *queuedUrl = [self urlStringForItem:items[index]];
+        if (!expectedUrl || ![expectedUrl isEqualToString:queuedUrl]) {
+            for (NSUInteger removeIndex = index; removeIndex < items.count; removeIndex++) {
+                [sPlayer removeItem:items[removeIndex]];
+            }
+            break;
+        }
     }
 
     while ((NSInteger)sPlayer.items.count - 1 < kAtollaLookaheadTargetAhead) {
-        NSArray<AVPlayerItem *> *items = sPlayer.items;
-        if (items.count == 0) return;
-        NSString *lastUrl = [self urlStringForItem:items.lastObject];
-        NSInteger nextIndex = AtollaNextUpcomingIndex(upcomingUrls, lastUrl, currentUrl);
-        if (nextIndex < 0) return;
-        NSDictionary *entry = upcoming[nextIndex];
-        AVPlayerItem *item = [self playerItemForUrl:entry[@"sourceUrl"]];
-        if (![sPlayer canInsertItem:item afterItem:items.lastObject]) return;
-        [sPlayer insertItem:item afterItem:items.lastObject];
+        NSArray<AVPlayerItem *> *currentItems = sPlayer.items;
+        if (currentItems.count == 0) return;
+        NSInteger nextWindowIndex = anchor + (NSInteger)currentItems.count;
+        if (nextWindowIndex >= (NSInteger)window.count) return;
+        NSString *nextUrl = urls[nextWindowIndex];
+        if (nextUrl.length == 0) return;
+        AVPlayerItem *item = [self playerItemForUrl:nextUrl];
+        if (![sPlayer canInsertItem:item afterItem:currentItems.lastObject]) return;
+        [sPlayer insertItem:item afterItem:currentItems.lastObject];
     }
-}
-
-// On a buffer refresh, drop queued lookahead items that no longer match the buffer's successor
-// chain (queue was reordered/edited), then top back up. Leaves the queue alone when the buffer
-// is empty so the legacy single-next path keeps working. Main thread only.
-+ (void)reconcileLookahead {
-    if (!sPlayer) return;
-    [sEngineLock lock];
-    NSArray<NSDictionary *> *upcoming = sUpcomingQueue;
-    NSString *currentUrl = sCurrentSourceUrl;
-    [sEngineLock unlock];
-    if (upcoming.count == 0) return;
-
-    NSMutableArray<NSString *> *upcomingUrls = [NSMutableArray arrayWithCapacity:upcoming.count];
-    for (NSDictionary *entry in upcoming) {
-        [upcomingUrls addObject:entry[@"sourceUrl"] ?: @""];
-    }
-
-    NSArray<AVPlayerItem *> *items = sPlayer.items;
-    if (items.count > 0) {
-        NSString *previousUrl = [self urlStringForItem:items.firstObject];
-        for (NSUInteger index = 1; index < items.count; index++) {
-            NSInteger expectedIndex = AtollaNextUpcomingIndex(upcomingUrls, previousUrl, currentUrl);
-            NSString *queuedUrl = [self urlStringForItem:items[index]];
-            if (expectedIndex < 0 || ![upcomingUrls[expectedIndex] isEqualToString:queuedUrl]) {
-                for (NSUInteger removeIndex = index; removeIndex < items.count; removeIndex++) {
-                    [sPlayer removeItem:items[removeIndex]];
-                }
-                break;
-            }
-            previousUrl = queuedUrl;
-        }
-    }
-    [self ensureLookahead];
 }
 
 + (void)setUpcomingQueue:(NSString *)queueJson {
     NSArray<NSDictionary *> *parsed = @[];
+    NSInteger currentIndex = 0;
     if (queueJson.length > 0) {
         NSData *data = [queueJson dataUsingEncoding:NSUTF8StringEncoding];
         id decoded = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
-        if ([decoded isKindOfClass:[NSArray class]]) {
-            NSMutableArray<NSDictionary *> *entries = [NSMutableArray array];
-            for (id candidate in (NSArray *)decoded) {
-                if (![candidate isKindOfClass:[NSDictionary class]]) continue;
-                NSDictionary *entry = (NSDictionary *)candidate;
-                NSString *sourceUrl = [entry[@"sourceUrl"] isKindOfClass:[NSString class]] ? entry[@"sourceUrl"] : @"";
-                NSString *trackId = [entry[@"trackId"] isKindOfClass:[NSString class]] ? entry[@"trackId"] : @"";
-                if (sourceUrl.length == 0 || trackId.length == 0) continue;
-                [entries addObject:entry];
+        if ([decoded isKindOfClass:[NSDictionary class]]) {
+            NSDictionary *root = (NSDictionary *)decoded;
+            id entriesValue = root[@"entries"];
+            id currentIndexValue = root[@"currentIndex"];
+            if ([currentIndexValue isKindOfClass:[NSNumber class]]) {
+                currentIndex = [(NSNumber *)currentIndexValue integerValue];
             }
-            parsed = entries;
+            if ([entriesValue isKindOfClass:[NSArray class]]) {
+                NSMutableArray<NSDictionary *> *entries = [NSMutableArray array];
+                BOOL valid = YES;
+                for (id candidate in (NSArray *)entriesValue) {
+                    // Bail on malformed entries rather than skipping them — currentIndex is
+                    // positional, so dropping an entry would misalign the whole window.
+                    if (![candidate isKindOfClass:[NSDictionary class]]) { valid = NO; break; }
+                    NSDictionary *entry = (NSDictionary *)candidate;
+                    NSString *trackId = [entry[@"trackId"] isKindOfClass:[NSString class]] ? entry[@"trackId"] : @"";
+                    if (trackId.length == 0) { valid = NO; break; }
+                    [entries addObject:entry];
+                }
+                if (valid) parsed = entries;
+            }
         }
     }
 
     [sEngineLock lock];
-    sUpcomingQueue = parsed;
+    sQueueWindow = parsed;
+    sWindowAnchorHint = currentIndex;
     [sEngineLock unlock];
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        [self reconcileLookahead];
+        [self ensureWindow];
     });
 }
 
@@ -858,7 +867,7 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
                 AVPlayerItem *nextItem = [self playerItemForUrl:nextSourceUrl];
                 [sPlayer insertItem:nextItem afterItem:item];
             }
-            [self ensureLookahead];
+            [self ensureWindow];
             [sPlayer play];
             if (sPlaybackRate > 0) sPlayer.rate = sPlaybackRate;
             [self applyPendingSeekIfNeeded];
@@ -866,7 +875,7 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
             // currentMatches implies the item is not at its end (see the isItemAtEnd guard
             // above), so no end-of-item recovery seek is needed on this fast path.
             [self syncQueueWithNext:nextSourceUrl];
-            [self ensureLookahead];
+            [self ensureWindow];
             if (sPlaybackRate > 0) {
                 [sPlayer play];
                 sPlayer.rate = sPlaybackRate;
@@ -953,11 +962,28 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
                                 ? [@"completed:" stringByAppendingString:finishedTrackId]
                                 : @"completed")];
 
-        // Prefer the upcoming buffer for the new current track — it survives multiple
-        // transitions, unlike the single configure()-supplied next. AVQueuePlayer has
-        // already advanced, so currentItem is the item now playing.
+        // Prefer the window for the new current track — it survives multiple transitions,
+        // unlike the single configure()-supplied next. AVQueuePlayer has already advanced,
+        // so currentItem is the item now playing.
         NSString *newCurrentUrl = sPlayer.currentItem ? [self urlStringForItem:sPlayer.currentItem] : @"";
-        NSDictionary *upcomingEntry = [self upcomingEntryForUrl:newCurrentUrl];
+        NSDictionary *upcomingEntry = nil;
+        [sEngineLock lock];
+        NSArray<NSDictionary *> *window = sQueueWindow;
+        NSInteger anchorHint = sWindowAnchorHint;
+        [sEngineLock unlock];
+        if (newCurrentUrl.length > 0 && window.count > 0) {
+            NSMutableArray<NSString *> *urls = [NSMutableArray arrayWithCapacity:window.count];
+            for (NSDictionary *entry in window) {
+                [urls addObject:([entry[@"sourceUrl"] isKindOfClass:[NSString class]] ? entry[@"sourceUrl"] : @"")];
+            }
+            NSInteger anchor = AtollaResolveWindowAnchor(urls, anchorHint + 1, newCurrentUrl);
+            if (anchor >= 0) {
+                upcomingEntry = window[anchor];
+                [sEngineLock lock];
+                sWindowAnchorHint = anchor;
+                [sEngineLock unlock];
+            }
+        }
 
         [sEngineLock lock];
         if (upcomingEntry) {
@@ -970,7 +996,7 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
         sPendingSeekMs = -1;
         [sEngineLock unlock];
 
-        [self ensureLookahead];
+        [self ensureWindow];
 
         if (upcomingEntry) {
             [AtollaMediaSession updateNowPlayingWithTrackName:(upcomingEntry[@"trackName"] ?: @"")
@@ -1138,7 +1164,8 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
     sNextSourceUrl = @"";
     sNextTrackId = @"";
     sPendingSeekMs = -1;
-    sUpcomingQueue = @[];
+    sQueueWindow = @[];
+    sWindowAnchorHint = 0;
     [sEventQueue removeAllObjects];
     [sEngineLock unlock];
 

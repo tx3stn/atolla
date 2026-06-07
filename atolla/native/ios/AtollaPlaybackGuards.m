@@ -6,15 +6,25 @@ BOOL AtollaIsItemAtEnd(double currentSeconds, double durationSeconds) {
     return currentSeconds >= durationSeconds - 0.25;
 }
 
-NSInteger AtollaNextUpcomingIndex(NSArray<NSString *> *upcomingKeys,
-                                  NSString *lastQueuedKey,
-                                  NSString *currentKey) {
-    if (upcomingKeys.count == 0 || lastQueuedKey.length == 0) return -1;
+NSInteger AtollaResolveWindowAnchor(NSArray<NSString *> *windowKeys,
+                                    NSInteger hintIndex,
+                                    NSString *currentKey) {
+    if (windowKeys.count == 0 || currentKey.length == 0) return -1;
 
-    NSUInteger lastIndex = [upcomingKeys indexOfObject:lastQueuedKey];
-    if (lastIndex != NSNotFound) {
-        return lastIndex + 1 < upcomingKeys.count ? (NSInteger)(lastIndex + 1) : -1;
+    NSInteger clampedHint = MAX(0, MIN(hintIndex, (NSInteger)windowKeys.count - 1));
+    if ([windowKeys[clampedHint] isEqualToString:currentKey]) {
+        return clampedHint;
     }
 
-    return [lastQueuedKey isEqualToString:currentKey] ? 0 : -1;
+    NSInteger best = -1;
+    NSInteger bestDistance = NSIntegerMax;
+    for (NSUInteger index = 0; index < windowKeys.count; index++) {
+        if (![windowKeys[index] isEqualToString:currentKey]) continue;
+        NSInteger distance = labs((NSInteger)index - clampedHint);
+        if (distance < bestDistance) {
+            best = (NSInteger)index;
+            bestDistance = distance;
+        }
+    }
+    return best;
 }

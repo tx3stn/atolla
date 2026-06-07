@@ -270,6 +270,111 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('jumpToTrackId()', () => {
+		it('moves backwards to the named track', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			store.jumpToTrackId('track-1');
+			expect(store.trackIndex).toBe(0);
+			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('moves forwards to the named track', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.jumpToTrackId('track-3');
+			expect(store.trackIndex).toBe(2);
+			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('restarts progress when jumping to the current track', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.updateProgress(42);
+			store.jumpToTrackId('track-2');
+			expect(store.trackIndex).toBe(1);
+			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('keeps the playing state across the jump', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.jumpToTrackId('track-1');
+			expect(store.isPlaying).toBe(true);
+		});
+
+		it('ignores unknown track ids', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.updateProgress(42);
+			store.jumpToTrackId('not-in-queue');
+			expect(store.trackIndex).toBe(1);
+			expect(store.progressSeconds).toBe(42);
+		});
+
+		it('resolves duplicate ids to the occurrence nearest the current track', () => {
+			const store = new PlaybackStore();
+			store.play([track1, track2, track1, track3], album, 3);
+			store.jumpToTrackId('track-1');
+			expect(store.trackIndex).toBe(2);
+		});
+
+		it('does not set a seek target so the native player is left untouched', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			store.jumpToTrackId('track-1');
+			expect(store.seekTarget).toBeNull();
+		});
+
+		it('notifies listeners', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.jumpToTrackId('track-1');
+			expect(calls).toBe(1);
+		});
+	});
+
+	describe('previousOrRestart()', () => {
+		it('restarts the current track when more than three seconds in', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.updateProgress(10);
+			store.previousOrRestart();
+			expect(store.trackIndex).toBe(1);
+			expect(store.progressSeconds).toBe(0);
+			expect(store.seekTarget).toBe(0);
+		});
+
+		it('goes to the previous track near the start', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.updateProgress(2);
+			store.previousOrRestart();
+			expect(store.trackIndex).toBe(0);
+			expect(store.progressSeconds).toBe(0);
+		});
+
+		it('restarts on the first track even near the start', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.updateProgress(2);
+			store.previousOrRestart();
+			expect(store.trackIndex).toBe(0);
+			expect(store.progressSeconds).toBe(0);
+			expect(store.seekTarget).toBe(0);
+		});
+
+		it('keeps the playing state', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.updateProgress(10);
+			store.previousOrRestart();
+			expect(store.isPlaying).toBe(true);
+		});
+	});
+
 	describe('previous()', () => {
 		it('goes back to the previous track', () => {
 			const store = new PlaybackStore();

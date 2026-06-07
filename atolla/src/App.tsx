@@ -67,8 +67,8 @@ import {
 	normalizeTrackPlaybackNotificationAction,
 } from './services/TrackPlaybackNotificationSync';
 import {
-	buildUpcomingQueueEntries,
-	serializeUpcomingQueue,
+	buildPlaybackQueueWindow,
+	serializeQueueWindow,
 } from './services/TrackPlaybackUpcomingQueue';
 import { WaveformGenerationQueue } from './services/WaveformGenerationQueue';
 import { WaveformRenderCache } from './services/WaveformRenderCache';
@@ -1568,16 +1568,17 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	}
 
-	// Hands the native engine an ordered buffer of upcoming track sources so it can keep
-	// auto-advancing (and updating the notification) across multiple track boundaries while
-	// the JS runtime is frozen in the background — without this only the single preloaded
-	// next item survives backgrounding and playback stops at the following boundary.
+	// Hands the native engine an ordered window of the play queue around the current track so
+	// it can keep auto-advancing forwards (gapless) and stepping backwards (previous button)
+	// across multiple track boundaries while the JS runtime is frozen in the background —
+	// without this only the single preloaded next item survives backgrounding and playback
+	// stops at the following boundary.
 	private syncUpcomingQueue(): void {
-		const entries = buildUpcomingQueueEntries(
+		const window = buildPlaybackQueueWindow(
 			this.playbackStore,
 			(trackId) => this.getNativeCachedTrackSource(trackId) ?? this.getTrackStreamSource(trackId),
 		);
-		const payload = serializeUpcomingQueue(entries);
+		const payload = serializeQueueWindow(window);
 		if (payload === this.lastUpcomingQueueKey) {
 			return;
 		}
@@ -2380,7 +2381,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	handleNowPlayingPrevious = (): void => {
-		this.playbackStore.previous();
+		this.playbackStore.previousOrRestart();
 	};
 
 	handleNowPlayingProgressTap = (ratio?: number): void => {

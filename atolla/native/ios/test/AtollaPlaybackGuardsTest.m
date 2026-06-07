@@ -28,29 +28,27 @@
     XCTAssertFalse(AtollaIsItemAtEnd(5.0, -1.0));
 }
 
-- (void)testFirstUpcomingEntryFollowsTheCurrentItem {
-    XCTAssertEqual(0, AtollaNextUpcomingIndex(@[ @"b", @"c" ], @"a", @"a"));
+- (void)testAnchorMatchesTheHintedIndexWhenTheKeyLinesUp {
+    XCTAssertEqual(2, AtollaResolveWindowAnchor(@[ @"a", @"b", @"c", @"d" ], 2, @"c"));
 }
 
-- (void)testSuccessorOfTheLastQueuedEntryIsTheNextOne {
-    XCTAssertEqual(1, AtollaNextUpcomingIndex(@[ @"b", @"c", @"d" ], @"b", @"a"));
+- (void)testAnchorIsCorrectedToTheNearestOccurrenceWhenTheHintIsStale {
+    XCTAssertEqual(3, AtollaResolveWindowAnchor(@[ @"a", @"b", @"c", @"d" ], 2, @"d"));
 }
 
-- (void)testNoSuccessorWhenTheBufferIsExhausted {
-    XCTAssertEqual(-1, AtollaNextUpcomingIndex(@[ @"b", @"c" ], @"c", @"a"));
+- (void)testDuplicateKeysResolveToTheOccurrenceNearestTheHint {
+    XCTAssertEqual(3, AtollaResolveWindowAnchor(@[ @"a", @"b", @"a", @"a", @"b" ], 3, @"a"));
+    XCTAssertEqual(0, AtollaResolveWindowAnchor(@[ @"a", @"b", @"a", @"a", @"b" ], 0, @"a"));
 }
 
-- (void)testNoSuccessorWhenTheLastQueuedItemIsUnknown {
-    XCTAssertEqual(-1, AtollaNextUpcomingIndex(@[ @"b", @"c" ], @"x", @"a"));
+- (void)testNoAnchorForUnknownKeyOrEmptyWindow {
+    XCTAssertEqual(-1, AtollaResolveWindowAnchor(@[ @"a", @"b" ], 0, @"x"));
+    XCTAssertEqual(-1, AtollaResolveWindowAnchor(@[], 0, @"a"));
 }
 
-- (void)testNoSuccessorForEmptyBufferOrBlankLastItem {
-    XCTAssertEqual(-1, AtollaNextUpcomingIndex(@[], @"a", @"a"));
-    XCTAssertEqual(-1, AtollaNextUpcomingIndex(@[ @"b" ], @"", @"a"));
-}
-
-- (void)testTrackLoopBufferOfRepeatedKeysKeepsYieldingTheRepeat {
-    XCTAssertEqual(1, AtollaNextUpcomingIndex(@[ @"a", @"a", @"a" ], @"a", @"a"));
+- (void)testOutOfRangeHintsAreTolerated {
+    XCTAssertEqual(1, AtollaResolveWindowAnchor(@[ @"a", @"b" ], 99, @"b"));
+    XCTAssertEqual(0, AtollaResolveWindowAnchor(@[ @"a", @"b" ], -5, @"a"));
 }
 
 @end

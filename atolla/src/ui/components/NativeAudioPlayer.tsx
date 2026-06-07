@@ -4,6 +4,7 @@ import {
 	applyNativeAudioPlaybackEventAction,
 	normalizeNativeAudioPlaybackEventAction,
 	parseNativeAudioCompletedEvent,
+	parseNativeAudioJumpedEvent,
 } from '../../services/NativeAudioPlaybackEventSync';
 import type { PlaybackStore } from '../../stores/Playback';
 import {
@@ -317,6 +318,16 @@ export class NativeAudioPlayer extends StatefulComponent<
 
 			if (!event) {
 				break;
+			}
+
+			const jumpedTrackId = parseNativeAudioJumpedEvent(event);
+			if (jumpedTrackId) {
+				// Native moved to a different track outside the forward advance (previous
+				// button stepping back through its history) — follow it. jumpToTrackId is
+				// idempotent for duplicate/stale events.
+				DebugLogger.log('NativeAudioPlayer', 'event:jumped', { trackId: jumpedTrackId });
+				this.viewModel.playbackStore.jumpToTrackId(jumpedTrackId);
+				continue;
 			}
 
 			const completedEvent = parseNativeAudioCompletedEvent(event);

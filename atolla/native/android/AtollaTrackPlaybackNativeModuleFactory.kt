@@ -242,9 +242,11 @@ object AtollaGaplessAudioEngine {
 	// queue restore believe playback was inactive while audio was audibly playing.
 	@Volatile private var isPlayingNow: Boolean = false
 
-	// Set just before an engine-initiated seekToNextMediaItem so the resulting SEEK-reason
-	// transition is treated as a track advance (event + lookahead + notification).
+	// Set just before an engine-initiated seekToNextMediaItem / seekToPreviousMediaItem so the
+	// resulting SEEK-reason transition is classified as an advance or step-back (event +
+	// window maintenance + notification) rather than ignored.
 	@Volatile private var expectingNativeSkip: Boolean = false
+	@Volatile private var expectingNativeStepBack: Boolean = false
 
 	@Volatile private var nextNotificationTrackName: String = ""
 	@Volatile private var nextNotificationArtistName: String = ""
@@ -254,7 +256,7 @@ object AtollaGaplessAudioEngine {
 	@Volatile private var nextNotificationHasPrevious: Boolean = false
 	@Volatile private var nextNotificationHasNext: Boolean = false
 
-	private data class UpcomingTrack(
+	private data class WindowTrack(
 		val sourceUrl: String,
 		val trackId: String,
 		val durationMs: Long,
@@ -267,12 +269,18 @@ object AtollaGaplessAudioEngine {
 		val hasNext: Boolean,
 	)
 
-	// Ordered buffer of the tracks after the current one. Lets the engine keep topping up the
-	// ExoPlayer queue at each auto-transition so background playback survives multiple track
-	// boundaries while the JS runtime (and its 200ms event poll) is frozen. Immutable list,
-	// swapped as a whole so the main thread always reads a consistent snapshot.
-	@Volatile private var upcomingQueue: List<UpcomingTrack> = emptyList()
+	// Ordered window of the play queue around the current track ([history..., current,
+	// upcoming...]). Lets the engine keep topping up the ExoPlayer queue at each transition —
+	// forwards for gapless auto-advance and backwards for the previous button — so background
+	// playback survives multiple track boundaries while the JS runtime (and its 200ms event
+	// poll) is frozen. Immutable list, swapped as a whole so the main thread always reads a
+	// consistent snapshot. windowAnchorHint is the engine's running cursor for the current
+	// track's position in the window: payload currentIndex on refresh, shifted per transition,
+	// re-verified against trackIds by resolveWindowAnchor before every use.
+	@Volatile private var queueWindow: List<WindowTrack> = emptyList()
+	@Volatile private var windowAnchorHint: Int = 0
 	private const val lookaheadTargetAhead = 2
+	private const val historyTargetBehind = 10
 
 	private var exoPlayer: ExoPlayer? = null
 
@@ -290,21 +298,28 @@ object AtollaGaplessAudioEngine {
 		}
 
 		override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-			val nativeSkip = expectingNativeSkip
+			val kind = AtollaPlaybackGuards.classifyTransition(
+				reason,
+				expectingNativeSkip = expectingNativeSkip,
+				expectingNativeStepBack = expectingNativeStepBack,
+			)
 			if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
 				expectingNativeSkip = false
+				expectingNativeStepBack = false
 			}
-			if (!AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(reason, nativeSkip)) {
+			if (kind == AtollaPlaybackGuards.TransitionKind.IGNORE) {
 				Log.d(tag, "onMediaItemTransition skipped reason=$reason")
 				return
 			}
 
 			val finishedTrackId = sourceTrackId
-			Log.d(tag, "onMediaItemTransition advance trackId=${mediaItem?.mediaId} finished=$finishedTrackId reason=$reason")
-			// Carry the finished trackId so JS can reconcile deterministically after being
-			// frozen across several transitions (it advances past the last finished id rather
-			// than counting events).
-			enqueueEvent(if (finishedTrackId.isBlank()) "completed" else "completed:$finishedTrackId")
+			Log.d(tag, "onMediaItemTransition $kind trackId=${mediaItem?.mediaId} finished=$finishedTrackId reason=$reason")
+			if (kind == AtollaPlaybackGuards.TransitionKind.ADVANCE) {
+				// Carry the finished trackId so JS can reconcile deterministically after being
+				// frozen across several transitions (it advances past the last finished id
+				// rather than counting events).
+				enqueueEvent(if (finishedTrackId.isBlank()) "completed" else "completed:$finishedTrackId")
+			}
 			if (mediaItem != null) {
 				sourceTrackId = mediaItem.mediaId
 				sourceUrl = mediaItem.localConfiguration?.uri?.toString() ?: sourceUrl
@@ -313,11 +328,20 @@ object AtollaGaplessAudioEngine {
 			nextSourceUrl = ""
 			nextTrackId = ""
 			nextDurationMs = 0L
-			// Any unapplied seek belonged to the track that just finished; applying it to
+			// Any unapplied seek belonged to the track we just left; applying it to
 			// the new track would jump playback to an arbitrary position.
 			pendingSeekToMs = null
-			trimPlayedItems()
-			exoPlayer?.let { ensureLookahead(it) }
+			if (kind == AtollaPlaybackGuards.TransitionKind.ADVANCE) {
+				windowAnchorHint += 1
+			} else {
+				windowAnchorHint = (windowAnchorHint - 1).coerceAtLeast(0)
+				// Tells JS which track is now current so the store can move backwards too.
+				if (sourceTrackId.isNotBlank()) {
+					enqueueEvent("jumped:$sourceTrackId")
+				}
+			}
+			trimExcessHistory()
+			exoPlayer?.let { ensureWindow(it) }
 
 			val trackName = nextNotificationTrackName
 			val artistName = nextNotificationArtistName
@@ -334,19 +358,20 @@ object AtollaGaplessAudioEngine {
 			nextNotificationHasPrevious = false
 			nextNotificationHasNext = false
 
-			val upcomingEntry = upcomingQueue.firstOrNull { it.trackId == sourceTrackId }
-			if (upcomingEntry != null) {
-				sourceDurationMs = upcomingEntry.durationMs.coerceAtLeast(0L)
+			val windowEntry = currentWindowEntry()
+			val isPlayingState = exoPlayer?.playWhenReady ?: true
+			if (windowEntry != null) {
+				sourceDurationMs = windowEntry.durationMs.coerceAtLeast(0L)
 				AtollaTrackPlaybackMediaSession.updateNotification(
-					trackName = upcomingEntry.trackName,
-					artistName = upcomingEntry.artistName,
-					albumName = upcomingEntry.albumName,
-					artworkUrl = upcomingEntry.artworkUrl,
-					isPlaying = true,
+					trackName = windowEntry.trackName,
+					artistName = windowEntry.artistName,
+					albumName = windowEntry.albumName,
+					artworkUrl = windowEntry.artworkUrl,
+					isPlaying = isPlayingState,
 					positionSeconds = 0.0,
-					durationSeconds = upcomingEntry.durationSeconds,
-					hasPrevious = upcomingEntry.hasPrevious,
-					hasNext = upcomingEntry.hasNext,
+					durationSeconds = windowEntry.durationSeconds,
+					hasPrevious = windowEntry.hasPrevious,
+					hasNext = windowEntry.hasNext,
 				)
 			} else if (trackName.isNotBlank()) {
 				AtollaTrackPlaybackMediaSession.updateNotification(
@@ -354,7 +379,7 @@ object AtollaGaplessAudioEngine {
 					artistName = artistName,
 					albumName = albumName,
 					artworkUrl = artworkUrl,
-					isPlaying = true,
+					isPlaying = isPlayingState,
 					positionSeconds = 0.0,
 					durationSeconds = durationSeconds,
 					hasPrevious = hasPrevious,
@@ -555,47 +580,54 @@ object AtollaGaplessAudioEngine {
 					}
 				}
 				"previous" -> {
-					// The played items are trimmed from the queue, so a real previous-track
-					// jump needs JS; restarting the current track is the predictable native
-					// behaviour that works while JS is frozen.
-					player.seekToDefaultPosition()
-					AtollaTrackPlaybackMediaSession.setPlaybackActive(
-						isPlaying = player.playWhenReady,
-						positionSeconds = 0.0,
-					)
+					val positionMs = player.currentPosition.coerceAtLeast(0L)
+					if (AtollaPlaybackGuards.shouldRestartForPreviousAction(positionMs, player.hasPreviousMediaItem())) {
+						player.seekToDefaultPosition()
+						AtollaTrackPlaybackMediaSession.setPlaybackActive(
+							isPlaying = player.playWhenReady,
+							positionSeconds = 0.0,
+						)
+					} else {
+						expectingNativeStepBack = true
+						player.seekToPreviousMediaItem()
+					}
 				}
 			}
 		}
 	}
 
 	fun setUpcomingQueue(queueJson: String) {
-		val parsed = parseUpcomingQueue(queueJson)
-		upcomingQueue = parsed
-		Log.d(tag, "setUpcomingQueue size=${parsed.size}")
+		val (entries, currentIndex) = parseQueueWindow(queueJson)
+		queueWindow = entries
+		windowAnchorHint = currentIndex
+		Log.d(tag, "setUpcomingQueue size=${entries.size} currentIndex=$currentIndex")
 		mainHandler.post {
 			val player = exoPlayer ?: return@post
-			reconcileLookahead(player)
+			ensureWindow(player)
 		}
 	}
 
-	private fun parseUpcomingQueue(queueJson: String): List<UpcomingTrack> {
+	private fun parseQueueWindow(queueJson: String): Pair<List<WindowTrack>, Int> {
 		if (queueJson.isBlank()) {
-			return emptyList()
+			return Pair(emptyList(), 0)
 		}
 
 		return try {
-			val array = org.json.JSONArray(queueJson)
-			val entries = mutableListOf<UpcomingTrack>()
-			for (index in 0 until array.length()) {
-				val entry = array.optJSONObject(index) ?: continue
-				val sourceUrl = entry.optString("sourceUrl", "")
+			val root = org.json.JSONObject(queueJson)
+			val entriesJson = root.optJSONArray("entries") ?: return Pair(emptyList(), 0)
+			val currentIndex = root.optInt("currentIndex", 0)
+			val entries = mutableListOf<WindowTrack>()
+			for (index in 0 until entriesJson.length()) {
+				// Bail on malformed entries rather than skipping them — currentIndex is
+				// positional, so dropping an entry would misalign the whole window.
+				val entry = entriesJson.optJSONObject(index) ?: return Pair(emptyList(), 0)
 				val trackId = entry.optString("trackId", "")
-				if (sourceUrl.isBlank() || trackId.isBlank()) {
-					continue
+				if (trackId.isBlank()) {
+					return Pair(emptyList(), 0)
 				}
 				entries.add(
-					UpcomingTrack(
-						sourceUrl = sourceUrl,
+					WindowTrack(
+						sourceUrl = entry.optString("sourceUrl", ""),
 						trackId = trackId,
 						durationMs = entry.optLong("durationMs", 0L),
 						trackName = entry.optString("trackName", ""),
@@ -608,64 +640,108 @@ object AtollaGaplessAudioEngine {
 					),
 				)
 			}
-			entries
+			Pair(entries, currentIndex)
 		} catch (error: Throwable) {
-			Log.e(tag, "Failed to parse upcoming queue", error)
-			emptyList()
+			Log.e(tag, "Failed to parse queue window", error)
+			Pair(emptyList(), 0)
 		}
 	}
 
-	// Tops the player queue up to lookaheadTargetAhead items beyond the current one from the
-	// upcoming buffer, chaining successors from the last queued item's trackId.
-	private fun ensureLookahead(player: ExoPlayer) {
-		val upcoming = upcomingQueue
-		if (upcoming.isEmpty()) {
+	// The window entry describing the track the player is currently on, or null when the
+	// window doesn't know it. Also re-anchors windowAnchorHint as a side effect.
+	private fun currentWindowEntry(): WindowTrack? {
+		val window = queueWindow
+		if (window.isEmpty()) {
+			return null
+		}
+		val anchor = AtollaPlaybackGuards.resolveWindowAnchor(
+			window.map { it.trackId },
+			windowAnchorHint,
+			sourceTrackId,
+		)
+		if (anchor < 0) {
+			return null
+		}
+		windowAnchorHint = anchor
+		return window[anchor]
+	}
+
+	// Aligns the ExoPlayer queue with the window around the current item: drops queued items
+	// that diverge from the window order (queue was reordered/edited), tops up to
+	// lookaheadTargetAhead items ahead for gapless auto-advance, and backfills up to
+	// historyTargetBehind items behind so the previous button can step back natively.
+	// Main thread only.
+	private fun ensureWindow(player: ExoPlayer) {
+		val window = queueWindow
+		if (window.isEmpty()) {
+			return
+		}
+		val windowIds = window.map { it.trackId }
+		val anchor = AtollaPlaybackGuards.resolveWindowAnchor(windowIds, windowAnchorHint, sourceTrackId)
+		if (anchor < 0) {
+			return
+		}
+		windowAnchorHint = anchor
+
+		val currentIndex = player.currentMediaItemIndex
+		if (currentIndex < 0 || currentIndex >= player.mediaItemCount) {
 			return
 		}
 
-		val upcomingIds = upcoming.map { it.trackId }
-		var appendCount = AtollaPlaybackGuards.lookaheadAppendCount(
-			player.mediaItemCount,
-			player.currentMediaItemIndex,
-			lookaheadTargetAhead,
-		)
-		while (appendCount > 0) {
-			val itemCount = player.mediaItemCount
-			if (itemCount <= 0) {
-				return
+		// Drop forward items from the first divergence from the window order.
+		var offset = 1
+		while (currentIndex + offset < player.mediaItemCount) {
+			val expectedId = windowIds.getOrNull(anchor + offset)
+			val queuedId = player.getMediaItemAt(currentIndex + offset).mediaId
+			if (expectedId == null || expectedId != queuedId) {
+				Log.d(tag, "ensureWindow drop ahead from offset=$offset queuedId=$queuedId")
+				player.removeMediaItems(currentIndex + offset, player.mediaItemCount)
+				break
 			}
-			val lastItem = player.getMediaItemAt(itemCount - 1)
-			val nextIndex = AtollaPlaybackGuards.nextUpcomingIndex(upcomingIds, lastItem.mediaId, sourceTrackId)
-				?: return
-			val entry = upcoming[nextIndex]
-			Log.d(tag, "ensureLookahead append trackId=${entry.trackId}")
-			player.addMediaItem(buildMediaItem(entry.sourceUrl, entry.trackId))
-			appendCount -= 1
+			offset += 1
 		}
-	}
 
-	// On a buffer refresh, drop queued lookahead items that no longer match the buffer's
-	// successor chain (queue was reordered/edited), then top back up. The configure()-managed
-	// next item is part of the chain check, so a still-valid queue is left untouched.
-	private fun reconcileLookahead(player: ExoPlayer) {
-		val currentIndex = player.currentMediaItemIndex
-		if (currentIndex >= 0 && currentIndex < player.mediaItemCount) {
-			val upcomingIds = upcomingQueue.map { it.trackId }
-			var previousId = player.getMediaItemAt(currentIndex).mediaId
-			var index = currentIndex + 1
-			while (index < player.mediaItemCount) {
-				val expectedIndex = AtollaPlaybackGuards.nextUpcomingIndex(upcomingIds, previousId, sourceTrackId)
-				val queuedId = player.getMediaItemAt(index).mediaId
-				if (expectedIndex == null || upcomingIds[expectedIndex] != queuedId) {
-					Log.d(tag, "reconcileLookahead drop from index=$index queuedId=$queuedId")
-					player.removeMediaItems(index, player.mediaItemCount)
-					break
-				}
-				previousId = queuedId
-				index += 1
+		// Drop history items once they diverge (walking backwards from current).
+		offset = 1
+		while (currentIndex - offset >= 0) {
+			val expectedId = windowIds.getOrNull(anchor - offset)
+			val queuedId = player.getMediaItemAt(currentIndex - offset).mediaId
+			if (expectedId == null || expectedId != queuedId) {
+				Log.d(tag, "ensureWindow drop history up to offset=$offset queuedId=$queuedId")
+				player.removeMediaItems(0, currentIndex - offset + 1)
+				break
 			}
+			offset += 1
 		}
-		ensureLookahead(player)
+
+		// Top up ahead for gapless auto-advance.
+		while (true) {
+			val nowCurrent = player.currentMediaItemIndex
+			val ahead = player.mediaItemCount - 1 - nowCurrent
+			if (ahead >= lookaheadTargetAhead) {
+				break
+			}
+			val entry = window.getOrNull(anchor + ahead + 1) ?: break
+			if (entry.sourceUrl.isBlank()) {
+				break
+			}
+			Log.d(tag, "ensureWindow append trackId=${entry.trackId}")
+			player.addMediaItem(buildMediaItem(entry.sourceUrl, entry.trackId))
+		}
+
+		// Backfill history behind for native previous.
+		while (true) {
+			val behind = player.currentMediaItemIndex
+			if (behind >= historyTargetBehind) {
+				break
+			}
+			val entry = window.getOrNull(anchor - behind - 1) ?: break
+			if (entry.sourceUrl.isBlank()) {
+				break
+			}
+			Log.d(tag, "ensureWindow backfill trackId=${entry.trackId}")
+			player.addMediaItem(0, buildMediaItem(entry.sourceUrl, entry.trackId))
+		}
 	}
 
 	fun consumeEvent(): String {
@@ -682,8 +758,10 @@ object AtollaGaplessAudioEngine {
 		nextTrackId = ""
 		nextDurationMs = 0L
 		pendingSeekToMs = null
-		upcomingQueue = emptyList()
+		queueWindow = emptyList()
+		windowAnchorHint = 0
 		expectingNativeSkip = false
+		expectingNativeStepBack = false
 		synchronized(eventQueue) {
 			eventQueue.clear()
 		}
@@ -742,16 +820,16 @@ object AtollaGaplessAudioEngine {
 		}
 
 		Log.d(tag, "syncQueue: updating next item trackId=$sourceTrackId hasNext=${nextSourceUrl.isNotBlank()}")
-		trimPlayedItems()
-		val itemCount = player.mediaItemCount
-		if (itemCount > 1) {
-			player.removeMediaItems(1, itemCount)
+		trimExcessHistory()
+		val currentIndex = player.currentMediaItemIndex
+		if (currentIndex >= 0 && currentIndex + 1 < player.mediaItemCount) {
+			player.removeMediaItems(currentIndex + 1, player.mediaItemCount)
 		}
 
 		if (nextSourceUrl.isNotBlank() && nextSourceUrl != sourceUrl) {
 			player.addMediaItem(buildMediaItem(nextSourceUrl, nextTrackId))
 		}
-		ensureLookahead(player)
+		ensureWindow(player)
 	}
 
 	private fun replaceQueue(player: ExoPlayer, capturedPlaybackRate: Float = playbackRate) {
@@ -767,7 +845,7 @@ object AtollaGaplessAudioEngine {
 
 		player.setMediaItems(items, 0, 0L)
 		player.prepare()
-		ensureLookahead(player)
+		ensureWindow(player)
 		if (capturedPlaybackRate > 0f) {
 			player.setPlaybackParameters(PlaybackParameters(capturedPlaybackRate))
 			player.playWhenReady = true
@@ -803,11 +881,13 @@ object AtollaGaplessAudioEngine {
 		}
 	}
 
-	private fun trimPlayedItems() {
+	// Keeps at most historyTargetBehind played items in the queue so the previous button can
+	// step back natively without the queue growing unbounded.
+	private fun trimExcessHistory() {
 		val player = exoPlayer ?: return
-		val currentIndex = player.currentMediaItemIndex
-		if (currentIndex > 0) {
-			player.removeMediaItems(0, currentIndex)
+		val excess = player.currentMediaItemIndex - historyTargetBehind
+		if (excess > 0) {
+			player.removeMediaItems(0, excess)
 		}
 	}
 

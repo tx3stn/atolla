@@ -11,13 +11,13 @@ NS_ASSUME_NONNULL_BEGIN
 // non-positive duration (unknown/streaming). Within ~250ms of the end counts as ended.
 BOOL AtollaIsItemAtEnd(double currentSeconds, double durationSeconds);
 
-// Index in the ordered upcoming buffer of the entry to append after the last queued item, or -1
-// when the buffer has no known successor. The buffer starts at the entry after currentKey, so
-// when the last queued item IS the current one the successor is the first entry. Matches the
-// first occurrence of a key: loop buffers with repeated keys have an identical successor at
-// every occurrence, so this stays correct. Mirrors nextUpcomingIndex on Android.
-NSInteger AtollaNextUpcomingIndex(NSArray<NSString *> *upcomingKeys,
-                                  NSString *lastQueuedKey,
-                                  NSString *currentKey);
+// Locates the current item inside the ordered queue window ([history..., current,
+// upcoming...]), or -1 when it isn't present. The hint is the engine's running cursor
+// (payload currentIndex, shifted on each transition); when it has drifted — or the window
+// contains the same key more than once (loop wraps) — the occurrence nearest the hint wins.
+// Mirrors resolveWindowAnchor on Android.
+NSInteger AtollaResolveWindowAnchor(NSArray<NSString *> *windowKeys,
+                                    NSInteger hintIndex,
+                                    NSString *currentKey);
 
 NS_ASSUME_NONNULL_END

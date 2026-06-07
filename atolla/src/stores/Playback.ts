@@ -20,6 +20,8 @@ interface PersistedPlaybackQueue {
 const playbackQueueCacheKey = 'queue';
 const playbackActiveKey = 'queue_active';
 const progressPersistStepSeconds = 5;
+// Mirrors PREVIOUS_RESTART_THRESHOLD_MS in the Android engine's AtollaPlaybackGuards.
+const PREVIOUS_RESTART_THRESHOLD_SECONDS = 3;
 
 export const LoopModes = {
 	none: 'none',
@@ -250,12 +252,55 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	// Reconciles the store with a native track jump (e.g. the notification's previous button
+	// stepping back through the engine's history while JS was frozen): the engine reports the
+	// track that is now current and the store follows it in either direction. Never sets
+	// seekTarget — the native player already moved and must not be seeked. Duplicate ids
+	// resolve to the occurrence nearest the current index.
+	jumpToTrackId(trackId: string): void {
+		if (!trackId || this.tracks.length === 0) {
+			return;
+		}
+
+		let targetIndex = -1;
+		let bestDistance = Number.POSITIVE_INFINITY;
+		for (let index = 0; index < this.tracks.length; index++) {
+			if (this.tracks[index]?.id !== trackId) {
+				continue;
+			}
+			const distance = Math.abs(index - this.trackIndex);
+			if (distance < bestDistance) {
+				targetIndex = index;
+				bestDistance = distance;
+			}
+		}
+		if (targetIndex === -1) {
+			return;
+		}
+
+		this.trackIndex = targetIndex;
+		this.progressSeconds = 0;
+		this.persistQueue();
+		this.notify();
+	}
+
 	previous(): void {
 		this.trackIndex = Math.max(this.trackIndex - 1, 0);
 		this.progressSeconds = 0;
 		this.seekTarget = null;
 		this.persistQueue();
 		this.notify();
+	}
+
+	// Standard previous-button behaviour, mirroring the Android engine's native handling:
+	// restart the current track when more than ~3s in (or already on the first track),
+	// otherwise go back a track.
+	previousOrRestart(): void {
+		if (this.progressSeconds > PREVIOUS_RESTART_THRESHOLD_SECONDS || this.trackIndex === 0) {
+			this.seekTo(0);
+			return;
+		}
+		this.previous();
 	}
 
 	playPause(): void {

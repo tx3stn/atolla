@@ -4,6 +4,7 @@ import {
 	applyNativeAudioPlaybackEventAction,
 	normalizeNativeAudioPlaybackEventAction,
 	parseNativeAudioCompletedEvent,
+	parseNativeAudioJumpedEvent,
 } from './NativeAudioPlaybackEventSync';
 
 describe('NativeAudioPlaybackEventSync', () => {
@@ -37,6 +38,16 @@ describe('NativeAudioPlaybackEventSync', () => {
 		expect(parseNativeAudioCompletedEvent('loaded').isCompleted).toBe(false);
 		expect(parseNativeAudioCompletedEvent('error:completed').isCompleted).toBe(false);
 		expect(parseNativeAudioCompletedEvent('').isCompleted).toBe(false);
+	});
+
+	it('parses the track id from a jumped event', () => {
+		expect(parseNativeAudioJumpedEvent('jumped:abc123')).toBe('abc123');
+	});
+
+	it('returns null for jumped events without an id and other events', () => {
+		expect(parseNativeAudioJumpedEvent('jumped:')).toBeNull();
+		expect(parseNativeAudioJumpedEvent('completed:abc')).toBeNull();
+		expect(parseNativeAudioJumpedEvent('')).toBeNull();
 	});
 
 	it('pauses playback store on pause action only when playing', () => {

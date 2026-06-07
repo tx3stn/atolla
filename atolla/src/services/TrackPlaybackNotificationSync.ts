@@ -65,9 +65,7 @@ export function applyTrackPlaybackNotificationAction(
 			break;
 		}
 		case 'previous': {
-			if (playbackStore.trackIndex > 0) {
-				playbackStore.previous();
-			}
+			playbackStore.previousOrRestart();
 			break;
 		}
 		case 'stop': {

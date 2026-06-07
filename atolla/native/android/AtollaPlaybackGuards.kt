@@ -61,42 +61,58 @@ object AtollaPlaybackGuards {
 	const val TRANSITION_REASON_AUTO = 1
 	const val TRANSITION_REASON_SEEK = 2
 
-	// A media item transition advances the engine's track state when ExoPlayer auto-advanced
-	// at a track boundary, or when the engine itself initiated a skip (seekToNextMediaItem
-	// reports reason SEEK). Other seeks and playlist rebuilds must not advance.
-	fun shouldTreatTransitionAsAdvance(reason: Int, expectingNativeSkip: Boolean): Boolean =
-		reason == TRANSITION_REASON_AUTO || (reason == TRANSITION_REASON_SEEK && expectingNativeSkip)
+	enum class TransitionKind { ADVANCE, STEP_BACK, IGNORE }
 
-	// How many media items must be appended so the player holds targetAhead items beyond the
-	// current one. Background playback can only auto-advance through items that are already
-	// queued — JS is frozen and cannot top the queue up at each transition.
-	fun lookaheadAppendCount(itemCount: Int, currentIndex: Int, targetAhead: Int): Int {
-		if (itemCount <= 0 || currentIndex < 0 || targetAhead <= 0) {
-			return 0
-		}
-		val ahead = itemCount - 1 - currentIndex
-		return (targetAhead - ahead).coerceAtLeast(0)
-	}
-
-	// Index in the ordered upcoming buffer of the entry to append after the last queued item,
-	// or null when the buffer has no known successor. The buffer starts at the track after
-	// currentTrackId, so when the last queued item IS the current track the successor is the
-	// first buffer entry. Matching uses the first occurrence of an id: for loop buffers with
-	// repeated ids the successor is identical at every occurrence, so this stays correct.
-	fun nextUpcomingIndex(
-		upcomingTrackIds: List<String>,
-		lastQueuedTrackId: String,
-		currentTrackId: String,
-	): Int? {
-		if (upcomingTrackIds.isEmpty() || lastQueuedTrackId.isBlank()) {
-			return null
+	// Classifies a media item transition for the engine's track state: ExoPlayer auto-advances
+	// at track boundaries (ADVANCE), engine-initiated next-skips report reason SEEK (ADVANCE),
+	// engine-initiated previous-steps report reason SEEK (STEP_BACK). Other seeks and playlist
+	// rebuilds must not move the track state.
+	fun classifyTransition(
+		reason: Int,
+		expectingNativeSkip: Boolean,
+		expectingNativeStepBack: Boolean,
+	): TransitionKind =
+		when {
+			reason == TRANSITION_REASON_AUTO -> TransitionKind.ADVANCE
+			reason != TRANSITION_REASON_SEEK -> TransitionKind.IGNORE
+			expectingNativeStepBack -> TransitionKind.STEP_BACK
+			expectingNativeSkip -> TransitionKind.ADVANCE
+			else -> TransitionKind.IGNORE
 		}
 
-		val lastIndex = upcomingTrackIds.indexOf(lastQueuedTrackId)
-		if (lastIndex >= 0) {
-			return if (lastIndex + 1 < upcomingTrackIds.size) lastIndex + 1 else null
+	// Standard previous-button behaviour: restart the current track when more than ~3s in (or
+	// when there is nothing earlier to step back to), otherwise go to the previous item.
+	const val PREVIOUS_RESTART_THRESHOLD_MS = 3_000L
+
+	fun shouldRestartForPreviousAction(positionMs: Long, hasPreviousItem: Boolean): Boolean =
+		positionMs > PREVIOUS_RESTART_THRESHOLD_MS || !hasPreviousItem
+
+	// Locates the current track inside the ordered queue window ([history..., current,
+	// upcoming...]), or -1 when it isn't present. The hint is the engine's running cursor
+	// (payload currentIndex, shifted on each transition); when it has drifted — or the window
+	// contains the same id more than once (loop wraps) — the occurrence nearest the hint wins.
+	fun resolveWindowAnchor(windowIds: List<String>, hintIndex: Int, currentTrackId: String): Int {
+		if (windowIds.isEmpty() || currentTrackId.isBlank()) {
+			return -1
 		}
 
-		return if (lastQueuedTrackId == currentTrackId) 0 else null
+		val clampedHint = hintIndex.coerceIn(0, windowIds.size - 1)
+		if (windowIds[clampedHint] == currentTrackId) {
+			return clampedHint
+		}
+
+		var best = -1
+		var bestDistance = Int.MAX_VALUE
+		for (index in windowIds.indices) {
+			if (windowIds[index] != currentTrackId) {
+				continue
+			}
+			val distance = kotlin.math.abs(index - clampedHint)
+			if (distance < bestDistance) {
+				best = index
+				bestDistance = distance
+			}
+		}
+		return best
 	}
 }

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import type { Track } from '../models/Track';
 import { PlaybackStore } from '../stores/Playback';
-import { buildUpcomingQueueEntries, UPCOMING_QUEUE_WINDOW } from './TrackPlaybackUpcomingQueue';
+import {
+	buildPlaybackQueueWindow,
+	QUEUE_WINDOW_FORWARD,
+	QUEUE_WINDOW_HISTORY,
+} from './TrackPlaybackUpcomingQueue';
 
 function makeTrack(id: string, overrides: Partial<Track> = {}): Track {
 	return {
@@ -25,48 +29,51 @@ function makeStore(trackIds: Array<string>, startIndex = 0): PlaybackStore {
 
 const resolveAll = (trackId: string): string | null => `file:///cache/${trackId}.mp3`;
 
-describe('buildUpcomingQueueEntries', () => {
-	it('returns the tracks after the current one in order', () => {
-		const store = makeStore(['a', 'b', 'c', 'd'], 1);
+describe('buildPlaybackQueueWindow', () => {
+	it('centres the window on the current track with history and upcoming', () => {
+		const window = buildPlaybackQueueWindow(makeStore(['a', 'b', 'c', 'd'], 2), resolveAll);
 
-		const entries = buildUpcomingQueueEntries(store, resolveAll);
-
-		expect(entries.map((entry) => entry.trackId)).toEqual(['c', 'd']);
-		expect(entries[0]?.sourceUrl).toBe('file:///cache/c.mp3');
+		expect(window.entries.map((entry) => entry.trackId)).toEqual(['a', 'b', 'c', 'd']);
+		expect(window.currentIndex).toBe(2);
+		expect(window.entries[window.currentIndex]?.trackId).toBe('c');
 	});
 
 	it('carries track metadata for the native notification', () => {
-		const store = makeStore(['a', 'b']);
+		const window = buildPlaybackQueueWindow(makeStore(['a', 'b']), resolveAll);
 
-		const [entry] = buildUpcomingQueueEntries(store, resolveAll);
-
-		expect(entry).toMatchObject({
+		expect(window.entries[1]).toMatchObject({
 			albumName: 'b-album',
 			artistName: 'b-artist',
 			durationMs: 120_000,
 			durationSeconds: 120,
 			hasNext: false,
 			hasPrevious: true,
+			sourceUrl: 'file:///cache/b.mp3',
 			trackId: 'b',
 			trackName: 'b-name',
 		});
 	});
 
-	it('returns nothing on the last track without looping', () => {
-		const store = makeStore(['a', 'b'], 1);
+	it('has only the current entry on a single-track queue without looping', () => {
+		const window = buildPlaybackQueueWindow(makeStore(['a']), resolveAll);
 
-		expect(buildUpcomingQueueEntries(store, resolveAll)).toEqual([]);
+		expect(window.entries.map((entry) => entry.trackId)).toEqual(['a']);
+		expect(window.currentIndex).toBe(0);
 	});
 
-	it('wraps around under queue loop', () => {
-		const store = makeStore(['a', 'b', 'c'], 2);
+	it('wraps both directions under queue loop', () => {
+		const store = makeStore(['a', 'b', 'c'], 0);
 		store.cycleLoopMode();
 		expect(store.loopMode).toBe('queue');
 
-		const entries = buildUpcomingQueueEntries(store, resolveAll);
+		const window = buildPlaybackQueueWindow(store, resolveAll);
 
-		expect(entries.slice(0, 3).map((entry) => entry.trackId)).toEqual(['a', 'b', 'c']);
-		expect(entries.length).toBe(UPCOMING_QUEUE_WINDOW);
+		expect(window.entries.length).toBe(QUEUE_WINDOW_HISTORY + 1 + QUEUE_WINDOW_FORWARD);
+		expect(window.currentIndex).toBe(QUEUE_WINDOW_HISTORY);
+		expect(window.entries[window.currentIndex]?.trackId).toBe('a');
+		// History wraps backwards: ..., b, c immediately before the current a.
+		expect(window.entries[window.currentIndex - 1]?.trackId).toBe('c');
+		expect(window.entries[window.currentIndex + 1]?.trackId).toBe('b');
 	});
 
 	it('repeats the current track under track loop', () => {
@@ -75,35 +82,62 @@ describe('buildUpcomingQueueEntries', () => {
 		store.cycleLoopMode();
 		expect(store.loopMode).toBe('track');
 
-		const entries = buildUpcomingQueueEntries(store, resolveAll);
+		const window = buildPlaybackQueueWindow(store, resolveAll);
 
-		expect(entries.length).toBe(UPCOMING_QUEUE_WINDOW);
-		expect(entries.every((entry) => entry.trackId === 'a')).toBe(true);
+		expect(window.entries.every((entry) => entry.trackId === 'a')).toBe(true);
+		expect(window.entries.length).toBe(QUEUE_WINDOW_HISTORY + 1 + QUEUE_WINDOW_FORWARD);
+		expect(window.currentIndex).toBe(QUEUE_WINDOW_HISTORY);
 	});
 
-	it('stops at the first track without a resolvable source', () => {
+	it('truncates the forward window at the first unresolvable source', () => {
 		const store = makeStore(['a', 'b', 'c', 'd']);
-		const resolveOnlyB = (trackId: string) =>
-			trackId === 'b' ? `file:///cache/${trackId}.mp3` : null;
+		const resolveSome = (trackId: string) =>
+			trackId === 'c' || trackId === 'd' ? null : `file:///cache/${trackId}.mp3`;
 
-		const entries = buildUpcomingQueueEntries(store, resolveOnlyB);
+		const window = buildPlaybackQueueWindow(store, resolveSome);
 
-		expect(entries.map((entry) => entry.trackId)).toEqual(['b']);
+		expect(window.entries.map((entry) => entry.trackId)).toEqual(['a', 'b']);
+		expect(window.currentIndex).toBe(0);
 	});
 
-	it('caps the window for long queues', () => {
-		const ids = Array.from({ length: 30 }, (_, index) => `track-${index}`);
-		const store = makeStore(ids, 0);
+	it('truncates the history window at the first unresolvable source walking backwards', () => {
+		const store = makeStore(['a', 'b', 'c', 'd'], 3);
+		const resolveSome = (trackId: string) =>
+			trackId === 'a' ? null : `file:///cache/${trackId}.mp3`;
 
-		const entries = buildUpcomingQueueEntries(store, resolveAll);
+		const window = buildPlaybackQueueWindow(store, resolveSome);
 
-		expect(entries.length).toBe(UPCOMING_QUEUE_WINDOW);
-		expect(entries[0]?.trackId).toBe('track-1');
+		expect(window.entries.map((entry) => entry.trackId)).toEqual(['b', 'c', 'd']);
+		expect(window.currentIndex).toBe(2);
 	});
 
-	it('returns nothing for an empty queue', () => {
-		const store = new PlaybackStore();
+	it('includes the current entry even when its source is unresolvable', () => {
+		const store = makeStore(['a', 'b']);
+		const resolveNone = () => null;
 
-		expect(buildUpcomingQueueEntries(store, resolveAll)).toEqual([]);
+		const window = buildPlaybackQueueWindow(store, resolveNone);
+
+		expect(window.entries.map((entry) => entry.trackId)).toEqual(['a']);
+		expect(window.entries[0]?.sourceUrl).toBe('');
+		expect(window.currentIndex).toBe(0);
+	});
+
+	it('caps both directions for long queues', () => {
+		const ids = Array.from({ length: 100 }, (_, index) => `track-${index}`);
+		const window = buildPlaybackQueueWindow(makeStore(ids, 50), resolveAll);
+
+		expect(window.entries.length).toBe(QUEUE_WINDOW_HISTORY + 1 + QUEUE_WINDOW_FORWARD);
+		expect(window.currentIndex).toBe(QUEUE_WINDOW_HISTORY);
+		expect(window.entries[0]?.trackId).toBe(`track-${50 - QUEUE_WINDOW_HISTORY}`);
+		expect(window.entries[window.entries.length - 1]?.trackId).toBe(
+			`track-${50 + QUEUE_WINDOW_FORWARD}`,
+		);
+	});
+
+	it('returns an empty window for an empty queue', () => {
+		const window = buildPlaybackQueueWindow(new PlaybackStore(), resolveAll);
+
+		expect(window.entries).toEqual([]);
+		expect(window.currentIndex).toBe(0);
 	});
 });

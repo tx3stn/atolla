@@ -73,6 +73,24 @@ describe('TrackPlaybackNotificationSync', () => {
 		expect(store.track).toBeNull();
 	});
 
+	it('previous action restarts the current track when well into playback', () => {
+		const store = new PlaybackStore();
+		store.playTracks(
+			[
+				{ duration: 100, id: 'track-1', name: 'First' },
+				{ duration: 100, id: 'track-2', name: 'Second' },
+			],
+			1,
+		);
+		store.updateProgress(30);
+
+		applyTrackPlaybackNotificationAction(store, 'previous');
+
+		expect(store.track?.id).toBe('track-2');
+		expect(store.progressSeconds).toBe(0);
+		expect(store.seekTarget).toBe(0);
+	});
+
 	it('toggle action plays when paused and pauses when playing', () => {
 		const store = new PlaybackStore();
 		store.playTracks([{ duration: 100, id: 'track-1', name: 'First' }], 0);

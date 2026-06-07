@@ -23,6 +23,18 @@ export function parseNativeAudioCompletedEvent(rawEvent: string): NativeAudioCom
 	return { finishedTrackId: null, isCompleted: false };
 }
 
+// Native emits "jumped:<trackId>" when it moved to a different track outside the normal
+// forward advance (the notification's previous button stepping back through the engine's
+// history). The id is the track that is NOW current.
+export function parseNativeAudioJumpedEvent(rawEvent: string): string | null {
+	if (!rawEvent.startsWith('jumped:')) {
+		return null;
+	}
+
+	const trackId = rawEvent.slice('jumped:'.length).trim();
+	return trackId || null;
+}
+
 export function normalizeNativeAudioPlaybackEventAction(
 	rawEvent: string,
 ): NativeAudioPlaybackEventAction {

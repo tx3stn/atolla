@@ -2,7 +2,6 @@ package atolla.native.android
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -125,30 +124,52 @@ class AtollaPlaybackGuardsTest {
 		assertFalse(AtollaPlaybackGuards.shouldHandleMediaActionNatively("toggle"))
 	}
 
-	// --- shouldTreatTransitionAsAdvance ---
+	// --- classifyTransition ---
 
 	@Test
 	fun `auto transitions always advance`() {
-		assertTrue(
-			AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(
+		assertEquals(
+			AtollaPlaybackGuards.TransitionKind.ADVANCE,
+			AtollaPlaybackGuards.classifyTransition(
 				reason = AtollaPlaybackGuards.TRANSITION_REASON_AUTO,
 				expectingNativeSkip = false,
+				expectingNativeStepBack = false,
 			),
 		)
 	}
 
 	@Test
-	fun `seek transitions advance only for an engine-initiated skip`() {
-		assertTrue(
-			AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(
+	fun `seek transitions advance for an engine-initiated skip`() {
+		assertEquals(
+			AtollaPlaybackGuards.TransitionKind.ADVANCE,
+			AtollaPlaybackGuards.classifyTransition(
 				reason = AtollaPlaybackGuards.TRANSITION_REASON_SEEK,
 				expectingNativeSkip = true,
+				expectingNativeStepBack = false,
 			),
 		)
-		assertFalse(
-			AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(
+	}
+
+	@Test
+	fun `seek transitions step back for an engine-initiated previous`() {
+		assertEquals(
+			AtollaPlaybackGuards.TransitionKind.STEP_BACK,
+			AtollaPlaybackGuards.classifyTransition(
 				reason = AtollaPlaybackGuards.TRANSITION_REASON_SEEK,
 				expectingNativeSkip = false,
+				expectingNativeStepBack = true,
+			),
+		)
+	}
+
+	@Test
+	fun `unexpected seek transitions are ignored`() {
+		assertEquals(
+			AtollaPlaybackGuards.TransitionKind.IGNORE,
+			AtollaPlaybackGuards.classifyTransition(
+				reason = AtollaPlaybackGuards.TRANSITION_REASON_SEEK,
+				expectingNativeSkip = false,
+				expectingNativeStepBack = false,
 			),
 		)
 	}
@@ -156,112 +177,121 @@ class AtollaPlaybackGuardsTest {
 	@Test
 	fun `repeat and playlist-changed transitions never advance`() {
 		// MEDIA_ITEM_TRANSITION_REASON_REPEAT = 0, PLAYLIST_CHANGED = 3 in media3.
-		assertFalse(AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(reason = 0, expectingNativeSkip = true))
-		assertFalse(AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(reason = 3, expectingNativeSkip = true))
+		assertEquals(
+			AtollaPlaybackGuards.TransitionKind.IGNORE,
+			AtollaPlaybackGuards.classifyTransition(0, expectingNativeSkip = true, expectingNativeStepBack = true),
+		)
+		assertEquals(
+			AtollaPlaybackGuards.TransitionKind.IGNORE,
+			AtollaPlaybackGuards.classifyTransition(3, expectingNativeSkip = true, expectingNativeStepBack = true),
+		)
 	}
 
-	// --- lookaheadAppendCount ---
+	// --- shouldRestartForPreviousAction ---
 
 	@Test
-	fun `appends nothing when window already filled`() {
-		assertEquals(0, AtollaPlaybackGuards.lookaheadAppendCount(itemCount = 3, currentIndex = 0, targetAhead = 2))
-	}
-
-	@Test
-	fun `appends to fill the window from a single queued item`() {
-		assertEquals(2, AtollaPlaybackGuards.lookaheadAppendCount(itemCount = 1, currentIndex = 0, targetAhead = 2))
-	}
-
-	@Test
-	fun `appends one when one item is queued ahead`() {
-		assertEquals(1, AtollaPlaybackGuards.lookaheadAppendCount(itemCount = 2, currentIndex = 0, targetAhead = 2))
+	fun `previous restarts the current track when well into playback`() {
+		assertTrue(AtollaPlaybackGuards.shouldRestartForPreviousAction(positionMs = 5_000, hasPreviousItem = true))
 	}
 
 	@Test
-	fun `counts ahead relative to the current index`() {
-		assertEquals(2, AtollaPlaybackGuards.lookaheadAppendCount(itemCount = 3, currentIndex = 2, targetAhead = 2))
+	fun `previous steps back near the start of a track`() {
+		assertFalse(AtollaPlaybackGuards.shouldRestartForPreviousAction(positionMs = 2_000, hasPreviousItem = true))
 	}
 
 	@Test
-	fun `appends nothing for an empty player queue or invalid input`() {
-		assertEquals(0, AtollaPlaybackGuards.lookaheadAppendCount(itemCount = 0, currentIndex = 0, targetAhead = 2))
-		assertEquals(0, AtollaPlaybackGuards.lookaheadAppendCount(itemCount = 2, currentIndex = -1, targetAhead = 2))
-		assertEquals(0, AtollaPlaybackGuards.lookaheadAppendCount(itemCount = 2, currentIndex = 0, targetAhead = 0))
+	fun `previous restarts when there is no earlier item to step back to`() {
+		assertTrue(AtollaPlaybackGuards.shouldRestartForPreviousAction(positionMs = 1_000, hasPreviousItem = false))
 	}
 
-	// --- nextUpcomingIndex ---
+	@Test
+	fun `previous threshold boundary is three seconds`() {
+		assertFalse(AtollaPlaybackGuards.shouldRestartForPreviousAction(positionMs = 3_000, hasPreviousItem = true))
+		assertTrue(AtollaPlaybackGuards.shouldRestartForPreviousAction(positionMs = 3_001, hasPreviousItem = true))
+	}
+
+	// --- resolveWindowAnchor ---
 
 	@Test
-	fun `first upcoming entry follows the current track`() {
+	fun `anchor matches the hinted index when the id lines up`() {
+		assertEquals(
+			2,
+			AtollaPlaybackGuards.resolveWindowAnchor(
+				windowIds = listOf("a", "b", "c", "d"),
+				hintIndex = 2,
+				currentTrackId = "c",
+			),
+		)
+	}
+
+	@Test
+	fun `anchor is corrected to the nearest occurrence when the hint is stale`() {
+		assertEquals(
+			3,
+			AtollaPlaybackGuards.resolveWindowAnchor(
+				windowIds = listOf("a", "b", "c", "d"),
+				hintIndex = 2,
+				currentTrackId = "d",
+			),
+		)
+	}
+
+	@Test
+	fun `duplicate ids resolve to the occurrence nearest the hint`() {
+		// Queue-loop windows repeat ids; the hint disambiguates which occurrence is current.
+		assertEquals(
+			3,
+			AtollaPlaybackGuards.resolveWindowAnchor(
+				windowIds = listOf("a", "b", "a", "a", "b"),
+				hintIndex = 3,
+				currentTrackId = "a",
+			),
+		)
 		assertEquals(
 			0,
-			AtollaPlaybackGuards.nextUpcomingIndex(
-				upcomingTrackIds = listOf("b", "c"),
-				lastQueuedTrackId = "a",
+			AtollaPlaybackGuards.resolveWindowAnchor(
+				windowIds = listOf("a", "b", "a", "a", "b"),
+				hintIndex = 0,
 				currentTrackId = "a",
 			),
 		)
 	}
 
 	@Test
-	fun `successor of the last queued upcoming entry is the next one`() {
+	fun `no anchor for an unknown id or empty window`() {
+		assertEquals(
+			-1,
+			AtollaPlaybackGuards.resolveWindowAnchor(
+				windowIds = listOf("a", "b"),
+				hintIndex = 0,
+				currentTrackId = "x",
+			),
+		)
+		assertEquals(
+			-1,
+			AtollaPlaybackGuards.resolveWindowAnchor(
+				windowIds = emptyList(),
+				hintIndex = 0,
+				currentTrackId = "a",
+			),
+		)
+	}
+
+	@Test
+	fun `out of range hints are tolerated`() {
 		assertEquals(
 			1,
-			AtollaPlaybackGuards.nextUpcomingIndex(
-				upcomingTrackIds = listOf("b", "c", "d"),
-				lastQueuedTrackId = "b",
-				currentTrackId = "a",
+			AtollaPlaybackGuards.resolveWindowAnchor(
+				windowIds = listOf("a", "b"),
+				hintIndex = 99,
+				currentTrackId = "b",
 			),
 		)
-	}
-
-	@Test
-	fun `no successor when the buffer is exhausted`() {
-		assertNull(
-			AtollaPlaybackGuards.nextUpcomingIndex(
-				upcomingTrackIds = listOf("b", "c"),
-				lastQueuedTrackId = "c",
-				currentTrackId = "a",
-			),
-		)
-	}
-
-	@Test
-	fun `no successor when the last queued item is unknown to the buffer`() {
-		assertNull(
-			AtollaPlaybackGuards.nextUpcomingIndex(
-				upcomingTrackIds = listOf("b", "c"),
-				lastQueuedTrackId = "x",
-				currentTrackId = "a",
-			),
-		)
-	}
-
-	@Test
-	fun `no successor for an empty buffer or blank last item`() {
-		assertNull(
-			AtollaPlaybackGuards.nextUpcomingIndex(
-				upcomingTrackIds = emptyList(),
-				lastQueuedTrackId = "a",
-				currentTrackId = "a",
-			),
-		)
-		assertNull(
-			AtollaPlaybackGuards.nextUpcomingIndex(
-				upcomingTrackIds = listOf("b"),
-				lastQueuedTrackId = "",
-				currentTrackId = "a",
-			),
-		)
-	}
-
-	@Test
-	fun `track loop buffer of repeated ids keeps yielding the repeat`() {
 		assertEquals(
-			1,
-			AtollaPlaybackGuards.nextUpcomingIndex(
-				upcomingTrackIds = listOf("a", "a", "a"),
-				lastQueuedTrackId = "a",
+			0,
+			AtollaPlaybackGuards.resolveWindowAnchor(
+				windowIds = listOf("a", "b"),
+				hintIndex = -5,
 				currentTrackId = "a",
 			),
 		)
