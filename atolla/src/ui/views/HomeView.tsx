@@ -348,6 +348,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.modalSlot, () => {
 			<CreatePlaylistModal
+				animationsEnabled={this.viewModel.animationsEnabled}
 				onCancel={this.closeModalSlot}
 				onCreate={this.handleAlbumContextMenuCreatePlaylistConfirm}
 			/>;

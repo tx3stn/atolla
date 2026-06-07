@@ -417,6 +417,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			)}
 			{createPlaylistTracks && (
 				<CreatePlaylistModal
+					animationsEnabled={animationsEnabled}
 					onCancel={this.handleCreatePlaylistCancel}
 					onCreate={this.handleCreatePlaylistConfirm}
 				/>

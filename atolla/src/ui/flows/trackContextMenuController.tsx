@@ -50,6 +50,7 @@ export function openTrackContextMenu(
 	const onCreatePlaylist = (): void => {
 		openSlot(modalSlot, () => {
 			<CreatePlaylistModal
+				animationsEnabled={options.animationsEnabled}
 				onCancel={() => closeSlot(modalSlot)}
 				onCreate={async (name: string) => {
 					const playlist = await options.transport.createPlaylist(name, track.id);

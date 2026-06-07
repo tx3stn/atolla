@@ -15,6 +15,7 @@ import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { closeSlot, openSlot } from '../flows/modalSlotFlow';
 
 export interface ConnectionViewModel {
+	animationsEnabled?: boolean;
 	errorMessage: string | null;
 	isConnecting: boolean;
 	modalSlot?: DetachedSlot;
@@ -102,6 +103,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 
 	private renderHttpWarningModal = (): void => {
 		<HttpWarningModal
+			animationsEnabled={this.viewModel.animationsEnabled}
 			onCancel={this.handleHttpWarningCancel}
 			onConfirm={this.handleHttpWarningConfirm}
 		/>;

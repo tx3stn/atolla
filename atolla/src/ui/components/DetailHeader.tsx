@@ -84,6 +84,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 
 		this.viewModel.modalSlot?.slotted(() => {
 			<Modal
+				animationsEnabled={this.viewModel.animationsEnabled}
 				body={this.removeDownloadBody}
 				cancelAccessibilityId='detail-header-remove-download-no-btn'
 				confirmAccessibilityId='detail-header-remove-download-yes-btn'
@@ -335,6 +336,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			{toastMessage && <Toast message={toastMessage} />}
 			{showRemoveModal && !this.viewModel.modalSlot && (
 				<Modal
+					animationsEnabled={this.viewModel.animationsEnabled}
 					body={this.removeDownloadBody}
 					cancelAccessibilityId='detail-header-remove-download-no-btn'
 					confirmAccessibilityId='detail-header-remove-download-yes-btn'

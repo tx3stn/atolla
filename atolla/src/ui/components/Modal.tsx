@@ -1,11 +1,14 @@
+import Strings from 'atolla/src/Strings';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
+import { ModalActionButton } from './ModalActionButton';
 import { ModalBase, modalStyles } from './ModalBase';
 
 export interface ModalViewModel {
+	animationsEnabled?: boolean;
 	body: string;
 	cancelAccessibilityId?: string;
 	cancelLabel?: string;
@@ -21,6 +24,7 @@ export interface ModalViewModel {
 export class Modal extends Component<ModalViewModel> {
 	onRender(): void {
 		const {
+			animationsEnabled,
 			body,
 			cancelAccessibilityId,
 			cancelLabel,
@@ -32,7 +36,6 @@ export class Modal extends Component<ModalViewModel> {
 			onConfirm,
 			title,
 		} = this.viewModel;
-		const hasConfirmation = !!onConfirm;
 
 		<ModalBase
 			backdropAccessibilityId={modalAccessibilityId}
@@ -47,27 +50,23 @@ export class Modal extends Component<ModalViewModel> {
 			<scroll style={styles.scroll}>
 				<label numberOfLines={0} style={styles.body} value={body} />
 			</scroll>
-			{hasConfirmation && (
+			{onConfirm && (
 				<view>
 					<view style={styles.confirmDivider} />
 					<view style={modalStyles.actions}>
-						<view
+						<ModalActionButton
 							accessibilityId={confirmAccessibilityId}
-							accessibilityLabel={confirmAccessibilityId}
-							onTap={onConfirm}
-							style={modalStyles.actionButton}
-						>
-							<label style={modalStyles.actionLabel} value={confirmLabel ?? 'yes'} />
-						</view>
+							animationsEnabled={animationsEnabled}
+							label={confirmLabel ?? Strings.yes()}
+							onPress={onConfirm}
+						/>
 						<view style={modalStyles.actionSeparator} />
-						<view
+						<ModalActionButton
 							accessibilityId={cancelAccessibilityId}
-							accessibilityLabel={cancelAccessibilityId}
-							onTap={onClose}
-							style={modalStyles.actionButton}
-						>
-							<label style={modalStyles.actionLabel} value={cancelLabel ?? 'no'} />
-						</view>
+							animationsEnabled={animationsEnabled}
+							label={cancelLabel ?? Strings.cancel()}
+							onPress={onClose}
+						/>
 					</view>
 				</view>
 			)}

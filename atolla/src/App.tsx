@@ -2840,6 +2840,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.state.isAuthRequired) {
 			<view style={styles.root}>
 				<ConnectionView
+					animationsEnabled={this.state.animationsEnabled}
 					errorMessage={this.state.authErrorMessage}
 					isConnecting={this.state.isAuthenticating}
 					modalSlot={this.modalSlot}

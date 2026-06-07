@@ -336,6 +336,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, () => {
 			<CreatePlaylistModal
+				animationsEnabled={this.viewModel.animationsEnabled}
 				onCancel={this.closeModalSlot}
 				onCreate={this.handleAlbumContextMenuCreatePlaylistConfirm}
 			/>;

@@ -921,6 +921,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			)}
 			{createPlaylistTrack && (
 				<CreatePlaylistModal
+					animationsEnabled={this.viewModel.animationsEnabled}
 					onCancel={this.handleCreatePlaylistCancel}
 					onCreate={this.handleCreatePlaylistConfirm}
 				/>

@@ -3,6 +3,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
+import { hapticFeedback } from '../haptics';
 
 const TRANSITION_DISPLAY_MS = 2000;
 
@@ -90,6 +91,8 @@ export class ConnectivityFab extends StatefulComponent<
 	}
 
 	private handleTap = (): void => {
+		hapticFeedback();
+
 		if (this.viewModel.hidden || this.state.isTransitioning) {
 			return;
 		}

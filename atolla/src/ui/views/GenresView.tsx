@@ -274,6 +274,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			)}
 			{createPlaylistTracks && (
 				<CreatePlaylistModal
+					animationsEnabled={animationsEnabled}
 					onCancel={this.handleCreatePlaylistCancel}
 					onCreate={this.handleCreatePlaylistConfirm}
 				/>

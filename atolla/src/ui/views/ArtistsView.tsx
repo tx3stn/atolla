@@ -347,6 +347,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			)}
 			{createPlaylistTracks && (
 				<CreatePlaylistModal
+					animationsEnabled={animationsEnabled}
 					onCancel={this.handleCreatePlaylistCancel}
 					onCreate={this.handleCreatePlaylistConfirm}
 				/>

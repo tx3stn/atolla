@@ -20,4 +20,33 @@ describe('Modal', () => {
 		expect(images.length).toBe(1);
 		expect(images[0].getAttribute('src')).toContain('atolla-cache://image?c=artist_logo&u=');
 	});
+
+	valdiIt('fires confirm and cancel callbacks from the action buttons', async () => {
+		const calls: Array<string> = [];
+		const instrumented = createComponent(Modal, {
+			animationsEnabled: false,
+			body: 'Delete this playlist?',
+			cancelAccessibilityId: 'modal-cancel',
+			confirmAccessibilityId: 'modal-confirm',
+			onClose: () => {
+				calls.push('close');
+			},
+			onConfirm: () => {
+				calls.push('confirm');
+			},
+			title: 'Delete',
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const confirm = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'modal-confirm',
+		);
+		const cancel = views.find((view) => view.getAttribute('accessibilityLabel') === 'modal-cancel');
+
+		confirm?.getAttribute('onTap')?.();
+		cancel?.getAttribute('onTap')?.();
+
+		expect(calls).toEqual(['confirm', 'close']);
+	});
 });

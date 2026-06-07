@@ -59,7 +59,14 @@ describe('now playing queue', () => {
 		expect(backToTrackName).toBe(firstUpNextTrackName);
 	});
 
-	it('restores up next after tapping previous', async () => {
+	it('restarts the track on previous mid-playback and goes back on a quick second tap', async () => {
+		// Previous follows the standard 3-second rule: more than 3s into the track the
+		// first tap restarts it (queue unchanged), and a quick follow-up tap steps back
+		// a track. The back-to tab is still open from the previous test.
+		await browser.pause(3500);
+		await nowPlaying.tapPrevious();
+		expect(await nowPlaying.firstBackToTrackName()).toBe(firstUpNextTrackName);
+
 		await nowPlaying.tapPrevious();
 		await nowPlaying.tapUpNextTab();
 		const afterPreviousTrackName = await nowPlaying.firstUpNextTrackName();

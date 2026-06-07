@@ -143,6 +143,7 @@ export class SettingsView extends Component<SettingsViewModel> {
 		const vm = this.viewModel;
 		openSlot(vm.modalSlot, () => {
 			<CacheClearModal
+				animationsEnabled={vm.animationsEnabled}
 				counts={{
 					albumArt: vm.imageCategoryAlbumArtCount,
 					albumArtBlurred: vm.imageCategoryAlbumArtBlurredCount,
@@ -172,6 +173,7 @@ export class SettingsView extends Component<SettingsViewModel> {
 	private handleLogoutPress = () => {
 		openSlot(this.viewModel.modalSlot, () => {
 			<Modal
+				animationsEnabled={this.viewModel.animationsEnabled}
 				body={Strings.settingsLogoutConfirm()}
 				cancelAccessibilityId='settings-logout-cancel-btn'
 				confirmAccessibilityId='settings-logout-confirm-btn'
@@ -195,6 +197,7 @@ export class SettingsView extends Component<SettingsViewModel> {
 	private handleClearDownloadsPress = () => {
 		openSlot(this.viewModel.modalSlot, () => {
 			<Modal
+				animationsEnabled={this.viewModel.animationsEnabled}
 				body={Strings.settingsDeleteAllDownloadsConfirm()}
 				cancelAccessibilityId='settings-downloads-clear-cancel-btn'
 				confirmAccessibilityId='settings-downloads-clear-confirm-btn'

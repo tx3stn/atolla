@@ -3,9 +3,11 @@ import { Style } from 'valdi_core/src/Style';
 import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import { theme, withAlpha } from '../../theme';
+import { ModalActionButton } from './ModalActionButton';
 import { ModalBase, modalStyles } from './ModalBase';
 
 interface HttpWarningModalViewModel {
+	animationsEnabled?: boolean;
 	onCancel: () => void;
 	onConfirm: () => void;
 }
@@ -27,23 +29,20 @@ export class HttpWarningModal extends Component<HttpWarningModalViewModel> {
 			<view style={modalStyles.divider} />
 
 			<view style={modalStyles.actions}>
-				<view
+				<ModalActionButton
 					accessibilityId='http-warning-cancel-btn'
-					accessibilityLabel='http-warning-cancel-btn'
-					onTap={this.viewModel.onCancel}
-					style={modalStyles.actionButton}
-				>
-					<label style={modalStyles.actionLabel} value={Strings.httpWarningModalCancel()} />
-				</view>
+					animationsEnabled={this.viewModel.animationsEnabled}
+					label={Strings.httpWarningModalCancel()}
+					onPress={this.viewModel.onCancel}
+				/>
 				<view style={modalStyles.actionSeparator} />
-				<view
+				<ModalActionButton
 					accessibilityId='http-warning-confirm-btn'
-					accessibilityLabel='http-warning-confirm-btn'
-					onTap={this.viewModel.onConfirm}
-					style={modalStyles.actionButton}
-				>
-					<label style={styles.confirmLabel} value={Strings.httpWarningModalConfirm()} />
-				</view>
+					animationsEnabled={this.viewModel.animationsEnabled}
+					label={Strings.httpWarningModalConfirm()}
+					labelStyle={styles.confirmLabel}
+					onPress={this.viewModel.onConfirm}
+				/>
 			</view>
 		</ModalBase>;
 	}

@@ -284,6 +284,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 		modalSlot?.slotted(() => {
 			<Modal
+				animationsEnabled={this.viewModel.animationsEnabled}
 				body={Strings.removeFromPlaylistBody(removedTrack.name)}
 				cancelAccessibilityId='playlist-remove-cancel-btn'
 				confirmAccessibilityId='playlist-remove-confirm-btn'

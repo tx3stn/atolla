@@ -66,15 +66,6 @@ const styles = {
 };
 
 export const modalStyles = {
-	actionButton: new Style<Layout>({
-		alignItems: 'center',
-		padding: 14,
-		width: '50%',
-	}),
-	actionLabel: new Style<Label>({
-		...theme.text.main,
-		textAlign: 'center',
-	}),
 	actionSeparator: new Style({
 		backgroundColor: theme.colors.separator,
 		width: 1,

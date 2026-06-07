@@ -5,6 +5,7 @@ import Strings from '../../Strings';
 import { LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { ModalBase, modalStyles } from './ModalBase';
+import { hapticFeedback } from '../haptics';
 
 export interface LanguageSelectModalViewModel {
 	onCancel: () => void;
@@ -16,6 +17,8 @@ export class LanguageSelectModal extends Component<LanguageSelectModalViewModel>
 	private readonly selectHandlers = new Map<LanguageCode, () => void>();
 
 	private getSelectHandler = (code: LanguageCode): (() => void) => {
+		hapticFeedback();
+
 		const existing = this.selectHandlers.get(code);
 		if (existing) {
 			return existing;

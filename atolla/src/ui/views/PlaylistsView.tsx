@@ -325,6 +325,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			)}
 			{createPlaylistTracks && (
 				<CreatePlaylistModal
+					animationsEnabled={animationsEnabled}
 					onCancel={this.handleCreatePlaylistCancel}
 					onCreate={this.handleCreatePlaylistConfirm}
 				/>

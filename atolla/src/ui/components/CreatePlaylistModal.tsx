@@ -3,9 +3,11 @@ import { Style } from 'valdi_core/src/Style';
 import type { Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import { theme } from '../../theme';
+import { ModalActionButton } from './ModalActionButton';
 import { ModalBase, modalStyles } from './ModalBase';
 
 export interface CreatePlaylistModalViewModel {
+	animationsEnabled?: boolean;
 	onCancel: () => void;
 	onCreate: (name: string) => Promise<void>;
 }
@@ -66,26 +68,20 @@ export class CreatePlaylistModal extends StatefulComponent<
 			{errorMessage && <label style={styles.errorLabel} value={errorMessage} />}
 			<view style={styles.confirmDivider} />
 			<view style={modalStyles.actions}>
-				<view
+				<ModalActionButton
 					accessibilityId='create-playlist-create-button'
-					accessibilityLabel='create-playlist-create-button'
-					onTap={this.handleCreate}
-					style={modalStyles.actionButton}
-				>
-					<label
-						style={canCreate ? styles.actionLabelActive : styles.actionLabelDisabled}
-						value={Strings.create()}
-					/>
-				</view>
+					animationsEnabled={this.viewModel.animationsEnabled}
+					label={Strings.create()}
+					labelStyle={canCreate ? styles.actionLabelActive : styles.actionLabelDisabled}
+					onPress={this.handleCreate}
+				/>
 				<view style={modalStyles.actionSeparator} />
-				<view
+				<ModalActionButton
 					accessibilityId='create-playlist-cancel-button'
-					accessibilityLabel='create-playlist-cancel-button'
-					onTap={onCancel}
-					style={modalStyles.actionButton}
-				>
-					<label style={modalStyles.actionLabel} value={Strings.cancel()} />
-				</view>
+					animationsEnabled={this.viewModel.animationsEnabled}
+					label={Strings.cancel()}
+					onPress={onCancel}
+				/>
 			</view>
 		</ModalBase>;
 	}
