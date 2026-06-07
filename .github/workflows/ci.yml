@@ -187,6 +187,11 @@ jobs:
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
         run: |
+          # pin the output base somewhere cacheable: restoring it gives CI the
+          # warm state that makes local builds instant — materialised external
+          # repos (no ~4 min re-extraction of llvm/JDK/npm) plus the action
+          # cache (no remote round-trips for unchanged actions)
+          echo "startup --output_base=$HOME/.cache/bazel-ob" >> ~/.bazelrc
           # no local disk cache in CI: the remote cache covers reuse, and writing
           # every output twice fills the runner disk (ENOSPC on cache save)
           echo "build --disk_cache=" >> ~/.bazelrc
@@ -200,7 +205,19 @@ jobs:
             echo "build --config=remote-cache" >> ~/.bazelrc
             echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
           fi
+      - name: Restore bazel output base
+        id: restore-bazel-ob
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cache/bazel-ob
+          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+          restore-keys: |
+            bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-ob-${{ github.job }}-${{ runner.os }}-
+      # cold path only — a restored output base already contains every
+      # extracted repository, so the archive cache adds nothing
       - name: Restore bazel repository cache
+        if: steps.restore-bazel-ob.outputs.cache-matched-key == ''
         id: restore-bazel-repo
         uses: actions/cache/restore@v5
         with:
@@ -211,8 +228,18 @@ jobs:
             bazel-repo-${{ runner.os }}-
       - run: bun run test:components
         timeout-minutes: 150
+      # release the server lock and report the size the cache step will tar
+      - name: Shut down bazel server
+        if: always()
+        run: bazel shutdown && du -sh ~/.cache/bazel-ob
+      - name: Save bazel output base
+        if: always() && steps.restore-bazel-ob.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/bazel-ob
+          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
       - name: Save bazel repository cache
-        if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
+        if: always() && steps.restore-bazel-ob.outputs.cache-matched-key == '' && steps.restore-bazel-repo.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/bazel-repo
