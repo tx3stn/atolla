@@ -47,6 +47,10 @@ build --strategy=KotlinCompile=worker
 # Sandbox perf — reuse directory trees between actions instead of recreating them
 build --experimental_reuse_sandbox_directories
 
+# Skymeld — interleave analysis with execution instead of running them as
+# strict phases; CI component-tests spend ~6.5 min in analysis alone
+build --experimental_merged_skyframe_analysis_execution
+
 # Halves runfile symlink I/O on macOS
 build --nolegacy_external_runfiles
 
