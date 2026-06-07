@@ -38,23 +38,27 @@ jobs:
           wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
           sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
 
-      # skipped (and harmless) until the BUILDBUDDY_API_KEY secret exists —
-      # dependabot/fork PRs don't get secrets and fall back to the GH caches below
-      - name: Enable remote bazel cache
+      # remote cache is skipped (harmlessly) when the BUILDBUDDY_API_KEY secret
+      # is absent — dependabot/fork PRs only get the repo cache below
+      - name: Configure bazel caching
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
         run: |
+          # no local disk cache in CI: the remote cache covers reuse, and writing
+          # every output twice fills the runner disk (ENOSPC on cache save)
+          echo "build --disk_cache=" >> ~/.bazelrc
           if [ -n "$BUILDBUDDY_API_KEY" ]; then
-            echo "common --config=remote-cache" >> ~/.bazelrc
-            echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
+            # build (not common): plain `bazel query` doesn't inherit build configs
+            # and errors on --config=remote-cache; test/run/info etc. inherit build
+            echo "build --config=remote-cache" >> ~/.bazelrc
+            echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
           fi
 
-      # bazel caches use split restore/save (instead of actions/cache) so failed
-      # runs still bank artifacts — actions/cache only saves on job success.
-      # Both jobs share one key family and warm-start from whichever job saved
-      # last; bazel's caches are content-addressed so mixing configs is safe.
-      # Repo cache contents are deterministic per dep-set, so it saves once per
-      # hash+job instead of re-uploading 1.6GB every run.
+      # action outputs live in the BuildBuddy remote cache, but repository-rule
+      # downloads (llvm, NDK, JDK, skia sources…) don't — the GH repo cache covers
+      # those. Split restore/save so failed runs still bank it (actions/cache only
+      # saves on success); contents are deterministic per dep-set, so it saves
+      # once per hash+job instead of re-uploading gigabytes every run.
       - name: Restore bazel repository cache
         id: restore-bazel-repo
         uses: actions/cache/restore@v5
@@ -64,16 +68,6 @@ jobs:
           restore-keys: |
             bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
             bazel-repo-${{ runner.os }}-
-
-      - name: Restore bazel disk cache
-        id: restore-bazel-disk
-        uses: actions/cache/restore@v5
-        with:
-          path: ~/.cache/bazel-disk
-          key: bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
-          restore-keys: |
-            bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
-            bazel-disk-${{ runner.os }}-
 
       # materialises bazel-atolla/external/valdi, which the tsconfigs extend
       # and pull types from; node_modules/.bin is not on PATH in actions, so bunx
@@ -103,15 +97,6 @@ jobs:
           path: ~/.cache/bazel-repo
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
 
-      # bootstrap-only: this job's bazel graph is a small subset of bazel-tests',
-      # so once any disk cache exists, re-uploading it from here is pure waste
-      - name: Save bazel disk cache
-        if: always() && steps.restore-bazel-disk.outputs.cache-matched-key == ''
-        uses: actions/cache/save@v5
-        with:
-          path: ~/.cache/bazel-disk
-          key: bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
-
   bazel-tests:
     runs-on: ubuntu-latest
     # backstop only — the step timeouts below fire first, failing the step
@@ -138,13 +123,18 @@ jobs:
           wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
           sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
 
-      - name: Enable remote bazel cache
+      - name: Configure bazel caching
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
         run: |
+          # no local disk cache in CI: the remote cache covers reuse, and writing
+          # every output twice fills the runner disk (ENOSPC on cache save)
+          echo "build --disk_cache=" >> ~/.bazelrc
           if [ -n "$BUILDBUDDY_API_KEY" ]; then
-            echo "common --config=remote-cache" >> ~/.bazelrc
-            echo "common --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
+            # build (not common): plain `bazel query` doesn't inherit build configs
+            # and errors on --config=remote-cache; test/run/info etc. inherit build
+            echo "build --config=remote-cache" >> ~/.bazelrc
+            echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
           fi
 
       - name: Restore bazel repository cache
@@ -156,15 +146,6 @@ jobs:
           restore-keys: |
             bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
             bazel-repo-${{ runner.os }}-
-
-      - name: Restore bazel disk cache
-        uses: actions/cache/restore@v5
-        with:
-          path: ~/.cache/bazel-disk
-          key: bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
-          restore-keys: |
-            bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
-            bazel-disk-${{ runner.os }}-
 
       - run: bun run check:zig
 
@@ -187,15 +168,6 @@ jobs:
           path: ~/.cache/bazel-repo
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
 
-      # always saved (unlike static-checks): this job owns the full build graph,
-      # so its disk cache must keep growing with every source change
-      - name: Save bazel disk cache
-        if: always()
-        uses: actions/cache/save@v5
-        with:
-          path: ~/.cache/bazel-disk
-          key: bazel-disk-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
-
   # macos_unit_test targets need Xcode/Apple SDKs — the only tests that can't run on linux
   # ios-tests:
   #   runs-on: macos-latest
@@ -215,6 +187,16 @@ jobs:
   #
   #     - run: bun install --frozen-lockfile
   #
+  #     - name: Configure bazel caching
+  #       env:
+  #         BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+  #       run: |
+  #         echo "build --disk_cache=" >> ~/.bazelrc
+  #         if [ -n "$BUILDBUDDY_API_KEY" ]; then
+  #           echo "build --config=remote-cache" >> ~/.bazelrc
+  #           echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
+  #         fi
+  #
   #     - name: Cache bazel repository cache
   #       uses: actions/cache@v5
   #       with:
@@ -222,14 +204,5 @@ jobs:
   #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}
   #         restore-keys: |
   #           bazel-repo-${{ runner.os }}-
-  #
-  #     - name: Cache bazel disk cache
-  #       uses: actions/cache@v5
-  #       with:
-  #         path: ~/.cache/bazel-disk
-  #         key: bazel-disk-default-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
-  #         restore-keys: |
-  #           bazel-disk-default-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
-  #           bazel-disk-default-${{ runner.os }}-
   #
   #     - run: bun run test:ios
