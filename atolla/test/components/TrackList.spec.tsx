@@ -436,6 +436,129 @@ describe('TrackList', () => {
 		});
 	});
 
+	describe('single selection and release', () => {
+		const dragHighlight = 'rgba(45,120,206,0.28)';
+		const tracks = [
+			{ id: 'track-1', meta: '1:00', title: 'One' },
+			{ id: 'track-2', meta: '1:10', title: 'Two' },
+			{ id: 'track-3', meta: '1:20', title: 'Three' },
+		];
+
+		valdiIt('highlights only one row at a time across drags', async () => {
+			const instrumented = createComponent(TrackList, {
+				holdToReorder: false,
+				onTrackReorder: () => {},
+				showDragHandles: true,
+				tracks,
+			});
+			const views = elementTypeFind(
+				componentGetElements(instrumented.getComponent()),
+				IRenderedElementViewClass.View,
+			);
+			const findView = (label: string) =>
+				views.find((view) => view.getAttribute('accessibilityLabel') === label);
+
+			findView('track-row-drag-track-1-0')?.getAttribute('onDrag')?.({
+				deltaX: 0,
+				deltaY: 0,
+				state: 0,
+				velocityY: 0,
+			});
+			expect(findView('track-row-track-1-0')?.getAttribute('backgroundColor')).toBe(dragHighlight);
+
+			findView('track-row-drag-track-2-1')?.getAttribute('onDrag')?.({
+				deltaX: 0,
+				deltaY: 0,
+				state: 0,
+				velocityY: 0,
+			});
+
+			expect(findView('track-row-track-1-0')?.getAttribute('backgroundColor')).toBe(
+				theme.colors.bg,
+			);
+			expect(findView('track-row-track-2-1')?.getAttribute('backgroundColor')).toBe(dragHighlight);
+		});
+
+		valdiIt('ignores a late drag end for a superseded row', async () => {
+			const reordered: Array<number> = [];
+			const instrumented = createComponent(TrackList, {
+				holdToReorder: false,
+				onTrackReorder: (from: number, to: number) => {
+					reordered.push(from, to);
+				},
+				showDragHandles: true,
+				tracks,
+			});
+			const views = elementTypeFind(
+				componentGetElements(instrumented.getComponent()),
+				IRenderedElementViewClass.View,
+			);
+			const findView = (label: string) =>
+				views.find((view) => view.getAttribute('accessibilityLabel') === label);
+
+			findView('track-row-drag-track-1-0')?.getAttribute('onDrag')?.({
+				deltaX: 0,
+				deltaY: 0,
+				state: 0,
+				velocityY: 0,
+			});
+			findView('track-row-drag-track-2-1')?.getAttribute('onDrag')?.({
+				deltaX: 0,
+				deltaY: 0,
+				state: 0,
+				velocityY: 0,
+			});
+
+			// Row one's drag was superseded by row two; its late end must not reorder
+			// nor steal the active selection from row two.
+			findView('track-row-drag-track-1-0')?.getAttribute('onDrag')?.({
+				deltaX: 0,
+				deltaY: 70,
+				state: 2,
+				velocityY: 120,
+			});
+
+			expect(reordered).toEqual([]);
+			expect(findView('track-row-track-2-1')?.getAttribute('backgroundColor')).toBe(dragHighlight);
+		});
+
+		valdiIt('finalises on the handle touch end and ignores the later drag end', async () => {
+			const reordered: Array<number> = [];
+			const instrumented = createComponent(TrackList, {
+				holdToReorder: false,
+				onTrackReorder: (from: number, to: number) => {
+					reordered.push(from, to);
+				},
+				showDragHandles: true,
+				tracks,
+			});
+			const views = elementTypeFind(
+				componentGetElements(instrumented.getComponent()),
+				IRenderedElementViewClass.View,
+			);
+			const findView = (label: string) =>
+				views.find((view) => view.getAttribute('accessibilityLabel') === label);
+
+			const dragContainer = findView('track-row-drag-track-1-0');
+			dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 0, state: 0, velocityY: 0 });
+			dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 70, state: 1, velocityY: 0 });
+
+			// Finger lifts: the handle's prompt touch end releases and commits the drag.
+			findView('track-row-edit-handle-track-1-0')?.getAttribute('onTouch')?.({
+				absoluteY: 80,
+				state: 2,
+			});
+			expect(reordered).toEqual([0, 1]);
+			expect(findView('track-row-track-1-0')?.getAttribute('backgroundColor')).toBe(
+				theme.colors.bg,
+			);
+
+			// The laggy row drag end arrives afterwards and must be a no-op.
+			dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 70, state: 2, velocityY: 90 });
+			expect(reordered).toEqual([0, 1]);
+		});
+	});
+
 	describe('hold to reorder', () => {
 		const tracks = [
 			{ id: 'track-1', meta: '1:00', title: 'One' },

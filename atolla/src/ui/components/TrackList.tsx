@@ -127,6 +127,9 @@ export class TrackList extends Component<TrackListViewModel> {
 	private dragSlots: Array<RowSlot> = [];
 	private dragFromIndex = -1;
 	private dragRowIdentity: string | null = null;
+	// The row whose drag has already been finalised, so the second of its two end
+	// signals (the prompt handle onTouch and the laggy row onDrag) is a no-op.
+	private dragEndedIdentity: string | null = null;
 	private dragScrollAccum = 0;
 	private armedDragOriginY = 0;
 	private lastDragEvent: DragEvent | null = null;
@@ -553,38 +556,56 @@ export class TrackList extends Component<TrackListViewModel> {
 		containerRef.setAttribute('bottom', -offset);
 	}
 
+	// Valdi applies zIndex by removing and re-inserting the native view
+	// (ViewNode::setZIndex → removeViewFromParent). On iOS that cancels every
+	// in-flight touch in the subtree — including the very gesture driving the
+	// drag — so the hold-to-reorder path must not touch z-order mid-gesture.
 	private setRowDraggingAppearance(
 		identity: string,
 		isDragging: boolean,
 		defaultBackgroundColor: string,
 		dragBackgroundColor: string,
 	): void {
-		const containerRef = this.swipeContainerRefByIdentity.get(identity);
+		if (!isDragging) {
+			this.releaseRowAppearance(identity, defaultBackgroundColor);
+			return;
+		}
+
 		const rowRef = this.rowRefByIdentity.get(identity);
 		if (!rowRef) {
 			return;
 		}
 
-		// Valdi applies zIndex by removing and re-inserting the native view
-		// (ViewNode::setZIndex → removeViewFromParent). On iOS that cancels every
-		// in-flight touch in the subtree — including the very gesture driving the
-		// drag — so the hold-to-reorder path must not touch z-order mid-gesture.
-		const canRestack = !this.holdToReorder;
-
-		if (isDragging) {
-			this.draggingRowIdentities.add(identity);
-			if (canRestack) {
-				rowRef.setAttribute('zIndex', 20);
-				rowRef.setAttribute('elevation', 12);
-				containerRef?.setAttribute('zIndex', 100);
+		// Only one row may be selected at a time: releasing any other highlighted row
+		// here means a fresh drag can never inherit a previous, slow-releasing selection.
+		for (const other of this.draggingRowIdentities) {
+			if (other !== identity) {
+				this.releaseRowAppearance(other, defaultBackgroundColor);
 			}
-			rowRef.setAttribute('backgroundColor', dragBackgroundColor);
-			return;
 		}
 
+		this.draggingRowIdentities.add(identity);
+		if (!this.holdToReorder) {
+			const containerRef = this.swipeContainerRefByIdentity.get(identity);
+			rowRef.setAttribute('zIndex', 20);
+			rowRef.setAttribute('elevation', 12);
+			containerRef?.setAttribute('zIndex', 100);
+		}
+		rowRef.setAttribute('backgroundColor', dragBackgroundColor);
+	}
+
+	private releaseRowAppearance(identity: string, defaultBackgroundColor: string): void {
 		this.draggingRowIdentities.delete(identity);
-		this.handleBeingPressedIdentity = null;
-		if (canRestack) {
+		if (this.handleBeingPressedIdentity === identity) {
+			this.handleBeingPressedIdentity = null;
+		}
+
+		const rowRef = this.rowRefByIdentity.get(identity);
+		if (!rowRef) {
+			return;
+		}
+		if (!this.holdToReorder) {
+			const containerRef = this.swipeContainerRefByIdentity.get(identity);
 			rowRef.setAttribute('zIndex', 0);
 			rowRef.setAttribute('elevation', 0);
 			containerRef?.setAttribute('zIndex', 0);
@@ -759,10 +780,44 @@ export class TrackList extends Component<TrackListViewModel> {
 			return;
 		}
 
+		// This drag already finished through its other end signal (the prompt handle
+		// onTouch / the laggy row onDrag); ignore the duplicate so we don't reorder twice.
+		if (this.dragEndedIdentity === rowIdentity) {
+			return;
+		}
+
+		// A late end event for a row that's been superseded by a newer drag must only
+		// release its own highlight — never reset the active drag's state underneath it.
+		if (this.dragRowIdentity !== null && this.dragRowIdentity !== rowIdentity) {
+			this.releaseRowAppearance(rowIdentity, defaultBackgroundColor);
+			return;
+		}
+
 		this.stopAutoScroll();
+		this.dragEndedIdentity = rowIdentity;
 
 		if (event.state !== TouchEventState.Ended) {
 			this.cancelDrag(rowIdentity, defaultBackgroundColor, dragBackgroundColor);
+			return;
+		}
+
+		this.finalizeRowDrag(
+			entryIndex,
+			rowIdentity,
+			defaultBackgroundColor,
+			dragBackgroundColor,
+			event.deltaY,
+		);
+	}
+
+	private finalizeRowDrag(
+		entryIndex: number,
+		rowIdentity: string,
+		defaultBackgroundColor: string,
+		dragBackgroundColor: string,
+		deltaY: number,
+	): void {
+		if (!this.viewModel.onTrackReorder) {
 			return;
 		}
 
@@ -770,11 +825,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		const scrollAccum = this.dragFromIndex === entryIndex ? this.dragScrollAccum : 0;
 		const slot = slots[entryIndex];
 		const targetIndex = slot
-			? resolveReorderTarget(
-					slots,
-					entryIndex,
-					slot.top + slot.height / 2 + event.deltaY + scrollAccum,
-				)
+			? resolveReorderTarget(slots, entryIndex, slot.top + slot.height / 2 + deltaY + scrollAccum)
 			: entryIndex;
 
 		if (!slot || targetIndex === entryIndex) {
@@ -805,6 +856,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.dragSlots = this.buildDragSlots();
 		this.dragFromIndex = entryIndex;
 		this.dragRowIdentity = rowIdentity;
+		this.dragEndedIdentity = null;
 		this.dragScrollAccum = 0;
 	}
 
@@ -835,17 +887,39 @@ export class TrackList extends Component<TrackListViewModel> {
 		defaultBackgroundColor: string,
 		dragBackgroundColor: string,
 	): void {
+		const isEnd =
+			event.state !== TouchEventState.Started && event.state !== TouchEventState.Changed;
+
 		if (event.state === TouchEventState.Started) {
 			this.handleBeingPressedIdentity = rowIdentity;
-		} else if (event.state !== TouchEventState.Changed) {
+		} else if (isEnd) {
 			if (this.handleBeingPressedIdentity === rowIdentity) {
 				this.handleBeingPressedIdentity = null;
 			}
 		}
 
-		// Once armed, the touch stream drives the drag (it keeps delivering even while
-		// the long-press recogniser is active, unlike onDrag).
-		if (!this.holdToReorder || this.dragRowIdentity !== rowIdentity) {
+		if (!this.holdToReorder) {
+			// Android drives the movement through the row's onDrag, but that recogniser's
+			// end event arrives late. The handle's touch stream ends promptly on finger
+			// lift, so finalise here too and let whichever end fires first win — the
+			// dragEndedIdentity latch makes the slower one a no-op.
+			if (isEnd && this.dragRowIdentity === rowIdentity && this.dragEndedIdentity !== rowIdentity) {
+				this.stopAutoScroll();
+				this.dragEndedIdentity = rowIdentity;
+				this.finalizeRowDrag(
+					entryIndex,
+					rowIdentity,
+					defaultBackgroundColor,
+					dragBackgroundColor,
+					this.lastDragEvent?.deltaY ?? 0,
+				);
+			}
+			return;
+		}
+
+		// iOS hold-to-reorder: the touch stream drives the drag itself (it keeps
+		// delivering even while the long-press recogniser is active, unlike onDrag).
+		if (this.dragRowIdentity !== rowIdentity) {
 			return;
 		}
 		if (event.state === TouchEventState.Started) {
