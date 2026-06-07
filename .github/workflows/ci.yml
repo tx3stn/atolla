@@ -1,9 +1,23 @@
 name: CI
 
+# paths-ignore: docs and non-build config never need a build. GitHub workflow
+# files don't support YAML anchors, hence the duplicated lists. NOTE: if branch
+# protection with required checks is ever added, path-skipped runs report no
+# check runs at all and PRs will hang on "Expected" — revisit this then.
 on:
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/dependabot.yml"
+      - "vrsn.toml"
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/dependabot.yml"
+      - "vrsn.toml"
   workflow_call:
 
 permissions:
@@ -70,8 +84,10 @@ jobs:
             bazel-repo-${{ runner.os }}-
 
       # materialises bazel-atolla/external/valdi, which the tsconfigs extend
-      # and pull types from; node_modules/.bin is not on PATH in actions, so bunx
-      - run: bunx valdi projectsync
+      # and pull types from; node_modules/.bin is not on PATH in actions, so bunx.
+      # --target skips the ~1 min bazel query discovery — extend this list if new
+      # valdi_projectsync targets are ever added
+      - run: bunx valdi projectsync --target //atolla:atolla_projectsync
 
       # projectsync writes paths via the bzlmod canonical repo name (bazel-_main);
       # bazel names the real symlink after the directory (bazel-atolla)
@@ -97,25 +113,70 @@ jobs:
           path: ~/.cache/bazel-repo
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
 
-  bazel-tests:
+  zig-tests:
+    # see component-tests for why dependabot bun PRs skip this
+    if: ${{ !(github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
     runs-on: ubuntu-latest
-    # backstop only — the step timeouts below fire first, failing the step
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      # bun only to run the package.json scripts — they shell out to bazel/zig,
+      # so no bun install needed
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Configure bazel caching
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          echo "build --disk_cache=" >> ~/.bazelrc
+          if [ -n "$BUILDBUDDY_API_KEY" ]; then
+            echo "build --config=remote-cache" >> ~/.bazelrc
+            echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
+          fi
+
+      - name: Restore bazel repository cache
+        id: restore-bazel-repo
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          restore-keys: |
+            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-repo-${{ runner.os }}-
+
+      # Same zig version rules_zig pins in MODULE.bazel
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+
+      - run: bun run check:zig
+
+      - run: bun run test:zig
+
+      - name: Save bazel repository cache
+        if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+
+  component-tests:
+    # bun deps never feed the bazel build (the bazel-side valdi is a GitHub
+    # tarball, not node_modules), so dependabot's bun bumps — labelled
+    # dependencies + javascript — only need static-checks. The push to main
+    # after merging still runs the full suite.
+    if: ${{ !(github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
+    runs-on: ubuntu-latest
+    # backstop only — the step timeout below fires first, failing the step
     # instead of cancelling the job, so the cache saves still run
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v6
 
+      # bun only to run the package.json script — the bazel build fetches its
+      # own node toolchain and never reads node_modules
       - uses: oven-sh/setup-bun@v2
-
-      - name: Cache bun dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            bun-${{ runner.os }}-
-
-      - run: bun install --frozen-lockfile
 
       # hermetic llvm toolchain's clang links libtinfo.so.5, removed from ubuntu 24.04
       - name: Install libtinfo5
@@ -147,19 +208,60 @@ jobs:
             bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
             bazel-repo-${{ runner.os }}-
 
-      - run: bun run check:zig
-
       # cold build needs ~125 min; if the budget blows, the step fails (not the
-      # job), the partial disk cache still saves, and the next run resumes from it
+      # job) and the remote cache keeps whatever was compiled
       - run: bun run test:components
         timeout-minutes: 150
 
-      # last because it's the only step passing --legacy_external_runfiles, and
-      # every flip of that flag discards bazel's analysis cache for ~35k targets.
-      # !cancelled() so it still runs (and banks artifacts) when components fails
+      - name: Save bazel repository cache
+        if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+
+  android-tests:
+    # see component-tests for why dependabot bun PRs skip this
+    if: ${{ !(github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      # bun only to run the package.json script — kt_jvm_test never reads node_modules
+      - uses: oven-sh/setup-bun@v2
+
+      # hermetic llvm toolchain's clang links libtinfo.so.5, removed from ubuntu 24.04
+      # (the JNI .cpp files compile with it)
+      - name: Install libtinfo5
+        run: |
+          wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
+          sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
+
+      - name: Configure bazel caching
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          echo "build --disk_cache=" >> ~/.bazelrc
+          if [ -n "$BUILDBUDDY_API_KEY" ]; then
+            echo "build --config=remote-cache" >> ~/.bazelrc
+            echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
+          fi
+
+      - name: Restore bazel repository cache
+        id: restore-bazel-repo
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          restore-keys: |
+            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-repo-${{ runner.os }}-
+
+      # this is the only job passing --legacy_external_runfiles (via the script),
+      # so isolating it here removes the analysis-cache flips other jobs paid for
       - run: bun run test:android
         timeout-minutes: 30
-        if: ${{ !cancelled() }}
 
       - name: Save bazel repository cache
         if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
