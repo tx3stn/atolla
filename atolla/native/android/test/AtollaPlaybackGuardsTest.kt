@@ -108,6 +108,58 @@ class AtollaPlaybackGuardsTest {
 		assertFalse(AtollaPlaybackGuards.shouldPrepareBeforeResume(AtollaPlaybackGuards.STATE_ENDED))
 	}
 
+	// --- shouldHandleMediaActionNatively ---
+
+	@Test
+	fun `transport actions are handled natively at tap time`() {
+		assertTrue(AtollaPlaybackGuards.shouldHandleMediaActionNatively("play"))
+		assertTrue(AtollaPlaybackGuards.shouldHandleMediaActionNatively("pause"))
+		assertTrue(AtollaPlaybackGuards.shouldHandleMediaActionNatively("next"))
+		assertTrue(AtollaPlaybackGuards.shouldHandleMediaActionNatively("previous"))
+	}
+
+	@Test
+	fun `stop and unknown actions stay on the JS path`() {
+		assertFalse(AtollaPlaybackGuards.shouldHandleMediaActionNatively("stop"))
+		assertFalse(AtollaPlaybackGuards.shouldHandleMediaActionNatively(""))
+		assertFalse(AtollaPlaybackGuards.shouldHandleMediaActionNatively("toggle"))
+	}
+
+	// --- shouldTreatTransitionAsAdvance ---
+
+	@Test
+	fun `auto transitions always advance`() {
+		assertTrue(
+			AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(
+				reason = AtollaPlaybackGuards.TRANSITION_REASON_AUTO,
+				expectingNativeSkip = false,
+			),
+		)
+	}
+
+	@Test
+	fun `seek transitions advance only for an engine-initiated skip`() {
+		assertTrue(
+			AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(
+				reason = AtollaPlaybackGuards.TRANSITION_REASON_SEEK,
+				expectingNativeSkip = true,
+			),
+		)
+		assertFalse(
+			AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(
+				reason = AtollaPlaybackGuards.TRANSITION_REASON_SEEK,
+				expectingNativeSkip = false,
+			),
+		)
+	}
+
+	@Test
+	fun `repeat and playlist-changed transitions never advance`() {
+		// MEDIA_ITEM_TRANSITION_REASON_REPEAT = 0, PLAYLIST_CHANGED = 3 in media3.
+		assertFalse(AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(reason = 0, expectingNativeSkip = true))
+		assertFalse(AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(reason = 3, expectingNativeSkip = true))
+	}
+
 	// --- lookaheadAppendCount ---
 
 	@Test

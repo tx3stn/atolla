@@ -1174,6 +1174,40 @@ describe('PlaybackStore', () => {
 			expect(store.progressSeconds).toBe(0);
 		});
 
+		it('does not overwrite user-initiated playPause() if it races the async restore', async () => {
+			let resolveRead!: (value: string) => void;
+			const deferredStore = {
+				fetchString: (key: string): Promise<string> =>
+					key === 'queue_active'
+						? Promise.reject(new Error('missing'))
+						: new Promise((resolve) => {
+								resolveRead = resolve;
+							}),
+				storeString: (_key: string, _value: string): Promise<void> => Promise.resolve(),
+			};
+
+			const store = new PlaybackStore();
+			const restorePromise = store.setQueueStore(deferredStore);
+
+			// User resumes playback (e.g. after a background session) before the restore
+			// finishes — the restore must not clobber isPlaying back to false.
+			store.playPause();
+			expect(store.isPlaying).toBe(true);
+
+			resolveRead(
+				JSON.stringify({
+					album,
+					artistLogoUrls: [null],
+					progressSeconds: 10,
+					trackIndex: 0,
+					tracks: [track1],
+				}),
+			);
+			await restorePromise;
+
+			expect(store.isPlaying).toBe(true);
+		});
+
 		it('does not overwrite user-initiated stop() if it races the async restore', async () => {
 			let resolveRead!: (value: string) => void;
 			const deferredStore = {

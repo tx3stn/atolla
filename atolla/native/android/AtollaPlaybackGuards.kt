@@ -49,6 +49,24 @@ object AtollaPlaybackGuards {
 	fun shouldRebuildQueueForState(isEnded: Boolean, isIdle: Boolean, currentItemMatches: Boolean): Boolean =
 		isEnded || isIdle || !currentItemMatches
 
+	// Media-session/notification transport actions are applied to the player directly at tap
+	// time: the JS poll that used to apply them freezes in the background, leaving the
+	// notification buttons dead and replaying stale taps when the app next opens. Only "stop"
+	// stays on the JS path — clearing the queue is store business.
+	fun shouldHandleMediaActionNatively(action: String): Boolean =
+		action == "play" || action == "pause" || action == "next" || action == "previous"
+
+	// Mirrors Player.MEDIA_ITEM_TRANSITION_REASON_AUTO (media3 = 1) and
+	// MEDIA_ITEM_TRANSITION_REASON_SEEK (media3 = 2).
+	const val TRANSITION_REASON_AUTO = 1
+	const val TRANSITION_REASON_SEEK = 2
+
+	// A media item transition advances the engine's track state when ExoPlayer auto-advanced
+	// at a track boundary, or when the engine itself initiated a skip (seekToNextMediaItem
+	// reports reason SEEK). Other seeks and playlist rebuilds must not advance.
+	fun shouldTreatTransitionAsAdvance(reason: Int, expectingNativeSkip: Boolean): Boolean =
+		reason == TRANSITION_REASON_AUTO || (reason == TRANSITION_REASON_SEEK && expectingNativeSkip)
+
 	// How many media items must be appended so the player holds targetAhead items beyond the
 	// current one. Background playback can only auto-advance through items that are already
 	// queued — JS is frozen and cannot top the queue up at each transition.

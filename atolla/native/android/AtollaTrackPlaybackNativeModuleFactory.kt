@@ -237,6 +237,14 @@ object AtollaGaplessAudioEngine {
 	@Volatile private var playbackRate: Float = 0f
 	@Volatile private var volume: Float = 1f
 	@Volatile private var pendingSeekToMs: Long? = null
+	// Maintained by onIsPlayingChanged so isActive() never needs a main-thread round trip —
+	// the previous 50ms latch read returned false under main-thread load, making the JS
+	// queue restore believe playback was inactive while audio was audibly playing.
+	@Volatile private var isPlayingNow: Boolean = false
+
+	// Set just before an engine-initiated seekToNextMediaItem so the resulting SEEK-reason
+	// transition is treated as a track advance (event + lookahead + notification).
+	@Volatile private var expectingNativeSkip: Boolean = false
 
 	@Volatile private var nextNotificationTrackName: String = ""
 	@Volatile private var nextNotificationArtistName: String = ""
@@ -282,13 +290,17 @@ object AtollaGaplessAudioEngine {
 		}
 
 		override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-			if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+			val nativeSkip = expectingNativeSkip
+			if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
+				expectingNativeSkip = false
+			}
+			if (!AtollaPlaybackGuards.shouldTreatTransitionAsAdvance(reason, nativeSkip)) {
 				Log.d(tag, "onMediaItemTransition skipped reason=$reason")
 				return
 			}
 
 			val finishedTrackId = sourceTrackId
-			Log.d(tag, "onMediaItemTransition auto trackId=${mediaItem?.mediaId} finished=$finishedTrackId")
+			Log.d(tag, "onMediaItemTransition advance trackId=${mediaItem?.mediaId} finished=$finishedTrackId reason=$reason")
 			// Carry the finished trackId so JS can reconcile deterministically after being
 			// frozen across several transitions (it advances past the last finished id rather
 			// than counting events).
@@ -362,6 +374,10 @@ object AtollaGaplessAudioEngine {
 				val endedTrackId = sourceTrackId
 				enqueueEvent(if (endedTrackId.isBlank()) "completed" else "completed:$endedTrackId")
 			}
+		}
+
+		override fun onIsPlayingChanged(isPlaying: Boolean) {
+			isPlayingNow = isPlaying
 		}
 
 		override fun onPlayerError(error: PlaybackException) {
@@ -476,9 +492,7 @@ object AtollaGaplessAudioEngine {
 	}
 
 	fun isActive(): Boolean {
-		return runOnMainSync(false) {
-			exoPlayer?.isPlaying ?: false
-		}
+		return isPlayingNow
 	}
 
 	fun setNextNotification(
@@ -497,6 +511,61 @@ object AtollaGaplessAudioEngine {
 		nextNotificationDurationSeconds = durationSeconds
 		nextNotificationHasPrevious = hasPrevious
 		nextNotificationHasNext = hasNext
+	}
+
+	// Applies a media-session/notification transport action directly to the player so the
+	// controls stay responsive while the JS runtime is frozen in the background. The store
+	// reconciles afterwards through the engine event queue (play/pause-requested, and the
+	// skip's completed:<trackId> from the resulting transition).
+	fun handleMediaAction(action: String) {
+		Log.d(tag, "handleMediaAction action=$action")
+		mainHandler.post {
+			val player = exoPlayer ?: return@post
+			when (action) {
+				"play" -> {
+					if (playbackRate <= 0f) {
+						playbackRate = 1f
+					}
+					player.setPlaybackParameters(PlaybackParameters(playbackRate))
+					if (AtollaPlaybackGuards.shouldSeekToRecoverEndedState(player.playbackState)) {
+						player.seekToDefaultPosition()
+					}
+					if (AtollaPlaybackGuards.shouldPrepareBeforeResume(player.playbackState)) {
+						player.prepare()
+					}
+					player.playWhenReady = true
+					enqueueEvent("play-requested")
+					AtollaTrackPlaybackMediaSession.setPlaybackActive(
+						isPlaying = true,
+						positionSeconds = player.currentPosition.coerceAtLeast(0L) / 1000.0,
+					)
+				}
+				"pause" -> {
+					player.playWhenReady = false
+					enqueueEvent("pause-requested")
+					AtollaTrackPlaybackMediaSession.setPlaybackActive(
+						isPlaying = false,
+						positionSeconds = player.currentPosition.coerceAtLeast(0L) / 1000.0,
+					)
+				}
+				"next" -> {
+					if (player.hasNextMediaItem()) {
+						expectingNativeSkip = true
+						player.seekToNextMediaItem()
+					}
+				}
+				"previous" -> {
+					// The played items are trimmed from the queue, so a real previous-track
+					// jump needs JS; restarting the current track is the predictable native
+					// behaviour that works while JS is frozen.
+					player.seekToDefaultPosition()
+					AtollaTrackPlaybackMediaSession.setPlaybackActive(
+						isPlaying = player.playWhenReady,
+						positionSeconds = 0.0,
+					)
+				}
+			}
+		}
 	}
 
 	fun setUpcomingQueue(queueJson: String) {
@@ -614,6 +683,7 @@ object AtollaGaplessAudioEngine {
 		nextDurationMs = 0L
 		pendingSeekToMs = null
 		upcomingQueue = emptyList()
+		expectingNativeSkip = false
 		synchronized(eventQueue) {
 			eventQueue.clear()
 		}
@@ -767,6 +837,7 @@ object AtollaGaplessAudioEngine {
 	private fun releasePlayer() {
 		val player = exoPlayer
 		exoPlayer = null
+		isPlayingNow = false
 		if (player != null) {
 			try {
 				player.removeListener(playerListener)
@@ -1414,6 +1485,19 @@ object AtollaTrackPlaybackMediaSession {
 		publishNotificationSnapshot(context)
 	}
 
+	// Re-publishes the notification/media-session state with the stored metadata when the
+	// engine applies a transport action natively (JS may be frozen and unable to push an
+	// updated payload).
+	@Synchronized
+	fun setPlaybackActive(isPlaying: Boolean, positionSeconds: Double) {
+		if (activeTrackName.isBlank()) {
+			return
+		}
+		activeIsPlaying = isPlaying
+		activePositionMs = (positionSeconds * 1000.0).toLong().coerceAtLeast(0L)
+		publishNotificationSnapshot()
+	}
+
 	@Synchronized
 	fun ensureNotificationPermission(): Boolean {
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
@@ -1478,6 +1562,18 @@ object AtollaTrackPlaybackMediaSession {
 				actionStop -> "stop"
 				else -> return
 			}
+		// Transport actions drive the engine directly so the notification stays responsive
+		// while JS is frozen in the background; the JS store reconciles via engine events.
+		// Queuing them for the JS poll instead would leave the buttons dead and replay the
+		// stale taps when the app next opens.
+		if (AtollaPlaybackGuards.shouldHandleMediaActionNatively(mapped)) {
+			AtollaGaplessAudioEngine.handleMediaAction(mapped)
+			return
+		}
+		if (mapped == "stop") {
+			// Silence playback immediately; clearing the queue stays with JS on its next poll.
+			AtollaGaplessAudioEngine.handleMediaAction("pause")
+		}
 		if (pendingActions.size < 2) {
 			pendingActions.addLast(mapped)
 		}

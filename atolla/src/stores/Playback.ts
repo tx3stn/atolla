@@ -263,6 +263,9 @@ export class PlaybackStore {
 			trackId: this.track?.id,
 			wasPlaying: this.isPlaying,
 		});
+		// An explicit user toggle must win over a still-resolving queue restore, which
+		// would otherwise overwrite isPlaying with the (possibly stale) native snapshot.
+		this.queueRestoreSuperseded = true;
 		this.isPlaying = !this.isPlaying;
 		if (!this.isPlaying) {
 			this.persistQueue();
