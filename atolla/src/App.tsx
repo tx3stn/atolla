@@ -74,6 +74,7 @@ import { WaveformGenerationQueue } from './services/WaveformGenerationQueue';
 import { WaveformRenderCache } from './services/WaveformRenderCache';
 import { WaveformService } from './services/WaveformService';
 import { WriteBehindPaletteStore } from './services/WriteBehindPaletteStore';
+import { BarColorStore } from './stores/BarColor';
 import { InMemoryAuthStore, JellyfinAuthStore } from './stores/JellyfinAuthStore';
 import { PlaybackStore } from './stores/Playback';
 import {
@@ -191,6 +192,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		closeSlot(this.modalSlot);
 	};
 	private playbackStore = new PlaybackStore();
+	private barColors = new BarColorStore();
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
 	private readonly defaultJellyfinClientDeviceId = `atolla-${this.deviceUserScopeKey}`;
 	private jellyfinClientDeviceIdOverride = '';
@@ -2343,6 +2345,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				album={album}
 				animationsEnabled={this.state.animationsEnabled}
 				artistLogoUrl={artistLogoUrl}
+				barColors={this.barColors}
 				collapseSignal={this.state.nowPlayingCollapseSignal}
 				isPlaying={isPlaying}
 				language={this.state.language}
@@ -2787,6 +2790,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (Device.isAndroid()) return undefined;
 		return {
 			activeFooterTab: this.state.activeFooterTab,
+			barColors: this.barColors,
 			downloadingCount: this.state.downloadingCount,
 			header: {
 				activeTab: this.state.activeLibraryTab,
@@ -2806,6 +2810,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (Device.isAndroid()) return undefined;
 		return {
 			activeFooterTab: this.state.activeFooterTab,
+			barColors: this.barColors,
 			downloadingCount: this.state.downloadingCount,
 			header: {
 				activeTab: HeaderTabs.albums,
@@ -2824,6 +2829,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (Device.isAndroid()) return undefined;
 		return {
 			activeFooterTab: this.state.activeFooterTab,
+			barColors: this.barColors,
 			downloadingCount: this.state.downloadingCount,
 			modalSlot: this.modalSlot,
 			nowPlayingOverlaySlot: this.nowPlayingOverlaySlot,
@@ -3013,6 +3019,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							album={album}
 							animationsEnabled={this.state.animationsEnabled}
 							artistLogoUrl={artistLogoUrl}
+							barColors={this.barColors}
 							collapseSignal={this.state.nowPlayingCollapseSignal}
 							isPlaying={isPlaying}
 							language={this.state.language}
@@ -3071,6 +3078,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 			<FooterNav
 				activeTab={this.state.activeFooterTab}
+				barColors={this.barColors}
 				downloadingCount={this.state.downloadingCount}
 				onFooterTabTap={this.handleFooterTabTap}
 			/>

@@ -659,6 +659,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				{this.viewModel.navBarContext && (
 					<FooterNav
 						activeTab={this.viewModel.navBarContext.activeFooterTab}
+						barColors={this.viewModel.navBarContext.barColors}
 						downloadingCount={this.viewModel.navBarContext.downloadingCount}
 						onFooterTabTap={this.handleFooterNavTabTap}
 					/>

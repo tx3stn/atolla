@@ -1,21 +1,38 @@
 import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
+import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { BarColorStore } from '../../stores/BarColor';
 import { theme } from '../../theme';
 import { FooterIcon } from './FooterIcon';
 import { type FooterTab, FooterTabs } from './FooterTab';
 
 export interface FooterNavViewModel {
 	activeTab: FooterTab;
+	barColors: BarColorStore;
 	downloadingCount: number;
 	onFooterTabTap: (tabId: FooterTab) => void;
 }
 
 export class FooterNav extends Component<FooterNavViewModel> {
+	private rootRef = new ElementRef();
+
+	onCreate(): void {
+		this.registerDisposable(
+			this.viewModel.barColors.subscribe(() => {
+				this.rootRef.setAttribute('backgroundColor', this.viewModel.barColors.footerColor);
+			}),
+		);
+	}
+
 	onRender() {
-		<view style={styles.footerPinned}>
+		<view
+			backgroundColor={this.viewModel.barColors.footerColor}
+			ref={this.rootRef}
+			style={styles.footerPinned}
+		>
 			<FooterIcon
 				accessibilityId='footer-home'
 				action={createReusableCallback(() => {
@@ -58,7 +75,6 @@ export class FooterNav extends Component<FooterNavViewModel> {
 
 const styles = {
 	footerPinned: new Style<View>({
-		backgroundColor: theme.colors.bgFrosted,
 		bottom: 0,
 		flexDirection: 'row',
 		height: theme.footerHeight,

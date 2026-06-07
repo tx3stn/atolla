@@ -685,6 +685,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				{this.viewModel.navBarContext && (
 					<FooterNav
 						activeTab={this.viewModel.navBarContext.activeFooterTab}
+						barColors={this.viewModel.navBarContext.barColors}
 						downloadingCount={this.viewModel.navBarContext.downloadingCount}
 						onFooterTabTap={this.handleFooterNavTabTap}
 					/>

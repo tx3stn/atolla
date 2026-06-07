@@ -1,4 +1,5 @@
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import type { BarColorStore } from '../stores/BarColor';
 import type { ConnectionMode } from '../transports/Model';
 import type { FooterTab } from './components/FooterTab';
 import type { HeaderTab } from './components/HeaderTabs';
@@ -13,6 +14,7 @@ export interface NavBarHeaderContext {
 
 export interface NavBarContext {
 	activeFooterTab: FooterTab;
+	barColors: BarColorStore;
 	downloadingCount: number;
 	header?: NavBarHeaderContext;
 	modalSlot?: DetachedSlot;

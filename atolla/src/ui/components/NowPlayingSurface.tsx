@@ -1,7 +1,6 @@
 import res from 'atolla/res';
 import { AnimationCurve, type AnimationOptions } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { Device } from 'valdi_core/src/Device';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
@@ -9,11 +8,11 @@ import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplat
 import type { Album } from '../../models/Album';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
-import { setAtollaStatusBarColor } from '../../StatusBarNative';
 import Strings from '../../Strings';
 import type { Palette } from '../../services/color/types';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
+import type { BarColorStore } from '../../stores/BarColor';
 import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playback';
 import { paletteDefaults, theme, topInset, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -35,6 +34,7 @@ export interface NowPlayingSurfaceViewModel {
 	album: Album | null;
 	animationsEnabled: boolean;
 	artistLogoUrl?: string | null;
+	barColors: BarColorStore;
 	collapseSignal: number;
 	imageCache?: ImageCache;
 	isPlaying: boolean;
@@ -146,6 +146,9 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		this.isTransitioning = true;
+		this.viewModel.barColors.setFooterColor(
+			withAlpha(this.viewModel.palette?.surface.hex ?? paletteDefaults.surface, 0.8),
+		);
 		this.setState({ isExpanded: true });
 		this.expandedScrollRef.setAttribute('contentOffsetY', 0);
 		this.overlayRef.setAttribute('top', 0);
@@ -180,9 +183,9 @@ export class NowPlayingSurface extends StatefulComponent<
 				);
 			})
 			.then(() => {
-				if (Device.isAndroid()) {
-					setAtollaStatusBarColor(this.viewModel.palette?.surface.hex ?? paletteDefaults.surface);
-				}
+				this.viewModel.barColors.setHeaderColor(
+					this.viewModel.palette?.surface.hex ?? paletteDefaults.surface,
+				);
 				this.transitionArtworkRef.setAttribute('opacity', 0);
 				this.scrollArtworkStyle = styles.expandedScrollArtworkVisible;
 				this.scrollArtworkRef.setAttribute('opacity', 1);
@@ -207,8 +210,10 @@ export class NowPlayingSurface extends StatefulComponent<
 			this.rebuildPaletteStyles(this.viewModel.palette, this.state.activeQueueTab);
 		}
 
-		if (Device.isAndroid() && this.state.isExpanded && !this.isTransitioning) {
-			setAtollaStatusBarColor(this.viewModel.palette?.surface.hex ?? paletteDefaults.surface);
+		if (this.state.isExpanded && !this.isTransitioning) {
+			const surfaceColor = this.viewModel.palette?.surface.hex ?? paletteDefaults.surface;
+			this.viewModel.barColors.setHeaderColor(surfaceColor);
+			this.viewModel.barColors.setFooterColor(withAlpha(surfaceColor, 0.8));
 		}
 
 		if (this.viewModel.collapseSignal === prevViewModel.collapseSignal) {
@@ -223,6 +228,10 @@ export class NowPlayingSurface extends StatefulComponent<
 	}
 
 	onDestroy(): void {
+		if (this.state.isExpanded) {
+			this.viewModel.barColors.setHeaderColor(theme.colors.bg);
+			this.viewModel.barColors.setFooterColor(theme.colors.bgFrosted);
+		}
 		this.unsubscribeProgress?.();
 	}
 
@@ -272,9 +281,8 @@ export class NowPlayingSurface extends StatefulComponent<
 			return Promise.resolve();
 		}
 
-		if (Device.isAndroid()) {
-			setAtollaStatusBarColor(theme.colors.bg);
-		}
+		this.viewModel.barColors.setFooterColor(theme.colors.bgFrosted);
+		this.viewModel.barColors.setHeaderColor(theme.colors.bg);
 
 		this.isTransitioning = true;
 		this.scrollArtworkStyle = styles.expandedScrollArtwork;

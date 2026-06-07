@@ -1,5 +1,7 @@
 import 'jasmine/src/jasmine';
+import { BarColorStore } from 'atolla/src/stores/BarColor';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
+import { paletteDefaults, theme, withAlpha } from 'atolla/src/theme';
 import { NowPlayingSurface } from 'atolla/src/ui/components/NowPlayingSurface';
 import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -43,6 +45,7 @@ function createNowPlayingComponent(
 	return createComponent(NowPlayingSurface, {
 		album: albumOverride,
 		artistLogoUrl: null,
+		barColors: new BarColorStore(),
 		collapseSignal: 0,
 		isPlaying: true,
 		loopMode: 'none',
@@ -104,6 +107,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'none',
@@ -143,6 +147,39 @@ describe('NowPlayingSurface', () => {
 		expect(overlay?.getAttribute('top')).toBe(0);
 	});
 
+	valdiIt('tints the footer when expanded and resets it when torn down', async () => {
+		const barColors = new BarColorStore();
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			barColors,
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore: mockPlaybackStore(),
+			track,
+			trackIndex: 0,
+			tracks: [track],
+		});
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+
+		expect(barColors.footerColor).toBe(theme.colors.bgFrosted);
+
+		compactBar?.getAttribute('onTap')?.();
+		expect(barColors.footerColor).toBe(withAlpha(paletteDefaults.surface, 0.8));
+
+		instrumented.destroy();
+		expect(barColors.footerColor).toBe(theme.colors.bgFrosted);
+	});
+
 	valdiIt('shows add-to-queue toast when context menu action is tapped', async () => {
 		let addToQueueCalls = 0;
 		const playbackStore = mockPlaybackStore({
@@ -158,6 +195,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'none',
@@ -202,6 +240,7 @@ describe('NowPlayingSurface', () => {
 			const instrumented = createComponent(NowPlayingSurface, {
 				album,
 				artistLogoUrl: null,
+				barColors: new BarColorStore(),
 				collapseSignal: 0,
 				isPlaying: true,
 				loopMode: 'none',
@@ -270,6 +309,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'none',
@@ -315,6 +355,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'none',
@@ -362,6 +403,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'none',
@@ -405,6 +447,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'none',
@@ -441,6 +484,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'none',
@@ -479,6 +523,7 @@ describe('NowPlayingSurface', () => {
 		instrumented.setViewModel({
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 1,
 			isPlaying: true,
 			loopMode: 'none',
@@ -535,6 +580,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: 'https://example.com/logo.png',
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'none',
@@ -589,6 +635,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'queue',
@@ -631,6 +678,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'none',
@@ -663,6 +711,7 @@ describe('NowPlayingSurface', () => {
 		const instrumented = createComponent(NowPlayingSurface, {
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'none',
@@ -685,6 +734,7 @@ describe('NowPlayingSurface', () => {
 		instrumented.setViewModel({
 			album,
 			artistLogoUrl: null,
+			barColors: new BarColorStore(),
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'none',
