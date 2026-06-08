@@ -4,10 +4,13 @@ import { dirname, resolve } from 'node:path';
 
 import sharp from 'sharp';
 
+type Platform = 'android' | 'ios' | 'web';
+
 type IconOutput = {
 	monochrome?: boolean;
 	noPadding?: boolean;
 	path: string;
+	platform: Platform;
 	size: number;
 };
 
@@ -17,107 +20,158 @@ const iosIconPaddingRatio = 0.12;
 const defaultIconPaddingRatio = 0.01;
 
 const outputs: Array<IconOutput> = [
-	{ path: resolve(process.cwd(), 'generated/icons/ios/app-store-1024.png'), size: 1024 },
+	{
+		path: resolve(process.cwd(), 'generated/icons/ios/app-store-1024.png'),
+		platform: 'ios',
+		size: 1024,
+	},
 	{
 		path: resolve(
 			process.cwd(),
 			'atolla/native/ios/Assets.xcassets/AppIcon.appiconset/icon-1024.png',
 		),
+		platform: 'ios',
 		size: 1024,
 	},
 	{
 		path: resolve(process.cwd(), 'generated/icons/android/ic_launcher-48.png'),
+		platform: 'android',
 		size: 48,
 	},
 	{
 		path: resolve(process.cwd(), 'generated/icons/android/ic_launcher-72.png'),
+		platform: 'android',
 		size: 72,
 	},
 	{
 		path: resolve(process.cwd(), 'generated/icons/android/ic_launcher-96.png'),
+		platform: 'android',
 		size: 96,
 	},
 	{
 		path: resolve(process.cwd(), 'generated/icons/android/ic_launcher-144.png'),
+		platform: 'android',
 		size: 144,
 	},
 	{
 		path: resolve(process.cwd(), 'generated/icons/android/ic_launcher-192.png'),
+		platform: 'android',
 		size: 192,
 	},
 	{
 		path: resolve(process.cwd(), 'generated/icons/android/ic_launcher-512.png'),
+		platform: 'android',
 		size: 512,
 	},
-	{ path: resolve(process.cwd(), 'generated/icons/web/icon-32.png'), size: 32 },
-	{ path: resolve(process.cwd(), 'generated/icons/web/icon-64.png'), size: 64 },
-	{ path: resolve(process.cwd(), 'generated/icons/web/icon-128.png'), size: 128 },
-	{ path: resolve(process.cwd(), 'generated/icons/web/icon-192.png'), size: 192 },
-	{ path: resolve(process.cwd(), 'generated/icons/web/icon-256.png'), size: 256 },
-	{ path: resolve(process.cwd(), 'generated/icons/web/icon-512.png'), size: 512 },
+	{ path: resolve(process.cwd(), 'generated/icons/web/icon-32.png'), platform: 'web', size: 32 },
+	{ path: resolve(process.cwd(), 'generated/icons/web/icon-64.png'), platform: 'web', size: 64 },
+	{ path: resolve(process.cwd(), 'generated/icons/web/icon-128.png'), platform: 'web', size: 128 },
+	{ path: resolve(process.cwd(), 'generated/icons/web/icon-192.png'), platform: 'web', size: 192 },
+	{ path: resolve(process.cwd(), 'generated/icons/web/icon-256.png'), platform: 'web', size: 256 },
+	{ path: resolve(process.cwd(), 'generated/icons/web/icon-512.png'), platform: 'web', size: 512 },
 	{
 		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-mdpi/ic_launcher.png'),
+		platform: 'android',
 		size: 48,
 	},
 	{
 		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-hdpi/ic_launcher.png'),
+		platform: 'android',
 		size: 72,
 	},
 	{
 		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xhdpi/ic_launcher.png'),
+		platform: 'android',
 		size: 96,
 	},
 	{
 		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xxhdpi/ic_launcher.png'),
+		platform: 'android',
 		size: 144,
 	},
 	{
 		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xxxhdpi/ic_launcher.png'),
+		platform: 'android',
 		size: 192,
 	},
 	{
 		path: resolve(process.cwd(), 'atolla/native/android/res/drawable/ic_launcher_foreground.png'),
+		platform: 'android',
 		size: 432,
 	},
 	{
 		monochrome: true,
 		path: resolve(process.cwd(), 'atolla/native/android/res/drawable/ic_launcher_monochrome.png'),
+		platform: 'android',
 		size: 432,
 	},
 	{
 		monochrome: true,
 		noPadding: true,
 		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-mdpi/ic_notification.png'),
+		platform: 'android',
 		size: 24,
 	},
 	{
 		monochrome: true,
 		noPadding: true,
 		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-hdpi/ic_notification.png'),
+		platform: 'android',
 		size: 36,
 	},
 	{
 		monochrome: true,
 		noPadding: true,
 		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-xhdpi/ic_notification.png'),
+		platform: 'android',
 		size: 48,
 	},
 	{
 		monochrome: true,
 		noPadding: true,
 		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-xxhdpi/ic_notification.png'),
+		platform: 'android',
 		size: 72,
 	},
 	{
 		monochrome: true,
 		noPadding: true,
 		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-xxxhdpi/ic_notification.png'),
+		platform: 'android',
 		size: 96,
 	},
 ];
 
-async function generateIcons(): Promise<void> {
-	for (const output of outputs) {
+function resolveSelectedPlatforms(): Set<Platform> {
+	const knownFlags = new Set(['--android', '--ios']);
+	const args = process.argv.slice(2);
+
+	for (const arg of args) {
+		if (arg.startsWith('--') && !knownFlags.has(arg)) {
+			console.warn(`warning: ignoring unrecognised flag '${arg}'`);
+		}
+	}
+
+	const selected = new Set<Platform>();
+	if (args.includes('--android')) selected.add('android');
+	if (args.includes('--ios')) selected.add('ios');
+
+	// No platform flag → generate everything (android + ios + web), preserving the
+	// original behaviour so `bun run icons:generate` and existing callers are unaffected.
+	if (selected.size === 0) {
+		selected.add('android');
+		selected.add('ios');
+		selected.add('web');
+	}
+
+	return selected;
+}
+
+const selectedPlatforms = resolveSelectedPlatforms();
+const selectedOutputs = outputs.filter((output) => selectedPlatforms.has(output.platform));
+
+async function generateIcons(targets: Array<IconOutput>): Promise<void> {
+	for (const output of targets) {
 		console.log(`generating: ${output.path}`);
 		await mkdir(dirname(output.path), { recursive: true });
 
@@ -179,25 +233,26 @@ async function generateIcons(): Promise<void> {
 	}
 }
 
-async function validateIcons(): Promise<void> {
+async function validateIcons(targets: Array<IconOutput>): Promise<void> {
 	await access(sourceSvgPath);
 
-	const failures: Array<string> = [];
-
-	for (const output of outputs) {
-		try {
-			await access(output.path);
-			const metadata = await sharp(output.path).metadata();
-			if (metadata.width !== output.size || metadata.height !== output.size) {
-				failures.push(
-					`size mismatch: ${output.path} expected ${output.size}x${output.size} got ${metadata.width}x${metadata.height}`,
-				);
-			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			failures.push(`missing or unreadable: ${output.path} (${message})`);
-		}
-	}
+	const failures = (
+		await Promise.all(
+			targets.map(async (output) => {
+				try {
+					await access(output.path);
+					const metadata = await sharp(output.path).metadata();
+					if (metadata.width !== output.size || metadata.height !== output.size) {
+						return `size mismatch: ${output.path} expected ${output.size}x${output.size} got ${metadata.width}x${metadata.height}`;
+					}
+					return null;
+				} catch (error) {
+					const message = error instanceof Error ? error.message : String(error);
+					return `missing or unreadable: ${output.path} (${message})`;
+				}
+			}),
+		)
+	).filter((failure): failure is string => failure !== null);
 
 	if (failures.length > 0) {
 		throw new Error(`Icon validation failed:\n${failures.join('\n')}`);
@@ -205,19 +260,22 @@ async function validateIcons(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-	console.log('Generating icons from atolla/res/logo.svg...');
-	await generateIcons();
+	const platforms = [...selectedPlatforms].sort().join(', ');
+	console.log(`Generating icons from atolla/res/logo.svg (${platforms})...`);
+	await generateIcons(selectedOutputs);
 
 	console.log('Validating generated icons...');
-	await validateIcons();
+	await validateIcons(selectedOutputs);
 
-	console.log('Copying svg to ios liquid glass directory...');
-	copyFileSync(
-		'atolla/res/logo.svg',
-		'atolla/native/ios/Assets.xcassets/AppIcon.icon/Assets/logo.svg',
-	);
+	if (selectedPlatforms.has('ios')) {
+		console.log('Copying svg to ios liquid glass directory...');
+		copyFileSync(
+			'atolla/res/logo.svg',
+			'atolla/native/ios/Assets.xcassets/AppIcon.icon/Assets/logo.svg',
+		);
+	}
 
-	console.log(`Icon generation/validation complete: ${outputs.length} files OK`);
+	console.log(`Icon generation/validation complete: ${selectedOutputs.length} files OK`);
 }
 
 await main();

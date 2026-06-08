@@ -45,6 +45,18 @@ jobs:
           restore-keys: |
             bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
+      # Regenerate the Android icons from atolla/res/logo.svg in the background so it
+      # overlaps the bazel cache restores below; "Wait for icon generation" joins on
+      # it before Build APK. Output is byte-identical to the committed res/ files
+      # unless the logo changed, and must land before bazel reads res/.
+      - name: Start icon generation (background)
+        run: |
+          nohup bash -c '
+            bun run icons:generate --android > /tmp/icons.log 2>&1
+            echo $? > /tmp/icons.exit
+          ' >/dev/null 2>&1 &
+          echo $! > /tmp/icons.pid
+          echo "icon generation started (pid $(cat /tmp/icons.pid))"
       # remote cache on top of the disk cache (kept — macOS runners have the
       # space): version bumps only touch a few files, so most compile actions
       # hit artifacts uploaded by the previous release
@@ -78,6 +90,20 @@ jobs:
           restore-keys: |
             bazel-disk-android-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
             bazel-disk-android-${{ runner.os }}-
+      # Join on the background icon generation started after bun install. The process
+      # was launched in a different step's shell, so we poll its pid and read the
+      # exit status it wrote, rather than `wait` (which only works for child procs).
+      - name: Wait for icon generation
+        run: |
+          pid="$(cat /tmp/icons.pid)"
+          while kill -0 "$pid" 2>/dev/null; do sleep 1; done
+          cat /tmp/icons.log || true
+          if [ ! -f /tmp/icons.exit ]; then
+            echo "icon generation exited without writing a status file"; exit 1
+          fi
+          code="$(cat /tmp/icons.exit)"
+          echo "icon generation exit code: $code"
+          exit "$code"
       - name: Build APK
         run: JAVA_HOME="$JAVA_HOME_17_arm64" bun run build:apk
       - uses: actions/upload-artifact@v7
@@ -113,6 +139,17 @@ jobs:
   #         restore-keys: |
   #           bun-${{ runner.os }}-
   #     - run: bun install --frozen-lockfile
+  #     # Regenerate the iOS icons from atolla/res/logo.svg in the background so it
+  #     # overlaps the bazel cache restores below; "Wait for icon generation" joins
+  #     # on it before Build simulator IPA, and must land before bazel reads assets.
+  #     - name: Start icon generation (background)
+  #       run: |
+  #         nohup bash -c '
+  #           bun run icons:generate --ios > /tmp/icons.log 2>&1
+  #           echo $? > /tmp/icons.exit
+  #         ' >/dev/null 2>&1 &
+  #         echo $! > /tmp/icons.pid
+  #         echo "icon generation started (pid $(cat /tmp/icons.pid))"
   #     # remote cache on top of the disk cache (kept — macOS runners have the
   #     # space): version bumps only touch a few files, so most compile actions
   #     # hit artifacts uploaded by the previous release
@@ -146,6 +183,20 @@ jobs:
   #         restore-keys: |
   #           bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
   #           bazel-disk-ios-${{ runner.os }}-
+  #     # Join on the background icon generation started after bun install. The process
+  #     # was launched in a different step's shell, so we poll its pid and read the
+  #     # exit status it wrote, rather than `wait` (which only works for child procs).
+  #     - name: Wait for icon generation
+  #       run: |
+  #         pid="$(cat /tmp/icons.pid)"
+  #         while kill -0 "$pid" 2>/dev/null; do sleep 1; done
+  #         cat /tmp/icons.log || true
+  #         if [ ! -f /tmp/icons.exit ]; then
+  #           echo "icon generation exited without writing a status file"; exit 1
+  #         fi
+  #         code="$(cat /tmp/icons.exit)"
+  #         echo "icon generation exit code: $code"
+  #         exit "$code"
   #     # Simulator build — device (arm64) builds need an ios_provisioning_profile
   #     # on valdi_application plus signing secrets in CI
   #     - name: Build simulator IPA
