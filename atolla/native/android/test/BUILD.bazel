@@ -23,3 +23,15 @@ kt_jvm_test(
         "@test_mvn//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "AtollaDiskCacheStatsTest",
+    size = "small",
+    srcs = ["AtollaDiskCacheStatsTest.kt"],
+    jvm_flags = ["-Djava.security.manager=allow"],
+    test_class = "atolla.native.android.AtollaDiskCacheStatsTest",
+    deps = [
+        "//atolla/native:atolla_disk_cache_stats",
+        "@test_mvn//:junit_junit",
+    ],
+)

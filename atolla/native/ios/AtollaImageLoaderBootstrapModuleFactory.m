@@ -10,6 +10,7 @@
 #import "atolla/native/ios/palette_ios_bridge.h"
 #import "atolla/native/ios/blur_ios_bridge.h"
 #import "atolla/native/ios/AtollaImageFallback.h"
+#import "atolla/native/ios/AtollaDiskCacheStats.h"
 
 // MARK: - Request Payload
 
@@ -60,6 +61,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 - (NSInteger)diskEntryCount;
 - (long long)diskBytes;
 - (NSString *)diskCategoryCountsJson;
+- (void)diskStatsSnapshotWithCompletion:(void (^)(NSInteger count, long long bytes, NSString *categoryCountsJson))completion;
 @end
 
 @implementation AtollaIOSImageCacheStore {
@@ -180,6 +182,16 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     return json;
 }
 
+// Single directory scan producing count, bytes and per-category counts together, off the calling
+// thread, so the JS thread never blocks on disk I/O.
+- (void)diskStatsSnapshotWithCompletion:(void (^)(NSInteger count, long long bytes, NSString *categoryCountsJson))completion {
+    NSURL *dir = _diskDir;
+    dispatch_async(_diskQ, ^{
+        AtollaDiskStatsSnapshot *snapshot = [AtollaDiskCacheStats scanDirectory:dir];
+        completion(snapshot.count, snapshot.bytes, snapshot.categoryCountsJson);
+    });
+}
+
 - (NSURL *)diskFileForKey:(NSString *)key {
     if (!_diskDir) return nil;
     NSString *cat = [key componentsSeparatedByString:@":"].firstObject ?: @"unknown";
@@ -245,6 +257,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 - (NSInteger)diskEntryCount;
 - (long long)diskBytes;
 - (NSString *)diskCategoryCountsJson;
+- (void)diskStatsSnapshotWithCompletion:(void (^)(NSInteger count, long long bytes, NSString *categoryCountsJson))completion;
 @end
 
 @implementation AtollaIOSImageLoader {
@@ -467,6 +480,9 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 - (NSInteger)diskEntryCount { return _cache.diskEntryCount; }
 - (long long)diskBytes { return _cache.diskBytes; }
 - (NSString *)diskCategoryCountsJson { return [_cache diskCategoryCountsJson]; }
+- (void)diskStatsSnapshotWithCompletion:(void (^)(NSInteger count, long long bytes, NSString *categoryCountsJson))completion {
+    [_cache diskStatsSnapshotWithCompletion:completion];
+}
 
 @end
 
@@ -531,6 +547,12 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 
 - (NSString *)getAtollaImageLoaderDiskCacheCategoryCountsJson {
     return [AtollaIOSImageLoader.sharedInstance diskCategoryCountsJson];
+}
+
+- (void)requestAtollaImageLoaderDiskCacheStatsWithCallback:(atollaImageLoaderBootstrapModuleRequestAtollaImageLoaderDiskCacheStatsCallbackBlock)callback {
+    [AtollaIOSImageLoader.sharedInstance diskStatsSnapshotWithCompletion:^(NSInteger count, long long bytes, NSString *categoryCountsJson) {
+        callback((double)count, (double)bytes, categoryCountsJson);
+    }];
 }
 
 - (void)setAtollaImageCachedObserverWithCallback:(atollaImageLoaderBootstrapModuleSetAtollaImageCachedObserverCallbackBlock)callback {

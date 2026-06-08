@@ -14,11 +14,31 @@ This project uses Valdi, Typescript, biome.js (for linting/formatting) and webdr
 
 ## Tests
 
+### unit
+
 Unit tests should live next to the files they are testing and are written with bun. Run with `bun run test`
+
+### component
 
 Component tests are required when the thing being tested imports valdi as these need to be run with bazel. They are written with jasmine & valid and live in `atolla/test`. Run with `bun run test:components`
 
-@.ai/e2e-tests.md
+### end to end tests
+
+End to tests use webdriver.io.
+
+#### page object model
+
+All interactions should use the page object model.
+Locators should be defined once in the page object as a prviate constant.
+Components should use an accessibilityId so they can be interacted with.
+
+#### test actions
+
+Follow the Arrange, Act, Assert pattern.
+Test actions should be kept small and simple so the behvaiour is easy to understand.
+They need to work cross platform, on ios and android.
+
+### native
 
 Native code should always be tested too, and will need to be run via bazel.
 
@@ -35,6 +55,191 @@ Commands are defined in @package.json and run with `bun run ...`
 ## App
 
 Is built with typescript and valdi.
-@.ai/valdi.md
+
+### 🚨 Critical: Valdi is NOT React
+
+Valdi is fundamentally different from React.
+
+#### Common AI Hallucinations
+
+##### 1. useState Hook (Doesn't Exist)
+
+```typescript
+// ❌ WRONG - useState doesn't exist in Valdi
+const [count, setCount] = useState(0);
+```
+
+**Correct Valdi pattern:**
+
+```typescript
+// ✅ CORRECT - Use StatefulComponent with setState()
+import { StatefulComponent } from 'valdi_core/src/Component';
+
+class Counter extends StatefulComponent<ViewModel, State> {
+  state = { count: 0 };
+  
+  incrementCount() {
+    this.setState({ count: this.state.count + 1 }); // setState auto re-renders
+  }
+  
+  onRender() {
+    <button 
+      title={`Count: ${this.state.count}`}
+      onPress={this.incrementCount}
+    />;
+  }
+}
+```
+
+##### 2. useEffect Hook (Doesn't Exist)
+
+```typescript
+// ❌ WRONG - useEffect doesn't exist in Valdi
+useEffect(() => {
+  fetchData();
+}, []);
+```
+
+**Correct Valdi pattern:**
+
+```typescript
+// ✅ CORRECT - Use lifecycle methods
+import { StatefulComponent } from 'valdi_core/src/Component';
+
+class DataComponent extends StatefulComponent<ViewModel, State> {
+  state = { data: null };
+  
+  onCreate() {
+    this.fetchData();
+  }
+  
+  onViewModelUpdate(prevViewModel: ViewModel) {
+    if (this.viewModel.id !== prevViewModel.id) {
+      this.fetchData();
+    }
+  }
+  
+  async fetchData() {
+    const data = await fetch(...);
+    this.setState({ data });
+  }
+}
+```
+
+##### 3. Functional Components (Don't Exist)
+
+```typescript
+// ❌ WRONG - Functional components don't exist in Valdi
+const Button = ({ title, onPress }) => {
+  return <button title={title} onPress={onPress} />;
+};
+```
+
+**Correct Valdi pattern:**
+
+```typescript
+// ✅ CORRECT - Use class-based components
+import { Component } from 'valdi_core/src/Component';
+
+interface ButtonViewModel {
+  title: string;
+  onPress: () => void;
+}
+
+class Button extends Component<ButtonViewModel> {
+  onRender() {
+    <button 
+      title={this.viewModel.title} 
+      onPress={this.viewModel.onPress} 
+    />;
+  }
+}
+```
+
+##### 4. Returning JSX from onRender()
+
+```typescript
+// ❌ WRONG - onRender returns void, not JSX
+class MyComponent extends Component {
+  onRender() {
+    return <view />; // Compiler error!
+  }
+}
+```
+
+**Correct Valdi pattern:**
+
+```typescript
+// ✅ CORRECT - JSX is a statement, onRender returns void
+class MyComponent extends Component {
+  onRender() {
+    <view />; // No return statement
+  }
+}
+```
+
+##### 5. useContext Hook (Doesn't Exist)
+
+```typescript
+// ❌ WRONG - useContext doesn't exist in Valdi
+const theme = useContext(ThemeContext);
+```
+
+**Correct Valdi pattern:**
+
+```typescript
+// ✅ CORRECT - Use Provider pattern with HOC
+import { createProviderComponentWithKeyName } from 'valdi_core/src/provider/createProvider';
+import { withProviders } from 'valdi_core/src/provider/withProviders';
+import { ProvidersValuesViewModel } from 'valdi_core/src/provider/withProviders';
+import { Component } from 'valdi_core/src/Component';
+
+// Define theme service
+class Theme {
+  primary = '#FFFC00';
+}
+
+// Create provider
+const ThemeProvider = createProviderComponentWithKeyName<Theme>('ThemeProvider');
+
+// Provide value
+class AppRoot extends Component {
+  private theme = new Theme();
+  
+  onRender() {
+    <ThemeProvider value={this.theme}>
+      <ThemedComponentWithProvider />
+    </ThemeProvider>;
+  }
+}
+
+// Consume with HOC
+interface ThemedViewModel extends ProvidersValuesViewModel<[Theme]> {}
+
+class ThemedComponent extends Component<ThemedViewModel> {
+  onRender() {
+    const [theme] = this.viewModel.providersValues;
+    <view backgroundColor={theme.primary} />;
+  }
+}
+
+const ThemedComponentWithProvider = withProviders(ThemeProvider)(ThemedComponent);
+```
+
+#### Quick Reference: React vs Valdi
+
+| Concept | React Pattern | Valdi Pattern |
+|---------|---------------|---------------|
+| **Component** | `const C = () => {}` | `class C extends StatefulComponent {}` |
+| **State** | `useState(0)` | `state = { count: 0 }` |
+| **Update State** | `setCount(1)` | `this.setState({ count: 1 })` |
+| **Props** | `props.title` | `this.viewModel.title` |
+| **Mount effect** | `useEffect(() => {}, [])` | `onCreate() {}` |
+| **Update effect** | `useEffect(() => {}, [dep])` | `onViewModelUpdate(prev) {}` |
+| **Unmount effect** | `useEffect(() => () => {}, [])` | `onDestroy() {}` |
+| **Context** | `useContext(Ctx)` | `withProviders(Provider)(Component) + this.viewModel.providersValues` |
+| **Render** | `return <view />` | `<view />; // statement, returns void` |
+
+### native
 
 Native things that need to run cross platform are written in zig, to ensure they behave the same consistently.

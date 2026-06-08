@@ -106,6 +106,23 @@ object AtollaImageLoaderAutoBootstrap {
 		}
 	}
 
+	@JvmStatic
+	fun getDiskStatsSnapshot(): AtollaDiskStatsSnapshot {
+		registerForAllRuntimes()
+		return synchronized(registeredLoaders) {
+			var count = 0
+			var bytes = 0L
+			val merged = mutableMapOf<String, Int>()
+			for (loader in registeredLoaders.values) {
+				val snapshot = loader.getDiskStatsSnapshot()
+				count += snapshot.count
+				bytes += snapshot.bytes
+				snapshot.categoryCounts.forEach { (k, v) -> merged[k] = (merged[k] ?: 0) + v }
+			}
+			AtollaDiskStatsSnapshot(count, bytes, merged)
+		}
+	}
+
 	private fun parseCategoryCountsJson(json: String): Map<String, Int> {
 		val result = mutableMapOf<String, Int>()
 		val inner = json.trim().removePrefix("{").removeSuffix("}")

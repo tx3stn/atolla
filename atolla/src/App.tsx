@@ -26,10 +26,8 @@ import { ensureAtollaHapticsBootstrap } from './HapticsBootstrap';
 import {
 	clearAtollaNativeCacheCategories,
 	ensureAtollaImageLoaderBootstrap,
-	getAtollaImageLoaderDiskCacheByteSize,
-	getAtollaImageLoaderDiskCacheCategoryCountsJson,
-	getAtollaImageLoaderDiskCacheEntryCount,
 	preloadAtollaImages,
+	requestAtollaImageLoaderDiskCacheStats,
 	setAtollaImageCachedObserver,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
@@ -1189,21 +1187,24 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	private refreshNativeCacheStats(): void {
 		try {
-			const nativeImageCacheDiskCount = getAtollaImageLoaderDiskCacheEntryCount();
-			const nativeImageCacheDiskBytes = getAtollaImageLoaderDiskCacheByteSize();
-			let imageCategoryCounts: Record<string, number> = this.state.imageCategoryCounts;
-			try {
-				imageCategoryCounts = JSON.parse(
-					getAtollaImageLoaderDiskCacheCategoryCountsJson(),
-				) as Record<string, number>;
-			} catch {
-				// Leave existing counts on parse failure.
-			}
-			this.setState({
-				imageCategoryCounts,
-				nativeImageCacheDiskBytes,
-				nativeImageCacheDiskCount,
-			});
+			// The scan walks the whole image disk cache, so it runs on a native background thread and
+			// delivers results via this callback — never blocking the JS thread (which would stutter
+			// concurrent animations such as the now-playing surface collapse).
+			requestAtollaImageLoaderDiskCacheStats(
+				(nativeImageCacheDiskCount, nativeImageCacheDiskBytes, categoryCountsJson) => {
+					let imageCategoryCounts: Record<string, number> = this.state.imageCategoryCounts;
+					try {
+						imageCategoryCounts = JSON.parse(categoryCountsJson) as Record<string, number>;
+					} catch {
+						// Leave existing counts on parse failure.
+					}
+					this.setState({
+						imageCategoryCounts,
+						nativeImageCacheDiskBytes,
+						nativeImageCacheDiskCount,
+					});
+				},
+			);
 		} catch {
 			// Native cache stats unavailable on non-Android targets.
 		}

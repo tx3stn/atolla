@@ -1,5 +1,7 @@
 package com.tx3stn.atolla
 
+import atolla.native.android.AtollaDiskCacheStats
+import atolla.native.android.AtollaDiskStatsSnapshot
 import atolla.native.android.AtollaImageFallback
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -179,6 +181,10 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	fun getDiskEntryCount(): Int = getDiskStats()?.first ?: 0
 
 	fun getDiskByteSize(): Long = getDiskStats()?.second ?: 0L
+
+	// Single directory scan producing count, bytes and per-category counts together, so callers can
+	// avoid the three separate scans the individual getters incur.
+	fun getDiskStatsSnapshot(): AtollaDiskStatsSnapshot = AtollaDiskCacheStats.scan(diskCacheDir)
 
 	fun getDiskCategoryCountsJson(): String {
 		val dir = diskCacheDir ?: return "{}"

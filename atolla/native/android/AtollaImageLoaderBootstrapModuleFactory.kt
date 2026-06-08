@@ -1,12 +1,19 @@
 package atolla.native.android
 
+import android.util.Log
 import com.snap.valdi.modules.RegisterValdiModule
 import com.tx3stn.atolla.AtollaCacheImageLoader
 import com.snap.modules.atolla.ImageLoaderBootstrapModule
 import com.snap.modules.atolla.ImageLoaderBootstrapModuleFactory
+import java.util.concurrent.Executors
 
 @RegisterValdiModule
 class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactory() {
+	companion object {
+		private const val tag = "AtollaImageLoaderBootstrap"
+		private val diskStatsExecutor = Executors.newSingleThreadExecutor()
+	}
+
 	override fun onLoadModule(): ImageLoaderBootstrapModule {
 		return object : ImageLoaderBootstrapModule {
 			override fun ensureAtollaImageLoaderBootstrap() {
@@ -50,6 +57,19 @@ class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactor
 
 			override fun getAtollaImageLoaderDiskCacheCategoryCountsJson(): String {
 				return AtollaImageLoaderAutoBootstrap.getDiskCategoryCountsJson()
+			}
+
+			override fun requestAtollaImageLoaderDiskCacheStats(callback: (Double, Double, String) -> Unit) {
+				diskStatsExecutor.execute {
+					try {
+						val snapshot = AtollaImageLoaderAutoBootstrap.getDiskStatsSnapshot()
+						val json = org.json.JSONObject()
+						snapshot.categoryCounts.forEach { (key, value) -> json.put(key, value) }
+						callback(snapshot.count.toDouble(), snapshot.bytes.toDouble(), json.toString())
+					} catch (error: Throwable) {
+						Log.e(tag, "Failed to compute disk cache stats", error)
+					}
+				}
 			}
 
 			override fun setAtollaImageCachedObserver(callback: (String, String) -> Unit) {

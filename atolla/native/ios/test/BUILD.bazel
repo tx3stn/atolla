@@ -32,3 +32,18 @@ macos_unit_test(
     minimum_os_version = "12.0",
     deps = [":AtollaPlaybackGuardsTestLib"],
 )
+
+objc_library(
+    name = "AtollaDiskCacheStatsTestLib",
+    testonly = True,
+    srcs = ["AtollaDiskCacheStatsTest.m"],
+    copts = ["-I."],
+    deps = ["//atolla/native:atolla_disk_cache_stats_ios"],
+)
+
+macos_unit_test(
+    name = "AtollaDiskCacheStatsTest",
+    size = "small",
+    minimum_os_version = "12.0",
+    deps = [":AtollaDiskCacheStatsTestLib"],
+)
