@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags: ['[0-9]*.[0-9]*.[0-9]*']
 
 permissions:
   contents: write
@@ -16,7 +16,7 @@ jobs:
       - name: Check tag matches package.json version
         run: |
           version="$(jq -r .version package.json)"
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
             echo "Tag $GITHUB_REF_NAME does not match package.json version $version"
             exit 1
           fi
