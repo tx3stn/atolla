@@ -3,9 +3,9 @@ verbose = false
 files = ['package.json', 'BUILD.bazel', 'atolla/src/version.ts']
 
 [bump]
-commit = false
+commit = true
 commit-msg = 'chore: bump version to {{.Version}}'
-git-tag = false
+git-tag = true
 tag-msg = 'release {{.Version}}'
 
 [check]

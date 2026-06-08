@@ -98,78 +98,78 @@ jobs:
           path: ~/.cache/bazel-disk-android
           key: bazel-disk-android-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
 
-  build-ios:
-    needs: verify
-    runs-on: macos-latest
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
-      - name: Cache bun dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            bun-${{ runner.os }}-
-      - run: bun install --frozen-lockfile
-      # remote cache on top of the disk cache (kept — macOS runners have the
-      # space): version bumps only touch a few files, so most compile actions
-      # hit artifacts uploaded by the previous release
-      - name: Configure bazel caching
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-        run: |
-          if [ -n "$BUILDBUDDY_API_KEY" ]; then
-            echo "build --config=remote-cache" >> ~/.bazelrc
-            echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
-          fi
-      # restore/save split so a build that fails at minute 110 still banks its
-      # repo fetches and compile progress for the retry (actions/cache only
-      # saves on success); -${{ github.job }} keeps the android and ios repo
-      # sets from clobbering each other under one key
-      - name: Restore bazel repository cache
-        id: restore-bazel-repo
-        uses: actions/cache/restore@v5
-        with:
-          path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
-          restore-keys: |
-            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
-            bazel-repo-${{ runner.os }}-
-      - name: Restore bazel disk cache
-        id: restore-bazel-disk
-        uses: actions/cache/restore@v5
-        with:
-          path: ~/.cache/bazel-disk-ios
-          key: bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
-          restore-keys: |
-            bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
-            bazel-disk-ios-${{ runner.os }}-
-      # Simulator build — device (arm64) builds need an ios_provisioning_profile
-      # on valdi_application plus signing secrets in CI
-      - name: Build simulator IPA
-        run: IOS_CPUS=sim_arm64 bun run build:ipa
-      - uses: actions/upload-artifact@v7
-        with:
-          name: ios-ipa
-          path: build/atolla_ios.ipa
-          if-no-files-found: error
-      - name: Save bazel repository cache
-        if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
-      - name: Save bazel disk cache
-        if: always() && steps.restore-bazel-disk.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: ~/.cache/bazel-disk-ios
-          key: bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+  # build-ios:
+  #   needs: verify
+  #   runs-on: macos-latest
+  #   timeout-minutes: 120
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #     - uses: oven-sh/setup-bun@v2
+  #     - name: Cache bun dependencies
+  #       uses: actions/cache@v5
+  #       with:
+  #         path: ~/.bun/install/cache
+  #         key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+  #         restore-keys: |
+  #           bun-${{ runner.os }}-
+  #     - run: bun install --frozen-lockfile
+  #     # remote cache on top of the disk cache (kept — macOS runners have the
+  #     # space): version bumps only touch a few files, so most compile actions
+  #     # hit artifacts uploaded by the previous release
+  #     - name: Configure bazel caching
+  #       env:
+  #         BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+  #       run: |
+  #         if [ -n "$BUILDBUDDY_API_KEY" ]; then
+  #           echo "build --config=remote-cache" >> ~/.bazelrc
+  #           echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
+  #         fi
+  #     # restore/save split so a build that fails at minute 110 still banks its
+  #     # repo fetches and compile progress for the retry (actions/cache only
+  #     # saves on success); -${{ github.job }} keeps the android and ios repo
+  #     # sets from clobbering each other under one key
+  #     - name: Restore bazel repository cache
+  #       id: restore-bazel-repo
+  #       uses: actions/cache/restore@v5
+  #       with:
+  #         path: ~/.cache/bazel-repo
+  #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+  #         restore-keys: |
+  #           bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+  #           bazel-repo-${{ runner.os }}-
+  #     - name: Restore bazel disk cache
+  #       id: restore-bazel-disk
+  #       uses: actions/cache/restore@v5
+  #       with:
+  #         path: ~/.cache/bazel-disk-ios
+  #         key: bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+  #         restore-keys: |
+  #           bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+  #           bazel-disk-ios-${{ runner.os }}-
+  #     # Simulator build — device (arm64) builds need an ios_provisioning_profile
+  #     # on valdi_application plus signing secrets in CI
+  #     - name: Build simulator IPA
+  #       run: IOS_CPUS=sim_arm64 bun run build:ipa
+  #     - uses: actions/upload-artifact@v7
+  #       with:
+  #         name: ios-ipa
+  #         path: build/atolla_ios.ipa
+  #         if-no-files-found: error
+  #     - name: Save bazel repository cache
+  #       if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
+  #       uses: actions/cache/save@v5
+  #       with:
+  #         path: ~/.cache/bazel-repo
+  #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+  #     - name: Save bazel disk cache
+  #       if: always() && steps.restore-bazel-disk.outputs.cache-hit != 'true'
+  #       uses: actions/cache/save@v5
+  #       with:
+  #         path: ~/.cache/bazel-disk-ios
+  #         key: bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
 
   release:
-    needs: [checks, build-android, build-ios]
+    needs: [checks, build-android] # build-ios
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -183,9 +183,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           mv artifacts/atolla_android.apk "atolla-$GITHUB_REF_NAME.apk"
-          mv artifacts/atolla_ios.ipa "atolla-$GITHUB_REF_NAME.ipa"
+          # mv artifacts/atolla_ios.ipa "atolla-$GITHUB_REF_NAME.ipa"
           gh release create "$GITHUB_REF_NAME" \
             "atolla-$GITHUB_REF_NAME.apk" \
-            "atolla-$GITHUB_REF_NAME.ipa" \
+            # "atolla-$GITHUB_REF_NAME.ipa" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
