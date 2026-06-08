@@ -134,6 +134,62 @@ describe('NowPlayingSurface', () => {
 		expect(values).toContain('1:30 / 4:00');
 	});
 
+	valdiIt('keeps the compact progress fill width across re-renders', async () => {
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore: mockPlaybackStore({ progressSeconds: 90, track: { duration: 240 } }),
+			track,
+			trackIndex: 0,
+			tracks: [track],
+		});
+		const component = instrumented.getComponent();
+
+		const getFillWidth = (): string | undefined => {
+			const views = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			);
+			const fill = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'now-playing-compact-progress-fill',
+			);
+			return fill?.getAttribute('width');
+		};
+
+		expect(getFillWidth()).toBe('38%');
+
+		// A re-render (e.g. artwork/palette resolving or play state changing at track
+		// start) must not reset the imperatively-set width back to 0%.
+		instrumented.setViewModel({
+			album,
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			collapseSignal: 0,
+			isPlaying: false,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore: mockPlaybackStore({ progressSeconds: 90, track: { duration: 240 } }),
+			track,
+			trackIndex: 0,
+			tracks: [track],
+		});
+
+		expect(getFillWidth()).toBe('38%');
+	});
+
 	valdiIt('shows expanded now-playing view when compact bar is tapped', async () => {
 		const instrumented = createNowPlayingComponent();
 		const component = instrumented.getComponent();

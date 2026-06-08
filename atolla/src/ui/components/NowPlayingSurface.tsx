@@ -95,10 +95,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private unsubscribeProgress?: () => void;
 
 	// Cached palette-derived styles — rebuilt only when palette or activeTab changes
-	private cachedCompactProgressFillStyle = createCompactProgressFillStyle(
-		paletteDefaults.accent,
-		0,
-	);
+	private cachedCompactProgressFillStyle = createCompactProgressFillStyle(paletteDefaults.accent);
 	private cachedCompactSolidBgStyle = getOverlayTintStyle(paletteDefaults.surface, 1);
 	private cachedExpandedSolidBgStyle = getOverlayTintStyle(paletteDefaults.surface, 1, 0);
 	private cachedCompactBgOverlayStyle = getOverlayTintStyle(paletteDefaults.surface, 0.6);
@@ -255,7 +252,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		const surfaceColor = palette?.surface.hex ?? paletteDefaults.surface;
 		const onSurfaceColor = palette?.on_surface.hex ?? paletteDefaults.onSurface;
 		const mutedOnSurfaceColor = palette?.muted_on_surface.hex ?? paletteDefaults.mutedOnSurface;
-		this.cachedCompactProgressFillStyle = createCompactProgressFillStyle(accentColor, 0);
+		this.cachedCompactProgressFillStyle = createCompactProgressFillStyle(accentColor);
 		this.cachedCompactSolidBgStyle = getOverlayTintStyle(surfaceColor, 1);
 		this.cachedExpandedSolidBgStyle = getOverlayTintStyle(surfaceColor, 1, 0);
 		this.cachedCompactBgOverlayStyle = getOverlayTintStyle(surfaceColor, 0.6);
@@ -660,7 +657,12 @@ export class NowPlayingSurface extends StatefulComponent<
 				)}
 				<view style={compactBgOverlayStyle} />
 				<view style={styles.compactProgressContainer}>
-					<view ref={this.compactFillRef} style={compactProgressFillStyle} />
+					<view
+						accessibilityId='now-playing-compact-progress-fill'
+						accessibilityLabel='now-playing-compact-progress-fill'
+						ref={this.compactFillRef}
+						style={compactProgressFillStyle}
+					/>
 				</view>
 				{albumArtworkSource && (
 					<image objectFit='cover' src={albumArtworkSource} style={styles.artwork} />
@@ -951,6 +953,10 @@ export class NowPlayingSurface extends StatefulComponent<
 				/>
 			)}
 		</view>;
+
+		// Re-establish the imperatively-set progress width/labels after each render —
+		// the cached styles omit width, so this won't be clobbered by re-renders.
+		this.updateProgressRefs();
 	}
 }
 
@@ -994,8 +1000,9 @@ interface PaletteStyles {
 	trackNameStyle: Style<Label>;
 }
 
-function createCompactProgressFillStyle(accentColor: string, progressRatio: number): Style<View> {
-	const progressPercent = Math.round(progressRatio * 100);
+function createCompactProgressFillStyle(accentColor: string): Style<View> {
+	// Width is intentionally omitted — set via ref in updateProgressRefs() so Style
+	// applications from re-renders don't override more recent setAttribute calls.
 	return new Style<View>({
 		backgroundColor: accentColor,
 		borderRadius: theme.radius.default,
@@ -1005,7 +1012,6 @@ function createCompactProgressFillStyle(accentColor: string, progressRatio: numb
 		position: 'absolute',
 		right: 'auto',
 		top: 0,
-		width: `${progressPercent}%`,
 	});
 }
 

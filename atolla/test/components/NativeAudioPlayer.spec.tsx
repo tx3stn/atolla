@@ -171,4 +171,71 @@ describe('NativeAudioPlayer', () => {
 			expect(completionCount).toBe(0);
 		});
 	});
+
+	describe('applyNativePosition()', () => {
+		valdiIt(
+			'does not overwrite progress with a transient 0 before the first reported motion',
+			async () => {
+				const store = mockPlaybackStore({
+					progressSeconds: 45,
+					track: mockTrack({ duration: 180 }),
+				});
+				const instrumented = createComponent(NativeAudioPlayer, {
+					playbackSourceUrl: 'file://test.mp3',
+					playbackStore: store,
+				});
+
+				const player = getInternal(instrumented.getComponent());
+				player.lastConfiguredTrackId = 'track-1';
+
+				(player.applyNativePosition as (positionMs: number) => void)(0);
+
+				expect(
+					(store as unknown as PlayerInternal).updateProgress as jasmine.Spy,
+				).not.toHaveBeenCalled();
+			},
+		);
+
+		valdiIt('writes the clamped position once a non-zero position is reported', async () => {
+			const store = mockPlaybackStore({
+				progressSeconds: 45,
+				track: mockTrack({ duration: 180 }),
+			});
+			const instrumented = createComponent(NativeAudioPlayer, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(instrumented.getComponent());
+			player.lastConfiguredTrackId = 'track-1';
+
+			(player.applyNativePosition as (positionMs: number) => void)(50000);
+
+			expect(
+				(store as unknown as PlayerInternal).updateProgress as jasmine.Spy,
+			).toHaveBeenCalledWith(50);
+			expect(player.hasReportedProgressForSource).toBe(true);
+		});
+
+		valdiIt('does not write while the native player is on a different track', async () => {
+			const store = mockPlaybackStore({
+				progressSeconds: 0,
+				track: mockTrack({ duration: 180 }),
+			});
+			const instrumented = createComponent(NativeAudioPlayer, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(instrumented.getComponent());
+			// Native player is still configured for a previous track.
+			player.lastConfiguredTrackId = 'previous-track';
+
+			(player.applyNativePosition as (positionMs: number) => void)(50000);
+
+			expect(
+				(store as unknown as PlayerInternal).updateProgress as jasmine.Spy,
+			).not.toHaveBeenCalled();
+		});
+	});
 });

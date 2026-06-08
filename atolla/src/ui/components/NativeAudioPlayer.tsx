@@ -274,29 +274,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 		try {
 			const positionMs = getAtollaAudioPlaybackPositionMs();
 			if (Number.isFinite(positionMs) && positionMs >= 0 && this.viewModel.isActive !== false) {
-				if (positionMs > 0 && !this.hasReportedProgressForSource) {
-					this.hasReportedProgressForSource = true;
-					this.viewModel.onPlaybackEvent?.('progress');
-				}
-				// Guard: skip if the native player is still configured for a different
-				// track (e.g. the 200ms tick fires between PlaybackStore.next() resetting
-				// progressSeconds to 0 and the Valdi render that reconfigures the player).
-				// Without this, the old track's position gets written into the new track's
-				// progressSeconds and applyInitialSeekForSource seeks to the wrong position,
-				// causing a native audio source error.
-				if (this.viewModel.playbackStore.track?.id !== this.lastConfiguredTrackId) {
-					if (this.isDestroyed()) return;
-				} else {
-					const trackDurationSeconds = this.viewModel.playbackStore.track?.duration ?? 0;
-					const positionSeconds = positionMs / 1000;
-					const safePositionSeconds =
-						trackDurationSeconds > 0
-							? Math.min(positionSeconds, Math.max(0, trackDurationSeconds - 0.05))
-							: positionSeconds;
-					this.lastNativePositionSeconds = safePositionSeconds;
-					this.viewModel.playbackStore.updateProgress(safePositionSeconds);
-					if (this.isDestroyed()) return;
-				}
+				this.applyNativePosition(positionMs);
 				if (this.isDestroyed()) return;
 			}
 		} catch {
@@ -389,6 +367,38 @@ export class NativeAudioPlayer extends StatefulComponent<
 				);
 			}
 		}
+	}
+
+	private applyNativePosition(positionMs: number): void {
+		if (positionMs > 0 && !this.hasReportedProgressForSource) {
+			this.hasReportedProgressForSource = true;
+			this.viewModel.onPlaybackEvent?.('progress');
+		}
+		// Don't write a transient 0 before the engine has reported any forward motion for
+		// this source. While ExoPlayer prepares/buffers/seeks a freshly bound source
+		// getPositionMs() returns 0, which would flatten the intended starting progress
+		// (0 on a fresh play, or the restored position on resume) until real playback
+		// position arrives — causing the progress bar to flicker empty at track start.
+		if (!this.hasReportedProgressForSource) {
+			return;
+		}
+		// Guard: skip if the native player is still configured for a different
+		// track (e.g. the 200ms tick fires between PlaybackStore.next() resetting
+		// progressSeconds to 0 and the Valdi render that reconfigures the player).
+		// Without this, the old track's position gets written into the new track's
+		// progressSeconds and applyInitialSeekForSource seeks to the wrong position,
+		// causing a native audio source error.
+		if (this.viewModel.playbackStore.track?.id !== this.lastConfiguredTrackId) {
+			return;
+		}
+		const trackDurationSeconds = this.viewModel.playbackStore.track?.duration ?? 0;
+		const positionSeconds = positionMs / 1000;
+		const safePositionSeconds =
+			trackDurationSeconds > 0
+				? Math.min(positionSeconds, Math.max(0, trackDurationSeconds - 0.05))
+				: positionSeconds;
+		this.lastNativePositionSeconds = safePositionSeconds;
+		this.viewModel.playbackStore.updateProgress(safePositionSeconds);
 	}
 
 	private resolveNextTrackId(): string | null {
