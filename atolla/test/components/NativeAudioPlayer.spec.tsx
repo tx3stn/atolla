@@ -13,6 +13,7 @@ function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackSto
 		progressSeconds: 0,
 		runBatched: (fn: () => void) => fn(),
 		seekTarget: null,
+		setPlaying: jasmine.createSpy('setPlaying'),
 		subscribe: () => () => {},
 		track: mockTrack(),
 		trackIndex: 0,

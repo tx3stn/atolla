@@ -325,6 +325,45 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('setPlaying()', () => {
+		it('resumes from a paused state and notifies once', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.playPause();
+			expect(store.isPlaying).toBe(false);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.setPlaying(true);
+			expect(store.isPlaying).toBe(true);
+			expect(calls).toBe(1);
+		});
+
+		it('is a no-op (no notification) when already in the requested state', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			expect(store.isPlaying).toBe(true);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.setPlaying(true);
+			expect(calls).toBe(0);
+		});
+
+		it('coalesces into the single notification when called inside runBatched', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.playPause();
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.runBatched(() => {
+				store.advancePastTrackId('track-1');
+				store.setPlaying(true);
+			});
+			expect(calls).toBe(1);
+			expect(store.isPlaying).toBe(true);
+			expect(store.trackIndex).toBe(1);
+		});
+	});
+
 	describe('jumpToTrackId()', () => {
 		it('moves backwards to the named track', () => {
 			const store = new PlaybackStore();

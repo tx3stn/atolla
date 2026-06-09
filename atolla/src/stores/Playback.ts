@@ -320,6 +320,19 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	// Reconciles the store's playing state with the native engine on wake. Used when the
+	// native player autonomously advanced through tracks while JS was frozen and is still
+	// playing — the store must follow it rather than push a stale paused state. Idempotent
+	// and side-effect-free beyond the notification (isPlaying is not part of the persisted
+	// queue, so there is nothing to persist).
+	setPlaying(isPlaying: boolean): void {
+		if (this.isPlaying === isPlaying) {
+			return;
+		}
+		this.isPlaying = isPlaying;
+		this.notify();
+	}
+
 	updateProgress(seconds: number): void {
 		const activeTrack = this.track;
 		if (!activeTrack) return;

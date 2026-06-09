@@ -11,6 +11,7 @@ import {
 	clearAtollaAudioPlayback,
 	configureAtollaAudioPlayback,
 	consumeAtollaAudioPlaybackEvent,
+	getAtollaAudioPlaybackIsActive,
 	getAtollaAudioPlaybackPositionMs,
 	seekAtollaAudioPlaybackToMs,
 	setAtollaAudioPlaybackNextNotification,
@@ -291,10 +292,36 @@ export class NativeAudioPlayer extends StatefulComponent<
 		// individually would notify subscribers (and reconfigure the native player) through
 		// every intermediate track — audible as the player skipping through the tracks that
 		// already played while backgrounded.
-		this.viewModel.playbackStore.runBatched(() => this.drainNativePlaybackEvents());
+		let resumedFromBackground = false;
+		this.viewModel.playbackStore.runBatched(() => {
+			const nativeAdvanced = this.drainNativePlaybackEvents();
+			// The engine auto-advanced while JS was frozen and is still playing, but the store
+			// caught up via a heuristic that can land on isPlaying=false (e.g. a queue-end
+			// branch). Follow the engine — it is the source of truth in the background — rather
+			// than pushing a stale paused state back onto a track that is actively playing. The
+			// nativeIsActive() gate keeps a genuine end-of-queue stop or a user pause untouched.
+			if (nativeAdvanced && !this.viewModel.playbackStore.isPlaying && this.nativeIsActive()) {
+				this.viewModel.playbackStore.setPlaying(true);
+				resumedFromBackground = true;
+			}
+		});
+		// Reassert the rate directly: the store subscriber only pushes when the computed rate
+		// differs from state.playbackRate, which can be stale at 1 while the engine is paused.
+		if (resumedFromBackground && !this.isDestroyed()) {
+			this.safeSetPlaybackRate(1);
+		}
 	}
 
-	private drainNativePlaybackEvents(): void {
+	private nativeIsActive(): boolean {
+		try {
+			return getAtollaAudioPlaybackIsActive() === true;
+		} catch {
+			return false;
+		}
+	}
+
+	private drainNativePlaybackEvents(): boolean {
+		let nativeAdvanced = false;
 		while (true) {
 			let event = '';
 			try {
@@ -314,11 +341,13 @@ export class NativeAudioPlayer extends StatefulComponent<
 				// idempotent for duplicate/stale events.
 				DebugLogger.log('NativeAudioPlayer', 'event:jumped', { trackId: jumpedTrackId });
 				this.viewModel.playbackStore.jumpToTrackId(jumpedTrackId);
+				nativeAdvanced = true;
 				continue;
 			}
 
 			const completedEvent = parseNativeAudioCompletedEvent(event);
 			if (completedEvent.isCompleted) {
+				nativeAdvanced = true;
 				if (completedEvent.finishedTrackId) {
 					// Carries the finished track, so reconcile against it directly —
 					// advancePastTrackId is idempotent for stale/duplicate completions,
@@ -376,6 +405,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 				);
 			}
 		}
+		return nativeAdvanced;
 	}
 
 	private applyNativePosition(positionMs: number): void {
