@@ -82,6 +82,15 @@ jobs:
           code="$(cat /tmp/icons.exit)"
           echo "icon generation exit code: $code"
           exit "$code"
+      # beta-0.0.3 generates @androidsdk from the runner's locally-installed SDK,
+      # but the runner image dropped build-tools 34.0.0 (the version android_sdk_repository
+      # resolves to), so aapt2 goes missing. Install it explicitly until the beta-0.1.0
+      # hermetic SDK migration lands. Matches install-android-emulator-cli.sh's pin.
+      - name: Ensure Android build-tools 34.0.0
+        run: |
+          set +o pipefail
+          SDKMANAGER="$(command -v sdkmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager")"
+          yes | "$SDKMANAGER" "build-tools;34.0.0"
       - name: Build APK
         run: JAVA_HOME="$JAVA_HOME_17_arm64" bun run build:apk
       - uses: actions/upload-artifact@v7
