@@ -175,7 +175,7 @@ jobs:
   component-tests:
     if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -227,7 +227,7 @@ jobs:
             bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
             bazel-repo-${{ runner.os }}-
       - run: bun run test:components
-        timeout-minutes: 150
+        timeout-minutes: 60
       # release the server lock and report the size the cache step will tar
       - name: Shut down bazel server
         if: always()
