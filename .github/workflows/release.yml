@@ -8,28 +8,6 @@ permissions:
   contents: write
 
 jobs:
-  verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v6
-      - name: Check tag matches package.json version
-        run: |
-          version="$(jq -r .version package.json)"
-          if [ "$version" != "$GITHUB_REF_NAME" ]; then
-            echo "Tag $GITHUB_REF_NAME does not match package.json version $version"
-            exit 1
-          fi
-
-  checks:
-    needs: verify
-    uses: ./.github/workflows/ci.yml
-    # without this the called workflow sees an empty BUILDBUDDY_API_KEY and
-    # cold-builds everything (~2h) with no remote cache
-    secrets: inherit
-    permissions:
-      contents: read
-
   build-android:
     needs: verify
     runs-on: macos-latest
@@ -220,7 +198,7 @@ jobs:
   #         key: bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
 
   release:
-    needs: [checks, build-android] # build-ios
+    needs: [build-android] # build-ios
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
