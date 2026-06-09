@@ -48,6 +48,8 @@ export class PlaybackStore {
 	private queueRestoreSuperseded = false;
 	private lastPersistedProgressSeconds = 0;
 	private seekPersistTimer: ReturnType<typeof setTimeout> | null = null;
+	private notifySuspendDepth = 0;
+	private notifyPendingDuringSuspend = false;
 
 	album: Album | null = null;
 	isPlaying: boolean = false;
@@ -590,7 +592,29 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	// Coalesces every notify() emitted inside fn into a single notification fired once fn
+	// returns. Used when reconciling several buffered native events on app wake so the store
+	// advances straight to the final track in one update — without it each buffered completion
+	// notifies subscribers (and reconfigures the native player) through every intermediate
+	// track, audible as the player skipping through the tracks that played in the background.
+	runBatched(fn: () => void): void {
+		this.notifySuspendDepth += 1;
+		try {
+			fn();
+		} finally {
+			this.notifySuspendDepth -= 1;
+			if (this.notifySuspendDepth === 0 && this.notifyPendingDuringSuspend) {
+				this.notifyPendingDuringSuspend = false;
+				this.notify();
+			}
+		}
+	}
+
 	private notify(): void {
+		if (this.notifySuspendDepth > 0) {
+			this.notifyPendingDuringSuspend = true;
+			return;
+		}
 		for (const listener of [...this.listeners]) {
 			listener();
 		}

@@ -11,6 +11,7 @@ function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackSto
 	return {
 		isPlaying: true,
 		progressSeconds: 0,
+		runBatched: (fn: () => void) => fn(),
 		seekTarget: null,
 		subscribe: () => () => {},
 		track: mockTrack(),

@@ -270,6 +270,61 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('runBatched()', () => {
+		it('coalesces several advances into a single notification on the final track', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.runBatched(() => {
+				store.advancePastTrackId('track-1');
+				store.advancePastTrackId('track-2');
+			});
+			expect(calls).toBe(1);
+			expect(store.trackIndex).toBe(2);
+		});
+
+		it('does not notify when nothing inside the batch mutates the store', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.runBatched(() => {});
+			expect(calls).toBe(0);
+		});
+
+		it('coalesces nested batches into a single notification', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.runBatched(() => {
+				store.advancePastTrackId('track-1');
+				store.runBatched(() => {
+					store.advancePastTrackId('track-2');
+				});
+				expect(calls).toBe(0);
+			});
+			expect(calls).toBe(1);
+			expect(store.trackIndex).toBe(2);
+		});
+
+		it('flushes a pending notification even when the batch throws', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			expect(() =>
+				store.runBatched(() => {
+					store.advancePastTrackId('track-1');
+					throw new Error('boom');
+				}),
+			).toThrow('boom');
+			expect(calls).toBe(1);
+			expect(store.trackIndex).toBe(1);
+		});
+	});
+
 	describe('jumpToTrackId()', () => {
 		it('moves backwards to the named track', () => {
 			const store = new PlaybackStore();

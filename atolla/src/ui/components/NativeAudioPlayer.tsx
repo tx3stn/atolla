@@ -286,6 +286,15 @@ export class NativeAudioPlayer extends StatefulComponent<
 		this.checkForStall();
 
 		if (this.isDestroyed()) return;
+		// Drain all buffered native events under a single store notification. On app wake the
+		// engine may have queued several background track transitions; advancing past each one
+		// individually would notify subscribers (and reconfigure the native player) through
+		// every intermediate track — audible as the player skipping through the tracks that
+		// already played while backgrounded.
+		this.viewModel.playbackStore.runBatched(() => this.drainNativePlaybackEvents());
+	}
+
+	private drainNativePlaybackEvents(): void {
 		while (true) {
 			let event = '';
 			try {
