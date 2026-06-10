@@ -50,7 +50,7 @@ jobs:
 
   build-android:
     needs: verify
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v6
@@ -63,6 +63,11 @@ jobs:
           restore-keys: |
             bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
+      # Valdi's hermetic llvm_toolchain clang links libtinfo.so.5, gone from ubuntu 24.04
+      - name: Install libtinfo5
+        run: |
+          wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
+          sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
       # Regenerate the Android icons from atolla/res/logo.svg in the background so it
       # overlaps the bazel cache restores below; "Wait for icon generation" joins on
       # it before Build APK. Output is byte-identical to the committed res/ files
@@ -75,13 +80,18 @@ jobs:
           ' >/dev/null 2>&1 &
           echo $! > /tmp/icons.pid
           echo "icon generation started (pid $(cat /tmp/icons.pid))"
-      # remote cache on top of the disk cache (kept — macOS runners have the
-      # space): version bumps only touch a few files, so most compile actions
-      # hit artifacts uploaded by the previous release
+      # the remote cache is CI's only cache: version bumps touch a few files, so
+      # most compile actions hit artifacts uploaded by the previous release
       - name: Configure bazel caching
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
         run: |
+          # build:apk passes --config=android, whose .bazelrc lines re-point
+          # --disk_cache to ~/.cache/bazel-disk-android; override at the same config
+          # scope (home rc wins) so writing every output twice doesn't fill the disk.
+          echo "build:android --disk_cache=" >> ~/.bazelrc
+          # remote-cache-hit downloads are gated by --jobs, not cores
+          echo "build --jobs=32" >> ~/.bazelrc
           if [ -n "$BUILDBUDDY_API_KEY" ]; then
             echo "build --config=remote-cache" >> ~/.bazelrc
             echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
@@ -99,15 +109,6 @@ jobs:
           restore-keys: |
             bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
             bazel-repo-${{ runner.os }}-
-      - name: Restore bazel disk cache
-        id: restore-bazel-disk
-        uses: actions/cache/restore@v5
-        with:
-          path: ~/.cache/bazel-disk-android
-          key: bazel-disk-android-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
-          restore-keys: |
-            bazel-disk-android-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
-            bazel-disk-android-${{ runner.os }}-
       # Join on the background icon generation started after bun install. The process
       # was launched in a different step's shell, so we poll its pid and read the
       # exit status it wrote, rather than `wait` (which only works for child procs).
@@ -132,7 +133,7 @@ jobs:
           SDKMANAGER="$(command -v sdkmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager")"
           yes | "$SDKMANAGER" "build-tools;34.0.0"
       - name: Build APK
-        run: JAVA_HOME="$JAVA_HOME_17_arm64" bun run build:apk
+        run: JAVA_HOME="$JAVA_HOME_17_X64" bun run build:apk
       - uses: actions/upload-artifact@v7
         with:
           name: android-apk
@@ -144,12 +145,6 @@ jobs:
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
-      - name: Save bazel disk cache
-        if: always() && steps.restore-bazel-disk.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
-        with:
-          path: ~/.cache/bazel-disk-android
-          key: bazel-disk-android-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
 
   # build-ios:
   #   needs: verify

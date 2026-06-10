@@ -72,16 +72,20 @@ echo "Using ANDROID_HOME=$ANDROID_HOME"
 unset MACOSX_DEPLOYMENT_TARGET
 unset IPHONEOS_DEPLOYMENT_TARGET
 
-MACOS_SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
-VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS:-} --macos_sdk_version=${MACOS_SDK_VERSION}"
+VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS:-}"
+# Host tools build with Apple clang on macOS, which needs the SDK version pinned;
+# on Linux the hermetic LLVM toolchain is used and xcrun does not exist.
+if [[ "$(uname -s)" == "Darwin" ]]; then
+	MACOS_SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
+	VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --macos_sdk_version=${MACOS_SDK_VERSION}"
+	echo "Using macOS SDK version: $MACOS_SDK_VERSION"
+fi
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --config=android"
 
 if [[ "$FAST_DEV_BUILD" == "1" ]]; then
 	VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --spawn_strategy=local --strategy=ValdiCompile=local --compilation_mode=fastbuild --keep_going"
 	echo "Using fast local dev Bazel flags."
 fi
-
-echo "Using macOS SDK version: $MACOS_SDK_VERSION"
 
 VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//:atolla_android}"
 echo "Using application target: $VALDI_APPLICATION_TARGET"
