@@ -68,6 +68,18 @@ jobs:
         run: |
           wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
           sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
+      - name: Make room for the bazel build
+        run: |
+          # The full APK build (Skia/ICU/harfbuzz/abseil/Valdi + host tools) overflows the
+          # ~20 GB free on /. Move bazel's output base — the extracted external repos and
+          # bazel-out, the dominant consumer — to the larger /mnt ephemeral disk, and reclaim
+          # space from preinstalled toolchains we don't use so the repo-cache tar has room on /.
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift /usr/local/share/powershell
+          sudo docker image prune --all --force || true
+          sudo mkdir -p /mnt/bazel-ob
+          sudo chown "$USER:$USER" /mnt/bazel-ob
+          echo "startup --output_base=/mnt/bazel-ob" >> ~/.bazelrc
+          df -h / /mnt
       # Regenerate the Android icons from atolla/res/logo.svg in the background so it
       # overlaps the bazel cache restores below; "Wait for icon generation" joins on
       # it before Build APK. Output is byte-identical to the committed res/ files
