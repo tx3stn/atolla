@@ -37,6 +37,7 @@
 		"format": "biome format --write .",
 		"format:zig": "zig fmt ./atolla/native/zig/",
 		"icons:generate": "bun ./.scripts/generate-icons.ts",
+		"icons:palette": "bun ./.scripts/generate-palette.ts",
 		"ios": "./.scripts/start-ios-simulator.sh",
 		"ios:fast": "FAST_DEV_BUILD=1 ./.scripts/start-ios-simulator.sh",
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true --unsafe .",
