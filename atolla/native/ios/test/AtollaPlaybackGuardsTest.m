@@ -51,4 +51,25 @@
     XCTAssertEqual(0, AtollaResolveWindowAnchor(@[ @"a", @"b" ], -5, @"a"));
 }
 
+- (void)testSuppressesRebuildThatWouldPullAPlayingEngineBackToAnEarlierTrack {
+    XCTAssertTrue(AtollaShouldSuppressBackwardRebuild(YES, 1, 3));
+}
+
+- (void)testSuppressesRebuildWhenTheEngineIsOnTheSameWindowSlot {
+    XCTAssertTrue(AtollaShouldSuppressBackwardRebuild(YES, 2, 2));
+}
+
+- (void)testAllowsRebuildThatMovesAPlayingEngineForward {
+    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(YES, 3, 1));
+}
+
+- (void)testNeverSuppressesWhenTheEngineIsNotPlaying {
+    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(NO, 1, 3));
+}
+
+- (void)testNeverSuppressesWhenAnAnchorIsUnknown {
+    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(YES, -1, 3));
+    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(YES, 1, -1));
+}
+
 @end

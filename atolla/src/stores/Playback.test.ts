@@ -430,6 +430,90 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('reconcileToNativeTrack()', () => {
+		it('moves to the named track and adopts the native position', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.reconcileToNativeTrack('track-3', 42);
+			expect(store.trackIndex).toBe(2);
+			expect(store.progressSeconds).toBe(42);
+		});
+
+		it('clamps the adopted position to the target track duration', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.reconcileToNativeTrack('track-1', 9999);
+			expect(store.progressSeconds).toBe(track1.duration);
+		});
+
+		it('does not set a seek target so the native player is left untouched', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.reconcileToNativeTrack('track-2', 30);
+			expect(store.seekTarget).toBeNull();
+		});
+
+		it('resolves duplicate ids to the occurrence nearest the current track', () => {
+			const store = new PlaybackStore();
+			store.play([track1, track2, track1, track3], album, 3);
+			store.reconcileToNativeTrack('track-1', 10);
+			expect(store.trackIndex).toBe(2);
+		});
+
+		it('ignores unknown track ids', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.updateProgress(42);
+			store.reconcileToNativeTrack('not-in-queue', 5);
+			expect(store.trackIndex).toBe(1);
+			expect(store.progressSeconds).toBe(42);
+		});
+
+		it('does not touch the playing state', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.reconcileToNativeTrack('track-3', 12);
+			expect(store.isPlaying).toBe(true);
+		});
+
+		it('is a no-op when already on that track at that position', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 1);
+			store.updateProgress(30);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.reconcileToNativeTrack('track-2', 30);
+			expect(calls).toBe(0);
+		});
+
+		it('notifies listeners exactly once on a real change', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.reconcileToNativeTrack('track-3', 12);
+			expect(calls).toBe(1);
+		});
+
+		it('persists the reconciled track and position', async () => {
+			const queueStore = new InMemoryQueueStore();
+			const store = new PlaybackStore();
+			await store.setQueueStore(queueStore);
+			store.play(tracks, album, 0);
+			const writesBefore = queueStore.writeCount;
+
+			store.reconcileToNativeTrack('track-3', 12);
+
+			expect(queueStore.writeCount).toBe(writesBefore + 1);
+			const payload = JSON.parse(queueStore.values.get('queue') ?? '{}') as {
+				progressSeconds: number;
+				trackIndex: number;
+			};
+			expect(payload.trackIndex).toBe(2);
+			expect(payload.progressSeconds).toBe(12);
+		});
+	});
+
 	describe('previousOrRestart()', () => {
 		it('restarts the current track when more than three seconds in', () => {
 			const store = new PlaybackStore();
@@ -1515,6 +1599,75 @@ describe('PlaybackStore', () => {
 
 			expect(writes[0]).toEqual({ key: 'queue_active', value: 'false' });
 			expect(writes[1]?.key).toBe('queue');
+		});
+
+		it('reconciles the restored queue to the native engine track when it advanced in the background', async () => {
+			const queueStore = new InMemoryQueueStore();
+			queueStore.values.set(
+				'queue',
+				JSON.stringify({
+					album,
+					artistLogoUrls: [null, null, null],
+					progressSeconds: 33,
+					trackIndex: 0,
+					tracks: [track1, track2, track3],
+				}),
+			);
+
+			const store = new PlaybackStore();
+			await store.setQueueStore(
+				queueStore,
+				() => true,
+				() => ({ positionSeconds: 12, trackId: 'track-3' }),
+			);
+
+			expect(store.trackIndex).toBe(2);
+			expect(store.track).toEqual(track3);
+			expect(store.progressSeconds).toBe(12);
+		});
+
+		it('uses the persisted values when no native track callback is given', async () => {
+			const queueStore = new InMemoryQueueStore();
+			queueStore.values.set(
+				'queue',
+				JSON.stringify({
+					album,
+					artistLogoUrls: [null, null, null],
+					progressSeconds: 33,
+					trackIndex: 0,
+					tracks: [track1, track2, track3],
+				}),
+			);
+
+			const store = new PlaybackStore();
+			await store.setQueueStore(queueStore);
+
+			expect(store.trackIndex).toBe(0);
+			expect(store.progressSeconds).toBe(33);
+		});
+
+		it('falls back to persisted values when the native track is not in the restored queue', async () => {
+			const queueStore = new InMemoryQueueStore();
+			queueStore.values.set(
+				'queue',
+				JSON.stringify({
+					album,
+					artistLogoUrls: [null, null, null],
+					progressSeconds: 33,
+					trackIndex: 0,
+					tracks: [track1, track2, track3],
+				}),
+			);
+
+			const store = new PlaybackStore();
+			await store.setQueueStore(
+				queueStore,
+				() => true,
+				() => ({ positionSeconds: 5, trackId: 'not-in-queue' }),
+			);
+
+			expect(store.trackIndex).toBe(0);
+			expect(store.progressSeconds).toBe(33);
 		});
 	});
 });

@@ -90,7 +90,9 @@ import {
 	clearAtollaTrackPlaybackNotification,
 	consumeAtollaTrackPlaybackNotificationAction,
 	ensureAtollaTrackPlaybackNotificationPermission,
+	getAtollaAudioPlaybackCurrentTrackId,
 	getAtollaAudioPlaybackIsActive,
+	getAtollaAudioPlaybackPositionMs,
 	getAtollaCachedTrackFileUrl,
 	getAtollaDeviceUserScopeKey,
 	getAtollaDownloadedCacheTotalSizeBytes,
@@ -763,13 +765,30 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.nowPlayingQueueStore = new PersistentStore(`atolla/user/${userId}/now_playing_queue`, {
 			deviceGlobal: true,
 		});
-		void this.playbackStore.setQueueStore(this.nowPlayingQueueStore, () => {
-			try {
-				return getAtollaAudioPlaybackIsActive();
-			} catch {
-				return false;
-			}
-		});
+		void this.playbackStore.setQueueStore(
+			this.nowPlayingQueueStore,
+			() => {
+				try {
+					return getAtollaAudioPlaybackIsActive();
+				} catch {
+					return false;
+				}
+			},
+			() => {
+				// Hand the restore the engine's live track/position so it lands on the track the
+				// engine actually reached in the background rather than the stale persisted one.
+				try {
+					const trackId = getAtollaAudioPlaybackCurrentTrackId();
+					if (!trackId) return null;
+					return {
+						positionSeconds: Math.max(0, getAtollaAudioPlaybackPositionMs() / 1000),
+						trackId,
+					};
+				} catch {
+					return null;
+				}
+			},
+		);
 		this.homeAlbumsStore = new PersistentStore(`atolla/user/${userId}/home`, {
 			deviceGlobal: true,
 		});

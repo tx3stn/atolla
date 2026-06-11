@@ -11,6 +11,7 @@ function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackSto
 	return {
 		isPlaying: true,
 		progressSeconds: 0,
+		reconcileToNativeTrack: jasmine.createSpy('reconcileToNativeTrack'),
 		runBatched: (fn: () => void) => fn(),
 		seekTarget: null,
 		setPlaying: jasmine.createSpy('setPlaying'),
@@ -171,6 +172,72 @@ describe('NativeAudioPlayer', () => {
 			(player.checkForStall as () => void)();
 
 			expect(completionCount).toBe(0);
+		});
+	});
+
+	describe('reconcileStoreToNativeTrack()', () => {
+		valdiIt('snaps the store to the native track and position when they diverge', async () => {
+			const store = mockPlaybackStore({ track: mockTrack({ id: 'track-1' }) });
+			const instrumented = createComponent(NativeAudioPlayer, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(instrumented.getComponent());
+			player.readNativeCurrentTrackId = () => 'track-5';
+			player.safeGetNativePositionMs = () => 12000;
+
+			(player.reconcileStoreToNativeTrack as () => void)();
+
+			expect(
+				(store as unknown as PlayerInternal).reconcileToNativeTrack as jasmine.Spy,
+			).toHaveBeenCalledWith('track-5', 12);
+			expect(player.lastConfiguredTrackId).toBe('track-5');
+		});
+
+		valdiIt('is a no-op when the engine is already on the store track', async () => {
+			const store = mockPlaybackStore({ track: mockTrack({ id: 'track-1' }) });
+			const instrumented = createComponent(NativeAudioPlayer, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(instrumented.getComponent());
+			player.readNativeCurrentTrackId = () => 'track-1';
+
+			(player.reconcileStoreToNativeTrack as () => void)();
+
+			expect(
+				(store as unknown as PlayerInternal).reconcileToNativeTrack as jasmine.Spy,
+			).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('syncProgressAndEvents() wake reconciliation', () => {
+		valdiIt('reconciles to the native track before draining buffered events', async () => {
+			const store = mockPlaybackStore();
+			const instrumented = createComponent(NativeAudioPlayer, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(instrumented.getComponent());
+			const calls: Array<string> = [];
+			player.reconcileStoreToNativeTrack = () => {
+				calls.push('reconcile');
+			};
+			player.drainNativePlaybackEvents = () => {
+				calls.push('drain');
+				return false;
+			};
+			player.nativeIsActive = () => false;
+			player.applyNativePosition = () => {};
+			player.checkForStall = () => {};
+
+			(player.syncProgressAndEvents as () => void)();
+
+			expect(calls.indexOf('reconcile')).toBe(0);
+			expect(calls.indexOf('reconcile')).toBeLessThan(calls.indexOf('drain'));
 		});
 	});
 

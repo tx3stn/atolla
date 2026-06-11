@@ -296,4 +296,68 @@ class AtollaPlaybackGuardsTest {
 			),
 		)
 	}
+
+	// --- shouldSuppressBackwardRebuild ---
+
+	@Test
+	fun `suppresses a rebuild that would pull a playing engine back to an earlier track`() {
+		assertTrue(
+			AtollaPlaybackGuards.shouldSuppressBackwardRebuild(
+				isPlaying = true,
+				requestedAnchor = 1,
+				currentAnchor = 3,
+			),
+		)
+	}
+
+	@Test
+	fun `suppresses a rebuild when the engine is on the same window slot`() {
+		assertTrue(
+			AtollaPlaybackGuards.shouldSuppressBackwardRebuild(
+				isPlaying = true,
+				requestedAnchor = 2,
+				currentAnchor = 2,
+			),
+		)
+	}
+
+	@Test
+	fun `allows a rebuild that moves a playing engine forward`() {
+		assertFalse(
+			AtollaPlaybackGuards.shouldSuppressBackwardRebuild(
+				isPlaying = true,
+				requestedAnchor = 3,
+				currentAnchor = 1,
+			),
+		)
+	}
+
+	@Test
+	fun `never suppresses when the engine is not playing`() {
+		assertFalse(
+			AtollaPlaybackGuards.shouldSuppressBackwardRebuild(
+				isPlaying = false,
+				requestedAnchor = 1,
+				currentAnchor = 3,
+			),
+		)
+	}
+
+	@Test
+	fun `never suppresses when an anchor is unknown`() {
+		assertFalse(
+			AtollaPlaybackGuards.shouldSuppressBackwardRebuild(
+				isPlaying = true,
+				requestedAnchor = -1,
+				currentAnchor = 3,
+			),
+		)
+		assertFalse(
+			AtollaPlaybackGuards.shouldSuppressBackwardRebuild(
+				isPlaying = true,
+				requestedAnchor = 1,
+				currentAnchor = -1,
+			),
+		)
+	}
 }

@@ -11,6 +11,7 @@ import {
 	clearAtollaAudioPlayback,
 	configureAtollaAudioPlayback,
 	consumeAtollaAudioPlaybackEvent,
+	getAtollaAudioPlaybackCurrentTrackId,
 	getAtollaAudioPlaybackIsActive,
 	getAtollaAudioPlaybackPositionMs,
 	seekAtollaAudioPlaybackToMs,
@@ -272,28 +273,13 @@ export class NativeAudioPlayer extends StatefulComponent<
 
 	private syncProgressAndEvents(): void {
 		if (this.isDestroyed()) return;
-		try {
-			const positionMs = getAtollaAudioPlaybackPositionMs();
-			if (Number.isFinite(positionMs) && positionMs >= 0 && this.viewModel.isActive !== false) {
-				this.applyNativePosition(positionMs);
-				if (this.isDestroyed()) return;
-			}
-		} catch {
-			// best effort poll
-		}
-
-		if (this.isDestroyed()) return;
-
-		this.checkForStall();
-
-		if (this.isDestroyed()) return;
-		// Drain all buffered native events under a single store notification. On app wake the
-		// engine may have queued several background track transitions; advancing past each one
-		// individually would notify subscribers (and reconfigure the native player) through
-		// every intermediate track — audible as the player skipping through the tracks that
-		// already played while backgrounded.
+		// Reconcile to the engine's track and drain buffered transitions BEFORE reading position.
+		// On wake the store still points at the pre-background track; applying the engine's
+		// new-track position to the stale track would advance the store to the wrong track and
+		// push a stale source that rebuilds the native queue from 0 (audible as a restart).
 		let resumedFromBackground = false;
 		this.viewModel.playbackStore.runBatched(() => {
+			this.reconcileStoreToNativeTrack();
 			const nativeAdvanced = this.drainNativePlaybackEvents();
 			// The engine auto-advanced while JS was frozen and is still playing, but the store
 			// caught up via a heuristic that can land on isPlaying=false (e.g. a queue-end
@@ -309,6 +295,52 @@ export class NativeAudioPlayer extends StatefulComponent<
 		// differs from state.playbackRate, which can be stale at 1 while the engine is paused.
 		if (resumedFromBackground && !this.isDestroyed()) {
 			this.safeSetPlaybackRate(1);
+		}
+
+		if (this.isDestroyed()) return;
+		try {
+			const positionMs = getAtollaAudioPlaybackPositionMs();
+			if (Number.isFinite(positionMs) && positionMs >= 0 && this.viewModel.isActive !== false) {
+				this.applyNativePosition(positionMs);
+				if (this.isDestroyed()) return;
+			}
+		} catch {
+			// best effort poll
+		}
+
+		if (this.isDestroyed()) return;
+
+		this.checkForStall();
+	}
+
+	// Snaps the store to the engine's track/position when they diverge. Reads the track id
+	// directly rather than relying on the drained event queue, which drops its earliest entries
+	// (cap 128) over a long screen-off session. Aligns lastConfiguredTrackId so the same tick's
+	// applyNativePosition guard accepts the engine position.
+	private reconcileStoreToNativeTrack(): void {
+		const nativeTrackId = this.readNativeCurrentTrackId();
+		if (!nativeTrackId || nativeTrackId === (this.viewModel.playbackStore.track?.id ?? '')) {
+			return;
+		}
+		const positionMs = this.safeGetNativePositionMs();
+		const positionSeconds = Number.isFinite(positionMs) && positionMs >= 0 ? positionMs / 1000 : 0;
+		this.viewModel.playbackStore.reconcileToNativeTrack(nativeTrackId, positionSeconds);
+		this.lastConfiguredTrackId = nativeTrackId;
+	}
+
+	private readNativeCurrentTrackId(): string {
+		try {
+			return getAtollaAudioPlaybackCurrentTrackId() ?? '';
+		} catch {
+			return '';
+		}
+	}
+
+	private safeGetNativePositionMs(): number {
+		try {
+			return getAtollaAudioPlaybackPositionMs();
+		} catch {
+			return -1;
 		}
 	}
 

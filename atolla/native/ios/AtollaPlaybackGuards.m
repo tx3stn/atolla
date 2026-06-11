@@ -28,3 +28,9 @@ NSInteger AtollaResolveWindowAnchor(NSArray<NSString *> *windowKeys,
     }
     return best;
 }
+
+BOOL AtollaShouldSuppressBackwardRebuild(BOOL isPlaying,
+                                         NSInteger requestedAnchor,
+                                         NSInteger currentAnchor) {
+    return isPlaying && requestedAnchor >= 0 && currentAnchor >= 0 && currentAnchor >= requestedAnchor;
+}

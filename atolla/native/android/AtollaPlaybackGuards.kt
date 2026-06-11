@@ -49,6 +49,13 @@ object AtollaPlaybackGuards {
 	fun shouldRebuildQueueForState(isEnded: Boolean, isIdle: Boolean, currentItemMatches: Boolean): Boolean =
 		isEnded || isIdle || !currentItemMatches
 
+	// On a wake-race JS can push a stale earlier track; rebuilding from 0 would jerk a playing
+	// engine backward. Suppress when it is playing and its current item is at/ahead of the
+	// requested one (window indices; -1 = unknown, disables suppression). Mismatch rebuilds only —
+	// never when ended/idle, which need a rebuild to re-prepare.
+	fun shouldSuppressBackwardRebuild(isPlaying: Boolean, requestedAnchor: Int, currentAnchor: Int): Boolean =
+		isPlaying && requestedAnchor >= 0 && currentAnchor >= 0 && currentAnchor >= requestedAnchor
+
 	// Media-session/notification transport actions are applied to the player directly at tap
 	// time: the JS poll that used to apply them freezes in the background, leaving the
 	// notification buttons dead and replaying stale taps when the app next opens. Only "stop"

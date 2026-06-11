@@ -647,6 +647,7 @@ static BOOL sCommandsRegistered = NO;
 + (long)getPositionMs;
 + (long)getDurationMs;
 + (BOOL)isActive;
++ (NSString * _Nonnull)currentTrackId;
 + (NSString * _Nonnull)consumeEvent;
 + (void)clear;
 + (void)setNextNotificationTrackName:(NSString *)trackName
@@ -860,6 +861,39 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
         }
 
         if (!currentMatches) {
+            // Belt-and-suspenders: a stale wake-race configure can ask to rebuild back to an
+            // earlier track while a later one is still playing. Suppress it — keep playing and
+            // realign the engine's source to the item actually on screen so currentTrackId and
+            // the window anchor stay truthful (otherwise JS would re-reconcile backward).
+            NSString *playingUrl = (currentItem && ![self isItemAtEnd:currentItem])
+                ? [(AVURLAsset *)currentItem.asset URL].absoluteString : @"";
+            if (playingUrl.length > 0) {
+                NSArray<NSDictionary *> *window = sQueueWindow;
+                NSMutableArray<NSString *> *urls = [NSMutableArray arrayWithCapacity:window.count];
+                for (NSDictionary *entry in window) {
+                    [urls addObject:([entry[@"sourceUrl"] isKindOfClass:[NSString class]] ? entry[@"sourceUrl"] : @"")];
+                }
+                NSInteger currentAnchor = AtollaResolveWindowAnchor(urls, sWindowAnchorHint, playingUrl);
+                NSInteger requestedAnchor = AtollaResolveWindowAnchor(urls, sWindowAnchorHint, currentSourceUrl);
+                if (AtollaShouldSuppressBackwardRebuild(sPlayer.rate > 0, requestedAnchor, currentAnchor)) {
+                    NSString *playingTrackId =
+                        (currentAnchor < (NSInteger)window.count &&
+                         [window[currentAnchor][@"trackId"] isKindOfClass:[NSString class]])
+                            ? window[currentAnchor][@"trackId"]
+                            : sCurrentTrackId;
+                    [sEngineLock lock];
+                    sCurrentSourceUrl = playingUrl;
+                    sCurrentTrackId = playingTrackId;
+                    sWindowAnchorHint = currentAnchor;
+                    [sEngineLock unlock];
+                    [self ensureWindow];
+                    if (sPlaybackRate > 0) {
+                        [sPlayer play];
+                        sPlayer.rate = sPlaybackRate;
+                    }
+                    return;
+                }
+            }
             [sPlayer removeAllItems];
             AVPlayerItem *item = [self playerItemForUrl:currentSourceUrl];
             [sPlayer insertItem:item afterItem:nil];
@@ -1149,6 +1183,15 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
     return result;
 }
 
+// Locked read (sCurrentTrackId is maintained under sEngineLock and never touches sPlayer), so
+// no main-queue hop is needed — unlike isActive/getPositionMs.
++ (NSString * _Nonnull)currentTrackId {
+    [sEngineLock lock];
+    NSString *trackId = sCurrentTrackId ?: @"";
+    [sEngineLock unlock];
+    return trackId;
+}
+
 + (NSString * _Nonnull)consumeEvent {
     [sEngineLock lock];
     NSString *event = sEventQueue.count > 0 ? sEventQueue.firstObject : @"";
@@ -1337,6 +1380,10 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
 
 - (BOOL)getAtollaAudioPlaybackIsActive {
     return [AtollaGaplessAudioEngine isActive];
+}
+
+- (NSString * _Nonnull)getAtollaAudioPlaybackCurrentTrackId {
+    return [AtollaGaplessAudioEngine currentTrackId];
 }
 
 - (void)setAtollaAudioPlaybackNextNotificationWithTrackName:(NSString * _Nonnull)trackName

@@ -102,6 +102,9 @@ export function clearAtollaAudioPlayback(): void;
 export function getAtollaAudioPlaybackIsActive(): boolean;
 
 // @ExportFunction
+export function getAtollaAudioPlaybackCurrentTrackId(): string;
+
+// @ExportFunction
 export function setAtollaAudioPlaybackNextNotification(
 	trackName: string,
 	artistName: string,

@@ -195,6 +195,10 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				return AtollaGaplessAudioEngine.isActive()
 			}
 
+			override fun getAtollaAudioPlaybackCurrentTrackId(): String {
+				return AtollaGaplessAudioEngine.getCurrentTrackId()
+			}
+
 			override fun setAtollaAudioPlaybackNextNotification(
 				trackName: String,
 				artistName: String,
@@ -520,6 +524,11 @@ object AtollaGaplessAudioEngine {
 		return isPlayingNow
 	}
 
+	// Reads the @Volatile field directly (like isActive), no main-thread hop.
+	fun getCurrentTrackId(): String {
+		return sourceTrackId
+	}
+
 	fun setNextNotification(
 		trackName: String,
 		artistName: String,
@@ -814,6 +823,28 @@ object AtollaGaplessAudioEngine {
 		// (offline transition reached end-of-queue) or errored into idle, we must re-prepare
 		// it via replaceQueue, otherwise it would keep matching forever and never resume.
 		if (AtollaPlaybackGuards.shouldRebuildQueueForState(isEnded, isIdle, currentItemMatches)) {
+			// A pure source-mismatch rebuild during a wake race can yank a playing engine back to
+			// a stale earlier track. Suppress it and let JS reconcile forward; ended/idle still
+			// rebuild (they need a re-prepare).
+			if (!isEnded && !isIdle) {
+				val windowIds = queueWindow.map { it.trackId }
+				val currentAnchor = AtollaPlaybackGuards.resolveWindowAnchor(
+					windowIds,
+					windowAnchorHint,
+					currentItem?.mediaId ?: "",
+				)
+				val requestedAnchor = AtollaPlaybackGuards.resolveWindowAnchor(windowIds, windowAnchorHint, sourceTrackId)
+				if (AtollaPlaybackGuards.shouldSuppressBackwardRebuild(isPlayingNow, requestedAnchor, currentAnchor)) {
+					Log.d(tag, "syncQueue: suppress backward rebuild requested=$requestedAnchor current=$currentAnchor trackId=$sourceTrackId")
+					// configure() already overwrote the source fields with the stale request;
+					// realign them to the item actually playing so getCurrentTrackId() and
+					// ensureWindow's anchor stay truthful (otherwise JS would re-reconcile backward).
+					sourceTrackId = currentItem?.mediaId ?: sourceTrackId
+					currentItem?.localConfiguration?.uri?.toString()?.let { sourceUrl = it }
+					ensureWindow(player)
+					return
+				}
+			}
 			Log.d(tag, "syncQueue->replaceQueue: rebuild trackId=$sourceTrackId rate=$capturedPlaybackRate ended=$isEnded idle=$isIdle matches=$currentItemMatches")
 			replaceQueue(player, capturedPlaybackRate)
 			return

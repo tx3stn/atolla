@@ -20,7 +20,6 @@ interface PersistedPlaybackQueue {
 const playbackQueueCacheKey = 'queue';
 const playbackActiveKey = 'queue_active';
 const progressPersistStepSeconds = 5;
-// Mirrors PREVIOUS_RESTART_THRESHOLD_MS in the Android engine's AtollaPlaybackGuards.
 const PREVIOUS_RESTART_THRESHOLD_SECONDS = 3;
 
 export const LoopModes = {
@@ -62,6 +61,7 @@ export class PlaybackStore {
 	async setQueueStore(
 		store: PlaybackQueueStore | null,
 		isPlayingFn?: () => boolean,
+		currentNativeTrackFn?: () => { trackId: string; positionSeconds: number } | null,
 	): Promise<void> {
 		this.queueStore = store;
 		const token = ++this.queueStoreLoadToken;
@@ -104,8 +104,7 @@ export class PlaybackStore {
 			this.album = parsed.album;
 			this.trackIndex = Math.max(0, Math.min(parsed.trackIndex, parsed.tracks.length - 1));
 			this._artistLogoUrls = parsed.tracks.map((_, index) => parsed.artistLogoUrls[index] ?? null);
-			// Restore as playing if the native player is actively running (process was alive
-			// and playback continued in background). On a cold start the callback returns false.
+
 			this.isPlaying = isPlayingFn?.() === true;
 			DebugLogger.log('PlaybackStore', 'queue restore applied', {
 				isPlaying: this.isPlaying,
@@ -119,6 +118,22 @@ export class PlaybackStore {
 			this.progressSeconds = Math.max(0, Math.min(restoredProgress, maxProgress));
 			this.lastPersistedProgressSeconds = this.progressSeconds;
 			this.seekTarget = null;
+			// The persisted index/progress can be stale (the engine auto-advanced while JS was
+			// frozen). Snap to the engine's track before notifying so App.tsx computes a source
+			// that already matches it.
+			const nativeNow = currentNativeTrackFn?.() ?? null;
+			if (nativeNow?.trackId) {
+				const nativeIndex = this.indexOfNearestTrackId(nativeNow.trackId);
+				if (nativeIndex !== -1) {
+					this.trackIndex = nativeIndex;
+					const nativeMaxProgress = this.tracks[nativeIndex]?.duration ?? 0;
+					const nativeProgress = Number.isFinite(nativeNow.positionSeconds)
+						? nativeNow.positionSeconds
+						: 0;
+					this.progressSeconds = Math.max(0, Math.min(nativeProgress, nativeMaxProgress));
+					this.lastPersistedProgressSeconds = this.progressSeconds;
+				}
+			}
 			this.notify();
 		} catch {
 			// best effort restore
@@ -264,6 +279,50 @@ export class PlaybackStore {
 			return;
 		}
 
+		const targetIndex = this.indexOfNearestTrackId(trackId);
+		if (targetIndex === -1) {
+			return;
+		}
+
+		this.trackIndex = targetIndex;
+		this.progressSeconds = 0;
+		this.persistQueue();
+		this.notify();
+	}
+
+	// Reconciles the store to the native engine's ACTUAL current track and position on app
+	// wake, BEFORE App.tsx computes a playback source. While JS was frozen the engine
+	// auto-advanced; the store (and disk) are stale, and pushing the stale source back down
+	// makes the native player rebuild its queue from position 0 (audible as a restart).
+	reconcileToNativeTrack(trackId: string, positionSeconds: number): void {
+		if (!trackId || this.tracks.length === 0) {
+			return;
+		}
+
+		const targetIndex = this.indexOfNearestTrackId(trackId);
+		if (targetIndex === -1) {
+			return;
+		}
+
+		const maxProgress = this.tracks[targetIndex]?.duration ?? 0;
+		const clamped = Number.isFinite(positionSeconds)
+			? Math.max(0, Math.min(positionSeconds, maxProgress))
+			: 0;
+
+		if (this.trackIndex === targetIndex && this.progressSeconds === clamped) {
+			return;
+		}
+
+		this.trackIndex = targetIndex;
+		this.progressSeconds = clamped;
+		this.seekTarget = null;
+		this.lastPersistedProgressSeconds = clamped;
+		this.persistQueue();
+		this.notify();
+	}
+
+	// Index of the occurrence of trackId nearest the current trackIndex, or -1 when absent.
+	private indexOfNearestTrackId(trackId: string): number {
 		let targetIndex = -1;
 		let bestDistance = Number.POSITIVE_INFINITY;
 		for (let index = 0; index < this.tracks.length; index++) {
@@ -276,14 +335,7 @@ export class PlaybackStore {
 				bestDistance = distance;
 			}
 		}
-		if (targetIndex === -1) {
-			return;
-		}
-
-		this.trackIndex = targetIndex;
-		this.progressSeconds = 0;
-		this.persistQueue();
-		this.notify();
+		return targetIndex;
 	}
 
 	previous(): void {
@@ -294,8 +346,7 @@ export class PlaybackStore {
 		this.notify();
 	}
 
-	// Standard previous-button behaviour, mirroring the Android engine's native handling:
-	// restart the current track when more than ~3s in (or already on the first track),
+	// Restart the current track when more than ~3s in (or already on the first track),
 	// otherwise go back a track.
 	previousOrRestart(): void {
 		if (this.progressSeconds > PREVIOUS_RESTART_THRESHOLD_SECONDS || this.trackIndex === 0) {
