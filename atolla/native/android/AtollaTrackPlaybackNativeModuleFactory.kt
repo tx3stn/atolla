@@ -152,6 +152,7 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				nextSourceUrl: String,
 				nextTrackId: String,
 				nextDurationMs: Double,
+				allowBackwardRebuild: Boolean,
 			) {
 				AtollaGaplessAudioEngine.configure(
 					currentSourceUrl = currentSourceUrl,
@@ -160,6 +161,7 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 					nextSourceUrl = nextSourceUrl,
 					nextTrackId = nextTrackId,
 					nextDurationMs = nextDurationMs.toLong(),
+					allowBackwardRebuild = allowBackwardRebuild,
 				)
 			}
 
@@ -421,8 +423,9 @@ object AtollaGaplessAudioEngine {
 		nextSourceUrl: String,
 		nextTrackId: String,
 		nextDurationMs: Long,
+		allowBackwardRebuild: Boolean = false,
 	) {
-		Log.d(tag, "configure trackId=$currentTrackId rate=$playbackRate hasNext=${nextSourceUrl.isNotBlank()} thread=${Thread.currentThread().name}")
+		Log.d(tag, "configure trackId=$currentTrackId rate=$playbackRate hasNext=${nextSourceUrl.isNotBlank()} allowBackward=$allowBackwardRebuild thread=${Thread.currentThread().name}")
 		this.sourceUrl = currentSourceUrl
 		this.sourceTrackId = currentTrackId
 		this.sourceDurationMs = currentDurationMs.coerceAtLeast(0L)
@@ -446,7 +449,7 @@ object AtollaGaplessAudioEngine {
 			if (sourceUrl != capturedSourceUrl) {
 				return@post
 			}
-			syncQueue(player, capturedPlaybackRate)
+			syncQueue(player, capturedPlaybackRate, allowBackwardRebuild)
 		}
 	}
 
@@ -809,7 +812,11 @@ object AtollaGaplessAudioEngine {
 		return player
 	}
 
-	private fun syncQueue(player: ExoPlayer, capturedPlaybackRate: Float = playbackRate) {
+	private fun syncQueue(
+		player: ExoPlayer,
+		capturedPlaybackRate: Float = playbackRate,
+		allowBackwardRebuild: Boolean = false,
+	) {
 		if (sourceUrl.isBlank()) {
 			return
 		}
@@ -834,7 +841,7 @@ object AtollaGaplessAudioEngine {
 					currentItem?.mediaId ?: "",
 				)
 				val requestedAnchor = AtollaPlaybackGuards.resolveWindowAnchor(windowIds, windowAnchorHint, sourceTrackId)
-				if (AtollaPlaybackGuards.shouldSuppressBackwardRebuild(isPlayingNow, requestedAnchor, currentAnchor)) {
+				if (AtollaPlaybackGuards.shouldSuppressBackwardRebuild(isPlayingNow, requestedAnchor, currentAnchor, allowBackwardRebuild)) {
 					Log.d(tag, "syncQueue: suppress backward rebuild requested=$requestedAnchor current=$currentAnchor trackId=$sourceTrackId")
 					// configure() already overwrote the source fields with the stale request;
 					// realign them to the item actually playing so getCurrentTrackId() and

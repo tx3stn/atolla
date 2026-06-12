@@ -72,4 +72,22 @@ describe('now playing queue', () => {
 		const afterPreviousTrackName = await nowPlaying.firstUpNextTrackName();
 		expect(afterPreviousTrackName).toBe(secondUpNextTrackName);
 	});
+
+	it('jumps to a previously played track when its back-to row is tapped', async () => {
+		// Tapping a back-to row must move playback back to that track, which then leaves the
+		// back-to (history) list. The native backward-rebuild guard used to suppress the
+		// configure and the reconcile poll snapped the store straight back, so the row tap
+		// did nothing and the track stayed at the top of back-to.
+		await nowPlaying.tapUpNextTab();
+		await nowPlaying.tapNext();
+
+		await nowPlaying.tapBackToTab();
+		const target = await nowPlaying.firstBackToTrackName();
+		await nowPlaying.tapFirstBackToRow();
+
+		// The regression moved the store then snapped it back on the next ~200ms reconcile,
+		// so let it settle before re-reading the history.
+		await browser.pause(1500);
+		expect(await nowPlaying.firstBackToTrackName()).not.toBe(target);
+	});
 });

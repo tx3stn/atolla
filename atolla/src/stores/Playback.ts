@@ -57,6 +57,10 @@ export class PlaybackStore {
 	seekTarget: number | null = null;
 	trackIndex: number = 0;
 	tracks: Array<Track> = [];
+	// Deliberate track changes (play/previous/jump) may rebuild the native queue backward; a
+	// restore/reconcile snap that follows the engine must not — that snap is the stale wake-race
+	// the native guard suppresses. Read by NativeAudioPlayer when it configures the engine.
+	allowBackwardRebuild: boolean = true;
 
 	async setQueueStore(
 		store: PlaybackQueueStore | null,
@@ -134,6 +138,8 @@ export class PlaybackStore {
 					this.lastPersistedProgressSeconds = this.progressSeconds;
 				}
 			}
+			// A restore follows the engine — don't let a stale restored track shove it backward.
+			this.allowBackwardRebuild = false;
 			this.notify();
 		} catch {
 			// best effort restore
@@ -185,6 +191,7 @@ export class PlaybackStore {
 		const sanitizedTracks = sanitizeTracks(tracks);
 		const clampedIndex = Math.max(0, Math.min(sanitizedTracks.length - 1, startIndex));
 		this.queueRestoreSuperseded = true;
+		this.allowBackwardRebuild = true;
 		this.tracks = sanitizedTracks;
 		this.album = album;
 		this.trackIndex = clampedIndex;
@@ -201,6 +208,7 @@ export class PlaybackStore {
 	jumpToIndex(index: number): void {
 		DebugLogger.log('PlaybackStore', 'jumpToIndex', { index, trackCount: this.tracks.length });
 		this.queueRestoreSuperseded = true;
+		this.allowBackwardRebuild = true;
 		const clamped = Math.max(0, Math.min(this.tracks.length - 1, index));
 		this.trackIndex = clamped;
 		this.progressSeconds = 0;
@@ -214,6 +222,7 @@ export class PlaybackStore {
 		if (this.trackIndex >= this.tracks.length - 1) {
 			return;
 		}
+		this.allowBackwardRebuild = true;
 		this.trackIndex += 1;
 		this.progressSeconds = 0;
 		this.seekTarget = null;
@@ -229,6 +238,8 @@ export class PlaybackStore {
 		if (this.tracks.length === 0 || !finishedTrackId) {
 			return;
 		}
+
+		this.allowBackwardRebuild = false;
 
 		if (this.loopMode === LoopModes.track) {
 			if (this.track?.id !== finishedTrackId) {
@@ -284,6 +295,7 @@ export class PlaybackStore {
 			return;
 		}
 
+		this.allowBackwardRebuild = false;
 		this.trackIndex = targetIndex;
 		this.progressSeconds = 0;
 		this.persistQueue();
@@ -313,6 +325,7 @@ export class PlaybackStore {
 			return;
 		}
 
+		this.allowBackwardRebuild = false;
 		this.trackIndex = targetIndex;
 		this.progressSeconds = clamped;
 		this.seekTarget = null;
@@ -339,6 +352,7 @@ export class PlaybackStore {
 	}
 
 	previous(): void {
+		this.allowBackwardRebuild = true;
 		this.trackIndex = Math.max(this.trackIndex - 1, 0);
 		this.progressSeconds = 0;
 		this.seekTarget = null;
@@ -398,6 +412,7 @@ export class PlaybackStore {
 				this.seekTarget = 0;
 			} else if (this.trackIndex >= this.tracks.length - 1) {
 				if (this.loopMode === LoopModes.queue && this.tracks.length > 0) {
+					this.allowBackwardRebuild = true;
 					this.trackIndex = 0;
 					this.progressSeconds = 0;
 					this.seekTarget = 0;
@@ -408,6 +423,7 @@ export class PlaybackStore {
 					this.persistQueue();
 				}
 			} else {
+				this.allowBackwardRebuild = true;
 				this.trackIndex += 1;
 				this.progressSeconds = 0;
 				queueStateChanged = true;
@@ -475,6 +491,7 @@ export class PlaybackStore {
 		const sanitizedTracks = sanitizeTracks(tracks);
 		const clampedIndex = Math.max(0, Math.min(sanitizedTracks.length - 1, startIndex));
 		this.queueRestoreSuperseded = true;
+		this.allowBackwardRebuild = true;
 		this.tracks = sanitizedTracks;
 		this.album = null;
 		this.trackIndex = clampedIndex;
@@ -490,6 +507,7 @@ export class PlaybackStore {
 		const sanitizedTracks = sanitizeTracks(tracks);
 		const clampedIndex = Math.max(0, Math.min(sanitizedTracks.length - 1, startIndex));
 		this.queueRestoreSuperseded = true;
+		this.allowBackwardRebuild = true;
 		this.tracks = sanitizedTracks;
 		this.album = null;
 		this.trackIndex = clampedIndex;
@@ -536,6 +554,7 @@ export class PlaybackStore {
 			return;
 		}
 
+		this.allowBackwardRebuild = true;
 		this.tracks = [...this.tracks.slice(0, index), ...this.tracks.slice(index + 1)];
 		this._artistLogoUrls = [
 			...this._artistLogoUrls.slice(0, index),

@@ -187,13 +187,14 @@ export class NativeAudioPlayer extends StatefulComponent<
 		});
 
 		try {
-			configureAtollaAudioPlayback(
+			this.nativeConfigure(
 				normalizedSource,
 				currentTrackId,
 				currentDurationMs,
 				normalizedNext,
 				nextTrackId,
 				nextDurationMs,
+				this.viewModel.playbackStore.allowBackwardRebuild,
 			);
 		} catch (error) {
 			this.viewModel.onPlaybackError?.(
@@ -217,6 +218,27 @@ export class NativeAudioPlayer extends StatefulComponent<
 		} catch {
 			// best effort
 		}
+	}
+
+	// Thin seam over the native bridge so tests can assert the args (notably allowBackwardRebuild).
+	private nativeConfigure(
+		sourceUrl: string,
+		currentTrackId: string,
+		currentDurationMs: number,
+		nextSourceUrl: string,
+		nextTrackId: string,
+		nextDurationMs: number,
+		allowBackwardRebuild: boolean,
+	): void {
+		configureAtollaAudioPlayback(
+			sourceUrl,
+			currentTrackId,
+			currentDurationMs,
+			nextSourceUrl,
+			nextTrackId,
+			nextDurationMs,
+			allowBackwardRebuild,
+		);
 	}
 
 	private resolveNextTrackNotification(): {

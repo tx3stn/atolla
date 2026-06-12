@@ -514,6 +514,84 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	describe('allowBackwardRebuild', () => {
+		it('is true after a deliberate previous()', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			store.advancePastTrackId('track-3'); // flips the flag false (engine-follow)
+			store.previous();
+			expect(store.allowBackwardRebuild).toBe(true);
+		});
+
+		it('is true after previousOrRestart() steps back a track', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.reconcileToNativeTrack('track-2', 1); // engine-follow → flag false, 1s into track 2
+			store.previousOrRestart(); // under the 3s threshold and not first track, so it steps back
+			expect(store.allowBackwardRebuild).toBe(true);
+		});
+
+		it('is true after jumpToIndex()', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			store.advancePastTrackId('track-3');
+			store.jumpToIndex(0);
+			expect(store.allowBackwardRebuild).toBe(true);
+		});
+
+		it('is true after play()', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			expect(store.allowBackwardRebuild).toBe(true);
+		});
+
+		it('is true after next()', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.advancePastTrackId('track-1');
+			store.next();
+			expect(store.allowBackwardRebuild).toBe(true);
+		});
+
+		it('is false after reconcileToNativeTrack() follows the engine', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.reconcileToNativeTrack('track-3', 12);
+			expect(store.allowBackwardRebuild).toBe(false);
+		});
+
+		it('is false after advancePastTrackId() follows the engine', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.advancePastTrackId('track-1');
+			expect(store.allowBackwardRebuild).toBe(false);
+		});
+
+		it('is false after jumpToTrackId() follows the engine', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 0);
+			store.jumpToTrackId('track-3');
+			expect(store.allowBackwardRebuild).toBe(false);
+		});
+
+		it('is false after a queue restore', async () => {
+			const queueStore = new InMemoryQueueStore();
+			queueStore.values.set(
+				'queue',
+				JSON.stringify({
+					album,
+					artistLogoUrls: [null, null],
+					progressSeconds: 10,
+					trackIndex: 1,
+					tracks: [track1, track2],
+				}),
+			);
+			const store = new PlaybackStore();
+			await store.setQueueStore(queueStore);
+			expect(store.allowBackwardRebuild).toBe(false);
+		});
+	});
+
 	describe('previousOrRestart()', () => {
 		it('restarts the current track when more than three seconds in', () => {
 			const store = new PlaybackStore();

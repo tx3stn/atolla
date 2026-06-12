@@ -9,6 +9,7 @@ function mockTrack(overrides: Record<string, unknown> = {}) {
 
 function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackStore {
 	return {
+		allowBackwardRebuild: true,
 		isPlaying: true,
 		progressSeconds: 0,
 		reconcileToNativeTrack: jasmine.createSpy('reconcileToNativeTrack'),
@@ -238,6 +239,31 @@ describe('NativeAudioPlayer', () => {
 
 			expect(calls.indexOf('reconcile')).toBe(0);
 			expect(calls.indexOf('reconcile')).toBeLessThan(calls.indexOf('drain'));
+		});
+	});
+
+	describe('configurePlayback() backward-rebuild intent', () => {
+		function captureAllowBackwardRebuild(allowBackwardRebuild: boolean): boolean {
+			const store = mockPlaybackStore({ allowBackwardRebuild });
+			const instrumented = createComponent(NativeAudioPlayer, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+			const player = getInternal(instrumented.getComponent());
+			let captured: Array<unknown> = [];
+			player.nativeConfigure = (...args: Array<unknown>) => {
+				captured = args;
+			};
+			(player.configurePlayback as (s: string, n: string | null) => void)('file://test.mp3', null);
+			return captured[6] as boolean;
+		}
+
+		valdiIt('forwards true when the store change is a deliberate navigation', async () => {
+			expect(captureAllowBackwardRebuild(true)).toBe(true);
+		});
+
+		valdiIt('forwards false when the store change follows the native engine', async () => {
+			expect(captureAllowBackwardRebuild(false)).toBe(false);
 		});
 	});
 

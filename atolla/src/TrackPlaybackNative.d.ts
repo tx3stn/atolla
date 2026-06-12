@@ -75,6 +75,7 @@ export function configureAtollaAudioPlayback(
 	nextSourceUrl: string,
 	nextTrackId: string,
 	nextDurationMs: number,
+	allowBackwardRebuild: boolean,
 ): void;
 
 // @ExportFunction

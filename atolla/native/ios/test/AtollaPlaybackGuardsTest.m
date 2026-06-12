@@ -51,25 +51,35 @@
     XCTAssertEqual(0, AtollaResolveWindowAnchor(@[ @"a", @"b" ], -5, @"a"));
 }
 
-- (void)testSuppressesRebuildThatWouldPullAPlayingEngineBackToAnEarlierTrack {
-    XCTAssertTrue(AtollaShouldSuppressBackwardRebuild(YES, 1, 3));
+- (void)testSuppressesStaleWakeRaceRebuildThatWouldPullAPlayingEngineBackToAnEarlierTrack {
+    XCTAssertTrue(AtollaShouldSuppressBackwardRebuild(YES, 1, 3, NO));
 }
 
-- (void)testSuppressesRebuildWhenTheEngineIsOnTheSameWindowSlot {
-    XCTAssertTrue(AtollaShouldSuppressBackwardRebuild(YES, 2, 2));
+- (void)testSuppressesStaleWakeRaceRebuildWhenTheEngineIsOnTheSameWindowSlot {
+    XCTAssertTrue(AtollaShouldSuppressBackwardRebuild(YES, 2, 2, NO));
 }
 
 - (void)testAllowsRebuildThatMovesAPlayingEngineForward {
-    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(YES, 3, 1));
+    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(YES, 3, 1, NO));
 }
 
 - (void)testNeverSuppressesWhenTheEngineIsNotPlaying {
-    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(NO, 1, 3));
+    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(NO, 1, 3, NO));
 }
 
 - (void)testNeverSuppressesWhenAnAnchorIsUnknown {
-    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(YES, -1, 3));
-    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(YES, 1, -1));
+    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(YES, -1, 3, NO));
+    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(YES, 1, -1, NO));
+}
+
+- (void)testHonorsADeliberateInAppBackwardNavigationWhilePlaying {
+    // previous button / back-to tap: the same shape the wake-race guard would otherwise
+    // suppress (playing, current ahead of requested), but the caller signalled intent.
+    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(YES, 1, 3, YES));
+}
+
+- (void)testHonorsADeliberateNavigationToTheSameWindowSlotWhilePlaying {
+    XCTAssertFalse(AtollaShouldSuppressBackwardRebuild(YES, 2, 2, YES));
 }
 
 @end

@@ -300,23 +300,25 @@ class AtollaPlaybackGuardsTest {
 	// --- shouldSuppressBackwardRebuild ---
 
 	@Test
-	fun `suppresses a rebuild that would pull a playing engine back to an earlier track`() {
+	fun `suppresses a stale wake-race rebuild that would pull a playing engine back to an earlier track`() {
 		assertTrue(
 			AtollaPlaybackGuards.shouldSuppressBackwardRebuild(
 				isPlaying = true,
 				requestedAnchor = 1,
 				currentAnchor = 3,
+				allowBackwardRebuild = false,
 			),
 		)
 	}
 
 	@Test
-	fun `suppresses a rebuild when the engine is on the same window slot`() {
+	fun `suppresses a stale wake-race rebuild when the engine is on the same window slot`() {
 		assertTrue(
 			AtollaPlaybackGuards.shouldSuppressBackwardRebuild(
 				isPlaying = true,
 				requestedAnchor = 2,
 				currentAnchor = 2,
+				allowBackwardRebuild = false,
 			),
 		)
 	}
@@ -328,6 +330,7 @@ class AtollaPlaybackGuardsTest {
 				isPlaying = true,
 				requestedAnchor = 3,
 				currentAnchor = 1,
+				allowBackwardRebuild = false,
 			),
 		)
 	}
@@ -339,6 +342,7 @@ class AtollaPlaybackGuardsTest {
 				isPlaying = false,
 				requestedAnchor = 1,
 				currentAnchor = 3,
+				allowBackwardRebuild = false,
 			),
 		)
 	}
@@ -350,6 +354,7 @@ class AtollaPlaybackGuardsTest {
 				isPlaying = true,
 				requestedAnchor = -1,
 				currentAnchor = 3,
+				allowBackwardRebuild = false,
 			),
 		)
 		assertFalse(
@@ -357,6 +362,33 @@ class AtollaPlaybackGuardsTest {
 				isPlaying = true,
 				requestedAnchor = 1,
 				currentAnchor = -1,
+				allowBackwardRebuild = false,
+			),
+		)
+	}
+
+	@Test
+	fun `honors a deliberate in-app backward navigation while playing`() {
+		// previous button / back-to tap: the same shape the wake-race guard would otherwise
+		// suppress (playing, current ahead of requested), but the caller signalled intent.
+		assertFalse(
+			AtollaPlaybackGuards.shouldSuppressBackwardRebuild(
+				isPlaying = true,
+				requestedAnchor = 1,
+				currentAnchor = 3,
+				allowBackwardRebuild = true,
+			),
+		)
+	}
+
+	@Test
+	fun `honors a deliberate navigation to the same window slot while playing`() {
+		assertFalse(
+			AtollaPlaybackGuards.shouldSuppressBackwardRebuild(
+				isPlaying = true,
+				requestedAnchor = 2,
+				currentAnchor = 2,
+				allowBackwardRebuild = true,
 			),
 		)
 	}

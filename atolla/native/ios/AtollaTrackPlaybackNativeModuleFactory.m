@@ -640,7 +640,8 @@ static BOOL sCommandsRegistered = NO;
                      currentDurationMs:(double)currentDurationMs
                        nextSourceUrl:(NSString *)nextSourceUrl
                            nextTrackId:(NSString *)nextTrackId
-                         nextDurationMs:(double)nextDurationMs;
+                         nextDurationMs:(double)nextDurationMs
+                   allowBackwardRebuild:(BOOL)allowBackwardRebuild;
 + (void)setPlaybackRate:(float)rate;
 + (void)setVolume:(float)volume;
 + (void)seekToMs:(long)positionMs;
@@ -828,7 +829,8 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
                      currentDurationMs:(double)currentDurationMs
                        nextSourceUrl:(NSString *)nextSourceUrl
                            nextTrackId:(NSString *)nextTrackId
-                         nextDurationMs:(double)nextDurationMs {
+                         nextDurationMs:(double)nextDurationMs
+                   allowBackwardRebuild:(BOOL)allowBackwardRebuild {
     [sEngineLock lock];
     sCurrentSourceUrl = currentSourceUrl ?: @"";
     sCurrentTrackId = currentTrackId ?: @"";
@@ -875,7 +877,7 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
                 }
                 NSInteger currentAnchor = AtollaResolveWindowAnchor(urls, sWindowAnchorHint, playingUrl);
                 NSInteger requestedAnchor = AtollaResolveWindowAnchor(urls, sWindowAnchorHint, currentSourceUrl);
-                if (AtollaShouldSuppressBackwardRebuild(sPlayer.rate > 0, requestedAnchor, currentAnchor)) {
+                if (AtollaShouldSuppressBackwardRebuild(sPlayer.rate > 0, requestedAnchor, currentAnchor, allowBackwardRebuild)) {
                     NSString *playingTrackId =
                         (currentAnchor < (NSInteger)window.count &&
                          [window[currentAnchor][@"trackId"] isKindOfClass:[NSString class]])
@@ -1341,13 +1343,15 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
                                         currentDurationMs:(double)currentDurationMs
                                            nextSourceUrl:(NSString * _Nonnull)nextSourceUrl
                                              nextTrackId:(NSString * _Nonnull)nextTrackId
-                                           nextDurationMs:(double)nextDurationMs {
+                                           nextDurationMs:(double)nextDurationMs
+                                     allowBackwardRebuild:(BOOL)allowBackwardRebuild {
     [AtollaGaplessAudioEngine configureWithCurrentSourceUrl:currentSourceUrl
                                              currentTrackId:currentTrackId
                                            currentDurationMs:currentDurationMs
                                                nextSourceUrl:nextSourceUrl
                                                  nextTrackId:nextTrackId
-                                               nextDurationMs:nextDurationMs];
+                                               nextDurationMs:nextDurationMs
+                                         allowBackwardRebuild:allowBackwardRebuild];
 }
 
 - (void)setAtollaAudioPlaybackRateWithRate:(double)rate {

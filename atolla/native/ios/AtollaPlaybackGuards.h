@@ -22,10 +22,12 @@ NSInteger AtollaResolveWindowAnchor(NSArray<NSString *> *windowKeys,
 
 // On a wake-race JS can push a stale earlier track; rebuilding from the start would jerk a
 // playing engine backward. True when it is playing and its current item is at/ahead of the
-// requested one (window indices; -1 = unknown, disables suppression). Mirrors
-// shouldSuppressBackwardRebuild on Android.
+// requested one (window indices; -1 = unknown, disables suppression). allowBackwardRebuild is
+// the caller's intent — a deliberate previous/back-to passes YES and is honored.
+// Mirrors shouldSuppressBackwardRebuild on Android.
 BOOL AtollaShouldSuppressBackwardRebuild(BOOL isPlaying,
                                          NSInteger requestedAnchor,
-                                         NSInteger currentAnchor);
+                                         NSInteger currentAnchor,
+                                         BOOL allowBackwardRebuild);
 
 NS_ASSUME_NONNULL_END

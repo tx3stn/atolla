@@ -217,6 +217,17 @@ export class NowPlayingBar extends BasePage {
 		throw new Error('No back to track titles found');
 	}
 
+	async tapFirstBackToRow(): Promise<void> {
+		await this.waitForQueueRowsVisible();
+		const rows = await this.sortedByY(
+			await this.allByAccessibilityPrefix(this.trackRowBackToPrefix),
+		);
+		if (rows.length === 0) {
+			throw new Error('No back to rows to tap');
+		}
+		await rows[0].click();
+	}
+
 	async collapseExpandedIfVisible(): Promise<void> {
 		if (!(await this.isQueueListVisible())) return;
 
