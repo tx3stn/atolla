@@ -167,6 +167,7 @@ interface AppState {
 	isHomeHeaderVisible: boolean;
 	isHomeNavigationMounted: boolean;
 	isLibraryHeaderVisible: boolean;
+	isSettingsMounted: boolean;
 	jellyfinClientDeviceIdOverride: string;
 	language: LanguageCode;
 	libraryLetterFilter: string | null;
@@ -317,6 +318,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private resolvingArtistLogoId: string | null = null;
 	private homeNavigationController?: NavigationController;
 	private homeNavigationNonce = 0;
+	private settingsNavigationNonce = 0;
 	private libraryNavigationController?: NavigationController;
 	private pendingArtistId: string | null = null;
 	private pendingArtistFallbackName: string = 'Unknown Artist';
@@ -389,6 +391,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		isHomeHeaderVisible: false,
 		isHomeNavigationMounted: true,
 		isLibraryHeaderVisible: true,
+		isSettingsMounted: false,
 		jellyfinClientDeviceIdOverride: '',
 		language: DEFAULT_LANGUAGE,
 		libraryLetterFilter: null,
@@ -1760,6 +1763,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			isHomeHeaderVisible: false,
 			isHomeNavigationMounted: tab === FooterTabs.home ? false : this.state.isHomeNavigationMounted,
 			isLibraryHeaderVisible: tab === FooterTabs.library,
+			isSettingsMounted: tab === FooterTabs.settings ? false : this.state.isSettingsMounted,
 			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
 			searchFocusSignal:
 				tab === FooterTabs.search ? this.state.searchFocusSignal + 1 : this.state.searchFocusSignal,
@@ -1776,7 +1780,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 
 		if (tab === FooterTabs.settings) {
-			this.refreshNativeCacheStats();
+			this.settingsNavigationNonce += 1;
+			const capturedNonce = this.settingsNavigationNonce;
+			Promise.resolve().then(() => {
+				if (this.settingsNavigationNonce === capturedNonce) {
+					this.setState({ isSettingsMounted: true });
+					this.refreshNativeCacheStats();
+				}
+			});
 		}
 	};
 
@@ -2972,7 +2983,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							})}
 						</NavigationRoot>
 					)}
-					{this.state.activeFooterTab === FooterTabs.settings && (
+					{this.state.activeFooterTab === FooterTabs.settings && this.state.isSettingsMounted && (
 						<SettingsView
 							animationsEnabled={this.state.animationsEnabled}
 							connectionMode={this.state.connectionMode}
