@@ -215,7 +215,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 		const shiftedIdentities = nextTracks
 			.slice(removedIndex)
-			.map((entry, i) => `${entry.id}-${removedIndex + i}`);
+			.map((entry, i) => this.rowIdentityFor(entry.id, removedIndex + i));
 
 		if (this.removeAnimationTimeout) clearTimeout(this.removeAnimationTimeout);
 		this.removeAnimationTimeout = setTimeoutInterruptible(() => {
@@ -260,10 +260,9 @@ export class TrackList extends Component<TrackListViewModel> {
 			for (const timeout of this.neighborBounceTimeouts.values()) clearTimeout(timeout);
 			this.neighborBounceTimeouts.clear();
 			this.neighborOffsetByIdentity.clear();
-			const prefix = this.viewModel.rowIdentityPrefix ?? '';
 			for (let i = 0; i < this.viewModel.tracks.length; i++) {
 				const ref = this.swipeContainerRefByIdentity.get(
-					`${prefix}${this.viewModel.tracks[i].id}-${i}`,
+					this.rowIdentityFor(this.viewModel.tracks[i].id, i),
 				);
 				if (ref) {
 					ref.setAttribute('top', 0);
@@ -290,7 +289,7 @@ export class TrackList extends Component<TrackListViewModel> {
 
 		<layout style={styles.list}>
 			{this.viewModel.tracks.map((entry: TrackListEntry, index: number) => {
-				const rowIdentity = `${this.viewModel.rowIdentityPrefix ?? ''}${entry.id}-${index}`;
+				const rowIdentity = this.rowIdentityFor(entry.id, index);
 				this.rowIdentitiesByIndex[index] = rowIdentity;
 				const canSwipe = Boolean(this.viewModel.onTrackSwipeRemove);
 				const canReorder = Boolean(this.viewModel.onTrackReorder);
@@ -513,6 +512,13 @@ export class TrackList extends Component<TrackListViewModel> {
 		const created = new ElementRef();
 		this.rowRefByIdentity.set(identity, created);
 		return created;
+	}
+
+	// Stable per-row key shared by the rendered ref, the stale-offset wipe, and the removal
+	// animation, so the three never disagree on how a row is addressed (a missing prefix here made
+	// the post-removal slide-up silently no-op for prefixed lists).
+	private rowIdentityFor(id: string, index: number): string {
+		return `${this.viewModel.rowIdentityPrefix ?? ''}${id}-${index}`;
 	}
 
 	private getSwipeContainerRef(identity: string): ElementRef {
