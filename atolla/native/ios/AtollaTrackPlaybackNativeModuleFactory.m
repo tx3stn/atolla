@@ -665,7 +665,10 @@ static BOOL sCommandsRegistered = NO;
 @implementation AtollaGaplessAudioEngine
 
 static AVQueuePlayer *sPlayer = nil;
-static id<NSObject> sPlayerTimeObserver = nil;
+// Tokens for the block-based NSNotificationCenter observers registered in
+// registerPlayerObservers. They must be removed explicitly in clear — removeObserver: on the
+// player removes nothing, since the player is not the observer for block registrations.
+static NSMutableArray<id<NSObject>> *sPlayerObserverTokens = nil;
 static NSString *sCurrentSourceUrl = @"";
 static NSString *sCurrentTrackId = @"";
 static NSString *sNextSourceUrl = @"";
@@ -698,6 +701,7 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
 + (void)initialize {
     if (self == [AtollaGaplessAudioEngine class]) {
         sEventQueue = [NSMutableArray array];
+        sPlayerObserverTokens = [NSMutableArray array];
         sEngineLock = [[NSLock alloc] init];
         sQueueWindow = @[];
     }
@@ -966,7 +970,7 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
 }
 
 + (void)registerPlayerObservers {
-    [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemDidPlayToEndTimeNotification
+    [sPlayerObserverTokens addObject:[[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemDidPlayToEndTimeNotification
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification *note) {
@@ -1055,18 +1059,18 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
                                                  hasPrevious:notifHasPrevious
                                                      hasNext:notifHasNext];
         }
-    }];
+    }]];
 
-    [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemFailedToPlayToEndTimeNotification
+    [sPlayerObserverTokens addObject:[[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemFailedToPlayToEndTimeNotification
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification *note) {
         NSError *err = note.userInfo[AVPlayerItemFailedToPlayToEndTimeErrorKey];
         NSString *msg = err.localizedDescription ?: @"Playback error";
         [self enqueueEvent:[@"error:" stringByAppendingString:msg]];
-    }];
+    }]];
 
-    [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemNewAccessLogEntryNotification
+    [sPlayerObserverTokens addObject:[[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemNewAccessLogEntryNotification
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification *note) {
@@ -1074,9 +1078,9 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
             [self enqueueEvent:@"loaded"];
             [self applyPendingSeekIfNeeded];
         }
-    }];
+    }]];
 
-    [[NSNotificationCenter defaultCenter] addObserverForName:AVAudioSessionInterruptionNotification
+    [sPlayerObserverTokens addObject:[[NSNotificationCenter defaultCenter] addObserverForName:AVAudioSessionInterruptionNotification
                                                       object:nil
                                                        queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification *note) {
@@ -1089,7 +1093,15 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
                 [self enqueueEvent:@"play-requested"];
             }
         }
-    }];
+    }]];
+}
+
++ (void)removePlayerObservers {
+    NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+    for (id<NSObject> token in sPlayerObserverTokens) {
+        [center removeObserver:token];
+    }
+    [sPlayerObserverTokens removeAllObjects];
 }
 
 + (void)applyPendingSeekIfNeeded {
@@ -1215,7 +1227,7 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
     [sEngineLock unlock];
 
     dispatch_async(dispatch_get_main_queue(), ^{
-        [[NSNotificationCenter defaultCenter] removeObserver:sPlayer];
+        [self removePlayerObservers];
         [sPlayer removeAllItems];
         sPlayer = nil;
         [[AVAudioSession sharedInstance] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
