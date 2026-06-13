@@ -866,6 +866,59 @@ describe('DownloadService', () => {
 		});
 	});
 
+	describe('operation serialization', () => {
+		// A remove must run on the same operationChain as downloads. If it bypasses the chain it
+		// can interleave with an in-flight download — emptying the maps mid-write or resurrecting
+		// just-removed entries — and persist inconsistent state.
+		it('does not let removeAllDownloads persist while a download is mid-persist', async () => {
+			const KEY_TRACKS = 'dl_tracks';
+			const values = new Map<string, string>();
+			let trackPersists = 0;
+			let releaseGate: () => void = () => {};
+			const gate = new Promise<void>((resolve) => {
+				releaseGate = resolve;
+			});
+
+			const store: DownloadServiceStore = {
+				fetchString: (key) => {
+					const value = values.get(key);
+					return value == null ? Promise.reject(new Error('missing')) : Promise.resolve(value);
+				},
+				storeString: async (key, value) => {
+					values.set(key, value);
+					if (key === KEY_TRACKS) {
+						trackPersists += 1;
+						await gate; // hold the first track-persist open
+					}
+				},
+			};
+
+			const service = new DownloadService({
+				cacheImage: () => Promise.resolve(),
+				cacheTrack: () => Promise.resolve(),
+				getTrackPlaybackUrl: (trackId) => `file://${trackId}`,
+				removeTrack: () => {},
+				store,
+			});
+
+			service.downloadAlbum({
+				album: makeAlbum('album-1'),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: makeTrack('track-1') }],
+			});
+			await flush(); // download op reaches persistAll and suspends on the gate
+			expect(trackPersists).toBe(1);
+
+			service.removeAllDownloads();
+			await flush();
+			// A serialized remove waits for the gated download; an unserialized one persists now.
+			expect(trackPersists).toBe(1);
+
+			releaseGate();
+			await flush();
+		});
+	});
+
 	describe('subscriptions', () => {
 		it('notifies subscribers when download completes', async () => {
 			const { service } = createService();
