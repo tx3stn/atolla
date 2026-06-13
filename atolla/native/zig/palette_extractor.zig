@@ -382,7 +382,9 @@ fn extractFromPng(bytes: []const u8, bins: *[MAX_BINS]Bin) bool {
         else => return false,
     };
     const row_stride: usize = 1 + bpp * @as(usize, width); // +1 for filter byte
-    const scanlines_size: usize = row_stride * @as(usize, height);
+    // A crafted IHDR can make this product overflow usize (a panic in safe builds); an image that
+    // large is not something we decode here, so bail out rather than crash.
+    const scanlines_size: usize = std.math.mul(usize, row_stride, @as(usize, height)) catch return false;
 
     // Collect all IDAT chunks into one buffer.
     const idat_raw = malloc(idat_total) orelse return false;
@@ -1315,4 +1317,25 @@ test "decodeHuffman: malformed oversized table does not read past the symbol arr
     var br = BitReader.init(&data);
 
     try std.testing.expectEqual(@as(u8, 0), decodeHuffman(&br, &table));
+}
+
+test "extractFromPng: a crafted huge IHDR bails out instead of overflowing the size computation" {
+    var bins: [MAX_BINS]Bin = undefined;
+    // Valid signature + IHDR declaring width = height = 2^32-1 (RGBA) + a token IDAT. The
+    // row_stride * height product overflows usize; the decoder must reject it, not panic.
+    const png = [_]u8{
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // signature
+        0x00, 0x00, 0x00, 0x0d, 'I', 'H', 'D', 'R', // IHDR chunk, length 13
+        0xff, 0xff, 0xff, 0xff, // width
+        0xff, 0xff, 0xff, 0xff, // height
+        0x08, // bit depth 8
+        0x06, // color type 6 (RGBA)
+        0x00, 0x00, 0x00, // compression / filter / interlace
+        0x00, 0x00, 0x00, 0x00, // CRC (unchecked)
+        0x00, 0x00, 0x00, 0x01, 'I', 'D', 'A', 'T', // IDAT chunk, length 1
+        0x00, // data
+        0x00, 0x00, 0x00, 0x00, // CRC (unchecked)
+    };
+
+    try std.testing.expect(!extractFromPng(&png, &bins));
 }
