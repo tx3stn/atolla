@@ -874,19 +874,27 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
             NSString *playingUrl = (currentItem && ![self isItemAtEnd:currentItem])
                 ? [(AVURLAsset *)currentItem.asset URL].absoluteString : @"";
             if (playingUrl.length > 0) {
+                // Snapshot the shared window state under the lock — setUpcomingQueue mutates these
+                // from the JS bridge thread, so reading them unlocked on the main queue can tear the
+                // window/anchor pair or use-after-free the reassigned array.
+                [sEngineLock lock];
                 NSArray<NSDictionary *> *window = sQueueWindow;
+                NSInteger anchorHint = sWindowAnchorHint;
+                NSString *currentTrackIdSnapshot = sCurrentTrackId;
+                [sEngineLock unlock];
+
                 NSMutableArray<NSString *> *urls = [NSMutableArray arrayWithCapacity:window.count];
                 for (NSDictionary *entry in window) {
                     [urls addObject:([entry[@"sourceUrl"] isKindOfClass:[NSString class]] ? entry[@"sourceUrl"] : @"")];
                 }
-                NSInteger currentAnchor = AtollaResolveWindowAnchor(urls, sWindowAnchorHint, playingUrl);
-                NSInteger requestedAnchor = AtollaResolveWindowAnchor(urls, sWindowAnchorHint, currentSourceUrl);
+                NSInteger currentAnchor = AtollaResolveWindowAnchor(urls, anchorHint, playingUrl);
+                NSInteger requestedAnchor = AtollaResolveWindowAnchor(urls, anchorHint, currentSourceUrl);
                 if (AtollaShouldSuppressBackwardRebuild(sPlayer.rate > 0, requestedAnchor, currentAnchor, allowBackwardRebuild)) {
                     NSString *playingTrackId =
                         (currentAnchor < (NSInteger)window.count &&
                          [window[currentAnchor][@"trackId"] isKindOfClass:[NSString class]])
                             ? window[currentAnchor][@"trackId"]
-                            : sCurrentTrackId;
+                            : currentTrackIdSnapshot;
                     [sEngineLock lock];
                     sCurrentSourceUrl = playingUrl;
                     sCurrentTrackId = playingTrackId;
