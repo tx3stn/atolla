@@ -88,6 +88,27 @@ describe('ScrobbleService', () => {
 		expect(service.getPendingScrobbles()).toHaveLength(0);
 	});
 
+	it('keeps accrued listen time across a mid-track backward scrub', async () => {
+		const { deliverCalls, service } = createService();
+		const base = {
+			hasSeekTarget: false,
+			isPlaying: true,
+			trackDurationSeconds: 200, // threshold = 160s of active listening
+			trackId: 'track-1',
+		};
+
+		service.observePlayback({ ...base, progressSeconds: 0 });
+		service.observePlayback({ ...base, progressSeconds: 100 }); // +100 → 100
+		service.observePlayback({ ...base, progressSeconds: 150 }); // +50 → 150 (still below threshold)
+		service.observePlayback({ ...base, progressSeconds: 120 }); // backward scrub, mid-track
+		service.observePlayback({ ...base, progressSeconds: 140 }); // +20 → 170 ≥ 160 → scrobble
+
+		await service.flush();
+
+		expect(deliverCalls).toHaveLength(1);
+		expect(deliverCalls[0].trackId).toBe('track-1');
+	});
+
 	it('does not count seek jumps toward active listen time', async () => {
 		const { deliverCalls, service } = createService();
 
