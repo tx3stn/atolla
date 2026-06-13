@@ -635,7 +635,11 @@ fn decodeHuffman(br: *BitReader, table: *const JpegHuffTable) u8 {
         if (code >= table.first_code[i]) {
             const offset = code - table.first_code[i];
             if (offset < table.count[i]) {
-                return table.symbols[table.first_symbol[i] + offset];
+                // A corrupt DHT can sum to more than 256 symbols, pushing this index past the
+                // fixed symbol array; treat an out-of-range symbol as a decode miss.
+                const idx: usize = @as(usize, table.first_symbol[i]) + @as(usize, offset);
+                if (idx >= table.symbols.len) return 0;
+                return table.symbols[idx];
             }
         }
     }
@@ -1296,4 +1300,19 @@ test "buildHuffTable and decodeHuffman: simple 2-symbol table" {
     try std.testing.expectEqual(@as(u8, 1), table.max_len);
     try std.testing.expectEqual(@as(u8, 2), table.count[0]);
     try std.testing.expectEqual(@as(u16, 0), table.first_code[0]);
+}
+
+test "decodeHuffman: malformed oversized table does not read past the symbol array" {
+    // A corrupt DHT whose code-length counts sum to more than 256 symbols pushes first_symbol
+    // beyond the 256-entry symbol array. decodeHuffman must not index out of bounds.
+    var table: JpegHuffTable = undefined;
+    const bits = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 200, 200 }; // 400 symbols total
+    const vals = [_]u8{0} ** 256;
+    buildHuffTable(&table, &bits, &vals);
+
+    // This bit pattern resolves to first_symbol[15] + offset == 256 — one past the end.
+    const data = [_]u8{ 0x01, 0xC8, 0x00, 0x00 };
+    var br = BitReader.init(&data);
+
+    try std.testing.expectEqual(@as(u8, 0), decodeHuffman(&br, &table));
 }
