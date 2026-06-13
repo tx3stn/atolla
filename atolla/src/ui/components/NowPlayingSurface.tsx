@@ -968,12 +968,10 @@ function formatDuration(seconds: number): string {
 
 function getLoopModeIcon(mode: LoopMode) {
 	switch (mode) {
-		case LoopModes.queue:
-			return res.loopqueue;
 		case LoopModes.track:
 			return res.looptrack;
 		default:
-			return res.loopnone;
+			return res.loop;
 	}
 }
 
