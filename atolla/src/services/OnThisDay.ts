@@ -1,9 +1,6 @@
 import type { Album } from '../models/Album';
 import type { CardDetailItem } from '../models/CardDetailItem';
 
-// Pure "On This Day" logic, kept free of any Valdi imports so it can be unit
-// tested with bun and reused by OnThisDayService.
-
 interface OnThisDayCandidate {
 	album: Album;
 	originalReleaseDate: Date;
@@ -29,12 +26,15 @@ export function matchOnThisDay(
 		return null;
 	}
 
-	const year = date.getFullYear();
+	// PremiereDate is a calendar release date sent as a UTC instant (…T00:00:00Z), so read its
+	// day/month/year in UTC — reading the UTC-midnight instant with local getters would shift it
+	// to the previous day in timezones behind UTC. `target` is the viewer's local today.
+	const year = date.getUTCFullYear();
 	if (year >= target.getFullYear()) {
 		return null;
 	}
 
-	if (date.getMonth() !== target.getMonth() || date.getDate() !== target.getDate()) {
+	if (date.getUTCMonth() !== target.getMonth() || date.getUTCDate() !== target.getDate()) {
 		return null;
 	}
 
