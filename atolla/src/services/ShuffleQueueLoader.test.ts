@@ -304,4 +304,81 @@ describe('ShuffleQueueLoader', () => {
 		loader.dispose();
 		expect(store.listeners.size).toBe(0);
 	});
+
+	it('does not re-queue tracks already in the queue when the server returns an overlapping page', async () => {
+		const initialTracks = createTracks(11); // t1..t11
+		const store = createMockStore(initialTracks, 10); // remaining 1 <= threshold → triggers a fetch
+		// Jellyfin reshuffled and handed back a page overlapping the tracks already queued.
+		const overlappingPage = [
+			createTrack('t8'),
+			createTrack('t9'),
+			createTrack('t12'),
+			createTrack('t13'),
+		];
+
+		const loader = new ShuffleQueueLoader(
+			store,
+			() => Promise.resolve({ hasMore: false, items: overlappingPage }),
+			SHUFFLE_PAGE_SIZE,
+		);
+
+		loader.start(2, true);
+		await waitFor(() => store.addedTracks.length > 0);
+
+		const ids = store.tracks.map((track) => track.id);
+		expect(new Set(ids).size).toBe(ids.length); // no duplicate tracks in the queue
+		expect(store.addedTracks.map((track) => track.id)).toEqual(['t12', 't13']); // only the fresh ones
+		loader.dispose();
+	});
+
+	it('keeps loading past an all-duplicate page until it gets fresh tracks', async () => {
+		const initialTracks = createTracks(11); // t1..t11
+		const store = createMockStore(initialTracks, 10);
+		const freshPage = createTracks(5, 'p3-');
+		let call = 0;
+
+		const loader = new ShuffleQueueLoader(
+			store,
+			() => {
+				call += 1;
+				// First page is entirely already-queued tracks; second is fresh.
+				const items = call === 1 ? [createTrack('t1'), createTrack('t2')] : freshPage;
+				return Promise.resolve({ hasMore: true, items });
+			},
+			SHUFFLE_PAGE_SIZE,
+		);
+
+		loader.start(2, true);
+		await waitFor(() => store.addedTracks.length >= freshPage.length);
+
+		expect(call).toBeGreaterThanOrEqual(2); // retried past the all-duplicate page
+		expect(store.addedTracks.map((track) => track.id)).toEqual(freshPage.map((track) => track.id)); // no duplicate tracks were added
+		loader.dispose();
+	});
+
+	it('de-dupes from scratch when restarted for a fresh shuffle', async () => {
+		const store = createMockStore(createTracks(5), 0); // t1..t5
+		const loader = new ShuffleQueueLoader(
+			store,
+			() => Promise.resolve({ hasMore: false, items: [createTrack('t1'), createTrack('x1')] }),
+			SHUFFLE_PAGE_SIZE,
+		);
+
+		// First shuffle seeds the window with t1..t5.
+		loader.start(2, true);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		// A fresh shuffle replaces the queue and restarts the loader.
+		store.tracks = createTracks(5, 'n'); // n1..n5
+		store.addedTracks.length = 0;
+		loader.start(2, true);
+		await waitFor(() => store.addedTracks.length > 0);
+
+		// t1 belonged only to the previous shuffle's window, so after a fresh start it must be
+		// treated as new rather than de-duped away.
+		expect(store.addedTracks.map((track) => track.id)).toContain('t1');
+		// And the restart must not have left a second live subscription behind.
+		expect(store.listeners.size).toBe(1);
+		loader.dispose();
+	});
 });
