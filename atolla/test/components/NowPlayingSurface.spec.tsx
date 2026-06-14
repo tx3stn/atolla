@@ -833,4 +833,51 @@ describe('NowPlayingSurface', () => {
 		]);
 		expect(upNextRows).toEqual(['track-row-up-next-track-5-0']);
 	});
+
+	valdiIt(
+		'shows a create-playlist-from-queue button on the queue tabs row when expanded',
+		async () => {
+			const tracks = createQueueTracks(3);
+			const instrumented = createComponent(NowPlayingSurface, {
+				album,
+				artistLogoUrl: null,
+				barColors: new BarColorStore(),
+				collapseSignal: 0,
+				isPlaying: true,
+				loopMode: 'none',
+				onDismiss: () => {},
+				onLoopModeToggle: () => {},
+				onNext: () => {},
+				onPlayPause: () => {},
+				onPrevious: () => {},
+				playbackStore: mockPlaybackStore(),
+				track: tracks[1],
+				trackIndex: 1,
+				tracks,
+			});
+			const component = instrumented.getComponent();
+
+			const views = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			);
+			const compactBar = views.find(
+				(view) => view.getAttribute('id') === 'now-playing-surface-bar',
+			);
+			compactBar?.getAttribute('onTap')?.();
+
+			const expandedViews = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			);
+			const createButton = expandedViews.find(
+				(v) => v.getAttribute('accessibilityLabel') === 'now-playing-create-playlist-from-queue',
+			);
+			expect(createButton).toBeDefined();
+
+			createButton?.getAttribute('onTap')?.();
+
+			expect(getLabelValues(component)).toContain('CREATE PLAYLIST FROM QUEUE');
+		},
+	);
 });

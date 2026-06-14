@@ -11,6 +11,9 @@ declare const Strings: {
 	cancel: () => string;
 	create: () => string;
 	createNewPlaylist: () => string;
+	createPlaylistFromQueueModalTitle: () => string;
+	createPlaylistIncludePlayed: () => string;
+	createPlaylistIncludeUpNext: () => string;
 	createPlaylistModalTitle: () => string;
 	playlistNamePlaceholder: () => string;
 	albumFallbackLabel: () => string;

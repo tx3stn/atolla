@@ -85,7 +85,7 @@ export const theme = {
 		},
 		sub: {
 			color: colors.muted,
-			font: systemFont(13),
+			font: systemFont(14),
 		},
 		subLarger: {
 			color: colors.muted,

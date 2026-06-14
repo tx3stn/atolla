@@ -16,8 +16,13 @@ import type { BarColorStore, FooterColors } from '../../stores/BarColor';
 import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playback';
 import { paletteDefaults, theme, topInset, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { createPlaylistAndAddTracks, selectQueueTracksForPlaylist } from '../flows/playlistFlow';
 import { AddToPlaylistView } from '../views/AddToPlaylistView';
 import { ArtistLogo } from './ArtistLogo';
+import {
+	CreatePlaylistFromQueueModal,
+	type QueueTrackSelectionOptions,
+} from './CreatePlaylistFromQueueModal';
 import { CreatePlaylistModal } from './CreatePlaylistModal';
 import { FormatBadge } from './FormatBadge';
 import { ProgressBarWaveform } from './ProgressBarWaveform';
@@ -66,6 +71,7 @@ interface NowPlayingSurfaceState {
 	activeQueueTab: QueueTab;
 	addToPlaylistTracks: Array<Track> | null;
 	contextMenuTrack: Track | null;
+	createPlaylistFromQueue: boolean;
 	createPlaylistTrack: Track | null;
 	isExpanded: boolean;
 }
@@ -117,6 +123,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		activeQueueTab: 'upNext',
 		addToPlaylistTracks: null,
 		contextMenuTrack: null,
+		createPlaylistFromQueue: false,
 		createPlaylistTrack: null,
 		isExpanded: false,
 	};
@@ -552,6 +559,32 @@ export class NowPlayingSurface extends StatefulComponent<
 		if (!createPlaylistTrack) return;
 		const playlist = await this.viewModel.transport.createPlaylist(name, createPlaylistTrack.id);
 		this.setState({ createPlaylistTrack: null });
+		await this.closeSurface();
+		this.viewModel.onOpenPlaylist?.(playlist);
+	};
+
+	private handleCreatePlaylistFromQueue = (): void => {
+		this.setState({ createPlaylistFromQueue: true });
+	};
+
+	private handleCreatePlaylistFromQueueCancel = (): void => {
+		this.setState({ createPlaylistFromQueue: false });
+	};
+
+	private handleCreatePlaylistFromQueueConfirm = async (
+		name: string,
+		options: QueueTrackSelectionOptions,
+	): Promise<void> => {
+		const { tracks, trackIndex, transport } = this.viewModel;
+		const selected = selectQueueTracksForPlaylist(tracks, trackIndex, options);
+		const playlist = await createPlaylistAndAddTracks(
+			name,
+			transport.createPlaylist.bind(transport),
+			transport.addItemToPlaylist.bind(transport),
+			selected,
+		);
+		this.setState({ createPlaylistFromQueue: false });
+		await this.closeSurface();
 		this.viewModel.onOpenPlaylist?.(playlist);
 	};
 
@@ -845,6 +878,19 @@ export class NowPlayingSurface extends StatefulComponent<
 										<view style={styles.controlsRowPlaceholder} />
 									</layout>
 									<layout style={styles.expandedQueueTabsRow}>
+										<view style={styles.queueTabsEdge}>
+											<TappableIcon
+												accessibilityId='now-playing-create-playlist-from-queue'
+												animationsEnabled={this.viewModel.animationsEnabled}
+												hitSize={44}
+												icon={res.createnewplaylist}
+												iconSize={20}
+												onTap={this.handleCreatePlaylistFromQueue}
+												rippleScale={1.34}
+												rippleTint={withAlpha(onSurfaceColor, 0.42)}
+												tint={onSurfaceColor}
+											/>
+										</view>
 										<view
 											accessibilityId='now-playing-tab-back-to'
 											accessibilityLabel='now-playing-tab-back-to'
@@ -861,6 +907,7 @@ export class NowPlayingSurface extends StatefulComponent<
 										>
 											<label style={upNextLabelStyle} value={Strings.upNext()} />
 										</view>
+										<view style={styles.queueTabsEdge} />
 									</layout>
 								</layout>
 							</layout>
@@ -950,6 +997,13 @@ export class NowPlayingSurface extends StatefulComponent<
 					animationsEnabled={this.viewModel.animationsEnabled}
 					onCancel={this.handleCreatePlaylistCancel}
 					onCreate={this.handleCreatePlaylistConfirm}
+				/>
+			)}
+			{this.state.createPlaylistFromQueue && (
+				<CreatePlaylistFromQueueModal
+					animationsEnabled={this.viewModel.animationsEnabled}
+					onCancel={this.handleCreatePlaylistFromQueueCancel}
+					onCreate={this.handleCreatePlaylistFromQueueConfirm}
 				/>
 			)}
 		</view>;
@@ -1281,6 +1335,11 @@ const styles = {
 	queueListStrip: new Style<Layout>({
 		flexDirection: 'row',
 		width: '200%',
+	}),
+	queueTabsEdge: new Style<View>({
+		alignItems: 'center',
+		justifyContent: 'center',
+		width: 44,
 	}),
 	rootCollapsed: new Style<View>({
 		bottom: 0,
