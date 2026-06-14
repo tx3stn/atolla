@@ -270,6 +270,9 @@ export class DownloadService {
 	getArtistDownloadState(artistId: string): DownloadState {
 		const entry = this.artists[artistId];
 		if (!entry) return 'not_downloaded';
+		// An artist with no tracked albums (e.g. registered via a playlist/genre) is not
+		// downloaded — guard against [].every() reporting it as fully downloaded.
+		if (entry.albumIds.length === 0) return 'not_downloaded';
 		const albumStates = entry.albumIds.map((id) => this.getAlbumDownloadState(id));
 		if (albumStates.every((s) => s === 'downloaded')) return 'downloaded';
 		if (albumStates.some((s) => s !== 'not_downloaded')) return 'downloading';

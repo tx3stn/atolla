@@ -571,6 +571,23 @@ describe('DownloadService', () => {
 		});
 	});
 
+	describe('getArtistDownloadState', () => {
+		it('reports not_downloaded for an artist registered via a playlist (no albums)', async () => {
+			const { service } = createService();
+
+			// downloadPlaylist registers the playlist's artists with an empty albumIds list.
+			service.downloadPlaylist({
+				artists: [makeArtist('artist-1')],
+				playlist: makePlaylist('playlist-1'),
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') }],
+			});
+
+			await flush();
+
+			expect(service.getArtistDownloadState('artist-1')).toBe('not_downloaded');
+		});
+	});
+
 	describe('artist normalisation', () => {
 		it('normalises a track artistId to the album artistId when they differ', async () => {
 			const { service } = createService();
