@@ -49,11 +49,14 @@ export class CardContextMenu extends StatefulComponent<
 	onCreate(): void {
 		const { card, transport } = this.viewModel;
 		if (card.kind === 'album') {
-			transport.getArtistLogoUrl(card.album.artistId).then((artistLogoUrl) => {
-				if (!this.isDestroyed()) {
-					this.setState({ artistLogoUrl });
-				}
-			});
+			transport
+				.getArtistLogoUrl(card.album.artistId)
+				.then((artistLogoUrl) => {
+					if (!this.isDestroyed()) {
+						this.setState({ artistLogoUrl });
+					}
+				})
+				.catch(() => {});
 		} else if (card.kind === 'artist' && card.artist.logoUrl) {
 			this.setState({ artistLogoUrl: card.artist.logoUrl });
 		}
@@ -73,10 +76,21 @@ export class CardContextMenu extends StatefulComponent<
 		}
 	}
 
+	// The menu is dismissed optimistically by the caller, so the fetch runs fire-and-forget: run
+	// `action` once it resolves with a non-empty list, and swallow a rejected fetch here rather than
+	// let it surface as an unhandled promise rejection.
+	private withFetchedTracks(action: (tracks: Array<Track>) => void): void {
+		this.fetchTracks()
+			.then((tracks) => {
+				if (tracks.length === 0) return;
+				action(tracks);
+			})
+			.catch(() => {});
+	}
+
 	handlePlay = (): void => {
 		const { card, playbackStore } = this.viewModel;
-		this.fetchTracks().then((tracks) => {
-			if (tracks.length === 0) return;
+		this.withFetchedTracks((tracks) => {
 			if (card.kind === 'album') {
 				playbackStore.play(tracks, card.album);
 			} else {
@@ -88,34 +102,22 @@ export class CardContextMenu extends StatefulComponent<
 
 	handlePlayNext = (): void => {
 		const { playbackStore } = this.viewModel;
-		this.fetchTracks().then((tracks) => {
-			if (tracks.length === 0) return;
-			playbackStore.playNext(tracks);
-		});
+		this.withFetchedTracks((tracks) => playbackStore.playNext(tracks));
 		this.viewModel.onDismiss(Strings.playingNextToast());
 	};
 
 	handleAddToQueue = (): void => {
-		this.fetchTracks().then((tracks) => {
-			if (tracks.length === 0) return;
-			this.viewModel.playbackStore.addToQueue(tracks);
-		});
+		this.withFetchedTracks((tracks) => this.viewModel.playbackStore.addToQueue(tracks));
 		this.viewModel.onDismiss(Strings.addedToQueueToast());
 	};
 
 	handleAddToPlaylist = (): void => {
-		this.fetchTracks().then((tracks) => {
-			if (tracks.length === 0) return;
-			this.viewModel.onAddToPlaylist?.(tracks);
-		});
+		this.withFetchedTracks((tracks) => this.viewModel.onAddToPlaylist?.(tracks));
 		this.viewModel.onDismiss();
 	};
 
 	handleCreatePlaylist = (): void => {
-		this.fetchTracks().then((tracks) => {
-			if (tracks.length === 0) return;
-			this.viewModel.onCreatePlaylist?.(tracks);
-		});
+		this.withFetchedTracks((tracks) => this.viewModel.onCreatePlaylist?.(tracks));
 		this.viewModel.onDismiss();
 	};
 
