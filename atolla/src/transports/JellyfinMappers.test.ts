@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { formatAudioQuality, mapJellyfinAlbumToAlbum } from './JellyfinMappers';
+import {
+	formatAudioQuality,
+	mapJellyfinAlbumToAlbum,
+	mapJellyfinTrackToTrack,
+} from './JellyfinMappers';
 
 describe('mapJellyfinAlbumToAlbum', () => {
 	type AlbumItem = Parameters<typeof mapJellyfinAlbumToAlbum>[0];
@@ -13,6 +17,38 @@ describe('mapJellyfinAlbumToAlbum', () => {
 	it('keeps the provided name when present', () => {
 		const album = mapJellyfinAlbumToAlbum({ Id: 'a1', Name: 'Discovery' } as AlbumItem);
 		expect(album.name).toBe('Discovery');
+	});
+});
+
+describe('mapJellyfinTrackToTrack', () => {
+	type TrackItem = Parameters<typeof mapJellyfinTrackToTrack>[0];
+
+	it('builds an album image url when AlbumId is present', () => {
+		const calls: Array<string> = [];
+		const track = mapJellyfinTrackToTrack({ AlbumId: 'album-1', Id: 't1' } as TrackItem, {
+			albumPrimaryImageUrl: (albumId) => {
+				calls.push(albumId);
+				return `https://img/${albumId}`;
+			},
+		});
+
+		expect(calls).toEqual(['album-1']);
+		expect(track.albumId).toBe('album-1');
+		expect(track.albumImageUrl).toBe('https://img/album-1');
+	});
+
+	it('does not build an album image url for an empty AlbumId', () => {
+		const calls: Array<string> = [];
+		const track = mapJellyfinTrackToTrack({ AlbumId: '', Id: 't1' } as TrackItem, {
+			albumPrimaryImageUrl: (albumId) => {
+				calls.push(albumId);
+				return `https://img/${albumId}`;
+			},
+		});
+
+		expect(calls).toEqual([]); // resolver not invoked for an empty id
+		expect(track.albumId).toBeUndefined();
+		expect(track.albumImageUrl).toBeUndefined();
 	});
 });
 

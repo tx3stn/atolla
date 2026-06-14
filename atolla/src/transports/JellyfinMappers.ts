@@ -173,13 +173,14 @@ export function mapJellyfinTrackToTrack(
 	imageResolvers: JellyfinImageResolvers = {},
 ): Track {
 	const primaryArtist = resolvePrimaryArtist(item);
+	// treat a present-but-empty AlbumId as no album, so we don't build a malformed url
+	const albumId = item.AlbumId || undefined;
 
 	return {
-		albumId: item.AlbumId,
-		albumImageUrl:
-			item.AlbumId != null
-				? imageResolvers.albumPrimaryImageUrl?.(item.AlbumId, item.AlbumPrimaryImageTag)
-				: undefined,
+		albumId,
+		albumImageUrl: albumId
+			? imageResolvers.albumPrimaryImageUrl?.(albumId, item.AlbumPrimaryImageTag)
+			: undefined,
 		albumName: item.Album,
 		artistId: primaryArtist?.Id || undefined,
 		artistName: primaryArtist?.Name,

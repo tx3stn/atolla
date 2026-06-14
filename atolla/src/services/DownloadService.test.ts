@@ -579,7 +579,9 @@ describe('DownloadService', () => {
 			service.downloadPlaylist({
 				artists: [makeArtist('artist-1')],
 				playlist: makePlaylist('playlist-1'),
-				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') }],
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
 			});
 
 			await flush();
