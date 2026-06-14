@@ -309,7 +309,7 @@ object AtollaGaplessAudioEngine {
 				expectingNativeSkip = expectingNativeSkip,
 				expectingNativeStepBack = expectingNativeStepBack,
 			)
-			if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
+			if (AtollaPlaybackGuards.shouldClearTransitionExpectation(reason)) {
 				expectingNativeSkip = false
 				expectingNativeStepBack = false
 			}

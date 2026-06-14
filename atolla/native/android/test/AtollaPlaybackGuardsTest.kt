@@ -187,6 +187,25 @@ class AtollaPlaybackGuardsTest {
 		)
 	}
 
+	// --- shouldClearTransitionExpectation ---
+
+	@Test
+	fun `clears the skip and step-back expectation on a seek transition`() {
+		assertTrue(AtollaPlaybackGuards.shouldClearTransitionExpectation(AtollaPlaybackGuards.TRANSITION_REASON_SEEK))
+	}
+
+	@Test
+	fun `clears the expectation on an auto transition that races the seek`() {
+		assertTrue(AtollaPlaybackGuards.shouldClearTransitionExpectation(AtollaPlaybackGuards.TRANSITION_REASON_AUTO))
+	}
+
+	@Test
+	fun `keeps the expectation for repeat and playlist-changed transitions`() {
+		// MEDIA_ITEM_TRANSITION_REASON_REPEAT = 0, PLAYLIST_CHANGED = 3 in media3.
+		assertFalse(AtollaPlaybackGuards.shouldClearTransitionExpectation(0))
+		assertFalse(AtollaPlaybackGuards.shouldClearTransitionExpectation(3))
+	}
+
 	// --- shouldRestartForPreviousAction ---
 
 	@Test

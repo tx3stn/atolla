@@ -97,6 +97,13 @@ object AtollaPlaybackGuards {
 			else -> TransitionKind.IGNORE
 		}
 
+	// The expecting-native-skip / -step-back flags arm a single upcoming SEEK transition. Any real
+	// track transition consumes that expectation: the SEEK that lands, or an AUTO advance that
+	// races ahead and supersedes the pending seek. Clear on both, so a stale flag can't later
+	// mis-classify an unrelated SEEK as an engine advance/step-back.
+	fun shouldClearTransitionExpectation(reason: Int): Boolean =
+		reason == TRANSITION_REASON_SEEK || reason == TRANSITION_REASON_AUTO
+
 	// Standard previous-button behaviour: restart the current track when more than ~3s in (or
 	// when there is nothing earlier to step back to), otherwise go to the previous item.
 	const val PREVIOUS_RESTART_THRESHOLD_MS = 3_000L
