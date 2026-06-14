@@ -45,7 +45,9 @@ export class Modal extends Component<ModalViewModel> {
 			{logoUrl && (
 				<CachedImage category='artist_logo' objectFit='contain' style={styles.logo} url={logoUrl} />
 			)}
-			{!logoUrl && <label style={modalStyles.title} value={title.toUpperCase()} />}
+			{!logoUrl && (
+				<label numberOfLines={0} style={modalStyles.title} value={title.toUpperCase()} />
+			)}
 			<view style={modalStyles.divider} />
 			<scroll style={styles.scroll}>
 				<label numberOfLines={0} style={styles.body} value={body} />
@@ -102,5 +104,6 @@ const styles = {
 	}),
 	scroll: new Style({
 		flexGrow: 1,
+		paddingBottom: 100,
 	}),
 };
