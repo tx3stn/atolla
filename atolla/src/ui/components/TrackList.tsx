@@ -98,7 +98,9 @@ const REMOVE_SWIPE_VELOCITY = 700;
 // first layout pass or in unit tests). Real drags measure each row's frame instead.
 const ROW_SLOT_HEIGHT = 72;
 const AUTO_SCROLL_EDGE = 72;
-const AUTO_SCROLL_STEP = 14;
+// Per-tick scroll at AUTO_SCROLL_INTERVAL (~60fps): keep this gentle so a held-at-edge
+// drag in a long, already-scrolled list stays controllable rather than flinging past.
+const AUTO_SCROLL_STEP = 6;
 const AUTO_SCROLL_INTERVAL = 16;
 // The ancestor scroll delays delivering touches to its content on iOS, so the
 // recogniser's timer starts late; with the delay the effective hold is ~250ms,
@@ -876,14 +878,36 @@ export class TrackList extends Component<TrackListViewModel> {
 		defaultBackgroundColor: string,
 		dragBackgroundColor: string,
 	): void {
-		if (!this.viewModel.onTrackReorder || this.draggingRowIdentities.size > 0) {
+		if (!this.viewModel.onTrackReorder || this.dragRowIdentity === rowIdentity) {
 			return;
+		}
+		// A fresh long-press is a brand new single-touch sequence, so any drag state still
+		// hanging around belongs to a previous gesture whose end signal was dropped (e.g. the
+		// ancestor scroll cancelled the touch mid-drag). Tear it down so a leaked selection
+		// can never block this — or any future — drag.
+		if (this.dragRowIdentity !== null || this.draggingRowIdentities.size > 0) {
+			this.releaseLingeringDrag(defaultBackgroundColor);
 		}
 		this.cancelLongPress();
 		this.beginHandleDrag(entryIndex, rowIdentity, defaultBackgroundColor, dragBackgroundColor);
 		this.armedDragOriginY = event.absoluteY;
 		this.performSelectionHaptic();
 		this.viewModel.dragScroller?.setScrollEnabled(false);
+	}
+
+	// Tears down drag state left dangling by a gesture whose end signal never arrived:
+	// release every highlighted row, settle shifted neighbours, and clear the active-drag
+	// bookkeeping so the next arm starts from a clean slate.
+	private releaseLingeringDrag(defaultBackgroundColor: string): void {
+		if (this.dragRowIdentity) {
+			this.setRowVerticalOffset(this.dragRowIdentity, 0);
+		}
+		this.resetNeighborOffsets(this.dragRowIdentity ?? '');
+		for (const identity of [...this.draggingRowIdentities]) {
+			this.releaseRowAppearance(identity, defaultBackgroundColor);
+		}
+		this.clearNeighbourTracking();
+		this.resetDragState();
 	}
 
 	private handleReorderHandleTouch(

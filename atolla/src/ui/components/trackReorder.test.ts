@@ -66,6 +66,15 @@ describe('resolveReorderTarget', () => {
 		// 20px keeps it in slot0 [0,58): 29+20 = 49
 		expect(resolveReorderTarget(slots, 0, centre(slots, 0, 20))).toBe(0);
 	});
+
+	it('moves a tall row down only once its centre clears the short row below', () => {
+		// row0 tall (76), row1 short (58), row2 short (58); tops at 0, 76, 134
+		const slots = mixed([76, 58, 58]);
+		// centre starts at 38; slot1 span is [76,134), so 30px is not enough (38+30=68 -> still slot0)
+		expect(resolveReorderTarget(slots, 0, centre(slots, 0, 30))).toBe(0);
+		// 50px clears into slot1 (38+50=88)
+		expect(resolveReorderTarget(slots, 0, centre(slots, 0, 50))).toBe(1);
+	});
 });
 
 describe('neighbourShifts', () => {

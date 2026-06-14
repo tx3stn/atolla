@@ -51,7 +51,7 @@ describe('TrackList', () => {
 		expect(values).toContain('2:15');
 	});
 
-	valdiIt('uses tail ellipsis for truncated title and meta text', async () => {
+	valdiIt('shows the full title and tail-ellipsises only the meta line', async () => {
 		const tracks = [{ id: 'a', meta: 'Very long metadata line', title: 'Very long track title' }];
 		const instrumented = createComponent(TrackList, { tracks });
 		const component = instrumented.getComponent();
@@ -63,8 +63,9 @@ describe('TrackList', () => {
 		const title = labels.find((label) => label.getAttribute('value') === 'Very long track title');
 		const meta = labels.find((label) => label.getAttribute('value') === 'Very long metadata line');
 
-		expect(title?.getAttribute('textOverflow')).toBe('ellipsis');
-		expect(title?.getAttribute('numberOfLines')).toBe(2);
+		// Title is unbounded (numberOfLines 0) so the full string is shown, never truncated.
+		expect(title?.getAttribute('numberOfLines')).toBe(0);
+		// The meta stays a single tail-ellipsised line.
 		expect(meta?.getAttribute('textOverflow')).toBe('ellipsis');
 		expect(meta?.getAttribute('numberOfLines')).toBe(1);
 	});
@@ -322,6 +323,92 @@ describe('TrackList', () => {
 		expect(reordered).toEqual([0, 1]);
 	});
 
+	valdiIt('persists a reorder computed from real measured row frames', async (driver) => {
+		const reordered: Array<number> = [];
+		const tracks = [
+			{ id: 'a', meta: '1:00', title: 'A' },
+			{ id: 'b', meta: '1:10', title: 'B' },
+			{ id: 'c', meta: '1:20', title: 'C' },
+			{ id: 'd', meta: '1:30', title: 'D' },
+		];
+		const component = driver.renderComponent(
+			TrackList,
+			{
+				holdToReorder: false,
+				onTrackReorder: (from: number, to: number) => {
+					reordered.push(from, to);
+				},
+				showDragHandles: true,
+				tracks,
+			},
+			undefined,
+		);
+
+		// Lay the list out so rows have real, stacked frames — the path the bazel fallback
+		// (uniform synthetic slots) never exercises, and where the device drop must resolve.
+		await driver.performLayout({ height: 800, width: 320 });
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const findView = (label: string) =>
+			views.find((view) => view.getAttribute('accessibilityLabel') === label);
+		const rowHeight =
+			(findView('track-row-drag-b-1')?.frame?.y ?? 0) -
+			(findView('track-row-drag-a-0')?.frame?.y ?? 0);
+		expect(rowHeight).toBeGreaterThan(0);
+
+		// Drag row 0 down two rows and release: it must land at index 2, not snap back.
+		const rowZero = findView('track-row-drag-a-0');
+		const dropDeltaY = rowHeight * 2;
+		rowZero?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 0, state: 0, velocityY: 0 });
+		rowZero?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: dropDeltaY, state: 1, velocityY: 0 });
+		rowZero?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: dropDeltaY, state: 2, velocityY: 90 });
+
+		expect(reordered).toEqual([0, 2]);
+	});
+
+	valdiIt('persists a hold-to-reorder drop computed from real measured frames', async (driver) => {
+		const reordered: Array<number> = [];
+		const tracks = [
+			{ id: 'a', meta: '1:00', title: 'A' },
+			{ id: 'b', meta: '1:10', title: 'B' },
+			{ id: 'c', meta: '1:20', title: 'C' },
+			{ id: 'd', meta: '1:30', title: 'D' },
+		];
+		const component = driver.renderComponent(
+			TrackList,
+			{
+				holdToReorder: true,
+				onTrackReorder: (from: number, to: number) => {
+					reordered.push(from, to);
+				},
+				showDragHandles: true,
+				tracks,
+			},
+			undefined,
+		);
+
+		await driver.performLayout({ height: 800, width: 320 });
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const findView = (label: string) =>
+			views.find((view) => view.getAttribute('accessibilityLabel') === label);
+		const rowHeight =
+			(findView('track-row-drag-b-1')?.frame?.y ?? 0) -
+			(findView('track-row-drag-a-0')?.frame?.y ?? 0);
+		expect(rowHeight).toBeGreaterThan(0);
+
+		// iOS arms on a handle long-press, then reads movement from the handle's touch stream:
+		// the synthesized deltaY (absoluteY - armedOriginY) must resolve against the
+		// list-relative slot tops.
+		const handleA = findView('track-row-edit-handle-a-0');
+		const originY = 200;
+		handleA?.getAttribute('onLongPress')?.({ absoluteY: originY, state: 0 });
+		handleA?.getAttribute('onTouch')?.({ absoluteY: originY + rowHeight * 2, state: 1 });
+		handleA?.getAttribute('onTouch')?.({ absoluteY: originY + rowHeight * 2, state: 2 });
+
+		expect(reordered).toEqual([0, 2]);
+	});
+
 	valdiIt('moves the row visually while dragging the reorder handle', async () => {
 		const tracks = [
 			{ id: 'track-1', meta: '1:00', title: 'One' },
@@ -425,6 +512,8 @@ describe('TrackList', () => {
 
 		expect(scrollCalls.length).toBeGreaterThan(0);
 		expect(scrollCalls[0]).toBeGreaterThan(0);
+		// Per-tick step is capped so a long, scrolled list doesn't fling past the finger.
+		expect(scrollCalls[0]).toBeLessThanOrEqual(6);
 
 		// End the drag so the auto-scroll timer is cleared.
 		dragContainer?.getAttribute('onDrag')?.({
@@ -740,6 +829,59 @@ describe('TrackList', () => {
 
 			expect(reordered).toEqual([]);
 			expect(dragContainer?.getAttribute('top')).toBeUndefined();
+		});
+
+		valdiIt('recovers when a previous drag never received its end signal', async () => {
+			const dragHighlight = 'rgba(45,120,206,0.28)';
+			const reordered: Array<number> = [];
+			const instrumented = createComponent(TrackList, {
+				holdToReorder: true,
+				onTrackReorder: (fromIndex: number, toIndex: number) => {
+					reordered.push(fromIndex, toIndex);
+				},
+				showDragHandles: true,
+				tracks,
+			});
+			const views = elementTypeFind(
+				componentGetElements(instrumented.getComponent()),
+				IRenderedElementViewClass.View,
+			);
+			const findView = (label: string) =>
+				views.find((view) => view.getAttribute('accessibilityLabel') === label);
+
+			// Arm and move row one, but its end signal never arrives (the ancestor scroll
+			// cancelled the touch mid-drag), leaving it highlighted with no release.
+			findView('track-row-edit-handle-track-1-0')?.getAttribute('onLongPress')?.({
+				absoluteY: 10,
+				state: 0,
+			});
+			findView('track-row-edit-handle-track-1-0')?.getAttribute('onTouch')?.({
+				absoluteY: 40,
+				state: 1,
+			});
+			expect(findView('track-row-track-1-0')?.getAttribute('backgroundColor')).toBe(dragHighlight);
+
+			// Arming a different row must self-heal: row one releases and row two takes over,
+			// rather than the leaked selection blocking every future drag.
+			findView('track-row-edit-handle-track-2-1')?.getAttribute('onLongPress')?.({
+				absoluteY: 10,
+				state: 0,
+			});
+			expect(findView('track-row-track-1-0')?.getAttribute('backgroundColor')).toBe(
+				theme.colors.bg,
+			);
+			expect(findView('track-row-track-2-1')?.getAttribute('backgroundColor')).toBe(dragHighlight);
+
+			// And the new drag completes normally.
+			findView('track-row-edit-handle-track-2-1')?.getAttribute('onTouch')?.({
+				absoluteY: 90,
+				state: 1,
+			});
+			findView('track-row-edit-handle-track-2-1')?.getAttribute('onTouch')?.({
+				absoluteY: 90,
+				state: 2,
+			});
+			expect(reordered).toEqual([1, 2]);
 		});
 	});
 
