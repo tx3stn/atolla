@@ -880,4 +880,62 @@ describe('NowPlayingSurface', () => {
 			expect(getLabelValues(component)).toContain('CREATE PLAYLIST FROM QUEUE');
 		},
 	);
+
+	valdiIt(
+		'collapses the surface and opens the playlist after creating from the queue',
+		async () => {
+			const tracks = createQueueTracks(3);
+			let openedPlaylist: { id: string; name: string } | undefined;
+			const transport = {
+				addItemToPlaylist: () => Promise.resolve(),
+				createPlaylist: (name: string) => Promise.resolve({ id: 'pl-new', name }),
+			};
+			const instrumented = createComponent(NowPlayingSurface, {
+				album,
+				artistLogoUrl: null,
+				barColors: new BarColorStore(),
+				collapseSignal: 0,
+				isPlaying: true,
+				loopMode: 'none',
+				onDismiss: () => {},
+				onLoopModeToggle: () => {},
+				onNext: () => {},
+				onOpenPlaylist: (playlist: { id: string; name: string }) => {
+					openedPlaylist = playlist;
+				},
+				onPlayPause: () => {},
+				onPrevious: () => {},
+				playbackStore: mockPlaybackStore(),
+				toastService: new ToastService(),
+				track: tracks[1],
+				trackIndex: 1,
+				tracks,
+				transport,
+			});
+			const component = instrumented.getComponent();
+
+			const findView = (accessibilityLabel: string) =>
+				elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View).find(
+					(v) => v.getAttribute('accessibilityLabel') === accessibilityLabel,
+				);
+
+			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+				.find((v) => v.getAttribute('id') === 'now-playing-surface-bar')
+				?.getAttribute('onTap')?.();
+			// Let the expand transition settle so isTransitioning resets before we collapse.
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			findView('now-playing-create-playlist-from-queue')?.getAttribute('onTap')?.();
+
+			elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.TextField,
+			)[0]?.getAttribute('onChange')?.('My Queue Playlist');
+			findView('create-playlist-from-queue-create-button')?.getAttribute('onTap')?.();
+
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(openedPlaylist).toEqual({ id: 'pl-new', name: 'My Queue Playlist' });
+			expect(component.state.isExpanded).toBe(false);
+		},
+	);
 });

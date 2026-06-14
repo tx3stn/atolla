@@ -326,6 +326,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private isResolvingArtistNavigation = false;
 	private pendingAlbum: Album | null = null;
 	private isResolvingAlbumNavigation = false;
+	private pendingPlaylist: Playlist | null = null;
 	private pendingSearchNavigation: SearchLibraryNavigationTarget | null = null;
 	private isResolvingSearchNavigation = false;
 	private returnToSearchOnDetailClose = false;
@@ -2117,6 +2118,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	handleHomeNavigationControllerChange = (navigationController: NavigationController): void => {
 		this.homeNavigationController = navigationController;
+		this.tryNavigatePendingPlaylist();
 	};
 
 	handleNavigationContext = (context: LibraryNavContext | null): void => {
@@ -2386,6 +2388,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				onDismiss={this.handleNowPlayingDismiss}
 				onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
 				onNext={this.handleNowPlayingNext}
+				onOpenPlaylist={this.handleNowPlayingOpenPlaylist}
 				onPlayPause={this.handleNowPlayingPlayPause}
 				onPrevious={this.handleNowPlayingPrevious}
 				onProgressTap={this.handleNowPlayingProgressTap}
@@ -2704,29 +2707,43 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	handleNowPlayingOpenPlaylist = (playlist: Playlist): void => {
-		if (this.homeNavigationController) {
-			this.setState({ activeFooterTab: FooterTabs.home });
-			this.homeNavigationController.push(
-				PlaylistView,
-				{
-					animationsEnabled: this.state.animationsEnabled,
-					downloadService: this.downloadService,
-					gridColumns: this.state.gridColumns,
-					imageCache: this.imageCache,
-					modalSlot: this.modalSlot,
-					navBarContext: this.buildHomeNavBarContext(),
-					paletteQueue: this.paletteQueue,
-					playbackStore: this.playbackStore,
-					playlist,
-					playlistEditService: this.playlistEditService,
-					toastService: this.toastService,
-					transport: this.transport,
-				},
-				{},
-				{ animated: this.state.animationsEnabled },
-			);
-		}
+		// Invoked from the now playing surface, which can be open over any tab. Switching
+		// to home may mount its navigation controller asynchronously, so stash the playlist
+		// and let tryNavigatePendingPlaylist push once the controller is available (mirrors
+		// the pending album/artist navigation). A one-shot push silently no-ops on iOS when
+		// the home controller isn't mounted yet.
+		this.pendingPlaylist = playlist;
+		this.setState({ activeFooterTab: FooterTabs.home });
+		this.tryNavigatePendingPlaylist();
 	};
+
+	private tryNavigatePendingPlaylist(): void {
+		if (!this.pendingPlaylist || !this.homeNavigationController) {
+			return;
+		}
+
+		const playlist = this.pendingPlaylist;
+		this.pendingPlaylist = null;
+		this.homeNavigationController.push(
+			PlaylistView,
+			{
+				animationsEnabled: this.state.animationsEnabled,
+				downloadService: this.downloadService,
+				gridColumns: this.state.gridColumns,
+				imageCache: this.imageCache,
+				modalSlot: this.modalSlot,
+				navBarContext: this.buildHomeNavBarContext(),
+				paletteQueue: this.paletteQueue,
+				playbackStore: this.playbackStore,
+				playlist,
+				playlistEditService: this.playlistEditService,
+				toastService: this.toastService,
+				transport: this.transport,
+			},
+			{},
+			{ animated: this.state.animationsEnabled },
+		);
+	}
 
 	private tryNavigatePendingAlbum(): void {
 		if (

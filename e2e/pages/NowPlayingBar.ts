@@ -9,6 +9,7 @@ export class NowPlayingBar extends BasePage {
 	private readonly previous = 'now-playing-previous';
 	private readonly queueTabUpNext = 'now-playing-tab-up-next';
 	private readonly queueTabBackTo = 'now-playing-tab-back-to';
+	private readonly createPlaylistFromQueue = 'now-playing-create-playlist-from-queue';
 	private readonly queuePageUpNext = 'now-playing-queue-page-up-next';
 	private readonly queuePageBackTo = 'now-playing-queue-page-back-to';
 
@@ -215,6 +216,27 @@ export class NowPlayingBar extends BasePage {
 			if (text) return text;
 		}
 		throw new Error('No back to track titles found');
+	}
+
+	async backToTrackNames(): Promise<Array<string>> {
+		await this.waitForQueueRowsVisible();
+		const labels = await this.sortedByY(
+			await this.allByAccessibilityPrefix(this.trackTitleBackToPrefix),
+		);
+		const names: Array<string> = [];
+		for (const label of labels) {
+			names.push(await label.getText());
+		}
+		return names;
+	}
+
+	// The + button shares the queue tabs row, so the queue list must be on-screen
+	// (callers reach it via tapUpNextTab / tapBackToTab, which swipe the surface up).
+	async tapCreatePlaylistFromQueue(): Promise<void> {
+		await this.waitForQueueList();
+		const el = this.elementByID(this.createPlaylistFromQueue);
+		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for create playlist button' });
+		await el.click();
 	}
 
 	async tapFirstBackToRow(): Promise<void> {

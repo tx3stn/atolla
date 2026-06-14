@@ -131,3 +131,38 @@ describe('MockTransport playlist reorder', () => {
 		expect(fresh.map((track) => track.id)).toEqual(original.map((track) => track.id));
 	});
 });
+
+describe('MockTransport playlist creation', () => {
+	it('returns the added tracks in order for a created playlist', async () => {
+		const transport = new MockTransport();
+		const [first, second, third] = await transport.getTracksByPlaylist('playlist-1');
+
+		const playlist = await transport.createPlaylist('Queue Playlist');
+		await transport.addItemToPlaylist(playlist.id, first.id);
+		await transport.addItemToPlaylist(playlist.id, second.id);
+		await transport.addItemToPlaylist(playlist.id, third.id);
+
+		const tracks = await transport.getTracksByPlaylist(playlist.id);
+		expect(tracks.map((track) => track.id)).toEqual([first.id, second.id, third.id]);
+	});
+
+	it('seeds the initial track when createPlaylist is given one', async () => {
+		const transport = new MockTransport();
+		const [seed] = await transport.getTracksByPlaylist('playlist-1');
+
+		const playlist = await transport.createPlaylist('Seeded', seed.id);
+
+		const tracks = await transport.getTracksByPlaylist(playlist.id);
+		expect(tracks.map((track) => track.id)).toEqual([seed.id]);
+	});
+
+	it('does not leak created playlists across transport instances', async () => {
+		const transport = new MockTransport();
+		const [track] = await transport.getTracksByPlaylist('playlist-1');
+		const playlist = await transport.createPlaylist('Ephemeral');
+		await transport.addItemToPlaylist(playlist.id, track.id);
+
+		const fresh = await new MockTransport().getTracksByPlaylist(playlist.id);
+		expect(fresh).toEqual([]);
+	});
+});

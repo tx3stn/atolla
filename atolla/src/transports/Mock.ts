@@ -67,6 +67,11 @@ export class MockTransport implements Transport {
 	// mutating the shared fixtures. Keyed by playlist id; holds the track id order.
 	private readonly playlistItemOrder = new Map<string, Array<string>>();
 
+	// Ids of playlists created this session. Their track order lives in
+	// playlistItemOrder, so a created playlist resolves like a fixture one without
+	// needing a full Jellyfin fixture entry.
+	private readonly createdPlaylists = new Set<string>();
+
 	async getAlbumsPage(
 		page: number,
 		pageSize: number,
@@ -288,11 +293,11 @@ export class MockTransport implements Transport {
 
 	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
 		const playlist = mockJellyfinPlaylists.find((candidate) => candidate.Id === playlistId);
-		if (!playlist) {
+		if (!playlist && !this.createdPlaylists.has(playlistId)) {
 			return [];
 		}
 
-		const trackIds = this.playlistItemOrder.get(playlistId) ?? playlist.ItemIds ?? [];
+		const trackIds = this.playlistItemOrder.get(playlistId) ?? playlist?.ItemIds ?? [];
 		const tracksById = new Map(mockJellyfinTracks.map((track) => [track.Id, track]));
 
 		return trackIds.flatMap((trackId) => {
@@ -356,11 +361,17 @@ export class MockTransport implements Transport {
 		return MockTransport.sampleAudioUrl;
 	}
 
-	async createPlaylist(name: string, _trackId?: string): Promise<Playlist> {
-		return { id: `playlist-${Date.now()}`, name };
+	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
+		const id = `playlist-${Date.now()}`;
+		this.createdPlaylists.add(id);
+		this.playlistItemOrder.set(id, trackId ? [trackId] : []);
+		return { id, name };
 	}
 
-	async addItemToPlaylist(_playlistId: string, _trackId: string): Promise<void> {}
+	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
+		const order = this.playlistItemOrder.get(playlistId) ?? [];
+		this.playlistItemOrder.set(playlistId, [...order, trackId]);
+	}
 
 	async movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void> {
 		const playlist = mockJellyfinPlaylists.find((candidate) => candidate.Id === playlistId);
