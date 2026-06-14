@@ -394,7 +394,7 @@ export class TrackList extends Component<TrackListViewModel> {
 											<label
 												accessibilityId={`track-title-${rowIdentity}`}
 												accessibilityLabel={`track-title-${rowIdentity}`}
-												numberOfLines={2}
+												numberOfLines={0}
 												style={resolvedStyles.titleStyle}
 												textOverflow='ellipsis'
 												value={entry.title}

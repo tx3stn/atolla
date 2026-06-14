@@ -74,7 +74,11 @@ export class CreatePlaylistFromQueueModal extends StatefulComponent<
 		const canCreate = playlistName.trim().length > 0 && !isCreating;
 
 		<ModalBase accessibilityId='create-playlist-from-queue-modal' onDismiss={onCancel}>
-			<label style={modalStyles.title} value={Strings.createPlaylistFromQueueModalTitle()} />
+			<label
+				numberOfLines={0}
+				style={modalStyles.title}
+				value={Strings.createPlaylistFromQueueModalTitle()}
+			/>
 			<view style={modalStyles.divider} />
 			<view style={styles.inputContainer}>
 				<textfield

@@ -330,6 +330,7 @@ export class SettingsView extends Component<SettingsViewModel> {
 						{isHttpServer && (
 							<view style={styles.httpWarningCallout}>
 								<label
+									numberOfLines={0}
 									style={styles.httpWarningCalloutText}
 									value={Strings.settingsHttpWarning()}
 								/>

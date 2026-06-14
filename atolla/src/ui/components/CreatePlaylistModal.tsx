@@ -53,7 +53,11 @@ export class CreatePlaylistModal extends StatefulComponent<
 		const canCreate = playlistName.trim().length > 0 && !isCreating;
 
 		<ModalBase onDismiss={onCancel}>
-			<label style={modalStyles.title} value={Strings.createPlaylistModalTitle()} />
+			<label
+				numberOfLines={0}
+				style={modalStyles.title}
+				value={Strings.createPlaylistModalTitle()}
+			/>
 			<view style={modalStyles.divider} />
 			<view style={styles.inputContainer}>
 				<textfield
