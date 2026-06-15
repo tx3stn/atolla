@@ -525,6 +525,144 @@ describe('TrackList', () => {
 		});
 	});
 
+	valdiIt('suspends the ancestor scroll for the duration of an Android reorder touch', async () => {
+		const scrollEnabledCalls: Array<boolean> = [];
+		const dragScroller = {
+			scrollBy: () => 0,
+			setScrollEnabled: (enabled: boolean) => {
+				scrollEnabledCalls.push(enabled);
+			},
+			viewport: () => undefined,
+		};
+		const tracks = [
+			{ id: 'track-1', meta: '1:00', title: 'One' },
+			{ id: 'track-2', meta: '1:10', title: 'Two' },
+		];
+		const instrumented = createComponent(TrackList, {
+			dragScroller,
+			holdToReorder: false,
+			onTrackReorder: () => {},
+			showDragHandles: true,
+			tracks,
+		});
+		const views = elementTypeFind(
+			componentGetElements(instrumented.getComponent()),
+			IRenderedElementViewClass.View,
+		);
+		const handle = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
+		);
+
+		// Pressing the handle suspends the scroll so an up-drag moves the row instead of panning.
+		handle?.getAttribute('onTouch')?.({ absoluteY: 50, state: 0 });
+		expect(scrollEnabledCalls).toEqual([false]);
+
+		// Lifting restores it.
+		handle?.getAttribute('onTouch')?.({ absoluteY: 50, state: 2 });
+		expect(scrollEnabledCalls).toEqual([false, true]);
+	});
+
+	valdiIt('does not auto-scroll against the drag direction', async () => {
+		const scrollCalls: Array<number> = [];
+		const dragScroller = {
+			scrollBy: (delta: number) => {
+				scrollCalls.push(delta);
+				return delta;
+			},
+			setScrollEnabled: () => {},
+			viewport: () => ({ bottom: 100, top: 0 }),
+		};
+		const tracks = [
+			{ id: 'track-1', meta: '1:00', title: 'One' },
+			{ id: 'track-2', meta: '1:10', title: 'Two' },
+			{ id: 'track-3', meta: '1:20', title: 'Three' },
+		];
+		const instrumented = createComponent(TrackList, {
+			dragScroller,
+			holdToReorder: false,
+			onTrackReorder: () => {},
+			showDragHandles: true,
+			tracks,
+		});
+		const views = elementTypeFind(
+			componentGetElements(instrumented.getComponent()),
+			IRenderedElementViewClass.View,
+		);
+		const dragContainer = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
+		);
+
+		// Finger inside the bottom edge zone: the first move scrolls down.
+		dragContainer?.getAttribute('onDrag')?.({
+			absoluteY: 95,
+			deltaX: 0,
+			deltaY: 40,
+			state: 1,
+			velocityY: 0,
+		});
+		const afterFirst = scrollCalls.length;
+		expect(afterFirst).toBeGreaterThan(0);
+
+		// Still in the bottom zone but now moving UP: must not add a downward scroll.
+		dragContainer?.getAttribute('onDrag')?.({
+			absoluteY: 80,
+			deltaX: 0,
+			deltaY: 25,
+			state: 1,
+			velocityY: 0,
+		});
+		expect(scrollCalls.length).toBe(afterFirst);
+
+		dragContainer?.getAttribute('onDrag')?.({
+			absoluteY: 80,
+			deltaX: 0,
+			deltaY: 25,
+			state: 2,
+			velocityY: 0,
+		});
+	});
+
+	valdiIt('reorders a row UP when dragged up under real layout', async (driver) => {
+		const reordered: Array<number> = [];
+		const tracks = [
+			{ id: 'a', meta: '1:00', title: 'A' },
+			{ id: 'b', meta: '1:10', title: 'B' },
+			{ id: 'c', meta: '1:20', title: 'C' },
+			{ id: 'd', meta: '1:30', title: 'D' },
+		];
+		const component = driver.renderComponent(
+			TrackList,
+			{
+				holdToReorder: false,
+				onTrackReorder: (from: number, to: number) => {
+					reordered.push(from, to);
+				},
+				showDragHandles: true,
+				tracks,
+			},
+			undefined,
+		);
+
+		await driver.performLayout({ height: 800, width: 320 });
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const findView = (label: string) =>
+			views.find((view) => view.getAttribute('accessibilityLabel') === label);
+		const rowHeight =
+			(findView('track-row-drag-b-1')?.frame?.y ?? 0) -
+			(findView('track-row-drag-a-0')?.frame?.y ?? 0);
+		expect(rowHeight).toBeGreaterThan(0);
+
+		// Drag the last row UP two rows and release: it must land at index 1, not go down.
+		const rowThree = findView('track-row-drag-d-3');
+		const upDeltaY = -rowHeight * 2;
+		rowThree?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 0, state: 0, velocityY: 0 });
+		rowThree?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: upDeltaY, state: 1, velocityY: 0 });
+		rowThree?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: upDeltaY, state: 2, velocityY: 0 });
+
+		expect(reordered).toEqual([3, 1]);
+	});
+
 	describe('single selection and release', () => {
 		const dragHighlight = 'rgba(45,120,206,0.28)';
 		const tracks = [

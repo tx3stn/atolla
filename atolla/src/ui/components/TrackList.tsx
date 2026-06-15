@@ -113,7 +113,6 @@ export class TrackList extends Component<TrackListViewModel> {
 	private pulseOverlayStyle = buildPulseOverlayStyle(undefined);
 	private dragHandleRefByIdentity = new Map<string, ElementRef>();
 	private handleBeingPressedIdentity: string | null = null;
-	private neighborBounceTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 	private tapPulseTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 	private neighborOffsetByIdentity = new Map<string, number>();
 	private rowIdentitiesByIndex: Array<string> = [];
@@ -136,6 +135,10 @@ export class TrackList extends Component<TrackListViewModel> {
 	private armedDragOriginY = 0;
 	private lastDragEvent: DragEvent | null = null;
 	private autoScrollTimeout: ReturnType<typeof setTimeout> | null = null;
+	// Previous finger Y while dragging, so auto-scroll can refuse to scroll against the
+	// direction the finger is actively moving (otherwise dragging up near the bottom edge
+	// scrolls the list down and drags the row down with it).
+	private autoScrollPrevFingerY: number | null = null;
 
 	private get holdToReorder(): boolean {
 		return this.viewModel.holdToReorder ?? Device.isIOS();
@@ -176,8 +179,6 @@ export class TrackList extends Component<TrackListViewModel> {
 			clearTimeout(this.removeAnimationTimeout);
 			this.removeAnimationTimeout = null;
 		}
-		for (const timeout of this.neighborBounceTimeouts.values()) clearTimeout(timeout);
-		this.neighborBounceTimeouts.clear();
 		for (const timeout of this.tapPulseTimeouts.values()) clearTimeout(timeout);
 		this.tapPulseTimeouts.clear();
 		this.neighborOffsetByIdentity.clear();
@@ -259,17 +260,12 @@ export class TrackList extends Component<TrackListViewModel> {
 		// After every re-render with no active drag, wipe all stale vertical offsets so
 		// rows can never visually overlap regardless of how we arrived here.
 		if (this.draggingRowIdentities.size === 0) {
-			for (const timeout of this.neighborBounceTimeouts.values()) clearTimeout(timeout);
-			this.neighborBounceTimeouts.clear();
 			this.neighborOffsetByIdentity.clear();
-			for (let i = 0; i < this.viewModel.tracks.length; i++) {
-				const ref = this.swipeContainerRefByIdentity.get(
-					this.rowIdentityFor(this.viewModel.tracks[i].id, i),
-				);
-				if (ref) {
-					ref.setAttribute('top', 0);
-					ref.setAttribute('bottom', 0);
-				}
+			// Reset every tracked container (not just current indices) so a leftover gap can't
+			// survive a drop on a row whose identity changed in the reorder.
+			for (const ref of this.swipeContainerRefByIdentity.values()) {
+				ref.setAttribute('top', 0);
+				ref.setAttribute('bottom', 0);
 			}
 		}
 
@@ -672,52 +668,19 @@ export class TrackList extends Component<TrackListViewModel> {
 	}
 
 	private animateNeighborToOffset(identity: string, targetOffset: number): void {
-		const pending = this.neighborBounceTimeouts.get(identity);
-		if (pending) {
-			clearTimeout(pending);
-			this.neighborBounceTimeouts.delete(identity);
-		}
-
-		if (targetOffset === 0) {
-			this.animate(
-				{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.18 },
-				() => {
-					this.setRowVerticalOffset(identity, 0);
-				},
-			);
-			return;
-		}
-
-		// Phase 1: overshoot 15% past the target
+		// One short snap straight to the target — no overshoot/settle bounce, which on fast
+		// drags left rows colliding mid-overshoot or settling to a stale offset behind the gap.
 		this.animate(
-			{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.12 },
+			{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.13 },
 			() => {
-				this.setRowVerticalOffset(identity, targetOffset * 1.15);
+				this.setRowVerticalOffset(identity, targetOffset);
 			},
 		);
-
-		// Phase 2: settle back to exact target
-		const timeout = setTimeout(() => {
-			this.neighborBounceTimeouts.delete(identity);
-			if ((this.neighborOffsetByIdentity.get(identity) ?? 0) !== targetOffset) return;
-			this.animate(
-				{ beginFromCurrentState: true, curve: AnimationCurve.EaseOut, duration: 0.09 },
-				() => {
-					this.setRowVerticalOffset(identity, targetOffset);
-				},
-			);
-		}, 120);
-		this.neighborBounceTimeouts.set(identity, timeout);
 	}
 
 	private resetNeighborOffsets(draggingIdentity: string): void {
 		for (const identity of this.rowIdentitiesByIndex) {
 			if (identity === draggingIdentity) continue;
-			const pending = this.neighborBounceTimeouts.get(identity);
-			if (pending) {
-				clearTimeout(pending);
-				this.neighborBounceTimeouts.delete(identity);
-			}
 			const current = this.neighborOffsetByIdentity.get(identity) ?? 0;
 			if (current === 0) continue;
 			this.neighborOffsetByIdentity.set(identity, 0);
@@ -922,9 +885,18 @@ export class TrackList extends Component<TrackListViewModel> {
 
 		if (event.state === TouchEventState.Started) {
 			this.handleBeingPressedIdentity = rowIdentity;
+			// Android drives the reorder through the row's onDrag while the ancestor scroll stays
+			// live, so an upward drag pans the list instead of moving the row. Suspend the scroll
+			// for the whole handle touch. (iOS does this via armReorder's long-press instead.)
+			if (!this.holdToReorder) {
+				this.viewModel.dragScroller?.setScrollEnabled(false);
+			}
 		} else if (isEnd) {
 			if (this.handleBeingPressedIdentity === rowIdentity) {
 				this.handleBeingPressedIdentity = null;
+			}
+			if (!this.holdToReorder) {
+				this.viewModel.dragScroller?.setScrollEnabled(true);
 			}
 		}
 
@@ -1004,14 +976,11 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.dragScrollAccum = 0;
 		this.armedDragOriginY = 0;
 		this.lastDragEvent = null;
-		if (this.holdToReorder) {
-			this.viewModel.dragScroller?.setScrollEnabled(true);
-		}
+		this.autoScrollPrevFingerY = null;
+		this.viewModel.dragScroller?.setScrollEnabled(true);
 	}
 
 	private clearNeighbourTracking(): void {
-		for (const timeout of this.neighborBounceTimeouts.values()) clearTimeout(timeout);
-		this.neighborBounceTimeouts.clear();
 		this.neighborOffsetByIdentity.clear();
 	}
 
@@ -1058,9 +1027,21 @@ export class TrackList extends Component<TrackListViewModel> {
 			return;
 		}
 		const viewport = scroller.viewport();
-		const desired = viewport
+		let desired = viewport
 			? edgeScrollDelta(event.absoluteY, viewport, AUTO_SCROLL_EDGE, AUTO_SCROLL_STEP)
 			: 0;
+
+		// Never scroll against the finger's active travel: dragging up must not trigger a
+		// downward scroll just because the finger is still inside the bottom edge zone. A
+		// stationary finger held at an edge keeps scrolling via the timer tick below.
+		const prevFingerY = this.autoScrollPrevFingerY;
+		this.autoScrollPrevFingerY = event.absoluteY;
+		if (desired !== 0 && prevFingerY !== null) {
+			const travel = event.absoluteY - prevFingerY;
+			if (travel !== 0 && Math.sign(travel) !== Math.sign(desired)) {
+				desired = 0;
+			}
+		}
 
 		if (desired === 0) {
 			this.stopAutoScroll();
