@@ -4,6 +4,9 @@ export class NowPlayingBar extends BasePage {
 	private readonly bar = 'now-playing-surface-bar';
 	private readonly trackName = 'now-playing-track-name';
 	private readonly progress = 'now-playing-progress';
+	// The progress bar renders as a waveform when a waveform mask is available and falls
+	// back to a plain bar otherwise; the plain variant exposes a different id.
+	private readonly progressPlain = 'playback-progress-track';
 	private readonly togglePlayback = 'now-playing-play-pause';
 	private readonly next = 'now-playing-next';
 	private readonly previous = 'now-playing-previous';
@@ -35,11 +38,12 @@ export class NowPlayingBar extends BasePage {
 		return (await el.getText()) ?? '';
 	}
 
-	// Taps the progress bar at 92% of its width to seek near the end of the track.
-	// Requires the expanded surface to be open (the progress bar is only rendered there).
+	// Taps the progress bar at 92% of its width to seek near the end of the track. Requires
+	// the expanded surface to be open. The progress bar sits at the bottom of the first page,
+	// above the queue list, so by the time we seek it has usually scrolled off the top —
+	// bring it back into view first.
 	async seekToNearEnd(): Promise<void> {
-		const el = this.elementByID(this.progress);
-		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for progress bar' });
+		const el = this.elementByID(await this.revealProgressBar());
 		const location = await el.getLocation();
 		const size = await el.getSize();
 		const x = Math.floor(location.x + size.width * 0.92);
@@ -309,6 +313,24 @@ export class NowPlayingBar extends BasePage {
 			await this.swipeUpSurface(`queue-scroll-${attempt}`);
 			if (await this.isQueueListVisible()) return;
 		}
+	}
+
+	// Scrolls the surface up until the progress bar is on screen and returns the id of
+	// whichever variant rendered (waveform, or the plain fallback when no waveform mask is
+	// available). Drags start in the lower half so they pan the scroll content; starting
+	// higher would land on the artwork's collapse-drag zone at the top and tear the whole
+	// surface down.
+	private async revealProgressBar(maxSwipes = 3): Promise<string> {
+		for (let attempt = 0; attempt <= maxSwipes; attempt += 1) {
+			for (const id of [this.progress, this.progressPlain]) {
+				const visible = await this.elementByID(id)
+					.isDisplayed()
+					.catch(() => false);
+				if (visible) return id;
+			}
+			if (attempt < maxSwipes) await this.swipeVertical(`reveal-progress-${attempt}`, 0.6, 0.88);
+		}
+		throw new Error('Timed out waiting for progress bar');
 	}
 
 	private async swipeVertical(

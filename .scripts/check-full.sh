@@ -24,18 +24,32 @@ wait $DEVICES_PID
 # shellcheck source=/dev/null
 source /tmp/atolla-e2e-devices.env
 
-# Target the first device of each platform for the build/install step —
-# android:fast and ios:fast only need one device each to validate the build.
+# Build once against the first device of each platform, then install that same artifact
+# on every other device. The tests run across all devices, and Appium skips reinstalling
+# when the dev version number is unchanged, so without this the extra devices would run a
+# stale build left over from a previous run.
 FIRST_ANDROID_SERIAL=$(echo "$E2E_ANDROID_SERIALS" | cut -d',' -f1)
 FIRST_IOS_UDID=$(echo "$E2E_IOS_UDIDS" | cut -d',' -f1)
 
 echo ""
 echo "=== Building and installing Android app ==="
 ANDROID_DEVICE_ID="$FIRST_ANDROID_SERIAL" "$SCRIPT_DIR/start-android-emulator.sh"
+for serial in $(echo "$E2E_ANDROID_SERIALS" | tr ',' ' '); do
+	if [[ "$serial" != "$FIRST_ANDROID_SERIAL" ]]; then
+		echo "Installing freshly built apk on $serial..."
+		adb -s "$serial" install -r "$PWD/build/atolla_android.apk"
+	fi
+done
 
 echo ""
 echo "=== Building and installing iOS app ==="
 SIMULATOR_ID="$FIRST_IOS_UDID" "$SCRIPT_DIR/start-ios-simulator.sh"
+for udid in $(echo "$E2E_IOS_UDIDS" | tr ',' ' '); do
+	if [[ "$udid" != "$FIRST_IOS_UDID" ]]; then
+		echo "Installing freshly built ipa on $udid..."
+		xcrun simctl install "$udid" "$PWD/build/atolla_ios.ipa"
+	fi
+done
 
 echo ""
 echo "=== Running e2e tests ==="
