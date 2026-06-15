@@ -51,22 +51,10 @@ export function onCompleteHook(): void {
 export async function beforeHook(): Promise<void> {
 	const isIOS = (browser.capabilities.platformName as string).toLowerCase() === 'ios';
 
-	const appId = isIOS
-		? (process.env.E2E_BUNDLE_ID ?? 'com.tx3stn.atolla')
-		: ((await browser.execute('mobile: getCurrentPackage')) as string);
-
-	const appStateParam = isIOS ? { bundleId: appId } : { appId };
-	const state = (await browser.execute('mobile: queryAppState', appStateParam)) as number;
-	if (state > 1) {
-		try {
-			await browser.terminateApp(appId);
-		} catch {
-			// Best effort cleanup: on highly parallel iOS startup WDA can restart.
-		}
-	}
-
-	// On Android the emulator network stack may not be ready immediately after boot.
-	// Wait for wifi or data before launching so the app doesn't start in offline mode.
+	// The session already launches the app fresh (noReset clears app data per session),
+	// so there's nothing to terminate or relaunch here. On Android the emulator network
+	// stack may not be ready right after boot: wait for wifi or data so the app can reach
+	// the mock server.
 	if (!isIOS) {
 		await browser.waitUntil(
 			async () => {
@@ -83,13 +71,6 @@ export async function beforeHook(): Promise<void> {
 		);
 	}
 
-	try {
-		await browser.activateApp(appId);
-	} catch {
-		// WDA may have restarted; pause briefly and retry once
-		await browser.pause(2000);
-		await browser.activateApp(appId);
-	}
 	await ensureMockMode();
 }
 
