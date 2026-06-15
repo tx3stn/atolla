@@ -1,5 +1,3 @@
-import { readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
 import { getAndroidCapabilities, getIOSCapabilities } from './utils/device';
 import {
 	afterHookHook,
@@ -10,48 +8,36 @@ import {
 	onCompleteHook,
 } from './utils/hooks';
 
-function collectSpecFiles(dir: string): Array<string> {
-	const entries = readdirSync(dir, { withFileTypes: true });
-	const specs: Array<string> = [];
+type Capabilities = Record<string, unknown>;
 
-	for (const entry of entries) {
-		const fullPath = join(dir, entry.name);
-		if (entry.isDirectory()) {
-			specs.push(...collectSpecFiles(fullPath));
-			continue;
-		}
+function createDevicePool(devices: Array<Capabilities>) {
+	const slots = devices.map((caps) => ({ caps, cid: undefined as string | undefined }));
 
-		if (entry.isFile() && entry.name.endsWith('.test.ts')) {
-			specs.push(fullPath);
-		}
-	}
+	return {
+		claim(cid: string): Capabilities {
+			const existing = slots.find((slot) => slot.cid === cid);
+			if (existing) return existing.caps;
 
-	return specs;
+			const free = slots.find((slot) => slot.cid === undefined);
+			if (!free) throw new Error(`No free device slot available for worker ${cid}`);
+
+			free.cid = cid;
+			return free.caps;
+		},
+		release(cid: string): void {
+			const slot = slots.find((slot) => slot.cid === cid);
+			if (slot) slot.cid = undefined;
+		},
+	};
 }
 
-function splitSpecsAcrossWorkers(specs: Array<string>, workers: number): Array<Array<string>> {
-	const shards = Array.from({ length: workers }, () => [] as Array<string>);
+const androidDevices = getAndroidCapabilities();
+const iosDevices = getIOSCapabilities();
 
-	for (const [index, spec] of specs.entries()) {
-		shards[index % workers]?.push(spec);
-	}
-
-	return shards;
-}
-
-const androidCaps = getAndroidCapabilities();
-const iosCaps = getIOSCapabilities();
-const workerCount = androidCaps.length + iosCaps.length;
-const specRoot = resolve(process.cwd(), 'e2e/tests');
-const allSpecs = collectSpecFiles(specRoot).sort();
-
-const androidShards = splitSpecsAcrossWorkers(allSpecs, androidCaps.length);
-const iosShards = splitSpecsAcrossWorkers(allSpecs, iosCaps.length);
-
-const shardedCapabilities = [
-	...androidCaps.map((cap, index) => ({ ...cap, 'wdio:specs': androidShards[index] })),
-	...iosCaps.map((cap, index) => ({ ...cap, 'wdio:specs': iosShards[index] })),
-];
+const pools: Record<string, ReturnType<typeof createDevicePool>> = {
+	Android: createDevicePool(androidDevices),
+	iOS: createDevicePool(iosDevices),
+};
 
 export const config = {
 	afterHook: afterHookHook,
@@ -59,19 +45,28 @@ export const config = {
 	before: beforeHook,
 	beforeSuite: beforeSuiteHook,
 	beforeTest: beforeTestHook,
-	capabilities: shardedCapabilities,
+	capabilities: [
+		{ ...androidDevices[0], 'wdio:maxInstances': androidDevices.length },
+		{ ...iosDevices[0], 'wdio:maxInstances': iosDevices.length },
+	],
 	connectionRetryCount: 3,
 	connectionRetryTimeout: 300_000,
 	exclude: [],
 	framework: 'mocha',
 	logLevel: 'warn',
-	maxInstances: workerCount,
-	maxInstancesPerCapability: 1,
+	maxInstances: androidDevices.length + iosDevices.length,
 	mochaOpts: {
 		bail: 0,
 		timeout: 120_000,
 	},
 	onComplete: onCompleteHook,
+	onWorkerEnd(cid: string) {
+		for (const pool of Object.values(pools)) pool.release(cid);
+	},
+	onWorkerStart(cid: string, caps: Capabilities) {
+		const pool = pools[caps.platformName as string];
+		if (pool) Object.assign(caps, pool.claim(cid));
+	},
 	reporters: ['spec'],
 	runner: 'local',
 	services: ['appium'],
