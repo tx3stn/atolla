@@ -187,17 +187,13 @@ jobs:
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
         run: |
-          # pin the output base somewhere cacheable: restoring it gives CI the
-          # warm state that makes local builds instant — materialised external
-          # repos (no ~4 min re-extraction of llvm/JDK/npm) plus the action
-          # cache (no remote round-trips for unchanged actions)
+          # Pin the output base so it can be cached: restoring it gives a warm build
+          # (extracted external repos + bazel-out) with no re-extraction or recompile.
+          # It's SAVED only on the default branch (below), so MR runs read main's warm
+          # base but never write multi-GB entries that would churn the shared 10 GB pool.
           echo "startup --output_base=$HOME/.cache/bazel-ob" >> ~/.bazelrc
-          # no local disk cache in CI: the remote cache covers reuse, and writing
-          # every output twice fills the runner disk (ENOSPC on cache save)
+          # No local disk cache in CI — the output-base cache plus BuildBuddy cover reuse.
           echo "build --disk_cache=" >> ~/.bazelrc
-          # remote-cache-hit downloads are gated by --jobs, not cores — 4-wide
-          # round-trips made 1,200 hit actions take 17 minutes; local execution
-          # is still capped separately by --local_resources
           echo "build --jobs=32" >> ~/.bazelrc
           if [ -n "$BUILDBUDDY_API_KEY" ]; then
             # build (not common): plain `bazel query` doesn't inherit build configs
@@ -205,6 +201,11 @@ jobs:
             echo "build --config=remote-cache" >> ~/.bazelrc
             echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
           fi
+      # Restore the warm output base (extracted repos + bazel-out) — a hit means no
+      # re-extraction and no recompile. The big caches are SAVED only on the default branch
+      # (below), so MR runs read main's warm base but never write multi-GB entries; that's
+      # what stops another job (e.g. a failing android run) from churning the shared 10 GB
+      # pool and evicting this cache.
       - name: Restore bazel output base
         id: restore-bazel-ob
         uses: actions/cache/restore@v5
@@ -214,8 +215,7 @@ jobs:
           restore-keys: |
             bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
             bazel-ob-${{ github.job }}-${{ runner.os }}-
-      # cold path only — a restored output base already contains every
-      # extracted repository, so the archive cache adds nothing
+      # cold path only — a restored output base already contains every extracted repo
       - name: Restore bazel repository cache
         if: steps.restore-bazel-ob.outputs.cache-matched-key == ''
         id: restore-bazel-repo
@@ -228,18 +228,19 @@ jobs:
             bazel-repo-${{ runner.os }}-
       - run: bun run test:components
         timeout-minutes: 60
-      # release the server lock and report the size the cache step will tar
       - name: Shut down bazel server
         if: always()
-        run: bazel shutdown && du -sh ~/.cache/bazel-ob
+        run: bazel shutdown && du -sh ~/.cache/bazel-ob || true
+      # Save the multi-GB caches ONLY on the default branch so MR runs never write to (and
+      # churn) the shared Actions pool. MR runs still get per-push reuse via BuildBuddy.
       - name: Save bazel output base
-        if: always() && steps.restore-bazel-ob.outputs.cache-hit != 'true'
+        if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-bazel-ob.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/bazel-ob
           key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
       - name: Save bazel repository cache
-        if: always() && steps.restore-bazel-ob.outputs.cache-matched-key == '' && steps.restore-bazel-repo.outputs.cache-hit != 'true'
+        if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-bazel-ob.outputs.cache-matched-key == '' && steps.restore-bazel-repo.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/bazel-repo

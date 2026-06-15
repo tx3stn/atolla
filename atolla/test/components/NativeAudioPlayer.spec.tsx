@@ -1,6 +1,9 @@
 import 'jasmine/src/jasmine';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
-import { NativeAudioPlayer } from 'atolla/src/ui/components/NativeAudioPlayer';
+import {
+	NativeAudioPlayer,
+	type NativeAudioPlayerViewModel,
+} from 'atolla/src/ui/components/NativeAudioPlayer';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 function mockTrack(overrides: Record<string, unknown> = {}) {
@@ -31,11 +34,28 @@ function getInternal(component: NativeAudioPlayer): PlayerInternal {
 	return component as unknown as PlayerInternal;
 }
 
+// Mounting NativeAudioPlayer starts a progress-poll setInterval in onCreate that is only
+// cleared in onDestroy. Track every mounted instance and tear it down in afterEach —
+// leaked timers keep the jasmine runtime alive and hang the bazel test target to its timeout.
+const mountedPlayers: Array<{ destroy: () => void }> = [];
+
+function mountPlayer(viewModel: NativeAudioPlayerViewModel) {
+	const instrumented = createComponent(NativeAudioPlayer, viewModel);
+	mountedPlayers.push(instrumented);
+	return instrumented;
+}
+
 describe('NativeAudioPlayer', () => {
+	afterEach(() => {
+		while (mountedPlayers.length > 0) {
+			mountedPlayers.pop()?.destroy();
+		}
+	});
+
 	describe('triggerTrackCompletion()', () => {
 		valdiIt('calls onTrackCompleted when provided', async () => {
 			let completionCount = 0;
-			const instrumented = createComponent(NativeAudioPlayer, {
+			const instrumented = mountPlayer({
 				onTrackCompleted: () => {
 					completionCount += 1;
 				},
@@ -53,7 +73,7 @@ describe('NativeAudioPlayer', () => {
 			'calls updateProgress with track duration when onTrackCompleted is not provided',
 			async () => {
 				const store = mockPlaybackStore();
-				const instrumented = createComponent(NativeAudioPlayer, {
+				const instrumented = mountPlayer({
 					playbackSourceUrl: 'file://test.mp3',
 					playbackStore: store,
 				});
@@ -69,7 +89,7 @@ describe('NativeAudioPlayer', () => {
 
 		valdiIt('does not call updateProgress when track is null', async () => {
 			const store = mockPlaybackStore({ track: null });
-			const instrumented = createComponent(NativeAudioPlayer, {
+			const instrumented = mountPlayer({
 				playbackSourceUrl: 'file://test.mp3',
 				playbackStore: store,
 			});
@@ -89,7 +109,7 @@ describe('NativeAudioPlayer', () => {
 			async () => {
 				let completionCount = 0;
 				const store = mockPlaybackStore({ track: mockTrack({ duration: 180 }) });
-				const instrumented = createComponent(NativeAudioPlayer, {
+				const instrumented = mountPlayer({
 					onTrackCompleted: () => {
 						completionCount += 1;
 					},
@@ -112,7 +132,7 @@ describe('NativeAudioPlayer', () => {
 		valdiIt('starts stall timer when near end but not yet timed out', async () => {
 			let completionCount = 0;
 			const store = mockPlaybackStore({ track: mockTrack({ duration: 180 }) });
-			const instrumented = createComponent(NativeAudioPlayer, {
+			const instrumented = mountPlayer({
 				onTrackCompleted: () => {
 					completionCount += 1;
 				},
@@ -135,7 +155,7 @@ describe('NativeAudioPlayer', () => {
 		valdiIt('does not trigger completion when not near end of track', async () => {
 			let completionCount = 0;
 			const store = mockPlaybackStore({ track: mockTrack({ duration: 180 }) });
-			const instrumented = createComponent(NativeAudioPlayer, {
+			const instrumented = mountPlayer({
 				onTrackCompleted: () => {
 					completionCount += 1;
 				},
@@ -158,7 +178,7 @@ describe('NativeAudioPlayer', () => {
 		valdiIt('does not trigger when not playing', async () => {
 			let completionCount = 0;
 			const store = mockPlaybackStore({ isPlaying: false, track: mockTrack({ duration: 180 }) });
-			const instrumented = createComponent(NativeAudioPlayer, {
+			const instrumented = mountPlayer({
 				onTrackCompleted: () => {
 					completionCount += 1;
 				},
@@ -179,7 +199,7 @@ describe('NativeAudioPlayer', () => {
 	describe('reconcileStoreToNativeTrack()', () => {
 		valdiIt('snaps the store to the native track and position when they diverge', async () => {
 			const store = mockPlaybackStore({ track: mockTrack({ id: 'track-1' }) });
-			const instrumented = createComponent(NativeAudioPlayer, {
+			const instrumented = mountPlayer({
 				playbackSourceUrl: 'file://test.mp3',
 				playbackStore: store,
 			});
@@ -198,7 +218,7 @@ describe('NativeAudioPlayer', () => {
 
 		valdiIt('is a no-op when the engine is already on the store track', async () => {
 			const store = mockPlaybackStore({ track: mockTrack({ id: 'track-1' }) });
-			const instrumented = createComponent(NativeAudioPlayer, {
+			const instrumented = mountPlayer({
 				playbackSourceUrl: 'file://test.mp3',
 				playbackStore: store,
 			});
@@ -217,7 +237,7 @@ describe('NativeAudioPlayer', () => {
 	describe('syncProgressAndEvents() wake reconciliation', () => {
 		valdiIt('reconciles to the native track before draining buffered events', async () => {
 			const store = mockPlaybackStore();
-			const instrumented = createComponent(NativeAudioPlayer, {
+			const instrumented = mountPlayer({
 				playbackSourceUrl: 'file://test.mp3',
 				playbackStore: store,
 			});
@@ -245,7 +265,7 @@ describe('NativeAudioPlayer', () => {
 	describe('configurePlayback() backward-rebuild intent', () => {
 		function captureAllowBackwardRebuild(allowBackwardRebuild: boolean): boolean {
 			const store = mockPlaybackStore({ allowBackwardRebuild });
-			const instrumented = createComponent(NativeAudioPlayer, {
+			const instrumented = mountPlayer({
 				playbackSourceUrl: 'file://test.mp3',
 				playbackStore: store,
 			});
@@ -275,7 +295,7 @@ describe('NativeAudioPlayer', () => {
 					progressSeconds: 45,
 					track: mockTrack({ duration: 180 }),
 				});
-				const instrumented = createComponent(NativeAudioPlayer, {
+				const instrumented = mountPlayer({
 					playbackSourceUrl: 'file://test.mp3',
 					playbackStore: store,
 				});
@@ -296,7 +316,7 @@ describe('NativeAudioPlayer', () => {
 				progressSeconds: 45,
 				track: mockTrack({ duration: 180 }),
 			});
-			const instrumented = createComponent(NativeAudioPlayer, {
+			const instrumented = mountPlayer({
 				playbackSourceUrl: 'file://test.mp3',
 				playbackStore: store,
 			});
@@ -317,7 +337,7 @@ describe('NativeAudioPlayer', () => {
 				progressSeconds: 0,
 				track: mockTrack({ duration: 180 }),
 			});
-			const instrumented = createComponent(NativeAudioPlayer, {
+			const instrumented = mountPlayer({
 				playbackSourceUrl: 'file://test.mp3',
 				playbackStore: store,
 			});

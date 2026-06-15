@@ -67,6 +67,11 @@ build --incompatible_strict_action_env
 build:remote-cache --remote_cache=grpcs://remote.buildbuddy.io
 build:remote-cache --remote_timeout=3600
 build:remote-cache --remote_cache_compression
+# Build without the Bytes — on a cache hit, don't pull every action's outputs onto the
+# runner; BuildBuddy keeps the blobs and only inputs that local actions actually need are
+# fetched on demand. Cuts the "download every cache hit" stall on cold or MR-delta builds
+# that fall back to the remote cache instead of a warm output base.
+build:remote-cache --remote_download_toplevel
 # BuildBuddy-suggested: don't zstd blobs the compression would inflate, and
 # strip duplicate file references from the build event stream
 build:remote-cache --experimental_remote_cache_compression_threshold=100
