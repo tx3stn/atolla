@@ -888,7 +888,7 @@ export class NowPlayingSurface extends StatefulComponent<
 												onTap={this.handleCreatePlaylistFromQueue}
 												rippleScale={1.34}
 												rippleTint={withAlpha(onSurfaceColor, 0.42)}
-												tint={onSurfaceColor}
+												tint={mutedOnSurfaceColor}
 											/>
 										</view>
 										<view
@@ -1269,9 +1269,9 @@ const styles = {
 	expandedQueueTabButton: new Style<View>({
 		alignItems: 'center',
 		flexGrow: 1,
-		justifyContent: 'flex-end',
-		paddingBottom: 12,
-		paddingTop: 18,
+		justifyContent: 'center',
+		paddingBottom: 15,
+		paddingTop: 15,
 	}),
 	expandedQueueTabsRow: new Style({
 		borderTopColor: theme.colors.bgAccent,
