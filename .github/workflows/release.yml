@@ -117,9 +117,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
           restore-keys: |
-            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-repo-${{ runner.os }}-
       # Join on the background icon generation started after bun install. The process
       # was launched in a different step's shell, so we poll its pid and read the
@@ -147,7 +147,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
 
   # build-ios:
   #   needs: verify
@@ -195,18 +195,18 @@ jobs:
   #       uses: actions/cache/restore@v5
   #       with:
   #         path: ~/.cache/bazel-repo
-  #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+  #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
   #         restore-keys: |
-  #           bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+  #           bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
   #           bazel-repo-${{ runner.os }}-
   #     - name: Restore bazel disk cache
   #       id: restore-bazel-disk
   #       uses: actions/cache/restore@v5
   #       with:
   #         path: ~/.cache/bazel-disk-ios
-  #         key: bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+  #         key: bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.sha }}
   #         restore-keys: |
-  #           bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+  #           bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
   #           bazel-disk-ios-${{ runner.os }}-
   #     # Join on the background icon generation started after bun install. The process
   #     # was launched in a different step's shell, so we poll its pid and read the
@@ -236,13 +236,13 @@ jobs:
   #       uses: actions/cache/save@v5
   #       with:
   #         path: ~/.cache/bazel-repo
-  #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+  #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
   #     - name: Save bazel disk cache
   #       if: always() && steps.restore-bazel-disk.outputs.cache-hit != 'true'
   #       uses: actions/cache/save@v5
   #       with:
   #         path: ~/.cache/bazel-disk-ios
-  #         key: bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+  #         key: bazel-disk-ios-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.sha }}
 
   release:
     needs: [build-android] # build-ios

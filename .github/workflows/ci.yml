@@ -60,7 +60,7 @@ jobs:
             bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
             atolla/tsconfig.json
-          key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/res/**') }}
+          key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/res/**') }}
       - name: Install libtinfo5
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
         run: |
@@ -95,9 +95,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
           restore-keys: |
-            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-repo-${{ runner.os }}-
       - run: bunx valdi projectsync --target //atolla:atolla_projectsync
         id: projectsync
@@ -123,13 +123,13 @@ jobs:
             bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
             atolla/tsconfig.json
-          key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('WORKSPACE', 'MODULE.bazel', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/res/**') }}
+          key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/res/**') }}
       - name: Save bazel repository cache
         if: always() && steps.projectsync-cache.outputs.cache-hit != 'true' && steps.restore-bazel-repo.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
 
   zig-tests:
     if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
@@ -160,9 +160,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
           restore-keys: |
-            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-repo-${{ runner.os }}-
       - run: bun run check:zig
       - name: Save bazel repository cache
@@ -170,7 +170,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
 
   component-tests:
     if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
@@ -211,9 +211,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel-ob
-          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.sha }}
           restore-keys: |
-            bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-ob-${{ github.job }}-${{ runner.os }}-
       # cold path only — a restored output base already contains every extracted repo
       - name: Restore bazel repository cache
@@ -222,9 +222,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
           restore-keys: |
-            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-repo-${{ runner.os }}-
       - run: bun run test:components
         timeout-minutes: 60
@@ -238,13 +238,13 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/bazel-ob
-          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.sha }}
+          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.sha }}
       - name: Save bazel repository cache
         if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-bazel-ob.outputs.cache-matched-key == '' && steps.restore-bazel-repo.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
 
   android-tests:
     if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
@@ -275,9 +275,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
           restore-keys: |
-            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-
+            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-repo-${{ runner.os }}-
       - run: bun run test:android
         timeout-minutes: 30
@@ -286,7 +286,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
 
   # macos_unit_test targets need Xcode/Apple SDKs — the only tests that can't run on linux
   # ios-tests:
@@ -316,7 +316,7 @@ jobs:
   #       uses: actions/cache@v5
   #       with:
   #         path: ~/.cache/bazel-repo
-  #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'WORKSPACE', '.bazelversion') }}
+  #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
   #         restore-keys: |
   #           bazel-repo-${{ runner.os }}-
   #     - run: bun run test:ios
