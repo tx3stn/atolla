@@ -3,6 +3,7 @@ import { ModalActionButton } from 'atolla/src/ui/components/ModalActionButton';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent } from '../util/testEvents';
 import { renderedElements } from './renderedElements';
 
 describe('ModalActionButton', () => {
@@ -37,7 +38,7 @@ describe('ModalActionButton', () => {
 		const button = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'modal-confirm',
 		);
-		button?.getAttribute('onTap')?.();
+		button?.getAttribute('onTap')?.(touchEvent);
 
 		expect(presses).toBe(1);
 	});

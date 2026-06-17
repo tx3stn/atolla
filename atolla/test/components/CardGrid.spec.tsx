@@ -4,6 +4,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { layoutFrame, touchEvent, touchEventWith } from '../util/testEvents';
 
 const makeCard = (id: string, primaryText = 'Album', secondaryText = '2024') => ({
 	artworkKey: `key-${id}`,
@@ -66,7 +67,7 @@ describe('CardGrid', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const tile = views.find((v) => v.getAttribute('accessibilityLabel') === 'card-album-42');
-		tile?.getAttribute('onTap')?.();
+		tile?.getAttribute('onTap')?.(touchEvent);
 
 		expect(captured.tapped).not.toBeNull();
 		expect(captured.tapped?.id).toBe('album-42');
@@ -101,9 +102,9 @@ describe('CardGrid', () => {
 				IRenderedElementViewClass.View,
 			);
 			const tile = views.find((v) => v.getAttribute('accessibilityLabel') === 'card-album-42');
-			tile?.getAttribute('onTouch')?.({ state: 0 });
+			tile?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
 			jasmine.clock().tick(500);
-			tile?.getAttribute('onTap')?.();
+			tile?.getAttribute('onTap')?.(touchEvent);
 
 			expect(captured.longPressed).not.toBeNull();
 			expect(captured.longPressed?.id).toBe('album-42');
@@ -173,8 +174,8 @@ describe('CardGrid', () => {
 		);
 		expect(trigger).toBeDefined();
 
-		trigger?.getAttribute('onLayout')?.();
-		trigger?.getAttribute('onLayout')?.();
+		trigger?.getAttribute('onLayout')?.(layoutFrame);
+		trigger?.getAttribute('onLayout')?.(layoutFrame);
 
 		expect(loadMoreCalls).toBe(1);
 	});

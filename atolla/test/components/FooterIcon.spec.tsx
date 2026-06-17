@@ -5,6 +5,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent } from '../util/testEvents';
 
 const icon = 'some-icon-source';
 
@@ -20,7 +21,7 @@ describe('FooterIcon', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views[0].getAttribute('onTap')?.();
+		views[0].getAttribute('onTap')?.(touchEvent);
 
 		expect(called).toBe(true);
 	});

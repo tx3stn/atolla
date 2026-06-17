@@ -6,25 +6,26 @@ import {
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { editTextEvent, touchEvent } from '../util/testEvents';
 import { renderedElements } from './renderedElements';
 
 type RenderedComponent = Parameters<typeof renderedElements>[0];
 
 function labelValues(component: RenderedComponent): Array<string> {
 	const labels = elementTypeFind(renderedElements(component), IRenderedElementViewClass.Label);
-	return labels.map((label) => label.getAttribute('value'));
+	return labels.map((label) => label.getAttribute('value') as string);
 }
 
 function tap(component: RenderedComponent, accessibilityId: string): void {
 	const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 	views
 		.find((v) => v.getAttribute('accessibilityLabel') === accessibilityId)
-		?.getAttribute('onTap')?.();
+		?.getAttribute('onTap')?.(touchEvent);
 }
 
 function typeName(component: RenderedComponent, value: string): void {
 	const fields = elementTypeFind(renderedElements(component), IRenderedElementViewClass.TextField);
-	fields[0]?.getAttribute('onChange')?.(value);
+	fields[0]?.getAttribute('onChange')?.(editTextEvent(value));
 }
 
 describe('CreatePlaylistFromQueueModal', () => {

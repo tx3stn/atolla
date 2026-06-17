@@ -8,6 +8,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { dragEvent, editTextEvent, touchEvent, touchEventWith } from '../util/testEvents';
 
 const album = {
 	artistId: 'artist-1',
@@ -63,7 +64,7 @@ function createNowPlayingComponent(
 
 function getLabelValues(component: Parameters<typeof componentGetElements>[0]): Array<string> {
 	const labels = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Label);
-	return labels.map((label) => label.getAttribute('value'));
+	return labels.map((label) => label.getAttribute('value') as string);
 }
 
 function createQueueTracks(count: number) {
@@ -162,7 +163,7 @@ describe('NowPlayingSurface', () => {
 			const fill = views.find(
 				(view) => view.getAttribute('accessibilityLabel') === 'now-playing-compact-progress-fill',
 			);
-			return fill?.getAttribute('width');
+			return fill?.getAttribute('width') as string | undefined;
 		};
 
 		expect(getFillWidth()).toBe('38%');
@@ -199,7 +200,7 @@ describe('NowPlayingSurface', () => {
 		const overlay = views.find((view) => view.getAttribute('id') === 'now-playing-surface-overlay');
 
 		expect(overlay?.getAttribute('top')).not.toBe(0);
-		compactBar?.getAttribute('onTap')?.();
+		compactBar?.getAttribute('onTap')?.(touchEvent);
 		expect(overlay?.getAttribute('top')).toBe(0);
 	});
 
@@ -240,7 +241,7 @@ describe('NowPlayingSurface', () => {
 
 			expect(barColors.footer).toEqual(defaultFooterColors);
 
-			compactBar?.getAttribute('onTap')?.();
+			compactBar?.getAttribute('onTap')?.(touchEvent);
 			expect(barColors.footer).toEqual({
 				activeIconColor: paletteDefaults.onSurface,
 				background: withAlpha(paletteDefaults.surface, 0.8),
@@ -293,7 +294,7 @@ describe('NowPlayingSurface', () => {
 		const addToQueueAction = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-context-add-to-queue',
 		);
-		addToQueueAction?.getAttribute('onTap')?.();
+		addToQueueAction?.getAttribute('onTap')?.(touchEvent);
 
 		expect(addToQueueCalls).toBe(1);
 		expect(toastService.getMessage()).toBe('added to queue');
@@ -334,14 +335,14 @@ describe('NowPlayingSurface', () => {
 			const compactBar = views.find(
 				(view) => view.getAttribute('id') === 'now-playing-surface-bar',
 			);
-			compactBar?.getAttribute('onTap')?.();
+			compactBar?.getAttribute('onTap')?.(touchEvent);
 
 			views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 			const artworkTouch = views.find(
 				(view) =>
 					view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-up-next-track-3-0',
 			);
-			artworkTouch?.getAttribute('onTouch')?.({ state: 0 });
+			artworkTouch?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
 			jasmine.clock().tick(500);
 
 			views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
@@ -349,18 +350,22 @@ describe('NowPlayingSurface', () => {
 				(view) =>
 					view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-up-next-track-3-0',
 			);
-			upNextRowSwipeRegion?.getAttribute('onDrag')?.({
-				deltaX: -72,
-				deltaY: 0,
-				state: 1,
-				velocityX: -100,
-			});
-			upNextRowSwipeRegion?.getAttribute('onDrag')?.({
-				deltaX: -72,
-				deltaY: 0,
-				state: 2,
-				velocityX: -100,
-			});
+			upNextRowSwipeRegion?.getAttribute('onDrag')?.(
+				dragEvent({
+					deltaX: -72,
+					deltaY: 0,
+					state: 1,
+					velocityX: -100,
+				}),
+			);
+			upNextRowSwipeRegion?.getAttribute('onDrag')?.(
+				dragEvent({
+					deltaX: -72,
+					deltaY: 0,
+					state: 2,
+					velocityX: -100,
+				}),
+			);
 
 			expect(playbackStore.removeFromQueueAt).toHaveBeenCalledWith(2);
 		} finally {
@@ -401,15 +406,15 @@ describe('NowPlayingSurface', () => {
 
 		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
-		compactBar?.getAttribute('onTap')?.();
+		compactBar?.getAttribute('onTap')?.(touchEvent);
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const firstUpNextHandle = views.find(
 			(view) =>
 				view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-up-next-track-3-0',
 		);
-		firstUpNextHandle?.getAttribute('onLongPress')?.({ absoluteY: 0, state: 0 });
-		firstUpNextHandle?.getAttribute('onTouch')?.({ absoluteY: 90, state: 2 });
+		firstUpNextHandle?.getAttribute('onLongPress')?.(touchEventWith({ absoluteY: 0, state: 0 }));
+		firstUpNextHandle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 90, state: 2 }));
 
 		expect(playbackStore.moveQueueTrack).toHaveBeenCalledWith(2, 3);
 	});
@@ -447,21 +452,21 @@ describe('NowPlayingSurface', () => {
 
 		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
-		compactBar?.getAttribute('onTap')?.();
+		compactBar?.getAttribute('onTap')?.(touchEvent);
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const backToTab = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'now-playing-tab-back-to',
 		);
-		backToTab?.getAttribute('onTap')?.();
+		backToTab?.getAttribute('onTap')?.(touchEvent);
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const firstBackToHandle = views.find(
 			(view) =>
 				view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-back-to-track-2-0',
 		);
-		firstBackToHandle?.getAttribute('onLongPress')?.({ absoluteY: 0, state: 0 });
-		firstBackToHandle?.getAttribute('onTouch')?.({ absoluteY: 90, state: 2 });
+		firstBackToHandle?.getAttribute('onLongPress')?.(touchEventWith({ absoluteY: 0, state: 0 }));
+		firstBackToHandle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 90, state: 2 }));
 
 		expect(playbackStore.moveQueueTrack).toHaveBeenCalledWith(1, 0);
 	});
@@ -495,13 +500,13 @@ describe('NowPlayingSurface', () => {
 
 		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
-		compactBar?.getAttribute('onTap')?.();
+		compactBar?.getAttribute('onTap')?.(touchEvent);
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const backToTab = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'now-playing-tab-back-to',
 		);
-		backToTab?.getAttribute('onTap')?.();
+		backToTab?.getAttribute('onTap')?.(touchEvent);
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const backToRows = views
@@ -539,7 +544,7 @@ describe('NowPlayingSurface', () => {
 
 		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
-		compactBar?.getAttribute('onTap')?.();
+		compactBar?.getAttribute('onTap')?.(touchEvent);
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const upNextRows = views
@@ -576,7 +581,7 @@ describe('NowPlayingSurface', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
-		compactBar?.getAttribute('onTap')?.();
+		compactBar?.getAttribute('onTap')?.(touchEvent);
 
 		const backToRows = getQueuePageRows(component, 'now-playing-queue-page-back-to');
 
@@ -593,7 +598,7 @@ describe('NowPlayingSurface', () => {
 		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
 
-		compactBar?.getAttribute('onTap')?.();
+		compactBar?.getAttribute('onTap')?.(touchEvent);
 		instrumented.setViewModel({
 			album,
 			artistLogoUrl: null,
@@ -729,13 +734,13 @@ describe('NowPlayingSurface', () => {
 
 		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
-		compactBar?.getAttribute('onTap')?.();
+		compactBar?.getAttribute('onTap')?.(touchEvent);
 
 		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const loopControl = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'now-playing-loop-mode',
 		);
-		loopControl?.getAttribute('onTap')?.();
+		loopControl?.getAttribute('onTap')?.(touchEvent);
 
 		expect(calls).toBe(1);
 	});
@@ -770,7 +775,7 @@ describe('NowPlayingSurface', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
-		compactBar?.getAttribute('onTap')?.();
+		compactBar?.getAttribute('onTap')?.(touchEvent);
 
 		const backToRows = getQueuePageRows(component, 'now-playing-queue-page-back-to');
 		const upNextRows = getQueuePageRows(component, 'now-playing-queue-page-up-next');
@@ -803,7 +808,7 @@ describe('NowPlayingSurface', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const compactBar = views.find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
-		compactBar?.getAttribute('onTap')?.();
+		compactBar?.getAttribute('onTap')?.(touchEvent);
 
 		instrumented.setViewModel({
 			album,
@@ -864,7 +869,7 @@ describe('NowPlayingSurface', () => {
 			const compactBar = views.find(
 				(view) => view.getAttribute('id') === 'now-playing-surface-bar',
 			);
-			compactBar?.getAttribute('onTap')?.();
+			compactBar?.getAttribute('onTap')?.(touchEvent);
 
 			const expandedViews = elementTypeFind(
 				componentGetElements(component),
@@ -875,7 +880,7 @@ describe('NowPlayingSurface', () => {
 			);
 			expect(createButton).toBeDefined();
 
-			createButton?.getAttribute('onTap')?.();
+			createButton?.getAttribute('onTap')?.(touchEvent);
 
 			expect(getLabelValues(component)).toContain('CREATE PLAYLIST FROM QUEUE');
 		},
@@ -921,16 +926,16 @@ describe('NowPlayingSurface', () => {
 
 			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
 				.find((v) => v.getAttribute('id') === 'now-playing-surface-bar')
-				?.getAttribute('onTap')?.();
+				?.getAttribute('onTap')?.(touchEvent);
 			// Let the expand transition settle so isTransitioning resets before we collapse.
 			await new Promise((resolve) => setTimeout(resolve, 0));
-			findView('now-playing-create-playlist-from-queue')?.getAttribute('onTap')?.();
+			findView('now-playing-create-playlist-from-queue')?.getAttribute('onTap')?.(touchEvent);
 
 			elementTypeFind(
 				componentGetElements(component),
 				IRenderedElementViewClass.TextField,
-			)[0]?.getAttribute('onChange')?.('My Queue Playlist');
-			findView('create-playlist-from-queue-create-button')?.getAttribute('onTap')?.();
+			)[0]?.getAttribute('onChange')?.(editTextEvent('My Queue Playlist'));
+			findView('create-playlist-from-queue-create-button')?.getAttribute('onTap')?.(touchEvent);
 
 			await new Promise((resolve) => setTimeout(resolve, 0));
 

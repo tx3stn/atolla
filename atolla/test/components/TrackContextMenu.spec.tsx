@@ -3,6 +3,7 @@ import { TrackContextMenu } from 'atolla/src/ui/components/TrackContextMenu';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent } from '../util/testEvents';
 import { renderedElements } from './renderedElements';
 
 const track = {
@@ -55,7 +56,7 @@ describe('TrackContextMenu', () => {
 			(view) => view.getAttribute('accessibilityLabel') === 'track-context-add-to-queue',
 		);
 
-		addToQueueAction?.getAttribute('onTap')?.();
+		addToQueueAction?.getAttribute('onTap')?.(touchEvent);
 
 		expect(callOrder).toEqual(['addToQueue:track-1', 'dismiss:added to queue']);
 		expect(dismissMessages).toEqual(['added to queue']);
@@ -71,7 +72,7 @@ describe('TrackContextMenu', () => {
 			(view) => view.getAttribute('accessibilityLabel') === 'track-context-play-next',
 		);
 
-		playNextAction?.getAttribute('onTap')?.();
+		playNextAction?.getAttribute('onTap')?.(touchEvent);
 
 		expect(callOrder).toEqual(['playNext:track-1', 'dismiss:playing next']);
 		expect(dismissMessages).toEqual(['playing next']);
@@ -86,7 +87,7 @@ describe('TrackContextMenu', () => {
 			(element) => element.getAttribute('accessibilityLabel') === 'track-context-backdrop',
 		);
 
-		backdrop?.getAttribute('onTap')?.();
+		backdrop?.getAttribute('onTap')?.(touchEvent);
 
 		expect(callOrder).toEqual(['dismiss:none']);
 		expect(dismissMessages).toEqual([undefined]);

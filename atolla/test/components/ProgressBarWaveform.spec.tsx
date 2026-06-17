@@ -4,6 +4,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent } from '../util/testEvents';
 
 function mockStore(progressSeconds: number) {
 	return {
@@ -157,7 +158,7 @@ describe('ProgressBarWaveform', () => {
 		const waveformBar = views.find(
 			(v) => v.getAttribute('accessibilityLabel') === 'waveform-progress-bar',
 		);
-		waveformBar?.getAttribute('onTap')?.();
+		waveformBar?.getAttribute('onTap')?.(touchEvent);
 
 		expect(tapCount).toBe(1);
 	});

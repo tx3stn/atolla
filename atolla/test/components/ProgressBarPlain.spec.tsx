@@ -4,6 +4,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { styleAttribute, touchEvent } from '../util/testEvents';
 
 function mockStore(progressSeconds: number) {
 	return {
@@ -36,9 +37,9 @@ describe('ProgressBarPlain', () => {
 			(view) => view.getAttribute('accessibilityLabel') === 'playback-progress-playhead',
 		);
 
-		expect(root?.getAttribute('style').attributes.width).toBe('100%');
+		expect(styleAttribute(root, 'width')).toBe('100%');
 		expect(track).toBeDefined();
-		expect(fill?.getAttribute('style').attributes.backgroundColor).toBe('#ff2255');
+		expect(styleAttribute(fill, 'backgroundColor')).toBe('#ff2255');
 		expect(fill?.getAttribute('width')).toBe('40%');
 		expect(playhead).toBeDefined();
 	});
@@ -77,7 +78,7 @@ describe('ProgressBarPlain', () => {
 		const track = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'playback-progress-track',
 		);
-		track?.getAttribute('onTap')?.();
+		track?.getAttribute('onTap')?.(touchEvent);
 
 		expect(tapCount).toBe(1);
 	});

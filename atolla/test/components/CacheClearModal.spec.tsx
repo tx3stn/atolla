@@ -4,6 +4,7 @@ import { CacheClearModal } from 'atolla/src/ui/components/CacheClearModal';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent } from '../util/testEvents';
 import { renderedElements } from './renderedElements';
 
 describe('CacheClearModal', () => {
@@ -83,28 +84,28 @@ describe('CacheClearModal', () => {
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-artist-image-row')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-artist-logo-row')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-album-art-row')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-album-art-blurred-row')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-playlist-image-row')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-genre-image-row')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-track-row')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-waveform-data-row')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const updatedViews = elementTypeFind(
 			renderedElements(component),
@@ -140,7 +141,7 @@ describe('CacheClearModal', () => {
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(received).toEqual({
 			albumArt: true,
@@ -177,7 +178,7 @@ describe('CacheClearModal', () => {
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-album-art-row')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const updatedViews = elementTypeFind(
 			renderedElements(component),
@@ -185,7 +186,7 @@ describe('CacheClearModal', () => {
 		);
 		updatedViews
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(received).toEqual({
 			albumArt: false,
@@ -222,7 +223,7 @@ describe('CacheClearModal', () => {
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-cancel-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(cancelled).toBe(true);
 	});

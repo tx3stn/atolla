@@ -4,6 +4,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent } from '../util/testEvents';
 
 describe('SyncStatusBanner', () => {
 	valdiIt('shows a syncing message with a spinner', async () => {
@@ -67,7 +68,7 @@ describe('SyncStatusBanner', () => {
 		const banner = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'sync-status-banner',
 		);
-		banner?.getAttribute('onTap')?.();
+		banner?.getAttribute('onTap')?.(touchEvent);
 
 		expect(tapped).toBe(true);
 	});

@@ -6,37 +6,40 @@
 				"./*",
 				"../bazel-out/darwin_arm64-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts/atolla/*"
 			],
-			"coreutils/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/coreutils/*"],
-			"file_system/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/file_system/*"],
-			"foundation/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/foundation/*"],
-			"jasmine/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/jasmine/*"],
-			"persistence/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/persistence/*"],
-			"source_map/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/source_map/*"],
-			"tslib": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/valdi_core/src/tslib"],
-			"valdi_core/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/valdi_core/*"],
-			"valdi_http/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/valdi_http/*"],
+			"coreutils/*": ["../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/coreutils/*"],
+			"file_system/*": [
+				"../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/file_system/*"
+			],
+			"foundation/*": ["../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/foundation/*"],
+			"jasmine/*": ["../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/jasmine/*"],
+			"persistence/*": [
+				"../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/persistence/*"
+			],
+			"source_map/*": ["../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/source_map/*"],
+			"tslib": ["../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/valdi_core/src/tslib"],
+			"valdi_core/*": ["../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/valdi_core/*"],
+			"valdi_http/*": ["../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/valdi_http/*"],
 			"valdi_navigation/*": [
-				"../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/valdi_navigation/*"
+				"../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/valdi_navigation/*"
 			],
 			"valdi_standalone/*": [
-				"../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/valdi_standalone/*"
+				"../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/valdi_standalone/*"
 			],
 			"valdi_test/*": [
-				"../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/valdi_test/*",
-				"../bazel-out/darwin_arm64-fastbuild/bin/external/valdi/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts/valdi_test/*"
+				"../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/valdi_test/*",
+				"../bazel-out/darwin_arm64-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts/valdi_test/*"
 			],
-			"valdi_tsx/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/valdi_tsx/*"],
-			"worker/*": ["../bazel-atolla/external/valdi/src/valdi_modules/src/valdi/worker/*"]
+			"valdi_tsx/*": ["../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/valdi_tsx/*"],
+			"worker/*": ["../bazel-atolla/external/valdi~/src/valdi_modules/src/valdi/worker/*"]
 		},
 		"rootDirs": [
 			"..",
 			"../bazel-out/darwin_arm64-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts"
 		],
 		"types": [
-			"../bazel-atolla/external/valdi/modules/types/globals",
-			"../bazel-atolla/external/valdi/modules/types/Long",
-			"bun-types"
+			"../bazel-atolla/external/valdi~/modules/types/Long",
+			"../bazel-atolla/external/valdi~/modules/types/globals"
 		]
 	},
-	"extends": "../bazel-atolla/external/valdi/modules/_configs/base.tsconfig.json"
+	"extends": "../bazel-atolla/external/valdi~/modules/_configs/base.tsconfig.json"
 }

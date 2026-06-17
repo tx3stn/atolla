@@ -69,3 +69,16 @@ filegroup(
     name = "tsconfig_json",
     srcs = ["tsconfig.json"],
 )
+
+# Keeps the valdi~ repo planted in Bazel's execroot symlink forest. Bazel
+# rebuilds that forest per invocation to hold only the current build's
+# dependency closure; the native-only checks (zig / android / ios tests) don't
+# reference the valdi module, so running them drops valdi~ and breaks editor +
+# `tsc` type resolution (the projectsync-generated tsconfig paths point into
+# bazel-<ws>/external/valdi~). The native check scripts build this anchor in the
+# SAME bazel invocation so valdi~ stays present. @valdi//modules:valdi_base is a
+# public source-only filegroup, so building this costs ~nothing.
+filegroup(
+    name = "valdi_editor_anchor",
+    srcs = ["@valdi//modules:valdi_base"],
+)

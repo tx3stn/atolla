@@ -1,3 +1,8 @@
+# Valdi custom Bazel registry (pre-patched rules_swift, rules_kotlin, etc.),
+# then the Bazel Central Registry. Order matters: Valdi's registry wins.
+common --registry=https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry
+common --registry=https://bcr.bazel.build
+
 common --enable_platform_specific_config
 common --experimental_worker_for_repo_fetching=off
 common --experimental_google_legacy_api=true
@@ -5,7 +10,9 @@ common --experimental_enable_android_migration_apis=true
 common --incompatible_java_common_parameters=false
 common --repository_cache=~/.cache/bazel-repo
 
-build --tool_java_language_version=11
+# Host tools (rules_android's android_builder etc.) use Java records, which need
+# source 16+; app bytecode still targets 11 for Android. Matches Valdi.
+build --tool_java_language_version=17
 build --java_language_version=11
 build --javacopt=-XepDisableAllChecks
 build --macos_minimum_os=12.0
@@ -16,6 +23,10 @@ build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
 build --cxxopt=-std=gnu++20
 build --host_cxxopt=-std=gnu++20
+# Valdi sources use the Clang nullability extension; silence the warning (matches
+# the beta-0.1.0 bootstrap template).
+build --cxxopt=-Wno-nullability-extension
+build --host_cxxopt=-Wno-nullability-extension
 # Clang 26 (SDK 26+) promotes several warnings to errors in third-party deps (abseil, Hermes, Yoga)
 build --host_copt=-Wno-deprecated-builtins
 build --host_copt=-Wno-deprecated-literal-operator
@@ -43,6 +54,13 @@ build --local_resources=memory=HOST_RAM*.8
 
 # Persistent Kotlin compiler daemon — eliminates JVM startup cost per compile action
 build --strategy=KotlinCompile=worker
+
+# The Valdi compiler is always invoked with --persistent_worker_protocol
+# (valdi_run_compiler.bzl), so it must run as a Bazel-managed worker. Running it
+# standalone (e.g. via spawn_strategy=local) makes it treat the worker flag as a
+# second mode flag and fail ("Must provide only one of: --compile OR ..."). Force
+# the worker strategy so it wins over the per-config local spawn strategies below.
+build --strategy=ValdiCompile=worker
 
 # Sandbox perf — reuse directory trees between actions instead of recreating them
 build --experimental_reuse_sandbox_directories
@@ -88,19 +106,16 @@ build:android --repo_env=VALDI_PLATFORM_DEPENDENCIES=android
 build:android --define=client_repo_arm64=true
 build:android --fat_apk_cpu=arm64-v8a
 build:android --android_cpu=arm64-v8a
-build:android --android_crosstool_top=@androidndk//:toolchain
 build:android --define=android_dexmerger_tool=d8_dexmerger
 build:android --define=android_incremental_dexing_tool=d8_dexbuilder
 build:android --define=android_standalone_dexing_tool=d8_compat_dx
 build:android --incremental_dexing
 # macOS sandbox-exec has 200-400ms overhead per action — skip it for dev targets
 build:android --spawn_strategy=local
-build:android --strategy=ValdiCompile=local
 
 # iOS-specific — applied via --config=ios in start-ios-simulator.sh
 build:ios --disk_cache=~/.cache/bazel-disk-ios
 build:ios --spawn_strategy=local
-build:ios --strategy=ValdiCompile=local
 
 test --spawn_strategy=local
 test --strategy=TestRunner=local

@@ -5,6 +5,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { styleAttribute, touchEvent } from '../util/testEvents';
 
 describe('Toggle', () => {
 	valdiIt('calls onToggle with true when tapped while disabled', async () => {
@@ -18,7 +19,7 @@ describe('Toggle', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views[0].getAttribute('onTap')?.();
+		views[0].getAttribute('onTap')?.(touchEvent);
 
 		expect(received).toBe(true);
 	});
@@ -34,7 +35,7 @@ describe('Toggle', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views[0].getAttribute('onTap')?.();
+		views[0].getAttribute('onTap')?.(touchEvent);
 
 		expect(received).toBe(false);
 	});
@@ -47,7 +48,7 @@ describe('Toggle', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		expect(views[0].getAttribute('style').attributes.backgroundColor).toBe(theme.colors.active);
+		expect(styleAttribute(views[0], 'backgroundColor')).toBe(theme.colors.active);
 	});
 
 	valdiIt('uses muted color for track when disabled', async () => {
@@ -58,7 +59,7 @@ describe('Toggle', () => {
 		const component = instrumented.getComponent();
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		expect(views[0].getAttribute('style').attributes.backgroundColor).toBe(theme.colors.bgAccent);
+		expect(styleAttribute(views[0], 'backgroundColor')).toBe(theme.colors.bgAccent);
 	});
 
 	valdiIt('sets accessibilityLabel on the track', async () => {

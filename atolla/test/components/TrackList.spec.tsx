@@ -6,6 +6,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { dragEvent, styleAttribute, touchEvent, touchEventWith } from '../util/testEvents';
 
 describe('TrackList', () => {
 	valdiIt('shows empty state when no tracks are provided', async () => {
@@ -85,7 +86,7 @@ describe('TrackList', () => {
 		const swipeRegion = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 		);
-		swipeRegion?.getAttribute('onTap')?.();
+		swipeRegion?.getAttribute('onTap')?.(touchEvent);
 
 		expect(tappedId).toBe('track-1');
 	});
@@ -123,7 +124,7 @@ describe('TrackList', () => {
 			const swipeRegion = views.find(
 				(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 			);
-			swipeRegion?.getAttribute('onTouch')?.({ state: 0 });
+			swipeRegion?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
 			jasmine.clock().tick(500);
 
 			expect(longPressedTrackId as string | null).toBe('track-1');
@@ -165,7 +166,7 @@ describe('TrackList', () => {
 			const swipeRegion = views.find(
 				(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 			);
-			swipeRegion?.getAttribute('onTouch')?.({ state: 0 });
+			swipeRegion?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
 			jasmine.clock().tick(500);
 
 			expect(longPressedTrackId as string | null).toBe('track-1');
@@ -207,8 +208,8 @@ describe('TrackList', () => {
 			const swipeRegion = views.find(
 				(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 			);
-			swipeRegion?.getAttribute('onTouch')?.({ state: 0 });
-			swipeRegion?.getAttribute('onTouch')?.({ state: 1 });
+			swipeRegion?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
+			swipeRegion?.getAttribute('onTouch')?.(touchEventWith({ state: 1 }));
 			jasmine.clock().tick(500);
 
 			expect(longPressedTrackId as string | null).toBe('track-1');
@@ -252,13 +253,17 @@ describe('TrackList', () => {
 		const handle = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
 		);
-		handle?.getAttribute('onTap')?.();
+		handle?.getAttribute('onTap')?.(touchEvent);
 
 		const swipeRegion = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 		);
-		swipeRegion?.getAttribute('onDrag')?.({ deltaX: -70, deltaY: 0, state: 1, velocityX: -100 });
-		swipeRegion?.getAttribute('onDrag')?.({ deltaX: -70, deltaY: 0, state: 2, velocityX: -100 });
+		swipeRegion?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: -70, deltaY: 0, state: 1, velocityX: -100 }),
+		);
+		swipeRegion?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: -70, deltaY: 0, state: 2, velocityX: -100 }),
+		);
 
 		expect(longPressedTrackId as string | null).toBe('track-1');
 		expect(removedTrackId as string | null).toBe('track-1');
@@ -277,12 +282,14 @@ describe('TrackList', () => {
 		const removeAction = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-remove-action-track-1-0',
 		);
-		expect(removeAction?.getAttribute('style').attributes.opacity).toBe(0);
+		expect(styleAttribute(removeAction, 'opacity')).toBe(0);
 
 		const swipeRegion = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 		);
-		swipeRegion?.getAttribute('onDrag')?.({ deltaX: -44, deltaY: 0, state: 1, velocityX: -100 });
+		swipeRegion?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: -44, deltaY: 0, state: 1, velocityX: -100 }),
+		);
 		expect(removeAction?.getAttribute('opacity')).toBeGreaterThan(0);
 
 		const images = elementTypeFind(
@@ -318,7 +325,9 @@ describe('TrackList', () => {
 		const dragContainer = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
 		);
-		dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 70, state: 2, velocityY: 120 });
+		dragContainer?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: 0, deltaY: 70, state: 2, velocityY: 120 }),
+		);
 
 		expect(reordered).toEqual([0, 1]);
 	});
@@ -359,9 +368,13 @@ describe('TrackList', () => {
 		// Drag row 0 down two rows and release: it must land at index 2, not snap back.
 		const rowZero = findView('track-row-drag-a-0');
 		const dropDeltaY = rowHeight * 2;
-		rowZero?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 0, state: 0, velocityY: 0 });
-		rowZero?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: dropDeltaY, state: 1, velocityY: 0 });
-		rowZero?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: dropDeltaY, state: 2, velocityY: 90 });
+		rowZero?.getAttribute('onDrag')?.(dragEvent({ deltaX: 0, deltaY: 0, state: 0, velocityY: 0 }));
+		rowZero?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: 0, deltaY: dropDeltaY, state: 1, velocityY: 0 }),
+		);
+		rowZero?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: 0, deltaY: dropDeltaY, state: 2, velocityY: 90 }),
+		);
 
 		expect(reordered).toEqual([0, 2]);
 	});
@@ -402,9 +415,13 @@ describe('TrackList', () => {
 		// list-relative slot tops.
 		const handleA = findView('track-row-edit-handle-a-0');
 		const originY = 200;
-		handleA?.getAttribute('onLongPress')?.({ absoluteY: originY, state: 0 });
-		handleA?.getAttribute('onTouch')?.({ absoluteY: originY + rowHeight * 2, state: 1 });
-		handleA?.getAttribute('onTouch')?.({ absoluteY: originY + rowHeight * 2, state: 2 });
+		handleA?.getAttribute('onLongPress')?.(touchEventWith({ absoluteY: originY, state: 0 }));
+		handleA?.getAttribute('onTouch')?.(
+			touchEventWith({ absoluteY: originY + rowHeight * 2, state: 1 }),
+		);
+		handleA?.getAttribute('onTouch')?.(
+			touchEventWith({ absoluteY: originY + rowHeight * 2, state: 2 }),
+		);
 
 		expect(reordered).toEqual([0, 2]);
 	});
@@ -430,13 +447,17 @@ describe('TrackList', () => {
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-track-1-0',
 		);
 
-		dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 42, state: 1, velocityY: 0 });
+		dragContainer?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: 0, deltaY: 42, state: 1, velocityY: 0 }),
+		);
 		expect(dragContainer?.getAttribute('top')).toBe(42);
 		expect(dragContainer?.getAttribute('bottom')).toBe(-42);
 		expect(row?.getAttribute('zIndex')).toBe(20);
 		expect(row?.getAttribute('backgroundColor')).toBe('rgba(45,120,206,0.28)');
 
-		dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 42, state: 2, velocityY: 90 });
+		dragContainer?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: 0, deltaY: 42, state: 2, velocityY: 90 }),
+		);
 		expect(dragContainer?.getAttribute('top')).toBe(72);
 		expect(dragContainer?.getAttribute('bottom')).toBe(-72);
 		expect(row?.getAttribute('zIndex')).toBe(0);
@@ -466,7 +487,9 @@ describe('TrackList', () => {
 		const dragContainer = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-2-1',
 		);
-		dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: -300, state: 2, velocityY: -800 });
+		dragContainer?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: 0, deltaY: -300, state: 2, velocityY: -800 }),
+		);
 
 		expect(fromIndex as number | null).toBe(1);
 		expect(toIndex as number | null).toBe(0);
@@ -502,13 +525,15 @@ describe('TrackList', () => {
 		);
 
 		// absoluteY 96 sits inside the bottom edge zone of a 0..100 viewport.
-		dragContainer?.getAttribute('onDrag')?.({
-			absoluteY: 96,
-			deltaX: 0,
-			deltaY: 40,
-			state: 1,
-			velocityY: 0,
-		});
+		dragContainer?.getAttribute('onDrag')?.(
+			dragEvent({
+				absoluteY: 96,
+				deltaX: 0,
+				deltaY: 40,
+				state: 1,
+				velocityY: 0,
+			}),
+		);
 
 		expect(scrollCalls.length).toBeGreaterThan(0);
 		expect(scrollCalls[0]).toBeGreaterThan(0);
@@ -516,13 +541,15 @@ describe('TrackList', () => {
 		expect(scrollCalls[0]).toBeLessThanOrEqual(6);
 
 		// End the drag so the auto-scroll timer is cleared.
-		dragContainer?.getAttribute('onDrag')?.({
-			absoluteY: 96,
-			deltaX: 0,
-			deltaY: 40,
-			state: 2,
-			velocityY: 0,
-		});
+		dragContainer?.getAttribute('onDrag')?.(
+			dragEvent({
+				absoluteY: 96,
+				deltaX: 0,
+				deltaY: 40,
+				state: 2,
+				velocityY: 0,
+			}),
+		);
 	});
 
 	valdiIt('suspends the ancestor scroll for the duration of an Android reorder touch', async () => {
@@ -554,11 +581,11 @@ describe('TrackList', () => {
 		);
 
 		// Pressing the handle suspends the scroll so an up-drag moves the row instead of panning.
-		handle?.getAttribute('onTouch')?.({ absoluteY: 50, state: 0 });
+		handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 50, state: 0 }));
 		expect(scrollEnabledCalls).toEqual([false]);
 
 		// Lifting restores it.
-		handle?.getAttribute('onTouch')?.({ absoluteY: 50, state: 2 });
+		handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 50, state: 2 }));
 		expect(scrollEnabledCalls).toEqual([false, true]);
 	});
 
@@ -593,33 +620,39 @@ describe('TrackList', () => {
 		);
 
 		// Finger inside the bottom edge zone: the first move scrolls down.
-		dragContainer?.getAttribute('onDrag')?.({
-			absoluteY: 95,
-			deltaX: 0,
-			deltaY: 40,
-			state: 1,
-			velocityY: 0,
-		});
+		dragContainer?.getAttribute('onDrag')?.(
+			dragEvent({
+				absoluteY: 95,
+				deltaX: 0,
+				deltaY: 40,
+				state: 1,
+				velocityY: 0,
+			}),
+		);
 		const afterFirst = scrollCalls.length;
 		expect(afterFirst).toBeGreaterThan(0);
 
 		// Still in the bottom zone but now moving UP: must not add a downward scroll.
-		dragContainer?.getAttribute('onDrag')?.({
-			absoluteY: 80,
-			deltaX: 0,
-			deltaY: 25,
-			state: 1,
-			velocityY: 0,
-		});
+		dragContainer?.getAttribute('onDrag')?.(
+			dragEvent({
+				absoluteY: 80,
+				deltaX: 0,
+				deltaY: 25,
+				state: 1,
+				velocityY: 0,
+			}),
+		);
 		expect(scrollCalls.length).toBe(afterFirst);
 
-		dragContainer?.getAttribute('onDrag')?.({
-			absoluteY: 80,
-			deltaX: 0,
-			deltaY: 25,
-			state: 2,
-			velocityY: 0,
-		});
+		dragContainer?.getAttribute('onDrag')?.(
+			dragEvent({
+				absoluteY: 80,
+				deltaX: 0,
+				deltaY: 25,
+				state: 2,
+				velocityY: 0,
+			}),
+		);
 	});
 
 	valdiIt('reorders a row UP when dragged up under real layout', async (driver) => {
@@ -656,9 +689,13 @@ describe('TrackList', () => {
 		// Drag the last row UP two rows and release: it must land at index 1, not go down.
 		const rowThree = findView('track-row-drag-d-3');
 		const upDeltaY = -rowHeight * 2;
-		rowThree?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 0, state: 0, velocityY: 0 });
-		rowThree?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: upDeltaY, state: 1, velocityY: 0 });
-		rowThree?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: upDeltaY, state: 2, velocityY: 0 });
+		rowThree?.getAttribute('onDrag')?.(dragEvent({ deltaX: 0, deltaY: 0, state: 0, velocityY: 0 }));
+		rowThree?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: 0, deltaY: upDeltaY, state: 1, velocityY: 0 }),
+		);
+		rowThree?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: 0, deltaY: upDeltaY, state: 2, velocityY: 0 }),
+		);
 
 		expect(reordered).toEqual([3, 1]);
 	});
@@ -685,20 +722,24 @@ describe('TrackList', () => {
 			const findView = (label: string) =>
 				views.find((view) => view.getAttribute('accessibilityLabel') === label);
 
-			findView('track-row-drag-track-1-0')?.getAttribute('onDrag')?.({
-				deltaX: 0,
-				deltaY: 0,
-				state: 0,
-				velocityY: 0,
-			});
+			findView('track-row-drag-track-1-0')?.getAttribute('onDrag')?.(
+				dragEvent({
+					deltaX: 0,
+					deltaY: 0,
+					state: 0,
+					velocityY: 0,
+				}),
+			);
 			expect(findView('track-row-track-1-0')?.getAttribute('backgroundColor')).toBe(dragHighlight);
 
-			findView('track-row-drag-track-2-1')?.getAttribute('onDrag')?.({
-				deltaX: 0,
-				deltaY: 0,
-				state: 0,
-				velocityY: 0,
-			});
+			findView('track-row-drag-track-2-1')?.getAttribute('onDrag')?.(
+				dragEvent({
+					deltaX: 0,
+					deltaY: 0,
+					state: 0,
+					velocityY: 0,
+				}),
+			);
 
 			expect(findView('track-row-track-1-0')?.getAttribute('backgroundColor')).toBe(
 				theme.colors.bg,
@@ -723,27 +764,33 @@ describe('TrackList', () => {
 			const findView = (label: string) =>
 				views.find((view) => view.getAttribute('accessibilityLabel') === label);
 
-			findView('track-row-drag-track-1-0')?.getAttribute('onDrag')?.({
-				deltaX: 0,
-				deltaY: 0,
-				state: 0,
-				velocityY: 0,
-			});
-			findView('track-row-drag-track-2-1')?.getAttribute('onDrag')?.({
-				deltaX: 0,
-				deltaY: 0,
-				state: 0,
-				velocityY: 0,
-			});
+			findView('track-row-drag-track-1-0')?.getAttribute('onDrag')?.(
+				dragEvent({
+					deltaX: 0,
+					deltaY: 0,
+					state: 0,
+					velocityY: 0,
+				}),
+			);
+			findView('track-row-drag-track-2-1')?.getAttribute('onDrag')?.(
+				dragEvent({
+					deltaX: 0,
+					deltaY: 0,
+					state: 0,
+					velocityY: 0,
+				}),
+			);
 
 			// Row one's drag was superseded by row two; its late end must not reorder
 			// nor steal the active selection from row two.
-			findView('track-row-drag-track-1-0')?.getAttribute('onDrag')?.({
-				deltaX: 0,
-				deltaY: 70,
-				state: 2,
-				velocityY: 120,
-			});
+			findView('track-row-drag-track-1-0')?.getAttribute('onDrag')?.(
+				dragEvent({
+					deltaX: 0,
+					deltaY: 70,
+					state: 2,
+					velocityY: 120,
+				}),
+			);
 
 			expect(reordered).toEqual([]);
 			expect(findView('track-row-track-2-1')?.getAttribute('backgroundColor')).toBe(dragHighlight);
@@ -767,21 +814,29 @@ describe('TrackList', () => {
 				views.find((view) => view.getAttribute('accessibilityLabel') === label);
 
 			const dragContainer = findView('track-row-drag-track-1-0');
-			dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 0, state: 0, velocityY: 0 });
-			dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 70, state: 1, velocityY: 0 });
+			dragContainer?.getAttribute('onDrag')?.(
+				dragEvent({ deltaX: 0, deltaY: 0, state: 0, velocityY: 0 }),
+			);
+			dragContainer?.getAttribute('onDrag')?.(
+				dragEvent({ deltaX: 0, deltaY: 70, state: 1, velocityY: 0 }),
+			);
 
 			// Finger lifts: the handle's prompt touch end releases and commits the drag.
-			findView('track-row-edit-handle-track-1-0')?.getAttribute('onTouch')?.({
-				absoluteY: 80,
-				state: 2,
-			});
+			findView('track-row-edit-handle-track-1-0')?.getAttribute('onTouch')?.(
+				touchEventWith({
+					absoluteY: 80,
+					state: 2,
+				}),
+			);
 			expect(reordered).toEqual([0, 1]);
 			expect(findView('track-row-track-1-0')?.getAttribute('backgroundColor')).toBe(
 				theme.colors.bg,
 			);
 
 			// The laggy row drag end arrives afterwards and must be a no-op.
-			dragContainer?.getAttribute('onDrag')?.({ deltaX: 0, deltaY: 70, state: 2, velocityY: 90 });
+			dragContainer?.getAttribute('onDrag')?.(
+				dragEvent({ deltaX: 0, deltaY: 70, state: 2, velocityY: 90 }),
+			);
 			expect(reordered).toEqual([0, 1]);
 		});
 	});
@@ -836,9 +891,9 @@ describe('TrackList', () => {
 				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
 			);
 
-			handle?.getAttribute('onLongPress')?.({ absoluteY: 10, state: 0 });
-			handle?.getAttribute('onTouch')?.({ absoluteY: 80, state: 1 });
-			handle?.getAttribute('onTouch')?.({ absoluteY: 80, state: 2 });
+			handle?.getAttribute('onLongPress')?.(touchEventWith({ absoluteY: 10, state: 0 }));
+			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 80, state: 1 }));
+			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 80, state: 2 }));
 
 			expect(reordered).toEqual([0, 1]);
 		});
@@ -864,13 +919,13 @@ describe('TrackList', () => {
 				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
 			);
 
-			handle?.getAttribute('onLongPress')?.({ absoluteY: 10, state: 0 });
+			handle?.getAttribute('onLongPress')?.(touchEventWith({ absoluteY: 10, state: 0 }));
 			expect(row?.getAttribute('backgroundColor')).toBe('rgba(45,120,206,0.28)');
 			// zIndex must stay untouched mid-gesture: Valdi applies it by re-inserting
 			// the native view, which cancels the in-flight touch on iOS.
 			expect(row?.getAttribute('zIndex')).toBeUndefined();
 
-			handle?.getAttribute('onTouch')?.({ absoluteY: 52, state: 1 });
+			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 52, state: 1 }));
 			expect(dragContainer?.getAttribute('top')).toBe(42);
 			expect(dragContainer?.getAttribute('bottom')).toBe(-42);
 		});
@@ -899,10 +954,10 @@ describe('TrackList', () => {
 				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
 			);
 
-			handle?.getAttribute('onLongPress')?.({ absoluteY: 10, state: 0 });
+			handle?.getAttribute('onLongPress')?.(touchEventWith({ absoluteY: 10, state: 0 }));
 			expect(scrollEnabledCalls).toEqual([false]);
 
-			handle?.getAttribute('onTouch')?.({ absoluteY: 80, state: 2 });
+			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 80, state: 2 }));
 			expect(scrollEnabledCalls).toEqual([false, true]);
 		});
 
@@ -933,8 +988,8 @@ describe('TrackList', () => {
 				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
 			);
 
-			handle?.getAttribute('onLongPress')?.({ absoluteY: 10, state: 0 });
-			handle?.getAttribute('onTouch')?.({ absoluteY: 10, state: 2 });
+			handle?.getAttribute('onLongPress')?.(touchEventWith({ absoluteY: 10, state: 0 }));
+			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 10, state: 2 }));
 
 			expect(reordered).toEqual([]);
 			expect(scrollEnabledCalls).toEqual([false, true]);
@@ -961,9 +1016,9 @@ describe('TrackList', () => {
 				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
 			);
 
-			handle?.getAttribute('onTouch')?.({ absoluteY: 10, state: 0 });
-			handle?.getAttribute('onTouch')?.({ absoluteY: 80, state: 1 });
-			handle?.getAttribute('onTouch')?.({ absoluteY: 80, state: 2 });
+			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 10, state: 0 }));
+			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 80, state: 1 }));
+			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 80, state: 2 }));
 
 			expect(reordered).toEqual([]);
 			expect(dragContainer?.getAttribute('top')).toBeUndefined();
@@ -989,36 +1044,46 @@ describe('TrackList', () => {
 
 			// Arm and move row one, but its end signal never arrives (the ancestor scroll
 			// cancelled the touch mid-drag), leaving it highlighted with no release.
-			findView('track-row-edit-handle-track-1-0')?.getAttribute('onLongPress')?.({
-				absoluteY: 10,
-				state: 0,
-			});
-			findView('track-row-edit-handle-track-1-0')?.getAttribute('onTouch')?.({
-				absoluteY: 40,
-				state: 1,
-			});
+			findView('track-row-edit-handle-track-1-0')?.getAttribute('onLongPress')?.(
+				touchEventWith({
+					absoluteY: 10,
+					state: 0,
+				}),
+			);
+			findView('track-row-edit-handle-track-1-0')?.getAttribute('onTouch')?.(
+				touchEventWith({
+					absoluteY: 40,
+					state: 1,
+				}),
+			);
 			expect(findView('track-row-track-1-0')?.getAttribute('backgroundColor')).toBe(dragHighlight);
 
 			// Arming a different row must self-heal: row one releases and row two takes over,
 			// rather than the leaked selection blocking every future drag.
-			findView('track-row-edit-handle-track-2-1')?.getAttribute('onLongPress')?.({
-				absoluteY: 10,
-				state: 0,
-			});
+			findView('track-row-edit-handle-track-2-1')?.getAttribute('onLongPress')?.(
+				touchEventWith({
+					absoluteY: 10,
+					state: 0,
+				}),
+			);
 			expect(findView('track-row-track-1-0')?.getAttribute('backgroundColor')).toBe(
 				theme.colors.bg,
 			);
 			expect(findView('track-row-track-2-1')?.getAttribute('backgroundColor')).toBe(dragHighlight);
 
 			// And the new drag completes normally.
-			findView('track-row-edit-handle-track-2-1')?.getAttribute('onTouch')?.({
-				absoluteY: 90,
-				state: 1,
-			});
-			findView('track-row-edit-handle-track-2-1')?.getAttribute('onTouch')?.({
-				absoluteY: 90,
-				state: 2,
-			});
+			findView('track-row-edit-handle-track-2-1')?.getAttribute('onTouch')?.(
+				touchEventWith({
+					absoluteY: 90,
+					state: 1,
+				}),
+			);
+			findView('track-row-edit-handle-track-2-1')?.getAttribute('onTouch')?.(
+				touchEventWith({
+					absoluteY: 90,
+					state: 2,
+				}),
+			);
 			expect(reordered).toEqual([1, 2]);
 		});
 	});
@@ -1063,7 +1128,7 @@ describe('TrackList', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const row = views.find((view) => view.getAttribute('accessibilityLabel') === 'track-row-a-0');
-		expect(row?.getAttribute('style').attributes.backgroundColor).toBe('#223344');
+		expect(styleAttribute(row, 'backgroundColor')).toBe('#223344');
 
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -1071,8 +1136,8 @@ describe('TrackList', () => {
 		);
 		const title = labels.find((label) => label.getAttribute('value') === 'Track Name');
 		const meta = labels.find((label) => label.getAttribute('value') === '2:15');
-		expect(title?.getAttribute('style').attributes.color).toBe('#ffeeaa');
-		expect(meta?.getAttribute('style').attributes.color).toBe('#d8cc99');
+		expect(styleAttribute(title, 'color')).toBe('#ffeeaa');
+		expect(styleAttribute(meta, 'color')).toBe('#d8cc99');
 	});
 
 	valdiIt('falls back to theme colors when palette is not provided', async () => {
@@ -1082,6 +1147,6 @@ describe('TrackList', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const row = views.find((view) => view.getAttribute('accessibilityLabel') === 'track-row-a-0');
-		expect(row?.getAttribute('style').attributes.backgroundColor).toBe(theme.colors.bg);
+		expect(styleAttribute(row, 'backgroundColor')).toBe(theme.colors.bg);
 	});
 });

@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import { AlbumView } from 'atolla/src/ui/views/AlbumView';
 import { ArtistView } from 'atolla/src/ui/views/ArtistView';
+import { touchEvent } from '../util/testEvents';
 
 const mockNavigator = {
 	dismiss: () => {},
@@ -199,7 +200,7 @@ describe('AlbumView', () => {
 		const artistLogo = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'detail-header-artist-logo',
 		);
-		artistLogo?.getAttribute('onTap')?.();
+		artistLogo?.getAttribute('onTap')?.(touchEvent);
 
 		expect(captured.pushedPage?.componentPath).toBe(ArtistView.componentPath);
 		expect(captured.pushedPage?.componentViewModel?.artist?.id).toBe('artist-1');

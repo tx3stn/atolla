@@ -3,6 +3,7 @@ import { Modal } from 'atolla/src/ui/components/Modal';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent } from '../util/testEvents';
 import { renderedElements } from './renderedElements';
 
 describe('Modal', () => {
@@ -44,8 +45,8 @@ describe('Modal', () => {
 		);
 		const cancel = views.find((view) => view.getAttribute('accessibilityLabel') === 'modal-cancel');
 
-		confirm?.getAttribute('onTap')?.();
-		cancel?.getAttribute('onTap')?.();
+		confirm?.getAttribute('onTap')?.(touchEvent);
+		cancel?.getAttribute('onTap')?.(touchEvent);
 
 		expect(calls).toEqual(['confirm', 'close']);
 	});

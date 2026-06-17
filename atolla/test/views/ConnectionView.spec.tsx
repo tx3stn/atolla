@@ -4,6 +4,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { editTextEvent, touchEvent } from '../util/testEvents';
 
 function findSpinner(component: ConnectionView) {
 	const elements = componentGetElements(component);
@@ -49,7 +50,7 @@ describe('ConnectionView', () => {
 		const component = instrumented.getComponent();
 		const textField = getTextField(component);
 
-		textField.getAttribute('onChange')?.('https://demo.jellyfin.local');
+		textField.getAttribute('onChange')?.(editTextEvent('https://demo.jellyfin.local'));
 
 		const connectButton = getConnectButton(component);
 		expect(typeof connectButton?.getAttribute('onTap')).toBe('function');
@@ -68,9 +69,9 @@ describe('ConnectionView', () => {
 		const component = instrumented.getComponent();
 		const textField = getTextField(component);
 
-		textField.getAttribute('onChange')?.('  demo.jellyfin.local  ');
+		textField.getAttribute('onChange')?.(editTextEvent('  demo.jellyfin.local  '));
 
-		getConnectButton(component)?.getAttribute('onTap')?.();
+		getConnectButton(component)?.getAttribute('onTap')?.(touchEvent);
 
 		expect(calls).toEqual(['demo.jellyfin.local']);
 	});
@@ -80,7 +81,7 @@ describe('ConnectionView', () => {
 		const component = instrumented.getComponent();
 		const textField = getTextField(component);
 
-		textField.getAttribute('onChange')?.('   ');
+		textField.getAttribute('onChange')?.(editTextEvent('   '));
 
 		const connectButton = getConnectButton(component);
 		expect(connectButton?.getAttribute('onTap')).toBeUndefined();
@@ -91,7 +92,7 @@ describe('ConnectionView', () => {
 		const component = instrumented.getComponent();
 		const textField = getTextField(component);
 
-		textField.getAttribute('onChange')?.({ query: 'demo.jellyfin.local' });
+		textField.getAttribute('onChange')?.(editTextEvent('demo.jellyfin.local'));
 
 		const connectButton = getConnectButton(component);
 		expect(typeof connectButton?.getAttribute('onTap')).toBe('function');
@@ -110,8 +111,8 @@ describe('ConnectionView', () => {
 		const component = instrumented.getComponent();
 		const textField = getTextField(component);
 
-		textField.getAttribute('onChange')?.('mock');
-		getConnectButton(component)?.getAttribute('onTap')?.();
+		textField.getAttribute('onChange')?.(editTextEvent('mock'));
+		getConnectButton(component)?.getAttribute('onTap')?.(touchEvent);
 
 		expect(calls).toEqual(['mock']);
 	});
@@ -123,7 +124,7 @@ describe('ConnectionView', () => {
 			const component = instrumented.getComponent();
 			const textField = getTextField(component);
 
-			textField.getAttribute('onChange')?.('http://127.0.0.1:18096');
+			textField.getAttribute('onChange')?.(editTextEvent('http://127.0.0.1:18096'));
 
 			instrumented.setViewModel(
 				makeViewModel({
@@ -170,8 +171,8 @@ describe('ConnectionView', () => {
 			const component = instrumented.getComponent();
 			const textField = getTextField(component);
 
-			textField.getAttribute('onChange')?.('http://192.168.1.1:8096');
-			getConnectButton(component)?.getAttribute('onTap')?.();
+			textField.getAttribute('onChange')?.(editTextEvent('http://192.168.1.1:8096'));
+			getConnectButton(component)?.getAttribute('onTap')?.(touchEvent);
 
 			expect(calls).toEqual([]);
 		},
@@ -194,8 +195,8 @@ describe('ConnectionView', () => {
 			const component = instrumented.getComponent();
 			const textField = getTextField(component);
 
-			textField.getAttribute('onChange')?.('https://127.0.0.1:18096');
-			getConnectButton(component)?.getAttribute('onTap')?.();
+			textField.getAttribute('onChange')?.(editTextEvent('https://127.0.0.1:18096'));
+			getConnectButton(component)?.getAttribute('onTap')?.(touchEvent);
 
 			expect(calls).toEqual(['https://127.0.0.1:18096']);
 		},

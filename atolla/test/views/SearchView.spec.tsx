@@ -8,6 +8,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { editTextEvent } from '../util/testEvents';
 
 const stubImageCache = {
 	get: () => null,
@@ -82,7 +83,7 @@ describe('SearchView', () => {
 			IRenderedElementViewClass.TextField,
 		)[0];
 
-		textField.getAttribute('onChange')?.('dream pop');
+		textField.getAttribute('onChange')?.(editTextEvent('dream pop'));
 
 		expect(component.state.query).toBe('dream pop');
 	});
@@ -179,7 +180,7 @@ describe('SearchView', () => {
 			IRenderedElementViewClass.TextField,
 		)[0];
 
-		textField.getAttribute('onReturn')?.();
+		textField.getAttribute('onReturn')?.(editTextEvent(''));
 		await flushAsyncWork();
 
 		expect(searchCalls).toEqual(['burial']);

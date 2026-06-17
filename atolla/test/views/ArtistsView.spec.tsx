@@ -6,6 +6,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { layoutFrame, touchEvent } from '../util/testEvents';
 
 const pageSize = 24;
 
@@ -93,7 +94,7 @@ describe('ArtistsView', () => {
 		const firstCard = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'card-artist-1',
 		);
-		firstCard?.getAttribute('onTap')?.();
+		firstCard?.getAttribute('onTap')?.(touchEvent);
 
 		const { component: pushedComponent, viewModel: pushedViewModel } =
 			navigationController.getPushed();
@@ -179,7 +180,7 @@ describe('ArtistsView', () => {
 		const prefetchTrigger = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
 		);
-		prefetchTrigger?.getAttribute('onLayout')?.();
+		prefetchTrigger?.getAttribute('onLayout')?.(layoutFrame);
 		await flushAsyncWork();
 
 		expect(component.state.artists.length).toBe(pageSize * 2);

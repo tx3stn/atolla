@@ -10,6 +10,7 @@ import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { editTextEvent, touchEvent } from '../util/testEvents';
 
 // Wrapper that renders SettingsView alongside a DetachedSlotRenderer so that
 // slot-rendered modals appear in the same component tree as the main view.
@@ -75,7 +76,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const modalConfirm = elementTypeFind(
 			componentGetElements(component),
@@ -98,7 +99,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const modalViews = elementTypeFind(
 			componentGetElements(component),
@@ -106,7 +107,7 @@ describe('SettingsView', () => {
 		);
 		modalViews
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-confirm-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(called).toBe(true);
 	});
@@ -124,7 +125,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const modalViews = elementTypeFind(
 			componentGetElements(component),
@@ -132,7 +133,7 @@ describe('SettingsView', () => {
 		);
 		modalViews
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-cancel-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(called).toBe(false);
 	});
@@ -146,7 +147,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const updatedViews = elementTypeFind(
 			componentGetElements(component),
@@ -173,7 +174,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const modalViews = elementTypeFind(
 			componentGetElements(component),
@@ -181,7 +182,7 @@ describe('SettingsView', () => {
 		);
 		modalViews
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(received).toEqual({
 			albumArt: true,
@@ -207,7 +208,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const modalViews = elementTypeFind(
 			componentGetElements(component),
@@ -215,7 +216,7 @@ describe('SettingsView', () => {
 		);
 		modalViews
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(toastService.getMessage()).toBeTruthy();
 	});
@@ -233,7 +234,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-debug-log-clear-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(toastService.getMessage()).toBeTruthy();
 	});
@@ -253,7 +254,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-export-offline-status-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		// The export handler is async; let the awaited export resolve before the
 		// toast is shown.
@@ -273,7 +274,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-track-cache-limit-dropdown')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const updatedViews = elementTypeFind(
 			componentGetElements(component),
@@ -300,7 +301,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-track-cache-limit-dropdown')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const updatedViews = elementTypeFind(
 			componentGetElements(component),
@@ -308,7 +309,7 @@ describe('SettingsView', () => {
 		);
 		updatedViews
 			.find((v) => v.getAttribute('accessibilityId') === 'settings-track-cache-limit-option-30')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(selected).toBe(30);
 	});
@@ -323,7 +324,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-dropdown')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const updatedViews = elementTypeFind(
 			componentGetElements(component),
@@ -350,7 +351,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-dropdown')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const updatedViews = elementTypeFind(
 			componentGetElements(component),
@@ -358,7 +359,7 @@ describe('SettingsView', () => {
 		);
 		updatedViews
 			.find((v) => v.getAttribute('accessibilityId') === 'settings-grid-columns-option-4')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(selected).toBe(4);
 	});
@@ -376,7 +377,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const modalViews = elementTypeFind(
 			componentGetElements(component),
@@ -384,7 +385,7 @@ describe('SettingsView', () => {
 		);
 		modalViews
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-cancel-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(called).toBe(false);
 	});
@@ -398,7 +399,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-delete-all-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const modalConfirm = elementTypeFind(
 			componentGetElements(component),
@@ -421,7 +422,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-delete-all-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const modalViews = elementTypeFind(
 			componentGetElements(component),
@@ -429,7 +430,7 @@ describe('SettingsView', () => {
 		);
 		modalViews
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-clear-confirm-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(called).toBe(true);
 	});
@@ -447,7 +448,7 @@ describe('SettingsView', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-delete-all-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		const modalViews = elementTypeFind(
 			componentGetElements(component),
@@ -455,7 +456,7 @@ describe('SettingsView', () => {
 		);
 		modalViews
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-clear-cancel-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(called).toBe(false);
 	});
@@ -478,7 +479,7 @@ describe('SettingsView', () => {
 			.find(
 				(field) => field.getAttribute('accessibilityLabel') === 'settings-jellyfin-device-id-input',
 			)
-			?.getAttribute('onChange')?.('custom-profile-device');
+			?.getAttribute('onChange')?.(editTextEvent('custom-profile-device'));
 
 		expect(received).toEqual(['custom-profile-device']);
 	});

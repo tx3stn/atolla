@@ -1,5 +1,193 @@
-module(name = "atolla")
+module(
+    name = "atolla",
+    version = "0.0.23",
+)
 
+# -- Valdi framework (https://github.com/Snapchat/Valdi) ---------------------
+VALDI_TAG = "beta-0.1.0"
+
+VALDI_URL = "https://github.com/Snapchat/Valdi/archive/" + VALDI_TAG + ".tar.gz"
+
+VALDI_PREFIX = "Valdi-" + VALDI_TAG
+
+# Every Valdi module below is a slice of the same release tarball, so they all
+# share one integrity hash. Pinning it makes the download reproducible.
+VALDI_INTEGRITY = "sha256-uaGWCv8jwTZ/Z3djGf6SXzGrYb39mEqtYmhDHiK8kM8="
+
+bazel_dep(name = "valdi", version = "0.1")
+archive_override(
+    module_name = "valdi",
+    integrity = VALDI_INTEGRITY,
+    strip_prefix = VALDI_PREFIX,
+    urls = [VALDI_URL],
+)
+
+# Valdi internal sub-modules: local_path_override in Valdi's own MODULE.bazel
+# only takes effect when Valdi is the root module. Consumers must provide
+# archive_override entries that point into the Valdi release archive.
+bazel_dep(name = "android_macros")
+archive_override(
+    module_name = "android_macros",
+    integrity = VALDI_INTEGRITY,
+    strip_prefix = VALDI_PREFIX + "/bzl/macros",
+    urls = [VALDI_URL],
+)
+
+bazel_dep(name = "snap_macros")
+archive_override(
+    module_name = "snap_macros",
+    integrity = VALDI_INTEGRITY,
+    strip_prefix = VALDI_PREFIX + "/bzl/valdi/snap_macros",
+    urls = [VALDI_URL],
+)
+
+bazel_dep(name = "snap_client_toolchains")
+archive_override(
+    module_name = "snap_client_toolchains",
+    integrity = VALDI_INTEGRITY,
+    strip_prefix = VALDI_PREFIX + "/bzl/toolchains",
+    urls = [VALDI_URL],
+)
+
+bazel_dep(name = "snap_platforms")
+archive_override(
+    module_name = "snap_platforms",
+    integrity = VALDI_INTEGRITY,
+    strip_prefix = VALDI_PREFIX + "/bzl/platforms",
+    urls = [VALDI_URL],
+)
+
+bazel_dep(name = "skia_user_config")
+archive_override(
+    module_name = "skia_user_config",
+    integrity = VALDI_INTEGRITY,
+    strip_prefix = VALDI_PREFIX + "/third-party/skia_user_config",
+    urls = [VALDI_URL],
+)
+
+bazel_dep(name = "rules_hdrs")
+archive_override(
+    module_name = "rules_hdrs",
+    integrity = VALDI_INTEGRITY,
+    strip_prefix = VALDI_PREFIX + "/third-party/rules_hdrs",
+    urls = [VALDI_URL],
+)
+
+bazel_dep(name = "valdi_toolchain")
+archive_override(
+    module_name = "valdi_toolchain",
+    integrity = VALDI_INTEGRITY,
+    strip_prefix = VALDI_PREFIX + "/bin",
+    urls = [VALDI_URL],
+)
+
+bazel_dep(name = "resvg_libs")
+archive_override(
+    module_name = "resvg_libs",
+    integrity = VALDI_INTEGRITY,
+    strip_prefix = VALDI_PREFIX + "/third-party/resvg/resvg_libs",
+    urls = [VALDI_URL],
+)
+
+# -- C++ toolchains (Apple CC before LLVM for ObjC priority) ------------------
+valdi_toolchains = use_extension("@valdi//bzl:valdi_toolchains.bzl", "valdi_toolchains")
+use_repo(valdi_toolchains, "llvm_toolchain", "llvm_toolchain_llvm", "local_config_apple_cc", "local_config_apple_cc_toolchains")
+
+register_toolchains("@local_config_apple_cc_toolchains//:all")
+
+register_toolchains("@llvm_toolchain//:all")
+
+# -- Version pins (must match Valdi's MODULE.bazel) ---------------------------
+single_version_override(
+    module_name = "protobuf",
+    version = "27.0",
+)
+
+single_version_override(
+    module_name = "rules_pkg",
+    version = "0.9.1",
+)
+
+single_version_override(
+    module_name = "zlib",
+    version = "1.3.2",
+)
+
+# rules_apple bumped to 4.1.0 (Valdi pins 4.0.0) for iOS 26 Liquid Glass `.icon`
+# app icon support — the minimum version that adds `.icon` handling.
+single_version_override(
+    module_name = "rules_apple",
+    version = "4.1.0",
+)
+
+# -- Direct deps for atolla's own native code --------------------------------
+# These are not pulled in by the hello-world template. The Valdi custom registry
+# (see --registry in .bazelrc) serves pre-patched rules_kotlin / rules_swift, so
+# no patches are carried here; the rest resolve from BCR. Versions are declared
+# at what the graph actually resolves to (transitive deps pull these forward).
+bazel_dep(name = "rules_cc", version = "0.2.18")
+# rules_kotlin's //third_party:android_sdk imports @bazel_tools//tools/android:android_jar,
+# i.e. the native android_tools_defaults_jar. Under bzlmod Valdi registers the Starlark
+# android SDK (rules_android), so that native rule's AndroidSdkProvider.fromRuleContext is
+# handed a StarlarkInfo and crashes with a ClassCastException. Match Valdi exactly: pin 1.9.5
+# and apply its patches, which repoint android_sdk at @androidsdk//:platforms/android-36/android.jar
+# and wire @androidsdk into rules_kotlin via the rules_android SDK extension.
+bazel_dep(name = "rules_kotlin", version = "1.9.0")
+single_version_override(
+    module_name = "rules_kotlin",
+    version = "1.9.5",
+    # Vendored from @valdi//registry/modules/rules_kotlin/1.9.0/patches — bzlmod only
+    # allows override patches from the main repository, not another module.
+    patches = [
+        "//patches/rules_kotlin:rules_kotlin.patch",
+        "//patches/rules_kotlin:rules_kotlin_android_sdk.patch",
+        "//patches/rules_kotlin:rules_kotlin_module_bzl.patch",
+    ],
+)
+bazel_dep(name = "rules_swift", version = "3.1.2", repo_name = "build_bazel_rules_swift")
+bazel_dep(name = "rules_apple", version = "4.1.0", repo_name = "build_bazel_rules_apple")
+bazel_dep(name = "rules_jvm_external", version = "6.6")
+bazel_dep(name = "rules_android", version = "0.6.5")
+
+# -- Maven: media3 for Android playback, junit for Android unit tests ---------
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    name = "media3_mvn",
+    # media3-exoplayer is an .aar; use the starlark android rules (Valdi disables
+    # native android rules under bzlmod) to import it.
+    aar_import_bzl_label = "@rules_android//rules:rules.bzl",
+    artifacts = [
+        "androidx.media3:media3-exoplayer:1.3.1",
+    ],
+    # androidx.core and okhttp:4.9.0 are already provided by Valdi's @android_mvn (core
+    # transitively via appcompat/material, okhttp directly). Pulling our own androidx.core
+    # here put two versions in the APK, whose notification resources collide at merge time
+    # ("ambiguous priority"). Exclude core and depend on @android_mvn for core + okhttp so
+    # the build keeps Valdi's single, coherent androidx stack.
+    excluded_artifacts = ["androidx.core:core"],
+    repositories = [
+        "https://maven.google.com",
+        "https://repo1.maven.org/maven2",
+    ],
+    use_starlark_android_rules = True,
+    version_conflict_policy = "pinned",
+)
+maven.install(
+    name = "test_mvn",
+    artifacts = [
+        "junit:junit:4.13.2",
+    ],
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
+)
+# android_mvn is declared by Valdi (androidx/material); valdi_application's
+# generated android aar_import + valdi_module_android_common reference it, so the
+# consumer must import it. The maven extension is shared, so use_repo pulls in
+# Valdi's install rather than us re-declaring its ~40 androidx artifacts.
+use_repo(maven, "android_mvn", "media3_mvn", "test_mvn")
+
+# -- Zig native algorithms (palette / blur / waveform) ------------------------
 bazel_dep(name = "rules_zig", version = "0.13.0")
 
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")

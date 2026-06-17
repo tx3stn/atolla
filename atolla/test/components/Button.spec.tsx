@@ -4,6 +4,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent } from '../util/testEvents';
 
 describe('Button', () => {
 	valdiIt('calls onTap when tapped', async () => {
@@ -20,7 +21,7 @@ describe('Button', () => {
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'test-button-btn')
-			?.getAttribute('onTap')?.();
+			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(called).toBe(true);
 	});
@@ -39,7 +40,7 @@ describe('Button', () => {
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const button = views.find((v) => v.getAttribute('accessibilityLabel') === 'test-button-btn');
-		button?.getAttribute('onTap')?.();
+		button?.getAttribute('onTap')?.(touchEvent);
 
 		expect(button?.getAttribute('onTap')).toBeUndefined();
 		expect(called).toBe(false);
