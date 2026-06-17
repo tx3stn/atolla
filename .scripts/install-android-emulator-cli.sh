@@ -5,10 +5,7 @@ AVD_NAME="${AVD_NAME:-gsd-api34}"
 API_LEVEL="${API_LEVEL:-34}"
 ABI="${ABI:-arm64-v8a}"
 DEVICE="${DEVICE:-pixel_7}"
-NDK_VERSION="${NDK_VERSION:-27.0.12077973}"
 BUILD_TOOLS_VERSION="${BUILD_TOOLS_VERSION:-34.0.0}"
-VALDI_API_LEVEL="${VALDI_API_LEVEL:-36}"
-VALDI_BUILD_TOOLS_VERSION="${VALDI_BUILD_TOOLS_VERSION:-36.0.0}"
 
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}"
 export ANDROID_SDK_ROOT
@@ -72,16 +69,11 @@ install_android_packages() {
 	fi
 
 	info "Installing Android SDK packages..."
-	if ! run_with_yes "$sdkmanager_bin" --sdk_root="$ANDROID_SDK_ROOT" "cmdline-tools;latest" "platform-tools" "build-tools;${BUILD_TOOLS_VERSION}" "emulator" "platforms;android-${API_LEVEL}" "system-images;android-${API_LEVEL};google_apis;${ABI}" "ndk;${NDK_VERSION}"; then
+	if ! run_with_yes "$sdkmanager_bin" --sdk_root="$ANDROID_SDK_ROOT" "cmdline-tools;latest" "platform-tools" "build-tools;${BUILD_TOOLS_VERSION}" "emulator" "platforms;android-${API_LEVEL}" "system-images;android-${API_LEVEL};google_apis;${ABI}"; then
 		info "Failed while installing Android SDK packages."
 		exit 1
 	fi
 
-	info "Installing Valdi-required Android SDK level ${VALDI_API_LEVEL}..."
-	if ! run_with_yes "$sdkmanager_bin" --sdk_root="$ANDROID_SDK_ROOT" "platforms;android-${VALDI_API_LEVEL}" "build-tools;${VALDI_BUILD_TOOLS_VERSION}"; then
-		info "Failed while installing Valdi-required Android SDK packages."
-		exit 1
-	fi
 	info "Android SDK packages installed."
 
 	if [[ ! -x "$avdmanager_bin" ]]; then
@@ -111,7 +103,6 @@ Set these environment variables manually in your shell/profile:
 
   export ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT"
   export ANDROID_HOME="$ANDROID_SDK_ROOT"
-  export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/$NDK_VERSION"
   export JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || printf /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home)"
   export PATH="\$PATH:\$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:\$ANDROID_SDK_ROOT/platform-tools:\$ANDROID_SDK_ROOT/emulator"
 

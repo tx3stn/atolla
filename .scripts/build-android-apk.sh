@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}"
 FAST_DEV_BUILD="${FAST_DEV_BUILD:-0}"
-export ANDROID_SDK_ROOT
-export ANDROID_HOME="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
 
 is_java17_home() {
 	local candidate="$1"
@@ -51,23 +48,6 @@ fi
 export JAVA_HOME
 export PATH="$JAVA_HOME/bin:$PATH"
 echo "Using JAVA_HOME=$JAVA_HOME"
-
-if [[ -z "${ANDROID_NDK_HOME:-}" && -d "$ANDROID_SDK_ROOT/ndk" ]]; then
-	latest_ndk="$(ls "$ANDROID_SDK_ROOT/ndk" 2>/dev/null | sort -V | tail -n 1 || true)"
-	if [[ -n "$latest_ndk" ]]; then
-		export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/$latest_ndk"
-	fi
-fi
-
-if [[ -n "${ANDROID_NDK_HOME:-}" ]]; then
-	echo "Using ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
-else
-	echo "ANDROID_NDK_HOME is not set and no NDK found under $ANDROID_SDK_ROOT/ndk"
-	echo "Run: ./.scripts/install-android-emulator-cli.sh"
-	exit 1
-fi
-
-echo "Using ANDROID_HOME=$ANDROID_HOME"
 
 unset MACOSX_DEPLOYMENT_TARGET
 unset IPHONEOS_DEPLOYMENT_TARGET

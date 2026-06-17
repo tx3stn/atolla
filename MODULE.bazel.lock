@@ -1323,7 +1323,7 @@
     "@@valdi~//bzl:hermetic_android_sdk.bzl%hermetic_android_sdk_extension": {
       "general": {
         "bzlTransitiveDigest": "xQbCyuMOf2ylCGdIqv7gCQ+/2zY7ql/d7ZcsDCBGbIE=",
-        "usagesDigest": "QfkTQyaNxgjb/Ckb4Ta0vwHrA7ypuZBWLA7zfLaeT0I=",
+        "usagesDigest": "G7dQURUs/ycdr07JG2X2RLNxY9NSp3gRUuUwxJrfHRk=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1343,7 +1343,7 @@
     "@@valdi~//bzl:hermetic_ndk.bzl%hermetic_ndk_extension": {
       "general": {
         "bzlTransitiveDigest": "iC98a/IEvykEvlGZGW0TO4Yoo/xTqwPgOrJqLq37Hd8=",
-        "usagesDigest": "wgu1r6eQcHM98dWPrdS87PslpAvgl5bCIgjWGllEVfI=",
+        "usagesDigest": "vcn1hucHVVKwe6kHMKWTgVqseCq6FdI6/sZNW/b0VNk=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},

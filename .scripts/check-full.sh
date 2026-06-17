@@ -33,7 +33,7 @@ FIRST_IOS_UDID=$(echo "$E2E_IOS_UDIDS" | cut -d',' -f1)
 
 echo ""
 echo "=== Building and installing Android app ==="
-ANDROID_DEVICE_ID="$FIRST_ANDROID_SERIAL" "$SCRIPT_DIR/start-android-emulator.sh"
+ANDROID_DEVICE_ID="$FIRST_ANDROID_SERIAL" "$SCRIPT_DIR/build-and-run-android.sh"
 for serial in $(echo "$E2E_ANDROID_SERIALS" | tr ',' ' '); do
 	if [[ "$serial" != "$FIRST_ANDROID_SERIAL" ]]; then
 		echo "Installing freshly built apk on $serial..."
@@ -43,7 +43,7 @@ done
 
 echo ""
 echo "=== Building and installing iOS app ==="
-SIMULATOR_ID="$FIRST_IOS_UDID" "$SCRIPT_DIR/start-ios-simulator.sh"
+SIMULATOR_ID="$FIRST_IOS_UDID" "$SCRIPT_DIR/build-and-run-ios.sh"
 for udid in $(echo "$E2E_IOS_UDIDS" | tr ',' ' '); do
 	if [[ "$udid" != "$FIRST_IOS_UDID" ]]; then
 		echo "Installing freshly built ipa on $udid..."
