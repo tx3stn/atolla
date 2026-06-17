@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
+import type { Palette } from '../models/Color';
 import { ArtworkPaletteService, type PaletteStore } from './ArtworkPaletteService';
-import type { Palette } from './color/types';
 
 // ─── Test doubles ─────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-import type { Palette } from './color/types';
+import type { Palette } from '../models/Color';
 
 export interface PaletteStore {
 	clearAll(): Promise<void>;

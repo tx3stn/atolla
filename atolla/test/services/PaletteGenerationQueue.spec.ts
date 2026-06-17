@@ -1,7 +1,7 @@
 import 'jasmine/src/jasmine';
 import type { Album } from 'atolla/src/models/Album';
+import type { Palette } from 'atolla/src/models/Color';
 import type { Track } from 'atolla/src/models/Track';
-import type { Palette } from 'atolla/src/services/color/types';
 import { PaletteGenerationQueue } from 'atolla/src/services/PaletteGenerationQueue';
 import type { IPaletteNativeWorker } from 'atolla/src/services/PaletteNativeWorker';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';

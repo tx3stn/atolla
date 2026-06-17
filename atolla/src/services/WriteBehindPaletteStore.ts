@@ -1,5 +1,5 @@
+import type { Palette } from '../models/Color';
 import type { PaletteStore } from './ArtworkPaletteService';
-import type { Palette } from './color/types';
 
 /**
  * A PaletteStore wrapper that makes writes fire-and-forget so callers

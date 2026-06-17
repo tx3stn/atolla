@@ -1,7 +1,7 @@
 import type { IWorkerService } from 'worker/src/IWorkerService';
 import { WorkerServiceEntryPoint, workerService } from 'worker/src/WorkerServiceEntryPoint';
 import { extractAtollaPaletteFromCache } from '../ImageLoaderBootstrap';
-import type { Palette } from './color/types';
+import type { Palette } from '../models/Color';
 
 export interface IPaletteNativeWorker {
 	extractPalette(url: string, category: string): Promise<Palette | null>;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
+import type { Palette } from '../models/Color';
 import type { PaletteStore } from './ArtworkPaletteService';
-import type { Palette } from './color/types';
 import { WriteBehindPaletteStore } from './WriteBehindPaletteStore';
 
 const palette: Palette = {

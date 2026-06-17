@@ -1,6 +1,6 @@
 import type { PersistentStore } from 'persistence/src/PersistentStore';
+import type { Palette } from '../models/Color';
 import type { PaletteStore } from './ArtworkPaletteService';
-import type { Palette } from './color/types';
 
 export class PersistentPaletteStore implements PaletteStore {
 	constructor(private store: PersistentStore) {}
