@@ -23,7 +23,7 @@ HOTRELOAD_BAZEL_ARGS="${HOTRELOAD_BAZEL_ARGS} --macos_sdk_version=${MACOS_SDK_VE
 HOTRELOAD_BAZEL_ARGS="${HOTRELOAD_BAZEL_ARGS} --host_macos_minimum_os=12.0 --macos_minimum_os=12.0"
 HOTRELOAD_BAZEL_ARGS="${HOTRELOAD_BAZEL_ARGS} --java_runtime_version=remotejdk_21 --tool_java_runtime_version=remotejdk_21"
 HOTRELOAD_BAZEL_ARGS="${HOTRELOAD_BAZEL_ARGS} --cxxopt=-std=gnu++20 --host_cxxopt=-std=gnu++20"
-HOTRELOAD_BAZEL_ARGS="${HOTRELOAD_BAZEL_ARGS} --spawn_strategy=local --strategy=ValdiCompile=local --compilation_mode=fastbuild"
+HOTRELOAD_BAZEL_ARGS="${HOTRELOAD_BAZEL_ARGS} --spawn_strategy=local --compilation_mode=fastbuild"
 HOTRELOAD_BAZEL_ARGS="${HOTRELOAD_BAZEL_ARGS} --remote_download_outputs=all"
 
 mkdir -p "$HOME/.valdi/logs"

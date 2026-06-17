@@ -3,7 +3,6 @@ set -euo pipefail
 
 # sim_arm64 for simulator builds (local dev), arm64 for device builds (release)
 IOS_CPUS="${IOS_CPUS:-sim_arm64}"
-FAST_DEV_BUILD="${FAST_DEV_BUILD:-0}"
 
 require_cmd() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -21,11 +20,6 @@ MACOS_SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS:-} --ios_multi_cpus=${IOS_CPUS}"
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --macos_sdk_version=${MACOS_SDK_VERSION}"
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --config=ios"
-
-if [[ "$FAST_DEV_BUILD" == "1" ]]; then
-	VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --spawn_strategy=local --strategy=ValdiCompile=local --compilation_mode=fastbuild --keep_going"
-	echo "Using fast local dev Bazel flags."
-fi
 
 echo "Using macOS SDK version: $MACOS_SDK_VERSION"
 echo "Using iOS CPUs: $IOS_CPUS"

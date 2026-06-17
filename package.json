@@ -24,7 +24,6 @@
 	"scripts": {
 		"adb:reload": "adb shell am force-stop com.tx3stn.atolla && adb shell monkey -p com.tx3stn.atolla -c android.intent.category.LAUNCHER 1",
 		"android": "./.scripts/build-and-run-android.sh",
-		"android:fast": "FAST_DEV_BUILD=1 ./.scripts/build-and-run-android.sh",
 		"appium:inspect": "./.scripts/start-appium-inspector.sh",
 		"build:apk": "./.scripts/build-android-apk.sh",
 		"build:ipa": "./.scripts/build-ios-ipa.sh",
@@ -39,7 +38,6 @@
 		"icons:generate": "bun ./.scripts/generate-icons.ts",
 		"icons:palette": "bun ./.scripts/generate-palette.ts",
 		"ios": "./.scripts/build-and-run-ios.sh",
-		"ios:fast": "FAST_DEV_BUILD=1 ./.scripts/build-and-run-ios.sh",
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true --unsafe .",
 		"reload": "./.scripts/android-hotreload.sh",
 		"start:e2e-devices": "./.scripts/start-e2e-devices.sh",

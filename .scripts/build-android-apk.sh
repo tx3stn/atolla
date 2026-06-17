@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-FAST_DEV_BUILD="${FAST_DEV_BUILD:-0}"
-
 is_java17_home() {
 	local candidate="$1"
 	if [[ ! -x "$candidate/bin/java" ]]; then
@@ -61,11 +59,6 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
 	echo "Using macOS SDK version: $MACOS_SDK_VERSION"
 fi
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --config=android"
-
-if [[ "$FAST_DEV_BUILD" == "1" ]]; then
-	VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --spawn_strategy=local --strategy=ValdiCompile=local --compilation_mode=fastbuild --keep_going"
-	echo "Using fast local dev Bazel flags."
-fi
 
 VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//:atolla_android}"
 echo "Using application target: $VALDI_APPLICATION_TARGET"
