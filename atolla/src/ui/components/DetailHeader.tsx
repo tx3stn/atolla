@@ -86,8 +86,8 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			<Modal
 				animationsEnabled={this.viewModel.animationsEnabled}
 				body={this.removeDownloadBody}
-				cancelAccessibilityId='detail-header-remove-download-no-btn'
-				confirmAccessibilityId='detail-header-remove-download-yes-btn'
+				cancelAccessibilityId='detail-header-remove-download-no'
+				confirmAccessibilityId='detail-header-remove-download-yes'
 				modalAccessibilityId='detail-header-remove-download-modal'
 				onClose={this.handleRemoveDownloadCancel}
 				onConfirm={this.handleRemoveDownloadConfirm}
@@ -338,8 +338,8 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 				<Modal
 					animationsEnabled={this.viewModel.animationsEnabled}
 					body={this.removeDownloadBody}
-					cancelAccessibilityId='detail-header-remove-download-no-btn'
-					confirmAccessibilityId='detail-header-remove-download-yes-btn'
+					cancelAccessibilityId='detail-header-remove-download-no'
+					confirmAccessibilityId='detail-header-remove-download-yes'
 					modalAccessibilityId='detail-header-remove-download-modal'
 					onClose={this.handleRemoveDownloadCancel}
 					onConfirm={this.handleRemoveDownloadConfirm}

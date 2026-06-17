@@ -1,8 +1,8 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import Strings from '../../Strings';
 import type { ClearCacheSelection } from '../../services/ImageCache';
+import { Button, ButtonType } from './Button';
 import { Checkbox } from './Checkbox';
-import { ModalActionButton } from './ModalActionButton';
 import { ModalBase, modalStyles } from './ModalBase';
 
 export interface CacheClearModalCounts {
@@ -151,23 +151,27 @@ export class CacheClearModal extends StatefulComponent<
 				onToggle={this.toggleWaveformData}
 			/>
 
-			<view style={modalStyles.divider} />
-
 			<view style={modalStyles.actions}>
-				<ModalActionButton
-					accessibilityId='cache-clear-confirm-btn'
-					animationsEnabled={this.viewModel.animationsEnabled}
-					enabled={anySelected}
-					label={Strings.yes()}
-					onPress={this.handleConfirm}
-				/>
+				<view style={modalStyles.actionButton}>
+					<Button
+						accessibilityId='cache-clear-cancel'
+						animationsEnabled={this.viewModel.animationsEnabled}
+						label={Strings.no()}
+						onTap={this.viewModel.onCancel}
+						style={ButtonType.Secondary}
+					/>
+				</view>
 				<view style={modalStyles.actionSeparator} />
-				<ModalActionButton
-					accessibilityId='cache-clear-cancel-btn'
-					animationsEnabled={this.viewModel.animationsEnabled}
-					label={Strings.no()}
-					onPress={this.viewModel.onCancel}
-				/>
+				<view style={modalStyles.actionButton}>
+					<Button
+						accessibilityId='cache-clear-confirm'
+						animationsEnabled={this.viewModel.animationsEnabled}
+						enabled={anySelected}
+						label={Strings.yes()}
+						onTap={this.handleConfirm}
+						style={ButtonType.Confirm}
+					/>
+				</view>
 			</view>
 		</ModalBase>;
 	}

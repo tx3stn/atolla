@@ -69,7 +69,7 @@ describe('CreatePlaylistFromQueueModal', () => {
 		});
 		const component = instrumented.getComponent();
 
-		tap(component, 'create-playlist-from-queue-create-button');
+		tap(component, 'create-playlist-from-queue-create-btn');
 
 		expect(called).toBe(false);
 	});
@@ -87,7 +87,7 @@ describe('CreatePlaylistFromQueueModal', () => {
 		const component = instrumented.getComponent();
 
 		typeName(component, 'Road Trip');
-		tap(component, 'create-playlist-from-queue-create-button');
+		tap(component, 'create-playlist-from-queue-create-btn');
 
 		expect(receivedName).toBe('Road Trip');
 		expect(receivedOptions).toEqual({ includePlayed: true, includeUpNext: true });
@@ -105,7 +105,7 @@ describe('CreatePlaylistFromQueueModal', () => {
 
 		typeName(component, 'Just Upcoming');
 		tap(component, 'create-playlist-from-queue-include-played');
-		tap(component, 'create-playlist-from-queue-create-button');
+		tap(component, 'create-playlist-from-queue-create-btn');
 
 		expect(receivedOptions).toEqual({ includePlayed: false, includeUpNext: true });
 	});
@@ -120,7 +120,7 @@ describe('CreatePlaylistFromQueueModal', () => {
 		});
 		const component = instrumented.getComponent();
 
-		tap(component, 'create-playlist-from-queue-cancel-button');
+		tap(component, 'create-playlist-from-queue-cancel-btn');
 
 		expect(cancelled).toBe(true);
 	});

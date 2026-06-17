@@ -41,9 +41,11 @@ describe('Modal', () => {
 
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		const confirm = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'modal-confirm',
+			(view) => view.getAttribute('accessibilityLabel') === 'modal-confirm-btn',
 		);
-		const cancel = views.find((view) => view.getAttribute('accessibilityLabel') === 'modal-cancel');
+		const cancel = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'modal-cancel-btn',
+		);
 
 		confirm?.getAttribute('onTap')?.(touchEvent);
 		cancel?.getAttribute('onTap')?.(touchEvent);

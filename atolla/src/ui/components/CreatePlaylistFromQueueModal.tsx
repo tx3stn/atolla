@@ -3,8 +3,8 @@ import { Style } from 'valdi_core/src/Style';
 import type { Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import { theme } from '../../theme';
+import { Button, ButtonType } from './Button';
 import { Checkbox } from './Checkbox';
-import { ModalActionButton } from './ModalActionButton';
 import { ModalBase, modalStyles } from './ModalBase';
 import { extractErrorMessage, normalizeInputValue } from './modalInput';
 
@@ -91,57 +91,50 @@ export class CreatePlaylistFromQueueModal extends StatefulComponent<
 					value={playlistName}
 				/>
 			</view>
-			<Checkbox
-				accessibilityId='create-playlist-from-queue-include-played'
-				checked={includePlayed}
-				label={Strings.createPlaylistIncludePlayed()}
-				onToggle={this.toggleIncludePlayed}
-			/>
-			<Checkbox
-				accessibilityId='create-playlist-from-queue-include-up-next'
-				checked={includeUpNext}
-				label={Strings.createPlaylistIncludeUpNext()}
-				onToggle={this.toggleIncludeUpNext}
-			/>
+			<view style={styles.checkboxes}>
+				<Checkbox
+					accessibilityId='create-playlist-from-queue-include-played'
+					checked={includePlayed}
+					label={Strings.createPlaylistIncludePlayed()}
+					onToggle={this.toggleIncludePlayed}
+				/>
+				<Checkbox
+					accessibilityId='create-playlist-from-queue-include-up-next'
+					checked={includeUpNext}
+					label={Strings.createPlaylistIncludeUpNext()}
+					onToggle={this.toggleIncludeUpNext}
+				/>
+			</view>
 			{errorMessage && <label style={styles.errorLabel} value={errorMessage} />}
-			<view style={styles.confirmDivider} />
 			<view style={modalStyles.actions}>
-				<ModalActionButton
-					accessibilityId='create-playlist-from-queue-create-button'
-					animationsEnabled={this.viewModel.animationsEnabled}
-					label={Strings.create()}
-					labelStyle={canCreate ? styles.actionLabelActive : styles.actionLabelDisabled}
-					onPress={this.handleCreate}
-				/>
+				<view style={modalStyles.actionButton}>
+					<Button
+						accessibilityId='create-playlist-from-queue-cancel'
+						animationsEnabled={this.viewModel.animationsEnabled}
+						label={Strings.cancel()}
+						onTap={onCancel}
+						style={ButtonType.Secondary}
+					/>
+				</view>
 				<view style={modalStyles.actionSeparator} />
-				<ModalActionButton
-					accessibilityId='create-playlist-from-queue-cancel-button'
-					animationsEnabled={this.viewModel.animationsEnabled}
-					label={Strings.cancel()}
-					onPress={onCancel}
-				/>
+				<view style={modalStyles.actionButton}>
+					<Button
+						accessibilityId='create-playlist-from-queue-create'
+						animationsEnabled={this.viewModel.animationsEnabled}
+						enabled={canCreate}
+						label={Strings.create()}
+						onTap={this.handleCreate}
+						style={ButtonType.Confirm}
+					/>
+				</view>
 			</view>
 		</ModalBase>;
 	}
 }
 
 const styles = {
-	actionLabelActive: new Style<Label>({
-		...theme.text.main,
-		color: theme.colors.active,
-		textAlign: 'center',
-	}),
-	actionLabelDisabled: new Style<Label>({
-		...theme.text.main,
-		color: theme.colors.grey,
-		textAlign: 'center',
-	}),
-	confirmDivider: new Style({
-		backgroundColor: theme.colors.separator,
-		height: 1,
-		marginBottom: 14,
+	checkboxes: new Style({
 		marginTop: 14,
-		width: '100%',
 	}),
 	errorLabel: new Style<Label>({
 		...theme.text.sub,

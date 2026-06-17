@@ -3,7 +3,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import { theme } from '../../theme';
-import { ModalActionButton } from './ModalActionButton';
+import { Button, ButtonType } from './Button';
 import { ModalBase, modalStyles } from './ModalBase';
 import { extractErrorMessage, normalizeInputValue } from './modalInput';
 
@@ -71,45 +71,33 @@ export class CreatePlaylistModal extends StatefulComponent<
 				/>
 			</view>
 			{errorMessage && <label style={styles.errorLabel} value={errorMessage} />}
-			<view style={styles.confirmDivider} />
 			<view style={modalStyles.actions}>
-				<ModalActionButton
-					accessibilityId='create-playlist-create-button'
-					animationsEnabled={this.viewModel.animationsEnabled}
-					label={Strings.create()}
-					labelStyle={canCreate ? styles.actionLabelActive : styles.actionLabelDisabled}
-					onPress={this.handleCreate}
-				/>
+				<view style={modalStyles.actionButton}>
+					<Button
+						accessibilityId='create-playlist-cancel'
+						animationsEnabled={this.viewModel.animationsEnabled}
+						label={Strings.cancel()}
+						onTap={onCancel}
+						style={ButtonType.Secondary}
+					/>
+				</view>
 				<view style={modalStyles.actionSeparator} />
-				<ModalActionButton
-					accessibilityId='create-playlist-cancel-button'
-					animationsEnabled={this.viewModel.animationsEnabled}
-					label={Strings.cancel()}
-					onPress={onCancel}
-				/>
+				<view style={modalStyles.actionButton}>
+					<Button
+						accessibilityId='create-playlist-create'
+						animationsEnabled={this.viewModel.animationsEnabled}
+						enabled={canCreate}
+						label={Strings.create()}
+						onTap={this.handleCreate}
+						style={ButtonType.Confirm}
+					/>
+				</view>
 			</view>
 		</ModalBase>;
 	}
 }
 
 const styles = {
-	actionLabelActive: new Style<Label>({
-		...theme.text.main,
-		color: theme.colors.active,
-		textAlign: 'center',
-	}),
-	actionLabelDisabled: new Style<Label>({
-		...theme.text.main,
-		color: theme.colors.grey,
-		textAlign: 'center',
-	}),
-	confirmDivider: new Style({
-		backgroundColor: theme.colors.separator,
-		height: 1,
-		marginBottom: 14,
-		marginTop: 14,
-		width: '100%',
-	}),
 	errorLabel: new Style<Label>({
 		...theme.text.sub,
 		color: theme.colors.destructive,

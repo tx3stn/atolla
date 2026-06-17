@@ -66,11 +66,15 @@ const styles = {
 };
 
 export const modalStyles = {
+	actionButton: new Style<View>({
+		flexBasis: 0,
+		flexGrow: 1,
+	}),
 	actionSeparator: new Style({
-		backgroundColor: theme.colors.separator,
-		width: 1,
+		width: 10,
 	}),
 	actions: new Style<Layout>({
+		alignItems: 'center',
 		flexDirection: 'row',
 	}),
 	divider: new Style<View>({

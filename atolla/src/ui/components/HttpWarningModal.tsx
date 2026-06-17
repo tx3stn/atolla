@@ -3,7 +3,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import { theme, withAlpha } from '../../theme';
-import { ModalActionButton } from './ModalActionButton';
+import { Button, ButtonType } from './Button';
 import { ModalBase, modalStyles } from './ModalBase';
 
 interface HttpWarningModalViewModel {
@@ -26,23 +26,26 @@ export class HttpWarningModal extends Component<HttpWarningModalViewModel> {
 				/>
 			</view>
 
-			<view style={modalStyles.divider} />
-
 			<view style={modalStyles.actions}>
-				<ModalActionButton
-					accessibilityId='http-warning-cancel-btn'
-					animationsEnabled={this.viewModel.animationsEnabled}
-					label={Strings.httpWarningModalCancel()}
-					onPress={this.viewModel.onCancel}
-				/>
+				<view style={modalStyles.actionButton}>
+					<Button
+						accessibilityId='http-warning-cancel'
+						animationsEnabled={this.viewModel.animationsEnabled}
+						label={Strings.httpWarningModalCancel()}
+						onTap={this.viewModel.onCancel}
+						style={ButtonType.Secondary}
+					/>
+				</view>
 				<view style={modalStyles.actionSeparator} />
-				<ModalActionButton
-					accessibilityId='http-warning-confirm-btn'
-					animationsEnabled={this.viewModel.animationsEnabled}
-					label={Strings.httpWarningModalConfirm()}
-					labelStyle={styles.confirmLabel}
-					onPress={this.viewModel.onConfirm}
-				/>
+				<view style={modalStyles.actionButton}>
+					<Button
+						accessibilityId='http-warning-confirm'
+						animationsEnabled={this.viewModel.animationsEnabled}
+						label={Strings.httpWarningModalConfirm()}
+						onTap={this.viewModel.onConfirm}
+						style={ButtonType.Warn}
+					/>
+				</view>
 			</view>
 		</ModalBase>;
 	}
@@ -60,10 +63,5 @@ const styles = {
 	calloutText: new Style<Label>({
 		...theme.text.sub,
 		color: theme.colors.warning,
-	}),
-	confirmLabel: new Style<Label>({
-		...theme.text.main,
-		color: theme.colors.warning,
-		textAlign: 'center',
 	}),
 };

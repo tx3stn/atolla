@@ -935,7 +935,7 @@ describe('NowPlayingSurface', () => {
 				componentGetElements(component),
 				IRenderedElementViewClass.TextField,
 			)[0]?.getAttribute('onChange')?.(editTextEvent('My Queue Playlist'));
-			findView('create-playlist-from-queue-create-button')?.getAttribute('onTap')?.(touchEvent);
+			findView('create-playlist-from-queue-create-btn')?.getAttribute('onTap')?.(touchEvent);
 
 			await new Promise((resolve) => setTimeout(resolve, 0));
 

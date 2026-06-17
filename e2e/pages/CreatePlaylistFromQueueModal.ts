@@ -5,8 +5,8 @@ export class CreatePlaylistFromQueueModal extends BasePage {
 	private readonly nameInput = 'create-playlist-from-queue-name-input';
 	private readonly includePlayed = 'create-playlist-from-queue-include-played';
 	private readonly includeUpNext = 'create-playlist-from-queue-include-up-next';
-	private readonly createButton = 'create-playlist-from-queue-create-button';
-	private readonly cancelButton = 'create-playlist-from-queue-cancel-button';
+	private readonly createButton = 'create-playlist-from-queue-create-btn';
+	private readonly cancelButton = 'create-playlist-from-queue-cancel-btn';
 
 	async waitForVisible(): Promise<void> {
 		await this.elementByID(this.root).waitForDisplayed({

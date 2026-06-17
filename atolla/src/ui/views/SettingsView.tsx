@@ -175,8 +175,8 @@ export class SettingsView extends Component<SettingsViewModel> {
 			<Modal
 				animationsEnabled={this.viewModel.animationsEnabled}
 				body={Strings.settingsLogoutConfirm()}
-				cancelAccessibilityId='settings-logout-cancel-btn'
-				confirmAccessibilityId='settings-logout-confirm-btn'
+				cancelAccessibilityId='settings-logout-cancel'
+				confirmAccessibilityId='settings-logout-confirm'
 				modalAccessibilityId='settings-logout-modal'
 				onClose={this.handleLogoutCancel}
 				onConfirm={this.handleLogoutConfirm}
@@ -199,8 +199,8 @@ export class SettingsView extends Component<SettingsViewModel> {
 			<Modal
 				animationsEnabled={this.viewModel.animationsEnabled}
 				body={Strings.settingsDeleteAllDownloadsConfirm()}
-				cancelAccessibilityId='settings-downloads-clear-cancel-btn'
-				confirmAccessibilityId='settings-downloads-clear-confirm-btn'
+				cancelAccessibilityId='settings-downloads-clear-cancel'
+				confirmAccessibilityId='settings-downloads-clear-confirm'
 				modalAccessibilityId='settings-downloads-clear-modal'
 				onClose={this.handleClearDownloadsCancel}
 				onConfirm={this.handleClearDownloadsConfirm}

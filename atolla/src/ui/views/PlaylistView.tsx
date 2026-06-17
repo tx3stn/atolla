@@ -286,8 +286,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			<Modal
 				animationsEnabled={this.viewModel.animationsEnabled}
 				body={Strings.removeFromPlaylistBody(removedTrack.name)}
-				cancelAccessibilityId='playlist-remove-cancel-btn'
-				confirmAccessibilityId='playlist-remove-confirm-btn'
+				cancelAccessibilityId='playlist-remove-cancel'
+				confirmAccessibilityId='playlist-remove-confirm'
 				modalAccessibilityId='playlist-remove-modal'
 				onClose={this.handleCancelRemoveFromPlaylist}
 				onConfirm={this.handleConfirmRemoveFromPlaylistTap}
