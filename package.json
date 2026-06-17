@@ -41,7 +41,6 @@
 		"ios": "./.scripts/build-and-run-ios.sh",
 		"ios:fast": "FAST_DEV_BUILD=1 ./.scripts/build-and-run-ios.sh",
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true --unsafe .",
-		"release": "./.scripts/release.sh",
 		"reload": "./.scripts/android-hotreload.sh",
 		"start:e2e-devices": "./.scripts/start-e2e-devices.sh",
 		"test": "bun test ./atolla/src",
