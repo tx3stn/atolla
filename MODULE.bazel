@@ -132,7 +132,7 @@ bazel_dep(name = "rules_cc", version = "0.2.18")
 # handed a StarlarkInfo and crashes with a ClassCastException. Match Valdi exactly: pin 1.9.5
 # and apply its patches, which repoint android_sdk at @androidsdk//:platforms/android-36/android.jar
 # and wire @androidsdk into rules_kotlin via the rules_android SDK extension.
-bazel_dep(name = "rules_kotlin", version = "1.9.0")
+bazel_dep(name = "rules_kotlin", version = "2.4.0")
 single_version_override(
     module_name = "rules_kotlin",
     version = "1.9.5",
