@@ -26,6 +26,8 @@ export const defaultFooterColors: FooterColors = {
 export class BarColorStore {
 	private listeners = new Set<BarColorListener>();
 	private currentFooter: FooterColors = defaultFooterColors;
+	private currentHeaderColor?: string;
+	private currentNavBarColor?: string;
 
 	get footer(): FooterColors {
 		return this.currentFooter;
@@ -51,12 +53,20 @@ export class BarColorStore {
 	}
 
 	setHeaderColor(color: string): void {
+		if (color === this.currentHeaderColor) {
+			return;
+		}
+		this.currentHeaderColor = color;
 		if (Device.isAndroid()) {
 			setAtollaStatusBarColor(color);
 		}
 	}
 
 	setNavigationBarColor(color: string): void {
+		if (color === this.currentNavBarColor) {
+			return;
+		}
+		this.currentNavBarColor = color;
 		if (Device.isAndroid()) {
 			setAtollaNavigationBarColor(color);
 		}

@@ -35,6 +35,14 @@ import { TrackList, type TrackListEntry } from './TrackList';
 
 const MAX_VISIBLE_QUEUE_TRACKS = 30;
 
+// A transition still flagged in-flight after this window was abandoned mid-animation by a
+// background freeze — its completion callback never fired because Valdi animations and timers stop
+// when backgrounded. Matches the threshold App uses to detect backgrounding from the playback tick
+// gap (there is no foreground lifecycle hook to key off), and sits comfortably above the
+// 0.34s + 0.08s open and 0.26s close animations so a genuine in-flight transition is never treated
+// as stale. The transition-generation guard keeps recovery correct regardless of the exact value.
+const TRANSITION_TIMEOUT_MS = 1000;
+
 export interface NowPlayingSurfaceViewModel {
 	album: Album | null;
 	animationsEnabled: boolean;
@@ -96,6 +104,9 @@ export class NowPlayingSurface extends StatefulComponent<
 	private queueSlideRef = new ElementRef();
 	private queueListWidth: number | null = null;
 	private isTransitioning = false;
+	private transitionStartedAt = 0;
+	private transitionGeneration = 0;
+	private transitionTarget: 'expanded' | 'collapsed' | null = null;
 	private isQueueSliding = false;
 	private hasRendered = false;
 	private unsubscribeProgress?: () => void;
@@ -156,12 +167,84 @@ export class NowPlayingSurface extends StatefulComponent<
 		};
 	}
 
+	private isStaleTransition(): boolean {
+		return this.isTransitioning && Date.now() - this.transitionStartedAt > TRANSITION_TIMEOUT_MS;
+	}
+
+	// Unblock a transition left flagged in-flight by a background freeze, from the open/close entry
+	// points where the caller immediately re-drives the animation. Only invalidates the abandoned
+	// chain (bumping the generation so its late completion no-ops) and clears the flag — it does not
+	// settle geometry, because the caller is about to set the end-state itself.
+	private clearStaleTransition(): void {
+		if (this.isStaleTransition()) {
+			this.transitionGeneration++;
+			this.isTransitioning = false;
+			this.transitionTarget = null;
+		}
+	}
+
+	// Recover a transition abandoned by a background freeze from the foreground path
+	// (onViewModelUpdate), where nothing re-drives the animation. Invalidate the abandoned chain,
+	// then settle the surface to the end-state its lost completion would have applied so the
+	// recovered surface — colours, artwork, and isExpanded — is left consistent.
+	private recoverStaleTransition(): void {
+		if (!this.isStaleTransition()) {
+			return;
+		}
+		this.transitionGeneration++;
+		if (this.transitionTarget === 'expanded') {
+			this.settleExpanded();
+		} else if (this.transitionTarget === 'collapsed') {
+			this.settleCollapsed();
+		} else {
+			this.isTransitioning = false;
+			this.transitionTarget = null;
+		}
+	}
+
+	private applyExpandedBarColors(): void {
+		const surfaceColor = this.viewModel.palette?.surface.hex ?? paletteDefaults.surface;
+		this.viewModel.barColors.setHeaderColor(surfaceColor);
+		this.viewModel.barColors.setNavigationBarColor(surfaceColor);
+		this.viewModel.barColors.setFooter(this.expandedFooterColors());
+	}
+
+	private applyCollapsedBarColors(): void {
+		this.viewModel.barColors.resetFooter();
+		this.viewModel.barColors.setNavigationBarColor(theme.colors.bg);
+		this.viewModel.barColors.setHeaderColor(theme.colors.bg);
+	}
+
+	// Final expanded end-state, shared by the open animation's completion and stale recovery so a
+	// frozen-then-recovered open looks identical to one that animated to completion.
+	private settleExpanded(): void {
+		this.applyExpandedBarColors();
+		this.expandedContentRef.setAttribute('opacity', 1);
+		this.transitionArtworkRef.setAttribute('opacity', 0);
+		this.scrollArtworkStyle = styles.expandedScrollArtworkVisible;
+		this.scrollArtworkRef.setAttribute('opacity', 1);
+		this.isTransitioning = false;
+		this.transitionTarget = null;
+	}
+
+	// Final collapsed end-state, shared by the close animation's completion and stale recovery.
+	private settleCollapsed(): void {
+		this.overlayRef.setAttribute('top', 2000);
+		this.isTransitioning = false;
+		this.transitionTarget = null;
+		this.setState({ isExpanded: false });
+	}
+
 	private openSurface = (): void => {
+		this.clearStaleTransition();
 		if (this.state.isExpanded || this.isTransitioning) {
 			return;
 		}
 
 		this.isTransitioning = true;
+		this.transitionTarget = 'expanded';
+		this.transitionStartedAt = Date.now();
+		const generation = ++this.transitionGeneration;
 		this.viewModel.barColors.setFooter(this.expandedFooterColors());
 		this.viewModel.barColors.setNavigationBarColor(
 			this.viewModel.palette?.surface.hex ?? paletteDefaults.surface,
@@ -200,17 +283,16 @@ export class NowPlayingSurface extends StatefulComponent<
 				);
 			})
 			.then(() => {
-				this.viewModel.barColors.setHeaderColor(
-					this.viewModel.palette?.surface.hex ?? paletteDefaults.surface,
-				);
-				this.transitionArtworkRef.setAttribute('opacity', 0);
-				this.scrollArtworkStyle = styles.expandedScrollArtworkVisible;
-				this.scrollArtworkRef.setAttribute('opacity', 1);
-				this.isTransitioning = false;
+				if (this.isDestroyed() || generation !== this.transitionGeneration) {
+					return;
+				}
+				this.settleExpanded();
 			});
 	};
 
 	onViewModelUpdate(prevViewModel: NowPlayingSurfaceViewModel): void {
+		this.recoverStaleTransition();
+
 		if (!prevViewModel || this.viewModel.playbackStore !== prevViewModel.playbackStore) {
 			this.unsubscribeProgress?.();
 			this.unsubscribeProgress = this.viewModel.playbackStore?.subscribe(() => {
@@ -227,10 +309,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			this.rebuildPaletteStyles(this.viewModel.palette, this.state.activeQueueTab);
 
 			if (this.state.isExpanded && !this.isTransitioning) {
-				const surfaceColor = this.viewModel.palette?.surface.hex ?? paletteDefaults.surface;
-				this.viewModel.barColors.setHeaderColor(surfaceColor);
-				this.viewModel.barColors.setNavigationBarColor(surfaceColor);
-				this.viewModel.barColors.setFooter(this.expandedFooterColors());
+				this.applyExpandedBarColors();
 			}
 		}
 
@@ -247,9 +326,7 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	onDestroy(): void {
 		if (this.state.isExpanded) {
-			this.viewModel.barColors.setHeaderColor(theme.colors.bg);
-			this.viewModel.barColors.setNavigationBarColor(theme.colors.bg);
-			this.viewModel.barColors.resetFooter();
+			this.applyCollapsedBarColors();
 		}
 		this.unsubscribeProgress?.();
 	}
@@ -296,15 +373,17 @@ export class NowPlayingSurface extends StatefulComponent<
 	}
 
 	private closeSurface = (): Promise<void> => {
+		this.clearStaleTransition();
 		if (!this.state.isExpanded || this.isTransitioning) {
 			return Promise.resolve();
 		}
 
-		this.viewModel.barColors.resetFooter();
-		this.viewModel.barColors.setNavigationBarColor(theme.colors.bg);
-		this.viewModel.barColors.setHeaderColor(theme.colors.bg);
+		this.applyCollapsedBarColors();
 
 		this.isTransitioning = true;
+		this.transitionTarget = 'collapsed';
+		this.transitionStartedAt = Date.now();
+		const generation = ++this.transitionGeneration;
 		this.scrollArtworkStyle = styles.expandedScrollArtwork;
 		this.scrollArtworkRef.setAttribute('opacity', 0);
 		this.transitionArtworkRef.setAttribute('opacity', 1);
@@ -328,9 +407,10 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.transitionArtworkRef.setAttribute('width', 65);
 			},
 		).then(() => {
-			this.overlayRef.setAttribute('top', 2000);
-			this.setState({ isExpanded: false });
-			this.isTransitioning = false;
+			if (this.isDestroyed() || generation !== this.transitionGeneration) {
+				return;
+			}
+			this.settleCollapsed();
 		});
 	};
 

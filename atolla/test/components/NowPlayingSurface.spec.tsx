@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import type { Palette } from 'atolla/src/models/Color';
 import { BarColorStore, defaultFooterColors } from 'atolla/src/stores/BarColor';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
 import { paletteDefaults, theme, withAlpha } from 'atolla/src/theme';
@@ -252,6 +253,283 @@ describe('NowPlayingSurface', () => {
 			instrumented.destroy();
 			expect(barColors.footer).toEqual(defaultFooterColors);
 			expect(navBarColors).toContain(theme.colors.bg);
+		},
+	);
+
+	valdiIt(
+		're-tints the bars on a palette change even when a transition flag is stuck',
+		async () => {
+			const barColors = new BarColorStore();
+			const navBarColors: Array<string> = [];
+			const headerColors: Array<string> = [];
+			barColors.setNavigationBarColor = (color: string) => {
+				navBarColors.push(color);
+			};
+			barColors.setHeaderColor = (color: string) => {
+				headerColors.push(color);
+			};
+
+			const newPalette: Palette = {
+				accent: { hex: '#aabbcc' },
+				muted_on_surface: { hex: '#778899' },
+				on_surface: { hex: '#445566' },
+				primary: { hex: '#ddeeff' },
+				surface: { hex: '#112233' },
+			};
+
+			const baseViewModel = {
+				album,
+				artistLogoUrl: null,
+				barColors,
+				collapseSignal: 0,
+				isPlaying: true,
+				loopMode: 'none',
+				onDismiss: () => {},
+				onLoopModeToggle: () => {},
+				onNext: () => {},
+				onPlayPause: () => {},
+				onPrevious: () => {},
+				palette: undefined as Palette | undefined,
+				playbackStore: mockPlaybackStore(),
+				track,
+				trackIndex: 0,
+				tracks: [track],
+			};
+
+			const instrumented = createComponent(NowPlayingSurface, baseViewModel);
+			const component = instrumented.getComponent();
+
+			// Surface is open, but a backgrounded expand animation never resolved, so the
+			// completion callback that clears isTransitioning never ran — the flag is stuck.
+			component.setState({ isExpanded: true });
+			const stuck = component as unknown as {
+				isTransitioning: boolean;
+				transitionStartedAt: number;
+				transitionTarget: 'expanded' | 'collapsed' | null;
+			};
+			stuck.isTransitioning = true;
+			stuck.transitionStartedAt = Date.now() - 5000;
+			stuck.transitionTarget = 'expanded';
+
+			// A track change after foregrounding pushes a new palette.
+			instrumented.setViewModel({ ...baseViewModel, palette: newPalette });
+
+			expect(barColors.footer).toEqual({
+				activeIconColor: '#445566',
+				background: withAlpha('#112233', 0.8),
+				inactiveIconColor: withAlpha('#778899', 0.58),
+			});
+			expect(headerColors).toContain('#112233');
+			expect(navBarColors).toContain('#112233');
+		},
+	);
+
+	valdiIt('re-opens the surface after a transition flag is left stuck', async () => {
+		const instrumented = createNowPlayingComponent();
+		const component = instrumented.getComponent();
+
+		const getOverlayTop = () =>
+			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+				.find((view) => view.getAttribute('id') === 'now-playing-surface-overlay')
+				?.getAttribute('top');
+
+		// Collapsed, but a backgrounded transition never cleared its in-progress flag.
+		const stuck = component as unknown as {
+			isTransitioning: boolean;
+			transitionStartedAt: number;
+			transitionTarget: 'expanded' | 'collapsed' | null;
+		};
+		stuck.isTransitioning = true;
+		stuck.transitionStartedAt = Date.now() - 5000;
+		stuck.transitionTarget = 'collapsed';
+
+		expect(getOverlayTop()).not.toBe(0);
+
+		const compactBar = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		).find((view) => view.getAttribute('id') === 'now-playing-surface-bar');
+		compactBar?.getAttribute('onTap')?.(touchEvent);
+
+		expect(getOverlayTop()).toBe(0);
+	});
+
+	valdiIt(
+		'settles the expanded chrome when a frozen open transition is recovered on foreground',
+		async () => {
+			const barColors = new BarColorStore();
+			const headerColors: Array<string> = [];
+			barColors.setHeaderColor = (color: string) => {
+				headerColors.push(color);
+			};
+			barColors.setNavigationBarColor = () => {};
+
+			const palette: Palette = {
+				accent: { hex: '#aabbcc' },
+				muted_on_surface: { hex: '#778899' },
+				on_surface: { hex: '#445566' },
+				primary: { hex: '#ddeeff' },
+				surface: { hex: '#112233' },
+			};
+
+			const baseViewModel = {
+				album,
+				artistLogoUrl: null,
+				barColors,
+				collapseSignal: 0,
+				isPlaying: true,
+				loopMode: 'none',
+				onDismiss: () => {},
+				onLoopModeToggle: () => {},
+				onNext: () => {},
+				onPlayPause: () => {},
+				onPrevious: () => {},
+				palette,
+				playbackStore: mockPlaybackStore(),
+				track,
+				trackIndex: 0,
+				tracks: [track],
+			};
+
+			const instrumented = createComponent(NowPlayingSurface, baseViewModel);
+			const component = instrumented.getComponent();
+
+			// Mid-open freeze: the open set isExpanded and the footer/nav-bar colours, but the
+			// completion that applies the header colour never ran, leaving the flag stuck.
+			component.setState({ isExpanded: true });
+			const stuck = component as unknown as {
+				isTransitioning: boolean;
+				transitionStartedAt: number;
+				transitionTarget: 'expanded' | 'collapsed' | null;
+			};
+			stuck.isTransitioning = true;
+			stuck.transitionStartedAt = Date.now() - 5000;
+			stuck.transitionTarget = 'expanded';
+			headerColors.length = 0;
+
+			// Foregrounding pushes a fresh view model (same palette — only recovery should re-tint).
+			instrumented.setViewModel({ ...baseViewModel });
+
+			expect(headerColors).toContain('#112233');
+			expect(stuck.isTransitioning).toBe(false);
+		},
+	);
+
+	valdiIt(
+		'collapses without re-tinting expanded colours when a frozen close is recovered',
+		async () => {
+			const barColors = new BarColorStore();
+			barColors.setHeaderColor = () => {};
+			barColors.setNavigationBarColor = () => {};
+
+			const newPalette: Palette = {
+				accent: { hex: '#aabbcc' },
+				muted_on_surface: { hex: '#778899' },
+				on_surface: { hex: '#445566' },
+				primary: { hex: '#ddeeff' },
+				surface: { hex: '#112233' },
+			};
+
+			const baseViewModel = {
+				album,
+				artistLogoUrl: null,
+				barColors,
+				collapseSignal: 0,
+				isPlaying: true,
+				loopMode: 'none',
+				onDismiss: () => {},
+				onLoopModeToggle: () => {},
+				onNext: () => {},
+				onPlayPause: () => {},
+				onPrevious: () => {},
+				palette: undefined as Palette | undefined,
+				playbackStore: mockPlaybackStore(),
+				track,
+				trackIndex: 0,
+				tracks: [track],
+			};
+
+			const instrumented = createComponent(NowPlayingSurface, baseViewModel);
+			const component = instrumented.getComponent();
+
+			// Mid-close freeze: the close reset the chrome and set the flag, but the completion that
+			// flips isExpanded false never ran, so the surface still reports itself as expanded.
+			component.setState({ isExpanded: true });
+			const stuck = component as unknown as {
+				isTransitioning: boolean;
+				transitionStartedAt: number;
+				transitionTarget: 'expanded' | 'collapsed' | null;
+			};
+			stuck.isTransitioning = true;
+			stuck.transitionStartedAt = Date.now() - 5000;
+			stuck.transitionTarget = 'collapsed';
+
+			// A track change on foreground pushes a new palette.
+			instrumented.setViewModel({ ...baseViewModel, palette: newPalette });
+
+			expect(component.state.isExpanded).toBe(false);
+			expect(barColors.footer).toEqual(defaultFooterColors);
+		},
+	);
+
+	valdiIt(
+		'ignores a stale transition completion that resolves after it was superseded',
+		async () => {
+			const barColors = new BarColorStore();
+			const headerColors: Array<string> = [];
+			barColors.setHeaderColor = (color: string) => {
+				headerColors.push(color);
+			};
+			barColors.setNavigationBarColor = () => {};
+
+			const palette: Palette = {
+				accent: { hex: '#aabbcc' },
+				muted_on_surface: { hex: '#778899' },
+				on_surface: { hex: '#445566' },
+				primary: { hex: '#ddeeff' },
+				surface: { hex: '#112233' },
+			};
+
+			const instrumented = createComponent(NowPlayingSurface, {
+				album,
+				artistLogoUrl: null,
+				barColors,
+				collapseSignal: 0,
+				isPlaying: true,
+				loopMode: 'none',
+				onDismiss: () => {},
+				onLoopModeToggle: () => {},
+				onNext: () => {},
+				onPlayPause: () => {},
+				onPrevious: () => {},
+				palette,
+				playbackStore: mockPlaybackStore(),
+				track,
+				trackIndex: 0,
+				tracks: [track],
+			});
+			const component = instrumented.getComponent();
+
+			// Start an open; its completion chain is now pending (animations run synchronously in tests).
+			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+				.find((view) => view.getAttribute('id') === 'now-playing-surface-bar')
+				?.getAttribute('onTap')?.(touchEvent);
+
+			// The open was abandoned by a freeze and a newer generation has since superseded it, the way
+			// recovery (or a fresh transition) bumps the generation.
+			const internals = component as unknown as {
+				transitionGeneration: number;
+				isTransitioning: boolean;
+			};
+			internals.transitionGeneration += 1;
+			internals.isTransitioning = false;
+			headerColors.length = 0;
+
+			// Let the superseded completion resolve.
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			// The stale completion must not re-apply the expanded header colour.
+			expect(headerColors).toEqual([]);
 		},
 	);
 
