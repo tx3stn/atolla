@@ -30,7 +30,7 @@ jobs:
     # plus the projectsync-outputs save on top
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - name: Cache bun dependencies
         uses: actions/cache@v5
@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - uses: mlugg/setup-zig@v2
         with:
@@ -177,7 +177,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - name: Install libtinfo5
         run: |
@@ -251,7 +251,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - name: Install libtinfo5
         run: |
@@ -293,7 +293,7 @@ jobs:
   #   runs-on: macos-latest
   #   timeout-minutes: 60
   #   steps:
-  #     - uses: actions/checkout@v6
+  #     - uses: actions/checkout@v7
   #     - uses: oven-sh/setup-bun@v2
   #     - name: Cache bun dependencies
   #       uses: actions/cache@v5
