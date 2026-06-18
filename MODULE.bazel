@@ -125,7 +125,7 @@ single_version_override(
 # (see --registry in .bazelrc) serves pre-patched rules_kotlin / rules_swift, so
 # no patches are carried here; the rest resolve from BCR. Versions are declared
 # at what the graph actually resolves to (transitive deps pull these forward).
-bazel_dep(name = "rules_cc", version = "0.2.18")
+bazel_dep(name = "rules_cc", version = "0.2.19")
 # rules_kotlin's //third_party:android_sdk imports @bazel_tools//tools/android:android_jar,
 # i.e. the native android_tools_defaults_jar. Under bzlmod Valdi registers the Starlark
 # android SDK (rules_android), so that native rule's AndroidSdkProvider.fromRuleContext is
