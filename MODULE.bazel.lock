@@ -247,6 +247,8 @@
     "https://bcr.bazel.build/modules/rules_android/0.5.1/MODULE.bazel": "a3898eb6ec2815687d43fcb4808f242fd8e9678760d2a03299860dd81f0bd50e",
     "https://bcr.bazel.build/modules/rules_android/0.6.5/MODULE.bazel": "6a44151a40914578679754a4f4b1fdc80d3e1cc674626524f0e6037a9d6c775f",
     "https://bcr.bazel.build/modules/rules_android/0.6.5/source.json": "c45d1b4a54d165c16089b1fd90aecadd21a2400f0eca149359a41919da6830ed",
+    "https://bcr.bazel.build/modules/rules_android_ndk/0.1.5/MODULE.bazel": "ab43d418846060de6396e3f1b515a692e945bcd92a9d4541fddcddc8589004ce",
+    "https://bcr.bazel.build/modules/rules_android_ndk/0.1.5/source.json": "2950fc77b8e1f1e3874c4e073776f2258ce46926b43c236620c93517fd2e5865",
     "https://bcr.bazel.build/modules/rules_apple/4.1.0/MODULE.bazel": "76e10fd4a48038d3fc7c5dc6e63b7063bbf5304a2e3bd42edda6ec660eebea68",
     "https://bcr.bazel.build/modules/rules_apple/4.1.0/source.json": "8ee81e1708756f81b343a5eb2b2f0b953f1d25c4ab3d4a68dc02754872e80715",
     "https://bcr.bazel.build/modules/rules_buf/0.1.1/MODULE.bazel": "6189aec18a4f7caff599ad41b851ab7645d4f1e114aa6431acf9b0666eb92162",
@@ -262,6 +264,7 @@
     "https://bcr.bazel.build/modules/rules_cc/0.0.9/MODULE.bazel": "836e76439f354b89afe6a911a7adf59a6b2518fafb174483ad78a2a2fde7b1c5",
     "https://bcr.bazel.build/modules/rules_cc/0.1.1/MODULE.bazel": "2f0222a6f229f0bf44cd711dc13c858dad98c62d52bd51d8fc3a764a83125513",
     "https://bcr.bazel.build/modules/rules_cc/0.1.2/MODULE.bazel": "557ddc3a96858ec0d465a87c0a931054d7dcfd6583af2c7ed3baf494407fd8d0",
+    "https://bcr.bazel.build/modules/rules_cc/0.2.14/MODULE.bazel": "353c99ed148887ee89c54a17d4100ae7e7e436593d104b668476019023b58df8",
     "https://bcr.bazel.build/modules/rules_cc/0.2.18/MODULE.bazel": "4460ec36adc8f722a6a2a4ac9374cb91f2acebadaa93fc37966129afb3dece87",
     "https://bcr.bazel.build/modules/rules_cc/0.2.18/source.json": "abad668ff2fd63ada1ac49bf386d37e27048b89a3465a6fd968bb832b00a09d3",
     "https://bcr.bazel.build/modules/rules_foreign_cc/0.9.0/MODULE.bazel": "c9e8c682bf75b0e7c704166d79b599f93b72cfca5ad7477df596947891feeef6",
@@ -535,7 +538,7 @@
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_android/0.5.1/MODULE.bazel": "not found",
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_android/0.6.5/MODULE.bazel": "not found",
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_android_ndk/0.1.3/MODULE.bazel": "3ca2a6bf93e33c696e0393ef86698d155f1b8c6f72e7418b782690a75bc1ab99",
-    "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_android_ndk/0.1.3/source.json": "60c6b30df8d2db918a0151938cc7e9d461916fe434d04bf2e0fa7903e137bfca",
+    "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_android_ndk/0.1.5/MODULE.bazel": "not found",
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_apple/4.1.0/MODULE.bazel": "not found",
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_buf/0.1.1/MODULE.bazel": "not found",
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_cc/0.0.1/MODULE.bazel": "not found",
@@ -550,6 +553,7 @@
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_cc/0.0.9/MODULE.bazel": "not found",
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_cc/0.1.1/MODULE.bazel": "not found",
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_cc/0.1.2/MODULE.bazel": "not found",
+    "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_cc/0.2.14/MODULE.bazel": "not found",
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_cc/0.2.18/MODULE.bazel": "not found",
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_foreign_cc/0.9.0/MODULE.bazel": "not found",
     "https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.0/registry/modules/rules_fuzzing/0.5.2/MODULE.bazel": "not found",
@@ -750,8 +754,8 @@
     },
     "@@rules_android_ndk~//:extension.bzl%android_ndk_repository_extension": {
       "general": {
-        "bzlTransitiveDigest": "oV/TPZWCXAAcpJG/DBV/lNiWCISUTk5ba0KRjUb7adg=",
-        "usagesDigest": "bvgCKJaWVMN5HTCMA47z7mXM0HlLIRaCSDI+XpZUK/4=",
+        "bzlTransitiveDigest": "j+NMXk5/a1vnDypModKL+ToEo/4o7DJeXSFhTfbJ7rI=",
+        "usagesDigest": "DIG9pEaoFcrNAxxbr2LYMoqBuTJyv+Bfyv67sm7P0AQ=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -794,7 +798,7 @@
     "@@rules_android~//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension": {
       "general": {
         "bzlTransitiveDigest": "NAy+0M15JNVEBb8Tny6t7j3lKqTnsAMjoBB6LJ+C370=",
-        "usagesDigest": "rM6TZGm5ZpiF14997MLDHSRQjkECKLX1VYUG7HEYjXc=",
+        "usagesDigest": "20W75QKGNufB8+tRYbKVOpgAMJOunwvkc54Tlgpnxuw=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
