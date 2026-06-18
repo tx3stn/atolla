@@ -111,6 +111,11 @@ export class NowPlayingSurface extends StatefulComponent<
 	private hasRendered = false;
 	private unsubscribeProgress?: () => void;
 
+	// The most recent non-empty palette. Held while the next track's palette is still being
+	// extracted (getPalette returns undefined until then) so the chrome doesn't flash to the
+	// default colours between tracks — it only re-tints once the new palette is available.
+	private lastPalette?: Palette;
+
 	// Cached palette-derived styles — rebuilt only when palette or activeTab changes
 	private cachedCompactProgressFillStyle = createCompactProgressFillStyle(paletteDefaults.accent);
 	private cachedCompactSolidBgStyle = getOverlayTintStyle(paletteDefaults.surface, 1);
@@ -155,8 +160,17 @@ export class NowPlayingSurface extends StatefulComponent<
 		return Promise.resolve();
 	}
 
+	// The palette to style from: the current one when available, otherwise the last one we saw.
+	// Updates the held palette as a side effect whenever a fresh one arrives.
+	private resolvePalette(): Palette | undefined {
+		if (this.viewModel.palette) {
+			this.lastPalette = this.viewModel.palette;
+		}
+		return this.lastPalette;
+	}
+
 	private expandedFooterColors(): FooterColors {
-		const palette = this.viewModel.palette;
+		const palette = this.resolvePalette();
 		return {
 			activeIconColor: palette?.on_surface.hex ?? paletteDefaults.onSurface,
 			background: withAlpha(palette?.surface.hex ?? paletteDefaults.surface, 0.8),
@@ -203,7 +217,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	}
 
 	private applyExpandedBarColors(): void {
-		const surfaceColor = this.viewModel.palette?.surface.hex ?? paletteDefaults.surface;
+		const surfaceColor = this.resolvePalette()?.surface.hex ?? paletteDefaults.surface;
 		this.viewModel.barColors.setHeaderColor(surfaceColor);
 		this.viewModel.barColors.setNavigationBarColor(surfaceColor);
 		this.viewModel.barColors.setFooter(this.expandedFooterColors());
@@ -247,7 +261,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		const generation = ++this.transitionGeneration;
 		this.viewModel.barColors.setFooter(this.expandedFooterColors());
 		this.viewModel.barColors.setNavigationBarColor(
-			this.viewModel.palette?.surface.hex ?? paletteDefaults.surface,
+			this.resolvePalette()?.surface.hex ?? paletteDefaults.surface,
 		);
 		this.setState({ isExpanded: true });
 		this.expandedScrollRef.setAttribute('contentOffsetY', 0);
@@ -301,12 +315,15 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		if (!prevViewModel) {
-			this.rebuildPaletteStyles(this.viewModel.palette, this.state.activeQueueTab);
+			this.rebuildPaletteStyles(this.resolvePalette(), this.state.activeQueueTab);
 			return;
 		}
 
-		if (this.viewModel.palette !== prevViewModel.palette) {
-			this.rebuildPaletteStyles(this.viewModel.palette, this.state.activeQueueTab);
+		// Only restyle once the new track's palette is actually available. While it is still being
+		// extracted the prop is undefined, so we hold the previous palette rather than flashing the
+		// chrome to the default colours.
+		if (this.viewModel.palette && this.viewModel.palette !== prevViewModel.palette) {
+			this.rebuildPaletteStyles(this.resolvePalette(), this.state.activeQueueTab);
 
 			if (this.state.isExpanded && !this.isTransitioning) {
 				this.applyExpandedBarColors();
@@ -546,7 +563,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private handleQueueTabTap = (tab: QueueTab): void => {
 		if (tab === this.state.activeQueueTab || this.isQueueSliding) return;
 		const mutedOnSurfaceColor =
-			this.viewModel.palette?.muted_on_surface.hex ?? paletteDefaults.mutedOnSurface;
+			this.resolvePalette()?.muted_on_surface.hex ?? paletteDefaults.mutedOnSurface;
 		this.cachedBackToLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, tab === 'backTo');
 		this.cachedUpNextLabelStyle = getQueueTabLabelStyle(mutedOnSurfaceColor, tab === 'upNext');
 		this.setState({ activeQueueTab: tab });
@@ -680,13 +697,15 @@ export class NowPlayingSurface extends StatefulComponent<
 			onProgressTap,
 			onPrevious,
 			onTrackTap,
-			palette,
 			track,
 			trackIndex,
 			tracks,
 		} = this.viewModel;
 
 		if (!track) return;
+
+		// Hold the previous track's palette until the new one is extracted so colours don't flash.
+		const palette = this.resolvePalette();
 
 		const playbackStore = this.viewModel.playbackStore;
 		const progressSeconds = playbackStore?.progressSeconds ?? 0;

@@ -533,6 +533,91 @@ describe('NowPlayingSurface', () => {
 		},
 	);
 
+	valdiIt(
+		'holds the previous palette colours while the next track palette is still loading',
+		async () => {
+			const barColors = new BarColorStore();
+			const headerColors: Array<string> = [];
+			const navBarColors: Array<string> = [];
+			barColors.setHeaderColor = (color: string) => {
+				headerColors.push(color);
+			};
+			barColors.setNavigationBarColor = (color: string) => {
+				navBarColors.push(color);
+			};
+
+			const paletteA: Palette = {
+				accent: { hex: '#aabbcc' },
+				muted_on_surface: { hex: '#778899' },
+				on_surface: { hex: '#445566' },
+				primary: { hex: '#ddeeff' },
+				surface: { hex: '#112233' },
+			};
+			const paletteB: Palette = {
+				accent: { hex: '#0a0b0c' },
+				muted_on_surface: { hex: '#998877' },
+				on_surface: { hex: '#665544' },
+				primary: { hex: '#102030' },
+				surface: { hex: '#221100' },
+			};
+
+			const baseViewModel = {
+				album,
+				artistLogoUrl: null,
+				barColors,
+				collapseSignal: 0,
+				isPlaying: true,
+				loopMode: 'none',
+				onDismiss: () => {},
+				onLoopModeToggle: () => {},
+				onNext: () => {},
+				onPlayPause: () => {},
+				onPrevious: () => {},
+				palette: paletteA as Palette | undefined,
+				playbackStore: mockPlaybackStore(),
+				track,
+				trackIndex: 0,
+				tracks: [track],
+			};
+
+			const instrumented = createComponent(NowPlayingSurface, baseViewModel);
+			const component = instrumented.getComponent();
+
+			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+				.find((view) => view.getAttribute('id') === 'now-playing-surface-bar')
+				?.getAttribute('onTap')?.(touchEvent);
+			// Let the expand transition settle so the bars are tinted to palette A.
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			headerColors.length = 0;
+			navBarColors.length = 0;
+			const paletteAFooter = {
+				activeIconColor: '#445566',
+				background: withAlpha('#112233', 0.8),
+				inactiveIconColor: withAlpha('#778899', 0.58),
+			};
+			expect(barColors.footer).toEqual(paletteAFooter);
+
+			// Track change: the new palette has not been extracted yet (prop is undefined). The chrome
+			// must not flash to the default colours — it holds palette A until the new palette arrives.
+			instrumented.setViewModel({ ...baseViewModel, palette: undefined });
+
+			expect(headerColors).toEqual([]);
+			expect(navBarColors).toEqual([]);
+			expect(barColors.footer).toEqual(paletteAFooter);
+
+			// Once the new palette is available, the chrome re-tints to it.
+			instrumented.setViewModel({ ...baseViewModel, palette: paletteB });
+
+			expect(headerColors).toContain('#221100');
+			expect(barColors.footer).toEqual({
+				activeIconColor: '#665544',
+				background: withAlpha('#221100', 0.8),
+				inactiveIconColor: withAlpha('#998877', 0.58),
+			});
+		},
+	);
+
 	valdiIt('shows add-to-queue toast when context menu action is tapped', async () => {
 		let addToQueueCalls = 0;
 		const playbackStore = mockPlaybackStore({
