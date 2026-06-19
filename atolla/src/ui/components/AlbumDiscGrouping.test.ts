@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { Track } from '../../models/Track';
-import { groupTracksByDisc } from './albumDiscGrouping';
+import { groupTracksByDisc } from '../components/AlbumDiscGrouping';
 
 function track(id: string, discNumber?: number, trackNumber?: number): Track {
 	return { duration: 60, id, name: id, trackNumber, ...(discNumber != null ? { discNumber } : {}) };
