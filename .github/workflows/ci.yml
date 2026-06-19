@@ -32,6 +32,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
+            /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL
+          df -h /
       - name: Cache bun dependencies
         uses: actions/cache@v5
         with:
@@ -55,10 +61,10 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: |
-            bazel-atolla/external/valdi/modules
-            bazel-atolla/external/valdi/src/valdi_modules
+            bazel-atolla/external/valdi~/modules
+            bazel-atolla/external/valdi~/src/valdi_modules
             bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
-            bazel-out/k8-fastbuild/bin/external/valdi/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
+            bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
             atolla/tsconfig.json
           key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/res/**') }}
       - name: Install libtinfo5
@@ -102,8 +108,6 @@ jobs:
       - run: bunx valdi projectsync --target //atolla:atolla_projectsync
         id: projectsync
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
-        # FIXME: see if valdi update fixes this
-      - run: ln -sfn bazel-atolla bazel-_main
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.15.2
@@ -118,10 +122,10 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: |
-            bazel-atolla/external/valdi/modules
-            bazel-atolla/external/valdi/src/valdi_modules
+            bazel-atolla/external/valdi~/modules
+            bazel-atolla/external/valdi~/src/valdi_modules
             bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
-            bazel-out/k8-fastbuild/bin/external/valdi/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
+            bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
             atolla/tsconfig.json
           key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/res/**') }}
       - name: Save bazel repository cache
@@ -138,6 +142,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
+            /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL
+          df -h /
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.15.2
@@ -179,6 +189,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
+            /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL
+          df -h /
       - name: Install libtinfo5
         run: |
           wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
@@ -253,6 +269,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc \
+            /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL
+          df -h /
       - name: Install libtinfo5
         run: |
           wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb

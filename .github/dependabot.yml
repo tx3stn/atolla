@@ -1,11 +1,11 @@
 version: 2
 updates:
-  - package-ecosystem: "bazel"
-    directories:
-      - /
-      - atolla/**/*
-    schedule:
-      interval: "weekly"
+  # - package-ecosystem: "bazel"
+  #   directories:
+  #     - /
+  #     - atolla/**/*
+  #   schedule:
+  #     interval: monthly
   - package-ecosystem: "bun"
     directory: "/"
     schedule:
