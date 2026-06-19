@@ -3,6 +3,7 @@ import { DetailHeaderPage } from './DetailHeaderPage';
 
 export class ArtistDetailPage extends BasePage {
 	private readonly root = 'artist-view';
+	private readonly artistLogoText = 'detail-header-artist-logo-text';
 	private readonly trackRowSwipeRegionPrefix = 'track-row-swipe-region-artist-top-track-';
 
 	DetailHeader(): DetailHeaderPage {
@@ -14,6 +15,14 @@ export class ArtistDetailPage extends BasePage {
 			timeout,
 			timeoutMsg: 'Timed out waiting for artist view',
 		});
+	}
+
+	// In the test environment artist images have no source, so the artist name renders as
+	// the header logo's fallback text.
+	async artistName(): Promise<string> {
+		const el = this.elementByID(this.artistLogoText);
+		await el.waitForExist({ timeoutMsg: 'Timed out waiting for artist name' });
+		return (await el.getText()) ?? '';
 	}
 
 	async waitForTrackRowsVisible(): Promise<void> {

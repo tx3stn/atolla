@@ -663,6 +663,112 @@ describe('NowPlayingSurface', () => {
 		expect(toastService.getMessage()).toBe('added to queue');
 	});
 
+	valdiIt('context menu artist tap targets the selected track, not the playing one', async () => {
+		let capturedArtistTrack: { artistId?: string; id?: string } | undefined;
+		const contextTrack = {
+			albumId: 'album-2',
+			albumImageUrl: 'https://example.com/other.jpg',
+			albumName: 'Other Album',
+			artistId: 'artist-2',
+			artistName: 'Other Artist',
+			duration: 200,
+			id: 'track-2',
+			name: 'Other Track',
+		};
+		const transport = {
+			getArtistLogoUrl: () => Promise.resolve(null),
+		};
+
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onArtistTap: (t: { artistId?: string; id?: string }) => {
+				capturedArtistTrack = t;
+			},
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore: mockPlaybackStore(),
+			toastService: new ToastService(),
+			track,
+			trackIndex: 0,
+			tracks: [track],
+			transport,
+		});
+		const component = instrumented.getComponent();
+		component.setState({ contextMenuTrack: contextTrack });
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const artistLogo = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-context-artist-logo',
+		);
+		artistLogo?.getAttribute('onTap')?.(touchEvent);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(capturedArtistTrack?.id).toBe('track-2');
+		expect(capturedArtistTrack?.artistId).toBe('artist-2');
+	});
+
+	valdiIt('context menu album tap targets the selected track album', async () => {
+		let capturedAlbumTrack: { albumId?: string; id?: string } | undefined;
+		const contextTrack = {
+			albumId: 'album-2',
+			albumImageUrl: 'https://example.com/other.jpg',
+			albumName: 'Other Album',
+			artistId: 'artist-2',
+			artistName: 'Other Artist',
+			duration: 200,
+			id: 'track-2',
+			name: 'Other Track',
+		};
+		const transport = {
+			getArtistLogoUrl: () => Promise.resolve(null),
+		};
+
+		const instrumented = createComponent(NowPlayingSurface, {
+			album,
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onAlbumTap: (t: { albumId?: string; id?: string }) => {
+				capturedAlbumTrack = t;
+			},
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore: mockPlaybackStore(),
+			toastService: new ToastService(),
+			track,
+			trackIndex: 0,
+			tracks: [track],
+			transport,
+		});
+		const component = instrumented.getComponent();
+		component.setState({ contextMenuTrack: contextTrack });
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const albumRow = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-2-0',
+		);
+		albumRow?.getAttribute('onTap')?.(touchEvent);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(capturedAlbumTrack?.id).toBe('track-2');
+		expect(capturedAlbumTrack?.albumId).toBe('album-2');
+	});
+
 	valdiIt('removes a queued track by swipe after entering queue edit mode', async () => {
 		jasmine.clock().install();
 		try {

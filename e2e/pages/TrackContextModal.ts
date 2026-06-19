@@ -5,6 +5,7 @@ export class TrackContextMenu extends BasePage {
 	private readonly addToQueue = 'track-context-add-to-queue';
 	private readonly playNext = 'track-context-play-next';
 	private readonly artistLogo = 'track-context-artist-logo';
+	private readonly artistLogoText = 'track-context-artist-logo-text';
 	private readonly trackPreview = 'track-context-track';
 	private readonly backdrop = 'track-context-backdrop';
 	private readonly trackTitlePrefix = 'track-title-';
@@ -51,6 +52,14 @@ export class TrackContextMenu extends BasePage {
 		const els = await this.allByAccessibilityPrefixWithin(menu, this.trackTitlePrefix);
 		if (els.length === 0) throw new Error('No track title found in context menu');
 		return els[0].getText();
+	}
+
+	// In the test environment artist logos have no image, so the artist name renders as
+	// the logo's fallback text.
+	async getArtistName(): Promise<string> {
+		const el = this.elementByID(this.artistLogoText);
+		await el.waitForExist({ timeoutMsg: 'Timed out waiting for context menu artist name' });
+		return (await el.getText()) ?? '';
 	}
 
 	async tapArtist(): Promise<void> {

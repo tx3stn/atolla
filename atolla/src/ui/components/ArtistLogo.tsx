@@ -42,6 +42,8 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 			) : fallbackText ? (
 				<view style={styles.fallbackTextPadding}>
 					<label
+						accessibilityId={accessibilityId ? `${accessibilityId}-text` : undefined}
+						accessibilityLabel={accessibilityId ? `${accessibilityId}-text` : undefined}
 						numberOfLines={0}
 						style={fallbackTextStyle ?? styles.fallbackText}
 						value={fallbackText}

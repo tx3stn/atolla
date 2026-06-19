@@ -53,8 +53,8 @@ export interface NowPlayingSurfaceViewModel {
 	isPlaying: boolean;
 	language?: string;
 	loopMode?: LoopMode;
-	onAlbumTap?: () => void;
-	onArtistTap?: () => void;
+	onAlbumTap?: (track?: Track) => void;
+	onArtistTap?: (track?: Track) => void;
 	onDismiss: () => void;
 	onLoopModeToggle?: () => void;
 	onNext: () => void;
@@ -438,8 +438,22 @@ export class NowPlayingSurface extends StatefulComponent<
 	};
 
 	private handleContextMenuArtistTap = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track) {
+			return;
+		}
 		void this.closeSurface().then(() => {
-			this.viewModel.onArtistTap?.();
+			this.viewModel.onArtistTap?.(track);
+		});
+	};
+
+	private handleContextMenuAlbumTap = (): void => {
+		const track = this.state.contextMenuTrack;
+		if (!track) {
+			return;
+		}
+		void this.closeSurface().then(() => {
+			this.viewModel.onAlbumTap?.(track);
 		});
 	};
 
@@ -865,6 +879,7 @@ export class NowPlayingSurface extends StatefulComponent<
 								)}
 								<layout style={styles.expandedInfoSection}>
 									<ArtistLogo
+										accessibilityId='now-playing-artist-logo'
 										containerStyle={styles.expandedArtistLogoArea}
 										fallbackText={track.artistName ?? ''}
 										fallbackTextStyle={paletteStyles.expandedArtistNameStyle}
@@ -1069,6 +1084,11 @@ export class NowPlayingSurface extends StatefulComponent<
 					animationsEnabled={this.viewModel.animationsEnabled}
 					imageCache={this.viewModel.imageCache}
 					onAddToPlaylist={this.handleContextMenuAddToPlaylist}
+					onAlbumTap={
+						this.state.contextMenuTrack.albumId && this.viewModel.onAlbumTap
+							? this.handleContextMenuAlbumTap
+							: undefined
+					}
 					onArtistTap={
 						this.state.contextMenuTrack.artistId && this.viewModel.onArtistTap
 							? this.handleContextMenuArtistTap

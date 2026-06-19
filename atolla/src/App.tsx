@@ -2515,16 +2515,35 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			.catch(this.handleSwallowedAsyncError);
 	};
 
-	handleNowPlayingArtistTap = (): void => {
-		const { album, artistLogoUrl, track } = this.playbackStore;
-		const artistId = track?.artistId ?? album?.artistId;
-		if (!artistId) {
+	handleNowPlayingArtistTap = (track?: Track): void => {
+		if (track) {
+			if (!track.artistId) {
+				return;
+			}
+			this.navigateToArtist(track.artistId, track.artistName ?? 'Unknown Artist', null);
 			return;
 		}
 
+		const { album, artistLogoUrl, track: playing } = this.playbackStore;
+		const artistId = playing?.artistId ?? album?.artistId;
+		if (!artistId) {
+			return;
+		}
+		this.navigateToArtist(
+			artistId,
+			playing?.artistName ?? album?.artistName ?? 'Unknown Artist',
+			artistLogoUrl ?? null,
+		);
+	};
+
+	private navigateToArtist(
+		artistId: string,
+		fallbackName: string,
+		fallbackLogoUrl: string | null,
+	): void {
 		this.pendingArtistId = artistId;
-		this.pendingArtistFallbackName = track?.artistName ?? album?.artistName ?? 'Unknown Artist';
-		this.pendingArtistFallbackLogoUrl = artistLogoUrl ?? null;
+		this.pendingArtistFallbackName = fallbackName;
+		this.pendingArtistFallbackLogoUrl = fallbackLogoUrl;
 		this.setState({
 			activeFooterTab: FooterTabs.library,
 			activeLibraryTab: HeaderTabs.artists,
@@ -2533,7 +2552,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 
 		this.tryNavigatePendingArtist();
-	};
+	}
 
 	private tryNavigatePendingArtist(): void {
 		if (
@@ -2592,25 +2611,32 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			});
 	}
 
-	handleNowPlayingAlbumTap = (): void => {
-		const { album, track } = this.playbackStore;
-		const resolvedAlbum: Album | null =
-			album ??
-			(track?.albumId
-				? {
-						artistId: track.artistId ?? '',
-						artistName: track.artistName ?? '',
-						id: track.albumId,
-						imageUrl: track.albumImageUrl,
-						name: track.albumName ?? '',
-						releaseDate: track.releaseDate,
-					}
-				: null);
+	handleNowPlayingAlbumTap = (track?: Track): void => {
+		const resolvedAlbum = track
+			? this.albumFromTrack(track)
+			: (this.playbackStore.album ?? this.albumFromTrack(this.playbackStore.track));
 		if (!resolvedAlbum) {
 			return;
 		}
+		this.navigateToAlbum(resolvedAlbum);
+	};
 
-		this.pendingAlbum = resolvedAlbum;
+	private albumFromTrack(track: Track | null | undefined): Album | null {
+		if (!track?.albumId) {
+			return null;
+		}
+		return {
+			artistId: track.artistId ?? '',
+			artistName: track.artistName ?? '',
+			id: track.albumId,
+			imageUrl: track.albumImageUrl,
+			name: track.albumName ?? '',
+			releaseDate: track.releaseDate,
+		};
+	}
+
+	private navigateToAlbum(album: Album): void {
+		this.pendingAlbum = album;
 		this.setState({
 			activeFooterTab: FooterTabs.library,
 			activeLibraryTab: HeaderTabs.albums,
@@ -2619,7 +2645,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 
 		this.tryNavigatePendingAlbum();
-	};
+	}
 
 	handleHomeArtistTap = (artistId: string): void => {
 		if (!this.homeNavigationController) {

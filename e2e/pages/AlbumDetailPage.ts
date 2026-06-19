@@ -4,6 +4,7 @@ import { DetailHeaderPage } from './DetailHeaderPage';
 export class AlbumDetailPage extends BasePage {
 	private readonly root = 'album-view';
 	private readonly trackRowSwipeRegionPrefix = 'track-row-swipe-region-album-track-';
+	private readonly trackTitlePrefix = 'track-title-album-track-';
 
 	DetailHeader(): DetailHeaderPage {
 		return new DetailHeaderPage(this.driver);
@@ -19,6 +20,15 @@ export class AlbumDetailPage extends BasePage {
 	async waitForTrackRowsVisible(): Promise<void> {
 		await this.waitForLoad();
 		await this.waitForVisibleAccessibilityPrefix(this.trackRowSwipeRegionPrefix);
+	}
+
+	async trackTitles(): Promise<Array<string>> {
+		await this.waitForVisibleAccessibilityPrefix(this.trackTitlePrefix);
+		const titles: Array<string> = [];
+		for (const el of await this.allByAccessibilityPrefix(this.trackTitlePrefix)) {
+			titles.push(await el.getText());
+		}
+		return titles;
 	}
 
 	async openTrackContextMenuOnFirstVisibleRow(): Promise<void> {

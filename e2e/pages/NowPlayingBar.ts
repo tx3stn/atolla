@@ -3,6 +3,7 @@ import { BasePage } from './Base';
 export class NowPlayingBar extends BasePage {
 	private readonly bar = 'now-playing-surface-bar';
 	private readonly trackName = 'now-playing-track-name';
+	private readonly artistLogoText = 'now-playing-artist-logo-text';
 	private readonly progress = 'now-playing-progress';
 	// The progress bar renders as a waveform when a waveform mask is available and falls
 	// back to a plain bar otherwise; the plain variant exposes a different id.
@@ -20,6 +21,7 @@ export class NowPlayingBar extends BasePage {
 	private readonly trackTitleBackToPrefix = 'track-title-back-to-';
 	private readonly trackRowUpNextPrefix = 'track-row-up-next-';
 	private readonly trackRowBackToPrefix = 'track-row-back-to-';
+	private readonly trackRowSwipeRegionUpNextPrefix = 'track-row-swipe-region-up-next-';
 	private readonly trackHandleUpNextPrefix = 'track-row-edit-handle-up-next-';
 
 	private activeTab: 'upNext' | 'backTo' = 'upNext';
@@ -35,6 +37,12 @@ export class NowPlayingBar extends BasePage {
 	async currentTrackName(): Promise<string> {
 		const el = this.elementByID(this.trackName);
 		await el.waitForExist({ timeoutMsg: 'Timed out waiting for track name' });
+		return (await el.getText()) ?? '';
+	}
+
+	async getArtistName(): Promise<string> {
+		const el = this.elementByID(this.artistLogoText);
+		await el.waitForExist({ timeoutMsg: 'Timed out waiting for now playing artist name' });
 		return (await el.getText()) ?? '';
 	}
 
@@ -120,6 +128,10 @@ export class NowPlayingBar extends BasePage {
 		await el.click();
 	}
 
+	async swipeTracksIntoView(): Promise<void> {
+		await this.swipeUpSurface('expand-for-up-next-tab');
+	}
+
 	async tapUpNextTab(): Promise<void> {
 		this.activeTab = 'upNext';
 		await this.swipeUpSurface('expand-for-up-next-tab');
@@ -191,6 +203,22 @@ export class NowPlayingBar extends BasePage {
 			if (text) return text;
 		}
 		throw new Error('No up next track titles found');
+	}
+
+	async upNextRowCount(): Promise<number> {
+		await this.waitForQueueRowsVisible();
+		return (await this.allByAccessibilityPrefix(this.trackRowSwipeRegionUpNextPrefix)).length;
+	}
+
+	async openTrackContextMenuOnUpNextRow(index: number): Promise<void> {
+		await this.waitForQueueRowsVisible();
+		const rows = await this.sortedByY(
+			await this.allByAccessibilityPrefix(this.trackRowSwipeRegionUpNextPrefix),
+		);
+		if (index >= rows.length) {
+			throw new Error(`No up next row at index ${index}`);
+		}
+		await this.longPressElement(rows[index]);
 	}
 
 	async upNextTrackNames(): Promise<Array<string>> {

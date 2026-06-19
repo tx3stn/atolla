@@ -78,6 +78,48 @@ describe('TrackContextMenu', () => {
 		expect(dismissMessages).toEqual(['playing next']);
 	});
 
+	valdiIt('opens the artist and dismisses when the artist logo is tapped', async () => {
+		const artistTaps: Array<string> = [];
+		const { dismissMessages, viewModel } = createViewModel({
+			onArtistTap: () => {
+				artistTaps.push('artist');
+			},
+		});
+		const instrumented = createComponent(TrackContextMenu, viewModel);
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const artistLogo = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-context-artist-logo',
+		);
+
+		artistLogo?.getAttribute('onTap')?.(touchEvent);
+
+		expect(artistTaps).toEqual(['artist']);
+		expect(dismissMessages).toEqual([undefined]);
+	});
+
+	valdiIt('opens the album and dismisses when the album row is tapped', async () => {
+		const albumTaps: Array<string> = [];
+		const { dismissMessages, viewModel } = createViewModel({
+			onAlbumTap: () => {
+				albumTaps.push('album');
+			},
+		});
+		const instrumented = createComponent(TrackContextMenu, viewModel);
+		const component = instrumented.getComponent();
+
+		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const albumRow = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
+		);
+
+		albumRow?.getAttribute('onTap')?.(touchEvent);
+
+		expect(albumTaps).toEqual(['album']);
+		expect(dismissMessages).toEqual([undefined]);
+	});
+
 	valdiIt('dismisses without toast when backdrop is tapped', async () => {
 		const { callOrder, dismissMessages, viewModel } = createViewModel();
 		const instrumented = createComponent(TrackContextMenu, viewModel);
