@@ -1,6 +1,8 @@
 {
 	"compilerOptions": {
+		"forceConsistentCasingInFileNames": true,
 		"skipLibCheck": true,
+		"strict": true,
 		"types": [
 			"../bazel-atolla/external/valdi~/modules/types/Long",
 			"../bazel-atolla/external/valdi~/modules/types/globals"

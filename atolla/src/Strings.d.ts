@@ -16,6 +16,7 @@ declare const Strings: {
 	createPlaylistIncludeUpNext: () => string;
 	createPlaylistModalTitle: () => string;
 	playlistNamePlaceholder: () => string;
+	albumDiscHeader: (number: number) => string;
 	albumFallbackLabel: () => string;
 	artistSectionAlbums: () => string;
 	artistSectionTopTracks: () => string;

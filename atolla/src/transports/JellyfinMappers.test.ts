@@ -37,6 +37,16 @@ describe('mapJellyfinTrackToTrack', () => {
 		expect(track.albumImageUrl).toBe('https://img/album-1');
 	});
 
+	it('maps ParentIndexNumber to the disc number', () => {
+		const track = mapJellyfinTrackToTrack({ Id: 't1', ParentIndexNumber: 2 } as TrackItem);
+		expect(track.discNumber).toBe(2);
+	});
+
+	it('leaves the disc number undefined when ParentIndexNumber is absent', () => {
+		const track = mapJellyfinTrackToTrack({ Id: 't1' } as TrackItem);
+		expect(track.discNumber).toBeUndefined();
+	});
+
 	it('does not build an album image url for an empty AlbumId', () => {
 		const calls: Array<string> = [];
 		const track = mapJellyfinTrackToTrack({ AlbumId: '', Id: 't1' } as TrackItem, {

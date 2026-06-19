@@ -49,6 +49,7 @@ export interface JellyfinBaseItemDto extends JellyfinBaseItemIdentity {
 	IndexNumber?: number;
 	MediaSources?: Array<JellyfinMediaSource>;
 	Overview?: string;
+	ParentIndexNumber?: number;
 	ParentLogoImageTag?: string;
 	ParentLogoItemId?: string;
 	PlaylistItemId?: string;

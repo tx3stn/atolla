@@ -255,6 +255,90 @@ describe('AlbumView', () => {
 		expect(captured.pushedPage?.componentViewModel?.artist?.name).toBe('Artist One');
 	});
 
+	valdiIt('renders a DISK header per disc when tracks span more than one disc', async () => {
+		const album = {
+			artistId: 'artist-1',
+			artistName: 'Artist One',
+			id: 'album-1',
+			name: 'First Album',
+		};
+		const tracks = [
+			{ discNumber: 1, duration: 60, id: 'track-1', name: 'Song One', trackNumber: 1 },
+			{ discNumber: 1, duration: 75, id: 'track-2', name: 'Song Two', trackNumber: 2 },
+			{ discNumber: 2, duration: 90, id: 'track-3', name: 'Song Three', trackNumber: 1 },
+		];
+		const transport = {
+			getAlbumsByIds: async () => [],
+			getArtist: async () => null,
+			getTracksByAlbum: async () => tracks,
+		};
+		const playbackStore = {
+			play: () => {},
+			setArtistLogoUrl: () => {},
+			subscribe: () => () => {},
+			track: null,
+		};
+
+		const instrumented = createComponent(
+			AlbumView,
+			{ album, downloadService, playbackStore, transport },
+			{ navigator: mockNavigator },
+		);
+		const component = instrumented.getComponent();
+
+		component.setState({ artistLogoUrl: null, isLoading: false, tracks });
+
+		const labels = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Label,
+		);
+		const values = labels.map((label) => label.getAttribute('value'));
+		expect(values).toContain('DISK 1');
+		expect(values).toContain('DISK 2');
+	});
+
+	valdiIt('does not render a DISK header when every track shares one disc', async () => {
+		const album = {
+			artistId: 'artist-1',
+			artistName: 'Artist One',
+			id: 'album-1',
+			name: 'First Album',
+		};
+		const tracks = [
+			{ discNumber: 1, duration: 60, id: 'track-1', name: 'Song One', trackNumber: 1 },
+			{ discNumber: 1, duration: 75, id: 'track-2', name: 'Song Two', trackNumber: 2 },
+		];
+		const transport = {
+			getAlbumsByIds: async () => [],
+			getArtist: async () => null,
+			getTracksByAlbum: async () => tracks,
+		};
+		const playbackStore = {
+			play: () => {},
+			setArtistLogoUrl: () => {},
+			subscribe: () => () => {},
+			track: null,
+		};
+
+		const instrumented = createComponent(
+			AlbumView,
+			{ album, downloadService, playbackStore, transport },
+			{ navigator: mockNavigator },
+		);
+		const component = instrumented.getComponent();
+
+		component.setState({ artistLogoUrl: null, isLoading: false, tracks });
+
+		const labels = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Label,
+		);
+		const values = labels.map((label) => label.getAttribute('value'));
+		expect(values.some((value) => typeof value === 'string' && value.startsWith('DISK'))).toBe(
+			false,
+		);
+	});
+
 	valdiIt(
 		'renders date-only release date and total duration in separate subheader columns when tracks are loaded',
 		async () => {

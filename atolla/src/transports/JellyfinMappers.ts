@@ -185,6 +185,7 @@ export function mapJellyfinTrackToTrack(
 		artistId: primaryArtist?.Id || undefined,
 		artistName: primaryArtist?.Name,
 		audioFormat: formatAudioQuality(item.MediaSources),
+		discNumber: item.ParentIndexNumber,
 		duration: runTimeTicksToSeconds(item.RunTimeTicks),
 		genres: mapGenreReferences(item),
 		id: item.Id,

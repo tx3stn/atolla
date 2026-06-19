@@ -4,11 +4,12 @@ import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
-import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
+import Strings from '../../Strings';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -16,6 +17,7 @@ import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/async';
+import { groupTracksByDisc } from '../components/AlbumDiscGrouping';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
@@ -326,7 +328,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				return;
 			}
 
-			const tracks = tracksResult.status === 'fulfilled' ? tracksResult.value : [];
+			const fetchedTracks = tracksResult.status === 'fulfilled' ? tracksResult.value : [];
+			// Keep the stored order disc-grouped so playback (which indexes into
+			// state.tracks) always matches the per-disc sections we render.
+			const tracks = groupTracksByDisc(fetchedTracks).groups.flatMap((group) => group.tracks);
 			const artist = artistResult.status === 'fulfilled' ? artistResult.value : null;
 			const logoUrl = artist?.logoUrl || null;
 			const fullAlbum =
@@ -428,7 +433,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const albumGenres = normalizeGenres(album.genres);
 
-		const entries: Array<TrackListEntry> = tracks.map((track) => {
+		const toEntry = (track: Track): TrackListEntry => {
 			const duration = formatDuration(track.duration);
 			const showTrackArtist = track.artistName != null && track.artistName !== album.artistName;
 			return {
@@ -438,7 +443,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				title: track.name,
 				track,
 			};
-		});
+		};
+
+		const { groups, multiDisc } = groupTracksByDisc(tracks);
 
 		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
 		const releaseDateText = formatReleaseDate(album.releaseDate);
@@ -473,6 +480,27 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					/>
 					{isLoading ? (
 						<LoadingView />
+					) : multiDisc ? (
+						groups.map((group) => (
+							<layout key={`album-disc-${group.disc ?? 'none'}`} style={styles.discSection}>
+								{group.disc !== null && (
+									<label
+										accessibilityId={`album-disc-header-${group.disc}`}
+										accessibilityLabel={`album-disc-header-${group.disc}`}
+										style={styles.discHeader}
+										value={Strings.albumDiscHeader(group.disc)}
+									/>
+								)}
+								<TrackList
+									animationsEnabled={animationsEnabled}
+									imageCache={imageCache}
+									onTrackLongPress={this.handleTrackLongPress}
+									onTrackTap={this.handleTrackTap}
+									rowIdentityPrefix={`album-disc-${group.disc ?? 'none'}-track-`}
+									tracks={group.tracks.map(toEntry)}
+								/>
+							</layout>
+						))
 					) : (
 						<TrackList
 							animationsEnabled={animationsEnabled}
@@ -480,7 +508,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 							onTrackLongPress={this.handleTrackLongPress}
 							onTrackTap={this.handleTrackTap}
 							rowIdentityPrefix='album-track-'
-							tracks={entries}
+							tracks={tracks.map(toEntry)}
 						/>
 					)}
 					{album.bio && (
@@ -548,6 +576,15 @@ function formatReleaseDate(value?: string | null): string | null {
 }
 
 const styles = {
+	discHeader: new Style<Label>({
+		...theme.text.mutedHeader,
+		marginBottom: 4,
+		marginLeft: 8,
+		marginTop: 12,
+	}),
+	discSection: new Style({
+		width: '100%',
+	}),
 	fullScreen: new Style<View>({
 		height: '100%',
 		position: 'relative',

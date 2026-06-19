@@ -11,6 +11,10 @@
 	"added_to_queue_toast": {
 		"defaultMessage": "ajouté à la file"
 	},
+	"album_disc_header": {
+		"defaultMessage": "DISQUE {number%d}",
+		"example": "DISQUE 1"
+	},
 	"album_fallback_label": {
 		"defaultMessage": "ALBUM"
 	},

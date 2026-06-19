@@ -7,6 +7,7 @@ export interface Track {
 	artistId?: string;
 	artistName?: string;
 	audioFormat?: string;
+	discNumber?: number;
 	duration: number; // seconds
 	genres?: Array<Genre>;
 	id: string;
