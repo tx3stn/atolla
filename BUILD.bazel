@@ -1,5 +1,5 @@
-load("@valdi//bzl/valdi:valdi_application.bzl", "valdi_application")
 load("@rules_zig//zig:toolchain.bzl", "zig_target_toolchain")
+load("@valdi//bzl/valdi:valdi_application.bzl", "valdi_application")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -8,8 +8,8 @@ valdi_application(
     android_app_manifest = "//atolla/native:android_manifest",
     android_package = "com.tx3stn.atolla",
     android_resource_files = ["//atolla/native:android_launcher_icons"],
-    ios_bundle_id = "com.tx3stn.atolla",
     ios_app_icons = ["//atolla/native:ios_launcher_icons"],
+    ios_bundle_id = "com.tx3stn.atolla",
     ios_families = ["iphone"],
     root_component_path = "App@atolla/src/App",
     title = "atolla",

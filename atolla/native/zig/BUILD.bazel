@@ -5,12 +5,12 @@ package(default_visibility = ["//visibility:public"])
 
 zig_static_library(
     name = "atolla_algorithms_zig",
-    main = "atolla_algorithms.zig",
     srcs = [
-        "palette_extractor.zig",
         "image_blur.zig",
+        "palette_extractor.zig",
         "waveform_generator.zig",
     ],
+    main = "atolla_algorithms.zig",
 )
 
 # rules_zig uses llvm-ar which writes 2-byte-aligned Mach-O archives.

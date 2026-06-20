@@ -4,20 +4,6 @@ package(default_visibility = ["//visibility:public"])
 
 valdi_module(
     name = "atolla",
-    android_deps = ["//atolla/native:atolla_cache_image_loader_android"],
-    ios_deps = [
-        "//atolla/native:atolla_debug_logger_module_factory_ios",
-        "//atolla/native:atolla_haptics_bootstrap_module_factory_ios",
-        "//atolla/native:atolla_track_playback_module_factory_ios",
-        "//atolla/native:atolla_waveform_module_factory_ios",
-        "//atolla/native:atolla_image_loader_bootstrap_module_factory_ios",
-        "//atolla/native:atolla_swipe_back_fix_ios",
-    ],
-    native_deps = [
-        "//atolla/native/zig:blur_android_jni",
-        "//atolla/native/zig:palette_android_jni",
-        "//atolla/native/zig:waveform_android_jni",
-    ],
     srcs = glob(
         [
             "src/**/*.ts",
@@ -34,9 +20,23 @@ valdi_module(
             "src/Strings.d.ts",
         ],
     ),
+    android_deps = ["//atolla/native:atolla_cache_image_loader_android"],
     exclude_patterns = [
         ".*\\.test\\.ts$",
         ".*\\.test\\.tsx$",
+    ],
+    ios_deps = [
+        "//atolla/native:atolla_debug_logger_module_factory_ios",
+        "//atolla/native:atolla_haptics_bootstrap_module_factory_ios",
+        "//atolla/native:atolla_track_playback_module_factory_ios",
+        "//atolla/native:atolla_waveform_module_factory_ios",
+        "//atolla/native:atolla_image_loader_bootstrap_module_factory_ios",
+        "//atolla/native:atolla_swipe_back_fix_ios",
+    ],
+    native_deps = [
+        "//atolla/native/zig:blur_android_jni",
+        "//atolla/native/zig:palette_android_jni",
+        "//atolla/native/zig:waveform_android_jni",
     ],
     res = glob([
         "res/**/*.jpeg",

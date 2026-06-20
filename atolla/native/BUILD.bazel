@@ -1,4 +1,5 @@
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint", "swift_library")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_interop_hint")
+load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_kotlin//kotlin:android.bzl", "kt_android_library")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 
@@ -45,8 +46,11 @@ objc_library(
     srcs = ["ios/palette_ios_bridge.m"],
     hdrs = ["ios/palette_ios_bridge.h"],
     aspect_hints = [":palette_ios_bridge_swift_interop"],
+    sdk_frameworks = [
+        "CoreGraphics",
+        "UIKit",
+    ],
     deps = ["//atolla/native/zig:palette_algorithm"],
-    sdk_frameworks = ["CoreGraphics", "UIKit"],
 )
 
 swift_interop_hint(
@@ -60,8 +64,11 @@ objc_library(
     srcs = ["ios/blur_ios_bridge.m"],
     hdrs = ["ios/blur_ios_bridge.h"],
     aspect_hints = [":blur_ios_bridge_swift_interop"],
+    sdk_frameworks = [
+        "CoreGraphics",
+        "UIKit",
+    ],
     deps = ["//atolla/native/zig:blur_algorithm"],
-    sdk_frameworks = ["CoreGraphics", "UIKit"],
 )
 
 swift_interop_hint(
@@ -75,10 +82,12 @@ objc_library(
     srcs = ["ios/waveform_ios_bridge.m"],
     hdrs = ["ios/waveform_ios_bridge.h"],
     aspect_hints = [":waveform_ios_bridge_swift_interop"],
+    sdk_frameworks = [
+        "AVFoundation",
+        "CoreMedia",
+    ],
     deps = ["//atolla/native/zig:waveform_algorithm"],
-    sdk_frameworks = ["AVFoundation", "CoreMedia"],
 )
-
 
 objc_library(
     name = "atolla_debug_logger_module_factory_ios",
@@ -93,23 +102,23 @@ objc_library(
     name = "atolla_haptics_bootstrap_module_factory_ios",
     srcs = ["ios/AtollaHapticsBootstrapModuleFactory.m"],
     copts = ["-I."],
+    sdk_frameworks = ["UIKit"],
     deps = [
         "//atolla:atolla_api_objc",
     ],
-    sdk_frameworks = ["UIKit"],
 )
 
 objc_library(
     name = "atolla_track_playback_module_factory_ios",
     srcs = ["ios/AtollaTrackPlaybackNativeModuleFactory.m"],
     copts = ["-I."],
-    deps = [
-        "//atolla:atolla_api_objc",
-        ":atolla_playback_guards_ios",
-    ],
     sdk_frameworks = [
         "AVFoundation",
         "MediaPlayer",
+    ],
+    deps = [
+        ":atolla_playback_guards_ios",
+        "//atolla:atolla_api_objc",
     ],
 )
 
@@ -118,8 +127,8 @@ objc_library(
     srcs = ["ios/AtollaWaveformNativeModuleFactory.m"],
     copts = ["-I."],
     deps = [
-        "//atolla:atolla_api_objc",
         ":waveform_ios_bridge",
+        "//atolla:atolla_api_objc",
     ],
 )
 
@@ -128,11 +137,11 @@ objc_library(
     srcs = ["ios/AtollaImageLoaderBootstrapModuleFactory.m"],
     copts = ["-I."],
     deps = [
-        "//atolla:atolla_api_objc",
         ":atolla_disk_cache_stats_ios",
         ":atolla_image_fallback_ios",
         ":blur_ios_bridge",
         ":palette_ios_bridge",
+        "//atolla:atolla_api_objc",
     ],
 )
 
@@ -142,9 +151,7 @@ objc_library(
     sdk_frameworks = ["UIKit"],
 )
 
-# Pure, framework-free logic extracted from the iOS module factories so it can be unit tested on
-# the host (no UIKit/AVFoundation/Valdi), mirroring the Android atolla_image_fallback /
-# atolla_playback_guards kt_jvm_library targets.
+# Pure, framework-free logic extracted from the iOS module factories so it can be unit tested.
 objc_library(
     name = "atolla_image_fallback_ios",
     srcs = ["ios/AtollaImageFallback.m"],
@@ -175,10 +182,10 @@ kt_android_library(
         "android/AtollaHapticsBootstrap.kt",
         "android/AtollaHapticsBootstrapModuleFactory.kt",
         "android/AtollaImageFallback.kt",
-        "android/AtollaPlaybackGuards.kt",
         "android/AtollaImageLoaderAutoBootstrap.kt",
         "android/AtollaImageLoaderBootstrapModuleFactory.kt",
         "android/AtollaImageLoaderRegistration.kt",
+        "android/AtollaPlaybackGuards.kt",
         "android/AtollaPlaybackService.kt",
         "android/AtollaStatusBarNativeModuleFactory.kt",
         "android/AtollaTrackPlaybackNativeModuleFactory.kt",
