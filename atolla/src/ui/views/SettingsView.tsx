@@ -10,6 +10,7 @@ import type {
 } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import type { ClearCacheSelection } from '../../services/ImageCache';
+import type { ToastService } from '../../services/ToastService';
 import type { Preferences } from '../../stores/Preferences';
 import {
 	DEFAULT_GRID_COLUMNS,
@@ -30,10 +31,9 @@ import { CacheClearModal } from '../components/CacheClearModal';
 import { LanguageSelectModal } from '../components/LanguageSelectModal';
 import { Modal } from '../components/Modal';
 import { SelectOption } from '../components/SelectOption';
-import type { ToastService } from '../components/ToastService';
 import { Toggle } from '../components/Toggle';
 import { ViewHeader } from '../components/ViewHeader';
-import { closeSlot, openSlot } from '../flows/modalSlotFlow';
+import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 
 const GB = 1024 * 1024 * 1024;
 

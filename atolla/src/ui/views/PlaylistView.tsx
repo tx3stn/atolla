@@ -15,6 +15,7 @@ import type { DownloadService, DownloadState } from '../../services/DownloadServ
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
+import type { ToastService } from '../../services/ToastService';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -25,15 +26,14 @@ import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { Modal } from '../components/Modal';
 import { ScrollDragAutoScroller } from '../components/ScrollDragAutoScroller';
-import type { ToastService } from '../components/ToastService';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
-import { closeSlot } from '../flows/modalSlotFlow';
-import { openTrackContextMenu } from '../flows/trackContextMenuController';
+import { resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
+import { closeSlot } from '../flows/ModalSlotFlow';
+import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import type { NavBarContext } from '../NavBarContext';
+import { TRACK_PAGE_SIZE } from '../pagination/Grid';
 import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
-import { resolveGenreImageUrls } from './GenreNavigationResolver';
-import { TRACK_PAGE_SIZE } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
 
 export interface PlaylistViewModel {

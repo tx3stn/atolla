@@ -1,6 +1,6 @@
 import type { Genre } from '../../models/Genre';
 import type { Transport } from '../../transports/Transport';
-import { TRACK_PAGE_SIZE } from './GridPagination';
+import { TRACK_PAGE_SIZE } from '../pagination/Grid';
 
 const MAX_GENRE_PAGES = 20;
 

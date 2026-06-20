@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { createPagedGridController } from './createPagedGridController';
+import { createPagedGridController } from './Grid';
 
 interface TestItem {
 	id: string;

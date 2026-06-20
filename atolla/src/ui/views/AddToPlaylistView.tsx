@@ -5,15 +5,14 @@ import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
+import type { ToastService } from '../../services/ToastService';
 import { theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { Modal } from '../components/Modal';
-import type { ToastService } from '../components/ToastService';
-import { addTracksToPlaylist } from '../flows/playlistFlow';
-import { gridPaginationConfig } from './GridPagination';
-import { createPagedGridController } from './pagination/createPagedGridController';
+import { addTracksToPlaylist } from '../flows/CreatePlaylist';
+import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
 
 export interface AddToPlaylistViewModel {
 	animationsEnabled: boolean;

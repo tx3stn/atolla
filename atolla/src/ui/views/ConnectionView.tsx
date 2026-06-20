@@ -7,6 +7,7 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
+import type { ToastService } from '../../services/ToastService';
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
@@ -14,8 +15,7 @@ import { Button, ButtonType } from '../components/Button';
 import { HttpWarningModal } from '../components/HttpWarningModal';
 import { LanguageSelectModal } from '../components/LanguageSelectModal';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
-import type { ToastService } from '../components/ToastService';
-import { closeSlot, openSlot } from '../flows/modalSlotFlow';
+import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 
 export interface ConnectionViewModel {
 	animationsEnabled?: boolean;

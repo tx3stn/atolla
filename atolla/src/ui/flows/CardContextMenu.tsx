@@ -3,7 +3,7 @@ import type { Track } from '../../models/Track';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Transport } from '../../transports/Transport';
 import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
-import { closeSlot, openSlot } from './modalSlotFlow';
+import { closeSlot, openSlot } from './ModalSlotFlow';
 
 export interface OpenCardContextMenuOptions {
 	animationsEnabled: boolean;

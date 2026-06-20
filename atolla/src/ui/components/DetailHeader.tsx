@@ -9,6 +9,7 @@ import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplat
 import Strings from '../../Strings';
 import type { DownloadState } from '../../services/DownloadService';
 import type { ImageCategory } from '../../services/ImageCache';
+import type { ToastService } from '../../services/ToastService';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
@@ -18,7 +19,6 @@ import { FormatBadge } from './FormatBadge';
 import { LoopingArrowSpinner } from './LoopingArrowSpinner';
 import { Modal } from './Modal';
 import { TappableIcon } from './TappableIcon';
-import type { ToastService } from './ToastService';
 import { TouchEventState } from './TouchEventState';
 
 export interface DetailHeaderViewModel {

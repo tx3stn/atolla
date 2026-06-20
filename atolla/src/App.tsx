@@ -59,6 +59,7 @@ import { PlaylistCreateService } from './services/PlaylistCreateService';
 import { type PlaylistEditError, PlaylistEditService } from './services/PlaylistEditService';
 import { ReconnectSyncCoordinator, type SyncProgress } from './services/ReconnectSyncCoordinator';
 import { ScrobbleService } from './services/ScrobbleService';
+import { ToastService } from './services/ToastService';
 import { TrackPlaybackNativePrefetchQueue } from './services/TrackPlaybackNativePrefetchQueue';
 import {
 	applyTrackPlaybackNotificationAction,
@@ -119,8 +120,7 @@ import { Modal } from './ui/components/Modal';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { SyncStatusBanner } from './ui/components/SyncStatusBanner';
 import { Toast } from './ui/components/Toast';
-import { ToastService } from './ui/components/ToastService';
-import { closeSlot, EMPTY_SLOT_RENDERER } from './ui/flows/modalSlotFlow';
+import { closeSlot, EMPTY_SLOT_RENDERER } from './ui/flows/ModalSlotFlow';
 import type { NavBarContext } from './ui/NavBarContext';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';

@@ -9,22 +9,21 @@ import type { Track } from '../../models/Track';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
+import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
-import type { ToastService } from '../components/ToastService';
-import { openCardContextMenu } from '../flows/cardContextMenuFlow';
-import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
+import { openCardContextMenu } from '../flows/CardContextMenu';
+import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import type { NavBarContext } from '../NavBarContext';
+import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { bindFooterVisibility } from './footerVisibility';
 import { GenreView } from './GenreView';
-import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
-import { createPagedGridController } from './pagination/createPagedGridController';
 
 interface GenresViewModel {
 	animationsEnabled: boolean;

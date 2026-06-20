@@ -3,7 +3,7 @@ import {
 	addTracksToPlaylist,
 	createPlaylistAndAddTracks,
 	selectQueueTracksForPlaylist,
-} from './playlistFlow';
+} from './CreatePlaylist';
 
 const tracks = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }, { id: 'e' }];
 

@@ -2,13 +2,13 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
+import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Transport } from '../../transports/Transport';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
-import type { ToastService } from '../components/ToastService';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { AddToPlaylistView } from '../views/AddToPlaylistView';
-import { closeSlot, openSlot } from './modalSlotFlow';
+import { closeSlot, openSlot } from './ModalSlotFlow';
 
 export interface OpenTrackContextMenuOptions {
 	animationsEnabled: boolean;
