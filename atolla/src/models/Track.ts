@@ -18,6 +18,22 @@ export interface Track {
 	trackNumber?: number;
 }
 
+// Resolves the year a track was released, preferring the explicit production
+// year and falling back to the leading YYYY of the release date. Returns null
+// when neither is present so callers can skip undated tracks.
+export function trackReleaseYear(track: Track): number | null {
+	if (track.productionYear != null) {
+		return track.productionYear;
+	}
+	if (track.releaseDate) {
+		const year = Number.parseInt(track.releaseDate.slice(0, 4), 10);
+		if (!Number.isNaN(year)) {
+			return year;
+		}
+	}
+	return null;
+}
+
 // Normalises fields that must be safe for the audio engine and UI layer.
 // Apply at every track ingestion point (store, queue restore) so downstream
 // code never has to guard against NaN durations or empty names.

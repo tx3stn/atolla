@@ -98,6 +98,23 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 			await transport.getPlaylistsPage(1, 50, { startsWith: prefixOf(playlists[0].name) });
 		});
 
+		it('returns contract-compliant tracks for a randomly picked populated year', async () => {
+			const transport = createTransport();
+
+			const years = await transport.getRandomMusicYears(3);
+			expect(years.length).toBeGreaterThan(0);
+			const year = years[0];
+
+			const page = await transport.getTracksByYearPage(year, 1, 50);
+			expect(page.items.length).toBeGreaterThan(0);
+			page.items.forEach(assertTrackContract);
+			page.items.forEach((track) => {
+				expect(
+					track.productionYear ?? Number.parseInt(track.releaseDate?.slice(0, 4) ?? '', 10),
+				).toBe(year);
+			});
+		});
+
 		it('returns genre pages and genre tracks with contract-compliant tracks', async () => {
 			const transport = createTransport();
 			const genresPage = await transport.getGenresPage(1, 5);

@@ -10,6 +10,7 @@ import type {
 	JellyfinListEnvelope,
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
+	JellyfinYearItem,
 } from '../models/jellyfin/Types';
 import { JellyfinMusicItemTypes } from '../models/jellyfin/Types';
 import type { Playlist } from '../models/Playlist';
@@ -548,6 +549,48 @@ export class LiveTransport implements Transport {
 
 		const item = list.Items[0];
 		return item ? mapJellyfinAlbumToAlbum(item, this.imageResolvers) : null;
+	}
+
+	async getRandomMusicYears(limit: number): Promise<Array<number>> {
+		const years = await this.requestJson<JellyfinListEnvelope<JellyfinYearItem>>('/Years', {
+			includeItemTypes: JellyfinMusicItemTypes.Audio,
+			limit: Math.max(1, limit),
+			mediaTypes: 'Audio',
+			recursive: true,
+			sortBy: 'Random',
+			userId: this.userId,
+		});
+
+		const result: Array<number> = [];
+		for (const item of years.Items ?? []) {
+			const year = item.ProductionYear ?? Number.parseInt(item.Name ?? '', 10);
+			if (year && !Number.isNaN(year)) {
+				result.push(year);
+			}
+		}
+		return result;
+	}
+
+	async getTracksByYearPage(
+		year: number,
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			fields: 'MediaSources',
+			includeItemTypes: JellyfinMusicItemTypes.Audio,
+			limit: Math.max(1, pageSize),
+			recursive: true,
+			sortBy: 'Random',
+			startIndex,
+			years: year,
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
+		};
 	}
 
 	async getShuffledLibraryTracks(): Promise<Array<Track>> {

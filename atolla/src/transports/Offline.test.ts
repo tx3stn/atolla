@@ -46,6 +46,27 @@ function createDownloadsMock(params: {
 	};
 }
 
+function downloadedTrack(
+	id: string,
+	options: { complete: boolean; productionYear?: number; releaseDate?: string },
+): DownloadedTrackEntry {
+	return {
+		albumIds: [],
+		complete: options.complete,
+		genreIds: [],
+		playlistIds: [],
+		requiredImageKeys: [],
+		streamUrl: `file:///${id}.mp3`,
+		track: {
+			duration: 180,
+			id,
+			name: id,
+			productionYear: options.productionYear,
+			releaseDate: options.releaseDate,
+		},
+	};
+}
+
 describe('OfflineTransport', () => {
 	it('resolves artist fallback from downloaded album metadata', async () => {
 		const transport = new OfflineTransport(
@@ -740,6 +761,56 @@ describe('OfflineTransport', () => {
 		const albums = await transport.getAlbumsByArtist('artist-1');
 
 		expect(albums.map((album) => album.id)).toEqual(['album-new', 'album-old']);
+	});
+
+	it('picks distinct years present in the completed downloads', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				tracks: [
+					downloadedTrack('track-1', { complete: true, productionYear: 2008 }),
+					downloadedTrack('track-2', { complete: true, productionYear: 2008 }),
+					downloadedTrack('track-3', { complete: true, productionYear: 1998 }),
+				],
+			}) as never,
+		);
+
+		const years = await transport.getRandomMusicYears(3);
+
+		expect([...years].sort()).toEqual([1998, 2008]);
+	});
+
+	it('ignores incomplete and undated downloads when picking years', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				tracks: [
+					downloadedTrack('track-1', { complete: false, productionYear: 1999 }),
+					downloadedTrack('track-2', { complete: true }),
+				],
+			}) as never,
+		);
+
+		expect(await transport.getRandomMusicYears(3)).toEqual([]);
+	});
+
+	it('pages only completed tracks from the requested year, id-sorted for stable paging', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				tracks: [
+					downloadedTrack('track-b', { complete: true, productionYear: 2010 }),
+					downloadedTrack('track-a', { complete: true, productionYear: 2010 }),
+					downloadedTrack('track-c', { complete: true, productionYear: 1990 }),
+					downloadedTrack('track-d', { complete: false, productionYear: 2010 }),
+				],
+			}) as never,
+		);
+
+		const firstPage = await transport.getTracksByYearPage(2010, 1, 1);
+		const secondPage = await transport.getTracksByYearPage(2010, 2, 1);
+
+		expect(firstPage.items.map((track) => track.id)).toEqual(['track-a']);
+		expect(firstPage.hasMore).toBe(true);
+		expect(secondPage.items.map((track) => track.id)).toEqual(['track-b']);
+		expect(secondPage.hasMore).toBe(false);
 	});
 
 	describe('createPlaylist (offline)', () => {

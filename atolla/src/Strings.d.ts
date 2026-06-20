@@ -58,6 +58,7 @@ declare const Strings: {
 	playlistEditErrorTitle: () => string;
 	quickConnectCode: (code: string) => string;
 	randomAlbum: () => string;
+	randomYear: () => string;
 	removeDownloadBody: () => string;
 	removeDownloadTitle: () => string;
 	removeFromPlaylistBody: (track: string) => string;

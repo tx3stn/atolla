@@ -171,6 +171,9 @@
 	"random_album": {
 		"defaultMessage": "ALBUM ALÉATOIRE"
 	},
+	"random_year": {
+		"defaultMessage": "ANNÉE ALÉATOIRE"
+	},
 	"remove_download_body": {
 		"defaultMessage": "Cela supprimera ce téléchargement de votre appareil.\n\nSi ces pistes font partie d'une playlist, elles ne seront pas supprimées à moins que vous ne supprimiez la playlist."
 	},

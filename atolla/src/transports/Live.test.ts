@@ -623,6 +623,108 @@ describe('LiveTransport core collections', () => {
 		expect(tracks.map((track) => track.id)).toEqual(['track-1', 'track-2']);
 	});
 
+	it('picks several random populated years from the years endpoint in one request', async () => {
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(
+				200,
+				listResponse(
+					[
+						{ Name: '2003', ProductionYear: 2003 },
+						{ Name: '1994', ProductionYear: 1994 },
+						{ Name: '2011', ProductionYear: 2011 },
+					],
+					3,
+					0,
+				),
+			),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const years = await transport.getRandomMusicYears(3);
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0].pathOrUrl).toContain('/Years?');
+		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('Audio');
+		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('Random');
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('3');
+		expect(years).toEqual([2003, 1994, 2011]);
+	});
+
+	it('falls back to the year name when productionYear is absent', async () => {
+		const { factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([{ Name: '1994' }], 1, 0)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		expect(await transport.getRandomMusicYears(3)).toEqual([1994]);
+	});
+
+	it('returns an empty array when no years are available', async () => {
+		const { factory } = createHTTPClientFactory([jsonResponse(200, listResponse([], 0, 0))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		expect(await transport.getRandomMusicYears(3)).toEqual([]);
+	});
+
+	it('pages tracks for a year via a small random-sorted query', async () => {
+		const firstTrack: JellyfinTrackItem = {
+			Id: 'track-1',
+			Name: 'Track One',
+			ProductionYear: 2003,
+			RunTimeTicks: 120_000_000,
+			Type: 'Audio',
+		};
+		const secondTrack: JellyfinTrackItem = {
+			Id: 'track-2',
+			Name: 'Track Two',
+			ProductionYear: 2003,
+			RunTimeTicks: 180_000_000,
+			Type: 'Audio',
+		};
+		const { calls, factory } = createHTTPClientFactory([
+			jsonResponse(200, listResponse([firstTrack, secondTrack], 130, 50)),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const result = await transport.getTracksByYearPage(2003, 2, 50);
+
+		expect(calls).toHaveLength(1);
+		expect(queryParam(calls[0].pathOrUrl, 'years')).toBe('2003');
+		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('Audio');
+		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('Random');
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('50');
+		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('50');
+		expect(result.hasMore).toBe(true);
+		expect(result.items.map((track) => track.id)).toEqual(['track-1', 'track-2']);
+	});
+
+	it('reports no more pages once the year is exhausted', async () => {
+		const track: JellyfinTrackItem = {
+			Id: 'track-9',
+			Name: 'Last Track',
+			ProductionYear: 2003,
+			RunTimeTicks: 120_000_000,
+			Type: 'Audio',
+		};
+		const { factory } = createHTTPClientFactory([jsonResponse(200, listResponse([track], 51, 50))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const result = await transport.getTracksByYearPage(2003, 2, 50);
+
+		expect(result.hasMore).toBe(false);
+		expect(result.items.map((track) => track.id)).toEqual(['track-9']);
+	});
+
 	it('returns null artist logo url when no logo metadata exists', async () => {
 		const artist: JellyfinArtistItem = {
 			Id: 'artist-1',

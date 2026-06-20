@@ -35,6 +35,7 @@ export interface Transport {
 		options?: { startsWith?: string },
 	): Promise<{ hasMore: boolean; items: Array<Playlist> }>;
 	getRandomAlbum(): Promise<Album | null>;
+	getRandomMusicYears(limit: number): Promise<Array<number>>;
 	getRecentlyAddedAlbums(limit: number): Promise<Array<Album>>;
 	getShuffledLibraryTracks(): Promise<Array<Track>>;
 	getShuffledLibraryTracksPage(
@@ -56,6 +57,11 @@ export interface Transport {
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }>;
+	getTracksByYearPage(
+		year: number,
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track> }>;
 	movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void>;
 	removePlaylistTrack(playlistId: string, trackId: string): Promise<void>;
 	scrobbleTrackPlayed(trackId: string, datePlayed: string): Promise<void>;

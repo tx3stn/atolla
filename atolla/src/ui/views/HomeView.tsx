@@ -69,6 +69,7 @@ interface HomeState {
 const RECENTLY_ADDED_ALBUMS_CACHE_KEY = 'recently_added_v1';
 const SHUFFLE_LIBRARY_MIX_ID = 'mix-shuffle-library';
 const RANDOM_ALBUM_MIX_ID = 'mix-random-album';
+const RANDOM_YEAR_MIX_ID = 'mix-random-year';
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private loadGeneration = 0;
@@ -435,6 +436,14 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				primaryText: Strings.randomAlbum(),
 				secondaryText: '',
 			},
+			{
+				artworkKey: '',
+				icon: res.randomyear,
+				id: RANDOM_YEAR_MIX_ID,
+				kind: 'playlist',
+				primaryText: Strings.randomYear(),
+				secondaryText: '',
+			},
 		];
 	}
 
@@ -448,6 +457,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			void this.startShuffleLibraryMix();
 		} else if (card.id === RANDOM_ALBUM_MIX_ID) {
 			void this.startRandomAlbumMix();
+		} else if (card.id === RANDOM_YEAR_MIX_ID) {
+			void this.startRandomYearMix();
 		}
 	};
 
@@ -461,29 +472,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		if (connectionMode === ConnectionModes.online) {
 			const fetchPage = (page: number, pageSize: number) =>
 				transport.getShuffledLibraryTracksPage(page, pageSize);
-
-			let result: { hasMore: boolean; items: Array<Track> };
-			try {
-				result = await fetchPage(1, SHUFFLE_PAGE_SIZE);
-			} catch {
-				return;
-			}
-
-			if (this.isDestroyed() || token !== this.shuffleLoadToken) {
-				return;
-			}
-			if (result.items.length === 0) {
-				return;
-			}
-
-			playbackStore.playTracks(result.items, 0);
-
-			if (result.hasMore) {
-				const loader = new ShuffleQueueLoader(playbackStore, fetchPage, SHUFFLE_PAGE_SIZE);
-				loader.start(2, true);
-				this.shuffleLoader = loader;
-			}
-
+			await this.startPaginatedMix(fetchPage, token);
 			return;
 		}
 
@@ -497,6 +486,69 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		}
 
 		playbackStore.playTracks(queue, 0);
+	}
+
+	private async startRandomYearMix(): Promise<void> {
+		this.shuffleLoader?.dispose();
+		this.shuffleLoader = null;
+		const token = ++this.shuffleLoadToken;
+
+		const { transport } = this.viewModel;
+
+		// A randomly picked year can be empty on a mixed-media server, so fetch a few
+		// candidates in one request and fall through to the next if one has no tracks.
+		let years: Array<number>;
+		try {
+			years = await transport.getRandomMusicYears(3);
+		} catch {
+			return;
+		}
+
+		if (this.isDestroyed() || token !== this.shuffleLoadToken) {
+			return;
+		}
+
+		for (const year of years) {
+			const fetchPage = (page: number, pageSize: number) =>
+				transport.getTracksByYearPage(year, page, pageSize);
+			const outcome = await this.startPaginatedMix(fetchPage, token);
+			if (outcome !== 'empty') {
+				return;
+			}
+		}
+	}
+
+	private async startPaginatedMix(
+		fetchPage: (
+			page: number,
+			pageSize: number,
+		) => Promise<{ hasMore: boolean; items: Array<Track> }>,
+		token: number,
+	): Promise<'played' | 'empty' | 'aborted'> {
+		let result: { hasMore: boolean; items: Array<Track> };
+		try {
+			result = await fetchPage(1, SHUFFLE_PAGE_SIZE);
+		} catch {
+			return 'aborted';
+		}
+
+		if (this.isDestroyed() || token !== this.shuffleLoadToken) {
+			return 'aborted';
+		}
+		if (result.items.length === 0) {
+			return 'empty';
+		}
+
+		const { playbackStore } = this.viewModel;
+		playbackStore.playTracks(result.items, 0);
+
+		if (result.hasMore) {
+			const loader = new ShuffleQueueLoader(playbackStore, fetchPage, SHUFFLE_PAGE_SIZE);
+			loader.start(2, true);
+			this.shuffleLoader = loader;
+		}
+
+		return 'played';
 	}
 
 	private async startRandomAlbumMix(): Promise<void> {

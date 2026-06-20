@@ -22,6 +22,7 @@ import type { JellyfinMediaSource } from '../models/jellyfin/Types';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
+import { trackReleaseYear } from '../models/Track';
 import {
 	type JellyfinImageResolvers,
 	mapJellyfinAlbumToAlbum,
@@ -327,14 +328,45 @@ export class MockTransport implements Transport {
 		return item ? mapJellyfinAlbumToAlbum(item, this.imageResolvers) : null;
 	}
 
-	async getShuffledLibraryTracks(): Promise<Array<Track>> {
-		const tracks = mockJellyfinTracks.map((item) =>
+	async getRandomMusicYears(limit: number): Promise<Array<number>> {
+		const years = new Set<number>();
+		for (const track of this.buildAllTracks()) {
+			const year = trackReleaseYear(track);
+			if (year != null) {
+				years.add(year);
+			}
+		}
+
+		return shuffleTracks([...years]).slice(0, Math.max(0, limit));
+	}
+
+	async getTracksByYearPage(
+		year: number,
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track> }> {
+		const yearTracks = this.buildAllTracks()
+			.filter((track) => trackReleaseYear(track) === year)
+			.sort((a, b) => a.id.localeCompare(b.id));
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const items = yearTracks.slice(startIndex, startIndex + pageSize);
+		return {
+			hasMore: startIndex + items.length < yearTracks.length,
+			items,
+		};
+	}
+
+	private buildAllTracks(): Array<Track> {
+		return mockJellyfinTracks.map((item) =>
 			mapJellyfinTrackToTrack(
 				{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
 				this.imageResolvers,
 			),
 		);
-		return shuffleTracks(tracks);
+	}
+
+	async getShuffledLibraryTracks(): Promise<Array<Track>> {
+		return shuffleTracks(this.buildAllTracks());
 	}
 
 	async getShuffledLibraryTracksPage(

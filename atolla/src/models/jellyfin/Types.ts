@@ -84,6 +84,13 @@ export interface JellyfinPlaylistDetailsDto {
 	ItemIds?: Array<string>;
 }
 
+// A `/Years` result item. Its Type is "Year" (outside the music item types), so
+// it stays separate from JellyfinBaseItemDto; only the year value matters here.
+export interface JellyfinYearItem {
+	Name?: string;
+	ProductionYear?: number;
+}
+
 export interface JellyfinListEnvelope<TItem> {
 	Items: Array<TItem>;
 	StartIndex: number;

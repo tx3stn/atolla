@@ -1,0 +1,42 @@
+<svg fill="none" height="24" viewBox="0 0 48 24" width="48" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nav-gradient" x1="32" y1="1" x2="18" y2="23" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#AA5CC3"/>
+      <stop offset="22%" stop-color="#8B62D3"/>
+      <stop offset="50%" stop-color="#3159BD"/>
+      <stop offset="76%" stop-color="#2D78CE"/>
+      <stop offset="100%" stop-color="#57B3E8"/>
+    </linearGradient>
+    <mask id="dice-knockout" maskUnits="userSpaceOnUse" x="-20" y="-20" width="90" height="70">
+      <rect x="-20" y="-20" width="90" height="70" fill="white"/>
+      <g transform="rotate(35, 11, 12)">
+        <rect x="4" y="4" width="14" height="16" rx="2" fill="black" stroke="black" stroke-width="4"/>
+      </g>
+    </mask>
+  </defs>
+  <g transform="translate(4.833 0.889) scale(0.926)">
+  <g mask="url(#dice-knockout)">
+    <rect x="20" y="5" width="20" height="16" rx="2.5" stroke="url(#nav-gradient)" stroke-width="2.16"/>
+    <path d="M25 3V7" stroke="url(#nav-gradient)" stroke-width="2.16" stroke-linecap="round"/>
+    <path d="M35 3V7" stroke="url(#nav-gradient)" stroke-width="2.16" stroke-linecap="round"/>
+    <circle cx="25" cy="10" r="1.05" fill="url(#nav-gradient)"/>
+    <circle cx="30" cy="10" r="1.05" fill="url(#nav-gradient)"/>
+    <circle cx="35" cy="10" r="1.05" fill="url(#nav-gradient)"/>
+    <circle cx="25" cy="13" r="1.05" fill="url(#nav-gradient)"/>
+    <circle cx="30" cy="13" r="1.05" fill="url(#nav-gradient)"/>
+    <circle cx="35" cy="13" r="1.05" fill="url(#nav-gradient)"/>
+    <circle cx="25" cy="16" r="1.05" fill="url(#nav-gradient)"/>
+    <circle cx="30" cy="16" r="1.05" fill="url(#nav-gradient)"/>
+    <circle cx="35" cy="16" r="1.05" fill="url(#nav-gradient)"/>
+  </g>
+  <g transform="rotate(35, 11, 12)">
+    <rect x="4" y="4" width="14" height="16" rx="2" stroke="url(#nav-gradient)" stroke-width="2.16"/>
+    <circle cx="7.5" cy="8" r="1.5" fill="url(#nav-gradient)"/>
+    <circle cx="7.5" cy="12" r="1.5" fill="url(#nav-gradient)"/>
+    <circle cx="7.5" cy="16" r="1.5" fill="url(#nav-gradient)"/>
+    <circle cx="14.5" cy="8" r="1.5" fill="url(#nav-gradient)"/>
+    <circle cx="14.5" cy="12" r="1.5" fill="url(#nav-gradient)"/>
+    <circle cx="14.5" cy="16" r="1.5" fill="url(#nav-gradient)"/>
+  </g>
+  </g>
+</svg>

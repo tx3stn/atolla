@@ -177,6 +177,9 @@
 	"random_album": {
 		"defaultMessage": "RANDOM ALBUM"
 	},
+	"random_year": {
+		"defaultMessage": "RANDOM YEAR"
+	},
 	"remove_download_body": {
 		"defaultMessage": "This will remove this download from your device.\n\nIf these tracks are part of a playlist they will not be removed unless you remove the playlist."
 	},

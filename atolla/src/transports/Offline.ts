@@ -7,6 +7,7 @@ import type { Genre } from '../models/Genre';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
+import { trackReleaseYear } from '../models/Track';
 import type { DownloadService } from '../services/DownloadService';
 import type { PlaylistCreateService } from '../services/PlaylistCreateService';
 import type { PlaylistEditService } from '../services/PlaylistEditService';
@@ -432,6 +433,40 @@ export class OfflineTransport implements Transport {
 		}
 		const index = Math.floor(Math.random() * albums.length);
 		return albums[index] ?? null;
+	}
+
+	async getRandomMusicYears(limit: number): Promise<Array<number>> {
+		const years = new Set<number>();
+		for (const entry of this.downloads.getAllTracks()) {
+			if (!entry.complete) {
+				continue;
+			}
+			const year = trackReleaseYear(entry.track);
+			if (year != null) {
+				years.add(year);
+			}
+		}
+
+		return shuffleTracks([...years]).slice(0, Math.max(0, limit));
+	}
+
+	async getTracksByYearPage(
+		year: number,
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track> }> {
+		// Sort by id so paging through the local set is stable, matching getShuffledLibraryTracksPage.
+		const yearTracks = this.downloads
+			.getAllTracks()
+			.filter((entry) => entry.complete && trackReleaseYear(entry.track) === year)
+			.map((entry) => entry.track)
+			.sort((a, b) => a.id.localeCompare(b.id));
+		const start = Math.max(0, page - 1) * pageSize;
+		const end = start + pageSize;
+		return {
+			hasMore: end < yearTracks.length,
+			items: yearTracks.slice(start, end),
+		};
 	}
 
 	async getShuffledLibraryTracks(): Promise<Array<Track>> {

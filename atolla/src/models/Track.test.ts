@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { sanitizeTracks } from './Track';
+import { sanitizeTracks, trackReleaseYear } from './Track';
 
 const baseTrack = {
 	duration: 180,
@@ -49,5 +49,23 @@ describe('sanitizeTracks', () => {
 		const result = sanitizeTracks([{ ...baseTrack }]);
 		expect(result[0]?.albumImageUrl).toBeUndefined();
 		expect(result[0]?.artistName).toBeUndefined();
+	});
+});
+
+describe('trackReleaseYear', () => {
+	it('prefers the explicit production year', () => {
+		expect(trackReleaseYear({ ...baseTrack, productionYear: 1999 })).toBe(1999);
+	});
+
+	it('falls back to the leading year of the release date', () => {
+		expect(trackReleaseYear({ ...baseTrack, releaseDate: '2003-07-14T00:00:00Z' })).toBe(2003);
+	});
+
+	it('returns null when neither production year nor release date is present', () => {
+		expect(trackReleaseYear(baseTrack)).toBeNull();
+	});
+
+	it('returns null when the release date has no parseable year', () => {
+		expect(trackReleaseYear({ ...baseTrack, releaseDate: 'unknown' })).toBeNull();
 	});
 });
