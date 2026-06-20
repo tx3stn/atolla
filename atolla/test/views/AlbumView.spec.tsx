@@ -29,7 +29,7 @@ function _makeNavigationController() {
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 const downloadService = {
 	downloadAlbum: () => {},
@@ -39,7 +39,7 @@ const downloadService = {
 };
 
 describe('AlbumView', () => {
-	valdiIt('renders track rows when tracks are present in state', async () => {
+	valdiIt('renders track rows when tracks are present in state', async (driver) => {
 		const album = {
 			artistId: 'artist-1',
 			artistName: 'Artist One',
@@ -62,12 +62,11 @@ describe('AlbumView', () => {
 			track: null,
 		};
 
-		const instrumented = createComponent(
+		const component = driver.renderComponent(
 			AlbumView,
 			{ album, downloadService, playbackStore, transport },
 			{ navigator: mockNavigator },
 		);
-		const component = instrumented.getComponent();
 
 		component.setState({ artistLogoUrl: 'https://logo.png', isLoading: false, tracks });
 
@@ -75,7 +74,7 @@ describe('AlbumView', () => {
 		expect(component.state.artistLogoUrl).toBe('https://logo.png');
 	});
 
-	valdiIt('plays loaded tracks and forwards artist logo on play tap', async () => {
+	valdiIt('plays loaded tracks and forwards artist logo on play tap', async (driver) => {
 		const album = {
 			artistId: 'artist-1',
 			artistName: 'Artist One',
@@ -104,12 +103,11 @@ describe('AlbumView', () => {
 			track: null,
 		};
 
-		const instrumented = createComponent(
+		const component = driver.renderComponent(
 			AlbumView,
 			{ album, downloadService, playbackStore, transport },
 			{ navigator: mockNavigator },
 		);
-		const component = instrumented.getComponent();
 
 		component.setState({ artistLogoUrl: 'https://logo.png', isLoading: false, tracks });
 		component.handleHeaderPlayTap();
@@ -119,7 +117,7 @@ describe('AlbumView', () => {
 		expect(logo).toBe('https://logo.png');
 	});
 
-	valdiIt('does not call play when tracks are empty', async () => {
+	valdiIt('does not call play when tracks are empty', async (driver) => {
 		const album = {
 			artistId: 'artist-1',
 			artistName: 'Artist One',
@@ -141,19 +139,18 @@ describe('AlbumView', () => {
 			getTracksByAlbum: async () => [],
 		};
 
-		const instrumented = createComponent(
+		const component = driver.renderComponent(
 			AlbumView,
 			{ album, downloadService, playbackStore, transport },
 			{ navigator: mockNavigator },
 		);
-		const component = instrumented.getComponent();
 
 		component.handleHeaderPlayTap();
 
 		expect(playCalls).toBe(0);
 	});
 
-	valdiIt('pushes ArtistView when detail header artist logo is tapped', async () => {
+	valdiIt('pushes ArtistView when detail header artist logo is tapped', async (driver) => {
 		const album = {
 			artistId: 'artist-1',
 			artistName: 'Artist One',
@@ -185,12 +182,11 @@ describe('AlbumView', () => {
 				captured.pushedPage = page;
 			},
 		};
-		const instrumented = createComponent(
+		const component = driver.renderComponent(
 			AlbumView,
 			{ album, downloadService, playbackStore, transport },
 			{ navigator: trackingNavigator },
 		);
-		const component = instrumented.getComponent();
 		component.setState({
 			artist: { id: 'artist-1', logoUrl: 'https://logo.png', name: 'Artist One' },
 			artistLogoUrl: 'https://logo.png',
@@ -206,56 +202,58 @@ describe('AlbumView', () => {
 		expect(captured.pushedPage?.componentViewModel?.artist?.id).toBe('artist-1');
 	});
 
-	valdiIt('pushes ArtistView synchronously even when the artist has not loaded yet', async () => {
-		const album = {
-			artistId: 'artist-1',
-			artistName: 'Artist One',
-			id: 'album-1',
-			name: 'First Album',
-		};
-		// getArtist never resolves, so state.artist stays null. The push must not
-		// wait on it — it should navigate immediately using album fallback data.
-		const transport = {
-			getAlbumsByIds: async () => [],
-			getArtist: () => new Promise(() => {}),
-			getTracksByAlbum: async () => [],
-		};
-		const playbackStore = {
-			play: () => {},
-			setArtistLogoUrl: () => {},
-			subscribe: () => () => {},
-			track: null,
-		};
+	valdiIt(
+		'pushes ArtistView synchronously even when the artist has not loaded yet',
+		async (driver) => {
+			const album = {
+				artistId: 'artist-1',
+				artistName: 'Artist One',
+				id: 'album-1',
+				name: 'First Album',
+			};
+			// getArtist never resolves, so state.artist stays null. The push must not
+			// wait on it — it should navigate immediately using album fallback data.
+			const transport = {
+				getAlbumsByIds: async () => [],
+				getArtist: () => new Promise(() => {}),
+				getTracksByAlbum: async () => [],
+			};
+			const playbackStore = {
+				play: () => {},
+				setArtistLogoUrl: () => {},
+				subscribe: () => () => {},
+				track: null,
+			};
 
-		const captured: {
-			pushedPage: {
-				componentPath?: unknown;
-				componentViewModel?: { artist?: { id?: string; name?: string } };
-			} | null;
-		} = { pushedPage: null };
-		const trackingNavigator = {
-			...mockNavigator,
-			__shouldDisableMakeOpaque: true,
-			pushComponent: (page: typeof captured.pushedPage) => {
-				captured.pushedPage = page;
-			},
-		};
-		const instrumented = createComponent(
-			AlbumView,
-			{ album, downloadService, playbackStore, transport },
-			{ navigator: trackingNavigator },
-		);
-		const component = instrumented.getComponent();
+			const captured: {
+				pushedPage: {
+					componentPath?: unknown;
+					componentViewModel?: { artist?: { id?: string; name?: string } };
+				} | null;
+			} = { pushedPage: null };
+			const trackingNavigator = {
+				...mockNavigator,
+				__shouldDisableMakeOpaque: true,
+				pushComponent: (page: typeof captured.pushedPage) => {
+					captured.pushedPage = page;
+				},
+			};
+			const component = driver.renderComponent(
+				AlbumView,
+				{ album, downloadService, playbackStore, transport },
+				{ navigator: trackingNavigator },
+			);
 
-		expect(component.state.artist).toBeNull();
-		component.handleArtistLogoTap();
+			expect(component.state.artist).toBeNull();
+			component.handleArtistLogoTap();
 
-		expect(captured.pushedPage?.componentPath).toBe(ArtistView.componentPath);
-		expect(captured.pushedPage?.componentViewModel?.artist?.id).toBe('artist-1');
-		expect(captured.pushedPage?.componentViewModel?.artist?.name).toBe('Artist One');
-	});
+			expect(captured.pushedPage?.componentPath).toBe(ArtistView.componentPath);
+			expect(captured.pushedPage?.componentViewModel?.artist?.id).toBe('artist-1');
+			expect(captured.pushedPage?.componentViewModel?.artist?.name).toBe('Artist One');
+		},
+	);
 
-	valdiIt('renders a DISK header per disc when tracks span more than one disc', async () => {
+	valdiIt('renders a DISK header per disc when tracks span more than one disc', async (driver) => {
 		const album = {
 			artistId: 'artist-1',
 			artistName: 'Artist One',
@@ -279,12 +277,11 @@ describe('AlbumView', () => {
 			track: null,
 		};
 
-		const instrumented = createComponent(
+		const component = driver.renderComponent(
 			AlbumView,
 			{ album, downloadService, playbackStore, transport },
 			{ navigator: mockNavigator },
 		);
-		const component = instrumented.getComponent();
 
 		component.setState({ artistLogoUrl: null, isLoading: false, tracks });
 
@@ -297,7 +294,7 @@ describe('AlbumView', () => {
 		expect(values).toContain('DISK 2');
 	});
 
-	valdiIt('does not render a DISK header when every track shares one disc', async () => {
+	valdiIt('does not render a DISK header when every track shares one disc', async (driver) => {
 		const album = {
 			artistId: 'artist-1',
 			artistName: 'Artist One',
@@ -320,12 +317,11 @@ describe('AlbumView', () => {
 			track: null,
 		};
 
-		const instrumented = createComponent(
+		const component = driver.renderComponent(
 			AlbumView,
 			{ album, downloadService, playbackStore, transport },
 			{ navigator: mockNavigator },
 		);
-		const component = instrumented.getComponent();
 
 		component.setState({ artistLogoUrl: null, isLoading: false, tracks });
 
@@ -341,7 +337,7 @@ describe('AlbumView', () => {
 
 	valdiIt(
 		'renders date-only release date and total duration in separate subheader columns when tracks are loaded',
-		async () => {
+		async (driver) => {
 			const album = {
 				artistId: 'artist-1',
 				artistName: 'Artist One',
@@ -364,12 +360,11 @@ describe('AlbumView', () => {
 				track: null,
 			};
 
-			const instrumented = createComponent(
+			const component = driver.renderComponent(
 				AlbumView,
 				{ album, downloadService, playbackStore, transport },
 				{ navigator: mockNavigator },
 			);
-			const component = instrumented.getComponent();
 
 			component.setState({
 				artistLogoUrl: null,

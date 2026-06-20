@@ -2,19 +2,19 @@ import 'jasmine/src/jasmine';
 import { Modal } from 'atolla/src/ui/components/Modal';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
 import { renderedElements } from './renderedElements';
 
 describe('Modal', () => {
-	valdiIt('renders artist logo through cache image source', async () => {
-		const instrumented = createComponent(Modal, {
+	valdiIt('renders artist logo through cache image source', async (driver) => {
+		const viewModel = {
 			body: 'Long artist bio',
 			logoUrl: 'https://example.com/artist-logo.png',
 			onClose: () => {},
 			title: 'Artist Name',
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(Modal, viewModel, undefined);
 
 		const images = elementTypeFind(renderedElements(component), IRenderedElementViewClass.Image);
 
@@ -22,9 +22,9 @@ describe('Modal', () => {
 		expect(images[0].getAttribute('src')).toContain('atolla-cache://image?c=artist_logo&u=');
 	});
 
-	valdiIt('fires confirm and cancel callbacks from the action buttons', async () => {
+	valdiIt('fires confirm and cancel callbacks from the action buttons', async (driver) => {
 		const calls: Array<string> = [];
-		const instrumented = createComponent(Modal, {
+		const viewModel = {
 			animationsEnabled: false,
 			body: 'Delete this playlist?',
 			cancelAccessibilityId: 'modal-cancel',
@@ -36,8 +36,8 @@ describe('Modal', () => {
 				calls.push('confirm');
 			},
 			title: 'Delete',
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(Modal, viewModel, undefined);
 
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		const confirm = views.find(

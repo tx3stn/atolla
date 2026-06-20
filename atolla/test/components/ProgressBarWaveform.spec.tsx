@@ -3,7 +3,7 @@ import { ProgressBarWaveform } from 'atolla/src/ui/components/ProgressBarWavefor
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
 
 function mockStore(progressSeconds: number) {
@@ -14,16 +14,16 @@ function mockStore(progressSeconds: number) {
 }
 
 describe('ProgressBarWaveform', () => {
-	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is null', async () => {
-		const instrumented = createComponent(ProgressBarWaveform, {
+	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is null', async (driver) => {
+		const viewModel = {
 			accentColor: '#ff2255',
 			maskImageUrl: null,
 			mutedColor: 'rgba(255,34,85,0.3)',
 			playbackStore: mockStore(40),
 			trackColor: 'rgba(255,34,85,0.2)',
 			trackDuration: 100,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(ProgressBarWaveform, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const waveformBar = views.find(
@@ -33,16 +33,16 @@ describe('ProgressBarWaveform', () => {
 		expect(waveformBar).toBeUndefined();
 	});
 
-	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is undefined', async () => {
-		const instrumented = createComponent(ProgressBarWaveform, {
+	valdiIt('renders ProgressBarPlain fallback when maskImageUrl is undefined', async (driver) => {
+		const viewModel = {
 			accentColor: '#ff2255',
 			maskImageUrl: undefined,
 			mutedColor: 'rgba(255,34,85,0.3)',
 			playbackStore: mockStore(40),
 			trackColor: 'rgba(255,34,85,0.2)',
 			trackDuration: 100,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(ProgressBarWaveform, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const waveformBar = views.find(
@@ -52,16 +52,16 @@ describe('ProgressBarWaveform', () => {
 		expect(waveformBar).toBeUndefined();
 	});
 
-	valdiIt('renders waveform bar when maskImageUrl is provided', async () => {
-		const instrumented = createComponent(ProgressBarWaveform, {
+	valdiIt('renders waveform bar when maskImageUrl is provided', async (driver) => {
+		const viewModel = {
 			accentColor: '#ff2255',
 			maskImageUrl: 'mask://track-1.png',
 			mutedColor: 'rgba(255,34,85,0.3)',
 			playbackStore: mockStore(50),
 			trackColor: 'rgba(255,34,85,0.2)',
 			trackDuration: 100,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(ProgressBarWaveform, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const waveformBar = views.find(
@@ -71,8 +71,8 @@ describe('ProgressBarWaveform', () => {
 		expect(waveformBar).toBeDefined();
 	});
 
-	valdiIt('uses the provided accessibilityLabel on the waveform bar', async () => {
-		const instrumented = createComponent(ProgressBarWaveform, {
+	valdiIt('uses the provided accessibilityLabel on the waveform bar', async (driver) => {
+		const viewModel = {
 			accentColor: '#ff2255',
 			accessibilityId: 'now-playing-progress',
 			maskImageUrl: 'mask://track-1.png',
@@ -80,8 +80,8 @@ describe('ProgressBarWaveform', () => {
 			playbackStore: mockStore(50),
 			trackColor: 'rgba(255,34,85,0.2)',
 			trackDuration: 100,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(ProgressBarWaveform, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const waveformBar = views.find(
@@ -91,16 +91,16 @@ describe('ProgressBarWaveform', () => {
 		expect(waveformBar).toBeDefined();
 	});
 
-	valdiIt('renders unplayed and played image layers when progress > 0', async () => {
-		const instrumented = createComponent(ProgressBarWaveform, {
+	valdiIt('renders unplayed and played image layers when progress > 0', async (driver) => {
+		const viewModel = {
 			accentColor: '#ff2255',
 			maskImageUrl: 'mask://track-1.png',
 			mutedColor: 'rgba(255,34,85,0.3)',
 			playbackStore: mockStore(50),
 			trackColor: 'rgba(255,34,85,0.2)',
 			trackDuration: 100,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(ProgressBarWaveform, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const images = elementTypeFind(
@@ -119,16 +119,16 @@ describe('ProgressBarWaveform', () => {
 		expect(clipContainer).toBeDefined();
 	});
 
-	valdiIt('renders clip container with zero width when progress is 0', async () => {
-		const instrumented = createComponent(ProgressBarWaveform, {
+	valdiIt('renders clip container with zero width when progress is 0', async (driver) => {
+		const viewModel = {
 			accentColor: '#ff2255',
 			maskImageUrl: 'mask://track-1.png',
 			mutedColor: 'rgba(255,34,85,0.3)',
 			playbackStore: mockStore(0),
 			trackColor: 'rgba(255,34,85,0.2)',
 			trackDuration: 100,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(ProgressBarWaveform, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const clipContainer = views.find(
@@ -139,9 +139,9 @@ describe('ProgressBarWaveform', () => {
 		expect(clipContainer?.getAttribute('width')).toBe('0%');
 	});
 
-	valdiIt('calls onProgressTap when the waveform bar is tapped', async () => {
+	valdiIt('calls onProgressTap when the waveform bar is tapped', async (driver) => {
 		let tapCount = 0;
-		const instrumented = createComponent(ProgressBarWaveform, {
+		const viewModel = {
 			accentColor: '#ff2255',
 			maskImageUrl: 'mask://track-1.png',
 			mutedColor: 'rgba(255,34,85,0.3)',
@@ -151,8 +151,8 @@ describe('ProgressBarWaveform', () => {
 			playbackStore: mockStore(50),
 			trackColor: 'rgba(255,34,85,0.2)',
 			trackDuration: 100,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(ProgressBarWaveform, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const waveformBar = views.find(

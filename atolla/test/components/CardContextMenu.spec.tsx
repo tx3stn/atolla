@@ -4,7 +4,7 @@ import type { Track } from 'atolla/src/models/Track';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
 import type { Transport } from 'atolla/src/transports/Transport';
 import { CardContextMenu } from 'atolla/src/ui/components/CardContextMenu';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 function mockTrack(id = 'track-1'): Track {
 	return { duration: 180, id, name: `Track ${id}` } as Track;
@@ -45,10 +45,10 @@ function getInternal(component: CardContextMenu): MenuInternal {
 
 describe('CardContextMenu', () => {
 	describe('handlePlay()', () => {
-		valdiIt('plays the fetched tracks and dismisses with the toast', async () => {
+		valdiIt('plays the fetched tracks and dismisses with the toast', async (driver) => {
 			const play = jasmine.createSpy('play');
 			const onDismiss = jasmine.createSpy('onDismiss');
-			const instrumented = createComponent(CardContextMenu, {
+			const viewModel = {
 				animationsEnabled: false,
 				card: { album: mockAlbum(), kind: 'album' },
 				onDismiss,
@@ -57,19 +57,20 @@ describe('CardContextMenu', () => {
 					playTracks: jasmine.createSpy('playTracks'),
 				} as unknown as PlaybackStore,
 				transport: mockTransport(),
-			});
+			};
+			const component = driver.renderComponent(CardContextMenu, viewModel, undefined);
 
-			(getInternal(instrumented.getComponent()).handlePlay as () => void)();
+			(getInternal(component).handlePlay as () => void)();
 			await flush();
 
 			expect(play).toHaveBeenCalled();
 			expect(onDismiss).toHaveBeenCalled();
 		});
 
-		valdiIt('swallows a rejected fetch: still dismisses and does not play', async () => {
+		valdiIt('swallows a rejected fetch: still dismisses and does not play', async (driver) => {
 			const play = jasmine.createSpy('play');
 			const onDismiss = jasmine.createSpy('onDismiss');
-			const instrumented = createComponent(CardContextMenu, {
+			const viewModel = {
 				animationsEnabled: false,
 				card: { album: mockAlbum(), kind: 'album' },
 				onDismiss,
@@ -78,9 +79,10 @@ describe('CardContextMenu', () => {
 					playTracks: jasmine.createSpy('playTracks'),
 				} as unknown as PlaybackStore,
 				transport: mockTransport({ getTracksByAlbum: () => Promise.reject(new Error('boom')) }),
-			});
+			};
+			const component = driver.renderComponent(CardContextMenu, viewModel, undefined);
 
-			(getInternal(instrumented.getComponent()).handlePlay as () => void)();
+			(getInternal(component).handlePlay as () => void)();
 			await flush();
 
 			// A failed fetch must not surface as an unhandled rejection; the menu was already
@@ -89,9 +91,9 @@ describe('CardContextMenu', () => {
 			expect(onDismiss).toHaveBeenCalled();
 		});
 
-		valdiIt('does not play an empty fetch result', async () => {
+		valdiIt('does not play an empty fetch result', async (driver) => {
 			const play = jasmine.createSpy('play');
-			const instrumented = createComponent(CardContextMenu, {
+			const viewModel = {
 				animationsEnabled: false,
 				card: { album: mockAlbum(), kind: 'album' },
 				onDismiss: jasmine.createSpy('onDismiss'),
@@ -100,9 +102,10 @@ describe('CardContextMenu', () => {
 					playTracks: jasmine.createSpy('playTracks'),
 				} as unknown as PlaybackStore,
 				transport: mockTransport({ getTracksByAlbum: () => Promise.resolve([]) }),
-			});
+			};
+			const component = driver.renderComponent(CardContextMenu, viewModel, undefined);
 
-			(getInternal(instrumented.getComponent()).handlePlay as () => void)();
+			(getInternal(component).handlePlay as () => void)();
 			await flush();
 
 			expect(play).not.toHaveBeenCalled();
@@ -110,18 +113,19 @@ describe('CardContextMenu', () => {
 	});
 
 	describe('handleAddToQueue()', () => {
-		valdiIt('swallows a rejected fetch and still dismisses', async () => {
+		valdiIt('swallows a rejected fetch and still dismisses', async (driver) => {
 			const addToQueue = jasmine.createSpy('addToQueue');
 			const onDismiss = jasmine.createSpy('onDismiss');
-			const instrumented = createComponent(CardContextMenu, {
+			const viewModel = {
 				animationsEnabled: false,
 				card: { album: mockAlbum(), kind: 'album' },
 				onDismiss,
 				playbackStore: { addToQueue } as unknown as PlaybackStore,
 				transport: mockTransport({ getTracksByAlbum: () => Promise.reject(new Error('boom')) }),
-			});
+			};
+			const component = driver.renderComponent(CardContextMenu, viewModel, undefined);
 
-			(getInternal(instrumented.getComponent()).handleAddToQueue as () => void)();
+			(getInternal(component).handleAddToQueue as () => void)();
 			await flush();
 
 			expect(addToQueue).not.toHaveBeenCalled();

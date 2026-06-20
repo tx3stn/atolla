@@ -4,7 +4,7 @@ import { PlaylistView } from 'atolla/src/ui/views/PlaylistView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { layoutFrame, touchEvent } from '../util/testEvents';
 
 const pageSize = 24;
@@ -46,7 +46,7 @@ async function flushAsyncWork() {
 }
 
 describe('PlaylistsView', () => {
-	valdiIt('renders playlist names from state', async () => {
+	valdiIt('renders playlist names from state', async (driver) => {
 		const playlists = [
 			{ id: 'playlist-1', name: 'Roadtrip' },
 			{ id: 'playlist-2', name: 'Night Run' },
@@ -55,14 +55,14 @@ describe('PlaylistsView', () => {
 			getPlaylistsPage: async () => ({ hasMore: false, items: playlists }),
 		};
 
-		const instrumented = createComponent(PlaylistsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
 		component.setState({ playlists });
 
 		expect(component.state.playlists.length).toBe(2);
@@ -75,21 +75,21 @@ describe('PlaylistsView', () => {
 		expect(values).toContain('Night Run');
 	});
 
-	valdiIt('pushes PlaylistView when card is tapped', async () => {
+	valdiIt('pushes PlaylistView when card is tapped', async (driver) => {
 		const playlists = [{ id: 'playlist-1', name: 'Roadtrip' }];
 		const transport = {
 			getPlaylistsPage: async () => ({ hasMore: false, items: playlists }),
 		};
 
 		const navigationController = makeNavigationController();
-		const instrumented = createComponent(PlaylistsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController,
 			playbackStore,
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
 		component.setState({ playlists });
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
@@ -104,20 +104,20 @@ describe('PlaylistsView', () => {
 		expect(pushedViewModel?.playlist?.id).toBe('playlist-1');
 	});
 
-	valdiIt('opens context menu when card is long pressed', async () => {
+	valdiIt('opens context menu when card is long pressed', async (driver) => {
 		const playlists = [{ id: 'playlist-1', name: 'Roadtrip' }];
 		const transport = {
 			getPlaylistsPage: async () => ({ hasMore: false, items: playlists }),
 		};
 
-		const instrumented = createComponent(PlaylistsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
 		component.setState({ playlists });
 
 		component.handlePlaylistCardLongPress({ id: 'playlist-1', kind: 'playlist' });
@@ -125,7 +125,7 @@ describe('PlaylistsView', () => {
 		expect(component.state.contextMenuCard).toEqual({ kind: 'playlist', playlist: playlists[0] });
 	});
 
-	valdiIt('requests a server-side prefix filter when a letter filter is active', async () => {
+	valdiIt('requests a server-side prefix filter when a letter filter is active', async (driver) => {
 		const requestedStartsWith: Array<string | undefined> = [];
 		const transport = {
 			getPlaylistsPage: (_page: number, _size: number, options?: { startsWith?: string }) => {
@@ -134,15 +134,15 @@ describe('PlaylistsView', () => {
 			},
 		};
 
-		const instrumented = createComponent(PlaylistsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			letterFilter: 'a',
 			navigationController: makeNavigationController(),
 			playbackStore,
 			transport,
-		});
-		instrumented.getComponent();
+		};
+		driver.renderComponent(PlaylistsView, viewModel, undefined);
 
 		await flushAsyncWork();
 		await flushAsyncWork();
@@ -150,7 +150,7 @@ describe('PlaylistsView', () => {
 		expect(requestedStartsWith).toContain('a');
 	});
 
-	valdiIt('loads next playlist page when prefetch trigger is laid out', async () => {
+	valdiIt('loads next playlist page when prefetch trigger is laid out', async (driver) => {
 		const allPlaylists = makePlaylists(60);
 		const transport = {
 			getPlaylistsPage: (page: number, size: number) => {
@@ -163,14 +163,14 @@ describe('PlaylistsView', () => {
 			},
 		};
 
-		const instrumented = createComponent(PlaylistsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
 
 		await flushAsyncWork();
 		await flushAsyncWork();

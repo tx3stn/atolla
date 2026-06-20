@@ -7,7 +7,7 @@ import { SearchView } from 'atolla/src/ui/views/SearchView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { editTextEvent } from '../util/testEvents';
 
 const stubImageCache = {
@@ -48,8 +48,8 @@ function makeNavigationController() {
 }
 
 describe('SearchView', () => {
-	valdiIt('starts with an empty query', async () => {
-		const instrumented = createComponent(SearchView, {
+	valdiIt('starts with an empty query', async (driver) => {
+		const viewModel = {
 			animationsEnabled: true,
 			gridColumns: 3,
 			imageCache: stubImageCache,
@@ -59,14 +59,14 @@ describe('SearchView', () => {
 			transport: {
 				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
 
 		expect(component.state.query).toBe('');
 	});
 
-	valdiIt('updates query state when textfield changes', async () => {
-		const instrumented = createComponent(SearchView, {
+	valdiIt('updates query state when textfield changes', async (driver) => {
+		const viewModel = {
 			animationsEnabled: true,
 			gridColumns: 3,
 			imageCache: stubImageCache,
@@ -76,8 +76,8 @@ describe('SearchView', () => {
 			transport: {
 				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
 		const textField = elementTypeFind(
 			componentGetElements(component),
 			IRenderedElementViewClass.TextField,
@@ -88,9 +88,9 @@ describe('SearchView', () => {
 		expect(component.state.query).toBe('dream pop');
 	});
 
-	valdiIt('does not search when submit is empty and clears results', async () => {
+	valdiIt('does not search when submit is empty and clears results', async (driver) => {
 		let calls = 0;
-		const instrumented = createComponent(SearchView, {
+		const viewModel = {
 			animationsEnabled: true,
 			gridColumns: 3,
 			imageCache: stubImageCache,
@@ -103,8 +103,8 @@ describe('SearchView', () => {
 					return Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] });
 				},
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
 		component.setState({
 			results: {
 				albums: [{ artistId: 'a', artistName: 'a', id: 'a', name: 'a' }],
@@ -123,9 +123,12 @@ describe('SearchView', () => {
 		expect(component.state.results.albums).toEqual([]);
 	});
 
+	// These submit tests resolve an async search that calls setState; on the shared driver
+	// renderer that re-enters ('Already rendering'), so they root-mount SearchView via
+	// InstrumentedComponentJSX, which renders on its own renderer like production.
 	valdiIt('submits search and stores recent terms', async () => {
 		const searchCalls: Array<string> = [];
-		const instrumented = createComponent(SearchView, {
+		const viewModel = {
 			animationsEnabled: true,
 			gridColumns: 3,
 			imageCache: stubImageCache,
@@ -145,8 +148,12 @@ describe('SearchView', () => {
 					});
 				},
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = InstrumentedComponentJSX.create(
+			SearchView,
+			viewModel,
+			undefined,
+		).getComponent();
 
 		component.handleSubmitSearch('jane');
 		expect(component.state.status).toBe('loading');
@@ -159,7 +166,7 @@ describe('SearchView', () => {
 
 	valdiIt('submits search from keyboard return', async () => {
 		const searchCalls: Array<string> = [];
-		const instrumented = createComponent(SearchView, {
+		const viewModel = {
 			animationsEnabled: true,
 			gridColumns: 3,
 			imageCache: stubImageCache,
@@ -172,8 +179,12 @@ describe('SearchView', () => {
 					return Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] });
 				},
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = InstrumentedComponentJSX.create(
+			SearchView,
+			viewModel,
+			undefined,
+		).getComponent();
 		component.setState({ query: 'burial' });
 		const textField = elementTypeFind(
 			componentGetElements(component),
@@ -188,7 +199,7 @@ describe('SearchView', () => {
 
 	valdiIt('accepts event-shaped submit payloads', async () => {
 		const searchCalls: Array<string> = [];
-		const instrumented = createComponent(SearchView, {
+		const viewModel = {
 			animationsEnabled: true,
 			gridColumns: 3,
 			imageCache: stubImageCache,
@@ -201,8 +212,12 @@ describe('SearchView', () => {
 					return Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] });
 				},
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = InstrumentedComponentJSX.create(
+			SearchView,
+			viewModel,
+			undefined,
+		).getComponent();
 
 		component.handleSubmitSearch({ nativeEvent: { text: 'shoegaze' } });
 		await flushAsyncWork();
@@ -211,9 +226,9 @@ describe('SearchView', () => {
 		expect(component.state.lastSubmittedQuery).toBe('shoegaze');
 	});
 
-	valdiIt('opens artist/album/playlist views from tapped cards', async () => {
+	valdiIt('opens artist/album/playlist views from tapped cards', async (driver) => {
 		const navigationController = makeNavigationController();
-		const instrumented = createComponent(SearchView, {
+		const viewModel = {
 			animationsEnabled: true,
 			gridColumns: 3,
 			imageCache: stubImageCache,
@@ -223,8 +238,8 @@ describe('SearchView', () => {
 			transport: {
 				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
 
 		component.setState({
 			results: {
@@ -246,42 +261,47 @@ describe('SearchView', () => {
 		expect(navigationController.getPushed().component).toBe(PlaylistView);
 	});
 
-	valdiIt('routes album/artist/playlist taps through app callback when provided', async () => {
-		const routed: Array<{ kind: string }> = [];
-		const instrumented = createComponent(SearchView, {
-			animationsEnabled: true,
-			gridColumns: 3,
-			imageCache: stubImageCache,
-			navigationController: makeNavigationController(),
-			onNavigateToLibraryResult: (target: { kind: string }) => routed.push(target),
-			playbackStore: new PlaybackStore(),
-			searchStore: makeSearchStore(),
-			transport: {
-				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
-			},
-		});
-		const component = instrumented.getComponent();
+	valdiIt(
+		'routes album/artist/playlist taps through app callback when provided',
+		async (driver) => {
+			const routed: Array<{ kind: string }> = [];
+			const viewModel = {
+				animationsEnabled: true,
+				gridColumns: 3,
+				imageCache: stubImageCache,
+				navigationController: makeNavigationController(),
+				onNavigateToLibraryResult: (target: { kind: string }) => routed.push(target),
+				playbackStore: new PlaybackStore(),
+				searchStore: makeSearchStore(),
+				transport: {
+					search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+				},
+			};
+			const component = driver.renderComponent(SearchView, viewModel, undefined);
 
-		component.setState({
-			results: {
-				albums: [{ artistId: 'artist-1', artistName: 'Converge', id: 'album-1', name: 'Jane Doe' }],
-				artists: [{ id: 'artist-1', name: 'Converge' }],
-				playlists: [{ id: 'playlist-1', name: 'Converge Essentials' }],
-				tracks: [],
-			},
-			status: 'success',
-		});
+			component.setState({
+				results: {
+					albums: [
+						{ artistId: 'artist-1', artistName: 'Converge', id: 'album-1', name: 'Jane Doe' },
+					],
+					artists: [{ id: 'artist-1', name: 'Converge' }],
+					playlists: [{ id: 'playlist-1', name: 'Converge Essentials' }],
+					tracks: [],
+				},
+				status: 'success',
+			});
 
-		component.handleAlbumTap('album-1');
-		component.handleArtistTap('artist-1');
-		component.handlePlaylistTap('playlist-1');
+			component.handleAlbumTap('album-1');
+			component.handleArtistTap('artist-1');
+			component.handlePlaylistTap('playlist-1');
 
-		expect(routed.map((entry) => entry.kind)).toEqual(['album', 'artist', 'playlist']);
-	});
+			expect(routed.map((entry) => entry.kind)).toEqual(['album', 'artist', 'playlist']);
+		},
+	);
 
-	valdiIt('plays only the tapped track from track list results', async () => {
+	valdiIt('plays only the tapped track from track list results', async (driver) => {
 		const playbackStore = new PlaybackStore();
-		const instrumented = createComponent(SearchView, {
+		const viewModel = {
 			animationsEnabled: true,
 			gridColumns: 3,
 			imageCache: stubImageCache,
@@ -292,8 +312,8 @@ describe('SearchView', () => {
 				getArtistLogoUrl: () => Promise.resolve(null),
 				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
 		component.setState({
 			results: {
 				albums: [],
@@ -314,8 +334,8 @@ describe('SearchView', () => {
 		expect(playbackStore.isPlaying).toBe(true);
 	});
 
-	valdiIt('renders search bar with accessibility labels', async () => {
-		const instrumented = createComponent(SearchView, {
+	valdiIt('renders search bar with accessibility labels', async (driver) => {
+		const viewModel = {
 			animationsEnabled: true,
 			gridColumns: 3,
 			imageCache: stubImageCache,
@@ -325,8 +345,8 @@ describe('SearchView', () => {
 			transport: {
 				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const searchBar = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'search-bar',

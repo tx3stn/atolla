@@ -4,19 +4,19 @@ import { Toggle } from 'atolla/src/ui/components/Toggle';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { styleAttribute, touchEvent } from '../util/testEvents';
 
 describe('Toggle', () => {
-	valdiIt('calls onToggle with true when tapped while disabled', async () => {
+	valdiIt('calls onToggle with true when tapped while disabled', async (driver) => {
 		let received: boolean | undefined;
-		const instrumented = createComponent(Toggle, {
+		const viewModel = {
 			enabled: false,
 			onToggle: (enabled: boolean) => {
 				received = enabled;
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(Toggle, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views[0].getAttribute('onTap')?.(touchEvent);
@@ -24,15 +24,15 @@ describe('Toggle', () => {
 		expect(received).toBe(true);
 	});
 
-	valdiIt('calls onToggle with false when tapped while enabled', async () => {
+	valdiIt('calls onToggle with false when tapped while enabled', async (driver) => {
 		let received: boolean | undefined;
-		const instrumented = createComponent(Toggle, {
+		const viewModel = {
 			enabled: true,
 			onToggle: (enabled: boolean) => {
 				received = enabled;
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(Toggle, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views[0].getAttribute('onTap')?.(touchEvent);
@@ -40,35 +40,35 @@ describe('Toggle', () => {
 		expect(received).toBe(false);
 	});
 
-	valdiIt('uses accent color for track when enabled', async () => {
-		const instrumented = createComponent(Toggle, {
+	valdiIt('uses accent color for track when enabled', async (driver) => {
+		const viewModel = {
 			enabled: true,
 			onToggle: () => {},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(Toggle, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		expect(styleAttribute(views[0], 'backgroundColor')).toBe(theme.colors.active);
 	});
 
-	valdiIt('uses muted color for track when disabled', async () => {
-		const instrumented = createComponent(Toggle, {
+	valdiIt('uses muted color for track when disabled', async (driver) => {
+		const viewModel = {
 			enabled: false,
 			onToggle: () => {},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(Toggle, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		expect(styleAttribute(views[0], 'backgroundColor')).toBe(theme.colors.bgAccent);
 	});
 
-	valdiIt('sets accessibilityLabel on the track', async () => {
-		const instrumented = createComponent(Toggle, {
+	valdiIt('sets accessibilityLabel on the track', async (driver) => {
+		const viewModel = {
 			accessibilityId: 'settings-animations-toggle',
 			enabled: false,
 			onToggle: () => {},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(Toggle, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		expect(views[0].getAttribute('accessibilityLabel')).toBe('settings-animations-toggle');

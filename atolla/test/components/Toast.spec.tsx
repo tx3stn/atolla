@@ -3,12 +3,12 @@ import { Toast } from 'atolla/src/ui/components/Toast';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('Toast', () => {
-	valdiIt('renders the message', async () => {
-		const instrumented = createComponent(Toast, { message: 'Cache cleared' });
-		const component = instrumented.getComponent();
+	valdiIt('renders the message', async (driver) => {
+		const viewModel = { message: 'Cache cleared' };
+		const component = driver.renderComponent(Toast, viewModel, undefined);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -19,9 +19,9 @@ describe('Toast', () => {
 		expect(values).toContain('Cache cleared');
 	});
 
-	valdiIt('renders with accessibilityLabel toast', async () => {
-		const instrumented = createComponent(Toast, { message: 'Cache cleared' });
-		const component = instrumented.getComponent();
+	valdiIt('renders with accessibilityLabel toast', async (driver) => {
+		const viewModel = { message: 'Cache cleared' };
+		const component = driver.renderComponent(Toast, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const toast = views.find((view) => view.getAttribute('accessibilityLabel') === 'toast');

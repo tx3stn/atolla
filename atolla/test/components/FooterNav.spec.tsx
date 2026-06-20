@@ -6,7 +6,8 @@ import { FooterNav } from 'atolla/src/ui/components/FooterNav';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import type { IComponentTestDriver } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 function getRootView(component: Parameters<typeof componentGetElements>[0]) {
 	const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
@@ -19,18 +20,19 @@ function getIconTints(component: Parameters<typeof componentGetElements>[0]) {
 	);
 }
 
-function createFooterNav(barColors: BarColorStore) {
-	return createComponent(FooterNav, {
+function createFooterNav(driver: IComponentTestDriver, barColors: BarColorStore) {
+	const viewModel = {
 		activeTab: FooterTabs.home,
 		barColors,
 		downloadingCount: 0,
 		onFooterTabTap: () => {},
-	});
+	};
+	return driver.renderComponent(FooterNav, viewModel, undefined);
 }
 
 describe('FooterNav', () => {
-	valdiIt('renders the default footer colours', async () => {
-		const component = createFooterNav(new BarColorStore()).getComponent();
+	valdiIt('renders the default footer colours', async (driver) => {
+		const component = createFooterNav(driver, new BarColorStore());
 
 		expect(getRootView(component).getAttribute('backgroundColor')).toBe(theme.colors.bgFrosted);
 
@@ -39,14 +41,14 @@ describe('FooterNav', () => {
 		expect(tints[1]).toBe(theme.colors.grey);
 	});
 
-	valdiIt('reflects the bar store footer colours', async () => {
+	valdiIt('reflects the bar store footer colours', async (driver) => {
 		const footer = {
 			activeIconColor: '#d8dee9',
 			background: 'rgba(17,26,43,0.8)',
 			inactiveIconColor: '#667085',
 		};
 		const barColors = new BarColorStore();
-		const component = createFooterNav(barColors).getComponent();
+		const component = createFooterNav(driver, barColors);
 
 		barColors.setFooter(footer);
 

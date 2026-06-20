@@ -3,17 +3,17 @@ import { SyncStatusBanner } from 'atolla/src/ui/components/SyncStatusBanner';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
 
 describe('SyncStatusBanner', () => {
-	valdiIt('shows a syncing message with a spinner', async () => {
-		const instrumented = createComponent(SyncStatusBanner, {
+	valdiIt('shows a syncing message with a spinner', async (driver) => {
+		const viewModel = {
 			completed: 0,
 			status: 'syncing',
 			total: 3,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(SyncStatusBanner, viewModel, undefined);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -29,13 +29,13 @@ describe('SyncStatusBanner', () => {
 		expect(images.length).toBe(1);
 	});
 
-	valdiIt('shows a confirmation when fully synced', async () => {
-		const instrumented = createComponent(SyncStatusBanner, {
+	valdiIt('shows a confirmation when fully synced', async (driver) => {
+		const viewModel = {
 			completed: 3,
 			status: 'done',
 			total: 3,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(SyncStatusBanner, viewModel, undefined);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -45,17 +45,17 @@ describe('SyncStatusBanner', () => {
 		expect(values).toContain('synced');
 	});
 
-	valdiIt('shows the completed ratio and is tappable on partial sync', async () => {
+	valdiIt('shows the completed ratio and is tappable on partial sync', async (driver) => {
 		let tapped = false;
-		const instrumented = createComponent(SyncStatusBanner, {
+		const viewModel = {
 			completed: 2,
 			onTap: () => {
 				tapped = true;
 			},
 			status: 'partial',
 			total: 3,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(SyncStatusBanner, viewModel, undefined);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),

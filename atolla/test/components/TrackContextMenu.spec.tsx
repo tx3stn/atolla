@@ -2,7 +2,7 @@ import 'jasmine/src/jasmine';
 import { TrackContextMenu } from 'atolla/src/ui/components/TrackContextMenu';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
 import { renderedElements } from './renderedElements';
 
@@ -46,10 +46,9 @@ function createViewModel(overrides = {}) {
 }
 
 describe('TrackContextMenu', () => {
-	valdiIt('adds track to queue and dismisses with added-to-queue toast message', async () => {
+	valdiIt('adds track to queue and dismisses with added-to-queue toast message', async (driver) => {
 		const { callOrder, dismissMessages, viewModel } = createViewModel();
-		const instrumented = createComponent(TrackContextMenu, viewModel);
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		const addToQueueAction = views.find(
@@ -62,31 +61,32 @@ describe('TrackContextMenu', () => {
 		expect(dismissMessages).toEqual(['added to queue']);
 	});
 
-	valdiIt('queues track to play next and dismisses with play-next toast message', async () => {
-		const { callOrder, dismissMessages, viewModel } = createViewModel();
-		const instrumented = createComponent(TrackContextMenu, viewModel);
-		const component = instrumented.getComponent();
+	valdiIt(
+		'queues track to play next and dismisses with play-next toast message',
+		async (driver) => {
+			const { callOrder, dismissMessages, viewModel } = createViewModel();
+			const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
-		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
-		const playNextAction = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'track-context-play-next',
-		);
+			const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+			const playNextAction = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-context-play-next',
+			);
 
-		playNextAction?.getAttribute('onTap')?.(touchEvent);
+			playNextAction?.getAttribute('onTap')?.(touchEvent);
 
-		expect(callOrder).toEqual(['playNext:track-1', 'dismiss:playing next']);
-		expect(dismissMessages).toEqual(['playing next']);
-	});
+			expect(callOrder).toEqual(['playNext:track-1', 'dismiss:playing next']);
+			expect(dismissMessages).toEqual(['playing next']);
+		},
+	);
 
-	valdiIt('opens the artist and dismisses when the artist logo is tapped', async () => {
+	valdiIt('opens the artist and dismisses when the artist logo is tapped', async (driver) => {
 		const artistTaps: Array<string> = [];
 		const { dismissMessages, viewModel } = createViewModel({
 			onArtistTap: () => {
 				artistTaps.push('artist');
 			},
 		});
-		const instrumented = createComponent(TrackContextMenu, viewModel);
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		const artistLogo = views.find(
@@ -99,15 +99,14 @@ describe('TrackContextMenu', () => {
 		expect(dismissMessages).toEqual([undefined]);
 	});
 
-	valdiIt('opens the album and dismisses when the album row is tapped', async () => {
+	valdiIt('opens the album and dismisses when the album row is tapped', async (driver) => {
 		const albumTaps: Array<string> = [];
 		const { dismissMessages, viewModel } = createViewModel({
 			onAlbumTap: () => {
 				albumTaps.push('album');
 			},
 		});
-		const instrumented = createComponent(TrackContextMenu, viewModel);
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		const albumRow = views.find(
@@ -120,10 +119,9 @@ describe('TrackContextMenu', () => {
 		expect(dismissMessages).toEqual([undefined]);
 	});
 
-	valdiIt('dismisses without toast when backdrop is tapped', async () => {
+	valdiIt('dismisses without toast when backdrop is tapped', async (driver) => {
 		const { callOrder, dismissMessages, viewModel } = createViewModel();
-		const instrumented = createComponent(TrackContextMenu, viewModel);
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
 		const backdrop = renderedElements(component).find(
 			(element) => element.getAttribute('accessibilityLabel') === 'track-context-backdrop',

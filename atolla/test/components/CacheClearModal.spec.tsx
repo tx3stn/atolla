@@ -3,13 +3,13 @@ import type { ClearCacheSelection } from 'atolla/src/services/ImageCache';
 import { CacheClearModal } from 'atolla/src/ui/components/CacheClearModal';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
 import { renderedElements } from './renderedElements';
 
 describe('CacheClearModal', () => {
-	valdiIt('renders title and all cache type rows', async () => {
-		const instrumented = createComponent(CacheClearModal, {
+	valdiIt('renders title and all cache type rows', async (driver) => {
+		const viewModel = {
 			counts: {
 				albumArt: 0,
 				albumArtBlurred: 0,
@@ -22,8 +22,8 @@ describe('CacheClearModal', () => {
 			},
 			onCancel: () => {},
 			onConfirm: () => {},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
 
 		const labels = elementTypeFind(renderedElements(component), IRenderedElementViewClass.Label);
 		const values = labels.map((label) => label.getAttribute('value'));
@@ -39,8 +39,36 @@ describe('CacheClearModal', () => {
 		expect(values).toContain('[ 0 ] waveforms');
 	});
 
-	valdiIt('confirm button is enabled when all checkboxes are checked by default', async () => {
-		const instrumented = createComponent(CacheClearModal, {
+	valdiIt(
+		'confirm button is enabled when all checkboxes are checked by default',
+		async (driver) => {
+			const viewModel = {
+				counts: {
+					albumArt: 0,
+					albumArtBlurred: 0,
+					artistImage: 0,
+					artistLogo: 0,
+					genreImage: 0,
+					playlistImage: 0,
+					tracks: 0,
+					waveformData: 0,
+				},
+				onCancel: () => {},
+				onConfirm: () => {},
+			};
+			const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
+
+			const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+			const confirmBtn = views.find(
+				(v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn',
+			);
+
+			expect(typeof confirmBtn?.getAttribute('onTap')).toBe('function');
+		},
+	);
+
+	valdiIt('confirm button is disabled when all checkboxes are unchecked', async (driver) => {
+		const viewModel = {
 			counts: {
 				albumArt: 0,
 				albumArtBlurred: 0,
@@ -53,33 +81,8 @@ describe('CacheClearModal', () => {
 			},
 			onCancel: () => {},
 			onConfirm: () => {},
-		});
-		const component = instrumented.getComponent();
-
-		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
-		const confirmBtn = views.find(
-			(v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn',
-		);
-
-		expect(typeof confirmBtn?.getAttribute('onTap')).toBe('function');
-	});
-
-	valdiIt('confirm button is disabled when all checkboxes are unchecked', async () => {
-		const instrumented = createComponent(CacheClearModal, {
-			counts: {
-				albumArt: 0,
-				albumArtBlurred: 0,
-				artistImage: 0,
-				artistLogo: 0,
-				genreImage: 0,
-				playlistImage: 0,
-				tracks: 0,
-				waveformData: 0,
-			},
-			onCancel: () => {},
-			onConfirm: () => {},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
 
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views
@@ -118,9 +121,9 @@ describe('CacheClearModal', () => {
 		expect(confirmBtn?.getAttribute('onTap')).toBeUndefined();
 	});
 
-	valdiIt('calls onConfirm with full selection when confirmed with defaults', async () => {
+	valdiIt('calls onConfirm with full selection when confirmed with defaults', async (driver) => {
 		let received: unknown;
-		const instrumented = createComponent(CacheClearModal, {
+		const viewModel = {
 			counts: {
 				albumArt: 0,
 				albumArtBlurred: 0,
@@ -135,8 +138,8 @@ describe('CacheClearModal', () => {
 			onConfirm: (selection: ClearCacheSelection) => {
 				received = selection;
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
 
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views
@@ -155,9 +158,9 @@ describe('CacheClearModal', () => {
 		});
 	});
 
-	valdiIt('calls onConfirm reflecting unchecked items', async () => {
+	valdiIt('calls onConfirm reflecting unchecked items', async (driver) => {
 		let received: unknown;
-		const instrumented = createComponent(CacheClearModal, {
+		const viewModel = {
 			counts: {
 				albumArt: 0,
 				albumArtBlurred: 0,
@@ -172,8 +175,8 @@ describe('CacheClearModal', () => {
 			onConfirm: (selection: ClearCacheSelection) => {
 				received = selection;
 			},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
 
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views
@@ -200,9 +203,9 @@ describe('CacheClearModal', () => {
 		});
 	});
 
-	valdiIt('calls onCancel when cancel button is tapped', async () => {
+	valdiIt('calls onCancel when cancel button is tapped', async (driver) => {
 		let cancelled = false;
-		const instrumented = createComponent(CacheClearModal, {
+		const viewModel = {
 			counts: {
 				albumArt: 0,
 				albumArtBlurred: 0,
@@ -217,8 +220,8 @@ describe('CacheClearModal', () => {
 				cancelled = true;
 			},
 			onConfirm: () => {},
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
 
 		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
 		views

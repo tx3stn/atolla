@@ -5,13 +5,12 @@ import { TrackList } from 'atolla/src/ui/components/TrackList';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { dragEvent, styleAttribute, touchEvent, touchEventWith } from '../util/testEvents';
 
 describe('TrackList', () => {
-	valdiIt('shows empty state when no tracks are provided', async () => {
-		const instrumented = createComponent(TrackList, { tracks: [] });
-		const component = instrumented.getComponent();
+	valdiIt('shows empty state when no tracks are provided', async (driver) => {
+		const component = driver.renderComponent(TrackList, { tracks: [] }, undefined);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -21,13 +20,12 @@ describe('TrackList', () => {
 		expect(labels[0].getAttribute('value')).toBe('nothing else lined up');
 	});
 
-	valdiIt('renders a row for each track', async () => {
+	valdiIt('renders a row for each track', async (driver) => {
 		const tracks = [
 			{ id: 'a', meta: '3:00', title: 'Song One' },
 			{ id: 'b', meta: '4:30', title: 'Song Two' },
 		];
-		const instrumented = createComponent(TrackList, { tracks });
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(TrackList, { tracks }, undefined);
 
 		const rows = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		expect(rows.some((row) => row.getAttribute('accessibilityLabel') === 'track-row-a-0')).toBe(
@@ -38,10 +36,9 @@ describe('TrackList', () => {
 		);
 	});
 
-	valdiIt('renders track title and meta labels', async () => {
+	valdiIt('renders track title and meta labels', async (driver) => {
 		const tracks = [{ id: 'a', meta: '2:15', title: 'Track Name' }];
-		const instrumented = createComponent(TrackList, { tracks });
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(TrackList, { tracks }, undefined);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -52,10 +49,9 @@ describe('TrackList', () => {
 		expect(values).toContain('2:15');
 	});
 
-	valdiIt('shows the full title and tail-ellipsises only the meta line', async () => {
+	valdiIt('shows the full title and tail-ellipsises only the meta line', async (driver) => {
 		const tracks = [{ id: 'a', meta: 'Very long metadata line', title: 'Very long track title' }];
-		const instrumented = createComponent(TrackList, { tracks });
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(TrackList, { tracks }, undefined);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -71,16 +67,19 @@ describe('TrackList', () => {
 		expect(meta?.getAttribute('numberOfLines')).toBe(1);
 	});
 
-	valdiIt('calls onTrackTap with track id when row is tapped', async () => {
+	valdiIt('calls onTrackTap with track id when row is tapped', async (driver) => {
 		const tracks = [{ id: 'track-1', meta: '1:00', title: 'Tap Me' }];
 		let tappedId = '';
-		const instrumented = createComponent(TrackList, {
-			onTrackTap: (id: string) => {
-				tappedId = id;
+		const component = driver.renderComponent(
+			TrackList,
+			{
+				onTrackTap: (id: string) => {
+					tappedId = id;
+				},
+				tracks,
 			},
-			tracks,
-		});
-		const component = instrumented.getComponent();
+			undefined,
+		);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const swipeRegion = views.find(
@@ -91,7 +90,7 @@ describe('TrackList', () => {
 		expect(tappedId).toBe('track-1');
 	});
 
-	valdiIt('calls onTrackLongPress when artwork is long pressed', async () => {
+	valdiIt('calls onTrackLongPress when artwork is long pressed', async (driver) => {
 		jasmine.clock().install();
 		try {
 			const track = {
@@ -101,21 +100,24 @@ describe('TrackList', () => {
 				name: 'Track One',
 			};
 			let longPressedTrackId: string | null = null;
-			const instrumented = createComponent(TrackList, {
-				onTrackLongPress: (pressedTrack: { id: string }) => {
-					longPressedTrackId = pressedTrack.id;
-				},
-				tracks: [
-					{
-						artworkSource: 'https://example.com/art.jpg',
-						id: track.id,
-						meta: 'Artist',
-						title: track.name,
-						track,
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					onTrackLongPress: (pressedTrack: { id: string }) => {
+						longPressedTrackId = pressedTrack.id;
 					},
-				],
-			});
-			const component = instrumented.getComponent();
+					tracks: [
+						{
+							artworkSource: 'https://example.com/art.jpg',
+							id: track.id,
+							meta: 'Artist',
+							title: track.name,
+							track,
+						},
+					],
+				},
+				undefined,
+			);
 
 			const views = elementTypeFind(
 				componentGetElements(component),
@@ -133,7 +135,7 @@ describe('TrackList', () => {
 		}
 	});
 
-	valdiIt('calls onTrackLongPress when non-artwork region is long pressed', async () => {
+	valdiIt('calls onTrackLongPress when non-artwork region is long pressed', async (driver) => {
 		jasmine.clock().install();
 		try {
 			const track = {
@@ -143,21 +145,24 @@ describe('TrackList', () => {
 				name: 'Track One',
 			};
 			let longPressedTrackId: string | null = null;
-			const instrumented = createComponent(TrackList, {
-				onTrackLongPress: (pressedTrack: { id: string }) => {
-					longPressedTrackId = pressedTrack.id;
-				},
-				tracks: [
-					{
-						id: track.id,
-						leadingLabel: '1',
-						meta: 'Artist',
-						title: track.name,
-						track,
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					onTrackLongPress: (pressedTrack: { id: string }) => {
+						longPressedTrackId = pressedTrack.id;
 					},
-				],
-			});
-			const component = instrumented.getComponent();
+					tracks: [
+						{
+							id: track.id,
+							leadingLabel: '1',
+							meta: 'Artist',
+							title: track.name,
+							track,
+						},
+					],
+				},
+				undefined,
+			);
 
 			const views = elementTypeFind(
 				componentGetElements(component),
@@ -175,7 +180,7 @@ describe('TrackList', () => {
 		}
 	});
 
-	valdiIt('keeps long press active while touch state changes', async () => {
+	valdiIt('keeps long press active while touch state changes', async (driver) => {
 		jasmine.clock().install();
 		try {
 			const track = {
@@ -185,21 +190,24 @@ describe('TrackList', () => {
 				name: 'Track One',
 			};
 			let longPressedTrackId: string | null = null;
-			const instrumented = createComponent(TrackList, {
-				onTrackLongPress: (pressedTrack: { id: string }) => {
-					longPressedTrackId = pressedTrack.id;
-				},
-				tracks: [
-					{
-						id: track.id,
-						leadingLabel: '1',
-						meta: 'Artist',
-						title: track.name,
-						track,
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					onTrackLongPress: (pressedTrack: { id: string }) => {
+						longPressedTrackId = pressedTrack.id;
 					},
-				],
-			});
-			const component = instrumented.getComponent();
+					tracks: [
+						{
+							id: track.id,
+							leadingLabel: '1',
+							meta: 'Artist',
+							title: track.name,
+							track,
+						},
+					],
+				},
+				undefined,
+			);
 
 			const views = elementTypeFind(
 				componentGetElements(component),
@@ -218,7 +226,7 @@ describe('TrackList', () => {
 		}
 	});
 
-	valdiIt('keeps handle tap active while swipe remove is enabled', async () => {
+	valdiIt('keeps handle tap active while swipe remove is enabled', async (driver) => {
 		const track = {
 			artistName: 'Artist',
 			duration: 180,
@@ -228,26 +236,29 @@ describe('TrackList', () => {
 		let removedTrackId: string | null = null;
 		let removedEntryIndex: number | null = null;
 		let longPressedTrackId: string | null = null;
-		const instrumented = createComponent(TrackList, {
-			onTrackLongPress: (pressedTrack: { id: string }) => {
-				longPressedTrackId = pressedTrack.id;
-			},
-			onTrackSwipeRemove: (trackId: string, entryIndex: number) => {
-				removedTrackId = trackId;
-				removedEntryIndex = entryIndex;
-			},
-			showDragHandles: true,
-			tracks: [
-				{
-					artworkSource: 'https://example.com/art.jpg',
-					id: track.id,
-					meta: 'Artist',
-					title: track.name,
-					track,
+		const component = driver.renderComponent(
+			TrackList,
+			{
+				onTrackLongPress: (pressedTrack: { id: string }) => {
+					longPressedTrackId = pressedTrack.id;
 				},
-			],
-		});
-		const component = instrumented.getComponent();
+				onTrackSwipeRemove: (trackId: string, entryIndex: number) => {
+					removedTrackId = trackId;
+					removedEntryIndex = entryIndex;
+				},
+				showDragHandles: true,
+				tracks: [
+					{
+						artworkSource: 'https://example.com/art.jpg',
+						id: track.id,
+						meta: 'Artist',
+						title: track.name,
+						track,
+					},
+				],
+			},
+			undefined,
+		);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const handle = views.find(
@@ -270,14 +281,17 @@ describe('TrackList', () => {
 		expect(removedEntryIndex as number | null).toBe(0);
 	});
 
-	valdiIt('reveals a destructive remove icon as row is swiped', async () => {
+	valdiIt('reveals a destructive remove icon as row is swiped', async (driver) => {
 		const tracks = [{ id: 'track-1', meta: '1:00', title: 'Swipe Me' }];
-		const instrumented = createComponent(TrackList, {
-			onTrackSwipeRemove: () => {},
-			showDragHandles: true,
-			tracks,
-		});
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(
+			TrackList,
+			{
+				onTrackSwipeRemove: () => {},
+				showDragHandles: true,
+				tracks,
+			},
+			undefined,
+		);
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const removeAction = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-remove-action-track-1-0',
@@ -304,22 +318,25 @@ describe('TrackList', () => {
 		expect(removeIcon?.getAttribute('tint')).toBe(theme.colors.destructive);
 	});
 
-	valdiIt('calls onTrackReorder when dragging handle vertically', async () => {
+	valdiIt('calls onTrackReorder when dragging handle vertically', async (driver) => {
 		const reordered: Array<number> = [];
 		const tracks = [
 			{ id: 'track-1', meta: '1:00', title: 'One' },
 			{ id: 'track-2', meta: '1:10', title: 'Two' },
 			{ id: 'track-3', meta: '1:20', title: 'Three' },
 		];
-		const instrumented = createComponent(TrackList, {
-			holdToReorder: false,
-			onTrackReorder: (fromIndex: number, toIndex: number) => {
-				reordered.push(fromIndex, toIndex);
+		const component = driver.renderComponent(
+			TrackList,
+			{
+				holdToReorder: false,
+				onTrackReorder: (fromIndex: number, toIndex: number) => {
+					reordered.push(fromIndex, toIndex);
+				},
+				showDragHandles: true,
+				tracks,
 			},
-			showDragHandles: true,
-			tracks,
-		});
-		const component = instrumented.getComponent();
+			undefined,
+		);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const dragContainer = views.find(
@@ -426,18 +443,21 @@ describe('TrackList', () => {
 		expect(reordered).toEqual([0, 2]);
 	});
 
-	valdiIt('moves the row visually while dragging the reorder handle', async () => {
+	valdiIt('moves the row visually while dragging the reorder handle', async (driver) => {
 		const tracks = [
 			{ id: 'track-1', meta: '1:00', title: 'One' },
 			{ id: 'track-2', meta: '1:10', title: 'Two' },
 		];
-		const instrumented = createComponent(TrackList, {
-			holdToReorder: false,
-			onTrackReorder: () => {},
-			showDragHandles: true,
-			tracks,
-		});
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(
+			TrackList,
+			{
+				holdToReorder: false,
+				onTrackReorder: () => {},
+				showDragHandles: true,
+				tracks,
+			},
+			undefined,
+		);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const dragContainer = views.find(
@@ -464,7 +484,7 @@ describe('TrackList', () => {
 		expect(row?.getAttribute('backgroundColor')).toBe(theme.colors.bg);
 	});
 
-	valdiIt('clamps handle drag reorder to list boundaries', async () => {
+	valdiIt('clamps handle drag reorder to list boundaries', async (driver) => {
 		let fromIndex: number | null = null;
 		let toIndex: number | null = null;
 		const tracks = [
@@ -472,16 +492,19 @@ describe('TrackList', () => {
 			{ id: 'track-2', meta: '1:10', title: 'Two' },
 			{ id: 'track-3', meta: '1:20', title: 'Three' },
 		];
-		const instrumented = createComponent(TrackList, {
-			holdToReorder: false,
-			onTrackReorder: (from: number, to: number) => {
-				fromIndex = from;
-				toIndex = to;
+		const component = driver.renderComponent(
+			TrackList,
+			{
+				holdToReorder: false,
+				onTrackReorder: (from: number, to: number) => {
+					fromIndex = from;
+					toIndex = to;
+				},
+				showDragHandles: true,
+				tracks,
 			},
-			showDragHandles: true,
-			tracks,
-		});
-		const component = instrumented.getComponent();
+			undefined,
+		);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const dragContainer = views.find(
@@ -495,7 +518,7 @@ describe('TrackList', () => {
 		expect(toIndex as number | null).toBe(0);
 	});
 
-	valdiIt('auto-scrolls when a row is dragged to the viewport edge', async () => {
+	valdiIt('auto-scrolls when a row is dragged to the viewport edge', async (driver) => {
 		const scrollCalls: Array<number> = [];
 		const dragScroller = {
 			scrollBy: (delta: number) => {
@@ -510,14 +533,17 @@ describe('TrackList', () => {
 			{ id: 'track-2', meta: '1:10', title: 'Two' },
 			{ id: 'track-3', meta: '1:20', title: 'Three' },
 		];
-		const instrumented = createComponent(TrackList, {
-			dragScroller,
-			holdToReorder: false,
-			onTrackReorder: () => {},
-			showDragHandles: true,
-			tracks,
-		});
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(
+			TrackList,
+			{
+				dragScroller,
+				holdToReorder: false,
+				onTrackReorder: () => {},
+				showDragHandles: true,
+				tracks,
+			},
+			undefined,
+		);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const dragContainer = views.find(
@@ -552,44 +578,51 @@ describe('TrackList', () => {
 		);
 	});
 
-	valdiIt('suspends the ancestor scroll for the duration of an Android reorder touch', async () => {
-		const scrollEnabledCalls: Array<boolean> = [];
-		const dragScroller = {
-			scrollBy: () => 0,
-			setScrollEnabled: (enabled: boolean) => {
-				scrollEnabledCalls.push(enabled);
-			},
-			viewport: () => undefined,
-		};
-		const tracks = [
-			{ id: 'track-1', meta: '1:00', title: 'One' },
-			{ id: 'track-2', meta: '1:10', title: 'Two' },
-		];
-		const instrumented = createComponent(TrackList, {
-			dragScroller,
-			holdToReorder: false,
-			onTrackReorder: () => {},
-			showDragHandles: true,
-			tracks,
-		});
-		const views = elementTypeFind(
-			componentGetElements(instrumented.getComponent()),
-			IRenderedElementViewClass.View,
-		);
-		const handle = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
-		);
+	valdiIt(
+		'suspends the ancestor scroll for the duration of an Android reorder touch',
+		async (driver) => {
+			const scrollEnabledCalls: Array<boolean> = [];
+			const dragScroller = {
+				scrollBy: () => 0,
+				setScrollEnabled: (enabled: boolean) => {
+					scrollEnabledCalls.push(enabled);
+				},
+				viewport: () => undefined,
+			};
+			const tracks = [
+				{ id: 'track-1', meta: '1:00', title: 'One' },
+				{ id: 'track-2', meta: '1:10', title: 'Two' },
+			];
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					dragScroller,
+					holdToReorder: false,
+					onTrackReorder: () => {},
+					showDragHandles: true,
+					tracks,
+				},
+				undefined,
+			);
+			const views = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			);
+			const handle = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
+			);
 
-		// Pressing the handle suspends the scroll so an up-drag moves the row instead of panning.
-		handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 50, state: 0 }));
-		expect(scrollEnabledCalls).toEqual([false]);
+			// Pressing the handle suspends the scroll so an up-drag moves the row instead of panning.
+			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 50, state: 0 }));
+			expect(scrollEnabledCalls).toEqual([false]);
 
-		// Lifting restores it.
-		handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 50, state: 2 }));
-		expect(scrollEnabledCalls).toEqual([false, true]);
-	});
+			// Lifting restores it.
+			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 50, state: 2 }));
+			expect(scrollEnabledCalls).toEqual([false, true]);
+		},
+	);
 
-	valdiIt('does not auto-scroll against the drag direction', async () => {
+	valdiIt('does not auto-scroll against the drag direction', async (driver) => {
 		const scrollCalls: Array<number> = [];
 		const dragScroller = {
 			scrollBy: (delta: number) => {
@@ -604,17 +637,18 @@ describe('TrackList', () => {
 			{ id: 'track-2', meta: '1:10', title: 'Two' },
 			{ id: 'track-3', meta: '1:20', title: 'Three' },
 		];
-		const instrumented = createComponent(TrackList, {
-			dragScroller,
-			holdToReorder: false,
-			onTrackReorder: () => {},
-			showDragHandles: true,
-			tracks,
-		});
-		const views = elementTypeFind(
-			componentGetElements(instrumented.getComponent()),
-			IRenderedElementViewClass.View,
+		const component = driver.renderComponent(
+			TrackList,
+			{
+				dragScroller,
+				holdToReorder: false,
+				onTrackReorder: () => {},
+				showDragHandles: true,
+				tracks,
+			},
+			undefined,
 		);
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const dragContainer = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
 		);
@@ -708,15 +742,19 @@ describe('TrackList', () => {
 			{ id: 'track-3', meta: '1:20', title: 'Three' },
 		];
 
-		valdiIt('highlights only one row at a time across drags', async () => {
-			const instrumented = createComponent(TrackList, {
-				holdToReorder: false,
-				onTrackReorder: () => {},
-				showDragHandles: true,
-				tracks,
-			});
+		valdiIt('highlights only one row at a time across drags', async (driver) => {
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					holdToReorder: false,
+					onTrackReorder: () => {},
+					showDragHandles: true,
+					tracks,
+				},
+				undefined,
+			);
 			const views = elementTypeFind(
-				componentGetElements(instrumented.getComponent()),
+				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
 			const findView = (label: string) =>
@@ -747,18 +785,22 @@ describe('TrackList', () => {
 			expect(findView('track-row-track-2-1')?.getAttribute('backgroundColor')).toBe(dragHighlight);
 		});
 
-		valdiIt('ignores a late drag end for a superseded row', async () => {
+		valdiIt('ignores a late drag end for a superseded row', async (driver) => {
 			const reordered: Array<number> = [];
-			const instrumented = createComponent(TrackList, {
-				holdToReorder: false,
-				onTrackReorder: (from: number, to: number) => {
-					reordered.push(from, to);
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					holdToReorder: false,
+					onTrackReorder: (from: number, to: number) => {
+						reordered.push(from, to);
+					},
+					showDragHandles: true,
+					tracks,
 				},
-				showDragHandles: true,
-				tracks,
-			});
+				undefined,
+			);
 			const views = elementTypeFind(
-				componentGetElements(instrumented.getComponent()),
+				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
 			const findView = (label: string) =>
@@ -796,18 +838,22 @@ describe('TrackList', () => {
 			expect(findView('track-row-track-2-1')?.getAttribute('backgroundColor')).toBe(dragHighlight);
 		});
 
-		valdiIt('finalises on the handle touch end and ignores the later drag end', async () => {
+		valdiIt('finalises on the handle touch end and ignores the later drag end', async (driver) => {
 			const reordered: Array<number> = [];
-			const instrumented = createComponent(TrackList, {
-				holdToReorder: false,
-				onTrackReorder: (from: number, to: number) => {
-					reordered.push(from, to);
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					holdToReorder: false,
+					onTrackReorder: (from: number, to: number) => {
+						reordered.push(from, to);
+					},
+					showDragHandles: true,
+					tracks,
 				},
-				showDragHandles: true,
-				tracks,
-			});
+				undefined,
+			);
 			const views = elementTypeFind(
-				componentGetElements(instrumented.getComponent()),
+				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
 			const findView = (label: string) =>
@@ -848,15 +894,19 @@ describe('TrackList', () => {
 			{ id: 'track-3', meta: '1:20', title: 'Three' },
 		];
 
-		valdiIt('arms with the handle long press instead of a row drag', async () => {
-			const instrumented = createComponent(TrackList, {
-				holdToReorder: true,
-				onTrackReorder: () => {},
-				showDragHandles: true,
-				tracks,
-			});
+		valdiIt('arms with the handle long press instead of a row drag', async (driver) => {
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					holdToReorder: true,
+					onTrackReorder: () => {},
+					showDragHandles: true,
+					tracks,
+				},
+				undefined,
+			);
 			const views = elementTypeFind(
-				componentGetElements(instrumented.getComponent()),
+				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
 
@@ -873,18 +923,22 @@ describe('TrackList', () => {
 			expect(handle?.getAttribute('onLongPressDisabled')).toBe(false);
 		});
 
-		valdiIt('calls onTrackReorder after long press arm and touch movement', async () => {
+		valdiIt('calls onTrackReorder after long press arm and touch movement', async (driver) => {
 			const reordered: Array<number> = [];
-			const instrumented = createComponent(TrackList, {
-				holdToReorder: true,
-				onTrackReorder: (fromIndex: number, toIndex: number) => {
-					reordered.push(fromIndex, toIndex);
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					holdToReorder: true,
+					onTrackReorder: (fromIndex: number, toIndex: number) => {
+						reordered.push(fromIndex, toIndex);
+					},
+					showDragHandles: true,
+					tracks,
 				},
-				showDragHandles: true,
-				tracks,
-			});
+				undefined,
+			);
 			const views = elementTypeFind(
-				componentGetElements(instrumented.getComponent()),
+				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
 			const handle = views.find(
@@ -898,15 +952,19 @@ describe('TrackList', () => {
 			expect(reordered).toEqual([0, 1]);
 		});
 
-		valdiIt('moves the row visually while the armed handle is touched', async () => {
-			const instrumented = createComponent(TrackList, {
-				holdToReorder: true,
-				onTrackReorder: () => {},
-				showDragHandles: true,
-				tracks,
-			});
+		valdiIt('moves the row visually while the armed handle is touched', async (driver) => {
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					holdToReorder: true,
+					onTrackReorder: () => {},
+					showDragHandles: true,
+					tracks,
+				},
+				undefined,
+			);
 			const views = elementTypeFind(
-				componentGetElements(instrumented.getComponent()),
+				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
 			const dragContainer = views.find(
@@ -930,7 +988,7 @@ describe('TrackList', () => {
 			expect(dragContainer?.getAttribute('bottom')).toBe(-42);
 		});
 
-		valdiIt('suspends scrolling while armed and restores it after release', async () => {
+		valdiIt('suspends scrolling while armed and restores it after release', async (driver) => {
 			const scrollEnabledCalls: Array<boolean> = [];
 			const dragScroller = {
 				scrollBy: () => 0,
@@ -939,15 +997,19 @@ describe('TrackList', () => {
 				},
 				viewport: () => undefined,
 			};
-			const instrumented = createComponent(TrackList, {
-				dragScroller,
-				holdToReorder: true,
-				onTrackReorder: () => {},
-				showDragHandles: true,
-				tracks,
-			});
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					dragScroller,
+					holdToReorder: true,
+					onTrackReorder: () => {},
+					showDragHandles: true,
+					tracks,
+				},
+				undefined,
+			);
 			const views = elementTypeFind(
-				componentGetElements(instrumented.getComponent()),
+				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
 			const handle = views.find(
@@ -961,7 +1023,7 @@ describe('TrackList', () => {
 			expect(scrollEnabledCalls).toEqual([false, true]);
 		});
 
-		valdiIt('does not reorder when released without movement', async () => {
+		valdiIt('does not reorder when released without movement', async (driver) => {
 			const reordered: Array<number> = [];
 			const scrollEnabledCalls: Array<boolean> = [];
 			const dragScroller = {
@@ -971,17 +1033,21 @@ describe('TrackList', () => {
 				},
 				viewport: () => undefined,
 			};
-			const instrumented = createComponent(TrackList, {
-				dragScroller,
-				holdToReorder: true,
-				onTrackReorder: (fromIndex: number, toIndex: number) => {
-					reordered.push(fromIndex, toIndex);
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					dragScroller,
+					holdToReorder: true,
+					onTrackReorder: (fromIndex: number, toIndex: number) => {
+						reordered.push(fromIndex, toIndex);
+					},
+					showDragHandles: true,
+					tracks,
 				},
-				showDragHandles: true,
-				tracks,
-			});
+				undefined,
+			);
 			const views = elementTypeFind(
-				componentGetElements(instrumented.getComponent()),
+				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
 			const handle = views.find(
@@ -995,18 +1061,22 @@ describe('TrackList', () => {
 			expect(scrollEnabledCalls).toEqual([false, true]);
 		});
 
-		valdiIt('ignores handle touches when not armed', async () => {
+		valdiIt('ignores handle touches when not armed', async (driver) => {
 			const reordered: Array<number> = [];
-			const instrumented = createComponent(TrackList, {
-				holdToReorder: true,
-				onTrackReorder: (fromIndex: number, toIndex: number) => {
-					reordered.push(fromIndex, toIndex);
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					holdToReorder: true,
+					onTrackReorder: (fromIndex: number, toIndex: number) => {
+						reordered.push(fromIndex, toIndex);
+					},
+					showDragHandles: true,
+					tracks,
 				},
-				showDragHandles: true,
-				tracks,
-			});
+				undefined,
+			);
 			const views = elementTypeFind(
-				componentGetElements(instrumented.getComponent()),
+				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
 			const dragContainer = views.find(
@@ -1024,19 +1094,23 @@ describe('TrackList', () => {
 			expect(dragContainer?.getAttribute('top')).toBeUndefined();
 		});
 
-		valdiIt('recovers when a previous drag never received its end signal', async () => {
+		valdiIt('recovers when a previous drag never received its end signal', async (driver) => {
 			const dragHighlight = 'rgba(45,120,206,0.28)';
 			const reordered: Array<number> = [];
-			const instrumented = createComponent(TrackList, {
-				holdToReorder: true,
-				onTrackReorder: (fromIndex: number, toIndex: number) => {
-					reordered.push(fromIndex, toIndex);
+			const component = driver.renderComponent(
+				TrackList,
+				{
+					holdToReorder: true,
+					onTrackReorder: (fromIndex: number, toIndex: number) => {
+						reordered.push(fromIndex, toIndex);
+					},
+					showDragHandles: true,
+					tracks,
 				},
-				showDragHandles: true,
-				tracks,
-			});
+				undefined,
+			);
 			const views = elementTypeFind(
-				componentGetElements(instrumented.getComponent()),
+				componentGetElements(component),
 				IRenderedElementViewClass.View,
 			);
 			const findView = (label: string) =>
@@ -1088,10 +1162,9 @@ describe('TrackList', () => {
 		});
 	});
 
-	valdiIt('renders leading label when no artwork is provided', async () => {
+	valdiIt('renders leading label when no artwork is provided', async (driver) => {
 		const tracks = [{ id: 'a', leadingLabel: '1', meta: '1:00', title: 'Track' }];
-		const instrumented = createComponent(TrackList, { tracks });
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(TrackList, { tracks }, undefined);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -1101,20 +1174,27 @@ describe('TrackList', () => {
 		expect(values).toContain('1');
 	});
 
-	valdiIt('updates when tracks viewModel changes', async () => {
-		const instrumented = createComponent(TrackList, { tracks: [] as Array<TrackListEntry> });
-		const component = instrumented.getComponent();
+	valdiIt('updates when tracks viewModel changes', async (driver) => {
+		const component = driver.renderComponent(
+			TrackList,
+			{ tracks: [] as Array<TrackListEntry> },
+			undefined,
+		);
 
 		let labels = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Label);
 		expect(labels[0].getAttribute('value')).toBe('nothing else lined up');
 
-		instrumented.setViewModel({ tracks: [{ id: 'x', meta: '5:00', title: 'New Track' }] });
+		driver.renderComponent(
+			TrackList,
+			{ tracks: [{ id: 'x', meta: '5:00', title: 'New Track' }] },
+			undefined,
+		);
 		labels = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Label);
 		const values = labels.map((l) => l.getAttribute('value'));
 		expect(values).toContain('New Track');
 	});
 
-	valdiIt('applies palette colors to row and labels when palette is provided', async () => {
+	valdiIt('applies palette colors to row and labels when palette is provided', async (driver) => {
 		const palette = {
 			accent: { hex: '#f43f5e' },
 			muted_on_surface: { hex: '#d8cc99' },
@@ -1123,8 +1203,7 @@ describe('TrackList', () => {
 			surface: { hex: '#223344' },
 		};
 		const tracks = [{ id: 'a', meta: '2:15', title: 'Track Name' }];
-		const instrumented = createComponent(TrackList, { palette, tracks });
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(TrackList, { palette, tracks }, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const row = views.find((view) => view.getAttribute('accessibilityLabel') === 'track-row-a-0');
@@ -1140,10 +1219,9 @@ describe('TrackList', () => {
 		expect(styleAttribute(meta, 'color')).toBe('#d8cc99');
 	});
 
-	valdiIt('falls back to theme colors when palette is not provided', async () => {
+	valdiIt('falls back to theme colors when palette is not provided', async (driver) => {
 		const tracks = [{ id: 'a', meta: '2:15', title: 'Track Name' }];
-		const instrumented = createComponent(TrackList, { tracks });
-		const component = instrumented.getComponent();
+		const component = driver.renderComponent(TrackList, { tracks }, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const row = views.find((view) => view.getAttribute('accessibilityLabel') === 'track-row-a-0');

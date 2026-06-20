@@ -3,7 +3,7 @@ import { ProgressBarPlain } from 'atolla/src/ui/components/ProgressBarPlain';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { styleAttribute, touchEvent } from '../util/testEvents';
 
 function mockStore(progressSeconds: number) {
@@ -14,14 +14,14 @@ function mockStore(progressSeconds: number) {
 }
 
 describe('ProgressBarPlain', () => {
-	valdiIt('renders track and fill colors from view model', async () => {
-		const instrumented = createComponent(ProgressBarPlain, {
+	valdiIt('renders track and fill colors from view model', async (driver) => {
+		const viewModel = {
 			accentColor: '#ff2255',
 			playbackStore: mockStore(40),
 			trackColor: 'rgba(255,34,85,0.2)',
 			trackDuration: 100,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(ProgressBarPlain, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const root = views.find(
@@ -44,14 +44,14 @@ describe('ProgressBarPlain', () => {
 		expect(playhead).toBeDefined();
 	});
 
-	valdiIt('clamps progress ratio into 0 to 1 bounds', async () => {
-		const instrumented = createComponent(ProgressBarPlain, {
+	valdiIt('clamps progress ratio into 0 to 1 bounds', async (driver) => {
+		const viewModel = {
 			accentColor: '#33ffaa',
 			playbackStore: mockStore(240),
 			trackColor: 'rgba(51,255,170,0.2)',
 			trackDuration: 100,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(ProgressBarPlain, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const fill = views.find(
@@ -61,9 +61,9 @@ describe('ProgressBarPlain', () => {
 		expect(fill?.getAttribute('width')).toBe('100%');
 	});
 
-	valdiIt('calls onProgressTap when tapped', async () => {
+	valdiIt('calls onProgressTap when tapped', async (driver) => {
 		let tapCount = 0;
-		const instrumented = createComponent(ProgressBarPlain, {
+		const viewModel = {
 			accentColor: '#33ffaa',
 			onProgressTap: () => {
 				tapCount += 1;
@@ -71,8 +71,8 @@ describe('ProgressBarPlain', () => {
 			playbackStore: mockStore(50),
 			trackColor: 'rgba(51,255,170,0.2)',
 			trackDuration: 100,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(ProgressBarPlain, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const track = views.find(

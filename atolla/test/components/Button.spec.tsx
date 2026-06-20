@@ -3,20 +3,23 @@ import { Button } from 'atolla/src/ui/components/Button';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
 
 describe('Button', () => {
-	valdiIt('calls onTap when tapped', async () => {
+	valdiIt('calls onTap when tapped', async (driver) => {
 		let called = false;
-		const instrumented = createComponent(Button, {
-			accessibilityId: 'test-button',
-			label: 'tap me',
-			onTap: () => {
-				called = true;
+		const component = driver.renderComponent(
+			Button,
+			{
+				accessibilityId: 'test-button',
+				label: 'tap me',
+				onTap: () => {
+					called = true;
+				},
 			},
-		});
-		const component = instrumented.getComponent();
+			{},
+		);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views
@@ -26,17 +29,20 @@ describe('Button', () => {
 		expect(called).toBe(true);
 	});
 
-	valdiIt('does not call onTap when disabled', async () => {
+	valdiIt('does not call onTap when disabled', async (driver) => {
 		let called = false;
-		const instrumented = createComponent(Button, {
-			accessibilityId: 'test-button',
-			enabled: false,
-			label: 'tap me',
-			onTap: () => {
-				called = true;
+		const component = driver.renderComponent(
+			Button,
+			{
+				accessibilityId: 'test-button',
+				enabled: false,
+				label: 'tap me',
+				onTap: () => {
+					called = true;
+				},
 			},
-		});
-		const component = instrumented.getComponent();
+			undefined,
+		);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const button = views.find((v) => v.getAttribute('accessibilityLabel') === 'test-button-btn');
@@ -46,13 +52,16 @@ describe('Button', () => {
 		expect(called).toBe(false);
 	});
 
-	valdiIt('renders the provided label', async () => {
-		const instrumented = createComponent(Button, {
-			accessibilityId: 'test-button',
-			label: 'tap me',
-			onTap: () => {},
-		});
-		const component = instrumented.getComponent();
+	valdiIt('renders the provided label', async (driver) => {
+		const component = driver.renderComponent(
+			Button,
+			{
+				accessibilityId: 'test-button',
+				label: 'tap me',
+				onTap: () => {},
+			},
+			undefined,
+		);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),

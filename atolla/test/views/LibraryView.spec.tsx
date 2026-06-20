@@ -2,7 +2,7 @@ import 'jasmine/src/jasmine';
 import { HeaderTabs } from 'atolla/src/models/App';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { LibraryView } from 'atolla/src/ui/views/LibraryView';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 const stubImageCache = {
 	get: () => null,
@@ -26,8 +26,8 @@ const stubTransport = {
 };
 
 describe('LibraryView', () => {
-	valdiIt('uses active tab from view model', async () => {
-		const instrumented = createComponent(LibraryView, {
+	valdiIt('uses active tab from view model', async (driver) => {
+		const viewModel = {
 			activeTab: HeaderTabs.albums,
 			animationsEnabled: true,
 			gridColumns: 3,
@@ -35,14 +35,14 @@ describe('LibraryView', () => {
 			playbackStore: new PlaybackStore(),
 			resetSignal: 0,
 			transport: stubTransport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(LibraryView, viewModel, undefined);
 
 		expect(component.viewModel.activeTab).toBe(HeaderTabs.albums);
 	});
 
-	valdiIt('starts with navigation overlay visible', async () => {
-		const instrumented = createComponent(LibraryView, {
+	valdiIt('starts with navigation overlay visible', async (driver) => {
+		const viewModel = {
 			activeTab: HeaderTabs.artists,
 			animationsEnabled: true,
 			gridColumns: 3,
@@ -50,8 +50,8 @@ describe('LibraryView', () => {
 			playbackStore: new PlaybackStore(),
 			resetSignal: 0,
 			transport: stubTransport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(LibraryView, viewModel, undefined);
 
 		expect(component.state.isNavigationMounted).toBe(false);
 		expect(component.state.isTabTransitionOverlayVisible).toBe(true);

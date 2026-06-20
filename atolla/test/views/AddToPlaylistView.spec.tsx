@@ -1,7 +1,7 @@
 import 'jasmine/src/jasmine';
 import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { AddToPlaylistView } from 'atolla/src/ui/views/AddToPlaylistView';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 const pageSize = 24;
 
@@ -25,7 +25,7 @@ async function flushAsyncWork() {
 }
 
 describe('AddToPlaylistView', () => {
-	valdiIt('loads the first playlist page on create via getPlaylistsPage', async () => {
+	valdiIt('loads the first playlist page on create via getPlaylistsPage', async (driver) => {
 		const requestedPages: Array<number> = [];
 		const allPlaylists = makePlaylists(60);
 		const transport = {
@@ -39,7 +39,7 @@ describe('AddToPlaylistView', () => {
 			},
 		};
 
-		const instrumented = createComponent(AddToPlaylistView, {
+		const viewModel = {
 			animationsEnabled: false,
 			gridColumns: 2,
 			imageCache: stubImageCache,
@@ -47,8 +47,8 @@ describe('AddToPlaylistView', () => {
 			toastService: new ToastService(),
 			tracks: [{ duration: 120, id: 'track-1', name: 'Track One' }],
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(AddToPlaylistView, viewModel, undefined);
 
 		await flushAsyncWork();
 		await flushAsyncWork();
@@ -58,7 +58,7 @@ describe('AddToPlaylistView', () => {
 		expect(component.state.hasMore).toBeTrue();
 	});
 
-	valdiIt('appends the next page when loadMore runs', async () => {
+	valdiIt('appends the next page when loadMore runs', async (driver) => {
 		const allPlaylists = makePlaylists(40);
 		const transport = {
 			getPlaylistsPage: (page: number, size: number) => {
@@ -70,7 +70,7 @@ describe('AddToPlaylistView', () => {
 			},
 		};
 
-		const instrumented = createComponent(AddToPlaylistView, {
+		const viewModel = {
 			animationsEnabled: false,
 			gridColumns: 2,
 			imageCache: stubImageCache,
@@ -78,8 +78,8 @@ describe('AddToPlaylistView', () => {
 			toastService: new ToastService(),
 			tracks: [],
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(AddToPlaylistView, viewModel, undefined);
 
 		await flushAsyncWork();
 		await flushAsyncWork();
@@ -92,7 +92,7 @@ describe('AddToPlaylistView', () => {
 		expect(component.state.hasMore).toBeFalse();
 	});
 
-	valdiIt('marks adding, toasts, and dismisses when a playlist is selected', async () => {
+	valdiIt('marks adding, toasts, and dismisses when a playlist is selected', async (driver) => {
 		const added: Array<[string, string]> = [];
 		let dismissed = false;
 		const toastService = new ToastService();
@@ -104,7 +104,7 @@ describe('AddToPlaylistView', () => {
 			getPlaylistsPage: () => Promise.resolve({ hasMore: false, items: makePlaylists(2) }),
 		};
 
-		const instrumented = createComponent(AddToPlaylistView, {
+		const viewModel = {
 			animationsEnabled: false,
 			gridColumns: 2,
 			imageCache: stubImageCache,
@@ -114,8 +114,8 @@ describe('AddToPlaylistView', () => {
 			toastService,
 			tracks: [{ duration: 120, id: 'track-1', name: 'Track One' }],
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(AddToPlaylistView, viewModel, undefined);
 		await flushAsyncWork();
 
 		component.handlePlaylistTap({ id: 'playlist-0', kind: 'playlist' });
@@ -129,14 +129,14 @@ describe('AddToPlaylistView', () => {
 		expect(dismissed).toBeTrue();
 	});
 
-	valdiIt('reverts the adding state and surfaces an error when adding fails', async () => {
+	valdiIt('reverts the adding state and surfaces an error when adding fails', async (driver) => {
 		let dismissed = false;
 		const transport = {
 			addItemToPlaylist: () => Promise.reject(new Error('could not add')),
 			getPlaylistsPage: () => Promise.resolve({ hasMore: false, items: makePlaylists(2) }),
 		};
 
-		const instrumented = createComponent(AddToPlaylistView, {
+		const viewModel = {
 			animationsEnabled: false,
 			gridColumns: 2,
 			imageCache: stubImageCache,
@@ -146,8 +146,8 @@ describe('AddToPlaylistView', () => {
 			toastService: new ToastService(),
 			tracks: [{ duration: 120, id: 'track-1', name: 'Track One' }],
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(AddToPlaylistView, viewModel, undefined);
 		await flushAsyncWork();
 
 		component.handlePlaylistTap({ id: 'playlist-0', kind: 'playlist' });

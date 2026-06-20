@@ -3,7 +3,7 @@ import { CardGrid } from 'atolla/src/ui/components/CardGrid';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { layoutFrame, touchEvent, touchEventWith } from '../util/testEvents';
 
 const makeCard = (id: string, primaryText = 'Album', secondaryText = '2024') => ({
@@ -15,32 +15,32 @@ const makeCard = (id: string, primaryText = 'Album', secondaryText = '2024') => 
 });
 
 describe('CardGrid', () => {
-	valdiIt('renders a tappable tile for each card', async () => {
+	valdiIt('renders a tappable tile for each card', async (driver) => {
 		const cards = [makeCard('1'), makeCard('2'), makeCard('3')];
-		const instrumented = createComponent(CardGrid, {
+		const viewModel = {
 			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
 			onCardTap: () => {},
 			resolveArtworkSource: () => null,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CardGrid, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const tiles = views.filter((v) => v.getAttribute('accessibilityLabel')?.startsWith('card-'));
 		expect(tiles.length).toBe(3);
 	});
 
-	valdiIt('renders primary and secondary text labels for each card', async () => {
+	valdiIt('renders primary and secondary text labels for each card', async (driver) => {
 		const cards = [makeCard('1', 'My Album', '2023')];
-		const instrumented = createComponent(CardGrid, {
+		const viewModel = {
 			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
 			onCardTap: () => {},
 			resolveArtworkSource: () => null,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CardGrid, viewModel, undefined);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -51,10 +51,10 @@ describe('CardGrid', () => {
 		expect(values).toContain('2023');
 	});
 
-	valdiIt('calls onCardTap with id and kind when a card is tapped', async () => {
+	valdiIt('calls onCardTap with id and kind when a card is tapped', async (driver) => {
 		const cards = [makeCard('album-42', 'Tap Target', '2020')];
 		const captured: { tapped: { id: string; kind: string } | null } = { tapped: null };
-		const instrumented = createComponent(CardGrid, {
+		const viewModel = {
 			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
@@ -62,8 +62,8 @@ describe('CardGrid', () => {
 				captured.tapped = card;
 			},
 			resolveArtworkSource: () => null,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CardGrid, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const tile = views.find((v) => v.getAttribute('accessibilityLabel') === 'card-album-42');
@@ -74,13 +74,13 @@ describe('CardGrid', () => {
 		expect(captured.tapped?.kind).toBe('album');
 	});
 
-	valdiIt('calls onCardLongPress after hold and suppresses tap', async () => {
+	valdiIt('calls onCardLongPress after hold and suppresses tap', async (driver) => {
 		jasmine.clock().install();
 		try {
 			const cards = [makeCard('album-42', 'Long Press Target', '2020')];
 			let tapped = false;
 			const captured: { longPressed: { id: string; kind: string } | null } = { longPressed: null };
-			const instrumented = createComponent(CardGrid, {
+			const viewModel = {
 				accessibilityId: 'grid',
 				cards,
 				columnCount: 3,
@@ -94,8 +94,8 @@ describe('CardGrid', () => {
 					tapped = true;
 				},
 				resolveArtworkSource: () => null,
-			});
-			const component = instrumented.getComponent();
+			};
+			const component = driver.renderComponent(CardGrid, viewModel, undefined);
 
 			const views = elementTypeFind(
 				componentGetElements(component),
@@ -115,16 +115,16 @@ describe('CardGrid', () => {
 		}
 	});
 
-	valdiIt('shows fallback label when no artwork source is resolved', async () => {
+	valdiIt('shows fallback label when no artwork source is resolved', async (driver) => {
 		const cards = [makeCard('1', 'Title', '2021')];
-		const instrumented = createComponent(CardGrid, {
+		const viewModel = {
 			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
 			onCardTap: () => {},
 			resolveArtworkSource: () => null,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CardGrid, viewModel, undefined);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -134,16 +134,16 @@ describe('CardGrid', () => {
 		expect(values).toContain('ALBUM');
 	});
 
-	valdiIt('renders an image when artwork source is provided', async () => {
+	valdiIt('renders an image when artwork source is provided', async (driver) => {
 		const cards = [makeCard('1')];
-		const instrumented = createComponent(CardGrid, {
+		const viewModel = {
 			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
 			onCardTap: () => {},
 			resolveArtworkSource: () => 'https://example.com/art.jpg',
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CardGrid, viewModel, undefined);
 
 		const images = elementTypeFind(
 			componentGetElements(component),
@@ -153,10 +153,10 @@ describe('CardGrid', () => {
 		expect(images[0].getAttribute('src')).toContain('atolla-cache://image?c=album_art_thumb&u=');
 	});
 
-	valdiIt('auto-loads more when prefetch trigger is laid out', async () => {
+	valdiIt('auto-loads more when prefetch trigger is laid out', async (driver) => {
 		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
 		let loadMoreCalls = 0;
-		const instrumented = createComponent(CardGrid, {
+		const viewModel = {
 			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
@@ -165,8 +165,8 @@ describe('CardGrid', () => {
 				loadMoreCalls += 1;
 			},
 			resolveArtworkSource: () => null,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CardGrid, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const trigger = views.find(
@@ -180,9 +180,9 @@ describe('CardGrid', () => {
 		expect(loadMoreCalls).toBe(1);
 	});
 
-	valdiIt('shows loading spinner label while loading next page', async () => {
+	valdiIt('shows loading spinner label while loading next page', async (driver) => {
 		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
-		const instrumented = createComponent(CardGrid, {
+		const viewModel = {
 			accessibilityId: 'grid',
 			cards,
 			columnCount: 3,
@@ -190,8 +190,8 @@ describe('CardGrid', () => {
 			onCardTap: () => {},
 			onLoadMore: () => {},
 			resolveArtworkSource: () => null,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CardGrid, viewModel, undefined);
 
 		const labels = elementTypeFind(
 			componentGetElements(component),
@@ -201,17 +201,17 @@ describe('CardGrid', () => {
 		expect(values).toContain('Loading more...');
 	});
 
-	valdiIt('places prefetch trigger after first row when using 4 columns', async () => {
+	valdiIt('places prefetch trigger after first row when using 4 columns', async (driver) => {
 		const cards = Array.from({ length: 8 }, (_, index) => makeCard(String(index + 1)));
-		const instrumented = createComponent(CardGrid, {
+		const viewModel = {
 			accessibilityId: 'grid',
 			cards,
 			columnCount: 4,
 			onCardTap: () => {},
 			onLoadMore: () => {},
 			resolveArtworkSource: () => null,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(CardGrid, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const triggerIndex = views.findIndex(

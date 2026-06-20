@@ -3,22 +3,22 @@ import { LoopingArrowSpinner } from 'atolla/src/ui/components/LoopingArrowSpinne
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 describe('LoopingArrowSpinner', () => {
-	valdiIt('renders default accessibility label', async () => {
-		const instrumented = createComponent(LoopingArrowSpinner, {});
-		const component = instrumented.getComponent();
+	valdiIt('renders default accessibility label', async (driver) => {
+		const viewModel = {};
+		const component = driver.renderComponent(LoopingArrowSpinner, viewModel, undefined);
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const root = views.find((view) => view.getAttribute('accessibilityLabel') === 'spinner');
 		expect(root).toBeTruthy();
 	});
 
-	valdiIt('renders provided label text', async () => {
-		const instrumented = createComponent(LoopingArrowSpinner, {
+	valdiIt('renders provided label text', async (driver) => {
+		const viewModel = {
 			label: 'Searching library...',
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(LoopingArrowSpinner, viewModel, undefined);
 		const labels = elementTypeFind(
 			componentGetElements(component),
 			IRenderedElementViewClass.Label,
@@ -28,9 +28,9 @@ describe('LoopingArrowSpinner', () => {
 		expect(values).toContain('Searching library...');
 	});
 
-	valdiIt('renders spinner image', async () => {
-		const instrumented = createComponent(LoopingArrowSpinner, {});
-		const component = instrumented.getComponent();
+	valdiIt('renders spinner image', async (driver) => {
+		const viewModel = {};
+		const component = driver.renderComponent(LoopingArrowSpinner, viewModel, undefined);
 		const images = elementTypeFind(
 			componentGetElements(component),
 			IRenderedElementViewClass.Image,

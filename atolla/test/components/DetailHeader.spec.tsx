@@ -5,20 +5,20 @@ import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
 
 describe('DetailHeader', () => {
-	valdiIt('shows a toast when add to queue fails', async () => {
+	valdiIt('shows a toast when add to queue fails', async (driver) => {
 		const toastService = new ToastService();
-		const instrumented = createComponent(DetailHeader, {
+		const viewModel = {
 			animationsEnabled: false,
 			artworkCategory: 'album_art',
 			artworkSource: null,
 			onAddToQueue: () => Promise.reject(new Error('failed')),
 			toastService,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(DetailHeader, viewModel, undefined);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		views

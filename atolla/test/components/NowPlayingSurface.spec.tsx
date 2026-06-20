@@ -8,7 +8,7 @@ import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { dragEvent, editTextEvent, touchEvent, touchEventWith } from '../util/testEvents';
 
 const album = {
@@ -35,6 +35,15 @@ function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackSto
 	} as unknown as PlaybackStore;
 }
 
+// NowPlayingSurface drives expand/collapse transitions through setViewModel and mutates internal
+// transition state across re-renders. That needs a dedicated per-instance renderer; the shared
+// driver renderer (driver.renderComponent) makes those re-renders re-entrant/flaky. Root-mount via
+// InstrumentedComponentJSX — the non-deprecated primitive createComponent wrapped — to match
+// production semantics.
+function mountNowPlaying(viewModel: object) {
+	return InstrumentedComponentJSX.create(NowPlayingSurface, viewModel, undefined);
+}
+
 function createNowPlayingComponent(
 	trackOverrides = {},
 	albumOverride: typeof album | null = album,
@@ -44,7 +53,7 @@ function createNowPlayingComponent(
 		...trackOverrides,
 	};
 
-	return createComponent(NowPlayingSurface, {
+	return mountNowPlaying({
 		album: albumOverride,
 		artistLogoUrl: null,
 		barColors: new BarColorStore(),
@@ -106,7 +115,7 @@ function getQueuePageRows(
 
 describe('NowPlayingSurface', () => {
 	valdiIt('renders compact now-playing content by default', async () => {
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -137,7 +146,7 @@ describe('NowPlayingSurface', () => {
 	});
 
 	valdiIt('keeps the compact progress fill width across re-renders', async () => {
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -213,7 +222,7 @@ describe('NowPlayingSurface', () => {
 			barColors.setNavigationBarColor = (color: string) => {
 				navBarColors.push(color);
 			};
-			const instrumented = createComponent(NowPlayingSurface, {
+			const instrumented = mountNowPlaying({
 				album,
 				artistLogoUrl: null,
 				barColors,
@@ -296,7 +305,7 @@ describe('NowPlayingSurface', () => {
 				tracks: [track],
 			};
 
-			const instrumented = createComponent(NowPlayingSurface, baseViewModel);
+			const instrumented = mountNowPlaying(baseViewModel);
 			const component = instrumented.getComponent();
 
 			// Surface is open, but a backgrounded expand animation never resolved, so the
@@ -391,7 +400,7 @@ describe('NowPlayingSurface', () => {
 				tracks: [track],
 			};
 
-			const instrumented = createComponent(NowPlayingSurface, baseViewModel);
+			const instrumented = mountNowPlaying(baseViewModel);
 			const component = instrumented.getComponent();
 
 			// Mid-open freeze: the open set isExpanded and the footer/nav-bar colours, but the
@@ -449,7 +458,7 @@ describe('NowPlayingSurface', () => {
 				tracks: [track],
 			};
 
-			const instrumented = createComponent(NowPlayingSurface, baseViewModel);
+			const instrumented = mountNowPlaying(baseViewModel);
 			const component = instrumented.getComponent();
 
 			// Mid-close freeze: the close reset the chrome and set the flag, but the completion that
@@ -490,7 +499,7 @@ describe('NowPlayingSurface', () => {
 				surface: { hex: '#112233' },
 			};
 
-			const instrumented = createComponent(NowPlayingSurface, {
+			const instrumented = mountNowPlaying({
 				album,
 				artistLogoUrl: null,
 				barColors,
@@ -580,7 +589,7 @@ describe('NowPlayingSurface', () => {
 				tracks: [track],
 			};
 
-			const instrumented = createComponent(NowPlayingSurface, baseViewModel);
+			const instrumented = mountNowPlaying(baseViewModel);
 			const component = instrumented.getComponent();
 
 			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
@@ -630,7 +639,7 @@ describe('NowPlayingSurface', () => {
 		};
 		const toastService = new ToastService();
 
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -679,7 +688,7 @@ describe('NowPlayingSurface', () => {
 			getArtistLogoUrl: () => Promise.resolve(null),
 		};
 
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -732,7 +741,7 @@ describe('NowPlayingSurface', () => {
 			getArtistLogoUrl: () => Promise.resolve(null),
 		};
 
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -781,7 +790,7 @@ describe('NowPlayingSurface', () => {
 				{ ...track, id: 'track-3', name: 'Track Three' },
 			];
 
-			const instrumented = createComponent(NowPlayingSurface, {
+			const instrumented = mountNowPlaying({
 				album,
 				artistLogoUrl: null,
 				barColors: new BarColorStore(),
@@ -854,7 +863,7 @@ describe('NowPlayingSurface', () => {
 			{ ...track, id: 'track-4', name: 'Track Four' },
 		];
 
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -900,7 +909,7 @@ describe('NowPlayingSurface', () => {
 			{ ...track, id: 'track-4', name: 'Track Four' },
 		];
 
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -948,7 +957,7 @@ describe('NowPlayingSurface', () => {
 			{ ...track, id: 'track-4', name: 'Track Four' },
 		];
 
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -992,7 +1001,7 @@ describe('NowPlayingSurface', () => {
 	valdiIt('caps up-next queue display to thirty tracks', async () => {
 		const tracks = createQueueTracks(50);
 
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -1029,7 +1038,7 @@ describe('NowPlayingSurface', () => {
 	valdiIt('caps back-to queue display to thirty tracks', async () => {
 		const tracks = createQueueTracks(80);
 
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -1125,7 +1134,7 @@ describe('NowPlayingSurface', () => {
 	);
 
 	valdiIt('renders artist logo without double-wrapping cache uri', async () => {
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: 'https://example.com/logo.png',
 			barColors: new BarColorStore(),
@@ -1180,7 +1189,7 @@ describe('NowPlayingSurface', () => {
 
 	valdiIt('calls loop mode toggle handler when loop control is tapped', async () => {
 		let calls = 0;
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -1223,7 +1232,7 @@ describe('NowPlayingSurface', () => {
 			{ ...track, id: 'track-5', name: 'Track Five' },
 		];
 
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -1256,7 +1265,7 @@ describe('NowPlayingSurface', () => {
 	valdiIt('queue pages show correct tracks after track changes mid-session', async () => {
 		const tracks = createQueueTracks(5);
 
-		const instrumented = createComponent(NowPlayingSurface, {
+		const instrumented = mountNowPlaying({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -1312,7 +1321,7 @@ describe('NowPlayingSurface', () => {
 		'shows a create-playlist-from-queue button on the queue tabs row when expanded',
 		async () => {
 			const tracks = createQueueTracks(3);
-			const instrumented = createComponent(NowPlayingSurface, {
+			const instrumented = mountNowPlaying({
 				album,
 				artistLogoUrl: null,
 				barColors: new BarColorStore(),
@@ -1364,7 +1373,7 @@ describe('NowPlayingSurface', () => {
 				addItemToPlaylist: () => Promise.resolve(),
 				createPlaylist: (name: string) => Promise.resolve({ id: 'pl-new', name }),
 			};
-			const instrumented = createComponent(NowPlayingSurface, {
+			const instrumented = mountNowPlaying({
 				album,
 				artistLogoUrl: null,
 				barColors: new BarColorStore(),

@@ -3,7 +3,7 @@ import { PlaylistView } from 'atolla/src/ui/views/PlaylistView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 const mockNavigator = {
 	dismiss: () => {},
@@ -28,7 +28,7 @@ const downloadService = {
 };
 
 describe('PlaylistView', () => {
-	valdiIt('renders track rows from state', async () => {
+	valdiIt('renders track rows from state', async (driver) => {
 		const playlist = { id: 'playlist-1', name: 'Roadtrip' };
 		const tracks = [
 			{ artistName: 'Artist One', duration: 120, id: 'track-1', name: 'Song One' },
@@ -38,12 +38,11 @@ describe('PlaylistView', () => {
 			getTracksByPlaylist: async () => tracks,
 		};
 
-		const instrumented = createComponent(
+		const component = driver.renderComponent(
 			PlaylistView,
 			{ downloadService, playbackStore, playlist, transport },
 			{ navigator: mockNavigator },
 		);
-		const component = instrumented.getComponent();
 		component.setState({ isLoading: false, tracks });
 
 		expect(component.state.tracks.length).toBe(2);
@@ -56,7 +55,7 @@ describe('PlaylistView', () => {
 		expect(values).toContain('Song Two');
 	});
 
-	valdiIt('renders track count and total duration in header', async () => {
+	valdiIt('renders track count and total duration in header', async (driver) => {
 		const playlist = { id: 'playlist-1', name: 'Roadtrip' };
 		const transport = {
 			getTracksByPlaylist: async () => [
@@ -65,12 +64,11 @@ describe('PlaylistView', () => {
 			],
 		};
 
-		const instrumented = createComponent(
+		const component = driver.renderComponent(
 			PlaylistView,
 			{ downloadService, playbackStore, playlist, transport },
 			{ navigator: mockNavigator },
 		);
-		const component = instrumented.getComponent();
 		component.setState({
 			isLoading: false,
 			tracks: [

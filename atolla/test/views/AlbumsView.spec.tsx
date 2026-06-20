@@ -5,7 +5,7 @@ import { AlbumView } from 'atolla/src/ui/views/AlbumView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { layoutFrame, touchEvent } from '../util/testEvents';
 
 const pageSize = 24;
@@ -46,7 +46,7 @@ function makeNavigationController() {
 }
 
 describe('AlbumsView', () => {
-	valdiIt('loads first page only on create', async () => {
+	valdiIt('loads first page only on create', async (driver) => {
 		const allAlbums = makeAlbums(70);
 		const transport = {
 			getAlbumsPage: (page: number, size: number) => {
@@ -59,14 +59,14 @@ describe('AlbumsView', () => {
 			},
 		};
 
-		const instrumented = createComponent(AlbumsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 
 		await flushAsyncWork();
 		await flushAsyncWork();
@@ -74,7 +74,7 @@ describe('AlbumsView', () => {
 		expect(component.state.albums.length).toBe(pageSize);
 	});
 
-	valdiIt('loads next page when prefetch trigger is laid out', async () => {
+	valdiIt('loads next page when prefetch trigger is laid out', async (driver) => {
 		const allAlbums = makeAlbums(80);
 		const transport = {
 			getAlbumsPage: (page: number, size: number) => {
@@ -87,14 +87,14 @@ describe('AlbumsView', () => {
 			},
 		};
 
-		const instrumented = createComponent(AlbumsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 
 		await flushAsyncWork();
 		await flushAsyncWork();
@@ -128,7 +128,7 @@ describe('AlbumsView', () => {
 		expect(component.state.albums.length).toBe(80);
 	});
 
-	valdiIt('shows retry state when next page fails and recovers on retry', async () => {
+	valdiIt('shows retry state when next page fails and recovers on retry', async (driver) => {
 		const allAlbums = makeAlbums(90);
 		let shouldFailThirdPage = true;
 		const transport = {
@@ -145,14 +145,14 @@ describe('AlbumsView', () => {
 			},
 		};
 
-		const instrumented = createComponent(AlbumsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 
 		await flushAsyncWork();
 		await flushAsyncWork();
@@ -193,7 +193,7 @@ describe('AlbumsView', () => {
 		expect(component.state.albums.length).toBe(90);
 	});
 
-	valdiIt('requests a server-side prefix filter when a letter filter is active', async () => {
+	valdiIt('requests a server-side prefix filter when a letter filter is active', async (driver) => {
 		const requestedStartsWith: Array<string | undefined> = [];
 		const transport = {
 			getAlbumsPage: (_page: number, _size: number, options?: { startsWith?: string }) => {
@@ -202,15 +202,15 @@ describe('AlbumsView', () => {
 			},
 		};
 
-		const instrumented = createComponent(AlbumsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			letterFilter: 'a',
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			transport,
-		});
-		instrumented.getComponent();
+		};
+		driver.renderComponent(AlbumsView, viewModel, undefined);
 
 		await flushAsyncWork();
 		await flushAsyncWork();
@@ -218,7 +218,7 @@ describe('AlbumsView', () => {
 		expect(requestedStartsWith).toContain('a');
 	});
 
-	valdiIt('renders album titles from state', async () => {
+	valdiIt('renders album titles from state', async (driver) => {
 		const albums = [
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
 			{ artistId: 'artist-2', artistName: 'Artist Two', id: 'album-2', name: 'Second Album' },
@@ -227,14 +227,14 @@ describe('AlbumsView', () => {
 			getAlbumsPage: async () => ({ hasMore: false, items: albums }),
 		};
 
-		const instrumented = createComponent(AlbumsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 		component.setState({ albums });
 
 		expect(component.state.albums.length).toBe(2);
@@ -247,7 +247,7 @@ describe('AlbumsView', () => {
 		expect(values).toContain('Second Album');
 	});
 
-	valdiIt('pushes AlbumView when card is tapped', async () => {
+	valdiIt('pushes AlbumView when card is tapped', async (driver) => {
 		const albums = [
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
 		];
@@ -256,14 +256,14 @@ describe('AlbumsView', () => {
 		};
 
 		const navigationController = makeNavigationController();
-		const instrumented = createComponent(AlbumsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController,
 			playbackStore: new PlaybackStore(),
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 		component.setState({ albums });
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
@@ -278,7 +278,7 @@ describe('AlbumsView', () => {
 		expect(pushedViewModel?.album?.id).toBe('album-1');
 	});
 
-	valdiIt('opens context menu when card is long pressed', async () => {
+	valdiIt('opens context menu when card is long pressed', async (driver) => {
 		const albums = [
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
 		];
@@ -287,14 +287,14 @@ describe('AlbumsView', () => {
 			getArtistLogoUrl: async () => null,
 		};
 
-		const instrumented = createComponent(AlbumsView, {
+		const viewModel = {
 			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			transport,
-		});
-		const component = instrumented.getComponent();
+		};
+		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 		component.setState({ albums });
 
 		component.handleAlbumCardLongPress({ id: 'album-1', kind: 'album' });
