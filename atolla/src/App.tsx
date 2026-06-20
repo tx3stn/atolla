@@ -131,7 +131,7 @@ import { type LibraryNavContext, LibraryView } from './ui/views/LibraryView';
 import { PlaylistView } from './ui/views/PlaylistView';
 import { type SearchLibraryNavigationTarget, SearchView } from './ui/views/SearchView';
 import { SettingsView } from './ui/views/SettingsView';
-import { fireAndForget } from './utils/async';
+import { fireAndForget } from './utils/Async';
 import { version } from './version';
 
 export type AppViewModel = Record<string, never>;

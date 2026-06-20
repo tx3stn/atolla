@@ -4,7 +4,7 @@ import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import { LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
-import { hapticFeedback } from '../haptics';
+import { hapticFeedback } from '../../utils/Haptics';
 import { ModalBase, modalStyles } from './ModalBase';
 
 export interface LanguageSelectModalViewModel {

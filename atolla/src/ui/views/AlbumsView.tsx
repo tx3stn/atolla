@@ -22,13 +22,13 @@ import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import { sortAlbums } from './AlbumsSort';
 import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
 import { bindFooterVisibility } from './footerVisibility';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
 import { createPagedGridController } from './pagination/createPagedGridController';
+import { sortAlbums } from './sort/Albums';
 
 export interface AlbumsViewModel {
 	animationsEnabled: boolean;

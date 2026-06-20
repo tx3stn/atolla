@@ -1,11 +1,8 @@
-import type { Artist } from '../../models/Artist';
-import { type SortOrder, SortOrders } from '../components/SortOrder';
-import { compareDatesAscending, compareDatesDescending } from './sortDateUtils';
+import { type SortOrder, SortOrders } from '../../../models/App';
+import type { Artist } from '../../../models/Artist';
+import { compareDatesAscending, compareDatesDescending } from '../../../utils/Date';
 
-export type ArtistSort = SortOrder;
-export { SortOrders as ArtistSorts };
-
-export function sortArtists(artists: Array<Artist>, sort: ArtistSort): Array<Artist> {
+export function sortArtists(artists: Array<Artist>, sort: SortOrder): Array<Artist> {
 	const sorted = [...artists];
 
 	switch (sort) {

@@ -3,7 +3,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
-import { hapticFeedback } from '../haptics';
+import { hapticFeedback } from '../../utils/Haptics';
 
 const TRANSITION_DISPLAY_MS = 2000;
 

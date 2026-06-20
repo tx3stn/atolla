@@ -7,7 +7,7 @@ import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplat
 import Strings from '../../Strings';
 import type { ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
-import { hapticFeedback } from '../haptics';
+import { hapticFeedback } from '../../utils/Haptics';
 import { CachedImage } from './CachedImage';
 import { TouchEventState } from './TouchEventState';
 

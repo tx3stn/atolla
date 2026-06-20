@@ -17,6 +17,7 @@ import type { PlaybackStore } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
+import { hapticFeedback } from '../../utils/Haptics';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { CardDetailList } from '../components/CardDetailList';
 import { type Card, CardGrid } from '../components/CardGrid';
@@ -28,7 +29,6 @@ import { openCardContextMenu } from '../flows/cardContextMenuFlow';
 import { closeSlot, openSlot } from '../flows/modalSlotFlow';
 import { createPlaylistAndAddTracks } from '../flows/playlistFlow';
 import { openTrackContextMenu } from '../flows/trackContextMenuController';
-import { hapticFeedback } from '../haptics';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { parseHomeAlbumsCache, serializeHomeAlbumsCache } from './HomeAlbumsCache';
 import {

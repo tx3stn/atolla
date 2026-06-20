@@ -12,7 +12,7 @@ import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
 import { theme, withAlpha } from '../../theme';
-import { hapticFeedback } from '../haptics';
+import { hapticFeedback } from '../../utils/Haptics';
 import { CachedImage } from './CachedImage';
 import { TouchEventState } from './TouchEventState';
 import {

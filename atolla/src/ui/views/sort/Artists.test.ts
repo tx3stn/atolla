@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import type { Artist } from '../../models/Artist';
-import { ArtistSorts, sortArtists } from './ArtistsSort';
+import { SortOrders } from '../../../models/App';
+import type { Artist } from '../../../models/Artist';
+import { sortArtists } from './Artists';
 
 const artists: Array<Artist> = [
 	{ dateAdded: '2024-01-02T00:00:00.000Z', id: '1', name: 'The Armed' },
@@ -11,7 +12,7 @@ const artists: Array<Artist> = [
 
 describe('sortArtists', () => {
 	it('sorts artists a-z with leading The normalized', () => {
-		const sorted = sortArtists(artists, ArtistSorts.aToZ);
+		const sorted = sortArtists(artists, SortOrders.aToZ);
 
 		expect(sorted.map((artist) => artist.name)).toEqual([
 			'Agriculture',
@@ -22,7 +23,7 @@ describe('sortArtists', () => {
 	});
 
 	it('sorts artists z-a with leading The normalized', () => {
-		const sorted = sortArtists(artists, ArtistSorts.zToA);
+		const sorted = sortArtists(artists, SortOrders.zToA);
 
 		expect(sorted.map((artist) => artist.name)).toEqual([
 			'Converge',
@@ -41,7 +42,7 @@ describe('sortArtists', () => {
 			{ id: '5', name: 'beta' },
 		];
 
-		const sorted = sortArtists(mixedCase, ArtistSorts.aToZ);
+		const sorted = sortArtists(mixedCase, SortOrders.aToZ);
 
 		expect(sorted.map((artist) => artist.name)).toEqual([
 			'aardvark',
@@ -53,7 +54,7 @@ describe('sortArtists', () => {
 	});
 
 	it('sorts artists new-old by dateAdded and puts missing dates last', () => {
-		const sorted = sortArtists(artists, ArtistSorts.newToOld);
+		const sorted = sortArtists(artists, SortOrders.newToOld);
 
 		expect(sorted.map((artist) => artist.name)).toEqual([
 			'Birds In Row',
@@ -64,7 +65,7 @@ describe('sortArtists', () => {
 	});
 
 	it('sorts artists old-new by dateAdded and puts missing dates last', () => {
-		const sorted = sortArtists(artists, ArtistSorts.oldToNew);
+		const sorted = sortArtists(artists, SortOrders.oldToNew);
 
 		expect(sorted.map((artist) => artist.name)).toEqual([
 			'The Armed',

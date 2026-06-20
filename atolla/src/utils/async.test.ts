@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { DebugLogger } from '../services/DebugLogger';
-import { fireAndForget, retryResolve } from './async';
+import { fireAndForget, retryResolve } from './Async';
 
 describe('fireAndForget', () => {
 	it('swallows a rejected promise without throwing', async () => {

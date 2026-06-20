@@ -17,7 +17,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { retryResolve } from '../../utils/async';
+import { retryResolve } from '../../utils/Async';
 import { BioSection } from '../components/BioSection';
 import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
@@ -36,11 +36,11 @@ import { openTrackContextMenu } from '../flows/trackContextMenuController';
 import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { AlbumView } from './AlbumView';
-import { sortArtistAlbums } from './ArtistViewSort';
 import { resolveGenreForNavigation, resolveGenreImageUrls } from './GenreNavigationResolver';
 import { GenreView } from './GenreView';
 import type { LibraryNavContext } from './LibraryView';
 import { PlaylistView } from './PlaylistView';
+import { sortArtistAlbums } from './sort/Albums';
 
 export interface ArtistViewModel {
 	animationsEnabled: boolean;

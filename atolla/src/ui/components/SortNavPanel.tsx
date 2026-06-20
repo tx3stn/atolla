@@ -2,8 +2,8 @@ import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
+import { type SortOrder, SortOrders } from '../../models/App';
 import { theme } from '../../theme';
-import { type SortOrder, SortOrders } from './SortOrder';
 
 export { type SortOrder, SortOrders };
 

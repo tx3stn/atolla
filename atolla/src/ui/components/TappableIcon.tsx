@@ -4,8 +4,8 @@ import { Style } from 'valdi_core/src/Style';
 import type { Asset } from 'valdi_tsx/src/Asset';
 import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
+import { hapticFeedback } from '../../utils/Haptics';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
-import { hapticFeedback } from '../haptics';
 
 export interface TappableIconViewModel {
 	accessibilityId?: string;

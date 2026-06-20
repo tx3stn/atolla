@@ -26,9 +26,9 @@ import { AddToPlaylistView } from './AddToPlaylistView';
 import { bindFooterVisibility } from './footerVisibility';
 import { gridPaginationConfig } from './GridPagination';
 import type { LibraryNavContext } from './LibraryView';
-import { sortPlaylists } from './PlaylistsSort';
 import { PlaylistView } from './PlaylistView';
 import { createPagedGridController } from './pagination/createPagedGridController';
+import { sortPlaylists } from './sort/Playlists';
 
 export interface PlaylistsViewModel {
 	animationsEnabled: boolean;

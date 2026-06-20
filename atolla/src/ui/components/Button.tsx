@@ -2,7 +2,7 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
-import { hapticFeedback } from '../haptics';
+import { hapticFeedback } from '../../utils/Haptics';
 
 export const ButtonType = {
 	Confirm: 'confirm',

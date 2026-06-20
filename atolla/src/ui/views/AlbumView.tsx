@@ -17,7 +17,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { retryResolve } from '../../utils/async';
+import { retryResolve } from '../../utils/Async';
 import { groupTracksByDisc } from '../components/AlbumDiscGrouping';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';

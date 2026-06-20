@@ -18,7 +18,7 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { scrollPaddingBottom, theme, topInset } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { retryResolve } from '../../utils/async';
+import { retryResolve } from '../../utils/Async';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
