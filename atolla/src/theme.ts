@@ -1,7 +1,6 @@
 import { Device } from 'valdi_core/src/Device';
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 
-export const topInset = Device.getDisplayTopInset();
 const isAndroid = Device.isAndroid();
 
 const colors = {
@@ -30,24 +29,40 @@ export const paletteDefaults = {
 	surface: colors.bgAccent,
 } as const;
 
+const headerAndFooter = 52;
+const topInset = Device.getDisplayTopInset();
+
 export const theme = {
 	colors: colors,
-	footerHeight: 52,
-	headerHeight: 52,
+	footerHeight: headerAndFooter,
+	headerHeight: headerAndFooter,
 	modalBackdropColor: isAndroid ? 'rgba(0,0,0,0.72)' : colors.transparent,
 	modalBlurStyle: 'regular',
 	padding: {
+		deviceInset: topInset,
+		headerTop: topInset + 16,
 		pill: 14,
+		scrollBottom: 295,
+		scrollHeader: (isVisible: boolean | null) => {
+			if (isVisible == null) {
+				return headerAndFooter + topInset;
+			}
+
+			if (!isVisible) {
+				return topInset + 8;
+			}
+
+			return headerAndFooter + topInset + 16;
+		},
 	},
 	radius: {
-		/** Small rounding for chips, badges, checkboxes, list rows. */
+		// Small rounding for mostly square things and small variants that can't use the default.
 		card: 6,
-		/** Default rounding for cards, tiles, artwork, modals. */
+		// Default rounding for cards etc.
 		default: 18,
-		/** Fully rounded — pills, circular buttons, capsule controls. */
+		// Fully rounded pill shape.
 		pill: 999,
 	},
-	scrollPaddingBottom: 80 * 3,
 	shadow: {
 		/** Strong elevation for floating overlays — now playing surface. */
 		floating: '0 10 18 rgba(0,0,0,0.35)',
@@ -102,12 +117,6 @@ export const theme = {
 		},
 	},
 } as const;
-
-export function scrollPaddingBottom(isFooterVisible: boolean): number {
-	return isFooterVisible
-		? theme.scrollPaddingBottom + theme.footerHeight
-		: theme.scrollPaddingBottom;
-}
 
 export function withAlpha(hexColor: string, alpha: number): string {
 	const hex = hexColor.replace('#', '');

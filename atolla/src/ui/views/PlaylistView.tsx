@@ -17,9 +17,10 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
-import { scrollPaddingBottom, theme, topInset } from '../../theme';
+import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/Async';
+import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
@@ -60,7 +61,6 @@ export interface PlaylistViewModel {
 interface PlaylistState {
 	artistLogoUrls: Array<string | null>;
 	downloadState: DownloadState;
-	isFooterVisible: boolean;
 	isHeaderVisible: boolean;
 	isLoading: boolean;
 	removedTrackPending: { index: number; track: Track } | null;
@@ -90,7 +90,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	state: PlaylistState = {
 		artistLogoUrls: [],
 		downloadState: 'not_downloaded',
-		isFooterVisible: false,
 		isHeaderVisible: false,
 		isLoading: true,
 		removedTrackPending: null,
@@ -467,18 +466,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		});
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
-		const { downloadService, playbackStore } = this.viewModel;
 		this.registerDisposable(
-			playbackStore.subscribe(() => {
-				this.setState({ isFooterVisible: playbackStore.track !== null });
-			}),
-		);
-		this.registerDisposable(
-			downloadService.subscribe(() => {
+			this.viewModel.downloadService.subscribe(() => {
 				this.syncDownloadState();
 			}),
 		);
-		this.setState({ isFooterVisible: playbackStore.track !== null });
 		this.syncDownloadState();
 		this.resetAndLoadPlaylistData();
 	}
@@ -592,8 +584,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	}
 
 	onRender(): void {
-		const { downloadState, isFooterVisible, isHeaderVisible, isLoading, totalTrackCount, tracks } =
-			this.state;
+		const { downloadState, isHeaderVisible, isLoading, totalTrackCount, tracks } = this.state;
 		const { imageCache } = this.viewModel;
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 
@@ -613,7 +604,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					onContentSizeChange={(size) => this.dragAutoScroller.setContentHeight(size.height)}
 					onScroll={(event) => this.dragAutoScroller.setOffset(event.y)}
 					ref={this.scrollRef}
-					style={createScrollStyle(isFooterVisible, isHeaderVisible)}
+					style={createScrollStyle(isHeaderVisible)}
 				>
 					<DetailHeader
 						animationsEnabled={this.viewModel.animationsEnabled}
@@ -696,21 +687,13 @@ const styles = {
 	}),
 };
 
-function formatDuration(seconds: number): string {
-	const h = Math.floor(seconds / 3600);
-	const m = Math.floor((seconds % 3600) / 60);
-	const s = seconds % 60;
-	const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
-	return h > 0 ? `${h}:${mm}:${String(s).padStart(2, '0')}` : `${mm}:${String(s).padStart(2, '0')}`;
-}
-
-function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style<ScrollView> {
+function createScrollStyle(isHeaderVisible: boolean): Style<ScrollView> {
 	return new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: isHeaderVisible ? theme.headerHeight + topInset + 16 : topInset + 8,
+		paddingBottom: theme.padding.scrollBottom,
+		paddingTop: theme.padding.scrollHeader(isHeaderVisible),
 		width: '100%',
 	});
 }

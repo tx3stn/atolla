@@ -11,7 +11,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
-import { scrollPaddingBottom, theme, topInset } from '../../theme';
+import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
@@ -21,7 +21,6 @@ import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import type { NavBarContext } from '../NavBarContext';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import { bindFooterVisibility } from './footerVisibility';
 import { GenreView } from './GenreView';
 import type { LibraryNavContext } from './LibraryView';
 
@@ -48,7 +47,6 @@ interface GenresState {
 	createPlaylistTracks: Array<Track> | null;
 	genres: Array<Genre>;
 	hasMore: boolean;
-	isFooterVisible: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
@@ -78,23 +76,12 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		createPlaylistTracks: null,
 		genres: [],
 		hasMore: true,
-		isFooterVisible: false,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
 	};
 
 	onCreate(): void {
-		this.registerDisposable(
-			bindFooterVisibility({
-				getIsFooterVisible: () => this.state.isFooterVisible,
-				playbackStore: this.viewModel.playbackStore,
-				setIsFooterVisible: (isFooterVisible) => {
-					this.setState({ isFooterVisible });
-				},
-			}),
-		);
-
 		void this.loadInitialPages();
 	}
 
@@ -244,7 +231,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		}));
 
 		<view style={styles.container}>
-			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
+			<scroll style={styles.scroll}>
 				<CardGrid
 					accessibilityId='library-genres-grid'
 					cards={cards}
@@ -286,15 +273,12 @@ const styles = {
 	container: new Style<View>({
 		flexGrow: 1,
 	}),
-};
-
-function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
-	return new Style<ScrollView>({
+	scroll: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: theme.headerHeight + topInset,
+		paddingBottom: theme.padding.scrollBottom,
+		paddingTop: theme.padding.scrollHeader(null),
 		width: '100%',
-	});
-}
+	}),
+};

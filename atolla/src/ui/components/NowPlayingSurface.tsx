@@ -15,7 +15,7 @@ import { buildImageSource } from '../../services/ImageSource';
 import type { ToastService } from '../../services/ToastService';
 import type { BarColorStore, FooterColors } from '../../stores/BarColor';
 import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playback';
-import { paletteDefaults, theme, topInset, withAlpha } from '../../theme';
+import { paletteDefaults, theme, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { createPlaylistAndAddTracks, selectQueueTracksForPlaylist } from '../flows/CreatePlaylist';
 import { AddToPlaylistView } from '../views/AddToPlaylistView';
@@ -283,7 +283,7 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.expandedContentRef.setAttribute('right', 0);
 				this.transitionArtworkRef.setAttribute('left', 0);
 				this.transitionArtworkRef.setAttribute('marginTop', 0);
-				this.transitionArtworkRef.setAttribute('top', topInset);
+				this.transitionArtworkRef.setAttribute('top', theme.padding.deviceInset);
 				this.transitionArtworkRef.setAttribute('width', '100%');
 			},
 		)
@@ -862,7 +862,9 @@ export class NowPlayingSurface extends StatefulComponent<
 							style={styles.expandedInner}
 						>
 							<layout style={styles.expandedFirstPage}>
-								{topInset > 0 && <view style={getTopInsetBarStyle(surfaceColor)} />}
+								{theme.padding.deviceInset > 0 && (
+									<view style={getTopInsetBarStyle(surfaceColor)} />
+								)}
 								{albumArtworkSource && (
 									<view
 										onDrag={this.handleExpandedDrag}
@@ -1259,7 +1261,7 @@ function getTopInsetBarStyle(surfaceColor: string): Style<View> {
 	return new Style<View>({
 		backgroundColor: surfaceColor,
 		flexShrink: 0,
-		height: topInset,
+		height: theme.padding.deviceInset,
 		width: '100%',
 	});
 }

@@ -2,7 +2,7 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { SyncStatus } from '../../services/ReconnectSyncCoordinator';
-import { theme, topInset } from '../../theme';
+import { theme } from '../../theme';
 import { LoopingArrowSpinner } from './LoopingArrowSpinner';
 import { syncStatusBannerText } from './syncStatusBannerText';
 
@@ -57,7 +57,7 @@ const styles = {
 		paddingLeft: 14,
 		paddingRight: 14,
 		position: 'absolute',
-		top: topInset + theme.headerHeight,
+		top: theme.padding.scrollHeader(null),
 		zIndex: 150,
 	}),
 	message: new Style<Label>({

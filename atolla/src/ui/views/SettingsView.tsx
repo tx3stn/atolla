@@ -23,7 +23,7 @@ import {
 	type LanguageCode,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from '../../stores/Preferences';
-import { scrollPaddingBottom, theme, topInset, withAlpha } from '../../theme';
+import { theme, withAlpha } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import { version } from '../../version';
 import { Button } from '../components/Button';
@@ -300,7 +300,7 @@ export class SettingsView extends Component<SettingsViewModel> {
 				onRequestModeChange={this.viewModel.onRequestModeChange}
 				title={Strings.settingsTitle()}
 			/>
-			<scroll style={createScrollStyle()}>
+			<scroll style={styles.scroll}>
 				<view style={styles.root}>
 					<label style={styles.sectionTitle} value={Strings.settingsSectionAppearance()} />
 					<view style={styles.section}>
@@ -557,6 +557,13 @@ const styles = {
 		paddingRight: 8,
 		width: '100%',
 	}),
+	scroll: new Style<ScrollView>({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		paddingBottom: theme.padding.scrollBottom,
+		paddingTop: theme.padding.scrollHeader(null),
+		width: '100%',
+	}),
 	section: new Style<View>({
 		marginBottom: 16,
 		marginTop: 8,
@@ -595,13 +602,3 @@ const styles = {
 		width: '100%',
 	}),
 };
-
-function createScrollStyle(): Style<ScrollView> {
-	return new Style<ScrollView>({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		paddingBottom: scrollPaddingBottom(true),
-		paddingTop: theme.headerHeight + topInset,
-		width: '100%',
-	});
-}

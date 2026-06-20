@@ -1,7 +1,7 @@
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
-import { theme, topInset } from '../../theme';
+import { theme } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import { ConnectivityFab } from './ConnectivityFab';
 
@@ -44,7 +44,7 @@ const styles = {
 		left: 0,
 		minHeight: theme.headerHeight,
 		paddingBottom: 4,
-		paddingTop: topInset,
+		paddingTop: theme.padding.deviceInset,
 		position: 'absolute',
 		right: 0,
 		top: 0,
@@ -70,6 +70,6 @@ const styles = {
 		paddingRight: 16,
 		position: 'absolute',
 		right: 0,
-		top: topInset,
+		top: theme.padding.deviceInset,
 	}),
 };

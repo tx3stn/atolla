@@ -24,7 +24,7 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { SearchStore } from '../../stores/Search';
-import { scrollPaddingBottom, theme, topInset } from '../../theme';
+import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
@@ -39,7 +39,6 @@ import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { AlbumView } from './AlbumView';
 import { ArtistView } from './ArtistView';
-import { bindFooterVisibility } from './footerVisibility';
 import { PlaylistView } from './PlaylistView';
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
@@ -70,7 +69,6 @@ export type SearchLibraryNavigationTarget =
 interface SearchState {
 	contextMenuCard: CardContextMenuCard | null;
 	errorMessage: string | null;
-	isFooterVisible: boolean;
 	lastSubmittedQuery: string;
 	query: string;
 	recentSearches: Array<string>;
@@ -119,7 +117,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	state: SearchState = {
 		contextMenuCard: null,
 		errorMessage: null,
-		isFooterVisible: false,
 		lastSubmittedQuery: '',
 		query: '',
 		recentSearches: [],
@@ -134,15 +131,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	onCreate(): void {
 		this.focusSearchInput();
-		this.registerDisposable(
-			bindFooterVisibility({
-				getIsFooterVisible: () => this.state.isFooterVisible,
-				playbackStore: this.viewModel.playbackStore,
-				setIsFooterVisible: (isFooterVisible) => {
-					this.setState({ isFooterVisible });
-				},
-			}),
-		);
 
 		this.viewModel.searchStore.getRecentSearches().then((recentSearches) => {
 			if (this.isDestroyed()) {
@@ -756,7 +744,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		const { imageCache } = this.viewModel;
 
 		<layout accessibilityLabel='search-view' style={styles.searchRoot}>
-			<scroll style={createScrollStyle(this.state.isFooterVisible)}>
+			<scroll style={styles.scroll}>
 				<view style={styles.root}>
 					<view
 						accessibilityId='search-bar'
@@ -901,25 +889,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	}
 }
 
-function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
-	return isFooterVisible ? scrollStyles.withFooter : scrollStyles.withoutFooter;
-}
-
-const scrollStyles = {
-	withFooter: new Style<ScrollView>({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		paddingBottom: scrollPaddingBottom(true),
-		width: '100%',
-	}),
-	withoutFooter: new Style<ScrollView>({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		paddingBottom: scrollPaddingBottom(false),
-		width: '100%',
-	}),
-};
-
 const styles = {
 	emptyText: new Style<Label>({
 		...theme.text.sub,
@@ -989,7 +958,13 @@ const styles = {
 	}),
 	root: new Style<View>({
 		padding: 20,
-		paddingTop: 20 + topInset,
+		paddingTop: 20 + theme.padding.deviceInset,
+		width: '100%',
+	}),
+	scroll: new Style<ScrollView>({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		paddingBottom: theme.padding.scrollBottom,
 		width: '100%',
 	}),
 	searchBar: new Style<View>({

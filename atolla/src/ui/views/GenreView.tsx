@@ -14,9 +14,10 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
-import { scrollPaddingBottom, theme, topInset } from '../../theme';
+import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/Async';
+import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
@@ -50,7 +51,6 @@ export interface GenreViewModel {
 interface GenreState {
 	artistLogoUrls: Array<string | null>;
 	downloadState: DownloadState;
-	isFooterVisible: boolean;
 	isHeaderVisible: boolean;
 	isLoading: boolean;
 	isLoadingNextPage: boolean;
@@ -77,7 +77,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	state: GenreState = {
 		artistLogoUrls: [],
 		downloadState: 'not_downloaded',
-		isFooterVisible: false,
 		isHeaderVisible: false,
 		isLoading: true,
 		isLoadingNextPage: false,
@@ -267,18 +266,11 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		});
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
-		const { downloadService, playbackStore } = this.viewModel;
 		this.registerDisposable(
-			playbackStore.subscribe(() => {
-				this.setState({ isFooterVisible: playbackStore.track !== null });
-			}),
-		);
-		this.registerDisposable(
-			downloadService.subscribe(() => {
+			this.viewModel.downloadService.subscribe(() => {
 				this.syncDownloadState();
 			}),
 		);
-		this.setState({ isFooterVisible: playbackStore.track !== null });
 		this.syncDownloadState();
 		void this.loadNextPage();
 	}
@@ -405,7 +397,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	onRender(): void {
 		const {
 			downloadState,
-			isFooterVisible,
 			isHeaderVisible,
 			isLoading,
 			isLoadingNextPage,
@@ -428,7 +419,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 		<layout accessibilityLabel='genre-view' style={styles.root}>
 			<view style={styles.fullScreen}>
-				<scroll style={createScrollStyle(isFooterVisible, isHeaderVisible)}>
+				<scroll style={createScrollStyle(isHeaderVisible)}>
 					<DetailHeader
 						animationsEnabled={this.viewModel.animationsEnabled}
 						artworkCategory='album_art'
@@ -543,21 +534,13 @@ const styles = {
 	}),
 };
 
-function formatDuration(seconds: number): string {
-	const h = Math.floor(seconds / 3600);
-	const m = Math.floor((seconds % 3600) / 60);
-	const s = seconds % 60;
-	const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
-	return h > 0 ? `${h}:${mm}:${String(s).padStart(2, '0')}` : `${mm}:${String(s).padStart(2, '0')}`;
-}
-
-function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style<ScrollView> {
+function createScrollStyle(isHeaderVisible: boolean): Style<ScrollView> {
 	return new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
-		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: isHeaderVisible ? theme.headerHeight + topInset + 16 : topInset + 8,
+		paddingBottom: theme.padding.scrollBottom,
+		paddingTop: theme.padding.scrollHeader(isHeaderVisible),
 		width: '100%',
 	});
 }

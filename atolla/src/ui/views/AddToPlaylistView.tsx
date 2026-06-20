@@ -6,7 +6,7 @@ import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
 import type { ToastService } from '../../services/ToastService';
-import { theme, topInset } from '../../theme';
+import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
@@ -180,7 +180,7 @@ const styles = {
 		paddingBottom: 12,
 		paddingLeft: 16,
 		paddingRight: 16,
-		paddingTop: topInset + 16,
+		paddingTop: theme.padding.headerTop,
 		position: 'absolute',
 		right: 0,
 		top: 0,
@@ -200,7 +200,7 @@ const styles = {
 		left: 0,
 		padding: 8,
 		paddingBottom: 24,
-		paddingTop: topInset + theme.headerHeight + 8,
+		paddingTop: theme.headerHeight + theme.padding.deviceInset + 8,
 		position: 'absolute',
 		right: 0,
 		top: 0,

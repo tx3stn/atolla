@@ -15,7 +15,7 @@ import type { OnThisDayService } from '../../services/OnThisDayService';
 import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
-import { scrollPaddingBottom, theme, topInset } from '../../theme';
+import { theme } from '../../theme';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { hapticFeedback } from '../../utils/Haptics';
@@ -593,7 +593,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				title={Strings.homeTitle()}
 			/>
 
-			<scroll style={createScrollStyle(this.viewModel.playbackStore.track !== null)}>
+			<scroll style={styles.scroll}>
 				<layout style={styles.content}>
 					<layout style={styles.sections}>
 						<layout style={styles.section}>
@@ -651,31 +651,12 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 }
 
-function createScrollStyle(isFooterVisible: boolean): Style<ScrollView> {
-	return isFooterVisible ? scrollStyles.withFooter : scrollStyles.withoutFooter;
-}
-
-const scrollStyles = {
-	withFooter: new Style<ScrollView>({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		paddingBottom: scrollPaddingBottom(true),
-		width: '100%',
-	}),
-	withoutFooter: new Style<ScrollView>({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		paddingBottom: scrollPaddingBottom(false),
-		width: '100%',
-	}),
-};
-
 const styles = {
 	content: new Style({
 		paddingBottom: 18,
 		paddingLeft: 14,
 		paddingRight: 14,
-		paddingTop: theme.headerHeight + topInset + 8,
+		paddingTop: theme.headerHeight + theme.padding.deviceInset + 8,
 		width: '100%',
 	}),
 	emptyState: new Style<Label>({
@@ -684,6 +665,12 @@ const styles = {
 	}),
 	root: new Style({
 		flexGrow: 1,
+		width: '100%',
+	}),
+	scroll: new Style<ScrollView>({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		paddingBottom: theme.padding.scrollBottom,
 		width: '100%',
 	}),
 	section: new Style({

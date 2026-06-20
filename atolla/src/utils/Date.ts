@@ -23,6 +23,20 @@ export function compareDatesDescending(
 	return rightTime - leftTime;
 }
 
+export function formatReleaseDate(value?: string | null): string | null {
+	if (!value) return null;
+	const trimmed = value.trim();
+	if (trimmed.length === 0) return null;
+	const tIndex = trimmed.indexOf('T');
+	if (tIndex > 0) {
+		return trimmed.slice(0, tIndex);
+	}
+	if (/^\d{4}-\d{2}-\d{2}/.test(trimmed) && trimmed.length > 10) {
+		return trimmed.slice(0, 10);
+	}
+	return trimmed;
+}
+
 function parseDateTime(value: string | undefined): number | null {
 	if (!value) return null;
 	const time = Date.parse(value);

@@ -16,7 +16,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
-import { scrollPaddingBottom, theme, topInset } from '../../theme';
+import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/Async';
 import { BioSection } from '../components/BioSection';
@@ -67,7 +67,6 @@ interface ArtistState {
 	allTracks: Array<Track>;
 	contextMenuCard: CardContextMenuCard | null;
 	downloadState: DownloadState;
-	isFooterVisible: boolean;
 	isHeaderVisible: boolean;
 	topTracks: Array<Track>;
 	topTracksLoaded: boolean;
@@ -92,7 +91,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		allTracks: [],
 		contextMenuCard: null,
 		downloadState: 'not_downloaded',
-		isFooterVisible: false,
 		isHeaderVisible: false,
 		topTracks: [],
 		topTracksLoaded: false,
@@ -484,21 +482,11 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		});
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
-		const { downloadService, playbackStore } = this.viewModel;
 		this.registerDisposable(
-			playbackStore.subscribe(() => {
-				this.setState({ isFooterVisible: playbackStore.track !== null });
-			}),
-		);
-		this.registerDisposable(
-			downloadService.subscribe(() => {
+			this.viewModel.downloadService.subscribe(() => {
 				this.syncDownloadState();
 			}),
 		);
-		const isFooterVisible = playbackStore.track !== null;
-		if (isFooterVisible !== this.state.isFooterVisible) {
-			this.setState({ isFooterVisible });
-		}
 		this.syncDownloadState();
 		this.loadArtistData();
 	}
@@ -579,7 +567,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			albumsLoaded,
 			allTracks,
 			downloadState,
-			isFooterVisible,
 			isHeaderVisible,
 			topTracks,
 			topTracksLoaded,
@@ -601,7 +588,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			track,
 		}));
 
-		const scrollStyle = createScrollStyle(isFooterVisible, isHeaderVisible);
+		const scrollStyle = styles.scroll(isHeaderVisible);
 		const isLoading = !albumsLoaded || !topTracksLoaded;
 		const artistGenres = mergeGenreCollections([
 			artist.genres,
@@ -723,6 +710,15 @@ const styles = {
 		flexGrow: 1,
 		width: '100%',
 	}),
+	scroll: (isHeaderVisible: boolean) =>
+		new Style<ScrollView>({
+			backgroundColor: theme.colors.bg,
+			flexGrow: 1,
+			padding: 8,
+			paddingBottom: theme.padding.scrollBottom,
+			paddingTop: theme.padding.scrollHeader(isHeaderVisible),
+			width: '100%',
+		}),
 	section: new Style({
 		marginBottom: 16,
 		width: '100%',
@@ -742,14 +738,3 @@ const styles = {
 		width: '100%',
 	}),
 };
-
-function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style<ScrollView> {
-	return new Style<ScrollView>({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		padding: 8,
-		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: isHeaderVisible ? theme.headerHeight + topInset + 16 : topInset + 8,
-		width: '100%',
-	});
-}

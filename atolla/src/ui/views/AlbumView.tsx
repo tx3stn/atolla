@@ -16,9 +16,11 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
-import { scrollPaddingBottom, theme, topInset } from '../../theme';
+import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/Async';
+import { formatReleaseDate } from '../../utils/Date';
+import { formatDuration } from '../../utils/Time';
 import { groupTracksByDisc } from '../components/AlbumDiscGrouping';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
@@ -60,7 +62,6 @@ interface AlbumState {
 	artistLogoUrl: string | null;
 	downloadState: DownloadState;
 	fullAlbum: Album | null;
-	isFooterVisible: boolean;
 	isHeaderVisible: boolean;
 	isLoading: boolean;
 	tracks: Array<Track>;
@@ -82,7 +83,6 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		artistLogoUrl: null,
 		downloadState: 'not_downloaded',
 		fullAlbum: null,
-		isFooterVisible: false,
 		isHeaderVisible: false,
 		isLoading: true,
 		tracks: [],
@@ -354,18 +354,11 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		});
 		this.viewModel.onHeaderVisibilityChange?.(false);
 		this.setHeaderVisibility(false);
-		const { downloadService, playbackStore } = this.viewModel;
 		this.registerDisposable(
-			playbackStore.subscribe(() => {
-				this.setState({ isFooterVisible: playbackStore.track !== null });
-			}),
-		);
-		this.registerDisposable(
-			downloadService.subscribe(() => {
+			this.viewModel.downloadService.subscribe(() => {
 				this.syncDownloadState();
 			}),
 		);
-		this.setState({ isFooterVisible: playbackStore.track !== null });
 		this.syncDownloadState();
 		this.loadAlbumData();
 	}
@@ -418,15 +411,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	onRender(): void {
-		const {
-			artistLogoUrl,
-			downloadState,
-			fullAlbum,
-			isFooterVisible,
-			isHeaderVisible,
-			isLoading,
-			tracks,
-		} = this.state;
+		const { artistLogoUrl, downloadState, fullAlbum, isHeaderVisible, isLoading, tracks } =
+			this.state;
 		const { album: partialAlbum, animationsEnabled, imageCache } = this.viewModel;
 		const album = fullAlbum ?? partialAlbum;
 		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
@@ -451,7 +437,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const formatText = tracks.find((t) => t.audioFormat != null)?.audioFormat ?? null;
 		const durationText = tracks.length > 0 ? formatDuration(totalDuration) : null;
 
-		const scrollStyle = createScrollStyle(isFooterVisible, isHeaderVisible);
+		const scrollStyle = styles.scroll(isHeaderVisible);
 
 		<layout accessibilityLabel='album-view' style={styles.root}>
 			<view accessibilityId='album-view' style={styles.fullScreen}>
@@ -553,28 +539,6 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 }
 
-function formatDuration(seconds: number): string {
-	const h = Math.floor(seconds / 3600);
-	const m = Math.floor((seconds % 3600) / 60);
-	const s = seconds % 60;
-	const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
-	return h > 0 ? `${h}:${mm}:${String(s).padStart(2, '0')}` : `${mm}:${String(s).padStart(2, '0')}`;
-}
-
-function formatReleaseDate(value?: string | null): string | null {
-	if (!value) return null;
-	const trimmed = value.trim();
-	if (trimmed.length === 0) return null;
-	const tIndex = trimmed.indexOf('T');
-	if (tIndex > 0) {
-		return trimmed.slice(0, tIndex);
-	}
-	if (/^\d{4}-\d{2}-\d{2}/.test(trimmed) && trimmed.length > 10) {
-		return trimmed.slice(0, 10);
-	}
-	return trimmed;
-}
-
 const styles = {
 	discHeader: new Style<Label>({
 		...theme.text.mutedHeader,
@@ -595,15 +559,13 @@ const styles = {
 		flexGrow: 1,
 		width: '100%',
 	}),
+	scroll: (isHeaderVisible: boolean) =>
+		new Style<ScrollView>({
+			backgroundColor: theme.colors.bg,
+			flexGrow: 1,
+			padding: 8,
+			paddingBottom: theme.padding.scrollBottom,
+			paddingTop: theme.padding.scrollHeader(isHeaderVisible),
+			width: '100%',
+		}),
 };
-
-function createScrollStyle(isFooterVisible: boolean, isHeaderVisible: boolean): Style<ScrollView> {
-	return new Style<ScrollView>({
-		backgroundColor: theme.colors.bg,
-		flexGrow: 1,
-		padding: 8,
-		paddingBottom: scrollPaddingBottom(isFooterVisible),
-		paddingTop: isHeaderVisible ? theme.headerHeight + topInset + 16 : topInset + 8,
-		width: '100%',
-	});
-}
