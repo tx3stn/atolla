@@ -49,6 +49,15 @@ object AtollaPlaybackGuards {
 	fun shouldRebuildQueueForState(isEnded: Boolean, isIdle: Boolean, currentItemMatches: Boolean): Boolean =
 		isEnded || isIdle || !currentItemMatches
 
+	// A streamed (remote) current track fills its initial playback buffer over the network.
+	// Handing ExoPlayer the gapless next item at the same time makes the two compete for
+	// bandwidth and produces a brief stutter at the very start of streamed playback, so the
+	// lookahead is held back until the current item reaches STATE_READY. Local sources buffer
+	// from disk with no such contention and keep the gapless next item immediately.
+	fun shouldDeferLookaheadForSource(currentSourceUrl: String): Boolean =
+		currentSourceUrl.startsWith("http://", ignoreCase = true) ||
+			currentSourceUrl.startsWith("https://", ignoreCase = true)
+
 	// On a wake-race JS can push a stale earlier track; rebuilding from 0 would jerk a playing
 	// engine backward. Suppress when it is playing and its current item is at/ahead of the
 	// requested one (window indices; -1 = unknown, disables suppression). Mismatch rebuilds only —

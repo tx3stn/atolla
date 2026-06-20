@@ -39,6 +39,7 @@ import { sanitizeTracks, type Track } from './models/Track';
 import Strings from './Strings';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { DebugLogger } from './services/DebugLogger';
+import { DeferredPlaybackDownloadCoordinator } from './services/DeferredPlaybackDownloadCoordinator';
 import {
 	DownloadNativeWorkerEntryPoint,
 	type IDownloadNativeWorker,
@@ -343,6 +344,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastTrackFetchErrorTrackId: string | null = null;
 	private playbackSourceRequestId = 0;
 	private inFlightTrackDownloadIds = new Set<string>();
+	private readonly deferredDownloadCoordinator = new DeferredPlaybackDownloadCoordinator();
 	private lastPlaybackEventKey = '';
 	private playbackSourceBoundTimeout?: ReturnType<typeof setTimeout>;
 	private playbackReadySource = '';
@@ -711,6 +713,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.playbackSourceBoundTimeout) {
 			clearTimeout(this.playbackSourceBoundTimeout);
 		}
+		this.deferredDownloadCoordinator.reset();
 		if (this.unsubscribePlayback) {
 			this.unsubscribePlayback();
 		}
@@ -1525,11 +1528,23 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 
 		if (this.playbackStore.isPlaying && !this.isOfflinePlaybackMode()) {
-			void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
-			// Start waveform generation from the stream URL in parallel with the
-			// download so the waveform is ready as soon as possible.
 			if (streamUrl) {
+				// Defer the current track's full cache download until it has actually
+				// started playing. Downloading the whole file while ExoPlayer is still
+				// filling the stream's initial buffer starves that buffer and causes a
+				// brief stutter at the very start of streamed playback.
+				this.deferredDownloadCoordinator.defer('current', {
+					requestId,
+					run: () => {
+						void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
+					},
+					source: streamUrl,
+					trackId: activeTrack.id,
+				});
+				// Waveform generation is local/cheap, so start it right away.
 				this.enqueueWaveformIfNeeded(activeTrack.id, streamUrl);
+			} else {
+				void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
 			}
 		}
 
@@ -1628,6 +1643,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.lastPrefetchTracksRef = null;
 			this.lastPrefetchTrackIndex = -1;
 			this.lastPrefetchTransport = this.transport;
+			this.deferredDownloadCoordinator.cancel('prefetch');
 			this.trackPrefetchQueue.clearQueue();
 			return;
 		}
@@ -1647,10 +1663,34 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		const nextTrackIndex = trackIndex + 1;
 		if (nextTrackIndex >= tracks.length) {
+			this.deferredDownloadCoordinator.cancel('prefetch');
 			this.trackPrefetchQueue.clearQueue();
 			return;
 		}
 
+		// While the current track is being streamed (not played from the native cache),
+		// defer prefetching the next track until the current one has actually started
+		// playing. Downloading the next file in parallel with the current track's initial
+		// network buffer is what causes the brief stutter at the start of streamed
+		// playback; cached tracks have no such contention, so prefetch immediately.
+		const streamSource =
+			this.playbackStore.isPlaying &&
+			!this.isOfflinePlaybackMode() &&
+			this.getNativeCachedTrackSource(activeTrack.id) == null
+				? this.getTrackStreamSource(activeTrack.id)
+				: null;
+
+		if (streamSource) {
+			this.deferredDownloadCoordinator.defer('prefetch', {
+				requestId: this.playbackSourceRequestId,
+				run: () => this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex),
+				source: streamSource,
+				trackId: activeTrack.id,
+			});
+			return;
+		}
+
+		this.deferredDownloadCoordinator.cancel('prefetch');
 		this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex);
 	}
 
@@ -1866,6 +1906,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.lastPrefetchTrackIndex = -1;
 			this.lastPrefetchTransport = null;
 			this.playbackSourceRequestId += 1;
+			this.deferredDownloadCoordinator.reset();
 			this.setState({ nextTrackSourceUrl: null, trackPlaybackSourceUrl: null });
 			this.handleTrackPrefetchQueueChange(true);
 		}
@@ -2061,6 +2102,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				clearTimeout(this.playbackSourceBoundTimeout);
 				this.playbackSourceBoundTimeout = undefined;
 			}
+			// The current track is now actually playing, so the cache/prefetch downloads
+			// that were deferred to keep its initial buffer uncontended can run.
+			this.deferredDownloadCoordinator.onPlaybackStarted({
+				currentRequestId: this.playbackSourceRequestId,
+				currentTrackId: this.playbackStore.track?.id ?? null,
+				source,
+			});
 		}
 
 		if (event === 'source-bound') {

@@ -288,6 +288,12 @@ object AtollaGaplessAudioEngine {
 	private const val lookaheadTargetAhead = 2
 	private const val historyTargetBehind = 10
 
+	// While a freshly-started remote track is filling its initial network buffer, hold back the
+	// gapless next item / lookahead top-up so they don't compete for bandwidth and stutter the
+	// start of playback. Cleared (and the lookahead attached) once the current item reaches
+	// STATE_READY. See AtollaPlaybackGuards.shouldDeferLookaheadForSource.
+	@Volatile private var suppressLookahead: Boolean = false
+
 	private var exoPlayer: ExoPlayer? = null
 
 	private val playerListener = object : Player.Listener {
@@ -398,6 +404,12 @@ object AtollaGaplessAudioEngine {
 			if (playbackState == Player.STATE_READY) {
 				enqueueEvent("loaded")
 				applyPendingSeekIfNeeded()
+				// The current track is buffered and playing now, so it's safe to attach the
+				// gapless next item / lookahead that was held back during the initial buffer.
+				if (suppressLookahead) {
+					suppressLookahead = false
+					exoPlayer?.let { attachLookahead(it) }
+				}
 				return
 			}
 
@@ -726,8 +738,9 @@ object AtollaGaplessAudioEngine {
 			offset += 1
 		}
 
-		// Top up ahead for gapless auto-advance.
-		while (true) {
+		// Top up ahead for gapless auto-advance — unless the lookahead is held back while the
+		// current remote track fills its initial buffer (see replaceQueue / suppressLookahead).
+		while (!suppressLookahead) {
 			val nowCurrent = player.currentMediaItemIndex
 			val ahead = player.mediaItemCount - 1 - nowCurrent
 			if (ahead >= lookaheadTargetAhead) {
@@ -772,6 +785,7 @@ object AtollaGaplessAudioEngine {
 		pendingSeekToMs = null
 		queueWindow = emptyList()
 		windowAnchorHint = 0
+		suppressLookahead = false
 		expectingNativeSkip = false
 		expectingNativeStepBack = false
 		synchronized(eventQueue) {
@@ -864,7 +878,7 @@ object AtollaGaplessAudioEngine {
 			player.removeMediaItems(currentIndex + 1, player.mediaItemCount)
 		}
 
-		if (nextSourceUrl.isNotBlank() && nextSourceUrl != sourceUrl) {
+		if (!suppressLookahead && nextSourceUrl.isNotBlank() && nextSourceUrl != sourceUrl) {
 			player.addMediaItem(buildMediaItem(nextSourceUrl, nextTrackId))
 		}
 		ensureWindow(player)
@@ -875,9 +889,14 @@ object AtollaGaplessAudioEngine {
 			return
 		}
 
-		Log.d(tag, "replaceQueue trackId=$sourceTrackId rate=$capturedPlaybackRate pendingSeek=$pendingSeekToMs")
+		// A streamed current track must fill its initial network buffer alone — adding the
+		// gapless next item here makes ExoPlayer pre-buffer it in parallel and stutters the
+		// start. Hold the lookahead back until STATE_READY (see onPlaybackStateChanged).
+		suppressLookahead = AtollaPlaybackGuards.shouldDeferLookaheadForSource(sourceUrl)
+
+		Log.d(tag, "replaceQueue trackId=$sourceTrackId rate=$capturedPlaybackRate pendingSeek=$pendingSeekToMs suppressLookahead=$suppressLookahead")
 		val items = mutableListOf(buildMediaItem(sourceUrl, sourceTrackId))
-		if (nextSourceUrl.isNotBlank() && nextSourceUrl != sourceUrl) {
+		if (!suppressLookahead && nextSourceUrl.isNotBlank() && nextSourceUrl != sourceUrl) {
 			items.add(buildMediaItem(nextSourceUrl, nextTrackId))
 		}
 
@@ -891,6 +910,20 @@ object AtollaGaplessAudioEngine {
 			player.playWhenReady = false
 		}
 		applyPendingSeekIfNeeded()
+	}
+
+	// Attaches the gapless next item and tops up the lookahead window after the initial
+	// suppression while a streamed track filled its first buffer. Mirrors the syncQueue
+	// fast-path tail. Main thread only.
+	private fun attachLookahead(player: ExoPlayer) {
+		val currentIndex = player.currentMediaItemIndex
+		if (currentIndex >= 0 && currentIndex + 1 < player.mediaItemCount) {
+			player.removeMediaItems(currentIndex + 1, player.mediaItemCount)
+		}
+		if (nextSourceUrl.isNotBlank() && nextSourceUrl != sourceUrl) {
+			player.addMediaItem(buildMediaItem(nextSourceUrl, nextTrackId))
+		}
+		ensureWindow(player)
 	}
 
 	private fun buildMediaItem(url: String, trackId: String): MediaItem {

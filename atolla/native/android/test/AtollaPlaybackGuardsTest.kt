@@ -92,6 +92,33 @@ class AtollaPlaybackGuardsTest {
 		)
 	}
 
+	// --- shouldDeferLookaheadForSource ---
+
+	@Test
+	fun `defers lookahead for an https stream source`() {
+		assertTrue(AtollaPlaybackGuards.shouldDeferLookaheadForSource("https://server/Audio/123/stream.mp3"))
+	}
+
+	@Test
+	fun `defers lookahead for an http stream source`() {
+		assertTrue(AtollaPlaybackGuards.shouldDeferLookaheadForSource("http://server/Audio/123/stream.mp3"))
+	}
+
+	@Test
+	fun `keeps lookahead for a file source`() {
+		assertFalse(AtollaPlaybackGuards.shouldDeferLookaheadForSource("file:///data/tracks/123.mp3"))
+	}
+
+	@Test
+	fun `keeps lookahead for a bare local path source`() {
+		assertFalse(AtollaPlaybackGuards.shouldDeferLookaheadForSource("/data/tracks/123.mp3"))
+	}
+
+	@Test
+	fun `keeps lookahead for a blank source`() {
+		assertFalse(AtollaPlaybackGuards.shouldDeferLookaheadForSource(""))
+	}
+
 	// --- shouldPrepareBeforeResume ---
 
 	@Test
