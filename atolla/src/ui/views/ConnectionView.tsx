@@ -1,5 +1,6 @@
 import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
+import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
 import { systemFont } from 'valdi_core/src/SystemFont';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
@@ -8,11 +9,13 @@ import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
-import { Button } from '../components/Button';
+import { Button, ButtonType } from '../components/Button';
 import { HttpWarningModal } from '../components/HttpWarningModal';
 import { LanguageSelectModal } from '../components/LanguageSelectModal';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
+import type { ToastService } from '../components/ToastService';
 import { closeSlot, openSlot } from '../flows/modalSlotFlow';
+import { hapticFeedback } from '../haptics';
 
 export interface ConnectionViewModel {
 	animationsEnabled?: boolean;
@@ -24,6 +27,7 @@ export interface ConnectionViewModel {
 	quickConnectCode: string | null;
 	selectedLanguage?: LanguageCode;
 	serverUrl: string;
+	toastService: ToastService;
 }
 
 interface ConnectionState {
@@ -141,6 +145,14 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 		}
 	}
 
+	private copyQuickConnectCode(code: string): () => void {
+		return () => {
+			hapticFeedback();
+			Device.copyToClipBoard(code);
+			this.viewModel.toastService.show(Strings.copiedToClipboard());
+		};
+	}
+
 	private onConnectTap = (): void => {
 		const input = normalizeInputValue(this.state.serverUrlInput).trim();
 		if (!input || (this.viewModel.isConnecting && !this.viewModel.errorMessage)) {
@@ -189,17 +201,21 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				enabled={canConnect}
 				label={Strings.connectButton()}
 				onTap={createReusableCallback(this.onConnectTap)}
+				style={ButtonType.Confirm}
 			/>
 
 			<view style={styles.quickConnectContainer}>
-				<view style={styles.quickConnectCodeSlot}>
-					{this.viewModel.quickConnectCode && (
+				{this.viewModel.quickConnectCode && (
+					<view
+						onTap={this.copyQuickConnectCode(this.viewModel.quickConnectCode)}
+						style={styles.quickConnectCodeSlot}
+					>
 						<label
 							style={styles.quickConnectCode}
 							value={Strings.quickConnectCode(this.viewModel.quickConnectCode)}
 						/>
-					)}
-				</view>
+					</view>
+				)}
 				<view style={styles.quickConnectSpinnerSlot}>
 					{this.viewModel.isConnecting && (
 						<LoopingArrowSpinner
@@ -243,7 +259,7 @@ const styles = {
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.radius.pill,
 		marginTop: 16,
-		padding: 14,
+		padding: theme.padding.pill,
 		width: '100%',
 	}),
 	languageButton: new Style<View>({

@@ -56,7 +56,7 @@ const styles = {
 		backgroundColor: withAlpha(theme.colors.warning, 0.12),
 		borderColor: theme.colors.warning,
 		borderLeftWidth: 3,
-		borderRadius: theme.radius.card,
+		borderRadius: theme.radius.default,
 		marginBottom: 4,
 		padding: 12,
 	}),

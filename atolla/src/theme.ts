@@ -36,6 +36,9 @@ export const theme = {
 	headerHeight: 52,
 	modalBackdropColor: isAndroid ? 'rgba(0,0,0,0.72)' : colors.transparent,
 	modalBlurStyle: 'regular',
+	padding: {
+		pill: 14,
+	},
 	radius: {
 		/** Small rounding for chips, badges, checkboxes, list rows. */
 		card: 6,

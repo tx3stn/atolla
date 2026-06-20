@@ -38,14 +38,18 @@ export class Button extends Component<ButtonViewModel> {
 		if (this.viewModel.enabled === false) {
 			return styles.buttonDisabled;
 		}
-		if (this.viewModel.style === ButtonType.Secondary) {
-			return styles.buttonSecondary;
+		switch (this.viewModel.style) {
+			case ButtonType.Secondary:
+				return styles.buttonSecondary;
+			case ButtonType.Error:
+				return styles.buttonError;
+			case ButtonType.Warn:
+				return styles.buttonWarn;
+			case ButtonType.Confirm:
+				return styles.buttonConfirm;
+			default:
+				return styles.button;
 		}
-		if (this.viewModel.style === ButtonType.Confirm) {
-			return styles.buttonConfirm;
-		}
-
-		return styles.button;
 	}
 
 	private labelStyle(): Style<Label> {
@@ -81,7 +85,7 @@ const baseButton = new Style<View>({
 	borderRadius: theme.radius.pill,
 	marginBottom: 5,
 	marginTop: 5,
-	padding: 8,
+	padding: theme.padding.pill,
 	width: '100%',
 });
 
@@ -89,7 +93,9 @@ const styles = {
 	button: baseButton,
 	buttonConfirm: baseButton.extend({ backgroundColor: theme.colors.active }),
 	buttonDisabled: baseButton.extend({ backgroundColor: theme.colors.bgDim }),
+	buttonError: baseButton.extend({ backgroundColor: theme.colors.destructive }),
 	buttonSecondary: baseButton.extend({ backgroundColor: theme.colors.bgRaised }),
+	buttonWarn: baseButton.extend({ backgroundColor: theme.colors.warning }),
 	label: new Style<Label>({
 		...theme.text.main,
 		color: theme.colors.active,
@@ -100,7 +106,7 @@ const styles = {
 	}),
 	labelError: new Style<Label>({
 		...theme.text.main,
-		color: theme.colors.destructive,
+		color: theme.colors.bg,
 	}),
 	labelSecondary: new Style<Label>({
 		...theme.text.main,
@@ -108,6 +114,6 @@ const styles = {
 	}),
 	labelWarn: new Style<Label>({
 		...theme.text.main,
-		color: theme.colors.warning,
+		color: theme.colors.bg,
 	}),
 };

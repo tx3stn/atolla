@@ -66,6 +66,9 @@
 	"connect_to_jellyfin": {
 		"defaultMessage": "connecter à jellyfin"
 	},
+	"copied_to_clipboard": {
+		"defaultMessage": "copié dans le presse-papiers"
+	},
 	"create": {
 		"defaultMessage": "créer"
 	},

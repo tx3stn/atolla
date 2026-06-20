@@ -135,10 +135,6 @@ export interface SettingsViewModel {
 }
 
 export class SettingsView extends Component<SettingsViewModel> {
-	private showToast = (message: string): void => {
-		this.viewModel.toastService.show(message, 2500);
-	};
-
 	private handleClearCachePress = () => {
 		const vm = this.viewModel;
 		openSlot(vm.modalSlot, () => {
@@ -163,7 +159,7 @@ export class SettingsView extends Component<SettingsViewModel> {
 	private handleCacheClearConfirm = (selection: ClearCacheSelection) => {
 		this.viewModel.onClearCache?.(selection);
 		closeSlot(this.viewModel.modalSlot);
-		this.showToast(Strings.settingsCacheClearedToast());
+		this.viewModel.toastService.show(Strings.settingsCacheClearedToast());
 	};
 
 	private handleCacheClearCancel = () => {
@@ -240,7 +236,7 @@ export class SettingsView extends Component<SettingsViewModel> {
 
 	private handleClearDebugLogPress = (): void => {
 		this.viewModel.onClearDebugLog?.();
-		this.showToast(Strings.settingsDebugLogClearedToast());
+		this.viewModel.toastService.show(Strings.settingsDebugLogClearedToast());
 	};
 
 	private handleExportDebugLogPress = (): void => {
@@ -249,7 +245,7 @@ export class SettingsView extends Component<SettingsViewModel> {
 
 	private handleExportOfflineStatusPress = async (): Promise<void> => {
 		await this.viewModel.onExportOfflineStatus?.();
-		this.showToast(Strings.settingsOfflineStatusExportedToast());
+		this.viewModel.toastService.show(Strings.settingsOfflineStatusExportedToast());
 	};
 
 	private handleDeviceIdInputChange = (value: unknown): void => {
@@ -510,10 +506,7 @@ const styles = {
 		flexBasis: 0,
 		flexGrow: 1,
 		marginLeft: 10,
-		paddingBottom: 10,
-		paddingLeft: 10,
-		paddingRight: 10,
-		paddingTop: 10,
+		padding: theme.padding.pill,
 	}),
 	authDeviceIdInput: new Style<TextField>({
 		...theme.text.main,
@@ -530,7 +523,7 @@ const styles = {
 		backgroundColor: withAlpha(theme.colors.warning, 0.12),
 		borderColor: theme.colors.warning,
 		borderLeftWidth: 3,
-		borderRadius: theme.radius.card,
+		borderRadius: theme.radius.default,
 		marginBottom: 12,
 		padding: 12,
 	}),
@@ -544,10 +537,7 @@ const styles = {
 		borderRadius: theme.radius.pill,
 		flexGrow: 1,
 		marginLeft: 10,
-		paddingBottom: 10,
-		paddingLeft: 18,
-		paddingRight: 18,
-		paddingTop: 10,
+		padding: theme.padding.pill,
 	}),
 	paletteError: new Style<Label>({
 		...theme.text.sub,

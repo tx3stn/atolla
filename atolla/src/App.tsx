@@ -2929,6 +2929,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					quickConnectCode={this.state.quickConnectCode}
 					selectedLanguage={this.state.language}
 					serverUrl={this.state.serverUrlPrefill}
+					toastService={this.toastService}
 				/>
 				<DetachedSlotRenderer detachedSlot={this.modalSlot} />
 				<DetachedSlotRenderer detachedSlot={this.toastSlot} />

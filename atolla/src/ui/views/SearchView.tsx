@@ -1010,7 +1010,7 @@ const styles = {
 		...theme.text.main,
 		flexGrow: 1,
 		marginLeft: 20,
-		padding: 8,
+		padding: theme.padding.pill,
 	}),
 	searchRoot: new Style<Layout>({
 		flexGrow: 1,
