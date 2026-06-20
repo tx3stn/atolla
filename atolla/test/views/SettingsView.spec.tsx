@@ -1,7 +1,7 @@
 import 'jasmine/src/jasmine';
 import type { ClearCacheSelection } from 'atolla/src/services/ImageCache';
+import { ToastService } from 'atolla/src/services/ToastService';
 import { Preferences } from 'atolla/src/stores/Preferences';
-import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { SettingsView, type SettingsViewModel } from 'atolla/src/ui/views/SettingsView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';

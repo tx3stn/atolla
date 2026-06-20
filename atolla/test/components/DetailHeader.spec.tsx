@@ -1,7 +1,7 @@
 import 'jasmine/src/jasmine';
 import Strings from 'atolla/src/Strings';
+import { ToastService } from 'atolla/src/services/ToastService';
 import { DetailHeader } from 'atolla/src/ui/components/DetailHeader';
-import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';

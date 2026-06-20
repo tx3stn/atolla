@@ -1,5 +1,5 @@
 import 'jasmine/src/jasmine';
-import { ToastService } from 'atolla/src/ui/components/ToastService';
+import { ToastService } from 'atolla/src/services/ToastService';
 import { AddToPlaylistView } from 'atolla/src/ui/views/AddToPlaylistView';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 

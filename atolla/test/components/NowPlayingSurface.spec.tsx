@@ -1,10 +1,10 @@
 import 'jasmine/src/jasmine';
 import type { Palette } from 'atolla/src/models/Color';
+import { ToastService } from 'atolla/src/services/ToastService';
 import { BarColorStore, defaultFooterColors } from 'atolla/src/stores/BarColor';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
 import { paletteDefaults, theme, withAlpha } from 'atolla/src/theme';
 import { NowPlayingSurface } from 'atolla/src/ui/components/NowPlayingSurface';
-import { ToastService } from 'atolla/src/ui/components/ToastService';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
