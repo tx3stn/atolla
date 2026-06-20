@@ -18,9 +18,8 @@ import { FormatBadge } from './FormatBadge';
 import { LoopingArrowSpinner } from './LoopingArrowSpinner';
 import { Modal } from './Modal';
 import { TappableIcon } from './TappableIcon';
-import { Toast } from './Toast';
+import type { ToastService } from './ToastService';
 import { TouchEventState } from './TouchEventState';
-import { clearScheduledToast, scheduleToastDismiss } from './toastTimer';
 
 export interface DetailHeaderViewModel {
 	animationsEnabled: boolean;
@@ -43,13 +42,13 @@ export interface DetailHeaderViewModel {
 	subheaderLineTwoBadge?: string | null;
 	subheaderLineTwoLeft?: string | null;
 	subheaderLineTwoRight?: string | null;
+	toastService: ToastService;
 }
 
 interface DetailHeaderState {
 	addToQueuePhase: 'idle' | 'confirming';
 	checkmarkAnimated: boolean;
 	removeDownloadPhase: 'idle' | 'confirming' | 'confirmed';
-	toastMessage: string | null;
 }
 
 export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, DetailHeaderState> {
@@ -62,20 +61,17 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 	private confirmationTimer?: ReturnType<typeof setTimeout>;
 	private checkmarkAnimTimer?: ReturnType<typeof setTimeout>;
 	private removeDownloadTimer?: ReturnType<typeof setTimeout>;
-	private toastTimer?: ReturnType<typeof setTimeout>;
 
 	state: DetailHeaderState = {
 		addToQueuePhase: 'idle',
 		checkmarkAnimated: false,
 		removeDownloadPhase: 'idle',
-		toastMessage: null,
 	};
 
 	onDestroy(): void {
 		clearTimeout(this.confirmationTimer);
 		clearTimeout(this.checkmarkAnimTimer);
 		clearTimeout(this.removeDownloadTimer);
-		this.toastTimer = clearScheduledToast(this.toastTimer);
 		this.viewModel.modalSlot?.slotted(this.emptySlot);
 	}
 
@@ -141,11 +137,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		try {
 			await onAddToQueue();
 		} catch {
-			this.toastTimer = scheduleToastDismiss(
-				this.toastTimer,
-				(message) => this.setState({ toastMessage: message }),
-				'Add to queue failed',
-			);
+			this.viewModel.toastService.show(Strings.addToQueueFailedToast());
 			return;
 		}
 
@@ -208,7 +200,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			subheaderLineTwoRight,
 		} = this.viewModel;
 
-		const { addToQueuePhase, checkmarkAnimated, removeDownloadPhase, toastMessage } = this.state;
+		const { addToQueuePhase, checkmarkAnimated, removeDownloadPhase } = this.state;
 		const showRemoveModal = removeDownloadPhase === 'confirming';
 		const showRemoveConfirmation = removeDownloadPhase === 'confirmed';
 		const downloadIcon = showRemoveConfirmation
@@ -333,7 +325,6 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					)}
 				</layout>
 			)}
-			{toastMessage && <Toast message={toastMessage} />}
 			{showRemoveModal && !this.viewModel.modalSlot && (
 				<Modal
 					animationsEnabled={this.viewModel.animationsEnabled}

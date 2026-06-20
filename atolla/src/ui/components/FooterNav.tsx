@@ -3,10 +3,10 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
+import { type FooterTab, FooterTabs } from '../../models/App';
 import { type BarColorStore, defaultFooterColors, type FooterColors } from '../../stores/BarColor';
 import { theme } from '../../theme';
 import { FooterIcon } from './FooterIcon';
-import { type FooterTab, FooterTabs } from './FooterTab';
 
 export interface FooterNavViewModel {
 	activeTab: FooterTab;

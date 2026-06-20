@@ -6,6 +6,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
+import type { FooterTab, HeaderTab } from '../../models/App';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
@@ -17,8 +18,6 @@ import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/async';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
-import type { FooterTab } from '../components/FooterTab';
-import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import type { ToastService } from '../components/ToastService';
@@ -452,6 +451,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 									: null
 						}
 						subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
+						toastService={this.viewModel.toastService}
 					/>
 					{isLoading ? (
 						<LoadingView />

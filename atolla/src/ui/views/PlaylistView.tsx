@@ -7,6 +7,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
+import type { FooterTab, HeaderTab } from '../../models/App';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
@@ -20,8 +21,6 @@ import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/async';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
-import type { FooterTab } from '../components/FooterTab';
-import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { Modal } from '../components/Modal';
@@ -638,6 +637,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 									: null
 						}
 						subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
+						toastService={this.viewModel.toastService}
 					/>
 					{isLoading ? (
 						<LoadingView />

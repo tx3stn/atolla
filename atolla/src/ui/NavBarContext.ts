@@ -1,8 +1,8 @@
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import type { FooterTab, HeaderTab } from '../models/App';
 import type { BarColorStore } from '../stores/BarColor';
 import type { ConnectionMode } from '../transports/Model';
-import type { FooterTab } from './components/FooterTab';
-import type { HeaderTab } from './components/HeaderTabs';
+
 export interface NavBarHeaderContext {
 	activeTab: HeaderTab;
 	animationsEnabled: boolean;

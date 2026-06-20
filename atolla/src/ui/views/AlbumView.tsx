@@ -6,6 +6,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
+import type { FooterTab, HeaderTab } from '../../models/App';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
@@ -21,10 +22,8 @@ import { groupTracksByDisc } from '../components/AlbumDiscGrouping';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
-import type { FooterTab } from '../components/FooterTab';
 import { GenrePills } from '../components/GenrePills';
 import { normalizeGenres } from '../components/GenrePillsData';
-import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import type { ToastService } from '../components/ToastService';
@@ -477,6 +476,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						subheaderLineTwoBadge={formatText}
 						subheaderLineTwoLeft={releaseDateText}
 						subheaderLineTwoRight={durationText}
+						toastService={this.viewModel.toastService}
 					/>
 					{isLoading ? (
 						<LoadingView />

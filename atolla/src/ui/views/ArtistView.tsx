@@ -6,6 +6,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
+import type { FooterTab, HeaderTab } from '../../models/App';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
@@ -23,10 +24,8 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { DetailHeader } from '../components/DetailHeader';
 import { FooterNav } from '../components/FooterNav';
-import type { FooterTab } from '../components/FooterTab';
 import { GenrePills } from '../components/GenrePills';
 import { mergeGenreCollections } from '../components/GenrePillsData';
-import type { HeaderTab } from '../components/HeaderTabs';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import type { ToastService } from '../components/ToastService';
@@ -627,6 +626,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						onRemoveDownload={this.handleRemoveDownloadTap}
 						onRevealHeaderGesture={this.handleRevealHeaderGesture}
 						onShuffle={allTracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
+						toastService={this.viewModel.toastService}
 					/>
 
 					{isLoading ? (

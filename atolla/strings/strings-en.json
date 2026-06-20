@@ -5,6 +5,9 @@
 	"add_to_queue": {
 		"defaultMessage": "add to queue"
 	},
+	"add_to_queue_failed_toast": {
+		"defaultMessage": "add to queue failed"
+	},
 	"added_to_playlist": {
 		"defaultMessage": "added to playlist"
 	},

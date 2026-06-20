@@ -1,6 +1,6 @@
 import 'jasmine/src/jasmine';
+import { HeaderTabs } from 'atolla/src/models/App';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
-import { HeaderTabs } from 'atolla/src/ui/components/HeaderTabs';
 import { LibraryView } from 'atolla/src/ui/views/LibraryView';
 import { createComponent, valdiIt } from 'valdi_test/test/JSXTestUtils';
 

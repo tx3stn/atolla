@@ -32,6 +32,7 @@ import {
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
 import type { Album } from './models/Album';
+import { type FooterTab, FooterTabs, type HeaderTab, HeaderTabs } from './models/App';
 import type { Artist } from './models/Artist';
 import type { Playlist } from './models/Playlist';
 import { sanitizeTracks, type Track } from './models/Track';
@@ -111,9 +112,7 @@ import type { Transport } from './transports/Transport';
 import { BootSplash } from './ui/components/BootSplash';
 import { ErrorBoundary } from './ui/components/ErrorBoundary';
 import { FooterNav } from './ui/components/FooterNav';
-import { type FooterTab, FooterTabs } from './ui/components/FooterTab';
 import { GaplessPlayer } from './ui/components/GaplessPlayer';
-import { type HeaderTab, HeaderTabs } from './ui/components/HeaderTabs';
 import { LibraryHeaderNav } from './ui/components/LibraryHeaderNav';
 import { MockPlayer } from './ui/components/MockPlayer';
 import { Modal } from './ui/components/Modal';

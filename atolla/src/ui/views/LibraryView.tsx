@@ -7,6 +7,7 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
+import { type HeaderTab, HeaderTabs } from '../../models/App';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
 import type { Playlist } from '../../models/Playlist';
@@ -18,7 +19,6 @@ import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
-import { type HeaderTab, HeaderTabs } from '../components/HeaderTabs';
 import type { SortOrder } from '../components/SortNavPanel';
 import type { ToastService } from '../components/ToastService';
 import type { NavBarContext } from '../NavBarContext';

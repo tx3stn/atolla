@@ -1,6 +1,7 @@
 declare const Strings: {
 	addToPlaylist: () => string;
 	addToQueue: () => string;
+	addToQueueFailedToast: () => string;
 	addedToPlaylist: () => string;
 	addedToQueueToast: () => string;
 	albumDiscHeader: (number: number) => string;

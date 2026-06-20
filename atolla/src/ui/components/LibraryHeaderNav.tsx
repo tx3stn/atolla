@@ -3,11 +3,11 @@ import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
+import { type HeaderTab, HeaderTabs } from '../../models/App';
 import { theme, topInset } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import { ConnectivityFab } from './ConnectivityFab';
 import { LibraryHeaderTab } from './HeaderTab';
-import { type HeaderTab, HeaderTabs } from './HeaderTabs';
 import { SortNavPanel } from './SortNavPanel';
 import { TouchEventState } from './TouchEventState';
 

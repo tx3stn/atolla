@@ -1,8 +1,8 @@
 import 'jasmine/src/jasmine';
+import { FooterTabs } from 'atolla/src/models/App';
 import { BarColorStore } from 'atolla/src/stores/BarColor';
 import { theme } from 'atolla/src/theme';
 import { FooterNav } from 'atolla/src/ui/components/FooterNav';
-import { FooterTabs } from 'atolla/src/ui/components/FooterTab';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';

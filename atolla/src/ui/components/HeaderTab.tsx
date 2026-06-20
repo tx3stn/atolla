@@ -3,8 +3,8 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { HeaderTab } from '../../models/App';
 import { theme } from '../../theme';
-import type { HeaderTab } from './HeaderTabs';
 
 interface LibraryHeaderViewModel {
 	active: boolean;
