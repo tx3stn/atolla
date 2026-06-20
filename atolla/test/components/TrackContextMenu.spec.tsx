@@ -4,7 +4,6 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
-import { renderedElements } from './renderedElements';
 
 const track = {
 	albumImageUrl: 'https://example.com/album.jpg',
@@ -50,7 +49,10 @@ describe('TrackContextMenu', () => {
 		const { callOrder, dismissMessages, viewModel } = createViewModel();
 		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
-		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
 		const addToQueueAction = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-context-add-to-queue',
 		);
@@ -67,7 +69,10 @@ describe('TrackContextMenu', () => {
 			const { callOrder, dismissMessages, viewModel } = createViewModel();
 			const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
-			const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+			const views = elementTypeFind(
+				component.renderer.getComponentRootElements(component, true),
+				IRenderedElementViewClass.View,
+			);
 			const playNextAction = views.find(
 				(view) => view.getAttribute('accessibilityLabel') === 'track-context-play-next',
 			);
@@ -88,7 +93,10 @@ describe('TrackContextMenu', () => {
 		});
 		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
-		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
 		const artistLogo = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-context-artist-logo',
 		);
@@ -108,7 +116,10 @@ describe('TrackContextMenu', () => {
 		});
 		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
-		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
 		const albumRow = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-swipe-region-track-1-0',
 		);
@@ -123,9 +134,9 @@ describe('TrackContextMenu', () => {
 		const { callOrder, dismissMessages, viewModel } = createViewModel();
 		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
-		const backdrop = renderedElements(component).find(
-			(element) => element.getAttribute('accessibilityLabel') === 'track-context-backdrop',
-		);
+		const backdrop = component.renderer
+			.getComponentRootElements(component, true)
+			.find((element) => element.getAttribute('accessibilityLabel') === 'track-context-backdrop');
 
 		backdrop?.getAttribute('onTap')?.(touchEvent);
 

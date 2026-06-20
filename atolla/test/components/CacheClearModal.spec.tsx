@@ -5,7 +5,6 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
-import { renderedElements } from './renderedElements';
 
 describe('CacheClearModal', () => {
 	valdiIt('renders title and all cache type rows', async (driver) => {
@@ -25,7 +24,10 @@ describe('CacheClearModal', () => {
 		};
 		const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
 
-		const labels = elementTypeFind(renderedElements(component), IRenderedElementViewClass.Label);
+		const labels = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.Label,
+		);
 		const values = labels.map((label) => label.getAttribute('value'));
 
 		expect(values).toContain('CLEAR CACHE');
@@ -58,7 +60,10 @@ describe('CacheClearModal', () => {
 			};
 			const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
 
-			const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+			const views = elementTypeFind(
+				component.renderer.getComponentRootElements(component, true),
+				IRenderedElementViewClass.View,
+			);
 			const confirmBtn = views.find(
 				(v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn',
 			);
@@ -84,7 +89,10 @@ describe('CacheClearModal', () => {
 		};
 		const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
 
-		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-artist-image-row')
 			?.getAttribute('onTap')?.(touchEvent);
@@ -111,7 +119,7 @@ describe('CacheClearModal', () => {
 			?.getAttribute('onTap')?.(touchEvent);
 
 		const updatedViews = elementTypeFind(
-			renderedElements(component),
+			component.renderer.getComponentRootElements(component, true),
 			IRenderedElementViewClass.View,
 		);
 		const confirmBtn = updatedViews.find(
@@ -141,7 +149,10 @@ describe('CacheClearModal', () => {
 		};
 		const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
 
-		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
 			?.getAttribute('onTap')?.(touchEvent);
@@ -178,13 +189,16 @@ describe('CacheClearModal', () => {
 		};
 		const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
 
-		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-album-art-row')
 			?.getAttribute('onTap')?.(touchEvent);
 
 		const updatedViews = elementTypeFind(
-			renderedElements(component),
+			component.renderer.getComponentRootElements(component, true),
 			IRenderedElementViewClass.View,
 		);
 		updatedViews
@@ -223,7 +237,10 @@ describe('CacheClearModal', () => {
 		};
 		const component = driver.renderComponent(CacheClearModal, viewModel, undefined);
 
-		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
 		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-cancel-btn')
 			?.getAttribute('onTap')?.(touchEvent);

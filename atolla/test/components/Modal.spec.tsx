@@ -4,7 +4,6 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
-import { renderedElements } from './renderedElements';
 
 describe('Modal', () => {
 	valdiIt('renders artist logo through cache image source', async (driver) => {
@@ -16,7 +15,10 @@ describe('Modal', () => {
 		};
 		const component = driver.renderComponent(Modal, viewModel, undefined);
 
-		const images = elementTypeFind(renderedElements(component), IRenderedElementViewClass.Image);
+		const images = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.Image,
+		);
 
 		expect(images.length).toBe(1);
 		expect(images[0].getAttribute('src')).toContain('atolla-cache://image?c=artist_logo&u=');
@@ -39,7 +41,10 @@ describe('Modal', () => {
 		};
 		const component = driver.renderComponent(Modal, viewModel, undefined);
 
-		const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
 		const confirm = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'modal-confirm-btn',
 		);

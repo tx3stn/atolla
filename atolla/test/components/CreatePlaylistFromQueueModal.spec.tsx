@@ -4,27 +4,34 @@ import {
 	type QueueTrackSelectionOptions,
 } from 'atolla/src/ui/components/CreatePlaylistFromQueueModal';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import type { IComponent } from 'valdi_core/src/IComponent';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { editTextEvent, touchEvent } from '../util/testEvents';
-import { renderedElements } from './renderedElements';
 
-type RenderedComponent = Parameters<typeof renderedElements>[0];
-
-function labelValues(component: RenderedComponent): Array<string> {
-	const labels = elementTypeFind(renderedElements(component), IRenderedElementViewClass.Label);
+function labelValues(component: IComponent): Array<string> {
+	const labels = elementTypeFind(
+		component.renderer.getComponentRootElements(component, true),
+		IRenderedElementViewClass.Label,
+	);
 	return labels.map((label) => label.getAttribute('value') as string);
 }
 
-function tap(component: RenderedComponent, accessibilityId: string): void {
-	const views = elementTypeFind(renderedElements(component), IRenderedElementViewClass.View);
+function tap(component: IComponent, accessibilityId: string): void {
+	const views = elementTypeFind(
+		component.renderer.getComponentRootElements(component, true),
+		IRenderedElementViewClass.View,
+	);
 	views
 		.find((v) => v.getAttribute('accessibilityLabel') === accessibilityId)
 		?.getAttribute('onTap')?.(touchEvent);
 }
 
-function typeName(component: RenderedComponent, value: string): void {
-	const fields = elementTypeFind(renderedElements(component), IRenderedElementViewClass.TextField);
+function typeName(component: IComponent, value: string): void {
+	const fields = elementTypeFind(
+		component.renderer.getComponentRootElements(component, true),
+		IRenderedElementViewClass.TextField,
+	);
 	fields[0]?.getAttribute('onChange')?.(editTextEvent(value));
 }
 
@@ -42,7 +49,7 @@ describe('CreatePlaylistFromQueueModal', () => {
 		expect(values).toContain('include up next');
 
 		const fields = elementTypeFind(
-			renderedElements(component),
+			component.renderer.getComponentRootElements(component, true),
 			IRenderedElementViewClass.TextField,
 		);
 		expect(fields.length).toBe(1);
