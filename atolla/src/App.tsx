@@ -57,6 +57,7 @@ import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PersistentWaveformStore } from './services/PersistentWaveformStore';
 import { PlaylistCreateService } from './services/PlaylistCreateService';
 import { type PlaylistEditError, PlaylistEditService } from './services/PlaylistEditService';
+import { RecentlyAddedService } from './services/RecentlyAddedService';
 import { ReconnectSyncCoordinator, type SyncProgress } from './services/ReconnectSyncCoordinator';
 import { ScrobbleService } from './services/ScrobbleService';
 import { ToastService } from './services/ToastService';
@@ -280,6 +281,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private transport!: Transport;
 	private reconnectSync?: ReconnectSyncCoordinator;
 	private onThisDayService?: OnThisDayService;
+	private recentlyAddedService?: RecentlyAddedService;
 	private lastSyncEditErrors: Array<PlaylistEditError> = [];
 	private syncBannerTimer?: ReturnType<typeof setTimeout>;
 	private currentAccessToken = '';
@@ -801,6 +803,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			.remove?.('albums_v1')
 			.catch(() => {});
 		this.onThisDayService = new OnThisDayService(this.homeAlbumsStore);
+		this.recentlyAddedService = new RecentlyAddedService(this.homeAlbumsStore);
 		// Warm the in-memory cache from disk; HomeView reads it and triggers the
 		// background rebuild itself, so display owns its own re-render.
 		void this.onThisDayService.ensureLoaded();
@@ -2963,7 +2966,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 									animationsEnabled={this.state.animationsEnabled}
 									connectionMode={this.state.connectionMode}
 									gridColumns={this.state.gridColumns}
-									homeAlbumsStore={this.homeAlbumsStore}
 									imageCache={this.imageCache}
 									modalSlot={this.modalSlot}
 									onNavigateToArtist={this.handleHomeArtistTap}
@@ -2972,6 +2974,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 									onRequestModeChange={this.requestModeChange}
 									onThisDayService={this.onThisDayService}
 									playbackStore={this.playbackStore}
+									recentlyAddedService={this.recentlyAddedService}
 									recentlyPlayedTracks={this.recentlyPlayedTracks}
 									toastService={this.toastService}
 									transport={this.transport}

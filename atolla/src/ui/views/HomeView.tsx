@@ -1,4 +1,3 @@
-import res from 'atolla/res';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
@@ -12,7 +11,7 @@ import { DebugLogger } from '../../services/DebugLogger';
 import type { ImageCache } from '../../services/ImageCache';
 import { createOnThisDayCardDetails } from '../../services/OnThisDay';
 import type { OnThisDayService } from '../../services/OnThisDayService';
-import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
+import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
@@ -23,6 +22,7 @@ import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { CardDetailList } from '../components/CardDetailList';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
+import { MixesSection } from '../components/MixesSection';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ViewHeader } from '../components/ViewHeader';
 import { openCardContextMenu } from '../flows/CardContextMenu';
@@ -30,18 +30,11 @@ import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import { parseHomeAlbumsCache, serializeHomeAlbumsCache } from './HomeAlbumsCache';
-import {
-	buildShuffleLibraryQueue,
-	getRandomAlbumTracks,
-	shouldApplyTransportAlbumsToHome,
-} from './HomeViewLogic';
 
 export interface HomeViewModel {
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
 	gridColumns: number;
-	homeAlbumsStore?: HomeAlbumsPersistence;
 	imageCache: ImageCache;
 	modalSlot?: DetachedSlot;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -50,14 +43,10 @@ export interface HomeViewModel {
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	onThisDayService?: OnThisDayService;
 	playbackStore: PlaybackStore;
+	recentlyAddedService?: RecentlyAddedService;
 	recentlyPlayedTracks: Array<Track>;
 	toastService: ToastService;
 	transport: Transport;
-}
-
-export interface HomeAlbumsPersistence {
-	fetchString(key: string): Promise<string>;
-	storeString(key: string, value: string): Promise<void>;
 }
 
 interface HomeState {
@@ -66,15 +55,8 @@ interface HomeState {
 	recentlyAddedAlbums: Array<Album>;
 }
 
-const RECENTLY_ADDED_ALBUMS_CACHE_KEY = 'recently_added_v1';
-const SHUFFLE_LIBRARY_MIX_ID = 'mix-shuffle-library';
-const RANDOM_ALBUM_MIX_ID = 'mix-random-album';
-const RANDOM_YEAR_MIX_ID = 'mix-random-year';
-
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private loadGeneration = 0;
-	private shuffleLoader: ShuffleQueueLoader | null = null;
-	private shuffleLoadToken = 0;
 	private cachedRecentlyAddedCards: Array<Card> = [];
 	private cachedRecentlyAddedAlbumsRef: Array<Album> | null = null;
 	private cachedRecentlyAddedGridColumns = -1;
@@ -88,10 +70,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	onCreate(): void {
 		this.loadAlbums();
-	}
-
-	onDestroy(): void {
-		this.shuffleLoader?.dispose();
 	}
 
 	onViewModelUpdate(prevViewModel?: HomeViewModel): void {
@@ -119,7 +97,9 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.loadOnThisDay(generation);
 		this.restoreCachedRecentlyAdded(generation);
 
-		if (shouldApplyTransportAlbumsToHome(this.viewModel.connectionMode)) {
+		// Offline only has downloaded albums, so keep the last full-library snapshot
+		// instead of overwriting home with the downloads subset.
+		if (this.viewModel.connectionMode !== ConnectionModes.offline) {
 			this.loadRecentlyAdded(generation);
 		}
 	}
@@ -143,7 +123,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				DebugLogger.log('home', 'on-this-day from cache', { count: cached.length });
 				this.setState({ onThisDayAlbums: cached });
 
-				if (!shouldApplyTransportAlbumsToHome(this.viewModel.connectionMode)) {
+				// Offline only has downloaded albums, so keep the cached snapshot.
+				if (this.viewModel.connectionMode === ConnectionModes.offline) {
 					return undefined;
 				}
 
@@ -159,20 +140,18 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	private restoreCachedRecentlyAdded(generation: number): void {
-		const store = this.viewModel.homeAlbumsStore;
-		if (!store) {
+		const service = this.viewModel.recentlyAddedService;
+		if (!service) {
 			return;
 		}
 
-		store
-			.fetchString(RECENTLY_ADDED_ALBUMS_CACHE_KEY)
-			.then((raw) => {
+		void service
+			.loadCached()
+			.then((cachedAlbums) => {
 				if (this.isDestroyed() || generation !== this.loadGeneration) {
 					return;
 				}
-
-				const cachedAlbums = parseHomeAlbumsCache(raw);
-				if (cachedAlbums == null || cachedAlbums.length === 0) {
+				if (cachedAlbums.length === 0) {
 					return;
 				}
 
@@ -184,27 +163,20 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	private loadRecentlyAdded(generation: number): void {
+		const service = this.viewModel.recentlyAddedService;
+		if (!service) {
+			return;
+		}
+
 		const limit = Math.max(1, this.viewModel.gridColumns) * 2;
-		void this.viewModel.transport
-			.getRecentlyAddedAlbums(limit)
+		void service
+			.refresh(this.viewModel.transport, limit)
 			.then((albums) => {
 				if (this.isDestroyed() || generation !== this.loadGeneration) {
 					return;
 				}
 				this.setState({ recentlyAddedAlbums: albums });
-				this.persistRecentlyAdded(albums);
 			})
-			.catch(() => {});
-	}
-
-	private persistRecentlyAdded(albums: Array<Album>): void {
-		const store = this.viewModel.homeAlbumsStore;
-		if (!store) {
-			return;
-		}
-
-		void store
-			.storeString(RECENTLY_ADDED_ALBUMS_CACHE_KEY, serializeHomeAlbumsCache(albums))
 			.catch(() => {});
 	}
 
@@ -418,162 +390,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.openAlbumCardContextMenu(album);
 	};
 
-	private createMixCards(): Array<Card> {
-		return [
-			{
-				artworkKey: '',
-				icon: res.shufflelibrary,
-				id: SHUFFLE_LIBRARY_MIX_ID,
-				kind: 'playlist',
-				primaryText: Strings.shuffleLibrary(),
-				secondaryText: '',
-			},
-			{
-				artworkKey: '',
-				icon: res.randomalbum,
-				id: RANDOM_ALBUM_MIX_ID,
-				kind: 'playlist',
-				primaryText: Strings.randomAlbum(),
-				secondaryText: '',
-			},
-			{
-				artworkKey: '',
-				icon: res.randomyear,
-				id: RANDOM_YEAR_MIX_ID,
-				kind: 'playlist',
-				primaryText: Strings.randomYear(),
-				secondaryText: '',
-			},
-		];
-	}
-
-	private handleMixCardTap = (card: {
-		id: string;
-		kind: 'album' | 'artist' | 'genre' | 'playlist';
-	}): void => {
-		hapticFeedback();
-
-		if (card.id === SHUFFLE_LIBRARY_MIX_ID) {
-			void this.startShuffleLibraryMix();
-		} else if (card.id === RANDOM_ALBUM_MIX_ID) {
-			void this.startRandomAlbumMix();
-		} else if (card.id === RANDOM_YEAR_MIX_ID) {
-			void this.startRandomYearMix();
-		}
-	};
-
-	private async startShuffleLibraryMix(): Promise<void> {
-		this.shuffleLoader?.dispose();
-		this.shuffleLoader = null;
-		const token = ++this.shuffleLoadToken;
-
-		const { connectionMode, playbackStore, transport } = this.viewModel;
-
-		if (connectionMode === ConnectionModes.online) {
-			const fetchPage = (page: number, pageSize: number) =>
-				transport.getShuffledLibraryTracksPage(page, pageSize);
-			await this.startPaginatedMix(fetchPage, token);
-			return;
-		}
-
-		const queue = await buildShuffleLibraryQueue(transport);
-
-		if (this.isDestroyed() || token !== this.shuffleLoadToken) {
-			return;
-		}
-		if (queue.length === 0) {
-			return;
-		}
-
-		playbackStore.playTracks(queue, 0);
-	}
-
-	private async startRandomYearMix(): Promise<void> {
-		this.shuffleLoader?.dispose();
-		this.shuffleLoader = null;
-		const token = ++this.shuffleLoadToken;
-
-		const { transport } = this.viewModel;
-
-		// A randomly picked year can be empty on a mixed-media server, so fetch a few
-		// candidates in one request and fall through to the next if one has no tracks.
-		let years: Array<number>;
-		try {
-			years = await transport.getRandomMusicYears(3);
-		} catch {
-			return;
-		}
-
-		if (this.isDestroyed() || token !== this.shuffleLoadToken) {
-			return;
-		}
-
-		for (const year of years) {
-			const fetchPage = (page: number, pageSize: number) =>
-				transport.getTracksByYearPage(year, page, pageSize);
-			const outcome = await this.startPaginatedMix(fetchPage, token);
-			if (outcome !== 'empty') {
-				return;
-			}
-		}
-	}
-
-	private async startPaginatedMix(
-		fetchPage: (
-			page: number,
-			pageSize: number,
-		) => Promise<{ hasMore: boolean; items: Array<Track> }>,
-		token: number,
-	): Promise<'played' | 'empty' | 'aborted'> {
-		let result: { hasMore: boolean; items: Array<Track> };
-		try {
-			result = await fetchPage(1, SHUFFLE_PAGE_SIZE);
-		} catch {
-			return 'aborted';
-		}
-
-		if (this.isDestroyed() || token !== this.shuffleLoadToken) {
-			return 'aborted';
-		}
-		if (result.items.length === 0) {
-			return 'empty';
-		}
-
-		const { playbackStore } = this.viewModel;
-		playbackStore.playTracks(result.items, 0);
-
-		if (result.hasMore) {
-			const loader = new ShuffleQueueLoader(playbackStore, fetchPage, SHUFFLE_PAGE_SIZE);
-			loader.start(2, true);
-			this.shuffleLoader = loader;
-		}
-
-		return 'played';
-	}
-
-	private async startRandomAlbumMix(): Promise<void> {
-		const { playbackStore, transport } = this.viewModel;
-
-		let tracks: Array<Track>;
-		try {
-			tracks = await getRandomAlbumTracks(transport);
-		} catch {
-			return;
-		}
-
-		if (this.isDestroyed()) {
-			return;
-		}
-		if (tracks.length === 0) {
-			return;
-		}
-
-		playbackStore.playTracks(tracks, 0);
-	}
-
 	onRender(): void {
 		const onThisDayCards = this.createOnThisDayCards();
-		const mixCards = this.createMixCards();
 		const recentlyAddedCards = this.createRecentlyAddedCards();
 		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
 
@@ -635,15 +453,12 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							)}
 						</layout>
 
-						<layout style={styles.section}>
-							<label style={styles.sectionTitle} value={Strings.homeSectionMixes()} />
-							<CardGrid
-								accessibilityId='home-mixes-grid'
-								cards={mixCards}
-								columnCount={this.viewModel.gridColumns}
-								onCardTap={this.handleMixCardTap}
-							/>
-						</layout>
+						<MixesSection
+							connectionMode={this.viewModel.connectionMode}
+							gridColumns={this.viewModel.gridColumns}
+							playbackStore={this.viewModel.playbackStore}
+							transport={this.viewModel.transport}
+						/>
 					</layout>
 				</layout>
 			</scroll>

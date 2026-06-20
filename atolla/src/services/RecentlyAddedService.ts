@@ -1,5 +1,19 @@
-import type { Album } from '../../models/Album';
-import type { Genre } from '../../models/Genre';
+import type { Album } from '../models/Album';
+import type { Genre } from '../models/Genre';
+import type { Transport } from '../transports/Transport';
+
+// Owns the "Recently Added" albums shown on home: a small persisted cache so the
+// section paints instantly on launch, plus a transport refresh that re-fills it.
+// Mirrors OnThisDayService — the view keeps only its generation-guarded setState.
+
+const RECENTLY_ADDED_ALBUMS_CACHE_KEY = 'recently_added_v1';
+
+export interface RecentlyAddedStore {
+	fetchString(key: string): Promise<string>;
+	storeString(key: string, value: string): Promise<void>;
+}
+
+export type RecentlyAddedTransport = Pick<Transport, 'getRecentlyAddedAlbums'>;
 
 function isGenreLike(value: unknown): value is Genre {
 	if (!value || typeof value !== 'object') {
@@ -77,7 +91,7 @@ function normalizeAlbum(album: Album): Album {
 	};
 }
 
-export function parseHomeAlbumsCache(raw: string): Array<Album> | null {
+function parseRecentlyAddedCache(raw: string): Array<Album> | null {
 	try {
 		const parsed = JSON.parse(raw) as unknown;
 		const albums = Array.isArray(parsed)
@@ -109,30 +123,38 @@ export function parseHomeAlbumsCache(raw: string): Array<Album> | null {
 	}
 }
 
-export function serializeHomeAlbumsCache(albums: Array<Album>): string {
+function serializeRecentlyAddedCache(albums: Array<Album>): string {
 	return JSON.stringify({
 		albums: albums.map((album) => normalizeAlbum(album)),
 		version: 1,
 	});
 }
 
-export function createHomeAlbumsSignature(albums: Array<Album>): string {
-	return albums
-		.map((album) => {
-			const normalized = normalizeAlbum(album);
-			return [
-				normalized.id,
-				normalized.name,
-				normalized.artistName,
-				normalized.artistId,
-				normalized.releaseDate ?? '',
-				normalized.imageUrl ?? '',
-				normalized.bio ?? '',
-				(normalized.genres ?? [])
-					.map((genre) => `${genre.id}:${genre.name}`)
-					.sort((left, right) => left.localeCompare(right))
-					.join(','),
-			].join('|');
-		})
-		.join('\n');
+export class RecentlyAddedService {
+	constructor(private readonly store: RecentlyAddedStore) {}
+
+	/** Parsed cached albums for the render path — [] when nothing is cached. */
+	async loadCached(): Promise<Array<Album>> {
+		try {
+			const cached = parseRecentlyAddedCache(
+				await this.store.fetchString(RECENTLY_ADDED_ALBUMS_CACHE_KEY),
+			);
+			return cached ?? [];
+		} catch {
+			return [];
+		}
+	}
+
+	/** Fetch the latest recently-added albums, persist them, and return them. */
+	async refresh(transport: RecentlyAddedTransport, limit: number): Promise<Array<Album>> {
+		const albums = await transport.getRecentlyAddedAlbums(limit);
+		await this.persist(albums);
+		return albums;
+	}
+
+	private persist(albums: Array<Album>): Promise<void> {
+		return this.store
+			.storeString(RECENTLY_ADDED_ALBUMS_CACHE_KEY, serializeRecentlyAddedCache(albums))
+			.catch(() => {});
+	}
 }
