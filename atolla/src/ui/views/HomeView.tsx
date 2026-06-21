@@ -97,16 +97,13 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.loadOnThisDay(generation);
 		this.restoreCachedRecentlyAdded(generation);
 
-		// Offline only has downloaded albums, so keep the last full-library snapshot
-		// instead of overwriting home with the downloads subset.
+		// offline only has downloaded albums, so keep the last full-library snapshot rather than overwrite home with the downloads subset
 		if (this.viewModel.connectionMode !== ConnectionModes.offline) {
 			this.loadRecentlyAdded(generation);
 		}
 	}
 
-	// Shows the cached anniversary albums immediately, then (online) rebuilds them
-	// in the background via OnThisDayService and re-renders from its own state — so
-	// display never depends on a parent re-render arriving at the right moment.
+	// shows cached anniversary albums immediately, then (online) rebuilds in the background via OnThisDayService and re-renders from its own state, so display never depends on a parent re-render arriving at the right moment
 	private loadOnThisDay(generation: number): void {
 		const service = this.viewModel.onThisDayService;
 		if (!service) {
@@ -123,7 +120,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				DebugLogger.log('home', 'on-this-day from cache', { count: cached.length });
 				this.setState({ onThisDayAlbums: cached });
 
-				// Offline only has downloaded albums, so keep the cached snapshot.
+				// offline only has downloaded albums, so keep the cached snapshot
 				if (this.viewModel.connectionMode === ConnectionModes.offline) {
 					return undefined;
 				}
@@ -395,8 +392,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const recentlyAddedCards = this.createRecentlyAddedCards();
 		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
 
-		// Last breadcrumb before the native card lists render — pinpoints a
-		// render-thread crash on the offline->online toggle.
+		// last breadcrumb before the native card lists render: pinpoints a render-thread crash on the offline->online toggle
 		DebugLogger.log('home', 'render', {
 			onThisDay: onThisDayCards.length,
 			recentlyAdded: recentlyAddedCards.length,

@@ -139,12 +139,9 @@ import { version } from './version';
 export type AppViewModel = Record<string, never>;
 
 const RECENTLY_PLAYED_TRACKS_KEY = 'recently_played_tracks';
-/**
- * Safety-net wait for the native "image cached" observer. Cache hits and successful
- * fetches report back promptly, so this only bounds the rare case where the observer
- * never fires (e.g. native that predates the cache-hit notification) before the
- * download is allowed to complete regardless.
- */
+// safety-net wait for the native "image cached" observer: bounds the rare case where
+// the observer never fires (e.g. native predating the cache-hit notification) before the
+// download is allowed to complete regardless
 const IMAGE_CACHE_RESOLVE_TIMEOUT_MS = 6000;
 
 interface AppState {
@@ -302,7 +299,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		removeTracks: (trackIds) => this.downloadWorkerClient.api.removeDownloadedTracks(trackIds),
 		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
 	});
-	/** Resolvers waiting on the native "image cached" observer, keyed by category + stripped url. */
+	// resolvers waiting on the native "image cached" observer, keyed by category + stripped url
 	private readonly pendingImageCacheResolvers = new Map<string, Array<() => void>>();
 	private paletteQueue!: PaletteGenerationQueue;
 	private waveformService!: WaveformService;
@@ -439,7 +436,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				writeLog: writeAtollaDebugLog,
 			});
 		} catch {
-			// Native logger unavailable (e.g. desktop/test environment)
+			// native logger unavailable (e.g. desktop/test environment)
 		}
 		this.installGlobalRejectionHandler();
 		this.installGlobalErrorHandler();
@@ -447,12 +444,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		try {
 			ensureAtollaImageLoaderBootstrap();
 		} catch {
-			// Android native bootstrap may be unavailable on non-Android targets.
+			// Android native bootstrap may be unavailable on non-Android targets
 		}
 		try {
 			ensureAtollaHapticsBootstrap();
 		} catch {
-			// Native bootstrap may be unavailable on non-Android/iOS targets.
+			// native bootstrap may be unavailable on non-Android/iOS targets
 		}
 		this.nativeCacheStatsInterval = setInterval(() => {
 			if (this.state.activeFooterTab === FooterTabs.settings) {
@@ -501,7 +498,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					try {
 						setAtollaImageLoaderDiskCacheMaxBytes(imageCacheMaxBytes);
 					} catch {
-						// Native disk cache unavailable on non-Android targets.
+						// native disk cache unavailable on non-Android targets
 					}
 					if (mode === ConnectionModes.online && existingSession != null) {
 						this.currentAccessToken = existingSession.accessToken;
@@ -571,14 +568,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 		this.downloadService.onAppReady();
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
-			// Always run progress-sensitive work — these are cheap and need every tick.
+			// progress-sensitive work: cheap, needs every tick
 			this.syncScrobblePlaybackSnapshot();
 			this.syncTrackPlaybackNotification();
 
-			// Gate everything else (and the re-render) behind a structural signature.
-			// The visible progress bar is driven by ref-based subscriptions and doesn't need a full re-render.
-			// If more than 1s has passed since the last tick, the app was backgrounded — reset the
-			// signature so the first tick after foregrounding re-runs all handlers (palette, overlay, etc.).
+			// gate everything else (and the re-render) behind a structural signature; the progress bar
+			// is driven by ref-based subscriptions and needs no full re-render. if >1s passed since the
+			// last tick the app was backgrounded: reset the signature so the first foreground tick
+			// re-runs all handlers (palette, overlay, etc.)
 			const now = Date.now();
 			if (this.lastPlaybackTickAt > 0 && now - this.lastPlaybackTickAt > 1000) {
 				this.lastPlaybackSignature = '';
@@ -603,7 +600,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.setState({ version: this.state.version + 1 });
 		});
 		this.syncScrobblePlaybackSnapshot();
-		// Handle any track already playing at startup
+		// handle any track already playing at startup
 		this.handleAlbumChange();
 		if (!this.handleTrackPlaybackSourceChange()) {
 			this.handleNextTrackPreload();
@@ -697,8 +694,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	onDestroy(): void {
-		// Clean shutdown: clear the crash sentinel so the next launch doesn't report
-		// a false crash. A real crash (or OS task-kill) skips this, leaving it set.
+		// clean shutdown clears the crash sentinel so the next launch doesn't report a false
+		// crash; a real crash (or OS task-kill) skips this, leaving it set
 		void this.diagnosticsStore.storeString('session_active', '0').catch(() => {});
 		this.playbackStore.persistNow();
 		if (this.bootstrapCommitTimer) {
@@ -783,8 +780,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				}
 			},
 			() => {
-				// Hand the restore the engine's live track/position so it lands on the track the
-				// engine actually reached in the background rather than the stale persisted one.
+				// hand the restore the engine's live track/position so it lands on the track the
+				// engine actually reached in the background, not the stale persisted one
 				try {
 					const trackId = getAtollaAudioPlaybackCurrentTrackId();
 					if (!trackId) return null;
@@ -800,15 +797,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.homeAlbumsStore = new PersistentStore(`atolla/user/${userId}/home`, {
 			deviceGlobal: true,
 		});
-		// Purge the legacy whole-library home cache (could be ~1MB+); "On This Day"
-		// now keeps only today's/tomorrow's matches via OnThisDayService.
+		// purge the legacy whole-library home cache (could be ~1MB+); OnThisDayService
+		// now keeps only today's/tomorrow's matches
 		void (this.homeAlbumsStore as { remove?(key: string): Promise<void> })
 			.remove?.('albums_v1')
 			.catch(() => {});
 		this.onThisDayService = new OnThisDayService(this.homeAlbumsStore);
 		this.recentlyAddedService = new RecentlyAddedService(this.homeAlbumsStore);
-		// Warm the in-memory cache from disk; HomeView reads it and triggers the
-		// background rebuild itself, so display owns its own re-render.
+		// warm the in-memory cache from disk; HomeView reads it and triggers the background
+		// rebuild itself, so display owns its own re-render
 		void this.onThisDayService.ensureLoaded();
 		this.recentlyPlayedRestoring = true;
 		this.recentlyPlayedTracks = [];
@@ -840,7 +837,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 		try {
 			setAtollaImageCachedObserver((url, category) => {
-				// Let any in-progress downloads waiting on this image complete.
 				this.resolveCachedImageWaiters(url, category);
 				if (category !== 'album_art' || this.paletteService.hasPalette(url)) {
 					return;
@@ -848,7 +844,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.paletteQueue.enqueue(url);
 			});
 		} catch {
-			// Observer bridge unavailable on non-Android targets.
+			// observer bridge unavailable on non-Android targets
 		}
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
@@ -987,8 +983,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	private requestModeChange = async (mode: ConnectionMode): Promise<boolean> => {
-		// Breadcrumbs trace the offline<->online toggle: the last one written before
-		// a crash localizes where the process died (paired with the crash sentinel).
+		// breadcrumbs trace the offline<->online toggle: the last one written before a
+		// crash localizes where the process died (paired with the crash sentinel)
 		DebugLogger.log('mode', 'requestModeChange begin', { mode });
 		try {
 			this.pendingNavRestoreContext = this.currentLibraryNavContext;
@@ -1043,9 +1039,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		void this.requestModeChange(mode);
 	};
 
-	// Flush queued work (playlist edits/creates, scrobbles) and resume downloads
-	// after reconnecting, reporting progress to the banner. The coordinator never
-	// rejects, and the whole chain is guarded so this can never crash the toggle.
+	// flush queued work (playlist edits/creates, scrobbles) and resume downloads after
+	// reconnecting, reporting progress to the banner; the coordinator never rejects and
+	// the whole chain is guarded so this can never crash the toggle
 	private startReconnectSync(): void {
 		DebugLogger.log('mode', 'startReconnectSync');
 		const coordinator = this.reconnectSync;
@@ -1102,17 +1098,16 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 	};
 
-	// Logs and swallows a rejection from a deliberately detached promise so it can
-	// never surface as an unhandled rejection (which crashes the app).
+	// swallows a rejection from a deliberately detached promise so it never surfaces as
+	// an unhandled rejection (which crashes the app)
 	private handleSwallowedAsyncError = (error: unknown): void => {
 		DebugLogger.log('async', 'swallowed async error', {
 			message: error instanceof Error ? error.message : String(error),
 		});
 	};
 
-	// Best-effort global backstop: catch any unhandled rejection the per-call
-	// guards miss. The runtime may not expose this hook, so it is feature-detected
-	// and is a safety net, not the primary defense.
+	// best-effort backstop for any unhandled rejection the per-call guards miss; the
+	// runtime may not expose this hook, so it is feature-detected (safety net, not primary)
 	private installGlobalRejectionHandler(): void {
 		try {
 			const globalScope = globalThis as unknown as {
@@ -1125,7 +1120,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				try {
 					(event as { preventDefault?: () => void })?.preventDefault?.();
 				} catch {
-					// preventDefault not supported — logging already done.
+					// preventDefault not supported, logging already done
 				}
 			};
 			if (typeof globalScope.addEventListener === 'function') {
@@ -1134,14 +1129,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				globalScope.onunhandledrejection = handler;
 			}
 		} catch {
-			// Runtime does not support a global rejection hook — per-call guards cover us.
+			// runtime does not support a global rejection hook, per-call guards cover us
 		}
 	}
 
-	// Best-effort backstop for synchronous uncaught JS errors, mirroring the
-	// rejection hook. A crash record only reaches the exported log if debug
-	// logging is on; native crashes (SIGSEGV) bypass JS entirely and are instead
-	// surfaced by the unclean-shutdown sentinel below.
+	// best-effort backstop for synchronous uncaught JS errors, mirroring the rejection hook;
+	// a crash record only reaches the exported log if debug logging is on. native crashes
+	// (SIGSEGV) bypass JS entirely and are surfaced by the unclean-shutdown sentinel below
 	private installGlobalErrorHandler(): void {
 		try {
 			const globalScope = globalThis as unknown as {
@@ -1159,18 +1153,17 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			if (typeof globalScope.addEventListener === 'function') {
 				globalScope.addEventListener('error', handler);
 			} else {
-				// Classic onerror signature is (message, source, lineno, colno, error).
+				// classic onerror signature is (message, source, lineno, colno, error)
 				globalScope.onerror = (...args: Array<unknown>) => handler(args[4] ?? args[0]);
 			}
 		} catch {
-			// Runtime does not support a global error hook — per-call guards cover us.
+			// runtime does not support a global error hook, per-call guards cover us
 		}
 	}
 
-	// Detects a previous session that ended without a clean onDestroy (a crash or
-	// OS task-kill) using a persisted sentinel, then re-arms it for this session.
-	// This is the only signal that surfaces a native SIGSEGV, which no JS or
-	// managed-exception handler can catch.
+	// detects a previous session that ended without a clean onDestroy (crash or OS task-kill)
+	// via a persisted sentinel, then re-arms it for this session. only signal that surfaces a
+	// native SIGSEGV, which no JS or managed-exception handler can catch
 	private markSessionStartAndDetectPriorCrash(): void {
 		void this.diagnosticsStore
 			.fetchString('session_active')
@@ -1188,7 +1181,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			try {
 				await this.authService.clearSession();
 			} catch {
-				// best effort — clear what we can
+				// best effort, clear what we can
 			}
 			this.currentAccessToken = '';
 			this.transport = new OfflineTransport(
@@ -1215,16 +1208,16 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	private refreshNativeCacheStats(): void {
 		try {
-			// The scan walks the whole image disk cache, so it runs on a native background thread and
-			// delivers results via this callback — never blocking the JS thread (which would stutter
-			// concurrent animations such as the now-playing surface collapse).
+			// scan walks the whole image disk cache, so it runs on a native background thread and
+			// delivers results via this callback, never blocking the JS thread (which would stutter
+			// concurrent animations such as the now-playing surface collapse)
 			requestAtollaImageLoaderDiskCacheStats(
 				(nativeImageCacheDiskCount, nativeImageCacheDiskBytes, categoryCountsJson) => {
 					let imageCategoryCounts: Record<string, number> = this.state.imageCategoryCounts;
 					try {
 						imageCategoryCounts = JSON.parse(categoryCountsJson) as Record<string, number>;
 					} catch {
-						// Leave existing counts on parse failure.
+						// leave existing counts on parse failure
 					}
 					this.setState({
 						imageCategoryCounts,
@@ -1234,13 +1227,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				},
 			);
 		} catch {
-			// Native cache stats unavailable on non-Android targets.
+			// native cache stats unavailable on non-Android targets
 		}
 	}
 
-	// Called whenever the playback store changes. Loads the persisted palette
-	// immediately (warmUp) and prefetches the image for display. If no persisted
-	// When the playing track changes, warm up any persisted palette and queue generation if needed.
 	private handleAlbumChange(): void {
 		if (!this.paletteService) return;
 		const imageUrl =
@@ -1258,10 +1248,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			.catch(this.handleSwallowedAsyncError);
 	}
 
-	// The artist logo is resolved from the track's artistId, never stored on the
-	// track itself, so any queue path that makes a track current without a logo
-	// (add-to-queue, restore, etc.) leaves it missing. Resolve it lazily here so
-	// every path is covered in one place rather than at each queue mutation.
+	// artist logo is resolved from artistId, never stored on the track, so any queue path
+	// that makes a track current without a logo (add-to-queue, restore) leaves it missing.
+	// resolve lazily here so every path is covered in one place, not at each queue mutation
 	private resolveCurrentArtistLogo(): void {
 		const artistId = this.playbackStore.unresolvedArtistLogoArtistId;
 		if (!artistId || this.resolvingArtistLogoId === artistId) return;
@@ -1272,12 +1261,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			.then((logoUrl) => {
 				this.resolvingArtistLogoId = null;
 				if (!logoUrl) return;
-				// Bail if the current track changed (or already got a logo) while resolving.
+				// bail if the current track changed (or already got a logo) while resolving
 				if (this.playbackStore.unresolvedArtistLogoArtistId !== artistId) return;
 				this.playbackStore.setArtistLogoUrl(logoUrl);
-				// setArtistLogoUrl notifies, but the playback subscription bails on an
-				// unchanged signature, so re-slot the overlay explicitly the way the
-				// palette and waveform subscriptions do.
+				// setArtistLogoUrl notifies, but the playback subscription bails on an unchanged
+				// signature, so re-slot the overlay explicitly like the palette/waveform subscriptions
 				this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 				this.setState({ version: this.state.version + 1 });
 			})
@@ -1319,9 +1307,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (!this.waveformQueue || !this.waveformService || this.playbackStore.tracks.length === 0)
 			return;
 
-		// Skip if neither the track list nor the active index changed — native
-		// bridge calls for every track are expensive and this fires on every
-		// progress tick.
+		// skip if neither the track list nor the active index changed: native bridge calls
+		// for every track are expensive and this fires on every progress tick
 		if (
 			this.playbackStore.tracks === this.lastWaveformPriorityTracksRef &&
 			this.playbackStore.trackIndex === this.lastWaveformPriorityTrackIndex
@@ -1331,9 +1318,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.lastWaveformPriorityTracksRef = this.playbackStore.tracks;
 		this.lastWaveformPriorityTrackIndex = this.playbackStore.trackIndex;
 
-		// Enqueue any playback-queue track that doesn't have a waveform yet.
-		// This covers failed tracks (retry) and downloaded tracks whose generation
-		// never started because they weren't the active track at download time.
+		// enqueue any playback-queue track without a waveform yet. covers failed tracks (retry)
+		// and downloaded tracks whose generation never started (not active at download time)
 		for (const track of this.playbackStore.tracks) {
 			const audioPath = this.getAudioPathForWaveform(track.id);
 			if (audioPath) {
@@ -1344,17 +1330,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.waveformQueue.reorderToMatch(this.getPlaybackTrackIds());
 	}
 
-	// -------------------------------------------------------------------------
-	// Offline image caching bridge (native, best-effort)
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Identity used to match a cache request against the native "image cached"
-	 * observer. The url we hand to the native loader carries `api_key` (needed for
-	 * the fetch) while the observer reports the stripped url, and query encoding can
-	 * differ between the two — so we match on the stable parts only: category, path,
-	 * and the Jellyfin image `tag`. Non-Jellyfin urls fall back to path identity.
-	 */
+	// identity used to match a cache request against the native "image cached" observer.
+	// the url handed to the native loader carries api_key (needed for the fetch) while the
+	// observer reports the stripped url, and query encoding can differ, so match on the
+	// stable parts only: category, path, and the Jellyfin image tag. non-Jellyfin urls fall
+	// back to path identity
 	private imageFingerprint(url: string, category: string): string {
 		try {
 			const parsed = new URL(url);
@@ -1365,15 +1345,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	}
 
-	/**
-	 * Ask the native loader to ensure an image is cached, resolving once it reports
-	 * the asset cached via the observer. The native loader fetches only when the
-	 * asset is missing and reports cached for hits too, so this resolves promptly
-	 * whether the image was already present or freshly downloaded. As a safety net
-	 * (e.g. the observer never fires) a bounded timeout resolves anyway — the asset
-	 * has either been cached or is fetched again on demand, so the download counter
-	 * never wedges.
-	 */
+	// ask the native loader to ensure an image is cached, resolving once it reports the
+	// asset cached via the observer. the loader fetches only when missing and reports cached
+	// for hits too, so this resolves promptly either way. a bounded timeout resolves anyway
+	// if the observer never fires (the asset is cached or re-fetched on demand), so the
+	// download counter never wedges
 	private cacheImageAsset(url: string, category: ImageCategory): Promise<void> {
 		return new Promise<void>((resolve) => {
 			const key = this.imageFingerprint(url, category);
@@ -1400,8 +1376,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			try {
 				preloadAtollaImages([url], category);
 			} catch {
-				// No native preload bridge on this platform — treat as done so the
-				// counter never wedges; the image is fetched on demand when shown.
+				// no native preload bridge on this platform: treat as done so the counter never
+				// wedges; the image is fetched on demand when shown
 				done();
 				return;
 			}
@@ -1410,7 +1386,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 	}
 
-	/** Resolve any downloads waiting on an image the native loader just cached. */
+	// resolve any downloads waiting on an image the native loader just cached
 	private resolveCachedImageWaiters(url: string, category: string): void {
 		const key = this.imageFingerprint(url, category);
 		const resolvers = this.pendingImageCacheResolvers.get(key);
@@ -1428,8 +1404,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (audioPath && this.waveformService && this.waveformQueue) {
 			this.waveformService.scheduleGeneration(trackId);
 			this.waveformQueue.enqueue(trackId, audioPath);
-			// Re-sort immediately so this entry lands in playback order rather than
-			// waiting for the next playback store event.
+			// re-sort immediately so this entry lands in playback order rather than waiting for
+			// the next playback store event
 			this.waveformQueue.reorderToMatch(this.getPlaybackTrackIds());
 		}
 
@@ -1480,19 +1456,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.lastTrackFetchErrorTrackId = trackId;
 		this.showPlaybackToast(`cache failed: ${reason}`);
 
-		// The track streamed but never produced a local copy, so handleTrackCached won't run to
-		// generate its waveform. Fall back to generating it from the stream URL. This is safe
-		// here because the failure is reported only after the deferred download fired (well after
-		// the initial buffer filled), so there is no start-of-stream contention.
+		// the track streamed but never produced a local copy, so handleTrackCached won't run
+		// to generate its waveform. fall back to generating it from the stream URL. safe here
+		// because the failure is reported only after the deferred download fired (well after the
+		// initial buffer filled), so there's no start-of-stream contention
 		const streamUrl = this.getTrackStreamSource(trackId);
 		if (streamUrl) {
 			this.enqueueWaveformIfNeeded(trackId, streamUrl);
 		}
 	}
 
-	// Returns true when it has already applied the gapless "next" source (via
-	// applyPlaybackSources) so callers can skip a redundant handleNextTrackPreload() — the
-	// next source is otherwise recomputed (and re-read from the native cache) for nothing.
+	// returns true when it has already applied the gapless "next" source (via
+	// applyPlaybackSources) so callers can skip a redundant handleNextTrackPreload(); the
+	// next source is otherwise recomputed (and re-read from the native cache) for nothing
 	private handleTrackPlaybackSourceChange(force = false): boolean {
 		const activeTrack = this.playbackStore.track;
 
@@ -1523,8 +1499,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.applyPlaybackSources(nativeSource);
 				appliedNext = true;
 			}
-			// Local file available — start waveform generation immediately without
-			// waiting for handleTrackCached (covers already-cached and downloaded tracks).
+			// local file available: start waveform generation immediately without waiting for
+			// handleTrackCached (covers already-cached and downloaded tracks)
 			this.enqueueWaveformIfNeeded(activeTrack.id, nativeSource);
 			return appliedNext;
 		}
@@ -1538,10 +1514,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		if (this.playbackStore.isPlaying && !this.isOfflinePlaybackMode()) {
 			if (streamUrl) {
-				// Defer the current track's full cache download until it has actually
-				// started playing. Downloading the whole file while ExoPlayer is still
-				// filling the stream's initial buffer starves that buffer and causes a
-				// brief stutter at the very start of streamed playback.
+				// defer the current track's full cache download until it has actually started
+				// playing. downloading the whole file while ExoPlayer is still filling the
+				// stream's initial buffer starves it and causes a brief stutter at the start
 				this.deferredDownloadCoordinator.defer('current', {
 					requestId,
 					run: () => {
@@ -1550,11 +1525,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					source: streamUrl,
 					trackId: activeTrack.id,
 				});
-				// Don't generate the waveform from the stream URL here: for a remote source the
-				// native decoder reads the whole file over the network, which competes with the
-				// stream's initial buffer and stutters the start of playback. The waveform is
-				// generated from the local copy once the deferred download caches it (see
-				// handleTrackCached); handleTrackCacheFetchFailed covers the stream as a fallback.
+				// don't generate the waveform from the stream URL here: for a remote source the
+				// native decoder reads the whole file over the network, competing with the
+				// stream's initial buffer and stuttering the start. the waveform is generated from
+				// the local copy once the deferred download caches it (see handleTrackCached);
+				// handleTrackCacheFetchFailed covers the stream as a fallback
 			} else {
 				void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
 			}
@@ -1597,11 +1572,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			: null;
 	}
 
-	// Apply the current source and the gapless "next" source in a single state update.
-	// On a track transition the store advances current and next together; updating them in
-	// one setState avoids a momentary render where the native player sees the previous
-	// "next" (now the current track) and drops the gapless preload. That gap is what lets
-	// offline playback reach end-of-queue and stall between tracks.
+	// apply the current source and the gapless "next" source in a single state update. on a
+	// track transition the store advances current and next together; one setState avoids a
+	// momentary render where the native player sees the previous "next" (now current) and
+	// drops the gapless preload, which lets offline playback stall at end-of-queue
 	private applyPlaybackSources(currentSource: string | null): void {
 		const nextSource = this.computeNextTrackSource();
 		if (
@@ -1623,11 +1597,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	}
 
-	// Hands the native engine an ordered window of the play queue around the current track so
-	// it can keep auto-advancing forwards (gapless) and stepping backwards (previous button)
-	// across multiple track boundaries while the JS runtime is frozen in the background —
-	// without this only the single preloaded next item survives backgrounding and playback
-	// stops at the following boundary.
+	// hands the native engine an ordered window of the play queue around the current track so
+	// it can keep auto-advancing (gapless) and stepping back across track boundaries while JS
+	// is frozen; without it only the single preloaded next item survives backgrounding and
+	// playback stops at the following boundary
 	private syncUpcomingQueue(): void {
 		const window = buildPlaybackQueueWindow(
 			this.playbackStore,
@@ -1680,11 +1653,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 
-		// While the current track is being streamed (not played from the native cache),
-		// defer prefetching the next track until the current one has actually started
-		// playing. Downloading the next file in parallel with the current track's initial
-		// network buffer is what causes the brief stutter at the start of streamed
-		// playback; cached tracks have no such contention, so prefetch immediately.
+		// while the current track is streamed (not played from the native cache), defer
+		// prefetching the next track until the current one has actually started playing.
+		// downloading the next file in parallel with the current track's initial buffer causes
+		// the start-of-stream stutter; cached tracks have no contention, so prefetch immediately
 		const streamSource =
 			this.playbackStore.isPlaying &&
 			!this.isOfflinePlaybackMode() &&
@@ -1904,13 +1876,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		try {
 			clearAtollaNativeCacheCategories(categories);
 		} catch {
-			// Native clear unavailable on non-Android targets.
+			// native clear unavailable on non-Android targets
 		}
 		if (selection.tracks) {
 			try {
 				clearAtollaTrackCache();
 			} catch {
-				// Native track cache clear unavailable on non-Android targets.
+				// native track cache clear unavailable on non-Android targets
 			}
 			this.lastTrackFetchErrorTrackId = null;
 			this.lastTrackSourceTrackId = null;
@@ -1927,7 +1899,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			try {
 				clearAtollaNativeCacheCategories(['album_art_palette']);
 			} catch {
-				// Native clear unavailable on non-Android targets.
+				// native clear unavailable on non-Android targets
 			}
 		}
 		if (selection.waveformData) {
@@ -1948,7 +1920,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		try {
 			setAtollaImageLoaderDiskCacheMaxBytes(bytes);
 		} catch {
-			// Native disk cache unavailable on non-Android targets.
+			// native disk cache unavailable on non-Android targets
 		}
 		this.setState({ imageCacheMaxBytes: bytes });
 	};
@@ -1981,9 +1953,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			): Promise<string | undefined> =>
 				store ? store.fetchString(key).catch(() => undefined) : Promise.resolve(undefined);
 
-			// Home cache keys: 'on_this_day_v1' is OnThisDayService's date-keyed cache
-			// (replaced the old whole-library 'albums_v1' blob), 'recently_added_v1'
-			// mirrors HomeView's recently-added cache; 'queue' mirrors PlaybackStore.
+			// home cache keys: 'on_this_day_v1' is OnThisDayService's date-keyed cache (replaced
+			// the old whole-library 'albums_v1' blob), 'recently_added_v1' mirrors HomeView's
+			// recently-added cache, 'queue' mirrors PlaybackStore
 			const [recentlyPlayed, nowPlayingQueue, homeAlbums, homeRecentlyAdded, playlistEdits] =
 				await Promise.all([
 					fetchRaw(this.recentlyPlayedStore, RECENTLY_PLAYED_TRACKS_KEY),
@@ -2082,7 +2054,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		try {
 			setAtollaTrackCacheMaxTracks(maxTracks);
 		} catch {
-			// Native track cache limit unavailable on non-Android targets.
+			// native track cache limit unavailable on non-Android targets
 		}
 	}
 
@@ -2117,11 +2089,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 
 		if (event === 'playback-cushion') {
-			// The track has played far enough to build a streaming buffer cushion, so the
+			// the track has played far enough to build a streaming buffer cushion, so the
 			// cache/prefetch downloads deferred at track start can now run without starving the
-			// buffer. Releasing them at the earlier "ready"/"playing" point is too soon: the
+			// buffer. releasing them at the earlier "ready"/"playing" point is too soon: the
 			// buffer is only just full enough to start, so a competing download stutters playback
-			// right at the start (see PLAYBACK_BUFFER_CUSHION_MS in NativeAudioPlayer).
+			// right at the start (see PLAYBACK_BUFFER_CUSHION_MS in NativeAudioPlayer)
 			this.deferredDownloadCoordinator.onPlaybackStarted({
 				currentRequestId: this.playbackSourceRequestId,
 				currentTrackId: this.playbackStore.track?.id ?? null,
@@ -2801,11 +2773,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	handleNowPlayingOpenPlaylist = (playlist: Playlist): void => {
-		// Invoked from the now playing surface, which can be open over any tab. Switching
-		// to home may mount its navigation controller asynchronously, so stash the playlist
-		// and let tryNavigatePendingPlaylist push once the controller is available (mirrors
-		// the pending album/artist navigation). A one-shot push silently no-ops on iOS when
-		// the home controller isn't mounted yet.
+		// invoked from the now playing surface, which can be open over any tab. switching to
+		// home may mount its navigation controller asynchronously, so stash the playlist and let
+		// tryNavigatePendingPlaylist push once the controller is available (mirrors the pending
+		// album/artist navigation). a one-shot push silently no-ops on iOS when the home
+		// controller isn't mounted yet
 		this.pendingPlaylist = playlist;
 		this.setState({ activeFooterTab: FooterTabs.home });
 		this.tryNavigatePendingPlaylist();

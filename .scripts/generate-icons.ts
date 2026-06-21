@@ -156,8 +156,7 @@ function resolveSelectedPlatforms(): Set<Platform> {
 	if (args.includes('--android')) selected.add('android');
 	if (args.includes('--ios')) selected.add('ios');
 
-	// No platform flag → generate everything (android + ios + web), preserving the
-	// original behaviour so `bun run icons:generate` and existing callers are unaffected.
+	// no platform flag generates everything, preserving behaviour for existing callers
 	if (selected.size === 0) {
 		selected.add('android');
 		selected.add('ios');

@@ -99,7 +99,7 @@ describe('DeferredPlaybackDownloadCoordinator', () => {
 			trackId: 'b',
 		});
 
-		// The stale track's start can never run the new record...
+		// stale track's start can never run the new record
 		coordinator.onPlaybackStarted({
 			currentRequestId: 1,
 			currentTrackId: 'a',
@@ -107,7 +107,7 @@ describe('DeferredPlaybackDownloadCoordinator', () => {
 		});
 		expect(fired).toEqual([]);
 
-		// ...only the latest record runs, and only for its own source.
+		// only the latest record runs, and only for its own source
 		coordinator.onPlaybackStarted({
 			currentRequestId: 2,
 			currentTrackId: 'b',

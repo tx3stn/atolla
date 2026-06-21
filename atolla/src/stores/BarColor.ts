@@ -15,14 +15,9 @@ export const defaultFooterColors: FooterColors = {
 	inactiveIconColor: theme.colors.grey,
 };
 
-/**
- * Single owner of the colours of the bars framing the now-playing surface:
- * the device status bar (header) and the FooterNav (footer). NowPlayingSurface
- * drives both from inside its expand/collapse animation so the timing can be
- * tuned per bar. The header is pushed straight to the OS (Android only, like
- * before); the footer (background + icon tints) is observable state that
- * FooterNav renders.
- */
+// single owner of the bar colours framing the now-playing surface: status bar (header) and FooterNav (footer)
+// NowPlayingSurface drives both from its expand/collapse animation so timing tunes per bar
+// header pushes straight to the OS (Android only); footer is observable state FooterNav renders
 export class BarColorStore {
 	private listeners = new Set<BarColorListener>();
 	private currentFooter: FooterColors = defaultFooterColors;

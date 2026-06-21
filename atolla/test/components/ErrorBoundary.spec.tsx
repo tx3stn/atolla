@@ -19,9 +19,9 @@ class FlakyChild extends Component<FlakyChildViewModel> {
 	}
 }
 
-// The boundary renders the fallback view itself, so it appears in the
-// boundary's own elements. The slotted children belong to the child component
-// and are not the boundary's own elements, so we assert recovery via state.
+// the boundary renders the fallback view itself, so it appears in the boundary's own
+// elements. the slotted children belong to the child component, not the boundary, so we
+// assert recovery via state
 function showsFallback(boundary: ErrorBoundary): boolean {
 	const views = elementTypeFind(componentGetElements(boundary), IRenderedElementViewClass.View);
 	return views.some((view) => view.getAttribute('accessibilityId') === 'error-boundary-fallback');

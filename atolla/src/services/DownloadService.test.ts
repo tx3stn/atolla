@@ -10,10 +10,6 @@ import {
 	type DownloadServiceStore,
 } from './DownloadService';
 
-// ---------------------------------------------------------------------------
-// Test helpers
-// ---------------------------------------------------------------------------
-
 class InMemoryStore implements DownloadServiceStore {
 	private values = new Map<string, string>();
 
@@ -89,14 +85,10 @@ function createService(
 	return { cacheCalls, imageCalls, removeCalls, service, store };
 }
 
-// Drain the microtask / Promise queue so async effects settle.
+// drain the microtask/promise queue so async effects settle
 function flush(): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, 0));
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('DownloadService', () => {
 	describe('downloadAlbum', () => {
@@ -196,7 +188,7 @@ describe('DownloadService', () => {
 
 			await flush();
 
-			// Full `album_art` is required (the blurred backdrop is generated from it).
+			// full album_art is required (the blurred backdrop is generated from it)
 			expect(imageCalls).toContainEqual({ category: 'album_art', url: 'https://img/album-1.jpg' });
 			expect(imageCalls).toContainEqual({
 				category: 'album_art_thumb',
@@ -219,9 +211,9 @@ describe('DownloadService', () => {
 				category: 'artist_logo',
 				url: 'https://img/logo-artist.jpg',
 			});
-			// The blurred variant is generated on device, never fetched.
+			// the blurred variant is generated on device, never fetched
 			expect(imageCalls.some((c) => c.category === 'album_art_blurred')).toBe(false);
-			// Each unique asset is fetched once.
+			// each unique asset is fetched once
 			expect(
 				imageCalls.filter((c) => c.category === 'album_art' && c.url.includes('album-1')),
 			).toHaveLength(1);
@@ -351,7 +343,7 @@ describe('DownloadService', () => {
 				...makeTrack('track-2'),
 				genres: [{ id: 'genre-jazz', name: 'Jazz' }],
 			};
-			// resolvedGenres is the union of every track's genres across the playlist.
+			// resolvedGenres is the union of every track's genres across the playlist
 			const resolvedGenres = [
 				{ id: 'genre-rock', imageUrl: 'https://img/rock.jpg', name: 'Rock' },
 				{ id: 'genre-jazz', imageUrl: 'https://img/jazz.jpg', name: 'Jazz' },
@@ -454,9 +446,8 @@ describe('DownloadService', () => {
 			service.registerSyncedPlaylist(playlist, ['unknown-track']);
 			await flush();
 
-			// trackIds are filtered to known-complete tracks, so the entry ends up with no tracks
-			// and getPlaylistDownloadState with an empty trackIds list is still 'downloaded' (vacuously true).
-			// The playlist entry itself is registered though.
+			// trackIds are filtered to known-complete; an empty trackIds list reports
+			// 'downloaded' (vacuously true), but the playlist entry is still registered
 			expect(service.getPlaylistDownloadState('synced-playlist')).not.toBe('not_downloaded');
 		});
 
@@ -466,7 +457,7 @@ describe('DownloadService', () => {
 			service.registerSyncedPlaylist(playlist, ['']);
 			await flush();
 
-			// Empty string filtered out — playlist registered with no tracks
+			// empty string filtered out, playlist registered with no tracks
 			const state = service.getPlaylistDownloadState('synced-playlist');
 			expect(state).toBe('downloaded'); // empty trackIds → vacuously all complete
 		});
@@ -523,9 +514,9 @@ describe('DownloadService', () => {
 
 			await flush();
 
-			// Both tracks belong to the downloaded genre.
+			// both tracks belong to the downloaded genre
 			expect(service.getGenre('genre-1')?.trackIds).toEqual(['track-1', 'track-2']);
-			// But each track's own sub-genre only contains that track.
+			// but each track's own sub-genre only contains that track
 			expect(service.getGenre('genre-rock')?.trackIds).toEqual(['track-1']);
 			expect(service.getGenre('genre-jazz')?.trackIds).toEqual(['track-2']);
 		});
@@ -575,7 +566,7 @@ describe('DownloadService', () => {
 		it('reports not_downloaded for an artist registered via a playlist (no albums)', async () => {
 			const { service } = createService();
 
-			// downloadPlaylist registers the playlist's artists with an empty albumIds list.
+			// downloadPlaylist registers the playlist's artists with an empty albumIds list
 			service.downloadPlaylist({
 				artists: [makeArtist('artist-1')],
 				playlist: makePlaylist('playlist-1'),
@@ -691,7 +682,7 @@ describe('DownloadService', () => {
 			service.removeAlbumDownload('album-1');
 			await flush();
 
-			// Track still referenced by playlist
+			// track still referenced by playlist
 			expect(service.isTrackDownloaded('track-1')).toBe(true);
 			expect(service.getPlaylistDownloadState('playlist-1')).toBe('downloaded');
 			expect(removeCalls).toEqual([]);
@@ -800,7 +791,7 @@ describe('DownloadService', () => {
 			const store = new InMemoryStore();
 			const cacheCalls: Array<CacheCall> = [];
 
-			// First service instance — starts a download but fails
+			// first service instance: starts a download but fails
 			const { service: s1 } = createService({
 				cacheTrack: () => Promise.reject(new Error('network failure')),
 				store,
@@ -816,7 +807,7 @@ describe('DownloadService', () => {
 
 			expect(s1.getAlbumDownloadState('album-1')).toBe('downloading');
 
-			// Second service instance — simulates app restart, succeeds
+			// second service instance: simulates app restart, succeeds
 			const s2 = new DownloadService({
 				cacheTrack: (trackId, url) => {
 					cacheCalls.push({ trackId, url });
@@ -877,7 +868,6 @@ describe('DownloadService', () => {
 
 			expect(maxActiveCacheCount).toBeLessThanOrEqual(3);
 
-			// Drain the queue
 			for (const resolve of [...resolvers]) {
 				resolve();
 				await flush();
@@ -886,9 +876,9 @@ describe('DownloadService', () => {
 	});
 
 	describe('operation serialization', () => {
-		// A remove must run on the same operationChain as downloads. If it bypasses the chain it
-		// can interleave with an in-flight download — emptying the maps mid-write or resurrecting
-		// just-removed entries — and persist inconsistent state.
+		// a remove must run on the same operationChain as downloads; bypassing it can
+		// interleave with an in-flight download (emptying maps mid-write or resurrecting
+		// just-removed entries) and persist inconsistent state
 		it('does not let removeAllDownloads persist while a download is mid-persist', async () => {
 			const KEY_TRACKS = 'dl_tracks';
 			const values = new Map<string, string>();
@@ -930,7 +920,7 @@ describe('DownloadService', () => {
 
 			service.removeAllDownloads();
 			await flush();
-			// A serialized remove waits for the gated download; an unserialized one persists now.
+			// a serialized remove waits for the gated download; an unserialized one persists now
 			expect(trackPersists).toBe(1);
 
 			releaseGate();
@@ -982,8 +972,8 @@ describe('DownloadService', () => {
 
 	describe('onAppReady', () => {
 		it('does not throw when the store fails to load', () => {
-			// InMemoryStore rejects fetchString for missing keys — simulates a store with no data.
-			// onAppReady returns void; the internal .catch() absorbs the rejection silently.
+			// InMemoryStore rejects fetchString for missing keys, simulating a store with no
+			// data. onAppReady returns void; the internal .catch() absorbs the rejection
 			const { service } = createService();
 			expect(() => service.onAppReady()).not.toThrow();
 		});
@@ -991,7 +981,7 @@ describe('DownloadService', () => {
 		it('re-enqueues incomplete downloads from a persisted store on startup', async () => {
 			const store = new InMemoryStore();
 
-			// Seed the store directly with an incomplete track entry.
+			// seed the store with an incomplete track entry
 			await store.storeString(
 				'dl_tracks',
 				JSON.stringify({
@@ -1042,12 +1032,12 @@ describe('DownloadService', () => {
 
 			await flush();
 
-			// Audio is cached, so the counter clears and the item shows downloaded
-			// immediately — image caching continues in the background without gating.
+			// audio is cached, so the counter clears and the item shows downloaded
+			// immediately; image caching continues in the background without gating
 			expect(service.isTrackDownloaded('track-1')).toBe(true);
 			expect(service.getDownloadingCount()).toBe(0);
 			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
-			// The required images were still requested for offline use.
+			// required images were still requested for offline use
 			expect(imageRequests).toBeGreaterThan(0);
 
 			resolveImage();
@@ -1069,8 +1059,8 @@ describe('DownloadService', () => {
 			const callsAfterAlbum = imageCalls.length;
 			expect(callsAfterAlbum).toBeGreaterThan(0);
 
-			// The same track (and its album art) added to a playlist must not re-fetch
-			// the already-cached album artwork.
+			// the same track (and its album art) added to a playlist must not re-fetch
+			// the already-cached album artwork
 			service.downloadPlaylist({
 				playlist: makePlaylist('playlist-1'),
 				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: trackWithArt() }],
@@ -1096,22 +1086,22 @@ describe('DownloadService', () => {
 				tracks: [{ streamUrl: 'http://s/track-1', track: trackWithArt() }],
 			});
 
-			// Allow retries (no backoff) to play out across several macrotasks.
+			// allow retries (no backoff) to play out across several macrotasks
 			for (let i = 0; i < 6; i += 1) await flush();
 
-			// The full album_art asset is retried exactly IMAGE_MAX_ATTEMPTS times.
+			// the full album_art asset is retried exactly IMAGE_MAX_ATTEMPTS times
 			expect(
 				imageCalls.filter((c) => c.category === 'album_art' && c.url === 'https://img/album-1.jpg'),
 			).toHaveLength(3);
-			// Best-effort exhaustion lets the item complete so it never stays stuck.
+			// best-effort exhaustion lets the item complete so it never stays stuck
 			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
 		});
 
 		it('retries incomplete (non-exhausted) images on app ready', async () => {
 			const store = new InMemoryStore();
 
-			// Seed an incomplete, non-exhausted image plus the track that requires it,
-			// as if the app was killed mid-download before retries were exhausted.
+			// seed an incomplete, non-exhausted image plus the track that requires it,
+			// as if the app was killed mid-download before retries were exhausted
 			const imageKey = 'album_art:https://img/album-1.jpg';
 			await store.storeString(
 				'dl_tracks',

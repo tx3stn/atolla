@@ -76,9 +76,8 @@ export class CardContextMenu extends StatefulComponent<
 		}
 	}
 
-	// The menu is dismissed optimistically by the caller, so the fetch runs fire-and-forget: run
-	// `action` once it resolves with a non-empty list, and swallow a rejected fetch here rather than
-	// let it surface as an unhandled promise rejection.
+	// menu is dismissed optimistically, so the fetch runs fire-and-forget: run action on a non-empty
+	// list and swallow rejections here rather than let them surface as unhandled promise rejections
 	private withFetchedTracks(action: (tracks: Array<Track>) => void): void {
 		this.fetchTracks()
 			.then((tracks) => {

@@ -14,9 +14,9 @@ import java.io.File
 import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicLong
 
-// Session-scoped store for on-demand rendered waveform PNGs. Files live in the
-// app's cacheDir (Android clears them on low storage) and are not persisted
-// across launches — the render cache re-renders from stored amplitude arrays.
+// session-scoped store for on-demand rendered waveform PNGs. files live in the app's
+// cacheDir (Android clears them on low storage) and aren't persisted across launches; the
+// render cache re-renders from stored amplitude arrays
 object AtollaWaveformRenderTempStore {
 	private const val tag = "AtollaWaveformRenderTmp"
 	private const val renderFolder = "atolla-waveform-render"
@@ -37,16 +37,16 @@ object AtollaWaveformRenderTempStore {
 }
 
 class AtollaWaveformWorker {
-	// Bridged to shared Zig (waveform_generator.zig) via JNI (waveform_jni.cpp).
-	// Declared as a class instance method so the generated JNI symbol matches the
-	// other native bridges: Java_com_tx3stn_atolla_AtollaWaveformWorker_nativeBuildWaveformPath.
+	// bridged to shared Zig (waveform_generator.zig) via JNI (waveform_jni.cpp). declared as a
+	// class instance method so the generated JNI symbol matches the other native bridges:
+	// Java_com_tx3stn_atolla_AtollaWaveformWorker_nativeBuildWaveformPath
 	private external fun nativeBuildWaveformPath(amps: FloatArray, width: Int, height: Int): FloatArray?
 
 	companion object {
 		private const val tag = "AtollaWaveformWorker"
 		private const val waveformControlPoints = 300
 
-		// Reused instance solely to reach the JNI bridge from the (static) render path.
+		// reused instance solely to reach the JNI bridge from the (static) render path
 		private val bridge = AtollaWaveformWorker()
 
 		fun extractAmps(audioPath: String): FloatArray? = decodeToAmplitudes(audioPath)
@@ -88,10 +88,9 @@ class AtollaWaveformWorker {
 			return out.toByteArray()
 		}
 
-		// Streams audio through MediaCodec, accumulating peak amplitudes per waveform
-		// column directly — no full sample buffer. Uses the track duration to map each
-		// decoded frame to the correct column, so the waveform spans the full track
-		// regardless of length.
+		// streams audio through MediaCodec, accumulating peak amplitudes per waveform column
+		// directly (no full sample buffer). uses the track duration to map each decoded frame
+		// to the correct column, so the waveform spans the full track regardless of length
 		private fun decodeToAmplitudes(audioPath: String): FloatArray? {
 			val path = if (audioPath.startsWith("file://")) audioPath.substring(7) else audioPath
 			val extractor = MediaExtractor()
@@ -104,7 +103,7 @@ class AtollaWaveformWorker {
 				val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
 				val channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
 				val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-				// Duration in microseconds; convert to total frames for column mapping.
+				// duration in microseconds; convert to total frames for column mapping
 				val durationUs = if (format.containsKey(MediaFormat.KEY_DURATION))
 					format.getLong(MediaFormat.KEY_DURATION) else 0L
 				val totalFrames = if (durationUs > 0)
@@ -149,10 +148,10 @@ class AtollaWaveformWorker {
 								outputBuffer.limit(info.offset + info.size)
 								val shortBuffer = outputBuffer.slice().order(ByteOrder.nativeOrder()).asShortBuffer()
 								val bufferFrames = shortBuffer.remaining() / channelCount
-								// Presentation time of the first frame in this buffer (µs → frames).
+								// presentation time of the first frame in this buffer (µs → frames)
 								val bufferStartFrame = info.presentationTimeUs * sampleRate / 1_000_000L
-								// Sample at most 4 frames per decoded buffer — accurate enough for
-								// peak detection and avoids processing millions of frames.
+								// sample at most 4 frames per decoded buffer, accurate enough for
+								// peak detection and avoids processing millions of frames
 								val stride = maxOf(1, bufferFrames / 4)
 
 								var frameOffset = 0

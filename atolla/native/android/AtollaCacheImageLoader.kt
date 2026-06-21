@@ -129,8 +129,8 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		private val diskEvictionScheduled = AtomicBoolean(false)
 		private val diskEvictionRequested = AtomicBoolean(false)
 		// Valdi's image pipeline requires completion callbacks on the main thread.
-		// Images served from the memory fast-path are already on the main thread;
-		// disk/network paths run on background threads and must post back here.
+		// images served from the memory fast-path are already on the main thread;
+		// disk/network paths run on background threads and must post back here
 		private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 		var sharedInstance: AtollaCacheImageLoader? = null
 		var imageCachedObserver: ((url: String, category: String) -> Unit)? = null
@@ -238,7 +238,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	}
 
 	fun extractPalette(category: String, sourceUrl: String): String? {
-		// Try the side-car key written at cache time — no decode needed.
+		// try the side-car key written at cache time, no decode needed
 		if (category == "album_art") {
 			val paletteKey = "album_art_palette:$sourceUrl"
 			val sidecar = memory.get(paletteKey) ?: readFromDisk(paletteKey)
@@ -330,8 +330,8 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		val bitmapPlan = resolveBitmapDecodePlan(key, payload.category, options)
 		Log.d(tag, "loadImage key=$key outputType=${options.outputType}")
 
-		// Bitmap cache hit: decoded bitmap is ready — deliver synchronously without
-		// dispatching to a background thread, so scrolling back into view is instant.
+		// bitmap cache hit: decoded bitmap is ready, deliver synchronously without dispatching
+		// to a background thread, so scrolling back into view is instant
 		if (options.outputType == ValdiAssetLoadOutputType.BITMAP) {
 			bitmapMemory.get(bitmapPlan.bitmapKey)?.let { bitmap ->
 				if (bitmap.isRecycled) {
@@ -349,9 +349,9 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 
 		// Memory hit: bytes already in RAM. Decode and deliver synchronously on the
-		// calling thread (the UI thread) so there is zero async latency and no blank
-		// frame between Valdi clearing the old image and showing the new one.
-		// Bitmap decode for a thumbnail is <1ms — preferable to a 16ms blank frame.
+		// calling thread (the UI thread) so there's zero async latency and no blank frame
+		// between Valdi clearing the old image and showing the new one. bitmap decode for a
+		// thumbnail is <1ms, preferable to a 16ms blank frame
 		memory.get(key)?.let { bytes ->
 			Log.d(tag, "cache hit key=$key bytes=${bytes.size}")
 			val image: ValdiImage = when (options.outputType) {
@@ -377,12 +377,11 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			return object : Disposable { override fun dispose() {} }
 		}
 
-		// Disk fast-path for fixed-size thumbnails: read synchronously on the calling
-		// thread (the UI thread) before dispatching to the background executor.
-		// Thumbnail files are <100 KB so a sequential read takes well under 1 ms —
-		// far cheaper than a mainHandler.post() which costs at least one full frame
-		// and is the direct cause of the pop-in on scroll-back when images are
-		// already on disk but not yet promoted to the in-memory cache.
+		// disk fast-path for fixed-size thumbnails: read synchronously on the calling thread
+		// (the UI thread) before dispatching to the background executor. thumbnail files are
+		// <100 KB so a sequential read takes well under 1 ms, far cheaper than a
+		// mainHandler.post() which costs at least one full frame and is the direct cause of the
+		// pop-in on scroll-back when images are already on disk but not yet in memory
 		if (isFixedThumbCategory(payload.category)) {
 			readFromDisk(key)?.let { bytes ->
 				memory.put(key, bytes)
@@ -409,11 +408,10 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			}
 		}
 
-		// Disk reads and network fetches happen on a background thread so the
-		// calling thread (typically the UI thread) is never blocked. Disposing
-		// only cancels the completion callback — the download still runs to
-		// completion so the result is cached for the next request (e.g. when
-		// the same image scrolls back into view).
+		// disk reads and network fetches happen on a background thread so the calling thread
+		// (typically the UI thread) is never blocked. disposing only cancels the completion
+		// callback; the download still runs to completion so the result is cached for the next
+		// request (e.g. when the same image scrolls back into view)
 		val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
 
 		// Deduplicate concurrent requests for the same key. If a download is
@@ -473,9 +471,9 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				return
 			}
 
-			// Blurred art: generate from a cached source, preferring the thumbnail (the blur is
+			// blurred art: generate from a cached source, preferring the thumbnail (the blur is
 			// downsampled to 200x200 so the thumb is plenty and is always downloaded), then the
-			// full original; only fetch the full from network if neither is cached.
+			// full original; only fetch the full from network if neither is cached
 			if (payload.category == "album_art_blurred") {
 				val originalKey = "album_art:${payload.sourceUrl}"
 				val cachedOriginal = AtollaImageFallback.blurSourceKeys(payload.sourceUrl)
@@ -577,15 +575,15 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		val key = "$category:$sourceUrl"
 		val bitmapPlan = resolveBitmapDecodePlan(key, category, null)
 
-		// Bitmap already decoded and cached — nothing to do, but still report it as
-		// cached so callers waiting on offline availability (e.g. downloads) resolve.
+		// bitmap already decoded and cached: nothing to do, but still report it as cached so
+		// callers waiting on offline availability (e.g. downloads) resolve
 		if (bitmapMemory.get(bitmapPlan.bitmapKey) != null) {
 			notifyImageCached(sourceUrl, category)
 			return
 		}
 
-		// Bytes in memory but bitmap not yet decoded. Warm the bitmap cache on a
-		// background thread so subsequent loadImage calls can serve synchronously.
+		// bytes in memory but bitmap not yet decoded. warm the bitmap cache on a background
+		// thread so subsequent loadImage calls can serve synchronously
 		memory.get(key)?.let { bytes ->
 			if (!inFlight.containsKey(key)) {
 				executor.execute(LoadTask(LoadPriority.PREFETCH) {
@@ -632,7 +630,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				inFlight.remove(key)
 				future.complete(bytes)
 				warmBitmapCache(key, bytes, category)
-				// Already on disk — report cached so offline-availability waiters resolve.
+				// already on disk; report cached so offline-availability waiters resolve
 				notifyImageCached(sourceUrl, category)
 				return
 			}
@@ -728,12 +726,10 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 	}
 
-	// Deliver a completion callback on the main thread. When already on the main
-	// thread (memory fast-path) the block runs synchronously. When called from a
-	// background thread (disk/network path) the block is posted so Valdi can update
-	// the image view on the next message-loop iteration.
-	// cancelled is re-checked inside the post to handle disposal between the post
-	// and execution.
+	// deliver a completion callback on the main thread. when already on the main thread (memory
+	// fast-path) the block runs synchronously; from a background thread (disk/network path) it
+	// is posted so Valdi can update the image view on the next message-loop iteration. cancelled
+	// is re-checked inside the post to handle disposal between the post and execution
 	private fun deliverOnMain(cancelled: AtomicBoolean? = null, deliver: () -> Unit) {
 		if (Looper.myLooper() == Looper.getMainLooper()) {
 			if (cancelled?.get() != true) deliver()
@@ -1000,7 +996,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				try {
 					file.delete()
 				} catch (_: Throwable) {
-					// Best effort disk cleanup.
+					// best effort disk cleanup
 				}
 				continue
 			}

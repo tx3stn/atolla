@@ -69,8 +69,7 @@ export function getDeviceConfig(device: Platform, index = 0): DeviceConfig {
 			const deviceName = androidDevices[index] ?? process.env.E2E_DEVICE_NAME ?? 'gsd-api34';
 			return {
 				automationName: 'UiAutomator2',
-				// When targeting a specific running emulator by serial, don't set avd
-				// (avd tells Appium to boot the emulator; serial means it's already running).
+				// when targeting a running emulator by serial, don't set avd (avd makes Appium boot one)
 				...(serial ? {} : { avd: deviceName }),
 				deviceName,
 				index,

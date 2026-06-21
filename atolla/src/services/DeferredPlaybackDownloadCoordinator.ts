@@ -17,16 +17,14 @@ interface PendingEntry extends DeferredDownloadRecord {
 	timeoutId: ReturnType<typeof setTimeout> | null;
 }
 
-// Backstop: if a streamed track buffers but never reports that it actually started
-// playing (no "loaded"/"progress" event), run the deferred work anyway so the track
-// still gets cached/prefetched rather than being stranded forever.
+// backstop: if a streamed track buffers but never reports it started playing, run
+// the deferred work anyway so it still gets cached/prefetched instead of stranded
 const DEFAULT_SAFETY_TIMEOUT_MS = 7000;
 
-// Holds the cache/prefetch downloads that would otherwise fire in the same tick a
-// streamed track begins, and runs them only once that track has actually started
-// playing. This keeps the first track's initial network buffer uncontended, removing
-// the brief stutter at the very start of streamed playback. The (source, requestId,
-// trackId) triple guards against a superseded track triggering a stale download.
+// holds the cache/prefetch downloads that would otherwise fire as a streamed track
+// begins, releasing them only once it has actually started playing so the initial
+// buffer stays uncontended. the (source, requestId, trackId) triple guards against a
+// superseded track triggering a stale download
 export class DeferredPlaybackDownloadCoordinator {
 	private readonly pending = new Map<DeferredDownloadPurpose, PendingEntry>();
 

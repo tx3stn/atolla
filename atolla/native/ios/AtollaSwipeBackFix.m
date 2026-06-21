@@ -26,7 +26,7 @@
     if (![navigationController isKindOfClass:[UINavigationController class]]) return;
     AtollaSwipeBackGestureDelegate *delegate = [[AtollaSwipeBackGestureDelegate alloc] init];
     delegate.navigationController = navigationController;
-    // Retain delegate for the lifetime of the navigation controller.
+    // retain delegate for the lifetime of the navigation controller
     objc_setAssociatedObject(navigationController,
                              "AtollaSwipeBackGestureDelegate",
                              delegate,
@@ -35,7 +35,7 @@
 }
 
 + (void)load {
-    // Apply fix after the navigation controller has been set up.
+    // apply fix after the navigation controller has been set up
     dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *window = UIApplication.sharedApplication.windows.firstObject;
         if ([window.rootViewController isKindOfClass:[UINavigationController class]]) {

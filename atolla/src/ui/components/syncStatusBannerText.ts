@@ -1,7 +1,6 @@
 import type { SyncProgress } from '../../services/ReconnectSyncCoordinator';
 
-// Pure label logic, kept separate from the Valdi component so it can be unit
-// tested without the native render harness.
+// separate from the Valdi component so it can be unit tested without the native render harness
 export function syncStatusBannerText(
 	progress: Pick<SyncProgress, 'completed' | 'status' | 'total'>,
 ): string {

@@ -125,11 +125,8 @@ export class BasePage {
 				);
 				await this.driver.$('android=new UiSelector().text("Allow")').click();
 			} else {
-				// await this.driver.acceptAlert();
 			}
-		} catch {
-			// No permission dialog present
-		}
+		} catch {}
 	}
 
 	public async sortedByY(
@@ -141,8 +138,7 @@ export class BasePage {
 		return positioned.sort((a, b) => a.y - b.y).map((entry) => entry.element);
 	}
 
-	// Drags the first row's handle just past the second row to reorder it down one slot.
-	// `handles` must be the drag handles sorted top-to-bottom.
+	// handles must be the drag handles sorted top-to-bottom
 	public async dragFirstHandleBelowSecond(handles: Array<WebdriverIO.Element>): Promise<void> {
 		if (handles.length < 2) {
 			throw new Error('Need at least two rows to reorder');

@@ -13,7 +13,7 @@ Java_com_tx3stn_atolla_AtollaCacheImageLoader_nativeBlurPixels(
     jint* argb = env->GetIntArrayElements(pixels, nullptr);
     if (!argb) return nullptr;
 
-    // Android Bitmap.getPixels() returns 0xAARRGGBB; Zig expects row-major RGBA bytes.
+    // Android Bitmap.getPixels() returns 0xAARRGGBB; Zig expects row-major RGBA bytes
     uint8_t* rgba_in = static_cast<uint8_t*>(std::malloc(static_cast<size_t>(len) * 4));
     if (!rgba_in) {
         env->ReleaseIntArrayElements(pixels, argb, JNI_ABORT);
@@ -34,8 +34,8 @@ Java_com_tx3stn_atolla_AtollaCacheImageLoader_nativeBlurPixels(
         std::free(rgba_in);
         return nullptr;
     }
-    // Zero-init so that if atolla_blur_pixels returns early (e.g. internal malloc failure),
-    // rgba_out contains valid black pixels rather than uninitialized heap garbage.
+    // zero-init so if atolla_blur_pixels returns early (e.g. internal malloc failure), rgba_out
+    // holds valid black pixels rather than uninitialized heap garbage
     std::memset(rgba_out, 0, out_len * 4);
 
     atolla_blur_pixels(

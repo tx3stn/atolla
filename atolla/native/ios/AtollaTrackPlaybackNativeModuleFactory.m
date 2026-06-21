@@ -75,9 +75,8 @@ static NSMutableSet<NSString *> *sInProgressKeys;
     return [lower hasPrefix:@"audio/"] || [lower containsString:@"octet-stream"];
 }
 
-// Downloads url directly to a temp file on disk (no in-memory buffering).
-// Returns the temp file URL and populates outMimeType on success, nil on failure.
-// Caller is responsible for deleting the temp file.
+// downloads url directly to a temp file on disk (no in-memory buffering). returns the temp
+// file URL and populates outMimeType on success, nil on failure. caller deletes the temp file
 + (nullable NSURL *)streamDownloadFromURL:(NSURL *)sourceURL
                                authToken:(NSString * _Nullable)authToken
                                  mimeType:(NSString * _Nullable * _Nonnull)outMimeType {
@@ -106,7 +105,7 @@ static NSMutableSet<NSString *> *sInProgressKeys;
             if (!error && location &&
                 httpResp.statusCode >= 200 && httpResp.statusCode < 300) {
                 mimeResult = [httpResp MIMEType] ?: @"application/octet-stream";
-                // location is deleted after this block, so move it somewhere persistent.
+                // location is deleted after this block, so move it somewhere persistent
                 NSURL *persistentTmp = [[NSURL fileURLWithPath:NSTemporaryDirectory()]
                     URLByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
                 NSError *moveErr = nil;
@@ -197,7 +196,7 @@ static NSMutableSet<NSString *> *sInProgressKeys;
     if (!dir) return @"";
     NSString *key = [self safeTrackKey:trackId];
 
-    // Fast path: check cache and register in-progress (brief lock).
+    // fast path: check cache and register in-progress (brief lock)
     [sTrackCacheLock lock];
     NSURL *existing = [self resolveExistingTrackFileWithKey:key inDir:dir];
     if (existing && [[NSFileManager defaultManager] fileExistsAtPath:existing.path]) {
@@ -213,8 +212,8 @@ static NSMutableSet<NSString *> *sInProgressKeys;
     [sInProgressKeys addObject:key];
     [sTrackCacheLock unlock];
 
-    // Download without holding the lock so getCachedTrackFileUrl is not blocked
-    // during slow network I/O. Streams directly to disk — no in-memory buffering.
+    // download without holding the lock so getCachedTrackFileUrl isn't blocked during slow
+    // network I/O. streams directly to disk, no in-memory buffering
     NSURL *sourceURL = [NSURL URLWithString:url];
     if (!sourceURL) {
         [sTrackCacheLock lock];
@@ -229,7 +228,7 @@ static NSMutableSet<NSString *> *sInProgressKeys;
     NSString *result = @"";
     if (downloadedTmp && mimeType && [self isLikelyAudioMimeType:mimeType]) {
         NSString *ext = [self extensionFromMimeType:mimeType];
-        // Brief lock to finalize: delete stale files, rename temp, prune.
+        // brief lock to finalize: delete stale files, rename temp, prune
         [sTrackCacheLock lock];
         NSURL *file = [dir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.%@", key, ext]];
         [self deleteExistingTrackFilesForKey:key inDir:dir];
@@ -369,7 +368,7 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
     if (!dir) return @"";
     NSString *key = [self safeKey:trackId];
 
-    // Fast path: check cache and register in-progress (brief lock).
+    // fast path: check cache and register in-progress (brief lock)
     [sDownloadedTrackCacheLock lock];
     NSURL *existing = [self resolveExistingFileForKey:key inDir:dir];
     if (existing && [[NSFileManager defaultManager] fileExistsAtPath:existing.path]) {
@@ -385,8 +384,8 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
     [sInProgressDownloadedKeys addObject:key];
     [sDownloadedTrackCacheLock unlock];
 
-    // Download without holding the lock so getCachedTrackFileUrl is not blocked
-    // during slow network I/O. Streams directly to disk — no in-memory buffering.
+    // download without holding the lock so getCachedTrackFileUrl isn't blocked during slow
+    // network I/O. streams directly to disk, no in-memory buffering
     NSURL *sourceURL = [NSURL URLWithString:url];
     if (!sourceURL) {
         [sDownloadedTrackCacheLock lock];
@@ -401,7 +400,7 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
     NSString *result = @"";
     if (downloadedTmp && mimeType && [AtollaTrackCache isLikelyAudioMimeType:mimeType]) {
         NSString *ext = [AtollaTrackCache extensionFromMimeType:mimeType];
-        // Brief lock to finalize: delete stale files, move temp, touch.
+        // brief lock to finalize: delete stale files, move temp, touch
         [sDownloadedTrackCacheLock lock];
         NSURL *file = [dir URLByAppendingPathComponent:[NSString stringWithFormat:@"%@.%@", key, ext]];
         [AtollaTrackCache deleteExistingTrackFilesForKey:key inDir:dir];
@@ -531,8 +530,8 @@ static BOOL sCommandsRegistered = NO;
         return MPRemoteCommandHandlerStatusSuccess;
     }];
 
-    // togglePlayPauseCommand fires from headphone/AirPods button — must toggle regardless of
-    // current state, so it uses "toggle" rather than "play" (which is a no-op when already playing).
+    // togglePlayPauseCommand fires from headphone/AirPods button, so it must toggle regardless
+    // of current state: uses "toggle" rather than "play" (a no-op when already playing)
     [cc.togglePlayPauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
         [sMediaSessionLock lock];
         if (sPendingActions.count < 2) [sPendingActions addObject:@"toggle"];
@@ -665,9 +664,9 @@ static BOOL sCommandsRegistered = NO;
 @implementation AtollaGaplessAudioEngine
 
 static AVQueuePlayer *sPlayer = nil;
-// Tokens for the block-based NSNotificationCenter observers registered in
-// registerPlayerObservers. They must be removed explicitly in clear — removeObserver: on the
-// player removes nothing, since the player is not the observer for block registrations.
+// tokens for the block-based NSNotificationCenter observers registered in
+// registerPlayerObservers. they must be removed explicitly in clear; removeObserver: on the
+// player removes nothing, since the player isn't the observer for block registrations
 static NSMutableArray<id<NSObject>> *sPlayerObserverTokens = nil;
 static NSString *sCurrentSourceUrl = @"";
 static NSString *sCurrentTrackId = @"";
@@ -687,22 +686,22 @@ static double sNextNotificationDurationSeconds = 0;
 static BOOL sNextNotificationHasPrevious = NO;
 static BOOL sNextNotificationHasNext = NO;
 
-// Ordered window of the play queue around the current track ([history..., current,
-// upcoming...]; dictionaries from setUpcomingQueue's JSON). Lets the engine keep topping the
+// ordered window of the play queue around the current track ([history..., current,
+// upcoming...]; dictionaries from setUpcomingQueue's JSON). lets the engine keep topping the
 // AVQueuePlayer up at each item boundary so background playback survives multiple track
 // transitions while the JS runtime is frozen. AVQueuePlayer is forward-only, so unlike
-// Android the history entries are informational (anchor/notification) — no native previous.
-// Replaced as a whole under sEngineLock so readers always see a consistent snapshot.
-// sWindowAnchorHint is the engine's running cursor for the current track's window position.
+// Android the history entries are informational (anchor/notification), no native previous.
+// replaced as a whole under sEngineLock so readers always see a consistent snapshot.
+// sWindowAnchorHint is the engine's running cursor for the current track's window position
 static NSArray<NSDictionary *> *sQueueWindow = nil;
 static NSInteger sWindowAnchorHint = 0;
 static const NSInteger kAtollaLookaheadTargetAhead = 2;
 
-// While a freshly-started remote track fills its initial network buffer, hold back the
+// while a freshly-started remote track fills its initial network buffer, hold back the
 // gapless next item / lookahead top-up so they don't compete for bandwidth and stutter the
-// start of playback. Cleared, and the lookahead attached, once the current item is ready to
+// start of playback. cleared, and the lookahead attached, once the current item is ready to
 // play (see AtollaShouldDeferLookaheadForSource and the access-log observer in
-// registerPlayerObservers). Mirrors suppressLookahead on Android. Main thread only.
+// registerPlayerObservers). mirrors suppressLookahead on Android. main thread only
 static BOOL sSuppressLookahead = NO;
 
 + (void)initialize {
@@ -716,8 +715,8 @@ static BOOL sSuppressLookahead = NO;
 
 + (void)enqueueEvent:(NSString *)event {
     [sEngineLock lock];
-    // Sized for long backgrounded sessions where every transition queues a completed event
-    // that JS only drains on wake.
+    // sized for long backgrounded sessions where every transition queues a completed event
+    // that JS only drains on wake
     if (sEventQueue.count >= 128) [sEventQueue removeObjectAtIndex:0];
     [sEventQueue addObject:event];
     [sEngineLock unlock];
@@ -729,8 +728,8 @@ static BOOL sSuppressLookahead = NO;
     return ((AVURLAsset *)asset).URL.absoluteString ?: @"";
 }
 
-// The window's URL list plus the anchor (current item's window index), resolved under the
-// lock. Returns NO when the window is empty or the current URL cannot be located.
+// the window's URL list plus the anchor (current item's window index), resolved under the
+// lock. returns NO when the window is empty or the current URL can't be located
 + (BOOL)snapshotWindow:(NSArray<NSDictionary *> **)outWindow
                   urls:(NSArray<NSString *> **)outUrls
                 anchor:(NSInteger *)outAnchor {
@@ -759,10 +758,10 @@ static BOOL sSuppressLookahead = NO;
     return YES;
 }
 
-// Aligns the AVQueuePlayer with the window after the current item: drops queued items that
+// aligns the AVQueuePlayer with the window after the current item: drops queued items that
 // diverge from the window order, then tops up to kAtollaLookaheadTargetAhead items ahead.
 // AVQueuePlayer is forward-only so the window's history entries are never queued.
-// Main thread only.
+// main thread only
 + (void)ensureWindow {
     if (!sPlayer) return;
     NSArray<NSDictionary *> *window = nil;
@@ -782,8 +781,8 @@ static BOOL sSuppressLookahead = NO;
         }
     }
 
-    // Held back while the current remote track fills its initial buffer; the access-log
-    // observer re-runs ensureWindow once it is ready. Mirrors syncQueue's guard on Android.
+    // held back while the current remote track fills its initial buffer; the access-log
+    // observer re-runs ensureWindow once it is ready. mirrors syncQueue's guard on Android
     while (!sSuppressLookahead && (NSInteger)sPlayer.items.count - 1 < kAtollaLookaheadTargetAhead) {
         NSArray<AVPlayerItem *> *currentItems = sPlayer.items;
         if (currentItems.count == 0) return;
@@ -814,8 +813,8 @@ static BOOL sSuppressLookahead = NO;
                 NSMutableArray<NSDictionary *> *entries = [NSMutableArray array];
                 BOOL valid = YES;
                 for (id candidate in (NSArray *)entriesValue) {
-                    // Bail on malformed entries rather than skipping them — currentIndex is
-                    // positional, so dropping an entry would misalign the whole window.
+                    // bail on malformed entries rather than skipping them: currentIndex is
+                    // positional, so dropping an entry would misalign the whole window
                     if (![candidate isKindOfClass:[NSDictionary class]]) { valid = NO; break; }
                     NSDictionary *entry = (NSDictionary *)candidate;
                     NSString *trackId = [entry[@"trackId"] isKindOfClass:[NSString class]] ? entry[@"trackId"] : @"";
@@ -862,12 +861,12 @@ static BOOL sSuppressLookahead = NO;
             [self registerPlayerObservers];
         }
 
-        // Match on the actual current item's URL. The previous trackId comparison was
-        // against sCurrentTrackId, which configure() assigns above before this block runs —
-        // so it was always true whenever any current item existed, and a stale/ended item
-        // was never replaced. Also treat an ended item as a mismatch so it gets re-prepared
-        // (the offline gapless transition can leave the player parked at end-of-queue, where
-        // [play] alone won't restart it).
+        // match on the actual current item's URL. the previous trackId comparison was against
+        // sCurrentTrackId, which configure() assigns above before this block runs, so it was
+        // always true whenever any current item existed and a stale/ended item was never
+        // replaced. also treat an ended item as a mismatch so it gets re-prepared (the offline
+        // gapless transition can leave the player parked at end-of-queue, where [play] alone
+        // won't restart it)
         AVPlayerItem *currentItem = sPlayer.currentItem;
         BOOL currentMatches = NO;
         if (currentItem && ![self isItemAtEnd:currentItem]) {
@@ -876,16 +875,16 @@ static BOOL sSuppressLookahead = NO;
         }
 
         if (!currentMatches) {
-            // Belt-and-suspenders: a stale wake-race configure can ask to rebuild back to an
-            // earlier track while a later one is still playing. Suppress it — keep playing and
+            // belt-and-suspenders: a stale wake-race configure can ask to rebuild back to an
+            // earlier track while a later one is still playing. suppress it: keep playing and
             // realign the engine's source to the item actually on screen so currentTrackId and
-            // the window anchor stay truthful (otherwise JS would re-reconcile backward).
+            // the window anchor stay truthful (otherwise JS would re-reconcile backward)
             NSString *playingUrl = (currentItem && ![self isItemAtEnd:currentItem])
                 ? [(AVURLAsset *)currentItem.asset URL].absoluteString : @"";
             if (playingUrl.length > 0) {
-                // Snapshot the shared window state under the lock — setUpcomingQueue mutates these
-                // from the JS bridge thread, so reading them unlocked on the main queue can tear the
-                // window/anchor pair or use-after-free the reassigned array.
+                // snapshot the shared window state under the lock: setUpcomingQueue mutates these
+                // from the JS bridge thread, so reading them unlocked on the main queue can tear
+                // the window/anchor pair or use-after-free the reassigned array
                 [sEngineLock lock];
                 NSArray<NSDictionary *> *window = sQueueWindow;
                 NSInteger anchorHint = sWindowAnchorHint;
@@ -917,10 +916,10 @@ static BOOL sSuppressLookahead = NO;
                     return;
                 }
             }
-            // A streamed current track must fill its initial network buffer alone. Adding the
+            // a streamed current track must fill its initial network buffer alone. adding the
             // gapless next item here makes AVQueuePlayer pre-buffer it in parallel and stutters
             // the start, so hold the lookahead back until the item is ready (see the access-log
-            // observer in registerPlayerObservers). Mirrors replaceQueue on Android.
+            // observer in registerPlayerObservers). mirrors replaceQueue on Android
             sSuppressLookahead = AtollaShouldDeferLookaheadForSource(currentSourceUrl);
             [sPlayer removeAllItems];
             AVPlayerItem *item = [self playerItemForUrl:currentSourceUrl];
@@ -934,8 +933,8 @@ static BOOL sSuppressLookahead = NO;
             if (sPlaybackRate > 0) sPlayer.rate = sPlaybackRate;
             [self applyPendingSeekIfNeeded];
         } else {
-            // currentMatches implies the item is not at its end (see the isItemAtEnd guard
-            // above), so no end-of-item recovery seek is needed on this fast path.
+            // currentMatches implies the item isn't at its end (see the isItemAtEnd guard
+            // above), so no end-of-item recovery seek is needed on this fast path
             [self syncQueueWithNext:nextSourceUrl];
             [self ensureWindow];
             if (sPlaybackRate > 0) {
@@ -951,8 +950,8 @@ static BOOL sSuppressLookahead = NO;
     return [AVPlayerItem playerItemWithURL:url];
 }
 
-// True when the item has effectively played to its end. A play/resume request cannot
-// restart such an item without a seek, mirroring ExoPlayer's STATE_ENDED behaviour.
+// true when the item has effectively played to its end. a play/resume request can't
+// restart such an item without a seek, mirroring ExoPlayer's STATE_ENDED behaviour
 + (BOOL)isItemAtEnd:(AVPlayerItem *)item {
     if (!item) return NO;
     CMTime duration = item.duration;
@@ -964,8 +963,8 @@ static BOOL sSuppressLookahead = NO;
     return AtollaIsItemAtEnd(CMTimeGetSeconds(current), CMTimeGetSeconds(duration));
 }
 
-// Seek the current item back to the start if it has parked at its end, so a subsequent
-// [play] actually produces audio instead of silently no-oping.
+// seek the current item back to the start if it has parked at its end, so a subsequent
+// [play] actually produces audio instead of silently no-oping
 + (void)seekCurrentItemToStartIfEnded {
     AVPlayerItem *currentItem = sPlayer.currentItem;
     if ([self isItemAtEnd:currentItem]) {
@@ -1018,15 +1017,15 @@ static BOOL sSuppressLookahead = NO;
         sNextNotificationHasNext = NO;
         [sEngineLock unlock];
 
-        // Carry the finished trackId so JS can reconcile deterministically after being
-        // frozen across several background transitions.
+        // carry the finished trackId so JS can reconcile deterministically after being
+        // frozen across several background transitions
         [self enqueueEvent:(finishedTrackId.length > 0
                                 ? [@"completed:" stringByAppendingString:finishedTrackId]
                                 : @"completed")];
 
-        // Prefer the window for the new current track — it survives multiple transitions,
-        // unlike the single configure()-supplied next. AVQueuePlayer has already advanced,
-        // so currentItem is the item now playing.
+        // prefer the window for the new current track: it survives multiple transitions, unlike
+        // the single configure()-supplied next. AVQueuePlayer has already advanced, so
+        // currentItem is the item now playing
         NSString *newCurrentUrl = sPlayer.currentItem ? [self urlStringForItem:sPlayer.currentItem] : @"";
         NSDictionary *upcomingEntry = nil;
         [sEngineLock lock];
@@ -1099,9 +1098,9 @@ static BOOL sSuppressLookahead = NO;
         if (((AVPlayerItem *)note.object).status == AVPlayerItemStatusReadyToPlay) {
             [self enqueueEvent:@"loaded"];
             [self applyPendingSeekIfNeeded];
-            // The current track is buffered and playing now, so it's safe to attach the
+            // the current track is buffered and playing now, so it's safe to attach the
             // gapless next item / lookahead that was held back during the initial buffer.
-            // Mirrors clearing suppressLookahead at STATE_READY on Android.
+            // mirrors clearing suppressLookahead at STATE_READY on Android
             if (sSuppressLookahead && note.object == sPlayer.currentItem) {
                 sSuppressLookahead = NO;
                 [sEngineLock lock];
@@ -1154,8 +1153,8 @@ static BOOL sSuppressLookahead = NO;
         if (rate <= 0) {
             [sPlayer pause];
         } else {
-            // A resume request can't restart an item parked at its end; seek it back to
-            // the start first so playback actually resumes (offline transition stall).
+            // a resume request can't restart an item parked at its end; seek it back to
+            // the start first so playback actually resumes (offline transition stall)
             [self seekCurrentItemToStartIfEnded];
             [sPlayer play];
             sPlayer.rate = rate;
@@ -1230,8 +1229,8 @@ static BOOL sSuppressLookahead = NO;
     return result;
 }
 
-// Locked read (sCurrentTrackId is maintained under sEngineLock and never touches sPlayer), so
-// no main-queue hop is needed — unlike isActive/getPositionMs.
+// locked read (sCurrentTrackId is maintained under sEngineLock and never touches sPlayer), so
+// no main-queue hop is needed, unlike isActive/getPositionMs
 + (NSString * _Nonnull)currentTrackId {
     [sEngineLock lock];
     NSString *trackId = sCurrentTrackId ?: @"";

@@ -105,8 +105,8 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 
 		const { transport } = this.viewModel;
 
-		// A randomly picked year can be empty on a mixed-media server, so fetch a few
-		// candidates in one request and fall through to the next if one has no tracks.
+		// a randomly picked year can be empty on a mixed-media server, so fetch a few candidates
+		// in one request and fall through to the next if one has no tracks
 		let years: Array<number>;
 		try {
 			years = await transport.getRandomMusicYears(3);

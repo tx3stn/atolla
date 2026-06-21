@@ -6,12 +6,10 @@ import type {
 	DownloadedTrackEntry,
 } from './DownloadService';
 
-// A faithful snapshot of the persisted offline data the render thread consumes,
-// built for off-device investigation of offline crashes. It must NEVER throw and
-// must make missing data + secrets visible:
-//  - missing fields are rendered as explicit markers (JSON.stringify drops
-//    `undefined`, so an absent field would otherwise vanish);
-//  - URL fields are redacted (Jellyfin image/stream URLs embed `api_key`).
+// faithful snapshot of the persisted offline data the render thread consumes, for
+// off-device investigation of offline crashes. never throws, and makes missing data
+// and secrets visible: missing fields render as explicit markers (JSON.stringify
+// drops undefined), and URL fields are redacted (Jellyfin URLs embed api_key)
 
 const SCHEMA = 'atolla-offline-status/1';
 const SAMPLE_CAP = 10;
@@ -26,7 +24,7 @@ const SENSITIVE_PARAM =
 
 type FieldValue = string | number | boolean;
 
-/** Structural slice of DownloadService — keeps the builder unit-testable. */
+// structural slice of DownloadService, keeps the builder unit-testable
 export interface OfflineDownloadsSnapshot {
 	getAllAlbums(): Array<DownloadedAlbumEntry>;
 	getAllArtists(): Array<DownloadedArtistEntry>;
@@ -155,7 +153,7 @@ function present(value: unknown): FieldValue {
 	return String(value);
 }
 
-/** Strips sensitive query params (api_key/token/etc.) while keeping the rest. */
+// strips sensitive query params (api_key/token/etc.) while keeping the rest
 export function redactUrl(value: unknown): FieldValue {
 	if (typeof value !== 'string') return present(value);
 	if (value === '') return EMPTY_MARKER;
@@ -274,7 +272,7 @@ function summarizeBlob(raw: string | undefined): BlobSummary {
 			if (nested) {
 				return { bytes, count: nested.length, kind: 'object', parseOk: true, present: true };
 			}
-			// On This Day cache shape: { today: { albums }, tomorrow: { albums } }.
+			// On This Day cache shape: { today: { albums }, tomorrow: { albums } }
 			const todayAlbums = (obj.today as { albums?: unknown } | undefined)?.albums;
 			const tomorrowAlbums = (obj.tomorrow as { albums?: unknown } | undefined)?.albums;
 			if (Array.isArray(todayAlbums) || Array.isArray(tomorrowAlbums)) {

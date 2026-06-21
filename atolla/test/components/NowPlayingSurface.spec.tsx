@@ -36,10 +36,10 @@ function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackSto
 }
 
 // NowPlayingSurface drives expand/collapse transitions through setViewModel and mutates internal
-// transition state across re-renders. That needs a dedicated per-instance renderer; the shared
-// driver renderer (driver.renderComponent) makes those re-renders re-entrant/flaky. Root-mount via
-// InstrumentedComponentJSX — the non-deprecated primitive createComponent wrapped — to match
-// production semantics.
+// transition state across re-renders, which needs a dedicated per-instance renderer; the shared
+// driver renderer (driver.renderComponent) makes those re-renders re-entrant/flaky. root-mount via
+// InstrumentedComponentJSX (the non-deprecated primitive createComponent wrapped) to match
+// production semantics
 function mountNowPlaying(viewModel: object) {
 	return InstrumentedComponentJSX.create(NowPlayingSurface, viewModel, undefined);
 }
@@ -178,8 +178,8 @@ describe('NowPlayingSurface', () => {
 
 		expect(getFillWidth()).toBe('38%');
 
-		// A re-render (e.g. artwork/palette resolving or play state changing at track
-		// start) must not reset the imperatively-set width back to 0%.
+		// a re-render (e.g. artwork/palette resolving or play state changing at track start)
+		// must not reset the imperatively-set width back to 0%
 		instrumented.setViewModel({
 			album,
 			artistLogoUrl: null,
@@ -308,8 +308,8 @@ describe('NowPlayingSurface', () => {
 			const instrumented = mountNowPlaying(baseViewModel);
 			const component = instrumented.getComponent();
 
-			// Surface is open, but a backgrounded expand animation never resolved, so the
-			// completion callback that clears isTransitioning never ran — the flag is stuck.
+			// surface is open, but a backgrounded expand animation never resolved, so the
+			// completion callback that clears isTransitioning never ran; the flag is stuck
 			component.setState({ isExpanded: true });
 			const stuck = component as unknown as {
 				isTransitioning: boolean;
@@ -320,7 +320,7 @@ describe('NowPlayingSurface', () => {
 			stuck.transitionStartedAt = Date.now() - 5000;
 			stuck.transitionTarget = 'expanded';
 
-			// A track change after foregrounding pushes a new palette.
+			// a track change after foregrounding pushes a new palette
 			instrumented.setViewModel({ ...baseViewModel, palette: newPalette });
 
 			expect(barColors.footer).toEqual({
@@ -342,7 +342,7 @@ describe('NowPlayingSurface', () => {
 				.find((view) => view.getAttribute('id') === 'now-playing-surface-overlay')
 				?.getAttribute('top');
 
-		// Collapsed, but a backgrounded transition never cleared its in-progress flag.
+		// collapsed, but a backgrounded transition never cleared its in-progress flag
 		const stuck = component as unknown as {
 			isTransitioning: boolean;
 			transitionStartedAt: number;
@@ -403,8 +403,8 @@ describe('NowPlayingSurface', () => {
 			const instrumented = mountNowPlaying(baseViewModel);
 			const component = instrumented.getComponent();
 
-			// Mid-open freeze: the open set isExpanded and the footer/nav-bar colours, but the
-			// completion that applies the header colour never ran, leaving the flag stuck.
+			// mid-open freeze: the open set isExpanded and the footer/nav-bar colours, but the
+			// completion that applies the header colour never ran, leaving the flag stuck
 			component.setState({ isExpanded: true });
 			const stuck = component as unknown as {
 				isTransitioning: boolean;
@@ -416,7 +416,7 @@ describe('NowPlayingSurface', () => {
 			stuck.transitionTarget = 'expanded';
 			headerColors.length = 0;
 
-			// Foregrounding pushes a fresh view model (same palette — only recovery should re-tint).
+			// foregrounding pushes a fresh view model (same palette, only recovery should re-tint)
 			instrumented.setViewModel({ ...baseViewModel });
 
 			expect(headerColors).toContain('#112233');
@@ -461,8 +461,8 @@ describe('NowPlayingSurface', () => {
 			const instrumented = mountNowPlaying(baseViewModel);
 			const component = instrumented.getComponent();
 
-			// Mid-close freeze: the close reset the chrome and set the flag, but the completion that
-			// flips isExpanded false never ran, so the surface still reports itself as expanded.
+			// mid-close freeze: the close reset the chrome and set the flag, but the completion that
+			// flips isExpanded false never ran, so the surface still reports itself as expanded
 			component.setState({ isExpanded: true });
 			const stuck = component as unknown as {
 				isTransitioning: boolean;
@@ -473,7 +473,7 @@ describe('NowPlayingSurface', () => {
 			stuck.transitionStartedAt = Date.now() - 5000;
 			stuck.transitionTarget = 'collapsed';
 
-			// A track change on foreground pushes a new palette.
+			// a track change on foreground pushes a new palette
 			instrumented.setViewModel({ ...baseViewModel, palette: newPalette });
 
 			expect(component.state.isExpanded).toBe(false);
@@ -519,13 +519,13 @@ describe('NowPlayingSurface', () => {
 			});
 			const component = instrumented.getComponent();
 
-			// Start an open; its completion chain is now pending (animations run synchronously in tests).
+			// start an open; its completion chain is now pending (animations run synchronously in tests)
 			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
 				.find((view) => view.getAttribute('id') === 'now-playing-surface-bar')
 				?.getAttribute('onTap')?.(touchEvent);
 
-			// The open was abandoned by a freeze and a newer generation has since superseded it, the way
-			// recovery (or a fresh transition) bumps the generation.
+			// the open was abandoned by a freeze and a newer generation has since superseded it, the way
+			// recovery (or a fresh transition) bumps the generation
 			const internals = component as unknown as {
 				transitionGeneration: number;
 				isTransitioning: boolean;
@@ -534,10 +534,10 @@ describe('NowPlayingSurface', () => {
 			internals.isTransitioning = false;
 			headerColors.length = 0;
 
-			// Let the superseded completion resolve.
+			// let the superseded completion resolve
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
-			// The stale completion must not re-apply the expanded header colour.
+			// the stale completion must not re-apply the expanded header colour
 			expect(headerColors).toEqual([]);
 		},
 	);
@@ -595,7 +595,7 @@ describe('NowPlayingSurface', () => {
 			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
 				.find((view) => view.getAttribute('id') === 'now-playing-surface-bar')
 				?.getAttribute('onTap')?.(touchEvent);
-			// Let the expand transition settle so the bars are tinted to palette A.
+			// let the expand transition settle so the bars are tinted to palette A
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
 			headerColors.length = 0;
@@ -607,15 +607,15 @@ describe('NowPlayingSurface', () => {
 			};
 			expect(barColors.footer).toEqual(paletteAFooter);
 
-			// Track change: the new palette has not been extracted yet (prop is undefined). The chrome
-			// must not flash to the default colours — it holds palette A until the new palette arrives.
+			// track change: the new palette hasn't been extracted yet (prop is undefined). the chrome
+			// must not flash to the default colours; it holds palette A until the new palette arrives
 			instrumented.setViewModel({ ...baseViewModel, palette: undefined });
 
 			expect(headerColors).toEqual([]);
 			expect(navBarColors).toEqual([]);
 			expect(barColors.footer).toEqual(paletteAFooter);
 
-			// Once the new palette is available, the chrome re-tints to it.
+			// once the new palette is available, the chrome re-tints to it
 			instrumented.setViewModel({ ...baseViewModel, palette: paletteB });
 
 			expect(headerColors).toContain('#221100');
@@ -1405,7 +1405,7 @@ describe('NowPlayingSurface', () => {
 			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
 				.find((v) => v.getAttribute('id') === 'now-playing-surface-bar')
 				?.getAttribute('onTap')?.(touchEvent);
-			// Let the expand transition settle so isTransitioning resets before we collapse.
+			// let the expand transition settle so isTransitioning resets before we collapse
 			await new Promise((resolve) => setTimeout(resolve, 0));
 			findView('now-playing-create-playlist-from-queue')?.getAttribute('onTap')?.(touchEvent);
 

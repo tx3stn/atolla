@@ -8,7 +8,7 @@ import {
 	type OnThisDayTransport,
 } from './OnThisDayService';
 
-const NOW = new Date(2024, 5, 15); // 15 June 2024 (local)
+const NOW = new Date(2024, 5, 15); // 15 June 2024, local
 const TOMORROW_KEY = '2024-06-16';
 const TODAY_KEY = '2024-06-15';
 
@@ -38,8 +38,7 @@ function memoryStore(seed?: string): OnThisDayStore & { value: () => string | un
 	};
 }
 
-// Albums on the test library: a1 = today's anniversary, a2 = tomorrow's,
-// a3 = wrong day, a4 = current year (no anniversary yet).
+// a1 = today's anniversary, a2 = tomorrow's, a3 = wrong day, a4 = current year (no anniversary yet)
 const library: Record<string, Album> = {
 	a1: album('a1', '2001-06-15T12:00:00'),
 	a2: album('a2', '2010-06-16T12:00:00'),
@@ -93,7 +92,6 @@ describe('OnThisDayService.refresh', () => {
 
 		await service.refresh(transport, NOW);
 
-		// Only the two matching ids were hydrated (a3/a4 excluded).
 		expect(transport.hydrateCalls).toHaveLength(1);
 		expect([...transport.hydrateCalls[0]].sort()).toEqual(['a1', 'a2']);
 
@@ -104,8 +102,8 @@ describe('OnThisDayService.refresh', () => {
 	});
 
 	it('keeps sweeping past a full page even when hasMore is false (unreliable total)', async () => {
-		// A full page with hasMore:false must NOT end the sweep — some Jellyfin
-		// configs report TotalRecordCount as 0. The anniversary album is on page 2.
+		// a full page with hasMore:false must not end the sweep: some Jellyfin configs
+		// report TotalRecordCount as 0. anniversary album is on page 2
 		const filler = Array.from({ length: DISCOVERY_PAGE_SIZE }, (_, i) => ({
 			id: `filler-${i}`,
 			releaseDate: '2000-01-01T12:00:00',
@@ -124,8 +122,8 @@ describe('OnThisDayService.refresh', () => {
 	});
 
 	it('calls transport methods bound (class methods that use `this` must not lose it)', async () => {
-		// Mirrors LiveTransport: real transport methods reference `this`, so the
-		// service must not invoke an extracted reference unbound.
+		// mirrors LiveTransport: real transport methods reference `this`, so the
+		// service must not invoke an extracted reference unbound
 		class ClassTransport {
 			pageSize = DISCOVERY_PAGE_SIZE;
 			getAlbumReleaseDatesPage(page: number, _size: number) {
@@ -225,7 +223,7 @@ describe('OnThisDayService.getAlbumsForDate / load', () => {
 		await restored.load();
 
 		expect(restored.getAlbumsForDate(NOW).map((a) => a.id)).toEqual(['a1']);
-		// Crossing midnight: the cached "tomorrow" now answers for the new today.
+		// crossing midnight: the cached "tomorrow" now answers for the new today
 		expect(restored.getAlbumsForDate(new Date(2024, 5, 16)).map((a) => a.id)).toEqual(['a2']);
 	});
 

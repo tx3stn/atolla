@@ -9,38 +9,24 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 
-/**
- * Foreground service that anchors media playback during screen-off / background.
- *
- * Android kills processes that post a media notification without a foreground service.
- * This service holds the foreground notification so the OS keeps the process alive
- * and the MediaPlayer in AtollaTrackValdiVideoPlayer keeps streaming.
- *
- * Lifecycle:
- *  - AtollaTrackPlaybackMediaSession calls [ensureStartedWithNotification] when it builds a
- *    notification; this either starts the service (first call) or updates the existing one.
- *  - AtollaTrackPlaybackMediaSession calls [stopIfRunning] when playback stops so the service
- *    and its notification are removed cleanly.
- */
+// foreground service that anchors media playback during screen-off/background. Android kills
+// processes that post a media notification without a foreground service, so this holds the
+// foreground notification to keep the process (and the streaming player) alive.
+// ensureStartedWithNotification starts or updates it when a notification is built;
+// stopIfRunning removes it cleanly when playback stops
 class AtollaPlaybackService : Service() {
     companion object {
         private const val NOTIFICATION_ID = 4002
         private const val NOTIFICATION_CHANNEL_ID = "atolla_track_playback"
 
-        /**
-         * Pending notification to show as soon as onStartCommand fires.
-         * Written before startForegroundService so onStartCommand always finds it.
-         */
+        // written before startForegroundService so onStartCommand always finds it
         @Volatile private var pendingNotification: Notification? = null
 
-        /** The live service instance, or null when the service is not running. */
         @Volatile var instance: AtollaPlaybackService? = null
             private set
 
-        /**
-         * If the service is already running, update its foreground notification immediately.
-         * Otherwise start the service; it will call startForeground in onStartCommand.
-         */
+        // if already running, update its foreground notification; otherwise start the service,
+        // which calls startForeground in onStartCommand
         fun ensureStartedWithNotification(context: Context, notification: Notification) {
             pendingNotification = notification
             val running = instance
@@ -57,7 +43,6 @@ class AtollaPlaybackService : Service() {
             }
         }
 
-        /** Stop the foreground service and remove its notification. */
         fun stopIfRunning() {
             instance?.shutdown()
         }
@@ -74,10 +59,9 @@ class AtollaPlaybackService : Service() {
         val notification = pendingNotification
         if (notification == null) {
             // pendingNotification is only null when the OS restarts this service via
-            // START_STICKY after the process was killed. There is no active playback
-            // to resume, so stop immediately. Android 8+ requires startForeground()
-            // to be called in onStartCommand before stopSelf(), even when stopping
-            // right away — skipping it causes ForegroundServiceDidNotStartInTimeException.
+            // START_STICKY after the process was killed. no active playback to resume, so stop
+            // immediately. Android 8+ requires startForeground() in onStartCommand before
+            // stopSelf() even when stopping right away, else ForegroundServiceDidNotStartInTimeException
             startForeground(NOTIFICATION_ID, buildPlaceholderNotification())
             stopSelf(startId)
             return START_NOT_STICKY
@@ -110,12 +94,10 @@ class AtollaPlaybackService : Service() {
             .build()
     }
 
-    /** Replace the foreground notification with an updated one. */
     fun updateForeground(notification: Notification) {
         startForeground(NOTIFICATION_ID, notification)
     }
 
-    /** Remove the foreground notification and stop the service. */
     fun shutdown() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)

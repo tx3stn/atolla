@@ -2,9 +2,8 @@ import type { Album } from '../models/Album';
 import type { Genre } from '../models/Genre';
 import type { Transport } from '../transports/Transport';
 
-// Owns the "Recently Added" albums shown on home: a small persisted cache so the
-// section paints instantly on launch, plus a transport refresh that re-fills it.
-// Mirrors OnThisDayService — the view keeps only its generation-guarded setState.
+// owns the "Recently Added" home albums: a small persisted cache so the section
+// paints instantly on launch, plus a transport refresh that re-fills it
 
 const RECENTLY_ADDED_ALBUMS_CACHE_KEY = 'recently_added_v1';
 
@@ -133,7 +132,7 @@ function serializeRecentlyAddedCache(albums: Array<Album>): string {
 export class RecentlyAddedService {
 	constructor(private readonly store: RecentlyAddedStore) {}
 
-	/** Parsed cached albums for the render path — [] when nothing is cached. */
+	// parsed cached albums for the render path; [] when nothing is cached
 	async loadCached(): Promise<Array<Album>> {
 		try {
 			const cached = parseRecentlyAddedCache(
@@ -145,7 +144,6 @@ export class RecentlyAddedService {
 		}
 	}
 
-	/** Fetch the latest recently-added albums, persist them, and return them. */
 	async refresh(transport: RecentlyAddedTransport, limit: number): Promise<Array<Album>> {
 		const albums = await transport.getRecentlyAddedAlbums(limit);
 		await this.persist(albums);

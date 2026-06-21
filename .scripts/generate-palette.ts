@@ -1,12 +1,5 @@
-// Renders a review contact sheet of every icon in atolla/res so size, centring and
-// padding can be compared at a glance. Icons are discovered automatically and grouped
-// by viewBox: 24x24 go in a square grid, 48x24 (double-wide) on their own rows, and
-// everything else (logos, backgrounds, animation assets) is skipped.
-//
-// Usage:
-//   bun run icons:palette                 -> generated/icon-palette.png (silhouettes)
-//   bun run icons:palette out.png         -> custom output path
-//   bun run icons:palette --colour        -> render the real gradients instead
+// contact sheet of every icon in atolla/res, grouped by viewBox: 24x24 in a square grid,
+// 48x24 on their own rows, everything else skipped
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import sharp from 'sharp';
@@ -34,8 +27,7 @@ function parseViewBox(svg: string): [number, number, number, number] | undefined
 	return [parts[0], parts[1], parts[2], parts[3]];
 }
 
-// Renders one icon into a w*h tile, recolouring to a silhouette (unless --colour) and
-// drawing a centre crosshair + cell frame so alignment is easy to judge.
+// draws a centre crosshair and cell frame so alignment is easy to judge
 async function tile(name: string, w: number, h: number): Promise<Buffer> {
 	const { data, info } = await sharp(resolve(RES, `${name}.svg`), { density: DENSITY })
 		.resize(w, h, { fit: 'fill' })

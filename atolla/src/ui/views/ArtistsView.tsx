@@ -136,7 +136,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				'artist_image_thumb',
 			);
 		} catch {
-			// Non-Android targets do not provide native preload bridge.
+			// non-Android targets have no native preload bridge
 		}
 	}
 

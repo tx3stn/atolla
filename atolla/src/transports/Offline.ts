@@ -33,8 +33,8 @@ export class OfflineTransport implements Transport {
 		pageSize: number,
 		_options?: { startsWith?: string },
 	): Promise<{ hasMore: boolean; items: Array<Artist> }> {
-		// Downloaded data is local and bounded, so the offline grid loads the full
-		// list as a single page; the view's render-layer letter filter narrows it.
+		// downloaded data is local and bounded, so the offline grid loads the full
+		// list as a single page; the view's render-layer letter filter narrows it
 		return singleLocalPage(this.collectAllArtists(), page, pageSize);
 	}
 
@@ -455,7 +455,7 @@ export class OfflineTransport implements Transport {
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track> }> {
-		// Sort by id so paging through the local set is stable, matching getShuffledLibraryTracksPage.
+		// sort by id so paging through the local set is stable, matching getShuffledLibraryTracksPage
 		const yearTracks = this.downloads
 			.getAllTracks()
 			.filter((entry) => entry.complete && trackReleaseYear(entry.track) === year)
@@ -532,9 +532,9 @@ function sortTracksByNumber(tracks: Array<Track>): Array<Track> {
 	return [...tracks].sort((a, b) => (a.trackNumber ?? 0) - (b.trackNumber ?? 0));
 }
 
-// Offline collections are local and bounded, so paginated reads return the whole
-// list as one page (page 1) with `hasMore: false`. This satisfies the paginated
-// Transport contract without truly paging downloaded data.
+// offline collections are local and bounded, so paginated reads return the whole list
+// as one page (page 1) with hasMore:false, satisfying the Transport contract without
+// truly paging downloaded data
 function singleLocalPage<T>(
 	items: Array<T>,
 	page: number,
@@ -547,10 +547,10 @@ function singleLocalPage<T>(
 	return { hasMore: false, items };
 }
 
-// Persisted album records can predate current metadata rules (or come from an
-// incomplete download), so the typed `string` fields may actually be missing at
-// runtime. Guarantee non-null text before it reaches the render thread — a null
-// album name/artist renders into a native <label> and crashes the render thread.
+// persisted album records can predate current metadata rules (or come from an
+// incomplete download), so typed string fields may be missing at runtime. guarantee
+// non-null text before the render thread: a null album name/artist renders into a
+// native <label> and crashes
 function normalizeAlbum(album: Album): Album {
 	return {
 		...album,

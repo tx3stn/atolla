@@ -23,8 +23,8 @@ enum {
     NSArray<AVAssetTrack *> *tracks = [asset tracksWithMediaType:AVMediaTypeAudio];
     if (tracks.count == 0) return nil;
 
-    // 8000 Hz is the minimum AVFoundation accepts and still far exceeds what's
-    // needed for a 100-point amplitude envelope.
+    // 8000 Hz is the minimum AVFoundation accepts and still far exceeds what's needed for
+    // a 100-point amplitude envelope
     NSDictionary *outputSettings = @{
         AVFormatIDKey:               @(kAudioFormatLinearPCM),
         AVLinearPCMBitDepthKey:      @32,
@@ -126,9 +126,9 @@ enum {
     const uint32_t numAmps = (uint32_t)(ampsData.length / sizeof(float));
     if (numAmps < 2) return nil;
 
-    // Smoothing, normalisation and Catmull-Rom → cubic-Bézier control points are
-    // computed once in shared Zig (waveform_generator.zig); we replay the returned
-    // outline into a UIBezierPath and let CoreGraphics anti-alias the fill.
+    // smoothing, normalisation and Catmull-Rom → cubic-Bézier control points are computed
+    // once in shared Zig (waveform_generator.zig); we replay the returned outline into a
+    // UIBezierPath and let CoreGraphics anti-alias the fill
     const uint32_t capacity = 2 + (2 * numAmps - 1) * 6;
     float *pts = (float *)malloc(capacity * sizeof(float));
     if (!pts) return nil;

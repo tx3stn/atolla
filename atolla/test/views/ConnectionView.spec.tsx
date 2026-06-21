@@ -115,8 +115,8 @@ describe('ConnectionView', () => {
 	});
 
 	// ConnectionView.onViewModelUpdate calls setState, so re-rendering it through the shared
-	// driver renderer re-enters ('Already rendering'). Root-mount it via InstrumentedComponentJSX
-	// so setViewModel re-renders the component on its own renderer, matching production semantics.
+	// driver renderer re-enters ('Already rendering'). root-mount it via InstrumentedComponentJSX
+	// so setViewModel re-renders the component on its own renderer, matching production semantics
 	valdiIt(
 		'keeps typed URL and re-enables connect after failed attempt view-model update',
 		async () => {

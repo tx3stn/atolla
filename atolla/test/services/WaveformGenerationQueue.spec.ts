@@ -4,8 +4,6 @@ import type { IWaveformNativeWorker } from 'atolla/src/services/WaveformNativeWo
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import * as WorkerService from 'worker/src/WorkerService';
 
-// --- Helpers ---
-
 type MockWorker = IWorkerServiceClient<IWaveformNativeWorker> & {
 	api: { generateWaveform: jasmine.Spy };
 	dispose: jasmine.Spy;
@@ -53,8 +51,6 @@ async function tick() {
 	await new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
-// --- Tests ---
-
 describe('WaveformGenerationQueue', () => {
 	let workers: Array<MockWorker>;
 
@@ -93,13 +89,13 @@ describe('WaveformGenerationQueue', () => {
 			for (const worker of w) {
 				worker.api.generateWaveform.and.callFake(() => d.promise);
 			}
-			// Fill all 3 worker slots.
+			// fill all 3 worker slots
 			queue.enqueue('t1', '/a/t1.flac');
 			queue.enqueue('t2', '/a/t2.flac');
 			queue.enqueue('t3', '/a/t3.flac');
-			// t4 goes to the pending queue.
+			// t4 goes to the pending queue
 			queue.enqueue('t4', '/a/t4.flac');
-			// Enqueue t4 again — should be ignored.
+			// enqueue t4 again, should be ignored
 			queue.enqueue('t4', '/a/t4.flac');
 
 			d.resolve('data:image/png;base64,x');
@@ -115,7 +111,7 @@ describe('WaveformGenerationQueue', () => {
 		it('skips a track that is already in-flight', () => {
 			const d = deferred<string | null>();
 			const { queue, workers: w } = makeQueue();
-			// All workers use the same deferred so whichever handles t1 stays busy.
+			// all workers use the same deferred so whichever handles t1 stays busy
 			for (const worker of w) {
 				worker.api.generateWaveform.and.callFake(() => d.promise);
 			}
@@ -193,14 +189,14 @@ describe('WaveformGenerationQueue', () => {
 			queue.enqueue('t4', '/a/t4.flac');
 			await tick();
 
-			// t4 should not yet be dispatched.
+			// t4 should not yet be dispatched
 			const beforeCalls = w
 				.flatMap((worker) => worker.api.generateWaveform.calls.allArgs())
 				.map(([id]) => id);
 			expect(beforeCalls.length).toBe(3);
 			expect(beforeCalls).not.toContain('t4');
 
-			// Release all slots — t4 should run.
+			// release all slots, t4 should run
 			d.resolve('data:image/png;base64,ok');
 			await tick();
 
@@ -227,13 +223,13 @@ describe('WaveformGenerationQueue', () => {
 			queue.enqueue('t1', '/a/t1.flac');
 			queue.enqueue('t2', '/a/t2.flac');
 			queue.enqueue('t3', '/a/t3.flac');
-			// t4 and t5 sit in the pending queue (all workers are busy).
+			// t4 and t5 sit in the pending queue (all workers are busy)
 			queue.enqueue('t4', '/a/t4.flac');
 			queue.enqueue('t5', '/a/t5.flac');
 
 			queue.prioritize('t5');
 
-			// Free all slots — t5 should be picked up before t4.
+			// free all slots, t5 should be picked up before t4
 			d.resolve('data:image/png;base64,x');
 			await tick();
 
@@ -261,11 +257,11 @@ describe('WaveformGenerationQueue', () => {
 			queue.enqueue('t1', '/a/t1.flac');
 			queue.enqueue('t2', '/a/t2.flac');
 			queue.enqueue('t3', '/a/t3.flac');
-			// t4 → t5 in the pending queue.
+			// t4 → t5 in the pending queue
 			queue.enqueue('t4', '/a/t4.flac');
 			queue.enqueue('t5', '/a/t5.flac');
 
-			// Reverse t4/t5 priority.
+			// reverse t4/t5 priority
 			queue.reorderToMatch(['t1', 't2', 't3', 't5', 't4']);
 
 			d.resolve('data:image/png;base64,x');
@@ -295,26 +291,26 @@ describe('WaveformGenerationQueue', () => {
 				});
 			}
 
-			// Fill all workers: t1/t2/t3 in-flight, t4 pending.
+			// fill all workers: t1/t2/t3 in-flight, t4 pending
 			queue.enqueue('t1', '/a/t1.flac');
 			queue.enqueue('t2', '/a/t2.flac');
 			queue.enqueue('t3', '/a/t3.flac');
 			queue.enqueue('t4', '/a/t4.flac');
 			await tick();
 
-			// Make t4 the highest priority — t1/t2/t3 become lower priority and are abandoned.
+			// make t4 the highest priority, so t1/t2/t3 become lower priority and are abandoned
 			queue.reorderToMatch(['t4', 't1', 't2', 't3']);
 
-			// Resolve the workers that had abandoned jobs.
+			// resolve the workers that had abandoned jobs
 			deferreds[0].resolve('data:image/png;base64,t1');
 			deferreds[1].resolve('data:image/png;base64,t2');
 			deferreds[2].resolve('data:image/png;base64,t3');
 			await tick();
 
-			// t4 should be the next track dispatched after the abandoned slots free up.
+			// t4 should be the next track dispatched after the abandoned slots free up
 			const t4Pos = callOrder.indexOf('t4');
 			expect(t4Pos).toBeGreaterThanOrEqual(0);
-			// t4 must come after the initial 3 dispatches (positions 0–2).
+			// t4 must come after the initial 3 dispatches (positions 0-2)
 			expect(t4Pos).toBe(3);
 
 			queue.dispose();

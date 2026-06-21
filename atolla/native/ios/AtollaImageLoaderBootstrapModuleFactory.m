@@ -165,8 +165,8 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     NSMutableDictionary<NSString *, NSNumber *> *counts = [NSMutableDictionary dictionary];
     for (NSURL *file in files) {
         NSString *name = file.lastPathComponent;
-        // Filename format: {category}_{sha256_64_hex}
-        // SHA-256 is always 64 hex chars; strip trailing 65 chars (underscore + hash).
+        // filename format: {category}_{sha256_64_hex}. SHA-256 is always 64 hex chars; strip
+        // the trailing 65 chars (underscore + hash)
         if (name.length < 66) continue;
         NSString *cat = [name substringToIndex:name.length - 65];
         counts[cat] = @(counts[cat].intValue + 1);
@@ -182,8 +182,8 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     return json;
 }
 
-// Single directory scan producing count, bytes and per-category counts together, off the calling
-// thread, so the JS thread never blocks on disk I/O.
+// single directory scan producing count, bytes and per-category counts together, off the
+// calling thread, so the JS thread never blocks on disk I/O
 - (void)diskStatsSnapshotWithCompletion:(void (^)(NSInteger count, long long bytes, NSString *categoryCountsJson))completion {
     NSURL *dir = _diskDir;
     dispatch_async(_diskQ, ^{
@@ -328,10 +328,10 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     NSMutableURLRequest *request = [self imageRequestForURL:payload.sourceURL authToken:payload.authToken];
 
     if ([payload.category isEqualToString:@"album_art_blurred"]) {
-        // The blur is downsampled before storage, so prefer the (always-downloaded) thumb and fall
-        // back to the full original; only fetch from network if neither is cached.
+        // the blur is downsampled before storage, so prefer the (always-downloaded) thumb and
+        // fall back to the full original; only fetch from network if neither is cached
         NSArray<NSString *> *blurKeys = AtollaBlurSourceKeys(payload.sourceURL.absoluteString);
-        // The full-size original is the last key; a network fetch is cached under it below.
+        // the full-size original is the last key; a network fetch is cached under it below
         NSString *originalKey = blurKeys.lastObject;
         NSData *originalData = nil;
         for (NSString *blurKey in blurKeys) {
@@ -454,7 +454,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     if (!sourceURL) return;
     NSString *key = [NSString stringWithFormat:@"%@:%@", category, cleanUrl];
     if ([_cache readForKey:key]) {
-        // Already cached — still report it so offline-availability waiters resolve.
+        // already cached, still report it so offline-availability waiters resolve
         if (_imageCachedObserver) _imageCachedObserver(cleanUrl, category);
         return;
     }

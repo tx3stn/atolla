@@ -326,7 +326,7 @@ describe('LiveTransport core collections', () => {
 		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('PremiereDate');
 		expect(queryParam(calls[0].pathOrUrl, 'enableImages')).toBe('false');
 		expect(queryParam(calls[0].pathOrUrl, 'enableUserData')).toBe('false');
-		// Minimal projection — the heavy Overview/Genres fields must not be requested.
+		// minimal projection: the heavy Overview/Genres fields must not be requested
 		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBeNull();
 		expect(page.hasMore).toBe(true);
 		expect(page.items).toEqual([{ id: 'album-9', releaseDate: '2001-06-15T00:00:00.0000000Z' }]);

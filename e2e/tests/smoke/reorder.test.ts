@@ -73,8 +73,8 @@ describe('now playing queue reorder', () => {
 
 		await nowPlaying.reorderFirstUpNextRowBelowSecond();
 
-		// The drag can settle one or two rows down depending on timing, so assert the
-		// behaviour that matters: the first track now sits below the original second.
+		// the drag can settle one or two rows down depending on timing, so assert the
+		// behaviour that matters: the first track now sits below the original second
 		await browser.waitUntil(
 			async () => {
 				const after = await nowPlaying.upNextTrackNames();

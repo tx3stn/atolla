@@ -10,19 +10,17 @@ interface QueueEntry {
 }
 
 interface ActiveJob {
-	// When true the native work still runs but its result is discarded so a
-	// higher-priority track can use the next freed slot.
+	// native work still runs but the result is dropped so a higher-priority
+	// track can take the freed slot
 	abandoned: boolean;
 	entry: QueueEntry;
 }
 
-// Number of tracks generated in parallel. Waveform work is now lightweight
-// (4 kHz resample + strided sampling) so running 3 at once is safe.
+// safe to run 3 in parallel: waveform work is lightweight (4 kHz resample + strided sampling)
 const CONCURRENCY = 3;
 
-// Prioritised concurrent queue that extracts waveform amplitude arrays.
-// Up to CONCURRENCY tracks are processed in parallel; the queue order maps to
-// PlaybackSession.queue so upcoming tracks are processed first.
+// concurrent queue extracting waveform amplitudes; order maps to the play queue
+// so upcoming tracks are processed first
 export class WaveformGenerationQueue {
 	private queue: Array<QueueEntry> = [];
 	private allWorkers: Array<IWorkerServiceClient<IWaveformNativeWorker>>;
@@ -40,8 +38,7 @@ export class WaveformGenerationQueue {
 		for (const worker of this.allWorkers) worker.dispose();
 	}
 
-	// Enqueue a track for waveform generation. No-op if the waveform is already
-	// ready/failed or the track is already queued or in-flight.
+	// no-op if the waveform is already ready/failed, or the track is queued or in-flight
 	enqueue(trackId: string, audioPath: string): void {
 		if (this.waveformService.getAmps(trackId) !== null) return;
 		if (this.queue.some((e) => e.trackId === trackId)) return;
@@ -50,9 +47,8 @@ export class WaveformGenerationQueue {
 		this.processNext();
 	}
 
-	// Reorder pending queue entries to match the given trackId sequence, then
-	// abandon any in-flight jobs that are now lower priority than the queue
-	// front so their slots free up sooner.
+	// reorder pending entries to match trackIds, then abandon in-flight jobs now
+	// lower-priority than the front so their slots free sooner
 	reorderToMatch(trackIds: Array<string>): void {
 		if (this.queue.length > 1) {
 			const byTrackId = new Map(this.queue.map((e) => [e.trackId, e]));
@@ -70,7 +66,6 @@ export class WaveformGenerationQueue {
 		this.processNext();
 	}
 
-	// Move a trackId to the front of the queue.
 	prioritize(trackId: string): void {
 		const idx = this.queue.findIndex((e) => e.trackId === trackId);
 		if (idx <= 0) return;
@@ -78,9 +73,8 @@ export class WaveformGenerationQueue {
 		this.queue.unshift(entry);
 	}
 
-	// Mark in-flight jobs that rank below the current queue front as abandoned.
-	// Their native work completes but the result is discarded; the track is
-	// re-queued at the back so it eventually gets processed.
+	// abandon in-flight jobs ranked below the queue front: native work finishes
+	// but the result is dropped and the track is re-queued at the back
 	private abandonLowPriorityJobs(desiredOrder: Array<string>): void {
 		if (this.queue.length === 0 || this.idleWorkers.length > 0) return;
 		const frontPriority = desiredOrder.indexOf(this.queue[0].trackId);

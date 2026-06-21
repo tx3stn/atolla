@@ -6,10 +6,6 @@ import type { Track } from '../models/Track';
 import type { ImageCategory } from './ImageCache';
 import { imageCacheKey } from './ImageSource';
 
-// ---------------------------------------------------------------------------
-// Public types
-// ---------------------------------------------------------------------------
-
 export type DownloadState = 'not_downloaded' | 'downloading' | 'downloaded';
 
 export interface DownloadedTrackEntry {
@@ -17,25 +13,21 @@ export interface DownloadedTrackEntry {
 	complete: boolean;
 	genreIds: Array<string>;
 	playlistIds: Array<string>;
-	/** Cache keys of every image this track needs for seamless offline display. */
 	requiredImageKeys: Array<string>;
 	streamUrl: string;
 	track: Track;
 }
 
-/** A required image asset, before it is registered into the tracked set. */
 interface ImageReq {
 	category: ImageCategory;
 	url: string | null | undefined;
 }
 
-/** A single image asset tracked as offline download work. */
 export interface DownloadedImageEntry {
-	/** Best-effort retry attempts that have failed so far. */
 	attempts: number;
 	category: ImageCategory;
 	complete: boolean;
-	/** Retries exhausted — treated as done so the item can complete. */
+	// exhausted retries count as done so the item can still complete
 	exhausted: boolean;
 	url: string;
 }
@@ -63,41 +55,23 @@ export interface DownloadedGenreEntry {
 	trackIds: Array<string>;
 }
 
-// ---------------------------------------------------------------------------
-// Injected interfaces (for testability without native deps)
-// ---------------------------------------------------------------------------
-
 export interface DownloadServiceStore {
 	fetchString(key: string): Promise<string>;
 	storeString(key: string, value: string): Promise<void>;
 }
 
 export interface DownloadServiceOptions {
-	/**
-	 * Ensure an image asset is cached for offline use. Resolves once the image is
-	 * cached (whether it was already present or freshly fetched), rejects on failure.
-	 * When omitted, image tracking is disabled and downloads complete on audio alone
-	 * (e.g. platforms without a native image cache).
-	 */
+	// when omitted, image tracking is disabled and downloads complete on audio alone.
+	// resolves once cached (already present or freshly fetched), rejects on failure
 	cacheImage?: (url: string, category: ImageCategory) => Promise<void>;
-	/** Download a track and persist it locally. */
 	cacheTrack: (trackId: string, url: string) => Promise<void>;
-	/** Return the total size in bytes of all permanently downloaded tracks. */
 	getTotalDownloadedSizeBytes?: () => number;
-	/** Return the local playback URL for a previously cached track. */
 	getTrackPlaybackUrl: (trackId: string) => string;
-	/** Called when a track finishes downloading successfully. */
 	onTrackDownloaded?: (trackId: string) => void;
-	/** Remove a previously downloaded track from permanent storage. */
 	removeTrack: (trackId: string) => Promise<void> | void;
-	/** Remove previously downloaded tracks from permanent storage in bulk. */
 	removeTracks?: (trackIds: Array<string>) => Promise<void> | void;
 	store: DownloadServiceStore;
 }
-
-// ---------------------------------------------------------------------------
-// Internal persistence keys (one key per entity type)
-// ---------------------------------------------------------------------------
 
 const KEY_ALBUMS = 'dl_albums';
 const KEY_GENRES = 'dl_genres';
@@ -107,14 +81,9 @@ const KEY_TRACKS = 'dl_tracks';
 const KEY_IMAGES = 'dl_images';
 
 const MAX_CONCURRENT_DOWNLOADS = 3;
-// Images are cheap (often already cached), so allow more in flight than tracks.
+// images are cheap (often already cached), so allow more in flight than tracks
 const MAX_CONCURRENT_IMAGE_DOWNLOADS = 8;
-/** Times an image fetch is retried before it is treated as best-effort done. */
 const IMAGE_MAX_ATTEMPTS = 3;
-
-// ---------------------------------------------------------------------------
-// DownloadService
-// ---------------------------------------------------------------------------
 
 export class DownloadService {
 	private albums: Record<string, DownloadedAlbumEntry> = {};
@@ -198,21 +167,17 @@ export class DownloadService {
 		return true;
 	}
 
-	// -------------------------------------------------------------------------
-	// Lifecycle
-	// -------------------------------------------------------------------------
-
 	onAppReady(): void {
 		this.enqueueOperation(async () => {
 			try {
 				await this.ensureLoaded();
-				// Re-enqueue any tracks that did not finish downloading.
+				// re-enqueue tracks that didn't finish downloading
 				for (const entry of Object.values(this.tracks)) {
 					if (!entry.complete) {
 						this.enqueueTrack(entry.track.id, entry.streamUrl);
 					}
 				}
-				// Retry any images that have not yet cached (and have retries left).
+				// retry images not yet cached that still have retries left
 				for (const [key, image] of Object.entries(this.images)) {
 					if (!image.complete && !image.exhausted) {
 						this.enqueueImage(key);
@@ -224,10 +189,6 @@ export class DownloadService {
 			}
 		});
 	}
-
-	// -------------------------------------------------------------------------
-	// Subscribe
-	// -------------------------------------------------------------------------
 
 	subscribe(callback: () => void): () => void {
 		this.subscribers.add(callback);
@@ -241,10 +202,6 @@ export class DownloadService {
 			cb();
 		}
 	}
-
-	// -------------------------------------------------------------------------
-	// Query
-	// -------------------------------------------------------------------------
 
 	getAlbumDownloadState(albumId: string): DownloadState {
 		const entry = this.albums[albumId];
@@ -270,8 +227,8 @@ export class DownloadService {
 	getArtistDownloadState(artistId: string): DownloadState {
 		const entry = this.artists[artistId];
 		if (!entry) return 'not_downloaded';
-		// An artist with no tracked albums (e.g. registered via a playlist/genre) is not
-		// downloaded — guard against [].every() reporting it as fully downloaded.
+		// an artist with no tracked albums (e.g. registered via a playlist/genre) isn't
+		// downloaded; guard against [].every() reporting it as fully downloaded
 		if (entry.albumIds.length === 0) return 'not_downloaded';
 		const albumStates = entry.albumIds.map((id) => this.getAlbumDownloadState(id));
 		if (albumStates.every((s) => s === 'downloaded')) return 'downloaded';
@@ -279,21 +236,14 @@ export class DownloadService {
 		return 'not_downloaded';
 	}
 
-	/**
-	 * Number of tracks whose audio is not yet cached. Drives the footer badge, so it
-	 * decrements responsively as each track's audio downloads. Image readiness is
-	 * tracked separately and reflected in the per-item download state, not this count.
-	 */
 	getDownloadingCount(): number {
 		return Object.values(this.tracks).filter((t) => !t.complete).length;
 	}
 
-	/** Number of fully downloaded tracks. */
 	getDownloadedTrackCount(): number {
 		return Object.values(this.tracks).filter((t) => t.complete).length;
 	}
 
-	/** Total size in bytes of all permanently downloaded tracks, or null if unavailable. */
 	getTotalDownloadedSizeBytes(): number | null {
 		return this.getTotalDownloadedSizeBytesFn?.() ?? null;
 	}
@@ -305,8 +255,6 @@ export class DownloadService {
 	getTrackPlaybackUrl(trackId: string): string {
 		return this.getTrackPlaybackUrlFn(trackId);
 	}
-
-	// --- Accessors for OfflineTransport ---
 
 	getAllAlbums(): Array<DownloadedAlbumEntry> {
 		return Object.values(this.albums);
@@ -348,10 +296,6 @@ export class DownloadService {
 		return this.tracks[trackId];
 	}
 
-	// -------------------------------------------------------------------------
-	// Download actions
-	// -------------------------------------------------------------------------
-
 	downloadAlbum(params: {
 		album: Album;
 		tracks: Array<{ track: Track; streamUrl: string }>;
@@ -378,8 +322,8 @@ export class DownloadService {
 				artistLogoUrl,
 				trackIds: tracks.map((t) => t.track.id),
 			};
-			// Album-level genres apply to every track; track-level genres stay per-track.
-			// resolvedGenres (the union) only supplies resolved image urls.
+			// album-level genres apply to every track; track-level genres stay per-track.
+			// resolvedGenres (the union) only supplies resolved image urls
 			const enrichGenres = this.genreEnricher(resolvedGenres);
 			const albumGenres = enrichGenres(album.genres ?? []);
 			for (const { track, streamUrl } of tracks) {
@@ -430,15 +374,15 @@ export class DownloadService {
 				trackArtistLogoUrls,
 				trackIds: tracks.map((t) => t.track.id),
 			};
-			// Every track in the playlist needs the playlist cover and all of the
-			// playlist's artist images for offline browsing, so attach them to each.
+			// every track in the playlist needs the playlist cover and all of the
+			// playlist's artist images for offline browsing, so attach them to each
 			const sharedReqs = [
 				...this.playlistImageReqs(playlist.imageUrl),
 				...artists.flatMap((artist) => this.artistReqs(artist.imageUrl, null)),
 			];
 			// resolvedGenres is the union of every track's genres (with image urls
 			// resolved); use it only to enrich each track's own genres, never to assign
-			// the whole playlist's genres to every track.
+			// the whole playlist's genres to every track
 			const enrichGenres = this.genreEnricher(resolvedGenres);
 			for (const { artistLogoUrl, streamUrl, track } of tracks) {
 				const trackGenres = enrichGenres(track.genres ?? []);
@@ -488,14 +432,14 @@ export class DownloadService {
 				trackArtistLogoUrls,
 				trackIds: tracks.map((t) => t.track.id),
 			};
-			// The genre artwork and all of the genre's artist images are required for
-			// every track so the genre page renders offline.
+			// the genre artwork and all of the genre's artist images are required for
+			// every track so the genre page renders offline
 			const sharedReqs = [
 				...this.genreArtReqs([genre]),
 				...artists.flatMap((artist) => this.artistReqs(artist.imageUrl, null)),
 			];
-			// Each track belongs to the genre being downloaded plus its own genres; the
-			// resolvedGenres union only enriches a track's own genres with image urls.
+			// each track belongs to the genre being downloaded plus its own genres; the
+			// resolvedGenres union only enriches a track's own genres with image urls
 			const enrichGenres = this.genreEnricher(resolvedGenres);
 			for (const { artistLogoUrl, streamUrl, track } of tracks) {
 				const trackGenres = [genre, ...enrichGenres(track.genres ?? [])];
@@ -565,10 +509,6 @@ export class DownloadService {
 			this.notify();
 		});
 	}
-
-	// -------------------------------------------------------------------------
-	// Remove actions
-	// -------------------------------------------------------------------------
 
 	removeAlbumDownload(albumId: string): void {
 		this.enqueueRemoval('album download', () =>
@@ -646,10 +586,6 @@ export class DownloadService {
 		});
 	}
 
-	// -------------------------------------------------------------------------
-	// Internal helpers
-	// -------------------------------------------------------------------------
-
 	private normalizeTrackArtist(track: Track, album: Album): Track {
 		if (!album.artistId || track.artistId === album.artistId) return track;
 		return { ...track, artistId: album.artistId, artistName: album.artistName };
@@ -683,10 +619,10 @@ export class DownloadService {
 		if (existing) {
 			if (albumId && !existing.albumIds.includes(albumId)) {
 				existing.albumIds.push(albumId);
-				// Propagate the normalized artistId to the stored track. The caller
+				// propagate the normalized artistId to the stored track. the caller
 				// normalizes album tracks via normalizeTrackArtist, so if the stored
 				// entry was created earlier (e.g. from a playlist) with a mismatched
-				// track-level artistId, this brings it in line with the album's artist.
+				// track-level artistId, this brings it in line with the album's artist
 				if (track.artistId && existing.track.artistId !== track.artistId) {
 					existing.track = {
 						...existing.track,
@@ -751,11 +687,9 @@ export class DownloadService {
 		}
 	}
 
-	/**
-	 * Builds a function that enriches a track's own genres with resolved image urls
-	 * (and other fields) from the resolution pool, keyed by id. The track's genre
-	 * membership is preserved exactly — no genres are added or removed.
-	 */
+	// builds a function that enriches a track's own genres with resolved image urls
+	// (and other fields) from the resolution pool, keyed by id. the track's genre
+	// membership is preserved exactly; no genres are added or removed
 	private genreEnricher(resolved: Array<Genre>): (genres: Array<Genre>) => Array<Genre> {
 		const byId = new Map(resolved.map((g) => [g.id, g]));
 		return (genres) =>
@@ -851,14 +785,9 @@ export class DownloadService {
 		this.drainQueue();
 	}
 
-	// -------------------------------------------------------------------------
-	// Image requirements
-	// -------------------------------------------------------------------------
-
-	/** Full + thumbnail variants for an album artwork url. */
 	private albumArtReqs(url: string | null | undefined): Array<ImageReq> {
-		// Full `album_art` is required: the on-device blurred backdrop is generated
-		// from the cached original, so it must never be missing offline.
+		// full `album_art` is required: the on-device blurred backdrop is generated
+		// from the cached original, so it must never be missing offline
 		return [
 			{ category: 'album_art', url },
 			{ category: 'album_art_thumb', url },
@@ -887,11 +816,9 @@ export class DownloadService {
 		return genres.map((genre) => ({ category: 'genre_art', url: genre.imageUrl }));
 	}
 
-	/**
-	 * Register the images a track needs for seamless offline display, dedup them
-	 * into the tracked image set, and enqueue any that still need caching. No-op
-	 * when no image cache bridge is available (e.g. platforms without one).
-	 */
+	// register the images a track needs to display fully offline, dedup them
+	// into the tracked image set, and enqueue any that still need caching. no-op
+	// when no image cache bridge is available (e.g. platforms without one)
 	private addTrackImageRequirements(trackId: string, reqs: Array<ImageReq>): void {
 		if (!this.cacheImageFn) {
 			return;
@@ -986,8 +913,8 @@ export class DownloadService {
 			this.processImage(key).then(() => {
 				this.activeImageCount -= 1;
 				this.activeImageKeys.delete(key);
-				// Re-queue here (not from the catch) so a key is never in the queue
-				// while still in flight.
+				// re-queue here (not from the catch) so a key is never in the queue
+				// while still in flight
 				const image = this.images[key];
 				if (image && !image.complete && !image.exhausted) {
 					this.enqueueImage(key);
@@ -1003,12 +930,12 @@ export class DownloadService {
 
 		try {
 			if (!this.cacheImageFn) {
-				// No image cache bridge — treat as best-effort done so nothing wedges.
+				// no image cache bridge, treat as best-effort done so nothing wedges
 				await this.markImageExhausted(key);
 				return;
 			}
-			// The native cache only fetches when missing and reports cached either way,
-			// so this resolves promptly for already-cached assets too.
+			// the native cache only fetches when missing and reports cached either way,
+			// so this resolves promptly for already-cached assets too
 			await this.cacheImageFn(image.url, image.category);
 			await this.markImageDone(key);
 		} catch {
@@ -1018,7 +945,7 @@ export class DownloadService {
 			if (current.attempts >= IMAGE_MAX_ATTEMPTS) {
 				current.exhausted = true;
 			}
-			// Otherwise the drain loop re-queues this key once it leaves the in-flight set.
+			// otherwise the drain loop re-queues this key once it leaves the in-flight set
 			await this.persistAll();
 			this.notify();
 		}
@@ -1040,7 +967,6 @@ export class DownloadService {
 		this.notify();
 	}
 
-	/** Drop tracked images no remaining track requires. */
 	private pruneOrphanImages(): void {
 		const referenced = new Set<string>();
 		for (const trackEntry of Object.values(this.tracks)) {
@@ -1085,13 +1011,9 @@ export class DownloadService {
 			this.notify();
 			this.onTrackDownloadedFn?.(trackId);
 		} catch {
-			// Leave incomplete; will retry on next onAppReady.
+			// leave incomplete; will retry on next onAppReady
 		}
 	}
-
-	// -------------------------------------------------------------------------
-	// Persistence
-	// -------------------------------------------------------------------------
 
 	private ensureLoaded(): Promise<void> {
 		if (this.isLoaded) return Promise.resolve();

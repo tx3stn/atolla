@@ -211,8 +211,8 @@ describe('AlbumView', () => {
 				id: 'album-1',
 				name: 'First Album',
 			};
-			// getArtist never resolves, so state.artist stays null. The push must not
-			// wait on it — it should navigate immediately using album fallback data.
+			// getArtist never resolves, so state.artist stays null. the push must not wait on
+			// it; it should navigate immediately using album fallback data
 			const transport = {
 				getAlbumsByIds: async () => [],
 				getArtist: () => new Promise(() => {}),

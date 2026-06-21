@@ -2,8 +2,6 @@ import { describe, expect, it } from 'bun:test';
 import type { Palette } from '../models/Color';
 import { ArtworkPaletteService, type PaletteStore } from './ArtworkPaletteService';
 
-// ─── Test doubles ─────────────────────────────────────────────────────────────
-
 class MockPaletteStore implements PaletteStore {
 	private data = new Map<string, Palette>();
 
@@ -37,8 +35,6 @@ const SAMPLE_PALETTE: Palette = {
 	primary: { hex: '#ff0000' },
 	surface: { hex: '#800000' },
 };
-
-// ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('ArtworkPaletteService', () => {
 	describe('getPalette()', () => {
@@ -177,7 +173,7 @@ describe('ArtworkPaletteService', () => {
 			const unsub2 = service2.subscribe(() => calls++);
 			unsub2();
 			await service2.persistPalette('u', SAMPLE_PALETTE);
-			expect(calls).toBe(1); // only the non-unsubscribed listener fired
+			expect(calls).toBe(1); // only the non-unsubscribed listener fires
 		});
 	});
 });

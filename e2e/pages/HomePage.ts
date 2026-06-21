@@ -27,8 +27,7 @@ export class HomePage extends BasePage {
 		await this.longPressFirstVisibleByAccessibilityPrefix(this.albumCardPrefix);
 	}
 
-	// The mixes grid sits at the bottom of the home view, so scroll down until the
-	// shuffle-library card is on screen before tapping it.
+	// the mixes grid sits at the bottom of the home view, so scroll down until the card is on screen
 	async tapShuffleLibraryMix(): Promise<void> {
 		for (let attempt = 0; attempt < 8; attempt += 1) {
 			const card = this.elementByID(this.shuffleLibraryMix);

@@ -18,9 +18,9 @@ describe('create playlist from queue', () => {
 	let playlistDetail: PlaylistDetailPage;
 	let snapshot: QueueSnapshot;
 
-	// Plays album-24 then advances one track so the queue has a played (BACK TO)
-	// entry, a current track, and remaining UP NEXT tracks — three distinct titles
-	// the checkbox scenarios can assert on.
+	// plays album-24 then advances one track so the queue has a played (BACK TO) entry, a
+	// current track, and remaining UP NEXT tracks, three distinct titles the checkbox
+	// scenarios can assert on
 	beforeEach(async () => {
 		await recoverToLibrary();
 
@@ -45,9 +45,9 @@ describe('create playlist from queue', () => {
 		await nowPlaying.openExpandedSurface();
 		await nowPlaying.tapUpNextTab();
 
-		// The now-playing-track-name label is the compact bar's and isn't on the expanded
-		// surface, so derive the names from the queue rows instead. The first UP NEXT track
-		// becomes the current track once we advance.
+		// the now-playing-track-name label is the compact bar's and isn't on the expanded
+		// surface, so derive the names from the queue rows instead. the first UP NEXT track
+		// becomes the current track once we advance
 		const currentName = await nowPlaying.firstUpNextTrackName();
 		await nowPlaying.tapNext();
 		await browser.waitUntil(async () => (await nowPlaying.firstUpNextTrackName()) !== currentName, {
@@ -55,7 +55,7 @@ describe('create playlist from queue', () => {
 		});
 		const firstUpNextName = await nowPlaying.firstUpNextTrackName();
 
-		// The previously playing track is now the most recent BACK TO entry.
+		// the previously playing track is now the most recent BACK TO entry
 		await nowPlaying.tapBackToTab();
 		const playedName = await nowPlaying.firstBackToTrackName();
 

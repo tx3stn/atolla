@@ -8,13 +8,11 @@ data class AtollaDiskStatsSnapshot(
 	val categoryCounts: Map<String, Int>,
 )
 
-/**
- * Pure disk-cache scanning logic, kept free of Android/Valdi dependencies so it can run on the host
- * JVM under unit test (mirrors AtollaImageFallback / AtollaPlaybackGuards).
- */
+// pure disk-cache scanning logic, free of Android/Valdi deps so it can run on the host JVM
+// under unit test (mirrors AtollaImageFallback / AtollaPlaybackGuards)
 object AtollaDiskCacheStats {
-	// Filename format: {category}_{sha256_64_hex}. SHA-256 is always 64 hex chars, so a well-formed
-	// entry's trailing 65 chars are the underscore plus the hash; anything left is the category.
+	// filename format: {category}_{sha256_64_hex}. SHA-256 is always 64 hex chars, so a
+	// well-formed entry's trailing 65 chars are the underscore plus the hash; the rest is the category
 	private const val HASH_SUFFIX_LENGTH = 65
 
 	fun scan(dir: File?): AtollaDiskStatsSnapshot {

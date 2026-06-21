@@ -17,8 +17,7 @@ export class ArtistDetailPage extends BasePage {
 		});
 	}
 
-	// In the test environment artist images have no source, so the artist name renders as
-	// the header logo's fallback text.
+	// in the test environment artist images have no source, so the name renders as the logo fallback text
 	async artistName(): Promise<string> {
 		const el = this.elementByID(this.artistLogoText);
 		await el.waitForExist({ timeoutMsg: 'Timed out waiting for artist name' });

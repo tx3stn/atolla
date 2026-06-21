@@ -25,8 +25,7 @@ export class DetailHeaderPage extends BasePage {
 		});
 	}
 
-	// Drags down on the detail header artwork to trigger the header's onDrag handler,
-	// which scrolls the library header nav back into view.
+	// dragging the artwork triggers the header's onDrag, which scrolls the library header nav back into view
 	async swipeDownToRevealHeader(): Promise<void> {
 		if (await this.isHeaderVisible()) {
 			return;

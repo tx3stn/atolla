@@ -17,7 +17,7 @@ Java_com_tx3stn_atolla_AtollaCacheImageLoader_nativeExtractPaletteFromPixels(
     jint* argb = env->GetIntArrayElements(pixels, nullptr);
     if (!argb) return nullptr;
 
-    // Android ARGB_8888: 0xAARRGGBB → unpack to RGBA bytes expected by atolla_extract_palette.
+    // Android ARGB_8888: 0xAARRGGBB → unpack to RGBA bytes expected by atolla_extract_palette
     std::vector<uint8_t> rgba(static_cast<size_t>(len) * 4);
     for (jsize i = 0; i < len; i++) {
         const uint32_t px = static_cast<uint32_t>(argb[i]);

@@ -29,10 +29,9 @@ export interface AuthSession {
 	userId: string;
 }
 
-// A persisted session is only usable if the identity fields we marshal into
-// native calls (HTTP headers, the download worker, the native track cache) are
-// all non-empty strings. Partial / legacy / corrupt persisted data must be
-// treated as signed-out so we never hand `undefined` across the native bridge.
+// a persisted session is usable only if the identity fields marshalled into native
+// calls are all non-empty strings; partial/legacy/corrupt data is treated as
+// signed-out so we never hand undefined across the native bridge
 function isUsableSession(session: AuthSession | null | undefined): session is AuthSession {
 	return (
 		session != null &&

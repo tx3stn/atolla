@@ -2,21 +2,14 @@ import type { Album } from '../models/Album';
 import type { Transport } from '../transports/Transport';
 import { matchOnThisDay } from './OnThisDay';
 
-// Discovers and caches the albums whose anniversary falls today or tomorrow, so
-// the home render works from a handful of albums instead of the whole library and
-// an offline midnight rollover is seamless. The library is never mirrored locally
-// — we recompute (online) via a lightweight two-phase sweep and otherwise fall
-// back to the date-keyed cache. Returns albums (not cards) so the view can both
-// render them and open them on tap. Every method is best-effort and never throws
-// on the reconnect/render path.
+// caches albums whose anniversary is today or tomorrow, so the home view renders
+// cheaply and survives an offline midnight rollover. recomputed online via a
+// two-phase sweep, else served from the date-keyed cache. best-effort, never throws
 
 const CACHE_KEY = 'on_this_day_v1';
-// Bump to invalidate caches written by older logic (e.g. an empty result from a
-// truncated discovery sweep) so a corrected sweep re-runs instead of being
-// treated as "fresh".
+// bump to invalidate caches from older logic so a corrected sweep re-runs
 const CACHE_VERSION = 2;
 export const DISCOVERY_PAGE_SIZE = 200;
-// Hard stop so a pathological/looping transport can never sweep forever.
 const MAX_DISCOVERY_PAGES = 250;
 
 export interface OnThisDayStore {
@@ -26,7 +19,6 @@ export interface OnThisDayStore {
 
 export type OnThisDayTransport = Pick<Transport, 'getAlbumReleaseDatesPage' | 'getAlbumsByIds'>;
 
-/** Funnel counts from a refresh, for diagnosing where an empty result originated. */
 export interface OnThisDayRefreshSummary {
 	error?: string;
 	hydrated: number;
@@ -49,7 +41,7 @@ interface OnThisDayCache {
 	version: number;
 }
 
-/** Local YYYY-MM-DD key — "today" is the user's local calendar day. */
+// local (not UTC) YYYY-MM-DD key for the user's calendar day
 export function localDateKey(date: Date): string {
 	const year = date.getFullYear();
 	const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -84,15 +76,14 @@ function parseDayAlbums(value: unknown): DayAlbums | null {
 	if (typeof candidate.date !== 'string' || !Array.isArray(candidate.albums)) {
 		return null;
 	}
-	// Drop anything that lost a required string field so a tampered/legacy cache
-	// can never push null/undefined text across the native bridge on render.
+	// drop entries missing a required string so a tampered cache can't push null
+	// across the native bridge
 	return { albums: candidate.albums.filter(isAlbum), date: candidate.date };
 }
 
 function parseCache(raw: string): OnThisDayCache | null {
 	try {
 		const parsed = JSON.parse(raw) as Partial<OnThisDayCache>;
-		// Discard caches from an older version so corrected logic re-runs.
 		if (parsed?.version !== CACHE_VERSION) {
 			return null;
 		}
@@ -113,7 +104,6 @@ export class OnThisDayService {
 
 	constructor(private readonly store: OnThisDayStore) {}
 
-	/** Hydrate the in-memory cache from the persisted blob (call once on boot). */
 	async load(): Promise<void> {
 		try {
 			this.cache = parseCache(await this.store.fetchString(CACHE_KEY));
@@ -122,7 +112,6 @@ export class OnThisDayService {
 		}
 	}
 
-	/** Loads from disk at most once; callers can await this before reading. */
 	ensureLoaded(): Promise<void> {
 		if (!this.loadPromise) {
 			this.loadPromise = this.load();
@@ -130,7 +119,6 @@ export class OnThisDayService {
 		return this.loadPromise;
 	}
 
-	/** Synchronous read for the render path — [] when nothing is cached for `now`. */
 	getAlbumsForDate(now: Date): Array<Album> {
 		const cache = this.cache;
 		if (!cache) {
@@ -141,19 +129,15 @@ export class OnThisDayService {
 		if (cache.today.date === key) {
 			return cache.today.albums;
 		}
-		// Seamless midnight rollover: yesterday's "tomorrow" is today.
+		// midnight rollover: yesterday's "tomorrow" is today
 		if (cache.tomorrow.date === key) {
 			return cache.tomorrow.albums;
 		}
 		return [];
 	}
 
-	/**
-	 * Recompute today's + tomorrow's albums via a lightweight discovery sweep and a
-	 * single batch hydrate, then persist. No-op when already fresh (unless forced)
-	 * or when the transport can't discover/hydrate. Never throws. Returns a funnel
-	 * summary so callers can log exactly where an empty result came from.
-	 */
+	// recompute today's and tomorrow's albums via a discovery sweep + batch hydrate,
+	// then persist. no-op when already fresh (unless forced); never throws
 	async refresh(
 		transport: OnThisDayTransport,
 		now: Date,
@@ -178,11 +162,10 @@ export class OnThisDayService {
 			this.cache.today.date === todayKey &&
 			this.cache.tomorrow.date === tomorrowKey
 		) {
-			return summary; // already fresh
+			return summary;
 		}
 
-		// Bind to the transport — these are class methods that use `this` internally,
-		// so calling an extracted reference unbound would throw.
+		// bind: these methods use `this`, so an unbound reference would throw
 		const discover = transport.getAlbumReleaseDatesPage.bind(transport);
 		const hydrate = transport.getAlbumsByIds.bind(transport);
 
@@ -213,7 +196,7 @@ export class OnThisDayService {
 			summary.tomorrow = next.tomorrow.albums.length;
 			await this.store.storeString(CACHE_KEY, JSON.stringify(next));
 		} catch (error) {
-			// Best-effort: keep the existing cache rather than crash the toggle path.
+			// best-effort: keep the existing cache instead of crashing the toggle
 			summary.error = error instanceof Error ? error.message : String(error);
 		}
 
@@ -244,9 +227,8 @@ export class OnThisDayService {
 				}
 			}
 
-			// Terminate on a short/empty page rather than trusting `hasMore`: some
-			// Jellyfin configs report TotalRecordCount as 0, which would otherwise
-			// truncate the sweep to the first (newest) page and miss old anniversaries.
+			// stop on a short/empty page instead of trusting `hasMore`: some Jellyfin
+			// configs report TotalRecordCount as 0, truncating the sweep to page 1
 			if (result.items.length < DISCOVERY_PAGE_SIZE) {
 				break;
 			}

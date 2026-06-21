@@ -7,9 +7,8 @@ export interface NativeAudioCompletedEvent {
 	isCompleted: boolean;
 }
 
-// Native emits "completed:<trackId>" carrying the track that finished so JS can reconcile
-// deterministically after being frozen across several background transitions. Bare
-// "completed" (older native builds) is still accepted as a single-step advance.
+// native emits "completed:<trackId>" so JS can reconcile after being frozen across
+// background transitions. bare "completed" (older builds) is a single-step advance
 export function parseNativeAudioCompletedEvent(rawEvent: string): NativeAudioCompletedEvent {
 	if (rawEvent === 'completed') {
 		return { finishedTrackId: null, isCompleted: true };
@@ -23,9 +22,8 @@ export function parseNativeAudioCompletedEvent(rawEvent: string): NativeAudioCom
 	return { finishedTrackId: null, isCompleted: false };
 }
 
-// Native emits "jumped:<trackId>" when it moved to a different track outside the normal
-// forward advance (the notification's previous button stepping back through the engine's
-// history). The id is the track that is NOW current.
+// native emits "jumped:<trackId>" when it moves outside the normal forward advance
+// (e.g. the notification's previous button). the id is the track now current
 export function parseNativeAudioJumpedEvent(rawEvent: string): string | null {
 	if (!rawEvent.startsWith('jumped:')) {
 		return null;

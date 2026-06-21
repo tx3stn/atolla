@@ -84,7 +84,7 @@ export function onCompleteHook(): void {
 export async function beforeHook(): Promise<void> {
 	const isIOS = (browser.capabilities.platformName as string).toLowerCase() === 'ios';
 
-	// The session already launches the app fresh (noReset clears app data per session),
+	// the session already launches the app fresh (noReset clears app data per session),
 	// so there's nothing to terminate or relaunch here. On Android the emulator network
 	// stack may not be ready right after boot: wait for wifi or data so the app can reach
 	// the mock server.

@@ -77,7 +77,7 @@ export class LibraryPage extends BasePage {
 			try {
 				await el.scrollIntoView({ direction: secondaryDirection });
 			} catch {
-				// Some drivers may not support horizontal scrollIntoView for this node.
+				// some drivers may not support horizontal scrollIntoView for this node
 			}
 		}
 

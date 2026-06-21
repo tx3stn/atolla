@@ -10,7 +10,7 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
 
-// Accessibility ids are the stable contract shared with the e2e tests, so pin them here.
+// accessibility ids are the stable contract shared with the e2e tests, so pin them here
 const SHUFFLE_LIBRARY_TILE = 'card-mix-shuffle-library';
 const RANDOM_ALBUM_TILE = 'card-mix-random-album';
 const RANDOM_YEAR_TILE = 'card-mix-random-year';
@@ -51,7 +51,7 @@ function mockPlaybackStore(): MockPlaybackStore {
 	return { playTracks, store, unsubscribe };
 }
 
-// Drains the microtask queue so the fire-and-forget mix chains settle.
+// drains the microtask queue so the fire-and-forget mix chains settle
 async function flush(): Promise<void> {
 	for (let i = 0; i < 10; i++) {
 		await Promise.resolve();

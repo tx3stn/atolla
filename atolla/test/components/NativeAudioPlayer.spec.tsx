@@ -34,10 +34,10 @@ function getInternal(component: NativeAudioPlayer): PlayerInternal {
 	return component as unknown as PlayerInternal;
 }
 
-// Mounting NativeAudioPlayer starts a progress-poll setInterval in onCreate that is only
-// cleared in onDestroy. The driver tears down each test's component tree at the end of the
-// test, which fires onDestroy and clears the timer — leaked timers keep the jasmine runtime
-// alive and hang the bazel test target to its timeout.
+// mounting NativeAudioPlayer starts a progress-poll setInterval in onCreate that's only
+// cleared in onDestroy. the driver tears down each test's component tree at the end, which
+// fires onDestroy and clears the timer; leaked timers keep the jasmine runtime alive and hang
+// the bazel test target to its timeout.
 function mountPlayer(
 	driver: IComponentTestDriver,
 	viewModel: NativeAudioPlayerViewModel,
@@ -112,9 +112,9 @@ describe('NativeAudioPlayer', () => {
 				});
 
 				const player = getInternal(component);
-				// Position is 1 second from end (within STALL_DETECT_REMAINING_S = 1.5s)
+				// position is 1 second from end (within STALL_DETECT_REMAINING_S = 1.5s)
 				player.lastNativePositionSeconds = 179;
-				// Stall was detected 6 seconds ago (past STALL_TIMEOUT_MS = 5000ms)
+				// stall was detected 6 seconds ago (past STALL_TIMEOUT_MS = 5000ms)
 				player.stallDetectedAtMs = Date.now() - 6000;
 
 				(player.checkForStall as () => void)();
@@ -135,13 +135,13 @@ describe('NativeAudioPlayer', () => {
 			});
 
 			const player = getInternal(component);
-			// Near end, but stallDetectedAtMs is null (timer not started yet)
+			// near end, but stallDetectedAtMs is null (timer not started yet)
 			player.lastNativePositionSeconds = 179;
 			player.stallDetectedAtMs = null;
 
 			(player.checkForStall as () => void)();
 
-			// Should have started the timer (stallDetectedAtMs is now set) but not fired yet
+			// should have started the timer (stallDetectedAtMs is now set) but not fired yet
 			expect(player.stallDetectedAtMs).not.toBeNull();
 			expect(completionCount).toBe(0);
 		});
@@ -158,14 +158,14 @@ describe('NativeAudioPlayer', () => {
 			});
 
 			const player = getInternal(component);
-			// Position is well before end (more than 1.5s remaining)
+			// position is well before end (more than 1.5s remaining)
 			player.lastNativePositionSeconds = 100;
 			player.stallDetectedAtMs = Date.now() - 6000;
 
 			(player.checkForStall as () => void)();
 
 			expect(completionCount).toBe(0);
-			// Stall timer should be cleared since we're not near end
+			// stall timer should be cleared since we're not near end
 			expect(player.stallDetectedAtMs).toBeNull();
 		});
 
@@ -343,7 +343,7 @@ describe('NativeAudioPlayer', () => {
 			});
 
 			const player = getInternal(component);
-			// Native player is still configured for a previous track.
+			// native player is still configured for a previous track
 			player.lastConfiguredTrackId = 'previous-track';
 
 			(player.applyNativePosition as (positionMs: number) => void)(50000);

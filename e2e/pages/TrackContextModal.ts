@@ -54,8 +54,7 @@ export class TrackContextMenu extends BasePage {
 		return els[0].getText();
 	}
 
-	// In the test environment artist logos have no image, so the artist name renders as
-	// the logo's fallback text.
+	// in the test environment artist logos have no image, so the name renders as the logo fallback text
 	async getArtistName(): Promise<string> {
 		const el = this.elementByID(this.artistLogoText);
 		await el.waitForExist({ timeoutMsg: 'Timed out waiting for context menu artist name' });
@@ -107,7 +106,7 @@ export class TrackContextMenu extends BasePage {
 					return visibleElement;
 				}
 			} catch {
-				// Retry to account for flaky rendering timing during parallel runs.
+				// retry to account for flaky rendering timing during parallel runs
 			}
 
 			if (attempt < attempts) {

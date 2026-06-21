@@ -56,10 +56,9 @@ static void appendCrashLine(NSString *entry) {
     [handle closeFile];
 }
 
-// Records a managed (NSException) uncaught exception into the debug log before
-// the process dies, then chains to any previously installed handler. A native
-// signal crash (SIGSEGV) bypasses this entirely — that is surfaced by the JS
-// unclean-shutdown sentinel instead.
+// records a managed (NSException) uncaught exception into the debug log before the process
+// dies, then chains to any previously installed handler. a native signal crash (SIGSEGV)
+// bypasses this entirely; that's surfaced by the JS unclean-shutdown sentinel instead
 static void (*gPreviousUncaughtExceptionHandler)(NSException *) = NULL;
 
 static void atollaUncaughtExceptionHandler(NSException *exception) {
@@ -73,7 +72,7 @@ static void atollaUncaughtExceptionHandler(NSException *exception) {
                                                      stack ?: @""];
         appendCrashLine(entry);
     } @catch (__unused NSException *ignored) {
-        // Never let the crash handler itself throw.
+        // never let the crash handler itself throw
     }
     if (gPreviousUncaughtExceptionHandler) {
         gPreviousUncaughtExceptionHandler(exception);

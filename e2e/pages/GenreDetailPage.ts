@@ -13,7 +13,7 @@ export class GenreDetailPage extends BasePage {
 		try {
 			await this.elementByID(this.root).waitForExist({ timeout: 2_000 });
 		} catch {
-			// On iOS this root accessibility node can be unreliable; track rows are the source of truth.
+			// on iOS this root accessibility node can be unreliable; track rows are the source of truth
 		}
 	}
 

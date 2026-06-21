@@ -82,7 +82,7 @@ function makeDeps(config: FakeConfig): {
 			getPendingScrobbles: (() => {
 				let calls = 0;
 				return () => {
-					// First read is the up-front snapshot; later reads are post-delivery.
+					// first read is the up-front snapshot; later reads are post-delivery
 					calls += 1;
 					return new Array(calls === 1 ? (config.scrobblePending ?? 0) : scrobbleAfter).fill({});
 				};
@@ -142,7 +142,7 @@ describe('ReconnectSyncCoordinator', () => {
 		expect(result.completed).toBe(6);
 		expect(result.failed).toBe(0);
 		expect(result.status).toBe('done');
-		// First emission announces syncing, last announces the final state.
+		// first emission announces syncing, last announces the final state
 		expect(updates[0].status).toBe('syncing');
 		expect(updates[updates.length - 1].status).toBe('done');
 	});

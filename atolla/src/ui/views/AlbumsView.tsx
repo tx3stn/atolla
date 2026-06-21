@@ -137,7 +137,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				'album_art_thumb',
 			);
 		} catch {
-			// Non-Android targets do not provide native preload bridge.
+			// non-Android targets have no native preload bridge
 		}
 	}
 

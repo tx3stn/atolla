@@ -35,12 +35,10 @@ import { TrackList, type TrackListEntry } from './TrackList';
 
 const MAX_VISIBLE_QUEUE_TRACKS = 30;
 
-// A transition still flagged in-flight after this window was abandoned mid-animation by a
-// background freeze — its completion callback never fired because Valdi animations and timers stop
-// when backgrounded. Matches the threshold App uses to detect backgrounding from the playback tick
-// gap (there is no foreground lifecycle hook to key off), and sits comfortably above the
-// 0.34s + 0.08s open and 0.26s close animations so a genuine in-flight transition is never treated
-// as stale. The transition-generation guard keeps recovery correct regardless of the exact value.
+// a transition still flagged in-flight after this window was abandoned mid-animation
+// by a background freeze (Valdi animations/timers stop when backgrounded, so the
+// completion callback never fired). sits above the open/close animation durations so a
+// genuine in-flight transition is never treated as stale
 const TRANSITION_TIMEOUT_MS = 1000;
 
 export interface NowPlayingSurfaceViewModel {
@@ -111,12 +109,12 @@ export class NowPlayingSurface extends StatefulComponent<
 	private hasRendered = false;
 	private unsubscribeProgress?: () => void;
 
-	// The most recent non-empty palette. Held while the next track's palette is still being
-	// extracted (getPalette returns undefined until then) so the chrome doesn't flash to the
-	// default colours between tracks — it only re-tints once the new palette is available.
+	// most recent non-empty palette, held while the next track's is still extracting
+	// (getPalette returns undefined until then) so the chrome doesn't flash to defaults
+	// between tracks; re-tints once the new palette is available
 	private lastPalette?: Palette;
 
-	// Cached palette-derived styles — rebuilt only when palette or activeTab changes
+	// cached palette-derived styles, rebuilt only when palette or activeTab changes
 	private cachedCompactProgressFillStyle = createCompactProgressFillStyle(paletteDefaults.accent);
 	private cachedCompactSolidBgStyle = getOverlayTintStyle(paletteDefaults.surface, 1);
 	private cachedExpandedSolidBgStyle = getOverlayTintStyle(paletteDefaults.surface, 1, 0);
@@ -160,8 +158,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		return Promise.resolve();
 	}
 
-	// The palette to style from: the current one when available, otherwise the last one we saw.
-	// Updates the held palette as a side effect whenever a fresh one arrives.
+	// palette to style from: current when available, else the last one we saw.
+	// updates the held palette as a side effect when a fresh one arrives
 	private resolvePalette(): Palette | undefined {
 		if (this.viewModel.palette) {
 			this.lastPalette = this.viewModel.palette;
@@ -185,10 +183,10 @@ export class NowPlayingSurface extends StatefulComponent<
 		return this.isTransitioning && Date.now() - this.transitionStartedAt > TRANSITION_TIMEOUT_MS;
 	}
 
-	// Unblock a transition left flagged in-flight by a background freeze, from the open/close entry
-	// points where the caller immediately re-drives the animation. Only invalidates the abandoned
-	// chain (bumping the generation so its late completion no-ops) and clears the flag — it does not
-	// settle geometry, because the caller is about to set the end-state itself.
+	// unblock a transition left in-flight by a background freeze, from the open/close
+	// paths where the caller immediately re-drives the animation. invalidates the
+	// abandoned chain (bumps the generation so its late completion no-ops) and clears the
+	// flag; doesn't settle geometry, because the caller sets the end-state itself
 	private clearStaleTransition(): void {
 		if (this.isStaleTransition()) {
 			this.transitionGeneration++;
@@ -197,10 +195,10 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 	}
 
-	// Recover a transition abandoned by a background freeze from the foreground path
-	// (onViewModelUpdate), where nothing re-drives the animation. Invalidate the abandoned chain,
-	// then settle the surface to the end-state its lost completion would have applied so the
-	// recovered surface — colours, artwork, and isExpanded — is left consistent.
+	// recover a transition abandoned by a background freeze from the foreground path
+	// (onViewModelUpdate), where nothing re-drives the animation. invalidate the abandoned
+	// chain, then settle the surface to the end-state its lost completion would have
+	// applied so colours, artwork, and isExpanded stay consistent
 	private recoverStaleTransition(): void {
 		if (!this.isStaleTransition()) {
 			return;
@@ -229,8 +227,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.viewModel.barColors.setHeaderColor(theme.colors.bg);
 	}
 
-	// Final expanded end-state, shared by the open animation's completion and stale recovery so a
-	// frozen-then-recovered open looks identical to one that animated to completion.
+	// final expanded end-state, shared by the open animation's completion and stale recovery
+	// so a frozen-then-recovered open looks identical to one that animated to completion
 	private settleExpanded(): void {
 		this.applyExpandedBarColors();
 		this.expandedContentRef.setAttribute('opacity', 1);
@@ -241,7 +239,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.transitionTarget = null;
 	}
 
-	// Final collapsed end-state, shared by the close animation's completion and stale recovery.
+	// final collapsed end-state, shared by the close animation's completion and stale recovery
 	private settleCollapsed(): void {
 		this.overlayRef.setAttribute('top', 2000);
 		this.isTransitioning = false;
@@ -319,9 +317,8 @@ export class NowPlayingSurface extends StatefulComponent<
 			return;
 		}
 
-		// Only restyle once the new track's palette is actually available. While it is still being
-		// extracted the prop is undefined, so we hold the previous palette rather than flashing the
-		// chrome to the default colours.
+		// only restyle once the new track's palette is available. while it's still extracting the
+		// prop is undefined, so hold the previous palette rather than flashing the chrome to defaults
 		if (this.viewModel.palette && this.viewModel.palette !== prevViewModel.palette) {
 			this.rebuildPaletteStyles(this.resolvePalette(), this.state.activeQueueTab);
 
@@ -718,7 +715,7 @@ export class NowPlayingSurface extends StatefulComponent<
 
 		if (!track) return;
 
-		// Hold the previous track's palette until the new one is extracted so colours don't flash.
+		// hold the previous track's palette until the new one is extracted so colours don't flash
 		const palette = this.resolvePalette();
 
 		const playbackStore = this.viewModel.playbackStore;
@@ -744,8 +741,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		const albumImageUrl = track.albumImageUrl ?? album?.imageUrl ?? null;
 		const albumArtworkSource =
 			albumImageUrl == null ? null : buildImageSource(albumImageUrl, 'album_art');
-		// The native loader generates this on demand by downscaling the cached
-		// album_art to 24×24; GPU upscale to full-screen produces heavy blur.
+		// the native loader generates this on demand by downscaling the cached album_art to
+		// 24×24; GPU upscale to full-screen produces heavy blur
 		const blurredBgSource =
 			albumImageUrl != null ? buildImageSource(albumImageUrl, 'album_art_blurred') : null;
 		const artistLogoSource = artistLogoUrl ?? null;
@@ -835,13 +832,13 @@ export class NowPlayingSurface extends StatefulComponent<
 
 			<view id='now-playing-surface-overlay' ref={this.overlayRef} style={styles.overlayRoot}>
 				<view ref={this.overlayCardRef} style={styles.overlayCard}>
-					{/* Layer 0: solid surface colour — visible before artwork loads or on load failure. */}
+					{/* layer 0: solid surface colour, visible before artwork loads or on load failure */}
 					<view style={expandedSolidBgStyle} />
-					{/* Layer 1: regular artwork — always visible as fallback. */}
+					{/* layer 1: regular artwork, always visible as fallback */}
 					{albumArtworkSource && (
 						<image objectFit='cover' src={albumArtworkSource} style={styles.expandedBgArtwork} />
 					)}
-					{/* Layer 2: 24x24 blurred PNG served via atolla-cache — GPU upscale gives heavy blur. */}
+					{/* layer 2: 24x24 blurred PNG via atolla-cache, GPU upscale gives heavy blur */}
 					{blurredBgSource && (
 						<image objectFit='cover' src={blurredBgSource} style={styles.expandedBgArtwork} />
 					)}
@@ -1129,8 +1126,8 @@ export class NowPlayingSurface extends StatefulComponent<
 			)}
 		</view>;
 
-		// Re-establish the imperatively-set progress width/labels after each render —
-		// the cached styles omit width, so this won't be clobbered by re-renders.
+		// re-establish the imperatively-set progress width/labels after each render; the
+		// cached styles omit width, so this isn't clobbered by re-renders
 		this.updateProgressRefs();
 	}
 }
@@ -1174,8 +1171,8 @@ interface PaletteStyles {
 }
 
 function createCompactProgressFillStyle(accentColor: string): Style<View> {
-	// Width is intentionally omitted — set via ref in updateProgressRefs() so Style
-	// applications from re-renders don't override more recent setAttribute calls.
+	// width is intentionally omitted: set via ref in updateProgressRefs() so re-render
+	// Style applications don't override more recent setAttribute calls
 	return new Style<View>({
 		backgroundColor: accentColor,
 		borderRadius: theme.radius.default,

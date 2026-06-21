@@ -12,8 +12,8 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { editTextEvent, touchEvent } from '../util/testEvents';
 
-// Wrapper that renders SettingsView alongside a DetachedSlotRenderer so that
-// slot-rendered modals appear in the same component tree as the main view.
+// wrapper that renders SettingsView alongside a DetachedSlotRenderer so slot-rendered modals
+// appear in the same component tree as the main view
 class SettingsViewWithSlot extends Component<Partial<SettingsViewModel>> {
 	private slot = new DetachedSlot();
 
@@ -256,8 +256,7 @@ describe('SettingsView', () => {
 			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-export-offline-status-btn')
 			?.getAttribute('onTap')?.(touchEvent);
 
-		// The export handler is async; let the awaited export resolve before the
-		// toast is shown.
+		// the export handler is async; let the awaited export resolve before the toast is shown
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(called).toBe(true);

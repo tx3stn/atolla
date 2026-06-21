@@ -5,8 +5,7 @@ export class NowPlayingBar extends BasePage {
 	private readonly trackName = 'now-playing-track-name';
 	private readonly artistLogoText = 'now-playing-artist-logo-text';
 	private readonly progress = 'now-playing-progress';
-	// The progress bar renders as a waveform when a waveform mask is available and falls
-	// back to a plain bar otherwise; the plain variant exposes a different id.
+	// the progress bar falls back to a plain bar (different id) when no waveform mask is available
 	private readonly progressPlain = 'playback-progress-track';
 	private readonly togglePlayback = 'now-playing-play-pause';
 	private readonly next = 'now-playing-next';
@@ -46,10 +45,7 @@ export class NowPlayingBar extends BasePage {
 		return (await el.getText()) ?? '';
 	}
 
-	// Taps the progress bar at 92% of its width to seek near the end of the track. Requires
-	// the expanded surface to be open. The progress bar sits at the bottom of the first page,
-	// above the queue list, so by the time we seek it has usually scrolled off the top —
-	// bring it back into view first.
+	// requires the expanded surface open; the progress bar usually scrolls off the top by now, so reveal it first
 	async seekToNearEnd(): Promise<void> {
 		const el = this.elementByID(await this.revealProgressBar());
 		const location = await el.getLocation();
@@ -87,12 +83,9 @@ export class NowPlayingBar extends BasePage {
 		const el = this.elementByID(this.bar);
 		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for now playing bar' });
 
-		// Tapping the collapsed bar kicks off a ~0.4s expand animation. Returning before it
-		// settles is the cold-start flake: the expanded overlay — and its queue tab — is still
-		// parked off-screen by the footer (collapsed overlay top:2000), so the later tab tap
-		// lands on the footer nav (search) instead. Confirm the surface genuinely expanded via
-		// queue-page existence (the reliable expanded signal — isDisplayed lies at alpha 0),
-		// re-tapping if the gesture was dropped. Re-tapping while already expanded is a no-op.
+		// tapping the bar starts a ~0.4s expand animation; returning before it settles is the cold-start
+		// flake, the queue tab is still parked off-screen so the tab tap lands on the footer nav instead.
+		// confirm expansion via queue-page existence (isDisplayed lies at alpha 0), re-tapping if dropped
 		for (let attempt = 0; attempt < 4; attempt += 1) {
 			if (await this.isQueueListVisible()) return;
 			await el.click();
@@ -103,7 +96,7 @@ export class NowPlayingBar extends BasePage {
 				});
 				return;
 			} catch {
-				// Expand gesture dropped (cold start under load) — re-tap and retry.
+				// expand gesture dropped (cold start under load), re-tap and retry
 			}
 		}
 
@@ -154,10 +147,8 @@ export class NowPlayingBar extends BasePage {
 		});
 	}
 
-	// isExisting() is used instead of isDisplayed() because the page views live inside
-	// a translated sliding strip — UIAutomator2 reports them as not displayed even when
-	// fully on screen. Existence is a reliable proxy: elements are only in the tree when
-	// the expanded surface is open.
+	// isExisting not isDisplayed: the page views sit in a translated sliding strip that UIAutomator2
+	// reports as not displayed even when on screen; they only exist in the tree when the surface is open
 	async isQueueListVisible(): Promise<boolean> {
 		return (
 			(await this.elementByID(this.queuePageUpNext).isExisting()) ||
@@ -262,8 +253,7 @@ export class NowPlayingBar extends BasePage {
 		return names;
 	}
 
-	// The + button shares the queue tabs row, so the queue list must be on-screen
-	// (callers reach it via tapUpNextTab / tapBackToTab, which swipe the surface up).
+	// the + button shares the queue tabs row, so the queue list must be on-screen first
 	async tapCreatePlaylistFromQueue(): Promise<void> {
 		await this.waitForQueueList();
 		const el = this.elementByID(this.createPlaylistFromQueue);
@@ -285,7 +275,7 @@ export class NowPlayingBar extends BasePage {
 	async collapseExpandedIfVisible(): Promise<void> {
 		if (!(await this.isQueueListVisible())) return;
 
-		// Scroll back to top so the artwork drag zone is under the collapse swipe
+		// scroll back to top so the artwork drag zone is under the collapse swipe
 		await this.swipeVertical('scroll-to-top', 0.28, 0.78);
 
 		for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -329,8 +319,7 @@ export class NowPlayingBar extends BasePage {
 		});
 	}
 
-	// Unconditional swipe-up to push the expanded surface fully above the footer nav bar,
-	// ensuring tab buttons are not intercepted by the footer before we tap them.
+	// push the expanded surface above the footer nav bar so it doesn't intercept tab taps
 	private async swipeUpSurface(id: string): Promise<void> {
 		await this.swipeVertical(id, 0.78, 0.28);
 	}
@@ -343,11 +332,8 @@ export class NowPlayingBar extends BasePage {
 		}
 	}
 
-	// Scrolls the surface up until the progress bar is on screen and returns the id of
-	// whichever variant rendered (waveform, or the plain fallback when no waveform mask is
-	// available). Drags start in the lower half so they pan the scroll content; starting
-	// higher would land on the artwork's collapse-drag zone at the top and tear the whole
-	// surface down.
+	// returns the id of whichever progress variant rendered; drags start in the lower half so they pan
+	// the scroll content, starting higher hits the artwork collapse-drag zone and tears the surface down
 	private async revealProgressBar(maxSwipes = 3): Promise<string> {
 		for (let attempt = 0; attempt <= maxSwipes; attempt += 1) {
 			for (const id of [this.progress, this.progressPlain]) {

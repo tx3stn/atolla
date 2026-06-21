@@ -1,10 +1,9 @@
-// Image blur using multi-scale pyramid algorithm:
-//   1. Iterative bilinear halvings from source down to ~8px (many passes
-//      approximate a Gaussian and avoid the linear ramps of a single large
-//      downsample step).
-//   2. Two-step bilinear upsample: 8px → 48px → output (the intermediate
-//      step smooths the bilinear gradients before the final stretch).
-// Input/output: row-major RGBA bytes (4 bytes per pixel).
+// image blur using a multi-scale pyramid algorithm:
+//   1. iterative bilinear halvings from source down to ~8px (many passes approximate a
+//      Gaussian and avoid the linear ramps of a single large downsample step).
+//   2. two-step bilinear upsample: 8px → 48px → output (the intermediate step smooths the
+//      bilinear gradients before the final stretch).
+// input/output: row-major RGBA bytes (4 bytes per pixel).
 
 extern fn malloc(size: usize) ?*anyopaque;
 extern fn free(ptr: ?*anyopaque) void;
@@ -77,7 +76,7 @@ export fn atolla_blur_pixels(
 
     const out_size: usize = @as(usize, width_out) * @as(usize, height_out) * 4;
 
-    // Allocate two ping-pong buffers for the halving passes.
+    // allocate two ping-pong buffers for the halving passes.
     // buf[0] holds even-numbered halvings (max = src/2 × src/2).
     // buf[1] holds odd-numbered halvings  (max = src/4 × src/4).
     const hw: u32 = @max(8, width_in / 2);
@@ -96,8 +95,8 @@ export fn atolla_blur_pixels(
 
     const ping_pong: [2][*]u8 = .{ buf0, buf1 };
 
-    // Phase 1: iteratively halve with bilinear filtering until ≤ 8px.
-    // First step always reads from the caller-supplied pixels_in.
+    // phase 1: iteratively halve with bilinear filtering until ≤ 8px.
+    // first step always reads from the caller-supplied pixels_in.
     var cur_w: u32 = width_in;
     var cur_h: u32 = height_in;
     var cur_src: [*]const u8 = pixels_in;
@@ -115,9 +114,9 @@ export fn atolla_blur_pixels(
         dst_idx ^= 1;
     }
 
-    // Phase 2: two-step bilinear upsample — 8px → 48px → output.
-    // The intermediate at 48px smooths the bilinear gradients before the
-    // final stretch, matching Android's createScaledBitmap two-step approach.
+    // phase 2: two-step bilinear upsample, 8px → 48px → output. the intermediate at 48px
+    // smooths the bilinear gradients before the final stretch, matching Android's
+    // createScaledBitmap two-step approach.
     const mid_size: usize = 48 * 48 * 4;
     var mid_48: [48 * 48 * 4]u8 = undefined;
     bilinearResize(cur_src[0 .. @as(usize, cur_w) * @as(usize, cur_h) * 4], cur_w, cur_h, mid_48[0..mid_size], 48, 48);

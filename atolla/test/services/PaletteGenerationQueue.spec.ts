@@ -7,8 +7,6 @@ import type { IPaletteNativeWorker } from 'atolla/src/services/PaletteNativeWork
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import * as WorkerService from 'worker/src/WorkerService';
 
-// --- Helpers ---
-
 type MockWorker = IWorkerServiceClient<IPaletteNativeWorker> & {
 	api: { extractPalette: jasmine.Spy };
 	dispose: jasmine.Spy;
@@ -61,8 +59,6 @@ function deferred<T>() {
 async function tick() {
 	await new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
-
-// --- Tests ---
 
 describe('PaletteGenerationQueue', () => {
 	let workers: Array<MockWorker>;
@@ -127,12 +123,12 @@ describe('PaletteGenerationQueue', () => {
 			for (const worker of w) {
 				worker.api.extractPalette.and.callFake(() => d.promise);
 			}
-			// Fill both worker slots.
+			// fill both worker slots
 			queue.enqueue('https://example.com/a.jpg');
 			queue.enqueue('https://example.com/b.jpg');
-			// c goes to the pending queue.
+			// c goes to the pending queue
 			queue.enqueue('https://example.com/c.jpg');
-			// Enqueue c again — should be ignored.
+			// enqueue c again, should be ignored
 			queue.enqueue('https://example.com/c.jpg');
 
 			d.resolve(null);
@@ -212,7 +208,7 @@ describe('PaletteGenerationQueue', () => {
 				});
 			}
 
-			// Fill both worker slots; c and d sit pending.
+			// fill both worker slots; c and d sit pending
 			queue.enqueue('https://example.com/a.jpg');
 			queue.enqueue('https://example.com/b.jpg');
 			queue.enqueue('https://example.com/c.jpg');

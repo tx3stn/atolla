@@ -530,9 +530,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.setHeaderVisibility(true);
 	};
 
-	// When a child view (AlbumView, GenreView, PlaylistView) taps a header tab, it only pops
-	// itself. Wrapping onTabTap here ensures ArtistView also pops before handing control to
-	// the library, so the user lands back in the library rather than on the artist detail page.
+	// a child view (AlbumView, GenreView, PlaylistView) tapping a header tab only pops itself; wrapping onTabTap pops ArtistView too before handing to the library, so the user lands in the library not the artist detail page
 	private buildChildNavBarContext(): NavBarContext | undefined {
 		const { navBarContext } = this.viewModel;
 		if (!navBarContext) return undefined;

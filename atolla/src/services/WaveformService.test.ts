@@ -38,8 +38,8 @@ describe('WaveformService', () => {
 			service.scheduleGeneration('track-1');
 			service.scheduleGeneration('track-1');
 
-			// scheduleGeneration does not persist — only success/failure transitions
-			// write to disk, so pending status is in-memory only.
+			// scheduleGeneration does not persist; only success/failure transitions write
+			// to disk, so pending status is in-memory only
 			expect(store.saveCount).toBe(0);
 		});
 

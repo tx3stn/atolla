@@ -105,7 +105,7 @@ describe('PlaylistCreateService.load', () => {
 			{ localId: 'local-playlist-old', name: 'Old Playlist', trackId: 'track-1' },
 		]);
 		const service = new PlaylistCreateService(createStoreMock(stored));
-		service.enqueue('New Playlist', 'track-2'); // enqueued before load
+		service.enqueue('New Playlist', 'track-2');
 		await service.load();
 		const pending = service.getPending();
 
@@ -115,14 +115,13 @@ describe('PlaylistCreateService.load', () => {
 	it('does not duplicate ops already in memory when load runs', async () => {
 		const service = new PlaylistCreateService(createStoreMock());
 		const playlist = service.enqueue('My Playlist', 'track-1');
-		// Simulate the storage already having this entry
 		const store = createStoreMock(
 			JSON.stringify([{ localId: playlist.id, name: 'My Playlist', trackId: 'track-1' }]),
 		);
 		const service2 = new PlaylistCreateService(store);
 		service2.enqueue('My Playlist', 'track-1'); // same as stored, different localId
 		await service2.load();
-		// Both are present because they have different localIds
+		// both present because they have different localIds
 		expect(service2.getPending().length).toBeGreaterThanOrEqual(1);
 	});
 });

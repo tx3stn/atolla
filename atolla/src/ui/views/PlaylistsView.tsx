@@ -129,7 +129,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				'playlist_image_thumb',
 			);
 		} catch {
-			// Non-Android targets do not provide native preload bridge.
+			// non-Android targets have no native preload bridge
 		}
 	}
 

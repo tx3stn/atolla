@@ -45,8 +45,8 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 
 	private updateProgressRefs(): void {
 		const { maskImageUrl, playbackStore, trackDuration } = this.viewModel;
-		// clipRef/accentRef are only attached when the waveform branch is rendered.
-		// Calling setAttribute on detached refs causes a native null dereference.
+		// clipRef/accentRef are only attached when the waveform branch is rendered;
+		// setAttribute on detached refs causes a native null dereference
 		if (!playbackStore || !maskImageUrl) return;
 		const clampedRatio = Math.max(
 			0,
@@ -151,8 +151,8 @@ function createMutedImageStyle(mutedColor: string): Style<ImageView> {
 }
 
 function createAccentImageStyle(accentColor: string): Style<ImageView> {
-	// Width is intentionally omitted — set via ref in updateProgressRefs() to avoid
-	// Style applications from re-renders overriding more recent setAttribute calls.
+	// width is intentionally omitted: set via ref in updateProgressRefs() so re-render
+	// Style applications don't override more recent setAttribute calls
 	return new Style<ImageView>({
 		bottom: 0,
 		left: 0,

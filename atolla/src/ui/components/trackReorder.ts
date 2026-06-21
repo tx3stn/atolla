@@ -3,11 +3,8 @@ export interface RowSlot {
 	top: number;
 }
 
-/**
- * Index of the slot whose vertical span contains the dragged row's centre,
- * clamped to the list bounds. Driven entirely by measured geometry so rows of
- * any height land in the correct ordered position.
- */
+// index of the slot whose vertical span contains the dragged row's centre, clamped to list bounds
+// driven by measured geometry so rows of any height land in the correct ordered position
 export function resolveReorderTarget(
 	slots: Array<RowSlot>,
 	fromIndex: number,
@@ -26,10 +23,8 @@ export function resolveReorderTarget(
 	return lastIndex;
 }
 
-/**
- * Rows that the dragged row leap-frogs shift by the dragged row's own height to
- * open an exact gap: up when moving the row down, down when moving it up.
- */
+// leap-frogged rows shift by the dragged row's own height to open an exact gap:
+// up when moving the row down, down when moving it up
 export function neighbourShifts(
 	slots: Array<RowSlot>,
 	fromIndex: number,
@@ -53,10 +48,8 @@ export function neighbourShifts(
 	return shifts;
 }
 
-/**
- * Signed pixels the dragged row must travel to settle into targetIndex: the
- * summed heights of the rows it leap-frogs (positive down, negative up).
- */
+// signed pixels the dragged row must travel to settle into targetIndex:
+// summed heights of the rows it leap-frogs (positive down, negative up)
 export function snapDisplacement(
 	slots: Array<RowSlot>,
 	fromIndex: number,
@@ -74,11 +67,8 @@ export function snapDisplacement(
 	return displacement;
 }
 
-/**
- * Auto-scroll amount for a single tick while the finger is held near a viewport
- * edge during a drag. Negative scrolls the content up (towards the top), positive
- * down. The magnitude ramps linearly with proximity and saturates at `maxStep`.
- */
+// per-tick auto-scroll while the finger is held near a viewport edge during a drag
+// negative scrolls up, positive down; magnitude ramps with proximity and saturates at maxStep
 export function edgeScrollDelta(
 	fingerY: number,
 	viewport: { bottom: number; top: number },

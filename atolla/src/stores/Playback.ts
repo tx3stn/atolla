@@ -57,9 +57,7 @@ export class PlaybackStore {
 	seekTarget: number | null = null;
 	trackIndex: number = 0;
 	tracks: Array<Track> = [];
-	// Deliberate track changes (play/previous/jump) may rebuild the native queue backward; a
-	// restore/reconcile snap that follows the engine must not — that snap is the stale wake-race
-	// the native guard suppresses. Read by NativeAudioPlayer when it configures the engine.
+	// deliberate track changes (play/previous/jump) may rebuild the native queue backward; a restore/reconcile snap following the engine must not (that snap is the stale wake-race the native guard suppresses); read by NativeAudioPlayer when configuring the engine
 	allowBackwardRebuild: boolean = true;
 
 	async setQueueStore(
@@ -122,9 +120,7 @@ export class PlaybackStore {
 			this.progressSeconds = Math.max(0, Math.min(restoredProgress, maxProgress));
 			this.lastPersistedProgressSeconds = this.progressSeconds;
 			this.seekTarget = null;
-			// The persisted index/progress can be stale (the engine auto-advanced while JS was
-			// frozen). Snap to the engine's track before notifying so App.tsx computes a source
-			// that already matches it.
+			// persisted index/progress can be stale (engine auto-advanced while JS was frozen); snap to the engine's track before notifying so App.tsx computes a matching source
 			const nativeNow = currentNativeTrackFn?.() ?? null;
 			if (nativeNow?.trackId) {
 				const nativeIndex = this.indexOfNearestTrackId(nativeNow.trackId);
@@ -138,7 +134,7 @@ export class PlaybackStore {
 					this.lastPersistedProgressSeconds = this.progressSeconds;
 				}
 			}
-			// A restore follows the engine — don't let a stale restored track shove it backward.
+			// a restore follows the engine, so don't let a stale restored track shove it backward
 			this.allowBackwardRebuild = false;
 			this.notify();
 		} catch {
@@ -166,8 +162,7 @@ export class PlaybackStore {
 		return this._artistLogoUrls[this.trackIndex] ?? null;
 	}
 
-	// The artist id whose logo is missing for the current track, or null when
-	// there is already a logo, no current track, or nothing to resolve from.
+	// artist id whose logo is missing for the current track, or null when there's already a logo, no current track, or nothing to resolve from
 	get unresolvedArtistLogoArtistId(): string | null {
 		if (!this.track || this.artistLogoUrl) return null;
 		return this.track.artistId ?? this.album?.artistId ?? null;
@@ -199,7 +194,7 @@ export class PlaybackStore {
 		this.progressSeconds = 0;
 		this.seekTarget = null;
 		this._artistLogoUrls = [];
-		// Clear inactive marker so the next cold start can restore this queue.
+		// clear inactive marker so the next cold start can restore this queue
 		void this.queueStore?.storeString(playbackActiveKey, 'true').catch(() => {});
 		this.persistQueue();
 		this.notify();
@@ -230,10 +225,9 @@ export class PlaybackStore {
 		this.notify();
 	}
 
-	// Reconciles the store with native auto-advances that happened while JS was frozen in
-	// the background: the engine reports the trackId that finished and the store jumps to
-	// the track after it. Never sets seekTarget — the native player has already moved on
-	// and must not be seeked. Idempotent for stale/duplicate completions.
+	// reconciles the store with native auto-advances that happened while JS was frozen: the
+	// engine reports the trackId that finished and the store jumps to the track after it.
+	// never sets seekTarget (the native player already moved); idempotent for stale completions
 	advancePastTrackId(finishedTrackId: string): void {
 		if (this.tracks.length === 0 || !finishedTrackId) {
 			return;
@@ -280,11 +274,10 @@ export class PlaybackStore {
 		this.notify();
 	}
 
-	// Reconciles the store with a native track jump (e.g. the notification's previous button
-	// stepping back through the engine's history while JS was frozen): the engine reports the
-	// track that is now current and the store follows it in either direction. Never sets
-	// seekTarget — the native player already moved and must not be seeked. Duplicate ids
-	// resolve to the occurrence nearest the current index.
+	// reconciles the store with a native track jump (e.g. the notification's previous button
+	// stepping back through history while JS was frozen): the engine reports the track now
+	// current and the store follows. never sets seekTarget (the native player already moved);
+	// duplicate ids resolve to the occurrence nearest the current index
 	jumpToTrackId(trackId: string): void {
 		if (!trackId || this.tracks.length === 0) {
 			return;
@@ -302,10 +295,10 @@ export class PlaybackStore {
 		this.notify();
 	}
 
-	// Reconciles the store to the native engine's ACTUAL current track and position on app
-	// wake, BEFORE App.tsx computes a playback source. While JS was frozen the engine
-	// auto-advanced; the store (and disk) are stale, and pushing the stale source back down
-	// makes the native player rebuild its queue from position 0 (audible as a restart).
+	// reconciles the store to the native engine's actual current track and position on wake,
+	// before App.tsx computes a playback source. while JS was frozen the engine auto-advanced;
+	// the store (and disk) are stale, and pushing the stale source down makes the native player
+	// rebuild its queue from position 0 (audible as a restart)
 	reconcileToNativeTrack(trackId: string, positionSeconds: number): void {
 		if (!trackId || this.tracks.length === 0) {
 			return;
@@ -334,7 +327,7 @@ export class PlaybackStore {
 		this.notify();
 	}
 
-	// Index of the occurrence of trackId nearest the current trackIndex, or -1 when absent.
+	// index of the occurrence of trackId nearest the current trackIndex, or -1 when absent
 	private indexOfNearestTrackId(trackId: string): number {
 		let targetIndex = -1;
 		let bestDistance = Number.POSITIVE_INFINITY;
@@ -360,8 +353,7 @@ export class PlaybackStore {
 		this.notify();
 	}
 
-	// Restart the current track when more than ~3s in (or already on the first track),
-	// otherwise go back a track.
+	// restart the current track when more than ~3s in (or already first), else go back a track
 	previousOrRestart(): void {
 		if (this.progressSeconds > PREVIOUS_RESTART_THRESHOLD_SECONDS || this.trackIndex === 0) {
 			this.seekTo(0);
@@ -375,8 +367,8 @@ export class PlaybackStore {
 			trackId: this.track?.id,
 			wasPlaying: this.isPlaying,
 		});
-		// An explicit user toggle must win over a still-resolving queue restore, which
-		// would otherwise overwrite isPlaying with the (possibly stale) native snapshot.
+		// an explicit user toggle must win over a still-resolving queue restore, which would
+		// otherwise overwrite isPlaying with the (possibly stale) native snapshot
 		this.queueRestoreSuperseded = true;
 		this.isPlaying = !this.isPlaying;
 		if (!this.isPlaying) {
@@ -385,11 +377,10 @@ export class PlaybackStore {
 		this.notify();
 	}
 
-	// Reconciles the store's playing state with the native engine on wake. Used when the
-	// native player autonomously advanced through tracks while JS was frozen and is still
-	// playing — the store must follow it rather than push a stale paused state. Idempotent
-	// and side-effect-free beyond the notification (isPlaying is not part of the persisted
-	// queue, so there is nothing to persist).
+	// reconciles the store's playing state with the native engine on wake, when the native
+	// player advanced through tracks while JS was frozen and is still playing: the store must
+	// follow it rather than push a stale paused state. idempotent and side-effect-free beyond
+	// the notification (isPlaying isn't persisted)
 	setPlaying(isPlaying: boolean): void {
 		if (this.isPlaying === isPlaying) {
 			return;
@@ -452,8 +443,8 @@ export class PlaybackStore {
 		const clamped = Math.max(0, Math.min(activeTrack.duration, seconds));
 		this.seekTarget = clamped;
 		this.progressSeconds = clamped;
-		// Update the persisted baseline so the 5-second step logic in updateProgress
-		// doesn't immediately fire another persist when playback resumes after seeking.
+		// update the persisted baseline so the step logic in updateProgress doesn't immediately
+		// fire another persist when playback resumes after seeking
 		this.lastPersistedProgressSeconds = clamped;
 		if (this.seekPersistTimer != null) clearTimeout(this.seekPersistTimer);
 		this.seekPersistTimer = setTimeout(() => {
@@ -479,9 +470,9 @@ export class PlaybackStore {
 		this.isPlaying = false;
 		this.progressSeconds = 0;
 		this.trackIndex = 0;
-		// Write the inactive marker before the full queue payload so that if the
-		// process is killed between these two writes, setQueueStore will see active=false
-		// and skip restoration even though the queue payload still has tracks.
+		// write the inactive marker before the full queue payload so that if the process is
+		// killed between the two writes, setQueueStore sees active=false and skips restoration
+		// even though the queue payload still has tracks
 		void this.queueStore?.storeString(playbackActiveKey, 'false').catch(() => {});
 		this.persistQueue();
 		this.notify();
@@ -675,11 +666,10 @@ export class PlaybackStore {
 		this.notify();
 	}
 
-	// Coalesces every notify() emitted inside fn into a single notification fired once fn
-	// returns. Used when reconciling several buffered native events on app wake so the store
-	// advances straight to the final track in one update — without it each buffered completion
-	// notifies subscribers (and reconfigures the native player) through every intermediate
-	// track, audible as the player skipping through the tracks that played in the background.
+	// coalesces every notify() inside fn into a single notification fired once fn returns.
+	// used when reconciling buffered native events on wake so the store advances straight to
+	// the final track in one update; without it each buffered completion notifies subscribers
+	// (and reconfigures the native player) through every intermediate track, audible as skipping
 	runBatched(fn: () => void): void {
 		this.notifySuspendDepth += 1;
 		try {

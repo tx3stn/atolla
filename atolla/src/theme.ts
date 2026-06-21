@@ -56,19 +56,16 @@ export const theme = {
 		},
 	},
 	radius: {
-		// Small rounding for mostly square things and small variants that can't use the default.
 		card: 6,
-		// Default rounding for cards etc.
 		default: 18,
-		// Fully rounded pill shape.
 		pill: 999,
 	},
 	shadow: {
-		/** Strong elevation for floating overlays — now playing surface. */
+		// floating overlays: now playing surface
 		floating: '0 10 18 rgba(0,0,0,0.35)',
-		/** Subtle lift for small controls — the progress playhead. */
+		// small controls: the progress playhead
 		playhead: '0 1 2 rgba(0,0,0,0.25)',
-		/** Raised surfaces resting on the background — toasts, banners. */
+		// raised surfaces: toasts, banners
 		raised: `0 6 12 ${colors.bg}`,
 	},
 	text: {

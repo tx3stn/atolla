@@ -30,7 +30,7 @@ function mockTransport(overrides: Record<string, unknown> = {}): Transport {
 	} as unknown as Transport;
 }
 
-// Drains the microtask queue so the fire-and-forget fetch chain settles.
+// drains the microtask queue so the fire-and-forget fetch chain settles
 async function flush(): Promise<void> {
 	for (let i = 0; i < 5; i++) {
 		await Promise.resolve();
@@ -85,8 +85,8 @@ describe('CardContextMenu', () => {
 			(getInternal(component).handlePlay as () => void)();
 			await flush();
 
-			// A failed fetch must not surface as an unhandled rejection; the menu was already
-			// dismissed optimistically and nothing is played.
+			// a failed fetch must not surface as an unhandled rejection; the menu was already
+			// dismissed optimistically and nothing is played
 			expect(play).not.toHaveBeenCalled();
 			expect(onDismiss).toHaveBeenCalled();
 		});

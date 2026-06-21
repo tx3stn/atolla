@@ -81,9 +81,9 @@ export class ScrobbleService {
 		const delta = nextProgress - currentPlay.lastProgressSeconds;
 
 		if (delta < 0) {
-			// A backward jump to the very start re-arms the track for a fresh listen; a mid-song
-			// scrub keeps the listening already accrued (and its scrobbleTriggered state) so a
-			// rewind doesn't discard progress toward the threshold or double-scrobble.
+			// a jump back to the very start re-arms for a fresh listen; a mid-song scrub keeps
+			// the accrued listening (and scrobbleTriggered) so a rewind doesn't discard
+			// progress or double-scrobble
 			const isTrackRestart = nextProgress < 1;
 			this.trackPlay = {
 				activeListenSeconds: isTrackRestart ? 0 : currentPlay.activeListenSeconds,

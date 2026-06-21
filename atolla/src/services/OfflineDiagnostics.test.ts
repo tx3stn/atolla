@@ -214,6 +214,6 @@ describe('serializeOfflineDiagnostics', () => {
 	});
 });
 
-// Reference the unused entry factories so imports stay meaningful as the report grows.
+// reference the unused entry types so imports stay meaningful as the report grows
 const _unusedTypes: [DownloadedArtistEntry?, DownloadedPlaylistEntry?, DownloadedGenreEntry?] = [];
 void _unusedTypes;

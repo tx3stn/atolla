@@ -23,12 +23,10 @@ import {
 const PROGRESS_POLL_INTERVAL_MS = 200;
 const STALL_DETECT_REMAINING_S = 1.5;
 const STALL_TIMEOUT_MS = 5000;
-// How far a streamed track must actually play forward before it's safe to release the
-// deferred cache/prefetch downloads. "Ready"/"playing" only means the buffer is just full
-// enough to start, with no cushion, so starting a competing full-file download at that instant
-// starves the shallow buffer and causes a brief pause right at the start. Measuring played
-// progress (not wall-clock) lets the stream build a cushion first, and holds off while a stall
-// keeps the position from advancing.
+// how far a streamed track must play forward before it's safe to release deferred cache/prefetch
+// downloads: "ready"/"playing" means the buffer is only just full enough to start, so a competing
+// full-file download at that instant starves it and causes a brief pause at the start
+// measuring played progress (not wall-clock) lets the stream build a cushion and holds off on stall
 const PLAYBACK_BUFFER_CUSHION_MS = 3000;
 
 export interface NativeAudioPlayerViewModel {
@@ -72,10 +70,9 @@ export class NativeAudioPlayer extends StatefulComponent<
 		const isActive = this.viewModel.isActive !== false;
 		const playbackRate = isActive && this.viewModel.playbackStore.isPlaying ? 1 : 0;
 		this.setState({ playbackRate });
-		// Suppress rate=0 if the store hasn't restored yet (empty track + not playing)
-		// to avoid pausing background playback before we know the intended state.
-		// Once setQueueStore restores isPlaying correctly, playbackRate will be 1
-		// if ExoPlayer is actively running and we'll send the right value.
+		// suppress rate=0 before the store restores (empty track + not playing) to avoid pausing
+		// background playback before we know the intended state; once isPlaying restores we send the
+		// right value
 		if (playbackRate > 0 || this.viewModel.playbackStore.track != null) {
 			this.safeSetPlaybackRate(playbackRate);
 		}
@@ -115,10 +112,9 @@ export class NativeAudioPlayer extends StatefulComponent<
 		const source = this.viewModel.playbackSourceUrl;
 		const next = this.viewModel.nextPlaybackSourceUrl ?? '';
 		if (!source || !this.viewModel.playbackStore.track) {
-			// Only clear if we have previously bound a source — that means the store IS
-			// loaded and the track was explicitly stopped. Without this guard,
-			// safeClearPlayback() fires on initial mount before the async store restore
-			// completes, destroying background playback that is still running natively.
+			// only clear once we've bound a source before (store loaded, track explicitly stopped);
+			// without this guard clear fires on cold mount before the async restore, destroying
+			// background playback still running natively
 			if (!this.viewModel.playbackStore.track && this.hasEverBoundSource) {
 				this.safeClearPlayback();
 			}
@@ -129,9 +125,8 @@ export class NativeAudioPlayer extends StatefulComponent<
 
 		if (source !== this.lastSourceUrl) {
 			const isReattach = !this.hasEverBoundSource;
-			// On cold restore with no active playback, skip configure so ExoPlayer isn't
-			// loaded with a stale source. The next onViewModelUpdate after the user taps
-			// play will still see source !== lastSourceUrl and configure normally.
+			// on cold restore with no active playback, skip configure so ExoPlayer isn't loaded with a
+			// stale source; the next onViewModelUpdate after the user taps play configures normally
 			if (isReattach && !this.viewModel.playbackStore.isPlaying) {
 				return;
 			}
@@ -152,24 +147,20 @@ export class NativeAudioPlayer extends StatefulComponent<
 			this.playbackStartPositionMs = -1;
 			this.stallDetectedAtMs = null;
 			this.configurePlayback(source, this.viewModel.nextPlaybackSourceUrl ?? null);
-			// Apply rate directly from store state — onViewModelUpdate fires synchronously
-			// during the parent's setState (before the PlaybackStore subscriber fires on
-			// NativeAudioPlayer), so we cannot rely on the subscriber having set any
-			// deferred rate field yet.
+			// apply rate from store state: onViewModelUpdate fires synchronously during the parent's
+			// setState, before the PlaybackStore subscriber runs, so no deferred rate field is set yet
 			const rate =
 				this.viewModel.isActive !== false && this.viewModel.playbackStore.isPlaying ? 1 : 0;
 			this.safeSetPlaybackRate(rate);
-			// Skip the initial seek when re-attaching to an already-running player
-			// (app remount while background playback was in progress) — ExoPlayer is
-			// already at the right position and seeking would cause a re-buffer stutter.
+			// skip the initial seek when re-attaching to an already-running player (remount during
+			// background playback): ExoPlayer is already positioned and seeking re-buffers (stutter)
 			if (!isReattach) {
 				this.applyInitialSeekForSource();
 			}
 			this.viewModel.onPlaybackEvent?.('source-bound');
 		} else if (next !== this.lastNextSourceUrl) {
-			// Only the gapless preload changed (e.g. playNext inserted a track) — update
-			// the native player's next source without seeking the current track, which would
-			// re-request the streaming URL and can cause a playback error.
+			// only the gapless preload changed (e.g. playNext inserted a track): update the next source
+			// without seeking the current track, which would re-request the URL and can error
 			this.lastNextSourceUrl = next;
 			this.configurePlayback(source, this.viewModel.nextPlaybackSourceUrl ?? null);
 		}
@@ -231,7 +222,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 		}
 	}
 
-	// Thin seam over the native bridge so tests can assert the args (notably allowBackwardRebuild).
+	// thin seam over the native bridge so tests can assert the args (notably allowBackwardRebuild)
 	private nativeConfigure(
 		sourceUrl: string,
 		currentTrackId: string,
@@ -306,26 +297,26 @@ export class NativeAudioPlayer extends StatefulComponent<
 
 	private syncProgressAndEvents(): void {
 		if (this.isDestroyed()) return;
-		// Reconcile to the engine's track and drain buffered transitions BEFORE reading position.
+		// reconcile to the engine's track and drain buffered transitions before reading position.
 		// On wake the store still points at the pre-background track; applying the engine's
 		// new-track position to the stale track would advance the store to the wrong track and
-		// push a stale source that rebuilds the native queue from 0 (audible as a restart).
+		// push a stale source that rebuilds the native queue from 0 (audible as a restart)
 		let resumedFromBackground = false;
 		this.viewModel.playbackStore.runBatched(() => {
 			this.reconcileStoreToNativeTrack();
 			const nativeAdvanced = this.drainNativePlaybackEvents();
-			// The engine auto-advanced while JS was frozen and is still playing, but the store
-			// caught up via a heuristic that can land on isPlaying=false (e.g. a queue-end
-			// branch). Follow the engine — it is the source of truth in the background — rather
-			// than pushing a stale paused state back onto a track that is actively playing. The
-			// nativeIsActive() gate keeps a genuine end-of-queue stop or a user pause untouched.
+			// engine auto-advanced while JS was frozen and is still playing, but the store may
+			// have caught up to isPlaying=false (e.g. a queue-end branch). follow the engine,
+			// the background source of truth, rather than pushing a stale paused state onto a
+			// playing track. the nativeIsActive() gate leaves a real end-of-queue stop or user
+			// pause untouched
 			if (nativeAdvanced && !this.viewModel.playbackStore.isPlaying && this.nativeIsActive()) {
 				this.viewModel.playbackStore.setPlaying(true);
 				resumedFromBackground = true;
 			}
 		});
-		// Reassert the rate directly: the store subscriber only pushes when the computed rate
-		// differs from state.playbackRate, which can be stale at 1 while the engine is paused.
+		// reassert the rate directly: the store subscriber only pushes when the computed rate
+		// differs from state.playbackRate, which can be stale at 1 while the engine is paused
 		if (resumedFromBackground && !this.isDestroyed()) {
 			this.safeSetPlaybackRate(1);
 		}
@@ -346,9 +337,9 @@ export class NativeAudioPlayer extends StatefulComponent<
 		this.checkForStall();
 	}
 
-	// Snaps the store to the engine's track/position when they diverge. Reads the track id
+	// snaps the store to the engine's track/position when they diverge. reads the track id
 	// directly rather than relying on the drained event queue, which drops its earliest entries
-	// (cap 128) over a long screen-off session. Aligns lastConfiguredTrackId so the same tick's
+	// (cap 128) over a long screen-off session. aligns lastConfiguredTrackId so the same tick's
 	// applyNativePosition guard accepts the engine position.
 	private reconcileStoreToNativeTrack(): void {
 		const nativeTrackId = this.readNativeCurrentTrackId();
@@ -401,9 +392,8 @@ export class NativeAudioPlayer extends StatefulComponent<
 
 			const jumpedTrackId = parseNativeAudioJumpedEvent(event);
 			if (jumpedTrackId) {
-				// Native moved to a different track outside the forward advance (previous
-				// button stepping back through its history) — follow it. jumpToTrackId is
-				// idempotent for duplicate/stale events.
+				// native moved outside the forward advance (e.g. the previous button); follow
+				// it. jumpToTrackId is idempotent for duplicate/stale events
 				DebugLogger.log('NativeAudioPlayer', 'event:jumped', { trackId: jumpedTrackId });
 				this.viewModel.playbackStore.jumpToTrackId(jumpedTrackId);
 				nativeAdvanced = true;
@@ -414,10 +404,9 @@ export class NativeAudioPlayer extends StatefulComponent<
 			if (completedEvent.isCompleted) {
 				nativeAdvanced = true;
 				if (completedEvent.finishedTrackId) {
-					// Carries the finished track, so reconcile against it directly —
-					// advancePastTrackId is idempotent for stale/duplicate completions,
-					// and several buffered events (background transitions) land on the
-					// correct track without step-counting.
+					// carries the finished track, so reconcile against it directly.
+					// advancePastTrackId is idempotent for stale/duplicate completions, so
+					// buffered background events land on the correct track without step-counting
 					DebugLogger.log('NativeAudioPlayer', 'event:completed', {
 						finishedTrackId: completedEvent.finishedTrackId,
 					});
@@ -478,20 +467,19 @@ export class NativeAudioPlayer extends StatefulComponent<
 			this.hasReportedProgressForSource = true;
 			this.viewModel.onPlaybackEvent?.('progress');
 		}
-		// Don't write a transient 0 before the engine has reported any forward motion for
-		// this source. While ExoPlayer prepares/buffers/seeks a freshly bound source
-		// getPositionMs() returns 0, which would flatten the intended starting progress
-		// (0 on a fresh play, or the restored position on resume) until real playback
-		// position arrives — causing the progress bar to flicker empty at track start.
+		// don't write a transient 0 before the engine reports forward motion for this
+		// source. while ExoPlayer prepares/buffers a freshly bound source getPositionMs()
+		// returns 0, which would flatten the starting progress (0 fresh, or restored on
+		// resume) until real position arrives and flicker the progress bar empty
 		if (!this.hasReportedProgressForSource) {
 			return;
 		}
-		// Guard: skip if the native player is still configured for a different
+		// skip if the native player is still configured for a different
 		// track (e.g. the 200ms tick fires between PlaybackStore.next() resetting
 		// progressSeconds to 0 and the Valdi render that reconfigures the player).
-		// Without this, the old track's position gets written into the new track's
+		// without this, the old track's position gets written into the new track's
 		// progressSeconds and applyInitialSeekForSource seeks to the wrong position,
-		// causing a native audio source error.
+		// causing a native audio source error
 		if (this.viewModel.playbackStore.track?.id !== this.lastConfiguredTrackId) {
 			return;
 		}
@@ -502,9 +490,9 @@ export class NativeAudioPlayer extends StatefulComponent<
 				? Math.min(positionSeconds, Math.max(0, trackDurationSeconds - 0.05))
 				: positionSeconds;
 		this.lastNativePositionSeconds = safePositionSeconds;
-		// Once the track has played a cushion forward from where it started (a fresh 0 or a
+		// once the track has played a cushion forward from where it started (a fresh 0 or a
 		// resumed offset), it's safe to release the deferred downloads: the stream has had time
-		// to buffer ahead. Measured against the first reported position so it tracks played
+		// to buffer ahead. measured against the first reported position so it tracks played
 		// progress rather than absolute position, so resuming mid-track still waits for a cushion.
 		const safePositionMs = safePositionSeconds * 1000;
 		if (this.playbackStartPositionMs < 0) {

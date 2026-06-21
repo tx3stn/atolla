@@ -130,7 +130,7 @@ function createRailStyle(trackColor: string, thickness: number): Style<View> {
 }
 
 function createFillStyle(accentColor: string): Style<View> {
-	// Width is intentionally omitted — set via ref in updateProgressRefs().
+	// width is intentionally omitted: set via ref in updateProgressRefs()
 	return new Style<View>({
 		alignItems: 'flex-end',
 		backgroundColor: accentColor,
@@ -142,7 +142,7 @@ function createFillStyle(accentColor: string): Style<View> {
 }
 
 function createPlayheadStyle(accentColor: string, thickness: number): Style<View> {
-	// Opacity is intentionally omitted — set via ref in updateProgressRefs().
+	// opacity is intentionally omitted: set via ref in updateProgressRefs()
 	const size = Math.max(10, thickness + 6);
 	return new Style<View>({
 		backgroundColor: accentColor,

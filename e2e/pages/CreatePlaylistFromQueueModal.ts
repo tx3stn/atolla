@@ -26,7 +26,7 @@ export class CreatePlaylistFromQueueModal extends BasePage {
 		await input.waitForDisplayed({ timeoutMsg: 'Timed out waiting for playlist name input' });
 		await input.click();
 		if (this.isAndroid()) {
-			// mobile: type fires onChange (unlike setValue, which bypasses the listener).
+			// mobile: type fires onChange, unlike setValue which bypasses the listener
 			await input.clearValue();
 			await this.driver.execute('mobile: type', { text: name });
 		} else {

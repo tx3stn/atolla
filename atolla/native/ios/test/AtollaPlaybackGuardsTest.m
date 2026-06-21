@@ -17,7 +17,7 @@
 }
 
 - (void)testWithinTheQuarterSecondBoundaryCountsAsEnded {
-    // Boundary is duration - 0.25s.
+    // boundary is duration - 0.25s
     XCTAssertTrue(AtollaIsItemAtEnd(179.80, 180.0));
     XCTAssertFalse(AtollaIsItemAtEnd(179.70, 180.0));
 }

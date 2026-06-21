@@ -42,8 +42,8 @@ const mockFormatCycle: Array<JellyfinMediaSource> = [
 	{ MediaStreams: [{ BitRate: 192000, Codec: 'vorbis', Type: 'Audio' }] },
 ];
 
-// Mirrors the library views' letter filter so fixtures behave like the server's
-// prefix filtering: a-z matches by leading letter, '0' matches leading-digit names.
+// mirrors the library views' letter filter so fixtures behave like the server's prefix
+// filtering: a-z matches by leading letter, '0' matches leading-digit names
 function matchesNamePrefix(name: string, startsWith: string | undefined): boolean {
 	const token = startsWith?.trim();
 	if (!token) {
@@ -64,13 +64,12 @@ export class MockTransport implements Transport {
 	private static readonly sampleAudioUrl =
 		'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
 
-	// In-memory reorder overrides so drag-to-reorder persists for the session without
-	// mutating the shared fixtures. Keyed by playlist id; holds the track id order.
+	// in-memory reorder overrides so drag-to-reorder persists for the session without
+	// mutating the shared fixtures. keyed by playlist id; holds the track id order
 	private readonly playlistItemOrder = new Map<string, Array<string>>();
 
-	// Ids of playlists created this session. Their track order lives in
-	// playlistItemOrder, so a created playlist resolves like a fixture one without
-	// needing a full Jellyfin fixture entry.
+	// ids of playlists created this session. their track order lives in playlistItemOrder,
+	// so a created playlist resolves like a fixture one without a full Jellyfin entry
 	private readonly createdPlaylists = new Set<string>();
 
 	async getAlbumsPage(

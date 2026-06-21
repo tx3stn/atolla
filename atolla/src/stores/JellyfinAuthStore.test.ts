@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test';
 import type { PersistentStore } from 'persistence/src/PersistentStore';
 import { InMemoryAuthStore, JellyfinAuthStore, type StoredAuthSession } from './JellyfinAuthStore';
 
-/** Minimal in-memory stand-in for the persistence layer's PersistentStore. */
 class MockPersistentStore {
 	readonly values = new Map<string, string>();
 

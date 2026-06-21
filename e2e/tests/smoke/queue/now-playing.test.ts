@@ -60,12 +60,12 @@ describe('now playing queue', () => {
 	});
 
 	it('restarts the track on previous mid-playback and goes back on a quick second tap', async () => {
-		// Previous follows the 3-second rule: more than 3s into the track the first tap
+		// previous follows the 3-second rule: more than 3s into the track the first tap
 		// restarts it (queue unchanged), and a quick follow-up tap steps back a track.
-		// Seek near the end to push progress past the threshold deterministically — a timed
+		// seek near the end to push progress past the threshold deterministically; a timed
 		// pause races the native player's progress reconciliation, which lags under parallel
-		// device load and leaves progress under 3s. The back-to tab is still open from the
-		// previous test.
+		// device load and leaves progress under 3s. the back-to tab is still open from the
+		// previous test
 		await nowPlaying.seekToNearEnd();
 		await nowPlaying.tapPrevious();
 		expect(await nowPlaying.firstBackToTrackName()).toBe(firstUpNextTrackName);
@@ -77,10 +77,10 @@ describe('now playing queue', () => {
 	});
 
 	it('jumps to a previously played track when its back-to row is tapped', async () => {
-		// Tapping a back-to row must move playback back to that track, which then leaves the
-		// back-to (history) list. The native backward-rebuild guard used to suppress the
+		// tapping a back-to row must move playback back to that track, which then leaves the
+		// back-to (history) list. the native backward-rebuild guard used to suppress the
 		// configure and the reconcile poll snapped the store straight back, so the row tap
-		// did nothing and the track stayed at the top of back-to.
+		// did nothing and the track stayed at the top of back-to
 		await nowPlaying.tapUpNextTab();
 		await nowPlaying.tapNext();
 
@@ -88,8 +88,8 @@ describe('now playing queue', () => {
 		const target = await nowPlaying.firstBackToTrackName();
 		await nowPlaying.tapFirstBackToRow();
 
-		// The regression moved the store then snapped it back on the next ~200ms reconcile,
-		// so let it settle before re-reading the history.
+		// the regression moved the store then snapped it back on the next ~200ms reconcile,
+		// so let it settle before re-reading the history
 		await browser.pause(1500);
 		expect(await nowPlaying.firstBackToTrackName()).not.toBe(target);
 	});

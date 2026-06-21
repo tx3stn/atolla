@@ -12,7 +12,7 @@ static const uint32_t kBlurOutputSize = 200;
     CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)imageData);
     if (!provider) return nil;
 
-    // Try PNG first, then JPEG — matches the palette bridge convention.
+    // try PNG first, then JPEG, matching the palette bridge convention
     CGImageRef image = CGImageCreateWithPNGDataProvider(provider, NULL, false, kCGRenderingIntentDefault);
     if (!image) {
         image = CGImageCreateWithJPEGDataProvider(provider, NULL, false, kCGRenderingIntentDefault);
@@ -23,7 +23,7 @@ static const uint32_t kBlurOutputSize = 200;
     const size_t width = CGImageGetWidth(image);
     const size_t height = CGImageGetHeight(image);
 
-    // Decode to RGBA bytes (kCGBitmapByteOrder32Big | kCGImageAlphaPremultipliedLast → RGBA in memory).
+    // decode to RGBA bytes (kCGBitmapByteOrder32Big | kCGImageAlphaPremultipliedLast → RGBA in memory)
     uint8_t *pixels_in = (uint8_t *)calloc(height * width * 4, 1);
     if (!pixels_in) { CGImageRelease(image); return nil; }
 
@@ -46,7 +46,7 @@ static const uint32_t kBlurOutputSize = 200;
                        pixels_out, kBlurOutputSize, kBlurOutputSize);
     free(pixels_in);
 
-    // Wrap output RGBA in a CGBitmapContext to produce a CGImage, then JPEG-encode.
+    // wrap output RGBA in a CGBitmapContext to produce a CGImage, then JPEG-encode
     CGColorSpaceRef outSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
     CGContextRef outCtx = CGBitmapContextCreate(
         pixels_out, kBlurOutputSize, kBlurOutputSize, 8, kBlurOutputSize * 4, outSpace,

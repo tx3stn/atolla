@@ -60,9 +60,9 @@ describe('TrackList', () => {
 		const title = labels.find((label) => label.getAttribute('value') === 'Very long track title');
 		const meta = labels.find((label) => label.getAttribute('value') === 'Very long metadata line');
 
-		// Title is unbounded (numberOfLines 0) so the full string is shown, never truncated.
+		// title is unbounded (numberOfLines 0) so the full string is shown, never truncated
 		expect(title?.getAttribute('numberOfLines')).toBe(0);
-		// The meta stays a single tail-ellipsised line.
+		// the meta stays a single tail-ellipsised line
 		expect(meta?.getAttribute('textOverflow')).toBe('ellipsis');
 		expect(meta?.getAttribute('numberOfLines')).toBe(1);
 	});
@@ -370,8 +370,8 @@ describe('TrackList', () => {
 			undefined,
 		);
 
-		// Lay the list out so rows have real, stacked frames — the path the bazel fallback
-		// (uniform synthetic slots) never exercises, and where the device drop must resolve.
+		// lay the list out so rows have real, stacked frames: the path the bazel fallback
+		// (uniform synthetic slots) never exercises, and where the device drop must resolve
 		await driver.performLayout({ height: 800, width: 320 });
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
@@ -382,7 +382,7 @@ describe('TrackList', () => {
 			(findView('track-row-drag-a-0')?.frame?.y ?? 0);
 		expect(rowHeight).toBeGreaterThan(0);
 
-		// Drag row 0 down two rows and release: it must land at index 2, not snap back.
+		// drag row 0 down two rows and release: it must land at index 2, not snap back
 		const rowZero = findView('track-row-drag-a-0');
 		const dropDeltaY = rowHeight * 2;
 		rowZero?.getAttribute('onDrag')?.(dragEvent({ deltaX: 0, deltaY: 0, state: 0, velocityY: 0 }));
@@ -429,7 +429,7 @@ describe('TrackList', () => {
 
 		// iOS arms on a handle long-press, then reads movement from the handle's touch stream:
 		// the synthesized deltaY (absoluteY - armedOriginY) must resolve against the
-		// list-relative slot tops.
+		// list-relative slot tops
 		const handleA = findView('track-row-edit-handle-a-0');
 		const originY = 200;
 		handleA?.getAttribute('onLongPress')?.(touchEventWith({ absoluteY: originY, state: 0 }));
@@ -550,7 +550,7 @@ describe('TrackList', () => {
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
 		);
 
-		// absoluteY 96 sits inside the bottom edge zone of a 0..100 viewport.
+		// absoluteY 96 sits inside the bottom edge zone of a 0..100 viewport
 		dragContainer?.getAttribute('onDrag')?.(
 			dragEvent({
 				absoluteY: 96,
@@ -563,10 +563,10 @@ describe('TrackList', () => {
 
 		expect(scrollCalls.length).toBeGreaterThan(0);
 		expect(scrollCalls[0]).toBeGreaterThan(0);
-		// Per-tick step is capped so a long, scrolled list doesn't fling past the finger.
+		// per-tick step is capped so a long, scrolled list doesn't fling past the finger
 		expect(scrollCalls[0]).toBeLessThanOrEqual(6);
 
-		// End the drag so the auto-scroll timer is cleared.
+		// end the drag so the auto-scroll timer is cleared
 		dragContainer?.getAttribute('onDrag')?.(
 			dragEvent({
 				absoluteY: 96,
@@ -612,11 +612,11 @@ describe('TrackList', () => {
 				(view) => view.getAttribute('accessibilityLabel') === 'track-row-edit-handle-track-1-0',
 			);
 
-			// Pressing the handle suspends the scroll so an up-drag moves the row instead of panning.
+			// pressing the handle suspends the scroll so an up-drag moves the row instead of panning
 			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 50, state: 0 }));
 			expect(scrollEnabledCalls).toEqual([false]);
 
-			// Lifting restores it.
+			// lifting restores it
 			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 50, state: 2 }));
 			expect(scrollEnabledCalls).toEqual([false, true]);
 		},
@@ -653,7 +653,7 @@ describe('TrackList', () => {
 			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
 		);
 
-		// Finger inside the bottom edge zone: the first move scrolls down.
+		// finger inside the bottom edge zone: the first move scrolls down
 		dragContainer?.getAttribute('onDrag')?.(
 			dragEvent({
 				absoluteY: 95,
@@ -666,7 +666,7 @@ describe('TrackList', () => {
 		const afterFirst = scrollCalls.length;
 		expect(afterFirst).toBeGreaterThan(0);
 
-		// Still in the bottom zone but now moving UP: must not add a downward scroll.
+		// still in the bottom zone but now moving up: must not add a downward scroll
 		dragContainer?.getAttribute('onDrag')?.(
 			dragEvent({
 				absoluteY: 80,
@@ -720,7 +720,7 @@ describe('TrackList', () => {
 			(findView('track-row-drag-a-0')?.frame?.y ?? 0);
 		expect(rowHeight).toBeGreaterThan(0);
 
-		// Drag the last row UP two rows and release: it must land at index 1, not go down.
+		// drag the last row up two rows and release: it must land at index 1, not go down
 		const rowThree = findView('track-row-drag-d-3');
 		const upDeltaY = -rowHeight * 2;
 		rowThree?.getAttribute('onDrag')?.(dragEvent({ deltaX: 0, deltaY: 0, state: 0, velocityY: 0 }));
@@ -823,8 +823,8 @@ describe('TrackList', () => {
 				}),
 			);
 
-			// Row one's drag was superseded by row two; its late end must not reorder
-			// nor steal the active selection from row two.
+			// row one's drag was superseded by row two; its late end must not reorder nor
+			// steal the active selection from row two
 			findView('track-row-drag-track-1-0')?.getAttribute('onDrag')?.(
 				dragEvent({
 					deltaX: 0,
@@ -867,7 +867,7 @@ describe('TrackList', () => {
 				dragEvent({ deltaX: 0, deltaY: 70, state: 1, velocityY: 0 }),
 			);
 
-			// Finger lifts: the handle's prompt touch end releases and commits the drag.
+			// finger lifts: the handle's prompt touch end releases and commits the drag
 			findView('track-row-edit-handle-track-1-0')?.getAttribute('onTouch')?.(
 				touchEventWith({
 					absoluteY: 80,
@@ -879,7 +879,7 @@ describe('TrackList', () => {
 				theme.colors.bg,
 			);
 
-			// The laggy row drag end arrives afterwards and must be a no-op.
+			// the laggy row drag end arrives afterwards and must be a no-op
 			dragContainer?.getAttribute('onDrag')?.(
 				dragEvent({ deltaX: 0, deltaY: 70, state: 2, velocityY: 90 }),
 			);
@@ -979,8 +979,8 @@ describe('TrackList', () => {
 
 			handle?.getAttribute('onLongPress')?.(touchEventWith({ absoluteY: 10, state: 0 }));
 			expect(row?.getAttribute('backgroundColor')).toBe('rgba(45,120,206,0.28)');
-			// zIndex must stay untouched mid-gesture: Valdi applies it by re-inserting
-			// the native view, which cancels the in-flight touch on iOS.
+			// zIndex must stay untouched mid-gesture: Valdi applies it by re-inserting the
+			// native view, which cancels the in-flight touch on iOS
 			expect(row?.getAttribute('zIndex')).toBeUndefined();
 
 			handle?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 52, state: 1 }));
@@ -1116,8 +1116,8 @@ describe('TrackList', () => {
 			const findView = (label: string) =>
 				views.find((view) => view.getAttribute('accessibilityLabel') === label);
 
-			// Arm and move row one, but its end signal never arrives (the ancestor scroll
-			// cancelled the touch mid-drag), leaving it highlighted with no release.
+			// arm and move row one, but its end signal never arrives (the ancestor scroll
+			// cancelled the touch mid-drag), leaving it highlighted with no release
 			findView('track-row-edit-handle-track-1-0')?.getAttribute('onLongPress')?.(
 				touchEventWith({
 					absoluteY: 10,
@@ -1132,8 +1132,8 @@ describe('TrackList', () => {
 			);
 			expect(findView('track-row-track-1-0')?.getAttribute('backgroundColor')).toBe(dragHighlight);
 
-			// Arming a different row must self-heal: row one releases and row two takes over,
-			// rather than the leaked selection blocking every future drag.
+			// arming a different row must self-heal: row one releases and row two takes over,
+			// rather than the leaked selection blocking every future drag
 			findView('track-row-edit-handle-track-2-1')?.getAttribute('onLongPress')?.(
 				touchEventWith({
 					absoluteY: 10,
@@ -1145,7 +1145,7 @@ describe('TrackList', () => {
 			);
 			expect(findView('track-row-track-2-1')?.getAttribute('backgroundColor')).toBe(dragHighlight);
 
-			// And the new drag completes normally.
+			// and the new drag completes normally
 			findView('track-row-edit-handle-track-2-1')?.getAttribute('onTouch')?.(
 				touchEventWith({
 					absoluteY: 90,

@@ -2,9 +2,8 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { DebugLogger } from '../../services/DebugLogger';
 
 export interface ErrorBoundaryViewModel {
-	// Changing this value clears a caught error and retries rendering the
-	// children. Pass a value that identifies the current content (e.g. the active
-	// track id) so the next track recovers from a previous render crash.
+	// changing this clears a caught error and retries rendering: pass an id for the current content
+	// (e.g. active track id) so the next track recovers from a previous render crash
 	resetKey?: string | number;
 }
 
@@ -12,10 +11,8 @@ interface ErrorBoundaryState {
 	hasError: boolean;
 }
 
-// Catches render exceptions thrown by descendants (Valdi unwinds to the nearest
-// ancestor implementing onError) and renders a fallback instead of crashing the
-// whole UI tree. Without a boundary, a single throw anywhere below tears down
-// the entire app in production builds.
+// Valdi unwinds a render exception to the nearest ancestor implementing onError; without a boundary
+// a single throw below tears down the entire app in production builds, so render a fallback instead
 export class ErrorBoundary extends StatefulComponent<ErrorBoundaryViewModel, ErrorBoundaryState> {
 	state: ErrorBoundaryState = { hasError: false };
 

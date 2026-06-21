@@ -1,12 +1,8 @@
 import type { Palette } from '../models/Color';
 import type { PaletteStore } from './ArtworkPaletteService';
 
-/**
- * A PaletteStore wrapper that makes writes fire-and-forget so callers
- * (ArtworkPaletteService.persistPalette) are not blocked waiting for disk.
- * Reads delegate synchronously to the inner store — on warm-up, palettes
- * load from disk without blocking subsequent calls.
- */
+// PaletteStore wrapper that makes writes fire-and-forget so callers (persistPalette)
+// aren't blocked waiting for disk
 export class WriteBehindPaletteStore implements PaletteStore {
 	private memory = new Map<string, Palette>();
 	private pendingWrites = new Map<string, Palette>();
@@ -74,7 +70,7 @@ export class WriteBehindPaletteStore implements PaletteStore {
 			try {
 				await job();
 			} catch {
-				// Best effort background writes.
+				// best effort background writes
 			}
 
 			await new Promise<void>((resolve) => {
@@ -103,7 +99,7 @@ export class WriteBehindPaletteStore implements PaletteStore {
 			try {
 				await this.inner.savePalette(imageUrl, palette);
 			} catch {
-				// Best effort background persistence.
+				// best effort background persistence
 			}
 			if (generation !== this.clearGeneration) {
 				return;

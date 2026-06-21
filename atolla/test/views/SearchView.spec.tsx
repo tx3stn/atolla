@@ -123,9 +123,9 @@ describe('SearchView', () => {
 		expect(component.state.results.albums).toEqual([]);
 	});
 
-	// These submit tests resolve an async search that calls setState; on the shared driver
+	// these submit tests resolve an async search that calls setState; on the shared driver
 	// renderer that re-enters ('Already rendering'), so they root-mount SearchView via
-	// InstrumentedComponentJSX, which renders on its own renderer like production.
+	// InstrumentedComponentJSX, which renders on its own renderer like production
 	valdiIt('submits search and stores recent terms', async () => {
 		const searchCalls: Array<string> = [];
 		const viewModel = {

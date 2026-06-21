@@ -83,11 +83,10 @@ interface AlbumsPageResult {
 const defaultPageSize = 100;
 const defaultSearchLimit = 100;
 
-// Maps a library letter-filter token to Jellyfin `/Items` query params so prefix
-// filtering happens server-side. Letters a-z become `nameStartsWith`; the '0'
-// bucket ("starts with a digit") maps to `nameLessThan: 'A'`, which returns every
-// item sorting before "A" (digits and symbols) — the client-side letter filter
-// then narrows that to leading-digit names.
+// maps a library letter-filter token to Jellyfin `/Items` query params so prefix
+// filtering happens server-side. letters a-z become `nameStartsWith`; the '0' bucket
+// ("starts with a digit") maps to `nameLessThan: 'A'`, returning everything sorting
+// before "A" (digits and symbols), which the client-side filter narrows to leading digits
 function nameFilterParams(
 	startsWith: string | undefined,
 ): Record<string, string | number | boolean | undefined> {
@@ -898,8 +897,8 @@ export class LiveTransport implements Transport {
 			Authorization: authHeader,
 			'X-Emby-Authorization': authHeader,
 		};
-		// Only emit the token header when it is a non-empty string — a native
-		// header map must never receive an `undefined`/`null` value.
+		// only emit the token header when it's a non-empty string; a native header map
+		// must never receive an undefined/null value
 		if (this.accessToken) {
 			headers['X-Emby-Token'] = this.accessToken;
 		}

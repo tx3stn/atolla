@@ -21,9 +21,7 @@ export class SearchPage extends BasePage {
 		} else {
 			try {
 				await this.driver.hideKeyboard();
-			} catch {
-				// keyboard not visible
-			}
+			} catch {}
 		}
 	}
 
@@ -32,8 +30,7 @@ export class SearchPage extends BasePage {
 		await input.waitForDisplayed({ timeoutMsg: 'Timed out waiting for search input' });
 		await input.click();
 		if (this.isAndroid()) {
-			// mobile: type fires onChange/TextWatcher events (unlike setValue which uses setText
-			// and bypasses the listener).
+			// mobile: type fires onChange/TextWatcher, unlike setValue which uses setText and bypasses the listener
 			await input.clearValue();
 			await this.driver.execute('mobile: type', { text: query });
 		} else {

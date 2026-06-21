@@ -5,7 +5,7 @@ import { fireAndForget, retryResolve } from './Async';
 describe('fireAndForget', () => {
 	it('swallows a rejected promise without throwing', async () => {
 		expect(() => fireAndForget('test', Promise.reject(new Error('boom')))).not.toThrow();
-		// Let the rejection settle; if it were unhandled the runtime would warn.
+		// let the rejection settle; if it were unhandled the runtime would warn
 		await new Promise((resolve) => setTimeout(resolve, 0));
 	});
 

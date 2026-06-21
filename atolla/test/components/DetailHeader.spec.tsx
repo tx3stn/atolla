@@ -25,8 +25,8 @@ describe('DetailHeader', () => {
 			.find((v) => v.getAttribute('accessibilityLabel') === 'detail-header-add-to-queue-button')
 			?.getAttribute('onTap')?.(touchEvent);
 
-		// The add-to-queue handler is async; let the awaited rejection settle so
-		// the catch block shows the toast.
+		// the add-to-queue handler is async; let the awaited rejection settle so the catch
+		// block shows the toast
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(toastService.getMessage()).toBe(Strings.addToQueueFailedToast());

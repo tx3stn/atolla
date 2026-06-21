@@ -17,7 +17,6 @@ const uniform = (count: number, height = 72): Array<RowSlot> => {
 	return slots;
 };
 
-// Mixed one-line (58) and two-line (76) rows, stacked with no gaps.
 const mixed = (heights: Array<number>): Array<RowSlot> => {
 	const slots: Array<RowSlot> = [];
 	let top = 0;
@@ -58,21 +57,18 @@ describe('resolveReorderTarget', () => {
 	});
 
 	it('uses real heights so a tall neighbour needs more travel than a short one', () => {
-		// row0 short (58), row1 tall (76), row2 short (58)
 		const slots = mixed([58, 76, 58]);
-		// dragging row0 down: centre starts at 29. row1 span is [58,134).
-		// 40px is not enough to enter the tall row1 (29+40=69 -> still... 69 in [58,134) -> target 1)
+		// row0 centre at 29, row1 span [58,134): 40px enters row1 (69)
 		expect(resolveReorderTarget(slots, 0, centre(slots, 0, 40))).toBe(1);
-		// 20px keeps it in slot0 [0,58): 29+20 = 49
+		// 20px keeps it in slot0 [0,58): 49
 		expect(resolveReorderTarget(slots, 0, centre(slots, 0, 20))).toBe(0);
 	});
 
 	it('moves a tall row down only once its centre clears the short row below', () => {
-		// row0 tall (76), row1 short (58), row2 short (58); tops at 0, 76, 134
 		const slots = mixed([76, 58, 58]);
-		// centre starts at 38; slot1 span is [76,134), so 30px is not enough (38+30=68 -> still slot0)
+		// row0 centre at 38, slot1 span [76,134): 30px stays in slot0 (68)
 		expect(resolveReorderTarget(slots, 0, centre(slots, 0, 30))).toBe(0);
-		// 50px clears into slot1 (38+50=88)
+		// 50px clears into slot1 (88)
 		expect(resolveReorderTarget(slots, 0, centre(slots, 0, 50))).toBe(1);
 	});
 });

@@ -243,14 +243,14 @@ object AtollaGaplessAudioEngine {
 	@Volatile private var playbackRate: Float = 0f
 	@Volatile private var volume: Float = 1f
 	@Volatile private var pendingSeekToMs: Long? = null
-	// Maintained by onIsPlayingChanged so isActive() never needs a main-thread round trip —
-	// the previous 50ms latch read returned false under main-thread load, making the JS
-	// queue restore believe playback was inactive while audio was audibly playing.
+	// maintained by onIsPlayingChanged so isActive() never needs a main-thread round trip; the
+	// previous 50ms latch read returned false under main-thread load, making the JS queue
+	// restore believe playback was inactive while audio was audibly playing
 	@Volatile private var isPlayingNow: Boolean = false
 
-	// Set just before an engine-initiated seekToNextMediaItem / seekToPreviousMediaItem so the
+	// set just before an engine-initiated seekToNextMediaItem / seekToPreviousMediaItem so the
 	// resulting SEEK-reason transition is classified as an advance or step-back (event +
-	// window maintenance + notification) rather than ignored.
+	// window maintenance + notification) rather than ignored
 	@Volatile private var expectingNativeSkip: Boolean = false
 	@Volatile private var expectingNativeStepBack: Boolean = false
 
@@ -275,23 +275,23 @@ object AtollaGaplessAudioEngine {
 		val hasNext: Boolean,
 	)
 
-	// Ordered window of the play queue around the current track ([history..., current,
-	// upcoming...]). Lets the engine keep topping up the ExoPlayer queue at each transition —
-	// forwards for gapless auto-advance and backwards for the previous button — so background
+	// ordered window of the play queue around the current track ([history..., current,
+	// upcoming...]). lets the engine keep topping up the ExoPlayer queue at each transition,
+	// forwards for gapless auto-advance and backwards for the previous button, so background
 	// playback survives multiple track boundaries while the JS runtime (and its 200ms event
-	// poll) is frozen. Immutable list, swapped as a whole so the main thread always reads a
+	// poll) is frozen. immutable list, swapped as a whole so the main thread always reads a
 	// consistent snapshot. windowAnchorHint is the engine's running cursor for the current
 	// track's position in the window: payload currentIndex on refresh, shifted per transition,
-	// re-verified against trackIds by resolveWindowAnchor before every use.
+	// re-verified against trackIds by resolveWindowAnchor before every use
 	@Volatile private var queueWindow: List<WindowTrack> = emptyList()
 	@Volatile private var windowAnchorHint: Int = 0
 	private const val lookaheadTargetAhead = 2
 	private const val historyTargetBehind = 10
 
-	// While a freshly-started remote track is filling its initial network buffer, hold back the
+	// while a freshly-started remote track is filling its initial network buffer, hold back the
 	// gapless next item / lookahead top-up so they don't compete for bandwidth and stutter the
-	// start of playback. Cleared (and the lookahead attached) once the current item reaches
-	// STATE_READY. See AtollaPlaybackGuards.shouldDeferLookaheadForSource.
+	// start of playback. cleared (and the lookahead attached) once the current item reaches
+	// STATE_READY. see AtollaPlaybackGuards.shouldDeferLookaheadForSource
 	@Volatile private var suppressLookahead: Boolean = false
 
 	private var exoPlayer: ExoPlayer? = null
@@ -327,9 +327,9 @@ object AtollaGaplessAudioEngine {
 			val finishedTrackId = sourceTrackId
 			Log.d(tag, "onMediaItemTransition $kind trackId=${mediaItem?.mediaId} finished=$finishedTrackId reason=$reason")
 			if (kind == AtollaPlaybackGuards.TransitionKind.ADVANCE) {
-				// Carry the finished trackId so JS can reconcile deterministically after being
+				// carry the finished trackId so JS can reconcile deterministically after being
 				// frozen across several transitions (it advances past the last finished id
-				// rather than counting events).
+				// rather than counting events)
 				enqueueEvent(if (finishedTrackId.isBlank()) "completed" else "completed:$finishedTrackId")
 			}
 			if (mediaItem != null) {
@@ -340,14 +340,14 @@ object AtollaGaplessAudioEngine {
 			nextSourceUrl = ""
 			nextTrackId = ""
 			nextDurationMs = 0L
-			// Any unapplied seek belonged to the track we just left; applying it to
-			// the new track would jump playback to an arbitrary position.
+			// any unapplied seek belonged to the track we just left; applying it to
+			// the new track would jump playback to an arbitrary position
 			pendingSeekToMs = null
 			if (kind == AtollaPlaybackGuards.TransitionKind.ADVANCE) {
 				windowAnchorHint += 1
 			} else {
 				windowAnchorHint = (windowAnchorHint - 1).coerceAtLeast(0)
-				// Tells JS which track is now current so the store can move backwards too.
+				// tells JS which track is now current so the store can move backwards too
 				if (sourceTrackId.isNotBlank()) {
 					enqueueEvent("jumped:$sourceTrackId")
 				}
@@ -404,8 +404,8 @@ object AtollaGaplessAudioEngine {
 			if (playbackState == Player.STATE_READY) {
 				enqueueEvent("loaded")
 				applyPendingSeekIfNeeded()
-				// The current track is buffered and playing now, so it's safe to attach the
-				// gapless next item / lookahead that was held back during the initial buffer.
+				// the current track is buffered and playing now, so it's safe to attach the
+				// gapless next item / lookahead that was held back during the initial buffer
 				if (suppressLookahead) {
 					suppressLookahead = false
 					exoPlayer?.let { attachLookahead(it) }
@@ -446,18 +446,18 @@ object AtollaGaplessAudioEngine {
 		this.nextDurationMs = nextDurationMs.coerceAtLeast(0L)
 
 		val capturedSourceUrl = currentSourceUrl
-		// Snapshot playbackRate now so the posted lambda uses the rate that was current when
-		// this configure() was called. Without a snapshot, the restore's lambda (posted with
-		// playbackRate=0) can read playbackRate=1 at execution time — after the user's
-		// setPlaybackRate(1) has already run on the JS thread — and mistakenly set
-		// playWhenReady=true on the stale/expired restored URL before ExoPlayer can load it.
+		// snapshot playbackRate now so the posted lambda uses the rate that was current when
+		// this configure() was called. without a snapshot, the restore's lambda (posted with
+		// playbackRate=0) can read playbackRate=1 at execution time, after the user's
+		// setPlaybackRate(1) has already run on the JS thread, and mistakenly set
+		// playWhenReady=true on the stale/expired restored URL before ExoPlayer can load it
 		val capturedPlaybackRate = playbackRate
 		mainHandler.post {
 			val player = ensurePlayer() ?: return@post
-			// A newer configure() call has already updated sourceUrl; its own lambda will run
-			// syncQueue() for the correct media. Running here would call replaceQueue() with
+			// a newer configure() call has already updated sourceUrl; its own lambda will run
+			// syncQueue() for the correct media. running here would call replaceQueue() with
 			// playWhenReady=true against the stale/expired URL and trigger an error + rapid
-			// reconfigure cycle that crashes ExoPlayer on some Android versions.
+			// reconfigure cycle that crashes ExoPlayer on some Android versions
 			if (sourceUrl != capturedSourceUrl) {
 				return@post
 			}
@@ -474,22 +474,22 @@ object AtollaGaplessAudioEngine {
 				player.playWhenReady = false
 				return@post
 			}
-			// If source changed since this call was made, configure()'s replaceQueue()
-			// will set playWhenReady once the correct media is loaded. Avoid touching
-			// the player here so we don't start streaming a stale/expired URL.
+			// if source changed since this call was made, configure()'s replaceQueue()
+			// will set playWhenReady once the correct media is loaded. avoid touching
+			// the player here so we don't start streaming a stale/expired URL
 			if (sourceUrl != capturedSourceUrl) {
 				return@post
 			}
 			player.setPlaybackParameters(PlaybackParameters(playbackRate))
 			// playWhenReady = true is a no-op once the player has reached STATE_ENDED
 			// (e.g. after an offline gapless transition reached end-of-queue). Seek back
-			// into the item first so the resume actually starts audio — otherwise the JS
-			// store shows "playing" but nothing plays until the user manually seeks.
+			// into the item first so the resume actually starts audio, otherwise the JS
+			// store shows "playing" but nothing plays until the user manually seeks
 			if (AtollaPlaybackGuards.shouldSeekToRecoverEndedState(player.playbackState)) {
 				player.seekToDefaultPosition()
 			}
-			// An errored player parks in STATE_IDLE where playWhenReady is equally a no-op
-			// without re-preparing the current media items.
+			// an errored player parks in STATE_IDLE where playWhenReady is equally a no-op
+			// without re-preparing the current media items
 			if (AtollaPlaybackGuards.shouldPrepareBeforeResume(player.playbackState)) {
 				player.prepare()
 			}
@@ -539,7 +539,7 @@ object AtollaGaplessAudioEngine {
 		return isPlayingNow
 	}
 
-	// Reads the @Volatile field directly (like isActive), no main-thread hop.
+	// reads the @Volatile field directly (like isActive), no main-thread hop
 	fun getCurrentTrackId(): String {
 		return sourceTrackId
 	}
@@ -562,10 +562,10 @@ object AtollaGaplessAudioEngine {
 		nextNotificationHasNext = hasNext
 	}
 
-	// Applies a media-session/notification transport action directly to the player so the
-	// controls stay responsive while the JS runtime is frozen in the background. The store
-	// reconciles afterwards through the engine event queue (play/pause-requested, and the
-	// skip's completed:<trackId> from the resulting transition).
+	// applies a media-session/notification transport action directly to the player so the
+	// controls stay responsive while the JS runtime is frozen. the store reconciles afterwards
+	// through the engine event queue (play/pause-requested, and the skip's completed:<trackId>
+	// from the resulting transition)
 	fun handleMediaAction(action: String) {
 		Log.d(tag, "handleMediaAction action=$action")
 		mainHandler.post {
@@ -642,8 +642,8 @@ object AtollaGaplessAudioEngine {
 			val currentIndex = root.optInt("currentIndex", 0)
 			val entries = mutableListOf<WindowTrack>()
 			for (index in 0 until entriesJson.length()) {
-				// Bail on malformed entries rather than skipping them — currentIndex is
-				// positional, so dropping an entry would misalign the whole window.
+				// bail on malformed entries rather than skipping them: currentIndex is
+				// positional, so dropping an entry would misalign the whole window
 				val entry = entriesJson.optJSONObject(index) ?: return Pair(emptyList(), 0)
 				val trackId = entry.optString("trackId", "")
 				if (trackId.isBlank()) {
@@ -671,8 +671,8 @@ object AtollaGaplessAudioEngine {
 		}
 	}
 
-	// The window entry describing the track the player is currently on, or null when the
-	// window doesn't know it. Also re-anchors windowAnchorHint as a side effect.
+	// the window entry describing the track the player is currently on, or null when the
+	// window doesn't know it. also re-anchors windowAnchorHint as a side effect
 	private fun currentWindowEntry(): WindowTrack? {
 		val window = queueWindow
 		if (window.isEmpty()) {
@@ -690,11 +690,11 @@ object AtollaGaplessAudioEngine {
 		return window[anchor]
 	}
 
-	// Aligns the ExoPlayer queue with the window around the current item: drops queued items
+	// aligns the ExoPlayer queue with the window around the current item: drops queued items
 	// that diverge from the window order (queue was reordered/edited), tops up to
 	// lookaheadTargetAhead items ahead for gapless auto-advance, and backfills up to
 	// historyTargetBehind items behind so the previous button can step back natively.
-	// Main thread only.
+	// main thread only
 	private fun ensureWindow(player: ExoPlayer) {
 		val window = queueWindow
 		if (window.isEmpty()) {
@@ -712,7 +712,7 @@ object AtollaGaplessAudioEngine {
 			return
 		}
 
-		// Drop forward items from the first divergence from the window order.
+		// drop forward items from the first divergence from the window order
 		var offset = 1
 		while (currentIndex + offset < player.mediaItemCount) {
 			val expectedId = windowIds.getOrNull(anchor + offset)
@@ -725,7 +725,7 @@ object AtollaGaplessAudioEngine {
 			offset += 1
 		}
 
-		// Drop history items once they diverge (walking backwards from current).
+		// drop history items once they diverge (walking backwards from current)
 		offset = 1
 		while (currentIndex - offset >= 0) {
 			val expectedId = windowIds.getOrNull(anchor - offset)
@@ -738,8 +738,8 @@ object AtollaGaplessAudioEngine {
 			offset += 1
 		}
 
-		// Top up ahead for gapless auto-advance — unless the lookahead is held back while the
-		// current remote track fills its initial buffer (see replaceQueue / suppressLookahead).
+		// top up ahead for gapless auto-advance, unless the lookahead is held back while the
+		// current remote track fills its initial buffer (see replaceQueue / suppressLookahead)
 		while (!suppressLookahead) {
 			val nowCurrent = player.currentMediaItemIndex
 			val ahead = player.mediaItemCount - 1 - nowCurrent
@@ -754,7 +754,7 @@ object AtollaGaplessAudioEngine {
 			player.addMediaItem(buildMediaItem(entry.sourceUrl, entry.trackId))
 		}
 
-		// Backfill history behind for native previous.
+		// backfill history behind for native previous
 		while (true) {
 			val behind = player.currentMediaItemIndex
 			if (behind >= historyTargetBehind) {
@@ -839,14 +839,14 @@ object AtollaGaplessAudioEngine {
 		val currentItemMatches = currentItem != null && mediaItemMatches(currentItem, sourceUrl, sourceTrackId)
 		val isEnded = player.playbackState == AtollaPlaybackGuards.STATE_ENDED
 		val isIdle = player.playbackState == AtollaPlaybackGuards.STATE_IDLE
-		// Take the fast-path (only update the gapless next item) ONLY when the current
-		// item matches AND the player is not ended/idle. If the player ended on this item
-		// (offline transition reached end-of-queue) or errored into idle, we must re-prepare
-		// it via replaceQueue, otherwise it would keep matching forever and never resume.
+		// take the fast-path (only update the gapless next item) only when the current item
+		// matches and the player isn't ended/idle. if the player ended on this item (offline
+		// transition reached end-of-queue) or errored into idle, we must re-prepare it via
+		// replaceQueue, otherwise it would keep matching forever and never resume
 		if (AtollaPlaybackGuards.shouldRebuildQueueForState(isEnded, isIdle, currentItemMatches)) {
-			// A pure source-mismatch rebuild during a wake race can yank a playing engine back to
-			// a stale earlier track. Suppress it and let JS reconcile forward; ended/idle still
-			// rebuild (they need a re-prepare).
+			// a pure source-mismatch rebuild during a wake race can yank a playing engine back to
+			// a stale earlier track. suppress it and let JS reconcile forward; ended/idle still
+			// rebuild (they need a re-prepare)
 			if (!isEnded && !isIdle) {
 				val windowIds = queueWindow.map { it.trackId }
 				val currentAnchor = AtollaPlaybackGuards.resolveWindowAnchor(
@@ -859,7 +859,7 @@ object AtollaGaplessAudioEngine {
 					Log.d(tag, "syncQueue: suppress backward rebuild requested=$requestedAnchor current=$currentAnchor trackId=$sourceTrackId")
 					// configure() already overwrote the source fields with the stale request;
 					// realign them to the item actually playing so getCurrentTrackId() and
-					// ensureWindow's anchor stay truthful (otherwise JS would re-reconcile backward).
+					// ensureWindow's anchor stay truthful (otherwise JS would re-reconcile backward)
 					sourceTrackId = currentItem?.mediaId ?: sourceTrackId
 					currentItem?.localConfiguration?.uri?.toString()?.let { sourceUrl = it }
 					ensureWindow(player)
@@ -889,9 +889,9 @@ object AtollaGaplessAudioEngine {
 			return
 		}
 
-		// A streamed current track must fill its initial network buffer alone — adding the
+		// a streamed current track must fill its initial network buffer alone; adding the
 		// gapless next item here makes ExoPlayer pre-buffer it in parallel and stutters the
-		// start. Hold the lookahead back until STATE_READY (see onPlaybackStateChanged).
+		// start, so hold the lookahead back until STATE_READY (see onPlaybackStateChanged)
 		suppressLookahead = AtollaPlaybackGuards.shouldDeferLookaheadForSource(sourceUrl)
 
 		Log.d(tag, "replaceQueue trackId=$sourceTrackId rate=$capturedPlaybackRate pendingSeek=$pendingSeekToMs suppressLookahead=$suppressLookahead")
@@ -912,9 +912,9 @@ object AtollaGaplessAudioEngine {
 		applyPendingSeekIfNeeded()
 	}
 
-	// Attaches the gapless next item and tops up the lookahead window after the initial
-	// suppression while a streamed track filled its first buffer. Mirrors the syncQueue
-	// fast-path tail. Main thread only.
+	// attaches the gapless next item and tops up the lookahead window after the initial
+	// suppression while a streamed track filled its first buffer. mirrors the syncQueue
+	// fast-path tail. main thread only
 	private fun attachLookahead(player: ExoPlayer) {
 		val currentIndex = player.currentMediaItemIndex
 		if (currentIndex >= 0 && currentIndex + 1 < player.mediaItemCount) {
@@ -952,8 +952,8 @@ object AtollaGaplessAudioEngine {
 		}
 	}
 
-	// Keeps at most historyTargetBehind played items in the queue so the previous button can
-	// step back natively without the queue growing unbounded.
+	// keeps at most historyTargetBehind played items in the queue so the previous button can
+	// step back natively without the queue growing unbounded
 	private fun trimExcessHistory() {
 		val player = exoPlayer ?: return
 		val excess = player.currentMediaItemIndex - historyTargetBehind
@@ -964,8 +964,8 @@ object AtollaGaplessAudioEngine {
 
 	private fun enqueueEvent(event: String) {
 		synchronized(eventQueue) {
-			// Sized for long screen-off sessions where every transition queues a completed
-			// event that JS only drains on wake.
+			// sized for long screen-off sessions where every transition queues a completed
+			// event that JS only drains on wake
 			if (eventQueue.size >= 128) {
 				eventQueue.removeFirst()
 			}
@@ -1037,8 +1037,8 @@ object AtollaTrackPlaybackNativeCache {
 	@Volatile
 	private var cacheMaxTracks = defaultMaxTracks
 
-	// Tracks which safeKeys are currently being downloaded to prevent duplicate
-	// concurrent downloads writing to the same temp file.
+	// tracks which safeKeys are currently downloading to prevent duplicate concurrent
+	// downloads writing to the same temp file
 	private val inProgressKeys = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
 	fun cacheTrackFromUrl(trackId: String, url: String, authToken: String): String {
@@ -1049,9 +1049,9 @@ object AtollaTrackPlaybackNativeCache {
 		val cacheDir = resolveCacheDir() ?: return ""
 		val safeKey = safeTrackKey(trackId)
 
-		// Check cache and clean up any stale files while holding the lock.
-		// Stale cleanup must happen here (before the temp file is created) because
-		// deleteExistingTrackFiles matches "$safeKey.*" which includes "$safeKey.tmp".
+		// check cache and clean up any stale files while holding the lock. stale cleanup must
+		// happen here (before the temp file is created) because deleteExistingTrackFiles matches
+		// "$safeKey.*" which includes "$safeKey.tmp"
 		synchronized(this) {
 			val existingFile = resolveExistingTrackFile(trackId)
 			if (existingFile != null && existingFile.exists() && existingFile.isFile) {
@@ -1061,13 +1061,13 @@ object AtollaTrackPlaybackNativeCache {
 			deleteExistingTrackFiles(cacheDir, safeKey)
 		}
 
-		// Prevent two threads from downloading the same track simultaneously.
+		// prevent two threads from downloading the same track simultaneously
 		if (!inProgressKeys.add(safeKey)) {
 			return ""
 		}
 
-		// Download without holding the object lock so that getCachedTrackFileUrl
-		// and other read operations are not blocked during slow network I/O.
+		// download without holding the object lock so getCachedTrackFileUrl and other reads
+		// aren't blocked during slow network I/O
 		return try {
 			val connection = (URL(url).openConnection() as HttpURLConnection).apply {
 				connectTimeout = 10_000
@@ -1111,8 +1111,8 @@ object AtollaTrackPlaybackNativeCache {
 				return ""
 			}
 
-			// Brief lock to finalize: rename temp to final location and prune cache.
-			// No deleteExistingTrackFiles here — stale files were already cleaned above.
+			// brief lock to finalize: rename temp to final location and prune cache.
+			// no deleteExistingTrackFiles here; stale files were already cleaned above
 			synchronized(this) {
 				val file = File(cacheDir, "$safeKey.$extension")
 				if (!tempFile.renameTo(file)) {
@@ -1402,7 +1402,7 @@ object AtollaDownloadedTrackNativeCache {
 				return ""
 			}
 
-			// No deleteExistingTrackFiles here — stale files were already cleaned above.
+			// no deleteExistingTrackFiles here; stale files were already cleaned above
 			synchronized(this) {
 				val file = File(cacheDir, "$safeKey.$extension")
 				if (!tempFile.renameTo(file)) {
@@ -1636,9 +1636,9 @@ object AtollaTrackPlaybackMediaSession {
 		publishNotificationSnapshot(context)
 	}
 
-	// Re-publishes the notification/media-session state with the stored metadata when the
+	// re-publishes the notification/media-session state with the stored metadata when the
 	// engine applies a transport action natively (JS may be frozen and unable to push an
-	// updated payload).
+	// updated payload)
 	@Synchronized
 	fun setPlaybackActive(isPlaying: Boolean, positionSeconds: Double) {
 		if (activeTrackName.isBlank()) {
@@ -1713,16 +1713,15 @@ object AtollaTrackPlaybackMediaSession {
 				actionStop -> "stop"
 				else -> return
 			}
-		// Transport actions drive the engine directly so the notification stays responsive
-		// while JS is frozen in the background; the JS store reconciles via engine events.
-		// Queuing them for the JS poll instead would leave the buttons dead and replay the
-		// stale taps when the app next opens.
+		// transport actions drive the engine directly so the notification stays responsive
+		// while JS is frozen; the JS store reconciles via engine events. queuing them for the
+		// JS poll instead would leave the buttons dead and replay stale taps on next open
 		if (AtollaPlaybackGuards.shouldHandleMediaActionNatively(mapped)) {
 			AtollaGaplessAudioEngine.handleMediaAction(mapped)
 			return
 		}
 		if (mapped == "stop") {
-			// Silence playback immediately; clearing the queue stays with JS on its next poll.
+			// silence playback immediately; clearing the queue stays with JS on its next poll
 			AtollaGaplessAudioEngine.handleMediaAction("pause")
 		}
 		if (pendingActions.size < 2) {
@@ -1833,7 +1832,7 @@ object AtollaTrackPlaybackMediaSession {
 				}
 
 				override fun onSeekTo(pos: Long) {
-				// Atolla app currently handles seek from its own UI.
+				// atolla handles seek from its own UI
 			}
 			},
 			Handler(Looper.getMainLooper()),
@@ -2050,9 +2049,9 @@ object AtollaTrackPlaybackMediaSession {
 			}
 
 			val notification = builder.build()
-			// Route through the foreground service so Android keeps the process
-			// alive when the screen is locked. manager.notify() alone is not
-			// sufficient — the OS will kill the process under background pressure.
+			// route through the foreground service so Android keeps the process alive when the
+			// screen is locked; manager.notify() alone isn't enough, the OS kills the process
+			// under background pressure
 			AtollaPlaybackService.ensureStartedWithNotification(context, notification)
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed posting media notification", error)
@@ -2098,13 +2097,13 @@ object AtollaTrackPlaybackMediaSession {
 
 	private fun cancelNotification() {
 		try {
-			// Stopping the service removes the foreground notification automatically.
+			// stopping the service removes the foreground notification automatically
 			AtollaPlaybackService.stopIfRunning()
 		} catch (_: Throwable) {
 			// ignored
 		}
 		try {
-			// Fallback: cancel via NotificationManager in case the service never started.
+			// fallback: cancel via NotificationManager in case the service never started
 			notificationManager?.cancel(notificationId)
 		} catch (_: Throwable) {
 			// ignored
@@ -2118,10 +2117,10 @@ object AtollaTrackPlaybackMediaSession {
 
 		val session = mediaSession ?: return
 		try {
-			// Set inactive so the system stops showing media controls, but keep the
-			// session alive so any in-flight callbacks can still dispatch their action.
-			// State/metadata are refreshed by updateMediaState/updateMediaMetadata when
-			// the next track calls publishNotificationSnapshot.
+			// set inactive so the system stops showing media controls, but keep the session
+			// alive so any in-flight callbacks can still dispatch their action. state/metadata
+			// are refreshed by updateMediaState/updateMediaMetadata when the next track calls
+			// publishNotificationSnapshot
 			session.isActive = false
 		} catch (_: Throwable) {
 			// ignored

@@ -13,13 +13,11 @@ export class ArtworkPaletteService {
 
 	constructor(private store: PaletteStore) {}
 
-	// Number of palettes currently held in the in-memory cache.
 	get cacheSize(): number {
 		return this.cache.size;
 	}
 
-	// Returns the extracted palette for the given artwork URL, or undefined if extraction
-	// has not yet completed. Always returns synchronously.
+	// palette for an artwork URL, or undefined if extraction hasn't finished; always sync
 	getPalette(imageUrl: string | null | undefined): Palette | undefined {
 		if (!imageUrl) return undefined;
 		const cached = this.cache.get(imageUrl);
@@ -32,13 +30,11 @@ export class ArtworkPaletteService {
 		return this.cache.has(imageUrl);
 	}
 
-	// Subscribe to palette updates. Returns an unsubscribe function.
 	subscribe(listener: () => void): () => void {
 		this.listeners.add(listener);
 		return () => this.listeners.delete(listener);
 	}
 
-	// Load persisted palettes for the given artwork URLs (call on startup).
 	async warmUp(imageUrls: Array<string>): Promise<void> {
 		await Promise.all(
 			imageUrls.map(async (url) => {

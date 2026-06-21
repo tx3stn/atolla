@@ -30,8 +30,8 @@
             count += 1;
             bytes += size.longLongValue;
             NSString *name = file.lastPathComponent;
-            // Filename format: {category}_{sha256_64_hex}. SHA-256 is always 64 hex chars, so strip
-            // the trailing 65 chars (underscore + hash); anything left is the category.
+            // filename format: {category}_{sha256_64_hex}. SHA-256 is always 64 hex chars, so
+            // strip the trailing 65 chars (underscore + hash); the rest is the category
             if (name.length < 66) continue;
             NSString *category = [name substringToIndex:name.length - 65];
             if (category.length > 0) counts[category] = @(counts[category].intValue + 1);

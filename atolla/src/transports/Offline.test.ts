@@ -126,7 +126,7 @@ describe('OfflineTransport', () => {
 						album: { artistId: 'artist-1', id: 'album-x' },
 						artistLogoUrl: '',
 						trackIds: [],
-						// Simulates a legacy/incomplete persisted album missing name + artistName.
+						// simulates a legacy/incomplete persisted album missing name + artistName
 					} as unknown as DownloadedAlbumEntry,
 				],
 			}) as never,

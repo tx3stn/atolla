@@ -20,9 +20,9 @@ export const rowRippleStyle = new Style({
 	zIndex: 2,
 });
 
-// Two-phase press ripple for rectangular rows/buttons: a quick impact spot at the centre of
-// the pressed surface that expands to fill it while fading out. Returns the animation promise
-// so callers can defer their press action until the ripple has played.
+// two-phase press ripple for rectangular rows/buttons: a quick impact spot at the centre
+// of the pressed surface that expands to fill it while fading out. returns the animation
+// promise so callers can defer their press action until the ripple has played
 export function animateRowRipple(
 	component: RippleAnimator,
 	ref: RippleElementRef,

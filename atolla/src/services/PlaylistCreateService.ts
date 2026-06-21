@@ -36,7 +36,7 @@ export class PlaylistCreateService {
 				}
 			}
 		} catch {
-			// storage empty or invalid — keep whatever is in memory
+			// storage empty or invalid, keep whatever is in memory
 		}
 		await this.persist();
 	}

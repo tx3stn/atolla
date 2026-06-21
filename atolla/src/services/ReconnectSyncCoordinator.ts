@@ -15,8 +15,8 @@ export interface SyncResult extends SyncProgress {
 	playlistEditErrors: Array<PlaylistEditError>;
 }
 
-// Narrow structural interfaces (DI-friendly, testable without the concrete
-// services or Valdi). Each captures only the methods the coordinator touches.
+// narrow structural interfaces (DI-friendly, testable without the real services);
+// each captures only the methods the coordinator touches
 interface PlaylistCreateLike {
 	flush(transport: Transport): Promise<{
 		errors: Array<{ error: string; name: string }>;
@@ -58,12 +58,9 @@ export interface ReconnectSyncDeps {
 	scrobbleService: ScrobbleLike;
 }
 
-// Orchestrates the deferred work that should run when the app reconnects
-// (offline -> online): flushing queued playlist creates/edits, retrying pending
-// scrobbles, and resuming downloads. Every step is individually guarded and the
-// returned promise NEVER rejects, so a failing flush can never become an
-// unhandled rejection that crashes the toggle. Progress is reported as each
-// step settles so the UI can show what is happening.
+// runs deferred work on reconnect (offline -> online): flush queued playlist
+// creates/edits, retry pending scrobbles, resume downloads. each step is guarded
+// and the returned promise never rejects, so a failing flush can't crash the toggle
 export class ReconnectSyncCoordinator {
 	private readonly deps: ReconnectSyncDeps;
 
@@ -78,16 +75,15 @@ export class ReconnectSyncCoordinator {
 		const { playlistCreateService, playlistEditService, scrobbleService, downloadService } =
 			this.deps;
 
-		// Resume downloads in the background. Downloads are long-running content
-		// fetches, not quick mutation sync, so they are kicked off but not part of
-		// the progress denominator.
+		// resume downloads in the background: long-running fetches, so kicked off
+		// but not counted in the progress denominator
 		try {
 			downloadService.onAppReady();
 		} catch {
-			// best effort — never let a download resume failure surface
+			// best effort: never let a download resume failure surface
 		}
 
-		// Snapshot pending work up-front so progress has a stable denominator.
+		// snapshot pending work up-front so progress has a stable denominator
 		const createBefore = await this.safeCount(async () => {
 			await playlistCreateService.load();
 			return playlistCreateService.getPending().length;
@@ -106,7 +102,7 @@ export class ReconnectSyncCoordinator {
 		};
 
 		if (total === 0) {
-			// Nothing to sync — leave the UI untouched (no banner).
+			// nothing to sync: leave the UI untouched (no banner)
 			return { completed, failed, playlistEditErrors, status: 'done', total };
 		}
 
@@ -142,9 +138,8 @@ export class ReconnectSyncCoordinator {
 		}
 		emit('syncing');
 
-		// Scrobbles retry via the service's own delivery closure (which reads the
-		// now-live transport). Undelivered ones stay queued for a later retry; for
-		// this window we count them as not-yet-synced.
+		// scrobbles retry via the service's own delivery closure; undelivered ones
+		// stay queued and count as not-yet-synced for this window
 		try {
 			await scrobbleService.onAppReady();
 			const after = scrobbleService.getPendingScrobbles().length;

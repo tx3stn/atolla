@@ -72,7 +72,7 @@ describe('TrackPlaybackNativePrefetchQueue', () => {
 			(trackId) => cached.has(trackId),
 			(trackId, _url, onComplete) => {
 				attemptedTrackIds.push(trackId);
-				// Intentionally never call onComplete for the first track — simulates a hung native op.
+				// never call onComplete for the first track: simulates a hung native op
 				if (trackId !== 'hung') {
 					cached.add(trackId);
 					onComplete(`file:///tmp/${trackId}.mp3`);
@@ -80,11 +80,11 @@ describe('TrackPlaybackNativePrefetchQueue', () => {
 			},
 		);
 
-		// First queue — 'hung' will stall inProgress indefinitely.
+		// 'hung' will stall inProgress indefinitely
 		queue.replaceQueue([createTrack('hung')], 0);
 		await waitFor(() => attemptedTrackIds.includes('hung'));
 
-		// Replace with a new queue while inProgress is stuck.
+		// replace queue while inProgress is stuck
 		queue.replaceQueue([createTrack('x'), createTrack('y')], 0);
 		await waitFor(() => attemptedTrackIds.includes('x') && attemptedTrackIds.includes('y'));
 
@@ -121,7 +121,7 @@ describe('TrackPlaybackNativePrefetchQueue', () => {
 			(trackId) => cached.has(trackId),
 			(trackId, _url, onComplete) => {
 				if (trackId === 'stale') {
-					// Hold the callback — simulates a slow native operation that completes late.
+					// hold the callback; simulates a slow native op that completes late
 					pendingCallback = onComplete;
 				} else {
 					cached.add(trackId);
@@ -131,19 +131,19 @@ describe('TrackPlaybackNativePrefetchQueue', () => {
 			(trackId) => storedTrackIds.push(trackId),
 		);
 
-		// Start 'stale' — its cacheTrack callback is held.
+		// start 'stale'; its cacheTrack callback is held
 		queue.replaceQueue([createTrack('stale')], 0);
 		await waitFor(() => pendingCallback !== null);
 
-		// Replace with a new queue while 'stale' is in flight.
+		// replace the queue while 'stale' is in flight
 		queue.replaceQueue([createTrack('x'), createTrack('y')], 0);
 		await waitFor(() => storedTrackIds.includes('x') && storedTrackIds.includes('y'));
 
-		// Fire the stale callback — should be a no-op for the new generation.
+		// fire the stale callback; should be a no-op for the new generation
 		// biome-ignore lint/style/noNonNullAssertion: set above
 		pendingCallback!('file:///tmp/stale.mp3');
 
-		// Give any unintended side-effects a chance to settle.
+		// give any unintended side-effects a chance to settle
 		await new Promise((resolve) => setTimeout(resolve, 20));
 
 		expect(storedTrackIds).not.toContain('stale');

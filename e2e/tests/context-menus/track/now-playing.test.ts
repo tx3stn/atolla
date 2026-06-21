@@ -100,10 +100,10 @@ function shouldSkip(): boolean {
 	return maxInstances > 1;
 }
 
-// Opens the now playing context menu on the first up-next track whose artist differs from
-// the currently playing track — the exact condition the bug regressed on (the modal used the
-// playing track's artist/album instead of the selected one). Returns the selected track's
-// artist and title so the caller can assert where the modal links navigate.
+// opens the now playing context menu on the first up-next track whose artist differs from
+// the currently playing track, the exact condition the bug regressed on (the modal used the
+// playing track's artist/album instead of the selected one). returns the selected track's
+// artist and title so the caller can assert where the modal links navigate
 async function openModalOnDifferentArtistRow(
 	playingArtist: string,
 ): Promise<{ artist: string; trackTitle: string }> {

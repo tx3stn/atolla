@@ -8,15 +8,14 @@ import { syncStatusBannerText } from './syncStatusBannerText';
 
 export interface SyncStatusBannerViewModel {
 	completed: number;
-	// Invoked when a partial-sync banner is tapped (e.g. to show failure detail).
+	// invoked when a partial-sync banner is tapped (e.g. to show failure detail)
 	onTap?: () => void;
 	status: SyncStatus;
 	total: number;
 }
 
-// A small pill anchored just below the header's connectivity toggle that shows
-// the progress of work flushed when reconnecting (playlist edits, scrobbles).
-// Styling comes entirely from the theme.
+// a small pill below the header's connectivity toggle showing the progress of work
+// flushed when reconnecting (playlist edits, scrobbles). styling comes from the theme
 export class SyncStatusBanner extends Component<SyncStatusBannerViewModel> {
 	private handleTap = (): void => {
 		this.viewModel.onTap?.();

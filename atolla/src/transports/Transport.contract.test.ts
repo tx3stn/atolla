@@ -92,8 +92,8 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 				expect(prefixOf(album.name)).toBe(albumPrefix);
 			});
 
-			// The prefix filter must not change the shape of the result set type for
-			// artists/playlists either — exercise them so every transport honours the arg.
+			// the prefix filter must not change the shape of the result set type for
+			// artists/playlists either; exercise them so every transport honours the arg
 			await transport.getArtistsPage(1, 50, { startsWith: prefixOf(artists[0].name) });
 			await transport.getPlaylistsPage(1, 50, { startsWith: prefixOf(playlists[0].name) });
 		});

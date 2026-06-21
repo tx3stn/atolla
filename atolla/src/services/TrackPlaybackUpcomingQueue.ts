@@ -19,20 +19,18 @@ export interface QueueWindowPayload {
 	entries: Array<QueueWindowEntry>;
 }
 
-// Bounds how far in each direction sources (and their streaming URLs) are pre-resolved for
-// the native window buffer. Forward depth is the screen-off runway: the engine can only
-// auto-advance through tracks it already knows about while the JS runtime is frozen.
+// how far in each direction sources are pre-resolved for the native window. forward
+// depth is the screen-off runway: the engine can only auto-advance through tracks it
+// already knows while the JS runtime is frozen
 export const QUEUE_WINDOW_FORWARD = 25;
 export const QUEUE_WINDOW_HISTORY = 10;
 
 type QueueWindowStore = Pick<PlaybackStore, 'loopMode' | 'trackIndex' | 'tracks'>;
 
-// Builds the ordered window of the play queue around the current track ([history...,
-// current, upcoming...]) that the native audio engine uses to keep auto-advancing forwards
-// (gapless) and stepping backwards (previous button) while the JS runtime is frozen in the
-// background. Each direction stops at the first track without a resolvable source — the
-// engine cannot play past a gap. The current entry is always included (it anchors
-// currentIndex), even when its source cannot be resolved.
+// builds the ordered window around the current track ([history, current, upcoming])
+// the native engine uses to keep auto-advancing (gapless) and stepping back while JS
+// is frozen. each direction stops at the first track with no resolvable source (can't
+// play past a gap). the current entry is always included; it anchors currentIndex
 export function buildPlaybackQueueWindow(
 	store: QueueWindowStore,
 	resolveSource: (trackId: string) => string | null,

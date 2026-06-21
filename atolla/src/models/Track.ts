@@ -18,9 +18,7 @@ export interface Track {
 	trackNumber?: number;
 }
 
-// Resolves the year a track was released, preferring the explicit production
-// year and falling back to the leading YYYY of the release date. Returns null
-// when neither is present so callers can skip undated tracks.
+// prefers productionYear, falls back to the leading YYYY of releaseDate; null when undated so callers can skip
 export function trackReleaseYear(track: Track): number | null {
 	if (track.productionYear != null) {
 		return track.productionYear;
@@ -34,10 +32,7 @@ export function trackReleaseYear(track: Track): number | null {
 	return null;
 }
 
-// Normalises fields that must be safe for the audio engine and UI layer.
-// Apply at every track ingestion point (store, queue restore) so downstream
-// code never has to guard against NaN durations or empty names.
-// Preserves the original array and object references when no changes are needed.
+// apply at every track ingestion point so downstream never guards against NaN durations or empty names; preserves references when unchanged
 export function sanitizeTracks(tracks: Array<Track>): Array<Track> {
 	let changed = false;
 	const result = tracks.map((t) => {

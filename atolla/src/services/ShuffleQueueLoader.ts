@@ -14,13 +14,13 @@ type FetchPage = (
 
 const PREFETCH_THRESHOLD = 10;
 
-// How many recently-queued track ids to remember for de-duping. Jellyfin's Random sort
-// reshuffles on every request, so consecutive pages overlap; we drop tracks seen within the
-// last few pages so the queue doesn't obviously repeat. Far-apart repeats are acceptable.
+// how many recently-queued ids to remember for de-duping. Jellyfin's Random sort
+// reshuffles every request, so consecutive pages overlap; dropping tracks seen in
+// the last few pages stops obvious repeats (far-apart repeats are fine)
 const DEDUPE_WINDOW_PAGES = 4;
 
-// A page can come back entirely de-duped (every track was recently queued). Since nothing is
-// added, the store won't notify us to try again, so we re-fetch a bounded number of times.
+// a page can come back fully de-duped; since nothing is added the store won't
+// notify us to retry, so we re-fetch a bounded number of times
 const MAX_EMPTY_PAGE_RETRIES = 3;
 
 export const SHUFFLE_PAGE_SIZE = 50;
@@ -45,9 +45,8 @@ export class ShuffleQueueLoader {
 	}
 
 	start(nextPage: number, hasMore: boolean): void {
-		// Reset all per-shuffle state so a restart (a fresh shuffle) de-dupes from scratch rather
-		// than against the previous shuffle's tracks, drops the old subscription, and invalidates
-		// any in-flight fetch.
+		// reset per-shuffle state so a fresh shuffle de-dupes from scratch, drops the old
+		// subscription, and invalidates any in-flight fetch
 		this.unsubscribe?.();
 		this.generation += 1;
 		this.isFetching = false;
@@ -56,8 +55,7 @@ export class ShuffleQueueLoader {
 		this.recentOrder.length = 0;
 		this.nextPage = nextPage;
 		this.hasMore = hasMore;
-		// Seed the de-dupe window with the already-queued tracks (page 1) so the next page
-		// doesn't simply repeat them.
+		// seed the de-dupe window with the already-queued tracks so the next page doesn't repeat them
 		for (const track of this.store.tracks.slice(-this.dedupeWindow)) {
 			this.remember(track.id);
 		}
@@ -71,8 +69,8 @@ export class ShuffleQueueLoader {
 		this.unsubscribe = null;
 	}
 
-	// Records an id in the recently-seen window, evicting the oldest once the window is full so a
-	// track that hasn't been queued for a few pages can appear again.
+	// record an id in the recently-seen window, evicting the oldest when full so a
+	// track unseen for a few pages can appear again
 	private remember(id: string): void {
 		if (this.seenIds.has(id)) {
 			return;
@@ -127,8 +125,8 @@ export class ShuffleQueueLoader {
 					this.emptyPageRetries = 0;
 					this.store.addToQueue(fresh);
 				} else if (this.hasMore && this.emptyPageRetries < MAX_EMPTY_PAGE_RETRIES) {
-					// The whole page was already queued, so adding nothing means the store won't
-					// notify us to retry — advance to the next page ourselves.
+					// whole page was already queued, so nothing was added and the store won't
+					// notify us; advance to the next page ourselves
 					this.emptyPageRetries += 1;
 					this.onStoreChange();
 				}

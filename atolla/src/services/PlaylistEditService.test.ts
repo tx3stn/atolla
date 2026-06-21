@@ -200,7 +200,6 @@ describe('PlaylistEditService', () => {
 				type: 'remove',
 			});
 
-			// op should NOT have been queued for retry
 			const { removeCalls, transport } = createTransportMock();
 			await service.flush(transport);
 			expect(removeCalls).toHaveLength(0);
@@ -285,12 +284,10 @@ describe('PlaylistEditService', () => {
 			type: 'move',
 		});
 
-		// Wait for enqueue to finish persisting
 		const emptyTransport = {} as unknown as Transport;
 		await service1.flush(emptyTransport);
 
-		// A new service instance using the same underlying store should have no pending ops
-		// because flush cleared them
+		// new instance on the same store has no pending ops because flush cleared them
 		const service2 = new PlaylistEditService(store);
 		const { moveCalls, transport } = createTransportMock();
 		await service2.flush(transport);
@@ -509,12 +506,10 @@ describe('PlaylistEditService', () => {
 			type: 'move',
 		});
 
-		// Drain the enqueue promise by awaiting a no-op flush that won't clear (no transport methods)
-		// Just wait for the chain to settle by accessing the chain indirectly
+		// let the enqueue persistence chain settle
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
-		// Now a new service from the same store should see the pending op
 		const service2 = new PlaylistEditService(store);
 		const { moveCalls, transport } = createTransportMock();
 		await service2.flush(transport);

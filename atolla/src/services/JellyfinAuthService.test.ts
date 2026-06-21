@@ -2,8 +2,6 @@ import { describe, expect, it } from 'bun:test';
 import { AuthErrors } from '../errors/AuthErrors';
 import { type AuthSession, JellyfinAuthService } from './JellyfinAuthService';
 
-// --- Helpers ---
-
 interface MockHTTPResponse {
 	body?: Uint8Array;
 	headers: Record<string, string>;
@@ -74,8 +72,6 @@ const validSession = {
 	serverUrl: 'https://demo.jellyfin.local',
 	userId: 'user-1',
 };
-
-// --- Tests ---
 
 describe('URL normalization', () => {
 	it('adds https:// when no scheme is present', async () => {

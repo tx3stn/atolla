@@ -12,7 +12,7 @@ function album(overrides: Partial<Album>): Album {
 	};
 }
 
-const today = new Date(2024, 5, 15); // 15 June 2024 (local)
+const today = new Date(2024, 5, 15); // 15 June 2024, local
 
 describe('matchOnThisDay', () => {
 	it('matches the same month/day in an earlier year', () => {
@@ -79,7 +79,7 @@ describe('createOnThisDayCardDetails', () => {
 			lineTwo: 'Bravo',
 		});
 		expect(cards[1].lineOne).toBe('14 YEARS AGO');
-		expect(cards[1].artworkKey).toBe(''); // no imageUrl
+		expect(cards[1].artworkKey).toBe('');
 	});
 
 	it('uses singular YEAR for a one-year anniversary', () => {
@@ -105,7 +105,7 @@ describe('createOnThisDayCardDetails', () => {
 			album({ id: 'no-date' }),
 			album({ id: 'blank-name', name: '   ', releaseDate: '2010-06-15T12:00:00Z' }),
 			album({ artistName: '', id: 'blank-artist', releaseDate: '2010-06-15T12:00:00Z' }),
-			// name intentionally absent at runtime — must be skipped, not throw.
+			// name intentionally absent at runtime: must be skipped, not throw
 			album({
 				id: 'null-name',
 				name: undefined as unknown as string,

@@ -7,8 +7,6 @@ import org.junit.Test
 
 class AtollaPlaybackGuardsTest {
 
-	// --- shouldEmitPauseForReason ---
-
 	@Test
 	fun `audio becoming noisy emits pause-requested`() {
 		assertTrue(AtollaPlaybackGuards.shouldEmitPauseForReason(AtollaPlaybackGuards.REASON_AUDIO_BECOMING_NOISY))
@@ -18,8 +16,6 @@ class AtollaPlaybackGuardsTest {
 	fun `audio focus loss does not emit pause-requested`() {
 		assertFalse(AtollaPlaybackGuards.shouldEmitPauseForReason(AtollaPlaybackGuards.REASON_AUDIO_FOCUS_LOSS))
 	}
-
-	// --- shouldPreserveServiceOnClear ---
 
 	@Test
 	fun `clear notification preserves foreground service while audio is active`() {
@@ -31,8 +27,6 @@ class AtollaPlaybackGuardsTest {
 		assertFalse(AtollaPlaybackGuards.shouldPreserveServiceOnClear(isAudioActive = false))
 	}
 
-	// --- shouldSeekToRecoverEndedState ---
-
 	@Test
 	fun `ended state requires a seek before resume takes effect`() {
 		assertTrue(AtollaPlaybackGuards.shouldSeekToRecoverEndedState(AtollaPlaybackGuards.STATE_ENDED))
@@ -40,13 +34,11 @@ class AtollaPlaybackGuardsTest {
 
 	@Test
 	fun `non-ended states resume without a recovery seek`() {
-		// STATE_IDLE = 1, STATE_BUFFERING = 2, STATE_READY = 3 in media3.
+		// STATE_IDLE = 1, STATE_BUFFERING = 2, STATE_READY = 3 in media3
 		assertFalse(AtollaPlaybackGuards.shouldSeekToRecoverEndedState(1))
 		assertFalse(AtollaPlaybackGuards.shouldSeekToRecoverEndedState(2))
 		assertFalse(AtollaPlaybackGuards.shouldSeekToRecoverEndedState(3))
 	}
-
-	// --- shouldRebuildQueueForState ---
 
 	@Test
 	fun `rebuilds queue when current item does not match`() {
@@ -92,8 +84,6 @@ class AtollaPlaybackGuardsTest {
 		)
 	}
 
-	// --- shouldDeferLookaheadForSource ---
-
 	@Test
 	fun `defers lookahead for an https stream source`() {
 		assertTrue(AtollaPlaybackGuards.shouldDeferLookaheadForSource("https://server/Audio/123/stream.mp3"))
@@ -119,8 +109,6 @@ class AtollaPlaybackGuardsTest {
 		assertFalse(AtollaPlaybackGuards.shouldDeferLookaheadForSource(""))
 	}
 
-	// --- shouldPrepareBeforeResume ---
-
 	@Test
 	fun `idle player must be re-prepared before resume`() {
 		assertTrue(AtollaPlaybackGuards.shouldPrepareBeforeResume(AtollaPlaybackGuards.STATE_IDLE))
@@ -128,13 +116,11 @@ class AtollaPlaybackGuardsTest {
 
 	@Test
 	fun `non-idle states resume without re-preparing`() {
-		// STATE_BUFFERING = 2, STATE_READY = 3, STATE_ENDED = 4 in media3.
+		// STATE_BUFFERING = 2, STATE_READY = 3, STATE_ENDED = 4 in media3
 		assertFalse(AtollaPlaybackGuards.shouldPrepareBeforeResume(2))
 		assertFalse(AtollaPlaybackGuards.shouldPrepareBeforeResume(3))
 		assertFalse(AtollaPlaybackGuards.shouldPrepareBeforeResume(AtollaPlaybackGuards.STATE_ENDED))
 	}
-
-	// --- shouldHandleMediaActionNatively ---
 
 	@Test
 	fun `transport actions are handled natively at tap time`() {
@@ -150,8 +136,6 @@ class AtollaPlaybackGuardsTest {
 		assertFalse(AtollaPlaybackGuards.shouldHandleMediaActionNatively(""))
 		assertFalse(AtollaPlaybackGuards.shouldHandleMediaActionNatively("toggle"))
 	}
-
-	// --- classifyTransition ---
 
 	@Test
 	fun `auto transitions always advance`() {

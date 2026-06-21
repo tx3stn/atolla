@@ -100,10 +100,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			transport,
 		} = this.viewModel;
 
-		// Push synchronously with the data already in hand so the navigation can
-		// never be lost to a slow or rejected getArtist call (the context menu
-		// dismisses immediately after this runs). ArtistView loads its own data
-		// from artist.id.
+		// push synchronously with data in hand so navigation can't be lost to a slow/rejected getArtist (the context menu dismisses right after this); ArtistView loads its own data from artist.id
 		const artist =
 			this.state.artist ??
 			({
@@ -173,8 +170,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			animationsEnabled,
 			gridColumns,
 			imageCache,
-			// Tracks here belong to the album we're already viewing, so tapping the
-			// row preview just closes the menu (onDismiss) rather than re-navigating.
+			// tracks belong to the album we're already viewing, so tapping the row preview just closes the menu rather than re-navigating
 			onAlbumTap: () => {},
 			onArtistTap: this.handleArtistLogoTap,
 			onDismiss: () => {},
@@ -328,8 +324,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			}
 
 			const fetchedTracks = tracksResult.status === 'fulfilled' ? tracksResult.value : [];
-			// Keep the stored order disc-grouped so playback (which indexes into
-			// state.tracks) always matches the per-disc sections we render.
+			// keep stored order disc-grouped so playback (indexing into state.tracks) matches the per-disc sections we render
 			const tracks = groupTracksByDisc(fetchedTracks).groups.flatMap((group) => group.tracks);
 			const artist = artistResult.status === 'fulfilled' ? artistResult.value : null;
 			const logoUrl = artist?.logoUrl || null;

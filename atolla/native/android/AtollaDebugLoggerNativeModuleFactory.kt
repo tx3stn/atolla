@@ -138,10 +138,9 @@ class AtollaDebugLoggerNativeModuleFactory : DebugLoggerNativeModuleFactory() {
         }
     }
 
-    // Records a managed (JVM) uncaught exception into the debug log before the
-    // process dies, then chains to the previous handler so the OS still reports
-    // it. A native SIGSEGV bypasses this entirely — that is surfaced by the JS
-    // unclean-shutdown sentinel instead.
+    // records a managed (JVM) uncaught exception into the debug log before the process dies,
+    // then chains to the previous handler so the OS still reports it. a native SIGSEGV bypasses
+    // this entirely; that's surfaced by the JS unclean-shutdown sentinel instead
     private fun installCrashHandler() {
         if (crashHandlerInstalled) return
         crashHandlerInstalled = true

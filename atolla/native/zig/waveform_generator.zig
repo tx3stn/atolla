@@ -1,21 +1,16 @@
-// Waveform path builder.
-// Accepts a raw per-column RMS amplitude array (produced by the platform audio
-// decoders) and emits the closed waveform outline as a flat stream of cubic
-// Bézier control points. Smoothing and normalisation are applied here so the
-// math lives in one place; the platforms replay the control points into their
-// native vector path API (android.graphics.Path / UIBezierPath) and fill it,
-// which anti-aliases the curve for free (no pixel staircase) and encodes the PNG.
+// waveform path builder. accepts a raw per-column RMS amplitude array (from the platform
+// audio decoders) and emits the closed waveform outline as a flat stream of cubic Bézier
+// control points. smoothing and normalisation happen here so the math lives in one place; the
+// platforms replay the control points into their native vector path API
+// (android.graphics.Path / UIBezierPath) and fill it, which anti-aliases for free and encodes
+// the PNG.
 
 const std = @import("std");
 
 extern fn malloc(size: usize) ?*anyopaque;
 extern fn free(ptr: ?*anyopaque) void;
 
-// ---------------------------------------------------------------------------
-// Amplitude shaping
-// ---------------------------------------------------------------------------
-
-// 5-point centred moving average to reduce spikiness. Aesthetics over accuracy.
+// 5-point centred moving average to reduce spikiness; aesthetics over accuracy
 fn smoothAmplitudes(amps: [*]f32, width: u32) void {
     if (width < 3) return;
     const tmp_ptr = malloc(@as(usize, width) * @sizeOf(f32)) orelse return;
@@ -35,8 +30,8 @@ fn smoothAmplitudes(amps: [*]f32, width: u32) void {
     }
 }
 
-// Normalise amplitudes linearly so the loudest column reaches full height.
-// Silent audio becomes a flat mid-height line so the bar is always visible.
+// normalise amplitudes linearly so the loudest column reaches full height. silent audio
+// becomes a flat mid-height line so the bar is always visible
 fn normalizeAmplitudes(amps: [*]f32, width: u32) void {
     var max: f32 = 0.0;
     for (0..width) |i| if (amps[i] > max) {
@@ -48,10 +43,6 @@ fn normalizeAmplitudes(amps: [*]f32, width: u32) void {
     }
     for (0..width) |i| amps[i] = amps[i] / max;
 }
-
-// ---------------------------------------------------------------------------
-// Path geometry
-// ---------------------------------------------------------------------------
 
 fn xAt(i: u32, n: u32, width: f32) f32 {
     if (n <= 1) return 0.0;
@@ -76,21 +67,17 @@ fn appendSegment(out: [*]f32, idx: *usize, cp1x: f32, cp1y: f32, cp2x: f32, cp2y
     idx.* += 6;
 }
 
-// ---------------------------------------------------------------------------
-// Public export
-// ---------------------------------------------------------------------------
-
-// Builds the closed waveform outline from `num_amps` raw per-column RMS amps.
-// Smooths + normalises internally, then writes a flat float stream to out_pts:
+// builds the closed waveform outline from `num_amps` raw per-column RMS amps. smooths +
+// normalises internally, then writes a flat float stream to out_pts:
 //   [0..1]                       start point (moveTo target)
 //   then (2 * num_amps - 1) cubic segments, 6 floats each:
 //                                cp1x, cp1y, cp2x, cp2y, endx, endy
-// Segment order: top edge left→right, the straight right cap (a degenerate cubic
-// with both control points on the endpoints, so it renders as a line), then the
-// bottom edge right→left. The caller issues moveTo(start), one cubicTo per
-// segment, then closePath() — the close draws the straight left cap.
-// out_count receives the number of floats written: 2 + (2 * num_amps - 1) * 6.
-// Returns false on invalid input (num_amps < 2) or if out_capacity is too small.
+// segment order: top edge left→right, the straight right cap (a degenerate cubic with both
+// control points on the endpoints, so it renders as a line), then the bottom edge right→left.
+// the caller issues moveTo(start), one cubicTo per segment, then closePath(), where the close
+// draws the straight left cap. out_count receives the number of floats written:
+// 2 + (2 * num_amps - 1) * 6. returns false on invalid input (num_amps < 2) or if out_capacity
+// is too small
 export fn atolla_waveform_build_path(
     amps: [*]const f32,
     num_amps: u32,
@@ -120,12 +107,12 @@ export fn atolla_waveform_build_path(
     const cy: f32 = height / 2.0;
     var idx: usize = 0;
 
-    // Start point: top of the first column.
+    // start point: top of the first column
     out_pts[0] = xAt(0, n, width);
     out_pts[1] = yTopAt(a, 0, cy);
     idx = 2;
 
-    // Top edge, left → right. Catmull-Rom → cubic Bézier:
+    // top edge, left → right. Catmull-Rom → cubic Bézier:
     //   cp1 = p1 + (p2 - p0) / 6,  cp2 = p2 - (p3 - p1) / 6
     var i: u32 = 0;
     while (i < n - 1) : (i += 1) {
@@ -138,11 +125,11 @@ export fn atolla_waveform_build_path(
         appendSegment(out_pts, &idx, cp1x, cp1y, cp2x, cp2y, xAt(i + 1, n, width), yTopAt(a, i + 1, cy));
     }
 
-    // Right cap: straight line top → bottom of the last column, as a degenerate cubic.
+    // right cap: straight line top → bottom of the last column, as a degenerate cubic
     const xr = xAt(n - 1, n, width);
     appendSegment(out_pts, &idx, xr, yTopAt(a, n - 1, cy), xr, yBotAt(a, n - 1, cy), xr, yBotAt(a, n - 1, cy));
 
-    // Bottom edge, right → left.
+    // bottom edge, right → left
     var j: i64 = @as(i64, n) - 2;
     while (j >= 0) : (j -= 1) {
         const k: u32 = @intCast(j);
@@ -158,10 +145,6 @@ export fn atolla_waveform_build_path(
     out_count.* = @intCast(idx);
     return true;
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 test "normalizeAmplitudes: all-zero input becomes 0.5" {
     var amps = [_]f32{ 0.0, 0.0, 0.0 };

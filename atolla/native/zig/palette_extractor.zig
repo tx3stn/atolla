@@ -1,11 +1,11 @@
-// Palette extraction algorithm.
-// Strategy: 4-bit RGB quantisation (4096 bins, 64 KB on stack) → score each
-// bin for primary colour (saturation/lightness weighted, neutral-penalised) →
-// pick accent by hue distance + rarity → derive surface/text colours from HSL.
+// palette extraction algorithm.
+// strategy: 4-bit RGB quantisation (4096 bins, 64 KB on stack) → score each bin for primary
+// colour (saturation/lightness weighted, neutral-penalised) → pick accent by hue distance +
+// rarity → derive surface/text colours from HSL.
 //
-// atolla_extract_palette: accepts pre-decoded RGBA pixels (used by platform bridges).
-// atolla_extract_palette_from_bytes: decodes raw PNG or JPEG bytes natively,
-//   so palette extraction runs once at cache-write time with no extra disk read.
+// atolla_extract_palette accepts pre-decoded RGBA pixels (used by platform bridges).
+// atolla_extract_palette_from_bytes decodes raw PNG or JPEG bytes natively, so extraction runs
+// once at cache-write time with no extra disk read.
 
 const std = @import("std");
 
@@ -177,10 +177,6 @@ fn writeDefaults(out: *Palette) void {
     writeHex(&out.muted_on_surface, 0xb8, 0xbf, 0xd0);
 }
 
-// ---------------------------------------------------------------------------
-// Histogram helpers
-// ---------------------------------------------------------------------------
-
 fn addToBin(bins: *[MAX_BINS]Bin, r: u8, g: u8, b: u8) void {
     const key: usize = (@as(usize, r >> SHIFT) << (SHIFT * 2)) |
         (@as(usize, g >> SHIFT) << SHIFT) |
@@ -205,8 +201,8 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
         if (hsl.l <= 0.08) continue;
         const satWeight = 0.2 + hsl.s * 2.0;
         const litWeight = clamp(1.0 - @abs(hsl.l - 0.45) * 1.7, 0.35, 1.0);
-        // Darker colors need higher saturation to look visually distinct from grey.
-        // At L=0 threshold is 0.40; at L=0.5 it is 0.275; at L=1.0 it is 0.15.
+        // darker colors need higher saturation to look visually distinct from grey.
+        // at L=0 threshold is 0.40; at L=0.5 it is 0.275; at L=1.0 it is 0.15
         const neutralThreshold = 0.15 + (1.0 - hsl.l) * 0.25;
         const neutralPenalty: f64 = if (hsl.s < neutralThreshold) 0.4 else 1.0;
         const score = @sqrt(@as(f64, @floatFromInt(bin.count))) * satWeight * litWeight * neutralPenalty;
@@ -334,7 +330,7 @@ fn paethPredictor(a: i32, b: i32, c: i32) u8 {
 fn extractFromPng(bytes: []const u8, bins: *[MAX_BINS]Bin) bool {
     if (bytes.len < 8 or !std.mem.eql(u8, bytes[0..8], &PNG_SIG)) return false;
 
-    // First pass: parse IHDR/PLTE, sum IDAT sizes.
+    // first pass: parse IHDR/PLTE, sum IDAT sizes
     var pos: usize = 8;
     var width: u32 = 0;
     var height: u32 = 0;
@@ -382,11 +378,11 @@ fn extractFromPng(bytes: []const u8, bins: *[MAX_BINS]Bin) bool {
         else => return false,
     };
     const row_stride: usize = 1 + bpp * @as(usize, width); // +1 for filter byte
-    // A crafted IHDR can make this product overflow usize (a panic in safe builds); an image that
-    // large is not something we decode here, so bail out rather than crash.
+    // a crafted IHDR can make this product overflow usize (a panic in safe builds); an image
+    // that large isn't something we decode here, so bail out rather than crash
     const scanlines_size: usize = std.math.mul(usize, row_stride, @as(usize, height)) catch return false;
 
-    // Collect all IDAT chunks into one buffer.
+    // collect all IDAT chunks into one buffer
     const idat_raw = malloc(idat_total) orelse return false;
     defer free(idat_raw);
     const idat_buf: [*]u8 = @ptrCast(@alignCast(idat_raw));
@@ -406,12 +402,12 @@ fn extractFromPng(bytes: []const u8, bins: *[MAX_BINS]Bin) bool {
         pos += 12 + chunk_len;
     }
 
-    // Decompress zlib-wrapped DEFLATE data.
+    // decompress zlib-wrapped DEFLATE data
     const sl_raw = malloc(scanlines_size) orelse return false;
     defer free(sl_raw);
     const sl: [*]u8 = @ptrCast(@alignCast(sl_raw));
 
-    // Decompress requires a history window of at least max_window_len bytes.
+    // decompress requires a history window of at least max_window_len bytes
     const win_size = std.compress.flate.max_window_len;
     const win_raw = malloc(win_size) orelse return false;
     defer free(win_raw);
@@ -421,7 +417,7 @@ fn extractFromPng(bytes: []const u8, bins: *[MAX_BINS]Bin) bool {
     var decomp: std.compress.flate.Decompress = .init(&in_reader, .zlib, win[0..win_size]);
     decomp.reader.readSliceAll(sl[0..scanlines_size]) catch return false;
 
-    // Apply PNG filter reconstruction row by row and populate histogram.
+    // apply PNG filter reconstruction row by row and populate histogram
     const pixel_step = @max(1, @as(usize, width) / 64);
     for (0..@as(usize, height)) |y| {
         const row_off = y * row_stride;
@@ -637,8 +633,8 @@ fn decodeHuffman(br: *BitReader, table: *const JpegHuffTable) u8 {
         if (code >= table.first_code[i]) {
             const offset = code - table.first_code[i];
             if (offset < table.count[i]) {
-                // A corrupt DHT can sum to more than 256 symbols, pushing this index past the
-                // fixed symbol array; treat an out-of-range symbol as a decode miss.
+                // a corrupt DHT can sum to more than 256 symbols, pushing this index past the
+                // fixed symbol array; treat an out-of-range symbol as a decode miss
                 const idx: usize = @as(usize, table.first_symbol[i]) + @as(usize, offset);
                 if (idx >= table.symbols.len) return 0;
                 return table.symbols[idx];
@@ -718,7 +714,7 @@ fn extractFromJpeg(bytes: []const u8, bins: *[MAX_BINS]Bin) bool {
         const marker = bytes[pos + 1];
         pos += 2;
 
-        // Markers with no length field
+        // markers with no length field
         if (marker == 0xd8 or marker == 0xd9) continue;
         if (marker >= 0xd0 and marker <= 0xd7) continue;
 
@@ -814,7 +810,7 @@ fn extractFromJpeg(bytes: []const u8, bins: *[MAX_BINS]Bin) bool {
     if (sos_data_start == 0 or state.width == 0 or state.height == 0) return false;
     if (n_scan_comps != 1 and n_scan_comps != 3) return false;
 
-    // Resolve sampling factors and validate tables.
+    // resolve sampling factors and validate tables
     var h_samp: [MAX_COMPS]u8 = undefined;
     var v_samp: [MAX_COMPS]u8 = undefined;
     var quant_q0: [MAX_COMPS]u16 = undefined;
@@ -847,7 +843,7 @@ fn extractFromJpeg(bytes: []const u8, bins: *[MAX_BINS]Bin) bool {
     var mcu_count: u64 = 0;
 
     while (mcu_count < total_mcus) : (mcu_count += 1) {
-        // Reset DC predictions at restart boundaries.
+        // reset DC predictions at restart boundaries
         if (state.restart_interval > 0 and mcu_count > 0 and
             mcu_count % state.restart_interval == 0)
         {
@@ -1063,7 +1059,7 @@ fn buildTestPng(
     pixels: *const [W * H * 3]u8,
     out: []u8,
 ) usize {
-    // Scanline data: 1 filter byte (0=None) + 3*W bytes per row
+    // scanline data: 1 filter byte (0=None) + 3*W bytes per row
     const row_len = 1 + W * 3;
     var scanlines: [H * (1 + W * 3)]u8 = undefined;
     for (0..H) |y| {
@@ -1110,7 +1106,7 @@ fn buildTestPng(
 
     // IDAT chunk with zlib stored block
     {
-        // Build zlib payload into a temp buffer
+        // build zlib payload into a temp buffer
         var zlib: [2 + 1 + 2 + 2 + H * (1 + W * 3) + 4]u8 = undefined;
         var zp: usize = 0;
         // zlib header: CMF=0x78 (deflate, window=32K), FLG chosen so CMF*256+FLG ≡ 0 (mod 31)
@@ -1196,7 +1192,7 @@ test "atolla_extract_palette_from_bytes: unrecognized format returns false" {
 
 test "atolla_extract_palette_from_bytes: 1x1 white PNG yields valid palette" {
     const pixels = [3]u8{ 255, 255, 255 };
-    // Worst case PNG size: sig(8) + IHDR(25) + IDAT(8 + 2+1+4+1*3+4) + IEND(12) = ~80 bytes
+    // worst case PNG size: sig(8) + IHDR(25) + IDAT(8 + 2+1+4+1*3+4) + IEND(12) = ~80 bytes
     var png_buf: [256]u8 = undefined;
     const png_len = buildTestPng(1, 1, &pixels, &png_buf);
 
@@ -1215,7 +1211,7 @@ test "atolla_extract_palette: dark warm-grey does not beat moderately-saturated 
     // threshold so it escaped the neutral penalty in the old scoring. The new lightness-aware
     // threshold (0.15 + (1-l)*0.25 ≈ 0.30 at l=0.38) correctly penalises it.
     // 4 medium blue pixels (l=0.50, s≈0.30, hue≈220°): s exceeds the new threshold at l=0.5
-    // (0.275) so they score at full weight — and should now win despite fewer pixels.
+    // (0.275) so they score at full weight, and should now win despite fewer pixels.
     var pixels: [20 * 4]u8 = undefined;
     for (0..16) |i| {
         pixels[i * 4 + 0] = 114;
@@ -1237,7 +1233,7 @@ test "atolla_extract_palette: dark warm-grey does not beat moderately-saturated 
 
 test "atolla_extract_palette: saturated minority beats muted majority" {
     // 12 muted blue-grey pixels (s≈0.12, l≈0.5) vs 4 saturated orange pixels (s≈0.83).
-    // With raw count as the multiplier the grey mass would win; sqrt(count) lets saturation dominate.
+    // with raw count as the multiplier the grey mass would win; sqrt(count) lets saturation dominate.
     var pixels: [16 * 4]u8 = undefined;
     for (0..12) |i| {
         pixels[i * 4 + 0] = 112;
@@ -1271,16 +1267,16 @@ test "atolla_extract_palette_from_bytes: blue-dominant 2x2 PNG has blue-ish prim
     var palette: Palette = std.mem.zeroes(Palette);
     const ok = atolla_extract_palette_from_bytes(&png_buf, png_len, &palette);
     try std.testing.expect(ok);
-    // Primary should be blue-dominant: hex blue channel > red channel
+    // primary should be blue-dominant: hex blue channel > red channel
     const primary = parseHex(palette.primary);
     try std.testing.expect(primary.b > primary.r);
 }
 
 test "atolla_extract_palette_from_bytes: transparent pixels are ignored" {
-    // 1x1 fully transparent pixel — all bins empty, falls back to defaults
+    // 1x1 fully transparent pixel: all bins empty, falls back to defaults
     const pixels_rgba = [4]u8{ 255, 0, 0, 0 }; // red but alpha=0
-    // We need a color_type=6 (RGBA) PNG for this test — buildTestPng only does RGB,
-    // so we verify the RGB path still produces a valid palette (non-crash).
+    // we need a color_type=6 (RGBA) PNG for this test, but buildTestPng only does RGB,
+    // so we verify the RGB path still produces a valid palette (non-crash)
     const pixels_rgb = [3]u8{ 128, 128, 128 };
     var png_buf: [256]u8 = undefined;
     const png_len = buildTestPng(1, 1, &pixels_rgb, &png_buf);
@@ -1292,7 +1288,7 @@ test "atolla_extract_palette_from_bytes: transparent pixels are ignored" {
 }
 
 test "buildHuffTable and decodeHuffman: simple 2-symbol table" {
-    // Codes: symbol 0 → '0' (1 bit: 0), symbol 1 → '1' (1 bit: 1)
+    // codes: symbol 0 → '0' (1 bit: 0), symbol 1 → '1' (1 bit: 1)
     var table: JpegHuffTable = undefined;
     const bits = [16]u8{ 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     const vals = [2]u8{ 0xA, 0xB };
@@ -1305,14 +1301,14 @@ test "buildHuffTable and decodeHuffman: simple 2-symbol table" {
 }
 
 test "decodeHuffman: malformed oversized table does not read past the symbol array" {
-    // A corrupt DHT whose code-length counts sum to more than 256 symbols pushes first_symbol
-    // beyond the 256-entry symbol array. decodeHuffman must not index out of bounds.
+    // a corrupt DHT whose code-length counts sum to more than 256 symbols pushes first_symbol
+    // beyond the 256-entry symbol array. decodeHuffman must not index out of bounds
     var table: JpegHuffTable = undefined;
     const bits = [16]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 200, 200 }; // 400 symbols total
     const vals = [_]u8{0} ** 256;
     buildHuffTable(&table, &bits, &vals);
 
-    // This bit pattern resolves to first_symbol[15] + offset == 256 — one past the end.
+    // this bit pattern resolves to first_symbol[15] + offset == 256, one past the end
     const data = [_]u8{ 0x01, 0xC8, 0x00, 0x00 };
     var br = BitReader.init(&data);
 
@@ -1321,8 +1317,8 @@ test "decodeHuffman: malformed oversized table does not read past the symbol arr
 
 test "extractFromPng: a crafted huge IHDR bails out instead of overflowing the size computation" {
     var bins: [MAX_BINS]Bin = undefined;
-    // Valid signature + IHDR declaring width = height = 2^32-1 (RGBA) + a token IDAT. The
-    // row_stride * height product overflows usize; the decoder must reject it, not panic.
+    // valid signature + IHDR declaring width = height = 2^32-1 (RGBA) + a token IDAT. the
+    // row_stride * height product overflows usize; the decoder must reject it, not panic
     const png = [_]u8{
         0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, // signature
         0x00, 0x00, 0x00, 0x0d, 'I', 'H', 'D', 'R', // IHDR chunk, length 13

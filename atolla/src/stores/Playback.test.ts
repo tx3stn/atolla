@@ -1475,7 +1475,7 @@ describe('PlaybackStore', () => {
 			store.playTracks([track1]);
 			const writesAfterPlay = queueStore.writeCount;
 
-			// seekTo debounces the persist — no immediate write
+			// seekTo debounces the persist; no immediate write
 			store.seekTo(12);
 			expect(queueStore.writeCount).toBe(writesAfterPlay);
 
@@ -1511,12 +1511,12 @@ describe('PlaybackStore', () => {
 			const store = new PlaybackStore();
 			const restorePromise = store.setQueueStore(deferredStore);
 
-			// User plays before the restore finishes
+			// user plays before the restore finishes
 			store.play([track1, track2], album, 0);
 			expect(store.track).toBe(track1);
 			expect(store.isPlaying).toBe(true);
 
-			// Resolve the restore with different data
+			// resolve the restore with different data
 			resolveRead(
 				JSON.stringify({
 					album: { ...album, id: 'old-album' },
@@ -1528,7 +1528,7 @@ describe('PlaybackStore', () => {
 			);
 			await restorePromise;
 
-			// User-initiated state must be preserved
+			// user-initiated state must be preserved
 			expect(store.tracks).toEqual([track1, track2]);
 			expect(store.track).toBe(track1);
 			expect(store.isPlaying).toBe(true);
@@ -1550,8 +1550,8 @@ describe('PlaybackStore', () => {
 			const store = new PlaybackStore();
 			const restorePromise = store.setQueueStore(deferredStore);
 
-			// User resumes playback (e.g. after a background session) before the restore
-			// finishes — the restore must not clobber isPlaying back to false.
+			// user resumes playback (e.g. after a background session) before the restore
+			// finishes; the restore must not clobber isPlaying back to false
 			store.playPause();
 			expect(store.isPlaying).toBe(true);
 

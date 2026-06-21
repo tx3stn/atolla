@@ -22,7 +22,6 @@ export class PaletteGenerationQueue {
 		this.idleWorkers = [...this.allWorkers];
 	}
 
-	// Push to the front of the queue (used when an album page is opened).
 	prioritize(imageUrl: string | null | undefined): void {
 		if (!imageUrl || this.paletteService.hasPalette(imageUrl)) return;
 		if (this.queueSet.has(imageUrl)) {
@@ -43,7 +42,6 @@ export class PaletteGenerationQueue {
 		this.processNext();
 	}
 
-	// Append albums to the queue (used when an artist page is opened).
 	enqueueAlbums(albums: Array<Album>): void {
 		for (const album of albums) {
 			if (
@@ -59,7 +57,6 @@ export class PaletteGenerationQueue {
 		this.processNext();
 	}
 
-	// Append unique album art URLs from playlist tracks (used when a playlist is opened).
 	enqueuePlaylistTracks(tracks: Array<Track>): void {
 		const seen = new Set<string>();
 		for (const track of tracks) {

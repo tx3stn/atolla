@@ -49,7 +49,7 @@ describe('WriteBehindPaletteStore', () => {
 
 			await store.savePalette('https://example.com/art.png', palette);
 
-			// Inner has not resolved yet — still pending
+			// inner has not resolved yet, still pending
 			expect(inner.saved).toHaveLength(0);
 		});
 

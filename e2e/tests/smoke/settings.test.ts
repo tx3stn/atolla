@@ -35,7 +35,7 @@ describe('settings', () => {
 
 		expect(await connectionPage.isVisible()).toBe(true);
 
-		// Reconnect to mock so subsequent tests have data
+		// reconnect to mock so subsequent tests have data
 		await connectionPage.connectToServer('mock');
 		await footer.waitForLoad();
 	});

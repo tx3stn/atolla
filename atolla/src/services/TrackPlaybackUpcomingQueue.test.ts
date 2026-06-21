@@ -71,7 +71,7 @@ describe('buildPlaybackQueueWindow', () => {
 		expect(window.entries.length).toBe(QUEUE_WINDOW_HISTORY + 1 + QUEUE_WINDOW_FORWARD);
 		expect(window.currentIndex).toBe(QUEUE_WINDOW_HISTORY);
 		expect(window.entries[window.currentIndex]?.trackId).toBe('a');
-		// History wraps backwards: ..., b, c immediately before the current a.
+		// history wraps backwards: ..., b, c immediately before the current a
 		expect(window.entries[window.currentIndex - 1]?.trackId).toBe('c');
 		expect(window.entries[window.currentIndex + 1]?.trackId).toBe('b');
 	});

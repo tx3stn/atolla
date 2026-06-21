@@ -10,11 +10,8 @@ export interface DiscGrouping {
 	multiDisc: boolean;
 }
 
-// Buckets tracks by their disc number so the album view can render a section per
-// disc. Groups are ordered by disc ascending with the undisced group (if any)
-// last, and track order within a disc is preserved from the input. `multiDisc`
-// is true only when more than one distinct disc number is present, so a record
-// with no disc info — or a single disc — renders as one plain list.
+// groups ordered by disc ascending, undisced group last, input order preserved within a disc
+// multiDisc is true only with more than one distinct disc number (no/single disc renders as one list)
 export function groupTracksByDisc(tracks: Array<Track>): DiscGrouping {
 	const byDisc = new Map<number | null, Array<DiscGroup['tracks'][number]>>();
 

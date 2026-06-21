@@ -52,14 +52,14 @@ export class ImageCache {
 					}
 				}
 			} catch {
-				// Fall through to namespace marker removal.
+				// fall through to namespace marker removal
 			}
 		}
 
 		try {
 			await this.store.remove?.(`image_cache:${category}`);
 		} catch {
-			// Best effort clear operation.
+			// best effort clear operation
 		}
 	}
 }
