@@ -23,6 +23,13 @@ import {
 const PROGRESS_POLL_INTERVAL_MS = 200;
 const STALL_DETECT_REMAINING_S = 1.5;
 const STALL_TIMEOUT_MS = 5000;
+// How far a streamed track must actually play forward before it's safe to release the
+// deferred cache/prefetch downloads. "Ready"/"playing" only means the buffer is just full
+// enough to start, with no cushion, so starting a competing full-file download at that instant
+// starves the shallow buffer and causes a brief pause right at the start. Measuring played
+// progress (not wall-clock) lets the stream build a cushion first, and holds off while a stall
+// keeps the position from advancing.
+const PLAYBACK_BUFFER_CUSHION_MS = 3000;
 
 export interface NativeAudioPlayerViewModel {
 	isActive?: boolean;
@@ -54,9 +61,11 @@ export class NativeAudioPlayer extends StatefulComponent<
 	private lastCompletedToken = '';
 	private lastSeekTargetSeconds: number | null = null;
 	private hasReportedProgressForSource = false;
+	private hasReportedBufferedForSource = false;
 	private hasEverBoundSource = false;
 	private lastConfiguredTrackId = '';
 	private lastNativePositionSeconds = -1;
+	private playbackStartPositionMs = -1;
 	private stallDetectedAtMs: number | null = null;
 
 	onCreate(): void {
@@ -138,7 +147,9 @@ export class NativeAudioPlayer extends StatefulComponent<
 			this.lastNextSourceUrl = next;
 			this.lastCompletedToken = '';
 			this.hasReportedProgressForSource = false;
+			this.hasReportedBufferedForSource = false;
 			this.lastNativePositionSeconds = -1;
+			this.playbackStartPositionMs = -1;
 			this.stallDetectedAtMs = null;
 			this.configurePlayback(source, this.viewModel.nextPlaybackSourceUrl ?? null);
 			// Apply rate directly from store state — onViewModelUpdate fires synchronously
@@ -491,6 +502,21 @@ export class NativeAudioPlayer extends StatefulComponent<
 				? Math.min(positionSeconds, Math.max(0, trackDurationSeconds - 0.05))
 				: positionSeconds;
 		this.lastNativePositionSeconds = safePositionSeconds;
+		// Once the track has played a cushion forward from where it started (a fresh 0 or a
+		// resumed offset), it's safe to release the deferred downloads: the stream has had time
+		// to buffer ahead. Measured against the first reported position so it tracks played
+		// progress rather than absolute position, so resuming mid-track still waits for a cushion.
+		const safePositionMs = safePositionSeconds * 1000;
+		if (this.playbackStartPositionMs < 0) {
+			this.playbackStartPositionMs = safePositionMs;
+		}
+		if (
+			!this.hasReportedBufferedForSource &&
+			safePositionMs - this.playbackStartPositionMs >= PLAYBACK_BUFFER_CUSHION_MS
+		) {
+			this.hasReportedBufferedForSource = true;
+			this.viewModel.onPlaybackEvent?.('playback-cushion');
+		}
 		this.viewModel.playbackStore.updateProgress(safePositionSeconds);
 	}
 

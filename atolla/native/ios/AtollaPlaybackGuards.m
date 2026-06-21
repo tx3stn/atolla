@@ -36,3 +36,8 @@ BOOL AtollaShouldSuppressBackwardRebuild(BOOL isPlaying,
     return !allowBackwardRebuild && isPlaying && requestedAnchor >= 0 && currentAnchor >= 0 &&
            currentAnchor >= requestedAnchor;
 }
+
+BOOL AtollaShouldDeferLookaheadForSource(NSString *currentSourceUrl) {
+    return [currentSourceUrl.lowercaseString hasPrefix:@"http://"] ||
+           [currentSourceUrl.lowercaseString hasPrefix:@"https://"];
+}

@@ -13,4 +13,11 @@ describe('capture readme images', () => {
 
 		await browser.saveScreenshot('./search.png');
 	});
+	// TODO: add the following:
+	// genre view
+	// library view
+	// album view
+	// artist view (scrolled to show all - 2 pics)
+	// home tab (scrolled to show all - 2 pics)
+	// player (scrolled to show all - 2 pics)
 });

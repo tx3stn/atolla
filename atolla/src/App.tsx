@@ -1479,6 +1479,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		this.lastTrackFetchErrorTrackId = trackId;
 		this.showPlaybackToast(`cache failed: ${reason}`);
+
+		// The track streamed but never produced a local copy, so handleTrackCached won't run to
+		// generate its waveform. Fall back to generating it from the stream URL. This is safe
+		// here because the failure is reported only after the deferred download fired (well after
+		// the initial buffer filled), so there is no start-of-stream contention.
+		const streamUrl = this.getTrackStreamSource(trackId);
+		if (streamUrl) {
+			this.enqueueWaveformIfNeeded(trackId, streamUrl);
+		}
 	}
 
 	// Returns true when it has already applied the gapless "next" source (via
@@ -1541,8 +1550,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					source: streamUrl,
 					trackId: activeTrack.id,
 				});
-				// Waveform generation is local/cheap, so start it right away.
-				this.enqueueWaveformIfNeeded(activeTrack.id, streamUrl);
+				// Don't generate the waveform from the stream URL here: for a remote source the
+				// native decoder reads the whole file over the network, which competes with the
+				// stream's initial buffer and stutters the start of playback. The waveform is
+				// generated from the local copy once the deferred download caches it (see
+				// handleTrackCached); handleTrackCacheFetchFailed covers the stream as a fallback.
 			} else {
 				void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
 			}
@@ -2102,8 +2114,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				clearTimeout(this.playbackSourceBoundTimeout);
 				this.playbackSourceBoundTimeout = undefined;
 			}
-			// The current track is now actually playing, so the cache/prefetch downloads
-			// that were deferred to keep its initial buffer uncontended can run.
+		}
+
+		if (event === 'playback-cushion') {
+			// The track has played far enough to build a streaming buffer cushion, so the
+			// cache/prefetch downloads deferred at track start can now run without starving the
+			// buffer. Releasing them at the earlier "ready"/"playing" point is too soon: the
+			// buffer is only just full enough to start, so a competing download stutters playback
+			// right at the start (see PLAYBACK_BUFFER_CUSHION_MS in NativeAudioPlayer).
 			this.deferredDownloadCoordinator.onPlaybackStarted({
 				currentRequestId: this.playbackSourceRequestId,
 				currentTrackId: this.playbackStore.track?.id ?? null,

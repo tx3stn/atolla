@@ -698,6 +698,13 @@ static NSArray<NSDictionary *> *sQueueWindow = nil;
 static NSInteger sWindowAnchorHint = 0;
 static const NSInteger kAtollaLookaheadTargetAhead = 2;
 
+// While a freshly-started remote track fills its initial network buffer, hold back the
+// gapless next item / lookahead top-up so they don't compete for bandwidth and stutter the
+// start of playback. Cleared, and the lookahead attached, once the current item is ready to
+// play (see AtollaShouldDeferLookaheadForSource and the access-log observer in
+// registerPlayerObservers). Mirrors suppressLookahead on Android. Main thread only.
+static BOOL sSuppressLookahead = NO;
+
 + (void)initialize {
     if (self == [AtollaGaplessAudioEngine class]) {
         sEventQueue = [NSMutableArray array];
@@ -775,7 +782,9 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
         }
     }
 
-    while ((NSInteger)sPlayer.items.count - 1 < kAtollaLookaheadTargetAhead) {
+    // Held back while the current remote track fills its initial buffer; the access-log
+    // observer re-runs ensureWindow once it is ready. Mirrors syncQueue's guard on Android.
+    while (!sSuppressLookahead && (NSInteger)sPlayer.items.count - 1 < kAtollaLookaheadTargetAhead) {
         NSArray<AVPlayerItem *> *currentItems = sPlayer.items;
         if (currentItems.count == 0) return;
         NSInteger nextWindowIndex = anchor + (NSInteger)currentItems.count;
@@ -908,10 +917,15 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
                     return;
                 }
             }
+            // A streamed current track must fill its initial network buffer alone. Adding the
+            // gapless next item here makes AVQueuePlayer pre-buffer it in parallel and stutters
+            // the start, so hold the lookahead back until the item is ready (see the access-log
+            // observer in registerPlayerObservers). Mirrors replaceQueue on Android.
+            sSuppressLookahead = AtollaShouldDeferLookaheadForSource(currentSourceUrl);
             [sPlayer removeAllItems];
             AVPlayerItem *item = [self playerItemForUrl:currentSourceUrl];
             [sPlayer insertItem:item afterItem:nil];
-            if (nextSourceUrl.length > 0 && ![nextSourceUrl isEqualToString:currentSourceUrl]) {
+            if (!sSuppressLookahead && nextSourceUrl.length > 0 && ![nextSourceUrl isEqualToString:currentSourceUrl]) {
                 AVPlayerItem *nextItem = [self playerItemForUrl:nextSourceUrl];
                 [sPlayer insertItem:nextItem afterItem:item];
             }
@@ -965,7 +979,7 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
         [sPlayer removeItem:items.lastObject];
         items = sPlayer.items;
     }
-    if (nextSourceUrl.length > 0 && ![nextSourceUrl isEqualToString:sCurrentSourceUrl]) {
+    if (!sSuppressLookahead && nextSourceUrl.length > 0 && ![nextSourceUrl isEqualToString:sCurrentSourceUrl]) {
         AVPlayerItem *nextItem = [self playerItemForUrl:nextSourceUrl];
         [sPlayer insertItem:nextItem afterItem:sPlayer.currentItem];
     }
@@ -1085,6 +1099,17 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
         if (((AVPlayerItem *)note.object).status == AVPlayerItemStatusReadyToPlay) {
             [self enqueueEvent:@"loaded"];
             [self applyPendingSeekIfNeeded];
+            // The current track is buffered and playing now, so it's safe to attach the
+            // gapless next item / lookahead that was held back during the initial buffer.
+            // Mirrors clearing suppressLookahead at STATE_READY on Android.
+            if (sSuppressLookahead && note.object == sPlayer.currentItem) {
+                sSuppressLookahead = NO;
+                [sEngineLock lock];
+                NSString *nextSrc = sNextSourceUrl;
+                [sEngineLock unlock];
+                [self syncQueueWithNext:nextSrc];
+                [self ensureWindow];
+            }
         }
     }]];
 
@@ -1235,6 +1260,7 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
     [sEngineLock unlock];
 
     dispatch_async(dispatch_get_main_queue(), ^{
+        sSuppressLookahead = NO;
         [self removePlayerObservers];
         [sPlayer removeAllItems];
         sPlayer = nil;

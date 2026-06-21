@@ -30,4 +30,12 @@ BOOL AtollaShouldSuppressBackwardRebuild(BOOL isPlaying,
                                          NSInteger currentAnchor,
                                          BOOL allowBackwardRebuild);
 
+// A streamed (remote) current track fills its initial playback buffer over the network.
+// Adding the gapless next item / lookahead at the same time makes them compete for bandwidth
+// and briefly stutters the start of playback, so the lookahead is held back until the current
+// item is ready to play. Local sources buffer from disk without that contention and keep the
+// lookahead immediately. True for http/https sources. Mirrors shouldDeferLookaheadForSource
+// on Android.
+BOOL AtollaShouldDeferLookaheadForSource(NSString *currentSourceUrl);
+
 NS_ASSUME_NONNULL_END
