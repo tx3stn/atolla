@@ -1,35 +1,15 @@
 import { describe, expect, it } from 'bun:test';
-import { type RecentSearchPersistence, SearchStore } from './Search';
-
-class MockRecentSearchPersistence implements RecentSearchPersistence {
-	private values = new Map<string, string>();
-
-	fetchString(key: string): Promise<string> {
-		const value = this.values.get(key);
-		if (value == null) {
-			return Promise.reject(new Error('missing key'));
-		}
-		return Promise.resolve(value);
-	}
-
-	storeString(key: string, value: string): Promise<void> {
-		this.values.set(key, value);
-		return Promise.resolve();
-	}
-
-	seed(key: string, value: string): void {
-		this.values.set(key, value);
-	}
-}
+import { InMemoryKeyValueStore } from './KeyValueStore';
+import { SearchStore } from './Search';
 
 describe('SearchStore', () => {
 	it('returns empty recent searches when persistence has no value', async () => {
-		const store = new SearchStore(new MockRecentSearchPersistence());
+		const store = new SearchStore(new InMemoryKeyValueStore());
 		expect(await store.getRecentSearches()).toEqual([]);
 	});
 
 	it('adds a term to the top of history', async () => {
-		const persistence = new MockRecentSearchPersistence();
+		const persistence = new InMemoryKeyValueStore();
 		const store = new SearchStore(persistence);
 
 		expect(await store.addRecentSearch('Converge')).toEqual(['Converge']);
@@ -37,7 +17,7 @@ describe('SearchStore', () => {
 	});
 
 	it('keeps terms unique and moves repeated term to the top', async () => {
-		const persistence = new MockRecentSearchPersistence();
+		const persistence = new InMemoryKeyValueStore();
 		const store = new SearchStore(persistence);
 
 		await store.addRecentSearch('Converge');
@@ -48,7 +28,7 @@ describe('SearchStore', () => {
 	});
 
 	it('stores at most five recent terms in recency order', async () => {
-		const persistence = new MockRecentSearchPersistence();
+		const persistence = new InMemoryKeyValueStore();
 		const store = new SearchStore(persistence);
 
 		await store.addRecentSearch('One');
@@ -62,7 +42,7 @@ describe('SearchStore', () => {
 	});
 
 	it('ignores empty terms when adding to history', async () => {
-		const persistence = new MockRecentSearchPersistence();
+		const persistence = new InMemoryKeyValueStore();
 		const store = new SearchStore(persistence);
 
 		await store.addRecentSearch('Converge');
@@ -72,8 +52,8 @@ describe('SearchStore', () => {
 	});
 
 	it('returns empty list for invalid persisted JSON shape', async () => {
-		const persistence = new MockRecentSearchPersistence();
-		persistence.seed('recent_searches', JSON.stringify({ invalid: true }));
+		const persistence = new InMemoryKeyValueStore();
+		persistence.storeString('recent_searches', JSON.stringify({ invalid: true }));
 		const store = new SearchStore(persistence);
 
 		expect(await store.getRecentSearches()).toEqual([]);

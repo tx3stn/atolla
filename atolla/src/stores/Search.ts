@@ -1,30 +1,10 @@
-export interface RecentSearchPersistence {
-	fetchString(key: string): Promise<string>;
-	storeString(key: string, value: string): Promise<void>;
-}
+import { InMemoryKeyValueStore, type KeyValueStore } from './KeyValueStore';
 
 const RECENT_SEARCHES_KEY = 'recent_searches';
 const RECENT_SEARCHES_LIMIT = 5;
 
-class InMemoryRecentSearchPersistence implements RecentSearchPersistence {
-	private values = new Map<string, string>();
-
-	fetchString(key: string): Promise<string> {
-		const value = this.values.get(key);
-		if (value == null) {
-			return Promise.reject(new Error('missing key'));
-		}
-		return Promise.resolve(value);
-	}
-
-	storeString(key: string, value: string): Promise<void> {
-		this.values.set(key, value);
-		return Promise.resolve();
-	}
-}
-
 export class SearchStore {
-	constructor(private store: RecentSearchPersistence = new InMemoryRecentSearchPersistence()) {}
+	constructor(private store: KeyValueStore = new InMemoryKeyValueStore()) {}
 
 	async getRecentSearches(): Promise<Array<string>> {
 		try {

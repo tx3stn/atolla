@@ -1,12 +1,9 @@
+import type { KeyValueStore } from '../stores/KeyValueStore';
+
 export interface PendingScrobble {
 	id?: string;
 	trackId: string;
 	triggeredAt: string;
-}
-
-export interface ScrobbleStore {
-	fetchString(key: string): Promise<string>;
-	storeString(key: string, value: string): Promise<void>;
 }
 
 export interface PlaybackSnapshot {
@@ -21,7 +18,7 @@ export interface ScrobbleServiceOptions {
 	deliverScrobble: (pending: PendingScrobble) => Promise<void>;
 	maxAgeMs?: number;
 	now?: () => number;
-	store: ScrobbleStore;
+	store: KeyValueStore;
 	thresholdRatio?: number;
 }
 
@@ -41,7 +38,7 @@ export class ScrobbleService {
 	private readonly now: () => number;
 	private readonly thresholdRatio: number;
 	private readonly maxAgeMs: number;
-	private readonly store: ScrobbleStore;
+	private readonly store: KeyValueStore;
 	private readonly deliverScrobble: (pending: PendingScrobble) => Promise<void>;
 
 	private pendingScrobbles: Array<PendingScrobble> = [];

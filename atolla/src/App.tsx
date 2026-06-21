@@ -35,7 +35,7 @@ import type { Album } from './models/Album';
 import { type FooterTab, FooterTabs, type HeaderTab, HeaderTabs } from './models/App';
 import type { Artist } from './models/Artist';
 import type { Playlist } from './models/Playlist';
-import { sanitizeTracks, type Track } from './models/Track';
+import type { Track } from './models/Track';
 import Strings from './Strings';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { DebugLogger } from './services/DebugLogger';
@@ -56,6 +56,7 @@ import { OnThisDayService } from './services/OnThisDayService';
 import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import { PersistentPaletteStore } from './services/PersistentPaletteStore';
 import { PersistentWaveformStore } from './services/PersistentWaveformStore';
+import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import { PlaylistCreateService } from './services/PlaylistCreateService';
 import { type PlaylistEditError, PlaylistEditService } from './services/PlaylistEditService';
 import { RecentlyAddedService } from './services/RecentlyAddedService';
@@ -78,6 +79,7 @@ import { WaveformService } from './services/WaveformService';
 import { WriteBehindPaletteStore } from './services/WriteBehindPaletteStore';
 import { BarColorStore } from './stores/BarColor';
 import { InMemoryAuthStore, JellyfinAuthStore } from './stores/JellyfinAuthStore';
+import type { KeyValueStore } from './stores/KeyValueStore';
 import { PlaybackStore } from './stores/Playback';
 import {
 	DEFAULT_GRID_COLUMNS,
@@ -87,6 +89,7 @@ import {
 	type LanguageCode,
 	Preferences,
 } from './stores/Preferences';
+import { RecentlyPlayedStore } from './stores/RecentlyPlayed';
 import { SearchStore } from './stores/Search';
 import {
 	cacheAtollaTrackFromUrlAsync,
@@ -138,7 +141,6 @@ import { version } from './version';
 
 export type AppViewModel = Record<string, never>;
 
-const RECENTLY_PLAYED_TRACKS_KEY = 'recently_played_tracks';
 // safety-net wait for the native "image cached" observer: bounds the rare case where
 // the observer never fires (e.g. native predating the cache-hit notification) before the
 // download is allowed to complete regardless
@@ -191,6 +193,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		closeSlot(this.modalSlot);
 	};
 	private playbackStore = new PlaybackStore();
+	private playbackOrchestrator = new PlaybackOrchestrator({
+		playbackStore: this.playbackStore,
+		requestRerender: () => this.setState({ version: this.state.version + 1 }),
+	});
 	private barColors = new BarColorStore();
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
 	private readonly defaultJellyfinClientDeviceId = `atolla-${this.deviceUserScopeKey}`;
@@ -255,18 +261,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	private searchStore!: SearchStore;
-	private recentlyPlayedStore?: {
-		fetchString(key: string): Promise<string>;
-		storeString(key: string, value: string): Promise<void>;
-	};
-	private nowPlayingQueueStore?: {
-		fetchString(key: string): Promise<string>;
-		storeString(key: string, value: string): Promise<void>;
-	};
-	private homeAlbumsStore?: {
-		fetchString(key: string): Promise<string>;
-		storeString(key: string, value: string): Promise<void>;
-	};
+	private recentlyPlayedStore!: RecentlyPlayedStore;
+	private nowPlayingQueueStore?: KeyValueStore;
+	private homeAlbumsStore?: KeyValueStore;
 	private readonly playlistCreateService = new PlaylistCreateService(
 		new PersistentStore('atolla/playlist_creates', { deviceGlobal: true }),
 	);
@@ -310,7 +307,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private unsubscribeWaveform?: () => void;
 	private unsubscribeWaveformRender?: () => void;
 	private unsubscribeToast?: () => void;
-	private scrobbleService?: ScrobbleService;
+	private scrobbleService!: ScrobbleService;
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
 	private nativePlaybackActionInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
@@ -357,9 +354,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastPlaybackTickAt = 0;
 	private lastUpcomingQueueKey = '';
 	private readonly imageCache = new ImageCache({});
-	private recentlyPlayedTracks: Array<Track> = [];
-	private lastObservedRecentTrackId: string | null = null;
-	private recentlyPlayedRestoring = false;
 	private trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
 		(track) => this.transport.getTrackCacheUrl(track.id),
 		(trackId) => this.getNativeCachedTrackSource(trackId) != null,
@@ -569,7 +563,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.downloadService.onAppReady();
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
 			// progress-sensitive work: cheap, needs every tick
-			this.syncScrobblePlaybackSnapshot();
+			this.playbackOrchestrator.syncScrobblePlaybackSnapshot();
 			this.syncTrackPlaybackNotification();
 
 			// gate everything else (and the re-render) behind a structural signature; the progress bar
@@ -593,13 +587,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 			this.syncUpcomingQueue();
 			this.handleTrackPrefetchQueueChange();
-			this.captureRecentlyPlayedTrack();
+			this.playbackOrchestrator.captureRecentlyPlayedTrack();
 			this.handleWaveformPriority();
 			this.resolveCurrentArtistLogo();
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
 		});
-		this.syncScrobblePlaybackSnapshot();
+		this.playbackOrchestrator.syncScrobblePlaybackSnapshot();
 		// handle any track already playing at startup
 		this.handleAlbumChange();
 		if (!this.handleTrackPlaybackSourceChange()) {
@@ -607,90 +601,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 		this.syncUpcomingQueue();
 		this.handleTrackPrefetchQueueChange();
-		this.captureRecentlyPlayedTrack();
+		this.playbackOrchestrator.captureRecentlyPlayedTrack();
 		this.resolveCurrentArtistLogo();
 		this.syncTrackPlaybackNotification();
 		this.refreshTrackCachedCount();
-	}
-
-	private captureRecentlyPlayedTrack(): void {
-		const activeTrack = this.playbackStore.track;
-		if (!activeTrack) {
-			this.lastObservedRecentTrackId = null;
-			return;
-		}
-
-		if (activeTrack.id === this.lastObservedRecentTrackId) {
-			return;
-		}
-
-		this.lastObservedRecentTrackId = activeTrack.id;
-		this.recentlyPlayedTracks = [
-			activeTrack,
-			...this.recentlyPlayedTracks.filter((track) => track.id !== activeTrack.id),
-		].slice(0, 5);
-		if (!this.recentlyPlayedRestoring) {
-			this.persistRecentlyPlayedTracks();
-		}
-	}
-
-	private persistRecentlyPlayedTracks(): void {
-		if (!this.recentlyPlayedStore) {
-			return;
-		}
-
-		void this.recentlyPlayedStore
-			.storeString(RECENTLY_PLAYED_TRACKS_KEY, JSON.stringify(this.recentlyPlayedTracks))
-			.catch(() => {
-				// best effort persistence
-			});
-	}
-
-	private restoreRecentlyPlayedTracks(): void {
-		if (!this.recentlyPlayedStore) {
-			return;
-		}
-
-		const store = this.recentlyPlayedStore;
-		void store
-			.fetchString(RECENTLY_PLAYED_TRACKS_KEY)
-			.then((raw) => {
-				if (this.isDestroyed()) return;
-				const parsed = JSON.parse(raw);
-				if (!Array.isArray(parsed)) {
-					this.recentlyPlayedTracks = [];
-				} else {
-					const restored = sanitizeTracks(
-						parsed.filter((track): track is Track => this.isTrack(track)).slice(0, 5),
-					);
-					this.recentlyPlayedTracks = restored;
-				}
-				this.recentlyPlayedRestoring = false;
-				this.lastObservedRecentTrackId = null;
-				this.captureRecentlyPlayedTrack();
-				this.setState({ version: this.state.version + 1 });
-			})
-			.catch(() => {
-				if (this.isDestroyed()) return;
-				this.recentlyPlayedTracks = [];
-				this.recentlyPlayedRestoring = false;
-				this.lastObservedRecentTrackId = null;
-				this.captureRecentlyPlayedTrack();
-				this.setState({ version: this.state.version + 1 });
-			});
-	}
-
-	private isTrack(value: unknown): value is Track {
-		if (!value || typeof value !== 'object') {
-			return false;
-		}
-
-		const candidate = value as Partial<Track>;
-		return (
-			typeof candidate.id === 'string' &&
-			typeof candidate.name === 'string' &&
-			typeof candidate.duration === 'number'
-		);
 	}
 
 	onDestroy(): void {
@@ -698,6 +612,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		// crash; a real crash (or OS task-kill) skips this, leaving it set
 		void this.diagnosticsStore.storeString('session_active', '0').catch(() => {});
 		this.playbackStore.persistNow();
+		this.playbackOrchestrator.dispose();
 		if (this.bootstrapCommitTimer) {
 			clearTimeout(this.bootstrapCommitTimer);
 		}
@@ -764,9 +679,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.searchStore = new SearchStore(
 			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
 		);
-		this.recentlyPlayedStore = new PersistentStore(`atolla/user/${userId}/recently_played`, {
-			deviceGlobal: true,
-		});
+		this.recentlyPlayedStore = new RecentlyPlayedStore(
+			new PersistentStore(`atolla/user/${userId}/recently_played`, { deviceGlobal: true }),
+		);
 		this.nowPlayingQueueStore = new PersistentStore(`atolla/user/${userId}/now_playing_queue`, {
 			deviceGlobal: true,
 		});
@@ -807,10 +722,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		// warm the in-memory cache from disk; HomeView reads it and triggers the background
 		// rebuild itself, so display owns its own re-render
 		void this.onThisDayService.ensureLoaded();
-		this.recentlyPlayedRestoring = true;
-		this.recentlyPlayedTracks = [];
-		this.lastObservedRecentTrackId = null;
-		this.restoreRecentlyPlayedTracks();
 		this.paletteService = new ArtworkPaletteService(
 			new WriteBehindPaletteStore(
 				new PersistentPaletteStore(
@@ -827,7 +738,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				deviceGlobal: true,
 			}),
 		});
-		this.syncScrobblePlaybackSnapshot();
+		this.playbackOrchestrator.setUserServices({
+			recentlyPlayed: this.recentlyPlayedStore,
+			scrobble: this.scrobbleService,
+		});
 		void this.scrobbleService.onAppReady();
 		this.reconnectSync = new ReconnectSyncCoordinator({
 			downloadService: this.downloadService,
@@ -1190,8 +1104,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.playlistEditService,
 			);
 			this.playbackStore.stop();
-			this.recentlyPlayedTracks = [];
-			this.lastObservedRecentTrackId = null;
+			this.playbackOrchestrator.clearRecentlyPlayed();
 			this.setState({
 				authErrorMessage: null,
 				connectionMode: ConnectionModes.online,
@@ -1948,7 +1861,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	handleExportOfflineStatus = async (): Promise<void> => {
 		try {
 			const fetchRaw = (
-				store: { fetchString(key: string): Promise<string> } | undefined,
+				store: KeyValueStore | undefined,
 				key: string,
 			): Promise<string | undefined> =>
 				store ? store.fetchString(key).catch(() => undefined) : Promise.resolve(undefined);
@@ -1958,7 +1871,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			// recently-added cache, 'queue' mirrors PlaybackStore
 			const [recentlyPlayed, nowPlayingQueue, homeAlbums, homeRecentlyAdded, playlistEdits] =
 				await Promise.all([
-					fetchRaw(this.recentlyPlayedStore, RECENTLY_PLAYED_TRACKS_KEY),
+					this.recentlyPlayedStore.loadRaw(),
 					fetchRaw(this.nowPlayingQueueStore, 'queue'),
 					fetchRaw(this.homeAlbumsStore, 'on_this_day_v1'),
 					fetchRaw(this.homeAlbumsStore, 'recently_added_v1'),
@@ -2885,21 +2798,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}, remaining);
 	}
 
-	private syncScrobblePlaybackSnapshot(): void {
-		if (!this.scrobbleService) {
-			return;
-		}
-
-		const activeTrack = this.playbackStore.track;
-		this.scrobbleService.observePlayback({
-			hasSeekTarget: this.playbackStore.seekTarget != null,
-			isPlaying: this.playbackStore.isPlaying,
-			progressSeconds: this.playbackStore.progressSeconds,
-			trackDurationSeconds: activeTrack?.duration ?? 0,
-			trackId: activeTrack?.id ?? null,
-		});
-	}
-
 	private buildLibraryNavBarContext(): NavBarContext | undefined {
 		if (Device.isAndroid()) return undefined;
 		return {
@@ -3013,7 +2911,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 									onThisDayService={this.onThisDayService}
 									playbackStore={this.playbackStore}
 									recentlyAddedService={this.recentlyAddedService}
-									recentlyPlayedTracks={this.recentlyPlayedTracks}
+									recentlyPlayedTracks={this.playbackOrchestrator.getRecentlyPlayedTracks()}
 									toastService={this.toastService}
 									transport={this.transport}
 								/>;

@@ -1,40 +1,23 @@
 import { describe, expect, it } from 'bun:test';
+import { InMemoryKeyValueStore, type KeyValueStore } from '../stores/KeyValueStore';
 import {
 	type PendingScrobble,
 	ScrobbleService,
 	type ScrobbleServiceOptions,
-	type ScrobbleStore,
 } from './ScrobbleService';
-
-class InMemoryScrobbleStore implements ScrobbleStore {
-	private values = new Map<string, string>();
-
-	fetchString(key: string): Promise<string> {
-		const value = this.values.get(key);
-		if (value == null) {
-			return Promise.reject(new Error('missing key'));
-		}
-		return Promise.resolve(value);
-	}
-
-	storeString(key: string, value: string): Promise<void> {
-		this.values.set(key, value);
-		return Promise.resolve();
-	}
-}
 
 function createService(
 	options: Partial<Omit<ScrobbleServiceOptions, 'deliverScrobble' | 'store'>> & {
 		deliverScrobble?: ScrobbleServiceOptions['deliverScrobble'];
-		store?: InMemoryScrobbleStore;
+		store?: KeyValueStore;
 	} = {},
 ): {
 	deliverCalls: Array<PendingScrobble>;
 	service: ScrobbleService;
-	store: InMemoryScrobbleStore;
+	store: KeyValueStore;
 	time: { nowMs: number };
 } {
-	const store = options.store ?? new InMemoryScrobbleStore();
+	const store = options.store ?? new InMemoryKeyValueStore();
 	const deliverCalls: Array<PendingScrobble> = [];
 	const time = { nowMs: options.now?.() ?? Date.UTC(2026, 0, 1, 0, 0, 0) };
 	const deliverScrobble =
@@ -250,7 +233,7 @@ describe('ScrobbleService', () => {
 	});
 
 	it('retries oldest pending first and stops after three consecutive failures', async () => {
-		const seededStore = new InMemoryScrobbleStore();
+		const seededStore = new InMemoryKeyValueStore();
 		await seededStore.storeString(
 			'pending_scrobbles',
 			JSON.stringify([
@@ -283,7 +266,7 @@ describe('ScrobbleService', () => {
 	});
 
 	it('delivers two same-timestamp scrobbles for the same track independently', async () => {
-		const seededStore = new InMemoryScrobbleStore();
+		const seededStore = new InMemoryKeyValueStore();
 		await seededStore.storeString(
 			'pending_scrobbles',
 			JSON.stringify([
@@ -310,7 +293,7 @@ describe('ScrobbleService', () => {
 	});
 
 	it('prunes pending scrobbles older than max age before startup retries', async () => {
-		const seededStore = new InMemoryScrobbleStore();
+		const seededStore = new InMemoryKeyValueStore();
 		await seededStore.storeString(
 			'pending_scrobbles',
 			JSON.stringify([

@@ -1,5 +1,5 @@
 import type { Album } from '../models/Album';
-import { sanitizeTracks, type Track } from '../models/Track';
+import { isTrack, sanitizeTracks, type Track } from '../models/Track';
 import { DebugLogger } from '../services/DebugLogger';
 
 type PlaybackListener = () => void;
@@ -728,19 +728,6 @@ function isPersistedPlaybackQueue(value: unknown): value is PersistedPlaybackQue
 	}
 
 	return true;
-}
-
-function isTrack(value: unknown): value is Track {
-	if (!value || typeof value !== 'object') {
-		return false;
-	}
-
-	const candidate = value as Partial<Track>;
-	return (
-		typeof candidate.id === 'string' &&
-		typeof candidate.name === 'string' &&
-		typeof candidate.duration === 'number'
-	);
 }
 
 function isAlbum(value: unknown): value is Album {

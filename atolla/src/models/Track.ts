@@ -51,3 +51,17 @@ function sanitizeTrack(t: Track): Track {
 	}
 	return { ...t, duration, name };
 }
+
+// minimal structural check used when validating persisted/untrusted track payloads
+export function isTrack(value: unknown): value is Track {
+	if (!value || typeof value !== 'object') {
+		return false;
+	}
+
+	const candidate = value as Partial<Track>;
+	return (
+		typeof candidate.id === 'string' &&
+		typeof candidate.name === 'string' &&
+		typeof candidate.duration === 'number'
+	);
+}
