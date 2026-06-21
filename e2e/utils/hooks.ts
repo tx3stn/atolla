@@ -8,7 +8,7 @@ import { HomePage } from '../pages/HomePage';
 
 const SCREENSHOT_DIR = 'e2e/screenshots';
 
-async function ensureMockMode(): Promise<void> {
+export async function connectToServer(serverURL: string): Promise<void> {
 	const connectionPage = new ConnectionPage(browser);
 	const footer = new FooterPage(browser);
 	const connectivityFab = new ConnectivityFabPage(browser);
@@ -21,11 +21,44 @@ async function ensureMockMode(): Promise<void> {
 		{ timeout: 30_000, timeoutMsg: 'App did not finish bootstrapping' },
 	);
 
-	if (await connectionPage.isVisible()) {
-		await connectionPage.connectToMock();
-	} else {
+	if (!(await connectionPage.isVisible())) {
 		await connectivityFab.tap();
-		await connectionPage.connectToMock();
+	}
+
+	await connectionPage.connectToServer(serverURL);
+	await browser.waitUntil(
+		async () =>
+			(await connectionPage.quickConnectCodeIsVisible()) ||
+			(await footer.isVisible()) ||
+			(await connectionPage.HTTPWarningModal().isVisible()),
+		{
+			timeout: 10_000,
+			timeoutMsg: 'connect to server failed',
+		},
+	);
+
+	if (await connectionPage.HTTPWarningModal().isVisible()) {
+		console.log('accepting http mode warning');
+		await connectionPage.HTTPWarningModal().tapConfirmButton();
+		await connectionPage.HTTPWarningModal().waitForDismissed();
+
+		await browser.waitUntil(
+			async () => (await connectionPage.quickConnectCodeIsVisible()) || (await footer.isVisible()),
+			{
+				timeout: 30_000,
+				timeoutMsg: 'connect did not progress after accepting http warning',
+			},
+		);
+	}
+
+	if (await connectionPage.quickConnectCodeIsVisible()) {
+		console.log('use quick connect code to connect to server');
+		await browser.waitUntil(
+			async () => {
+				return !(await connectionPage.quickConnectCodeIsVisible());
+			},
+			{ timeout: 60_000, timeoutMsg: 'server connection not established' },
+		);
 	}
 
 	await footer.tapHome();
@@ -71,7 +104,7 @@ export async function beforeHook(): Promise<void> {
 		);
 	}
 
-	await ensureMockMode();
+	await connectToServer('mock');
 }
 
 async function saveFailureScreenshot(subject: unknown): Promise<void> {

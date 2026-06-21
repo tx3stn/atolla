@@ -36,7 +36,8 @@ describe('settings', () => {
 		expect(await connectionPage.isVisible()).toBe(true);
 
 		// Reconnect to mock so subsequent tests have data
-		await connectionPage.connectToMock();
+		await connectionPage.connectToServer('mock');
+		await footer.waitForLoad();
 	});
 
 	it('shows settings view after navigating away and back', async () => {

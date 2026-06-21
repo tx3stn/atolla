@@ -983,6 +983,7 @@ const styles = {
 	}),
 	searchInput: new Style({
 		...theme.text.main,
+		color: theme.colors.white,
 		flexGrow: 1,
 		marginLeft: 20,
 		padding: theme.padding.pill,

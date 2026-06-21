@@ -1,9 +1,14 @@
 import { BasePage } from './Base';
+import { HTTPWarningModal } from './HTTPWarningModal';
 
 export class ConnectionPage extends BasePage {
-	private readonly serverUrlInput = 'connection-server-url-input';
 	private readonly connectButton = 'connection-connect-btn';
-	private readonly footer = 'footer-home';
+	private readonly quickConnect = 'connection-quick-connect-code';
+	private readonly serverUrlInput = 'connection-server-url-input';
+
+	HTTPWarningModal(): HTTPWarningModal {
+		return new HTTPWarningModal(this.driver);
+	}
 
 	async isVisible(): Promise<boolean> {
 		const el = this.elementByID(this.serverUrlInput);
@@ -17,16 +22,16 @@ export class ConnectionPage extends BasePage {
 		});
 	}
 
-	async connectToMock(): Promise<void> {
+	async connectToServer(serverURL: string): Promise<void> {
 		const input = this.elementByID(this.serverUrlInput);
 		await input.waitForDisplayed();
-		await input.setValue('mock');
+		await input.setValue(serverURL);
 		const connectBtn = this.elementByID(this.connectButton);
 		await connectBtn.waitForDisplayed();
 		await connectBtn.click();
-		await this.elementByID(this.footer).waitForDisplayed({
-			timeout: 30_000,
-			timeoutMsg: 'App did not load main UI after mock connection',
-		});
+	}
+
+	async quickConnectCodeIsVisible(): Promise<boolean> {
+		return await this.elementByID(this.quickConnect).isDisplayed();
 	}
 }

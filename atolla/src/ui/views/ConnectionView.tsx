@@ -34,37 +34,6 @@ interface ConnectionState {
 	serverUrlInput: string;
 }
 
-function normalizeInputValue(value: unknown): string {
-	if (typeof value === 'string') {
-		return value;
-	}
-
-	if (typeof value === 'number') {
-		return String(value);
-	}
-
-	if (value && typeof value === 'object') {
-		const candidate = value as {
-			nativeEvent?: { text?: unknown; value?: unknown };
-			query?: unknown;
-			text?: unknown;
-			value?: unknown;
-		};
-
-		const direct = candidate.text ?? candidate.value ?? candidate.query;
-		if (typeof direct === 'string') {
-			return direct;
-		}
-
-		const native = candidate.nativeEvent?.text ?? candidate.nativeEvent?.value;
-		if (typeof native === 'string') {
-			return native;
-		}
-	}
-
-	return '';
-}
-
 export class ConnectionView extends StatefulComponent<ConnectionViewModel, ConnectionState> {
 	private pendingConnectInput: string | null = null;
 
@@ -207,6 +176,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 			<view style={styles.quickConnectContainer}>
 				{this.viewModel.quickConnectCode && (
 					<view
+						accessibilityId='connection-quick-connect-code'
 						onTap={this.copyQuickConnectCode(this.viewModel.quickConnectCode)}
 						style={styles.quickConnectCodeSlot}
 					>
@@ -328,3 +298,34 @@ const styles = {
 		textAlign: 'center',
 	}),
 };
+
+function normalizeInputValue(value: unknown): string {
+	if (typeof value === 'string') {
+		return value;
+	}
+
+	if (typeof value === 'number') {
+		return String(value);
+	}
+
+	if (value && typeof value === 'object') {
+		const candidate = value as {
+			nativeEvent?: { text?: unknown; value?: unknown };
+			query?: unknown;
+			text?: unknown;
+			value?: unknown;
+		};
+
+		const direct = candidate.text ?? candidate.value ?? candidate.query;
+		if (typeof direct === 'string') {
+			return direct;
+		}
+
+		const native = candidate.nativeEvent?.text ?? candidate.nativeEvent?.value;
+		if (typeof native === 'string') {
+			return native;
+		}
+	}
+
+	return '';
+}

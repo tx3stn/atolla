@@ -38,4 +38,13 @@ export class FooterPage extends BasePage {
 			(await this.elementByID(this.settings).isDisplayed())
 		);
 	}
+
+	async waitForLoad(): Promise<void> {
+		await browser.waitUntil(
+			async () => {
+				return await this.isVisible();
+			},
+			{ timeoutMsg: 'footer did not appear to load' },
+		);
+	}
 }

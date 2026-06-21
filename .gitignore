@@ -38,5 +38,5 @@ generated/
 TODO*.md
 image-cache-plan.md
 atolla/native/ios/Assets.xcassets/AppIcon.icon/Assets/*.svg
-e2e/screenshots/*
+e2e/screenshots/*.jpg
 atolla-offline-status.json
