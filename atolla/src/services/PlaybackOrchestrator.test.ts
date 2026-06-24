@@ -294,6 +294,40 @@ describe('PlaybackOrchestrator notification sync', () => {
 
 		expect(notification.clears).toBe(0);
 	});
+
+	it('performs an initial notification sync in start for a track already active', () => {
+		const setSpy = spyOn(globalThis, 'setInterval').mockImplementation((() => ({
+			id: 1,
+		})) as unknown as typeof setInterval);
+		try {
+			const { store } = notificationPlaybackStore();
+			const notification = fakeNotification();
+			const orchestrator = createOrchestrator(store, () => {}, notification);
+
+			orchestrator.start();
+
+			expect(notification.updates.length).toBe(1);
+		} finally {
+			setSpy.mockRestore();
+		}
+	});
+
+	it('clears the notification in start when no track is active at boot', () => {
+		const setSpy = spyOn(globalThis, 'setInterval').mockImplementation((() => ({
+			id: 1,
+		})) as unknown as typeof setInterval);
+		try {
+			const { store } = notificationPlaybackStore({ track: null });
+			const notification = fakeNotification();
+			const orchestrator = createOrchestrator(store, () => {}, notification);
+
+			orchestrator.start();
+
+			expect(notification.clears).toBe(1);
+		} finally {
+			setSpy.mockRestore();
+		}
+	});
 });
 
 describe('PlaybackOrchestrator waveforms', () => {
@@ -434,6 +468,273 @@ describe('PlaybackOrchestrator waveforms', () => {
 	});
 });
 
+describe('PlaybackOrchestrator playback subscription', () => {
+	it('subscribes in start and fires onPlaybackTick behind the gate, after the pre-gate syncs', () => {
+		const sequence: Array<string> = [];
+		const scrobble = {
+			getPendingScrobbles: () => [],
+			observePlayback: () => sequence.push('scrobble'),
+			onAppReady: () => Promise.resolve(),
+		} as unknown as ScrobbleService;
+		const { store, notify } = subscribablePlaybackStore();
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			onPlaybackTick: () => sequence.push('tick'),
+		});
+		orchestrator.setUserServices(userServices({ scrobble }));
+		orchestrator.start();
+
+		sequence.length = 0;
+		notify();
+		orchestrator.dispose();
+
+		expect(sequence).toEqual(['scrobble', 'tick']);
+	});
+
+	it('runs the pre-gate syncs every tick even when the gate suppresses onPlaybackTick', () => {
+		const observed: Array<{
+			trackId: string | null;
+			isPlaying: boolean;
+			progressSeconds: number;
+		}> = [];
+		const { store, notify } = subscribablePlaybackStore();
+		let tickCount = 0;
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			onPlaybackTick: () => {
+				tickCount += 1;
+			},
+		});
+		orchestrator.setUserServices(userServices({ scrobble: fakeScrobbleService(observed) }));
+		orchestrator.start();
+
+		observed.length = 0;
+		notify();
+		notify();
+		orchestrator.dispose();
+
+		expect(observed.length).toBe(2);
+		expect(tickCount).toBe(1);
+	});
+
+	it('re-runs onPlaybackTick after a >1s gap (backgrounding signature reset)', () => {
+		let nowValue = 1000;
+		const nowSpy = spyOn(Date, 'now').mockImplementation(() => nowValue);
+		try {
+			const { store, notify } = subscribablePlaybackStore();
+			let tickCount = 0;
+			const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+				onPlaybackTick: () => {
+					tickCount += 1;
+				},
+			});
+			orchestrator.start();
+
+			notify();
+			nowValue = 1500;
+			notify();
+			nowValue = 3000;
+			notify();
+			orchestrator.dispose();
+
+			expect(tickCount).toBe(2);
+		} finally {
+			nowSpy.mockRestore();
+		}
+	});
+
+	it('does not fire onPlaybackTick after dispose', () => {
+		const { store, notify } = subscribablePlaybackStore();
+		let tickCount = 0;
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			onPlaybackTick: () => {
+				tickCount += 1;
+			},
+		});
+		orchestrator.start();
+		orchestrator.dispose();
+
+		notify();
+
+		expect(tickCount).toBe(0);
+	});
+});
+
+describe('PlaybackOrchestrator lifecycle ownership', () => {
+	it('reads the recently-played raw blob through the bound store, undefined before binding', async () => {
+		const recentlyPlayed = new RecentlyPlayedStore();
+		await recentlyPlayed.save([makeTrack('a')]);
+		const orchestrator = createOrchestrator({ track: null });
+
+		expect(await orchestrator.getRecentlyPlayedRaw()).toBeUndefined();
+		orchestrator.setUserServices(userServices({ recentlyPlayed }));
+
+		expect(await orchestrator.getRecentlyPlayedRaw()).toBe(JSON.stringify([makeTrack('a')]));
+	});
+
+	it('reads the pending scrobble count through the bound service, undefined before binding', () => {
+		const { service } = trackingScrobbleService(3);
+		const orchestrator = createOrchestrator({ track: null });
+
+		expect(orchestrator.getPendingScrobbleCount()).toBeUndefined();
+		orchestrator.setUserServices(userServices({ scrobble: service }));
+
+		expect(orchestrator.getPendingScrobbleCount()).toBe(3);
+	});
+
+	it('invokes scrobble onAppReady when user services are bound', () => {
+		const { service, state } = trackingScrobbleService();
+		const orchestrator = createOrchestrator({ track: null });
+
+		orchestrator.setUserServices(userServices({ scrobble: service }));
+
+		expect(state.appReadyCalls).toBe(1);
+	});
+
+	it('notifyAppReady forwards to scrobble onAppReady when bound and is a no-op before', () => {
+		const { service, state } = trackingScrobbleService();
+		const orchestrator = createOrchestrator({ track: null });
+
+		orchestrator.notifyAppReady();
+		expect(state.appReadyCalls).toBe(0);
+
+		orchestrator.setUserServices(userServices({ scrobble: service }));
+		orchestrator.notifyAppReady();
+
+		expect(state.appReadyCalls).toBe(2);
+	});
+});
+
+describe('PlaybackOrchestrator artwork palette', () => {
+	function artworkStore(albumImageUrl: string | null): { track: Track | null; album: null } {
+		return {
+			album: null,
+			track:
+				albumImageUrl === null
+					? makeTrack('a')
+					: ({ albumImageUrl, duration: 100, id: 'a', name: 'Track a' } as Track),
+		};
+	}
+
+	it('warms up artwork and prioritizes palette generation when none is cached', async () => {
+		const palette = fakePalette();
+		const prewarmed: Array<string> = [];
+		const orchestrator = createOrchestrator(artworkStore('art://a'), () => {}, fakeNotification(), {
+			prewarmArtwork: (imageUrl) => prewarmed.push(imageUrl),
+		});
+		orchestrator.setUserServices(
+			userServices({ paletteQueue: palette.queue, paletteService: palette.service }),
+		);
+
+		orchestrator.handleAlbumChange();
+		await flush();
+
+		expect(prewarmed).toEqual(['art://a']);
+		expect(palette.state.warmedUp).toEqual([['art://a']]);
+		expect(palette.state.prioritized).toEqual(['art://a']);
+	});
+
+	it('skips prioritizing when the artwork already has a palette', async () => {
+		const palette = fakePalette();
+		palette.state.hasPaletteFor.add('art://a');
+		const orchestrator = createOrchestrator(artworkStore('art://a'));
+		orchestrator.setUserServices(
+			userServices({ paletteQueue: palette.queue, paletteService: palette.service }),
+		);
+
+		orchestrator.handleAlbumChange();
+		await flush();
+
+		expect(palette.state.warmedUp).toEqual([['art://a']]);
+		expect(palette.state.prioritized).toEqual([]);
+	});
+
+	it('skips repeated work when the artwork url is unchanged', async () => {
+		const palette = fakePalette();
+		const orchestrator = createOrchestrator(artworkStore('art://a'));
+		orchestrator.setUserServices(
+			userServices({ paletteQueue: palette.queue, paletteService: palette.service }),
+		);
+
+		orchestrator.handleAlbumChange();
+		await flush();
+		orchestrator.handleAlbumChange();
+		await flush();
+
+		expect(palette.state.warmedUp.length).toBe(1);
+	});
+
+	it('does nothing before user services are bound', () => {
+		const prewarmed: Array<string> = [];
+		const orchestrator = createOrchestrator(artworkStore('art://a'), () => {}, fakeNotification(), {
+			prewarmArtwork: (imageUrl) => prewarmed.push(imageUrl),
+		});
+
+		orchestrator.handleAlbumChange();
+
+		expect(prewarmed).toEqual([]);
+	});
+
+	it('resolves the current artist logo and rerenders the overlay', async () => {
+		const setLogo: Array<string | null> = [];
+		let overlayRerenders = 0;
+		const store = {
+			setArtistLogoUrl: (url: string | null) => setLogo.push(url),
+			track: null,
+			unresolvedArtistLogoArtistId: 'artist-1' as string | null,
+		};
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			requestOverlayRerender: () => {
+				overlayRerenders += 1;
+			},
+			resolveArtistLogoUrl: () => Promise.resolve('logo://1'),
+		});
+
+		orchestrator.resolveCurrentArtistLogo();
+		await flush();
+
+		expect(setLogo).toEqual(['logo://1']);
+		expect(overlayRerenders).toBe(1);
+	});
+
+	it('dedupes concurrent resolution of the same artist', () => {
+		let calls = 0;
+		const deferred = createDeferred<string | null>();
+		const store = {
+			setArtistLogoUrl: () => {},
+			track: null,
+			unresolvedArtistLogoArtistId: 'artist-1' as string | null,
+		};
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			resolveArtistLogoUrl: () => {
+				calls += 1;
+				return deferred.promise;
+			},
+		});
+
+		orchestrator.resolveCurrentArtistLogo();
+		orchestrator.resolveCurrentArtistLogo();
+
+		expect(calls).toBe(1);
+	});
+
+	it('bails when the current track changed during resolution', async () => {
+		const setLogo: Array<string | null> = [];
+		const store = {
+			setArtistLogoUrl: (url: string | null) => setLogo.push(url),
+			track: null,
+			unresolvedArtistLogoArtistId: 'artist-1' as string | null,
+		};
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			resolveArtistLogoUrl: () => Promise.resolve('logo://1'),
+		});
+
+		orchestrator.resolveCurrentArtistLogo();
+		store.unresolvedArtistLogoArtistId = 'artist-2';
+		await flush();
+
+		expect(setLogo).toEqual([]);
+	});
+});
+
 function makeTrack(id: string): Track {
 	return { duration: 100, id, name: `Track ${id}` } as Track;
 }
@@ -497,6 +798,7 @@ function notificationPlaybackStore(overrides: Record<string, unknown> = {}): {
 		stop() {
 			calls.stop += 1;
 		},
+		subscribe: () => () => {},
 		track: makeTrack('a') as Track | null,
 		trackIndex: 0,
 		tracks: [makeTrack('a')] as Array<Track>,
@@ -511,15 +813,21 @@ function createOrchestrator(
 	notification: TrackPlaybackNotificationNative = fakeNotification(),
 	opts: {
 		getAudioFileUrl?: (trackId: string) => string | null;
+		onPlaybackTick?: () => void;
+		prewarmArtwork?: (imageUrl: string) => void;
 		requestOverlayRerender?: () => void;
+		resolveArtistLogoUrl?: (artistId: string) => Promise<string | null>;
 	} = {},
 ): PlaybackOrchestrator {
 	return new PlaybackOrchestrator({
 		getAudioFileUrl: opts.getAudioFileUrl ?? (() => null),
 		notification,
+		onPlaybackTick: opts.onPlaybackTick ?? (() => {}),
 		playbackStore: playbackStore as unknown as PlaybackStore,
+		prewarmArtwork: opts.prewarmArtwork ?? (() => {}),
 		requestOverlayRerender: opts.requestOverlayRerender ?? (() => {}),
 		requestRerender,
+		resolveArtistLogoUrl: opts.resolveArtistLogoUrl ?? (() => Promise.resolve(null)),
 	});
 }
 
@@ -574,9 +882,39 @@ function fakeWaveformRenderCache(urls: Record<string, string> = {}): {
 	return { cache, state };
 }
 
+function fakePalette(): {
+	service: PlaybackUserServices['paletteService'];
+	queue: PlaybackUserServices['paletteQueue'];
+	state: { warmedUp: Array<Array<string>>; hasPaletteFor: Set<string>; prioritized: Array<string> };
+} {
+	const state = {
+		hasPaletteFor: new Set<string>(),
+		prioritized: [] as Array<string>,
+		warmedUp: [] as Array<Array<string>>,
+	};
+	return {
+		queue: {
+			prioritize: (imageUrl) => {
+				if (imageUrl) state.prioritized.push(imageUrl);
+			},
+		},
+		service: {
+			hasPalette: (imageUrl) => imageUrl != null && state.hasPaletteFor.has(imageUrl),
+			warmUp: (imageUrls) => {
+				state.warmedUp.push(imageUrls);
+				return Promise.resolve();
+			},
+		},
+		state,
+	};
+}
+
 function userServices(overrides: Partial<PlaybackUserServices> = {}): PlaybackUserServices {
+	const palette = fakePalette();
 	return {
 		...fakeWaveformQueue().callbacks,
+		paletteQueue: palette.queue,
+		paletteService: palette.service,
 		recentlyPlayed: new RecentlyPlayedStore(),
 		scrobble: fakeScrobbleService(),
 		waveformRenderCache: fakeWaveformRenderCache().cache,
@@ -597,6 +935,7 @@ function fakeScrobbleService(
 	observed: Array<{ trackId: string | null; isPlaying: boolean; progressSeconds: number }> = [],
 ): ScrobbleService {
 	return {
+		getPendingScrobbles: () => [],
 		observePlayback: (snapshot: {
 			trackId: string | null;
 			isPlaying: boolean;
@@ -604,6 +943,50 @@ function fakeScrobbleService(
 		}) => observed.push(snapshot),
 		onAppReady: () => Promise.resolve(),
 	} as unknown as ScrobbleService;
+}
+
+function trackingScrobbleService(pending = 0): {
+	service: ScrobbleService;
+	state: { appReadyCalls: number };
+} {
+	const state = { appReadyCalls: 0 };
+	const service = {
+		getPendingScrobbles: () => new Array(pending).fill({ trackId: 'x', triggeredAt: 0 }),
+		observePlayback: () => {},
+		onAppReady: () => {
+			state.appReadyCalls += 1;
+			return Promise.resolve();
+		},
+	} as unknown as ScrobbleService;
+	return { service, state };
+}
+
+function subscribablePlaybackStore(overrides: Record<string, unknown> = {}): {
+	store: { track: Track | null };
+	notify: () => void;
+} {
+	const listeners = new Set<() => void>();
+	const store = {
+		album: null,
+		isPlaying: true,
+		loopMode: 'off',
+		progressSeconds: 0,
+		seekTarget: null,
+		subscribe(listener: () => void) {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
+		track: makeTrack('a') as Track | null,
+		trackIndex: 0,
+		tracks: [makeTrack('a')] as Array<Track>,
+		...overrides,
+	};
+	const notify = (): void => {
+		for (const listener of [...listeners]) {
+			listener();
+		}
+	};
+	return { notify, store };
 }
 
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));

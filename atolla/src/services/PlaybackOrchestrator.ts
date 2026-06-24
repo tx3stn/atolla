@@ -14,18 +14,32 @@ import type { WaveformService } from './WaveformService';
 
 const NATIVE_ACTION_POLL_INTERVAL_MS = 350;
 
+export interface NowPlayingPaletteService {
+	hasPalette(imageUrl: string | null | undefined): boolean;
+	warmUp(imageUrls: Array<string>): Promise<void>;
+}
+
+export interface NowPlayingPaletteQueue {
+	prioritize(imageUrl: string | null | undefined): void;
+}
+
 export interface PlaybackOrchestratorDeps {
 	getAudioFileUrl: (trackId: string) => string | null;
 	notification: TrackPlaybackNotificationNative;
+	onPlaybackTick: () => void;
 	playbackStore: PlaybackStore;
+	prewarmArtwork: (imageUrl: string) => void;
 	requestOverlayRerender: () => void;
 	// force a host re-render after async work resolves (e.g. recently-played restore)
 	requestRerender: () => void;
+	resolveArtistLogoUrl: (artistId: string) => Promise<string | null>;
 }
 
 export interface PlaybackUserServices {
 	disposeWaveformQueue: () => void;
 	enqueueWaveform: (trackId: string, audioPath: string) => void;
+	paletteQueue: NowPlayingPaletteQueue;
+	paletteService: NowPlayingPaletteService;
 	recentlyPlayed: RecentlyPlayedStore;
 	reorderWaveformQueue: (trackIds: Array<string>) => void;
 	scrobble: ScrobbleService;
@@ -40,11 +54,18 @@ export class PlaybackOrchestrator {
 	private readonly playbackStore: PlaybackStore;
 	private readonly notification: TrackPlaybackNotificationNative;
 	private readonly getAudioFileUrl: (trackId: string) => string | null;
+	private readonly onPlaybackTick: () => void;
+	private readonly prewarmArtwork: (imageUrl: string) => void;
+	private readonly resolveArtistLogoUrl: (artistId: string) => Promise<string | null>;
 	private readonly requestRerender: () => void;
 	private readonly requestOverlayRerender: () => void;
 
 	private recentlyPlayedStore?: RecentlyPlayedStore;
 	private scrobbleService?: ScrobbleService;
+	private paletteService?: NowPlayingPaletteService;
+	private paletteQueue?: NowPlayingPaletteQueue;
+	private lastArtworkUrl: string | null = null;
+	private resolvingArtistLogoId: string | null = null;
 	private waveformService?: WaveformService;
 	private waveformRenderCache?: WaveformRenderCache;
 	private enqueueWaveform?: (trackId: string, audioPath: string) => void;
@@ -63,11 +84,17 @@ export class PlaybackOrchestrator {
 	private lastTrackNotificationStateKey = '';
 	private lastTrackNotificationPositionBucket = -1;
 	private actionPollInterval?: ReturnType<typeof setInterval>;
+	private unsubscribePlayback?: () => void;
+	private lastPlaybackSignature = '';
+	private lastPlaybackTickAt = 0;
 
 	constructor(deps: PlaybackOrchestratorDeps) {
 		this.playbackStore = deps.playbackStore;
 		this.notification = deps.notification;
 		this.getAudioFileUrl = deps.getAudioFileUrl;
+		this.onPlaybackTick = deps.onPlaybackTick;
+		this.prewarmArtwork = deps.prewarmArtwork;
+		this.resolveArtistLogoUrl = deps.resolveArtistLogoUrl;
 		this.requestRerender = deps.requestRerender;
 		this.requestOverlayRerender = deps.requestOverlayRerender;
 	}
@@ -75,16 +102,43 @@ export class PlaybackOrchestrator {
 	// begin draining the native notification action queue. owned here, not the host, so the whole
 	// notification concern lives in one place; the interval is cleared in dispose().
 	start(): void {
-		if (this.actionPollInterval) {
+		if (!this.actionPollInterval) {
+			this.actionPollInterval = setInterval(() => {
+				this.consumeNotificationAction();
+			}, NATIVE_ACTION_POLL_INTERVAL_MS);
+		}
+		if (!this.unsubscribePlayback) {
+			this.unsubscribePlayback = this.playbackStore.subscribe(() => this.handlePlaybackTick());
+			this.syncTrackPlaybackNotification();
+		}
+	}
+
+	private handlePlaybackTick(): void {
+		this.syncScrobblePlaybackSnapshot();
+		this.syncTrackPlaybackNotification();
+
+		const now = Date.now();
+		if (this.lastPlaybackTickAt > 0 && now - this.lastPlaybackTickAt > 1000) {
+			this.lastPlaybackSignature = '';
+		}
+		this.lastPlaybackTickAt = now;
+
+		const { track, trackIndex, tracks, album, isPlaying, loopMode } = this.playbackStore;
+		const sig = `${track?.id ?? ''}|${trackIndex}|${tracks.length}|${album?.id ?? ''}|${isPlaying}|${loopMode}`;
+		if (sig === this.lastPlaybackSignature) {
 			return;
 		}
-		this.actionPollInterval = setInterval(() => {
-			this.consumeNotificationAction();
-		}, NATIVE_ACTION_POLL_INTERVAL_MS);
+		this.lastPlaybackSignature = sig;
+
+		this.onPlaybackTick();
 	}
 
 	dispose(): void {
 		this.destroyed = true;
+		if (this.unsubscribePlayback) {
+			this.unsubscribePlayback();
+			this.unsubscribePlayback = undefined;
+		}
 		if (this.actionPollInterval) {
 			clearInterval(this.actionPollInterval);
 			this.actionPollInterval = undefined;
@@ -150,6 +204,9 @@ export class PlaybackOrchestrator {
 	setUserServices(services: PlaybackUserServices): void {
 		this.recentlyPlayedStore = services.recentlyPlayed;
 		this.scrobbleService = services.scrobble;
+		this.paletteService = services.paletteService;
+		this.paletteQueue = services.paletteQueue;
+		fireAndForget('scrobbleAppReady', this.scrobbleService.onAppReady());
 		this.recentlyPlayedRestoring = true;
 		this.recentlyPlayedTracks = [];
 		this.lastObservedRecentTrackId = null;
@@ -183,6 +240,68 @@ export class PlaybackOrchestrator {
 		// re-enable persistence since the superseded restore now bails before clearing the flag
 		this.restoreGeneration += 1;
 		this.recentlyPlayedRestoring = false;
+	}
+
+	getRecentlyPlayedRaw(): Promise<string | undefined> {
+		return this.recentlyPlayedStore
+			? this.recentlyPlayedStore.loadRaw()
+			: Promise.resolve(undefined);
+	}
+
+	getPendingScrobbleCount(): number | undefined {
+		return this.scrobbleService?.getPendingScrobbles().length;
+	}
+
+	notifyAppReady(): void {
+		if (this.scrobbleService) {
+			fireAndForget('scrobbleAppReady', this.scrobbleService.onAppReady());
+		}
+	}
+
+	handleAlbumChange(): void {
+		const paletteService = this.paletteService;
+		const paletteQueue = this.paletteQueue;
+		if (!paletteService || !paletteQueue) {
+			return;
+		}
+		const imageUrl =
+			this.playbackStore.track?.albumImageUrl ?? this.playbackStore.album?.imageUrl ?? null;
+		if (!imageUrl || imageUrl === this.lastArtworkUrl) {
+			return;
+		}
+		this.lastArtworkUrl = imageUrl;
+		this.prewarmArtwork(imageUrl);
+		fireAndForget(
+			'paletteWarmUp',
+			paletteService.warmUp([imageUrl]).then(() => {
+				if (!paletteService.hasPalette(imageUrl)) {
+					paletteQueue.prioritize(imageUrl);
+				}
+			}),
+		);
+	}
+
+	resolveCurrentArtistLogo(): void {
+		const artistId = this.playbackStore.unresolvedArtistLogoArtistId;
+		if (!artistId || this.resolvingArtistLogoId === artistId) {
+			return;
+		}
+		this.resolvingArtistLogoId = artistId;
+		void this.resolveArtistLogoUrl(artistId)
+			.then((logoUrl) => {
+				this.resolvingArtistLogoId = null;
+				if (!logoUrl) {
+					return;
+				}
+				if (this.playbackStore.unresolvedArtistLogoArtistId !== artistId) {
+					return;
+				}
+				this.playbackStore.setArtistLogoUrl(logoUrl);
+				this.requestOverlayRerender();
+			})
+			.catch(() => {
+				this.resolvingArtistLogoId = null;
+			});
 	}
 
 	syncScrobblePlaybackSnapshot(): void {

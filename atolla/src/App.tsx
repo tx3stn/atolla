@@ -188,12 +188,27 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private playbackOrchestrator = new PlaybackOrchestrator({
 		getAudioFileUrl: (trackId) => this.getAudioPathForWaveform(trackId),
 		notification: new TrackPlaybackNotificationAdapter(),
+		onPlaybackTick: () => {
+			this.playbackOrchestrator.handleAlbumChange();
+			if (!this.handleTrackPlaybackSourceChange()) {
+				this.handleNextTrackPreload();
+			}
+			this.syncUpcomingQueue();
+			this.handleTrackPrefetchQueueChange();
+			this.playbackOrchestrator.captureRecentlyPlayedTrack();
+			this.playbackOrchestrator.handleWaveformPriority();
+			this.playbackOrchestrator.resolveCurrentArtistLogo();
+			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
+			this.setState({ version: this.state.version + 1 });
+		},
 		playbackStore: this.playbackStore,
+		prewarmArtwork: (imageUrl) => this.prewarmNowPlayingArtwork(imageUrl),
 		requestOverlayRerender: () => {
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
 		},
 		requestRerender: () => this.setState({ version: this.state.version + 1 }),
+		resolveArtistLogoUrl: (artistId) => this.transport.getArtistLogoUrl(artistId),
 	});
 	private barColors = new BarColorStore();
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
@@ -259,7 +274,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	}
 
 	private searchStore!: SearchStore;
-	private recentlyPlayedStore!: RecentlyPlayedStore;
 	private nowPlayingQueueStore?: KeyValueStore;
 	private homeAlbumsStore?: KeyValueStore;
 	private readonly playlistCreateService = new PlaylistCreateService(
@@ -297,13 +311,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	// resolvers waiting on the native "image cached" observer, keyed by category + stripped url
 	private readonly pendingImageCacheResolvers = new Map<string, Array<() => void>>();
 	private paletteQueue!: PaletteGenerationQueue;
-	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
 	private unsubscribeToast?: () => void;
-	private scrobbleService!: ScrobbleService;
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
-	private lastArtworkUrl: string | null = null;
-	private resolvingArtistLogoId: string | null = null;
 	private homeNavigationController?: NavigationController;
 	private homeNavigationNonce = 0;
 	private settingsNavigationNonce = 0;
@@ -338,8 +348,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastPrefetchTracksRef: Array<Track> | null = null;
 	private lastPrefetchTrackIndex = -1;
 	private lastPrefetchTransport: Transport | null = null;
-	private lastPlaybackSignature = '';
-	private lastPlaybackTickAt = 0;
 	private lastUpcomingQueueKey = '';
 	private readonly imageCache = new ImageCache({});
 	private trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
@@ -547,49 +555,15 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			});
 		});
 		this.downloadService.onAppReady();
-		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
-			// progress-sensitive work: cheap, needs every tick
-			this.playbackOrchestrator.syncScrobblePlaybackSnapshot();
-			this.playbackOrchestrator.syncTrackPlaybackNotification();
-
-			// gate everything else (and the re-render) behind a structural signature; the progress bar
-			// is driven by ref-based subscriptions and needs no full re-render. if >1s passed since the
-			// last tick the app was backgrounded: reset the signature so the first foreground tick
-			// re-runs all handlers (palette, overlay, etc.)
-			const now = Date.now();
-			if (this.lastPlaybackTickAt > 0 && now - this.lastPlaybackTickAt > 1000) {
-				this.lastPlaybackSignature = '';
-			}
-			this.lastPlaybackTickAt = now;
-
-			const { track, trackIndex, tracks, album, isPlaying, loopMode } = this.playbackStore;
-			const sig = `${track?.id ?? ''}|${trackIndex}|${tracks.length}|${album?.id ?? ''}|${isPlaying}|${loopMode}`;
-			if (sig === this.lastPlaybackSignature) return;
-			this.lastPlaybackSignature = sig;
-
-			this.handleAlbumChange();
-			if (!this.handleTrackPlaybackSourceChange()) {
-				this.handleNextTrackPreload();
-			}
-			this.syncUpcomingQueue();
-			this.handleTrackPrefetchQueueChange();
-			this.playbackOrchestrator.captureRecentlyPlayedTrack();
-			this.playbackOrchestrator.handleWaveformPriority();
-			this.resolveCurrentArtistLogo();
-			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
-			this.setState({ version: this.state.version + 1 });
-		});
-		this.playbackOrchestrator.syncScrobblePlaybackSnapshot();
 		// handle any track already playing at startup
-		this.handleAlbumChange();
+		this.playbackOrchestrator.handleAlbumChange();
 		if (!this.handleTrackPlaybackSourceChange()) {
 			this.handleNextTrackPreload();
 		}
 		this.syncUpcomingQueue();
 		this.handleTrackPrefetchQueueChange();
 		this.playbackOrchestrator.captureRecentlyPlayedTrack();
-		this.resolveCurrentArtistLogo();
-		this.playbackOrchestrator.syncTrackPlaybackNotification();
+		this.playbackOrchestrator.resolveCurrentArtistLogo();
 		this.refreshTrackCachedCount();
 	}
 
@@ -612,9 +586,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			clearTimeout(this.playbackSourceBoundTimeout);
 		}
 		this.deferredDownloadCoordinator.reset();
-		if (this.unsubscribePlayback) {
-			this.unsubscribePlayback();
-		}
 		if (this.unsubscribePalette) {
 			this.unsubscribePalette();
 		}
@@ -635,7 +606,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.searchStore = new SearchStore(
 			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
 		);
-		this.recentlyPlayedStore = new RecentlyPlayedStore(
+		const recentlyPlayed = new RecentlyPlayedStore(
 			new PersistentStore(`atolla/user/${userId}/recently_played`, { deviceGlobal: true }),
 		);
 		this.nowPlayingQueueStore = new PersistentStore(`atolla/user/${userId}/now_playing_queue`, {
@@ -686,7 +657,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			),
 		);
 		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
-		this.scrobbleService = new ScrobbleService({
+		const scrobble = new ScrobbleService({
 			deliverScrobble: (pending) => {
 				return this.transport.scrobbleTrackPlayed(pending.trackId, pending.triggeredAt);
 			},
@@ -704,18 +675,19 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.playbackOrchestrator.setUserServices({
 			disposeWaveformQueue: () => waveformQueue.dispose(),
 			enqueueWaveform: (trackId, audioPath) => waveformQueue.enqueue(trackId, audioPath),
-			recentlyPlayed: this.recentlyPlayedStore,
+			paletteQueue: this.paletteQueue,
+			paletteService: this.paletteService,
+			recentlyPlayed,
 			reorderWaveformQueue: (trackIds) => waveformQueue.reorderToMatch(trackIds),
-			scrobble: this.scrobbleService,
+			scrobble,
 			waveformRenderCache,
 			waveformService,
 		});
-		void this.scrobbleService.onAppReady();
 		this.reconnectSync = new ReconnectSyncCoordinator({
 			downloadService: this.downloadService,
 			playlistCreateService: this.playlistCreateService,
 			playlistEditService: this.playlistEditService,
-			scrobbleService: this.scrobbleService,
+			scrobbleService: scrobble,
 		});
 		try {
 			setAtollaImageCachedObserver((url, category) => {
@@ -1094,49 +1066,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		} catch {
 			// native cache stats unavailable on non-Android targets
 		}
-	}
-
-	private handleAlbumChange(): void {
-		if (!this.paletteService) return;
-		const imageUrl =
-			this.playbackStore.track?.albumImageUrl ?? this.playbackStore.album?.imageUrl ?? null;
-		if (!imageUrl || imageUrl === this.lastArtworkUrl) return;
-		this.lastArtworkUrl = imageUrl;
-		this.prewarmNowPlayingArtwork(imageUrl);
-		void this.paletteService
-			.warmUp([imageUrl])
-			.then(() => {
-				if (!this.paletteService.hasPalette(imageUrl)) {
-					this.paletteQueue.prioritize(imageUrl);
-				}
-			})
-			.catch(this.handleSwallowedAsyncError);
-	}
-
-	// artist logo is resolved from artistId, never stored on the track, so any queue path
-	// that makes a track current without a logo (add-to-queue, restore) leaves it missing.
-	// resolve lazily here so every path is covered in one place, not at each queue mutation
-	private resolveCurrentArtistLogo(): void {
-		const artistId = this.playbackStore.unresolvedArtistLogoArtistId;
-		if (!artistId || this.resolvingArtistLogoId === artistId) return;
-
-		this.resolvingArtistLogoId = artistId;
-		void this.transport
-			.getArtistLogoUrl(artistId)
-			.then((logoUrl) => {
-				this.resolvingArtistLogoId = null;
-				if (!logoUrl) return;
-				// bail if the current track changed (or already got a logo) while resolving
-				if (this.playbackStore.unresolvedArtistLogoArtistId !== artistId) return;
-				this.playbackStore.setArtistLogoUrl(logoUrl);
-				// setArtistLogoUrl notifies, but the playback subscription bails on an unchanged
-				// signature, so re-slot the overlay explicitly like the palette/waveform subscriptions
-				this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
-				this.setState({ version: this.state.version + 1 });
-			})
-			.catch(() => {
-				this.resolvingArtistLogoId = null;
-			});
 	}
 
 	private prewarmNowPlayingArtwork(imageUrl: string): void {
@@ -1769,7 +1698,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			// recently-added cache, 'queue' mirrors PlaybackStore
 			const [recentlyPlayed, nowPlayingQueue, homeAlbums, homeRecentlyAdded, playlistEdits] =
 				await Promise.all([
-					this.recentlyPlayedStore.loadRaw(),
+					this.playbackOrchestrator.getRecentlyPlayedRaw(),
 					fetchRaw(this.nowPlayingQueueStore, 'queue'),
 					fetchRaw(this.homeAlbumsStore, 'on_this_day_v1'),
 					fetchRaw(this.homeAlbumsStore, 'recently_added_v1'),
@@ -1785,7 +1714,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				pending: {
 					playlistCreates: this.playlistCreateService.getPending().length,
 					playlistEdits,
-					scrobbles: this.scrobbleService?.getPendingScrobbles().length,
+					scrobbles: this.playbackOrchestrator.getPendingScrobbleCount(),
 				},
 				platform: Device.isAndroid() ? 'android' : 'ios',
 				rawPersisted: { homeAlbums, homeRecentlyAdded, nowPlayingQueue, recentlyPlayed },
@@ -2645,7 +2574,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 		this.bootstrapCommitTimer = setTimeout(() => {
 			this.setState({ ...partialState, isBootstrapped: true });
-			void this.scrobbleService?.onAppReady();
+			this.playbackOrchestrator.notifyAppReady();
 		}, remaining);
 	}
 
