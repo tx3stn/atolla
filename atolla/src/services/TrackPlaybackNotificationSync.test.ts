@@ -112,6 +112,6 @@ describe('TrackPlaybackNotificationSync', () => {
 	it('normalizes native action payloads', () => {
 		expect(normalizeTrackPlaybackNotificationAction(' PLAY ')).toBe('play');
 		expect(normalizeTrackPlaybackNotificationAction(' TOGGLE ')).toBe('toggle');
-		expect(normalizeTrackPlaybackNotificationAction('unknown')).toBe('');
+		expect(normalizeTrackPlaybackNotificationAction('unknown')).toBeNull();
 	});
 });

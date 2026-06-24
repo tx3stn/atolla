@@ -64,11 +64,7 @@ import { ReconnectSyncCoordinator, type SyncProgress } from './services/Reconnec
 import { ScrobbleService } from './services/ScrobbleService';
 import { ToastService } from './services/ToastService';
 import { TrackPlaybackNativePrefetchQueue } from './services/TrackPlaybackNativePrefetchQueue';
-import {
-	applyTrackPlaybackNotificationAction,
-	buildTrackPlaybackNotificationPayload,
-	normalizeTrackPlaybackNotificationAction,
-} from './services/TrackPlaybackNotificationSync';
+import { TrackPlaybackNotificationAdapter } from './services/TrackPlaybackNotificationAdapter';
 import {
 	buildPlaybackQueueWindow,
 	serializeQueueWindow,
@@ -94,9 +90,6 @@ import { SearchStore } from './stores/Search';
 import {
 	cacheAtollaTrackFromUrlAsync,
 	clearAtollaTrackCache,
-	clearAtollaTrackPlaybackNotification,
-	consumeAtollaTrackPlaybackNotificationAction,
-	ensureAtollaTrackPlaybackNotificationPermission,
 	getAtollaAudioPlaybackCurrentTrackId,
 	getAtollaAudioPlaybackIsActive,
 	getAtollaAudioPlaybackPositionMs,
@@ -107,7 +100,6 @@ import {
 	getAtollaTrackCacheEntryCount,
 	setAtollaAudioPlaybackUpcomingQueue,
 	setAtollaTrackCacheMaxTracks,
-	updateAtollaTrackPlaybackNotification,
 } from './TrackPlaybackNative';
 import { theme } from './theme';
 import { LiveTransport } from './transports/Live';
@@ -194,7 +186,13 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 	private playbackStore = new PlaybackStore();
 	private playbackOrchestrator = new PlaybackOrchestrator({
+		getAudioFileUrl: (trackId) => this.getAudioPathForWaveform(trackId),
+		notification: new TrackPlaybackNotificationAdapter(),
 		playbackStore: this.playbackStore,
+		requestOverlayRerender: () => {
+			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
+			this.setState({ version: this.state.version + 1 });
+		},
 		requestRerender: () => this.setState({ version: this.state.version + 1 }),
 	});
 	private barColors = new BarColorStore();
@@ -299,17 +297,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	// resolvers waiting on the native "image cached" observer, keyed by category + stripped url
 	private readonly pendingImageCacheResolvers = new Map<string, Array<() => void>>();
 	private paletteQueue!: PaletteGenerationQueue;
-	private waveformService!: WaveformService;
-	private waveformQueue!: WaveformGenerationQueue;
-	private waveformRenderCache!: WaveformRenderCache;
 	private unsubscribePlayback?: () => void;
 	private unsubscribePalette?: () => void;
-	private unsubscribeWaveform?: () => void;
-	private unsubscribeWaveformRender?: () => void;
 	private unsubscribeToast?: () => void;
 	private scrobbleService!: ScrobbleService;
 	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
-	private nativePlaybackActionInterval?: ReturnType<typeof setInterval>;
 	private lastArtworkUrl: string | null = null;
 	private resolvingArtistLogoId: string | null = null;
 	private homeNavigationController?: NavigationController;
@@ -346,10 +338,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private lastPrefetchTracksRef: Array<Track> | null = null;
 	private lastPrefetchTrackIndex = -1;
 	private lastPrefetchTransport: Transport | null = null;
-	private lastWaveformPriorityTracksRef: Array<Track> | null = null;
-	private lastWaveformPriorityTrackIndex = -1;
-	private lastTrackNotificationStateKey = '';
-	private lastTrackNotificationPositionBucket = -1;
 	private lastPlaybackSignature = '';
 	private lastPlaybackTickAt = 0;
 	private lastUpcomingQueueKey = '';
@@ -450,9 +438,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				this.refreshNativeCacheStats();
 			}
 		}, 1000);
-		this.nativePlaybackActionInterval = setInterval(() => {
-			this.handleNativePlaybackNotificationAction();
-		}, 350);
+		this.playbackOrchestrator.start();
 		Promise.race([
 			Promise.all([
 				this.preferences.getGridColumns(),
@@ -564,7 +550,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.unsubscribePlayback = this.playbackStore.subscribe(() => {
 			// progress-sensitive work: cheap, needs every tick
 			this.playbackOrchestrator.syncScrobblePlaybackSnapshot();
-			this.syncTrackPlaybackNotification();
+			this.playbackOrchestrator.syncTrackPlaybackNotification();
 
 			// gate everything else (and the re-render) behind a structural signature; the progress bar
 			// is driven by ref-based subscriptions and needs no full re-render. if >1s passed since the
@@ -588,7 +574,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.syncUpcomingQueue();
 			this.handleTrackPrefetchQueueChange();
 			this.playbackOrchestrator.captureRecentlyPlayedTrack();
-			this.handleWaveformPriority();
+			this.playbackOrchestrator.handleWaveformPriority();
 			this.resolveCurrentArtistLogo();
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
@@ -603,7 +589,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.handleTrackPrefetchQueueChange();
 		this.playbackOrchestrator.captureRecentlyPlayedTrack();
 		this.resolveCurrentArtistLogo();
-		this.syncTrackPlaybackNotification();
+		this.playbackOrchestrator.syncTrackPlaybackNotification();
 		this.refreshTrackCachedCount();
 	}
 
@@ -632,26 +618,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.unsubscribePalette) {
 			this.unsubscribePalette();
 		}
-		if (this.unsubscribeWaveform) {
-			this.unsubscribeWaveform();
-		}
-		if (this.unsubscribeWaveformRender) {
-			this.unsubscribeWaveformRender();
-		}
-		if (this.waveformQueue) {
-			this.waveformQueue.dispose();
-		}
-		if (this.waveformRenderCache) {
-			this.waveformRenderCache.clear();
-		}
 		if (this.nativeCacheStatsInterval) {
 			clearInterval(this.nativeCacheStatsInterval);
-		}
-		if (this.nativePlaybackActionInterval) {
-			clearInterval(this.nativePlaybackActionInterval);
-		}
-		if (!this.playbackStore.track) {
-			clearAtollaTrackPlaybackNotification();
 		}
 		this.trackPrefetchQueue.clearQueue();
 		if (this.paletteQueue) {
@@ -663,18 +631,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private initUserStores(userId: string): void {
 		if (this.unsubscribePalette) {
 			this.unsubscribePalette();
-		}
-		if (this.unsubscribeWaveform) {
-			this.unsubscribeWaveform();
-		}
-		if (this.unsubscribeWaveformRender) {
-			this.unsubscribeWaveformRender();
-		}
-		if (this.waveformQueue) {
-			this.waveformQueue.dispose();
-		}
-		if (this.waveformRenderCache) {
-			this.waveformRenderCache.clear();
 		}
 		this.searchStore = new SearchStore(
 			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
@@ -738,9 +694,21 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				deviceGlobal: true,
 			}),
 		});
+		const waveformService = new WaveformService(
+			new PersistentWaveformStore(
+				new PersistentStore(`atolla/user/${userId}/waveform_data`, { deviceGlobal: true }),
+			),
+		);
+		const waveformRenderCache = new WaveformRenderCache();
+		const waveformQueue = new WaveformGenerationQueue(waveformService);
 		this.playbackOrchestrator.setUserServices({
+			disposeWaveformQueue: () => waveformQueue.dispose(),
+			enqueueWaveform: (trackId, audioPath) => waveformQueue.enqueue(trackId, audioPath),
 			recentlyPlayed: this.recentlyPlayedStore,
+			reorderWaveformQueue: (trackIds) => waveformQueue.reorderToMatch(trackIds),
 			scrobble: this.scrobbleService,
+			waveformRenderCache,
+			waveformService,
 		});
 		void this.scrobbleService.onAppReady();
 		this.reconnectSync = new ReconnectSyncCoordinator({
@@ -761,22 +729,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			// observer bridge unavailable on non-Android targets
 		}
 		this.unsubscribePalette = this.paletteService.subscribe(() => {
-			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
-			this.setState({ version: this.state.version + 1 });
-		});
-		this.waveformService = new WaveformService(
-			new PersistentWaveformStore(
-				new PersistentStore(`atolla/user/${userId}/waveform_data`, { deviceGlobal: true }),
-			),
-		);
-		this.waveformRenderCache = new WaveformRenderCache();
-		this.waveformQueue = new WaveformGenerationQueue(this.waveformService);
-		void this.waveformService.warmUp();
-		this.unsubscribeWaveform = this.waveformService.subscribe(() => {
-			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
-			this.setState({ version: this.state.version + 1 });
-		});
-		this.unsubscribeWaveformRender = this.waveformRenderCache.subscribe(() => {
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
 		});
@@ -1208,41 +1160,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	}
 
-	private getPlaybackTrackIds(): Array<string> {
-		const { tracks, trackIndex } = this.playbackStore;
-		const ids: Array<string> = [];
-		for (let i = trackIndex; i < tracks.length; i++) ids.push(tracks[i].id);
-		for (let i = 0; i < trackIndex; i++) ids.push(tracks[i].id);
-		return ids;
-	}
-
-	private handleWaveformPriority(): void {
-		if (!this.waveformQueue || !this.waveformService || this.playbackStore.tracks.length === 0)
-			return;
-
-		// skip if neither the track list nor the active index changed: native bridge calls
-		// for every track are expensive and this fires on every progress tick
-		if (
-			this.playbackStore.tracks === this.lastWaveformPriorityTracksRef &&
-			this.playbackStore.trackIndex === this.lastWaveformPriorityTrackIndex
-		) {
-			return;
-		}
-		this.lastWaveformPriorityTracksRef = this.playbackStore.tracks;
-		this.lastWaveformPriorityTrackIndex = this.playbackStore.trackIndex;
-
-		// enqueue any playback-queue track without a waveform yet. covers failed tracks (retry)
-		// and downloaded tracks whose generation never started (not active at download time)
-		for (const track of this.playbackStore.tracks) {
-			const audioPath = this.getAudioPathForWaveform(track.id);
-			if (audioPath) {
-				this.waveformService.scheduleGeneration(track.id);
-				this.waveformQueue.enqueue(track.id, audioPath);
-			}
-		}
-		this.waveformQueue.reorderToMatch(this.getPlaybackTrackIds());
-	}
-
 	// identity used to match a cache request against the native "image cached" observer.
 	// the url handed to the native loader carries api_key (needed for the fetch) while the
 	// observer reports the stripped url, and query encoding can differ, so match on the
@@ -1314,12 +1231,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		this.refreshTrackCachedCount();
 
 		const audioPath = this.getAudioPathForWaveform(trackId);
-		if (audioPath && this.waveformService && this.waveformQueue) {
-			this.waveformService.scheduleGeneration(trackId);
-			this.waveformQueue.enqueue(trackId, audioPath);
-			// re-sort immediately so this entry lands in playback order rather than waiting for
-			// the next playback store event
-			this.waveformQueue.reorderToMatch(this.getPlaybackTrackIds());
+		if (audioPath) {
+			this.playbackOrchestrator.enqueueWaveformIfNeeded(trackId, audioPath);
 		}
 
 		if (this.playbackStore.track?.id !== trackId) {
@@ -1332,13 +1245,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.handleNextTrackPreload();
 		}
 		this.syncUpcomingQueue();
-	}
-
-	private getWaveformMaskUrl(trackId: string): string | null {
-		if (!this.waveformService || !this.waveformRenderCache) return null;
-		const amps = this.waveformService.getAmps(trackId);
-		if (!amps) return null;
-		return this.waveformRenderCache.getOrRequest(trackId, amps);
 	}
 
 	private getAudioPathForWaveform(trackId: string): string | null {
@@ -1375,7 +1281,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		// initial buffer filled), so there's no start-of-stream contention
 		const streamUrl = this.getTrackStreamSource(trackId);
 		if (streamUrl) {
-			this.enqueueWaveformIfNeeded(trackId, streamUrl);
+			this.playbackOrchestrator.enqueueWaveformIfNeeded(trackId, streamUrl);
 		}
 	}
 
@@ -1414,7 +1320,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 			// local file available: start waveform generation immediately without waiting for
 			// handleTrackCached (covers already-cached and downloaded tracks)
-			this.enqueueWaveformIfNeeded(activeTrack.id, nativeSource);
+			this.playbackOrchestrator.enqueueWaveformIfNeeded(activeTrack.id, nativeSource);
 			return appliedNext;
 		}
 
@@ -1449,13 +1355,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 
 		return appliedNext;
-	}
-
-	private enqueueWaveformIfNeeded(trackId: string, audioPath: string): void {
-		if (!this.waveformService || !this.waveformQueue) return;
-		this.waveformService.scheduleGeneration(trackId);
-		this.waveformQueue.enqueue(trackId, audioPath);
-		this.waveformQueue.reorderToMatch(this.getPlaybackTrackIds());
 	}
 
 	private isOfflinePlaybackMode(): boolean {
@@ -1816,8 +1715,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 		}
 		if (selection.waveformData) {
-			this.waveformService?.clearAll();
-			this.waveformRenderCache?.clear();
+			this.playbackOrchestrator.clearWaveformData();
 		}
 		this.refreshNativeCacheStats();
 		this.refreshTrackCachedCount();
@@ -2353,7 +2251,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				trackIndex={trackIndex}
 				tracks={tracks}
 				transport={this.transport}
-				waveformMaskUrl={this.getWaveformMaskUrl(track.id)}
+				waveformMaskUrl={this.playbackOrchestrator.getWaveformMaskUrl(track.id)}
 			/>
 		</ErrorBoundary>;
 	};
@@ -2387,53 +2285,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 		this.playbackStore.skipForward(10);
 	};
-
-	private handleNativePlaybackNotificationAction(): void {
-		const action = normalizeTrackPlaybackNotificationAction(
-			consumeAtollaTrackPlaybackNotificationAction(),
-		);
-		if (action === '') {
-			return;
-		}
-
-		applyTrackPlaybackNotificationAction(this.playbackStore, action);
-	}
-
-	private syncTrackPlaybackNotification(): void {
-		const payload = buildTrackPlaybackNotificationPayload(this.playbackStore);
-		if (!payload) {
-			this.lastTrackNotificationStateKey = '';
-			this.lastTrackNotificationPositionBucket = -1;
-			clearAtollaTrackPlaybackNotification();
-			return;
-		}
-
-		if (
-			payload.stateKey === this.lastTrackNotificationStateKey &&
-			payload.positionBucket === this.lastTrackNotificationPositionBucket
-		) {
-			return;
-		}
-
-		this.lastTrackNotificationStateKey = payload.stateKey;
-		this.lastTrackNotificationPositionBucket = payload.positionBucket;
-
-		if (!ensureAtollaTrackPlaybackNotificationPermission()) {
-			return;
-		}
-
-		updateAtollaTrackPlaybackNotification(
-			payload.trackName,
-			payload.artistName,
-			payload.albumName,
-			payload.artworkUrl,
-			payload.isPlaying,
-			payload.positionSeconds,
-			payload.durationSeconds,
-			payload.hasPrevious,
-			payload.hasNext,
-		);
-	}
 
 	handleNavigateToArtist = (artistId: string): void => {
 		if (!this.libraryNavigationController) {
@@ -3022,7 +2873,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							toastService={this.toastService}
 							trackCacheCachedCount={this.state.trackPlaybackCachedCount}
 							trackCacheMaxTracks={this.state.trackCacheMaxTracks}
-							waveformReadyCount={this.waveformService.getReadyCount()}
+							waveformReadyCount={this.playbackOrchestrator.getWaveformReadyCount()}
 						/>
 					)}
 				</ErrorBoundary>
@@ -3054,7 +2905,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							trackIndex={trackIndex}
 							tracks={tracks}
 							transport={this.transport}
-							waveformMaskUrl={this.getWaveformMaskUrl(track.id)}
+							waveformMaskUrl={this.playbackOrchestrator.getWaveformMaskUrl(track.id)}
 						/>
 					</ErrorBoundary>
 				)}

@@ -700,9 +700,13 @@ static const NSInteger kAtollaLookaheadTargetAhead = 2;
 // while a freshly-started remote track fills its initial network buffer, hold back the
 // gapless next item / lookahead top-up so they don't compete for bandwidth and stutter the
 // start of playback. cleared, and the lookahead attached, once the current item is ready to
-// play (see AtollaShouldDeferLookaheadForSource and the access-log observer in
+// play (see AtollaShouldDeferLookaheadForSource and clearLookaheadSuppressionIfReady in
 // registerPlayerObservers). mirrors suppressLookahead on Android. main thread only
 static BOOL sSuppressLookahead = NO;
+// periodic time observer that reliably clears sSuppressLookahead once the held-back current
+// item is actually playing; AVPlayerItemNewAccessLogEntryNotification is not guaranteed to
+// fire for progressive (non-HLS) streams. main thread only
+static id sLookaheadClearObserver = nil;
 
 + (void)initialize {
     if (self == [AtollaGaplessAudioEngine class]) {
@@ -1099,16 +1103,8 @@ static BOOL sSuppressLookahead = NO;
             [self enqueueEvent:@"loaded"];
             [self applyPendingSeekIfNeeded];
             // the current track is buffered and playing now, so it's safe to attach the
-            // gapless next item / lookahead that was held back during the initial buffer.
-            // mirrors clearing suppressLookahead at STATE_READY on Android
-            if (sSuppressLookahead && note.object == sPlayer.currentItem) {
-                sSuppressLookahead = NO;
-                [sEngineLock lock];
-                NSString *nextSrc = sNextSourceUrl;
-                [sEngineLock unlock];
-                [self syncQueueWithNext:nextSrc];
-                [self ensureWindow];
-            }
+            // gapless next item / lookahead that was held back during the initial buffer
+            [self clearLookaheadSuppressionIfReady];
         }
     }]];
 
@@ -1126,6 +1122,28 @@ static BOOL sSuppressLookahead = NO;
             }
         }
     }]];
+
+    // fallback clear for sSuppressLookahead: the access-log notification above isn't guaranteed
+    // for progressive (non-HLS) streams, so once the current item is actually advancing, attach
+    // the gapless lookahead that was held back. mirrors clearing at STATE_READY on Android
+    sLookaheadClearObserver = [sPlayer addPeriodicTimeObserverForInterval:CMTimeMakeWithSeconds(0.5, NSEC_PER_SEC)
+                                                                    queue:dispatch_get_main_queue()
+                                                               usingBlock:^(CMTime time) {
+        [self clearLookaheadSuppressionIfReady];
+    }];
+}
+
+// clear the held-back lookahead once the current item is ready and attach the gapless next
+// item. mirrors clearing suppressLookahead at STATE_READY on Android. main thread only
++ (void)clearLookaheadSuppressionIfReady {
+    if (!sSuppressLookahead || !sPlayer) return;
+    if (sPlayer.currentItem.status != AVPlayerItemStatusReadyToPlay) return;
+    sSuppressLookahead = NO;
+    [sEngineLock lock];
+    NSString *nextSrc = sNextSourceUrl;
+    [sEngineLock unlock];
+    [self syncQueueWithNext:nextSrc];
+    [self ensureWindow];
 }
 
 + (void)removePlayerObservers {
@@ -1134,6 +1152,10 @@ static BOOL sSuppressLookahead = NO;
         [center removeObserver:token];
     }
     [sPlayerObserverTokens removeAllObjects];
+    if (sLookaheadClearObserver) {
+        [sPlayer removeTimeObserver:sLookaheadClearObserver];
+        sLookaheadClearObserver = nil;
+    }
 }
 
 + (void)applyPendingSeekIfNeeded {

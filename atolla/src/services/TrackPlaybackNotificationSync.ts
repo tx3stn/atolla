@@ -14,65 +14,68 @@ export interface TrackPlaybackNotificationPayload {
 	trackName: string;
 }
 
-export type TrackPlaybackNotificationAction =
-	| 'next'
-	| 'pause'
-	| 'play'
-	| 'previous'
-	| 'stop'
-	| 'toggle'
-	| '';
+export const TrackNotificationActions = {
+	next: 'next',
+	pause: 'pause',
+	play: 'play',
+	previous: 'previous',
+	stop: 'stop',
+	toggle: 'toggle',
+} as const;
+
+export type TrackNotificationAction =
+	(typeof TrackNotificationActions)[keyof typeof TrackNotificationActions];
 
 export function normalizeTrackPlaybackNotificationAction(
 	rawAction: string,
-): TrackPlaybackNotificationAction {
+): TrackNotificationAction | null {
 	const action = rawAction.trim().toLowerCase();
 	if (
-		action === 'play' ||
-		action === 'pause' ||
-		action === 'next' ||
-		action === 'previous' ||
-		action === 'stop' ||
-		action === 'toggle'
+		action === TrackNotificationActions.play ||
+		action === TrackNotificationActions.pause ||
+		action === TrackNotificationActions.next ||
+		action === TrackNotificationActions.previous ||
+		action === TrackNotificationActions.stop ||
+		action === TrackNotificationActions.toggle
 	) {
 		return action;
 	}
 
-	return '';
+	return null;
 }
 
 export function applyTrackPlaybackNotificationAction(
 	playbackStore: PlaybackStore,
-	action: TrackPlaybackNotificationAction,
+	action: TrackNotificationAction,
 ): void {
 	switch (action) {
-		case 'play': {
+		case TrackNotificationActions.play: {
 			if (!playbackStore.isPlaying && playbackStore.track != null) {
 				playbackStore.playPause();
 			}
 			break;
 		}
-		case 'pause': {
+		case TrackNotificationActions.pause: {
 			if (playbackStore.isPlaying) {
 				playbackStore.playPause();
 			}
 			break;
 		}
-		case 'next': {
+		case TrackNotificationActions.next: {
 			if (playbackStore.trackIndex < playbackStore.tracks.length - 1) {
 				playbackStore.next();
 			}
 			break;
 		}
-		case 'previous': {
+		case TrackNotificationActions.previous: {
 			playbackStore.previousOrRestart();
 			break;
 		}
-		case 'stop': {
+		case TrackNotificationActions.stop: {
 			playbackStore.stop();
 			break;
 		}
-		case 'toggle': {
+		case TrackNotificationActions.toggle: {
 			if (playbackStore.track != null) {
 				playbackStore.playPause();
 			}
