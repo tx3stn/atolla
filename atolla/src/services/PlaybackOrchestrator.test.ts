@@ -6,6 +6,7 @@ import { PlaybackOrchestrator, type PlaybackUserServices } from './PlaybackOrche
 import type { ScrobbleService } from './ScrobbleService';
 import type { TrackPlaybackNotificationNative } from './TrackPlaybackNotificationAdapter';
 import type { TrackPlaybackNotificationPayload } from './TrackPlaybackNotificationSync';
+import type { TrackSourceNative } from './TrackSourceNativeAdapter';
 import type { WaveformRenderCache } from './WaveformRenderCache';
 import { WaveformService, type WaveformStore } from './WaveformService';
 
@@ -735,6 +736,239 @@ describe('PlaybackOrchestrator artwork palette', () => {
 	});
 });
 
+describe('PlaybackOrchestrator playback sources', () => {
+	function sourceStore(
+		trackIds: Array<string>,
+		trackIndex = 0,
+		loopMode = 'none',
+	): { track: Track | null; trackIndex: number; tracks: Array<Track>; loopMode: string } {
+		const tracks = trackIds.map(makeTrack);
+		return { loopMode, track: tracks[trackIndex] ?? null, trackIndex, tracks };
+	}
+
+	it('applies the current source and computes the next from the resolver', () => {
+		let rerenders = 0;
+		const orchestrator = createOrchestrator(
+			sourceStore(['a', 'b']),
+			() => {
+				rerenders += 1;
+			},
+			fakeNotification(),
+			{ getTrackCacheUrl: (id) => `src://${id}` },
+		);
+
+		orchestrator.applyPlaybackSources('src://a');
+
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('src://a');
+		expect(orchestrator.getNextTrackSourceUrl()).toBe('src://b');
+		expect(rerenders).toBe(1);
+	});
+
+	it('does not rerender when the sources are unchanged', () => {
+		let rerenders = 0;
+		const orchestrator = createOrchestrator(
+			sourceStore(['a', 'b']),
+			() => {
+				rerenders += 1;
+			},
+			fakeNotification(),
+			{ getTrackCacheUrl: (id) => `src://${id}` },
+		);
+
+		orchestrator.applyPlaybackSources('src://a');
+		orchestrator.applyPlaybackSources('src://a');
+
+		expect(rerenders).toBe(1);
+	});
+
+	it('preloads only the next source', () => {
+		const orchestrator = createOrchestrator(sourceStore(['a', 'b']), () => {}, fakeNotification(), {
+			getTrackCacheUrl: (id) => `src://${id}`,
+		});
+
+		orchestrator.handleNextTrackPreload();
+
+		expect(orchestrator.getNextTrackSourceUrl()).toBe('src://b');
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBeNull();
+	});
+
+	it('returns no next source at the end of a non-looping queue', () => {
+		const orchestrator = createOrchestrator(
+			sourceStore(['a', 'b'], 1),
+			() => {},
+			fakeNotification(),
+			{ getTrackCacheUrl: (id) => `src://${id}` },
+		);
+
+		orchestrator.handleNextTrackPreload();
+
+		expect(orchestrator.getNextTrackSourceUrl()).toBeNull();
+	});
+
+	it('wraps to the first track when the queue loops', () => {
+		const orchestrator = createOrchestrator(
+			sourceStore(['a', 'b'], 1, 'queue'),
+			() => {},
+			fakeNotification(),
+			{ getTrackCacheUrl: (id) => `src://${id}` },
+		);
+
+		orchestrator.handleNextTrackPreload();
+
+		expect(orchestrator.getNextTrackSourceUrl()).toBe('src://a');
+	});
+
+	it('overrides only the current source, leaving next intact', () => {
+		const orchestrator = createOrchestrator(sourceStore(['a', 'b']), () => {}, fakeNotification(), {
+			getTrackCacheUrl: (id) => `src://${id}`,
+		});
+
+		orchestrator.applyPlaybackSources('src://a');
+		orchestrator.setTrackPlaybackSource('file://a-alt');
+
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('file://a-alt');
+		expect(orchestrator.getNextTrackSourceUrl()).toBe('src://b');
+	});
+
+	it('resets both sources', () => {
+		const orchestrator = createOrchestrator(sourceStore(['a', 'b']), () => {}, fakeNotification(), {
+			getTrackCacheUrl: (id) => `src://${id}`,
+		});
+
+		orchestrator.applyPlaybackSources('src://a');
+		orchestrator.resetPlaybackSources();
+
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBeNull();
+		expect(orchestrator.getNextTrackSourceUrl()).toBeNull();
+	});
+});
+
+describe('PlaybackOrchestrator upcoming queue', () => {
+	function queueStore(): {
+		track: Track | null;
+		trackIndex: number;
+		tracks: Array<Track>;
+		loopMode: string;
+	} {
+		const tracks = [makeTrack('a'), makeTrack('b')];
+		return { loopMode: 'none', track: tracks[0], trackIndex: 0, tracks };
+	}
+
+	it('serializes the queue window and pushes it to the native callback', () => {
+		const trackSourceNative = fakeTrackSourceNative();
+		const orchestrator = createOrchestrator(queueStore(), () => {}, fakeNotification(), {
+			getTrackCacheUrl: (id) => `src://${id}`,
+			trackSourceNative,
+		});
+
+		orchestrator.syncUpcomingQueue();
+
+		expect(trackSourceNative.upcomingQueuePayloads.length).toBe(1);
+		const window = JSON.parse(trackSourceNative.upcomingQueuePayloads[0]) as {
+			currentIndex: number;
+			entries: Array<{ sourceUrl: string; trackId: string }>;
+		};
+		expect(window.currentIndex).toBe(0);
+		expect(window.entries.map((entry) => entry.sourceUrl)).toEqual(['src://a', 'src://b']);
+	});
+
+	it('pushes a fresh payload when the window changes', () => {
+		const trackSourceNative = fakeTrackSourceNative();
+		const store = queueStore();
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			getTrackCacheUrl: (id) => `src://${id}`,
+			trackSourceNative,
+		});
+
+		orchestrator.syncUpcomingQueue();
+		store.trackIndex = 1;
+		orchestrator.syncUpcomingQueue();
+
+		expect(trackSourceNative.upcomingQueuePayloads.length).toBe(2);
+	});
+
+	it('dedupes when the serialized window is unchanged', () => {
+		const trackSourceNative = fakeTrackSourceNative();
+		const orchestrator = createOrchestrator(queueStore(), () => {}, fakeNotification(), {
+			getTrackCacheUrl: (id) => `src://${id}`,
+			trackSourceNative,
+		});
+
+		orchestrator.syncUpcomingQueue();
+		orchestrator.syncUpcomingQueue();
+
+		expect(trackSourceNative.upcomingQueuePayloads.length).toBe(1);
+	});
+});
+
+describe('PlaybackOrchestrator track source routing', () => {
+	function routingStore(isPlaying = true): {
+		album: null;
+		isPlaying: boolean;
+		loopMode: string;
+		track: Track | null;
+		trackIndex: number;
+		tracks: Array<Track>;
+	} {
+		return {
+			album: null,
+			isPlaying,
+			loopMode: 'none',
+			track: makeTrack('a'),
+			trackIndex: 0,
+			tracks: [makeTrack('a')],
+		};
+	}
+
+	it('applies the native cached source when present', () => {
+		const trackSourceNative = fakeTrackSourceNative({
+			getCachedTrackFileUrl: (id) => (id === 'a' ? '/cache/a' : ''),
+		});
+		const orchestrator = createOrchestrator(routingStore(), () => {}, fakeNotification(), {
+			trackSourceNative,
+		});
+
+		const applied = orchestrator.handleTrackPlaybackSourceChange();
+
+		expect(applied).toBe(true);
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('/cache/a');
+	});
+
+	it('falls back to the stream source when nothing is cached', () => {
+		const orchestrator = createOrchestrator(routingStore(false), () => {}, fakeNotification(), {
+			getTrackCacheUrl: (id) => `stream://${id}`,
+		});
+
+		orchestrator.handleTrackPlaybackSourceChange();
+
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('stream://a');
+	});
+
+	it('toasts on playback error', () => {
+		const toasts: Array<string> = [];
+		const orchestrator = createOrchestrator({ track: null }, () => {}, fakeNotification(), {
+			showPlaybackToast: (message) => toasts.push(message),
+		});
+
+		orchestrator.handlePlaybackError('boom');
+
+		expect(toasts).toEqual(['playback error: boom']);
+	});
+
+	it('marks the active track complete at its full duration', () => {
+		const progress: Array<number> = [];
+		const store = {
+			track: makeTrack('a') as Track | null,
+			updateProgress: (seconds: number) => progress.push(seconds),
+		};
+		const orchestrator = createOrchestrator(store);
+
+		orchestrator.handleTrackCompleted();
+
+		expect(progress).toEqual([100]);
+	});
+});
+
 function makeTrack(id: string): Track {
 	return { duration: 100, id, name: `Track ${id}` } as Track;
 }
@@ -812,23 +1046,52 @@ function createOrchestrator(
 	requestRerender: () => void = () => {},
 	notification: TrackPlaybackNotificationNative = fakeNotification(),
 	opts: {
+		getAccessToken?: () => string;
 		getAudioFileUrl?: (trackId: string) => string | null;
+		getTrackCacheUrl?: (trackId: string) => string | null;
+		getTransportToken?: () => unknown;
+		isOfflinePlaybackMode?: () => boolean;
 		onPlaybackTick?: () => void;
 		prewarmArtwork?: (imageUrl: string) => void;
+		refreshTrackCachedCount?: () => void;
 		requestOverlayRerender?: () => void;
 		resolveArtistLogoUrl?: (artistId: string) => Promise<string | null>;
+		showPlaybackToast?: (message: string) => void;
+		trackSourceNative?: TrackSourceNative;
 	} = {},
 ): PlaybackOrchestrator {
 	return new PlaybackOrchestrator({
+		getAccessToken: opts.getAccessToken ?? (() => ''),
 		getAudioFileUrl: opts.getAudioFileUrl ?? (() => null),
+		getTrackCacheUrl: opts.getTrackCacheUrl ?? (() => null),
+		getTransportToken: opts.getTransportToken ?? (() => null),
+		isOfflinePlaybackMode: opts.isOfflinePlaybackMode ?? (() => false),
 		notification,
 		onPlaybackTick: opts.onPlaybackTick ?? (() => {}),
 		playbackStore: playbackStore as unknown as PlaybackStore,
 		prewarmArtwork: opts.prewarmArtwork ?? (() => {}),
+		refreshTrackCachedCount: opts.refreshTrackCachedCount ?? (() => {}),
 		requestOverlayRerender: opts.requestOverlayRerender ?? (() => {}),
 		requestRerender,
 		resolveArtistLogoUrl: opts.resolveArtistLogoUrl ?? (() => Promise.resolve(null)),
+		showPlaybackToast: opts.showPlaybackToast ?? (() => {}),
+		trackSourceNative: opts.trackSourceNative ?? fakeTrackSourceNative(),
 	});
+}
+
+function fakeTrackSourceNative(
+	overrides: Partial<TrackSourceNative> = {},
+): TrackSourceNative & { upcomingQueuePayloads: Array<string> } {
+	const upcomingQueuePayloads: Array<string> = [];
+	return {
+		cacheTrackFromUrl: () => {},
+		getCachedTrackFileUrl: () => '',
+		setUpcomingQueue: (payload) => {
+			upcomingQueuePayloads.push(payload);
+		},
+		upcomingQueuePayloads,
+		...overrides,
+	};
 }
 
 function noopWaveformStore(): WaveformStore {

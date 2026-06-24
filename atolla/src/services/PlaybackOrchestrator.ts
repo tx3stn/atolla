@@ -2,13 +2,17 @@ import type { Track } from '../models/Track';
 import type { PlaybackStore } from '../stores/Playback';
 import { RECENTLY_PLAYED_LIMIT, type RecentlyPlayedStore } from '../stores/RecentlyPlayed';
 import { fireAndForget } from '../utils/Async';
+import { DeferredPlaybackDownloadCoordinator } from './DeferredPlaybackDownloadCoordinator';
 import type { ScrobbleService } from './ScrobbleService';
+import { TrackPlaybackNativePrefetchQueue } from './TrackPlaybackNativePrefetchQueue';
 import type { TrackPlaybackNotificationNative } from './TrackPlaybackNotificationAdapter';
 import {
 	applyTrackPlaybackNotificationAction,
 	buildTrackPlaybackNotificationPayload,
 	normalizeTrackPlaybackNotificationAction,
 } from './TrackPlaybackNotificationSync';
+import { buildPlaybackQueueWindow, serializeQueueWindow } from './TrackPlaybackUpcomingQueue';
+import type { TrackSourceNative } from './TrackSourceNativeAdapter';
 import type { WaveformRenderCache } from './WaveformRenderCache';
 import type { WaveformService } from './WaveformService';
 
@@ -24,15 +28,22 @@ export interface NowPlayingPaletteQueue {
 }
 
 export interface PlaybackOrchestratorDeps {
+	getAccessToken: () => string;
 	getAudioFileUrl: (trackId: string) => string | null;
+	getTrackCacheUrl: (trackId: string) => string | null;
+	getTransportToken: () => unknown;
+	isOfflinePlaybackMode: () => boolean;
 	notification: TrackPlaybackNotificationNative;
 	onPlaybackTick: () => void;
 	playbackStore: PlaybackStore;
 	prewarmArtwork: (imageUrl: string) => void;
+	refreshTrackCachedCount: () => void;
 	requestOverlayRerender: () => void;
 	// force a host re-render after async work resolves (e.g. recently-played restore)
 	requestRerender: () => void;
 	resolveArtistLogoUrl: (artistId: string) => Promise<string | null>;
+	showPlaybackToast: (message: string) => void;
+	trackSourceNative: TrackSourceNative;
 }
 
 export interface PlaybackUserServices {
@@ -54,11 +65,20 @@ export class PlaybackOrchestrator {
 	private readonly playbackStore: PlaybackStore;
 	private readonly notification: TrackPlaybackNotificationNative;
 	private readonly getAudioFileUrl: (trackId: string) => string | null;
+	private readonly getAccessToken: () => string;
+	private readonly getTrackCacheUrl: (trackId: string) => string | null;
+	private readonly getTransportToken: () => unknown;
+	private readonly isOfflinePlaybackMode: () => boolean;
 	private readonly onPlaybackTick: () => void;
 	private readonly prewarmArtwork: (imageUrl: string) => void;
+	private readonly refreshTrackCachedCount: () => void;
 	private readonly resolveArtistLogoUrl: (artistId: string) => Promise<string | null>;
+	private readonly showPlaybackToast: (message: string) => void;
+	private readonly trackSourceNative: TrackSourceNative;
 	private readonly requestRerender: () => void;
 	private readonly requestOverlayRerender: () => void;
+	private readonly deferredDownloadCoordinator = new DeferredPlaybackDownloadCoordinator();
+	private readonly trackPrefetchQueue: TrackPlaybackNativePrefetchQueue;
 
 	private recentlyPlayedStore?: RecentlyPlayedStore;
 	private scrobbleService?: ScrobbleService;
@@ -66,6 +86,20 @@ export class PlaybackOrchestrator {
 	private paletteQueue?: NowPlayingPaletteQueue;
 	private lastArtworkUrl: string | null = null;
 	private resolvingArtistLogoId: string | null = null;
+	private trackPlaybackSourceUrl: string | null = null;
+	private nextTrackSourceUrl: string | null = null;
+	private lastUpcomingQueueKey = '';
+	private lastTrackSourceTrackId: string | null = null;
+	private lastTrackFetchErrorTrackId: string | null = null;
+	private playbackSourceRequestId = 0;
+	private readonly inFlightTrackDownloadIds = new Set<string>();
+	private lastPlaybackEventKey = '';
+	private playbackSourceBoundTimeout?: ReturnType<typeof setTimeout>;
+	private playbackReadySource = '';
+	private readonly playbackSourceRetryKeys = new Set<string>();
+	private lastPrefetchTracksRef: Array<Track> | null = null;
+	private lastPrefetchTrackIndex = -1;
+	private lastPrefetchTransport: unknown = null;
 	private waveformService?: WaveformService;
 	private waveformRenderCache?: WaveformRenderCache;
 	private enqueueWaveform?: (trackId: string, audioPath: string) => void;
@@ -92,11 +126,33 @@ export class PlaybackOrchestrator {
 		this.playbackStore = deps.playbackStore;
 		this.notification = deps.notification;
 		this.getAudioFileUrl = deps.getAudioFileUrl;
+		this.getAccessToken = deps.getAccessToken;
+		this.getTrackCacheUrl = deps.getTrackCacheUrl;
+		this.getTransportToken = deps.getTransportToken;
+		this.isOfflinePlaybackMode = deps.isOfflinePlaybackMode;
 		this.onPlaybackTick = deps.onPlaybackTick;
 		this.prewarmArtwork = deps.prewarmArtwork;
+		this.refreshTrackCachedCount = deps.refreshTrackCachedCount;
 		this.resolveArtistLogoUrl = deps.resolveArtistLogoUrl;
+		this.showPlaybackToast = deps.showPlaybackToast;
+		this.trackSourceNative = deps.trackSourceNative;
 		this.requestRerender = deps.requestRerender;
 		this.requestOverlayRerender = deps.requestOverlayRerender;
+		this.trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
+			(track) => this.getTrackCacheUrl(track.id),
+			(trackId) => this.getNativeCachedTrackSource(trackId) != null,
+			(trackId, url, onComplete) => {
+				this.trackSourceNative.cacheTrackFromUrl(
+					trackId,
+					url,
+					this.getAccessToken(),
+					(rawSource) => {
+						onComplete(rawSource ? this.normalizePlaybackFileSource(rawSource) : null);
+					},
+				);
+			},
+			(trackId) => this.handleTrackCached(trackId),
+		);
 	}
 
 	// begin draining the native notification action queue. owned here, not the host, so the whole
@@ -133,6 +189,21 @@ export class PlaybackOrchestrator {
 		this.onPlaybackTick();
 	}
 
+	// run the full ordered reconciliation against the current playback state: artwork, sources,
+	// upcoming/prefetch queues, recently-played, waveforms and artist logo. shared by the per-tick
+	// subscription and the at-startup pass so the ordering lives in one place
+	reconcilePlaybackState(): void {
+		this.handleAlbumChange();
+		if (!this.handleTrackPlaybackSourceChange()) {
+			this.handleNextTrackPreload();
+		}
+		this.syncUpcomingQueue();
+		this.handleTrackPrefetchQueueChange();
+		this.captureRecentlyPlayedTrack();
+		this.handleWaveformPriority();
+		this.resolveCurrentArtistLogo();
+	}
+
 	dispose(): void {
 		this.destroyed = true;
 		if (this.unsubscribePlayback) {
@@ -143,6 +214,12 @@ export class PlaybackOrchestrator {
 			clearInterval(this.actionPollInterval);
 			this.actionPollInterval = undefined;
 		}
+		if (this.playbackSourceBoundTimeout) {
+			clearTimeout(this.playbackSourceBoundTimeout);
+			this.playbackSourceBoundTimeout = undefined;
+		}
+		this.deferredDownloadCoordinator.reset();
+		this.trackPrefetchQueue.clearQueue();
 		this.teardownWaveform();
 		if (!this.playbackStore.track) {
 			this.notification.clear();
@@ -206,7 +283,7 @@ export class PlaybackOrchestrator {
 		this.scrobbleService = services.scrobble;
 		this.paletteService = services.paletteService;
 		this.paletteQueue = services.paletteQueue;
-		fireAndForget('scrobbleAppReady', this.scrobbleService.onAppReady());
+		fireAndForget('scrobbleAppReady', services.scrobble.onAppReady());
 		this.recentlyPlayedRestoring = true;
 		this.recentlyPlayedTracks = [];
 		this.lastObservedRecentTrackId = null;
@@ -304,6 +381,81 @@ export class PlaybackOrchestrator {
 			});
 	}
 
+	getTrackPlaybackSourceUrl(): string | null {
+		return this.trackPlaybackSourceUrl;
+	}
+
+	getNextTrackSourceUrl(): string | null {
+		return this.nextTrackSourceUrl;
+	}
+
+	private computeNextTrackSource(): string | null {
+		const { loopMode, trackIndex, tracks } = this.playbackStore;
+		let nextIndex = trackIndex + 1;
+		if (nextIndex >= tracks.length) {
+			if (loopMode === 'queue' && tracks.length > 0) {
+				nextIndex = 0;
+			} else {
+				return null;
+			}
+		}
+		const nextTrack = tracks[nextIndex];
+		return nextTrack ? this.resolveTrackSource(nextTrack.id) : null;
+	}
+
+	applyPlaybackSources(currentSource: string | null): void {
+		const nextSource = this.computeNextTrackSource();
+		if (this.trackPlaybackSourceUrl === currentSource && this.nextTrackSourceUrl === nextSource) {
+			return;
+		}
+		this.trackPlaybackSourceUrl = currentSource;
+		this.nextTrackSourceUrl = nextSource;
+		this.requestRerender();
+	}
+
+	handleNextTrackPreload(): void {
+		const nextSource = this.computeNextTrackSource();
+		if (this.nextTrackSourceUrl === nextSource) {
+			return;
+		}
+		this.nextTrackSourceUrl = nextSource;
+		this.requestRerender();
+	}
+
+	setTrackPlaybackSource(source: string | null): void {
+		if (this.trackPlaybackSourceUrl === source) {
+			return;
+		}
+		this.trackPlaybackSourceUrl = source;
+		this.requestRerender();
+	}
+
+	resetPlaybackSources(): void {
+		if (this.trackPlaybackSourceUrl === null && this.nextTrackSourceUrl === null) {
+			return;
+		}
+		this.trackPlaybackSourceUrl = null;
+		this.nextTrackSourceUrl = null;
+		this.requestRerender();
+	}
+
+	syncUpcomingQueue(): void {
+		const window = buildPlaybackQueueWindow(this.playbackStore, (trackId) =>
+			this.resolveTrackSource(trackId),
+		);
+		const payload = serializeQueueWindow(window);
+		if (payload === this.lastUpcomingQueueKey) {
+			return;
+		}
+
+		this.lastUpcomingQueueKey = payload;
+		try {
+			this.trackSourceNative.setUpcomingQueue(payload);
+		} catch {
+			// native module without upcoming-queue support (e.g. mock platform builds)
+		}
+	}
+
 	syncScrobblePlaybackSnapshot(): void {
 		if (!this.scrobbleService) {
 			return;
@@ -392,6 +544,354 @@ export class PlaybackOrchestrator {
 	clearWaveformData(): void {
 		this.waveformService?.clearAll();
 		this.waveformRenderCache?.clear();
+	}
+
+	private resolveTrackSource(trackId: string): string | null {
+		return this.getNativeCachedTrackSource(trackId) ?? this.getTrackStreamSource(trackId);
+	}
+
+	private getNativeCachedTrackSource(trackId: string): string | null {
+		if (!trackId) {
+			return null;
+		}
+		try {
+			const source = this.trackSourceNative.getCachedTrackFileUrl(trackId);
+			if (!source) {
+				return null;
+			}
+			return this.normalizePlaybackFileSource(source);
+		} catch {
+			return null;
+		}
+	}
+
+	private getTrackStreamSource(trackId: string): string | null {
+		const url = this.getTrackCacheUrl(trackId);
+		if (!url) {
+			return null;
+		}
+		return this.normalizePlaybackFileSource(url);
+	}
+
+	private normalizePlaybackFileSource(source: string): string {
+		return source.trim();
+	}
+
+	private toggleLocalFileSourceFormat(source: string): string {
+		const trimmed = source.trim();
+		if (!trimmed) {
+			return trimmed;
+		}
+		if (trimmed.startsWith('file://')) {
+			return trimmed.slice('file://'.length);
+		}
+		if (trimmed.startsWith('/')) {
+			return `file://${trimmed}`;
+		}
+		return trimmed;
+	}
+
+	private summarizeCacheError(message: string): string {
+		if (!message) {
+			return 'unknown error';
+		}
+		const markerIndex = message.indexOf(':');
+		if (markerIndex <= 0) {
+			return message;
+		}
+		return message.slice(0, markerIndex);
+	}
+
+	handleTrackPlaybackSourceChange(force = false): boolean {
+		const activeTrack = this.playbackStore.track;
+
+		if (!activeTrack) {
+			this.playbackSourceRequestId += 1;
+			this.lastTrackSourceTrackId = null;
+			this.setTrackPlaybackSource(null);
+			return false;
+		}
+
+		if (!force && this.lastTrackSourceTrackId === activeTrack.id) {
+			const shouldRetryForMissingSource =
+				this.playbackStore.isPlaying && this.getTrackPlaybackSourceUrl() == null;
+			if (!shouldRetryForMissingSource) {
+				return false;
+			}
+		}
+
+		this.lastTrackSourceTrackId = activeTrack.id;
+		const requestId = this.playbackSourceRequestId + 1;
+		this.playbackSourceRequestId = requestId;
+		const nativeSource = this.getNativeCachedTrackSource(activeTrack.id);
+		if (nativeSource) {
+			let appliedNext = false;
+			if (this.getTrackPlaybackSourceUrl() !== nativeSource) {
+				this.applyPlaybackSources(nativeSource);
+				appliedNext = true;
+			}
+			this.enqueueWaveformIfNeeded(activeTrack.id, nativeSource);
+			return appliedNext;
+		}
+
+		const streamUrl = this.getTrackStreamSource(activeTrack.id);
+		let appliedNext = false;
+		if (streamUrl && this.getTrackPlaybackSourceUrl() !== streamUrl) {
+			this.applyPlaybackSources(streamUrl);
+			appliedNext = true;
+		}
+
+		if (this.playbackStore.isPlaying && !this.isOfflinePlaybackMode()) {
+			if (streamUrl) {
+				this.deferredDownloadCoordinator.defer('current', {
+					requestId,
+					run: () => {
+						this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
+					},
+					source: streamUrl,
+					trackId: activeTrack.id,
+				});
+			} else {
+				this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
+			}
+		}
+
+		return appliedNext;
+	}
+
+	private downloadCurrentTrackForPlayback(
+		trackId: string,
+		requestId: number,
+		resolvedStreamSource: string | null,
+	): void {
+		if (!trackId || this.inFlightTrackDownloadIds.has(trackId)) {
+			return;
+		}
+
+		this.inFlightTrackDownloadIds.add(trackId);
+
+		try {
+			const url = resolvedStreamSource ?? this.getTrackStreamSource(trackId);
+			if (!url) {
+				this.handleTrackCacheFetchFailed(trackId, 'no url');
+				return;
+			}
+
+			this.trackSourceNative.cacheTrackFromUrl(trackId, url, this.getAccessToken(), (rawSource) => {
+				const nativeSource = rawSource ? this.normalizePlaybackFileSource(rawSource) : null;
+				if (nativeSource) {
+					if (requestId !== this.playbackSourceRequestId) {
+						return;
+					}
+
+					if (this.playbackStore.track?.id !== trackId) {
+						return;
+					}
+
+					this.handleTrackCached(trackId);
+					return;
+				}
+
+				this.handleTrackCacheFetchFailed(trackId, 'native cache failed');
+			});
+			return;
+		} catch (error) {
+			const rawMessage =
+				typeof error === 'string'
+					? error
+					: error instanceof Error
+						? error.message
+						: 'unknown error';
+			const message = this.summarizeCacheError(rawMessage);
+			this.showPlaybackToast(`cache flow exception: ${message}`);
+			this.handleTrackCacheFetchFailed(trackId, `exception: ${message}`);
+		} finally {
+			this.inFlightTrackDownloadIds.delete(trackId);
+		}
+	}
+
+	handleTrackCached(trackId: string): void {
+		this.lastTrackFetchErrorTrackId = null;
+		this.refreshTrackCachedCount();
+
+		const audioPath = this.getAudioFileUrl(trackId);
+		if (audioPath) {
+			this.enqueueWaveformIfNeeded(trackId, audioPath);
+		}
+
+		if (this.playbackStore.track?.id !== trackId) {
+			this.handleNextTrackPreload();
+			this.syncUpcomingQueue();
+			return;
+		}
+
+		if (!this.handleTrackPlaybackSourceChange(true)) {
+			this.handleNextTrackPreload();
+		}
+		this.syncUpcomingQueue();
+	}
+
+	private handleTrackCacheFetchFailed(trackId: string, reason = 'unknown'): void {
+		if (this.playbackStore.track?.id !== trackId) {
+			return;
+		}
+
+		if (this.isOfflinePlaybackMode()) {
+			return;
+		}
+
+		if (this.lastTrackFetchErrorTrackId === trackId) {
+			return;
+		}
+
+		this.lastTrackFetchErrorTrackId = trackId;
+		this.showPlaybackToast(`cache failed: ${reason}`);
+
+		const streamUrl = this.getTrackStreamSource(trackId);
+		if (streamUrl) {
+			this.enqueueWaveformIfNeeded(trackId, streamUrl);
+		}
+	}
+
+	handleTrackPrefetchQueueChange(force = false): void {
+		const activeTrack = this.playbackStore.track;
+		const tracks = this.playbackStore.tracks;
+		const trackIndex = this.playbackStore.trackIndex;
+
+		if (!activeTrack || tracks.length === 0) {
+			this.lastPrefetchTracksRef = null;
+			this.lastPrefetchTrackIndex = -1;
+			this.lastPrefetchTransport = this.getTransportToken();
+			this.deferredDownloadCoordinator.cancel('prefetch');
+			this.trackPrefetchQueue.clearQueue();
+			return;
+		}
+
+		if (
+			!force &&
+			tracks === this.lastPrefetchTracksRef &&
+			trackIndex === this.lastPrefetchTrackIndex &&
+			this.getTransportToken() === this.lastPrefetchTransport
+		) {
+			return;
+		}
+
+		this.lastPrefetchTracksRef = tracks;
+		this.lastPrefetchTrackIndex = trackIndex;
+		this.lastPrefetchTransport = this.getTransportToken();
+
+		const nextTrackIndex = trackIndex + 1;
+		if (nextTrackIndex >= tracks.length) {
+			this.deferredDownloadCoordinator.cancel('prefetch');
+			this.trackPrefetchQueue.clearQueue();
+			return;
+		}
+
+		const streamSource =
+			this.playbackStore.isPlaying &&
+			!this.isOfflinePlaybackMode() &&
+			this.getNativeCachedTrackSource(activeTrack.id) == null
+				? this.getTrackStreamSource(activeTrack.id)
+				: null;
+
+		if (streamSource) {
+			this.deferredDownloadCoordinator.defer('prefetch', {
+				requestId: this.playbackSourceRequestId,
+				run: () => this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex),
+				source: streamSource,
+				trackId: activeTrack.id,
+			});
+			return;
+		}
+
+		this.deferredDownloadCoordinator.cancel('prefetch');
+		this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex);
+	}
+
+	handlePlaybackError(error: string): void {
+		const normalized = error?.trim() ?? '';
+		this.showPlaybackToast(
+			normalized.length > 0 ? `playback error: ${normalized}` : 'playback error',
+		);
+	}
+
+	handlePlaybackEvent(event: string): void {
+		if (!event) {
+			return;
+		}
+
+		const trackId = this.playbackStore.track?.id ?? 'none';
+		const source = this.getTrackPlaybackSourceUrl() ?? 'none';
+		const eventKey = `${event}|${trackId}|${source}`;
+		if (this.lastPlaybackEventKey === eventKey) {
+			return;
+		}
+
+		this.lastPlaybackEventKey = eventKey;
+
+		if (event === 'loaded' || event === 'progress') {
+			this.playbackReadySource = source;
+			if (this.playbackSourceBoundTimeout) {
+				clearTimeout(this.playbackSourceBoundTimeout);
+				this.playbackSourceBoundTimeout = undefined;
+			}
+		}
+
+		if (event === 'playback-cushion') {
+			this.deferredDownloadCoordinator.onPlaybackStarted({
+				currentRequestId: this.playbackSourceRequestId,
+				currentTrackId: this.playbackStore.track?.id ?? null,
+				source,
+			});
+		}
+
+		if (event === 'source-bound') {
+			if (this.playbackSourceBoundTimeout) {
+				clearTimeout(this.playbackSourceBoundTimeout);
+			}
+
+			const retryKey = `${trackId}|${source}`;
+			this.playbackSourceBoundTimeout = setTimeout(() => {
+				if (this.getTrackPlaybackSourceUrl() !== source) {
+					return;
+				}
+
+				if (this.playbackReadySource === source) {
+					return;
+				}
+
+				if (this.playbackSourceRetryKeys.has(retryKey)) {
+					return;
+				}
+
+				const alternateSource = this.toggleLocalFileSourceFormat(source);
+				if (!alternateSource || alternateSource === source) {
+					return;
+				}
+
+				this.playbackSourceRetryKeys.add(retryKey);
+				this.setTrackPlaybackSource(alternateSource);
+			}, 1200);
+		}
+	}
+
+	handleTrackCompleted(): void {
+		const track = this.playbackStore.track;
+		if (track) {
+			this.playbackStore.updateProgress(track.duration);
+		}
+	}
+
+	resetForTrackCacheCleared(): void {
+		this.lastTrackFetchErrorTrackId = null;
+		this.lastTrackSourceTrackId = null;
+		this.lastPrefetchTracksRef = null;
+		this.lastPrefetchTrackIndex = -1;
+		this.lastPrefetchTransport = null;
+		this.playbackSourceRequestId += 1;
+		this.deferredDownloadCoordinator.reset();
+		this.resetPlaybackSources();
+		this.handleTrackPrefetchQueueChange(true);
 	}
 
 	private getPlaybackTrackIds(): Array<string> {

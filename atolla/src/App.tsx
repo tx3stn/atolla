@@ -39,7 +39,6 @@ import type { Track } from './models/Track';
 import Strings from './Strings';
 import { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { DebugLogger } from './services/DebugLogger';
-import { DeferredPlaybackDownloadCoordinator } from './services/DeferredPlaybackDownloadCoordinator';
 import {
 	DownloadNativeWorkerEntryPoint,
 	type IDownloadNativeWorker,
@@ -63,12 +62,8 @@ import { RecentlyAddedService } from './services/RecentlyAddedService';
 import { ReconnectSyncCoordinator, type SyncProgress } from './services/ReconnectSyncCoordinator';
 import { ScrobbleService } from './services/ScrobbleService';
 import { ToastService } from './services/ToastService';
-import { TrackPlaybackNativePrefetchQueue } from './services/TrackPlaybackNativePrefetchQueue';
 import { TrackPlaybackNotificationAdapter } from './services/TrackPlaybackNotificationAdapter';
-import {
-	buildPlaybackQueueWindow,
-	serializeQueueWindow,
-} from './services/TrackPlaybackUpcomingQueue';
+import { TrackSourceNativeAdapter } from './services/TrackSourceNativeAdapter';
 import { WaveformGenerationQueue } from './services/WaveformGenerationQueue';
 import { WaveformRenderCache } from './services/WaveformRenderCache';
 import { WaveformService } from './services/WaveformService';
@@ -88,7 +83,6 @@ import {
 import { RecentlyPlayedStore } from './stores/RecentlyPlayed';
 import { SearchStore } from './stores/Search';
 import {
-	cacheAtollaTrackFromUrlAsync,
 	clearAtollaTrackCache,
 	getAtollaAudioPlaybackCurrentTrackId,
 	getAtollaAudioPlaybackIsActive,
@@ -98,7 +92,6 @@ import {
 	getAtollaDownloadedCacheTotalSizeBytes,
 	getAtollaDownloadedTrackFileUrl,
 	getAtollaTrackCacheEntryCount,
-	setAtollaAudioPlaybackUpcomingQueue,
 	setAtollaTrackCacheMaxTracks,
 } from './TrackPlaybackNative';
 import { theme } from './theme';
@@ -166,7 +159,6 @@ interface AppState {
 	libraryResetNonce: number;
 	nativeImageCacheDiskBytes: number;
 	nativeImageCacheDiskCount: number;
-	nextTrackSourceUrl: string | null;
 	nowPlayingCollapseSignal: number;
 	offlineStatusExportPath: string | null;
 	quickConnectCode: string | null;
@@ -176,7 +168,6 @@ interface AppState {
 	syncProgress: SyncProgress | null;
 	trackCacheMaxTracks: number;
 	trackPlaybackCachedCount: number;
-	trackPlaybackSourceUrl: string | null;
 	version: number;
 }
 
@@ -186,29 +177,28 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 	private playbackStore = new PlaybackStore();
 	private playbackOrchestrator = new PlaybackOrchestrator({
+		getAccessToken: () => this.currentAccessToken,
 		getAudioFileUrl: (trackId) => this.getAudioPathForWaveform(trackId),
+		getTrackCacheUrl: (trackId) => this.transport.getTrackCacheUrl(trackId),
+		getTransportToken: () => this.transport,
+		isOfflinePlaybackMode: () => this.state.connectionMode === ConnectionModes.offline,
 		notification: new TrackPlaybackNotificationAdapter(),
 		onPlaybackTick: () => {
-			this.playbackOrchestrator.handleAlbumChange();
-			if (!this.handleTrackPlaybackSourceChange()) {
-				this.handleNextTrackPreload();
-			}
-			this.syncUpcomingQueue();
-			this.handleTrackPrefetchQueueChange();
-			this.playbackOrchestrator.captureRecentlyPlayedTrack();
-			this.playbackOrchestrator.handleWaveformPriority();
-			this.playbackOrchestrator.resolveCurrentArtistLogo();
+			this.playbackOrchestrator.reconcilePlaybackState();
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
 		},
 		playbackStore: this.playbackStore,
 		prewarmArtwork: (imageUrl) => this.prewarmNowPlayingArtwork(imageUrl),
+		refreshTrackCachedCount: () => this.refreshTrackCachedCount(),
 		requestOverlayRerender: () => {
 			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
 			this.setState({ version: this.state.version + 1 });
 		},
 		requestRerender: () => this.setState({ version: this.state.version + 1 }),
 		resolveArtistLogoUrl: (artistId) => this.transport.getArtistLogoUrl(artistId),
+		showPlaybackToast: (message) => this.showPlaybackToast(message),
+		trackSourceNative: new TrackSourceNativeAdapter(),
 	});
 	private barColors = new BarColorStore();
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
@@ -303,7 +293,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.downloadWorkerClient.api.cacheDownloadedTrack(trackId, url, this.currentAccessToken),
 		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
-		onTrackDownloaded: (trackId) => this.handleTrackCached(trackId),
+		onTrackDownloaded: (trackId) => this.playbackOrchestrator.handleTrackCached(trackId),
 		removeTrack: (trackId) => this.downloadWorkerClient.api.removeDownloadedTrack(trackId),
 		removeTracks: (trackIds) => this.downloadWorkerClient.api.removeDownloadedTracks(trackIds),
 		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
@@ -336,30 +326,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private readonly minimumBootSplashMs = 750;
 	private bootstrapStartedAt = Date.now();
 	private bootstrapCommitTimer?: ReturnType<typeof setTimeout>;
-	private lastTrackSourceTrackId: string | null = null;
-	private lastTrackFetchErrorTrackId: string | null = null;
-	private playbackSourceRequestId = 0;
-	private inFlightTrackDownloadIds = new Set<string>();
-	private readonly deferredDownloadCoordinator = new DeferredPlaybackDownloadCoordinator();
-	private lastPlaybackEventKey = '';
-	private playbackSourceBoundTimeout?: ReturnType<typeof setTimeout>;
-	private playbackReadySource = '';
-	private playbackSourceRetryKeys = new Set<string>();
-	private lastPrefetchTracksRef: Array<Track> | null = null;
-	private lastPrefetchTrackIndex = -1;
-	private lastPrefetchTransport: Transport | null = null;
-	private lastUpcomingQueueKey = '';
 	private readonly imageCache = new ImageCache({});
-	private trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
-		(track) => this.transport.getTrackCacheUrl(track.id),
-		(trackId) => this.getNativeCachedTrackSource(trackId) != null,
-		(trackId, url, onComplete) => {
-			cacheAtollaTrackFromUrlAsync(trackId, url, this.currentAccessToken, (rawSource) => {
-				onComplete(rawSource ? this.normalizePlaybackFileSource(rawSource) : null);
-			});
-		},
-		(trackId) => this.handleTrackCached(trackId),
-	);
 
 	state: AppState = {
 		activeFooterTab: FooterTabs.home,
@@ -389,7 +356,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		libraryResetNonce: 0,
 		nativeImageCacheDiskBytes: 0,
 		nativeImageCacheDiskCount: 0,
-		nextTrackSourceUrl: null,
 		nowPlayingCollapseSignal: 0,
 		offlineStatusExportPath: null,
 		quickConnectCode: null,
@@ -399,7 +365,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		syncProgress: null,
 		trackCacheMaxTracks: DEFAULT_TRACK_CACHE_MAX_TRACKS,
 		trackPlaybackCachedCount: 0,
-		trackPlaybackSourceUrl: null,
 		version: 0,
 	};
 
@@ -556,14 +521,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 		this.downloadService.onAppReady();
 		// handle any track already playing at startup
-		this.playbackOrchestrator.handleAlbumChange();
-		if (!this.handleTrackPlaybackSourceChange()) {
-			this.handleNextTrackPreload();
-		}
-		this.syncUpcomingQueue();
-		this.handleTrackPrefetchQueueChange();
-		this.playbackOrchestrator.captureRecentlyPlayedTrack();
-		this.playbackOrchestrator.resolveCurrentArtistLogo();
+		this.playbackOrchestrator.reconcilePlaybackState();
 		this.refreshTrackCachedCount();
 	}
 
@@ -582,17 +540,12 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.syncBannerTimer) {
 			clearTimeout(this.syncBannerTimer);
 		}
-		if (this.playbackSourceBoundTimeout) {
-			clearTimeout(this.playbackSourceBoundTimeout);
-		}
-		this.deferredDownloadCoordinator.reset();
 		if (this.unsubscribePalette) {
 			this.unsubscribePalette();
 		}
 		if (this.nativeCacheStatsInterval) {
 			clearInterval(this.nativeCacheStatsInterval);
 		}
-		this.trackPrefetchQueue.clearQueue();
 		if (this.paletteQueue) {
 			this.paletteQueue.dispose();
 		}
@@ -1155,27 +1108,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 	}
 
-	private handleTrackCached(trackId: string): void {
-		this.lastTrackFetchErrorTrackId = null;
-		this.refreshTrackCachedCount();
-
-		const audioPath = this.getAudioPathForWaveform(trackId);
-		if (audioPath) {
-			this.playbackOrchestrator.enqueueWaveformIfNeeded(trackId, audioPath);
-		}
-
-		if (this.playbackStore.track?.id !== trackId) {
-			this.handleNextTrackPreload();
-			this.syncUpcomingQueue();
-			return;
-		}
-
-		if (!this.handleTrackPlaybackSourceChange(true)) {
-			this.handleNextTrackPreload();
-		}
-		this.syncUpcomingQueue();
-	}
-
 	private getAudioPathForWaveform(trackId: string): string | null {
 		try {
 			const cached = getAtollaCachedTrackFileUrl(trackId);
@@ -1186,330 +1118,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			if (downloaded) return downloaded;
 		} catch {}
 		return null;
-	}
-
-	private handleTrackCacheFetchFailed(trackId: string, reason = 'unknown'): void {
-		if (this.playbackStore.track?.id !== trackId) {
-			return;
-		}
-
-		if (this.isOfflinePlaybackMode()) {
-			return;
-		}
-
-		if (this.lastTrackFetchErrorTrackId === trackId) {
-			return;
-		}
-
-		this.lastTrackFetchErrorTrackId = trackId;
-		this.showPlaybackToast(`cache failed: ${reason}`);
-
-		// the track streamed but never produced a local copy, so handleTrackCached won't run
-		// to generate its waveform. fall back to generating it from the stream URL. safe here
-		// because the failure is reported only after the deferred download fired (well after the
-		// initial buffer filled), so there's no start-of-stream contention
-		const streamUrl = this.getTrackStreamSource(trackId);
-		if (streamUrl) {
-			this.playbackOrchestrator.enqueueWaveformIfNeeded(trackId, streamUrl);
-		}
-	}
-
-	// returns true when it has already applied the gapless "next" source (via
-	// applyPlaybackSources) so callers can skip a redundant handleNextTrackPreload(); the
-	// next source is otherwise recomputed (and re-read from the native cache) for nothing
-	private handleTrackPlaybackSourceChange(force = false): boolean {
-		const activeTrack = this.playbackStore.track;
-
-		if (!activeTrack) {
-			this.playbackSourceRequestId += 1;
-			this.lastTrackSourceTrackId = null;
-			if (this.state.trackPlaybackSourceUrl != null) {
-				this.setState({ trackPlaybackSourceUrl: null });
-			}
-			return false;
-		}
-
-		if (!force && this.lastTrackSourceTrackId === activeTrack.id) {
-			const shouldRetryForMissingSource =
-				this.playbackStore.isPlaying && this.state.trackPlaybackSourceUrl == null;
-			if (!shouldRetryForMissingSource) {
-				return false;
-			}
-		}
-
-		this.lastTrackSourceTrackId = activeTrack.id;
-		const requestId = this.playbackSourceRequestId + 1;
-		this.playbackSourceRequestId = requestId;
-		const nativeSource = this.getNativeCachedTrackSource(activeTrack.id);
-		if (nativeSource) {
-			let appliedNext = false;
-			if (this.state.trackPlaybackSourceUrl !== nativeSource) {
-				this.applyPlaybackSources(nativeSource);
-				appliedNext = true;
-			}
-			// local file available: start waveform generation immediately without waiting for
-			// handleTrackCached (covers already-cached and downloaded tracks)
-			this.playbackOrchestrator.enqueueWaveformIfNeeded(activeTrack.id, nativeSource);
-			return appliedNext;
-		}
-
-		const streamUrl = this.getTrackStreamSource(activeTrack.id);
-		let appliedNext = false;
-		if (streamUrl && this.state.trackPlaybackSourceUrl !== streamUrl) {
-			this.applyPlaybackSources(streamUrl);
-			appliedNext = true;
-		}
-
-		if (this.playbackStore.isPlaying && !this.isOfflinePlaybackMode()) {
-			if (streamUrl) {
-				// defer the current track's full cache download until it has actually started
-				// playing. downloading the whole file while ExoPlayer is still filling the
-				// stream's initial buffer starves it and causes a brief stutter at the start
-				this.deferredDownloadCoordinator.defer('current', {
-					requestId,
-					run: () => {
-						void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
-					},
-					source: streamUrl,
-					trackId: activeTrack.id,
-				});
-				// don't generate the waveform from the stream URL here: for a remote source the
-				// native decoder reads the whole file over the network, competing with the
-				// stream's initial buffer and stuttering the start. the waveform is generated from
-				// the local copy once the deferred download caches it (see handleTrackCached);
-				// handleTrackCacheFetchFailed covers the stream as a fallback
-			} else {
-				void this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
-			}
-		}
-
-		return appliedNext;
-	}
-
-	private isOfflinePlaybackMode(): boolean {
-		return this.state.connectionMode === ConnectionModes.offline;
-	}
-
-	private handleTrackCompleted = (): void => {
-		const track = this.playbackStore.track;
-		if (track) {
-			this.playbackStore.updateProgress(track.duration);
-		}
-	};
-
-	private computeNextTrackSource(): string | null {
-		const { loopMode, trackIndex, tracks } = this.playbackStore;
-		let nextIndex = trackIndex + 1;
-		if (nextIndex >= tracks.length) {
-			if (loopMode === 'queue' && tracks.length > 0) {
-				nextIndex = 0;
-			} else {
-				return null;
-			}
-		}
-		const nextTrack = tracks[nextIndex];
-		return nextTrack
-			? (this.getNativeCachedTrackSource(nextTrack.id) ?? this.getTrackStreamSource(nextTrack.id))
-			: null;
-	}
-
-	// apply the current source and the gapless "next" source in a single state update. on a
-	// track transition the store advances current and next together; one setState avoids a
-	// momentary render where the native player sees the previous "next" (now current) and
-	// drops the gapless preload, which lets offline playback stall at end-of-queue
-	private applyPlaybackSources(currentSource: string | null): void {
-		const nextSource = this.computeNextTrackSource();
-		if (
-			this.state.trackPlaybackSourceUrl === currentSource &&
-			this.state.nextTrackSourceUrl === nextSource
-		) {
-			return;
-		}
-		this.setState({
-			nextTrackSourceUrl: nextSource,
-			trackPlaybackSourceUrl: currentSource,
-		});
-	}
-
-	private handleNextTrackPreload(): void {
-		const source = this.computeNextTrackSource();
-		if (this.state.nextTrackSourceUrl !== source) {
-			this.setState({ nextTrackSourceUrl: source });
-		}
-	}
-
-	// hands the native engine an ordered window of the play queue around the current track so
-	// it can keep auto-advancing (gapless) and stepping back across track boundaries while JS
-	// is frozen; without it only the single preloaded next item survives backgrounding and
-	// playback stops at the following boundary
-	private syncUpcomingQueue(): void {
-		const window = buildPlaybackQueueWindow(
-			this.playbackStore,
-			(trackId) => this.getNativeCachedTrackSource(trackId) ?? this.getTrackStreamSource(trackId),
-		);
-		const payload = serializeQueueWindow(window);
-		if (payload === this.lastUpcomingQueueKey) {
-			return;
-		}
-
-		this.lastUpcomingQueueKey = payload;
-		try {
-			setAtollaAudioPlaybackUpcomingQueue(payload);
-		} catch {
-			// Native module without upcoming queue support (e.g. mock platform builds).
-		}
-	}
-
-	private handleTrackPrefetchQueueChange(force = false): void {
-		const activeTrack = this.playbackStore.track;
-		const tracks = this.playbackStore.tracks;
-		const trackIndex = this.playbackStore.trackIndex;
-
-		if (!activeTrack || tracks.length === 0) {
-			this.lastPrefetchTracksRef = null;
-			this.lastPrefetchTrackIndex = -1;
-			this.lastPrefetchTransport = this.transport;
-			this.deferredDownloadCoordinator.cancel('prefetch');
-			this.trackPrefetchQueue.clearQueue();
-			return;
-		}
-
-		if (
-			!force &&
-			tracks === this.lastPrefetchTracksRef &&
-			trackIndex === this.lastPrefetchTrackIndex &&
-			this.transport === this.lastPrefetchTransport
-		) {
-			return;
-		}
-
-		this.lastPrefetchTracksRef = tracks;
-		this.lastPrefetchTrackIndex = trackIndex;
-		this.lastPrefetchTransport = this.transport;
-
-		const nextTrackIndex = trackIndex + 1;
-		if (nextTrackIndex >= tracks.length) {
-			this.deferredDownloadCoordinator.cancel('prefetch');
-			this.trackPrefetchQueue.clearQueue();
-			return;
-		}
-
-		// while the current track is streamed (not played from the native cache), defer
-		// prefetching the next track until the current one has actually started playing.
-		// downloading the next file in parallel with the current track's initial buffer causes
-		// the start-of-stream stutter; cached tracks have no contention, so prefetch immediately
-		const streamSource =
-			this.playbackStore.isPlaying &&
-			!this.isOfflinePlaybackMode() &&
-			this.getNativeCachedTrackSource(activeTrack.id) == null
-				? this.getTrackStreamSource(activeTrack.id)
-				: null;
-
-		if (streamSource) {
-			this.deferredDownloadCoordinator.defer('prefetch', {
-				requestId: this.playbackSourceRequestId,
-				run: () => this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex),
-				source: streamSource,
-				trackId: activeTrack.id,
-			});
-			return;
-		}
-
-		this.deferredDownloadCoordinator.cancel('prefetch');
-		this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex);
-	}
-
-	private downloadCurrentTrackForPlayback(
-		trackId: string,
-		requestId: number,
-		resolvedStreamSource: string | null,
-	): void {
-		if (!trackId || this.inFlightTrackDownloadIds.has(trackId)) {
-			return;
-		}
-
-		this.inFlightTrackDownloadIds.add(trackId);
-
-		try {
-			const url = resolvedStreamSource ?? this.getTrackStreamSource(trackId);
-			if (!url) {
-				this.handleTrackCacheFetchFailed(trackId, 'no url');
-				return;
-			}
-
-			cacheAtollaTrackFromUrlAsync(trackId, url, this.currentAccessToken, (rawSource) => {
-				const nativeSource = rawSource ? this.normalizePlaybackFileSource(rawSource) : null;
-				if (nativeSource) {
-					if (requestId !== this.playbackSourceRequestId) {
-						return;
-					}
-
-					if (this.playbackStore.track?.id !== trackId) {
-						return;
-					}
-
-					this.handleTrackCached(trackId);
-					return;
-				}
-
-				this.handleTrackCacheFetchFailed(trackId, 'native cache failed');
-			});
-			return;
-		} catch (error) {
-			const rawMessage =
-				typeof error === 'string'
-					? error
-					: error instanceof Error
-						? error.message
-						: 'unknown error';
-			const message = this.summarizeCacheError(rawMessage);
-			this.showPlaybackToast(`cache flow exception: ${message}`);
-			this.handleTrackCacheFetchFailed(trackId, `exception: ${message}`);
-		} finally {
-			this.inFlightTrackDownloadIds.delete(trackId);
-		}
-	}
-
-	private getTrackStreamSource(trackId: string): string | null {
-		const url = this.transport.getTrackCacheUrl(trackId);
-		if (!url) {
-			return null;
-		}
-
-		return this.normalizePlaybackFileSource(url);
-	}
-
-	private summarizeCacheError(message: string): string {
-		if (!message) {
-			return 'unknown error';
-		}
-
-		const markerIndex = message.indexOf(':');
-		if (markerIndex <= 0) {
-			return message;
-		}
-
-		return message.slice(0, markerIndex);
-	}
-
-	private getNativeCachedTrackSource(trackId: string): string | null {
-		if (!trackId) {
-			return null;
-		}
-
-		try {
-			const source = getAtollaCachedTrackFileUrl(trackId);
-			if (!source) {
-				return null;
-			}
-			return this.normalizePlaybackFileSource(source);
-		} catch {
-			return null;
-		}
-	}
-
-	private normalizePlaybackFileSource(source: string): string {
-		return source.trim();
 	}
 
 	private getNativeTrackCachedCount(): number | null {
@@ -1625,15 +1233,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			} catch {
 				// native track cache clear unavailable on non-Android targets
 			}
-			this.lastTrackFetchErrorTrackId = null;
-			this.lastTrackSourceTrackId = null;
-			this.lastPrefetchTracksRef = null;
-			this.lastPrefetchTrackIndex = -1;
-			this.lastPrefetchTransport = null;
-			this.playbackSourceRequestId += 1;
-			this.deferredDownloadCoordinator.reset();
-			this.setState({ nextTrackSourceUrl: null, trackPlaybackSourceUrl: null });
-			this.handleTrackPrefetchQueueChange(true);
+			this.playbackOrchestrator.resetForTrackCacheCleared();
 		}
 		if (selection.albumArt) {
 			void this.paletteService?.clearAll();
@@ -1796,96 +1396,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		} catch {
 			// native track cache limit unavailable on non-Android targets
 		}
-	}
-
-	handlePlaybackError = (error: string): void => {
-		const normalized = error?.trim() ?? '';
-
-		this.showPlaybackToast(
-			normalized.length > 0 ? `playback error: ${normalized}` : 'playback error',
-		);
-	};
-
-	handlePlaybackEvent = (event: string): void => {
-		if (!event) {
-			return;
-		}
-
-		const trackId = this.playbackStore.track?.id ?? 'none';
-		const source = this.state.trackPlaybackSourceUrl ?? 'none';
-		const eventKey = `${event}|${trackId}|${source}`;
-		if (this.lastPlaybackEventKey === eventKey) {
-			return;
-		}
-
-		this.lastPlaybackEventKey = eventKey;
-
-		if (event === 'loaded' || event === 'progress') {
-			this.playbackReadySource = source;
-			if (this.playbackSourceBoundTimeout) {
-				clearTimeout(this.playbackSourceBoundTimeout);
-				this.playbackSourceBoundTimeout = undefined;
-			}
-		}
-
-		if (event === 'playback-cushion') {
-			// the track has played far enough to build a streaming buffer cushion, so the
-			// cache/prefetch downloads deferred at track start can now run without starving the
-			// buffer. releasing them at the earlier "ready"/"playing" point is too soon: the
-			// buffer is only just full enough to start, so a competing download stutters playback
-			// right at the start (see PLAYBACK_BUFFER_CUSHION_MS in NativeAudioPlayer)
-			this.deferredDownloadCoordinator.onPlaybackStarted({
-				currentRequestId: this.playbackSourceRequestId,
-				currentTrackId: this.playbackStore.track?.id ?? null,
-				source,
-			});
-		}
-
-		if (event === 'source-bound') {
-			if (this.playbackSourceBoundTimeout) {
-				clearTimeout(this.playbackSourceBoundTimeout);
-			}
-
-			const retryKey = `${trackId}|${source}`;
-			this.playbackSourceBoundTimeout = setTimeout(() => {
-				if (this.state.trackPlaybackSourceUrl !== source) {
-					return;
-				}
-
-				if (this.playbackReadySource === source) {
-					return;
-				}
-
-				if (this.playbackSourceRetryKeys.has(retryKey)) {
-					return;
-				}
-
-				const alternateSource = this.toggleLocalFileSourceFormat(source);
-				if (!alternateSource || alternateSource === source) {
-					return;
-				}
-
-				this.playbackSourceRetryKeys.add(retryKey);
-				this.setState({ trackPlaybackSourceUrl: alternateSource });
-			}, 1200);
-		}
-	};
-
-	private toggleLocalFileSourceFormat(source: string): string {
-		const trimmed = source.trim();
-		if (!trimmed) {
-			return trimmed;
-		}
-
-		if (trimmed.startsWith('file://')) {
-			return trimmed.slice('file://'.length);
-		}
-
-		if (trimmed.startsWith('/')) {
-			return `file://${trimmed}`;
-		}
-
-		return trimmed;
 	}
 
 	handleLibraryNavigationControllerChange = (navigationController: NavigationController): void => {
@@ -2665,11 +2175,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					<MockPlayer playbackStore={this.playbackStore} />
 				) : (
 					<GaplessPlayer
-						activeSourceUrl={this.state.trackPlaybackSourceUrl}
-						nextSourceUrl={this.state.nextTrackSourceUrl}
-						onPlaybackError={this.handlePlaybackError}
-						onPlaybackEvent={this.handlePlaybackEvent}
-						onTrackCompleted={this.handleTrackCompleted}
+						activeSourceUrl={this.playbackOrchestrator.getTrackPlaybackSourceUrl()}
+						nextSourceUrl={this.playbackOrchestrator.getNextTrackSourceUrl()}
+						onPlaybackError={(error) => this.playbackOrchestrator.handlePlaybackError(error)}
+						onPlaybackEvent={(event) => this.playbackOrchestrator.handlePlaybackEvent(event)}
+						onTrackCompleted={() => this.playbackOrchestrator.handleTrackCompleted()}
 						playbackStore={this.playbackStore}
 					/>
 				)}
