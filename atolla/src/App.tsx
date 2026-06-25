@@ -5,7 +5,6 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';
 import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
 import { Locale } from 'valdi_core/src/localization/Locale';
-import { Style } from 'valdi_core/src/Style';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
@@ -2146,7 +2145,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		}
 
 		if (this.state.isAuthRequired) {
-			<view style={styles.root}>
+			<view style={theme.app.root}>
 				<ConnectionView
 					animationsEnabled={this.state.animationsEnabled}
 					errorMessage={this.state.authErrorMessage}
@@ -2169,8 +2168,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.playbackStore;
 		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
 
-		<view style={styles.root}>
-			<view style={styles.content}>
+		<view style={theme.app.root}>
+			<view style={theme.app.content}>
 				{this.state.connectionMode === ConnectionModes.mock ? (
 					<MockPlayer playbackStore={this.playbackStore} />
 				) : (
@@ -2390,20 +2389,3 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		</view>;
 	}
 }
-
-const styles = {
-	content: new Style({
-		alignItems: 'center' as const,
-		flexGrow: 1,
-		justifyContent: 'flex-start' as const,
-		position: 'relative' as const,
-		width: '100%',
-	}),
-	root: new Style({
-		backgroundColor: theme.colors.bg,
-		flexDirection: 'column' as const,
-		height: '100%',
-		position: 'relative' as const,
-		width: '100%',
-	}),
-};
