@@ -29,7 +29,15 @@ const track = {
 
 function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackStore {
 	return {
+		cycleLoopMode: () => {},
+		jumpToIndex: () => {},
+		next: () => {},
+		playPause: () => {},
+		previousOrRestart: () => {},
 		progressSeconds: 90,
+		seekTo: () => {},
+		skipForward: () => {},
+		stop: () => {},
 		subscribe: () => () => {},
 		...overrides,
 	} as unknown as PlaybackStore;
@@ -1187,7 +1195,7 @@ describe('NowPlayingSurface', () => {
 		},
 	);
 
-	valdiIt('calls loop mode toggle handler when loop control is tapped', async () => {
+	valdiIt('cycles loop mode when loop control is tapped', async () => {
 		let calls = 0;
 		const instrumented = mountNowPlaying({
 			album,
@@ -1196,14 +1204,11 @@ describe('NowPlayingSurface', () => {
 			collapseSignal: 0,
 			isPlaying: true,
 			loopMode: 'queue',
-			onDismiss: () => {},
-			onLoopModeToggle: () => {
-				calls += 1;
-			},
-			onNext: () => {},
-			onPlayPause: () => {},
-			onPrevious: () => {},
-			playbackStore: mockPlaybackStore(),
+			playbackStore: mockPlaybackStore({
+				cycleLoopMode: () => {
+					calls += 1;
+				},
+			}),
 			track,
 			trackIndex: 0,
 			tracks: [track],

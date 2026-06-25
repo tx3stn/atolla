@@ -1,6 +1,6 @@
 module(
     name = "atolla",
-    version = "0.1.2",
+    version = "0.1.3",
 )
 
 # -- Valdi framework (https://github.com/Snapchat/Valdi) ---------------------

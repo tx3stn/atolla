@@ -5,7 +5,7 @@ files = ['package.json', 'MODULE.bazel', 'atolla/src/version.ts']
 [bump]
 commit = true
 commit-msg = 'chore: bump version to {{.Version}}'
-git-tag = true
+git-tag = false
 tag-msg = 'release {{.Version}}'
 
 [check]

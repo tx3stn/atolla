@@ -53,14 +53,7 @@ export interface NowPlayingSurfaceViewModel {
 	loopMode?: LoopMode;
 	onAlbumTap?: (track?: Track) => void;
 	onArtistTap?: (track?: Track) => void;
-	onDismiss: () => void;
-	onLoopModeToggle?: () => void;
-	onNext: () => void;
 	onOpenPlaylist?: (playlist: Playlist) => void;
-	onPlayPause: () => void;
-	onPrevious: () => void;
-	onProgressTap?: (ratio?: number) => void;
-	onTrackTap?: (trackId: string) => void;
 	palette?: Palette;
 	playbackStore?: PlaybackStore;
 	toastService: ToastService;
@@ -511,7 +504,7 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.compactBarRef.setAttribute('right', 8 - offset);
 			}).then(() => {
 				if (this.isDestroyed()) return;
-				this.viewModel.onDismiss();
+				this.handleDismiss();
 			});
 			return;
 		}
@@ -696,22 +689,53 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.viewModel.onOpenPlaylist?.(playlist);
 	};
 
+	private handleNext = (): void => {
+		this.viewModel.playbackStore?.next();
+	};
+
+	private handlePlayPause = (): void => {
+		this.viewModel.playbackStore?.playPause();
+	};
+
+	private handlePrevious = (): void => {
+		this.viewModel.playbackStore?.previousOrRestart();
+	};
+
+	private handleLoopModeToggle = (): void => {
+		this.viewModel.playbackStore?.cycleLoopMode();
+	};
+
+	private handleDismiss = (): void => {
+		this.viewModel.playbackStore?.stop();
+	};
+
+	private handleProgressTap = (ratio?: number): void => {
+		const playbackStore = this.viewModel.playbackStore;
+		const activeTrack = playbackStore?.track;
+		if (!playbackStore || !activeTrack) {
+			return;
+		}
+		if (typeof ratio === 'number') {
+			playbackStore.seekTo(activeTrack.duration * ratio);
+			return;
+		}
+		playbackStore.skipForward(10);
+	};
+
+	private handleTrackTap = (trackId: string): void => {
+		const playbackStore = this.viewModel.playbackStore;
+		if (!playbackStore) {
+			return;
+		}
+		const index = playbackStore.tracks.findIndex((t) => t.id === trackId);
+		if (index !== -1) {
+			playbackStore.jumpToIndex(index);
+		}
+	};
+
 	onRender(): void {
 		this.hasRendered = true;
-		const {
-			album,
-			artistLogoUrl,
-			isPlaying,
-			onNext,
-			onPlayPause,
-			onLoopModeToggle,
-			onProgressTap,
-			onPrevious,
-			onTrackTap,
-			track,
-			trackIndex,
-			tracks,
-		} = this.viewModel;
+		const { album, artistLogoUrl, isPlaying, track, trackIndex, tracks } = this.viewModel;
 
 		if (!track) return;
 
@@ -910,7 +934,7 @@ export class NowPlayingSurface extends StatefulComponent<
 												accessibilityId='now-playing-progress'
 												maskImageUrl={this.viewModel.waveformMaskUrl}
 												mutedColor={mutedOnSurfaceColor}
-												onProgressTap={onProgressTap}
+												onProgressTap={this.handleProgressTap}
 												playbackStore={playbackStore}
 												thickness={4}
 												trackColor={expandedTrackColor}
@@ -946,7 +970,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											hitSize={60}
 											icon={loopIcon}
 											iconSize={25}
-											onTap={onLoopModeToggle}
+											onTap={this.handleLoopModeToggle}
 											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
 											tint={
@@ -961,7 +985,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											hitSize={70}
 											icon={res.previous}
 											iconSize={38}
-											onTap={onPrevious}
+											onTap={this.handlePrevious}
 											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
 											tint={onSurfaceColor}
@@ -972,7 +996,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											hitSize={80}
 											icon={isPlaying ? res.pause : res.play}
 											iconSize={48}
-											onTap={onPlayPause}
+											onTap={this.handlePlayPause}
 											rippleScale={1.26}
 											rippleTint={withAlpha(onSurfaceColor, 0.48)}
 											tint={onSurfaceColor}
@@ -983,7 +1007,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											hitSize={70}
 											icon={res.next}
 											iconSize={38}
-											onTap={onNext}
+											onTap={this.handleNext}
 											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
 											tint={onSurfaceColor}
@@ -1042,7 +1066,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											onTrackSwipeRemove={
 												canEditQueue ? this.handleQueueTrackSwipeRemove : undefined
 											}
-											onTrackTap={onTrackTap}
+											onTrackTap={this.handleTrackTap}
 											palette={palette}
 											rowIdentityPrefix='back-to-'
 											showDragHandles
@@ -1064,7 +1088,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											onTrackSwipeRemove={
 												canEditQueue ? this.handleQueueTrackSwipeRemove : undefined
 											}
-											onTrackTap={onTrackTap}
+											onTrackTap={this.handleTrackTap}
 											palette={palette}
 											rowIdentityPrefix='up-next-'
 											showDragHandles

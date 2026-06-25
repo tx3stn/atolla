@@ -1646,17 +1646,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		});
 	}
 
-	handleNowPlayingTrackTap = (trackId: string): void => {
-		const index = this.playbackStore.tracks.findIndex((t) => t.id === trackId);
-		if (index !== -1) {
-			this.playbackStore.jumpToIndex(index);
-		}
-	};
-
-	handleNowPlayingDismiss = (): void => {
-		this.playbackStore.stop();
-	};
-
 	private renderNowPlayingOverlay = (): void => {
 		const { track, album, isPlaying, loopMode, artistLogoUrl, tracks, trackIndex } =
 			this.playbackStore;
@@ -1674,14 +1663,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				loopMode={loopMode}
 				onAlbumTap={this.handleNowPlayingAlbumTap}
 				onArtistTap={this.handleNowPlayingArtistTap}
-				onDismiss={this.handleNowPlayingDismiss}
-				onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
-				onNext={this.handleNowPlayingNext}
 				onOpenPlaylist={this.handleNowPlayingOpenPlaylist}
-				onPlayPause={this.handleNowPlayingPlayPause}
-				onPrevious={this.handleNowPlayingPrevious}
-				onProgressTap={this.handleNowPlayingProgressTap}
-				onTrackTap={this.handleNowPlayingTrackTap}
 				palette={palette}
 				playbackStore={this.playbackStore}
 				toastService={this.toastService}
@@ -1692,36 +1674,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				waveformMaskUrl={this.playbackOrchestrator.getWaveformMaskUrl(track.id)}
 			/>
 		</ErrorBoundary>;
-	};
-
-	handleNowPlayingNext = (): void => {
-		this.playbackStore.next();
-	};
-
-	handleNowPlayingPlayPause = (): void => {
-		this.playbackStore.playPause();
-	};
-
-	handleNowPlayingLoopModeToggle = (): void => {
-		this.playbackStore.cycleLoopMode();
-	};
-
-	handleNowPlayingPrevious = (): void => {
-		this.playbackStore.previousOrRestart();
-	};
-
-	handleNowPlayingProgressTap = (ratio?: number): void => {
-		const activeTrack = this.playbackStore.track;
-		if (!activeTrack) {
-			return;
-		}
-
-		if (typeof ratio === 'number') {
-			this.playbackStore.seekTo(activeTrack.duration * ratio);
-			return;
-		}
-
-		this.playbackStore.skipForward(10);
 	};
 
 	handleNavigateToArtist = (artistId: string): void => {
@@ -2328,14 +2280,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							loopMode={loopMode}
 							onAlbumTap={this.handleNowPlayingAlbumTap}
 							onArtistTap={this.handleNowPlayingArtistTap}
-							onDismiss={this.handleNowPlayingDismiss}
-							onLoopModeToggle={this.handleNowPlayingLoopModeToggle}
-							onNext={this.handleNowPlayingNext}
 							onOpenPlaylist={this.handleNowPlayingOpenPlaylist}
-							onPlayPause={this.handleNowPlayingPlayPause}
-							onPrevious={this.handleNowPlayingPrevious}
-							onProgressTap={this.handleNowPlayingProgressTap}
-							onTrackTap={this.handleNowPlayingTrackTap}
 							palette={palette}
 							playbackStore={this.playbackStore}
 							toastService={this.toastService}
