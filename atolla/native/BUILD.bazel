@@ -151,6 +151,20 @@ objc_library(
     sdk_frameworks = ["UIKit"],
 )
 
+objc_library(
+    name = "atolla_floating_view_ios",
+    srcs = ["ios/AtollaFloatingView.mm"],
+    hdrs = ["ios/AtollaFloatingView.h"],
+    copts = ["-I."],
+    sdk_frameworks = ["UIKit"],
+    deps = [
+        "//atolla:atolla_api_objc",
+    ],
+    # The class is only ever referenced by name (NSClassFromString, via <custom-view
+    # iosClass=...>), so force-link it to keep the linker from dead-stripping it.
+    alwayslink = True,
+)
+
 # Pure, framework-free logic extracted from the iOS module factories so it can be unit tested.
 objc_library(
     name = "atolla_image_fallback_ios",
