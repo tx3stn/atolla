@@ -32,7 +32,10 @@ declare const Strings: {
 	done: () => string;
 	enterServerUrl: () => string;
 	failedToLoadMore: () => string;
-	genres: () => string;
+	headerAlbums: () => string;
+	headerArtists: () => string;
+	headerGenres: () => string;
+	headerPlaylists: () => string;
 	homeNoAnniversaries: () => string;
 	homeNothingPlayed: () => string;
 	homeSectionMixes: () => string;
@@ -113,6 +116,7 @@ declare const Strings: {
 	shuffleLibrary: () => string;
 	tracksCachedCount: (count: number) => string;
 	tracksDownloaded: (count: number, size: string) => string;
+	unknown: () => string;
 	upNext: () => string;
 	yes: () => string;
 };

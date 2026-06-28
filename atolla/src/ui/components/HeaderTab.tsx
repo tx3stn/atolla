@@ -1,9 +1,10 @@
 import res from 'atolla/res';
+import Strings from 'atolla/src/Strings';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { HeaderTab } from '../../models/App';
+import { type HeaderTab, HeaderTabs } from '../../models/App';
 import { theme } from '../../theme';
 
 interface LibraryHeaderViewModel {
@@ -29,11 +30,26 @@ export class LibraryHeaderTab extends Component<LibraryHeaderViewModel> {
 				)}
 				<label
 					style={this.viewModel.active ? styles.activeTab : styles.nonActiveTab}
-					value={this.viewModel.tab}
+					value={this.getLabel(this.viewModel.tab)}
 				/>
 			</view>
 		</view>;
 	}
+
+	private getLabel = (tab: HeaderTab): string => {
+		switch (tab) {
+			case HeaderTabs.albums:
+				return Strings.headerAlbums();
+			case HeaderTabs.artists:
+				return Strings.headerArtists();
+			case HeaderTabs.genres:
+				return Strings.headerGenres();
+			case HeaderTabs.playlists:
+				return Strings.headerPlaylists();
+			default:
+				return Strings.unknown();
+		}
+	};
 }
 
 const styles = {

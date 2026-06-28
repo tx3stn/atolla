@@ -34,7 +34,7 @@ export class GenrePills extends Component<GenrePillsViewModel> {
 		}
 
 		<layout style={styles.section}>
-			<label style={styles.sectionHeader} value={Strings.genres()} />
+			<label style={styles.sectionHeader} value={Strings.headerGenres()} />
 			<layout style={styles.pillsRow}>
 				{this.viewModel.genres.map((genre) => (
 					<view

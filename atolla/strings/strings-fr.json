@@ -52,7 +52,7 @@
 		"defaultMessage": "images de playlist"
 	},
 	"cache_category_tracks": {
-		"defaultMessage": "pistes"
+		"defaultMessage": "titres"
 	},
 	"cache_category_waveform_data": {
 		"defaultMessage": "données de forme d'onde"
@@ -99,8 +99,17 @@
 	"failed_to_load_more": {
 		"defaultMessage": "Échec du chargement. Appuyez pour réessayer."
 	},
-	"genres": {
+	"header_albums": {
+		"defaultMessage": "ALBUMS"
+	},
+	"header_artists": {
+		"defaultMessage": "ARTISTES"
+	},
+	"header_genres": {
 		"defaultMessage": "GENRES"
+	},
+	"header_playlists": {
+		"defaultMessage": "PLAYLISTS"
 	},
 	"home_no_anniversaries": {
 		"defaultMessage": "aucun anniversaire aujourd'hui"
@@ -181,7 +190,7 @@
 		"defaultMessage": "ANNÉE ALÉATOIRE"
 	},
 	"remove_download_body": {
-		"defaultMessage": "Cela supprimera ce téléchargement de votre appareil.\n\nSi ces pistes font partie d'une playlist, elles ne seront pas supprimées à moins que vous ne supprimiez la playlist."
+		"defaultMessage": "Cela supprimera ce téléchargement de votre appareil.\n\nSi ces titres font partie d'une playlist, ils ne seront pas supprimés à moins que vous ne supprimiez la playlist."
 	},
 	"remove_download_title": {
 		"defaultMessage": "SUPPRIMER LE TÉLÉCHARGEMENT ?"
@@ -227,7 +236,7 @@
 		"defaultMessage": "RECHERCHES RÉCENTES"
 	},
 	"search_section_tracks": {
-		"defaultMessage": "PISTES"
+		"defaultMessage": "TITRES"
 	},
 	"server_url_placeholder": {
 		"defaultMessage": "https://jellyfin.example.com"
@@ -265,7 +274,7 @@
 		"defaultMessage": "supprimer tous les téléchargements"
 	},
 	"settings_delete_all_downloads_confirm": {
-		"defaultMessage": "supprimer toutes les pistes téléchargées de votre appareil ?"
+		"defaultMessage": "supprimer tous les titres téléchargés de votre appareil ?"
 	},
 	"settings_device_id": {
 		"defaultMessage": "identifiant de l'appareil"
@@ -305,7 +314,7 @@
 		"defaultMessage": "état hors ligne exporté"
 	},
 	"settings_play_queue_cached_tracks": {
-		"defaultMessage": "pistes en cache de la file de lecture"
+		"defaultMessage": "titres en cache de la file de lecture"
 	},
 	"settings_section_appearance": {
 		"defaultMessage": "APPARENCE"
@@ -338,12 +347,15 @@
 		"defaultMessage": "BIBLIOTHÈQUE ALÉATOIRE"
 	},
 	"tracks_cached_count": {
-		"defaultMessage": "{count%d} pistes actuellement en cache",
-		"example": "5 pistes actuellement en cache"
+		"defaultMessage": "{count%d} titres actuellement en cache",
+		"example": "5 titres actuellement en cache"
 	},
 	"tracks_downloaded": {
-		"defaultMessage": "{count%d} pistes téléchargées      [ {size%s} ]",
-		"example": "10 pistes téléchargées      [ 2.3 Go ]"
+		"defaultMessage": "{count%d} titres téléchargés      [ {size%s} ]",
+		"example": "10 titres téléchargés      [ 2.3 Go ]"
+	},
+	"unknown": {
+		"defaultMessage": "INCONNU"
 	},
 	"up_next": {
 		"defaultMessage": "ENSUITE"

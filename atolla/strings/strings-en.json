@@ -99,8 +99,17 @@
 	"failed_to_load_more": {
 		"defaultMessage": "Failed to load more. Tap to retry."
 	},
-	"genres": {
+	"header_albums": {
+		"defaultMessage": "ALBUMS"
+	},
+	"header_artists": {
+		"defaultMessage": "ARTISTS"
+	},
+	"header_genres": {
 		"defaultMessage": "GENRES"
+	},
+	"header_playlists": {
+		"defaultMessage": "PLAYLISTS"
 	},
 	"home_no_anniversaries": {
 		"defaultMessage": "no anniversaries today"
@@ -350,6 +359,9 @@
 	"tracks_downloaded": {
 		"defaultMessage": "{count%d} tracks downloaded      [ {size%s} ]",
 		"example": "10 tracks downloaded      [ 2.3 GB ]"
+	},
+	"unknown": {
+		"defaultMessage": "UNKNOWN"
 	},
 	"up_next": {
 		"defaultMessage": "UP NEXT"
