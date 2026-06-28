@@ -10,6 +10,7 @@ import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { backNavRouter } from './services/BackNavRouter';
+import type { NavCoordinator } from './services/NavCoordinator';
 import type { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import type { ToastService } from './services/ToastService';
 import type { BarColorStore } from './stores/BarColor';
@@ -38,8 +39,9 @@ export interface AuthedAppViewModel {
 	downloadingCount: number;
 	homeViewModel: HomeTabViewModel;
 	language: LanguageCode;
-	libraryViewModel: Omit<LibraryViewModel, 'onNavigationControllerReady'>;
+	libraryViewModel: Omit<LibraryViewModel, 'navCoordinator' | 'onNavigationControllerReady'>;
 	modalSlot: DetachedSlot;
+	navCoordinator: NavCoordinator;
 	onNowPlayingAlbumTap: (track?: Track) => void;
 	onNowPlayingArtistTap: (track?: Track) => void;
 	onNowPlayingOpenPlaylist: (playlist: Playlist) => void;
@@ -66,9 +68,14 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 
 	onCreate(): void {
 		backNavRouter.setActiveTab(this.state.activeFooterTab);
+		this.viewModel.navCoordinator.setShellNavigator(() => {
+			backNavRouter.setActiveTab(FooterTabs.library);
+			this.setState({ activeFooterTab: FooterTabs.library });
+		});
 	}
 
 	onDestroy(): void {
+		this.viewModel.navCoordinator.setShellNavigator(null);
 		if (this.androidBackObserverInstalled) {
 			Device.setBackButtonObserver(undefined);
 		}
@@ -134,6 +141,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							gridColumns={library.gridColumns}
 							imageCache={library.imageCache}
 							modalSlot={library.modalSlot}
+							navCoordinator={this.viewModel.navCoordinator}
 							onNavigationControllerReady={this.captureLibraryController}
 							onRequestModeChange={library.onRequestModeChange}
 							paletteQueue={library.paletteQueue}
@@ -148,6 +156,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 				<view style={this.tabStyle(FooterTabs.search)}>
 					<ErrorBoundary resetKey='search'>
 						<SearchTab
+							navCoordinator={this.viewModel.navCoordinator}
 							onNavigationControllerReady={this.captureSearchController}
 							search={this.viewModel.searchViewModel}
 						/>
@@ -204,6 +213,12 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 	}
 
 	private handleFooterTabTap = (tab: FooterTab): void => {
+		// iOS pushes details full-screen onto the one root nav controller, so an open detail covers
+		// the tabs; pop the current tab back to its root so the tapped tab is actually revealed.
+		// (Android keeps a separate stack per tab, so the target tab already shows on switch.)
+		if (!Device.isAndroid()) {
+			this.tabNavControllers[this.state.activeFooterTab]?.popToSelf(false);
+		}
 		backNavRouter.setActiveTab(tab);
 		this.setState({ activeFooterTab: tab });
 	};

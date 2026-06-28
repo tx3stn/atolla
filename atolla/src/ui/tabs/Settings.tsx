@@ -8,6 +8,7 @@ export interface SettingsTabViewModel {
 export class SettingsTab extends Component<SettingsTabViewModel> {
 	onRender(): void {
 		const settings = this.viewModel.settings;
+
 		<SettingsView
 			animationsEnabled={settings.animationsEnabled}
 			connectionMode={settings.connectionMode}

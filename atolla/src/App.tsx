@@ -11,6 +11,7 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
+import { AuthedApp } from './AuthedApp';
 import {
 	clearAtollaDebugLog,
 	exportAtollaDebugLog,
@@ -46,6 +47,7 @@ import { DownloadService } from './services/DownloadService';
 import { type ClearCacheSelection, ImageCache, type ImageCategory } from './services/ImageCache';
 import { buildImageSource } from './services/ImageSource';
 import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
+import { NavCoordinator } from './services/NavCoordinator';
 import {
 	buildOfflineDiagnosticsReport,
 	serializeOfflineDiagnostics,
@@ -111,6 +113,8 @@ import { SyncStatusBanner } from './ui/components/SyncStatusBanner';
 import { Toast } from './ui/components/Toast';
 import { closeSlot, EMPTY_SLOT_RENDERER } from './ui/flows/ModalSlotFlow';
 import type { NavBarContext } from './ui/NavBarContext';
+import type { HomeTabViewModel } from './ui/tabs/Home';
+import type { LibraryViewModel } from './ui/tabs/Library';
 import { AlbumView } from './ui/views/AlbumView';
 import { ArtistView } from './ui/views/ArtistView';
 import { ConnectionView } from './ui/views/ConnectionView';
@@ -118,8 +122,12 @@ import { GenreView } from './ui/views/GenreView';
 import { HomeView } from './ui/views/HomeView';
 import { type LibraryNavContext, LibraryView } from './ui/views/LibraryView';
 import { PlaylistView } from './ui/views/PlaylistView';
-import { type SearchLibraryNavigationTarget, SearchView } from './ui/views/SearchView';
-import { SettingsView } from './ui/views/SettingsView';
+import {
+	type SearchLibraryNavigationTarget,
+	SearchView,
+	type SearchViewModel,
+} from './ui/views/SearchView';
+import { SettingsView, type SettingsViewModel } from './ui/views/SettingsView';
 import { fireAndForget } from './utils/Async';
 import { version } from './version';
 
@@ -129,6 +137,10 @@ export type AppViewModel = Record<string, never>;
 // the observer never fires (e.g. native predating the cache-hit notification) before the
 // download is allowed to complete regardless
 const IMAGE_CACHE_RESOLVE_TIMEOUT_MS = 6000;
+
+// DEV HARNESS: when true, mount the new AuthedApp shell (all tabs, footer, now-playing) instead of
+// the real app, so the new nav can be built/tested before it's cut over. Flip to false to run normally.
+const SPIKE_LIBRARY_V2 = true;
 
 interface AppState {
 	activeFooterTab: FooterTab;
@@ -282,6 +294,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private syncBannerTimer?: ReturnType<typeof setTimeout>;
 	private currentAccessToken = '';
 	private paletteService!: ArtworkPaletteService;
+	private navCoordinator = new NavCoordinator();
 	private downloadWorkerClient: IWorkerServiceClient<IDownloadNativeWorker> = startWorkerService(
 		DownloadNativeWorkerEntryPoint,
 		[],
@@ -2078,21 +2091,149 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		};
 	}
 
-	private buildSearchNavBarContext(): NavBarContext | undefined {
-		if (Device.isAndroid()) return undefined;
+	private buildHomeViewModel(): HomeTabViewModel {
 		return {
-			activeFooterTab: this.state.activeFooterTab,
-			barColors: this.barColors,
-			downloadingCount: this.state.downloadingCount,
+			animationsEnabled: this.state.animationsEnabled,
+			connectionMode: this.state.connectionMode,
+			downloadService: this.downloadService,
+			gridColumns: this.state.gridColumns,
+			imageCache: this.imageCache,
 			modalSlot: this.modalSlot,
-			nowPlayingOverlaySlot: this.nowPlayingOverlaySlot,
-			onFooterTabTap: this.handleFooterTabTap,
+			onNavigationControllerReady: this.handleHomeNavigationControllerChange,
+			onRequestModeChange: this.requestModeChange,
+			onThisDayService: this.onThisDayService,
+			paletteQueue: this.paletteQueue,
+			playbackStore: this.playbackStore,
+			playlistEditService: this.playlistEditService,
+			recentlyAddedService: this.recentlyAddedService,
+			recentlyPlayedTracks: this.playbackOrchestrator.getRecentlyPlayedTracks(),
+			toastService: this.toastService,
+			transport: this.transport,
+		};
+	}
+
+	private buildLibraryViewModel(): Omit<
+		LibraryViewModel,
+		'navCoordinator' | 'onNavigationControllerReady'
+	> {
+		return {
+			animationsEnabled: this.state.animationsEnabled,
+			connectionMode: this.state.connectionMode,
+			downloadService: this.downloadService,
+			gridColumns: this.state.gridColumns,
+			imageCache: this.imageCache,
+			modalSlot: this.modalSlot,
+			onRequestModeChange: this.requestModeChange,
+			paletteQueue: this.paletteQueue,
+			playbackStore: this.playbackStore,
+			playlistEditService: this.playlistEditService,
+			toastService: this.toastService,
+			transport: this.transport,
+		};
+	}
+
+	private buildSearchViewModel(): Omit<SearchViewModel, 'navigationController'> {
+		return {
+			animationsEnabled: this.state.animationsEnabled,
+			downloadService: this.downloadService,
+			focusSignal: this.state.searchFocusSignal,
+			gridColumns: this.state.gridColumns,
+			imageCache: this.imageCache,
+			modalSlot: this.modalSlot,
+			paletteQueue: this.paletteQueue,
+			playbackStore: this.playbackStore,
+			playlistEditService: this.playlistEditService,
+			searchStore: this.searchStore,
+			toastService: this.toastService,
+			transport: this.transport,
+		};
+	}
+
+	private buildSettingsViewModel(): SettingsViewModel {
+		return {
+			animationsEnabled: this.state.animationsEnabled,
+			connectionMode: this.state.connectionMode,
+			debugExportPath: this.state.debugExportPath,
+			debugLogFilePath: this.state.debugLogFilePath,
+			debugLoggingEnabled: this.state.debugLoggingEnabled,
+			defaultJellyfinDeviceId: this.defaultJellyfinClientDeviceId,
+			downloadedSizeBytes: this.state.downloadedSizeBytes ?? undefined,
+			downloadedTrackCount: this.state.downloadedTrackCount,
+			downloadingCount: this.state.downloadingCount,
+			gridColumns: this.state.gridColumns,
+			imageCacheDiskBytes: this.state.nativeImageCacheDiskBytes,
+			imageCacheDiskCount: this.state.nativeImageCacheDiskCount,
+			imageCacheError: null,
+			imageCacheMaxBytes: this.state.imageCacheMaxBytes,
+			imageCategoryAlbumArtBlurredCount: this.state.imageCategoryCounts.album_art_blurred ?? 0,
+			imageCategoryAlbumArtCount:
+				(this.state.imageCategoryCounts.album_art ?? 0) +
+				(this.state.imageCategoryCounts.album_art_thumb ?? 0),
+			imageCategoryArtistImageCount:
+				(this.state.imageCategoryCounts.artist_image ?? 0) +
+				(this.state.imageCategoryCounts.artist_image_thumb ?? 0),
+			imageCategoryArtistLogoCount: this.state.imageCategoryCounts.artist_logo ?? 0,
+			imageCategoryGenreImageCount: this.state.imageCategoryCounts.genre_art ?? 0,
+			imageCategoryPlaylistImageCount:
+				(this.state.imageCategoryCounts.playlist_image ?? 0) +
+				(this.state.imageCategoryCounts.playlist_image_thumb ?? 0),
+			jellyfinDeviceIdOverride: this.state.jellyfinClientDeviceIdOverride,
+			modalSlot: this.modalSlot,
+			offlineStatusExportPath: this.state.offlineStatusExportPath,
+			onAnimationsChange: this.handleAnimationsChange,
+			onCacheSizeChange: this.handleCacheSizeChange,
+			onClearCache: this.handleClearCache,
+			onClearDebugLog: this.handleClearDebugLog,
+			onClearDownloads: this.handleClearDownloads,
+			onDebugLoggingChange: this.handleDebugLoggingChange,
+			onExportDebugLog: this.handleExportDebugLog,
+			onExportOfflineStatus: this.handleExportOfflineStatus,
+			onGridColumnsChange: this.handleGridColumnsChange,
+			onJellyfinDeviceIdOverrideChange: this.handleJellyfinClientDeviceIdOverrideChange,
+			onLanguageChange: this.handleLanguageChange,
+			onLogout: this.handleLogout,
+			onRequestModeChange: this.requestModeChange,
+			onTrackCacheMaxTracksChange: this.handleTrackCacheMaxTracksChange,
+			preferences: this.preferences,
+			selectedLanguage: this.state.language,
+			serverName: this.state.serverName,
+			serverUrl: this.state.serverUrlPrefill,
+			toastService: this.toastService,
+			trackCacheCachedCount: this.state.trackPlaybackCachedCount,
+			trackCacheMaxTracks: this.state.trackCacheMaxTracks,
+			waveformReadyCount: this.playbackOrchestrator.getWaveformReadyCount(),
 		};
 	}
 
 	onRender(): void {
 		if (!this.state.isBootstrapped) {
 			<BootSplash message='loading your library' />;
+			return;
+		}
+
+		if (SPIKE_LIBRARY_V2) {
+			<AuthedApp
+				animationsEnabled={this.state.animationsEnabled}
+				barColors={this.barColors}
+				connectionMode={this.state.connectionMode}
+				downloadingCount={this.state.downloadingCount}
+				homeViewModel={this.buildHomeViewModel()}
+				language={this.state.language}
+				libraryViewModel={this.buildLibraryViewModel()}
+				modalSlot={this.modalSlot}
+				navCoordinator={this.navCoordinator}
+				onNowPlayingAlbumTap={this.handleNowPlayingAlbumTap}
+				onNowPlayingArtistTap={this.handleNowPlayingArtistTap}
+				onNowPlayingOpenPlaylist={this.handleNowPlayingOpenPlaylist}
+				paletteService={this.paletteService}
+				playbackOrchestrator={this.playbackOrchestrator}
+				playbackStore={this.playbackStore}
+				searchViewModel={this.buildSearchViewModel()}
+				settingsViewModel={this.buildSettingsViewModel()}
+				toastService={this.toastService}
+				toastSlot={this.toastSlot}
+				transport={this.transport}
+			/>;
 			return;
 		}
 
@@ -2193,7 +2334,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 									gridColumns={this.state.gridColumns}
 									imageCache={this.imageCache}
 									modalSlot={this.modalSlot}
-									navBarContext={this.buildSearchNavBarContext()}
 									navigationController={navigationController}
 									onNavigateToLibraryResult={this.handleSearchResultNavigation}
 									paletteQueue={this.paletteQueue}

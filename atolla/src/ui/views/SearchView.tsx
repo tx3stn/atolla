@@ -35,11 +35,10 @@ import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
-import type { NavBarContext } from '../NavBarContext';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import { AlbumView } from './AlbumView';
-import { ArtistView } from './ArtistView';
-import { PlaylistView } from './PlaylistView';
+import { AlbumView } from './V2AlbumView';
+import { ArtistView } from './V2ArtistView';
+import { PlaylistView } from './V2PlaylistView';
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 
@@ -49,8 +48,7 @@ export interface SearchViewModel {
 	focusSignal?: number;
 	gridColumns: number;
 	imageCache: ImageCache;
-	modalSlot?: DetachedSlot;
-	navBarContext?: NavBarContext;
+	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	onNavigateToLibraryResult?: (target: SearchLibraryNavigationTarget) => void;
 	paletteQueue?: PaletteGenerationQueue;
@@ -74,37 +72,6 @@ interface SearchState {
 	recentSearches: Array<string>;
 	results: SearchResults;
 	status: SearchStatus;
-}
-
-function normalizeSearchInput(value: unknown): string {
-	if (typeof value === 'string') {
-		return value;
-	}
-
-	if (typeof value === 'number') {
-		return String(value);
-	}
-
-	if (value && typeof value === 'object') {
-		const candidate = value as {
-			nativeEvent?: { text?: unknown; value?: unknown };
-			query?: unknown;
-			text?: unknown;
-			value?: unknown;
-		};
-
-		const direct = candidate.text ?? candidate.value ?? candidate.query;
-		if (typeof direct === 'string') {
-			return direct;
-		}
-
-		const native = candidate.nativeEvent?.text ?? candidate.nativeEvent?.value;
-		if (typeof native === 'string') {
-			return native;
-		}
-	}
-
-	return '';
 }
 
 export class SearchView extends StatefulComponent<SearchViewModel, SearchState> {
@@ -138,605 +105,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			}
 			this.setState({ recentSearches });
 		});
-	}
-
-	onViewModelUpdate(prevViewModel?: SearchViewModel): void {
-		if (!prevViewModel) {
-			return;
-		}
-
-		const nextFocusSignal = this.viewModel.focusSignal ?? 0;
-		const prevFocusSignal = prevViewModel.focusSignal ?? 0;
-		if (nextFocusSignal === prevFocusSignal) {
-			return;
-		}
-
-		this.focusSearchInput();
-	}
-
-	private focusSearchInput(): void {
-		Promise.resolve().then(() => {
-			if (this.isDestroyed()) {
-				return;
-			}
-			this.searchInputRef.setAttribute('focused', true);
-			this.searchInputRef.setAttribute('selection', [
-				this.state.query.length,
-				this.state.query.length,
-			]);
-			setTimeout(() => {
-				if (this.isDestroyed()) {
-					return;
-				}
-				this.searchInputRef.setAttribute('focused', true);
-				this.searchInputRef.setAttribute('selection', [
-					this.state.query.length,
-					this.state.query.length,
-				]);
-			}, 32);
-		});
-	}
-
-	private blurSearchInput(): void {
-		this.searchInputRef.setAttribute('focused', false);
-	}
-
-	handleSubmitSearch = (query: unknown): void => {
-		const trimmedQuery = normalizeSearchInput(query).trim();
-		if (!trimmedQuery) {
-			this.requestVersion += 1;
-			this.setState({
-				errorMessage: null,
-				lastSubmittedQuery: '',
-				results: {
-					albums: [],
-					artists: [],
-					playlists: [],
-					tracks: [],
-				},
-				status: 'idle',
-			});
-			return;
-		}
-
-		this.requestVersion += 1;
-		const currentRequestVersion = this.requestVersion;
-		this.setState({
-			errorMessage: null,
-			lastSubmittedQuery: trimmedQuery,
-			query: trimmedQuery,
-			results: {
-				albums: [],
-				artists: [],
-				playlists: [],
-				tracks: [],
-			},
-			status: 'loading',
-		});
-
-		this.viewModel.searchStore.addRecentSearch(trimmedQuery).then((recentSearches) => {
-			if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
-				return;
-			}
-
-			this.setState({ recentSearches });
-		});
-
-		this.viewModel.transport
-			.search(trimmedQuery)
-			.then((results) => {
-				if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
-					return;
-				}
-
-				const hasResults =
-					results.tracks.length > 0 ||
-					results.albums.length > 0 ||
-					results.artists.length > 0 ||
-					results.playlists.length > 0;
-
-				this.setState({
-					results,
-					status: hasResults ? 'success' : 'empty',
-				});
-			})
-			.catch((error) => {
-				if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
-					return;
-				}
-
-				this.setState({
-					errorMessage: error instanceof Error ? error.message : 'Could not search right now.',
-					results: {
-						albums: [],
-						artists: [],
-						playlists: [],
-						tracks: [],
-					},
-					status: 'error',
-				});
-			});
-	};
-
-	handleTrackLongPress = (track: Track): void => {
-		const {
-			animationsEnabled,
-			downloadService,
-			gridColumns,
-			imageCache,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		openTrackContextMenu(track, modalSlot, {
-			animationsEnabled,
-			gridColumns,
-			imageCache,
-			onAlbumTap: undefined,
-			onArtistTap: track.artistId ? () => this.handleContextMenuArtistTap(track) : undefined,
-			onDismiss: () => {},
-			onPlaylistCreated: (playlist) => {
-				this.viewModel.navigationController.push(
-					PlaylistView,
-					{
-						animationsEnabled,
-						downloadService,
-						gridColumns,
-						imageCache,
-						navBarContext: this.viewModel.navBarContext,
-						paletteQueue,
-						playbackStore,
-						playlist,
-						playlistEditService: this.viewModel.playlistEditService,
-						toastService: this.viewModel.toastService,
-						transport,
-					},
-					{},
-					{ animated: animationsEnabled },
-				);
-			},
-			playbackStore,
-			toastService: this.viewModel.toastService,
-			transport,
-		});
-	};
-
-	handleContextMenuDismiss = (toastMessage?: string): void => {
-		closeSlot(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot);
-		this.setState({ contextMenuCard: null });
-		if (toastMessage) {
-			this.viewModel.toastService.show(toastMessage);
-		}
-	};
-
-	private closeModalSlot = (): void => {
-		closeSlot(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot);
-	};
-
-	handleAlbumCardLongPress = (card: {
-		id: string;
-		kind: 'album' | 'artist' | 'genre' | 'playlist';
-	}): void => {
-		const album = this.state.results.albums.find((a) => a.id === card.id);
-		if (!album) return;
-		this.setState({ contextMenuCard: { album, kind: 'album' } });
-		this.openCardContextMenu({ album, kind: 'album' });
-	};
-
-	handleArtistCardLongPress = (card: {
-		id: string;
-		kind: 'album' | 'artist' | 'genre' | 'playlist';
-	}): void => {
-		const artist = this.state.results.artists.find((a) => a.id === card.id);
-		if (!artist) return;
-		this.setState({ contextMenuCard: { artist, kind: 'artist' } });
-		this.openCardContextMenu({ artist, kind: 'artist' });
-	};
-
-	handlePlaylistCardLongPress = (card: {
-		id: string;
-		kind: 'album' | 'artist' | 'genre' | 'playlist';
-	}): void => {
-		const playlist = this.state.results.playlists.find((p) => p.id === card.id);
-		if (!playlist) return;
-		this.setState({ contextMenuCard: { kind: 'playlist', playlist } });
-		this.openCardContextMenu({ kind: 'playlist', playlist });
-	};
-
-	private openCardContextMenu(card: CardContextMenuCard): void {
-		this.cardContextMenuCard = card;
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		const { animationsEnabled, playbackStore, transport } = this.viewModel;
-		const onArtistTap =
-			card.kind === 'album' || card.kind === 'artist'
-				? this.handleCardContextMenuArtistTap
-				: undefined;
-
-		openCardContextMenu(modalSlot, {
-			animationsEnabled,
-			card,
-			onAddToPlaylist: this.handleCardContextMenuAddToPlaylist,
-			onArtistTap: onArtistTap,
-			onCreatePlaylist: this.handleCardContextMenuCreatePlaylistRequest,
-			onDismiss: this.handleContextMenuDismiss,
-			onEntityTap: this.handleCardContextMenuEntityTap,
-			playbackStore,
-			transport,
-		});
-	}
-
-	private handleCardContextMenuEntityTap = (): void => {
-		const card = this.cardContextMenuCard;
-		if (!card) return;
-		this.handleContextMenuDismiss();
-		if (card.kind === 'album') this.handleAlbumTap(card.album.id);
-		if (card.kind === 'artist') this.handleArtistTap(card.artist.id);
-		if (card.kind === 'playlist') this.handlePlaylistTap(card.playlist.id);
-	};
-
-	private handleCardContextMenuArtistTap = (): void => {
-		const card = this.cardContextMenuCard;
-		if (!card) return;
-		this.handleContextMenuDismiss();
-		if (card.kind === 'artist') {
-			this.handleArtistTap(card.artist.id);
-			return;
-		}
-		if (card.kind !== 'album') return;
-		this.viewModel.transport.getArtist(card.album.artistId).then((artist) => {
-			if (!artist) return;
-			this.viewModel.navigationController.push(
-				ArtistView,
-				{
-					animationsEnabled: this.viewModel.animationsEnabled,
-					artist,
-					downloadService: this.viewModel.downloadService,
-					gridColumns: this.viewModel.gridColumns,
-					imageCache: this.viewModel.imageCache,
-					navBarContext: this.viewModel.navBarContext,
-					paletteQueue: this.viewModel.paletteQueue,
-					playbackStore: this.viewModel.playbackStore,
-					toastService: this.viewModel.toastService,
-					transport: this.viewModel.transport,
-				},
-				{},
-				{ animated: this.viewModel.animationsEnabled },
-			);
-		});
-	};
-
-	private handleCardContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
-		this.setState({ contextMenuCard: null });
-		openSlot(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, () => {
-			<AddToPlaylistView
-				animationsEnabled={this.viewModel.animationsEnabled}
-				gridColumns={this.viewModel.gridColumns}
-				imageCache={this.viewModel.imageCache}
-				onDismiss={this.closeModalSlot}
-				toastService={this.viewModel.toastService}
-				tracks={tracks}
-				transport={this.viewModel.transport}
-			/>;
-		});
-	};
-
-	private handleCardContextMenuCreatePlaylistRequest = (tracks: Array<Track>): void => {
-		this.pendingCreatePlaylistTracks = tracks;
-		this.setState({ contextMenuCard: null });
-		openSlot(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, () => {
-			<CreatePlaylistModal
-				animationsEnabled={this.viewModel.animationsEnabled}
-				onCancel={this.closeModalSlot}
-				onCreate={this.handleCardContextMenuCreatePlaylistConfirm}
-			/>;
-		});
-	};
-
-	private handleCardContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const createPlaylistFn = this.viewModel.transport.createPlaylist.bind(this.viewModel.transport);
-		const tracks = this.pendingCreatePlaylistTracks;
-		if (!createPlaylistFn || !tracks) return;
-		const playlist = await createPlaylistAndAddTracks(
-			name,
-			createPlaylistFn,
-			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
-			tracks,
-		);
-		this.pendingCreatePlaylistTracks = null;
-		this.closeModalSlot();
-		this.viewModel.navigationController.push(
-			PlaylistView,
-			{
-				animationsEnabled: this.viewModel.animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				navBarContext: this.viewModel.navBarContext,
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				playlist,
-				playlistEditService: this.viewModel.playlistEditService,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
-	};
-
-	handleTrackTap = (trackId: string): void => {
-		const trackIndex = this.state.results.tracks.findIndex((track) => track.id === trackId);
-		if (trackIndex < 0) {
-			return;
-		}
-
-		const track = this.state.results.tracks[trackIndex];
-		this.viewModel.playbackStore.playTracks([track]);
-		if (track.artistId) {
-			this.viewModel.transport.getArtistLogoUrl(track.artistId).then((logoUrl) => {
-				this.viewModel.playbackStore.setArtistLogoUrl(logoUrl);
-			});
-		}
-	};
-
-	handleSearchKeyboardSubmit = (value?: unknown): void => {
-		const submittedQuery = normalizeSearchInput(value);
-		this.handleSubmitSearch(submittedQuery || this.state.query);
-	};
-
-	handleSearchIconTap = (): void => {
-		this.blurSearchInput();
-		this.handleSubmitSearch(this.state.query);
-	};
-
-	handleQueryChange = (value: unknown): void => {
-		this.setState({ query: normalizeSearchInput(value) });
-	};
-
-	handleRetryTap = (): void => {
-		this.handleSubmitSearch(this.state.lastSubmittedQuery);
-	};
-
-	handleAlbumCardTap = (card: {
-		id: string;
-		kind: 'album' | 'artist' | 'genre' | 'playlist';
-	}): void => {
-		this.handleAlbumTap(card.id);
-	};
-
-	handleArtistCardTap = (card: {
-		id: string;
-		kind: 'album' | 'artist' | 'genre' | 'playlist';
-	}): void => {
-		this.handleArtistTap(card.id);
-	};
-
-	handlePlaylistCardTap = (card: {
-		id: string;
-		kind: 'album' | 'artist' | 'genre' | 'playlist';
-	}): void => {
-		this.handlePlaylistTap(card.id);
-	};
-
-	handleContextMenuArtistTap = (track: Track): void => {
-		const { artistId } = track;
-		if (!artistId) {
-			return;
-		}
-
-		const {
-			animationsEnabled,
-			downloadService,
-			gridColumns,
-			imageCache,
-			navigationController,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
-		transport.getArtist(artistId).then((artist) => {
-			if (!artist) return;
-			navigationController.push(
-				ArtistView,
-				{
-					animationsEnabled,
-					artist,
-					downloadService,
-					gridColumns,
-					imageCache,
-					navBarContext: this.viewModel.navBarContext,
-					paletteQueue,
-					playbackStore,
-					toastService: this.viewModel.toastService,
-					transport,
-				},
-				{},
-				{ animated: animationsEnabled },
-			);
-		});
-	};
-
-	private getRecentSearchTapHandler(term: string): () => void {
-		const existingHandler = this.recentSearchTapHandlers.get(term);
-		if (existingHandler) {
-			return existingHandler;
-		}
-
-		const createdHandler = (): void => {
-			this.blurSearchInput();
-			this.setState({ query: term });
-			this.handleSubmitSearch(term);
-		};
-		this.recentSearchTapHandlers.set(term, createdHandler);
-		return createdHandler;
-	}
-
-	handleAlbumTap = (albumId: string): void => {
-		const album = this.state.results.albums.find((candidate) => candidate.id === albumId);
-		if (!album) {
-			return;
-		}
-
-		if (this.viewModel.onNavigateToLibraryResult) {
-			this.viewModel.onNavigateToLibraryResult({ album, kind: 'album' });
-			return;
-		}
-
-		this.viewModel.navigationController.push(
-			AlbumView,
-			{
-				album,
-				animationsEnabled: this.viewModel.animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				navBarContext: this.viewModel.navBarContext,
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
-	};
-
-	handleArtistTap = (artistId: string): void => {
-		const artist = this.state.results.artists.find((candidate) => candidate.id === artistId);
-		if (!artist) {
-			return;
-		}
-
-		if (this.viewModel.onNavigateToLibraryResult) {
-			this.viewModel.onNavigateToLibraryResult({ artist, kind: 'artist' });
-			return;
-		}
-
-		this.viewModel.navigationController.push(
-			ArtistView,
-			{
-				animationsEnabled: this.viewModel.animationsEnabled,
-				artist,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				navBarContext: this.viewModel.navBarContext,
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
-	};
-
-	handlePlaylistTap = (playlistId: string): void => {
-		const playlist = this.state.results.playlists.find((candidate) => candidate.id === playlistId);
-		if (!playlist) {
-			return;
-		}
-
-		if (this.viewModel.onNavigateToLibraryResult) {
-			this.viewModel.onNavigateToLibraryResult({ kind: 'playlist', playlist });
-			return;
-		}
-
-		const {
-			animationsEnabled,
-			downloadService,
-			imageCache,
-			navigationController,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
-		const { navBarContext } = this.viewModel;
-		navigationController.push(
-			PlaylistView,
-			{
-				animationsEnabled,
-				downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache,
-				navBarContext,
-				onNavigateToArtist: (artistId) => {
-					transport.getArtist(artistId).then((artist) => {
-						if (!artist) return;
-						navigationController.push(
-							ArtistView,
-							{
-								animationsEnabled,
-								artist,
-								downloadService,
-								gridColumns: this.viewModel.gridColumns,
-								imageCache,
-								navBarContext,
-								paletteQueue,
-								playbackStore,
-								toastService: this.viewModel.toastService,
-								transport,
-							},
-							{},
-							{ animated: animationsEnabled },
-						);
-					});
-				},
-				paletteQueue,
-				playbackStore,
-				playlist,
-				playlistEditService: this.viewModel.playlistEditService,
-				toastService: this.viewModel.toastService,
-				transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
-	};
-
-	private renderSectionTitle(title: string): void {
-		<label style={styles.sectionTitle} value={title} />;
-	}
-
-	private createTrackEntries(tracks: Array<Track>): Array<TrackListEntry> {
-		return tracks.map((track) => ({
-			artworkSource: track.albumImageUrl ?? null,
-			id: track.id,
-			meta: track.artistName ?? track.albumName ?? '',
-			title: track.name,
-			track,
-		}));
-	}
-
-	private createAlbumCards(albums: Array<Album>): Array<Card> {
-		return albums.map((album) => ({
-			artworkKey: album.imageUrl ?? '',
-			id: album.id,
-			kind: 'album',
-			primaryText: album.name,
-			secondaryText: album.artistName,
-		}));
-	}
-
-	private createArtistCards(artists: Array<Artist>): Array<Card> {
-		return artists.map((artist) => ({
-			artworkKey: artist.imageUrl ?? '',
-			id: artist.id,
-			kind: 'artist',
-			primaryText: artist.name,
-			secondaryText: '',
-		}));
-	}
-
-	private createPlaylistCards(playlists: Array<Playlist>): Array<Card> {
-		return playlists.map((playlist) => ({
-			artworkKey: playlist.imageUrl ?? '',
-			id: playlist.id,
-			kind: 'playlist',
-			primaryText: playlist.name,
-			secondaryText: '',
-		}));
 	}
 
 	onRender(): void {
@@ -887,6 +255,625 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			</scroll>
 		</layout>;
 	}
+
+	onViewModelUpdate(prevViewModel?: SearchViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		const nextFocusSignal = this.viewModel.focusSignal ?? 0;
+		const prevFocusSignal = prevViewModel.focusSignal ?? 0;
+		if (nextFocusSignal === prevFocusSignal) {
+			return;
+		}
+
+		this.focusSearchInput();
+	}
+
+	private blurSearchInput(): void {
+		this.searchInputRef.setAttribute('focused', false);
+	}
+
+	private closeModalSlot = (): void => {
+		closeSlot(this.viewModel.modalSlot);
+	};
+
+	private createAlbumCards(albums: Array<Album>): Array<Card> {
+		return albums.map((album) => ({
+			artworkKey: album.imageUrl ?? '',
+			id: album.id,
+			kind: 'album',
+			primaryText: album.name,
+			secondaryText: album.artistName,
+		}));
+	}
+
+	private createArtistCards(artists: Array<Artist>): Array<Card> {
+		return artists.map((artist) => ({
+			artworkKey: artist.imageUrl ?? '',
+			id: artist.id,
+			kind: 'artist',
+			primaryText: artist.name,
+			secondaryText: '',
+		}));
+	}
+
+	private createPlaylistCards(playlists: Array<Playlist>): Array<Card> {
+		return playlists.map((playlist) => ({
+			artworkKey: playlist.imageUrl ?? '',
+			id: playlist.id,
+			kind: 'playlist',
+			primaryText: playlist.name,
+			secondaryText: '',
+		}));
+	}
+
+	private createTrackEntries(tracks: Array<Track>): Array<TrackListEntry> {
+		return tracks.map((track) => ({
+			artworkSource: track.albumImageUrl ?? null,
+			id: track.id,
+			meta: track.artistName ?? track.albumName ?? '',
+			title: track.name,
+			track,
+		}));
+	}
+
+	private focusSearchInput(): void {
+		Promise.resolve().then(() => {
+			if (this.isDestroyed()) {
+				return;
+			}
+			this.searchInputRef.setAttribute('focused', true);
+			this.searchInputRef.setAttribute('selection', [
+				this.state.query.length,
+				this.state.query.length,
+			]);
+			setTimeout(() => {
+				if (this.isDestroyed()) {
+					return;
+				}
+				this.searchInputRef.setAttribute('focused', true);
+				this.searchInputRef.setAttribute('selection', [
+					this.state.query.length,
+					this.state.query.length,
+				]);
+			}, 32);
+		});
+	}
+
+	private getRecentSearchTapHandler(term: string): () => void {
+		const existingHandler = this.recentSearchTapHandlers.get(term);
+		if (existingHandler) {
+			return existingHandler;
+		}
+
+		const createdHandler = (): void => {
+			this.blurSearchInput();
+			this.setState({ query: term });
+			this.handleSubmitSearch(term);
+		};
+		this.recentSearchTapHandlers.set(term, createdHandler);
+		return createdHandler;
+	}
+
+	private handleAlbumCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const album = this.state.results.albums.find((a) => a.id === card.id);
+		if (!album) return;
+		this.setState({ contextMenuCard: { album, kind: 'album' } });
+		this.openCardContextMenu({ album, kind: 'album' });
+	};
+
+	private handleArtistCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const artist = this.state.results.artists.find((a) => a.id === card.id);
+		if (!artist) return;
+		this.setState({ contextMenuCard: { artist, kind: 'artist' } });
+		this.openCardContextMenu({ artist, kind: 'artist' });
+	};
+
+	private handleContextMenuDismiss = (toastMessage?: string): void => {
+		closeSlot(this.viewModel.modalSlot);
+
+		this.setState({ contextMenuCard: null });
+		if (toastMessage) {
+			this.viewModel.toastService.show(toastMessage);
+		}
+	};
+
+	private handlePlaylistCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const playlist = this.state.results.playlists.find((p) => p.id === card.id);
+		if (!playlist) return;
+		this.setState({ contextMenuCard: { kind: 'playlist', playlist } });
+		this.openCardContextMenu({ kind: 'playlist', playlist });
+	};
+
+	handleSubmitSearch = (query: unknown): void => {
+		const trimmedQuery = normalizeSearchInput(query).trim();
+		if (!trimmedQuery) {
+			this.requestVersion += 1;
+			this.setState({
+				errorMessage: null,
+				lastSubmittedQuery: '',
+				results: {
+					albums: [],
+					artists: [],
+					playlists: [],
+					tracks: [],
+				},
+				status: 'idle',
+			});
+			return;
+		}
+
+		this.requestVersion += 1;
+		const currentRequestVersion = this.requestVersion;
+		this.setState({
+			errorMessage: null,
+			lastSubmittedQuery: trimmedQuery,
+			query: trimmedQuery,
+			results: {
+				albums: [],
+				artists: [],
+				playlists: [],
+				tracks: [],
+			},
+			status: 'loading',
+		});
+
+		this.viewModel.searchStore.addRecentSearch(trimmedQuery).then((recentSearches) => {
+			if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
+				return;
+			}
+
+			this.setState({ recentSearches });
+		});
+
+		this.viewModel.transport
+			.search(trimmedQuery)
+			.then((results) => {
+				if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
+					return;
+				}
+
+				const hasResults =
+					results.tracks.length > 0 ||
+					results.albums.length > 0 ||
+					results.artists.length > 0 ||
+					results.playlists.length > 0;
+
+				this.setState({
+					results,
+					status: hasResults ? 'success' : 'empty',
+				});
+			})
+			.catch((error) => {
+				if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
+					return;
+				}
+
+				this.setState({
+					errorMessage: error instanceof Error ? error.message : 'Could not search right now.',
+					results: {
+						albums: [],
+						artists: [],
+						playlists: [],
+						tracks: [],
+					},
+					status: 'error',
+				});
+			});
+	};
+
+	private handleTrackLongPress = (track: Track): void => {
+		openTrackContextMenu(track, this.viewModel.modalSlot, {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			onAlbumTap: undefined,
+			onArtistTap: track.artistId ? () => this.handleContextMenuArtistTap(track) : undefined,
+			onDismiss: () => {},
+			onPlaylistCreated: (playlist) => {
+				this.viewModel.navigationController.push(
+					PlaylistView,
+					{
+						animationsEnabled: this.viewModel.animationsEnabled,
+						downloadService: this.viewModel.downloadService,
+						gridColumns: this.viewModel.gridColumns,
+						imageCache: this.viewModel.imageCache,
+						modalSlot: this.viewModel.modalSlot,
+						navigationController: this.viewModel.navigationController,
+						onRootDetailControllerReady: () => {},
+						paletteQueue: this.viewModel.paletteQueue,
+						playbackStore: this.viewModel.playbackStore,
+						playlist,
+						playlistEditService: this.viewModel.playlistEditService,
+						toastService: this.viewModel.toastService,
+						transport: this.viewModel.transport,
+					},
+					{},
+					{ animated: this.viewModel.animationsEnabled },
+				);
+			},
+			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		});
+	};
+
+	private openCardContextMenu(card: CardContextMenuCard): void {
+		this.cardContextMenuCard = card;
+		const onArtistTap =
+			card.kind === 'album' || card.kind === 'artist'
+				? this.handleCardContextMenuArtistTap
+				: undefined;
+
+		openCardContextMenu(this.viewModel.modalSlot, {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			card,
+			onAddToPlaylist: this.handleCardContextMenuAddToPlaylist,
+			onArtistTap: onArtistTap,
+			onCreatePlaylist: this.handleCardContextMenuCreatePlaylistRequest,
+			onDismiss: this.handleContextMenuDismiss,
+			onEntityTap: this.handleCardContextMenuEntityTap,
+			playbackStore: this.viewModel.playbackStore,
+			transport: this.viewModel.transport,
+		});
+	}
+
+	private handleCardContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
+		this.setState({ contextMenuCard: null });
+		openSlot(this.viewModel.modalSlot, () => {
+			<AddToPlaylistView
+				animationsEnabled={this.viewModel.animationsEnabled}
+				gridColumns={this.viewModel.gridColumns}
+				imageCache={this.viewModel.imageCache}
+				onDismiss={this.closeModalSlot}
+				toastService={this.viewModel.toastService}
+				tracks={tracks}
+				transport={this.viewModel.transport}
+			/>;
+		});
+	};
+
+	private handleCardContextMenuArtistTap = (): void => {
+		const card = this.cardContextMenuCard;
+		if (!card) return;
+		this.handleContextMenuDismiss();
+		if (card.kind === 'artist') {
+			this.handleArtistTap(card.artist.id);
+			return;
+		}
+		if (card.kind !== 'album') return;
+
+		this.viewModel.transport.getArtist(card.album.artistId).then((artist) => {
+			if (!artist) return;
+
+			this.viewModel.navigationController.push(
+				ArtistView,
+				{
+					animationsEnabled: this.viewModel.animationsEnabled,
+					artist,
+					downloadService: this.viewModel.downloadService,
+					gridColumns: this.viewModel.gridColumns,
+					imageCache: this.viewModel.imageCache,
+					modalSlot: this.viewModel.modalSlot,
+					navigationController: this.viewModel.navigationController,
+					onNavigationControllerReady: () => {},
+					paletteQueue: this.viewModel.paletteQueue,
+					playbackStore: this.viewModel.playbackStore,
+					toastService: this.viewModel.toastService,
+					transport: this.viewModel.transport,
+				},
+				{},
+				{ animated: this.viewModel.animationsEnabled },
+			);
+		});
+	};
+
+	private handleCardContextMenuEntityTap = (): void => {
+		const card = this.cardContextMenuCard;
+		if (!card) return;
+		this.handleContextMenuDismiss();
+		if (card.kind === 'album') this.handleAlbumTap(card.album.id);
+		if (card.kind === 'artist') this.handleArtistTap(card.artist.id);
+		if (card.kind === 'playlist') this.handlePlaylistTap(card.playlist.id);
+	};
+
+	private handleCardContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
+		const createPlaylistFn = this.viewModel.transport.createPlaylist.bind(this.viewModel.transport);
+		const tracks = this.pendingCreatePlaylistTracks;
+		if (!createPlaylistFn || !tracks) return;
+		const playlist = await createPlaylistAndAddTracks(
+			name,
+			createPlaylistFn,
+			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
+			tracks,
+		);
+		this.pendingCreatePlaylistTracks = null;
+		this.closeModalSlot();
+		this.viewModel.navigationController.push(
+			PlaylistView,
+			{
+				animationsEnabled: this.viewModel.animationsEnabled,
+				downloadService: this.viewModel.downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache: this.viewModel.imageCache,
+				modalSlot: this.viewModel.modalSlot,
+				navigationController: this.viewModel.navigationController,
+				onRootDetailControllerReady: () => {},
+				paletteQueue: this.viewModel.paletteQueue,
+				playbackStore: this.viewModel.playbackStore,
+				playlist,
+				playlistEditService: this.viewModel.playlistEditService,
+				toastService: this.viewModel.toastService,
+				transport: this.viewModel.transport,
+			},
+			{},
+			{ animated: this.viewModel.animationsEnabled },
+		);
+	};
+
+	private handleCardContextMenuCreatePlaylistRequest = (tracks: Array<Track>): void => {
+		this.pendingCreatePlaylistTracks = tracks;
+		this.setState({ contextMenuCard: null });
+		openSlot(this.viewModel.modalSlot, () => {
+			<CreatePlaylistModal
+				animationsEnabled={this.viewModel.animationsEnabled}
+				onCancel={this.closeModalSlot}
+				onCreate={this.handleCardContextMenuCreatePlaylistConfirm}
+			/>;
+		});
+	};
+
+	private handleQueryChange = (value: unknown): void => {
+		this.setState({ query: normalizeSearchInput(value) });
+	};
+
+	private handleSearchKeyboardSubmit = (value?: unknown): void => {
+		const submittedQuery = normalizeSearchInput(value);
+		this.handleSubmitSearch(submittedQuery || this.state.query);
+	};
+
+	private handleSearchIconTap = (): void => {
+		this.blurSearchInput();
+		this.handleSubmitSearch(this.state.query);
+	};
+
+	private handleRetryTap = (): void => {
+		this.handleSubmitSearch(this.state.lastSubmittedQuery);
+	};
+
+	handleTrackTap = (trackId: string): void => {
+		const trackIndex = this.state.results.tracks.findIndex((track) => track.id === trackId);
+		if (trackIndex < 0) {
+			return;
+		}
+
+		const track = this.state.results.tracks[trackIndex];
+		this.viewModel.playbackStore.playTracks([track]);
+		if (track.artistId) {
+			this.viewModel.transport.getArtistLogoUrl(track.artistId).then((logoUrl) => {
+				this.viewModel.playbackStore.setArtistLogoUrl(logoUrl);
+			});
+		}
+	};
+
+	private handleAlbumCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		this.handleAlbumTap(card.id);
+	};
+
+	private handleArtistCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		this.handleArtistTap(card.id);
+	};
+
+	private handlePlaylistCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		this.handlePlaylistTap(card.id);
+	};
+
+	private handleContextMenuArtistTap = (track: Track): void => {
+		const { artistId } = track;
+		if (!artistId) {
+			return;
+		}
+
+		this.viewModel.transport.getArtist(artistId).then((artist) => {
+			if (!artist) return;
+
+			this.viewModel.navigationController.push(
+				ArtistView,
+				{
+					animationsEnabled: this.viewModel.animationsEnabled,
+					artist,
+					downloadService: this.viewModel.downloadService,
+					gridColumns: this.viewModel.gridColumns,
+					imageCache: this.viewModel.imageCache,
+					modalSlot: this.viewModel.modalSlot,
+					navigationController: this.viewModel.navigationController,
+					onNavigationControllerReady: () => {},
+					paletteQueue: this.viewModel.paletteQueue,
+					playbackStore: this.viewModel.playbackStore,
+					toastService: this.viewModel.toastService,
+					transport: this.viewModel.transport,
+				},
+				{},
+				{ animated: this.viewModel.animationsEnabled },
+			);
+		});
+	};
+
+	handleAlbumTap = (albumId: string): void => {
+		const album = this.state.results.albums.find((candidate) => candidate.id === albumId);
+		if (!album) {
+			return;
+		}
+
+		if (this.viewModel.onNavigateToLibraryResult) {
+			this.viewModel.onNavigateToLibraryResult({ album, kind: 'album' });
+			return;
+		}
+
+		this.viewModel.navigationController.push(
+			AlbumView,
+			{
+				album,
+				animationsEnabled: this.viewModel.animationsEnabled,
+				downloadService: this.viewModel.downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache: this.viewModel.imageCache,
+				modalSlot: this.viewModel.modalSlot,
+				navigationController: this.viewModel.navigationController,
+				onRootDetailControllerReady: () => {},
+				paletteQueue: this.viewModel.paletteQueue,
+				playbackStore: this.viewModel.playbackStore,
+				toastService: this.viewModel.toastService,
+				transport: this.viewModel.transport,
+			},
+			{},
+			{ animated: this.viewModel.animationsEnabled },
+		);
+	};
+
+	handleArtistTap = (artistId: string): void => {
+		const artist = this.state.results.artists.find((candidate) => candidate.id === artistId);
+		if (!artist) {
+			return;
+		}
+
+		if (this.viewModel.onNavigateToLibraryResult) {
+			this.viewModel.onNavigateToLibraryResult({ artist, kind: 'artist' });
+			return;
+		}
+
+		this.viewModel.navigationController.push(
+			ArtistView,
+			{
+				animationsEnabled: this.viewModel.animationsEnabled,
+				artist,
+				downloadService: this.viewModel.downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache: this.viewModel.imageCache,
+				modalSlot: this.viewModel.modalSlot,
+				navigationController: this.viewModel.navigationController,
+				onNavigationControllerReady: () => {},
+				paletteQueue: this.viewModel.paletteQueue,
+				playbackStore: this.viewModel.playbackStore,
+				toastService: this.viewModel.toastService,
+				transport: this.viewModel.transport,
+			},
+			{},
+			{ animated: this.viewModel.animationsEnabled },
+		);
+	};
+
+	handlePlaylistTap = (playlistId: string): void => {
+		const playlist = this.state.results.playlists.find((candidate) => candidate.id === playlistId);
+		if (!playlist) {
+			return;
+		}
+
+		if (this.viewModel.onNavigateToLibraryResult) {
+			this.viewModel.onNavigateToLibraryResult({ kind: 'playlist', playlist });
+			return;
+		}
+
+		this.viewModel.navigationController.push(
+			PlaylistView,
+			{
+				animationsEnabled: this.viewModel.animationsEnabled,
+				downloadService: this.viewModel.downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache: this.viewModel.imageCache,
+				modalSlot: this.viewModel.modalSlot,
+				navigationController: this.viewModel.navigationController,
+				onNavigateToArtist: (artistId) => {
+					this.viewModel.transport.getArtist(artistId).then((artist) => {
+						if (!artist) return;
+
+						this.viewModel.navigationController.push(
+							ArtistView,
+							{
+								animationsEnabled: this.viewModel.animationsEnabled,
+								artist,
+								downloadService: this.viewModel.downloadService,
+								gridColumns: this.viewModel.gridColumns,
+								imageCache: this.viewModel.imageCache,
+								modalSlot: this.viewModel.modalSlot,
+								navigationController: this.viewModel.navigationController,
+								onNavigationControllerReady: () => {},
+								paletteQueue: this.viewModel.paletteQueue,
+								playbackStore: this.viewModel.playbackStore,
+								toastService: this.viewModel.toastService,
+								transport: this.viewModel.transport,
+							},
+							{},
+							{ animated: this.viewModel.animationsEnabled },
+						);
+					});
+				},
+				onRootDetailControllerReady: () => {},
+				paletteQueue: this.viewModel.paletteQueue,
+				playbackStore: this.viewModel.playbackStore,
+				playlist,
+				playlistEditService: this.viewModel.playlistEditService,
+				toastService: this.viewModel.toastService,
+				transport: this.viewModel.transport,
+			},
+			{},
+			{ animated: this.viewModel.animationsEnabled },
+		);
+	};
+
+	private renderSectionTitle(title: string): void {
+		<label style={styles.sectionTitle} value={title} />;
+	}
+}
+
+function normalizeSearchInput(value: unknown): string {
+	if (typeof value === 'string') {
+		return value;
+	}
+
+	if (typeof value === 'number') {
+		return String(value);
+	}
+
+	if (value && typeof value === 'object') {
+		const candidate = value as {
+			nativeEvent?: { text?: unknown; value?: unknown };
+			query?: unknown;
+			text?: unknown;
+			value?: unknown;
+		};
+
+		const direct = candidate.text ?? candidate.value ?? candidate.query;
+		if (typeof direct === 'string') {
+			return direct;
+		}
+
+		const native = candidate.nativeEvent?.text ?? candidate.nativeEvent?.value;
+		if (typeof native === 'string') {
+			return native;
+		}
+	}
+
+	return '';
 }
 
 const styles = {

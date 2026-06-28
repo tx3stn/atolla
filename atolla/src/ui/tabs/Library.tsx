@@ -6,9 +6,13 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Album } from '../../models/Album';
 import { type HeaderTab, HeaderTabs } from '../../models/App';
+import type { Artist } from '../../models/Artist';
+import type { Playlist } from '../../models/Playlist';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
+import type { NavCoordinator } from '../../services/NavCoordinator';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
@@ -18,9 +22,12 @@ import type { Transport } from '../../transports/Transport';
 import { Floating } from '../components/Floating';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { AlbumsView } from '../views/V2AlbumsView';
+import { AlbumView } from '../views/V2AlbumView';
 import { ArtistsView } from '../views/V2ArtistsView';
+import { ArtistView } from '../views/V2ArtistView';
 import { GenresView } from '../views/V2GenresView';
 import { PlaylistsView } from '../views/V2PlaylistsView';
+import { PlaylistView } from '../views/V2PlaylistView';
 
 export interface LibraryViewModel {
 	animationsEnabled: boolean;
@@ -29,6 +36,7 @@ export interface LibraryViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
+	navCoordinator: NavCoordinator;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	paletteQueue: PaletteGenerationQueue;
@@ -52,6 +60,18 @@ export class V2LibraryView extends StatefulComponent<LibraryViewModel, LibraryVi
 		letterFilter: null,
 	};
 
+	onCreate(): void {
+		this.viewModel.navCoordinator.registerLibrary({
+			showAlbum: this.showAlbum,
+			showArtist: this.showArtist,
+			showPlaylist: this.showPlaylist,
+		});
+	}
+
+	onDestroy(): void {
+		this.viewModel.navCoordinator.registerLibrary(null);
+	}
+
 	onRender(): void {
 		const tab = this.state.activeTab;
 		const isOfflineMode = this.viewModel.connectionMode === ConnectionModes.offline;
@@ -70,9 +90,9 @@ export class V2LibraryView extends StatefulComponent<LibraryViewModel, LibraryVi
 			<view style={styles.tabHost}>
 				<NavigationRoot>
 					{$slot((navigationController: NavigationController) => {
-						// Inline (not a helper) so the root child renders into the slot's context.
 						this.rootController = navigationController;
 						this.viewModel.onNavigationControllerReady(navigationController);
+
 						if (tab === HeaderTabs.artists) {
 							<ArtistsView
 								animationsEnabled={this.viewModel.animationsEnabled}
@@ -151,19 +171,136 @@ export class V2LibraryView extends StatefulComponent<LibraryViewModel, LibraryVi
 			return;
 		}
 
-		// Unwind any pushed detail to the tab root before swapping. popToSelf works on iOS; on
-		// Android it throws, so pop the first pushed detail (removes it and everything above it).
+		this.unwindToTabRoot();
+		this.setState({ activeTab: tab });
+	};
+
+	private setRootDetailController = (controller: NavigationController): void => {
+		this.firstDetailController = controller;
+	};
+
+	private showAlbum = (album: Album): void => {
+		this.openDetail(HeaderTabs.albums, (controller) => this.pushAlbum(controller, album));
+	};
+
+	private showArtist = (artist: Artist): void => {
+		this.openDetail(HeaderTabs.artists, (controller) =>
+			this.pushArtist(controller, artist, this.setRootDetailController),
+		);
+	};
+
+	private showPlaylist = (playlist: Playlist): void => {
+		this.openDetail(HeaderTabs.playlists, (controller) => this.pushPlaylist(controller, playlist));
+	};
+
+	// Search results open in Library's own stack: unwind any current detail, select the matching
+	// header tab so backing out lands on the right list, then push the detail.
+	private openDetail(tab: HeaderTab, push: (controller: NavigationController) => void): void {
+		const controller = this.rootController;
+		if (!controller) {
+			return;
+		}
+		this.unwindToTabRoot();
+		if (tab !== this.state.activeTab) {
+			this.setState({ activeTab: tab });
+		}
+		push(controller);
+	}
+
+	private unwindToTabRoot(): void {
+		// popToSelf works on iOS; on Android it throws, so pop the first pushed detail (which removes
+		// it and everything above it).
 		if (Device.isAndroid()) {
 			this.firstDetailController?.pop(false);
 		} else {
 			this.rootController?.popToSelf(false);
 		}
 		this.firstDetailController = undefined;
-		this.setState({ activeTab: tab });
-	};
+	}
 
-	private setRootDetailController = (controller: NavigationController): void => {
-		this.firstDetailController = controller;
+	private pushAlbum(controller: NavigationController, album: Album): void {
+		controller.push(
+			AlbumView,
+			{
+				album,
+				animationsEnabled: this.viewModel.animationsEnabled,
+				downloadService: this.viewModel.downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache: this.viewModel.imageCache,
+				modalSlot: this.viewModel.modalSlot,
+				navigationController: controller,
+				onRootDetailControllerReady: this.setRootDetailController,
+				paletteQueue: this.viewModel.paletteQueue,
+				playbackStore: this.viewModel.playbackStore,
+				toastService: this.viewModel.toastService,
+				transport: this.viewModel.transport,
+			},
+			{},
+			{ animated: this.viewModel.animationsEnabled },
+		);
+	}
+
+	private pushArtist(
+		controller: NavigationController,
+		artist: Artist,
+		onReady: (controller: NavigationController) => void,
+	): void {
+		controller.push(
+			ArtistView,
+			{
+				animationsEnabled: this.viewModel.animationsEnabled,
+				artist,
+				downloadService: this.viewModel.downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache: this.viewModel.imageCache,
+				modalSlot: this.viewModel.modalSlot,
+				navigationController: controller,
+				onNavigationControllerReady: onReady,
+				paletteQueue: this.viewModel.paletteQueue,
+				playbackStore: this.viewModel.playbackStore,
+				toastService: this.viewModel.toastService,
+				transport: this.viewModel.transport,
+			},
+			{},
+			{ animated: this.viewModel.animationsEnabled },
+		);
+	}
+
+	private pushPlaylist(controller: NavigationController, playlist: Playlist): void {
+		controller.push(
+			PlaylistView,
+			{
+				animationsEnabled: this.viewModel.animationsEnabled,
+				downloadService: this.viewModel.downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache: this.viewModel.imageCache,
+				modalSlot: this.viewModel.modalSlot,
+				navigationController: controller,
+				onNavigateToArtist: this.handlePlaylistArtistTap,
+				onRootDetailControllerReady: this.setRootDetailController,
+				paletteQueue: this.viewModel.paletteQueue,
+				playbackStore: this.viewModel.playbackStore,
+				playlist,
+				playlistEditService: this.viewModel.playlistEditService,
+				toastService: this.viewModel.toastService,
+				transport: this.viewModel.transport,
+			},
+			{},
+			{ animated: this.viewModel.animationsEnabled },
+		);
+	}
+
+	private handlePlaylistArtistTap = (artistId: string): void => {
+		const controller = this.rootController;
+		if (!controller) {
+			return;
+		}
+		this.viewModel.transport.getArtist(artistId).then((artist) => {
+			if (!artist || this.isDestroyed()) {
+				return;
+			}
+			this.pushArtist(controller, artist, () => {});
+		});
 	};
 }
 

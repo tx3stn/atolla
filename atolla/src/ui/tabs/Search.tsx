@@ -4,9 +4,15 @@ import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
-import { SearchView, type SearchViewModel } from '../views/SearchView';
+import type { NavCoordinator } from '../../services/NavCoordinator';
+import {
+	type SearchLibraryNavigationTarget,
+	SearchView,
+	type SearchViewModel,
+} from '../views/SearchView';
 
 export interface SearchTabViewModel {
+	navCoordinator: NavCoordinator;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	search: Omit<SearchViewModel, 'navigationController'>;
 }
@@ -25,9 +31,8 @@ export class SearchTab extends Component<SearchTabViewModel> {
 						gridColumns={search.gridColumns}
 						imageCache={search.imageCache}
 						modalSlot={search.modalSlot}
-						navBarContext={search.navBarContext}
 						navigationController={navigationController}
-						onNavigateToLibraryResult={search.onNavigateToLibraryResult}
+						onNavigateToLibraryResult={this.handleNavigateToLibraryResult}
 						paletteQueue={search.paletteQueue}
 						playbackStore={search.playbackStore}
 						playlistEditService={search.playlistEditService}
@@ -39,6 +44,16 @@ export class SearchTab extends Component<SearchTabViewModel> {
 			</NavigationRoot>
 		</view>;
 	}
+
+	private handleNavigateToLibraryResult = (target: SearchLibraryNavigationTarget): void => {
+		if (target.kind === 'album') {
+			this.viewModel.navCoordinator.openAlbum(target.album);
+		} else if (target.kind === 'artist') {
+			this.viewModel.navCoordinator.openArtist(target.artist);
+		} else {
+			this.viewModel.navCoordinator.openPlaylist(target.playlist);
+		}
+	};
 }
 
 const styles = {
