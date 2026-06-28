@@ -17,12 +17,12 @@ import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { Floating } from '../components/Floating';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
-import { AlbumsView } from './AlbumsView';
 import { GenresView } from './GenresView';
 import { PlaylistsView } from './PlaylistsView';
-import { V2ArtistsView } from './V2ArtistsView';
+import { AlbumsView } from './V2AlbumsView';
+import { ArtistsView } from './V2ArtistsView';
 
-export interface V2LibraryViewModel {
+export interface LibraryViewModel {
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
@@ -37,16 +37,16 @@ export interface V2LibraryViewModel {
 	transport: Transport;
 }
 
-interface V2LibraryViewState {
+interface LibraryViewState {
 	activeTab: HeaderTab;
 	letterFilter: string | null;
 }
 
-export class V2LibraryView extends StatefulComponent<V2LibraryViewModel, V2LibraryViewState> {
+export class V2LibraryView extends StatefulComponent<LibraryViewModel, LibraryViewState> {
 	private rootController?: NavigationController;
 	private firstDetailController?: NavigationController;
 
-	state: V2LibraryViewState = {
+	state: LibraryViewState = {
 		activeTab: HeaderTabs.artists,
 		letterFilter: null,
 	};
@@ -65,13 +65,14 @@ export class V2LibraryView extends StatefulComponent<V2LibraryViewModel, V2Libra
 					onTabTap={this.handleTabNavigation}
 				/>
 			</Floating>
+
 			<view style={styles.tabHost}>
 				<NavigationRoot>
 					{$slot((navigationController: NavigationController) => {
 						// Inline (not a helper) so the root child renders into the slot's context.
 						this.rootController = navigationController;
 						if (tab === HeaderTabs.artists) {
-							<V2ArtistsView
+							<ArtistsView
 								animationsEnabled={this.viewModel.animationsEnabled}
 								downloadService={this.viewModel.downloadService}
 								gridColumns={this.viewModel.gridColumns}
@@ -96,6 +97,7 @@ export class V2LibraryView extends StatefulComponent<V2LibraryViewModel, V2Libra
 								letterFilter={this.state.letterFilter}
 								modalSlot={this.viewModel.modalSlot}
 								navigationController={navigationController}
+								onRootDetailControllerReady={this.setRootDetailController}
 								paletteQueue={this.viewModel.paletteQueue}
 								playbackStore={this.viewModel.playbackStore}
 								toastService={this.viewModel.toastService}

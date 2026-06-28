@@ -23,9 +23,9 @@ import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortArtists } from './sort/Artists';
-import { V2ArtistView } from './V2ArtistView';
+import { ArtistView } from './V2ArtistView';
 
-export interface V2ArtistsViewModel {
+export interface ArtistsViewModel {
 	animationsEnabled: boolean;
 	downloadService: DownloadService;
 	gridColumns: number;
@@ -42,7 +42,7 @@ export interface V2ArtistsViewModel {
 	transport: Transport;
 }
 
-interface V2ArtistsState {
+interface ArtistsState {
 	addToPlaylistTracks: Array<Track> | null;
 	artists: Array<Artist>;
 	contextMenuCard: CardContextMenuCard | null;
@@ -58,8 +58,8 @@ interface ArtistPageResult {
 	items: Array<Artist>;
 }
 
-export class V2ArtistsView extends StatefulComponent<V2ArtistsViewModel, V2ArtistsState> {
-	state: V2ArtistsState = {
+export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsState> {
+	state: ArtistsState = {
 		addToPlaylistTracks: null,
 		artists: [],
 		contextMenuCard: null,
@@ -123,7 +123,7 @@ export class V2ArtistsView extends StatefulComponent<V2ArtistsViewModel, V2Artis
 		</view>;
 	}
 
-	onViewModelUpdate(prevViewModel?: V2ArtistsViewModel): void {
+	onViewModelUpdate(prevViewModel?: ArtistsViewModel): void {
 		if (!prevViewModel) {
 			return;
 		}
@@ -232,11 +232,6 @@ export class V2ArtistsView extends StatefulComponent<V2ArtistsViewModel, V2Artis
 		this.handleContextMenuArtistTap();
 	};
 
-	private handleCreatePlaylistRequest = (tracks: Array<Track>): void => {
-		this.pendingCreatePlaylistTracks = tracks;
-		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
-	};
-
 	private handleCreatePlaylistCancel = (): void => {
 		this.pendingCreatePlaylistTracks = null;
 		this.setState({ createPlaylistTracks: null });
@@ -253,6 +248,11 @@ export class V2ArtistsView extends StatefulComponent<V2ArtistsViewModel, V2Artis
 		);
 		this.pendingCreatePlaylistTracks = null;
 		this.setState({ createPlaylistTracks: null });
+	};
+
+	private handleCreatePlaylistRequest = (tracks: Array<Track>): void => {
+		this.pendingCreatePlaylistTracks = tracks;
+		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
 	};
 
 	private handleContextMenuDismiss = (toastMessage?: string): void => {
@@ -283,7 +283,7 @@ export class V2ArtistsView extends StatefulComponent<V2ArtistsViewModel, V2Artis
 			transport,
 		} = this.viewModel;
 		navigationController.push(
-			V2ArtistView,
+			ArtistView,
 			{
 				animationsEnabled,
 				artist,

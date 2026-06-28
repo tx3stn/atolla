@@ -41,7 +41,7 @@ import { GenreView } from './GenreView';
 import { PlaylistView } from './PlaylistView';
 import { sortArtistAlbums } from './sort/Albums';
 
-export interface V2ArtistViewModel {
+export interface ArtistViewModel {
 	animationsEnabled: boolean;
 	artist: Artist;
 	downloadService: DownloadService;
@@ -55,7 +55,7 @@ export interface V2ArtistViewModel {
 	transport: Transport;
 }
 
-interface V2ArtistState {
+interface ArtistState {
 	albums: Array<Album>;
 	albumsLoaded: boolean;
 	allTracks: Array<Track>;
@@ -66,15 +66,12 @@ interface V2ArtistState {
 }
 
 @NavigationPage(module)
-export class V2ArtistView extends NavigationPageStatefulComponent<
-	V2ArtistViewModel,
-	V2ArtistState
-> {
+export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel, ArtistState> {
 	private loadGeneration = 0;
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 	private contextMenuAlbumCard: { id: string; kind: Card['kind'] } | null = null;
 
-	state: V2ArtistState = {
+	state: ArtistState = {
 		albums: [],
 		albumsLoaded: false,
 		allTracks: [],
@@ -83,363 +80,6 @@ export class V2ArtistView extends NavigationPageStatefulComponent<
 		topTracks: [],
 		topTracksLoaded: false,
 	};
-
-	handleTrackLongPress = (track: Track): void => {
-		const {
-			animationsEnabled,
-			downloadService,
-			gridColumns,
-			imageCache,
-			modalSlot,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
-		const { albumId } = track;
-		openTrackContextMenu(track, modalSlot, {
-			animationsEnabled,
-			gridColumns,
-			imageCache,
-			onAlbumTap: albumId
-				? () => {
-						const album: Album = {
-							artistId: track.artistId ?? '',
-							artistName: track.artistName ?? '',
-							id: albumId,
-							imageUrl: track.albumImageUrl,
-							name: track.albumName ?? '',
-						};
-						this.navigationController.push(
-							AlbumView,
-							{
-								album,
-								animationsEnabled,
-								downloadService,
-								gridColumns,
-								imageCache,
-								modalSlot,
-								paletteQueue,
-								playbackStore,
-								toastService: this.viewModel.toastService,
-								transport,
-							},
-							{},
-							{ animated: animationsEnabled },
-						);
-					}
-				: undefined,
-			onDismiss: () => {},
-			onPlaylistCreated: (playlist) => {
-				this.navigationController.push(
-					PlaylistView,
-					{
-						animationsEnabled,
-						downloadService,
-						gridColumns,
-						imageCache,
-						modalSlot,
-						paletteQueue,
-						playbackStore,
-						playlist,
-						toastService: this.viewModel.toastService,
-						transport,
-					},
-					{},
-					{ animated: animationsEnabled },
-				);
-			},
-			playbackStore,
-			toastService: this.viewModel.toastService,
-			transport,
-		});
-	};
-
-	handleContextMenuDismiss = (): void => {
-		closeSlot(this.viewModel.modalSlot);
-		this.contextMenuAlbumCard = null;
-		this.setState({ contextMenuCard: null });
-	};
-
-	private closeModalSlot = (): void => {
-		closeSlot(this.viewModel.modalSlot);
-	};
-
-	handleHeaderPlayTap = (): void => {
-		const { artist, playbackStore } = this.viewModel;
-		playbackStore.playTracks(this.state.allTracks);
-		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
-	};
-
-	handleHeaderShuffleTap = (): void => {
-		const { artist, playbackStore } = this.viewModel;
-		playbackStore.playTracks(shuffleArray(this.state.allTracks));
-		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
-	};
-
-	handleDownloadTap = (): void => {
-		const { artist, downloadService, transport } = this.viewModel;
-		const artistLogoUrlPromise = artist.logoUrl
-			? Promise.resolve(artist.logoUrl)
-			: retryResolve(() => transport.getArtistLogoUrl(artist.id)).catch(() => null);
-
-		const albumEntriesPromise = Promise.all(
-			this.state.albums.map((album) =>
-				transport.getTracksByAlbum(album.id).then((tracks) => ({
-					album,
-					tracks: tracks
-						.map((track) => {
-							const streamUrl = transport.getTrackCacheUrl(track.id);
-							return streamUrl ? { streamUrl, track } : null;
-						})
-						.filter((t): t is { streamUrl: string; track: Track } => t !== null),
-				})),
-			),
-		);
-
-		Promise.all([artistLogoUrlPromise, albumEntriesPromise]).then(
-			([artistLogoUrl, albumEntries]) => {
-				const allGenres = albumEntries.flatMap(({ album, tracks }) => [
-					...(album.genres ?? []),
-					...tracks.flatMap(({ track }) => track.genres ?? []),
-				]);
-				resolveGenreImageUrls(transport, allGenres).then((resolvedGenres) => {
-					downloadService.downloadArtistAlbums({
-						albumEntries,
-						artist,
-						artistLogoUrl,
-						resolvedGenres,
-					});
-				});
-			},
-		);
-	};
-
-	handleRemoveDownloadTap = (): void => {
-		this.viewModel.downloadService.removeArtistDownload(this.viewModel.artist.id);
-	};
-
-	handleHeaderAddToQueueTap = (): Promise<void> => {
-		this.viewModel.playbackStore.addToQueue(this.state.allTracks);
-		return Promise.resolve();
-	};
-
-	handleTopTrackTap = (trackId: string): void => {
-		const { artist, playbackStore } = this.viewModel;
-		const trackIndex = this.state.topTracks.findIndex((track) => track.id === trackId);
-		if (trackIndex < 0) {
-			return;
-		}
-
-		playbackStore.playTracks(this.state.topTracks, trackIndex);
-		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
-	};
-
-	handleAlbumCardTap = (card: { id: string; kind: Card['kind'] }): void => {
-		const album = this.state.albums.find((candidate) => candidate.id === card.id);
-		if (!album) {
-			return;
-		}
-
-		const {
-			animationsEnabled,
-			downloadService,
-			gridColumns,
-			imageCache,
-			modalSlot,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
-		this.navigationController.push(
-			AlbumView,
-			{
-				album,
-				animationsEnabled,
-				downloadService,
-				gridColumns,
-				imageCache,
-				modalSlot,
-				paletteQueue,
-				playbackStore,
-				toastService: this.viewModel.toastService,
-				transport,
-			},
-			{},
-			{ animated: animationsEnabled },
-		);
-	};
-
-	handleAlbumCardLongPress = (card: { id: string; kind: Card['kind'] }): void => {
-		const album = this.state.albums.find((candidate) => candidate.id === card.id);
-		if (!album) return;
-
-		this.setState({ contextMenuCard: { album, kind: 'album' } });
-		this.contextMenuAlbumCard = card;
-		const { animationsEnabled, modalSlot, playbackStore, transport } = this.viewModel;
-		modalSlot.slotted(() => {
-			<CardContextMenu
-				animationsEnabled={animationsEnabled}
-				card={{ album, kind: 'album' }}
-				onAddToPlaylist={this.handleAlbumContextMenuAddToPlaylist}
-				onCreatePlaylist={this.handleAlbumContextMenuCreatePlaylist}
-				onDismiss={this.handleContextMenuDismiss}
-				onEntityTap={this.handleAlbumContextMenuEntityTap}
-				playbackStore={playbackStore}
-				transport={transport}
-			/>;
-		});
-	};
-
-	private handleAlbumContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
-		this.setState({ contextMenuCard: null });
-		openSlot(this.viewModel.modalSlot, () => {
-			<AddToPlaylistView
-				animationsEnabled={this.viewModel.animationsEnabled}
-				gridColumns={this.viewModel.gridColumns}
-				imageCache={this.viewModel.imageCache}
-				onDismiss={this.closeModalSlot}
-				toastService={this.viewModel.toastService}
-				tracks={tracks}
-				transport={this.viewModel.transport}
-			/>;
-		});
-	};
-
-	private handleAlbumContextMenuCreatePlaylist = (tracks: Array<Track>): void => {
-		this.pendingCreatePlaylistTracks = tracks;
-		this.setState({ contextMenuCard: null });
-		openSlot(this.viewModel.modalSlot, () => {
-			<CreatePlaylistModal
-				animationsEnabled={this.viewModel.animationsEnabled}
-				onCancel={this.closeModalSlot}
-				onCreate={this.handleAlbumContextMenuCreatePlaylistConfirm}
-			/>;
-		});
-	};
-
-	private handleAlbumContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const createPlaylistFn = this.viewModel.transport.createPlaylist.bind(this.viewModel.transport);
-		const tracks = this.pendingCreatePlaylistTracks;
-		if (!createPlaylistFn || !tracks) return;
-		const playlist = await createPlaylistAndAddTracks(
-			name,
-			createPlaylistFn,
-			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
-			tracks,
-		);
-		this.pendingCreatePlaylistTracks = null;
-		this.closeModalSlot();
-		this.navigationController.push(
-			PlaylistView,
-			{
-				animationsEnabled: this.viewModel.animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				playlist,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
-	};
-
-	private handleAlbumContextMenuEntityTap = (): void => {
-		const card = this.contextMenuAlbumCard;
-		if (!card) return;
-		this.handleContextMenuDismiss();
-		this.handleAlbumCardTap(card);
-	};
-
-	handleGenreTap = (genre: Genre): void => {
-		void this.navigateToGenre(genre);
-	};
-
-	private async navigateToGenre(genre: Genre): Promise<void> {
-		const { animationsEnabled, downloadService, imageCache, modalSlot, playbackStore, transport } =
-			this.viewModel;
-		const resolvedGenre = await resolveGenreForNavigation(transport, genre);
-
-		if (this.isDestroyed()) {
-			return;
-		}
-
-		this.navigationController.push(
-			GenreView,
-			{
-				animationsEnabled,
-				downloadService,
-				genre: resolvedGenre,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache,
-				modalSlot,
-				playbackStore,
-				toastService: this.viewModel.toastService,
-				transport,
-			},
-			{},
-			{ animated: animationsEnabled },
-		);
-	}
-
-	private syncDownloadState(): void {
-		this.setState({
-			downloadState: this.viewModel.downloadService.getArtistDownloadState(
-				this.viewModel.artist.id,
-			),
-		});
-	}
-
-	private loadArtistData(): void {
-		const generation = this.loadGeneration + 1;
-		this.loadGeneration = generation;
-
-		const { artist, transport } = this.viewModel;
-		this.setState({
-			albums: [],
-			albumsLoaded: false,
-			allTracks: [],
-			topTracks: [],
-			topTracksLoaded: false,
-		});
-
-		Promise.all([
-			transport
-				.getAlbumsByArtist(artist.id)
-				.then((v) => ({ status: 'fulfilled' as const, value: v }))
-				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-			transport
-				.getTracksByArtist(artist.id)
-				.then((v) => ({ status: 'fulfilled' as const, value: v }))
-				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-			transport
-				.getArtistTopTracks(artist.id)
-				.then((v) => ({ status: 'fulfilled' as const, value: v }))
-				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-		]).then(([albumsResult, allTracksResult, topTracksResult]) => {
-			if (this.isDestroyed() || generation !== this.loadGeneration) {
-				return;
-			}
-
-			const albums =
-				albumsResult.status === 'fulfilled' ? sortArtistAlbums(albumsResult.value) : [];
-			const allTracks = allTracksResult.status === 'fulfilled' ? allTracksResult.value : [];
-			const topTracks = topTracksResult.status === 'fulfilled' ? topTracksResult.value : [];
-
-			this.setState({
-				albums,
-				albumsLoaded: true,
-				allTracks,
-				topTracks,
-				topTracksLoaded: true,
-			});
-			this.viewModel.paletteQueue?.enqueueAlbums(albums);
-		});
-	}
 
 	onCreate(): void {
 		this.viewModel.onNavigationControllerReady?.(this.navigationController);
@@ -455,19 +95,6 @@ export class V2ArtistView extends NavigationPageStatefulComponent<
 		);
 		this.syncDownloadState();
 		this.loadArtistData();
-	}
-
-	onViewModelUpdate(prevViewModel?: V2ArtistViewModel): void {
-		if (!prevViewModel) {
-			return;
-		}
-
-		if (
-			this.viewModel.transport !== prevViewModel.transport ||
-			this.viewModel.artist.id !== prevViewModel.artist.id
-		) {
-			this.loadArtistData();
-		}
 	}
 
 	onRender(): void {
@@ -572,6 +199,376 @@ export class V2ArtistView extends NavigationPageStatefulComponent<
 				<DetachedSlotRenderer detachedSlot={modalSlot} />
 			</view>
 		</layout>;
+	}
+
+	onViewModelUpdate(prevViewModel?: ArtistViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		if (
+			this.viewModel.transport !== prevViewModel.transport ||
+			this.viewModel.artist.id !== prevViewModel.artist.id
+		) {
+			this.loadArtistData();
+		}
+	}
+
+	private closeModalSlot = (): void => {
+		closeSlot(this.viewModel.modalSlot);
+	};
+
+	private handleAlbumCardTap = (card: { id: string; kind: Card['kind'] }): void => {
+		const album = this.state.albums.find((candidate) => candidate.id === card.id);
+		if (!album) {
+			return;
+		}
+
+		const {
+			animationsEnabled,
+			downloadService,
+			gridColumns,
+			imageCache,
+			modalSlot,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
+		this.navigationController.push(
+			AlbumView,
+			{
+				album,
+				animationsEnabled,
+				downloadService,
+				gridColumns,
+				imageCache,
+				modalSlot,
+				paletteQueue,
+				playbackStore,
+				toastService: this.viewModel.toastService,
+				transport,
+			},
+			{},
+			{ animated: animationsEnabled },
+		);
+	};
+
+	private handleAlbumCardLongPress = (card: { id: string; kind: Card['kind'] }): void => {
+		const album = this.state.albums.find((candidate) => candidate.id === card.id);
+		if (!album) return;
+
+		this.setState({ contextMenuCard: { album, kind: 'album' } });
+		this.contextMenuAlbumCard = card;
+		const { animationsEnabled, modalSlot, playbackStore, transport } = this.viewModel;
+		modalSlot.slotted(() => {
+			<CardContextMenu
+				animationsEnabled={animationsEnabled}
+				card={{ album, kind: 'album' }}
+				onAddToPlaylist={this.handleAlbumContextMenuAddToPlaylist}
+				onCreatePlaylist={this.handleAlbumContextMenuCreatePlaylist}
+				onDismiss={this.handleContextMenuDismiss}
+				onEntityTap={this.handleAlbumContextMenuEntityTap}
+				playbackStore={playbackStore}
+				transport={transport}
+			/>;
+		});
+	};
+
+	private handleAlbumContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
+		this.setState({ contextMenuCard: null });
+		openSlot(this.viewModel.modalSlot, () => {
+			<AddToPlaylistView
+				animationsEnabled={this.viewModel.animationsEnabled}
+				gridColumns={this.viewModel.gridColumns}
+				imageCache={this.viewModel.imageCache}
+				onDismiss={this.closeModalSlot}
+				toastService={this.viewModel.toastService}
+				tracks={tracks}
+				transport={this.viewModel.transport}
+			/>;
+		});
+	};
+
+	private handleAlbumContextMenuCreatePlaylist = (tracks: Array<Track>): void => {
+		this.pendingCreatePlaylistTracks = tracks;
+		this.setState({ contextMenuCard: null });
+		openSlot(this.viewModel.modalSlot, () => {
+			<CreatePlaylistModal
+				animationsEnabled={this.viewModel.animationsEnabled}
+				onCancel={this.closeModalSlot}
+				onCreate={this.handleAlbumContextMenuCreatePlaylistConfirm}
+			/>;
+		});
+	};
+
+	private handleAlbumContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
+		const createPlaylistFn = this.viewModel.transport.createPlaylist.bind(this.viewModel.transport);
+		const tracks = this.pendingCreatePlaylistTracks;
+		if (!createPlaylistFn || !tracks) return;
+		const playlist = await createPlaylistAndAddTracks(
+			name,
+			createPlaylistFn,
+			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
+			tracks,
+		);
+		this.pendingCreatePlaylistTracks = null;
+		this.closeModalSlot();
+		this.navigationController.push(
+			PlaylistView,
+			{
+				animationsEnabled: this.viewModel.animationsEnabled,
+				downloadService: this.viewModel.downloadService,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache: this.viewModel.imageCache,
+				modalSlot: this.viewModel.modalSlot,
+				paletteQueue: this.viewModel.paletteQueue,
+				playbackStore: this.viewModel.playbackStore,
+				playlist,
+				toastService: this.viewModel.toastService,
+				transport: this.viewModel.transport,
+			},
+			{},
+			{ animated: this.viewModel.animationsEnabled },
+		);
+	};
+
+	private handleAlbumContextMenuEntityTap = (): void => {
+		const card = this.contextMenuAlbumCard;
+		if (!card) return;
+		this.handleContextMenuDismiss();
+		this.handleAlbumCardTap(card);
+	};
+
+	private handleContextMenuDismiss = (): void => {
+		closeSlot(this.viewModel.modalSlot);
+		this.contextMenuAlbumCard = null;
+		this.setState({ contextMenuCard: null });
+	};
+
+	private handleDownloadTap = (): void => {
+		const { artist, downloadService, transport } = this.viewModel;
+		const artistLogoUrlPromise = artist.logoUrl
+			? Promise.resolve(artist.logoUrl)
+			: retryResolve(() => transport.getArtistLogoUrl(artist.id)).catch(() => null);
+
+		const albumEntriesPromise = Promise.all(
+			this.state.albums.map((album) =>
+				transport.getTracksByAlbum(album.id).then((tracks) => ({
+					album,
+					tracks: tracks
+						.map((track) => {
+							const streamUrl = transport.getTrackCacheUrl(track.id);
+							return streamUrl ? { streamUrl, track } : null;
+						})
+						.filter((t): t is { streamUrl: string; track: Track } => t !== null),
+				})),
+			),
+		);
+
+		Promise.all([artistLogoUrlPromise, albumEntriesPromise]).then(
+			([artistLogoUrl, albumEntries]) => {
+				const allGenres = albumEntries.flatMap(({ album, tracks }) => [
+					...(album.genres ?? []),
+					...tracks.flatMap(({ track }) => track.genres ?? []),
+				]);
+				resolveGenreImageUrls(transport, allGenres).then((resolvedGenres) => {
+					downloadService.downloadArtistAlbums({
+						albumEntries,
+						artist,
+						artistLogoUrl,
+						resolvedGenres,
+					});
+				});
+			},
+		);
+	};
+
+	private handleGenreTap = (genre: Genre): void => {
+		void this.navigateToGenre(genre);
+	};
+
+	private handleHeaderAddToQueueTap = (): Promise<void> => {
+		this.viewModel.playbackStore.addToQueue(this.state.allTracks);
+		return Promise.resolve();
+	};
+
+	private handleHeaderPlayTap = (): void => {
+		const { artist, playbackStore } = this.viewModel;
+		playbackStore.playTracks(this.state.allTracks);
+		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
+	};
+
+	private handleHeaderShuffleTap = (): void => {
+		const { artist, playbackStore } = this.viewModel;
+		playbackStore.playTracks(shuffleArray(this.state.allTracks));
+		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
+	};
+
+	private handleTrackLongPress = (track: Track): void => {
+		const {
+			animationsEnabled,
+			downloadService,
+			gridColumns,
+			imageCache,
+			modalSlot,
+			paletteQueue,
+			playbackStore,
+			transport,
+		} = this.viewModel;
+		const { albumId } = track;
+		openTrackContextMenu(track, modalSlot, {
+			animationsEnabled,
+			gridColumns,
+			imageCache,
+			onAlbumTap: albumId
+				? () => {
+						const album: Album = {
+							artistId: track.artistId ?? '',
+							artistName: track.artistName ?? '',
+							id: albumId,
+							imageUrl: track.albumImageUrl,
+							name: track.albumName ?? '',
+						};
+						this.navigationController.push(
+							AlbumView,
+							{
+								album,
+								animationsEnabled,
+								downloadService,
+								gridColumns,
+								imageCache,
+								modalSlot,
+								paletteQueue,
+								playbackStore,
+								toastService: this.viewModel.toastService,
+								transport,
+							},
+							{},
+							{ animated: animationsEnabled },
+						);
+					}
+				: undefined,
+			onDismiss: () => {},
+			onPlaylistCreated: (playlist) => {
+				this.navigationController.push(
+					PlaylistView,
+					{
+						animationsEnabled,
+						downloadService,
+						gridColumns,
+						imageCache,
+						modalSlot,
+						paletteQueue,
+						playbackStore,
+						playlist,
+						toastService: this.viewModel.toastService,
+						transport,
+					},
+					{},
+					{ animated: animationsEnabled },
+				);
+			},
+			playbackStore,
+			toastService: this.viewModel.toastService,
+			transport,
+		});
+	};
+
+	private handleRemoveDownloadTap = (): void => {
+		this.viewModel.downloadService.removeArtistDownload(this.viewModel.artist.id);
+	};
+
+	private handleTopTrackTap = (trackId: string): void => {
+		const { artist, playbackStore } = this.viewModel;
+		const trackIndex = this.state.topTracks.findIndex((track) => track.id === trackId);
+		if (trackIndex < 0) {
+			return;
+		}
+
+		playbackStore.playTracks(this.state.topTracks, trackIndex);
+		playbackStore.setArtistLogoUrl(artist.logoUrl || null);
+	};
+
+	private loadArtistData(): void {
+		const generation = this.loadGeneration + 1;
+		this.loadGeneration = generation;
+
+		const { artist, transport } = this.viewModel;
+		this.setState({
+			albums: [],
+			albumsLoaded: false,
+			allTracks: [],
+			topTracks: [],
+			topTracksLoaded: false,
+		});
+
+		Promise.all([
+			transport
+				.getAlbumsByArtist(artist.id)
+				.then((v) => ({ status: 'fulfilled' as const, value: v }))
+				.catch((r) => ({ reason: r, status: 'rejected' as const })),
+			transport
+				.getTracksByArtist(artist.id)
+				.then((v) => ({ status: 'fulfilled' as const, value: v }))
+				.catch((r) => ({ reason: r, status: 'rejected' as const })),
+			transport
+				.getArtistTopTracks(artist.id)
+				.then((v) => ({ status: 'fulfilled' as const, value: v }))
+				.catch((r) => ({ reason: r, status: 'rejected' as const })),
+		]).then(([albumsResult, allTracksResult, topTracksResult]) => {
+			if (this.isDestroyed() || generation !== this.loadGeneration) {
+				return;
+			}
+
+			const albums =
+				albumsResult.status === 'fulfilled' ? sortArtistAlbums(albumsResult.value) : [];
+			const allTracks = allTracksResult.status === 'fulfilled' ? allTracksResult.value : [];
+			const topTracks = topTracksResult.status === 'fulfilled' ? topTracksResult.value : [];
+
+			this.setState({
+				albums,
+				albumsLoaded: true,
+				allTracks,
+				topTracks,
+				topTracksLoaded: true,
+			});
+			this.viewModel.paletteQueue?.enqueueAlbums(albums);
+		});
+	}
+
+	private async navigateToGenre(genre: Genre): Promise<void> {
+		const { animationsEnabled, downloadService, imageCache, modalSlot, playbackStore, transport } =
+			this.viewModel;
+		const resolvedGenre = await resolveGenreForNavigation(transport, genre);
+
+		if (this.isDestroyed()) {
+			return;
+		}
+
+		this.navigationController.push(
+			GenreView,
+			{
+				animationsEnabled,
+				downloadService,
+				genre: resolvedGenre,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache,
+				modalSlot,
+				playbackStore,
+				toastService: this.viewModel.toastService,
+				transport,
+			},
+			{},
+			{ animated: animationsEnabled },
+		);
+	}
+
+	private syncDownloadState(): void {
+		this.setState({
+			downloadState: this.viewModel.downloadService.getArtistDownloadState(
+				this.viewModel.artist.id,
+			),
+		});
 	}
 }
 
