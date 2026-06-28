@@ -17,10 +17,10 @@ import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { Floating } from '../components/Floating';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
-import { AlbumsView } from './V2AlbumsView';
-import { ArtistsView } from './V2ArtistsView';
-import { GenresView } from './V2GenresView';
-import { PlaylistsView } from './V2PlaylistsView';
+import { AlbumsView } from '../views/V2AlbumsView';
+import { ArtistsView } from '../views/V2ArtistsView';
+import { GenresView } from '../views/V2GenresView';
+import { PlaylistsView } from '../views/V2PlaylistsView';
 
 export interface LibraryViewModel {
 	animationsEnabled: boolean;
