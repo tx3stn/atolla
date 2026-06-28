@@ -8,6 +8,7 @@ import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTempla
 import type { Album } from '../../models/Album';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
+import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -67,6 +68,8 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	};
 
 	onCreate(): void {
+		backNavRouter.registerPage(this.navigationController);
+		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
 		this.viewModel.onRootDetailControllerReady(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {

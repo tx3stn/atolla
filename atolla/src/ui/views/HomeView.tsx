@@ -62,6 +62,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private cachedRecentlyAddedGridColumns = -1;
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 	private contextMenuAlbum: Album | null = null;
+
 	state: HomeState = {
 		contextMenuCard: null,
 		onThisDayAlbums: [],
@@ -70,6 +71,77 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	onCreate(): void {
 		this.loadAlbums();
+	}
+
+	onRender(): void {
+		const onThisDayCards = this.createOnThisDayCards();
+		const recentlyAddedCards = this.createRecentlyAddedCards();
+		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
+
+		DebugLogger.log('home', 'render', {
+			onThisDay: onThisDayCards.length,
+			recentlyAdded: recentlyAddedCards.length,
+			recentlyPlayed: recentlyPlayedTracks.length,
+		});
+
+		<layout accessibilityLabel='home-view' style={styles.root}>
+			<ViewHeader
+				animationsEnabled={this.viewModel.animationsEnabled}
+				connectionMode={this.viewModel.connectionMode}
+				onRequestModeChange={this.viewModel.onRequestModeChange}
+				title={Strings.homeTitle()}
+			/>
+
+			<scroll style={styles.scroll}>
+				<layout style={styles.content}>
+					<layout style={styles.section}>
+						<label style={styles.sectionTitle} value={Strings.homeSectionOnThisDay()} />
+						{onThisDayCards.length > 0 ? (
+							<CardDetailList
+								accessibilityId='home-on-this-day-grid'
+								cards={onThisDayCards}
+								onCardLongPress={this.handleOnThisDayCardLongPress}
+								onCardTap={this.handleAlbumCardTap}
+							/>
+						) : (
+							<label style={styles.emptyState} value={Strings.homeNoAnniversaries()} />
+						)}
+					</layout>
+
+					<layout style={styles.section}>
+						<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyAdded()} />
+						<CardGrid
+							accessibilityId='home-recently-added-grid'
+							cards={recentlyAddedCards}
+							columnCount={this.viewModel.gridColumns}
+							onCardLongPress={this.handleRecentlyAddedCardLongPress}
+							onCardTap={this.handleAlbumCardTap}
+						/>
+					</layout>
+
+					<layout style={styles.section}>
+						<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyPlayed()} />
+						{recentlyPlayedTracks.length > 0 ? (
+							<TrackList
+								imageCache={this.viewModel.imageCache}
+								onTrackLongPress={this.handleRecentlyPlayedTrackLongPress}
+								onTrackTap={this.handleRecentlyPlayedTrackTap}
+								tracks={recentlyPlayedTracks}
+							/>
+						) : (
+							<label style={styles.emptyState} value={Strings.homeNothingPlayed()} />
+						)}
+					</layout>
+
+					<MixesSection
+						connectionMode={this.viewModel.connectionMode}
+						gridColumns={this.viewModel.gridColumns}
+						playbackStore={this.viewModel.playbackStore}
+						transport={this.viewModel.transport}
+					/>
+				</layout>
+			</scroll>
+		</layout>;
 	}
 
 	onViewModelUpdate(prevViewModel?: HomeViewModel): void {
@@ -386,80 +458,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.contextMenuAlbum = album;
 		this.openAlbumCardContextMenu(album);
 	};
-
-	onRender(): void {
-		const onThisDayCards = this.createOnThisDayCards();
-		const recentlyAddedCards = this.createRecentlyAddedCards();
-		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
-
-		// last breadcrumb before the native card lists render: pinpoints a render-thread crash on the offline->online toggle
-		DebugLogger.log('home', 'render', {
-			onThisDay: onThisDayCards.length,
-			recentlyAdded: recentlyAddedCards.length,
-			recentlyPlayed: recentlyPlayedTracks.length,
-		});
-
-		<layout accessibilityLabel='home-view' style={styles.root}>
-			<ViewHeader
-				animationsEnabled={this.viewModel.animationsEnabled}
-				connectionMode={this.viewModel.connectionMode}
-				onRequestModeChange={this.viewModel.onRequestModeChange}
-				title={Strings.homeTitle()}
-			/>
-
-			<scroll style={styles.scroll}>
-				<layout style={styles.content}>
-					<layout style={styles.sections}>
-						<layout style={styles.section}>
-							<label style={styles.sectionTitle} value={Strings.homeSectionOnThisDay()} />
-							{onThisDayCards.length > 0 ? (
-								<CardDetailList
-									accessibilityId='home-on-this-day-grid'
-									cards={onThisDayCards}
-									onCardLongPress={this.handleOnThisDayCardLongPress}
-									onCardTap={this.handleAlbumCardTap}
-								/>
-							) : (
-								<label style={styles.emptyState} value={Strings.homeNoAnniversaries()} />
-							)}
-						</layout>
-
-						<layout style={styles.section}>
-							<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyAdded()} />
-							<CardGrid
-								accessibilityId='home-recently-added-grid'
-								cards={recentlyAddedCards}
-								columnCount={this.viewModel.gridColumns}
-								onCardLongPress={this.handleRecentlyAddedCardLongPress}
-								onCardTap={this.handleAlbumCardTap}
-							/>
-						</layout>
-
-						<layout style={styles.section}>
-							<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyPlayed()} />
-							{recentlyPlayedTracks.length > 0 ? (
-								<TrackList
-									imageCache={this.viewModel.imageCache}
-									onTrackLongPress={this.handleRecentlyPlayedTrackLongPress}
-									onTrackTap={this.handleRecentlyPlayedTrackTap}
-									tracks={recentlyPlayedTracks}
-								/>
-							) : (
-								<label style={styles.emptyState} value={Strings.homeNothingPlayed()} />
-							)}
-						</layout>
-
-						<MixesSection
-							connectionMode={this.viewModel.connectionMode}
-							gridColumns={this.viewModel.gridColumns}
-							playbackStore={this.viewModel.playbackStore}
-							transport={this.viewModel.transport}
-						/>
-					</layout>
-				</layout>
-			</scroll>
-		</layout>;
-	}
 }
 
 const styles = {

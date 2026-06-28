@@ -29,6 +29,7 @@ export interface LibraryViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
+	onNavigationControllerReady: (controller: NavigationController) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	paletteQueue: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -71,6 +72,7 @@ export class V2LibraryView extends StatefulComponent<LibraryViewModel, LibraryVi
 					{$slot((navigationController: NavigationController) => {
 						// Inline (not a helper) so the root child renders into the slot's context.
 						this.rootController = navigationController;
+						this.viewModel.onNavigationControllerReady(navigationController);
 						if (tab === HeaderTabs.artists) {
 							<ArtistsView
 								animationsEnabled={this.viewModel.animationsEnabled}

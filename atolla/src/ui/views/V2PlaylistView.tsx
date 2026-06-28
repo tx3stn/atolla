@@ -10,6 +10,7 @@ import type { Album } from '../../models/Album';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
+import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -76,6 +77,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	onCreate(): void {
+		backNavRouter.registerPage(this.navigationController);
+		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
 		this.viewModel.onRootDetailControllerReady(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {

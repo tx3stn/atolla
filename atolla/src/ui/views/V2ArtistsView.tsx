@@ -291,6 +291,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				gridColumns: this.viewModel.gridColumns,
 				imageCache,
 				modalSlot,
+				navigationController,
 				onNavigationControllerReady: this.viewModel.onRootDetailControllerReady,
 				paletteQueue,
 				playbackStore,

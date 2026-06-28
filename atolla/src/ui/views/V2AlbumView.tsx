@@ -10,6 +10,7 @@ import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
+import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -74,6 +75,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	onCreate(): void {
+		backNavRouter.registerPage(this.navigationController);
+		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
 		this.viewModel.onRootDetailControllerReady(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
@@ -229,6 +232,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				gridColumns,
 				imageCache,
 				modalSlot: this.viewModel.modalSlot,
+				navigationController: this.navigationController,
+				onNavigationControllerReady: () => {},
 				paletteQueue,
 				playbackStore,
 				toastService: this.viewModel.toastService,

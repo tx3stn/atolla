@@ -11,6 +11,7 @@ import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
+import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -33,13 +34,10 @@ import { resolveGenreForNavigation, resolveGenreImageUrls } from '../flows/Genre
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { AddToPlaylistView } from './AddToPlaylistView';
-// TODO(v2): point these at V2AlbumView / V2GenreView / V2PlaylistView once they exist. They are
-// depth-2 pushes (they don't report a controller), and with navBarContext omitted they already
-// render content only, so bridging to the existing views here is correct in the meantime.
-import { AlbumView } from './AlbumView';
-import { GenreView } from './GenreView';
-import { PlaylistView } from './PlaylistView';
 import { sortArtistAlbums } from './sort/Albums';
+import { AlbumView } from './V2AlbumView';
+import { GenreView } from './V2GenreView';
+import { PlaylistView } from './V2PlaylistView';
 
 export interface ArtistViewModel {
 	animationsEnabled: boolean;
@@ -48,7 +46,8 @@ export interface ArtistViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
-	onNavigationControllerReady?: (controller: NavigationController) => void;
+	navigationController: NavigationController;
+	onNavigationControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	toastService: ToastService;
@@ -82,6 +81,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	};
 
 	onCreate(): void {
+		backNavRouter.registerPage(this.navigationController);
+		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
 		this.viewModel.onNavigationControllerReady?.(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
@@ -243,6 +244,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				gridColumns,
 				imageCache,
 				modalSlot,
+				navigationController: this.navigationController,
+				onRootDetailControllerReady: () => {},
 				paletteQueue,
 				playbackStore,
 				toastService: this.viewModel.toastService,
@@ -321,6 +324,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache: this.viewModel.imageCache,
 				modalSlot: this.viewModel.modalSlot,
+				navigationController: this.navigationController,
+				onRootDetailControllerReady: () => {},
 				paletteQueue: this.viewModel.paletteQueue,
 				playbackStore: this.viewModel.playbackStore,
 				playlist,
@@ -438,6 +443,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 								gridColumns,
 								imageCache,
 								modalSlot,
+								navigationController: this.navigationController,
+								onRootDetailControllerReady: () => {},
 								paletteQueue,
 								playbackStore,
 								toastService: this.viewModel.toastService,
@@ -458,6 +465,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						gridColumns,
 						imageCache,
 						modalSlot,
+						navigationController: this.navigationController,
+						onRootDetailControllerReady: () => {},
 						paletteQueue,
 						playbackStore,
 						playlist,
@@ -537,9 +546,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	}
 
 	private async navigateToGenre(genre: Genre): Promise<void> {
-		const { animationsEnabled, downloadService, imageCache, modalSlot, playbackStore, transport } =
-			this.viewModel;
-		const resolvedGenre = await resolveGenreForNavigation(transport, genre);
+		const resolvedGenre = await resolveGenreForNavigation(this.viewModel.transport, genre);
 
 		if (this.isDestroyed()) {
 			return;
@@ -548,18 +555,20 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.navigationController.push(
 			GenreView,
 			{
-				animationsEnabled,
-				downloadService,
+				animationsEnabled: this.viewModel.animationsEnabled,
+				downloadService: this.viewModel.downloadService,
 				genre: resolvedGenre,
 				gridColumns: this.viewModel.gridColumns,
-				imageCache,
-				modalSlot,
-				playbackStore,
+				imageCache: this.viewModel.imageCache,
+				modalSlot: this.viewModel.modalSlot,
+				navigationController: this.navigationController,
+				onRootDetailControllerReady: () => {},
+				playbackStore: this.viewModel.playbackStore,
 				toastService: this.viewModel.toastService,
-				transport,
+				transport: this.viewModel.transport,
 			},
 			{},
-			{ animated: animationsEnabled },
+			{ animated: this.viewModel.animationsEnabled },
 		);
 	}
 

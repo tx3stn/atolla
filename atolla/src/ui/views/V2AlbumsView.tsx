@@ -235,6 +235,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 									gridColumns: this.viewModel.gridColumns,
 									imageCache,
 									modalSlot: this.viewModel.modalSlot,
+									navigationController,
 									onNavigationControllerReady: this.viewModel.onRootDetailControllerReady,
 									paletteQueue,
 									playbackStore,
