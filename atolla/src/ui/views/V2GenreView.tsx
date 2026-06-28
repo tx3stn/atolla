@@ -67,6 +67,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	};
 
 	onCreate(): void {
+		this.viewModel.onRootDetailControllerReady(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
 				this.navigationController.disableDismissalGesture()();
@@ -307,7 +308,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 								imageCache,
 								modalSlot,
 								navigationController: this.navigationController,
-								onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+								onRootDetailControllerReady: () => {},
 								playbackStore,
 								restoreHeaderOnDestroy: false,
 								toastService: this.viewModel.toastService,
@@ -333,7 +334,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 						imageCache,
 						modalSlot,
 						navigationController: this.navigationController,
-						onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+						onRootDetailControllerReady: () => {},
 						paletteQueue: this.viewModel.paletteQueue,
 						playbackStore,
 						playlist,

@@ -17,10 +17,10 @@ import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { Floating } from '../components/Floating';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
-import { GenresView } from './GenresView';
-import { PlaylistsView } from './PlaylistsView';
 import { AlbumsView } from './V2AlbumsView';
 import { ArtistsView } from './V2ArtistsView';
+import { GenresView } from './V2GenresView';
+import { PlaylistsView } from './V2PlaylistsView';
 
 export interface LibraryViewModel {
 	animationsEnabled: boolean;
@@ -112,6 +112,7 @@ export class V2LibraryView extends StatefulComponent<LibraryViewModel, LibraryVi
 								letterFilter={this.state.letterFilter}
 								modalSlot={this.viewModel.modalSlot}
 								navigationController={navigationController}
+								onRootDetailControllerReady={this.setRootDetailController}
 								paletteQueue={this.viewModel.paletteQueue}
 								playbackStore={this.viewModel.playbackStore}
 								playlistEditService={this.viewModel.playlistEditService}
@@ -127,6 +128,7 @@ export class V2LibraryView extends StatefulComponent<LibraryViewModel, LibraryVi
 								letterFilter={this.state.letterFilter}
 								modalSlot={this.viewModel.modalSlot}
 								navigationController={navigationController}
+								onRootDetailControllerReady={this.setRootDetailController}
 								playbackStore={this.viewModel.playbackStore}
 								toastService={this.viewModel.toastService}
 								transport={this.viewModel.transport}

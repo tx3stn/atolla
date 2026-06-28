@@ -74,6 +74,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	onCreate(): void {
+		this.viewModel.onRootDetailControllerReady(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
 				this.navigationController.disableDismissalGesture()();
@@ -331,7 +332,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						imageCache,
 						modalSlot: this.viewModel.modalSlot,
 						navigationController: this.navigationController,
-						onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+						onRootDetailControllerReady: () => {},
 						paletteQueue,
 						playbackStore,
 						playlist,
@@ -427,7 +428,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				imageCache,
 				modalSlot: this.viewModel.modalSlot,
 				navigationController: this.navigationController,
-				onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+				onRootDetailControllerReady: () => {},
 				playbackStore,
 				toastService: this.viewModel.toastService,
 				transport,

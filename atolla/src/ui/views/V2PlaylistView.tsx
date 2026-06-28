@@ -76,6 +76,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	onCreate(): void {
+		this.viewModel.onRootDetailControllerReady(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
 				this.navigationController.disableDismissalGesture()();
@@ -212,7 +213,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 								imageCache,
 								modalSlot,
 								navigationController: this.navigationController,
-								onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+								onRootDetailControllerReady: () => {},
 								paletteQueue,
 								playbackStore,
 								restoreHeaderOnDestroy: false,
@@ -239,7 +240,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						imageCache,
 						modalSlot: this.viewModel.modalSlot,
 						navigationController: this.navigationController,
-						onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+						onRootDetailControllerReady: () => {},
 						paletteQueue,
 						playbackStore,
 						playlist,

@@ -59,6 +59,62 @@ export class LibraryHeaderNav extends StatefulComponent<
 		});
 	}
 
+	onRender() {
+		const { isPanelOpen, activeLetterFilter } = this.state;
+
+		<view
+			accessibilityId='library-header-nav'
+			accessibilityLabel='library-header-nav'
+			onDrag={this.handleDrag}
+			onDragPredicate={this.isVerticalDrag}
+			ref={this.rootRef}
+			style={isPanelOpen ? styles.libraryTabsOpen : styles.libraryTabs}
+		>
+			<view style={styles.leadingFabSlot}>
+				<ConnectivityFab
+					connectionMode={this.viewModel.connectionMode}
+					onRequestModeChange={this.viewModel.onRequestModeChange}
+				/>
+			</view>
+			<view style={styles.scrollViewport}>
+				<scroll horizontal={true} showsHorizontalScrollIndicator={false} style={styles.scroll}>
+					<view style={styles.tabsRow}>
+						<LibraryHeaderTab
+							active={this.viewModel.activeTab === HeaderTabs.artists}
+							onTap={this.handleArtistsTabTap}
+							tab={HeaderTabs.artists}
+						/>
+						<LibraryHeaderTab
+							active={this.viewModel.activeTab === HeaderTabs.albums}
+							onTap={this.handleAlbumsTabTap}
+							tab={HeaderTabs.albums}
+						/>
+						<LibraryHeaderTab
+							active={this.viewModel.activeTab === HeaderTabs.playlists}
+							onTap={this.handlePlaylistsTabTap}
+							tab={HeaderTabs.playlists}
+						/>
+						<LibraryHeaderTab
+							active={this.viewModel.activeTab === HeaderTabs.genres}
+							onTap={this.handleGenresTabTap}
+							tab={HeaderTabs.genres}
+						/>
+						<view style={styles.trailingSpacer} />
+					</view>
+				</scroll>
+			</view>
+			<view style={styles.scrollHintWrap}>
+				<label style={styles.scrollHint} value='>' />
+			</view>
+
+			{isPanelOpen && <view onTap={this.closeSortPanel} style={styles.dismissOverlay} />}
+
+			{isPanelOpen && (
+				<SortNavPanel activeLetterFilter={activeLetterFilter} onLetterTap={this.handleLetterTap} />
+			)}
+		</view>;
+	}
+
 	onViewModelUpdate(prevViewModel?: LibraryHeaderViewModel): void {
 		if (!prevViewModel) return;
 		if (
@@ -115,62 +171,6 @@ export class LibraryHeaderNav extends StatefulComponent<
 	private isVerticalDrag = (event: DragEvent): boolean => {
 		return Math.abs(event.deltaY) > Math.abs(event.deltaX);
 	};
-
-	onRender() {
-		const { isPanelOpen, activeLetterFilter } = this.state;
-
-		<view
-			accessibilityId='library-header-nav'
-			accessibilityLabel='library-header-nav'
-			onDrag={this.handleDrag}
-			onDragPredicate={this.isVerticalDrag}
-			ref={this.rootRef}
-			style={isPanelOpen ? styles.libraryTabsOpen : styles.libraryTabs}
-		>
-			<view style={styles.leadingFabSlot}>
-				<ConnectivityFab
-					connectionMode={this.viewModel.connectionMode}
-					onRequestModeChange={this.viewModel.onRequestModeChange}
-				/>
-			</view>
-			<view style={styles.scrollViewport}>
-				<scroll horizontal={true} showsHorizontalScrollIndicator={false} style={styles.scroll}>
-					<view style={styles.tabsRow}>
-						<LibraryHeaderTab
-							active={this.viewModel.activeTab === HeaderTabs.artists}
-							onTap={this.handleArtistsTabTap}
-							tab={HeaderTabs.artists}
-						/>
-						<LibraryHeaderTab
-							active={this.viewModel.activeTab === HeaderTabs.albums}
-							onTap={this.handleAlbumsTabTap}
-							tab={HeaderTabs.albums}
-						/>
-						<LibraryHeaderTab
-							active={this.viewModel.activeTab === HeaderTabs.playlists}
-							onTap={this.handlePlaylistsTabTap}
-							tab={HeaderTabs.playlists}
-						/>
-						<LibraryHeaderTab
-							active={this.viewModel.activeTab === HeaderTabs.genres}
-							onTap={this.handleGenresTabTap}
-							tab={HeaderTabs.genres}
-						/>
-						<view style={styles.trailingSpacer} />
-					</view>
-				</scroll>
-			</view>
-			<view style={styles.scrollHintWrap}>
-				<label style={styles.scrollHint} value='>' />
-			</view>
-
-			{isPanelOpen && <view onTap={this.closeSortPanel} style={styles.dismissOverlay} />}
-
-			{isPanelOpen && (
-				<SortNavPanel activeLetterFilter={activeLetterFilter} onLetterTap={this.handleLetterTap} />
-			)}
-		</view>;
-	}
 }
 
 const styles = {
