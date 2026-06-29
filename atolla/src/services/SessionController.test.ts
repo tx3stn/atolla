@@ -5,6 +5,7 @@ import { SessionController, type SessionHandle } from './SessionController';
 function makeHandle(overrides: Partial<SessionHandle> = {}): SessionHandle {
 	return {
 		applyDeviceIdOverride: () => {},
+		connectionMode: () => ConnectionModes.offline,
 		defaultDeviceId: () => '',
 		logout: () => {},
 		requestModeChange: () => Promise.resolve(true),
@@ -69,6 +70,7 @@ describe('SessionController', () => {
 		const controller = new SessionController();
 		controller.register(
 			makeHandle({
+				connectionMode: () => ConnectionModes.online,
 				defaultDeviceId: () => 'dev-1',
 				serverName: () => 'Home',
 				serverUrl: () => 'https://server',
@@ -78,6 +80,7 @@ describe('SessionController', () => {
 		expect(controller.serverName()).toBe('Home');
 		expect(controller.serverUrl()).toBe('https://server');
 		expect(controller.defaultDeviceId()).toBe('dev-1');
+		expect(controller.connectionMode()).toBe(ConnectionModes.online);
 	});
 
 	it('returns safe defaults when nothing is registered', async () => {
@@ -89,6 +92,7 @@ describe('SessionController', () => {
 		expect(controller.serverName()).toBe('');
 		expect(controller.serverUrl()).toBe('');
 		expect(controller.defaultDeviceId()).toBe('');
+		expect(controller.connectionMode()).toBe(ConnectionModes.offline);
 	});
 
 	it('clears the handle when registered with null', () => {

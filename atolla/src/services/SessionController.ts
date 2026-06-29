@@ -1,7 +1,8 @@
-import type { ConnectionMode } from '../transports/Model';
+import { type ConnectionMode, ConnectionModes } from '../transports/Model';
 
 export interface SessionHandle {
 	applyDeviceIdOverride(value: string): void;
+	connectionMode(): ConnectionMode;
 	defaultDeviceId(): string;
 	logout(): void;
 	requestModeChange(mode: ConnectionMode): Promise<boolean>;
@@ -20,6 +21,10 @@ export class SessionController {
 
 	applyDeviceIdOverride(value: string): void {
 		this.handle?.applyDeviceIdOverride(value);
+	}
+
+	connectionMode(): ConnectionMode {
+		return this.handle?.connectionMode() ?? ConnectionModes.offline;
 	}
 
 	defaultDeviceId(): string {

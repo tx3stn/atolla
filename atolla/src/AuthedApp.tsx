@@ -5,6 +5,7 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Album } from './models/Album';
 import { type FooterTab, FooterTabs } from './models/App';
 import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
@@ -30,7 +31,7 @@ import { type LibraryViewModel, V2LibraryView } from './ui/tabs/Library';
 import { SearchTab } from './ui/tabs/Search';
 import { SettingsTab } from './ui/tabs/Settings';
 import type { SearchViewModel } from './ui/views/SearchView';
-import type { SettingsViewModel } from './ui/views/SettingsView';
+import type { SettingsViewModel } from './ui/views/V2SettingsView';
 
 export interface AuthedAppViewModel {
 	animationsEnabled: boolean;
@@ -42,9 +43,6 @@ export interface AuthedAppViewModel {
 	libraryViewModel: Omit<LibraryViewModel, 'navCoordinator' | 'onNavigationControllerReady'>;
 	modalSlot: DetachedSlot;
 	navCoordinator: NavCoordinator;
-	onNowPlayingAlbumTap: (track?: Track) => void;
-	onNowPlayingArtistTap: (track?: Track) => void;
-	onNowPlayingOpenPlaylist: (playlist: Playlist) => void;
 	paletteService: ArtworkPaletteService;
 	playbackOrchestrator: PlaybackOrchestrator;
 	playbackStore: PlaybackStore;
@@ -63,8 +61,8 @@ export interface AuthedAppState {
 export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppState> {
 	state: AuthedAppState = { activeFooterTab: FooterTabs.home, nowPlayingCollapseSignal: 0 };
 
-	private readonly tabNavControllers: Partial<Record<FooterTab, NavigationController>> = {};
 	private androidBackObserverInstalled = false;
+	private readonly tabNavControllers: Partial<Record<FooterTab, NavigationController>> = {};
 
 	onCreate(): void {
 		backNavRouter.setActiveTab(this.state.activeFooterTab);
@@ -181,9 +179,9 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 								isPlaying={isPlaying}
 								language={this.viewModel.language}
 								loopMode={loopMode}
-								onAlbumTap={this.viewModel.onNowPlayingAlbumTap}
-								onArtistTap={this.viewModel.onNowPlayingArtistTap}
-								onOpenPlaylist={this.viewModel.onNowPlayingOpenPlaylist}
+								onAlbumTap={this.handleNowPlayingAlbumTap}
+								onArtistTap={this.handleNowPlayingArtistTap}
+								onOpenPlaylist={this.handleNowPlayingOpenPlaylist}
 								palette={palette}
 								playbackStore={this.viewModel.playbackStore}
 								toastService={this.viewModel.toastService}
@@ -212,18 +210,19 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 		</view>;
 	}
 
-	private handleFooterTabTap = (tab: FooterTab): void => {
-		// iOS pushes details full-screen onto the one root nav controller, so an open detail covers
-		// the tabs; pop the current tab back to its root so the tapped tab is actually revealed.
-		// (Android keeps a separate stack per tab, so the target tab already shows on switch.)
-		if (!Device.isAndroid()) {
-			this.tabNavControllers[this.state.activeFooterTab]?.popToSelf(false);
+	private albumFromTrack(track: Track | null | undefined): Album | null {
+		if (!track?.albumId) {
+			return null;
 		}
-		backNavRouter.setActiveTab(tab);
-		this.setState({ activeFooterTab: tab });
-	};
-
-	private handleAndroidBack = (): boolean => backNavRouter.goBack();
+		return {
+			artistId: track.artistId ?? '',
+			artistName: track.artistName ?? '',
+			id: track.albumId,
+			imageUrl: track.albumImageUrl,
+			name: track.albumName ?? '',
+			releaseDate: track.releaseDate,
+		};
+	}
 
 	private captureHomeController = (controller: NavigationController): void => {
 		this.tabNavControllers[FooterTabs.home] = controller;
@@ -261,6 +260,58 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 		Device.setBackButtonObserver(this.handleAndroidBack);
 		this.androidBackObserverInstalled = true;
 	}
+
+	private handleAndroidBack = (): boolean => backNavRouter.goBack();
+
+	private handleFooterTabTap = (tab: FooterTab): void => {
+		// iOS pushes details full-screen onto the one root nav controller, so an open detail covers
+		// the tabs; pop the current tab back to its root so the tapped tab is actually revealed.
+		// (Android keeps a separate stack per tab, so the target tab already shows on switch.)
+		if (!Device.isAndroid()) {
+			this.tabNavControllers[this.state.activeFooterTab]?.popToSelf(false);
+		}
+		backNavRouter.setActiveTab(tab);
+		this.setState({ activeFooterTab: tab });
+	};
+
+	private handleNowPlayingAlbumTap = (track?: Track): void => {
+		const { album, track: playing } = this.viewModel.playbackStore;
+		const resolvedAlbum = track
+			? this.albumFromTrack(track)
+			: (album ?? this.albumFromTrack(playing));
+		if (!resolvedAlbum) {
+			return;
+		}
+		this.viewModel.navCoordinator.openAlbum(resolvedAlbum);
+	};
+
+	private handleNowPlayingArtistTap = (track?: Track): void => {
+		if (track) {
+			if (!track.artistId) {
+				return;
+			}
+			this.viewModel.navCoordinator.openArtist({
+				id: track.artistId,
+				name: track.artistName ?? 'Unknown Artist',
+			});
+			return;
+		}
+
+		const { album, artistLogoUrl, track: playing } = this.viewModel.playbackStore;
+		const artistId = playing?.artistId ?? album?.artistId;
+		if (!artistId) {
+			return;
+		}
+		this.viewModel.navCoordinator.openArtist({
+			id: artistId,
+			logoUrl: artistLogoUrl ?? undefined,
+			name: playing?.artistName ?? album?.artistName ?? 'Unknown Artist',
+		});
+	};
+
+	private handleNowPlayingOpenPlaylist = (playlist: Playlist): void => {
+		this.viewModel.navCoordinator.openPlaylist(playlist);
+	};
 
 	private tabStyle(tab: FooterTab): Style<View> {
 		return this.state.activeFooterTab === tab ? styles.tabVisible : styles.tabHidden;

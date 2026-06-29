@@ -62,6 +62,7 @@ import { type PlaylistEditError, PlaylistEditService } from './services/Playlist
 import { RecentlyAddedService } from './services/RecentlyAddedService';
 import { ReconnectSyncCoordinator, type SyncProgress } from './services/ReconnectSyncCoordinator';
 import { ScrobbleService } from './services/ScrobbleService';
+import { SessionController } from './services/SessionController';
 import { ToastService } from './services/ToastService';
 import { TrackPlaybackNotificationAdapter } from './services/TrackPlaybackNotificationAdapter';
 import { TrackSourceNativeAdapter } from './services/TrackSourceNativeAdapter';
@@ -127,7 +128,8 @@ import {
 	SearchView,
 	type SearchViewModel,
 } from './ui/views/SearchView';
-import { SettingsView, type SettingsViewModel } from './ui/views/SettingsView';
+import { SettingsView } from './ui/views/SettingsView';
+import type { SettingsViewModel } from './ui/views/V2SettingsView';
 import { fireAndForget } from './utils/Async';
 import { version } from './version';
 
@@ -274,6 +276,27 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		return this.jellyfinClientDeviceIdOverride || this.defaultJellyfinClientDeviceId;
 	}
 
+	// device-id override effect for the V2 settings flow: the slim view persists the value to
+	// Preferences itself, then asks the session controller to apply it (auth + transport reload).
+	// temporary bridge while App is still the live shell — moves to V2App with the rest of the wiring
+	private applyJellyfinDeviceIdOverride(value: string): void {
+		this.jellyfinClientDeviceIdOverride = value;
+		this.authService.setClientDeviceId(this.getEffectiveJellyfinClientDeviceId());
+		if (this.state.connectionMode !== ConnectionModes.online) {
+			return;
+		}
+		void (async () => {
+			const session = await this.authService.loadSession();
+			if (session == null) {
+				return;
+			}
+			this.currentAccessToken = session.accessToken;
+			this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId, {
+				clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
+			});
+		})();
+	}
+
 	private searchStore!: SearchStore;
 	private nowPlayingQueueStore?: KeyValueStore;
 	private homeAlbumsStore?: KeyValueStore;
@@ -295,6 +318,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private currentAccessToken = '';
 	private paletteService!: ArtworkPaletteService;
 	private navCoordinator = new NavCoordinator();
+	private sessionController = new SessionController();
 	private downloadWorkerClient: IWorkerServiceClient<IDownloadNativeWorker> = startWorkerService(
 		DownloadNativeWorkerEntryPoint,
 		[],
@@ -424,6 +448,18 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			}
 		}, 1000);
 		this.playbackOrchestrator.start();
+		this.sessionController.register({
+			applyDeviceIdOverride: (value) => this.applyJellyfinDeviceIdOverride(value),
+			connectionMode: () => this.state.connectionMode,
+			defaultDeviceId: () => this.defaultJellyfinClientDeviceId,
+			logout: () => this.handleLogout(),
+			requestModeChange: (mode) => this.requestModeChange(mode),
+			serverName: () => this.state.serverName,
+			serverUrl: () => this.state.serverUrlPrefill,
+		});
+		// hydrate the observable Preferences so the V2 settings view reads real persisted values
+		// (its only consumer here). temporary bridge — V2App will own preferences.load() at bootstrap.
+		void this.preferences.load();
 		Promise.race([
 			Promise.all([
 				this.preferences.getGridColumns(),
@@ -2151,63 +2187,20 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 
 	private buildSettingsViewModel(): SettingsViewModel {
 		return {
-			animationsEnabled: this.state.animationsEnabled,
-			connectionMode: this.state.connectionMode,
-			debugExportPath: this.state.debugExportPath,
-			debugLogFilePath: this.state.debugLogFilePath,
-			debugLoggingEnabled: this.state.debugLoggingEnabled,
-			defaultJellyfinDeviceId: this.defaultJellyfinClientDeviceId,
-			downloadedSizeBytes: this.state.downloadedSizeBytes ?? undefined,
-			downloadedTrackCount: this.state.downloadedTrackCount,
-			downloadingCount: this.state.downloadingCount,
-			gridColumns: this.state.gridColumns,
-			imageCacheDiskBytes: this.state.nativeImageCacheDiskBytes,
-			imageCacheDiskCount: this.state.nativeImageCacheDiskCount,
-			imageCacheError: null,
-			imageCacheMaxBytes: this.state.imageCacheMaxBytes,
-			imageCategoryAlbumArtBlurredCount: this.state.imageCategoryCounts.album_art_blurred ?? 0,
-			imageCategoryAlbumArtCount:
-				(this.state.imageCategoryCounts.album_art ?? 0) +
-				(this.state.imageCategoryCounts.album_art_thumb ?? 0),
-			imageCategoryArtistImageCount:
-				(this.state.imageCategoryCounts.artist_image ?? 0) +
-				(this.state.imageCategoryCounts.artist_image_thumb ?? 0),
-			imageCategoryArtistLogoCount: this.state.imageCategoryCounts.artist_logo ?? 0,
-			imageCategoryGenreImageCount: this.state.imageCategoryCounts.genre_art ?? 0,
-			imageCategoryPlaylistImageCount:
-				(this.state.imageCategoryCounts.playlist_image ?? 0) +
-				(this.state.imageCategoryCounts.playlist_image_thumb ?? 0),
-			jellyfinDeviceIdOverride: this.state.jellyfinClientDeviceIdOverride,
+			downloadService: this.downloadService,
 			modalSlot: this.modalSlot,
-			offlineStatusExportPath: this.state.offlineStatusExportPath,
-			onAnimationsChange: this.handleAnimationsChange,
-			onCacheSizeChange: this.handleCacheSizeChange,
-			onClearCache: this.handleClearCache,
-			onClearDebugLog: this.handleClearDebugLog,
-			onClearDownloads: this.handleClearDownloads,
-			onDebugLoggingChange: this.handleDebugLoggingChange,
-			onExportDebugLog: this.handleExportDebugLog,
-			onExportOfflineStatus: this.handleExportOfflineStatus,
-			onGridColumnsChange: this.handleGridColumnsChange,
-			onJellyfinDeviceIdOverrideChange: this.handleJellyfinClientDeviceIdOverrideChange,
-			onLanguageChange: this.handleLanguageChange,
-			onLogout: this.handleLogout,
-			onRequestModeChange: this.requestModeChange,
-			onTrackCacheMaxTracksChange: this.handleTrackCacheMaxTracksChange,
+			paletteService: this.paletteService,
+			playbackOrchestrator: this.playbackOrchestrator,
 			preferences: this.preferences,
-			selectedLanguage: this.state.language,
-			serverName: this.state.serverName,
-			serverUrl: this.state.serverUrlPrefill,
+			sessionController: this.sessionController,
 			toastService: this.toastService,
-			trackCacheCachedCount: this.state.trackPlaybackCachedCount,
-			trackCacheMaxTracks: this.state.trackCacheMaxTracks,
-			waveformReadyCount: this.playbackOrchestrator.getWaveformReadyCount(),
+			visible: this.state.activeFooterTab === FooterTabs.settings,
 		};
 	}
 
 	onRender(): void {
 		if (!this.state.isBootstrapped) {
-			<BootSplash message='loading your library' />;
+			<BootSplash />;
 			return;
 		}
 
@@ -2222,9 +2215,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				libraryViewModel={this.buildLibraryViewModel()}
 				modalSlot={this.modalSlot}
 				navCoordinator={this.navCoordinator}
-				onNowPlayingAlbumTap={this.handleNowPlayingAlbumTap}
-				onNowPlayingArtistTap={this.handleNowPlayingArtistTap}
-				onNowPlayingOpenPlaylist={this.handleNowPlayingOpenPlaylist}
 				paletteService={this.paletteService}
 				playbackOrchestrator={this.playbackOrchestrator}
 				playbackStore={this.playbackStore}

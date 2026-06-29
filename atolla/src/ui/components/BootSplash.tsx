@@ -4,11 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
-export interface BootSplashViewModel {
-	message?: string;
-}
-
-export class BootSplash extends Component<BootSplashViewModel> {
+export class BootSplash extends Component {
 	onRender(): void {
 		<view style={styles.root}>
 			<view style={styles.logoContainer}>
