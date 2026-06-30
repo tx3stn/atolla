@@ -945,7 +945,7 @@ const styles = {
 	}),
 	root: new Style<View>({
 		padding: 20,
-		paddingTop: 20 + theme.padding.deviceInset,
+		paddingTop: theme.padding.scrollHeader(null),
 		width: '100%',
 	}),
 	scroll: new Style<ScrollView>({

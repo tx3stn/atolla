@@ -26,7 +26,6 @@ export interface HomeTabViewModel {
 	modalSlot: DetachedSlot;
 	navCoordinator: NavCoordinator;
 	onNavigationControllerReady: (controller: NavigationController) => void;
-	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	onThisDayService?: OnThisDayService;
 	playbackStore: PlaybackStore;
 	recentlyAddedService?: RecentlyAddedService;
@@ -51,7 +50,6 @@ export class HomeTab extends Component<HomeTabViewModel> {
 						onNavigateToArtist={this.handleArtistTap}
 						onOpenAlbum={this.handleAlbumTap}
 						onOpenPlaylist={this.handleOpenPlaylist}
-						onRequestModeChange={this.viewModel.onRequestModeChange}
 						onThisDayService={this.viewModel.onThisDayService}
 						playbackStore={this.viewModel.playbackStore}
 						recentlyAddedService={this.viewModel.recentlyAddedService}

@@ -24,7 +24,6 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { MixesSection } from '../components/MixesSection';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
-import { ViewHeader } from '../components/ViewHeader';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
@@ -40,7 +39,6 @@ export interface HomeViewModel {
 	onNavigateToArtist?: (artistId: string) => void;
 	onOpenAlbum: (album: Album) => void;
 	onOpenPlaylist?: (playlist: Playlist) => void;
-	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	onThisDayService?: OnThisDayService;
 	playbackStore: PlaybackStore;
 	recentlyAddedService?: RecentlyAddedService;
@@ -85,13 +83,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		});
 
 		<layout accessibilityLabel='home-view' style={styles.root}>
-			<ViewHeader
-				animationsEnabled={this.viewModel.animationsEnabled}
-				connectionMode={this.viewModel.connectionMode}
-				onRequestModeChange={this.viewModel.onRequestModeChange}
-				title={Strings.homeTitle()}
-			/>
-
 			<scroll style={styles.scroll}>
 				<layout style={styles.content}>
 					<layout style={styles.section}>

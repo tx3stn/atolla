@@ -9,6 +9,7 @@ import type { Album } from './models/Album';
 import { type FooterTab, FooterTabs } from './models/App';
 import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
+import Strings from './Strings';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { backNavRouter } from './services/BackNavRouter';
 import type { DownloadService } from './services/DownloadService';
@@ -17,11 +18,13 @@ import type { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import type { SessionController } from './services/SessionController';
 import type { ToastService } from './services/ToastService';
 import type { BarColorStore } from './stores/BarColor';
+import { HeaderStore } from './stores/Header';
 import type { PlaybackStore } from './stores/Playback';
 import type { LanguageCode, Preferences } from './stores/Preferences';
 import { theme } from './theme';
 import { type ConnectionMode, ConnectionModes } from './transports/Model';
 import type { Transport } from './transports/Transport';
+import { AppHeader } from './ui/components/AppHeader';
 import { ErrorBoundary } from './ui/components/ErrorBoundary';
 import { Floating } from './ui/components/Floating';
 import { FooterNav } from './ui/components/FooterNav';
@@ -42,9 +45,13 @@ export interface AuthedAppViewModel {
 	downloadService: DownloadService;
 	homeViewModel: Omit<HomeTabViewModel, 'navCoordinator'>;
 	language: LanguageCode;
-	libraryViewModel: Omit<LibraryViewModel, 'navCoordinator' | 'onNavigationControllerReady'>;
+	libraryViewModel: Omit<
+		LibraryViewModel,
+		'headerStore' | 'navCoordinator' | 'onNavigationControllerReady'
+	>;
 	modalSlot: DetachedSlot;
 	navCoordinator: NavCoordinator;
+	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	paletteService: ArtworkPaletteService;
 	playbackOrchestrator: PlaybackOrchestrator;
 	playbackStore: PlaybackStore;
@@ -65,10 +72,20 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 	state: AuthedAppState = { activeFooterTab: FooterTabs.home, nowPlayingCollapseSignal: 0 };
 
 	private androidBackObserverInstalled = false;
+	private readonly headerStore = new HeaderStore();
 	private readonly tabNavControllers: Partial<Record<FooterTab, NavigationController>> = {};
 
 	onCreate(): void {
 		backNavRouter.setActiveTab(this.state.activeFooterTab);
+		this.headerStore.setDescriptor(FooterTabs.home, { kind: 'title', title: Strings.homeTitle() });
+		this.headerStore.setDescriptor(FooterTabs.settings, {
+			kind: 'title',
+			title: Strings.settingsTitle(),
+		});
+		this.headerStore.setDescriptor(FooterTabs.search, {
+			kind: 'title',
+			title: Strings.searchTitle(),
+		});
 		backNavRouter.setTabSwitcher((tab) => {
 			if (this.isDestroyed()) {
 				return;
@@ -129,7 +146,6 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							modalSlot={home.modalSlot}
 							navCoordinator={this.viewModel.navCoordinator}
 							onNavigationControllerReady={this.captureHomeController}
-							onRequestModeChange={home.onRequestModeChange}
 							onThisDayService={home.onThisDayService}
 							playbackStore={home.playbackStore}
 							recentlyAddedService={home.recentlyAddedService}
@@ -147,11 +163,11 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							connectionMode={library.connectionMode}
 							downloadService={library.downloadService}
 							gridColumns={library.gridColumns}
+							headerStore={this.headerStore}
 							imageCache={library.imageCache}
 							modalSlot={library.modalSlot}
 							navCoordinator={this.viewModel.navCoordinator}
 							onNavigationControllerReady={this.captureLibraryController}
-							onRequestModeChange={library.onRequestModeChange}
 							paletteQueue={library.paletteQueue}
 							playbackStore={library.playbackStore}
 							playlistEditService={library.playlistEditService}
@@ -185,6 +201,16 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 						/>
 					</ErrorBoundary>
 				</view>
+
+				<Floating>
+					<AppHeader
+						activeFooterTab={this.state.activeFooterTab}
+						animationsEnabled={this.viewModel.animationsEnabled}
+						connectionMode={this.viewModel.connectionMode}
+						headerStore={this.headerStore}
+						onRequestModeChange={this.viewModel.onRequestModeChange}
+					/>
+				</Floating>
 
 				{track && (
 					<Floating>

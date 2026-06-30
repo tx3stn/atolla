@@ -79,6 +79,7 @@ declare const Strings: {
 	searchSectionPlaylists: () => string;
 	searchSectionRecent: () => string;
 	searchSectionTracks: () => string;
+	searchTitle: () => string;
 	serverUrlPlaceholder: () => string;
 	settingsAnimations: () => string;
 	settingsCacheClearedToast: () => string;

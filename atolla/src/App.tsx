@@ -314,6 +314,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 				libraryViewModel={this.buildLibraryViewModel()}
 				modalSlot={this.modalSlot}
 				navCoordinator={this.navCoordinator}
+				onRequestModeChange={(mode) => this.connectivity.setMode(mode)}
 				paletteService={this.userScope.getPaletteService()}
 				playbackOrchestrator={this.playbackOrchestrator}
 				playbackStore={this.playbackStore}
@@ -370,7 +371,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			imageCache: this.imageCache,
 			modalSlot: this.modalSlot,
 			onNavigationControllerReady: () => {},
-			onRequestModeChange: (mode: ConnectionMode) => this.connectivity.setMode(mode),
 			onThisDayService: this.userScope.getOnThisDayService(),
 			playbackStore: this.playbackStore,
 			recentlyAddedService: this.userScope.getRecentlyAddedService(),
@@ -388,7 +388,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			gridColumns: this.preferences.gridColumns,
 			imageCache: this.imageCache,
 			modalSlot: this.modalSlot,
-			onRequestModeChange: (mode: ConnectionMode) => this.connectivity.setMode(mode),
 			paletteQueue: this.userScope.getPaletteQueue(),
 			playbackStore: this.playbackStore,
 			playlistEditService: this.playlistEditService,

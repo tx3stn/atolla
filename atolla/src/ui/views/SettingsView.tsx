@@ -41,7 +41,6 @@ import {
 	setAtollaTrackCacheMaxTracks,
 } from '../../TrackPlaybackNative';
 import { theme, withAlpha } from '../../theme';
-import type { ConnectionMode } from '../../transports/Model';
 import { version } from '../../version';
 import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
@@ -49,7 +48,6 @@ import { LanguageSelectModal } from '../components/LanguageSelectModal';
 import { Modal } from '../components/Modal';
 import { SelectOption } from '../components/SelectOption';
 import { Toggle } from '../components/Toggle';
-import { ViewHeader } from '../components/ViewHeader';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 
 const GB = 1024 * 1024 * 1024;
@@ -118,12 +116,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		const { imageCacheDiskBytes, imageCacheDiskCount } = this.state;
 
 		<layout style={styles.viewRoot}>
-			<ViewHeader
-				animationsEnabled={this.viewModel.preferences.animationsEnabled}
-				connectionMode={this.viewModel.sessionController.connectionMode()}
-				onRequestModeChange={this.handleRequestModeChange}
-				title={Strings.settingsTitle()}
-			/>
 			<scroll style={styles.scroll}>
 				<view style={styles.root}>
 					<label style={styles.sectionTitle} value={Strings.settingsSectionAppearance()} />
@@ -512,10 +504,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 				title={Strings.settingsLogoutButton()}
 			/>;
 		});
-	};
-
-	private handleRequestModeChange = (mode: ConnectionMode): Promise<boolean> => {
-		return this.viewModel.sessionController.requestModeChange(mode);
 	};
 
 	private handleTrackCacheLimitSelect = (count: number): void => {

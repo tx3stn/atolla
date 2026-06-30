@@ -238,6 +238,9 @@
 	"search_section_tracks": {
 		"defaultMessage": "TITRES"
 	},
+	"search_title": {
+		"defaultMessage": "RECHERCHE"
+	},
 	"server_url_placeholder": {
 		"defaultMessage": "https://jellyfin.example.com"
 	},

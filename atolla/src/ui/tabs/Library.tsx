@@ -7,7 +7,7 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
-import { type HeaderTab, HeaderTabs } from '../../models/App';
+import { FooterTabs, type HeaderTab, HeaderTabs } from '../../models/App';
 import type { Artist } from '../../models/Artist';
 import type { Playlist } from '../../models/Playlist';
 import { backNavRouter } from '../../services/BackNavRouter';
@@ -17,11 +17,10 @@ import type { NavCoordinator } from '../../services/NavCoordinator';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
+import type { HeaderStore } from '../../stores/Header';
 import type { PlaybackStore } from '../../stores/Playback';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
-import { Floating } from '../components/Floating';
-import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { AlbumsView } from '../views/AlbumsView';
 import { AlbumView } from '../views/AlbumView';
 import { ArtistsView } from '../views/ArtistsView';
@@ -35,11 +34,11 @@ export interface LibraryViewModel {
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
 	gridColumns: number;
+	headerStore: HeaderStore;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navCoordinator: NavCoordinator;
 	onNavigationControllerReady: (controller: NavigationController) => void;
-	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	paletteQueue: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlistEditService: PlaylistEditService;
@@ -67,6 +66,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 			showArtist: this.showArtist,
 			showPlaylist: this.showPlaylist,
 		});
+		this.publishHeader(this.state.activeTab, this.state.letterFilter);
 	}
 
 	onDestroy(): void {
@@ -77,17 +77,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 		const tab = this.state.activeTab;
 		const isOfflineMode = this.viewModel.connectionMode === ConnectionModes.offline;
 		<view style={styles.root}>
-			<Floating>
-				<LibraryHeaderNav
-					activeTab={this.state.activeTab}
-					animationsEnabled={this.viewModel.animationsEnabled}
-					connectionMode={this.viewModel.connectionMode}
-					onAlphabetLetterTap={this.handleFilterByLetter}
-					onRequestModeChange={this.viewModel.onRequestModeChange}
-					onTabTap={this.handleTabNavigation}
-				/>
-			</Floating>
-
 			<view style={styles.tabHost}>
 				<NavigationRoot>
 					{$slot((navigationController: NavigationController) => {
@@ -165,6 +154,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 
 	private handleFilterByLetter = (letter: string | null): void => {
 		this.setState({ letterFilter: letter });
+		this.publishHeader(this.state.activeTab, letter);
 	};
 
 	private handleTabNavigation = (tab: HeaderTab): void => {
@@ -174,8 +164,19 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 
 		backNavRouter.clearReturnTo();
 		this.unwindToTabRoot();
-		this.setState({ activeTab: tab });
+		this.setState({ activeTab: tab, letterFilter: null });
+		this.publishHeader(tab, null);
 	};
+
+	private publishHeader(activeTab: HeaderTab, letterFilter: string | null): void {
+		this.viewModel.headerStore.setDescriptor(FooterTabs.library, {
+			activeTab,
+			kind: 'library',
+			letterFilter,
+			onAlphabetLetterTap: this.handleFilterByLetter,
+			onTabTap: this.handleTabNavigation,
+		});
+	}
 
 	private setRootDetailController = (controller: NavigationController): void => {
 		this.firstDetailController = controller;
@@ -204,7 +205,8 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 		}
 		this.unwindToTabRoot();
 		if (tab !== this.state.activeTab) {
-			this.setState({ activeTab: tab });
+			this.setState({ activeTab: tab, letterFilter: null });
+			this.publishHeader(tab, null);
 		}
 		push(controller);
 	}

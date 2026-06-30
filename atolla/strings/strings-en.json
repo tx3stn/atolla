@@ -244,6 +244,9 @@
 	"search_section_tracks": {
 		"defaultMessage": "TRACKS"
 	},
+	"search_title": {
+		"defaultMessage": "SEARCH"
+	},
 	"server_url_placeholder": {
 		"defaultMessage": "https://jellyfin.example.com"
 	},
