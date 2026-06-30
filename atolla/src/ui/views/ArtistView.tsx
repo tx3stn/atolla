@@ -16,6 +16,7 @@ import type { DownloadService, DownloadState } from '../../services/DownloadServ
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
+import { HeaderCollapse, headerStore } from '../../stores/Header';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -80,9 +81,12 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		topTracksLoaded: false,
 	};
 
+	private headerCollapse = new HeaderCollapse(headerStore);
+
 	onCreate(): void {
 		backNavRouter.registerPage(this.navigationController);
 		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
+		this.registerDisposable(() => this.headerCollapse.reset());
 		this.viewModel.onNavigationControllerReady?.(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
@@ -127,7 +131,10 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 		<layout accessibilityLabel='artist-view' style={styles.root}>
 			<view accessibilityId='artist-view' style={styles.fullScreen}>
-				<scroll style={styles.scroll}>
+				<scroll
+					onScroll={(event) => this.headerCollapse.handleScroll(event.y)}
+					style={styles.scroll}
+				>
 					<DetailHeader
 						animationsEnabled={animationsEnabled}
 						artworkCategory='artist_image'

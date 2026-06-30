@@ -1,7 +1,6 @@
 import 'jasmine/src/jasmine';
 import { HeaderTabs } from 'atolla/src/models/App';
 import type { LibraryNavHandle } from 'atolla/src/services/NavCoordinator';
-import { HeaderStore } from 'atolla/src/stores/Header';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { ConnectionModes } from 'atolla/src/transports/Model';
 import { LibraryView } from 'atolla/src/ui/tabs/Library';
@@ -42,7 +41,6 @@ function makeViewModel() {
 		connectionMode: ConnectionModes.online,
 		downloadService: stubDownloadService,
 		gridColumns: 3,
-		headerStore: new HeaderStore(),
 		imageCache: stubImageCache,
 		navCoordinator,
 		onNavigationControllerReady: () => {},

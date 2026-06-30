@@ -1,9 +1,10 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
+import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type FooterTab, type HeaderTab, HeaderTabs } from '../../models/App';
-import type { HeaderStore } from '../../stores/Header';
+import { headerStore } from '../../stores/Header';
 import { theme } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
 import { ConnectivityFab } from './ConnectivityFab';
@@ -15,7 +16,6 @@ export interface AppHeaderViewModel {
 	activeFooterTab: FooterTab;
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
-	headerStore: HeaderStore;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 }
 
@@ -25,14 +25,19 @@ interface AppHeaderState {
 }
 
 export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderState> {
+	private rootRef = new ElementRef();
+	private lastVisible = true;
+
 	state: AppHeaderState = { isPanelOpen: false, revision: 0 };
 
 	onCreate(): void {
-		this.registerDisposable(this.viewModel.headerStore.subscribe(() => this.handleStoreChange()));
+		this.registerDisposable(headerStore.subscribe(() => this.handleStoreChange()));
+		this.rootRef.setAttribute('top', 0);
+		this.rootRef.setAttribute('opacity', 1);
 	}
 
 	onRender(): void {
-		const descriptor = this.viewModel.headerStore.descriptorFor(this.viewModel.activeFooterTab);
+		const descriptor = headerStore.descriptorFor(this.viewModel.activeFooterTab);
 		if (!descriptor) {
 			return;
 		}
@@ -40,10 +45,11 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 		const library = descriptor.kind === 'library' ? descriptor : null;
 		const isPanelOpen = library !== null && this.state.isPanelOpen;
 		<view
-			accessibilityId={'app-header'}
-			accessibilityLabel={'app-header'}
+			accessibilityId='app-header'
+			accessibilityLabel='app-header'
 			onDrag={library ? this.handleDrag : undefined}
 			onDragPredicate={library ? this.isVerticalDrag : undefined}
+			ref={this.rootRef}
 			style={isPanelOpen ? styles.rootOpen : styles.root}
 		>
 			<view style={styles.leadingFabSlot}>
@@ -112,6 +118,25 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 		</view>;
 	}
 
+	onViewModelUpdate(prevViewModel?: AppHeaderViewModel): void {
+		if (prevViewModel && prevViewModel.activeFooterTab !== this.viewModel.activeFooterTab) {
+			headerStore.setVisible(true);
+		}
+	}
+
+	private animateVisibility(visible: boolean): void {
+		const hiddenTop = -theme.padding.scrollHeader(null);
+		const apply = (): void => {
+			this.rootRef.setAttribute('top', visible ? 0 : hiddenTop);
+			this.rootRef.setAttribute('opacity', visible ? 1 : 0);
+		};
+		if (!this.viewModel.animationsEnabled) {
+			apply();
+			return;
+		}
+		void this.animatePromise({ damping: 30, stiffness: 420 }, apply);
+	}
+
 	private closeSortPanel = (): void => {
 		this.setState({ isPanelOpen: false });
 	};
@@ -145,7 +170,7 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 	};
 
 	private handleLetterTap = (letter: string): void => {
-		const descriptor = this.viewModel.headerStore.descriptorFor(this.viewModel.activeFooterTab);
+		const descriptor = headerStore.descriptorFor(this.viewModel.activeFooterTab);
 		if (descriptor?.kind !== 'library') {
 			return;
 		}
@@ -158,6 +183,11 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 	};
 
 	private handleStoreChange(): void {
+		const visible = headerStore.isVisible();
+		if (visible !== this.lastVisible) {
+			this.lastVisible = visible;
+			this.animateVisibility(visible);
+		}
 		this.setState({ revision: this.state.revision + 1 });
 	}
 
@@ -166,7 +196,7 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 	};
 
 	private tapTab(tab: HeaderTab): void {
-		const descriptor = this.viewModel.headerStore.descriptorFor(this.viewModel.activeFooterTab);
+		const descriptor = headerStore.descriptorFor(this.viewModel.activeFooterTab);
 		if (descriptor?.kind !== 'library') {
 			return;
 		}
@@ -198,7 +228,6 @@ const styles = {
 		paddingTop: theme.padding.deviceInset,
 		position: 'absolute',
 		right: 0,
-		top: 0,
 		width: '100%',
 		zIndex: 10,
 	}),
@@ -212,7 +241,6 @@ const styles = {
 		paddingTop: theme.padding.deviceInset,
 		position: 'absolute',
 		right: 0,
-		top: 0,
 		width: '100%',
 		zIndex: 10,
 	}),

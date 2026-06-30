@@ -51,3 +51,48 @@ export class HeaderStore {
 		}
 	}
 }
+
+export const headerStore = new HeaderStore();
+
+const COLLAPSE_TOP_THRESHOLD = 8;
+const COLLAPSE_TRIGGER = 24;
+
+export class HeaderCollapse {
+	private accumulatedDown = 0;
+	private accumulatedUp = 0;
+	private lastY = 0;
+
+	constructor(private readonly store: HeaderStore) {}
+
+	handleScroll(y: number): void {
+		if (y <= COLLAPSE_TOP_THRESHOLD) {
+			this.lastY = y;
+			this.accumulatedDown = 0;
+			this.accumulatedUp = 0;
+			this.store.setVisible(true);
+			return;
+		}
+		const delta = y - this.lastY;
+		this.lastY = y;
+		if (delta > 0) {
+			this.accumulatedDown += delta;
+			this.accumulatedUp = 0;
+			if (this.accumulatedDown > COLLAPSE_TRIGGER) {
+				this.store.setVisible(false);
+			}
+		} else if (delta < 0) {
+			this.accumulatedUp -= delta;
+			this.accumulatedDown = 0;
+			if (this.accumulatedUp > COLLAPSE_TRIGGER) {
+				this.store.setVisible(true);
+			}
+		}
+	}
+
+	reset(): void {
+		this.lastY = 0;
+		this.accumulatedDown = 0;
+		this.accumulatedUp = 0;
+		this.store.setVisible(true);
+	}
+}

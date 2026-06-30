@@ -16,6 +16,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
+import { HeaderCollapse, headerStore } from '../../stores/Header';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -79,6 +80,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	onCreate(): void {
 		backNavRouter.registerPage(this.navigationController);
 		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
+		this.registerDisposable(() => this.headerCollapse.reset());
 		this.viewModel.onRootDetailControllerReady(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
@@ -113,7 +115,10 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			<view accessibilityId='playlist-view' style={styles.fullScreen}>
 				<scroll
 					onContentSizeChange={(size) => this.dragAutoScroller.setContentHeight(size.height)}
-					onScroll={(event) => this.dragAutoScroller.setOffset(event.y)}
+					onScroll={(event) => {
+						this.dragAutoScroller.setOffset(event.y);
+						this.headerCollapse.handleScroll(event.y);
+					}}
 					ref={this.scrollRef}
 					style={createScrollStyle(isHeaderVisible)}
 				>
@@ -179,6 +184,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private isLoadingPage = false;
 	private scrollRef = new ElementRef();
 	private dragAutoScroller = new ScrollDragAutoScroller(this.scrollRef);
+	private headerCollapse = new HeaderCollapse(headerStore);
 
 	private handleTrackLongPress = (track: Track): void => {
 		const {

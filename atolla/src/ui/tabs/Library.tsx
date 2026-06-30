@@ -17,7 +17,7 @@ import type { NavCoordinator } from '../../services/NavCoordinator';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
-import type { HeaderStore } from '../../stores/Header';
+import { headerStore } from '../../stores/Header';
 import type { PlaybackStore } from '../../stores/Playback';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
@@ -34,7 +34,6 @@ export interface LibraryViewModel {
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
 	gridColumns: number;
-	headerStore: HeaderStore;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navCoordinator: NavCoordinator;
@@ -169,7 +168,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 	};
 
 	private publishHeader(activeTab: HeaderTab, letterFilter: string | null): void {
-		this.viewModel.headerStore.setDescriptor(FooterTabs.library, {
+		headerStore.setDescriptor(FooterTabs.library, {
 			activeTab,
 			kind: 'library',
 			letterFilter,

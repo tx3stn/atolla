@@ -18,7 +18,7 @@ import type { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import type { SessionController } from './services/SessionController';
 import type { ToastService } from './services/ToastService';
 import type { BarColorStore } from './stores/BarColor';
-import { HeaderStore } from './stores/Header';
+import { headerStore } from './stores/Header';
 import type { PlaybackStore } from './stores/Playback';
 import type { LanguageCode, Preferences } from './stores/Preferences';
 import { theme } from './theme';
@@ -45,10 +45,7 @@ export interface AuthedAppViewModel {
 	downloadService: DownloadService;
 	homeViewModel: Omit<HomeTabViewModel, 'navCoordinator'>;
 	language: LanguageCode;
-	libraryViewModel: Omit<
-		LibraryViewModel,
-		'headerStore' | 'navCoordinator' | 'onNavigationControllerReady'
-	>;
+	libraryViewModel: Omit<LibraryViewModel, 'navCoordinator' | 'onNavigationControllerReady'>;
 	modalSlot: DetachedSlot;
 	navCoordinator: NavCoordinator;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
@@ -72,17 +69,16 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 	state: AuthedAppState = { activeFooterTab: FooterTabs.home, nowPlayingCollapseSignal: 0 };
 
 	private androidBackObserverInstalled = false;
-	private readonly headerStore = new HeaderStore();
 	private readonly tabNavControllers: Partial<Record<FooterTab, NavigationController>> = {};
 
 	onCreate(): void {
 		backNavRouter.setActiveTab(this.state.activeFooterTab);
-		this.headerStore.setDescriptor(FooterTabs.home, { kind: 'title', title: Strings.homeTitle() });
-		this.headerStore.setDescriptor(FooterTabs.settings, {
+		headerStore.setDescriptor(FooterTabs.home, { kind: 'title', title: Strings.homeTitle() });
+		headerStore.setDescriptor(FooterTabs.settings, {
 			kind: 'title',
 			title: Strings.settingsTitle(),
 		});
-		this.headerStore.setDescriptor(FooterTabs.search, {
+		headerStore.setDescriptor(FooterTabs.search, {
 			kind: 'title',
 			title: Strings.searchTitle(),
 		});
@@ -163,7 +159,6 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							connectionMode={library.connectionMode}
 							downloadService={library.downloadService}
 							gridColumns={library.gridColumns}
-							headerStore={this.headerStore}
 							imageCache={library.imageCache}
 							modalSlot={library.modalSlot}
 							navCoordinator={this.viewModel.navCoordinator}
@@ -207,7 +202,6 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 						activeFooterTab={this.state.activeFooterTab}
 						animationsEnabled={this.viewModel.animationsEnabled}
 						connectionMode={this.viewModel.connectionMode}
-						headerStore={this.headerStore}
 						onRequestModeChange={this.viewModel.onRequestModeChange}
 					/>
 				</Floating>

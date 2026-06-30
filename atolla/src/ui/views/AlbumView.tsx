@@ -15,6 +15,7 @@ import type { DownloadService, DownloadState } from '../../services/DownloadServ
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
+import { HeaderCollapse, headerStore } from '../../stores/Header';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -74,9 +75,12 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		tracks: [],
 	};
 
+	private headerCollapse = new HeaderCollapse(headerStore);
+
 	onCreate(): void {
 		backNavRouter.registerPage(this.navigationController);
 		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
+		this.registerDisposable(() => this.headerCollapse.reset());
 		this.viewModel.onRootDetailControllerReady(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
@@ -122,7 +126,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 		<layout accessibilityLabel='album-view' style={styles.root}>
 			<view accessibilityId='album-view' style={styles.fullScreen}>
-				<scroll style={scrollStyle}>
+				<scroll onScroll={(event) => this.headerCollapse.handleScroll(event.y)} style={scrollStyle}>
 					<DetailHeader
 						animationsEnabled={animationsEnabled}
 						artworkCategory='album_art'

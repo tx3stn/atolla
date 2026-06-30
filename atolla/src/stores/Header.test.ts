@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { FooterTabs } from '../models/App';
-import { HeaderStore } from './Header';
+import { HeaderCollapse, HeaderStore } from './Header';
 
 describe('HeaderStore', () => {
 	it('returns the descriptor set for a tab', () => {
@@ -63,5 +63,63 @@ describe('HeaderStore', () => {
 		store.setVisible(false);
 
 		expect(calls).toBe(0);
+	});
+});
+
+describe('HeaderCollapse', () => {
+	it('hides the header after scrolling down past the trigger', () => {
+		const store = new HeaderStore();
+		const collapse = new HeaderCollapse(store);
+
+		collapse.handleScroll(20);
+		collapse.handleScroll(60);
+
+		expect(store.isVisible()).toBe(false);
+	});
+
+	it('shows the header after scrolling back up past the trigger', () => {
+		const store = new HeaderStore();
+		const collapse = new HeaderCollapse(store);
+		collapse.handleScroll(20);
+		collapse.handleScroll(60);
+		expect(store.isVisible()).toBe(false);
+
+		collapse.handleScroll(20);
+
+		expect(store.isVisible()).toBe(true);
+	});
+
+	it('keeps the header visible near the top', () => {
+		const store = new HeaderStore();
+		const collapse = new HeaderCollapse(store);
+		collapse.handleScroll(20);
+		collapse.handleScroll(60);
+		expect(store.isVisible()).toBe(false);
+
+		collapse.handleScroll(4);
+
+		expect(store.isVisible()).toBe(true);
+	});
+
+	it('ignores small jitters under the trigger', () => {
+		const store = new HeaderStore();
+		const collapse = new HeaderCollapse(store);
+
+		collapse.handleScroll(10);
+		collapse.handleScroll(18);
+
+		expect(store.isVisible()).toBe(true);
+	});
+
+	it('shows the header on reset', () => {
+		const store = new HeaderStore();
+		const collapse = new HeaderCollapse(store);
+		collapse.handleScroll(20);
+		collapse.handleScroll(60);
+		expect(store.isVisible()).toBe(false);
+
+		collapse.reset();
+
+		expect(store.isVisible()).toBe(true);
 	});
 });
