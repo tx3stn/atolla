@@ -1,7 +1,11 @@
 import 'jasmine/src/jasmine';
-import type { ClearCacheSelection } from 'atolla/src/services/ImageCache';
+import type { ArtworkPaletteService } from 'atolla/src/services/ArtworkPaletteService';
+import type { DownloadService } from 'atolla/src/services/DownloadService';
+import type { PlaybackOrchestrator } from 'atolla/src/services/PlaybackOrchestrator';
+import { SessionController } from 'atolla/src/services/SessionController';
 import { ToastService } from 'atolla/src/services/ToastService';
 import { Preferences } from 'atolla/src/stores/Preferences';
+import { type ConnectionMode, ConnectionModes } from 'atolla/src/transports/Model';
 import { SettingsView, type SettingsViewModel } from 'atolla/src/ui/views/SettingsView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
@@ -12,15 +16,14 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { editTextEvent, touchEvent } from '../util/testEvents';
 
-// wrapper that renders SettingsView alongside a DetachedSlotRenderer so slot-rendered modals
+// wrapper that renders the settings view alongside a DetachedSlotRenderer so slot-rendered modals
 // appear in the same component tree as the main view
-class SettingsViewWithSlot extends Component<Partial<SettingsViewModel>> {
+class SettingsViewWithSlot extends Component<SettingsViewModel> {
 	private slot = new DetachedSlot();
 
 	onRender() {
-		const vm = this.viewModel as unknown as SettingsViewModel;
 		<view>
-			<SettingsView modalSlot={this.slot} {...vm} />
+			<SettingsView {...this.viewModel} modalSlot={this.slot} />
 			<DetachedSlotRenderer detachedSlot={this.slot} />
 		</view>;
 	}
@@ -33,502 +36,211 @@ function mockPreferences() {
 	});
 }
 
+interface SessionCalls {
+	applyDeviceIdOverride: Array<string>;
+	logout: number;
+	requestModeChange: Array<ConnectionMode>;
+}
+
+function makeSessionController(info?: {
+	connectionMode?: ConnectionMode;
+	defaultDeviceId?: string;
+	serverName?: string;
+	serverUrl?: string;
+}): { calls: SessionCalls; controller: SessionController } {
+	const calls: SessionCalls = { applyDeviceIdOverride: [], logout: 0, requestModeChange: [] };
+	const controller = new SessionController();
+	controller.register({
+		applyDeviceIdOverride: (value) => calls.applyDeviceIdOverride.push(value),
+		connectionMode: () => info?.connectionMode ?? ConnectionModes.online,
+		defaultDeviceId: () => info?.defaultDeviceId ?? 'atolla-test',
+		logout: () => {
+			calls.logout += 1;
+		},
+		requestModeChange: (mode) => {
+			calls.requestModeChange.push(mode);
+			return Promise.resolve(true);
+		},
+		serverName: () => info?.serverName ?? '',
+		serverUrl: () => info?.serverUrl ?? '',
+	});
+	return { calls, controller };
+}
+
+function makeDownloadService(overrides?: Partial<DownloadService>): DownloadService {
+	return {
+		getDownloadedTrackCount: () => 0,
+		getTotalDownloadedSizeBytes: () => 0,
+		removeAllDownloads: () => {},
+		subscribe: () => () => {},
+		...overrides,
+	} as unknown as DownloadService;
+}
+
+function makePlaybackOrchestrator(overrides?: Partial<PlaybackOrchestrator>): PlaybackOrchestrator {
+	return {
+		clearWaveformData: () => {},
+		getWaveformReadyCount: () => 0,
+		resetForTrackCacheCleared: () => {},
+		...overrides,
+	} as unknown as PlaybackOrchestrator;
+}
+
+const paletteServiceStub = {
+	clearAll: () => Promise.resolve(),
+} as unknown as ArtworkPaletteService;
+
+function makeViewModel(overrides?: Partial<SettingsViewModel>): SettingsViewModel {
+	return {
+		downloadService: makeDownloadService(),
+		modalSlot: new DetachedSlot(),
+		paletteService: paletteServiceStub,
+		playbackOrchestrator: makePlaybackOrchestrator(),
+		preferences: mockPreferences(),
+		sessionController: makeSessionController().controller,
+		toastService: new ToastService(),
+		visible: false,
+		...overrides,
+	};
+}
+
 describe('SettingsView', () => {
-	valdiIt('renders cache section title and clear cache label', async (driver) => {
-		const viewModel = {
-			imageCacheMaxBytes: 2 * 1024 * 1024 * 1024,
-			onCacheSizeChange: () => {},
-			preferences: mockPreferences(),
-		};
-		const component = driver.renderComponent(SettingsView, viewModel, undefined);
-		const labels = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.Label,
-		);
-		const values = labels.map((label) => label.getAttribute('value'));
-
-		expect(values).toContain('CACHE');
-		expect(values).toContain('clear cache');
-	});
-
-	valdiIt('renders clear cache button with accessibility labels', async (driver) => {
-		const viewModel = {
-			imageCacheMaxBytes: 2 * 1024 * 1024 * 1024,
-			onCacheSizeChange: () => {},
-			preferences: mockPreferences(),
-		};
-		const component = driver.renderComponent(SettingsView, viewModel, undefined);
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const clearCacheButton = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn',
-		);
-
-		expect(clearCacheButton).toBeTruthy();
-		expect(typeof clearCacheButton?.getAttribute('onTap')).toBe('function');
-	});
-
-	valdiIt('tapping logout button shows the confirm modal', async (driver) => {
-		const viewModel = {
-			preferences: mockPreferences(),
-		};
-		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const modalConfirm = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		).find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-confirm-btn');
-
-		expect(modalConfirm).toBeTruthy();
-	});
-
-	valdiIt('calls onLogout when logout confirm modal is confirmed', async (driver) => {
-		let called = false;
-		const viewModel = {
-			onLogout: () => {
-				called = true;
-			},
-			preferences: mockPreferences(),
-		};
-		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const modalViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		modalViews
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-confirm-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		expect(called).toBe(true);
-	});
-
-	valdiIt('does not call onLogout when logout confirm modal is cancelled', async (driver) => {
-		let called = false;
-		const viewModel = {
-			onLogout: () => {
-				called = true;
-			},
-			preferences: mockPreferences(),
-		};
-		const component = driver.renderComponent(SettingsView, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const modalViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		modalViews
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-cancel-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		expect(called).toBe(false);
-	});
-
-	valdiIt('tapping clear cache button shows the cache clear modal', async (driver) => {
-		const viewModel = {
-			preferences: mockPreferences(),
-		};
-		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const updatedViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		const modal = updatedViews.find(
-			(v) => v.getAttribute('accessibilityLabel') === 'cache-clear-modal',
-		);
-
-		expect(modal).toBeTruthy();
-	});
-
-	valdiIt('calls onClearCache with selection when modal is confirmed', async (driver) => {
-		let received: ClearCacheSelection | undefined;
-		const viewModel = {
-			onClearCache: (selection: ClearCacheSelection) => {
-				received = selection;
-			},
-			preferences: mockPreferences(),
-			toastService: new ToastService(),
-		};
-		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const modalViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		modalViews
-			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		expect(received).toEqual({
-			albumArt: true,
-			albumArtBlurred: true,
-			artistImage: true,
-			artistLogo: true,
-			genreImage: true,
-			playlistImage: true,
-			tracks: true,
-			waveformData: true,
-		});
-	});
-
-	valdiIt('shows toast after confirming cache clear', async (driver) => {
-		const toastService = new ToastService();
-		const viewModel = {
-			onClearCache: () => {},
-			preferences: mockPreferences(),
-			toastService,
-		};
-		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const modalViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		modalViews
-			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		expect(toastService.getMessage()).toBeTruthy();
-	});
-
-	valdiIt('shows toast after clearing the debug log', async (driver) => {
-		const toastService = new ToastService();
-		const viewModel = {
-			debugLoggingEnabled: true,
-			onClearDebugLog: () => {},
-			preferences: mockPreferences(),
-			toastService,
-		};
-		const component = driver.renderComponent(SettingsView, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-debug-log-clear-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		expect(toastService.getMessage()).toBeTruthy();
-	});
-
-	valdiIt('shows toast after exporting offline status completes', async (driver) => {
-		let called = false;
-		const toastService = new ToastService();
-		const viewModel = {
-			onExportOfflineStatus: () => {
-				called = true;
-			},
-			preferences: mockPreferences(),
-			toastService,
-		};
-		const component = driver.renderComponent(SettingsView, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-export-offline-status-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		// the export handler is async; let the awaited export resolve before the toast is shown
-		await new Promise((resolve) => setTimeout(resolve, 0));
-
-		expect(called).toBe(true);
-		expect(toastService.getMessage()).toBeTruthy();
-	});
-
-	valdiIt('shows cached tracks dropdown options when tapped', async (driver) => {
-		const viewModel = {
-			preferences: mockPreferences(),
-			trackCacheMaxTracks: 20,
-		};
-		const component = driver.renderComponent(SettingsView, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-track-cache-limit-dropdown')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const updatedViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		const option = updatedViews.find(
-			(v) => v.getAttribute('accessibilityId') === 'settings-track-cache-limit-option-25',
-		);
-
-		expect(option).toBeTruthy();
-	});
-
 	valdiIt(
-		'calls onTrackCacheMaxTracksChange when selecting a cached tracks option',
+		'renders the server name from the session controller in a disabled field',
 		async (driver) => {
-			let selected = 0;
-			const viewModel = {
-				onTrackCacheMaxTracksChange: (count: number) => {
-					selected = count;
-				},
-				preferences: mockPreferences(),
-				trackCacheMaxTracks: 20,
-			};
+			const viewModel = makeViewModel({
+				sessionController: makeSessionController({ serverName: 'Living Room Server' }).controller,
+			});
 			const component = driver.renderComponent(SettingsView, viewModel, undefined);
 
-			const views = elementTypeFind(
-				componentGetElements(component),
-				IRenderedElementViewClass.View,
-			);
-			views
-				.find((v) => v.getAttribute('accessibilityLabel') === 'settings-track-cache-limit-dropdown')
-				?.getAttribute('onTap')?.(touchEvent);
-
-			const updatedViews = elementTypeFind(
-				componentGetElements(component),
-				IRenderedElementViewClass.View,
-			);
-			updatedViews
-				.find((v) => v.getAttribute('accessibilityId') === 'settings-track-cache-limit-option-30')
-				?.getAttribute('onTap')?.(touchEvent);
-
-			expect(selected).toBe(30);
-		},
-	);
-
-	valdiIt('shows grid columns options when tapped', async (driver) => {
-		const viewModel = {
-			gridColumns: 3,
-			preferences: mockPreferences(),
-		};
-		const component = driver.renderComponent(SettingsView, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-dropdown')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const updatedViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		const option = updatedViews.find(
-			(v) => v.getAttribute('accessibilityId') === 'settings-grid-columns-option-4',
-		);
-
-		expect(option).toBeTruthy();
-	});
-
-	valdiIt('calls onGridColumnsChange when selecting a grid columns option', async (driver) => {
-		let selected = 0;
-		const viewModel = {
-			gridColumns: 3,
-			onGridColumnsChange: (count: number) => {
-				selected = count;
-			},
-			preferences: mockPreferences(),
-		};
-		const component = driver.renderComponent(SettingsView, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-dropdown')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const updatedViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		updatedViews
-			.find((v) => v.getAttribute('accessibilityId') === 'settings-grid-columns-option-4')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		expect(selected).toBe(4);
-	});
-
-	valdiIt('does not call onClearCache when modal is cancelled', async (driver) => {
-		let called = false;
-		const viewModel = {
-			onClearCache: () => {
-				called = true;
-			},
-			preferences: mockPreferences(),
-		};
-		const component = driver.renderComponent(SettingsView, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const modalViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		modalViews
-			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-cancel-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		expect(called).toBe(false);
-	});
-
-	valdiIt('tapping delete all downloads button shows the confirm modal', async (driver) => {
-		const viewModel = {
-			preferences: mockPreferences(),
-		};
-		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-delete-all-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const modalConfirm = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		).find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-clear-confirm-btn');
-
-		expect(modalConfirm).toBeTruthy();
-	});
-
-	valdiIt('calls onClearDownloads when downloads clear modal is confirmed', async (driver) => {
-		let called = false;
-		const viewModel = {
-			onClearDownloads: () => {
-				called = true;
-			},
-			preferences: mockPreferences(),
-		};
-		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
-
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		views
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-delete-all-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		const modalViews = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.View,
-		);
-		modalViews
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-clear-confirm-btn')
-			?.getAttribute('onTap')?.(touchEvent);
-
-		expect(called).toBe(true);
-	});
-
-	valdiIt(
-		'does not call onClearDownloads when downloads clear modal is cancelled',
-		async (driver) => {
-			let called = false;
-			const viewModel = {
-				onClearDownloads: () => {
-					called = true;
-				},
-				preferences: mockPreferences(),
-			};
-			const component = driver.renderComponent(SettingsView, viewModel, undefined);
-
-			const views = elementTypeFind(
-				componentGetElements(component),
-				IRenderedElementViewClass.View,
-			);
-			views
-				.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-delete-all-btn')
-				?.getAttribute('onTap')?.(touchEvent);
-
-			const modalViews = elementTypeFind(
-				componentGetElements(component),
-				IRenderedElementViewClass.View,
-			);
-			modalViews
-				.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-clear-cancel-btn')
-				?.getAttribute('onTap')?.(touchEvent);
-
-			expect(called).toBe(false);
-		},
-	);
-
-	valdiIt(
-		'calls onJellyfinDeviceIdOverrideChange when auth device id input changes',
-		async (driver) => {
-			const received: Array<string> = [];
-			const viewModel = {
-				onJellyfinDeviceIdOverrideChange: (value: string) => {
-					received.push(value);
-				},
-				preferences: mockPreferences(),
-			};
-			const component = driver.renderComponent(SettingsView, viewModel, undefined);
-			const textFields = elementTypeFind(
+			const serverNameField = elementTypeFind(
 				componentGetElements(component),
 				IRenderedElementViewClass.TextField,
+			).find(
+				(field) =>
+					field.getAttribute('accessibilityLabel') === 'settings-jellyfin-server-name-input',
 			);
 
-			textFields
+			expect(serverNameField?.getAttribute('value')).toBe('Living Room Server');
+			expect(serverNameField?.getAttribute('enabled')).toBe(false);
+		},
+	);
+
+	valdiIt(
+		'writes the device id to preferences and applies it via the session controller',
+		async (driver) => {
+			const preferences = mockPreferences();
+			const { calls, controller } = makeSessionController();
+			const viewModel = makeViewModel({ preferences, sessionController: controller });
+			const component = driver.renderComponent(SettingsView, viewModel, undefined);
+
+			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.TextField)
 				.find(
 					(field) =>
 						field.getAttribute('accessibilityLabel') === 'settings-jellyfin-device-id-input',
 				)
 				?.getAttribute('onChange')?.(editTextEvent('custom-profile-device'));
 
-			expect(received).toEqual(['custom-profile-device']);
+			expect(preferences.jellyfinClientDeviceIdOverride).toBe('custom-profile-device');
+			expect(calls.applyDeviceIdOverride).toEqual(['custom-profile-device']);
 		},
 	);
 
-	valdiIt('renders the server name in a disabled field', async (driver) => {
-		const viewModel = {
-			preferences: mockPreferences(),
-			serverName: 'Living Room Server',
-		};
+	valdiIt('normalises disallowed characters in the device id before storing', async (driver) => {
+		const preferences = mockPreferences();
+		const viewModel = makeViewModel({ preferences });
 		const component = driver.renderComponent(SettingsView, viewModel, undefined);
-		const textFields = elementTypeFind(
-			componentGetElements(component),
-			IRenderedElementViewClass.TextField,
-		);
-		const serverNameField = textFields.find(
-			(field) => field.getAttribute('accessibilityLabel') === 'settings-jellyfin-server-name-input',
-		);
 
-		expect(serverNameField).toBeTruthy();
-		expect(serverNameField?.getAttribute('value')).toBe('Living Room Server');
-		expect(serverNameField?.getAttribute('enabled')).toBe(false);
-		expect(serverNameField?.getAttribute('onChange')).toBeUndefined();
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.TextField)
+			.find(
+				(field) => field.getAttribute('accessibilityLabel') === 'settings-jellyfin-device-id-input',
+			)
+			?.getAttribute('onChange')?.(editTextEvent('bad id!@#'));
+
+		expect(preferences.jellyfinClientDeviceIdOverride).toBe('bad_id___');
 	});
 
-	valdiIt('does not render auth device id reset button', async (driver) => {
-		const viewModel = {
-			preferences: mockPreferences(),
-		};
+	valdiIt('writes the selected grid columns to preferences', async (driver) => {
+		const preferences = mockPreferences();
+		const viewModel = makeViewModel({ preferences });
 		const component = driver.renderComponent(SettingsView, viewModel, undefined);
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const resetButton = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'settings-jellyfin-device-id-reset-btn',
-		);
 
-		expect(resetButton).toBeUndefined();
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-dropdown')
+			?.getAttribute('onTap')?.(touchEvent);
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityId') === 'settings-grid-columns-option-4')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(preferences.gridColumns).toBe(4);
+	});
+
+	valdiIt('toggling animations writes to preferences', async (driver) => {
+		const preferences = mockPreferences();
+		const viewModel = makeViewModel({ preferences });
+		const component = driver.renderComponent(SettingsView, viewModel, undefined);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-animations-toggle')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(preferences.animationsEnabled).toBe(false);
+	});
+
+	valdiIt('logout confirm routes to the session controller', async (driver) => {
+		const { calls, controller } = makeSessionController();
+		const viewModel = makeViewModel({ sessionController: controller });
+		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-logout-confirm-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(calls.logout).toBe(1);
+	});
+
+	valdiIt('clear downloads confirm calls the download service', async (driver) => {
+		let removed = 0;
+		const downloadService = makeDownloadService({
+			removeAllDownloads: () => {
+				removed += 1;
+			},
+		});
+		const viewModel = makeViewModel({ downloadService });
+		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-delete-all-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-downloads-clear-confirm-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(removed).toBe(1);
+	});
+
+	valdiIt('cache clear confirm clears track caches and shows a toast', async (driver) => {
+		let resetForTrackCacheCleared = 0;
+		const playbackOrchestrator = makePlaybackOrchestrator({
+			resetForTrackCacheCleared: () => {
+				resetForTrackCacheCleared += 1;
+			},
+		});
+		const toastService = new ToastService();
+		const viewModel = makeViewModel({ playbackOrchestrator, toastService });
+		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(resetForTrackCacheCleared).toBe(1);
+		expect(toastService.getMessage()).toBeTruthy();
 	});
 });

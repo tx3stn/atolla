@@ -18,11 +18,9 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
-import type { NavBarContext } from '../NavBarContext';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { GenreView } from './GenreView';
-import type { LibraryNavContext } from './LibraryView';
 
 interface GenresViewModel {
 	animationsEnabled: boolean;
@@ -30,12 +28,10 @@ interface GenresViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	letterFilter?: string | null;
-	modalSlot?: DetachedSlot;
-	navBarContext?: NavBarContext;
+	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
-	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
-	onNavigationContext?: (context: LibraryNavContext | null) => void;
+	onRootDetailControllerReady: (controller: NavigationController) => void;
 	playbackStore: PlaybackStore;
 	toastService: ToastService;
 	transport: Transport;
@@ -53,21 +49,6 @@ interface GenresState {
 }
 
 export class GenresView extends StatefulComponent<GenresViewModel, GenresState> {
-	private readonly pagedGridController = createPagedGridController<Genre>({
-		fetchPage: (page) =>
-			this.viewModel.transport.getGenresPage(page, gridPaginationConfig.pageSize),
-		isDestroyed: () => this.isDestroyed(),
-		onPageLoaded: (items) => this.preloadGenreImages(items),
-		setState: (patch) => {
-			this.setState({
-				genres: patch.items ?? this.state.genres,
-				hasMore: patch.hasMore ?? this.state.hasMore,
-				isLoadingNextPage: patch.isLoadingNextPage ?? this.state.isLoadingNextPage,
-				nextPageFailed: patch.nextPageFailed ?? this.state.nextPageFailed,
-				page: patch.page ?? this.state.page,
-			});
-		},
-	});
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 
 	state: GenresState = {
@@ -84,130 +65,6 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	onCreate(): void {
 		void this.loadInitialPages();
 	}
-
-	private async loadInitialPages(): Promise<void> {
-		await this.pagedGridController.loadNextPage();
-	}
-
-	private preloadGenreImages(items: Array<Genre>): void {
-		try {
-			preloadAtollaImages(
-				items
-					.map((g) => g.imageUrl)
-					.filter((url): url is string => url != null)
-					.map((url) => normalizeImageUrlForCategory(url, 'genre_art')),
-				'genre_art',
-			);
-		} catch {
-			// non-Android targets have no native preload bridge
-		}
-	}
-
-	retryLoadMore(): void {
-		void this.pagedGridController.loadNextPage();
-	}
-
-	loadMore(): void {
-		void this.pagedGridController.loadNextPage();
-	}
-
-	handleGenreCardLongPress = (card: {
-		id: string;
-		kind: 'album' | 'artist' | 'genre' | 'playlist';
-	}): void => {
-		const genre = this.state.genres.find((candidate) => candidate.id === card.id);
-		if (!genre) return;
-		this.setState({ contextMenuCard: { genre, kind: 'genre' } });
-		openCardContextMenu(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, {
-			animationsEnabled: this.viewModel.animationsEnabled,
-			card: { genre, kind: 'genre' },
-			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
-			onCreatePlaylist: this.handleCreatePlaylistRequest,
-			onDismiss: this.handleContextMenuDismiss,
-			onEntityTap: this.handleContextMenuEntityTap,
-			playbackStore: this.viewModel.playbackStore,
-			transport: this.viewModel.transport,
-		});
-	};
-
-	handleContextMenuDismiss = (toastMessage?: string): void => {
-		this.setState({ contextMenuCard: null });
-		if (toastMessage) {
-			this.viewModel.toastService.show(toastMessage);
-		}
-	};
-
-	private navigateToGenre = (genre: Genre): void => {
-		const { animationsEnabled, imageCache, navigationController, playbackStore, transport } =
-			this.viewModel;
-		this.viewModel.onNavigationContext?.({ genre, kind: 'genre' });
-		this.viewModel.onHeaderVisibilityChange?.(false);
-		navigationController.push(
-			GenreView,
-			{
-				animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				genre,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache,
-				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-				navBarContext: this.viewModel.navBarContext,
-				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-				onNavigateToArtist: this.viewModel.onNavigateToArtist,
-				playbackStore,
-				toastService: this.viewModel.toastService,
-				transport,
-			},
-			{},
-			{ animated: animationsEnabled },
-		);
-	};
-
-	private handleGenreCardTap = (card: {
-		id: string;
-		kind: 'album' | 'artist' | 'genre' | 'playlist';
-	}): void => {
-		const genre = this.state.genres.find((candidate) => candidate.id === card.id);
-		if (!genre) return;
-		this.navigateToGenre(genre);
-	};
-
-	private handleContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
-		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
-	};
-
-	private handleContextMenuEntityTap = (): void => {
-		const card = this.state.contextMenuCard;
-		if (card?.kind !== 'genre') return;
-		this.navigateToGenre(card.genre);
-	};
-
-	private handleCreatePlaylistRequest = (tracks: Array<Track>): void => {
-		this.pendingCreatePlaylistTracks = tracks;
-		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
-	};
-
-	private handleAddToPlaylistDismiss = (): void => {
-		this.setState({ addToPlaylistTracks: null });
-	};
-
-	private handleCreatePlaylistCancel = (): void => {
-		this.pendingCreatePlaylistTracks = null;
-		this.setState({ createPlaylistTracks: null });
-	};
-
-	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const tracks = this.pendingCreatePlaylistTracks;
-		if (!tracks) return;
-		await createPlaylistAndAddTracks(
-			name,
-			this.viewModel.transport.createPlaylist.bind(this.viewModel.transport),
-			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
-			tracks,
-		);
-		this.pendingCreatePlaylistTracks = null;
-		this.setState({ createPlaylistTracks: null });
-	};
 
 	onRender(): void {
 		const { animationsEnabled, imageCache, toastService, transport } = this.viewModel;
@@ -266,6 +123,150 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 				/>
 			)}
 		</view>;
+	}
+
+	private handleAddToPlaylistDismiss = (): void => {
+		this.setState({ addToPlaylistTracks: null });
+	};
+
+	private handleContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
+		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
+	};
+
+	private handleContextMenuDismiss = (toastMessage?: string): void => {
+		this.setState({ contextMenuCard: null });
+		if (toastMessage) {
+			this.viewModel.toastService.show(toastMessage);
+		}
+	};
+
+	private handleContextMenuEntityTap = (): void => {
+		const card = this.state.contextMenuCard;
+		if (card?.kind !== 'genre') return;
+		this.navigateToGenre(card.genre);
+	};
+
+	private handleCreatePlaylistCancel = (): void => {
+		this.pendingCreatePlaylistTracks = null;
+		this.setState({ createPlaylistTracks: null });
+	};
+
+	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
+		const tracks = this.pendingCreatePlaylistTracks;
+		if (!tracks) return;
+		await createPlaylistAndAddTracks(
+			name,
+			this.viewModel.transport.createPlaylist.bind(this.viewModel.transport),
+			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
+			tracks,
+		);
+		this.pendingCreatePlaylistTracks = null;
+		this.setState({ createPlaylistTracks: null });
+	};
+
+	private handleCreatePlaylistRequest = (tracks: Array<Track>): void => {
+		this.pendingCreatePlaylistTracks = tracks;
+		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
+	};
+
+	private handleGenreCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const genre = this.state.genres.find((candidate) => candidate.id === card.id);
+		if (!genre) return;
+		this.navigateToGenre(genre);
+	};
+
+	private handleGenreCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const genre = this.state.genres.find((candidate) => candidate.id === card.id);
+		if (!genre) return;
+		this.setState({ contextMenuCard: { genre, kind: 'genre' } });
+		openCardContextMenu(this.viewModel.modalSlot, {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			card: { genre, kind: 'genre' },
+			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
+			onCreatePlaylist: this.handleCreatePlaylistRequest,
+			onDismiss: this.handleContextMenuDismiss,
+			onEntityTap: this.handleContextMenuEntityTap,
+			playbackStore: this.viewModel.playbackStore,
+			transport: this.viewModel.transport,
+		});
+	};
+
+	private async loadInitialPages(): Promise<void> {
+		await this.pagedGridController.loadNextPage();
+	}
+
+	private loadMore(): void {
+		void this.pagedGridController.loadNextPage();
+	}
+
+	private readonly pagedGridController = createPagedGridController<Genre>({
+		fetchPage: (page) =>
+			this.viewModel.transport.getGenresPage(page, gridPaginationConfig.pageSize),
+		isDestroyed: () => this.isDestroyed(),
+		onPageLoaded: (items) => this.preloadGenreImages(items),
+		setState: (patch) => {
+			this.setState({
+				genres: patch.items ?? this.state.genres,
+				hasMore: patch.hasMore ?? this.state.hasMore,
+				isLoadingNextPage: patch.isLoadingNextPage ?? this.state.isLoadingNextPage,
+				nextPageFailed: patch.nextPageFailed ?? this.state.nextPageFailed,
+				page: patch.page ?? this.state.page,
+			});
+		},
+	});
+
+	private preloadGenreImages(items: Array<Genre>): void {
+		try {
+			preloadAtollaImages(
+				items
+					.map((g) => g.imageUrl)
+					.filter((url): url is string => url != null)
+					.map((url) => normalizeImageUrlForCategory(url, 'genre_art')),
+				'genre_art',
+			);
+		} catch {
+			// non-Android targets have no native preload bridge
+		}
+	}
+
+	private navigateToGenre = (genre: Genre): void => {
+		const {
+			animationsEnabled,
+			imageCache,
+			modalSlot,
+			navigationController,
+			playbackStore,
+			transport,
+		} = this.viewModel;
+		navigationController.push(
+			GenreView,
+			{
+				animationsEnabled,
+				downloadService: this.viewModel.downloadService,
+				genre,
+				gridColumns: this.viewModel.gridColumns,
+				imageCache,
+				modalSlot: modalSlot,
+				navigationController,
+				onNavigateToArtist: this.viewModel.onNavigateToArtist,
+				onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+				playbackStore,
+				toastService: this.viewModel.toastService,
+				transport,
+			},
+			{},
+			{ animated: animationsEnabled },
+		);
+	};
+
+	private retryLoadMore(): void {
+		void this.pagedGridController.loadNextPage();
 	}
 }
 

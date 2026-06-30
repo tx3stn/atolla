@@ -36,9 +36,9 @@ import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import { AlbumView } from './V2AlbumView';
-import { ArtistView } from './V2ArtistView';
-import { PlaylistView } from './V2PlaylistView';
+import { AlbumView } from './AlbumView';
+import { ArtistView } from './ArtistView';
+import { PlaylistView } from './PlaylistView';
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 

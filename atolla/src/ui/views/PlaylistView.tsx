@@ -1,16 +1,16 @@
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
-import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
+import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
-import type { FooterTab, HeaderTab } from '../../models/App';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
+import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -22,8 +22,6 @@ import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/Async';
 import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
-import { FooterNav } from '../components/FooterNav';
-import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { Modal } from '../components/Modal';
 import { ScrollDragAutoScroller } from '../components/ScrollDragAutoScroller';
@@ -31,24 +29,19 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
 import { closeSlot } from '../flows/ModalSlotFlow';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
-import type { NavBarContext } from '../NavBarContext';
 import { TRACK_PAGE_SIZE } from '../pagination/Grid';
 import { AlbumView } from './AlbumView';
-import { ArtistView } from './ArtistView';
-import type { LibraryNavContext } from './LibraryView';
 
 export interface PlaylistViewModel {
 	animationsEnabled: boolean;
 	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
-	isHeaderVisible?: boolean;
-	modalSlot?: DetachedSlot;
-	navBarContext?: NavBarContext;
+	modalSlot: DetachedSlot;
+	navigationController: NavigationController;
 	onExitFromSearchNavigation?: () => void;
-	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
-	onNavigationContext?: (context: LibraryNavContext | null) => void;
+	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
@@ -73,20 +66,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	PlaylistViewModel,
 	PlaylistState
 > {
-	private currentPage = 0;
-	private hasMoreTracks = true;
-	private loadGeneration = 0;
-	private isLoadingPage = false;
-	private scrollRef = new ElementRef();
-	private dragAutoScroller = new ScrollDragAutoScroller(this.scrollRef);
-	private readonly setHeaderVisibility = (isVisible: boolean): void => {
-		if (this.state.isHeaderVisible === isVisible) {
-			return;
-		}
-
-		this.setState({ isHeaderVisible: isVisible });
-		this.viewModel.onHeaderVisibilityChange?.(isVisible);
-	};
 	state: PlaylistState = {
 		artistLogoUrls: [],
 		downloadState: 'not_downloaded',
@@ -97,45 +76,111 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		tracks: [],
 	};
 
-	navigateToArtist = (artistId: string): void => {
-		const {
-			animationsEnabled,
-			downloadService,
-			gridColumns,
-			imageCache,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
-		transport.getArtist(artistId).then((artist) => {
-			if (!artist) return;
-			this.setHeaderVisibility(false);
-			this.navigationController.push(
-				ArtistView,
-				{
-					animationsEnabled,
-					artist,
-					downloadService,
-					gridColumns,
-					imageCache,
-					isHeaderVisible: false,
-					modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-					navBarContext: this.viewModel.navBarContext,
-					onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-					onNavigationContext: this.viewModel.onNavigationContext,
-					paletteQueue,
-					playbackStore,
-					restoreHeaderOnDestroy: false,
-					toastService: this.viewModel.toastService,
-					transport,
-				},
-				{},
-				{ animated: animationsEnabled },
-			);
+	onCreate(): void {
+		backNavRouter.registerPage(this.navigationController);
+		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
+		this.viewModel.onRootDetailControllerReady(this.navigationController);
+		this.navigationController.addPageVisibilityObserver((visibility) => {
+			if (visibility === INavigatorPageVisibility.VISIBLE) {
+				this.navigationController.disableDismissalGesture()();
+			}
 		});
-	};
 
-	handleTrackLongPress = (track: Track): void => {
+		this.registerDisposable(
+			this.viewModel.downloadService.subscribe(() => {
+				this.syncDownloadState();
+			}),
+		);
+		this.syncDownloadState();
+		this.resetAndLoadPlaylistData();
+	}
+
+	onRender(): void {
+		const { downloadState, isHeaderVisible, isLoading, totalTrackCount, tracks } = this.state;
+		const { imageCache } = this.viewModel;
+
+		const entries: Array<TrackListEntry> = tracks.map((track) => ({
+			artworkSource: track.albumImageUrl ?? null,
+			id: track.id,
+			meta: track.artistName ?? '',
+			title: track.name,
+			track,
+		}));
+
+		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
+
+		<layout accessibilityLabel='playlist-view' style={styles.root}>
+			<view accessibilityId='playlist-view' style={styles.fullScreen}>
+				<scroll
+					onContentSizeChange={(size) => this.dragAutoScroller.setContentHeight(size.height)}
+					onScroll={(event) => this.dragAutoScroller.setOffset(event.y)}
+					ref={this.scrollRef}
+					style={createScrollStyle(isHeaderVisible)}
+				>
+					<DetailHeader
+						animationsEnabled={this.viewModel.animationsEnabled}
+						artworkCategory='playlist_image'
+						artworkSource={this.viewModel.playlist.imageUrl ?? null}
+						downloadState={downloadState}
+						fallbackText={this.viewModel.playlist.name}
+						modalSlot={this.viewModel.modalSlot}
+						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+						onDownload={this.handleDownloadTap}
+						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+						onRemoveDownload={this.handleRemoveDownloadTap}
+						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
+						subheaderLineOneLeft={
+							totalTrackCount != null
+								? `${totalTrackCount} tracks`
+								: tracks.length > 0
+									? `${tracks.length} tracks`
+									: null
+						}
+						subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
+						toastService={this.viewModel.toastService}
+					/>
+					{isLoading ? (
+						<LoadingView />
+					) : (
+						<TrackList
+							animationsEnabled={this.viewModel.animationsEnabled}
+							dragScroller={this.dragAutoScroller}
+							imageCache={imageCache}
+							onTrackLongPress={this.handleTrackLongPress}
+							onTrackReorder={this.handleTrackReorder}
+							onTrackSwipeRemove={this.handleTrackSwipeRemove}
+							onTrackTap={this.handleTrackTap}
+							rowIdentityPrefix='playlist-track-'
+							showDragHandles={true}
+							tracks={entries}
+						/>
+					)}
+				</scroll>
+			</view>
+		</layout>;
+	}
+
+	onViewModelUpdate(prevViewModel?: PlaylistViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+
+		if (
+			this.viewModel.transport !== prevViewModel.transport ||
+			this.viewModel.playlist.id !== prevViewModel.playlist.id
+		) {
+			this.resetAndLoadPlaylistData();
+		}
+	}
+
+	private currentPage = 0;
+	private hasMoreTracks = true;
+	private loadGeneration = 0;
+	private isLoadingPage = false;
+	private scrollRef = new ElementRef();
+	private dragAutoScroller = new ScrollDragAutoScroller(this.scrollRef);
+
+	private handleTrackLongPress = (track: Track): void => {
 		const {
 			animationsEnabled,
 			downloadService,
@@ -145,8 +190,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			playbackStore,
 			transport,
 		} = this.viewModel;
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		const modalSlot = this.viewModel.modalSlot;
 		const { albumId, artistId } = track;
+
 		openTrackContextMenu(track, modalSlot, {
 			animationsEnabled,
 			gridColumns,
@@ -168,10 +214,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 								downloadService,
 								gridColumns,
 								imageCache,
-								isHeaderVisible: false,
 								modalSlot,
-								navBarContext: this.viewModel.navBarContext,
-								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+								navigationController: this.navigationController,
+								onRootDetailControllerReady: () => {},
 								paletteQueue,
 								playbackStore,
 								restoreHeaderOnDestroy: false,
@@ -189,7 +234,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					: undefined,
 			onDismiss: () => {},
 			onPlaylistCreated: (playlist) => {
-				const { navBarContext, playlistEditService } = this.viewModel;
 				this.navigationController.push(
 					PlaylistView,
 					{
@@ -197,11 +241,13 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						downloadService,
 						gridColumns,
 						imageCache,
-						navBarContext,
+						modalSlot: this.viewModel.modalSlot,
+						navigationController: this.navigationController,
+						onRootDetailControllerReady: () => {},
 						paletteQueue,
 						playbackStore,
 						playlist,
-						playlistEditService,
+						playlistEditService: this.viewModel.playlistEditService,
 						toastService: this.viewModel.toastService,
 						transport,
 					},
@@ -216,7 +262,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	private closeModalSlot = (): void => {
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
+		const modalSlot = this.viewModel.modalSlot;
 		closeSlot(modalSlot);
 	};
 
@@ -260,7 +306,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			});
 	};
 
-	handleTrackSwipeRemove = (_trackId: string, entryIndex: number): void => {
+	private handleTrackSwipeRemove = (_trackId: string, entryIndex: number): void => {
 		const { playlistEditService } = this.viewModel;
 		if (!playlistEditService) return;
 		const trackToRemove = this.state.tracks[entryIndex];
@@ -268,7 +314,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			console.warn('[playlist] missing playlistItemId on remove, aborting');
 			return;
 		}
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const tracks = [...this.state.tracks];
 		const artistLogoUrls = [...this.state.artistLogoUrls];
 		const [removedTrack] = tracks.splice(entryIndex, 1);
@@ -280,7 +325,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			tracks,
 		});
 
-		modalSlot?.slotted(() => {
+		this.viewModel.modalSlot?.slotted(() => {
 			<Modal
 				animationsEnabled={this.viewModel.animationsEnabled}
 				body={Strings.removeFromPlaylistBody(removedTrack.name)}
@@ -298,9 +343,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const { playlist, playlistEditService } = this.viewModel;
 		const trackId = this.state.removedTrackPending?.track.playlistItemId;
 		if (!playlistEditService || !trackId) return;
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { removedTrackPending } = this.state;
-		closeSlot(modalSlot);
+
+		closeSlot(this.viewModel.modalSlot);
 		this.setState({ removedTrackPending: null });
 		void playlistEditService
 			.execute(
@@ -322,8 +367,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	private showEditErrorModal(operation: string, playlistName: string, errorMessage: string): void {
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		modalSlot?.slotted(() => {
+		this.viewModel.modalSlot?.slotted(() => {
 			<Modal
 				body={Strings.playlistEditErrorBody(operation, playlistName, errorMessage)}
 				onClose={this.closeModalSlot}
@@ -333,9 +377,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	}
 
 	private handleCancelRemoveFromPlaylist = (): void => {
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
 		const { removedTrackPending } = this.state;
-		closeSlot(modalSlot);
+		closeSlot(this.viewModel.modalSlot);
 
 		if (!removedTrackPending) return;
 
@@ -347,7 +390,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.setState({ artistLogoUrls, removedTrackPending: null, tracks });
 	};
 
-	handleDownloadTap = (): void => {
+	private handleDownloadTap = (): void => {
 		const { downloadService, playlist, transport } = this.viewModel;
 		const tracks = this.state.tracks
 			.map((track, i) => {
@@ -400,32 +443,32 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		});
 	};
 
-	handleRemoveDownloadTap = (): void => {
-		this.viewModel.downloadService.removePlaylistDownload(this.viewModel.playlist.id);
+	private handleHeaderAddToQueueTap = (): Promise<void> => {
+		this.viewModel.playbackStore.addToQueue(this.state.tracks);
+		return Promise.resolve();
 	};
 
-	handleHeaderPlayTap = (): void => {
+	private handleHeaderPlayTap = (): void => {
 		const { playbackStore } = this.viewModel;
 		const { artistLogoUrls, tracks } = this.state;
 		playbackStore.playWithArtistLogos(tracks, artistLogoUrls);
 	};
 
-	handleHeaderShuffleTap = (): void => {
-		const { playbackStore } = this.viewModel;
+	private handleHeaderShuffleTap = (): void => {
 		const { artistLogoUrls, tracks } = this.state;
 		const indices = shuffleArray(tracks.map((_, i) => i));
-		playbackStore.playWithArtistLogos(
+
+		this.viewModel.playbackStore.playWithArtistLogos(
 			indices.map((i) => tracks[i]),
 			indices.map((i) => artistLogoUrls[i] ?? null),
 		);
 	};
 
-	handleHeaderAddToQueueTap = (): Promise<void> => {
-		this.viewModel.playbackStore.addToQueue(this.state.tracks);
-		return Promise.resolve();
+	private handleRemoveDownloadTap = (): void => {
+		this.viewModel.downloadService.removePlaylistDownload(this.viewModel.playlist.id);
 	};
 
-	handleTrackTap = (trackId: string): void => {
+	private handleTrackTap = (trackId: string): void => {
 		const { playbackStore } = this.viewModel;
 		const { artistLogoUrls, tracks } = this.state;
 		const trackIndex = this.state.tracks.findIndex((track) => track.id === trackId);
@@ -435,14 +478,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 		playbackStore.playWithArtistLogos(tracks, artistLogoUrls, trackIndex);
 	};
-
-	private syncDownloadState(): void {
-		this.setState({
-			downloadState: this.viewModel.downloadService.getPlaylistDownloadState(
-				this.viewModel.playlist.id,
-			),
-		});
-	}
 
 	private resetAndLoadPlaylistData(): void {
 		this.loadGeneration += 1;
@@ -458,41 +493,12 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		void this.loadNextPage(this.loadGeneration);
 	}
 
-	onCreate(): void {
-		this.navigationController.addPageVisibilityObserver((visibility) => {
-			if (visibility === INavigatorPageVisibility.VISIBLE) {
-				this.navigationController.disableDismissalGesture()();
-			}
+	private syncDownloadState(): void {
+		this.setState({
+			downloadState: this.viewModel.downloadService.getPlaylistDownloadState(
+				this.viewModel.playlist.id,
+			),
 		});
-		this.viewModel.onHeaderVisibilityChange?.(false);
-		this.setHeaderVisibility(false);
-		this.registerDisposable(
-			this.viewModel.downloadService.subscribe(() => {
-				this.syncDownloadState();
-			}),
-		);
-		this.syncDownloadState();
-		this.resetAndLoadPlaylistData();
-	}
-
-	onViewModelUpdate(prevViewModel?: PlaylistViewModel): void {
-		if (!prevViewModel) {
-			return;
-		}
-
-		if (
-			this.viewModel.isHeaderVisible !== prevViewModel.isHeaderVisible &&
-			this.viewModel.isHeaderVisible !== this.state.isHeaderVisible
-		) {
-			this.viewModel.onHeaderVisibilityChange?.(this.state.isHeaderVisible);
-		}
-
-		if (
-			this.viewModel.transport !== prevViewModel.transport ||
-			this.viewModel.playlist.id !== prevViewModel.playlist.id
-		) {
-			this.resetAndLoadPlaylistData();
-		}
 	}
 
 	private async loadNextPage(generation = this.loadGeneration): Promise<void> {
@@ -554,123 +560,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
 		const { playlist, transport } = this.viewModel;
 		return transport.getTracksByPlaylistPage(playlist.id, page, TRACK_PAGE_SIZE);
-	}
-
-	private handleFooterNavTabTap = (tab: FooterTab): void => {
-		this.navigationController.pop();
-		this.viewModel.navBarContext?.onFooterTabTap(tab);
-	};
-
-	private handleHeaderNavTabTap = (tab: HeaderTab): void => {
-		this.viewModel.onHeaderVisibilityChange?.(true);
-		this.navigationController.pop();
-		this.viewModel.navBarContext?.header?.onTabTap(tab);
-	};
-
-	private handleHideHeaderGesture = (): void => {
-		this.setHeaderVisibility(false);
-	};
-
-	private handleRevealHeaderGesture = (): void => {
-		this.setHeaderVisibility(true);
-	};
-
-	onDestroy(): void {
-		if (this.viewModel.restoreHeaderOnDestroy ?? true) {
-			this.viewModel.onHeaderVisibilityChange?.(true);
-		}
-		this.viewModel.onExitFromSearchNavigation?.();
-		this.viewModel.onNavigationContext?.(null);
-	}
-
-	onRender(): void {
-		const { downloadState, isHeaderVisible, isLoading, totalTrackCount, tracks } = this.state;
-		const { imageCache } = this.viewModel;
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-
-		const entries: Array<TrackListEntry> = tracks.map((track) => ({
-			artworkSource: track.albumImageUrl ?? null,
-			id: track.id,
-			meta: track.artistName ?? '',
-			title: track.name,
-			track,
-		}));
-
-		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
-
-		<layout accessibilityLabel='playlist-view' style={styles.root}>
-			<view accessibilityId='playlist-view' style={styles.fullScreen}>
-				<scroll
-					onContentSizeChange={(size) => this.dragAutoScroller.setContentHeight(size.height)}
-					onScroll={(event) => this.dragAutoScroller.setOffset(event.y)}
-					ref={this.scrollRef}
-					style={createScrollStyle(isHeaderVisible)}
-				>
-					<DetailHeader
-						animationsEnabled={this.viewModel.animationsEnabled}
-						artworkCategory='playlist_image'
-						artworkSource={this.viewModel.playlist.imageUrl ?? null}
-						downloadState={downloadState}
-						fallbackText={this.viewModel.playlist.name}
-						modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
-						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
-						onDownload={this.handleDownloadTap}
-						onHideHeaderGesture={this.handleHideHeaderGesture}
-						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
-						onRemoveDownload={this.handleRemoveDownloadTap}
-						onRevealHeaderGesture={this.handleRevealHeaderGesture}
-						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
-						subheaderLineOneLeft={
-							totalTrackCount != null
-								? `${totalTrackCount} tracks`
-								: tracks.length > 0
-									? `${tracks.length} tracks`
-									: null
-						}
-						subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
-						toastService={this.viewModel.toastService}
-					/>
-					{isLoading ? (
-						<LoadingView />
-					) : (
-						<TrackList
-							animationsEnabled={this.viewModel.animationsEnabled}
-							dragScroller={this.dragAutoScroller}
-							imageCache={imageCache}
-							onTrackLongPress={this.handleTrackLongPress}
-							onTrackReorder={this.handleTrackReorder}
-							onTrackSwipeRemove={this.handleTrackSwipeRemove}
-							onTrackTap={this.handleTrackTap}
-							rowIdentityPrefix='playlist-track-'
-							showDragHandles={true}
-							tracks={entries}
-						/>
-					)}
-				</scroll>
-				{this.viewModel.navBarContext && (
-					<FooterNav
-						activeTab={this.viewModel.navBarContext.activeFooterTab}
-						barColors={this.viewModel.navBarContext.barColors}
-						downloadingCount={this.viewModel.navBarContext.downloadingCount}
-						onFooterTabTap={this.handleFooterNavTabTap}
-					/>
-				)}
-				{this.viewModel.navBarContext?.nowPlayingOverlaySlot && (
-					<DetachedSlotRenderer detachedSlot={this.viewModel.navBarContext.nowPlayingOverlaySlot} />
-				)}
-				{modalSlot && <DetachedSlotRenderer detachedSlot={modalSlot} />}
-				{this.viewModel.navBarContext?.header && isHeaderVisible && (
-					<LibraryHeaderNav
-						activeTab={this.viewModel.navBarContext.header.activeTab}
-						animationsEnabled={this.viewModel.navBarContext.header.animationsEnabled}
-						connectionMode={this.viewModel.navBarContext.header.connectionMode}
-						onAlphabetLetterTap={this.viewModel.navBarContext.header.onAlphabetLetterTap}
-						onRequestModeChange={this.viewModel.navBarContext.header.onRequestModeChange}
-						onTabTap={this.handleHeaderNavTabTap}
-					/>
-				)}
-			</view>
-		</layout>;
 	}
 }
 

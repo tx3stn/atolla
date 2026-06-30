@@ -21,13 +21,13 @@ import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { Floating } from '../components/Floating';
 import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
-import { AlbumsView } from '../views/V2AlbumsView';
-import { AlbumView } from '../views/V2AlbumView';
-import { ArtistsView } from '../views/V2ArtistsView';
-import { ArtistView } from '../views/V2ArtistView';
-import { GenresView } from '../views/V2GenresView';
-import { PlaylistsView } from '../views/V2PlaylistsView';
-import { PlaylistView } from '../views/V2PlaylistView';
+import { AlbumsView } from '../views/AlbumsView';
+import { AlbumView } from '../views/AlbumView';
+import { ArtistsView } from '../views/ArtistsView';
+import { ArtistView } from '../views/ArtistView';
+import { GenresView } from '../views/GenresView';
+import { PlaylistsView } from '../views/PlaylistsView';
+import { PlaylistView } from '../views/PlaylistView';
 
 export interface LibraryViewModel {
 	animationsEnabled: boolean;

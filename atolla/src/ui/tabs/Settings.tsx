@@ -1,5 +1,5 @@
 import { Component } from 'valdi_core/src/Component';
-import { SettingsView, type SettingsViewModel } from '../views/V2SettingsView';
+import { SettingsView, type SettingsViewModel } from '../views/SettingsView';
 
 export interface SettingsTabViewModel extends SettingsViewModel {}
 

@@ -18,10 +18,10 @@ import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { ConnectionMode } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
+import { AlbumView } from '../views/AlbumView';
+import { ArtistView } from '../views/ArtistView';
 import { HomeView } from '../views/HomeView';
-import { AlbumView } from '../views/V2AlbumView';
-import { ArtistView } from '../views/V2ArtistView';
-import { PlaylistView } from '../views/V2PlaylistView';
+import { PlaylistView } from '../views/PlaylistView';
 
 export interface HomeTabViewModel {
 	animationsEnabled: boolean;

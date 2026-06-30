@@ -1,14 +1,14 @@
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
-import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
+import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
-import type { FooterTab, HeaderTab } from '../../models/App';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
+import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -19,13 +19,10 @@ import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/Async';
 import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
-import { FooterNav } from '../components/FooterNav';
-import { LibraryHeaderNav } from '../components/LibraryHeaderNav';
 import { LoadingView } from '../components/LoadingView';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
-import type { NavBarContext } from '../NavBarContext';
 import { TRACK_PAGE_SIZE } from '../pagination/Grid';
 import { AlbumView } from './AlbumView';
 import { PlaylistView } from './PlaylistView';
@@ -36,14 +33,12 @@ export interface GenreViewModel {
 	genre: Genre;
 	gridColumns?: number;
 	imageCache: ImageCache;
-	isHeaderVisible?: boolean;
-	modalSlot?: DetachedSlot;
-	navBarContext?: NavBarContext;
-	onHeaderVisibilityChange?: (isVisible: boolean) => void;
+	modalSlot: DetachedSlot;
+	navigationController: NavigationController;
 	onNavigateToArtist?: (artistId: string) => void;
+	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
-	restoreHeaderOnDestroy?: boolean;
 	toastService: ToastService;
 	transport: Transport;
 }
@@ -61,19 +56,6 @@ interface GenreState {
 
 @NavigationPage(module)
 export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, GenreState> {
-	private currentPage = 0;
-	private hasMoreTracks = true;
-	private isLoadingPage = false;
-	private triggeredAutoLoadForTrackCount: number | null = null;
-	private readonly setHeaderVisibility = (isVisible: boolean): void => {
-		if (this.state.isHeaderVisible === isVisible) {
-			return;
-		}
-
-		this.setState({ isHeaderVisible: isVisible });
-		this.viewModel.onHeaderVisibilityChange?.(isVisible);
-	};
-
 	state: GenreState = {
 		artistLogoUrls: [],
 		downloadState: 'not_downloaded',
@@ -85,98 +67,119 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		tracks: [],
 	};
 
-	handleTrackLongPress = (track: Track): void => {
-		const { animationsEnabled, downloadService, imageCache, playbackStore, transport } =
-			this.viewModel;
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-		const { albumId, artistId } = track;
-		openTrackContextMenu(track, modalSlot, {
-			animationsEnabled,
-			gridColumns: this.viewModel.gridColumns ?? 2,
-			imageCache,
-			onAlbumTap: albumId
-				? () => {
-						const album: Album = {
-							artistId: track.artistId ?? '',
-							artistName: track.artistName ?? '',
-							id: albumId,
-							imageUrl: track.albumImageUrl,
-							name: track.albumName ?? '',
-						};
-						this.navigationController.push(
-							AlbumView,
-							{
-								album,
-								animationsEnabled,
-								downloadService,
-								gridColumns: 3,
-								imageCache,
-								isHeaderVisible: false,
-								modalSlot,
-								navBarContext: this.viewModel.navBarContext,
-								onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
-								playbackStore,
-								restoreHeaderOnDestroy: false,
-								toastService: this.viewModel.toastService,
-								transport,
-							},
-							{},
-							{ animated: animationsEnabled },
-						);
-					}
-				: undefined,
-			onArtistTap:
-				this.viewModel.onNavigateToArtist && artistId
-					? () => this.viewModel.onNavigateToArtist?.(artistId)
-					: undefined,
-			onDismiss: () => {},
-			onPlaylistCreated: (playlist) => {
-				this.navigationController.push(
-					PlaylistView,
-					{
-						animationsEnabled,
-						downloadService,
-						gridColumns: this.viewModel.gridColumns ?? 2,
-						imageCache,
-						navBarContext: this.viewModel.navBarContext,
-						paletteQueue: this.viewModel.paletteQueue,
-						playbackStore,
-						playlist,
-						toastService: this.viewModel.toastService,
-						transport,
-					},
-					{},
-					{ animated: animationsEnabled },
-				);
-			},
-			playbackStore,
-			toastService: this.viewModel.toastService,
-			transport,
+	onCreate(): void {
+		backNavRouter.registerPage(this.navigationController);
+		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
+		this.viewModel.onRootDetailControllerReady(this.navigationController);
+		this.navigationController.addPageVisibilityObserver((visibility) => {
+			if (visibility === INavigatorPageVisibility.VISIBLE) {
+				this.navigationController.disableDismissalGesture()();
+			}
 		});
-	};
-
-	handleHeaderPlayTap = (): void => {
-		const { playbackStore } = this.viewModel;
-		const { artistLogoUrls, tracks } = this.state;
-		playbackStore.playWithArtistLogos(tracks, artistLogoUrls);
-	};
-
-	handleHeaderShuffleTap = (): void => {
-		const { playbackStore } = this.viewModel;
-		const { artistLogoUrls, tracks } = this.state;
-		const indices = shuffleArray(tracks.map((_, i) => i));
-		playbackStore.playWithArtistLogos(
-			indices.map((i) => tracks[i]),
-			indices.map((i) => artistLogoUrls[i] ?? null),
+		this.registerDisposable(
+			this.viewModel.downloadService.subscribe(() => {
+				this.syncDownloadState();
+			}),
 		);
-	};
+		this.syncDownloadState();
+		void this.loadNextPage();
+	}
 
-	handleHeaderAddToQueueTap = (): Promise<void> => {
-		this.viewModel.playbackStore.addToQueue(this.state.tracks);
-		return Promise.resolve();
-	};
+	onRender(): void {
+		const {
+			downloadState,
+			isHeaderVisible,
+			isLoading,
+			isLoadingNextPage,
+			nextPageFailed,
+			totalTrackCount,
+			tracks,
+		} = this.state;
+		const { genre, imageCache, modalSlot } = this.viewModel;
 
-	handleDownloadTap = (): void => {
+		const entries: Array<TrackListEntry> = tracks.map((track) => ({
+			artworkSource: track.albumImageUrl ?? null,
+			id: track.id,
+			meta: track.artistName ?? '',
+			title: track.name,
+			track,
+		}));
+
+		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
+
+		<layout accessibilityLabel='genre-view' style={styles.root}>
+			<view style={styles.fullScreen}>
+				<scroll style={createScrollStyle(isHeaderVisible)}>
+					<DetailHeader
+						animationsEnabled={this.viewModel.animationsEnabled}
+						artworkCategory='album_art'
+						artworkSource={genre.imageUrl ?? null}
+						downloadState={downloadState}
+						fallbackText={genre.name}
+						modalSlot={modalSlot}
+						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+						onDownload={this.handleDownloadTap}
+						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+						onRemoveDownload={this.handleRemoveDownloadTap}
+						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
+						subheaderLineOneLeft={
+							totalTrackCount != null
+								? `${totalTrackCount} tracks`
+								: tracks.length > 0
+									? `${tracks.length} tracks`
+									: null
+						}
+						subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
+						toastService={this.viewModel.toastService}
+					/>
+					{isLoading ? (
+						<LoadingView />
+					) : (
+						<TrackList
+							imageCache={imageCache}
+							onTrackLongPress={this.handleTrackLongPress}
+							onTrackTap={this.handleTrackTap}
+							rowIdentityPrefix='genre-track-'
+							tracks={entries}
+						/>
+					)}
+					{!isLoading && this.hasMoreTracks && !nextPageFailed && (
+						<view
+							accessibilityId='genre-load-more-trigger'
+							accessibilityLabel='genre-load-more-trigger'
+							onLayout={this.handleLoadMoreTriggerLayout}
+							style={styles.loadMoreTrigger}
+						/>
+					)}
+					{isLoadingNextPage && <label style={styles.loadMoreLabel} value='Loading more...' />}
+					{nextPageFailed && (
+						<view
+							accessibilityId='genre-load-more-retry'
+							accessibilityLabel='genre-load-more-retry'
+							onTap={this.retryLoadMore}
+							style={styles.loadMoreRetryContainer}
+						>
+							<label style={styles.loadMoreRetryLabel} value='Failed to load more. Tap to retry.' />
+						</view>
+					)}
+				</scroll>
+			</view>
+		</layout>;
+	}
+
+	private currentPage = 0;
+	private hasMoreTracks = true;
+	private isLoadingPage = false;
+	private triggeredAutoLoadForTrackCount: number | null = null;
+
+	private fetchPage(
+		page: number,
+	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
+		const { genre, transport } = this.viewModel;
+		return transport.getTracksByGenrePage(genre.id, page, TRACK_PAGE_SIZE);
+	}
+
+	private handleDownloadTap = (): void => {
 		const { downloadService, genre, transport } = this.viewModel;
 		Promise.all(
 			this.state.tracks.map(async (track, i) => {
@@ -237,11 +240,121 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		});
 	};
 
-	handleRemoveDownloadTap = (): void => {
+	private handleHeaderAddToQueueTap = (): Promise<void> => {
+		this.viewModel.playbackStore.addToQueue(this.state.tracks);
+		return Promise.resolve();
+	};
+
+	private handleHeaderPlayTap = (): void => {
+		const { playbackStore } = this.viewModel;
+		const { artistLogoUrls, tracks } = this.state;
+		playbackStore.playWithArtistLogos(tracks, artistLogoUrls);
+	};
+
+	private handleHeaderShuffleTap = (): void => {
+		const { playbackStore } = this.viewModel;
+		const { artistLogoUrls, tracks } = this.state;
+		const indices = shuffleArray(tracks.map((_, i) => i));
+		playbackStore.playWithArtistLogos(
+			indices.map((i) => tracks[i]),
+			indices.map((i) => artistLogoUrls[i] ?? null),
+		);
+	};
+
+	private handleLoadMoreTriggerLayout = (): void => {
+		if (
+			this.isLoadingPage ||
+			this.state.nextPageFailed ||
+			!this.hasMoreTracks ||
+			this.state.isLoading
+		) {
+			return;
+		}
+
+		if (this.triggeredAutoLoadForTrackCount === this.state.tracks.length) {
+			return;
+		}
+
+		this.triggeredAutoLoadForTrackCount = this.state.tracks.length;
+		void this.loadNextPage();
+	};
+
+	private handleRemoveDownloadTap = (): void => {
 		this.viewModel.downloadService.removeGenreDownload(this.viewModel.genre.id);
 	};
 
-	handleTrackTap = (trackId: string): void => {
+	private handleTrackLongPress = (track: Track): void => {
+		const { animationsEnabled, downloadService, imageCache, modalSlot, playbackStore, transport } =
+			this.viewModel;
+		const { albumId, artistId } = track;
+
+		openTrackContextMenu(track, modalSlot, {
+			animationsEnabled,
+			gridColumns: this.viewModel.gridColumns ?? 2,
+			imageCache,
+			onAlbumTap: albumId
+				? () => {
+						const album: Album = {
+							artistId: track.artistId ?? '',
+							artistName: track.artistName ?? '',
+							id: albumId,
+							imageUrl: track.albumImageUrl,
+							name: track.albumName ?? '',
+						};
+						this.navigationController.push(
+							AlbumView,
+							{
+								album,
+								animationsEnabled,
+								downloadService,
+								gridColumns: 3,
+								imageCache,
+								modalSlot,
+								navigationController: this.navigationController,
+								onRootDetailControllerReady: () => {},
+								playbackStore,
+								restoreHeaderOnDestroy: false,
+								toastService: this.viewModel.toastService,
+								transport,
+							},
+							{},
+							{ animated: animationsEnabled },
+						);
+					}
+				: undefined,
+			onArtistTap:
+				this.viewModel.onNavigateToArtist && artistId
+					? () => this.viewModel.onNavigateToArtist?.(artistId)
+					: undefined,
+			onDismiss: () => {},
+			onPlaylistCreated: (playlist) => {
+				this.navigationController.push(
+					PlaylistView,
+					{
+						animationsEnabled,
+						downloadService,
+						gridColumns: this.viewModel.gridColumns ?? 2,
+						imageCache,
+						modalSlot,
+						navigationController: this.navigationController,
+						onRootDetailControllerReady: () => {},
+						paletteQueue: this.viewModel.paletteQueue,
+						playbackStore,
+						playlist,
+						toastService: this.viewModel.toastService,
+						transport,
+					},
+					{},
+					{ animated: animationsEnabled },
+				);
+			},
+			playbackStore,
+			toastService: this.viewModel.toastService,
+			transport,
+		});
+	};
+
+	private handleTrackTap = (trackId: string): void => {
 		const { playbackStore } = this.viewModel;
 		const { artistLogoUrls, tracks } = this.state;
 		const trackIndex = this.state.tracks.findIndex((track) => track.id === trackId);
@@ -251,42 +364,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 		playbackStore.playWithArtistLogos(tracks, artistLogoUrls, trackIndex);
 	};
-
-	private syncDownloadState(): void {
-		this.setState({
-			downloadState: this.viewModel.downloadService.getGenreDownloadState(this.viewModel.genre.id),
-		});
-	}
-
-	onCreate(): void {
-		this.navigationController.addPageVisibilityObserver((visibility) => {
-			if (visibility === INavigatorPageVisibility.VISIBLE) {
-				this.navigationController.disableDismissalGesture()();
-			}
-		});
-		this.viewModel.onHeaderVisibilityChange?.(false);
-		this.setHeaderVisibility(false);
-		this.registerDisposable(
-			this.viewModel.downloadService.subscribe(() => {
-				this.syncDownloadState();
-			}),
-		);
-		this.syncDownloadState();
-		void this.loadNextPage();
-	}
-
-	onViewModelUpdate(prevViewModel?: GenreViewModel): void {
-		if (!prevViewModel) {
-			return;
-		}
-
-		if (
-			this.viewModel.isHeaderVisible !== prevViewModel.isHeaderVisible &&
-			this.viewModel.isHeaderVisible !== this.state.isHeaderVisible
-		) {
-			this.viewModel.onHeaderVisibilityChange?.(this.state.isHeaderVisible);
-		}
-	}
 
 	private async loadNextPage(): Promise<void> {
 		if (this.isDestroyed() || this.isLoadingPage || !this.hasMoreTracks) {
@@ -339,166 +416,15 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		}
 	}
 
-	private fetchPage(
-		page: number,
-	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
-		const { genre, transport } = this.viewModel;
-		return transport.getTracksByGenrePage(genre.id, page, TRACK_PAGE_SIZE);
-	}
-
-	private handleLoadMoreTriggerLayout = (): void => {
-		if (
-			this.isLoadingPage ||
-			this.state.nextPageFailed ||
-			!this.hasMoreTracks ||
-			this.state.isLoading
-		) {
-			return;
-		}
-
-		if (this.triggeredAutoLoadForTrackCount === this.state.tracks.length) {
-			return;
-		}
-
-		this.triggeredAutoLoadForTrackCount = this.state.tracks.length;
-		void this.loadNextPage();
-	};
-
-	retryLoadMore = (): void => {
+	private retryLoadMore = (): void => {
 		this.triggeredAutoLoadForTrackCount = null;
 		void this.loadNextPage();
 	};
 
-	private handleFooterNavTabTap = (tab: FooterTab): void => {
-		this.navigationController.pop();
-		this.viewModel.navBarContext?.onFooterTabTap(tab);
-	};
-
-	private handleHeaderNavTabTap = (tab: HeaderTab): void => {
-		this.viewModel.onHeaderVisibilityChange?.(true);
-		this.navigationController.pop();
-		this.viewModel.navBarContext?.header?.onTabTap(tab);
-	};
-
-	private handleHideHeaderGesture = (): void => {
-		this.setHeaderVisibility(false);
-	};
-
-	private handleRevealHeaderGesture = (): void => {
-		this.setHeaderVisibility(true);
-	};
-
-	onDestroy(): void {
-		if (this.viewModel.restoreHeaderOnDestroy ?? true) {
-			this.viewModel.onHeaderVisibilityChange?.(true);
-		}
-	}
-
-	onRender(): void {
-		const {
-			downloadState,
-			isHeaderVisible,
-			isLoading,
-			isLoadingNextPage,
-			nextPageFailed,
-			totalTrackCount,
-			tracks,
-		} = this.state;
-		const { genre, imageCache } = this.viewModel;
-		const modalSlot = this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot;
-
-		const entries: Array<TrackListEntry> = tracks.map((track) => ({
-			artworkSource: track.albumImageUrl ?? null,
-			id: track.id,
-			meta: track.artistName ?? '',
-			title: track.name,
-			track,
-		}));
-
-		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
-
-		<layout accessibilityLabel='genre-view' style={styles.root}>
-			<view style={styles.fullScreen}>
-				<scroll style={createScrollStyle(isHeaderVisible)}>
-					<DetailHeader
-						animationsEnabled={this.viewModel.animationsEnabled}
-						artworkCategory='album_art'
-						artworkSource={genre.imageUrl ?? null}
-						downloadState={downloadState}
-						fallbackText={genre.name}
-						modalSlot={this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot}
-						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
-						onDownload={this.handleDownloadTap}
-						onHideHeaderGesture={this.handleHideHeaderGesture}
-						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
-						onRemoveDownload={this.handleRemoveDownloadTap}
-						onRevealHeaderGesture={this.handleRevealHeaderGesture}
-						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
-						subheaderLineOneLeft={
-							totalTrackCount != null
-								? `${totalTrackCount} tracks`
-								: tracks.length > 0
-									? `${tracks.length} tracks`
-									: null
-						}
-						subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
-						toastService={this.viewModel.toastService}
-					/>
-					{isLoading ? (
-						<LoadingView />
-					) : (
-						<TrackList
-							imageCache={imageCache}
-							onTrackLongPress={this.handleTrackLongPress}
-							onTrackTap={this.handleTrackTap}
-							rowIdentityPrefix='genre-track-'
-							tracks={entries}
-						/>
-					)}
-					{!isLoading && this.hasMoreTracks && !nextPageFailed && (
-						<view
-							accessibilityId='genre-load-more-trigger'
-							accessibilityLabel='genre-load-more-trigger'
-							onLayout={this.handleLoadMoreTriggerLayout}
-							style={styles.loadMoreTrigger}
-						/>
-					)}
-					{isLoadingNextPage && <label style={styles.loadMoreLabel} value='Loading more...' />}
-					{nextPageFailed && (
-						<view
-							accessibilityId='genre-load-more-retry'
-							accessibilityLabel='genre-load-more-retry'
-							onTap={this.retryLoadMore}
-							style={styles.loadMoreRetryContainer}
-						>
-							<label style={styles.loadMoreRetryLabel} value='Failed to load more. Tap to retry.' />
-						</view>
-					)}
-				</scroll>
-				{this.viewModel.navBarContext && (
-					<FooterNav
-						activeTab={this.viewModel.navBarContext.activeFooterTab}
-						barColors={this.viewModel.navBarContext.barColors}
-						downloadingCount={this.viewModel.navBarContext.downloadingCount}
-						onFooterTabTap={this.handleFooterNavTabTap}
-					/>
-				)}
-				{this.viewModel.navBarContext?.nowPlayingOverlaySlot && (
-					<DetachedSlotRenderer detachedSlot={this.viewModel.navBarContext.nowPlayingOverlaySlot} />
-				)}
-				{modalSlot && <DetachedSlotRenderer detachedSlot={modalSlot} />}
-				{this.viewModel.navBarContext?.header && isHeaderVisible && (
-					<LibraryHeaderNav
-						activeTab={this.viewModel.navBarContext.header.activeTab}
-						animationsEnabled={this.viewModel.navBarContext.header.animationsEnabled}
-						connectionMode={this.viewModel.navBarContext.header.connectionMode}
-						onAlphabetLetterTap={this.viewModel.navBarContext.header.onAlphabetLetterTap}
-						onRequestModeChange={this.viewModel.navBarContext.header.onRequestModeChange}
-						onTabTap={this.handleHeaderNavTabTap}
-					/>
-				)}
-			</view>
-		</layout>;
+	private syncDownloadState(): void {
+		this.setState({
+			downloadState: this.viewModel.downloadService.getGenreDownloadState(this.viewModel.genre.id),
+		});
 	}
 }
 

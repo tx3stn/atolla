@@ -40,7 +40,13 @@ describe('PlaylistView', () => {
 
 		const component = driver.renderComponent(
 			PlaylistView,
-			{ downloadService, playbackStore, playlist, transport },
+			{
+				downloadService,
+				onRootDetailControllerReady: () => {},
+				playbackStore,
+				playlist,
+				transport,
+			},
 			{ navigator: mockNavigator },
 		);
 		component.setState({ isLoading: false, tracks });
@@ -66,7 +72,13 @@ describe('PlaylistView', () => {
 
 		const component = driver.renderComponent(
 			PlaylistView,
-			{ downloadService, playbackStore, playlist, transport },
+			{
+				downloadService,
+				onRootDetailControllerReady: () => {},
+				playbackStore,
+				playlist,
+				transport,
+			},
 			{ navigator: mockNavigator },
 		);
 		component.setState({

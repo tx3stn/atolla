@@ -21,10 +21,8 @@ import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
-import type { NavBarContext } from '../NavBarContext';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import type { LibraryNavContext } from './LibraryView';
 import { PlaylistView } from './PlaylistView';
 import { sortPlaylists } from './sort/Playlists';
 
@@ -34,12 +32,10 @@ export interface PlaylistsViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	letterFilter?: string | null;
-	modalSlot?: DetachedSlot;
-	navBarContext?: NavBarContext;
+	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
-	onHeaderVisibilityChange?: (isVisible: boolean) => void;
 	onNavigateToArtist?: (artistId: string) => void;
-	onNavigationContext?: (context: LibraryNavContext | null) => void;
+	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlistEditService: PlaylistEditService;
@@ -65,20 +61,6 @@ interface PlaylistPageResult {
 }
 
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
-	private readonly pagedGridController = createPagedGridController<Playlist>({
-		fetchPage: (page) => this.fetchPage(page),
-		isDestroyed: () => this.isDestroyed(),
-		onPageLoaded: (items) => this.preloadPlaylistImages(items),
-		setState: (patch) => {
-			this.setState({
-				hasMore: patch.hasMore ?? this.state.hasMore,
-				isLoadingNextPage: patch.isLoadingNextPage ?? this.state.isLoadingNextPage,
-				nextPageFailed: patch.nextPageFailed ?? this.state.nextPageFailed,
-				page: patch.page ?? this.state.page,
-				playlists: patch.items ?? this.state.playlists,
-			});
-		},
-	});
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 
 	state: PlaylistsState = {
@@ -115,6 +97,41 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		void this.loadInitialPages();
 	}
 
+	handlePlaylistCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const playlist = this.state.playlists.find((candidate) => candidate.id === card.id);
+		if (!playlist) return;
+
+		this.setState({ contextMenuCard: { kind: 'playlist', playlist } });
+		openCardContextMenu(this.viewModel.modalSlot, {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			card: { kind: 'playlist', playlist },
+			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
+			onCreatePlaylist: this.handleCreatePlaylistRequest,
+			onDismiss: this.handleContextMenuDismiss,
+			onEntityTap: this.handleContextMenuEntityTap,
+			playbackStore: this.viewModel.playbackStore,
+			transport: this.viewModel.transport,
+		});
+	};
+
+	private readonly pagedGridController = createPagedGridController<Playlist>({
+		fetchPage: (page) => this.fetchPage(page),
+		isDestroyed: () => this.isDestroyed(),
+		onPageLoaded: (items) => this.preloadPlaylistImages(items),
+		setState: (patch) => {
+			this.setState({
+				hasMore: patch.hasMore ?? this.state.hasMore,
+				isLoadingNextPage: patch.isLoadingNextPage ?? this.state.isLoadingNextPage,
+				nextPageFailed: patch.nextPageFailed ?? this.state.nextPageFailed,
+				page: patch.page ?? this.state.page,
+				playlists: patch.items ?? this.state.playlists,
+			});
+		},
+	});
+
 	private async loadInitialPages(): Promise<void> {
 		await this.pagedGridController.loadNextPage();
 	}
@@ -139,34 +156,15 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		});
 	}
 
-	retryLoadMore(): void {
+	private loadMore(): void {
 		void this.pagedGridController.loadNextPage();
 	}
 
-	loadMore(): void {
+	private retryLoadMore(): void {
 		void this.pagedGridController.loadNextPage();
 	}
 
-	handlePlaylistCardLongPress = (card: {
-		id: string;
-		kind: 'album' | 'artist' | 'genre' | 'playlist';
-	}): void => {
-		const playlist = this.state.playlists.find((candidate) => candidate.id === card.id);
-		if (!playlist) return;
-		this.setState({ contextMenuCard: { kind: 'playlist', playlist } });
-		openCardContextMenu(this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot, {
-			animationsEnabled: this.viewModel.animationsEnabled,
-			card: { kind: 'playlist', playlist },
-			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
-			onCreatePlaylist: this.handleCreatePlaylistRequest,
-			onDismiss: this.handleContextMenuDismiss,
-			onEntityTap: this.handleContextMenuEntityTap,
-			playbackStore: this.viewModel.playbackStore,
-			transport: this.viewModel.transport,
-		});
-	};
-
-	handleContextMenuDismiss = (toastMessage?: string): void => {
+	private handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuCard: null });
 		if (toastMessage) {
 			this.viewModel.toastService.show(toastMessage);
@@ -189,26 +187,24 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		const {
 			animationsEnabled,
 			imageCache,
-			navigationController,
+			modalSlot,
 			onNavigateToArtist,
 			paletteQueue,
 			playbackStore,
 			transport,
 		} = this.viewModel;
-		this.viewModel.onNavigationContext?.({ kind: 'playlist', playlist });
-		this.viewModel.onHeaderVisibilityChange?.(false);
-		navigationController.push(
+
+		this.viewModel.navigationController.push(
 			PlaylistView,
 			{
 				animationsEnabled,
 				downloadService: this.viewModel.downloadService,
 				gridColumns: this.viewModel.gridColumns,
 				imageCache,
-				modalSlot: this.viewModel.navBarContext?.modalSlot ?? this.viewModel.modalSlot,
-				navBarContext: this.viewModel.navBarContext,
-				onHeaderVisibilityChange: this.viewModel.onHeaderVisibilityChange,
+				modalSlot,
+				navigationController: this.viewModel.navigationController,
 				onNavigateToArtist,
-				onNavigationContext: this.viewModel.onNavigationContext,
+				onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 				paletteQueue,
 				playbackStore,
 				playlist,
