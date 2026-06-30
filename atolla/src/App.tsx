@@ -1,14 +1,9 @@
 import { PersistentStore } from 'persistence/src/PersistentStore';
-import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
-import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { Device } from 'valdi_core/src/Device';
 import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
 import { Locale } from 'valdi_core/src/localization/Locale';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
-import type { NavigationController } from 'valdi_navigation/src/NavigationController';
-import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
 import { AuthedApp } from './AuthedApp';
@@ -21,312 +16,128 @@ import {
 	shareAtollaTextFile,
 	writeAtollaDebugLog,
 } from './DebugLoggerNative';
-import { AuthErrors } from './errors/AuthErrors';
 import { ensureAtollaHapticsBootstrap } from './HapticsBootstrap';
 import {
-	clearAtollaNativeCacheCategories,
 	ensureAtollaImageLoaderBootstrap,
-	preloadAtollaImages,
-	requestAtollaImageLoaderDiskCacheStats,
-	setAtollaImageCachedObserver,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
-import type { Album } from './models/Album';
-import { type FooterTab, FooterTabs, type HeaderTab, HeaderTabs } from './models/App';
-import type { Artist } from './models/Artist';
-import type { Playlist } from './models/Playlist';
-import type { Track } from './models/Track';
 import Strings from './Strings';
-import { ArtworkPaletteService } from './services/ArtworkPaletteService';
+import { AssetCache } from './services/AssetCache';
+import { Connectivity } from './services/Connectivity';
 import { DebugLogger } from './services/DebugLogger';
 import {
 	DownloadNativeWorkerEntryPoint,
 	type IDownloadNativeWorker,
 } from './services/DownloadNativeWorker';
 import { DownloadService } from './services/DownloadService';
-import { type ClearCacheSelection, ImageCache, type ImageCategory } from './services/ImageCache';
-import { buildImageSource } from './services/ImageSource';
-import { type AuthSession, JellyfinAuthService } from './services/JellyfinAuthService';
+import { ImageCache } from './services/ImageCache';
+import { JellyfinAuthService } from './services/JellyfinAuthService';
 import { NavCoordinator } from './services/NavCoordinator';
-import {
-	buildOfflineDiagnosticsReport,
-	serializeOfflineDiagnostics,
-} from './services/OfflineDiagnostics';
-import { OnThisDayService } from './services/OnThisDayService';
-import { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
-import { PersistentPaletteStore } from './services/PersistentPaletteStore';
-import { PersistentWaveformStore } from './services/PersistentWaveformStore';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import { PlaylistCreateService } from './services/PlaylistCreateService';
 import { type PlaylistEditError, PlaylistEditService } from './services/PlaylistEditService';
-import { RecentlyAddedService } from './services/RecentlyAddedService';
-import { ReconnectSyncCoordinator, type SyncProgress } from './services/ReconnectSyncCoordinator';
-import { ScrobbleService } from './services/ScrobbleService';
+import type { SyncProgress } from './services/ReconnectSyncCoordinator';
 import { SessionController } from './services/SessionController';
+import { SessionManager } from './services/SessionManager';
 import { ToastService } from './services/ToastService';
 import { TrackPlaybackNotificationAdapter } from './services/TrackPlaybackNotificationAdapter';
 import { TrackSourceNativeAdapter } from './services/TrackSourceNativeAdapter';
-import { WaveformGenerationQueue } from './services/WaveformGenerationQueue';
-import { WaveformRenderCache } from './services/WaveformRenderCache';
-import { WaveformService } from './services/WaveformService';
-import { WriteBehindPaletteStore } from './services/WriteBehindPaletteStore';
+import { UserScope } from './services/UserScope';
 import { BarColorStore } from './stores/BarColor';
 import { InMemoryAuthStore, JellyfinAuthStore } from './stores/JellyfinAuthStore';
-import type { KeyValueStore } from './stores/KeyValueStore';
 import { PlaybackStore } from './stores/Playback';
+import { DEFAULT_LANGUAGE, type LanguageCode, Preferences } from './stores/Preferences';
 import {
-	DEFAULT_GRID_COLUMNS,
-	DEFAULT_IMAGE_CACHE_MAX_BYTES,
-	DEFAULT_LANGUAGE,
-	DEFAULT_TRACK_CACHE_MAX_TRACKS,
-	type LanguageCode,
-	Preferences,
-} from './stores/Preferences';
-import { RecentlyPlayedStore } from './stores/RecentlyPlayed';
-import { SearchStore } from './stores/Search';
-import {
-	clearAtollaTrackCache,
-	getAtollaAudioPlaybackCurrentTrackId,
-	getAtollaAudioPlaybackIsActive,
-	getAtollaAudioPlaybackPositionMs,
-	getAtollaCachedTrackFileUrl,
 	getAtollaDeviceUserScopeKey,
 	getAtollaDownloadedCacheTotalSizeBytes,
 	getAtollaDownloadedTrackFileUrl,
-	getAtollaTrackCacheEntryCount,
 	setAtollaTrackCacheMaxTracks,
 } from './TrackPlaybackNative';
 import { theme } from './theme';
-import { LiveTransport } from './transports/Live';
-import { MockTransport } from './transports/Mock';
 import { type ConnectionMode, ConnectionModes } from './transports/Model';
-import { OfflineTransport } from './transports/Offline';
-import type { Transport } from './transports/Transport';
 import { BootSplash } from './ui/components/BootSplash';
-import { ErrorBoundary } from './ui/components/ErrorBoundary';
-import { FooterNav } from './ui/components/FooterNav';
-import { GaplessPlayer } from './ui/components/GaplessPlayer';
-import { LibraryHeaderNav } from './ui/components/LibraryHeaderNav';
-import { MockPlayer } from './ui/components/MockPlayer';
 import { Modal } from './ui/components/Modal';
-import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { SyncStatusBanner } from './ui/components/SyncStatusBanner';
 import { Toast } from './ui/components/Toast';
 import { closeSlot, EMPTY_SLOT_RENDERER } from './ui/flows/ModalSlotFlow';
-import type { NavBarContext } from './ui/NavBarContext';
-import type { HomeTabViewModel } from './ui/tabs/Home';
-import type { LibraryViewModel } from './ui/tabs/Library';
-import { AlbumView } from './ui/views/AlbumView';
-import { ArtistView } from './ui/views/ArtistView';
 import { ConnectionView } from './ui/views/ConnectionView';
-import { GenreView } from './ui/views/GenreView';
-import { HomeView } from './ui/views/HomeView';
-import { type LibraryNavContext, LibraryView } from './ui/views/LibraryView';
-import { PlaylistView } from './ui/views/PlaylistView';
-import {
-	type SearchLibraryNavigationTarget,
-	SearchView,
-	type SearchViewModel,
-} from './ui/views/SearchView';
-import { SettingsView } from './ui/views/SettingsView';
-import type { SettingsViewModel } from './ui/views/V2SettingsView';
 import { fireAndForget } from './utils/Async';
-import { version } from './version';
 
-export type AppViewModel = Record<string, never>;
-
-// safety-net wait for the native "image cached" observer: bounds the rare case where
-// the observer never fires (e.g. native predating the cache-hit notification) before the
-// download is allowed to complete regardless
-const IMAGE_CACHE_RESOLVE_TIMEOUT_MS = 6000;
-
-// DEV HARNESS: when true, mount the new AuthedApp shell (all tabs, footer, now-playing) instead of
-// the real app, so the new nav can be built/tested before it's cut over. Flip to false to run normally.
-const SPIKE_LIBRARY_V2 = true;
+const BOOTSTRAP_TIMEOUT_MS = 5000;
+const MINIMUM_BOOT_SPLASH_MS = 750;
 
 interface AppState {
-	activeFooterTab: FooterTab;
-	activeLibraryTab: HeaderTab;
-	animationsEnabled: boolean;
 	authErrorMessage: string | null;
 	connectionMode: ConnectionMode;
-	debugExportPath: string | null;
-	debugLogFilePath: string | null;
-	debugLoggingEnabled: boolean;
 	downloadedSizeBytes: number | null;
 	downloadedTrackCount: number;
 	downloadingCount: number;
-	gridColumns: number;
-	imageCacheMaxBytes: number;
-	imageCategoryCounts: Record<string, number>;
 	isAuthenticating: boolean;
 	isAuthRequired: boolean;
 	isBootstrapped: boolean;
-	isHomeHeaderVisible: boolean;
-	isHomeNavigationMounted: boolean;
-	isLibraryHeaderVisible: boolean;
-	isSettingsMounted: boolean;
-	jellyfinClientDeviceIdOverride: string;
-	language: LanguageCode;
-	libraryLetterFilter: string | null;
-	libraryResetNonce: number;
-	nativeImageCacheDiskBytes: number;
-	nativeImageCacheDiskCount: number;
-	nowPlayingCollapseSignal: number;
-	offlineStatusExportPath: string | null;
 	quickConnectCode: string | null;
-	searchFocusSignal: number;
 	serverName: string;
 	serverUrlPrefill: string;
 	syncProgress: SyncProgress | null;
-	trackCacheMaxTracks: number;
-	trackPlaybackCachedCount: number;
 	version: number;
 }
 
-export class App extends StatefulComponent<AppViewModel, AppState> {
-	private closeModalSlot = (): void => {
-		closeSlot(this.modalSlot);
-	};
-	private playbackStore = new PlaybackStore();
-	private playbackOrchestrator = new PlaybackOrchestrator({
-		getAccessToken: () => this.currentAccessToken,
-		getAudioFileUrl: (trackId) => this.getAudioPathForWaveform(trackId),
-		getTrackCacheUrl: (trackId) => this.transport.getTrackCacheUrl(trackId),
-		getTransportToken: () => this.transport,
-		isOfflinePlaybackMode: () => this.state.connectionMode === ConnectionModes.offline,
-		notification: new TrackPlaybackNotificationAdapter(),
-		onPlaybackTick: () => {
-			this.playbackOrchestrator.reconcilePlaybackState();
-			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
-			this.setState({ version: this.state.version + 1 });
-		},
-		playbackStore: this.playbackStore,
-		prewarmArtwork: (imageUrl) => this.prewarmNowPlayingArtwork(imageUrl),
-		refreshTrackCachedCount: () => this.refreshTrackCachedCount(),
-		requestOverlayRerender: () => {
-			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
-			this.setState({ version: this.state.version + 1 });
-		},
-		requestRerender: () => this.setState({ version: this.state.version + 1 }),
-		resolveArtistLogoUrl: (artistId) => this.transport.getArtistLogoUrl(artistId),
-		showPlaybackToast: (message) => this.showPlaybackToast(message),
-		trackSourceNative: new TrackSourceNativeAdapter(),
-	});
-	private barColors = new BarColorStore();
+export class App extends StatefulComponent<Record<string, never>, AppState> {
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
 	private readonly defaultJellyfinClientDeviceId = `atolla-${this.deviceUserScopeKey}`;
-	private jellyfinClientDeviceIdOverride = '';
-	private currentLibraryNavContext: LibraryNavContext | null = null;
+	private authService = this.createAuthService();
 	private preferences = new Preferences(
 		new PersistentStore('atolla/preferences', { deviceGlobal: true }),
 	);
-	private authService = this.createAuthService();
-
-	private createAuthService(): JellyfinAuthService {
-		const authStoreNamespace = `atolla/device-user/${this.deviceUserScopeKey}/jellyfin_auth`;
-		const clientDeviceId = this.getEffectiveJellyfinClientDeviceId();
-		const sharedOptions = { clientDeviceId };
-		try {
-			return new JellyfinAuthService({
-				...sharedOptions,
-				store: new JellyfinAuthStore(
-					new PersistentStore(authStoreNamespace, {
-						deviceGlobal: true,
-						enableEncryption: true,
-					}),
-				),
-			});
-		} catch {
-			return new JellyfinAuthService({
-				...sharedOptions,
-				store: new InMemoryAuthStore(),
-			});
-		}
-	}
-
-	private resolveDeviceUserScopeKey(): string {
-		try {
-			const raw = getAtollaDeviceUserScopeKey();
-			if (typeof raw !== 'string') {
-				return 'unknown';
-			}
-
-			const trimmed = raw.trim();
-			if (trimmed.length === 0) {
-				return 'unknown';
-			}
-
-			return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
-		} catch {
-			return 'unknown';
-		}
-	}
-
-	private normalizeJellyfinClientDeviceIdOverride(value: string): string {
-		const trimmed = value.trim();
-		if (trimmed.length === 0) {
-			return '';
-		}
-
-		return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
-	}
-
-	private getEffectiveJellyfinClientDeviceId(): string {
-		return this.jellyfinClientDeviceIdOverride || this.defaultJellyfinClientDeviceId;
-	}
-
-	// device-id override effect for the V2 settings flow: the slim view persists the value to
-	// Preferences itself, then asks the session controller to apply it (auth + transport reload).
-	// temporary bridge while App is still the live shell — moves to V2App with the rest of the wiring
-	private applyJellyfinDeviceIdOverride(value: string): void {
-		this.jellyfinClientDeviceIdOverride = value;
-		this.authService.setClientDeviceId(this.getEffectiveJellyfinClientDeviceId());
-		if (this.state.connectionMode !== ConnectionModes.online) {
-			return;
-		}
-		void (async () => {
-			const session = await this.authService.loadSession();
-			if (session == null) {
-				return;
-			}
-			this.currentAccessToken = session.accessToken;
-			this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId, {
-				clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
-			});
-		})();
-	}
-
-	private searchStore!: SearchStore;
-	private nowPlayingQueueStore?: KeyValueStore;
-	private homeAlbumsStore?: KeyValueStore;
+	private barColors = new BarColorStore();
+	private navCoordinator = new NavCoordinator();
+	private sessionController = new SessionController();
+	private toastService = new ToastService();
+	private readonly imageCache = new ImageCache({});
+	private modalSlot = new DetachedSlot();
+	private toastSlot = new DetachedSlot();
+	private readonly diagnosticsStore = new PersistentStore('atolla/diagnostics', {
+		deviceGlobal: true,
+	});
 	private readonly playlistCreateService = new PlaylistCreateService(
 		new PersistentStore('atolla/playlist_creates', { deviceGlobal: true }),
 	);
 	private readonly playlistEditService = new PlaylistEditService(
 		new PersistentStore('atolla/playlist_edits', { deviceGlobal: true }),
 	);
-	private readonly diagnosticsStore = new PersistentStore('atolla/diagnostics', {
-		deviceGlobal: true,
+	private playbackStore = new PlaybackStore();
+	private playbackOrchestrator: PlaybackOrchestrator = new PlaybackOrchestrator({
+		getAccessToken: () => this.sessionManager.getAccessToken(),
+		getAudioFileUrl: (trackId) => this.assetCache.getAudioPathForWaveform(trackId),
+		getTrackCacheUrl: (trackId) => this.connectivity.getTransport().getTrackCacheUrl(trackId),
+		getTransportToken: () => this.connectivity.getTransport(),
+		isOfflinePlaybackMode: () => this.connectivity.getMode() === ConnectionModes.offline,
+		notification: new TrackPlaybackNotificationAdapter(),
+		onPlaybackTick: () => {
+			this.playbackOrchestrator.reconcilePlaybackState();
+			this.requestRerender();
+		},
+		playbackStore: this.playbackStore,
+		prewarmArtwork: (imageUrl) => this.assetCache.prewarmNowPlayingArtwork(imageUrl),
+		refreshTrackCachedCount: () => {},
+		requestOverlayRerender: () => this.requestRerender(),
+		requestRerender: () => this.requestRerender(),
+		resolveArtistLogoUrl: (artistId) => this.connectivity.getTransport().getArtistLogoUrl(artistId),
+		showPlaybackToast: (message) => this.toastService.show(message),
+		trackSourceNative: new TrackSourceNativeAdapter(),
 	});
-	private transport!: Transport;
-	private reconnectSync?: ReconnectSyncCoordinator;
-	private onThisDayService?: OnThisDayService;
-	private recentlyAddedService?: RecentlyAddedService;
-	private lastSyncEditErrors: Array<PlaylistEditError> = [];
-	private syncBannerTimer?: ReturnType<typeof setTimeout>;
-	private currentAccessToken = '';
-	private paletteService!: ArtworkPaletteService;
-	private navCoordinator = new NavCoordinator();
-	private sessionController = new SessionController();
 	private downloadWorkerClient: IWorkerServiceClient<IDownloadNativeWorker> = startWorkerService(
 		DownloadNativeWorkerEntryPoint,
 		[],
 	);
 	private downloadService = new DownloadService({
-		cacheImage: (url, category) => this.cacheImageAsset(url, category),
+		cacheImage: (url, category) => this.assetCache.cacheImageAsset(url, category),
 		cacheTrack: (trackId, url) =>
-			this.downloadWorkerClient.api.cacheDownloadedTrack(trackId, url, this.currentAccessToken),
+			this.downloadWorkerClient.api.cacheDownloadedTrack(
+				trackId,
+				url,
+				this.sessionManager.getAccessToken(),
+			),
 		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
 		onTrackDownloaded: (trackId) => this.playbackOrchestrator.handleTrackCached(trackId),
@@ -334,78 +145,61 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		removeTracks: (trackIds) => this.downloadWorkerClient.api.removeDownloadedTracks(trackIds),
 		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
 	});
-	// resolvers waiting on the native "image cached" observer, keyed by category + stripped url
-	private readonly pendingImageCacheResolvers = new Map<string, Array<() => void>>();
-	private paletteQueue!: PaletteGenerationQueue;
-	private unsubscribePalette?: () => void;
-	private unsubscribeToast?: () => void;
-	private nativeCacheStatsInterval?: ReturnType<typeof setInterval>;
-	private homeNavigationController?: NavigationController;
-	private homeNavigationNonce = 0;
-	private settingsNavigationNonce = 0;
-	private libraryNavigationController?: NavigationController;
-	private pendingArtistId: string | null = null;
-	private pendingArtistFallbackName: string = 'Unknown Artist';
-	private pendingArtistFallbackLogoUrl: string | null = null;
-	private isResolvingArtistNavigation = false;
-	private pendingAlbum: Album | null = null;
-	private isResolvingAlbumNavigation = false;
-	private pendingPlaylist: Playlist | null = null;
-	private pendingSearchNavigation: SearchLibraryNavigationTarget | null = null;
-	private isResolvingSearchNavigation = false;
-	private returnToSearchOnDetailClose = false;
-	private nowPlayingOverlaySlot = new DetachedSlot();
-	private modalSlot = new DetachedSlot();
-	private toastSlot = new DetachedSlot();
-	private readonly toastService = new ToastService();
-	private pendingNavRestoreContext: LibraryNavContext | null = null;
-	private readonly minimumBootSplashMs = 750;
-	private bootstrapStartedAt = Date.now();
+	private assetCache = new AssetCache();
+	private sessionManager: SessionManager = new SessionManager({
+		applyState: (partial) => this.applyConnectionState(partial),
+		authService: this.authService,
+		defaultDeviceId: this.defaultJellyfinClientDeviceId,
+		onSessionChanged: (session) => this.connectivity.handleSessionChanged(session),
+		onSessionInvalidated: () => this.connectivity.goOffline(),
+		preferences: this.preferences,
+		showToast: (message) => this.toastService.show(message),
+	});
+	private connectivity: Connectivity = new Connectivity({
+		applyState: (partial) => this.applyConnectionState(partial),
+		downloadService: this.downloadService,
+		onOnline: () => this.startReconnectSync(),
+		onUserChanged: (userId) => this.userScope.activate(userId),
+		playlistCreateService: this.playlistCreateService,
+		playlistEditService: this.playlistEditService,
+		preferences: this.preferences,
+		sessionManager: this.sessionManager,
+		showToast: (message) => this.toastService.show(message),
+	});
+	private userScope: UserScope = new UserScope({
+		assetCache: this.assetCache,
+		downloadService: this.downloadService,
+		getTransport: () => this.connectivity.getTransport(),
+		playbackOrchestrator: this.playbackOrchestrator,
+		playbackStore: this.playbackStore,
+		playlistCreateService: this.playlistCreateService,
+		playlistEditService: this.playlistEditService,
+		requestRerender: () => this.requestRerender(),
+	});
+
+	private readonly bootstrapStartedAt = Date.now();
 	private bootstrapCommitTimer?: ReturnType<typeof setTimeout>;
-	private readonly imageCache = new ImageCache({});
+	private syncBannerTimer?: ReturnType<typeof setTimeout>;
+	private lastSyncEditErrors: Array<PlaylistEditError> = [];
+	private unsubscribeToast?: () => void;
 
 	state: AppState = {
-		activeFooterTab: FooterTabs.home,
-		activeLibraryTab: HeaderTabs.artists,
-		animationsEnabled: true,
 		authErrorMessage: null,
 		connectionMode: ConnectionModes.offline,
-		debugExportPath: null,
-		debugLogFilePath: null,
-		debugLoggingEnabled: false,
 		downloadedSizeBytes: null,
 		downloadedTrackCount: 0,
 		downloadingCount: 0,
-		gridColumns: DEFAULT_GRID_COLUMNS,
-		imageCacheMaxBytes: DEFAULT_IMAGE_CACHE_MAX_BYTES,
-		imageCategoryCounts: {},
 		isAuthenticating: false,
 		isAuthRequired: false,
 		isBootstrapped: false,
-		isHomeHeaderVisible: false,
-		isHomeNavigationMounted: true,
-		isLibraryHeaderVisible: true,
-		isSettingsMounted: false,
-		jellyfinClientDeviceIdOverride: '',
-		language: DEFAULT_LANGUAGE,
-		libraryLetterFilter: null,
-		libraryResetNonce: 0,
-		nativeImageCacheDiskBytes: 0,
-		nativeImageCacheDiskCount: 0,
-		nowPlayingCollapseSignal: 0,
-		offlineStatusExportPath: null,
 		quickConnectCode: null,
-		searchFocusSignal: 0,
 		serverName: '',
 		serverUrlPrefill: '',
 		syncProgress: null,
-		trackCacheMaxTracks: DEFAULT_TRACK_CACHE_MAX_TRACKS,
-		trackPlaybackCachedCount: 0,
 		version: 0,
 	};
 
 	onCreate(): void {
-		this.bootstrapStartedAt = Date.now();
 		this.unsubscribeToast = this.toastService.subscribe(() => {
 			const message = this.toastService.getMessage();
 			this.toastSlot.slotted(
@@ -442,124 +236,17 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		} catch {
 			// native bootstrap may be unavailable on non-Android/iOS targets
 		}
-		this.nativeCacheStatsInterval = setInterval(() => {
-			if (this.state.activeFooterTab === FooterTabs.settings) {
-				this.refreshNativeCacheStats();
-			}
-		}, 1000);
 		this.playbackOrchestrator.start();
 		this.sessionController.register({
-			applyDeviceIdOverride: (value) => this.applyJellyfinDeviceIdOverride(value),
+			applyDeviceIdOverride: (value) => this.connectivity.applyDeviceIdOverride(value),
 			connectionMode: () => this.state.connectionMode,
 			defaultDeviceId: () => this.defaultJellyfinClientDeviceId,
-			logout: () => this.handleLogout(),
-			requestModeChange: (mode) => this.requestModeChange(mode),
+			logout: () => this.connectivity.logout(),
+			requestModeChange: (mode) => this.connectivity.setMode(mode),
 			serverName: () => this.state.serverName,
 			serverUrl: () => this.state.serverUrlPrefill,
 		});
-		// hydrate the observable Preferences so the V2 settings view reads real persisted values
-		// (its only consumer here). temporary bridge — V2App will own preferences.load() at bootstrap.
-		void this.preferences.load();
-		Promise.race([
-			Promise.all([
-				this.preferences.getGridColumns(),
-				this.preferences.getImageCacheMaxBytes(),
-				this.preferences.getAnimationsEnabled(),
-				this.preferences.getMode(),
-				this.preferences.getTrackCacheMaxTracks(),
-				this.preferences.getJellyfinClientDeviceIdOverride(),
-				this.preferences.getLanguage(),
-				this.authService.loadSession(),
-				this.authService.loadRememberedServerUrl(),
-				this.preferences.getDebugLoggingEnabled(),
-			]),
-			new Promise<never>((_, reject) =>
-				setTimeout(() => reject(new Error('preferences load timeout')), 5000),
-			),
-		])
-			.then(
-				([
-					gridColumns,
-					imageCacheMaxBytes,
-					animationsEnabled,
-					mode,
-					trackCacheMaxTracks,
-					jellyfinClientDeviceIdOverride,
-					language,
-					existingSession,
-					rememberedServerUrl,
-					debugLoggingEnabled,
-				]) => {
-					if (this.isDestroyed()) return;
-					this.jellyfinClientDeviceIdOverride = this.normalizeJellyfinClientDeviceIdOverride(
-						jellyfinClientDeviceIdOverride,
-					);
-					this.authService.setClientDeviceId(this.getEffectiveJellyfinClientDeviceId());
-					this.authService.setMockMode(mode === ConnectionModes.mock);
-					try {
-						setAtollaImageLoaderDiskCacheMaxBytes(imageCacheMaxBytes);
-					} catch {
-						// native disk cache unavailable on non-Android targets
-					}
-					if (mode === ConnectionModes.online && existingSession != null) {
-						this.currentAccessToken = existingSession.accessToken;
-						this.transport = new LiveTransport(
-							existingSession.serverUrl,
-							existingSession.accessToken,
-							existingSession.userId,
-							{
-								clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
-							},
-						);
-					} else if (mode === ConnectionModes.mock) {
-						this.transport = new MockTransport();
-					} else {
-						this.transport = new OfflineTransport(
-							this.downloadService,
-							this.playlistCreateService,
-							this.playlistEditService,
-						);
-					}
-
-					const isAuthRequired = mode === ConnectionModes.online && existingSession == null;
-					const userId = existingSession != null ? existingSession.userId : 'shared';
-					this.initUserStores(userId);
-
-					if (language !== DEFAULT_LANGUAGE) {
-						overrideLocales(Strings, () => [new Locale(language, undefined)]);
-					}
-					DebugLogger.setEnabled(debugLoggingEnabled);
-					this.markSessionStartAndDetectPriorCrash();
-					this.setState({
-						debugLogFilePath: DebugLogger.getLogFilePath() || null,
-						debugLoggingEnabled,
-					});
-					this.completeBootstrap({
-						animationsEnabled,
-						authErrorMessage: null,
-						connectionMode: mode,
-						gridColumns,
-						imageCacheMaxBytes,
-						isAuthRequired,
-						jellyfinClientDeviceIdOverride: this.jellyfinClientDeviceIdOverride,
-						language,
-						serverName: existingSession != null ? existingSession.serverName : '',
-						serverUrlPrefill: rememberedServerUrl,
-						trackCacheMaxTracks,
-					});
-					this.applyNativeTrackCacheLimit(trackCacheMaxTracks);
-				},
-			)
-			.catch(() => {
-				if (this.isDestroyed() || this.state.isBootstrapped) return;
-				this.initUserStores('shared');
-				this.transport = new OfflineTransport(
-					this.downloadService,
-					this.playlistCreateService,
-					this.playlistEditService,
-				);
-				this.completeBootstrap({ connectionMode: ConnectionModes.offline });
-			});
+		this.registerDisposable(this.preferences.subscribe(() => this.requestRerender()));
 		this.downloadService.subscribe(() => {
 			this.setState({
 				downloadedSizeBytes: this.downloadService.getTotalDownloadedSizeBytes(),
@@ -568,14 +255,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			});
 		});
 		this.downloadService.onAppReady();
-		// handle any track already playing at startup
 		this.playbackOrchestrator.reconcilePlaybackState();
-		this.refreshTrackCachedCount();
+		this.startBootstrap();
 	}
 
 	onDestroy(): void {
-		// clean shutdown clears the crash sentinel so the next launch doesn't report a false
-		// crash; a real crash (or OS task-kill) skips this, leaving it set
 		void this.diagnosticsStore.storeString('session_active', '0').catch(() => {});
 		this.playbackStore.persistNow();
 		this.playbackOrchestrator.dispose();
@@ -588,304 +272,344 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		if (this.syncBannerTimer) {
 			clearTimeout(this.syncBannerTimer);
 		}
-		if (this.unsubscribePalette) {
-			this.unsubscribePalette();
-		}
-		if (this.nativeCacheStatsInterval) {
-			clearInterval(this.nativeCacheStatsInterval);
-		}
-		if (this.paletteQueue) {
-			this.paletteQueue.dispose();
-		}
+		this.userScope.dispose();
 		this.downloadWorkerClient.dispose();
 	}
 
-	private initUserStores(userId: string): void {
-		if (this.unsubscribePalette) {
-			this.unsubscribePalette();
+	onRender(): void {
+		if (!this.state.isBootstrapped) {
+			<BootSplash />;
+			return;
 		}
-		this.searchStore = new SearchStore(
-			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
-		);
-		const recentlyPlayed = new RecentlyPlayedStore(
-			new PersistentStore(`atolla/user/${userId}/recently_played`, { deviceGlobal: true }),
-		);
-		this.nowPlayingQueueStore = new PersistentStore(`atolla/user/${userId}/now_playing_queue`, {
-			deviceGlobal: true,
-		});
-		void this.playbackStore.setQueueStore(
-			this.nowPlayingQueueStore,
-			() => {
-				try {
-					return getAtollaAudioPlaybackIsActive();
-				} catch {
-					return false;
-				}
-			},
-			() => {
-				// hand the restore the engine's live track/position so it lands on the track the
-				// engine actually reached in the background, not the stale persisted one
-				try {
-					const trackId = getAtollaAudioPlaybackCurrentTrackId();
-					if (!trackId) return null;
-					return {
-						positionSeconds: Math.max(0, getAtollaAudioPlaybackPositionMs() / 1000),
-						trackId,
-					};
-				} catch {
-					return null;
-				}
-			},
-		);
-		this.homeAlbumsStore = new PersistentStore(`atolla/user/${userId}/home`, {
-			deviceGlobal: true,
-		});
-		// purge the legacy whole-library home cache (could be ~1MB+); OnThisDayService
-		// now keeps only today's/tomorrow's matches
-		void (this.homeAlbumsStore as { remove?(key: string): Promise<void> })
-			.remove?.('albums_v1')
-			.catch(() => {});
-		this.onThisDayService = new OnThisDayService(this.homeAlbumsStore);
-		this.recentlyAddedService = new RecentlyAddedService(this.homeAlbumsStore);
-		// warm the in-memory cache from disk; HomeView reads it and triggers the background
-		// rebuild itself, so display owns its own re-render
-		void this.onThisDayService.ensureLoaded();
-		this.paletteService = new ArtworkPaletteService(
-			new WriteBehindPaletteStore(
-				new PersistentPaletteStore(
-					new PersistentStore(`atolla/user/${userId}/artwork_palettes`, { deviceGlobal: true }),
-				),
-			),
-		);
-		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
-		const scrobble = new ScrobbleService({
-			deliverScrobble: (pending) => {
-				return this.transport.scrobbleTrackPlayed(pending.trackId, pending.triggeredAt);
-			},
-			store: new PersistentStore(`atolla/user/${userId}/pending_scrobbles`, {
-				deviceGlobal: true,
-			}),
-		});
-		const waveformService = new WaveformService(
-			new PersistentWaveformStore(
-				new PersistentStore(`atolla/user/${userId}/waveform_data`, { deviceGlobal: true }),
-			),
-		);
-		const waveformRenderCache = new WaveformRenderCache();
-		const waveformQueue = new WaveformGenerationQueue(waveformService);
-		this.playbackOrchestrator.setUserServices({
-			disposeWaveformQueue: () => waveformQueue.dispose(),
-			enqueueWaveform: (trackId, audioPath) => waveformQueue.enqueue(trackId, audioPath),
-			paletteQueue: this.paletteQueue,
-			paletteService: this.paletteService,
-			recentlyPlayed,
-			reorderWaveformQueue: (trackIds) => waveformQueue.reorderToMatch(trackIds),
-			scrobble,
-			waveformRenderCache,
-			waveformService,
-		});
-		this.reconnectSync = new ReconnectSyncCoordinator({
-			downloadService: this.downloadService,
-			playlistCreateService: this.playlistCreateService,
-			playlistEditService: this.playlistEditService,
-			scrobbleService: scrobble,
-		});
+
+		if (this.state.isAuthRequired) {
+			<view style={theme.app.root}>
+				<ConnectionView
+					animationsEnabled={this.preferences.animationsEnabled}
+					errorMessage={this.state.authErrorMessage}
+					isConnecting={this.state.isAuthenticating}
+					modalSlot={this.modalSlot}
+					onConnect={(serverUrl) => this.connectivity.connect(serverUrl)}
+					onLanguageChange={(code) => this.handleLanguageChange(code)}
+					quickConnectCode={this.state.quickConnectCode}
+					selectedLanguage={this.preferences.language}
+					serverUrl={this.state.serverUrlPrefill}
+					toastService={this.toastService}
+				/>
+				<DetachedSlotRenderer detachedSlot={this.modalSlot} />
+				<DetachedSlotRenderer detachedSlot={this.toastSlot} />
+			</view>;
+			return;
+		}
+
+		<view style={theme.app.root}>
+			<AuthedApp
+				animationsEnabled={this.preferences.animationsEnabled}
+				barColors={this.barColors}
+				connectionMode={this.state.connectionMode}
+				downloadingCount={this.state.downloadingCount}
+				downloadService={this.downloadService}
+				homeViewModel={this.buildHomeViewModel()}
+				language={this.preferences.language}
+				libraryViewModel={this.buildLibraryViewModel()}
+				modalSlot={this.modalSlot}
+				navCoordinator={this.navCoordinator}
+				paletteService={this.userScope.getPaletteService()}
+				playbackOrchestrator={this.playbackOrchestrator}
+				playbackStore={this.playbackStore}
+				preferences={this.preferences}
+				searchViewModel={this.buildSearchViewModel()}
+				sessionController={this.sessionController}
+				toastService={this.toastService}
+				toastSlot={this.toastSlot}
+				transport={this.connectivity.getTransport()}
+			/>
+			{this.state.syncProgress != null && (
+				<SyncStatusBanner
+					completed={this.state.syncProgress.completed}
+					onTap={this.handleSyncBannerTap}
+					status={this.state.syncProgress.status}
+					total={this.state.syncProgress.total}
+				/>
+			)}
+		</view>;
+	}
+
+	private applyConnectionState(partial: Partial<AppState>): void {
+		if (this.isDestroyed()) {
+			return;
+		}
+		this.setState(partial);
+	}
+
+	private applyLoadedSettingsEffects(): void {
 		try {
-			setAtollaImageCachedObserver((url, category) => {
-				this.resolveCachedImageWaiters(url, category);
-				if (category !== 'album_art' || this.paletteService.hasPalette(url)) {
-					return;
-				}
-				this.paletteQueue.enqueue(url);
+			setAtollaImageLoaderDiskCacheMaxBytes(this.preferences.imageCacheMaxBytes);
+		} catch {
+			// native disk cache unavailable on non-Android targets
+		}
+		const trackCacheMaxTracks = this.preferences.trackCacheMaxTracks;
+		if (Number.isFinite(trackCacheMaxTracks) && trackCacheMaxTracks > 0) {
+			try {
+				setAtollaTrackCacheMaxTracks(trackCacheMaxTracks);
+			} catch {
+				// native track cache limit unavailable on non-Android targets
+			}
+		}
+		if (this.preferences.language !== DEFAULT_LANGUAGE) {
+			overrideLocales(Strings, () => [new Locale(this.preferences.language, undefined)]);
+		}
+		DebugLogger.setEnabled(this.preferences.debugLoggingEnabled);
+	}
+
+	private buildHomeViewModel() {
+		return {
+			animationsEnabled: this.preferences.animationsEnabled,
+			connectionMode: this.state.connectionMode,
+			downloadService: this.downloadService,
+			gridColumns: this.preferences.gridColumns,
+			imageCache: this.imageCache,
+			modalSlot: this.modalSlot,
+			onNavigationControllerReady: () => {},
+			onRequestModeChange: (mode: ConnectionMode) => this.connectivity.setMode(mode),
+			onThisDayService: this.userScope.getOnThisDayService(),
+			paletteQueue: this.userScope.getPaletteQueue(),
+			playbackStore: this.playbackStore,
+			playlistEditService: this.playlistEditService,
+			recentlyAddedService: this.userScope.getRecentlyAddedService(),
+			recentlyPlayedTracks: this.playbackOrchestrator.getRecentlyPlayedTracks(),
+			toastService: this.toastService,
+			transport: this.connectivity.getTransport(),
+		};
+	}
+
+	private buildLibraryViewModel() {
+		return {
+			animationsEnabled: this.preferences.animationsEnabled,
+			connectionMode: this.state.connectionMode,
+			downloadService: this.downloadService,
+			gridColumns: this.preferences.gridColumns,
+			imageCache: this.imageCache,
+			modalSlot: this.modalSlot,
+			onRequestModeChange: (mode: ConnectionMode) => this.connectivity.setMode(mode),
+			paletteQueue: this.userScope.getPaletteQueue(),
+			playbackStore: this.playbackStore,
+			playlistEditService: this.playlistEditService,
+			toastService: this.toastService,
+			transport: this.connectivity.getTransport(),
+		};
+	}
+
+	private buildSearchViewModel() {
+		return {
+			animationsEnabled: this.preferences.animationsEnabled,
+			downloadService: this.downloadService,
+			focusSignal: 0,
+			gridColumns: this.preferences.gridColumns,
+			imageCache: this.imageCache,
+			modalSlot: this.modalSlot,
+			paletteQueue: this.userScope.getPaletteQueue(),
+			playbackStore: this.playbackStore,
+			playlistEditService: this.playlistEditService,
+			searchStore: this.userScope.getSearchStore(),
+			toastService: this.toastService,
+			transport: this.connectivity.getTransport(),
+		};
+	}
+
+	private closeModalSlot = (): void => {
+		closeSlot(this.modalSlot);
+	};
+
+	private commitBootstrapped(): void {
+		if (this.bootstrapCommitTimer != null || this.state.isBootstrapped) {
+			return;
+		}
+		const elapsed = Date.now() - this.bootstrapStartedAt;
+		const remaining = Math.max(0, MINIMUM_BOOT_SPLASH_MS - elapsed);
+		this.bootstrapCommitTimer = setTimeout(() => {
+			if (this.isDestroyed()) return;
+			this.setState({ isBootstrapped: true });
+			this.playbackOrchestrator.notifyAppReady();
+		}, remaining);
+	}
+
+	private createAuthService(): JellyfinAuthService {
+		const authStoreNamespace = `atolla/device-user/${this.deviceUserScopeKey}/jellyfin_auth`;
+		const sharedOptions = { clientDeviceId: this.defaultJellyfinClientDeviceId };
+		try {
+			return new JellyfinAuthService({
+				...sharedOptions,
+				store: new JellyfinAuthStore(
+					new PersistentStore(authStoreNamespace, {
+						deviceGlobal: true,
+						enableEncryption: true,
+					}),
+				),
 			});
 		} catch {
-			// observer bridge unavailable on non-Android targets
-		}
-		this.unsubscribePalette = this.paletteService.subscribe(() => {
-			this.nowPlayingOverlaySlot.slotted(this.renderNowPlayingOverlay);
-			this.setState({ version: this.state.version + 1 });
-		});
-	}
-
-	private showAuthToast(message: string): void {
-		this.toastService.show(message, 2500);
-	}
-
-	private showPlaybackToast(message: string): void {
-		this.toastService.show(message, 3000);
-	}
-
-	private refreshTrackCachedCount(): void {
-		const nativeCount = this.getNativeTrackCachedCount();
-		if (nativeCount == null || this.state.trackPlaybackCachedCount === nativeCount) {
-			return;
-		}
-
-		this.setState({ trackPlaybackCachedCount: nativeCount });
-	}
-
-	private async validateSessionInBackground(session: AuthSession): Promise<void> {
-		const isValid = await this.authService.validateSession(session);
-		if (isValid) {
-			return;
-		}
-
-		await this.authService.clearSession();
-		await this.preferences.setMode(ConnectionModes.offline);
-		this.setState({
-			authErrorMessage: null,
-			isAuthRequired: false,
-			quickConnectCode: null,
-		});
-		this.showAuthToast(AuthErrors.SESSION_EXPIRED.msg());
-	}
-
-	handleConnect = (serverUrl: string): void => {
-		if (serverUrl.trim().toLowerCase() === 'mock') {
-			void (async () => {
-				await this.preferences.setMode(ConnectionModes.mock);
-				this.authService.setMockMode(true);
-				this.transport = new MockTransport();
-				this.setState({
-					authErrorMessage: null,
-					connectionMode: ConnectionModes.mock,
-					isAuthenticating: false,
-					isAuthRequired: false,
-					quickConnectCode: null,
-				});
-			})();
-			return;
-		}
-
-		void (async () => {
-			this.authService.setMockMode(false);
-			this.setState({
-				authErrorMessage: null,
-				connectionMode: ConnectionModes.online,
-				isAuthenticating: true,
-				quickConnectCode: null,
-				serverUrlPrefill: serverUrl,
+			return new JellyfinAuthService({
+				...sharedOptions,
+				store: new InMemoryAuthStore(),
 			});
+		}
+	}
 
-			try {
-				await this.preferences.setMode(ConnectionModes.online);
-				await this.authService.rememberServerUrl(serverUrl);
+	private handleLanguageChange(code: LanguageCode): void {
+		void this.preferences.setLanguage(code);
+		overrideLocales(Strings, () => [new Locale(code, undefined)]);
+		this.requestRerender();
+	}
 
-				const quickConnect = await this.authService.startQuickConnect(serverUrl);
-				this.setState({ quickConnectCode: quickConnect.code });
-
-				await this.authService.waitForQuickConnectApproval(serverUrl, quickConnect.secret, 60_000);
-				const session = await this.authService.authenticateWithQuickConnect(
-					serverUrl,
-					quickConnect.secret,
-				);
-				await this.authService.saveSession(session);
-
-				this.currentAccessToken = session.accessToken;
-				this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId, {
-					clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
-				});
-				this.initUserStores(session.userId);
-
-				this.setState({
-					authErrorMessage: null,
-					connectionMode: ConnectionModes.online,
-					isAuthenticating: false,
-					isAuthRequired: false,
-					quickConnectCode: null,
-					serverName: session.serverName,
-				});
-				this.showAuthToast('connected');
-
-				try {
-					await this.authService.probeInitialAlbums(session);
-				} catch {
-					this.showAuthToast(AuthErrors.FAILED_TO_FETCH_DATA.msg());
-				}
-
-				void this.validateSessionInBackground(session);
-			} catch (error) {
-				this.setState({
-					authErrorMessage: this.authService.errorMessage(error),
-					connectionMode: ConnectionModes.online,
-					isAuthenticating: false,
-					isAuthRequired: true,
-					quickConnectCode: null,
-					serverUrlPrefill: serverUrl,
-				});
-			} finally {
-				if (this.state.isAuthenticating) {
-					this.setState({ isAuthenticating: false });
-				}
-			}
-		})();
+	private handleSyncBannerTap = (): void => {
+		if (this.syncBannerTimer) {
+			clearTimeout(this.syncBannerTimer);
+			this.syncBannerTimer = undefined;
+		}
+		this.setState({ syncProgress: null });
+		const errors = this.lastSyncEditErrors;
+		if (errors.length === 0) {
+			return;
+		}
+		const errorBody = errors
+			.map((e) => Strings.playlistEditErrorBody(e.type, e.playlistName, e.error))
+			.join('\n\n');
+		this.modalSlot.slotted(() => {
+			<Modal
+				body={errorBody}
+				onClose={this.closeModalSlot}
+				title={Strings.playlistEditErrorTitle()}
+			/>;
+		});
 	};
 
-	private requestModeChange = async (mode: ConnectionMode): Promise<boolean> => {
-		// breadcrumbs trace the offline<->online toggle: the last one written before a
-		// crash localizes where the process died (paired with the crash sentinel)
-		DebugLogger.log('mode', 'requestModeChange begin', { mode });
+	private installGlobalErrorHandler(): void {
 		try {
-			this.pendingNavRestoreContext = this.currentLibraryNavContext;
-			await this.preferences.setMode(mode);
-			this.authService.setMockMode(mode === ConnectionModes.mock);
-
-			if (mode === ConnectionModes.online) {
-				const session = await this.authService.loadSession();
-				DebugLogger.log('mode', 'session loaded', { hasSession: session != null });
-				if (session != null) {
-					this.currentAccessToken = session.accessToken;
-					this.transport = new LiveTransport(
-						session.serverUrl,
-						session.accessToken,
-						session.userId,
-						{
-							clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
-						},
-					);
-					DebugLogger.log('mode', 'live transport ready, applying state');
-					this.setState({ connectionMode: mode, isAuthRequired: false });
-					this.startReconnectSync();
-					return true;
-				}
-
-				this.setState({ connectionMode: mode, isAuthRequired: true });
-				return true;
-			}
-
-			if (mode === ConnectionModes.offline) {
-				this.transport = new OfflineTransport(
-					this.downloadService,
-					this.playlistCreateService,
-					this.playlistEditService,
-				);
+			const globalScope = globalThis as unknown as {
+				addEventListener?: (type: string, handler: (event: unknown) => void) => void;
+				onerror?: ((...args: Array<unknown>) => void) | null;
+			};
+			const handler = (raw: unknown): void => {
+				const error =
+					(raw as { error?: unknown })?.error ?? (raw as { message?: unknown })?.message ?? raw;
+				DebugLogger.log('crash', 'uncaught error', {
+					message: error instanceof Error ? error.message : String(error),
+					stack: error instanceof Error ? error.stack : undefined,
+				});
+			};
+			if (typeof globalScope.addEventListener === 'function') {
+				globalScope.addEventListener('error', handler);
 			} else {
-				this.transport = new MockTransport();
+				globalScope.onerror = (...args: Array<unknown>) => handler(args[4] ?? args[0]);
 			}
-
-			DebugLogger.log('mode', 'offline/mock transport ready, applying state', { mode });
-			this.setState({ connectionMode: mode, isAuthRequired: false });
-			return true;
-		} catch (error) {
-			DebugLogger.log('mode', 'requestModeChange failed', {
-				message: error instanceof Error ? error.message : String(error),
-			});
-			return false;
+		} catch {
+			// runtime does not support a global error hook, per-call guards cover us
 		}
-	};
+	}
 
-	handleModeChange = (mode: ConnectionMode): void => {
-		void this.requestModeChange(mode);
-	};
+	private installGlobalRejectionHandler(): void {
+		try {
+			const globalScope = globalThis as unknown as {
+				addEventListener?: (type: string, handler: (event: unknown) => void) => void;
+				onunhandledrejection?: ((event: unknown) => void) | null;
+			};
+			const handler = (event: unknown): void => {
+				const reason = (event as { reason?: unknown })?.reason ?? event;
+				DebugLogger.log('async', 'swallowed async error', {
+					message: reason instanceof Error ? reason.message : String(reason),
+				});
+				try {
+					(event as { preventDefault?: () => void })?.preventDefault?.();
+				} catch {
+					// preventDefault not supported, logging already done
+				}
+			};
+			if (typeof globalScope.addEventListener === 'function') {
+				globalScope.addEventListener('unhandledrejection', handler);
+			} else {
+				globalScope.onunhandledrejection = handler;
+			}
+		} catch {
+			// runtime does not support a global rejection hook, per-call guards cover us
+		}
+	}
 
-	// flush queued work (playlist edits/creates, scrobbles) and resume downloads after
-	// reconnecting, reporting progress to the banner; the coordinator never rejects and
-	// the whole chain is guarded so this can never crash the toggle
+	private async loadAndConnect(): Promise<void> {
+		await this.preferences.load();
+		this.applyLoadedSettingsEffects();
+		const session = await this.sessionManager.loadSession();
+		this.connectivity.bootstrap(session);
+	}
+
+	private markSessionStartAndDetectPriorCrash(): void {
+		void this.diagnosticsStore
+			.fetchString('session_active')
+			.then((value) => {
+				if (value === '1') {
+					DebugLogger.log('crash', 'previous session ended without clean shutdown');
+				}
+				return this.diagnosticsStore.storeString('session_active', '1');
+			})
+			.catch(() => {});
+	}
+
+	private requestRerender(): void {
+		if (this.isDestroyed()) {
+			return;
+		}
+		this.setState({ version: this.state.version + 1 });
+	}
+
+	private resolveDeviceUserScopeKey(): string {
+		try {
+			const raw = getAtollaDeviceUserScopeKey();
+			if (typeof raw !== 'string') {
+				return 'unknown';
+			}
+			const trimmed = raw.trim();
+			if (trimmed.length === 0) {
+				return 'unknown';
+			}
+			return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
+		} catch {
+			return 'unknown';
+		}
+	}
+
+	private scheduleSyncBannerDismiss(durationMs: number): void {
+		if (this.syncBannerTimer) {
+			clearTimeout(this.syncBannerTimer);
+		}
+		this.syncBannerTimer = setTimeout(() => {
+			this.syncBannerTimer = undefined;
+			if (this.isDestroyed()) return;
+			this.setState({ syncProgress: null });
+		}, durationMs);
+	}
+
+	private startBootstrap(): void {
+		void (async () => {
+			try {
+				await Promise.race([
+					this.loadAndConnect(),
+					new Promise<never>((_, reject) =>
+						setTimeout(() => reject(new Error('bootstrap timeout')), BOOTSTRAP_TIMEOUT_MS),
+					),
+				]);
+			} catch {
+				if (!this.isDestroyed() && !this.state.isBootstrapped) {
+					this.connectivity.bootstrap(null);
+				}
+			}
+			this.markSessionStartAndDetectPriorCrash();
+			this.commitBootstrapped();
+		})();
+	}
+
 	private startReconnectSync(): void {
-		DebugLogger.log('mode', 'startReconnectSync');
-		const coordinator = this.reconnectSync;
+		const coordinator = this.userScope.getReconnectSync();
 		if (!coordinator) return;
-		const transport = this.transport;
+		const transport = this.connectivity.getTransport();
 		fireAndForget(
 			'reconnect-sync',
 			coordinator
@@ -904,1563 +628,5 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					this.scheduleSyncBannerDismiss(result.status === 'partial' ? 6000 : 2500);
 				}),
 		);
-	}
-
-	private scheduleSyncBannerDismiss(durationMs: number): void {
-		if (this.syncBannerTimer) {
-			clearTimeout(this.syncBannerTimer);
-		}
-		this.syncBannerTimer = setTimeout(() => {
-			this.syncBannerTimer = undefined;
-			if (this.isDestroyed()) return;
-			this.setState({ syncProgress: null });
-		}, durationMs);
-	}
-
-	private handleSyncBannerTap = (): void => {
-		if (this.syncBannerTimer) {
-			clearTimeout(this.syncBannerTimer);
-			this.syncBannerTimer = undefined;
-		}
-		this.setState({ syncProgress: null });
-		const errors = this.lastSyncEditErrors;
-		if (errors.length === 0) return;
-		const errorBody = errors
-			.map((e) => Strings.playlistEditErrorBody(e.type, e.playlistName, e.error))
-			.join('\n\n');
-		this.modalSlot.slotted(() => {
-			<Modal
-				body={errorBody}
-				onClose={this.closeModalSlot}
-				title={Strings.playlistEditErrorTitle()}
-			/>;
-		});
-	};
-
-	// swallows a rejection from a deliberately detached promise so it never surfaces as
-	// an unhandled rejection (which crashes the app)
-	private handleSwallowedAsyncError = (error: unknown): void => {
-		DebugLogger.log('async', 'swallowed async error', {
-			message: error instanceof Error ? error.message : String(error),
-		});
-	};
-
-	// best-effort backstop for any unhandled rejection the per-call guards miss; the
-	// runtime may not expose this hook, so it is feature-detected (safety net, not primary)
-	private installGlobalRejectionHandler(): void {
-		try {
-			const globalScope = globalThis as unknown as {
-				addEventListener?: (type: string, handler: (event: unknown) => void) => void;
-				onunhandledrejection?: ((event: unknown) => void) | null;
-			};
-			const handler = (event: unknown): void => {
-				const reason = (event as { reason?: unknown })?.reason ?? event;
-				this.handleSwallowedAsyncError(reason);
-				try {
-					(event as { preventDefault?: () => void })?.preventDefault?.();
-				} catch {
-					// preventDefault not supported, logging already done
-				}
-			};
-			if (typeof globalScope.addEventListener === 'function') {
-				globalScope.addEventListener('unhandledrejection', handler);
-			} else {
-				globalScope.onunhandledrejection = handler;
-			}
-		} catch {
-			// runtime does not support a global rejection hook, per-call guards cover us
-		}
-	}
-
-	// best-effort backstop for synchronous uncaught JS errors, mirroring the rejection hook;
-	// a crash record only reaches the exported log if debug logging is on. native crashes
-	// (SIGSEGV) bypass JS entirely and are surfaced by the unclean-shutdown sentinel below
-	private installGlobalErrorHandler(): void {
-		try {
-			const globalScope = globalThis as unknown as {
-				addEventListener?: (type: string, handler: (event: unknown) => void) => void;
-				onerror?: ((...args: Array<unknown>) => void) | null;
-			};
-			const handler = (raw: unknown): void => {
-				const error =
-					(raw as { error?: unknown })?.error ?? (raw as { message?: unknown })?.message ?? raw;
-				DebugLogger.log('crash', 'uncaught error', {
-					message: error instanceof Error ? error.message : String(error),
-					stack: error instanceof Error ? error.stack : undefined,
-				});
-			};
-			if (typeof globalScope.addEventListener === 'function') {
-				globalScope.addEventListener('error', handler);
-			} else {
-				// classic onerror signature is (message, source, lineno, colno, error)
-				globalScope.onerror = (...args: Array<unknown>) => handler(args[4] ?? args[0]);
-			}
-		} catch {
-			// runtime does not support a global error hook, per-call guards cover us
-		}
-	}
-
-	// detects a previous session that ended without a clean onDestroy (crash or OS task-kill)
-	// via a persisted sentinel, then re-arms it for this session. only signal that surfaces a
-	// native SIGSEGV, which no JS or managed-exception handler can catch
-	private markSessionStartAndDetectPriorCrash(): void {
-		void this.diagnosticsStore
-			.fetchString('session_active')
-			.then((value) => {
-				if (value === '1') {
-					DebugLogger.log('crash', 'previous session ended without clean shutdown');
-				}
-				return this.diagnosticsStore.storeString('session_active', '1');
-			})
-			.catch(() => {});
-	}
-
-	handleLogout = (): void => {
-		void (async () => {
-			try {
-				await this.authService.clearSession();
-			} catch {
-				// best effort, clear what we can
-			}
-			this.currentAccessToken = '';
-			this.transport = new OfflineTransport(
-				this.downloadService,
-				this.playlistCreateService,
-				this.playlistEditService,
-			);
-			this.playbackStore.stop();
-			this.playbackOrchestrator.clearRecentlyPlayed();
-			this.setState({
-				authErrorMessage: null,
-				connectionMode: ConnectionModes.online,
-				isAuthenticating: false,
-				isAuthRequired: true,
-				quickConnectCode: null,
-				serverName: '',
-				serverUrlPrefill: '',
-				version: this.state.version + 1,
-			});
-			this.showAuthToast('logged out');
-		})();
-	};
-
-	private refreshNativeCacheStats(): void {
-		try {
-			// scan walks the whole image disk cache, so it runs on a native background thread and
-			// delivers results via this callback, never blocking the JS thread (which would stutter
-			// concurrent animations such as the now-playing surface collapse)
-			requestAtollaImageLoaderDiskCacheStats(
-				(nativeImageCacheDiskCount, nativeImageCacheDiskBytes, categoryCountsJson) => {
-					let imageCategoryCounts: Record<string, number> = this.state.imageCategoryCounts;
-					try {
-						imageCategoryCounts = JSON.parse(categoryCountsJson) as Record<string, number>;
-					} catch {
-						// leave existing counts on parse failure
-					}
-					this.setState({
-						imageCategoryCounts,
-						nativeImageCacheDiskBytes,
-						nativeImageCacheDiskCount,
-					});
-				},
-			);
-		} catch {
-			// native cache stats unavailable on non-Android targets
-		}
-	}
-
-	private prewarmNowPlayingArtwork(imageUrl: string): void {
-		const outputType = Device.isAndroid()
-			? AssetOutputType.IMAGE_ANDROID
-			: AssetOutputType.IMAGE_IOS;
-		const sources = [
-			buildImageSource(imageUrl, 'album_art'),
-			buildImageSource(imageUrl, 'album_art_blurred'),
-		];
-
-		for (const source of sources) {
-			let subscription: { unsubscribe(): void } | undefined;
-			subscription = addAssetLoadObserver(
-				source,
-				() => {
-					subscription?.unsubscribe();
-				},
-				outputType,
-			);
-		}
-	}
-
-	// identity used to match a cache request against the native "image cached" observer.
-	// the url handed to the native loader carries api_key (needed for the fetch) while the
-	// observer reports the stripped url, and query encoding can differ, so match on the
-	// stable parts only: category, path, and the Jellyfin image tag. non-Jellyfin urls fall
-	// back to path identity
-	private imageFingerprint(url: string, category: string): string {
-		try {
-			const parsed = new URL(url);
-			const tag = parsed.searchParams.get('tag') ?? '';
-			return `${category}\n${parsed.origin}${parsed.pathname}\n${tag}`;
-		} catch {
-			return `${category}\n${url}`;
-		}
-	}
-
-	// ask the native loader to ensure an image is cached, resolving once it reports the
-	// asset cached via the observer. the loader fetches only when missing and reports cached
-	// for hits too, so this resolves promptly either way. a bounded timeout resolves anyway
-	// if the observer never fires (the asset is cached or re-fetched on demand), so the
-	// download counter never wedges
-	private cacheImageAsset(url: string, category: ImageCategory): Promise<void> {
-		return new Promise<void>((resolve) => {
-			const key = this.imageFingerprint(url, category);
-			let settled = false;
-			let timer: ReturnType<typeof setTimeout> | undefined;
-
-			const done = (): void => {
-				if (settled) return;
-				settled = true;
-				if (timer) clearTimeout(timer);
-				const list = this.pendingImageCacheResolvers.get(key);
-				if (list) {
-					const index = list.indexOf(done);
-					if (index >= 0) list.splice(index, 1);
-					if (list.length === 0) this.pendingImageCacheResolvers.delete(key);
-				}
-				resolve();
-			};
-
-			const list = this.pendingImageCacheResolvers.get(key) ?? [];
-			list.push(done);
-			this.pendingImageCacheResolvers.set(key, list);
-
-			try {
-				preloadAtollaImages([url], category);
-			} catch {
-				// no native preload bridge on this platform: treat as done so the counter never
-				// wedges; the image is fetched on demand when shown
-				done();
-				return;
-			}
-
-			timer = setTimeout(done, IMAGE_CACHE_RESOLVE_TIMEOUT_MS);
-		});
-	}
-
-	// resolve any downloads waiting on an image the native loader just cached
-	private resolveCachedImageWaiters(url: string, category: string): void {
-		const key = this.imageFingerprint(url, category);
-		const resolvers = this.pendingImageCacheResolvers.get(key);
-		if (!resolvers || resolvers.length === 0) return;
-		for (const resolve of [...resolvers]) {
-			resolve();
-		}
-	}
-
-	private getAudioPathForWaveform(trackId: string): string | null {
-		try {
-			const cached = getAtollaCachedTrackFileUrl(trackId);
-			if (cached) return cached;
-		} catch {}
-		try {
-			const downloaded = getAtollaDownloadedTrackFileUrl(trackId);
-			if (downloaded) return downloaded;
-		} catch {}
-		return null;
-	}
-
-	private getNativeTrackCachedCount(): number | null {
-		try {
-			const count = getAtollaTrackCacheEntryCount();
-			if (!Number.isFinite(count) || count < 0) {
-				return null;
-			}
-			return count;
-		} catch {
-			return null;
-		}
-	}
-
-	handleFooterTabTap = (tab: FooterTab): void => {
-		this.returnToSearchOnDetailClose = false;
-		this.setState({
-			activeFooterTab: tab,
-			isHomeHeaderVisible: false,
-			isHomeNavigationMounted: tab === FooterTabs.home ? false : this.state.isHomeNavigationMounted,
-			isLibraryHeaderVisible: tab === FooterTabs.library,
-			isSettingsMounted: tab === FooterTabs.settings ? false : this.state.isSettingsMounted,
-			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
-			searchFocusSignal:
-				tab === FooterTabs.search ? this.state.searchFocusSignal + 1 : this.state.searchFocusSignal,
-		});
-
-		if (tab === FooterTabs.home) {
-			this.homeNavigationNonce += 1;
-			const capturedNonce = this.homeNavigationNonce;
-			Promise.resolve().then(() => {
-				if (this.homeNavigationNonce === capturedNonce) {
-					this.setState({ isHomeNavigationMounted: true });
-				}
-			});
-		}
-
-		if (tab === FooterTabs.settings) {
-			this.settingsNavigationNonce += 1;
-			const capturedNonce = this.settingsNavigationNonce;
-			Promise.resolve().then(() => {
-				if (this.settingsNavigationNonce === capturedNonce) {
-					this.setState({ isSettingsMounted: true });
-					this.refreshNativeCacheStats();
-				}
-			});
-		}
-	};
-
-	handleLibraryHeaderTabTap = (tab: HeaderTab): void => {
-		this.returnToSearchOnDetailClose = false;
-		if (tab === this.state.activeLibraryTab) {
-			this.setState({
-				isLibraryHeaderVisible: true,
-				libraryLetterFilter: null,
-				libraryResetNonce: this.state.libraryResetNonce + 1,
-			});
-			return;
-		}
-
-		this.setState({
-			activeLibraryTab: tab,
-			isLibraryHeaderVisible: true,
-			libraryLetterFilter: null,
-		});
-	};
-
-	handleLibraryAlphabetLetterTap = (letter: string | null): void => {
-		this.setState({ libraryLetterFilter: letter });
-	};
-
-	handleLibraryHeaderVisibilityChange = (isVisible: boolean): void => {
-		if (this.state.isLibraryHeaderVisible === isVisible) {
-			return;
-		}
-
-		this.setState({ isLibraryHeaderVisible: isVisible });
-	};
-
-	handleHomeHeaderVisibilityChange = (isVisible: boolean): void => {
-		if (this.state.isHomeHeaderVisible === isVisible) {
-			return;
-		}
-
-		this.setState({ isHomeHeaderVisible: isVisible });
-	};
-
-	handleHomeHeaderTabTap = (tab: HeaderTab): void => {
-		this.setState({
-			activeFooterTab: FooterTabs.library,
-			activeLibraryTab: tab,
-			isHomeHeaderVisible: false,
-			isLibraryHeaderVisible: true,
-		});
-	};
-
-	handleClearCache = (selection: ClearCacheSelection): void => {
-		const categories: Array<string> = [];
-		if (selection.albumArt) categories.push('album_art', 'album_art_thumb');
-		if (selection.albumArtBlurred) categories.push('album_art_blurred');
-		if (selection.artistImage) categories.push('artist_image', 'artist_image_thumb');
-		if (selection.artistLogo) categories.push('artist_logo');
-		if (selection.genreImage) categories.push('genre_art');
-		if (selection.playlistImage) categories.push('playlist_image', 'playlist_image_thumb');
-		try {
-			clearAtollaNativeCacheCategories(categories);
-		} catch {
-			// native clear unavailable on non-Android targets
-		}
-		if (selection.tracks) {
-			try {
-				clearAtollaTrackCache();
-			} catch {
-				// native track cache clear unavailable on non-Android targets
-			}
-			this.playbackOrchestrator.resetForTrackCacheCleared();
-		}
-		if (selection.albumArt) {
-			void this.paletteService?.clearAll();
-			try {
-				clearAtollaNativeCacheCategories(['album_art_palette']);
-			} catch {
-				// native clear unavailable on non-Android targets
-			}
-		}
-		if (selection.waveformData) {
-			this.playbackOrchestrator.clearWaveformData();
-		}
-		this.refreshNativeCacheStats();
-		this.refreshTrackCachedCount();
-		this.setState({ version: this.state.version + 1 });
-	};
-
-	handleClearDownloads = (): void => {
-		this.downloadService.removeAllDownloads();
-	};
-
-	handleCacheSizeChange = (bytes: number): void => {
-		this.preferences.setImageCacheMaxBytes(bytes);
-		try {
-			setAtollaImageLoaderDiskCacheMaxBytes(bytes);
-		} catch {
-			// native disk cache unavailable on non-Android targets
-		}
-		this.setState({ imageCacheMaxBytes: bytes });
-	};
-
-	handleAnimationsChange = (enabled: boolean): void => {
-		this.preferences.setAnimationsEnabled(enabled);
-		this.setState({ animationsEnabled: enabled });
-	};
-
-	handleDebugLoggingChange = (enabled: boolean): void => {
-		void this.preferences.setDebugLoggingEnabled(enabled);
-		DebugLogger.setEnabled(enabled);
-		this.setState({ debugLoggingEnabled: enabled });
-	};
-
-	handleClearDebugLog = (): void => {
-		DebugLogger.clearLog();
-	};
-
-	handleExportDebugLog = (): void => {
-		const dest = DebugLogger.exportLog();
-		this.setState({ debugExportPath: dest || null });
-	};
-
-	handleExportOfflineStatus = async (): Promise<void> => {
-		try {
-			const fetchRaw = (
-				store: KeyValueStore | undefined,
-				key: string,
-			): Promise<string | undefined> =>
-				store ? store.fetchString(key).catch(() => undefined) : Promise.resolve(undefined);
-
-			// home cache keys: 'on_this_day_v1' is OnThisDayService's date-keyed cache (replaced
-			// the old whole-library 'albums_v1' blob), 'recently_added_v1' mirrors HomeView's
-			// recently-added cache, 'queue' mirrors PlaybackStore
-			const [recentlyPlayed, nowPlayingQueue, homeAlbums, homeRecentlyAdded, playlistEdits] =
-				await Promise.all([
-					this.playbackOrchestrator.getRecentlyPlayedRaw(),
-					fetchRaw(this.nowPlayingQueueStore, 'queue'),
-					fetchRaw(this.homeAlbumsStore, 'on_this_day_v1'),
-					fetchRaw(this.homeAlbumsStore, 'recently_added_v1'),
-					this.playlistEditService.getPendingCount().catch(() => undefined),
-				]);
-
-			const report = buildOfflineDiagnosticsReport({
-				appVersion: version,
-				connectionMode: this.state.connectionMode,
-				debugLoggingEnabled: this.state.debugLoggingEnabled,
-				downloads: this.downloadService,
-				generatedAt: new Date().toISOString(),
-				pending: {
-					playlistCreates: this.playlistCreateService.getPending().length,
-					playlistEdits,
-					scrobbles: this.playbackOrchestrator.getPendingScrobbleCount(),
-				},
-				platform: Device.isAndroid() ? 'android' : 'ios',
-				rawPersisted: { homeAlbums, homeRecentlyAdded, nowPlayingQueue, recentlyPlayed },
-				settings: {
-					gridColumns: this.state.gridColumns,
-					imageCacheMaxBytes: this.state.imageCacheMaxBytes,
-					trackCacheMaxTracks: this.state.trackCacheMaxTracks,
-				},
-				totalDownloadedSizeBytes: this.downloadService.getTotalDownloadedSizeBytes(),
-			});
-
-			const json = serializeOfflineDiagnostics(report);
-			const fileName = 'atolla-offline-status.json';
-			const dest = DebugLogger.exportTextFile(fileName, json);
-			this.setState({ offlineStatusExportPath: dest || null });
-			DebugLogger.shareTextFile(fileName, json);
-		} catch (error) {
-			DebugLogger.log('diagnostics', 'offline status export failed', {
-				message: error instanceof Error ? error.message : String(error),
-			});
-		}
-	};
-
-	handleShareDebugLog = (): void => {
-		DebugLogger.shareLog();
-	};
-
-	handleTrackCacheMaxTracksChange = (count: number): void => {
-		this.preferences.setTrackCacheMaxTracks(count);
-		this.setState({ trackCacheMaxTracks: count });
-		this.applyNativeTrackCacheLimit(count);
-		this.refreshTrackCachedCount();
-	};
-
-	handleGridColumnsChange = (count: number): void => {
-		this.preferences.setGridColumns(count);
-		this.setState({ gridColumns: count });
-	};
-
-	handleLanguageChange = (code: LanguageCode): void => {
-		void this.preferences.setLanguage(code);
-		overrideLocales(Strings, () => [new Locale(code, undefined)]);
-		this.setState({ language: code });
-	};
-
-	handleJellyfinClientDeviceIdOverrideChange = (value: string): void => {
-		void (async () => {
-			const normalized = this.normalizeJellyfinClientDeviceIdOverride(value);
-			this.jellyfinClientDeviceIdOverride = normalized;
-			this.setState({ jellyfinClientDeviceIdOverride: normalized });
-
-			await this.preferences.setJellyfinClientDeviceIdOverride(normalized);
-			this.authService.setClientDeviceId(this.getEffectiveJellyfinClientDeviceId());
-
-			if (this.state.connectionMode === ConnectionModes.online) {
-				const session = await this.authService.loadSession();
-				if (session != null) {
-					this.currentAccessToken = session.accessToken;
-					this.transport = new LiveTransport(
-						session.serverUrl,
-						session.accessToken,
-						session.userId,
-						{
-							clientDeviceId: this.getEffectiveJellyfinClientDeviceId(),
-						},
-					);
-				}
-			}
-		})();
-	};
-
-	private applyNativeTrackCacheLimit(maxTracks: number): void {
-		if (!Number.isFinite(maxTracks) || maxTracks <= 0) {
-			return;
-		}
-
-		try {
-			setAtollaTrackCacheMaxTracks(maxTracks);
-		} catch {
-			// native track cache limit unavailable on non-Android targets
-		}
-	}
-
-	handleLibraryNavigationControllerChange = (navigationController: NavigationController): void => {
-		this.libraryNavigationController = navigationController;
-		this.tryNavigatePendingArtist();
-		this.tryNavigatePendingAlbum();
-		this.tryNavigatePendingSearchResult();
-		this.tryRestoreNavContext();
-	};
-
-	handleHomeNavigationControllerChange = (navigationController: NavigationController): void => {
-		this.homeNavigationController = navigationController;
-		this.tryNavigatePendingPlaylist();
-	};
-
-	handleNavigationContext = (context: LibraryNavContext | null): void => {
-		this.currentLibraryNavContext = context;
-	};
-
-	private isSameLibraryNavContext(
-		left: LibraryNavContext | null,
-		right: LibraryNavContext | null,
-	): boolean {
-		if (!left || !right || left.kind !== right.kind) {
-			return false;
-		}
-
-		switch (left.kind) {
-			case 'artist': {
-				return right.kind === 'artist' && left.artist.id === right.artist.id;
-			}
-			case 'album': {
-				return right.kind === 'album' && left.album.id === right.album.id;
-			}
-			case 'playlist': {
-				return right.kind === 'playlist' && left.playlist.id === right.playlist.id;
-			}
-			case 'genre': {
-				return right.kind === 'genre' && left.genre.id === right.genre.id;
-			}
-		}
-	}
-
-	private tryRestoreNavContext(): void {
-		const context = this.pendingNavRestoreContext;
-		if (!context || !this.libraryNavigationController) {
-			return;
-		}
-
-		if (this.isSameLibraryNavContext(this.currentLibraryNavContext, context)) {
-			this.pendingNavRestoreContext = null;
-			return;
-		}
-		this.pendingNavRestoreContext = null;
-
-		const nav = this.libraryNavigationController;
-		const { animationsEnabled, gridColumns } = this.state;
-		const shared = {
-			animationsEnabled,
-			downloadService: this.downloadService,
-			gridColumns,
-			imageCache: this.imageCache,
-			isHeaderVisible: false,
-			modalSlot: this.modalSlot,
-			navBarContext: this.buildLibraryNavBarContext(),
-			onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
-			onNavigationContext: this.handleNavigationContext,
-			paletteQueue: this.paletteQueue,
-			playbackStore: this.playbackStore,
-			toastService: this.toastService,
-			transport: this.transport,
-		};
-
-		if (context.kind === 'artist') {
-			this.transport
-				.getArtist(context.artist.id)
-				.then((artist) => {
-					if (!nav) return;
-					nav.push(
-						ArtistView,
-						{ ...shared, artist: artist ?? context.artist },
-						{},
-						{ animated: false },
-					);
-					this.currentLibraryNavContext = { artist: artist ?? context.artist, kind: 'artist' };
-				})
-				.catch(this.handleSwallowedAsyncError);
-		} else if (context.kind === 'album') {
-			nav.push(AlbumView, { ...shared, album: context.album }, {}, { animated: false });
-			this.currentLibraryNavContext = context;
-		} else if (context.kind === 'playlist') {
-			nav.push(
-				PlaylistView,
-				{ ...shared, playlist: context.playlist, playlistEditService: this.playlistEditService },
-				{},
-				{ animated: false },
-			);
-			this.currentLibraryNavContext = context;
-		} else if (context.kind === 'genre') {
-			nav.push(
-				GenreView,
-				{
-					...shared,
-					genre: context.genre,
-					onNavigateToArtist: this.handleNavigateToArtist,
-				},
-				{},
-				{ animated: false },
-			);
-			this.currentLibraryNavContext = context;
-		}
-	}
-
-	handleSearchResultNavigation = (target: SearchLibraryNavigationTarget): void => {
-		this.pendingSearchNavigation = target;
-		this.returnToSearchOnDetailClose = true;
-
-		const activeLibraryTab =
-			target.kind === 'album'
-				? HeaderTabs.albums
-				: target.kind === 'artist'
-					? HeaderTabs.artists
-					: HeaderTabs.playlists;
-
-		this.setState({
-			activeFooterTab: FooterTabs.library,
-			activeLibraryTab,
-			isLibraryHeaderVisible: true,
-			libraryResetNonce: this.state.libraryResetNonce + 1,
-		});
-
-		this.tryNavigatePendingSearchResult();
-	};
-
-	private handleSearchNavigationDetailExit = (): void => {
-		if (!this.returnToSearchOnDetailClose) {
-			return;
-		}
-
-		if (this.state.activeFooterTab !== FooterTabs.library) {
-			return;
-		}
-
-		this.returnToSearchOnDetailClose = false;
-		this.setState({
-			activeFooterTab: FooterTabs.search,
-			nowPlayingCollapseSignal: this.state.nowPlayingCollapseSignal + 1,
-		});
-	};
-
-	private tryNavigatePendingSearchResult(): void {
-		if (
-			!this.pendingSearchNavigation ||
-			!this.libraryNavigationController ||
-			this.isResolvingSearchNavigation
-		) {
-			return;
-		}
-
-		this.isResolvingSearchNavigation = true;
-		const target = this.pendingSearchNavigation;
-
-		Promise.resolve().then(() => {
-			if (this.pendingSearchNavigation !== target) {
-				this.isResolvingSearchNavigation = false;
-				return;
-			}
-
-			if (!this.libraryNavigationController) {
-				this.isResolvingSearchNavigation = false;
-				return;
-			}
-
-			if (target.kind === 'artist') {
-				this.libraryNavigationController.push(
-					ArtistView,
-					{
-						animationsEnabled: this.state.animationsEnabled,
-						artist: target.artist,
-						downloadService: this.downloadService,
-						gridColumns: this.state.gridColumns,
-						imageCache: this.imageCache,
-						isHeaderVisible: false,
-						modalSlot: this.modalSlot,
-						navBarContext: this.buildLibraryNavBarContext(),
-						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
-						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
-						paletteQueue: this.paletteQueue,
-						playbackStore: this.playbackStore,
-						toastService: this.toastService,
-						transport: this.transport,
-					},
-					{},
-					{ animated: this.state.animationsEnabled },
-				);
-			}
-
-			if (target.kind === 'album') {
-				this.libraryNavigationController.push(
-					AlbumView,
-					{
-						album: target.album as Album,
-						animationsEnabled: this.state.animationsEnabled,
-						downloadService: this.downloadService,
-						gridColumns: this.state.gridColumns,
-						imageCache: this.imageCache,
-						isHeaderVisible: false,
-						modalSlot: this.modalSlot,
-						navBarContext: this.buildLibraryNavBarContext(),
-						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
-						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
-						paletteQueue: this.paletteQueue,
-						playbackStore: this.playbackStore,
-						toastService: this.toastService,
-						transport: this.transport,
-					},
-					{},
-					{ animated: this.state.animationsEnabled },
-				);
-			}
-
-			if (target.kind === 'playlist') {
-				this.libraryNavigationController.push(
-					PlaylistView,
-					{
-						animationsEnabled: this.state.animationsEnabled,
-						downloadService: this.downloadService,
-						gridColumns: this.state.gridColumns,
-						imageCache: this.imageCache,
-						isHeaderVisible: false,
-						modalSlot: this.modalSlot,
-						navBarContext: this.buildLibraryNavBarContext(),
-						onExitFromSearchNavigation: this.handleSearchNavigationDetailExit,
-						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
-						paletteQueue: this.paletteQueue,
-						playbackStore: this.playbackStore,
-						playlist: target.playlist as Playlist,
-						playlistEditService: this.playlistEditService,
-						toastService: this.toastService,
-						transport: this.transport,
-					},
-					{},
-					{ animated: this.state.animationsEnabled },
-				);
-			}
-
-			this.pendingSearchNavigation = null;
-			this.isResolvingSearchNavigation = false;
-		});
-	}
-
-	private renderNowPlayingOverlay = (): void => {
-		const { track, album, isPlaying, loopMode, artistLogoUrl, tracks, trackIndex } =
-			this.playbackStore;
-		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
-		if (!track) return;
-		<ErrorBoundary resetKey={track.id}>
-			<NowPlayingSurface
-				album={album}
-				animationsEnabled={this.state.animationsEnabled}
-				artistLogoUrl={artistLogoUrl}
-				barColors={this.barColors}
-				collapseSignal={this.state.nowPlayingCollapseSignal}
-				isPlaying={isPlaying}
-				language={this.state.language}
-				loopMode={loopMode}
-				onAlbumTap={this.handleNowPlayingAlbumTap}
-				onArtistTap={this.handleNowPlayingArtistTap}
-				onOpenPlaylist={this.handleNowPlayingOpenPlaylist}
-				palette={palette}
-				playbackStore={this.playbackStore}
-				toastService={this.toastService}
-				track={track}
-				trackIndex={trackIndex}
-				tracks={tracks}
-				transport={this.transport}
-				waveformMaskUrl={this.playbackOrchestrator.getWaveformMaskUrl(track.id)}
-			/>
-		</ErrorBoundary>;
-	};
-
-	handleNavigateToArtist = (artistId: string): void => {
-		if (!this.libraryNavigationController) {
-			return;
-		}
-		const navigationController = this.libraryNavigationController;
-		this.transport
-			.getArtist(artistId)
-			.then((artist) => {
-				if (!artist) return;
-				navigationController.push(
-					ArtistView,
-					{
-						animationsEnabled: this.state.animationsEnabled,
-						artist,
-						downloadService: this.downloadService,
-						gridColumns: this.state.gridColumns,
-						imageCache: this.imageCache,
-						isHeaderVisible: false,
-						modalSlot: this.modalSlot,
-						navBarContext: this.buildLibraryNavBarContext(),
-						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
-						paletteQueue: this.paletteQueue,
-						playbackStore: this.playbackStore,
-						toastService: this.toastService,
-						transport: this.transport,
-					},
-					{},
-					{ animated: this.state.animationsEnabled },
-				);
-			})
-			.catch(this.handleSwallowedAsyncError);
-	};
-
-	handleNowPlayingArtistTap = (track?: Track): void => {
-		if (track) {
-			if (!track.artistId) {
-				return;
-			}
-			this.navigateToArtist(track.artistId, track.artistName ?? 'Unknown Artist', null);
-			return;
-		}
-
-		const { album, artistLogoUrl, track: playing } = this.playbackStore;
-		const artistId = playing?.artistId ?? album?.artistId;
-		if (!artistId) {
-			return;
-		}
-		this.navigateToArtist(
-			artistId,
-			playing?.artistName ?? album?.artistName ?? 'Unknown Artist',
-			artistLogoUrl ?? null,
-		);
-	};
-
-	private navigateToArtist(
-		artistId: string,
-		fallbackName: string,
-		fallbackLogoUrl: string | null,
-	): void {
-		this.pendingArtistId = artistId;
-		this.pendingArtistFallbackName = fallbackName;
-		this.pendingArtistFallbackLogoUrl = fallbackLogoUrl;
-		this.setState({
-			activeFooterTab: FooterTabs.library,
-			activeLibraryTab: HeaderTabs.artists,
-			isLibraryHeaderVisible: true,
-			libraryResetNonce: this.state.libraryResetNonce + 1,
-		});
-
-		this.tryNavigatePendingArtist();
-	}
-
-	private tryNavigatePendingArtist(): void {
-		if (
-			!this.pendingArtistId ||
-			!this.libraryNavigationController ||
-			this.isResolvingArtistNavigation
-		) {
-			return;
-		}
-
-		this.isResolvingArtistNavigation = true;
-		const pendingArtistId = this.pendingArtistId;
-		this.transport
-			.getArtist(pendingArtistId)
-			.then((artist) => {
-				if (this.pendingArtistId !== pendingArtistId) {
-					this.isResolvingArtistNavigation = false;
-					return;
-				}
-
-				const resolvedArtist: Artist =
-					artist ??
-					({
-						id: pendingArtistId,
-						logoUrl: this.pendingArtistFallbackLogoUrl ?? null,
-						name: this.pendingArtistFallbackName,
-					} as Artist);
-				this.libraryNavigationController?.push(
-					ArtistView,
-					{
-						animationsEnabled: this.state.animationsEnabled,
-						artist: resolvedArtist,
-						downloadService: this.downloadService,
-						gridColumns: this.state.gridColumns,
-						imageCache: this.imageCache,
-						isHeaderVisible: false,
-						modalSlot: this.modalSlot,
-						navBarContext: this.buildLibraryNavBarContext(),
-						onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
-						paletteQueue: this.paletteQueue,
-						playbackStore: this.playbackStore,
-						toastService: this.toastService,
-						transport: this.transport,
-					},
-					{},
-					{ animated: this.state.animationsEnabled },
-				);
-
-				this.pendingArtistId = null;
-				this.pendingArtistFallbackName = 'Unknown Artist';
-				this.pendingArtistFallbackLogoUrl = null;
-				this.isResolvingArtistNavigation = false;
-			})
-			.catch(() => {
-				this.isResolvingArtistNavigation = false;
-			});
-	}
-
-	handleNowPlayingAlbumTap = (track?: Track): void => {
-		const resolvedAlbum = track
-			? this.albumFromTrack(track)
-			: (this.playbackStore.album ?? this.albumFromTrack(this.playbackStore.track));
-		if (!resolvedAlbum) {
-			return;
-		}
-		this.navigateToAlbum(resolvedAlbum);
-	};
-
-	private albumFromTrack(track: Track | null | undefined): Album | null {
-		if (!track?.albumId) {
-			return null;
-		}
-		return {
-			artistId: track.artistId ?? '',
-			artistName: track.artistName ?? '',
-			id: track.albumId,
-			imageUrl: track.albumImageUrl,
-			name: track.albumName ?? '',
-			releaseDate: track.releaseDate,
-		};
-	}
-
-	private navigateToAlbum(album: Album): void {
-		this.pendingAlbum = album;
-		this.setState({
-			activeFooterTab: FooterTabs.library,
-			activeLibraryTab: HeaderTabs.albums,
-			isLibraryHeaderVisible: true,
-			libraryResetNonce: this.state.libraryResetNonce + 1,
-		});
-
-		this.tryNavigatePendingAlbum();
-	}
-
-	handleHomeArtistTap = (artistId: string): void => {
-		if (!this.homeNavigationController) {
-			return;
-		}
-		const navigationController = this.homeNavigationController;
-		this.transport
-			.getArtist(artistId)
-			.then((artist) => {
-				if (!artist) return;
-				navigationController.push(
-					ArtistView,
-					{
-						animationsEnabled: this.state.animationsEnabled,
-						artist,
-						downloadService: this.downloadService,
-						gridColumns: this.state.gridColumns,
-						imageCache: this.imageCache,
-						isHeaderVisible: false,
-						modalSlot: this.modalSlot,
-						navBarContext: this.buildHomeNavBarContext(),
-						onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
-						paletteQueue: this.paletteQueue,
-						playbackStore: this.playbackStore,
-						toastService: this.toastService,
-						transport: this.transport,
-					},
-					{},
-					{ animated: this.state.animationsEnabled },
-				);
-			})
-			.catch(this.handleSwallowedAsyncError);
-	};
-
-	handleHomeAlbumTap = (album: Album): void => {
-		this.returnToSearchOnDetailClose = false;
-
-		if (!this.homeNavigationController) {
-			return;
-		}
-
-		this.homeNavigationController.push(
-			AlbumView,
-			{
-				album,
-				animationsEnabled: this.state.animationsEnabled,
-				downloadService: this.downloadService,
-				gridColumns: this.state.gridColumns,
-				imageCache: this.imageCache,
-				modalSlot: this.modalSlot,
-				navBarContext: this.buildHomeNavBarContext(),
-				onHeaderVisibilityChange: this.handleHomeHeaderVisibilityChange,
-				paletteQueue: this.paletteQueue,
-				playbackStore: this.playbackStore,
-				restoreHeaderOnDestroy: false,
-				toastService: this.toastService,
-				transport: this.transport,
-			},
-			{},
-			{ animated: this.state.animationsEnabled },
-		);
-	};
-
-	handleHomeOpenPlaylist = (playlist: Playlist): void => {
-		if (!this.homeNavigationController) return;
-		this.homeNavigationController.push(
-			PlaylistView,
-			{
-				animationsEnabled: this.state.animationsEnabled,
-				downloadService: this.downloadService,
-				gridColumns: this.state.gridColumns,
-				imageCache: this.imageCache,
-				modalSlot: this.modalSlot,
-				navBarContext: this.buildHomeNavBarContext(),
-				paletteQueue: this.paletteQueue,
-				playbackStore: this.playbackStore,
-				playlist,
-				playlistEditService: this.playlistEditService,
-				toastService: this.toastService,
-				transport: this.transport,
-			},
-			{},
-			{ animated: this.state.animationsEnabled },
-		);
-	};
-
-	handleNowPlayingOpenPlaylist = (playlist: Playlist): void => {
-		// invoked from the now playing surface, which can be open over any tab. switching to
-		// home may mount its navigation controller asynchronously, so stash the playlist and let
-		// tryNavigatePendingPlaylist push once the controller is available (mirrors the pending
-		// album/artist navigation). a one-shot push silently no-ops on iOS when the home
-		// controller isn't mounted yet
-		this.pendingPlaylist = playlist;
-		this.setState({ activeFooterTab: FooterTabs.home });
-		this.tryNavigatePendingPlaylist();
-	};
-
-	private tryNavigatePendingPlaylist(): void {
-		if (!this.pendingPlaylist || !this.homeNavigationController) {
-			return;
-		}
-
-		const playlist = this.pendingPlaylist;
-		this.pendingPlaylist = null;
-		this.homeNavigationController.push(
-			PlaylistView,
-			{
-				animationsEnabled: this.state.animationsEnabled,
-				downloadService: this.downloadService,
-				gridColumns: this.state.gridColumns,
-				imageCache: this.imageCache,
-				modalSlot: this.modalSlot,
-				navBarContext: this.buildHomeNavBarContext(),
-				paletteQueue: this.paletteQueue,
-				playbackStore: this.playbackStore,
-				playlist,
-				playlistEditService: this.playlistEditService,
-				toastService: this.toastService,
-				transport: this.transport,
-			},
-			{},
-			{ animated: this.state.animationsEnabled },
-		);
-	}
-
-	private tryNavigatePendingAlbum(): void {
-		if (
-			!this.pendingAlbum ||
-			!this.libraryNavigationController ||
-			this.isResolvingAlbumNavigation
-		) {
-			return;
-		}
-
-		this.isResolvingAlbumNavigation = true;
-		const album = this.pendingAlbum;
-		Promise.resolve().then(() => {
-			if (this.pendingAlbum !== album) {
-				this.isResolvingAlbumNavigation = false;
-				return;
-			}
-			if (!this.libraryNavigationController) {
-				this.isResolvingAlbumNavigation = false;
-				return;
-			}
-			this.libraryNavigationController.push(
-				AlbumView,
-				{
-					album,
-					animationsEnabled: this.state.animationsEnabled,
-					downloadService: this.downloadService,
-					gridColumns: this.state.gridColumns,
-					imageCache: this.imageCache,
-					isHeaderVisible: false,
-					modalSlot: this.modalSlot,
-					navBarContext: this.buildLibraryNavBarContext(),
-					onHeaderVisibilityChange: this.handleLibraryHeaderVisibilityChange,
-					paletteQueue: this.paletteQueue,
-					playbackStore: this.playbackStore,
-					toastService: this.toastService,
-					transport: this.transport,
-				},
-				{},
-				{ animated: this.state.animationsEnabled },
-			);
-			this.pendingAlbum = null;
-			this.isResolvingAlbumNavigation = false;
-		});
-	}
-
-	private completeBootstrap(
-		partialState: Partial<
-			Pick<
-				AppState,
-				| 'animationsEnabled'
-				| 'authErrorMessage'
-				| 'connectionMode'
-				| 'gridColumns'
-				| 'imageCacheMaxBytes'
-				| 'isAuthRequired'
-				| 'jellyfinClientDeviceIdOverride'
-				| 'language'
-				| 'serverName'
-				| 'serverUrlPrefill'
-				| 'trackCacheMaxTracks'
-			>
-		>,
-	): void {
-		const elapsed = Date.now() - this.bootstrapStartedAt;
-		const remaining = Math.max(0, this.minimumBootSplashMs - elapsed);
-		if (this.bootstrapCommitTimer) {
-			clearTimeout(this.bootstrapCommitTimer);
-		}
-		this.bootstrapCommitTimer = setTimeout(() => {
-			this.setState({ ...partialState, isBootstrapped: true });
-			this.playbackOrchestrator.notifyAppReady();
-		}, remaining);
-	}
-
-	private buildLibraryNavBarContext(): NavBarContext | undefined {
-		if (Device.isAndroid()) return undefined;
-		return {
-			activeFooterTab: this.state.activeFooterTab,
-			barColors: this.barColors,
-			downloadingCount: this.state.downloadingCount,
-			header: {
-				activeTab: this.state.activeLibraryTab,
-				animationsEnabled: this.state.animationsEnabled,
-				connectionMode: this.state.connectionMode,
-				onAlphabetLetterTap: this.handleLibraryAlphabetLetterTap,
-				onRequestModeChange: this.requestModeChange,
-				onTabTap: this.handleLibraryHeaderTabTap,
-			},
-			modalSlot: this.modalSlot,
-			nowPlayingOverlaySlot: this.nowPlayingOverlaySlot,
-			onFooterTabTap: this.handleFooterTabTap,
-		};
-	}
-
-	private buildHomeNavBarContext(): NavBarContext | undefined {
-		if (Device.isAndroid()) return undefined;
-		return {
-			activeFooterTab: this.state.activeFooterTab,
-			barColors: this.barColors,
-			downloadingCount: this.state.downloadingCount,
-			header: {
-				activeTab: HeaderTabs.albums,
-				animationsEnabled: this.state.animationsEnabled,
-				connectionMode: this.state.connectionMode,
-				onRequestModeChange: this.requestModeChange,
-				onTabTap: this.handleHomeHeaderTabTap,
-			},
-			modalSlot: this.modalSlot,
-			nowPlayingOverlaySlot: this.nowPlayingOverlaySlot,
-			onFooterTabTap: this.handleFooterTabTap,
-		};
-	}
-
-	private buildHomeViewModel(): HomeTabViewModel {
-		return {
-			animationsEnabled: this.state.animationsEnabled,
-			connectionMode: this.state.connectionMode,
-			downloadService: this.downloadService,
-			gridColumns: this.state.gridColumns,
-			imageCache: this.imageCache,
-			modalSlot: this.modalSlot,
-			onNavigationControllerReady: this.handleHomeNavigationControllerChange,
-			onRequestModeChange: this.requestModeChange,
-			onThisDayService: this.onThisDayService,
-			paletteQueue: this.paletteQueue,
-			playbackStore: this.playbackStore,
-			playlistEditService: this.playlistEditService,
-			recentlyAddedService: this.recentlyAddedService,
-			recentlyPlayedTracks: this.playbackOrchestrator.getRecentlyPlayedTracks(),
-			toastService: this.toastService,
-			transport: this.transport,
-		};
-	}
-
-	private buildLibraryViewModel(): Omit<
-		LibraryViewModel,
-		'navCoordinator' | 'onNavigationControllerReady'
-	> {
-		return {
-			animationsEnabled: this.state.animationsEnabled,
-			connectionMode: this.state.connectionMode,
-			downloadService: this.downloadService,
-			gridColumns: this.state.gridColumns,
-			imageCache: this.imageCache,
-			modalSlot: this.modalSlot,
-			onRequestModeChange: this.requestModeChange,
-			paletteQueue: this.paletteQueue,
-			playbackStore: this.playbackStore,
-			playlistEditService: this.playlistEditService,
-			toastService: this.toastService,
-			transport: this.transport,
-		};
-	}
-
-	private buildSearchViewModel(): Omit<SearchViewModel, 'navigationController'> {
-		return {
-			animationsEnabled: this.state.animationsEnabled,
-			downloadService: this.downloadService,
-			focusSignal: this.state.searchFocusSignal,
-			gridColumns: this.state.gridColumns,
-			imageCache: this.imageCache,
-			modalSlot: this.modalSlot,
-			paletteQueue: this.paletteQueue,
-			playbackStore: this.playbackStore,
-			playlistEditService: this.playlistEditService,
-			searchStore: this.searchStore,
-			toastService: this.toastService,
-			transport: this.transport,
-		};
-	}
-
-	private buildSettingsViewModel(): SettingsViewModel {
-		return {
-			downloadService: this.downloadService,
-			modalSlot: this.modalSlot,
-			paletteService: this.paletteService,
-			playbackOrchestrator: this.playbackOrchestrator,
-			preferences: this.preferences,
-			sessionController: this.sessionController,
-			toastService: this.toastService,
-			visible: this.state.activeFooterTab === FooterTabs.settings,
-		};
-	}
-
-	onRender(): void {
-		if (!this.state.isBootstrapped) {
-			<BootSplash />;
-			return;
-		}
-
-		if (SPIKE_LIBRARY_V2) {
-			<AuthedApp
-				animationsEnabled={this.state.animationsEnabled}
-				barColors={this.barColors}
-				connectionMode={this.state.connectionMode}
-				downloadingCount={this.state.downloadingCount}
-				homeViewModel={this.buildHomeViewModel()}
-				language={this.state.language}
-				libraryViewModel={this.buildLibraryViewModel()}
-				modalSlot={this.modalSlot}
-				navCoordinator={this.navCoordinator}
-				paletteService={this.paletteService}
-				playbackOrchestrator={this.playbackOrchestrator}
-				playbackStore={this.playbackStore}
-				searchViewModel={this.buildSearchViewModel()}
-				settingsViewModel={this.buildSettingsViewModel()}
-				toastService={this.toastService}
-				toastSlot={this.toastSlot}
-				transport={this.transport}
-			/>;
-			return;
-		}
-
-		if (this.state.isAuthRequired) {
-			<view style={theme.app.root}>
-				<ConnectionView
-					animationsEnabled={this.state.animationsEnabled}
-					errorMessage={this.state.authErrorMessage}
-					isConnecting={this.state.isAuthenticating}
-					modalSlot={this.modalSlot}
-					onConnect={this.handleConnect}
-					onLanguageChange={this.handleLanguageChange}
-					quickConnectCode={this.state.quickConnectCode}
-					selectedLanguage={this.state.language}
-					serverUrl={this.state.serverUrlPrefill}
-					toastService={this.toastService}
-				/>
-				<DetachedSlotRenderer detachedSlot={this.modalSlot} />
-				<DetachedSlotRenderer detachedSlot={this.toastSlot} />
-			</view>;
-			return;
-		}
-
-		const { track, album, isPlaying, loopMode, artistLogoUrl, tracks, trackIndex } =
-			this.playbackStore;
-		const palette = this.paletteService.getPalette(track?.albumImageUrl ?? album?.imageUrl);
-
-		<view style={theme.app.root}>
-			<view style={theme.app.content}>
-				{this.state.connectionMode === ConnectionModes.mock ? (
-					<MockPlayer playbackStore={this.playbackStore} />
-				) : (
-					<GaplessPlayer
-						activeSourceUrl={this.playbackOrchestrator.getTrackPlaybackSourceUrl()}
-						nextSourceUrl={this.playbackOrchestrator.getNextTrackSourceUrl()}
-						onPlaybackError={(error) => this.playbackOrchestrator.handlePlaybackError(error)}
-						onPlaybackEvent={(event) => this.playbackOrchestrator.handlePlaybackEvent(event)}
-						onTrackCompleted={() => this.playbackOrchestrator.handleTrackCompleted()}
-						playbackStore={this.playbackStore}
-					/>
-				)}
-				<ErrorBoundary resetKey={this.state.activeFooterTab}>
-					{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeNavigationMounted && (
-						<NavigationRoot>
-							{$slot((navigationController) => {
-								this.handleHomeNavigationControllerChange(navigationController);
-								<HomeView
-									animationsEnabled={this.state.animationsEnabled}
-									connectionMode={this.state.connectionMode}
-									gridColumns={this.state.gridColumns}
-									imageCache={this.imageCache}
-									modalSlot={this.modalSlot}
-									onNavigateToArtist={this.handleHomeArtistTap}
-									onOpenAlbum={this.handleHomeAlbumTap}
-									onOpenPlaylist={this.handleHomeOpenPlaylist}
-									onRequestModeChange={this.requestModeChange}
-									onThisDayService={this.onThisDayService}
-									playbackStore={this.playbackStore}
-									recentlyAddedService={this.recentlyAddedService}
-									recentlyPlayedTracks={this.playbackOrchestrator.getRecentlyPlayedTracks()}
-									toastService={this.toastService}
-									transport={this.transport}
-								/>;
-							})}
-						</NavigationRoot>
-					)}
-
-					{this.state.activeFooterTab === FooterTabs.library && (
-						<LibraryView
-							activeTab={this.state.activeLibraryTab}
-							animationsEnabled={this.state.animationsEnabled}
-							connectionMode={this.state.connectionMode}
-							downloadService={this.downloadService}
-							gridColumns={this.state.gridColumns}
-							imageCache={this.imageCache}
-							letterFilter={this.state.libraryLetterFilter}
-							modalSlot={this.modalSlot}
-							navBarContext={this.buildLibraryNavBarContext()}
-							onHeaderVisibilityChange={this.handleLibraryHeaderVisibilityChange}
-							onNavigateToArtist={this.handleNavigateToArtist}
-							onNavigationContext={this.handleNavigationContext}
-							onNavigationControllerChange={this.handleLibraryNavigationControllerChange}
-							paletteQueue={this.paletteQueue}
-							playbackStore={this.playbackStore}
-							playlistEditService={this.playlistEditService}
-							resetSignal={this.state.libraryResetNonce}
-							toastService={this.toastService}
-							transport={this.transport}
-						/>
-					)}
-					{this.state.activeFooterTab === FooterTabs.search && (
-						<NavigationRoot>
-							{$slot((navigationController) => {
-								<SearchView
-									animationsEnabled={this.state.animationsEnabled}
-									downloadService={this.downloadService}
-									focusSignal={this.state.searchFocusSignal}
-									gridColumns={this.state.gridColumns}
-									imageCache={this.imageCache}
-									modalSlot={this.modalSlot}
-									navigationController={navigationController}
-									onNavigateToLibraryResult={this.handleSearchResultNavigation}
-									paletteQueue={this.paletteQueue}
-									playbackStore={this.playbackStore}
-									playlistEditService={this.playlistEditService}
-									searchStore={this.searchStore}
-									toastService={this.toastService}
-									transport={this.transport}
-								/>;
-							})}
-						</NavigationRoot>
-					)}
-					{this.state.activeFooterTab === FooterTabs.settings && this.state.isSettingsMounted && (
-						<SettingsView
-							animationsEnabled={this.state.animationsEnabled}
-							connectionMode={this.state.connectionMode}
-							debugExportPath={this.state.debugExportPath}
-							debugLogFilePath={this.state.debugLogFilePath}
-							debugLoggingEnabled={this.state.debugLoggingEnabled}
-							defaultJellyfinDeviceId={this.defaultJellyfinClientDeviceId}
-							downloadedSizeBytes={this.state.downloadedSizeBytes ?? undefined}
-							downloadedTrackCount={this.state.downloadedTrackCount}
-							downloadingCount={this.state.downloadingCount}
-							gridColumns={this.state.gridColumns}
-							imageCacheDiskBytes={this.state.nativeImageCacheDiskBytes}
-							imageCacheDiskCount={this.state.nativeImageCacheDiskCount}
-							imageCacheError={null}
-							imageCacheMaxBytes={this.state.imageCacheMaxBytes}
-							imageCategoryAlbumArtBlurredCount={
-								this.state.imageCategoryCounts.album_art_blurred ?? 0
-							}
-							imageCategoryAlbumArtCount={
-								(this.state.imageCategoryCounts.album_art ?? 0) +
-								(this.state.imageCategoryCounts.album_art_thumb ?? 0)
-							}
-							imageCategoryArtistImageCount={
-								(this.state.imageCategoryCounts.artist_image ?? 0) +
-								(this.state.imageCategoryCounts.artist_image_thumb ?? 0)
-							}
-							imageCategoryArtistLogoCount={this.state.imageCategoryCounts.artist_logo ?? 0}
-							imageCategoryGenreImageCount={this.state.imageCategoryCounts.genre_art ?? 0}
-							imageCategoryPlaylistImageCount={
-								(this.state.imageCategoryCounts.playlist_image ?? 0) +
-								(this.state.imageCategoryCounts.playlist_image_thumb ?? 0)
-							}
-							jellyfinDeviceIdOverride={this.state.jellyfinClientDeviceIdOverride}
-							modalSlot={this.modalSlot}
-							offlineStatusExportPath={this.state.offlineStatusExportPath}
-							onAnimationsChange={this.handleAnimationsChange}
-							onCacheSizeChange={this.handleCacheSizeChange}
-							onClearCache={this.handleClearCache}
-							onClearDebugLog={this.handleClearDebugLog}
-							onClearDownloads={this.handleClearDownloads}
-							onDebugLoggingChange={this.handleDebugLoggingChange}
-							onExportDebugLog={this.handleExportDebugLog}
-							onExportOfflineStatus={this.handleExportOfflineStatus}
-							onGridColumnsChange={this.handleGridColumnsChange}
-							onJellyfinDeviceIdOverrideChange={this.handleJellyfinClientDeviceIdOverrideChange}
-							onLanguageChange={this.handleLanguageChange}
-							onLogout={this.handleLogout}
-							onRequestModeChange={this.requestModeChange}
-							onTrackCacheMaxTracksChange={this.handleTrackCacheMaxTracksChange}
-							preferences={this.preferences}
-							selectedLanguage={this.state.language}
-							serverName={this.state.serverName}
-							serverUrl={this.state.serverUrlPrefill}
-							toastService={this.toastService}
-							trackCacheCachedCount={this.state.trackPlaybackCachedCount}
-							trackCacheMaxTracks={this.state.trackCacheMaxTracks}
-							waveformReadyCount={this.playbackOrchestrator.getWaveformReadyCount()}
-						/>
-					)}
-				</ErrorBoundary>
-				{track && (
-					<ErrorBoundary resetKey={track.id}>
-						<NowPlayingSurface
-							album={album}
-							animationsEnabled={this.state.animationsEnabled}
-							artistLogoUrl={artistLogoUrl}
-							barColors={this.barColors}
-							collapseSignal={this.state.nowPlayingCollapseSignal}
-							isPlaying={isPlaying}
-							language={this.state.language}
-							loopMode={loopMode}
-							onAlbumTap={this.handleNowPlayingAlbumTap}
-							onArtistTap={this.handleNowPlayingArtistTap}
-							onOpenPlaylist={this.handleNowPlayingOpenPlaylist}
-							palette={palette}
-							playbackStore={this.playbackStore}
-							toastService={this.toastService}
-							track={track}
-							trackIndex={trackIndex}
-							tracks={tracks}
-							transport={this.transport}
-							waveformMaskUrl={this.playbackOrchestrator.getWaveformMaskUrl(track.id)}
-						/>
-					</ErrorBoundary>
-				)}
-
-				{this.state.activeFooterTab === FooterTabs.library && this.state.isLibraryHeaderVisible && (
-					<LibraryHeaderNav
-						activeTab={this.state.activeLibraryTab}
-						animationsEnabled={this.state.animationsEnabled}
-						connectionMode={this.state.connectionMode}
-						onAlphabetLetterTap={this.handleLibraryAlphabetLetterTap}
-						onRequestModeChange={this.requestModeChange}
-						onTabTap={this.handleLibraryHeaderTabTap}
-					/>
-				)}
-				{this.state.activeFooterTab === FooterTabs.home && this.state.isHomeHeaderVisible && (
-					<LibraryHeaderNav
-						activeTab={HeaderTabs.albums}
-						animationsEnabled={this.state.animationsEnabled}
-						connectionMode={this.state.connectionMode}
-						onRequestModeChange={this.requestModeChange}
-						onTabTap={this.handleHomeHeaderTabTap}
-					/>
-				)}
-
-				{this.state.syncProgress && (
-					<SyncStatusBanner
-						completed={this.state.syncProgress.completed}
-						onTap={this.handleSyncBannerTap}
-						status={this.state.syncProgress.status}
-						total={this.state.syncProgress.total}
-					/>
-				)}
-			</view>
-
-			<FooterNav
-				activeTab={this.state.activeFooterTab}
-				barColors={this.barColors}
-				downloadingCount={this.state.downloadingCount}
-				onFooterTabTap={this.handleFooterTabTap}
-			/>
-			<DetachedSlotRenderer detachedSlot={this.modalSlot} />
-			<DetachedSlotRenderer detachedSlot={this.toastSlot} />
-		</view>;
 	}
 }

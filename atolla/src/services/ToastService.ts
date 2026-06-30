@@ -7,7 +7,7 @@ export class ToastService {
 		return this.message;
 	}
 
-	show(message: string, durationMs = 2000): void {
+	show(message: string, durationMs = 2500): void {
 		this.timer = scheduleToastDismiss(
 			this.timer,
 			(next) => {
@@ -37,7 +37,7 @@ function scheduleToastDismiss(
 	activeTimer: ReturnType<typeof setTimeout> | undefined,
 	setToastMessage: (message: string | null) => void,
 	message: string,
-	durationMs = 2000,
+	durationMs: number,
 ): ReturnType<typeof setTimeout> {
 	if (activeTimer) {
 		clearTimeout(activeTimer);

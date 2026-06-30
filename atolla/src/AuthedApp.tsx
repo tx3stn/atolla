@@ -11,12 +11,14 @@ import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { backNavRouter } from './services/BackNavRouter';
+import type { DownloadService } from './services/DownloadService';
 import type { NavCoordinator } from './services/NavCoordinator';
 import type { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
+import type { SessionController } from './services/SessionController';
 import type { ToastService } from './services/ToastService';
 import type { BarColorStore } from './stores/BarColor';
 import type { PlaybackStore } from './stores/Playback';
-import type { LanguageCode } from './stores/Preferences';
+import type { LanguageCode, Preferences } from './stores/Preferences';
 import { theme } from './theme';
 import { type ConnectionMode, ConnectionModes } from './transports/Model';
 import type { Transport } from './transports/Transport';
@@ -31,13 +33,13 @@ import { type LibraryViewModel, V2LibraryView } from './ui/tabs/Library';
 import { SearchTab } from './ui/tabs/Search';
 import { SettingsTab } from './ui/tabs/Settings';
 import type { SearchViewModel } from './ui/views/SearchView';
-import type { SettingsViewModel } from './ui/views/V2SettingsView';
 
 export interface AuthedAppViewModel {
 	animationsEnabled: boolean;
 	barColors: BarColorStore;
 	connectionMode: ConnectionMode;
 	downloadingCount: number;
+	downloadService: DownloadService;
 	homeViewModel: HomeTabViewModel;
 	language: LanguageCode;
 	libraryViewModel: Omit<LibraryViewModel, 'navCoordinator' | 'onNavigationControllerReady'>;
@@ -46,8 +48,9 @@ export interface AuthedAppViewModel {
 	paletteService: ArtworkPaletteService;
 	playbackOrchestrator: PlaybackOrchestrator;
 	playbackStore: PlaybackStore;
+	preferences: Preferences;
 	searchViewModel: Omit<SearchViewModel, 'navigationController'>;
-	settingsViewModel: SettingsViewModel;
+	sessionController: SessionController;
 	toastService: ToastService;
 	toastSlot: DetachedSlot;
 	transport: Transport;
@@ -163,7 +166,16 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 
 				<view style={this.tabStyle(FooterTabs.settings)}>
 					<ErrorBoundary resetKey='settings'>
-						<SettingsTab settings={this.viewModel.settingsViewModel} />
+						<SettingsTab
+							downloadService={this.viewModel.downloadService}
+							modalSlot={this.viewModel.modalSlot}
+							paletteService={this.viewModel.paletteService}
+							playbackOrchestrator={this.viewModel.playbackOrchestrator}
+							preferences={this.viewModel.preferences}
+							sessionController={this.viewModel.sessionController}
+							toastService={this.viewModel.toastService}
+							visible={this.state.activeFooterTab === FooterTabs.settings}
+						/>
 					</ErrorBoundary>
 				</view>
 
