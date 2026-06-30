@@ -13,29 +13,12 @@ import type { FooterTab } from '../models/App';
  */
 export class BackNavRouter {
 	private readonly stacks = new Map<FooterTab, Array<NavigationController>>();
+	private readonly returnTo = new Map<FooterTab, FooterTab>();
 	private activeTab?: FooterTab;
+	private tabSwitcher?: (tab: FooterTab) => void;
 
-	setActiveTab(tab: FooterTab): void {
-		this.activeTab = tab;
-	}
-
-	registerPage(controller: NavigationController): void {
-		if (this.activeTab === undefined) {
-			return;
-		}
-		const stack = this.stacks.get(this.activeTab) ?? [];
-		stack.push(controller);
-		this.stacks.set(this.activeTab, stack);
-	}
-
-	unregisterPage(controller: NavigationController): void {
-		for (const stack of this.stacks.values()) {
-			const index = stack.lastIndexOf(controller);
-			if (index >= 0) {
-				stack.splice(index, 1);
-				return;
-			}
-		}
+	clearReturnTo(): void {
+		this.returnTo.clear();
 	}
 
 	goBack(): boolean {
@@ -49,6 +32,63 @@ export class BackNavRouter {
 		}
 		top.pop(true);
 		return true;
+	}
+
+	registerPage(controller: NavigationController): void {
+		if (this.activeTab === undefined) {
+			return;
+		}
+		const stack = this.stacks.get(this.activeTab) ?? [];
+		stack.push(controller);
+		this.stacks.set(this.activeTab, stack);
+	}
+
+	setActiveTab(tab: FooterTab): void {
+		this.activeTab = tab;
+	}
+
+	// Records that emptying `target`'s detail stack should return the shell to `origin` — used when a
+	// cross-tab tap (Home/Search/Now-Playing) opens a detail in the Library tab.
+	setReturnTo(target: FooterTab, origin: FooterTab): void {
+		if (target === origin) {
+			return;
+		}
+		this.returnTo.set(target, origin);
+	}
+
+	setTabSwitcher(switcher: ((tab: FooterTab) => void) | null): void {
+		this.tabSwitcher = switcher ?? undefined;
+	}
+
+	unregisterPage(controller: NavigationController): void {
+		for (const [tab, stack] of this.stacks) {
+			const index = stack.lastIndexOf(controller);
+			if (index >= 0) {
+				stack.splice(index, 1);
+				this.maybeScheduleReturn(tab);
+				return;
+			}
+		}
+	}
+
+	// Library's openDetail unwinds the current detail before pushing the next, briefly emptying the
+	// stack; defer and re-check so an unwind-then-repush doesn't read as a real back-out. A genuine
+	// back leaves the stack empty, so the deferred check returns the shell to the recorded origin.
+	private maybeScheduleReturn(tab: FooterTab): void {
+		if (!this.returnTo.has(tab)) {
+			return;
+		}
+		void Promise.resolve().then(() => {
+			const stack = this.stacks.get(tab);
+			if ((stack && stack.length > 0) || this.activeTab !== tab) {
+				return;
+			}
+			const origin = this.returnTo.get(tab);
+			this.returnTo.delete(tab);
+			if (origin !== undefined) {
+				this.tabSwitcher?.(origin);
+			}
+		});
 	}
 }
 

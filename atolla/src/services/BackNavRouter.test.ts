@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
-import { FooterTabs } from '../models/App';
+import { type FooterTab, FooterTabs } from '../models/App';
 import { BackNavRouter } from './BackNavRouter';
 
 function stubController(): { controller: NavigationController; popped: () => number } {
@@ -73,5 +73,84 @@ describe('BackNavRouter', () => {
 
 		expect(router.goBack()).toBe(false);
 		expect(page.popped()).toBe(0);
+	});
+
+	it('returns to the origin tab once the cross-tab detail stack empties', async () => {
+		const router = new BackNavRouter();
+		const switched: Array<FooterTab> = [];
+		router.setTabSwitcher((tab) => switched.push(tab));
+		router.setActiveTab(FooterTabs.library);
+		router.setReturnTo(FooterTabs.library, FooterTabs.home);
+		const detail = stubController();
+		router.registerPage(detail.controller);
+
+		router.unregisterPage(detail.controller);
+		await Promise.resolve();
+
+		expect(switched).toEqual([FooterTabs.home]);
+	});
+
+	it('does not return when an unwind is immediately followed by a re-push', async () => {
+		const router = new BackNavRouter();
+		const switched: Array<FooterTab> = [];
+		router.setTabSwitcher((tab) => switched.push(tab));
+		router.setActiveTab(FooterTabs.library);
+		router.setReturnTo(FooterTabs.library, FooterTabs.home);
+		const first = stubController();
+		const second = stubController();
+		router.registerPage(first.controller);
+
+		router.unregisterPage(first.controller);
+		router.registerPage(second.controller);
+		await Promise.resolve();
+
+		expect(switched).toEqual([]);
+	});
+
+	it('does not return after the pending return is cleared', async () => {
+		const router = new BackNavRouter();
+		const switched: Array<FooterTab> = [];
+		router.setTabSwitcher((tab) => switched.push(tab));
+		router.setActiveTab(FooterTabs.library);
+		router.setReturnTo(FooterTabs.library, FooterTabs.home);
+		const detail = stubController();
+		router.registerPage(detail.controller);
+
+		router.clearReturnTo();
+		router.unregisterPage(detail.controller);
+		await Promise.resolve();
+
+		expect(switched).toEqual([]);
+	});
+
+	it('does not return when the target tab is no longer active', async () => {
+		const router = new BackNavRouter();
+		const switched: Array<FooterTab> = [];
+		router.setTabSwitcher((tab) => switched.push(tab));
+		router.setActiveTab(FooterTabs.library);
+		router.setReturnTo(FooterTabs.library, FooterTabs.home);
+		const detail = stubController();
+		router.registerPage(detail.controller);
+
+		router.setActiveTab(FooterTabs.home);
+		router.unregisterPage(detail.controller);
+		await Promise.resolve();
+
+		expect(switched).toEqual([]);
+	});
+
+	it('ignores a return whose origin equals its target', async () => {
+		const router = new BackNavRouter();
+		const switched: Array<FooterTab> = [];
+		router.setTabSwitcher((tab) => switched.push(tab));
+		router.setActiveTab(FooterTabs.library);
+		router.setReturnTo(FooterTabs.library, FooterTabs.library);
+		const detail = stubController();
+		router.registerPage(detail.controller);
+
+		router.unregisterPage(detail.controller);
+		await Promise.resolve();
+
+		expect(switched).toEqual([]);
 	});
 });

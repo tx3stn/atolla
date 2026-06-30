@@ -1,5 +1,5 @@
 import type { Album } from '../models/Album';
-import type { CardDetailItem } from '../models/CardDetailItem';
+import type { CardDetailItem } from '../models/App';
 
 interface OnThisDayCandidate {
 	album: Album;

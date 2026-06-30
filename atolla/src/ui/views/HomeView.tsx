@@ -3,7 +3,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
-import type { CardDetailItem } from '../../models/CardDetailItem';
+import type { CardDetailItem } from '../../models/App';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';

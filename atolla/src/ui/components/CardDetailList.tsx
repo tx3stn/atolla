@@ -2,7 +2,7 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { CardDetailItem } from '../../models/CardDetailItem';
+import type { CardDetailItem } from '../../models/App';
 import { CardDetail } from './CardDetail';
 
 export interface CardDetailListViewModel {

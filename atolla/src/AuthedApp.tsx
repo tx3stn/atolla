@@ -29,7 +29,7 @@ import { GaplessPlayer } from './ui/components/GaplessPlayer';
 import { MockPlayer } from './ui/components/MockPlayer';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
 import { HomeTab, type HomeTabViewModel } from './ui/tabs/Home';
-import { type LibraryViewModel, V2LibraryView } from './ui/tabs/Library';
+import { LibraryView, type LibraryViewModel } from './ui/tabs/Library';
 import { SearchTab } from './ui/tabs/Search';
 import { SettingsTab } from './ui/tabs/Settings';
 import type { SearchViewModel } from './ui/views/SearchView';
@@ -40,7 +40,7 @@ export interface AuthedAppViewModel {
 	connectionMode: ConnectionMode;
 	downloadingCount: number;
 	downloadService: DownloadService;
-	homeViewModel: HomeTabViewModel;
+	homeViewModel: Omit<HomeTabViewModel, 'navCoordinator'>;
 	language: LanguageCode;
 	libraryViewModel: Omit<LibraryViewModel, 'navCoordinator' | 'onNavigationControllerReady'>;
 	modalSlot: DetachedSlot;
@@ -69,7 +69,15 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 
 	onCreate(): void {
 		backNavRouter.setActiveTab(this.state.activeFooterTab);
+		backNavRouter.setTabSwitcher((tab) => {
+			if (this.isDestroyed()) {
+				return;
+			}
+			backNavRouter.setActiveTab(tab);
+			this.setState({ activeFooterTab: tab });
+		});
 		this.viewModel.navCoordinator.setShellNavigator(() => {
+			backNavRouter.setReturnTo(FooterTabs.library, this.state.activeFooterTab);
 			backNavRouter.setActiveTab(FooterTabs.library);
 			this.setState({ activeFooterTab: FooterTabs.library });
 		});
@@ -77,6 +85,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 
 	onDestroy(): void {
 		this.viewModel.navCoordinator.setShellNavigator(null);
+		backNavRouter.setTabSwitcher(null);
 		if (this.androidBackObserverInstalled) {
 			Device.setBackButtonObserver(undefined);
 		}
@@ -115,16 +124,14 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 						<HomeTab
 							animationsEnabled={home.animationsEnabled}
 							connectionMode={home.connectionMode}
-							downloadService={home.downloadService}
 							gridColumns={home.gridColumns}
 							imageCache={home.imageCache}
 							modalSlot={home.modalSlot}
+							navCoordinator={this.viewModel.navCoordinator}
 							onNavigationControllerReady={this.captureHomeController}
 							onRequestModeChange={home.onRequestModeChange}
 							onThisDayService={home.onThisDayService}
-							paletteQueue={home.paletteQueue}
 							playbackStore={home.playbackStore}
-							playlistEditService={home.playlistEditService}
 							recentlyAddedService={home.recentlyAddedService}
 							recentlyPlayedTracks={home.recentlyPlayedTracks}
 							toastService={home.toastService}
@@ -135,7 +142,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 
 				<view style={this.tabStyle(FooterTabs.library)}>
 					<ErrorBoundary resetKey='library'>
-						<V2LibraryView
+						<LibraryView
 							animationsEnabled={library.animationsEnabled}
 							connectionMode={library.connectionMode}
 							downloadService={library.downloadService}
@@ -282,6 +289,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 		if (!Device.isAndroid()) {
 			this.tabNavControllers[this.state.activeFooterTab]?.popToSelf(false);
 		}
+		backNavRouter.clearReturnTo();
 		backNavRouter.setActiveTab(tab);
 		this.setState({ activeFooterTab: tab });
 	};

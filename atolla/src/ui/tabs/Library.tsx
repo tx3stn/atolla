@@ -10,6 +10,7 @@ import type { Album } from '../../models/Album';
 import { type HeaderTab, HeaderTabs } from '../../models/App';
 import type { Artist } from '../../models/Artist';
 import type { Playlist } from '../../models/Playlist';
+import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { NavCoordinator } from '../../services/NavCoordinator';
@@ -51,7 +52,7 @@ interface LibraryViewState {
 	letterFilter: string | null;
 }
 
-export class V2LibraryView extends StatefulComponent<LibraryViewModel, LibraryViewState> {
+export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryViewState> {
 	private rootController?: NavigationController;
 	private firstDetailController?: NavigationController;
 
@@ -171,6 +172,7 @@ export class V2LibraryView extends StatefulComponent<LibraryViewModel, LibraryVi
 			return;
 		}
 
+		backNavRouter.clearReturnTo();
 		this.unwindToTabRoot();
 		this.setState({ activeTab: tab });
 	};
