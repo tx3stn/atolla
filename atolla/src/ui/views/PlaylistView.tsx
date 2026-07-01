@@ -56,7 +56,6 @@ export interface PlaylistViewModel {
 interface PlaylistState {
 	artistLogoUrls: Array<string | null>;
 	downloadState: DownloadState;
-	isHeaderVisible: boolean;
 	isLoading: boolean;
 	removedTrackPending: { index: number; track: Track } | null;
 	totalTrackCount: number | null;
@@ -71,7 +70,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	state: PlaylistState = {
 		artistLogoUrls: [],
 		downloadState: 'not_downloaded',
-		isHeaderVisible: false,
 		isLoading: true,
 		removedTrackPending: null,
 		totalTrackCount: null,
@@ -101,8 +99,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	}
 
 	onRender(): void {
-		const { downloadState, isHeaderVisible, isLoading, totalTrackCount, tracks } = this.state;
-		const { imageCache } = this.viewModel;
+		const { downloadState, isLoading, totalTrackCount, tracks } = this.state;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
@@ -123,7 +120,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						this.headerCollapse.handleScroll(event.y);
 					}}
 					ref={this.scrollRef}
-					style={createScrollStyle(isHeaderVisible)}
+					style={styles.scroll}
 				>
 					<DetailHeader
 						animationsEnabled={this.viewModel.animationsEnabled}
@@ -153,7 +150,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						<TrackList
 							animationsEnabled={this.viewModel.animationsEnabled}
 							dragScroller={this.dragAutoScroller}
-							imageCache={imageCache}
+							imageCache={this.viewModel.imageCache}
 							onTrackLongPress={this.handleTrackLongPress}
 							onTrackReorder={this.handleTrackReorder}
 							onTrackSwipeRemove={this.handleTrackSwipeRemove}
@@ -583,15 +580,12 @@ const styles = {
 		flexGrow: 1,
 		width: '100%',
 	}),
-};
-
-function createScrollStyle(isHeaderVisible: boolean): Style<ScrollView> {
-	return new Style<ScrollView>({
+	scroll: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: theme.padding.scrollBottom,
-		paddingTop: theme.padding.scrollHeader(isHeaderVisible),
+		paddingTop: theme.padding.scrollHeader(true),
 		width: '100%',
-	});
-}
+	}),
+};

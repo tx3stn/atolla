@@ -25,9 +25,10 @@ export class LibraryHeaderTab extends Component<LibraryHeaderViewModel> {
 				})}
 				style={this.viewModel.active ? styles.headerActive : styles.header}
 			>
-				{this.viewModel.active && (
-					<image src={res.headertabgradient} style={styles.activeGradient} />
-				)}
+				<image
+					src={res.headertabgradient}
+					style={this.viewModel.active ? styles.activeGradient : styles.hiddenGradient}
+				/>
 				<label
 					style={this.viewModel.active ? styles.activeTab : styles.nonActiveTab}
 					value={this.getLabel(this.viewModel.tab)}
@@ -71,6 +72,7 @@ const styles = {
 		backgroundColor: theme.colors.bgFrosted,
 		borderRadius: theme.radius.pill,
 		flexGrow: 0,
+		flexShrink: 0,
 		justifyContent: 'center',
 		minHeight: 25,
 		minWidth: 72,
@@ -85,6 +87,7 @@ const styles = {
 		alignItems: 'center',
 		borderRadius: theme.radius.pill,
 		flexGrow: 0,
+		flexShrink: 0,
 		justifyContent: 'center',
 		minHeight: 25,
 		minWidth: 72,
@@ -95,12 +98,22 @@ const styles = {
 		position: 'relative',
 		slowClipping: true,
 	}),
+	hiddenGradient: new Style<View>({
+		borderRadius: theme.radius.pill,
+		bottom: 0,
+		left: 0,
+		opacity: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
+	}),
 	nonActiveTab: new Style<Label>({
-		...theme.text.mainMuted,
+		...theme.text.mainBold,
 		color: theme.colors.grey,
 		textAlign: 'center',
 	}),
 	tabWrap: new Style({
+		flexShrink: 0,
 		marginRight: 4,
 	}),
 };

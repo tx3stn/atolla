@@ -48,7 +48,6 @@ export interface GenreViewModel {
 interface GenreState {
 	artistLogoUrls: Array<string | null>;
 	downloadState: DownloadState;
-	isHeaderVisible: boolean;
 	isLoading: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
@@ -61,7 +60,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	state: GenreState = {
 		artistLogoUrls: [],
 		downloadState: 'not_downloaded',
-		isHeaderVisible: false,
 		isLoading: true,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
@@ -93,15 +91,8 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	}
 
 	onRender(): void {
-		const {
-			downloadState,
-			isHeaderVisible,
-			isLoading,
-			isLoadingNextPage,
-			nextPageFailed,
-			totalTrackCount,
-			tracks,
-		} = this.state;
+		const { downloadState, isLoading, isLoadingNextPage, nextPageFailed, totalTrackCount, tracks } =
+			this.state;
 		const { genre, imageCache, modalSlot } = this.viewModel;
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
@@ -118,7 +109,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			<view style={styles.fullScreen}>
 				<scroll
 					onScroll={(event) => this.headerCollapse.handleScroll(event.y)}
-					style={createScrollStyle(isHeaderVisible)}
+					style={styles.scroll}
 				>
 					<DetailHeader
 						animationsEnabled={this.viewModel.animationsEnabled}
@@ -468,15 +459,12 @@ const styles = {
 		flexGrow: 1,
 		width: '100%',
 	}),
-};
-
-function createScrollStyle(isHeaderVisible: boolean): Style<ScrollView> {
-	return new Style<ScrollView>({
+	scroll: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
 		padding: 8,
 		paddingBottom: theme.padding.scrollBottom,
-		paddingTop: theme.padding.scrollHeader(isHeaderVisible),
+		paddingTop: theme.padding.scrollHeader(true),
 		width: '100%',
-	});
-}
+	}),
+};

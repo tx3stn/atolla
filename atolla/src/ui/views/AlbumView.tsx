@@ -57,7 +57,6 @@ interface AlbumState {
 	artistLogoUrl: string | null;
 	downloadState: DownloadState;
 	fullAlbum: Album | null;
-	isHeaderVisible: boolean;
 	isLoading: boolean;
 	tracks: Array<Track>;
 }
@@ -71,7 +70,6 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		artistLogoUrl: null,
 		downloadState: 'not_downloaded',
 		fullAlbum: null,
-		isHeaderVisible: false,
 		isLoading: true,
 		tracks: [],
 	};
@@ -100,8 +98,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	onRender(): void {
-		const { artistLogoUrl, downloadState, fullAlbum, isHeaderVisible, isLoading, tracks } =
-			this.state;
+		const { artistLogoUrl, downloadState, fullAlbum, isLoading, tracks } = this.state;
 		const { album: partialAlbum, animationsEnabled, imageCache, modalSlot } = this.viewModel;
 		const album = fullAlbum ?? partialAlbum;
 		const albumGenres = normalizeGenres(album.genres);
@@ -125,11 +122,12 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const formatText = tracks.find((t) => t.audioFormat != null)?.audioFormat ?? null;
 		const durationText = tracks.length > 0 ? formatDuration(totalDuration) : null;
 
-		const scrollStyle = styles.scroll(isHeaderVisible);
-
 		<layout accessibilityLabel='album-view' style={styles.root}>
 			<view accessibilityId='album-view' style={styles.fullScreen}>
-				<scroll onScroll={(event) => this.headerCollapse.handleScroll(event.y)} style={scrollStyle}>
+				<scroll
+					onScroll={(event) => this.headerCollapse.handleScroll(event.y)}
+					style={styles.scroll}
+				>
 					<DetailHeader
 						animationsEnabled={animationsEnabled}
 						artworkCategory='album_art'
@@ -465,13 +463,12 @@ const styles = {
 		flexGrow: 1,
 		width: '100%',
 	}),
-	scroll: (isHeaderVisible: boolean) =>
-		new Style<ScrollView>({
-			backgroundColor: theme.colors.bg,
-			flexGrow: 1,
-			padding: 8,
-			paddingBottom: theme.padding.scrollBottom,
-			paddingTop: theme.padding.scrollHeader(isHeaderVisible),
-			width: '100%',
-		}),
+	scroll: new Style<ScrollView>({
+		backgroundColor: theme.colors.bg,
+		flexGrow: 1,
+		padding: 8,
+		paddingBottom: theme.padding.scrollBottom,
+		paddingTop: theme.padding.scrollHeader(true),
+		width: '100%',
+	}),
 };
