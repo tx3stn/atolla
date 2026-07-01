@@ -1,6 +1,5 @@
 import 'jasmine/src/jasmine';
 import { HeaderTabs } from 'atolla/src/models/App';
-import type { LibraryNavHandle } from 'atolla/src/services/NavCoordinator';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { ConnectionModes } from 'atolla/src/transports/Model';
 import { LibraryView } from 'atolla/src/ui/tabs/Library';
@@ -30,31 +29,22 @@ async function flushAsyncWork() {
 }
 
 function makeViewModel() {
-	let handle: LibraryNavHandle | null = null;
-	const navCoordinator = {
-		registerLibrary: (registered: LibraryNavHandle | null) => {
-			handle = registered;
-		},
-	};
-	const viewModel = {
+	return {
 		animationsEnabled: false,
 		connectionMode: ConnectionModes.online,
 		downloadService: stubDownloadService,
 		gridColumns: 3,
 		imageCache: stubImageCache,
-		navCoordinator,
 		onNavigationControllerReady: () => {},
-		onRequestModeChange: async () => true,
 		playbackStore: new PlaybackStore(),
 		toastService: { show: () => {} },
 		transport: stubTransport,
 	};
-	return { getHandle: () => handle, viewModel };
 }
 
 describe('LibraryView', () => {
 	valdiIt('defaults to the artists tab', async (driver) => {
-		const { viewModel } = makeViewModel();
+		const viewModel = makeViewModel();
 		const component = driver.renderComponent(LibraryView, viewModel, undefined);
 
 		await flushAsyncWork();
@@ -62,19 +52,4 @@ describe('LibraryView', () => {
 		expect(component.state.activeTab).toBe(HeaderTabs.artists);
 		expect(component.state.letterFilter).toBeNull();
 	});
-
-	valdiIt(
-		'registers a library navigation handle with the coordinator on create',
-		async (driver) => {
-			const { getHandle, viewModel } = makeViewModel();
-			driver.renderComponent(LibraryView, viewModel, undefined);
-
-			await flushAsyncWork();
-
-			const handle = getHandle();
-			expect(typeof handle?.showAlbum).toBe('function');
-			expect(typeof handle?.showArtist).toBe('function');
-			expect(typeof handle?.showPlaylist).toBe('function');
-		},
-	);
 });

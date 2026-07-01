@@ -10,12 +10,9 @@ export interface SessionHandle {
 	serverUrl(): string;
 }
 
-/**
- * Bridges the auth/session actions the settings UI triggers but the shell owns. The shell registers
- * the implementations (which recreate the transport, stop playback, flip the authed/unauthed branch,
- * reload the device id, etc.); Settings and ViewHeader call the high-level methods without knowing
- * any of that. Mirrors the NavCoordinator register/forward pattern.
- */
+// bridges the auth/session actions the settings UI triggers but the shell owns. shell registers
+// the implementations (which recreate the transport, stop playback, flip the authed/unauthed branch,
+// reload the device id, etc).
 export class SessionController {
 	private handle?: SessionHandle;
 

@@ -14,8 +14,24 @@ type HeaderListener = () => void;
 
 export class HeaderStore {
 	private readonly descriptors = new Map<FooterTab, HeaderDescriptor>();
+	private readonly detailSections: Array<{ id: number; tab: HeaderTab }> = [];
 	private readonly listeners = new Set<HeaderListener>();
 	private headerVisible = true;
+	private nextDetailId = 1;
+
+	activeDetailSection(): HeaderTab | null {
+		const top = this.detailSections[this.detailSections.length - 1];
+		return top ? top.tab : null;
+	}
+
+	clearDetailSection(id: number): void {
+		const index = this.detailSections.findIndex((section) => section.id === id);
+		if (index === -1) {
+			return;
+		}
+		this.detailSections.splice(index, 1);
+		this.notify();
+	}
 
 	descriptorFor(tab: FooterTab): HeaderDescriptor | undefined {
 		return this.descriptors.get(tab);
@@ -23,6 +39,13 @@ export class HeaderStore {
 
 	isVisible(): boolean {
 		return this.headerVisible;
+	}
+
+	pushDetailSection(tab: HeaderTab): number {
+		const id = this.nextDetailId++;
+		this.detailSections.push({ id, tab });
+		this.notify();
+		return id;
 	}
 
 	setDescriptor(tab: FooterTab, descriptor: HeaderDescriptor): void {

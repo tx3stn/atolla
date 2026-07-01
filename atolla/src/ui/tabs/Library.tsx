@@ -6,14 +6,9 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { Album } from '../../models/Album';
 import { FooterTabs, type HeaderTab, HeaderTabs } from '../../models/App';
-import type { Artist } from '../../models/Artist';
-import type { Playlist } from '../../models/Playlist';
-import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
-import type { NavCoordinator } from '../../services/NavCoordinator';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
@@ -21,13 +16,11 @@ import { headerStore } from '../../stores/Header';
 import type { PlaybackStore } from '../../stores/Playback';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
+import { type DetailPushDeps, pushArtist } from '../flows/PushDetail';
 import { AlbumsView } from '../views/AlbumsView';
-import { AlbumView } from '../views/AlbumView';
 import { ArtistsView } from '../views/ArtistsView';
-import { ArtistView } from '../views/ArtistView';
 import { GenresView } from '../views/GenresView';
 import { PlaylistsView } from '../views/PlaylistsView';
-import { PlaylistView } from '../views/PlaylistView';
 
 export interface LibraryViewModel {
 	animationsEnabled: boolean;
@@ -36,7 +29,6 @@ export interface LibraryViewModel {
 	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
-	navCoordinator: NavCoordinator;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	paletteQueue: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -60,16 +52,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 	};
 
 	onCreate(): void {
-		this.viewModel.navCoordinator.registerLibrary({
-			showAlbum: this.showAlbum,
-			showArtist: this.showArtist,
-			showPlaylist: this.showPlaylist,
-		});
 		this.publishHeader(this.state.activeTab, this.state.letterFilter);
-	}
-
-	onDestroy(): void {
-		this.viewModel.navCoordinator.registerLibrary(null);
 	}
 
 	onRender(): void {
@@ -161,7 +144,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 			return;
 		}
 
-		backNavRouter.clearReturnTo();
 		this.unwindToTabRoot();
 		this.setState({ activeTab: tab, letterFilter: null });
 		this.publishHeader(tab, null);
@@ -181,35 +163,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 		this.firstDetailController = controller;
 	};
 
-	private showAlbum = (album: Album): void => {
-		this.openDetail(HeaderTabs.albums, (controller) => this.pushAlbum(controller, album));
-	};
-
-	private showArtist = (artist: Artist): void => {
-		this.openDetail(HeaderTabs.artists, (controller) =>
-			this.pushArtist(controller, artist, this.setRootDetailController),
-		);
-	};
-
-	private showPlaylist = (playlist: Playlist): void => {
-		this.openDetail(HeaderTabs.playlists, (controller) => this.pushPlaylist(controller, playlist));
-	};
-
-	// Search results open in Library's own stack: unwind any current detail, select the matching
-	// header tab so backing out lands on the right list, then push the detail.
-	private openDetail(tab: HeaderTab, push: (controller: NavigationController) => void): void {
-		const controller = this.rootController;
-		if (!controller) {
-			return;
-		}
-		this.unwindToTabRoot();
-		if (tab !== this.state.activeTab) {
-			this.setState({ activeTab: tab, letterFilter: null });
-			this.publishHeader(tab, null);
-		}
-		push(controller);
-	}
-
 	private unwindToTabRoot(): void {
 		// popToSelf works on iOS; on Android it throws, so pop the first pushed detail (which removes
 		// it and everything above it).
@@ -221,76 +174,24 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 		this.firstDetailController = undefined;
 	}
 
-	private pushAlbum(controller: NavigationController, album: Album): void {
-		controller.push(
-			AlbumView,
-			{
-				album,
-				animationsEnabled: this.viewModel.animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				navigationController: controller,
-				onRootDetailControllerReady: this.setRootDetailController,
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
-	}
-
-	private pushArtist(
-		controller: NavigationController,
-		artist: Artist,
-		onReady: (controller: NavigationController) => void,
-	): void {
-		controller.push(
-			ArtistView,
-			{
-				animationsEnabled: this.viewModel.animationsEnabled,
-				artist,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				navigationController: controller,
-				onNavigationControllerReady: onReady,
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
-	}
-
-	private pushPlaylist(controller: NavigationController, playlist: Playlist): void {
-		controller.push(
-			PlaylistView,
-			{
-				animationsEnabled: this.viewModel.animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				navigationController: controller,
-				onNavigateToArtist: this.handlePlaylistArtistTap,
-				onRootDetailControllerReady: this.setRootDetailController,
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				playlist,
-				playlistEditService: this.viewModel.playlistEditService,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
+	// `recordAsFirstDetail` lets a top-level list→detail push register its controller so section
+	// switches unwind to root; nested pushes (artist from a playlist) pass false so they don't
+	// replace the tab's first detail.
+	private detailDeps(recordAsFirstDetail = true): DetailPushDeps {
+		return {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			downloadService: this.viewModel.downloadService,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			modalSlot: this.viewModel.modalSlot,
+			onNavigateToArtist: this.handlePlaylistArtistTap,
+			onRootDetailControllerReady: recordAsFirstDetail ? this.setRootDetailController : undefined,
+			paletteQueue: this.viewModel.paletteQueue,
+			playbackStore: this.viewModel.playbackStore,
+			playlistEditService: this.viewModel.playlistEditService,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		};
 	}
 
 	private handlePlaylistArtistTap = (artistId: string): void => {
@@ -302,7 +203,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 			if (!artist || this.isDestroyed()) {
 				return;
 			}
-			this.pushArtist(controller, artist, () => {});
+			pushArtist(controller, this.detailDeps(false), artist);
 		});
 	};
 }

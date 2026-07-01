@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { FooterTabs } from '../models/App';
+import { FooterTabs, HeaderTabs } from '../models/App';
 import { HeaderCollapse, HeaderStore } from './Header';
 
 describe('HeaderStore', () => {
@@ -61,6 +61,68 @@ describe('HeaderStore', () => {
 
 		unsubscribe();
 		store.setVisible(false);
+
+		expect(calls).toBe(0);
+	});
+
+	it('has no active detail section by default', () => {
+		const store = new HeaderStore();
+
+		expect(store.activeDetailSection()).toBeNull();
+	});
+
+	it('reports the pushed detail section and notifies', () => {
+		const store = new HeaderStore();
+		let calls = 0;
+		store.subscribe(() => {
+			calls += 1;
+		});
+
+		store.pushDetailSection(HeaderTabs.albums);
+
+		expect(store.activeDetailSection()).toBe(HeaderTabs.albums);
+		expect(calls).toBe(1);
+	});
+
+	it('reports the topmost section for nested pushes and restores on clear', () => {
+		const store = new HeaderStore();
+		store.pushDetailSection(HeaderTabs.albums);
+		const artistId = store.pushDetailSection(HeaderTabs.artists);
+
+		expect(store.activeDetailSection()).toBe(HeaderTabs.artists);
+
+		store.clearDetailSection(artistId);
+
+		expect(store.activeDetailSection()).toBe(HeaderTabs.albums);
+	});
+
+	it('clears the right entry when a section is cleared out of order', () => {
+		const store = new HeaderStore();
+		const albumsId = store.pushDetailSection(HeaderTabs.albums);
+		store.pushDetailSection(HeaderTabs.artists);
+
+		store.clearDetailSection(albumsId);
+
+		expect(store.activeDetailSection()).toBe(HeaderTabs.artists);
+	});
+
+	it('returns to no active section once the last one is cleared', () => {
+		const store = new HeaderStore();
+		const id = store.pushDetailSection(HeaderTabs.playlists);
+
+		store.clearDetailSection(id);
+
+		expect(store.activeDetailSection()).toBeNull();
+	});
+
+	it('ignores clearing an unknown section id without notifying', () => {
+		const store = new HeaderStore();
+		let calls = 0;
+		store.subscribe(() => {
+			calls += 1;
+		});
+
+		store.clearDetailSection(999);
 
 		expect(calls).toBe(0);
 	});

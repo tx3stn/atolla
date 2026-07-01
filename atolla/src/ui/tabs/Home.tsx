@@ -8,25 +8,28 @@ import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
+import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
-import type { NavCoordinator } from '../../services/NavCoordinator';
 import type { OnThisDayService } from '../../services/OnThisDayService';
+import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { ConnectionMode } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
+import { type DetailPushDeps, pushAlbum, pushArtist, pushPlaylist } from '../flows/PushDetail';
 import { HomeView } from '../views/HomeView';
 
 export interface HomeTabViewModel {
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
+	downloadService: DownloadService;
 	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
-	navCoordinator: NavCoordinator;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	onThisDayService?: OnThisDayService;
+	paletteQueue: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	recentlyAddedService?: RecentlyAddedService;
 	recentlyPlayedTracks: Array<Track>;
@@ -35,10 +38,13 @@ export interface HomeTabViewModel {
 }
 
 export class HomeTab extends Component<HomeTabViewModel> {
+	private rootController?: NavigationController;
+
 	onRender(): void {
 		<view style={styles.host}>
 			<NavigationRoot>
 				{$slot((navigationController: NavigationController) => {
+					this.rootController = navigationController;
 					this.viewModel.onNavigationControllerReady(navigationController);
 
 					<HomeView
@@ -62,24 +68,49 @@ export class HomeTab extends Component<HomeTabViewModel> {
 		</view>;
 	}
 
-	private handleAlbumTap = (album: Album): void => {
-		this.viewModel.navCoordinator.openAlbum(album);
-	};
+	private detailDeps(): DetailPushDeps {
+		return {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			downloadService: this.viewModel.downloadService,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			modalSlot: this.viewModel.modalSlot,
+			onNavigateToArtist: this.handleArtistTap,
+			paletteQueue: this.viewModel.paletteQueue,
+			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		};
+	}
 
-	private handleOpenPlaylist = (playlist: Playlist): void => {
-		this.viewModel.navCoordinator.openPlaylist(playlist);
+	private handleAlbumTap = (album: Album): void => {
+		if (!this.rootController) {
+			return;
+		}
+		pushAlbum(this.rootController, this.detailDeps(), album);
 	};
 
 	private handleArtistTap = (artistId: string): void => {
+		const controller = this.rootController;
+		if (!controller) {
+			return;
+		}
 		this.viewModel.transport
 			.getArtist(artistId)
 			.then((artist) => {
 				if (!artist) {
 					return;
 				}
-				this.viewModel.navCoordinator.openArtist(artist);
+				pushArtist(controller, this.detailDeps(), artist);
 			})
 			.catch(() => {});
+	};
+
+	private handleOpenPlaylist = (playlist: Playlist): void => {
+		if (!this.rootController) {
+			return;
+		}
+		pushPlaylist(this.rootController, this.detailDeps(), playlist);
 	};
 }
 

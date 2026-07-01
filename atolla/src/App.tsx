@@ -32,7 +32,6 @@ import {
 import { DownloadService } from './services/DownloadService';
 import { ImageCache } from './services/ImageCache';
 import { JellyfinAuthService } from './services/JellyfinAuthService';
-import { NavCoordinator } from './services/NavCoordinator';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import { PlaylistCreateService } from './services/PlaylistCreateService';
 import { type PlaylistEditError, PlaylistEditService } from './services/PlaylistEditService';
@@ -90,7 +89,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		new PersistentStore('atolla/preferences', { deviceGlobal: true }),
 	);
 	private barColors = new BarColorStore();
-	private navCoordinator = new NavCoordinator();
 	private sessionController = new SessionController();
 	private toastService = new ToastService();
 	private readonly imageCache = new ImageCache({});
@@ -309,12 +307,14 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 				connectionMode={this.state.connectionMode}
 				downloadingCount={this.state.downloadingCount}
 				downloadService={this.downloadService}
+				gridColumns={this.preferences.gridColumns}
 				homeViewModel={this.buildHomeViewModel()}
+				imageCache={this.imageCache}
 				language={this.preferences.language}
 				libraryViewModel={this.buildLibraryViewModel()}
 				modalSlot={this.modalSlot}
-				navCoordinator={this.navCoordinator}
 				onRequestModeChange={(mode) => this.connectivity.setMode(mode)}
+				paletteQueue={this.userScope.getPaletteQueue()}
 				paletteService={this.userScope.getPaletteService()}
 				playbackOrchestrator={this.playbackOrchestrator}
 				playbackStore={this.playbackStore}
@@ -367,11 +367,12 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		return {
 			animationsEnabled: this.preferences.animationsEnabled,
 			connectionMode: this.state.connectionMode,
+			downloadService: this.downloadService,
 			gridColumns: this.preferences.gridColumns,
 			imageCache: this.imageCache,
 			modalSlot: this.modalSlot,
-			onNavigationControllerReady: () => {},
 			onThisDayService: this.userScope.getOnThisDayService(),
+			paletteQueue: this.userScope.getPaletteQueue(),
 			playbackStore: this.playbackStore,
 			recentlyAddedService: this.userScope.getRecentlyAddedService(),
 			recentlyPlayedTracks: this.playbackOrchestrator.getRecentlyPlayedTracks(),

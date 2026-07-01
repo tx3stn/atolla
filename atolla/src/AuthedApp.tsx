@@ -6,14 +6,16 @@ import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from './models/Album';
-import { type FooterTab, FooterTabs } from './models/App';
+import { type FooterTab, FooterTabs, type HeaderTab } from './models/App';
+import type { Artist } from './models/Artist';
 import type { Playlist } from './models/Playlist';
 import type { Track } from './models/Track';
 import Strings from './Strings';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { backNavRouter } from './services/BackNavRouter';
 import type { DownloadService } from './services/DownloadService';
-import type { NavCoordinator } from './services/NavCoordinator';
+import type { ImageCache } from './services/ImageCache';
+import type { PaletteGenerationQueue } from './services/PaletteGenerationQueue';
 import type { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import type { SessionController } from './services/SessionController';
 import type { ToastService } from './services/ToastService';
@@ -31,6 +33,7 @@ import { FooterNav } from './ui/components/FooterNav';
 import { GaplessPlayer } from './ui/components/GaplessPlayer';
 import { MockPlayer } from './ui/components/MockPlayer';
 import { NowPlayingSurface } from './ui/components/NowPlayingSurface';
+import { type DetailPushDeps, pushAlbum, pushArtist, pushPlaylist } from './ui/flows/PushDetail';
 import { HomeTab, type HomeTabViewModel } from './ui/tabs/Home';
 import { LibraryView, type LibraryViewModel } from './ui/tabs/Library';
 import { SearchTab } from './ui/tabs/Search';
@@ -43,12 +46,14 @@ export interface AuthedAppViewModel {
 	connectionMode: ConnectionMode;
 	downloadingCount: number;
 	downloadService: DownloadService;
-	homeViewModel: Omit<HomeTabViewModel, 'navCoordinator'>;
+	gridColumns: number;
+	homeViewModel: Omit<HomeTabViewModel, 'onNavigationControllerReady'>;
+	imageCache: ImageCache;
 	language: LanguageCode;
-	libraryViewModel: Omit<LibraryViewModel, 'navCoordinator' | 'onNavigationControllerReady'>;
+	libraryViewModel: Omit<LibraryViewModel, 'onNavigationControllerReady'>;
 	modalSlot: DetachedSlot;
-	navCoordinator: NavCoordinator;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
+	paletteQueue: PaletteGenerationQueue;
 	paletteService: ArtworkPaletteService;
 	playbackOrchestrator: PlaybackOrchestrator;
 	playbackStore: PlaybackStore;
@@ -82,23 +87,9 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 			kind: 'title',
 			title: Strings.searchTitle(),
 		});
-		backNavRouter.setTabSwitcher((tab) => {
-			if (this.isDestroyed()) {
-				return;
-			}
-			backNavRouter.setActiveTab(tab);
-			this.setState({ activeFooterTab: tab });
-		});
-		this.viewModel.navCoordinator.setShellNavigator(() => {
-			backNavRouter.setReturnTo(FooterTabs.library, this.state.activeFooterTab);
-			backNavRouter.setActiveTab(FooterTabs.library);
-			this.setState({ activeFooterTab: FooterTabs.library });
-		});
 	}
 
 	onDestroy(): void {
-		this.viewModel.navCoordinator.setShellNavigator(null);
-		backNavRouter.setTabSwitcher(null);
 		if (this.androidBackObserverInstalled) {
 			Device.setBackButtonObserver(undefined);
 		}
@@ -137,12 +128,13 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 						<HomeTab
 							animationsEnabled={home.animationsEnabled}
 							connectionMode={home.connectionMode}
+							downloadService={home.downloadService}
 							gridColumns={home.gridColumns}
 							imageCache={home.imageCache}
 							modalSlot={home.modalSlot}
-							navCoordinator={this.viewModel.navCoordinator}
 							onNavigationControllerReady={this.captureHomeController}
 							onThisDayService={home.onThisDayService}
+							paletteQueue={home.paletteQueue}
 							playbackStore={home.playbackStore}
 							recentlyAddedService={home.recentlyAddedService}
 							recentlyPlayedTracks={home.recentlyPlayedTracks}
@@ -161,7 +153,6 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							gridColumns={library.gridColumns}
 							imageCache={library.imageCache}
 							modalSlot={library.modalSlot}
-							navCoordinator={this.viewModel.navCoordinator}
 							onNavigationControllerReady={this.captureLibraryController}
 							paletteQueue={library.paletteQueue}
 							playbackStore={library.playbackStore}
@@ -175,7 +166,6 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 				<view style={this.tabStyle(FooterTabs.search)}>
 					<ErrorBoundary resetKey='search'>
 						<SearchTab
-							navCoordinator={this.viewModel.navCoordinator}
 							onNavigationControllerReady={this.captureSearchController}
 							search={this.viewModel.searchViewModel}
 						/>
@@ -202,6 +192,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 						activeFooterTab={this.state.activeFooterTab}
 						animationsEnabled={this.viewModel.animationsEnabled}
 						connectionMode={this.viewModel.connectionMode}
+						onDetailSectionTap={this.handleDetailSectionTap}
 						onRequestModeChange={this.viewModel.onRequestModeChange}
 					/>
 				</Floating>
@@ -265,7 +256,6 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 
 	private captureHomeController = (controller: NavigationController): void => {
 		this.tabNavControllers[FooterTabs.home] = controller;
-		this.viewModel.homeViewModel.onNavigationControllerReady(controller);
 		this.claimAndroidBackIfReady();
 	};
 
@@ -300,7 +290,32 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 		this.androidBackObserverInstalled = true;
 	}
 
+	private dismissDetail(tab: FooterTab): void {
+		// iOS unwinds the tab's whole detail stack via its root controller; Android's JS navigator
+		// throws on popToSelf, so pop the tab's first detail (removing it and everything above it).
+		if (!Device.isAndroid()) {
+			this.tabNavControllers[tab]?.popToSelf(false);
+		} else {
+			backNavRouter.firstPageOf(tab)?.pop(false);
+		}
+	}
+
 	private handleAndroidBack = (): boolean => backNavRouter.goBack();
+
+	// A Library section tab tapped from a detail's header: dismiss the detail and land on that section.
+	private handleDetailSectionTap = (tab: HeaderTab): void => {
+		const origin = this.state.activeFooterTab;
+		this.dismissDetail(origin);
+		if (origin !== FooterTabs.library) {
+			this.dismissDetail(FooterTabs.library);
+			backNavRouter.setActiveTab(FooterTabs.library);
+			this.setState({ activeFooterTab: FooterTabs.library });
+		}
+		const descriptor = headerStore.descriptorFor(FooterTabs.library);
+		if (descriptor?.kind === 'library') {
+			descriptor.onTabTap(tab);
+		}
+	};
 
 	private handleFooterTabTap = (tab: FooterTab): void => {
 		// iOS pushes details full-screen onto the one root nav controller, so an open detail covers
@@ -309,9 +324,35 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 		if (!Device.isAndroid()) {
 			this.tabNavControllers[this.state.activeFooterTab]?.popToSelf(false);
 		}
-		backNavRouter.clearReturnTo();
 		backNavRouter.setActiveTab(tab);
 		this.setState({ activeFooterTab: tab });
+	};
+
+	private detailDeps(): DetailPushDeps {
+		return {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			downloadService: this.viewModel.downloadService,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			modalSlot: this.viewModel.modalSlot,
+			onNavigateToArtist: this.handleDetailArtistTap,
+			paletteQueue: this.viewModel.paletteQueue,
+			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		};
+	}
+
+	private handleDetailArtistTap = (artistId: string): void => {
+		this.viewModel.transport
+			.getArtist(artistId)
+			.then((artist) => {
+				if (!artist || this.isDestroyed()) {
+					return;
+				}
+				this.pushIntoActiveTab((controller, deps) => pushArtist(controller, deps, artist));
+			})
+			.catch(() => {});
 	};
 
 	private handleNowPlayingAlbumTap = (track?: Track): void => {
@@ -322,36 +363,57 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 		if (!resolvedAlbum) {
 			return;
 		}
-		this.viewModel.navCoordinator.openAlbum(resolvedAlbum);
+		this.pushIntoActiveTab((controller, deps) => pushAlbum(controller, deps, resolvedAlbum));
 	};
 
 	private handleNowPlayingArtistTap = (track?: Track): void => {
-		if (track) {
-			if (!track.artistId) {
-				return;
-			}
-			this.viewModel.navCoordinator.openArtist({
-				id: track.artistId,
-				name: track.artistName ?? 'Unknown Artist',
-			});
+		const artist = this.resolveNowPlayingArtist(track);
+		if (!artist) {
 			return;
 		}
-
-		const { album, artistLogoUrl, track: playing } = this.viewModel.playbackStore;
-		const artistId = playing?.artistId ?? album?.artistId;
-		if (!artistId) {
-			return;
-		}
-		this.viewModel.navCoordinator.openArtist({
-			id: artistId,
-			logoUrl: artistLogoUrl ?? undefined,
-			name: playing?.artistName ?? album?.artistName ?? 'Unknown Artist',
-		});
+		this.pushIntoActiveTab((controller, deps) => pushArtist(controller, deps, artist));
 	};
 
 	private handleNowPlayingOpenPlaylist = (playlist: Playlist): void => {
-		this.viewModel.navCoordinator.openPlaylist(playlist);
+		this.pushIntoActiveTab((controller, deps) => pushPlaylist(controller, deps, playlist));
 	};
+
+	// Now-playing details push onto the active tab; Settings has no nav stack, so fall back to Library.
+	private pushIntoActiveTab(
+		push: (controller: NavigationController, deps: DetailPushDeps) => void,
+	): void {
+		const controller = this.tabNavControllers[this.state.activeFooterTab];
+		if (controller) {
+			push(controller, this.detailDeps());
+			return;
+		}
+		const libraryController = this.tabNavControllers[FooterTabs.library];
+		if (!libraryController) {
+			return;
+		}
+		backNavRouter.setActiveTab(FooterTabs.library);
+		this.setState({ activeFooterTab: FooterTabs.library });
+		push(libraryController, this.detailDeps());
+	}
+
+	private resolveNowPlayingArtist(track?: Track): Artist | null {
+		if (track) {
+			if (!track.artistId) {
+				return null;
+			}
+			return { id: track.artistId, name: track.artistName ?? 'Unknown Artist' } as Artist;
+		}
+		const { album, artistLogoUrl, track: playing } = this.viewModel.playbackStore;
+		const artistId = playing?.artistId ?? album?.artistId;
+		if (!artistId) {
+			return null;
+		}
+		return {
+			id: artistId,
+			logoUrl: artistLogoUrl ?? undefined,
+			name: playing?.artistName ?? album?.artistName ?? 'Unknown Artist',
+		} as Artist;
+	}
 
 	private tabStyle(tab: FooterTab): Style<View> {
 		return this.state.activeFooterTab === tab ? styles.tabVisible : styles.tabHidden;

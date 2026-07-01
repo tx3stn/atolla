@@ -4,7 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { NavCoordinator } from '../../services/NavCoordinator';
+import { type DetailPushDeps, pushAlbum, pushArtist, pushPlaylist } from '../flows/PushDetail';
 import {
 	type SearchLibraryNavigationTarget,
 	SearchView,
@@ -12,17 +12,19 @@ import {
 } from '../views/SearchView';
 
 export interface SearchTabViewModel {
-	navCoordinator: NavCoordinator;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	search: Omit<SearchViewModel, 'navigationController'>;
 }
 
 export class SearchTab extends Component<SearchTabViewModel> {
+	private rootController?: NavigationController;
+
 	onRender(): void {
 		const search = this.viewModel.search;
 		<view style={styles.host}>
 			<NavigationRoot>
 				{$slot((navigationController: NavigationController) => {
+					this.rootController = navigationController;
 					this.viewModel.onNavigationControllerReady(navigationController);
 					<SearchView
 						animationsEnabled={search.animationsEnabled}
@@ -45,13 +47,50 @@ export class SearchTab extends Component<SearchTabViewModel> {
 		</view>;
 	}
 
+	private detailDeps(): DetailPushDeps {
+		const search = this.viewModel.search;
+		return {
+			animationsEnabled: search.animationsEnabled,
+			downloadService: search.downloadService,
+			gridColumns: search.gridColumns,
+			imageCache: search.imageCache,
+			modalSlot: search.modalSlot,
+			onNavigateToArtist: this.handleArtistById,
+			paletteQueue: search.paletteQueue,
+			playbackStore: search.playbackStore,
+			playlistEditService: search.playlistEditService,
+			toastService: search.toastService,
+			transport: search.transport,
+		};
+	}
+
+	private handleArtistById = (artistId: string): void => {
+		const controller = this.rootController;
+		if (!controller) {
+			return;
+		}
+		this.viewModel.search.transport
+			.getArtist(artistId)
+			.then((artist) => {
+				if (!artist) {
+					return;
+				}
+				pushArtist(controller, this.detailDeps(), artist);
+			})
+			.catch(() => {});
+	};
+
 	private handleNavigateToLibraryResult = (target: SearchLibraryNavigationTarget): void => {
+		const controller = this.rootController;
+		if (!controller) {
+			return;
+		}
 		if (target.kind === 'album') {
-			this.viewModel.navCoordinator.openAlbum(target.album);
+			pushAlbum(controller, this.detailDeps(), target.album);
 		} else if (target.kind === 'artist') {
-			this.viewModel.navCoordinator.openArtist(target.artist);
+			pushArtist(controller, this.detailDeps(), target.artist);
 		} else {
-			this.viewModel.navCoordinator.openPlaylist(target.playlist);
+			pushPlaylist(controller, this.detailDeps(), target.playlist);
 		}
 	};
 }

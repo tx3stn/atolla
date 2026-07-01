@@ -7,6 +7,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
+import { HeaderTabs } from '../../models/App';
 import type { Artist } from '../../models/Artist';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
@@ -87,6 +88,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		backNavRouter.registerPage(this.navigationController);
 		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
 		this.registerDisposable(() => this.headerCollapse.reset());
+		const headerSectionId = headerStore.pushDetailSection(HeaderTabs.artists);
+		this.registerDisposable(() => headerStore.clearDetailSection(headerSectionId));
 		this.viewModel.onNavigationControllerReady?.(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {

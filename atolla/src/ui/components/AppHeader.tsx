@@ -16,6 +16,7 @@ export interface AppHeaderViewModel {
 	activeFooterTab: FooterTab;
 	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
+	onDetailSectionTap: (tab: HeaderTab) => void;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 }
 
@@ -37,12 +38,20 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 	}
 
 	onRender(): void {
-		const descriptor = headerStore.descriptorFor(this.viewModel.activeFooterTab);
-		if (!descriptor) {
+		// A pushed detail overrides the active tab's header with the library section tabs, keyed to the
+		// detail's own type; only the real library root gets the interactive sort/letter panel.
+		const detailSection = headerStore.activeDetailSection();
+		const descriptor =
+			detailSection === null
+				? headerStore.descriptorFor(this.viewModel.activeFooterTab)
+				: undefined;
+		if (detailSection === null && descriptor === undefined) {
 			return;
 		}
 
-		const library = descriptor.kind === 'library' ? descriptor : null;
+		const library = descriptor?.kind === 'library' ? descriptor : null;
+		const showLibraryTabs = detailSection !== null || library !== null;
+		const libraryActiveTab = detailSection ?? library?.activeTab ?? null;
 		const isPanelOpen = library !== null && this.state.isPanelOpen;
 		<view
 			accessibilityId='app-header'
@@ -59,7 +68,7 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 				/>
 			</view>
 
-			{descriptor.kind === 'title' && (
+			{descriptor?.kind === 'title' && (
 				<view style={styles.titleWrap}>
 					<view style={styles.titleContainer}>
 						<label style={styles.title} value={descriptor.title} />
@@ -67,7 +76,7 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 				</view>
 			)}
 
-			{library && (
+			{showLibraryTabs && (
 				<view
 					accessibilityId='library-header-nav'
 					accessibilityLabel='library-header-nav'
@@ -76,22 +85,22 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 					<scroll horizontal={true} showsHorizontalScrollIndicator={false} style={styles.scroll}>
 						<view style={styles.tabsRow}>
 							<LibraryHeaderTab
-								active={library.activeTab === HeaderTabs.artists}
+								active={libraryActiveTab === HeaderTabs.artists}
 								onTap={this.handleArtistsTabTap}
 								tab={HeaderTabs.artists}
 							/>
 							<LibraryHeaderTab
-								active={library.activeTab === HeaderTabs.albums}
+								active={libraryActiveTab === HeaderTabs.albums}
 								onTap={this.handleAlbumsTabTap}
 								tab={HeaderTabs.albums}
 							/>
 							<LibraryHeaderTab
-								active={library.activeTab === HeaderTabs.playlists}
+								active={libraryActiveTab === HeaderTabs.playlists}
 								onTap={this.handlePlaylistsTabTap}
 								tab={HeaderTabs.playlists}
 							/>
 							<LibraryHeaderTab
-								active={library.activeTab === HeaderTabs.genres}
+								active={libraryActiveTab === HeaderTabs.genres}
 								onTap={this.handleGenresTabTap}
 								tab={HeaderTabs.genres}
 							/>
@@ -101,7 +110,7 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 				</view>
 			)}
 
-			{library && (
+			{showLibraryTabs && (
 				<view style={styles.scrollHintWrap}>
 					<label style={styles.scrollHint} value='>' />
 				</view>
@@ -196,6 +205,10 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 	};
 
 	private tapTab(tab: HeaderTab): void {
+		if (headerStore.activeDetailSection() !== null) {
+			this.viewModel.onDetailSectionTap(tab);
+			return;
+		}
 		const descriptor = headerStore.descriptorFor(this.viewModel.activeFooterTab);
 		if (descriptor?.kind !== 'library') {
 			return;
