@@ -1,6 +1,5 @@
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
-import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
@@ -207,7 +206,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						</layout>
 					)}
 				</scroll>
-				<DetachedSlotRenderer detachedSlot={modalSlot} />
 			</view>
 		</layout>;
 	}

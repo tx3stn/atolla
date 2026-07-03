@@ -3,6 +3,7 @@ import { AnimationCurve, type AnimationOptions } from 'valdi_core/src/AnimationO
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
+import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
@@ -18,19 +19,18 @@ import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playb
 import { paletteDefaults, theme, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { createPlaylistAndAddTracks, selectQueueTracksForPlaylist } from '../flows/CreatePlaylist';
-import { AddToPlaylistView } from '../views/AddToPlaylistView';
+import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
+import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { ArtistLogo } from './ArtistLogo';
 import {
 	CreatePlaylistFromQueueModal,
 	type QueueTrackSelectionOptions,
 } from './CreatePlaylistFromQueueModal';
-import { CreatePlaylistModal } from './CreatePlaylistModal';
 import { FormatBadge } from './FormatBadge';
 import { ProgressBarWaveform } from './ProgressBarWaveform';
 import { ScrollDragAutoScroller } from './ScrollDragAutoScroller';
 import { TappableIcon } from './TappableIcon';
 import { TouchEventState } from './TouchEventState';
-import { TrackContextMenu } from './TrackContextMenu';
 import { TrackList, type TrackListEntry } from './TrackList';
 
 const MAX_VISIBLE_QUEUE_TRACKS = 30;
@@ -47,10 +47,12 @@ export interface NowPlayingSurfaceViewModel {
 	artistLogoUrl?: string | null;
 	barColors: BarColorStore;
 	collapseSignal: number;
-	imageCache?: ImageCache;
+	gridColumns: number;
+	imageCache: ImageCache;
 	isPlaying: boolean;
 	language?: string;
 	loopMode?: LoopMode;
+	modalSlot: DetachedSlot;
 	onAlbumTap?: (track?: Track) => void;
 	onArtistTap?: (track?: Track) => void;
 	onOpenPlaylist?: (playlist: Playlist) => void;
@@ -68,10 +70,6 @@ type QueueTab = 'backTo' | 'upNext';
 
 interface NowPlayingSurfaceState {
 	activeQueueTab: QueueTab;
-	addToPlaylistTracks: Array<Track> | null;
-	contextMenuTrack: Track | null;
-	createPlaylistFromQueue: boolean;
-	createPlaylistTrack: Track | null;
 	isExpanded: boolean;
 }
 
@@ -103,7 +101,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private unsubscribeProgress?: () => void;
 
 	// most recent non-empty palette, held while the next track's is still extracting
-	// (getPalette returns undefined until then) so the chrome doesn't flash to defaults
+	// (getPalette returns undefined until then) so the bars don't flash to defaults
 	// between tracks; re-tints once the new palette is available
 	private lastPalette?: Palette;
 
@@ -128,10 +126,6 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	state: NowPlayingSurfaceState = {
 		activeQueueTab: 'upNext',
-		addToPlaylistTracks: null,
-		contextMenuTrack: null,
-		createPlaylistFromQueue: false,
-		createPlaylistTrack: null,
 		isExpanded: false,
 	};
 
@@ -311,7 +305,7 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		// only restyle once the new track's palette is available. while it's still extracting the
-		// prop is undefined, so hold the previous palette rather than flashing the chrome to defaults
+		// prop is undefined, so hold the previous palette rather than flashing the bars to defaults
 		if (this.viewModel.palette && this.viewModel.palette !== prevViewModel.palette) {
 			this.rebuildPaletteStyles(this.resolvePalette(), this.state.activeQueueTab);
 
@@ -424,26 +418,6 @@ export class NowPlayingSurface extends StatefulComponent<
 	private handleArtistLogoTap = (): void => {
 		this.closeSurface().then(() => {
 			this.viewModel.onArtistTap?.();
-		});
-	};
-
-	private handleContextMenuArtistTap = (): void => {
-		const track = this.state.contextMenuTrack;
-		if (!track) {
-			return;
-		}
-		void this.closeSurface().then(() => {
-			this.viewModel.onArtistTap?.(track);
-		});
-	};
-
-	private handleContextMenuAlbumTap = (): void => {
-		const track = this.state.contextMenuTrack;
-		if (!track) {
-			return;
-		}
-		void this.closeSurface().then(() => {
-			this.viewModel.onAlbumTap?.(track);
 		});
 	};
 
@@ -595,7 +569,34 @@ export class NowPlayingSurface extends StatefulComponent<
 	};
 
 	private handleTrackLongPress = (track: Track): void => {
-		this.setState({ contextMenuTrack: track });
+		const { onAlbumTap, onArtistTap, playbackStore } = this.viewModel;
+		if (!playbackStore) {
+			return;
+		}
+		openTrackContextMenu(track, this.viewModel.modalSlot, {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			onAlbumTap:
+				track.albumId && onAlbumTap
+					? () => void this.closeSurface().then(() => onAlbumTap(track))
+					: undefined,
+			onArtistTap:
+				track.artistId && onArtistTap
+					? () => void this.closeSurface().then(() => onArtistTap(track))
+					: undefined,
+			onDismiss: (toastMessage?: string) => {
+				if (toastMessage) {
+					this.viewModel.toastService.show(toastMessage);
+				}
+			},
+			onPlaylistCreated: (playlist) => {
+				void this.closeSurface().then(() => this.viewModel.onOpenPlaylist?.(playlist));
+			},
+			playbackStore,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		});
 	};
 
 	private handleQueueTrackSwipeRemove = (_trackId: string, entryIndex: number): void => {
@@ -628,48 +629,18 @@ export class NowPlayingSurface extends StatefulComponent<
 		playbackStore.moveQueueTrack(fromIndex, toIndex);
 	};
 
-	private handleContextMenuDismiss = (toastMessage?: string): void => {
-		this.setState({ contextMenuTrack: null });
-		if (toastMessage) {
-			this.viewModel.toastService.show(toastMessage);
-		}
-	};
-
-	private handleContextMenuAddToPlaylist = (): void => {
-		const track = this.state.contextMenuTrack;
-		if (!track) return;
-		this.setState({ addToPlaylistTracks: [track], contextMenuTrack: null });
-	};
-
-	private handleContextMenuCreatePlaylist = (): void => {
-		const track = this.state.contextMenuTrack;
-		if (!track) return;
-		this.setState({ contextMenuTrack: null, createPlaylistTrack: track });
-	};
-
-	private handleAddToPlaylistDismiss = (): void => {
-		this.setState({ addToPlaylistTracks: null });
-	};
-
-	private handleCreatePlaylistCancel = (): void => {
-		this.setState({ createPlaylistTrack: null });
-	};
-
-	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const createPlaylistTrack = this.state.createPlaylistTrack;
-		if (!createPlaylistTrack) return;
-		const playlist = await this.viewModel.transport.createPlaylist(name, createPlaylistTrack.id);
-		this.setState({ createPlaylistTrack: null });
-		await this.closeSurface();
-		this.viewModel.onOpenPlaylist?.(playlist);
-	};
-
 	private handleCreatePlaylistFromQueue = (): void => {
-		this.setState({ createPlaylistFromQueue: true });
+		openSlot(this.viewModel.modalSlot, () => {
+			<CreatePlaylistFromQueueModal
+				animationsEnabled={this.viewModel.animationsEnabled}
+				onCancel={this.handleCreatePlaylistFromQueueCancel}
+				onCreate={this.handleCreatePlaylistFromQueueConfirm}
+			/>;
+		});
 	};
 
 	private handleCreatePlaylistFromQueueCancel = (): void => {
-		this.setState({ createPlaylistFromQueue: false });
+		closeSlot(this.viewModel.modalSlot);
 	};
 
 	private handleCreatePlaylistFromQueueConfirm = async (
@@ -684,7 +655,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			transport.addItemToPlaylist.bind(transport),
 			selected,
 		);
-		this.setState({ createPlaylistFromQueue: false });
+		closeSlot(this.viewModel.modalSlot);
 		await this.closeSurface();
 		this.viewModel.onOpenPlaylist?.(playlist);
 	};
@@ -744,7 +715,6 @@ export class NowPlayingSurface extends StatefulComponent<
 
 		const playbackStore = this.viewModel.playbackStore;
 		const progressSeconds = playbackStore?.progressSeconds ?? 0;
-		const createPlaylistTrack = this.state.createPlaylistTrack;
 
 		const toEntry = (t: Track): TrackListEntry => ({
 			artworkSource: t.albumImageUrl ?? album?.imageUrl ?? null,
@@ -1102,52 +1072,6 @@ export class NowPlayingSurface extends StatefulComponent<
 					</view>
 				</view>
 			</view>
-			{this.state.contextMenuTrack && this.viewModel.playbackStore && this.viewModel.transport && (
-				<TrackContextMenu
-					animationsEnabled={this.viewModel.animationsEnabled}
-					imageCache={this.viewModel.imageCache}
-					onAddToPlaylist={this.handleContextMenuAddToPlaylist}
-					onAlbumTap={
-						this.state.contextMenuTrack.albumId && this.viewModel.onAlbumTap
-							? this.handleContextMenuAlbumTap
-							: undefined
-					}
-					onArtistTap={
-						this.state.contextMenuTrack.artistId && this.viewModel.onArtistTap
-							? this.handleContextMenuArtistTap
-							: undefined
-					}
-					onCreatePlaylist={this.handleContextMenuCreatePlaylist}
-					onDismiss={this.handleContextMenuDismiss}
-					playbackStore={this.viewModel.playbackStore}
-					track={this.state.contextMenuTrack}
-					transport={this.viewModel.transport}
-				/>
-			)}
-			{this.state.addToPlaylistTracks && (
-				<AddToPlaylistView
-					animationsEnabled={this.viewModel.animationsEnabled}
-					imageCache={this.viewModel.imageCache}
-					onDismiss={this.handleAddToPlaylistDismiss}
-					toastService={this.viewModel.toastService}
-					tracks={this.state.addToPlaylistTracks}
-					transport={this.viewModel.transport}
-				/>
-			)}
-			{createPlaylistTrack && (
-				<CreatePlaylistModal
-					animationsEnabled={this.viewModel.animationsEnabled}
-					onCancel={this.handleCreatePlaylistCancel}
-					onCreate={this.handleCreatePlaylistConfirm}
-				/>
-			)}
-			{this.state.createPlaylistFromQueue && (
-				<CreatePlaylistFromQueueModal
-					animationsEnabled={this.viewModel.animationsEnabled}
-					onCancel={this.handleCreatePlaylistFromQueueCancel}
-					onCreate={this.handleCreatePlaylistFromQueueConfirm}
-				/>
-			)}
 		</view>;
 
 		// re-establish the imperatively-set progress width/labels after each render; the

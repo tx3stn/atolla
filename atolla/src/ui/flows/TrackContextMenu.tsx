@@ -16,7 +16,7 @@ export interface OpenTrackContextMenuOptions {
 	imageCache: ImageCache;
 	onAlbumTap?: () => void;
 	onArtistTap?: () => void;
-	onDismiss: () => void;
+	onDismiss: (toastMessage?: string) => void;
 	onPlaylistCreated?: (playlist: Playlist) => void;
 	playbackStore: PlaybackStore;
 	toastService: ToastService;
@@ -28,9 +28,9 @@ export function openTrackContextMenu(
 	modalSlot: DetachedSlot | undefined,
 	options: OpenTrackContextMenuOptions,
 ): void {
-	const dismiss = (): void => {
+	const dismiss = (toastMessage?: string): void => {
 		closeSlot(modalSlot);
-		options.onDismiss();
+		options.onDismiss(toastMessage);
 	};
 
 	const onAddToPlaylist = (): void => {

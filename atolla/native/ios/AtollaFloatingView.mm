@@ -1,7 +1,7 @@
 #import "AtollaFloatingView.h"
 
 // A transparent container that passes touches through everywhere EXCEPT where its
-// subviews (the floating chrome) actually are, so the app behind the overlay stays
+// subviews (the floating layers) actually are, so the app behind the overlay stays
 // interactive.
 @interface AtollaFloatingOverlayContainer : UIView
 @end
@@ -46,7 +46,7 @@
 // `self` stays where Valdi puts it — an empty, full-screen, touch-passing layout anchor.
 // The engine transiently removes/re-inserts our native view during view-tree updates (e.g.
 // once a push settles), which fires didMoveToWindow with a nil window mid-update — we must
-// NOT tear the overlay down on that blip, or the chrome vanishes after the transition. The
+// NOT tear the overlay down on that blip, or the floating layers vanish after the transition. The
 // overlay lives until we're actually deallocated.
 - (void)didMoveToWindow
 {

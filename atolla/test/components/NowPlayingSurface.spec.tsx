@@ -4,9 +4,15 @@ import { ToastService } from 'atolla/src/services/ToastService';
 import { BarColorStore, defaultFooterColors } from 'atolla/src/stores/BarColor';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
 import { paletteDefaults, theme, withAlpha } from 'atolla/src/theme';
-import { NowPlayingSurface } from 'atolla/src/ui/components/NowPlayingSurface';
+import {
+	NowPlayingSurface,
+	type NowPlayingSurfaceViewModel,
+} from 'atolla/src/ui/components/NowPlayingSurface';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { Component } from 'valdi_core/src/Component';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { dragEvent, editTextEvent, touchEvent, touchEventWith } from '../util/testEvents';
@@ -50,6 +56,42 @@ function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackSto
 // production semantics
 function mountNowPlaying(viewModel: object) {
 	return InstrumentedComponentJSX.create(NowPlayingSurface, viewModel, undefined);
+}
+
+let surfaceUnderTest: NowPlayingSurface | undefined;
+
+class CapturingNowPlayingSurface extends NowPlayingSurface {
+	onViewModelUpdate(previousViewModel: NowPlayingSurfaceViewModel): void {
+		surfaceUnderTest = this;
+		super.onViewModelUpdate(previousViewModel);
+	}
+}
+
+// renders the surface alongside a DetachedSlotRenderer so slot-rendered modals (context menu,
+// create-from-queue) appear in the same component tree as the surface, matching production
+class NowPlayingSurfaceWithSlot extends Component<Omit<NowPlayingSurfaceViewModel, 'modalSlot'>> {
+	private slot = new DetachedSlot();
+
+	onRender(): void {
+		<view>
+			<CapturingNowPlayingSurface {...this.viewModel} modalSlot={this.slot} />
+			<DetachedSlotRenderer detachedSlot={this.slot} />
+		</view>;
+	}
+}
+
+function mountNowPlayingWithSlot(viewModel: object) {
+	surfaceUnderTest = undefined;
+	const instrumented = InstrumentedComponentJSX.create(
+		NowPlayingSurfaceWithSlot,
+		viewModel as Omit<NowPlayingSurfaceViewModel, 'modalSlot'>,
+		undefined,
+	);
+	return { instrumented, surface: (): NowPlayingSurface => surfaceUnderTest as NowPlayingSurface };
+}
+
+function openContextMenu(surface: NowPlayingSurface, track: object): void {
+	(surface as unknown as { handleTrackLongPress: (t: object) => void }).handleTrackLongPress(track);
 }
 
 function createNowPlayingComponent(
@@ -647,7 +689,7 @@ describe('NowPlayingSurface', () => {
 		};
 		const toastService = new ToastService();
 
-		const instrumented = mountNowPlaying({
+		const { instrumented, surface } = mountNowPlayingWithSlot({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -668,7 +710,7 @@ describe('NowPlayingSurface', () => {
 		});
 		const component = instrumented.getComponent();
 
-		component.setState({ contextMenuTrack: track });
+		openContextMenu(surface(), track);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const addToQueueAction = views.find(
@@ -696,7 +738,7 @@ describe('NowPlayingSurface', () => {
 			getArtistLogoUrl: () => Promise.resolve(null),
 		};
 
-		const instrumented = mountNowPlaying({
+		const { instrumented, surface } = mountNowPlayingWithSlot({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -719,7 +761,7 @@ describe('NowPlayingSurface', () => {
 			transport,
 		});
 		const component = instrumented.getComponent();
-		component.setState({ contextMenuTrack: contextTrack });
+		openContextMenu(surface(), contextTrack);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const artistLogo = views.find(
@@ -749,7 +791,7 @@ describe('NowPlayingSurface', () => {
 			getArtistLogoUrl: () => Promise.resolve(null),
 		};
 
-		const instrumented = mountNowPlaying({
+		const { instrumented, surface } = mountNowPlayingWithSlot({
 			album,
 			artistLogoUrl: null,
 			barColors: new BarColorStore(),
@@ -772,7 +814,7 @@ describe('NowPlayingSurface', () => {
 			transport,
 		});
 		const component = instrumented.getComponent();
-		component.setState({ contextMenuTrack: contextTrack });
+		openContextMenu(surface(), contextTrack);
 
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 		const albumRow = views.find(
@@ -1326,7 +1368,7 @@ describe('NowPlayingSurface', () => {
 		'shows a create-playlist-from-queue button on the queue tabs row when expanded',
 		async () => {
 			const tracks = createQueueTracks(3);
-			const instrumented = mountNowPlaying({
+			const { instrumented } = mountNowPlayingWithSlot({
 				album,
 				artistLogoUrl: null,
 				barColors: new BarColorStore(),
@@ -1378,7 +1420,7 @@ describe('NowPlayingSurface', () => {
 				addItemToPlaylist: () => Promise.resolve(),
 				createPlaylist: (name: string) => Promise.resolve({ id: 'pl-new', name }),
 			};
-			const instrumented = mountNowPlaying({
+			const { instrumented, surface } = mountNowPlayingWithSlot({
 				album,
 				artistLogoUrl: null,
 				barColors: new BarColorStore(),
@@ -1423,7 +1465,7 @@ describe('NowPlayingSurface', () => {
 			await new Promise((resolve) => setTimeout(resolve, 0));
 
 			expect(openedPlaylist).toEqual({ id: 'pl-new', name: 'My Queue Playlist' });
-			expect(component.state.isExpanded).toBe(false);
+			expect(surface().state.isExpanded).toBe(false);
 		},
 	);
 });

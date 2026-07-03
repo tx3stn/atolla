@@ -186,57 +186,53 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 						/>
 					</ErrorBoundary>
 				</view>
-
-				<Floating>
-					<AppHeader
-						activeFooterTab={this.state.activeFooterTab}
-						animationsEnabled={this.viewModel.animationsEnabled}
-						connectionMode={this.viewModel.connectionMode}
-						onDetailSectionTap={this.handleDetailSectionTap}
-						onRequestModeChange={this.viewModel.onRequestModeChange}
-					/>
-				</Floating>
-
-				{track && (
-					<Floating>
-						<ErrorBoundary resetKey={track.id}>
-							<NowPlayingSurface
-								album={album}
-								animationsEnabled={this.viewModel.animationsEnabled}
-								artistLogoUrl={artistLogoUrl}
-								barColors={this.viewModel.barColors}
-								collapseSignal={this.state.nowPlayingCollapseSignal}
-								isPlaying={isPlaying}
-								language={this.viewModel.language}
-								loopMode={loopMode}
-								onAlbumTap={this.handleNowPlayingAlbumTap}
-								onArtistTap={this.handleNowPlayingArtistTap}
-								onOpenPlaylist={this.handleNowPlayingOpenPlaylist}
-								palette={palette}
-								playbackStore={this.viewModel.playbackStore}
-								toastService={this.viewModel.toastService}
-								track={track}
-								trackIndex={trackIndex}
-								tracks={tracks}
-								transport={this.viewModel.transport}
-								waveformMaskUrl={this.viewModel.playbackOrchestrator.getWaveformMaskUrl(track.id)}
-							/>
-						</ErrorBoundary>
-					</Floating>
-				)}
 			</view>
 
 			<Floating>
+				<AppHeader
+					activeFooterTab={this.state.activeFooterTab}
+					animationsEnabled={this.viewModel.animationsEnabled}
+					connectionMode={this.viewModel.connectionMode}
+					onDetailSectionTap={this.handleDetailSectionTap}
+					onRequestModeChange={this.viewModel.onRequestModeChange}
+				/>
+				{track && (
+					<ErrorBoundary resetKey={track.id}>
+						<NowPlayingSurface
+							album={album}
+							animationsEnabled={this.viewModel.animationsEnabled}
+							artistLogoUrl={artistLogoUrl}
+							barColors={this.viewModel.barColors}
+							collapseSignal={this.state.nowPlayingCollapseSignal}
+							gridColumns={this.viewModel.gridColumns}
+							imageCache={this.viewModel.imageCache}
+							isPlaying={isPlaying}
+							language={this.viewModel.language}
+							loopMode={loopMode}
+							modalSlot={this.viewModel.modalSlot}
+							onAlbumTap={this.handleNowPlayingAlbumTap}
+							onArtistTap={this.handleNowPlayingArtistTap}
+							onOpenPlaylist={this.handleNowPlayingOpenPlaylist}
+							palette={palette}
+							playbackStore={this.viewModel.playbackStore}
+							toastService={this.viewModel.toastService}
+							track={track}
+							trackIndex={trackIndex}
+							tracks={tracks}
+							transport={this.viewModel.transport}
+							waveformMaskUrl={this.viewModel.playbackOrchestrator.getWaveformMaskUrl(track.id)}
+						/>
+					</ErrorBoundary>
+				)}
 				<FooterNav
 					activeTab={this.state.activeFooterTab}
 					barColors={this.viewModel.barColors}
 					downloadingCount={this.viewModel.downloadingCount}
 					onFooterTabTap={this.handleFooterTabTap}
 				/>
+				<DetachedSlotRenderer detachedSlot={this.viewModel.modalSlot} />
+				<DetachedSlotRenderer detachedSlot={this.viewModel.toastSlot} />
 			</Floating>
-
-			<DetachedSlotRenderer detachedSlot={this.viewModel.modalSlot} />
-			<DetachedSlotRenderer detachedSlot={this.viewModel.toastSlot} />
 		</view>;
 	}
 
