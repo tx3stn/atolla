@@ -6,9 +6,9 @@
 		"types": [
 			"../bazel-atolla/external/valdi~/modules/types/Long",
 			"../bazel-atolla/external/valdi~/modules/types/globals",
-			"bun-types"
+			"bun-types/test"
 		]
 	},
 	"extends": "./tsconfig.json",
-	"include": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+	"include": ["src/**/*.test.ts", "src/**/*.test.tsx", "test/types/*.d.ts"]
 }

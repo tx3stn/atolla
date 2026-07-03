@@ -22,6 +22,7 @@ import {
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
 import Strings from './Strings';
+import { appServices } from './services/AppServices';
 import { AssetCache } from './services/AssetCache';
 import { Connectivity } from './services/Connectivity';
 import { DebugLogger } from './services/DebugLogger';
@@ -42,6 +43,7 @@ import { ToastService } from './services/ToastService';
 import { TrackPlaybackNotificationAdapter } from './services/TrackPlaybackNotificationAdapter';
 import { TrackSourceNativeAdapter } from './services/TrackSourceNativeAdapter';
 import { UserScope } from './services/UserScope';
+import { appShellStore } from './stores/AppShell';
 import { BarColorStore } from './stores/BarColor';
 import { InMemoryAuthStore, JellyfinAuthStore } from './stores/JellyfinAuthStore';
 import { PlaybackStore } from './stores/Playback';
@@ -180,6 +182,8 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	private syncBannerTimer?: ReturnType<typeof setTimeout>;
 	private lastSyncEditErrors: Array<PlaylistEditError> = [];
 	private unsubscribeToast?: () => void;
+	private readonly handleRequestModeChange = (mode: ConnectionMode): Promise<boolean> =>
+		this.connectivity.setMode(mode);
 
 	state: AppState = {
 		authErrorMessage: null,
@@ -281,6 +285,8 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		}
 
 		if (this.state.isAuthRequired) {
+			appServices.clear();
+			appShellStore.reset();
 			<view style={theme.app.root}>
 				<ConnectionView
 					animationsEnabled={this.preferences.animationsEnabled}
@@ -300,6 +306,25 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			return;
 		}
 
+		appServices.set({
+			animationsEnabled: this.preferences.animationsEnabled,
+			barColors: this.barColors,
+			connectionMode: this.state.connectionMode,
+			downloadingCount: this.state.downloadingCount,
+			downloadService: this.downloadService,
+			gridColumns: this.preferences.gridColumns,
+			imageCache: this.imageCache,
+			language: this.preferences.language,
+			modalSlot: this.modalSlot,
+			onRequestModeChange: this.handleRequestModeChange,
+			paletteQueue: this.userScope.getPaletteQueue(),
+			paletteService: this.userScope.getPaletteService(),
+			playbackOrchestrator: this.playbackOrchestrator,
+			playbackStore: this.playbackStore,
+			toastService: this.toastService,
+			toastSlot: this.toastSlot,
+			transport: this.connectivity.getTransport(),
+		});
 		<view style={theme.app.root}>
 			<AuthedApp
 				animationsEnabled={this.preferences.animationsEnabled}
@@ -313,7 +338,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 				language={this.preferences.language}
 				libraryViewModel={this.buildLibraryViewModel()}
 				modalSlot={this.modalSlot}
-				onRequestModeChange={(mode) => this.connectivity.setMode(mode)}
+				onRequestModeChange={this.handleRequestModeChange}
 				paletteQueue={this.userScope.getPaletteQueue()}
 				paletteService={this.userScope.getPaletteService()}
 				playbackOrchestrator={this.playbackOrchestrator}
