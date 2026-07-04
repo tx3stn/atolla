@@ -69,9 +69,7 @@ jobs:
           key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/res/**') }}
       - name: Install libtinfo5
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
-        run: |
-          wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
-          sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
+        uses: ./.github/actions/install-libtinfo5
       - name: Configure bazel caching
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
         env:
@@ -185,7 +183,7 @@ jobs:
   component-tests:
     if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
@@ -196,9 +194,7 @@ jobs:
             /opt/hostedtoolcache/CodeQL
           df -h /
       - name: Install libtinfo5
-        run: |
-          wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
-          sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
+        uses: ./.github/actions/install-libtinfo5
       - name: Configure bazel caching
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
@@ -218,18 +214,21 @@ jobs:
             echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
           fi
       # Restore the warm output base (extracted repos + bazel-out) — a hit means no
-      # re-extraction and no recompile. The big caches are SAVED only on the default branch
-      # (below), so MR runs read main's warm base but never write multi-GB entries; that's
-      # what stops another job (e.g. a failing android run) from churning the shared 10 GB
-      # pool and evicting this cache.
+      # re-extraction and no recompile. Keyed on the dependency set (MODULE/patches), NOT
+      # the commit SHA: a per-SHA key banked a fresh multi-GB base on every main push, and a
+      # handful of those overflow the shared 10 GB Actions pool and evict each other (and the
+      # repo caches) — so the base was gone by the next run and component-tests fell back to a
+      # full cold build. One base per dependency set is all we need: the expensive artifacts
+      # (Hermes/Skia/Valdi core) only change when the dependency set does, so within a set
+      # bazel just rebuilds the cheap app/test sources incrementally off the restored base.
+      # SAVED only on the default branch (below), so MR runs read main's base but never write.
       - name: Restore bazel output base
         id: restore-bazel-ob
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel-ob
-          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.sha }}
+          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
-            bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-ob-${{ github.job }}-${{ runner.os }}-
       # cold path only — a restored output base already contains every extracted repo
       - name: Restore bazel repository cache
@@ -248,13 +247,15 @@ jobs:
         if: always()
         run: bazel shutdown && du -sh ~/.cache/bazel-ob || true
       # Save the multi-GB caches ONLY on the default branch so MR runs never write to (and
-      # churn) the shared Actions pool. MR runs still get per-push reuse via BuildBuddy.
+      # churn) the shared Actions pool. MR runs still get per-push reuse via BuildBuddy. With
+      # the dep-set key above, main banks exactly one base per dependency set (the cache-hit
+      # guard skips the save once it exists) instead of a fresh multi-GB entry per commit.
       - name: Save bazel output base
         if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-bazel-ob.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: ~/.cache/bazel-ob
-          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.sha }}
+          key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
       - name: Save bazel repository cache
         if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-bazel-ob.outputs.cache-matched-key == '' && steps.restore-bazel-repo.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
@@ -276,9 +277,7 @@ jobs:
             /opt/hostedtoolcache/CodeQL
           df -h /
       - name: Install libtinfo5
-        run: |
-          wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
-          sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
+        uses: ./.github/actions/install-libtinfo5
       - name: Configure bazel caching
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}

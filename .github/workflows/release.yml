@@ -63,11 +63,8 @@ jobs:
           restore-keys: |
             bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      # Valdi's hermetic llvm_toolchain clang links libtinfo.so.5, gone from ubuntu 24.04
       - name: Install libtinfo5
-        run: |
-          wget -q http://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
-          sudo dpkg -i libtinfo5_6.3-2ubuntu0.1_amd64.deb
+        uses: ./.github/actions/install-libtinfo5
       - name: Make room for the bazel build
         run: |
           # The full APK build (Skia/ICU/harfbuzz/abseil/Valdi + host tools) overflows the

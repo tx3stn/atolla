@@ -1,0 +1,23 @@
+name: Install libtinfo5
+description: >-
+  Valdi's hermetic llvm_toolchain clang links libtinfo.so.5, which is gone from
+  ubuntu 24.04. Ubuntu's archive pool keeps only the newest point release of a
+  package, so a hardcoded filename 404s the moment a security update lands (which
+  is exactly what broke CI). Discover the current filename from the security pool
+  instead so this self-heals across future point releases.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        base=http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses
+        deb=$(curl -fsSL --retry 3 --retry-delay 2 "$base/" \
+          | grep -oE 'libtinfo5_[^"<> ]*_amd64\.deb' | sort -uV | tail -n1)
+        if [ -z "$deb" ]; then
+          echo "no libtinfo5 amd64 package found in $base" >&2
+          exit 1
+        fi
+        echo "installing $deb"
+        curl -fsSL --retry 3 --retry-delay 2 -O "$base/$deb"
+        sudo dpkg -i "$deb"
