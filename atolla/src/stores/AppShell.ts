@@ -75,7 +75,11 @@ export class AppShellStore {
 		if (!Device.isAndroid()) {
 			this.tabNavControllers[this.activeTab]?.popToSelf(false);
 		}
-		this.setActiveTab(tab);
+		backNavRouter.setActiveTab(tab);
+		this.activeTab = tab;
+		// collapse expanded now-playing surface so the tapped tab is actually visible.
+		this.collapseSignal += 1;
+		this.notify();
 	};
 
 	handleNowPlayingAlbumTap = (track?: Track): void => {

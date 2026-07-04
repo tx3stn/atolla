@@ -73,6 +73,20 @@ describe('AppShellStore', () => {
 		expect(listener).toHaveBeenCalled();
 	});
 
+	it('collapses the now-playing surface on every footer tab tap, including the active tab', () => {
+		const before = store.nowPlayingCollapseSignal;
+		store.handleFooterTabTap(FooterTabs.search);
+		expect(store.nowPlayingCollapseSignal).toBeGreaterThan(before);
+
+		const afterSwitch = store.nowPlayingCollapseSignal;
+		const listener = jasmine.createSpy('listener');
+		store.subscribe(listener);
+		store.handleFooterTabTap(FooterTabs.search);
+
+		expect(store.nowPlayingCollapseSignal).toBeGreaterThan(afterSwitch);
+		expect(listener).toHaveBeenCalled();
+	});
+
 	it('setActiveTab updates backNavRouter and only notifies on a real change', () => {
 		const setActiveTab = spyOn(backNavRouter, 'setActiveTab');
 		const listener = jasmine.createSpy('listener');
