@@ -22,13 +22,20 @@ interface Calls {
 	onOnline: number;
 	onUserChanged: Array<string>;
 	setMockMode: Array<boolean>;
+	setNativeAuthToken: Array<string>;
 }
 
 function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession | null }): {
 	calls: Calls;
 	connectivity: Connectivity;
 } {
-	const calls: Calls = { applyState: [], onOnline: 0, onUserChanged: [], setMockMode: [] };
+	const calls: Calls = {
+		applyState: [],
+		onOnline: 0,
+		onUserChanged: [],
+		setMockMode: [],
+		setNativeAuthToken: [],
+	};
 	let session = opts?.session ?? null;
 
 	const sessionManager = {
@@ -57,6 +64,7 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 		playlistEditService: {} as ConnectivityDeps['playlistEditService'],
 		preferences,
 		sessionManager,
+		setNativeAuthToken: (token) => calls.setNativeAuthToken.push(token),
 		showToast: () => {},
 	};
 
@@ -77,6 +85,7 @@ describe('Connectivity', () => {
 		expect(connectivity.getTransport() instanceof LiveTransport).toBe(true);
 		expect(connectivity.getMode()).toBe(ConnectionModes.online);
 		expect(calls.onUserChanged).toEqual(['user-1']);
+		expect(calls.setNativeAuthToken).toEqual(['tok']);
 		expect(
 			calls.applyState.some(
 				(s) => s.connectionMode === ConnectionModes.online && s.isAuthRequired === false,
@@ -94,6 +103,7 @@ describe('Connectivity', () => {
 
 		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
 		expect(calls.onUserChanged).toEqual(['shared']);
+		expect(calls.setNativeAuthToken).toEqual(['']);
 	});
 
 	it('setMode(online) with a session builds a live transport and triggers reconnect', async () => {
@@ -127,6 +137,8 @@ describe('Connectivity', () => {
 
 		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
 		expect(calls.applyState.some((s) => s.isAuthRequired === true)).toBe(true);
+		// online bootstrap pushed 'tok'; the session drop pushes '' so native stops using it
+		expect(calls.setNativeAuthToken).toEqual(['tok', '']);
 	});
 
 	it('connect("mock") switches to the mock mode', async () => {

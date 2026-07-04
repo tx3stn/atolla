@@ -495,11 +495,28 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
 + (void)clearNowPlaying;
 + (NSString * _Nonnull)consumeAction;
 + (BOOL)ensurePermission;
+// current Jellyfin access token, pushed out-of-band on session change; applied as an auth
+// header when fetching remote artwork so the token never travels in the artwork URL
++ (void)setAuthToken:(nullable NSString *)token;
++ (nullable NSString *)authToken;
 @end
 
 @implementation AtollaMediaSession
 
 static NSMutableArray<NSString *> *sPendingActions;
+static NSString *sAuthToken = nil;
+
++ (void)setAuthToken:(NSString *)token {
+    @synchronized (self) {
+        sAuthToken = token.length > 0 ? [token copy] : nil;
+    }
+}
+
++ (NSString *)authToken {
+    @synchronized (self) {
+        return sAuthToken;
+    }
+}
 static NSLock *sMediaSessionLock;
 static BOOL sCommandsRegistered = NO;
 
@@ -591,7 +608,22 @@ static BOOL sCommandsRegistered = NO;
             dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
                 NSURL *url = [NSURL URLWithString:artworkUrl];
                 if (!url) return;
-                NSData *data = [NSData dataWithContentsOfURL:url];
+                NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+                NSString *token = [AtollaMediaSession authToken];
+                if (token.length > 0) {
+                    [request setValue:token forHTTPHeaderField:@"X-Emby-Token"];
+                    [request setValue:[NSString stringWithFormat:@"MediaBrowser Token=\"%@\"", token]
+                   forHTTPHeaderField:@"Authorization"];
+                }
+                __block NSData *data = nil;
+                dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+                NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request
+                    completionHandler:^(NSData *d, NSURLResponse *r, NSError *e) {
+                        data = d;
+                        dispatch_semaphore_signal(sem);
+                    }];
+                [task resume];
+                dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(20 * NSEC_PER_SEC)));
                 if (!data) return;
                 UIImage *image = [UIImage imageWithData:data];
                 if (!image) return;
@@ -1475,6 +1507,10 @@ static id sLookaheadClearObserver = nil;
 
 - (void)setAtollaAudioPlaybackUpcomingQueueWithQueueJson:(NSString * _Nonnull)queueJson {
     [AtollaGaplessAudioEngine setUpcomingQueue:queueJson];
+}
+
+- (void)setAtollaTrackPlaybackAuthTokenWithToken:(NSString * _Nonnull)token {
+    [AtollaMediaSession setAuthToken:token];
 }
 
 @end

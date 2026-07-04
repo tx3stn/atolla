@@ -4,7 +4,6 @@ export const atollaCacheScheme = 'atolla-cache';
 export const atollaCacheHost = 'image';
 
 export interface AtollaCacheSource {
-	authToken?: string;
 	cacheOnly?: boolean;
 	category: ImageCategory;
 	url: string;
@@ -28,27 +27,25 @@ export function buildImageSource(
 	category: ImageCategory,
 	options?: BuildImageSourceOptions,
 ): string {
-	const { strippedUrl, authToken } = extractAndStripApiKey(
-		normalizeImageUrlForCategory(url, category),
-	);
+	const strippedUrl = stripApiKeyFromUrl(normalizeImageUrlForCategory(url, category));
 	const cacheOnlyParam = options?.cacheOnly ? '&co=1' : '';
-	const tokenParam = authToken ? `&tok=${encodeURIComponent(authToken)}` : '';
-	return `${atollaCacheScheme}://${atollaCacheHost}?c=${encodeURIComponent(category)}&u=${encodeURIComponent(strippedUrl)}${cacheOnlyParam}${tokenParam}`;
+	return `${atollaCacheScheme}://${atollaCacheHost}?c=${encodeURIComponent(category)}&u=${encodeURIComponent(strippedUrl)}${cacheOnlyParam}`;
 }
 
-function extractAndStripApiKey(url: string): { strippedUrl: string; authToken: string | null } {
+// defensive: the token is delivered to native fetchers out-of-band as a header, never in the
+// URL, but strip any stray api_key so a token can never reach a cache key or the src identity
+export function stripApiKeyFromUrl(url: string): string {
 	let parsed: URL;
 	try {
 		parsed = new URL(url);
 	} catch {
-		return { authToken: null, strippedUrl: url };
+		return url;
 	}
-	const authToken = parsed.searchParams.get('api_key');
-	if (!authToken) {
-		return { authToken: null, strippedUrl: url };
+	if (!parsed.searchParams.has('api_key')) {
+		return url;
 	}
 	parsed.searchParams.delete('api_key');
-	return { authToken, strippedUrl: parsed.toString() };
+	return parsed.toString();
 }
 
 export function normalizeImageUrlForCategory(url: string, category: ImageCategory): string {
@@ -69,7 +66,6 @@ export function parseImageSource(src: string): AtollaCacheSource | null {
 		const category = parsed.searchParams.get('c');
 		const url = parsed.searchParams.get('u');
 		const cacheOnly = parsed.searchParams.get('co') === '1';
-		const authToken = parsed.searchParams.get('tok') ?? undefined;
 		if (!category || !url) {
 			return null;
 		}
@@ -83,7 +79,6 @@ export function parseImageSource(src: string): AtollaCacheSource | null {
 		}
 
 		return {
-			authToken,
 			cacheOnly,
 			category,
 			url,

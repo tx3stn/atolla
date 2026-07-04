@@ -25,7 +25,8 @@ describe('ImageSource', () => {
 		const parsed = parseImageSource(source);
 
 		expect(parsed?.category).toBe('album_art_thumb');
-		expect(parsed?.authToken).toBe('abc');
+		expect(source).not.toContain('tok=');
+		expect(source).not.toContain('api_key');
 		expect(parsed?.url).toBe(
 			'https://media.example.com/Items/123/Images/Primary?tag=xyz&maxWidth=384&maxHeight=384&quality=85',
 		);
@@ -38,7 +39,8 @@ describe('ImageSource', () => {
 		);
 
 		const parsed = parseImageSource(source);
-		expect(parsed?.authToken).toBe('abc');
+		expect(source).not.toContain('tok=');
+		expect(source).not.toContain('api_key');
 		expect(parsed?.url).toBe(
 			'https://media.example.com/Items/123/Images/Primary?maxWidth=256&maxHeight=256&quality=85',
 		);
@@ -55,7 +57,6 @@ describe('ImageSource', () => {
 		const source = buildImageSource('https://example.com/image.jpg', 'artist_image');
 		const parsed = parseImageSource(source);
 		expect(parsed).toEqual({
-			authToken: undefined,
 			cacheOnly: false,
 			category: 'artist_image',
 			url: 'https://example.com/image.jpg',
@@ -68,7 +69,6 @@ describe('ImageSource', () => {
 		});
 		expect(source).toContain('&co=1');
 		expect(parseImageSource(source)).toEqual({
-			authToken: undefined,
 			cacheOnly: true,
 			category: 'album_art',
 			url: 'https://example.com/image.jpg',

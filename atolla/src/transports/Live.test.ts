@@ -300,7 +300,7 @@ describe('LiveTransport core collections', () => {
 			}),
 		);
 		expect(page.items[0].imageUrl).toContain('/Items/album-1/Images/Primary');
-		expect(page.items[0].imageUrl).toContain('api_key=token-1');
+		expect(page.items[0].imageUrl).not.toContain('api_key');
 	});
 
 	it('fetches a minimal album release-dates page (no Overview, images/userData disabled)', async () => {

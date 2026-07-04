@@ -19,6 +19,7 @@ import {
 import { ensureAtollaHapticsBootstrap } from './HapticsBootstrap';
 import {
 	ensureAtollaImageLoaderBootstrap,
+	setAtollaImageLoaderAuthToken,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
 import { ensureAtollaOverlayHostBootstrap } from './OverlayHostBootstrap';
@@ -54,6 +55,7 @@ import {
 	getAtollaDownloadedCacheTotalSizeBytes,
 	getAtollaDownloadedTrackFileUrl,
 	setAtollaTrackCacheMaxTracks,
+	setAtollaTrackPlaybackAuthToken,
 } from './TrackPlaybackNative';
 import { theme } from './theme';
 import { type ConnectionMode, ConnectionModes } from './transports/Model';
@@ -165,6 +167,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		playlistEditService: this.playlistEditService,
 		preferences: this.preferences,
 		sessionManager: this.sessionManager,
+		setNativeAuthToken: (token) => this.pushNativeAuthToken(token),
 		showToast: (message) => this.toastService.show(message),
 	});
 	private userScope: UserScope = new UserScope({
@@ -564,6 +567,19 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 				return this.diagnosticsStore.storeString('session_active', '1');
 			})
 			.catch(() => {});
+	}
+
+	private pushNativeAuthToken(token: string): void {
+		try {
+			setAtollaImageLoaderAuthToken(token);
+		} catch {
+			// native image loader bootstrap may be unavailable on non-Android/iOS targets
+		}
+		try {
+			setAtollaTrackPlaybackAuthToken(token);
+		} catch {
+			// native playback module may be unavailable on non-Android/iOS targets
+		}
 	}
 
 	private requestRerender(): void {

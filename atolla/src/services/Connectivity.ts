@@ -24,10 +24,11 @@ export interface ConnectivityDeps {
 	playlistEditService: PlaylistEditService;
 	preferences: Preferences;
 	sessionManager: SessionManager;
+	setNativeAuthToken(token: string): void;
 	showToast(message: string): void;
 }
 
-// Connection state machine: owns the online/offline/mock mode and the active transport, which is
+// connection state machine: owns the online/offline/mock mode and the active transport, which is
 // always derived from (mode, current session). coordinates auth via SessionManager but never
 // implements it; it reacts to session changes by rebuilding the transport.
 export class Connectivity {
@@ -124,6 +125,9 @@ export class Connectivity {
 	}
 
 	private rebuildTransport(session: AuthSession | null): void {
+		this.deps.setNativeAuthToken(
+			this.mode === ConnectionModes.online && session != null ? session.accessToken : '',
+		);
 		if (this.mode === ConnectionModes.online && session != null) {
 			this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId, {
 				clientDeviceId: this.deps.sessionManager.getEffectiveDeviceId(),

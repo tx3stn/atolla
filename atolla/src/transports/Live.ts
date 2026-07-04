@@ -882,10 +882,7 @@ export class LiveTransport implements Transport {
 	}
 
 	private buildItemImageUrl(itemId: string, imageType: 'Logo' | 'Primary', tag?: string): string {
-		const query: Record<string, string | undefined> = {
-			api_key: this.accessToken,
-			tag,
-		};
+		const query: Record<string, string | undefined> = { tag };
 		const path = this.buildPath(`/Items/${encodeURIComponent(itemId)}/Images/${imageType}`, query);
 		return `${this.baseUrl}${path}`;
 	}

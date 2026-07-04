@@ -225,6 +225,10 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				AtollaGaplessAudioEngine.setUpcomingQueue(queueJson)
 			}
 
+			override fun setAtollaTrackPlaybackAuthToken(token: String) {
+				AtollaTrackPlaybackMediaSession.authToken = token.ifBlank { null }
+			}
+
 		}
 	}
 }
@@ -1584,6 +1588,9 @@ object AtollaTrackPlaybackMediaSession {
 	@Volatile private var currentArtworkBitmap: Bitmap? = null
 	@Volatile private var isArtworkLoadInFlight: Boolean = false
 	@Volatile private var lastArtworkLoadAttemptMs: Long = 0L
+	// current Jellyfin access token, pushed out-of-band on session change; applied as an auth
+	// header when fetching remote artwork so the token never travels in the artwork URL
+	@Volatile var authToken: String? = null
 
 	private val artworkRequestCounter = AtomicLong(0)
 	private const val artworkRetryIntervalMs = 3_000L
@@ -2184,6 +2191,11 @@ object AtollaTrackPlaybackMediaSession {
 				instanceFollowRedirects = true
 				requestMethod = "GET"
 				setRequestProperty("Accept", "image/*,*/*")
+				val token = authToken
+				if (!token.isNullOrBlank()) {
+					setRequestProperty("X-Emby-Token", token)
+					setRequestProperty("Authorization", "MediaBrowser Token=\"$token\"")
+				}
 			}
 
 			val status = connection.responseCode

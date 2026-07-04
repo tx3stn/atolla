@@ -39,7 +39,6 @@ import kotlin.math.max
 import kotlin.math.min
 
 data class AtollaCacheRequestPayload(
-	val authToken: String?,
 	val cacheOnly: Boolean,
 	val category: String,
 	val sourceUrl: String,
@@ -134,6 +133,10 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 		var sharedInstance: AtollaCacheImageLoader? = null
 		var imageCachedObserver: ((url: String, category: String) -> Unit)? = null
+		// current Jellyfin access token, pushed out-of-band on session change; applied as an
+		// auth header on network fetches so the token never travels in an image URL
+		@Volatile
+		var authToken: String? = null
 	}
 
 	private val tag = "AtollaCacheLoader"
@@ -309,15 +312,13 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 	@Throws(ValdiException::class)
 	override fun getRequestPayload(url: Uri): Any {
-		Log.d(tag, "getRequestPayload url=$url")
 		val category = url.getQueryParameter("c")
 		val cacheOnly = url.getQueryParameter("co") == "1"
 		val source = url.getQueryParameter("u")
-		val authToken = url.getQueryParameter("tok")
 		if (url.scheme != "atolla-cache" || url.host != "image" || category.isNullOrBlank() || source.isNullOrBlank()) {
 			throw ValdiException("Invalid atolla-cache image URL")
 		}
-		return AtollaCacheRequestPayload(authToken = authToken, cacheOnly = cacheOnly, category = category, sourceUrl = source)
+		return AtollaCacheRequestPayload(cacheOnly = cacheOnly, category = category, sourceUrl = source)
 	}
 
 		override fun loadImage(
@@ -493,7 +494,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 					}
 					return
 				}
-				val originalBytes = fetchBytes(payload.sourceUrl, payload.authToken)
+				val originalBytes = fetchBytes(payload.sourceUrl)
 				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
 				writePaletteSidecarIfNeeded(payload.sourceUrl, "album_art", originalBytes)
@@ -539,7 +540,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				return
 			}
 
-			val bytes = fetchBytes(payload.sourceUrl, payload.authToken)
+			val bytes = fetchBytes(payload.sourceUrl)
 			Log.d(tag, "network fetch success key=$key bytes=${bytes.size}")
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
@@ -571,7 +572,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			return
 		}
 
-		val (sourceUrl, authToken) = stripApiKeyFromUrl(rawSourceUrl)
+		val sourceUrl = stripApiKeyFromUrl(rawSourceUrl)
 		val key = "$category:$sourceUrl"
 		val bitmapPlan = resolveBitmapDecodePlan(key, category, null)
 
@@ -605,7 +606,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 		executor.execute(
 			LoadTask(LoadPriority.PREFETCH) {
-				executePreloadTask(sourceUrl, category, key, future, authToken)
+				executePreloadTask(sourceUrl, category, key, future)
 			},
 		)
 	}
@@ -622,7 +623,6 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		category: String,
 		key: String,
 		future: CompletableFuture<ByteArray>,
-		authToken: String? = null,
 	) {
 		try {
 			readFromDisk(key)?.let { bytes ->
@@ -652,7 +652,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 					return
 				}
 
-				val originalBytes = fetchBytes(sourceUrl, authToken)
+				val originalBytes = fetchBytes(sourceUrl)
 				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
 				writePaletteSidecarIfNeeded(sourceUrl, "album_art", originalBytes)
@@ -669,7 +669,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				return
 			}
 
-			val bytes = fetchBytes(sourceUrl, authToken)
+			val bytes = fetchBytes(sourceUrl)
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
 			writePaletteSidecarIfNeeded(sourceUrl, category, bytes)
@@ -692,30 +692,31 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 	}
 
-	private fun stripApiKeyFromUrl(url: String): Pair<String, String?> {
+	// defensive: the token is delivered out-of-band via authToken and applied as a header, never
+	// in the URL, but strip any stray api_key so a token can never reach a cache key or the disk
+	private fun stripApiKeyFromUrl(url: String): String {
 		return try {
 			val uri = Uri.parse(url)
-			val apiKey = uri.getQueryParameter("api_key")
-			if (apiKey.isNullOrBlank()) {
-				Pair(url, null)
+			if (uri.getQueryParameter("api_key").isNullOrBlank()) {
+				url
 			} else {
-				val cleaned = uri.buildUpon().clearQuery().also { builder ->
+				uri.buildUpon().clearQuery().also { builder ->
 					for (name in uri.queryParameterNames) {
 						if (name != "api_key") builder.appendQueryParameter(name, uri.getQueryParameter(name))
 					}
 				}.build().toString()
-				Pair(cleaned, apiKey)
 			}
 		} catch (_: Throwable) {
-			Pair(url, null)
+			url
 		}
 	}
 
-	private fun fetchBytes(url: String, authToken: String? = null): ByteArray {
+	private fun fetchBytes(url: String): ByteArray {
+		val token = AtollaCacheImageLoader.authToken
 		val builder = Request.Builder().url(url)
-		if (!authToken.isNullOrBlank()) {
-			builder.addHeader("X-Emby-Token", authToken)
-			builder.addHeader("Authorization", "MediaBrowser Token=\"$authToken\"")
+		if (!token.isNullOrBlank()) {
+			builder.addHeader("X-Emby-Token", token)
+			builder.addHeader("Authorization", "MediaBrowser Token=\"$token\"")
 		}
 		val request = builder.build()
 		return httpClient.newCall(request).execute().use { response ->

@@ -17,7 +17,6 @@
 @interface AtollaIOSImageRequestPayload : NSObject
 @property (nonatomic, copy) NSString *category;
 @property (nonatomic, strong) NSURL *sourceURL;
-@property (nonatomic, copy, nullable) NSString *authToken;
 @end
 
 @implementation AtollaIOSImageRequestPayload
@@ -246,6 +245,10 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 // MARK: - Image Loader
 
 @interface AtollaIOSImageLoader : NSObject <SCValdiImageLoader>
+// current Jellyfin access token, pushed out-of-band on session change; applied as an auth
+// header on network fetches so the token never travels in an image URL. atomic for the
+// cross-thread set (session change) vs read (background fetch)
+@property (atomic, copy, nullable) NSString *authToken;
 + (instancetype)sharedInstance;
 - (nullable NSString *)extractPaletteForCategory:(NSString *)category sourceURL:(NSString *)url;
 - (void)preloadURL:(NSString *)url category:(NSString *)category;
@@ -287,11 +290,10 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         return nil;
     }
     NSURLComponents *c = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
-    NSString *category = nil, *sourceURLString = nil, *authToken = nil;
+    NSString *category = nil, *sourceURLString = nil;
     for (NSURLQueryItem *item in c.queryItems) {
         if ([item.name isEqualToString:@"c"]) category = item.value;
         else if ([item.name isEqualToString:@"u"]) sourceURLString = item.value;
-        else if ([item.name isEqualToString:@"tok"]) authToken = item.value;
     }
     NSURL *sourceURL = sourceURLString ? [NSURL URLWithString:sourceURLString] : nil;
     if (!category || !sourceURL) {
@@ -302,12 +304,12 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     AtollaIOSImageRequestPayload *payload = [[AtollaIOSImageRequestPayload alloc] init];
     payload.category = category;
     payload.sourceURL = sourceURL;
-    payload.authToken = authToken;
     return payload;
 }
 
-- (NSMutableURLRequest *)imageRequestForURL:(NSURL *)url authToken:(NSString * _Nullable)authToken {
+- (NSMutableURLRequest *)imageRequestForURL:(NSURL *)url {
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    NSString *authToken = self.authToken;
     if (authToken.length > 0) {
         [request setValue:authToken forHTTPHeaderField:@"X-Emby-Token"];
         [request setValue:[NSString stringWithFormat:@"MediaBrowser Token=\"%@\"", authToken]
@@ -325,7 +327,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         return [[AtollaNoopCancelable alloc] init];
     }
 
-    NSMutableURLRequest *request = [self imageRequestForURL:payload.sourceURL authToken:payload.authToken];
+    NSMutableURLRequest *request = [self imageRequestForURL:payload.sourceURL];
 
     if ([payload.category isEqualToString:@"album_art_blurred"]) {
         // the blur is downsampled before storage, so prefer the (always-downloaded) thumb and
@@ -439,12 +441,11 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 - (void)preloadURL:(NSString *)rawUrl category:(NSString *)category {
     NSURLComponents *components = [NSURLComponents componentsWithString:rawUrl];
     if (!components) return;
-    NSString *authToken = nil;
+    // defensive: strip any stray api_key so a token can never reach a cache key; auth is applied
+    // as a header from the out-of-band stored token in imageRequestForURL:
     NSMutableArray<NSURLQueryItem *> *filteredItems = [NSMutableArray array];
     for (NSURLQueryItem *item in components.queryItems) {
-        if ([item.name isEqualToString:@"api_key"]) {
-            authToken = item.value;
-        } else {
+        if (![item.name isEqualToString:@"api_key"]) {
             [filteredItems addObject:item];
         }
     }
@@ -458,7 +459,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         if (_imageCachedObserver) _imageCachedObserver(cleanUrl, category);
         return;
     }
-    NSMutableURLRequest *request = [self imageRequestForURL:sourceURL authToken:authToken];
+    NSMutableURLRequest *request = [self imageRequestForURL:sourceURL];
     NSURLSessionDataTask *task = [NSURLSession.sharedSession
         dataTaskWithRequest:request
         completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
@@ -557,6 +558,10 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 
 - (void)setAtollaImageCachedObserverWithCallback:(atollaImageLoaderBootstrapModuleSetAtollaImageCachedObserverCallbackBlock)callback {
     [AtollaIOSImageLoader.sharedInstance setImageCachedObserver:callback];
+}
+
+- (void)setAtollaImageLoaderAuthTokenWithToken:(NSString *)token {
+    AtollaIOSImageLoader.sharedInstance.authToken = token.length > 0 ? token : nil;
 }
 
 @end

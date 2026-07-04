@@ -1,3 +1,5 @@
+import { redactSensitiveUrlParams } from '../utils/RedactUrl';
+
 interface DebugLoggerNativeFns {
 	clearLog(): void;
 	exportLog(): string;
@@ -26,9 +28,10 @@ class DebugLoggerService {
 
 	log(tag: string, message: string, data?: unknown): void {
 		if (!this.enabled) return;
-		const ts = new Date().toISOString();
 		const suffix = data !== undefined ? ` ${JSON.stringify(data)}` : '';
-		const entry = `${ts} [${tag}] ${message}${suffix}`;
+		const entry = redactSensitiveUrlParams(
+			`${new Date().toISOString()} [${tag}] ${message}${suffix}`,
+		);
 		console.warn(`[DBG] ${entry}`);
 		try {
 			this.fns?.writeLog(entry);

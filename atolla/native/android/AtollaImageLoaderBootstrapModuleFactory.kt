@@ -75,6 +75,10 @@ class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactor
 			override fun setAtollaImageCachedObserver(callback: (String, String) -> Unit) {
 				AtollaCacheImageLoader.imageCachedObserver = callback
 			}
+
+			override fun setAtollaImageLoaderAuthToken(token: String) {
+				AtollaCacheImageLoader.authToken = token.ifBlank { null }
+			}
 		}
 	}
 }
