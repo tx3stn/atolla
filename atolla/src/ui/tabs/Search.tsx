@@ -64,18 +64,11 @@ export class SearchTab extends Component<SearchTabViewModel> {
 
 	private handleArtistById = (artistId: string): void => {
 		const controller = this.rootController;
-		if (!controller) {
+		if (!controller || !artistId) {
 			return;
 		}
-		this.viewModel.search.transport
-			.getArtist(artistId)
-			.then((artist) => {
-				if (!artist) {
-					return;
-				}
-				pushArtist(controller, this.detailDeps(), artist);
-			})
-			.catch(() => {});
+		// best-effort: navigate on the id; ArtistView self-heals the name/image
+		pushArtist(controller, this.detailDeps(), { id: artistId, name: '' });
 	};
 
 	private handleNavigateToLibraryResult = (target: SearchLibraryNavigationTarget): void => {

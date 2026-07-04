@@ -38,20 +38,15 @@ export class AppShellStore {
 		return this.tabNavControllers[tab];
 	}
 
+	// best-effort: navigate immediately on the id and let ArtistView self-heal the name/image.
+	// some servers don't resolve a bare artist id via getArtist, which used to silently drop the nav.
 	handleDetailArtistTap = (artistId: string): void => {
-		const services = appServices.get();
-		if (!services) {
+		if (!artistId) {
 			return;
 		}
-		services.transport
-			.getArtist(artistId)
-			.then((artist) => {
-				if (!artist) {
-					return;
-				}
-				this.pushIntoActiveTab((controller, deps) => pushArtist(controller, deps, artist));
-			})
-			.catch(() => {});
+		this.pushIntoActiveTab((controller, deps) =>
+			pushArtist(controller, deps, { id: artistId, name: '' }),
+		);
 	};
 
 	// A Library section tab tapped from a detail's header: dismiss the detail and land on that section.

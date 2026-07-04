@@ -511,12 +511,11 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	}
 
 	private navigateToArtistId(artistId: string): void {
-		this.viewModel.transport.getArtist(artistId).then((artist) => {
-			if (!artist) {
-				return;
-			}
-			pushArtist(this.viewModel.navigationController, this.detailDeps(), artist);
-		});
+		if (!artistId) {
+			return;
+		}
+		// best-effort: navigate on the id; ArtistView self-heals the name/image
+		pushArtist(this.viewModel.navigationController, this.detailDeps(), { id: artistId, name: '' });
 	}
 
 	private openCardContextMenu(card: CardContextMenuCard): void {

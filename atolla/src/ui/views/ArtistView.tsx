@@ -125,6 +125,14 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		const { animationsEnabled } = this.viewModel.preferences;
 		const { albums, albumsLoaded, allTracks, downloadState, topTracks, topTracksLoaded } =
 			this.state;
+		// name is empty when we navigated best-effort with only an id and the server didn't resolve
+		// the artist; fall back to the name carried by the loaded albums/tracks
+		const artistName =
+			artist.name ||
+			albums[0]?.artistName ||
+			topTracks[0]?.artistName ||
+			allTracks[0]?.artistName ||
+			'';
 
 		const albumCards: Array<Card> = albums.map((album) => ({
 			artworkKey: album.imageUrl ?? '',
@@ -159,7 +167,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 						artworkCategory='artist_image'
 						artworkSource={artist.imageUrl ?? null}
 						downloadState={downloadState}
-						fallbackText={artist.name}
+						fallbackText={artistName}
 						logoSource={artist.logoUrl || null}
 						modalSlot={modalSlot}
 						onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
@@ -210,7 +218,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 									language={this.viewModel.preferences.language}
 									logoUrl={artist.logoUrl}
 									modalSlot={modalSlot}
-									title={artist.name}
+									title={artistName}
 								/>
 							)}
 

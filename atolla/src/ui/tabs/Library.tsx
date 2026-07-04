@@ -102,6 +102,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 								letterFilter={this.state.letterFilter}
 								modalSlot={this.viewModel.modalSlot}
 								navigationController={navigationController}
+								onNavigateToArtist={this.handlePlaylistArtistTap}
 								onRootDetailControllerReady={this.setRootDetailController}
 								paletteQueue={this.viewModel.paletteQueue}
 								playbackStore={this.viewModel.playbackStore}
@@ -117,6 +118,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 								letterFilter={this.state.letterFilter}
 								modalSlot={this.viewModel.modalSlot}
 								navigationController={navigationController}
+								onNavigateToArtist={this.handlePlaylistArtistTap}
 								onRootDetailControllerReady={this.setRootDetailController}
 								playbackStore={this.viewModel.playbackStore}
 								preferences={this.viewModel.preferences}
@@ -191,15 +193,11 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 
 	private handlePlaylistArtistTap = (artistId: string): void => {
 		const controller = this.rootController;
-		if (!controller) {
+		if (!controller || !artistId || this.isDestroyed()) {
 			return;
 		}
-		this.viewModel.transport.getArtist(artistId).then((artist) => {
-			if (!artist || this.isDestroyed()) {
-				return;
-			}
-			pushArtist(controller, this.detailDeps(false), artist);
-		});
+		// best-effort: navigate on the id; ArtistView self-heals the name/image
+		pushArtist(controller, this.detailDeps(false), { id: artistId, name: '' });
 	};
 }
 

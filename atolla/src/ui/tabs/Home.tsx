@@ -90,18 +90,11 @@ export class HomeTab extends Component<HomeTabViewModel> {
 
 	private handleArtistTap = (artistId: string): void => {
 		const controller = this.rootController;
-		if (!controller) {
+		if (!controller || !artistId) {
 			return;
 		}
-		this.viewModel.transport
-			.getArtist(artistId)
-			.then((artist) => {
-				if (!artist) {
-					return;
-				}
-				pushArtist(controller, this.detailDeps(), artist);
-			})
-			.catch(() => {});
+		// best-effort: navigate on the id; ArtistView self-heals the name/image
+		pushArtist(controller, this.detailDeps(), { id: artistId, name: '' });
 	};
 
 	private handleOpenPlaylist = (playlist: Playlist): void => {
