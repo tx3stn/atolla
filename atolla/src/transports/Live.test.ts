@@ -761,6 +761,72 @@ describe('LiveTransport core collections', () => {
 		expect(logoUrl).toContain('tag=logo-tag-1');
 	});
 
+	it('fetches a genre by id with its primary image url', async () => {
+		const genre: JellyfinGenreItem = {
+			Id: 'genre-1',
+			ImageTags: { Primary: 'genre-tag-1' },
+			Name: 'Rock',
+			Type: 'MusicGenre',
+		};
+		const { calls, factory } = createHTTPClientFactory([jsonResponse(200, genre)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const result = await transport.getGenre('genre-1');
+
+		expect(calls[0].pathOrUrl).toContain('/Items/genre-1?');
+		expect(result?.id).toBe('genre-1');
+		expect(result?.name).toBe('Rock');
+		expect(result?.imageUrl).toContain('/Items/genre-1/Images/Primary');
+		expect(result?.imageUrl).toContain('tag=genre-tag-1');
+	});
+
+	it('returns null when the fetched item is not a genre', async () => {
+		const artist: JellyfinArtistItem = { Id: 'genre-1', Name: 'Not a genre', Type: 'MusicArtist' };
+		const { factory } = createHTTPClientFactory([jsonResponse(200, artist)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		expect(await transport.getGenre('genre-1')).toBeNull();
+	});
+
+	it('fetches a playlist by id with its primary image url', async () => {
+		const playlist: JellyfinPlaylistItem = {
+			Id: 'playlist-1',
+			ImageTags: { Primary: 'pl-tag-1' },
+			Name: 'Roadtrip',
+			Type: 'Playlist',
+		};
+		const { calls, factory } = createHTTPClientFactory([jsonResponse(200, playlist)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		const result = await transport.getPlaylist('playlist-1');
+
+		expect(calls[0].pathOrUrl).toContain('/Items/playlist-1?');
+		expect(result?.id).toBe('playlist-1');
+		expect(result?.name).toBe('Roadtrip');
+		expect(result?.imageUrl).toContain('/Items/playlist-1/Images/Primary');
+		expect(result?.imageUrl).toContain('tag=pl-tag-1');
+	});
+
+	it('returns null when the fetched item is not a playlist', async () => {
+		const genre: JellyfinGenreItem = {
+			Id: 'playlist-1',
+			Name: 'Not a playlist',
+			Type: 'MusicGenre',
+		};
+		const { factory } = createHTTPClientFactory([jsonResponse(200, genre)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
+			httpClientFactory: factory,
+		});
+
+		expect(await transport.getPlaylist('playlist-1')).toBeNull();
+	});
+
 	it('builds a downloadable track cache url', () => {
 		const { factory } = createHTTPClientFactory([]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {

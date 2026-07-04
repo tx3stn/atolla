@@ -47,6 +47,7 @@ export interface GenreViewModel {
 interface GenreState {
 	artistLogoUrls: Array<string | null>;
 	downloadState: DownloadState;
+	hydratedGenre: Genre | null;
 	isLoading: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
@@ -60,6 +61,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	state: GenreState = {
 		artistLogoUrls: [],
 		downloadState: 'not_downloaded',
+		hydratedGenre: null,
 		isLoading: true,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
@@ -69,6 +71,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	};
 
 	private headerCollapse = new HeaderCollapse(headerStore);
+	private hydrateGeneration = 0;
 
 	onCreate(): void {
 		backNavRouter.registerPage(this.navigationController);
@@ -90,12 +93,15 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.syncDownloadState();
 		void this.loadNextPage();
+		void this.hydrateGenreIfNeeded();
 	}
 
 	onRender(): void {
 		const { downloadState, isLoading, isLoadingNextPage, nextPageFailed, totalTrackCount, tracks } =
 			this.state;
-		const { genre, imageCache, modalSlot } = this.viewModel;
+		const { imageCache, modalSlot } = this.viewModel;
+		// self-heal: a genre pushed from an album/track chip may lack imageUrl; merge the fetched one
+		const genre = { ...this.viewModel.genre, ...(this.state.hydratedGenre ?? {}) };
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
@@ -349,6 +355,24 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 		playbackStore.playWithArtistLogos(tracks, artistLogoUrls, trackIndex);
 	};
+
+	private async hydrateGenreIfNeeded(): Promise<void> {
+		const { genre, transport } = this.viewModel;
+		if (genre.imageUrl) {
+			return;
+		}
+		const generation = ++this.hydrateGeneration;
+		let fetched: Genre | null = null;
+		try {
+			fetched = await transport.getGenre(genre.id);
+		} catch {
+			return;
+		}
+		if (this.isDestroyed() || generation !== this.hydrateGeneration || !fetched) {
+			return;
+		}
+		this.setState({ hydratedGenre: fetched });
+	}
 
 	private async loadNextPage(): Promise<void> {
 		if (this.isDestroyed() || this.isLoadingPage || !this.hasMoreTracks) {

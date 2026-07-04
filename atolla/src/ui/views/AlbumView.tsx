@@ -349,7 +349,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		paletteQueue?.prioritize(album.imageUrl);
 		this.setState({ fullAlbum: null, isLoading: true });
 
-		const needsFullAlbum = album.genres === undefined;
+		const needsFullAlbum = album.genres === undefined || album.imageUrl === undefined;
 
 		Promise.all([
 			transport

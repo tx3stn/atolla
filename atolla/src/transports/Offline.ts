@@ -28,99 +28,16 @@ export class OfflineTransport implements Transport {
 		this.playlistEditService = playlistEditService ?? null;
 	}
 
-	async getArtistsPage(
-		page: number,
-		pageSize: number,
-		_options?: { startsWith?: string },
-	): Promise<{ hasMore: boolean; items: Array<Artist> }> {
-		// downloaded data is local and bounded, so the offline grid loads the full
-		// list as a single page; the view's render-layer letter filter narrows it
-		return singleLocalPage(this.collectAllArtists(), page, pageSize);
+	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
+		const playlistName = this.resolvePlaylistName(playlistId);
+		this.playlistEditService?.enqueue({ playlistId, playlistName, trackId, type: 'add' });
 	}
 
-	private collectAllArtists(): Array<Artist> {
-		const artistsById = new Map<string, Artist>();
-
-		for (const entry of this.downloads.getAllArtists()) {
-			artistsById.set(entry.artist.id, entry.artist);
+	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
+		if (!this.playlistCreateService) {
+			return Promise.reject(new Error(TransportErrors.OFFLINE_PLAYLIST_CREATE_UNAVAILABLE.msg()));
 		}
-
-		for (const albumEntry of this.downloads.getAllAlbums()) {
-			const artistId = albumEntry.album.artistId;
-			if (!artistId) {
-				continue;
-			}
-
-			const existing = artistsById.get(artistId);
-			if (existing) {
-				if (!existing.logoUrl && albumEntry.artistLogoUrl) {
-					artistsById.set(artistId, { ...existing, logoUrl: albumEntry.artistLogoUrl });
-				}
-				continue;
-			}
-
-			artistsById.set(artistId, {
-				id: artistId,
-				logoUrl: albumEntry.artistLogoUrl ?? undefined,
-				name: albumEntry.album.artistName,
-			});
-		}
-
-		for (const trackEntry of this.downloads.getAllTracks()) {
-			const artistId = trackEntry.track.artistId;
-			if (!artistId) {
-				continue;
-			}
-
-			if (!artistsById.has(artistId)) {
-				artistsById.set(artistId, {
-					id: artistId,
-					name: trackEntry.track.artistName ?? 'Unknown Artist',
-				});
-			}
-		}
-
-		return sortArtistsByName(Array.from(artistsById.values()));
-	}
-
-	async getAlbumsPage(
-		page: number,
-		pageSize: number,
-		_options?: { startsWith?: string },
-	): Promise<{ hasMore: boolean; items: Array<Album> }> {
-		return singleLocalPage(this.collectAllAlbums(), page, pageSize);
-	}
-
-	private collectAllAlbums(): Array<Album> {
-		const albumsById = new Map<string, Album>();
-
-		for (const entry of this.downloads.getAllAlbums()) {
-			albumsById.set(entry.album.id, normalizeAlbum(entry.album));
-		}
-
-		for (const trackEntry of this.downloads.getAllTracks()) {
-			const { albumId } = trackEntry.track;
-			if (!albumId || albumsById.has(albumId)) {
-				continue;
-			}
-
-			albumsById.set(albumId, {
-				artistId: trackEntry.track.artistId ?? '',
-				artistName: trackEntry.track.artistName ?? '',
-				id: albumId,
-				imageUrl: trackEntry.track.albumImageUrl,
-				name: trackEntry.track.albumName ?? 'Unknown Album',
-				releaseDate: trackEntry.track.releaseDate,
-			});
-		}
-
-		return sortAlbumsByDefaultOrder(Array.from(albumsById.values()));
-	}
-
-	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
-		return [...this.collectAllAlbums()]
-			.sort((a, b) => compareDatesDescending(a.addedDate, b.addedDate))
-			.slice(0, Math.max(1, limit));
+		return this.playlistCreateService.enqueue(name, trackId ?? '');
 	}
 
 	async downloadBinary(_url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
@@ -140,11 +57,6 @@ export class OfflineTransport implements Transport {
 		};
 	}
 
-	async getAlbumsByIds(ids: Array<string>): Promise<Array<Album>> {
-		const wanted = new Set(ids);
-		return this.collectAllAlbums().filter((album) => wanted.has(album.id));
-	}
-
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
 		const artistEntry = this.downloads.getArtist(artistId);
 		if (artistEntry) {
@@ -160,42 +72,17 @@ export class OfflineTransport implements Transport {
 		return allAlbums.filter((album) => album.artistId === artistId);
 	}
 
-	async getPlaylistsPage(
+	async getAlbumsByIds(ids: Array<string>): Promise<Array<Album>> {
+		const wanted = new Set(ids);
+		return this.collectAllAlbums().filter((album) => wanted.has(album.id));
+	}
+
+	async getAlbumsPage(
 		page: number,
 		pageSize: number,
 		_options?: { startsWith?: string },
-	): Promise<{ hasMore: boolean; items: Array<Playlist> }> {
-		return singleLocalPage(this.collectAllPlaylists(), page, pageSize);
-	}
-
-	private collectAllPlaylists(): Array<Playlist> {
-		const downloaded = this.downloads.getAllPlaylists().map((e) => e.playlist);
-		const pending = this.playlistCreateService?.getPending() ?? [];
-		const pendingPlaylists = pending.map((op) => ({ id: op.localId, name: op.name }));
-		return [...downloaded, ...pendingPlaylists];
-	}
-
-	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
-		if (!this.playlistCreateService) {
-			return Promise.reject(new Error(TransportErrors.OFFLINE_PLAYLIST_CREATE_UNAVAILABLE.msg()));
-		}
-		return this.playlistCreateService.enqueue(name, trackId ?? '');
-	}
-
-	async getGenresPage(
-		page: number,
-		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
-		const allGenres = [...this.downloads.getAllGenres()]
-			.map((entry) => entry.genre)
-			.sort((left, right) => compareNamesCaseInsensitive(left.name, right.name));
-
-		const start = Math.max(0, page - 1) * pageSize;
-		const end = start + pageSize;
-		return {
-			hasMore: end < allGenres.length,
-			items: allGenres.slice(start, end),
-		};
+	): Promise<{ hasMore: boolean; items: Array<Album> }> {
+		return singleLocalPage(this.collectAllAlbums(), page, pageSize);
 	}
 
 	async getArtist(artistId: string): Promise<Artist | null> {
@@ -274,11 +161,113 @@ export class OfflineTransport implements Transport {
 		return null;
 	}
 
+	async getArtistsPage(
+		page: number,
+		pageSize: number,
+		_options?: { startsWith?: string },
+	): Promise<{ hasMore: boolean; items: Array<Artist> }> {
+		// downloaded data is local and bounded, so the offline grid loads the full
+		// list as a single page; the view's render-layer letter filter narrows it
+		return singleLocalPage(this.collectAllArtists(), page, pageSize);
+	}
+
 	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
 		return this.downloads
 			.getAllTracks()
 			.filter((e) => e.track.artistId === artistId && e.complete)
 			.map((e) => e.track);
+	}
+
+	async getGenre(genreId: string): Promise<Genre | null> {
+		return this.downloads.getGenre(genreId)?.genre ?? null;
+	}
+
+	async getGenresPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
+		const allGenres = [...this.downloads.getAllGenres()]
+			.map((entry) => entry.genre)
+			.sort((left, right) => compareNamesCaseInsensitive(left.name, right.name));
+
+		const start = Math.max(0, page - 1) * pageSize;
+		const end = start + pageSize;
+		return {
+			hasMore: end < allGenres.length,
+			items: allGenres.slice(start, end),
+		};
+	}
+
+	async getPlaylist(playlistId: string): Promise<Playlist | null> {
+		return this.downloads.getPlaylist(playlistId)?.playlist ?? null;
+	}
+
+	async getPlaylistsPage(
+		page: number,
+		pageSize: number,
+		_options?: { startsWith?: string },
+	): Promise<{ hasMore: boolean; items: Array<Playlist> }> {
+		return singleLocalPage(this.collectAllPlaylists(), page, pageSize);
+	}
+
+	async getRandomAlbum(): Promise<Album | null> {
+		const albums = this.collectAllAlbums();
+		if (albums.length === 0) {
+			return null;
+		}
+		const index = Math.floor(Math.random() * albums.length);
+		return albums[index] ?? null;
+	}
+
+	async getRandomMusicYears(limit: number): Promise<Array<number>> {
+		const years = new Set<number>();
+		for (const entry of this.downloads.getAllTracks()) {
+			if (!entry.complete) {
+				continue;
+			}
+			const year = trackReleaseYear(entry.track);
+			if (year != null) {
+				years.add(year);
+			}
+		}
+
+		return shuffleTracks([...years]).slice(0, Math.max(0, limit));
+	}
+
+	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
+		return [...this.collectAllAlbums()]
+			.sort((a, b) => compareDatesDescending(a.addedDate, b.addedDate))
+			.slice(0, Math.max(1, limit));
+	}
+
+	async getShuffledLibraryTracks(): Promise<Array<Track>> {
+		const availableTracks = this.downloads
+			.getAllTracks()
+			.filter((entry) => entry.complete)
+			.map((entry) => entry.track);
+		return shuffleTracks(availableTracks);
+	}
+
+	async getShuffledLibraryTracksPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track> }> {
+		const allTracks = this.downloads
+			.getAllTracks()
+			.filter((entry) => entry.complete)
+			.map((entry) => entry.track)
+			.sort((a, b) => a.id.localeCompare(b.id));
+		const start = Math.max(0, page - 1) * pageSize;
+		const end = start + pageSize;
+		return {
+			hasMore: end < allTracks.length,
+			items: allTracks.slice(start, end),
+		};
+	}
+
+	getTrackCacheUrl(trackId: string): string | null {
+		if (!this.downloads.isTrackDownloaded(trackId)) return null;
+		return this.downloads.getTrackPlaybackUrl(trackId);
 	}
 
 	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
@@ -403,53 +392,6 @@ export class OfflineTransport implements Transport {
 		return singleLocalPage(all, page, pageSize);
 	}
 
-	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
-		const playlistName = this.resolvePlaylistName(playlistId);
-		this.playlistEditService?.enqueue({ playlistId, playlistName, trackId, type: 'add' });
-	}
-
-	async movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void> {
-		const playlistName = this.resolvePlaylistName(playlistId);
-		this.playlistEditService?.enqueue({ playlistId, playlistName, toIndex, trackId, type: 'move' });
-	}
-
-	async removePlaylistTrack(playlistId: string, trackId: string): Promise<void> {
-		const playlistName = this.resolvePlaylistName(playlistId);
-		this.playlistEditService?.enqueue({ playlistId, playlistName, trackId, type: 'remove' });
-	}
-
-	private resolvePlaylistName(playlistId: string): string {
-		return (
-			this.downloads.getPlaylist(playlistId)?.playlist.name ??
-			this.playlistCreateService?.getPending().find((p) => p.localId === playlistId)?.name ??
-			''
-		);
-	}
-
-	async getRandomAlbum(): Promise<Album | null> {
-		const albums = this.collectAllAlbums();
-		if (albums.length === 0) {
-			return null;
-		}
-		const index = Math.floor(Math.random() * albums.length);
-		return albums[index] ?? null;
-	}
-
-	async getRandomMusicYears(limit: number): Promise<Array<number>> {
-		const years = new Set<number>();
-		for (const entry of this.downloads.getAllTracks()) {
-			if (!entry.complete) {
-				continue;
-			}
-			const year = trackReleaseYear(entry.track);
-			if (year != null) {
-				years.add(year);
-			}
-		}
-
-		return shuffleTracks([...years]).slice(0, Math.max(0, limit));
-	}
-
 	async getTracksByYearPage(
 		year: number,
 		page: number,
@@ -469,34 +411,18 @@ export class OfflineTransport implements Transport {
 		};
 	}
 
-	async getShuffledLibraryTracks(): Promise<Array<Track>> {
-		const availableTracks = this.downloads
-			.getAllTracks()
-			.filter((entry) => entry.complete)
-			.map((entry) => entry.track);
-		return shuffleTracks(availableTracks);
+	async movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void> {
+		const playlistName = this.resolvePlaylistName(playlistId);
+		this.playlistEditService?.enqueue({ playlistId, playlistName, toIndex, trackId, type: 'move' });
 	}
 
-	async getShuffledLibraryTracksPage(
-		page: number,
-		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Track> }> {
-		const allTracks = this.downloads
-			.getAllTracks()
-			.filter((entry) => entry.complete)
-			.map((entry) => entry.track)
-			.sort((a, b) => a.id.localeCompare(b.id));
-		const start = Math.max(0, page - 1) * pageSize;
-		const end = start + pageSize;
-		return {
-			hasMore: end < allTracks.length,
-			items: allTracks.slice(start, end),
-		};
+	async removePlaylistTrack(playlistId: string, trackId: string): Promise<void> {
+		const playlistName = this.resolvePlaylistName(playlistId);
+		this.playlistEditService?.enqueue({ playlistId, playlistName, trackId, type: 'remove' });
 	}
 
-	getTrackCacheUrl(trackId: string): string | null {
-		if (!this.downloads.isTrackDownloaded(trackId)) return null;
-		return this.downloads.getTrackPlaybackUrl(trackId);
+	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {
+		return Promise.reject(new Error(TransportErrors.OFFLINE_SCROBBLE_UNAVAILABLE.msg()));
 	}
 
 	async search(query: string): Promise<SearchResults> {
@@ -523,8 +449,90 @@ export class OfflineTransport implements Transport {
 		};
 	}
 
-	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {
-		return Promise.reject(new Error(TransportErrors.OFFLINE_SCROBBLE_UNAVAILABLE.msg()));
+	private collectAllAlbums(): Array<Album> {
+		const albumsById = new Map<string, Album>();
+
+		for (const entry of this.downloads.getAllAlbums()) {
+			albumsById.set(entry.album.id, normalizeAlbum(entry.album));
+		}
+
+		for (const trackEntry of this.downloads.getAllTracks()) {
+			const { albumId } = trackEntry.track;
+			if (!albumId || albumsById.has(albumId)) {
+				continue;
+			}
+
+			albumsById.set(albumId, {
+				artistId: trackEntry.track.artistId ?? '',
+				artistName: trackEntry.track.artistName ?? '',
+				id: albumId,
+				imageUrl: trackEntry.track.albumImageUrl,
+				name: trackEntry.track.albumName ?? 'Unknown Album',
+				releaseDate: trackEntry.track.releaseDate,
+			});
+		}
+
+		return sortAlbumsByDefaultOrder(Array.from(albumsById.values()));
+	}
+
+	private collectAllArtists(): Array<Artist> {
+		const artistsById = new Map<string, Artist>();
+
+		for (const entry of this.downloads.getAllArtists()) {
+			artistsById.set(entry.artist.id, entry.artist);
+		}
+
+		for (const albumEntry of this.downloads.getAllAlbums()) {
+			const artistId = albumEntry.album.artistId;
+			if (!artistId) {
+				continue;
+			}
+
+			const existing = artistsById.get(artistId);
+			if (existing) {
+				if (!existing.logoUrl && albumEntry.artistLogoUrl) {
+					artistsById.set(artistId, { ...existing, logoUrl: albumEntry.artistLogoUrl });
+				}
+				continue;
+			}
+
+			artistsById.set(artistId, {
+				id: artistId,
+				logoUrl: albumEntry.artistLogoUrl ?? undefined,
+				name: albumEntry.album.artistName,
+			});
+		}
+
+		for (const trackEntry of this.downloads.getAllTracks()) {
+			const artistId = trackEntry.track.artistId;
+			if (!artistId) {
+				continue;
+			}
+
+			if (!artistsById.has(artistId)) {
+				artistsById.set(artistId, {
+					id: artistId,
+					name: trackEntry.track.artistName ?? 'Unknown Artist',
+				});
+			}
+		}
+
+		return sortArtistsByName(Array.from(artistsById.values()));
+	}
+
+	private collectAllPlaylists(): Array<Playlist> {
+		const downloaded = this.downloads.getAllPlaylists().map((e) => e.playlist);
+		const pending = this.playlistCreateService?.getPending() ?? [];
+		const pendingPlaylists = pending.map((op) => ({ id: op.localId, name: op.name }));
+		return [...downloaded, ...pendingPlaylists];
+	}
+
+	private resolvePlaylistName(playlistId: string): string {
+		return (
+			this.downloads.getPlaylist(playlistId)?.playlist.name ??
+			this.playlistCreateService?.getPending().find((p) => p.localId === playlistId)?.name ??
+			''
+		);
 	}
 }
 

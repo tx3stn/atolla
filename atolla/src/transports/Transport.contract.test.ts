@@ -48,6 +48,22 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 			playlistTracks.forEach(assertTrackContract);
 		});
 
+		it('resolves a single genre and playlist by id for detail-view self-heal', async () => {
+			const transport = createTransport();
+			const [genresPage, playlistsPage] = await Promise.all([
+				transport.getGenresPage(1, 50),
+				transport.getPlaylistsPage(1, 50),
+			]);
+			expect(genresPage.items.length).toBeGreaterThan(0);
+			expect(playlistsPage.items.length).toBeGreaterThan(0);
+
+			const genre = await transport.getGenre(genresPage.items[0].id);
+			const playlist = await transport.getPlaylist(playlistsPage.items[0].id);
+
+			expect(genre?.id).toBe(genresPage.items[0].id);
+			expect(playlist?.id).toBe(playlistsPage.items[0].id);
+		});
+
 		it('keeps release metadata stable for same track across endpoints', async () => {
 			const transport = createTransport();
 			const playlists = (await transport.getPlaylistsPage(1, 50)).items;

@@ -59,6 +59,7 @@ interface ArtistState {
 	allTracks: Array<Track>;
 	contextMenuCard: CardContextMenuCard | null;
 	downloadState: DownloadState;
+	hydratedArtist: Artist | null;
 	revision: number;
 	topTracks: Array<Track>;
 	topTracksLoaded: boolean;
@@ -76,6 +77,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		allTracks: [],
 		contextMenuCard: null,
 		downloadState: 'not_downloaded',
+		hydratedArtist: null,
 		revision: 0,
 		topTracks: [],
 		topTracksLoaded: false,
@@ -106,7 +108,20 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	}
 
 	onRender(): void {
-		const { artist, imageCache, modalSlot } = this.viewModel;
+		const { imageCache, modalSlot } = this.viewModel;
+		// merge the self-healed artist over the caller-supplied partial, but never let a fetched
+		// `undefined` clobber an imageUrl/logoUrl the caller did supply (the mapper always emits
+		// a logoUrl key)
+		const partialArtist = this.viewModel.artist;
+		const hydrated = this.state.hydratedArtist;
+		const artist = hydrated
+			? {
+					...partialArtist,
+					...hydrated,
+					imageUrl: hydrated.imageUrl ?? partialArtist.imageUrl,
+					logoUrl: hydrated.logoUrl ?? partialArtist.logoUrl,
+				}
+			: partialArtist;
 		const { animationsEnabled } = this.viewModel.preferences;
 		const { albums, albumsLoaded, allTracks, downloadState, topTracks, topTracksLoaded } =
 			this.state;
@@ -442,10 +457,14 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.loadGeneration = generation;
 
 		const { artist, transport } = this.viewModel;
+		// self-heal: callers may push a partial artist (id + name only, e.g. from a context menu);
+		// fetch the full artist to fill the header artwork/logo when either is missing
+		const needsArtist = !artist.imageUrl || !artist.logoUrl;
 		this.setState({
 			albums: [],
 			albumsLoaded: false,
 			allTracks: [],
+			hydratedArtist: null,
 			topTracks: [],
 			topTracksLoaded: false,
 		});
@@ -463,7 +482,13 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				.getArtistTopTracks(artist.id)
 				.then((v) => ({ status: 'fulfilled' as const, value: v }))
 				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-		]).then(([albumsResult, allTracksResult, topTracksResult]) => {
+			needsArtist
+				? transport
+						.getArtist(artist.id)
+						.then((v) => ({ status: 'fulfilled' as const, value: v }))
+						.catch((r) => ({ reason: r, status: 'rejected' as const }))
+				: Promise.resolve({ status: 'fulfilled' as const, value: null as Artist | null }),
+		]).then(([albumsResult, allTracksResult, topTracksResult, artistResult]) => {
 			if (this.isDestroyed() || generation !== this.loadGeneration) {
 				return;
 			}
@@ -472,11 +497,13 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				albumsResult.status === 'fulfilled' ? sortArtistAlbums(albumsResult.value) : [];
 			const allTracks = allTracksResult.status === 'fulfilled' ? allTracksResult.value : [];
 			const topTracks = topTracksResult.status === 'fulfilled' ? topTracksResult.value : [];
+			const hydratedArtist = artistResult.status === 'fulfilled' ? artistResult.value : null;
 
 			this.setState({
 				albums,
 				albumsLoaded: true,
 				allTracks,
+				hydratedArtist,
 				topTracks,
 				topTracksLoaded: true,
 			});

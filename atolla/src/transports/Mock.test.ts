@@ -166,3 +166,23 @@ describe('MockTransport playlist creation', () => {
 		expect(fresh).toEqual([]);
 	});
 });
+
+describe('MockTransport.getGenre / getPlaylist', () => {
+	it('returns a mapped genre for a known id', async () => {
+		const genre = await new MockTransport().getGenre('genre-1');
+		expect(genre?.id).toBe('genre-1');
+	});
+
+	it('returns null for an unknown genre id', async () => {
+		expect(await new MockTransport().getGenre('nope')).toBeNull();
+	});
+
+	it('returns a mapped playlist for a known id', async () => {
+		const playlist = await new MockTransport().getPlaylist('playlist-1');
+		expect(playlist?.id).toBe('playlist-1');
+	});
+
+	it('returns null for an unknown playlist id', async () => {
+		expect(await new MockTransport().getPlaylist('nope')).toBeNull();
+	});
+});

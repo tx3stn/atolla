@@ -72,6 +72,58 @@ export class MockTransport implements Transport {
 	// so a created playlist resolves like a fixture one without a full Jellyfin entry
 	private readonly createdPlaylists = new Set<string>();
 
+	private readonly imageResolvers: JellyfinImageResolvers = {
+		albumPrimaryImageUrl: (albumId: string): string | undefined =>
+			mockAlbumPrimaryImageUrls[albumId],
+		itemLogoImageUrl: (itemId: string): string | undefined => mockArtistLogoUrls[itemId],
+		itemPrimaryImageUrl: (itemId: string): string | undefined =>
+			mockArtistPrimaryImageUrls[itemId] ??
+			mockAlbumPrimaryImageUrls[itemId] ??
+			mockGenrePrimaryImageUrls[itemId],
+	};
+
+	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
+		const order = this.playlistItemOrder.get(playlistId) ?? [];
+		this.playlistItemOrder.set(playlistId, [...order, trackId]);
+	}
+
+	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
+		const id = `playlist-${Date.now()}`;
+		this.createdPlaylists.add(id);
+		this.playlistItemOrder.set(id, trackId ? [trackId] : []);
+		return { id, name };
+	}
+
+	async downloadBinary(_url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
+		return null;
+	}
+
+	async getAlbumReleaseDatesPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }> {
+		const all = this.buildAllAlbums();
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const slice = all.slice(startIndex, startIndex + Math.max(1, pageSize));
+		return {
+			hasMore: startIndex + slice.length < all.length,
+			items: slice.map((album) => ({ id: album.id, releaseDate: album.releaseDate })),
+		};
+	}
+
+	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
+		return sortMockAlbumsByDefaultOrder(
+			mockJellyfinAlbums.filter((album) =>
+				(album.ArtistItems ?? []).some((artist) => artist.Id === artistId),
+			),
+		).map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+	}
+
+	async getAlbumsByIds(ids: Array<string>): Promise<Array<Album>> {
+		const wanted = new Set(ids);
+		return this.buildAllAlbums().filter((album) => wanted.has(album.id));
+	}
+
 	async getAlbumsPage(
 		page: number,
 		pageSize: number,
@@ -87,6 +139,15 @@ export class MockTransport implements Transport {
 			hasMore: startIndex + pageItems.length < sortedAlbums.length,
 			items: pageItems.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers)),
 		};
+	}
+
+	async getArtist(artistId: string): Promise<Artist | null> {
+		const item = mockJellyfinArtists.find((artist) => artist.Id === artistId);
+		return item ? mapJellyfinArtistToArtist(item, this.imageResolvers) : null;
+	}
+
+	async getArtistLogoUrl(artistId: string): Promise<string | null> {
+		return mockArtistLogoUrls[artistId] ?? null;
 	}
 
 	async getArtistsPage(
@@ -106,47 +167,33 @@ export class MockTransport implements Transport {
 		};
 	}
 
-	async getArtist(artistId: string): Promise<Artist | null> {
-		const item = mockJellyfinArtists.find((artist) => artist.Id === artistId);
-		return item ? mapJellyfinArtistToArtist(item, this.imageResolvers) : null;
+	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
+		const allTracks = await this.getTracksByArtist(artistId);
+		return allTracks.slice(0, 5);
 	}
 
-	private buildAllAlbums(): Array<Album> {
-		return sortMockAlbumsByDefaultOrder(mockJellyfinAlbums).map((item) =>
-			mapJellyfinAlbumToAlbum(item, this.imageResolvers),
-		);
+	async getGenre(genreId: string): Promise<Genre | null> {
+		const item = mockJellyfinGenres.find((genre) => genre.Id === genreId);
+		return item ? mapJellyfinGenreToGenre(item, this.imageResolvers) : null;
 	}
 
-	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
-		return sortMockAlbumsByDefaultOrder(mockJellyfinAlbums)
-			.slice(0, limit)
-			.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
-	}
-
-	async getAlbumReleaseDatesPage(
+	async getGenresPage(
 		page: number,
 		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }> {
-		const all = this.buildAllAlbums();
+	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
-		const slice = all.slice(startIndex, startIndex + Math.max(1, pageSize));
+		const sortedGenres = [...mockJellyfinGenres].sort((a, b) => a.Name.localeCompare(b.Name));
+		const pageItems = sortedGenres.slice(startIndex, startIndex + pageSize);
+
 		return {
-			hasMore: startIndex + slice.length < all.length,
-			items: slice.map((album) => ({ id: album.id, releaseDate: album.releaseDate })),
+			hasMore: startIndex + pageItems.length < sortedGenres.length,
+			items: pageItems.map((item) => mapJellyfinGenreToGenre(item, this.imageResolvers)),
 		};
 	}
 
-	async getAlbumsByIds(ids: Array<string>): Promise<Array<Album>> {
-		const wanted = new Set(ids);
-		return this.buildAllAlbums().filter((album) => wanted.has(album.id));
-	}
-
-	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
-		return sortMockAlbumsByDefaultOrder(
-			mockJellyfinAlbums.filter((album) =>
-				(album.ArtistItems ?? []).some((artist) => artist.Id === artistId),
-			),
-		).map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+	async getPlaylist(playlistId: string): Promise<Playlist | null> {
+		const item = mockJellyfinPlaylists.find((playlist) => playlist.Id === playlistId);
+		return item ? mapJellyfinPlaylistToPlaylist(item, this.imageResolvers) : null;
 	}
 
 	async getPlaylistsPage(
@@ -166,58 +213,60 @@ export class MockTransport implements Transport {
 		};
 	}
 
-	async getGenresPage(
-		page: number,
-		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const sortedGenres = [...mockJellyfinGenres].sort((a, b) => a.Name.localeCompare(b.Name));
-		const pageItems = sortedGenres.slice(startIndex, startIndex + pageSize);
-
-		return {
-			hasMore: startIndex + pageItems.length < sortedGenres.length,
-			items: pageItems.map((item) => mapJellyfinGenreToGenre(item, this.imageResolvers)),
-		};
+	async getRandomAlbum(): Promise<Album | null> {
+		const albums = sortMockAlbumsByDefaultOrder(mockJellyfinAlbums);
+		if (albums.length === 0) {
+			return null;
+		}
+		const index = Math.floor(Math.random() * albums.length);
+		const item = albums[index];
+		return item ? mapJellyfinAlbumToAlbum(item, this.imageResolvers) : null;
 	}
 
-	async search(query: string): Promise<SearchResults> {
-		const normalizedQuery = query.trim().toLowerCase();
-		if (!normalizedQuery) {
-			return {
-				albums: [],
-				artists: [],
-				playlists: [],
-				tracks: [],
-			};
+	async getRandomMusicYears(limit: number): Promise<Array<number>> {
+		const years = new Set<number>();
+		for (const track of this.buildAllTracks()) {
+			const year = trackReleaseYear(track);
+			if (year != null) {
+				years.add(year);
+			}
 		}
 
-		const artists = mockJellyfinArtists
-			.filter((artist) => artist.Name.toLowerCase().includes(normalizedQuery))
-			.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers));
+		return shuffleTracks([...years]).slice(0, Math.max(0, limit));
+	}
 
-		const albums = mockJellyfinAlbums
-			.filter((album) => album.Name.toLowerCase().includes(normalizedQuery))
+	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
+		return sortMockAlbumsByDefaultOrder(mockJellyfinAlbums)
+			.slice(0, limit)
 			.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+	}
 
-		const playlists = mockJellyfinPlaylists
-			.filter((playlist) => playlist.Name.toLowerCase().includes(normalizedQuery))
-			.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers));
+	async getShuffledLibraryTracks(): Promise<Array<Track>> {
+		return shuffleTracks(this.buildAllTracks());
+	}
 
-		const tracks = mockJellyfinTracks
-			.filter((track) => track.Name.toLowerCase().includes(normalizedQuery))
+	async getShuffledLibraryTracksPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track> }> {
+		const allTracks = mockJellyfinTracks
 			.map((item) =>
 				mapJellyfinTrackToTrack(
 					{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
 					this.imageResolvers,
 				),
-			);
-
+			)
+			.sort((a, b) => a.id.localeCompare(b.id));
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const items = allTracks.slice(startIndex, startIndex + pageSize);
 		return {
-			albums,
-			artists,
-			playlists,
-			tracks,
+			hasMore: startIndex + items.length < allTracks.length,
+			items,
 		};
+	}
+
+	getTrackCacheUrl(_trackId: string): string | null {
+		return MockTransport.sampleAudioUrl;
 	}
 
 	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
@@ -229,15 +278,6 @@ export class MockTransport implements Transport {
 					this.imageResolvers,
 				),
 			);
-	}
-
-	async getArtistLogoUrl(artistId: string): Promise<string | null> {
-		return mockArtistLogoUrls[artistId] ?? null;
-	}
-
-	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
-		const allTracks = await this.getTracksByArtist(artistId);
-		return allTracks.slice(0, 5);
 	}
 
 	async getTracksByArtist(artistId: string): Promise<Array<Track>> {
@@ -317,26 +357,19 @@ export class MockTransport implements Transport {
 		});
 	}
 
-	async getRandomAlbum(): Promise<Album | null> {
-		const albums = sortMockAlbumsByDefaultOrder(mockJellyfinAlbums);
-		if (albums.length === 0) {
-			return null;
-		}
-		const index = Math.floor(Math.random() * albums.length);
-		const item = albums[index];
-		return item ? mapJellyfinAlbumToAlbum(item, this.imageResolvers) : null;
-	}
-
-	async getRandomMusicYears(limit: number): Promise<Array<number>> {
-		const years = new Set<number>();
-		for (const track of this.buildAllTracks()) {
-			const year = trackReleaseYear(track);
-			if (year != null) {
-				years.add(year);
-			}
-		}
-
-		return shuffleTracks([...years]).slice(0, Math.max(0, limit));
+	async getTracksByPlaylistPage(
+		playlistId: string,
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
+		const allTracks = await this.getTracksByPlaylist(playlistId);
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const items = allTracks.slice(startIndex, startIndex + pageSize);
+		return {
+			hasMore: startIndex + items.length < allTracks.length,
+			items,
+			totalCount: allTracks.length,
+		};
 	}
 
 	async getTracksByYearPage(
@@ -353,55 +386,6 @@ export class MockTransport implements Transport {
 			hasMore: startIndex + items.length < yearTracks.length,
 			items,
 		};
-	}
-
-	private buildAllTracks(): Array<Track> {
-		return mockJellyfinTracks.map((item) =>
-			mapJellyfinTrackToTrack(
-				{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
-				this.imageResolvers,
-			),
-		);
-	}
-
-	async getShuffledLibraryTracks(): Promise<Array<Track>> {
-		return shuffleTracks(this.buildAllTracks());
-	}
-
-	async getShuffledLibraryTracksPage(
-		page: number,
-		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Track> }> {
-		const allTracks = mockJellyfinTracks
-			.map((item) =>
-				mapJellyfinTrackToTrack(
-					{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
-					this.imageResolvers,
-				),
-			)
-			.sort((a, b) => a.id.localeCompare(b.id));
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const items = allTracks.slice(startIndex, startIndex + pageSize);
-		return {
-			hasMore: startIndex + items.length < allTracks.length,
-			items,
-		};
-	}
-
-	getTrackCacheUrl(_trackId: string): string | null {
-		return MockTransport.sampleAudioUrl;
-	}
-
-	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
-		const id = `playlist-${Date.now()}`;
-		this.createdPlaylists.add(id);
-		this.playlistItemOrder.set(id, trackId ? [trackId] : []);
-		return { id, name };
-	}
-
-	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
-		const order = this.playlistItemOrder.get(playlistId) ?? [];
-		this.playlistItemOrder.set(playlistId, [...order, trackId]);
 	}
 
 	async movePlaylistTrack(playlistId: string, trackId: string, toIndex: number): Promise<void> {
@@ -424,36 +408,62 @@ export class MockTransport implements Transport {
 
 	async removePlaylistTrack(_playlistId: string, _trackId: string): Promise<void> {}
 
-	async getTracksByPlaylistPage(
-		playlistId: string,
-		page: number,
-		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
-		const allTracks = await this.getTracksByPlaylist(playlistId);
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const items = allTracks.slice(startIndex, startIndex + pageSize);
+	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {}
+
+	async search(query: string): Promise<SearchResults> {
+		const normalizedQuery = query.trim().toLowerCase();
+		if (!normalizedQuery) {
+			return {
+				albums: [],
+				artists: [],
+				playlists: [],
+				tracks: [],
+			};
+		}
+
+		const artists = mockJellyfinArtists
+			.filter((artist) => artist.Name.toLowerCase().includes(normalizedQuery))
+			.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers));
+
+		const albums = mockJellyfinAlbums
+			.filter((album) => album.Name.toLowerCase().includes(normalizedQuery))
+			.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+
+		const playlists = mockJellyfinPlaylists
+			.filter((playlist) => playlist.Name.toLowerCase().includes(normalizedQuery))
+			.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers));
+
+		const tracks = mockJellyfinTracks
+			.filter((track) => track.Name.toLowerCase().includes(normalizedQuery))
+			.map((item) =>
+				mapJellyfinTrackToTrack(
+					{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
+					this.imageResolvers,
+				),
+			);
+
 		return {
-			hasMore: startIndex + items.length < allTracks.length,
-			items,
-			totalCount: allTracks.length,
+			albums,
+			artists,
+			playlists,
+			tracks,
 		};
 	}
 
-	async downloadBinary(_url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
-		return null;
+	private buildAllAlbums(): Array<Album> {
+		return sortMockAlbumsByDefaultOrder(mockJellyfinAlbums).map((item) =>
+			mapJellyfinAlbumToAlbum(item, this.imageResolvers),
+		);
 	}
 
-	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {}
-
-	private readonly imageResolvers: JellyfinImageResolvers = {
-		albumPrimaryImageUrl: (albumId: string): string | undefined =>
-			mockAlbumPrimaryImageUrls[albumId],
-		itemLogoImageUrl: (itemId: string): string | undefined => mockArtistLogoUrls[itemId],
-		itemPrimaryImageUrl: (itemId: string): string | undefined =>
-			mockArtistPrimaryImageUrls[itemId] ??
-			mockAlbumPrimaryImageUrls[itemId] ??
-			mockGenrePrimaryImageUrls[itemId],
-	};
+	private buildAllTracks(): Array<Track> {
+		return mockJellyfinTracks.map((item) =>
+			mapJellyfinTrackToTrack(
+				{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
+				this.imageResolvers,
+			),
+		);
+	}
 }
 
 function shuffleTracks<T>(tracks: Array<T>): Array<T> {

@@ -118,6 +118,62 @@ describe('OfflineTransport', () => {
 		expect(logoUrl).toBe('https://img/logo-artist-1.png');
 	});
 
+	it('returns a downloaded genre by id', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				genres: [
+					{
+						genre: { id: 'genre-1', imageUrl: 'https://img/genre-1.png', name: 'Rock' },
+						trackArtistLogoUrls: {},
+						trackIds: [],
+					},
+				],
+			}) as never,
+		);
+
+		const genre = await transport.getGenre('genre-1');
+
+		expect(genre).toEqual({ id: 'genre-1', imageUrl: 'https://img/genre-1.png', name: 'Rock' });
+	});
+
+	it('returns null for a genre that is not downloaded', async () => {
+		const transport = new OfflineTransport(createDownloadsMock({}) as never);
+
+		expect(await transport.getGenre('genre-1')).toBeNull();
+	});
+
+	it('returns a downloaded playlist by id', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				playlists: [
+					{
+						playlist: {
+							id: 'playlist-1',
+							imageUrl: 'https://img/playlist-1.png',
+							name: 'Roadtrip',
+						},
+						trackArtistLogoUrls: {},
+						trackIds: [],
+					},
+				],
+			}) as never,
+		);
+
+		const playlist = await transport.getPlaylist('playlist-1');
+
+		expect(playlist).toEqual({
+			id: 'playlist-1',
+			imageUrl: 'https://img/playlist-1.png',
+			name: 'Roadtrip',
+		});
+	});
+
+	it('returns null for a playlist that is not downloaded', async () => {
+		const transport = new OfflineTransport(createDownloadsMock({}) as never);
+
+		expect(await transport.getPlaylist('playlist-1')).toBeNull();
+	});
+
 	it('defaults missing name/artist on a downloaded album so the grid never renders null text', async () => {
 		const transport = new OfflineTransport(
 			createDownloadsMock({

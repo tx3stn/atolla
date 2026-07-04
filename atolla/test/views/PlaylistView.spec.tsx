@@ -30,7 +30,77 @@ const downloadService = {
 
 const preferences = new Preferences({ fetchString: async () => '', storeString: async () => {} });
 
+async function flushAsyncWork() {
+	for (let i = 0; i < 10; i += 1) {
+		await Promise.resolve();
+	}
+}
+
+const emptyTracksPage = async () => ({ hasMore: false, items: [], totalCount: 0 });
+
 describe('PlaylistView', () => {
+	valdiIt('self-heals the header image when the playlist has no imageUrl', async (driver) => {
+		const playlist = { id: 'playlist-1', name: 'Roadtrip' };
+		let getPlaylistCalls = 0;
+		const transport = {
+			getPlaylist: async () => {
+				getPlaylistCalls += 1;
+				return { id: 'playlist-1', imageUrl: 'https://p.png', name: 'Roadtrip' };
+			},
+			getTracksByPlaylistPage: emptyTracksPage,
+		};
+
+		const component = driver.renderComponent(
+			PlaylistView,
+			{
+				downloadService,
+				onRootDetailControllerReady: () => {},
+				playbackStore,
+				playlist,
+				preferences,
+				transport,
+			},
+			{ navigator: mockNavigator },
+		);
+		component.setState({ isLoading: false });
+
+		await flushAsyncWork();
+
+		expect(getPlaylistCalls).toBe(1);
+		expect(component.state.hydratedPlaylist?.imageUrl).toBe('https://p.png');
+	});
+
+	valdiIt('does not fetch the playlist when it already has an image', async (driver) => {
+		const playlist = { id: 'playlist-1', imageUrl: 'https://existing.png', name: 'Roadtrip' };
+		let getPlaylistCalls = 0;
+		const transport = {
+			getPlaylist: async () => {
+				getPlaylistCalls += 1;
+				return null;
+			},
+			getTracksByPlaylistPage: emptyTracksPage,
+		};
+
+		const component = driver.renderComponent(
+			PlaylistView,
+			{
+				downloadService,
+				onRootDetailControllerReady: () => {},
+				playbackStore,
+				playlist,
+				preferences,
+				transport,
+			},
+			{ navigator: mockNavigator },
+		);
+		component.setState({ isLoading: false });
+
+		await flushAsyncWork();
+
+		expect(getPlaylistCalls).toBe(0);
+		expect(component.state.hydratedPlaylist).toBeNull();
+	});
+
 	valdiIt('renders track rows from state', async (driver) => {
 		const playlist = { id: 'playlist-1', name: 'Roadtrip' };
 		const tracks = [

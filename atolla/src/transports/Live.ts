@@ -83,48 +83,18 @@ interface AlbumsPageResult {
 const defaultPageSize = 100;
 const defaultSearchLimit = 100;
 
-// maps a library letter-filter token to Jellyfin `/Items` query params so prefix
-// filtering happens server-side. letters a-z become `nameStartsWith`; the '0' bucket
-// ("starts with a digit") maps to `nameLessThan: 'A'`, returning everything sorting
-// before "A" (digits and symbols), which the client-side filter narrows to leading digits
-function nameFilterParams(
-	startsWith: string | undefined,
-): Record<string, string | number | boolean | undefined> {
-	const token = startsWith?.trim();
-	if (!token) {
-		return {};
-	}
-	if (token === '0') {
-		return { nameLessThan: 'A' };
-	}
-	return { nameStartsWith: token };
-}
-
-function normalizeClientDeviceId(value: string | null | undefined): string {
-	if (typeof value !== 'string') {
-		return 'atolla';
-	}
-
-	const trimmed = value.trim();
-	if (trimmed.length === 0) {
-		return 'atolla';
-	}
-
-	return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
-}
-
-function createClientHeader(accessToken?: string, clientDeviceId = 'atolla'): string {
-	const base = `MediaBrowser Client="atolla", Device="${clientDeviceId}", DeviceId="${clientDeviceId}", Version="${version}"`;
-	if (!accessToken) {
-		return base;
-	}
-	return `${base}, Token="${accessToken}"`;
-}
-
 export class LiveTransport implements Transport {
 	private readonly baseUrl: string;
 	private readonly clientDeviceId: string;
 	private readonly httpClientFactory: (baseUrl: string) => HTTPClientLike;
+	private readonly imageResolvers: JellyfinImageResolvers = {
+		albumPrimaryImageUrl: (albumId: string, imageTag?: string): string =>
+			this.buildItemImageUrl(albumId, 'Primary', imageTag),
+		itemLogoImageUrl: (itemId: string, imageTag?: string): string =>
+			this.buildItemImageUrl(itemId, 'Logo', imageTag),
+		itemPrimaryImageUrl: (itemId: string, imageTag?: string): string =>
+			this.buildItemImageUrl(itemId, 'Primary', imageTag),
+	};
 	private readonly requestTimeoutMs: number;
 
 	constructor(
@@ -144,62 +114,29 @@ export class LiveTransport implements Transport {
 		this.requestTimeoutMs = options.requestTimeoutMs ?? 10_000;
 	}
 
-	async getAlbumsPage(
-		page: number,
-		pageSize: number,
-		options?: { startsWith?: string },
-	): Promise<AlbumsPageResult> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
-			fields: 'Overview,Genres',
-			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-			limit: Math.max(1, pageSize),
-			recursive: true,
-			sortBy: 'PremiereDate,SortName',
-			sortOrder: 'Descending,Ascending',
-			startIndex,
-			...nameFilterParams(options?.startsWith),
+	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
+		await this.requestVoid('POST', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
+			ids: trackId,
+			userId: this.userId,
 		});
-
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers)),
-		};
 	}
 
-	async getArtistsPage(
-		page: number,
-		pageSize: number,
-		options?: { startsWith?: string },
-	): Promise<{ hasMore: boolean; items: Array<Artist> }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.fetchItemsPage<JellyfinArtistItem>({
-			includeItemTypes: JellyfinMusicItemTypes.MusicArtist,
-			limit: Math.max(1, pageSize),
-			recursive: true,
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
-			startIndex,
-			...nameFilterParams(options?.startsWith),
-		});
-
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers)),
-		};
+	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
+		const body: Record<string, unknown> = { MediaType: 'Audio', Name: name };
+		if (trackId) body.Ids = [trackId];
+		const result = await this.requestJsonPost<{ Id: string }>('/Playlists', body);
+		// Fetch the full item to get ImageTags (Jellyfin generates the collage image
+		// synchronously when the first track is provided). This gives us the correct
+		// tagged imageUrl so the playlist cover can be cached for offline use.
+		const item = await this.getItem<JellyfinPlaylistItem>(result.Id);
+		if (item) {
+			return mapJellyfinPlaylistToPlaylist(item, this.imageResolvers);
+		}
+		return { id: result.Id, name };
 	}
 
-	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
-		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
-			fields: 'DateCreated,Genres,Overview',
-			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-			limit: Math.max(1, limit),
-			recursive: true,
-			sortBy: 'DateCreated',
-			sortOrder: 'Descending',
-			startIndex: 0,
-		});
-		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+	downloadBinary(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
+		return this.requestBinaryWithRedirects(url, 5);
 	}
 
 	async getAlbumReleaseDatesPage(
@@ -228,6 +165,21 @@ export class LiveTransport implements Transport {
 		};
 	}
 
+	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
+		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
+			albumArtistIds: artistId,
+			fields: 'Overview,Genres',
+			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+			limit: defaultSearchLimit,
+			recursive: true,
+			sortBy: 'PremiereDate,SortName',
+			sortOrder: 'Descending,Ascending',
+			startIndex: 0,
+		});
+
+		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+	}
+
 	async getAlbumsByIds(ids: Array<string>): Promise<Array<Album>> {
 		const cleaned = ids.filter((id) => id.length > 0);
 		if (cleaned.length === 0) {
@@ -246,60 +198,26 @@ export class LiveTransport implements Transport {
 		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
-	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
-		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
-			albumArtistIds: artistId,
-			fields: 'Overview,Genres',
-			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-			limit: defaultSearchLimit,
-			recursive: true,
-			sortBy: 'PremiereDate,SortName',
-			sortOrder: 'Descending,Ascending',
-			startIndex: 0,
-		});
-
-		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
-	}
-
-	async getGenresPage(
-		page: number,
-		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.requestJson<JellyfinListEnvelope<JellyfinGenreItem>>('/MusicGenres', {
-			fields: 'Overview',
-			limit: Math.max(1, pageSize),
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
-			startIndex,
-			userId: this.userId,
-		});
-
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinGenreToGenre(item, this.imageResolvers)),
-		};
-	}
-
-	async getPlaylistsPage(
+	async getAlbumsPage(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
-	): Promise<{ hasMore: boolean; items: Array<Playlist> }> {
+	): Promise<AlbumsPageResult> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.fetchItemsPage<JellyfinPlaylistItem>({
-			includeItemTypes: JellyfinMusicItemTypes.Playlist,
+		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
+			fields: 'Overview,Genres',
+			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 			limit: Math.max(1, pageSize),
 			recursive: true,
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
+			sortBy: 'PremiereDate,SortName',
+			sortOrder: 'Descending,Ascending',
 			startIndex,
 			...nameFilterParams(options?.startsWith),
 		});
 
 		return {
 			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers)),
+			items: list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers)),
 		};
 	}
 
@@ -327,6 +245,28 @@ export class LiveTransport implements Transport {
 		return this.buildItemImageUrl(logoItemId, 'Logo', logoTag);
 	}
 
+	async getArtistsPage(
+		page: number,
+		pageSize: number,
+		options?: { startsWith?: string },
+	): Promise<{ hasMore: boolean; items: Array<Artist> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.fetchItemsPage<JellyfinArtistItem>({
+			includeItemTypes: JellyfinMusicItemTypes.MusicArtist,
+			limit: Math.max(1, pageSize),
+			recursive: true,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+			startIndex,
+			...nameFilterParams(options?.startsWith),
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers)),
+		};
+	}
+
 	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
 		const list = await this.fetchItemsPage<JellyfinTrackItem>({
 			artistIds: artistId,
@@ -342,60 +282,157 @@ export class LiveTransport implements Transport {
 		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
-	async search(query: string): Promise<SearchResults> {
-		const normalizedQuery = query.trim();
-		if (!normalizedQuery) {
-			return {
-				albums: [],
-				artists: [],
-				playlists: [],
-				tracks: [],
-			};
+	async getGenre(genreId: string): Promise<Genre | null> {
+		const item = await this.getItem<JellyfinGenreItem>(genreId);
+		if (!item || item.Type !== JellyfinMusicItemTypes.MusicGenre) {
+			return null;
 		}
 
-		const list = await this.fetchItemsPage<
-			JellyfinAlbumItem | JellyfinArtistItem | JellyfinPlaylistItem | JellyfinTrackItem
-		>({
-			fields: 'Overview,MediaSources',
-			includeItemTypes: [
-				JellyfinMusicItemTypes.MusicArtist,
-				JellyfinMusicItemTypes.MusicAlbum,
-				JellyfinMusicItemTypes.Playlist,
-				JellyfinMusicItemTypes.Audio,
-			].join(','),
-			limit: defaultSearchLimit,
-			recursive: true,
-			searchTerm: normalizedQuery,
+		return mapJellyfinGenreToGenre(item, this.imageResolvers);
+	}
+
+	async getGenresPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.requestJson<JellyfinListEnvelope<JellyfinGenreItem>>('/MusicGenres', {
+			fields: 'Overview',
+			limit: Math.max(1, pageSize),
 			sortBy: 'SortName',
 			sortOrder: 'Ascending',
+			startIndex,
+			userId: this.userId,
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => mapJellyfinGenreToGenre(item, this.imageResolvers)),
+		};
+	}
+
+	async getPlaylist(playlistId: string): Promise<Playlist | null> {
+		const item = await this.getItem<JellyfinPlaylistItem>(playlistId);
+		if (!item || item.Type !== JellyfinMusicItemTypes.Playlist) {
+			return null;
+		}
+
+		return mapJellyfinPlaylistToPlaylist(item, this.imageResolvers);
+	}
+
+	async getPlaylistsPage(
+		page: number,
+		pageSize: number,
+		options?: { startsWith?: string },
+	): Promise<{ hasMore: boolean; items: Array<Playlist> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.fetchItemsPage<JellyfinPlaylistItem>({
+			includeItemTypes: JellyfinMusicItemTypes.Playlist,
+			limit: Math.max(1, pageSize),
+			recursive: true,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+			startIndex,
+			...nameFilterParams(options?.startsWith),
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers)),
+		};
+	}
+
+	async getRandomAlbum(): Promise<Album | null> {
+		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
+			fields: 'Overview,Genres',
+			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+			limit: 1,
+			recursive: true,
+			sortBy: 'Random',
 			startIndex: 0,
 		});
 
-		const albums: Array<Album> = [];
-		const artists: Array<Artist> = [];
-		const playlists: Array<Playlist> = [];
-		const tracks: Array<Track> = [];
+		const item = list.Items[0];
+		return item ? mapJellyfinAlbumToAlbum(item, this.imageResolvers) : null;
+	}
 
-		for (const item of list.Items) {
-			switch (item.Type) {
-				case JellyfinMusicItemTypes.MusicAlbum:
-					albums.push(mapJellyfinAlbumToAlbum(item as JellyfinAlbumItem, this.imageResolvers));
-					break;
-				case JellyfinMusicItemTypes.MusicArtist:
-					artists.push(mapJellyfinArtistToArtist(item as JellyfinArtistItem, this.imageResolvers));
-					break;
-				case JellyfinMusicItemTypes.Playlist:
-					playlists.push(
-						mapJellyfinPlaylistToPlaylist(item as JellyfinPlaylistItem, this.imageResolvers),
-					);
-					break;
-				case JellyfinMusicItemTypes.Audio:
-					tracks.push(mapJellyfinTrackToTrack(item as JellyfinTrackItem, this.imageResolvers));
-					break;
+	async getRandomMusicYears(limit: number): Promise<Array<number>> {
+		const years = await this.requestJson<JellyfinListEnvelope<JellyfinYearItem>>('/Years', {
+			includeItemTypes: JellyfinMusicItemTypes.Audio,
+			limit: Math.max(1, limit),
+			mediaTypes: 'Audio',
+			recursive: true,
+			sortBy: 'Random',
+			userId: this.userId,
+		});
+
+		const result: Array<number> = [];
+		for (const item of years.Items ?? []) {
+			const year = item.ProductionYear ?? Number.parseInt(item.Name ?? '', 10);
+			if (year && !Number.isNaN(year)) {
+				result.push(year);
 			}
 		}
+		return result;
+	}
 
-		return { albums, artists, playlists, tracks };
+	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
+		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
+			fields: 'DateCreated,Genres,Overview',
+			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+			limit: Math.max(1, limit),
+			recursive: true,
+			sortBy: 'DateCreated',
+			sortOrder: 'Descending',
+			startIndex: 0,
+		});
+		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+	}
+
+	async getShuffledLibraryTracks(): Promise<Array<Track>> {
+		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			fields: 'MediaSources',
+			includeItemTypes: JellyfinMusicItemTypes.Audio,
+			limit: 500,
+			recursive: true,
+			sortBy: 'Random',
+			startIndex: 0,
+		});
+
+		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+	}
+
+	async getShuffledLibraryTracksPage(
+		page: number,
+		pageSize: number,
+	): Promise<{ hasMore: boolean; items: Array<Track> }> {
+		const startIndex = Math.max(0, page - 1) * pageSize;
+		const list = await this.fetchItemsPage<JellyfinTrackItem>({
+			fields: 'MediaSources',
+			includeItemTypes: JellyfinMusicItemTypes.Audio,
+			limit: Math.max(1, pageSize),
+			recursive: true,
+			sortBy: 'Random',
+			startIndex,
+		});
+
+		return {
+			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+			items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
+		};
+	}
+
+	getTrackCacheUrl(trackId: string): string | null {
+		if (!trackId) {
+			return null;
+		}
+
+		const path = this.buildPath(`/Audio/${encodeURIComponent(trackId)}/stream.mp3`, {
+			deviceId: this.clientDeviceId,
+			static: true,
+			userId: this.userId,
+		});
+		return `${this.baseUrl}${path}`;
 	}
 
 	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
@@ -502,74 +539,6 @@ export class LiveTransport implements Transport {
 		};
 	}
 
-	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
-		const body: Record<string, unknown> = { MediaType: 'Audio', Name: name };
-		if (trackId) body.Ids = [trackId];
-		const result = await this.requestJsonPost<{ Id: string }>('/Playlists', body);
-		// Fetch the full item to get ImageTags (Jellyfin generates the collage image
-		// synchronously when the first track is provided). This gives us the correct
-		// tagged imageUrl so the playlist cover can be cached for offline use.
-		const item = await this.getItem<JellyfinPlaylistItem>(result.Id);
-		if (item) {
-			return mapJellyfinPlaylistToPlaylist(item, this.imageResolvers);
-		}
-		return { id: result.Id, name };
-	}
-
-	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
-		await this.requestVoid('POST', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
-			ids: trackId,
-			userId: this.userId,
-		});
-	}
-
-	async movePlaylistTrack(playlistId: string, entryId: string, toIndex: number): Promise<void> {
-		await this.requestVoid(
-			'POST',
-			`/Playlists/${encodeURIComponent(playlistId)}/Items/${encodeURIComponent(entryId)}/Move/${toIndex}`,
-		);
-	}
-
-	async removePlaylistTrack(playlistId: string, entryId: string): Promise<void> {
-		await this.requestVoid('DELETE', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
-			entryIds: entryId,
-		});
-	}
-
-	async getRandomAlbum(): Promise<Album | null> {
-		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
-			fields: 'Overview,Genres',
-			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-			limit: 1,
-			recursive: true,
-			sortBy: 'Random',
-			startIndex: 0,
-		});
-
-		const item = list.Items[0];
-		return item ? mapJellyfinAlbumToAlbum(item, this.imageResolvers) : null;
-	}
-
-	async getRandomMusicYears(limit: number): Promise<Array<number>> {
-		const years = await this.requestJson<JellyfinListEnvelope<JellyfinYearItem>>('/Years', {
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			limit: Math.max(1, limit),
-			mediaTypes: 'Audio',
-			recursive: true,
-			sortBy: 'Random',
-			userId: this.userId,
-		});
-
-		const result: Array<number> = [];
-		for (const item of years.Items ?? []) {
-			const year = item.ProductionYear ?? Number.parseInt(item.Name ?? '', 10);
-			if (year && !Number.isNaN(year)) {
-				result.push(year);
-			}
-		}
-		return result;
-	}
-
 	async getTracksByYearPage(
 		year: number,
 		page: number,
@@ -592,50 +561,17 @@ export class LiveTransport implements Transport {
 		};
 	}
 
-	async getShuffledLibraryTracks(): Promise<Array<Track>> {
-		const list = await this.fetchItemsPage<JellyfinTrackItem>({
-			fields: 'MediaSources',
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			limit: 500,
-			recursive: true,
-			sortBy: 'Random',
-			startIndex: 0,
-		});
-
-		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+	async movePlaylistTrack(playlistId: string, entryId: string, toIndex: number): Promise<void> {
+		await this.requestVoid(
+			'POST',
+			`/Playlists/${encodeURIComponent(playlistId)}/Items/${encodeURIComponent(entryId)}/Move/${toIndex}`,
+		);
 	}
 
-	async getShuffledLibraryTracksPage(
-		page: number,
-		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Track> }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.fetchItemsPage<JellyfinTrackItem>({
-			fields: 'MediaSources',
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			limit: Math.max(1, pageSize),
-			recursive: true,
-			sortBy: 'Random',
-			startIndex,
+	async removePlaylistTrack(playlistId: string, entryId: string): Promise<void> {
+		await this.requestVoid('DELETE', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
+			entryIds: entryId,
 		});
-
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
-		};
-	}
-
-	getTrackCacheUrl(trackId: string): string | null {
-		if (!trackId) {
-			return null;
-		}
-
-		const path = this.buildPath(`/Audio/${encodeURIComponent(trackId)}/stream.mp3`, {
-			deviceId: this.clientDeviceId,
-			static: true,
-			userId: this.userId,
-		});
-		return `${this.baseUrl}${path}`;
 	}
 
 	async scrobbleTrackPlayed(trackId: string, datePlayed: string): Promise<void> {
@@ -662,8 +598,238 @@ export class LiveTransport implements Transport {
 		});
 	}
 
-	downloadBinary(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
-		return this.requestBinaryWithRedirects(url, 5);
+	async search(query: string): Promise<SearchResults> {
+		const normalizedQuery = query.trim();
+		if (!normalizedQuery) {
+			return {
+				albums: [],
+				artists: [],
+				playlists: [],
+				tracks: [],
+			};
+		}
+
+		const list = await this.fetchItemsPage<
+			JellyfinAlbumItem | JellyfinArtistItem | JellyfinPlaylistItem | JellyfinTrackItem
+		>({
+			fields: 'Overview,MediaSources',
+			includeItemTypes: [
+				JellyfinMusicItemTypes.MusicArtist,
+				JellyfinMusicItemTypes.MusicAlbum,
+				JellyfinMusicItemTypes.Playlist,
+				JellyfinMusicItemTypes.Audio,
+			].join(','),
+			limit: defaultSearchLimit,
+			recursive: true,
+			searchTerm: normalizedQuery,
+			sortBy: 'SortName',
+			sortOrder: 'Ascending',
+			startIndex: 0,
+		});
+
+		const albums: Array<Album> = [];
+		const artists: Array<Artist> = [];
+		const playlists: Array<Playlist> = [];
+		const tracks: Array<Track> = [];
+
+		for (const item of list.Items) {
+			switch (item.Type) {
+				case JellyfinMusicItemTypes.MusicAlbum:
+					albums.push(mapJellyfinAlbumToAlbum(item as JellyfinAlbumItem, this.imageResolvers));
+					break;
+				case JellyfinMusicItemTypes.MusicArtist:
+					artists.push(mapJellyfinArtistToArtist(item as JellyfinArtistItem, this.imageResolvers));
+					break;
+				case JellyfinMusicItemTypes.Playlist:
+					playlists.push(
+						mapJellyfinPlaylistToPlaylist(item as JellyfinPlaylistItem, this.imageResolvers),
+					);
+					break;
+				case JellyfinMusicItemTypes.Audio:
+					tracks.push(mapJellyfinTrackToTrack(item as JellyfinTrackItem, this.imageResolvers));
+					break;
+			}
+		}
+
+		return { albums, artists, playlists, tracks };
+	}
+
+	private buildItemImageUrl(itemId: string, imageType: 'Logo' | 'Primary', tag?: string): string {
+		const query: Record<string, string | undefined> = { tag };
+		const path = this.buildPath(`/Items/${encodeURIComponent(itemId)}/Images/${imageType}`, query);
+		return `${this.baseUrl}${path}`;
+	}
+
+	private buildPath(
+		path: string,
+		query: Record<string, string | number | boolean | undefined>,
+	): string {
+		const params: Array<string> = [];
+		for (const [key, value] of Object.entries(query)) {
+			if (value === undefined || value === null || value === '') {
+				continue;
+			}
+			params.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+		}
+		const queryString = params.join('&');
+		return queryString.length > 0 ? `${path}?${queryString}` : path;
+	}
+
+	private createBinaryHeaders(): Record<string, string> {
+		const defaultHeaders = this.createHeaders();
+		defaultHeaders.Accept = '*/*';
+
+		return defaultHeaders;
+	}
+
+	private createHeaders(): Record<string, string> {
+		const authHeader = createClientHeader(this.accessToken, this.clientDeviceId);
+		const headers: Record<string, string> = {
+			Accept: 'application/json',
+			Authorization: authHeader,
+			'X-Emby-Authorization': authHeader,
+		};
+		// only emit the token header when it's a non-empty string; a native header map
+		// must never receive an undefined/null value
+		if (this.accessToken) {
+			headers['X-Emby-Token'] = this.accessToken;
+		}
+		return headers;
+	}
+
+	private async fetchAllItems<TItem>(
+		params: Record<string, string | number | boolean | undefined>,
+	): Promise<Array<TItem>> {
+		const items: Array<TItem> = [];
+		let startIndex = 0;
+
+		while (true) {
+			const list = await this.fetchItemsPage<TItem>({
+				...params,
+				limit: defaultPageSize,
+				startIndex,
+			});
+
+			const page = list.Items ?? [];
+			items.push(...page);
+			startIndex += page.length;
+
+			if (startIndex >= list.TotalRecordCount || page.length === 0) {
+				break;
+			}
+		}
+
+		return items;
+	}
+
+	private fetchItemsPage<TItem>(
+		params: Record<string, string | number | boolean | undefined>,
+	): Promise<JellyfinListEnvelope<TItem>> {
+		const fields = typeof params.fields === 'string' ? params.fields : 'Overview';
+		return this.requestJson<JellyfinListEnvelope<TItem>>('/Items', {
+			...params,
+			fields,
+			recursive: params.recursive ?? true,
+			userId: this.userId,
+		});
+	}
+
+	private getItem<TItem>(itemId: string): Promise<TItem | null> {
+		return this.requestJson<TItem>(`/Items/${encodeURIComponent(itemId)}`, {
+			fields: 'Overview',
+			userId: this.userId,
+		}).catch((error) => {
+			if (error === TransportErrors.LIVE_REQUEST_FAILED) {
+				return null;
+			}
+			throw error;
+		});
+	}
+
+	private normalizeBaseUrl(url: string): string {
+		return url.replace(/\/+$/, '');
+	}
+
+	private async requestBinaryWithRedirects(
+		url: string,
+		remainingRedirects: number,
+	): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
+		const split = splitAbsoluteUrl(url);
+		if (!split) {
+			throw new Error(`invalid download url: ${url}`);
+		}
+
+		const { baseUrl, pathWithQuery } = split;
+		const client = this.httpClientFactory(baseUrl);
+
+		const response = await this.runWithRequestTimeout(
+			client.get(pathWithQuery, this.createBinaryHeaders()),
+		);
+
+		if (isRedirectStatus(response.statusCode)) {
+			if (remainingRedirects <= 0) {
+				throw new Error(`download redirect limit reached status=${response.statusCode}`);
+			}
+
+			const location = getHeaderValue(response.headers, 'location');
+			if (!location) {
+				throw new Error(`download redirect missing location status=${response.statusCode}`);
+			}
+
+			const nextUrl = resolveRedirectUrl(baseUrl, location);
+			if (!nextUrl) {
+				throw new Error(`download redirect invalid location status=${response.statusCode}`);
+			}
+			return this.requestBinaryWithRedirects(nextUrl, remainingRedirects - 1);
+		}
+
+		if (response.statusCode < 200 || response.statusCode >= 300 || !response.body) {
+			const location = getHeaderValue(response.headers, 'location') ?? 'none';
+			const contentType = getHeaderValue(response.headers, 'content-type') ?? 'none';
+			const contentLength = getHeaderValue(response.headers, 'content-length') ?? 'none';
+			const hasBody = response.body ? '1' : '0';
+			throw new Error(
+				`download missing body status=${response.statusCode} body=${hasBody} ct=${contentType} cl=${contentLength} loc=${location}`,
+			);
+		}
+
+		const bytes = response.body;
+		const buffer = bytes.buffer.slice(
+			bytes.byteOffset,
+			bytes.byteOffset + bytes.byteLength,
+		) as ArrayBuffer;
+		const mimeType = getHeaderValue(response.headers, 'content-type') ?? 'audio/mpeg';
+		return { buffer, mimeType };
+	}
+
+	private requestJson<T>(
+		path: string,
+		query: Record<string, string | number | boolean | undefined> = {},
+	): Promise<T> {
+		const client = this.httpClientFactory(this.baseUrl);
+		const requestPath = this.buildPath(path, query);
+
+		return this.runWithRequestTimeout(client.get(requestPath, this.createHeaders())).then(
+			(response) => {
+				if (response.statusCode === 401) {
+					throw AuthErrors.SESSION_EXPIRED;
+				}
+
+				if (response.statusCode < 200 || response.statusCode >= 300) {
+					throw TransportErrors.LIVE_REQUEST_FAILED;
+				}
+
+				if (!response.body) {
+					throw TransportErrors.LIVE_INVALID_RESPONSE;
+				}
+
+				try {
+					return JSON.parse(new TextDecoder().decode(response.body)) as T;
+				} catch {
+					throw TransportErrors.LIVE_INVALID_RESPONSE;
+				}
+			},
+		);
 	}
 
 	private async requestJsonPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
@@ -735,190 +901,6 @@ export class LiveTransport implements Transport {
 		}
 	}
 
-	private async requestBinaryWithRedirects(
-		url: string,
-		remainingRedirects: number,
-	): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
-		const split = splitAbsoluteUrl(url);
-		if (!split) {
-			throw new Error(`invalid download url: ${url}`);
-		}
-
-		const { baseUrl, pathWithQuery } = split;
-		const client = this.httpClientFactory(baseUrl);
-
-		const response = await this.runWithRequestTimeout(
-			client.get(pathWithQuery, this.createBinaryHeaders()),
-		);
-
-		if (isRedirectStatus(response.statusCode)) {
-			if (remainingRedirects <= 0) {
-				throw new Error(`download redirect limit reached status=${response.statusCode}`);
-			}
-
-			const location = getHeaderValue(response.headers, 'location');
-			if (!location) {
-				throw new Error(`download redirect missing location status=${response.statusCode}`);
-			}
-
-			const nextUrl = resolveRedirectUrl(baseUrl, location);
-			if (!nextUrl) {
-				throw new Error(`download redirect invalid location status=${response.statusCode}`);
-			}
-			return this.requestBinaryWithRedirects(nextUrl, remainingRedirects - 1);
-		}
-
-		if (response.statusCode < 200 || response.statusCode >= 300 || !response.body) {
-			const location = getHeaderValue(response.headers, 'location') ?? 'none';
-			const contentType = getHeaderValue(response.headers, 'content-type') ?? 'none';
-			const contentLength = getHeaderValue(response.headers, 'content-length') ?? 'none';
-			const hasBody = response.body ? '1' : '0';
-			throw new Error(
-				`download missing body status=${response.statusCode} body=${hasBody} ct=${contentType} cl=${contentLength} loc=${location}`,
-			);
-		}
-
-		const bytes = response.body;
-		const buffer = bytes.buffer.slice(
-			bytes.byteOffset,
-			bytes.byteOffset + bytes.byteLength,
-		) as ArrayBuffer;
-		const mimeType = getHeaderValue(response.headers, 'content-type') ?? 'audio/mpeg';
-		return { buffer, mimeType };
-	}
-
-	private async fetchAllItems<TItem>(
-		params: Record<string, string | number | boolean | undefined>,
-	): Promise<Array<TItem>> {
-		const items: Array<TItem> = [];
-		let startIndex = 0;
-
-		while (true) {
-			const list = await this.fetchItemsPage<TItem>({
-				...params,
-				limit: defaultPageSize,
-				startIndex,
-			});
-
-			const page = list.Items ?? [];
-			items.push(...page);
-			startIndex += page.length;
-
-			if (startIndex >= list.TotalRecordCount || page.length === 0) {
-				break;
-			}
-		}
-
-		return items;
-	}
-
-	private fetchItemsPage<TItem>(
-		params: Record<string, string | number | boolean | undefined>,
-	): Promise<JellyfinListEnvelope<TItem>> {
-		const fields = typeof params.fields === 'string' ? params.fields : 'Overview';
-		return this.requestJson<JellyfinListEnvelope<TItem>>('/Items', {
-			...params,
-			fields,
-			recursive: params.recursive ?? true,
-			userId: this.userId,
-		});
-	}
-
-	private getItem<TItem>(itemId: string): Promise<TItem | null> {
-		return this.requestJson<TItem>(`/Items/${encodeURIComponent(itemId)}`, {
-			fields: 'Overview',
-			userId: this.userId,
-		}).catch((error) => {
-			if (error === TransportErrors.LIVE_REQUEST_FAILED) {
-				return null;
-			}
-			throw error;
-		});
-	}
-
-	private requestJson<T>(
-		path: string,
-		query: Record<string, string | number | boolean | undefined> = {},
-	): Promise<T> {
-		const client = this.httpClientFactory(this.baseUrl);
-		const requestPath = this.buildPath(path, query);
-
-		return this.runWithRequestTimeout(client.get(requestPath, this.createHeaders())).then(
-			(response) => {
-				if (response.statusCode === 401) {
-					throw AuthErrors.SESSION_EXPIRED;
-				}
-
-				if (response.statusCode < 200 || response.statusCode >= 300) {
-					throw TransportErrors.LIVE_REQUEST_FAILED;
-				}
-
-				if (!response.body) {
-					throw TransportErrors.LIVE_INVALID_RESPONSE;
-				}
-
-				try {
-					return JSON.parse(new TextDecoder().decode(response.body)) as T;
-				} catch {
-					throw TransportErrors.LIVE_INVALID_RESPONSE;
-				}
-			},
-		);
-	}
-
-	private buildPath(
-		path: string,
-		query: Record<string, string | number | boolean | undefined>,
-	): string {
-		const params: Array<string> = [];
-		for (const [key, value] of Object.entries(query)) {
-			if (value === undefined || value === null || value === '') {
-				continue;
-			}
-			params.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
-		}
-		const queryString = params.join('&');
-		return queryString.length > 0 ? `${path}?${queryString}` : path;
-	}
-
-	private buildItemImageUrl(itemId: string, imageType: 'Logo' | 'Primary', tag?: string): string {
-		const query: Record<string, string | undefined> = { tag };
-		const path = this.buildPath(`/Items/${encodeURIComponent(itemId)}/Images/${imageType}`, query);
-		return `${this.baseUrl}${path}`;
-	}
-
-	private createHeaders(): Record<string, string> {
-		const authHeader = createClientHeader(this.accessToken, this.clientDeviceId);
-		const headers: Record<string, string> = {
-			Accept: 'application/json',
-			Authorization: authHeader,
-			'X-Emby-Authorization': authHeader,
-		};
-		// only emit the token header when it's a non-empty string; a native header map
-		// must never receive an undefined/null value
-		if (this.accessToken) {
-			headers['X-Emby-Token'] = this.accessToken;
-		}
-		return headers;
-	}
-
-	private createBinaryHeaders(): Record<string, string> {
-		const authHeader = createClientHeader(this.accessToken, this.clientDeviceId);
-		const headers: Record<string, string> = {
-			Accept: '*/*',
-			Authorization: authHeader,
-			'X-Emby-Authorization': authHeader,
-		};
-		if (this.accessToken) {
-			headers['X-Emby-Token'] = this.accessToken;
-		}
-		return headers;
-	}
-
-	private normalizeBaseUrl(url: string): string {
-		return url.replace(/\/+$/, '');
-	}
-
 	private runWithRequestTimeout<T>(promise: Promise<T>): Promise<T> {
 		return new Promise((resolve, reject) => {
 			const timer = setTimeout(() => {
@@ -937,15 +919,14 @@ export class LiveTransport implements Transport {
 			);
 		});
 	}
+}
 
-	private readonly imageResolvers: JellyfinImageResolvers = {
-		albumPrimaryImageUrl: (albumId: string, imageTag?: string): string =>
-			this.buildItemImageUrl(albumId, 'Primary', imageTag),
-		itemLogoImageUrl: (itemId: string, imageTag?: string): string =>
-			this.buildItemImageUrl(itemId, 'Logo', imageTag),
-		itemPrimaryImageUrl: (itemId: string, imageTag?: string): string =>
-			this.buildItemImageUrl(itemId, 'Primary', imageTag),
-	};
+function createClientHeader(accessToken?: string, clientDeviceId = 'atolla'): string {
+	const base = `MediaBrowser Client="atolla", Device="${clientDeviceId}", DeviceId="${clientDeviceId}", Version="${version}"`;
+	if (!accessToken) {
+		return base;
+	}
+	return `${base}, Token="${accessToken}"`;
 }
 
 function isRedirectStatus(statusCode: number): boolean {
@@ -958,17 +939,34 @@ function isRedirectStatus(statusCode: number): boolean {
 	);
 }
 
-function splitAbsoluteUrl(url: string): { baseUrl: string; pathWithQuery: string } | null {
-	const trimmed = (url ?? '').trim();
-	const match = /^(https?:\/\/[^/]+)(\/.*)?$/i.exec(trimmed);
-	if (!match) {
-		return null;
+// maps a library letter-filter token to Jellyfin `/Items` query params so prefix
+// filtering happens server-side. letters a-z become `nameStartsWith`; the '0' bucket
+// ("starts with a digit") maps to `nameLessThan: 'A'`, returning everything sorting
+// before "A" (digits and symbols), which the client-side filter narrows to leading digits
+function nameFilterParams(
+	startsWith: string | undefined,
+): Record<string, string | number | boolean | undefined> {
+	const token = startsWith?.trim();
+	if (!token) {
+		return {};
+	}
+	if (token === '0') {
+		return { nameLessThan: 'A' };
+	}
+	return { nameStartsWith: token };
+}
+
+function normalizeClientDeviceId(value: string | null | undefined): string {
+	if (typeof value !== 'string') {
+		return 'atolla';
 	}
 
-	return {
-		baseUrl: match[1],
-		pathWithQuery: match[2] && match[2].length > 0 ? match[2] : '/',
-	};
+	const trimmed = value.trim();
+	if (trimmed.length === 0) {
+		return 'atolla';
+	}
+
+	return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
 }
 
 function resolveRedirectUrl(baseUrl: string, location: string): string | null {
@@ -986,4 +984,17 @@ function resolveRedirectUrl(baseUrl: string, location: string): string | null {
 	}
 
 	return `${baseUrl}/${trimmedLocation}`;
+}
+
+function splitAbsoluteUrl(url: string): { baseUrl: string; pathWithQuery: string } | null {
+	const trimmed = (url ?? '').trim();
+	const match = /^(https?:\/\/[^/]+)(\/.*)?$/i.exec(trimmed);
+	if (!match) {
+		return null;
+	}
+
+	return {
+		baseUrl: match[1],
+		pathWithQuery: match[2] && match[2].length > 0 ? match[2] : '/',
+	};
 }

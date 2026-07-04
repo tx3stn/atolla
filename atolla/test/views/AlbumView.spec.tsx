@@ -27,7 +27,60 @@ const downloadService = {
 
 const preferences = new Preferences({ fetchString: async () => '', storeString: async () => {} });
 
+async function flushAsyncWork() {
+	for (let i = 0; i < 10; i += 1) {
+		await Promise.resolve();
+	}
+}
+
 describe('AlbumView', () => {
+	valdiIt(
+		'self-heals a missing header image when the album has genres but no imageUrl',
+		async (driver) => {
+			const album = {
+				artistId: 'artist-1',
+				artistName: 'Artist One',
+				genres: [],
+				id: 'album-1',
+				name: 'First Album',
+			};
+			let getAlbumsByIdsCalls = 0;
+			const transport = {
+				getAlbumsByIds: async () => {
+					getAlbumsByIdsCalls += 1;
+					return [{ ...album, imageUrl: 'https://art.png' }];
+				},
+				getArtist: async () => null,
+				getTracksByAlbum: async () => [],
+			};
+			const playbackStore = {
+				play: () => {},
+				setArtistLogoUrl: () => {},
+				subscribe: () => () => {},
+				track: null,
+			};
+
+			const component = driver.renderComponent(
+				AlbumView,
+				{
+					album,
+					downloadService,
+					onRootDetailControllerReady: () => {},
+					playbackStore,
+					preferences,
+					transport,
+				},
+				{ navigator: mockNavigator },
+			);
+			component.setState({ isLoading: false });
+
+			await flushAsyncWork();
+
+			expect(getAlbumsByIdsCalls).toBe(1);
+			expect(component.state.fullAlbum?.imageUrl).toBe('https://art.png');
+		},
+	);
+
 	valdiIt('renders track rows when tracks are present in state', async (driver) => {
 		const album = {
 			artistId: 'artist-1',

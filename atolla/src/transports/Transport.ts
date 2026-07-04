@@ -28,7 +28,9 @@ export interface Transport {
 		options?: { startsWith?: string },
 	): Promise<{ hasMore: boolean; items: Array<Artist> }>;
 	getArtistTopTracks(artistId: string): Promise<Array<Track>>;
+	getGenre(genreId: string): Promise<Genre | null>;
 	getGenresPage(page: number, pageSize: number): Promise<{ hasMore: boolean; items: Array<Genre> }>;
+	getPlaylist(playlistId: string): Promise<Playlist | null>;
 	getPlaylistsPage(
 		page: number,
 		pageSize: number,

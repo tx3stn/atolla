@@ -55,6 +55,7 @@ export interface PlaylistViewModel {
 interface PlaylistState {
 	artistLogoUrls: Array<string | null>;
 	downloadState: DownloadState;
+	hydratedPlaylist: Playlist | null;
 	isLoading: boolean;
 	removedTrackPending: { index: number; track: Track } | null;
 	revision: number;
@@ -70,6 +71,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	state: PlaylistState = {
 		artistLogoUrls: [],
 		downloadState: 'not_downloaded',
+		hydratedPlaylist: null,
 		isLoading: true,
 		removedTrackPending: null,
 		revision: 0,
@@ -102,6 +104,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	onRender(): void {
 		const { downloadState, isLoading, totalTrackCount, tracks } = this.state;
+		// self-heal: a playlist pushed without imageUrl gets the fetched one merged in for the header
+		const playlist = { ...this.viewModel.playlist, ...(this.state.hydratedPlaylist ?? {}) };
 
 		const entries: Array<TrackListEntry> = tracks.map((track) => ({
 			artworkSource: track.albumImageUrl ?? null,
@@ -127,9 +131,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					<DetailHeader
 						animationsEnabled={this.viewModel.preferences.animationsEnabled}
 						artworkCategory='playlist_image'
-						artworkSource={this.viewModel.playlist.imageUrl ?? null}
+						artworkSource={playlist.imageUrl ?? null}
 						downloadState={downloadState}
-						fallbackText={this.viewModel.playlist.name}
+						fallbackText={playlist.name}
 						modalSlot={this.viewModel.modalSlot}
 						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
 						onDownload={this.handleDownloadTap}
@@ -468,11 +472,30 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.isLoadingPage = false;
 		this.setState({
 			artistLogoUrls: [],
+			hydratedPlaylist: null,
 			isLoading: true,
 			totalTrackCount: null,
 			tracks: [],
 		});
 		void this.loadNextPage(this.loadGeneration);
+		void this.hydratePlaylistIfNeeded(this.loadGeneration);
+	}
+
+	private async hydratePlaylistIfNeeded(generation: number): Promise<void> {
+		const { playlist, transport } = this.viewModel;
+		if (playlist.imageUrl) {
+			return;
+		}
+		let fetched: Playlist | null = null;
+		try {
+			fetched = await transport.getPlaylist(playlist.id);
+		} catch {
+			return;
+		}
+		if (this.isDestroyed() || generation !== this.loadGeneration || !fetched) {
+			return;
+		}
+		this.setState({ hydratedPlaylist: fetched });
 	}
 
 	private syncDownloadState(): void {
