@@ -100,7 +100,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	onRender(): void {
 		const { artistLogoUrl, downloadState, fullAlbum, isLoading, tracks } = this.state;
 		const { album: partialAlbum, imageCache, modalSlot } = this.viewModel;
-		const { animationsEnabled } = this.viewModel.preferences;
+		const { animationsEnabled, language } = this.viewModel.preferences;
 		const album = fullAlbum ?? partialAlbum;
 		const albumGenres = normalizeGenres(album.genres);
 
@@ -182,7 +182,14 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 							tracks={tracks.map(toEntry)}
 						/>
 					)}
-					{album.bio && <BioSection bio={album.bio} modalSlot={modalSlot} title={album.name} />}
+					{album.bio && (
+						<BioSection
+							bio={album.bio}
+							language={language}
+							modalSlot={modalSlot}
+							title={album.name}
+						/>
+					)}
 					{albumGenres.length > 0 && (
 						<GenrePills
 							accessibilityId='album-genres'

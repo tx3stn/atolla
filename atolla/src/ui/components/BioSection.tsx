@@ -3,11 +3,13 @@ import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
+import type { LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { Modal } from './Modal';
 
 export interface BioSectionViewModel {
 	bio: string;
+	language: LanguageCode;
 	logoUrl?: string;
 	modalSlot?: DetachedSlot;
 	title: string;

@@ -192,6 +192,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 							{artist.bio && (
 								<BioSection
 									bio={artist.bio}
+									language={this.viewModel.preferences.language}
 									logoUrl={artist.logoUrl}
 									modalSlot={modalSlot}
 									title={artist.name}
