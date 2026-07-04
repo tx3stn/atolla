@@ -68,6 +68,15 @@
         return;
     }
 
+    // The app has exactly one floating overlay, so there must be exactly one overlay container in the
+    // window. Reap any stranded container left by a previous anchor that Valdi destroyed without
+    // deallocating, so duplicate floating layers can never accumulate.
+    for (UIView *sibling in window.subviews) {
+        if (sibling != _overlay && [sibling isKindOfClass:[AtollaFloatingOverlayContainer class]]) {
+            [sibling removeFromSuperview];
+        }
+    }
+
     if (_overlay.superview != window) {
         _overlay.frame = window.bounds;
         _overlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
