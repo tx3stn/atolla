@@ -6,6 +6,7 @@ import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
 import type { PlaybackStore } from '../../stores/Playback';
+import type { LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
@@ -15,6 +16,7 @@ import { type Card, CardGrid } from './CardGrid';
 export interface MixesSectionViewModel {
 	connectionMode: ConnectionMode;
 	gridColumns: number;
+	language: LanguageCode;
 	playbackStore: PlaybackStore;
 	transport: Transport;
 }

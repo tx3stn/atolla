@@ -59,7 +59,7 @@ export const theme = {
 		deviceInset: topInset,
 		headerTop: topInset + 16,
 		pill: 14,
-		scrollBottom: 295,
+		scrollBottom: 180,
 		scrollHeader: (isVisible: boolean | null) => {
 			if (isVisible == null) {
 				return headerAndFooter + topInset;

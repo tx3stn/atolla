@@ -132,6 +132,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					<MixesSection
 						connectionMode={this.viewModel.connectionMode}
 						gridColumns={this.viewModel.preferences.gridColumns}
+						language={this.viewModel.preferences.language}
 						playbackStore={this.viewModel.playbackStore}
 						transport={this.viewModel.transport}
 					/>
