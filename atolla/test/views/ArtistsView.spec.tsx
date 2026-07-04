@@ -1,5 +1,6 @@
 import 'jasmine/src/jasmine';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
+import { Preferences } from 'atolla/src/stores/Preferences';
 import { ArtistsView } from 'atolla/src/ui/views/ArtistsView';
 import { ArtistView } from 'atolla/src/ui/views/ArtistView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -43,6 +44,10 @@ async function flushAsyncWork() {
 	await Promise.resolve();
 }
 
+function makePreferences(): Preferences {
+	return new Preferences({ fetchString: async () => '', storeString: async () => {} });
+}
+
 describe('ArtistsView', () => {
 	valdiIt('renders artist names from state', async (driver) => {
 		const artists = [
@@ -54,10 +59,10 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(ArtistsView, viewModel, undefined);
@@ -81,10 +86,10 @@ describe('ArtistsView', () => {
 
 		const navigationController = makeNavigationController();
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController,
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(ArtistsView, viewModel, undefined);
@@ -111,10 +116,10 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(ArtistsView, viewModel, undefined);
@@ -135,11 +140,11 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			letterFilter: 'a',
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		driver.renderComponent(ArtistsView, viewModel, undefined);
@@ -164,10 +169,10 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(ArtistsView, viewModel, undefined);

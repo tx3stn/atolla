@@ -14,6 +14,7 @@ import type { OnThisDayService } from '../../services/OnThisDayService';
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
@@ -31,9 +32,7 @@ import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { AddToPlaylistView } from './AddToPlaylistView';
 
 export interface HomeViewModel {
-	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
-	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot?: DetachedSlot;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -41,6 +40,7 @@ export interface HomeViewModel {
 	onOpenPlaylist?: (playlist: Playlist) => void;
 	onThisDayService?: OnThisDayService;
 	playbackStore: PlaybackStore;
+	preferences: Preferences;
 	recentlyAddedService?: RecentlyAddedService;
 	recentlyPlayedTracks: Array<Track>;
 	toastService: ToastService;
@@ -51,6 +51,7 @@ interface HomeState {
 	contextMenuCard: CardContextMenuCard | null;
 	onThisDayAlbums: Array<Album>;
 	recentlyAddedAlbums: Array<Album>;
+	revision: number;
 }
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
@@ -60,14 +61,18 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private cachedRecentlyAddedGridColumns = -1;
 	private pendingCreatePlaylistTracks: Array<Track> | null = null;
 	private contextMenuAlbum: Album | null = null;
+	private lastKnownGridColumns = -1;
 
 	state: HomeState = {
 		contextMenuCard: null,
 		onThisDayAlbums: [],
 		recentlyAddedAlbums: [],
+		revision: 0,
 	};
 
 	onCreate(): void {
+		this.lastKnownGridColumns = this.viewModel.preferences.gridColumns;
+		this.registerDisposable(this.viewModel.preferences.subscribe(this.handlePreferencesChange));
 		this.loadAlbums();
 	}
 
@@ -104,7 +109,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						<CardGrid
 							accessibilityId='home-recently-added-grid'
 							cards={recentlyAddedCards}
-							columnCount={this.viewModel.gridColumns}
+							columnCount={this.viewModel.preferences.gridColumns}
 							onCardLongPress={this.handleRecentlyAddedCardLongPress}
 							onCardTap={this.handleAlbumCardTap}
 						/>
@@ -126,7 +131,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 					<MixesSection
 						connectionMode={this.viewModel.connectionMode}
-						gridColumns={this.viewModel.gridColumns}
+						gridColumns={this.viewModel.preferences.gridColumns}
 						playbackStore={this.viewModel.playbackStore}
 						transport={this.viewModel.transport}
 					/>
@@ -149,10 +154,22 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 				onThisDay: this.state.onThisDayAlbums.length,
 			});
 			this.loadAlbums();
-		} else if (this.viewModel.gridColumns !== prevViewModel.gridColumns) {
-			this.loadRecentlyAdded(this.loadGeneration);
 		}
 	}
+
+	private handlePreferencesChange = (): void => {
+		const gridColumns = this.viewModel.preferences.gridColumns;
+
+		if (gridColumns !== this.lastKnownGridColumns) {
+			this.lastKnownGridColumns = gridColumns;
+
+			if (this.viewModel.connectionMode !== ConnectionModes.offline) {
+				this.loadRecentlyAdded(this.loadGeneration);
+			}
+		}
+
+		this.setState({ revision: this.state.revision + 1 });
+	};
 
 	private loadAlbums(): void {
 		const generation = this.loadGeneration + 1;
@@ -228,7 +245,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			return;
 		}
 
-		const limit = Math.max(1, this.viewModel.gridColumns) * 2;
+		const limit = Math.max(1, this.viewModel.preferences.gridColumns) * 2;
 		void service
 			.refresh(this.viewModel.transport, limit)
 			.then((albums) => {
@@ -252,7 +269,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	private createRecentlyAddedCards(): Array<Card> {
-		const { gridColumns } = this.viewModel;
+		const { gridColumns } = this.viewModel.preferences;
 		if (
 			this.state.recentlyAddedAlbums === this.cachedRecentlyAddedAlbumsRef &&
 			gridColumns === this.cachedRecentlyAddedGridColumns
@@ -310,26 +327,23 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	private handleRecentlyPlayedTrackLongPress = (track: Track): void => {
-		const { animationsEnabled, gridColumns, imageCache, playbackStore, toastService, transport } =
-			this.viewModel;
-		const { albumId, artistId } = track;
 		openTrackContextMenu(track, this.viewModel.modalSlot, {
-			animationsEnabled,
-			gridColumns,
-			imageCache,
-			onAlbumTap: albumId
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
+			gridColumns: this.viewModel.preferences.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			onAlbumTap: track.albumId
 				? () =>
 						this.viewModel.onOpenAlbum({
 							artistId: track.artistId ?? '',
 							artistName: track.artistName ?? '',
-							id: albumId,
+							id: track.albumId as string,
 							imageUrl: track.albumImageUrl,
 							name: track.albumName ?? '',
 						})
 				: undefined,
 			onArtistTap:
-				this.viewModel.onNavigateToArtist && artistId
-					? () => this.viewModel.onNavigateToArtist?.(artistId)
+				this.viewModel.onNavigateToArtist && track.artistId
+					? () => this.viewModel.onNavigateToArtist?.(track.artistId as string)
 					: undefined,
 			onDismiss: () => {
 				this.contextMenuAlbum = null;
@@ -338,9 +352,9 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			onPlaylistCreated: (playlist) => {
 				this.viewModel.onOpenPlaylist?.(playlist);
 			},
-			playbackStore,
-			toastService,
-			transport,
+			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
 		});
 	};
 
@@ -358,8 +372,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.modalSlot, () => {
 			<AddToPlaylistView
-				animationsEnabled={this.viewModel.animationsEnabled}
-				gridColumns={this.viewModel.gridColumns}
+				animationsEnabled={this.viewModel.preferences.animationsEnabled}
+				gridColumns={this.viewModel.preferences.gridColumns}
 				imageCache={this.viewModel.imageCache}
 				onDismiss={this.closeModalSlot}
 				toastService={this.viewModel.toastService}
@@ -381,7 +395,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.modalSlot, () => {
 			<CreatePlaylistModal
-				animationsEnabled={this.viewModel.animationsEnabled}
+				animationsEnabled={this.viewModel.preferences.animationsEnabled}
 				onCancel={this.closeModalSlot}
 				onCreate={this.handleAlbumContextMenuCreatePlaylistConfirm}
 			/>;
@@ -411,7 +425,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	private openAlbumCardContextMenu(album: Album): void {
-		const { animationsEnabled, modalSlot, playbackStore, transport } = this.viewModel;
+		const { modalSlot, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled } = this.viewModel.preferences;
 		openCardContextMenu(modalSlot, {
 			animationsEnabled,
 			card: { album, kind: 'album' },

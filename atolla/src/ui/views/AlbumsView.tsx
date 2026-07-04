@@ -12,6 +12,7 @@ import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
@@ -26,9 +27,7 @@ import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortAlbums } from './sort/Albums';
 
 export interface AlbumsViewModel {
-	animationsEnabled: boolean;
 	downloadService: DownloadService;
-	gridColumns: number;
 	imageCache: ImageCache;
 	isOfflineMode: boolean;
 	letterFilter?: string | null;
@@ -37,6 +36,7 @@ export interface AlbumsViewModel {
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	preferences: Preferences;
 	sortOrder?: SortOrder;
 	toastService: ToastService;
 	transport: Transport;
@@ -51,6 +51,7 @@ interface AlbumsState {
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
+	revision: number;
 }
 
 interface AlbumPageResult {
@@ -68,9 +69,11 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
+		revision: 0,
 	};
 
 	onCreate(): void {
+		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		void this.loadInitialPages();
 	}
 
@@ -98,7 +101,8 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	onRender(): void {
-		const { imageCache, animationsEnabled, toastService, transport } = this.viewModel;
+		const { imageCache, toastService, transport } = this.viewModel;
+		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
 
 		const albums = this.getDisplayAlbums();
@@ -115,7 +119,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				<CardGrid
 					accessibilityId='library-albums-grid'
 					cards={cards}
-					columnCount={this.viewModel.gridColumns}
+					columnCount={gridColumns}
 					infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 					isLoadingMore={this.state.isLoadingNextPage}
 					onCardLongPress={this.handleAlbumCardLongPress}
@@ -130,7 +134,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			{addToPlaylistTracks && (
 				<AddToPlaylistView
 					animationsEnabled={animationsEnabled}
-					gridColumns={this.viewModel.gridColumns}
+					gridColumns={this.viewModel.preferences.gridColumns}
 					imageCache={imageCache}
 					onDismiss={this.handleAddToPlaylistDismiss}
 					toastService={toastService}
@@ -158,7 +162,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		this.setState({ contextMenuCard: { album, kind: 'album' } });
 
 		openCardContextMenu(this.viewModel.modalSlot, {
-			animationsEnabled: this.viewModel.animationsEnabled,
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card: { album, kind: 'album' },
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onArtistTap: album.artistId
@@ -185,6 +189,10 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	retryLoadMore(): void {
 		void this.pagedGridController.loadNextPage();
 	}
+
+	private bump = (): void => {
+		this.setState({ revision: this.state.revision + 1 });
+	};
 
 	private cachedDisplayAlbums: Array<Album> = [];
 	private cachedDisplayAlbumsRef: Array<Album> | null = null;
@@ -238,14 +246,13 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 	private detailDeps(): DetailPushDeps {
 		return {
-			animationsEnabled: this.viewModel.animationsEnabled,
 			downloadService: this.viewModel.downloadService,
-			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
+			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		};

@@ -7,7 +7,7 @@
 // AtollaOverlayHost.h.
 
 static NSString *const kOverlayComponentPath =
-    @"OverlayWindowRoot@atolla/src/ui/components/OverlayWindowRoot";
+    @"OverlayWindowRoot@atolla/src/ui/views/OverlayWindowRoot";
 
 static UIView *sOverlayView = nil;
 

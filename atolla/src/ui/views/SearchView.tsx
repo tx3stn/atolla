@@ -23,6 +23,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import type { SearchStore } from '../../stores/Search';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -41,10 +42,8 @@ import { AddToPlaylistView } from './AddToPlaylistView';
 type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 
 export interface SearchViewModel {
-	animationsEnabled: boolean;
 	downloadService: DownloadService;
 	focusSignal?: number;
-	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
@@ -52,6 +51,7 @@ export interface SearchViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlistEditService: PlaylistEditService;
+	preferences: Preferences;
 	searchStore: SearchStore;
 	toastService: ToastService;
 	transport: Transport;
@@ -69,6 +69,7 @@ interface SearchState {
 	query: string;
 	recentSearches: Array<string>;
 	results: SearchResults;
+	revision: number;
 	status: SearchStatus;
 }
 
@@ -91,10 +92,13 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			playlists: [],
 			tracks: [],
 		},
+		revision: 0,
 		status: 'idle',
 	};
 
 	onCreate(): void {
+		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+
 		this.focusSearchInput();
 
 		this.viewModel.searchStore.getRecentSearches().then((recentSearches) => {
@@ -180,7 +184,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 									<CardGrid
 										accessibilityId='search-artists-grid'
 										cards={this.createArtistCards(results.artists)}
-										columnCount={this.viewModel.gridColumns}
+										columnCount={this.viewModel.preferences.gridColumns}
 										onCardLongPress={this.handleArtistCardLongPress}
 										onCardTap={this.handleArtistCardTap}
 									/>
@@ -193,7 +197,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 									<CardGrid
 										accessibilityId='search-albums-grid'
 										cards={this.createAlbumCards(results.albums)}
-										columnCount={this.viewModel.gridColumns}
+										columnCount={this.viewModel.preferences.gridColumns}
 										onCardLongPress={this.handleAlbumCardLongPress}
 										onCardTap={this.handleAlbumCardTap}
 									/>
@@ -206,7 +210,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 									<CardGrid
 										accessibilityId='search-playlists-grid'
 										cards={this.createPlaylistCards(results.playlists)}
-										columnCount={this.viewModel.gridColumns}
+										columnCount={this.viewModel.preferences.gridColumns}
 										onCardLongPress={this.handlePlaylistCardLongPress}
 										onCardTap={this.handlePlaylistCardTap}
 									/>
@@ -271,6 +275,10 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private blurSearchInput(): void {
 		this.searchInputRef.setAttribute('focused', false);
 	}
+
+	private bump = (): void => {
+		this.setState({ revision: this.state.revision + 1 });
+	};
 
 	private closeModalSlot = (): void => {
 		closeSlot(this.viewModel.modalSlot);
@@ -472,8 +480,8 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	private handleTrackLongPress = (track: Track): void => {
 		openTrackContextMenu(track, this.viewModel.modalSlot, {
-			animationsEnabled: this.viewModel.animationsEnabled,
-			gridColumns: this.viewModel.gridColumns,
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
+			gridColumns: this.viewModel.preferences.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			onAlbumTap: undefined,
 			onArtistTap: track.artistId ? () => this.handleContextMenuArtistTap(track) : undefined,
@@ -489,15 +497,14 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	private detailDeps(): DetailPushDeps {
 		return {
-			animationsEnabled: this.viewModel.animationsEnabled,
 			downloadService: this.viewModel.downloadService,
-			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			onNavigateToArtist: (artistId) => this.navigateToArtistId(artistId),
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
 			playlistEditService: this.viewModel.playlistEditService,
+			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		};
@@ -520,7 +527,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 				: undefined;
 
 		openCardContextMenu(this.viewModel.modalSlot, {
-			animationsEnabled: this.viewModel.animationsEnabled,
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card,
 			onAddToPlaylist: this.handleCardContextMenuAddToPlaylist,
 			onArtistTap: onArtistTap,
@@ -536,8 +543,8 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.modalSlot, () => {
 			<AddToPlaylistView
-				animationsEnabled={this.viewModel.animationsEnabled}
-				gridColumns={this.viewModel.gridColumns}
+				animationsEnabled={this.viewModel.preferences.animationsEnabled}
+				gridColumns={this.viewModel.preferences.gridColumns}
 				imageCache={this.viewModel.imageCache}
 				onDismiss={this.closeModalSlot}
 				toastService={this.viewModel.toastService}
@@ -589,7 +596,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.modalSlot, () => {
 			<CreatePlaylistModal
-				animationsEnabled={this.viewModel.animationsEnabled}
+				animationsEnabled={this.viewModel.preferences.animationsEnabled}
 				onCancel={this.closeModalSlot}
 				onCreate={this.handleCardContextMenuCreatePlaylistConfirm}
 			/>;

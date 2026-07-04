@@ -17,11 +17,13 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 	state: OverlayHostState = { revision: 0 };
 
 	private playbackSubscribed = false;
+	private preferencesSubscribed = false;
 
 	onCreate(): void {
 		this.registerDisposable(appServices.subscribe(this.handleChange));
 		this.registerDisposable(appShellStore.subscribe(this.handleChange));
 		this.ensurePlaybackSubscription();
+		this.ensurePreferencesSubscription();
 	}
 
 	onRender(): void {
@@ -49,8 +51,21 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 		this.registerDisposable(services.playbackStore.subscribe(this.handleChange));
 	}
 
+	private ensurePreferencesSubscription(): void {
+		if (this.preferencesSubscribed) {
+			return;
+		}
+		const services = appServices.get();
+		if (!services) {
+			return;
+		}
+		this.preferencesSubscribed = true;
+		this.registerDisposable(services.preferences.subscribe(this.handleChange));
+	}
+
 	private handleChange = (): void => {
 		this.ensurePlaybackSubscription();
+		this.ensurePreferencesSubscription();
 		this.setState({ revision: this.state.revision + 1 });
 	};
 
@@ -61,7 +76,7 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 
 		<AppHeader
 			activeFooterTab={appShellStore.activeFooterTab}
-			animationsEnabled={services.animationsEnabled}
+			animationsEnabled={services.preferences.animationsEnabled}
 			connectionMode={services.connectionMode}
 			onDetailSectionTap={appShellStore.handleDetailSectionTap}
 			onRequestModeChange={services.onRequestModeChange}
@@ -70,14 +85,14 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 			<ErrorBoundary resetKey={track.id}>
 				<NowPlayingSurface
 					album={album}
-					animationsEnabled={services.animationsEnabled}
+					animationsEnabled={services.preferences.animationsEnabled}
 					artistLogoUrl={artistLogoUrl}
 					barColors={services.barColors}
 					collapseSignal={appShellStore.nowPlayingCollapseSignal}
-					gridColumns={services.gridColumns}
+					gridColumns={services.preferences.gridColumns}
 					imageCache={services.imageCache}
 					isPlaying={isPlaying}
-					language={services.language}
+					language={services.preferences.language}
 					loopMode={loopMode}
 					modalSlot={services.modalSlot}
 					onAlbumTap={appShellStore.handleNowPlayingAlbumTap}

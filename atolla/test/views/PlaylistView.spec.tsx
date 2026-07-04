@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import { Preferences } from 'atolla/src/stores/Preferences';
 import { PlaylistView } from 'atolla/src/ui/views/PlaylistView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
@@ -27,6 +28,8 @@ const downloadService = {
 	subscribe: () => () => {},
 };
 
+const preferences = new Preferences({ fetchString: async () => '', storeString: async () => {} });
+
 describe('PlaylistView', () => {
 	valdiIt('renders track rows from state', async (driver) => {
 		const playlist = { id: 'playlist-1', name: 'Roadtrip' };
@@ -45,6 +48,7 @@ describe('PlaylistView', () => {
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist,
+				preferences,
 				transport,
 			},
 			{ navigator: mockNavigator },
@@ -77,6 +81,7 @@ describe('PlaylistView', () => {
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist,
+				preferences,
 				transport,
 			},
 			{ navigator: mockNavigator },

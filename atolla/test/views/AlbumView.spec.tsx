@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import { Preferences } from 'atolla/src/stores/Preferences';
 import { AlbumView } from 'atolla/src/ui/views/AlbumView';
 import { ArtistView } from 'atolla/src/ui/views/ArtistView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -23,6 +24,8 @@ const downloadService = {
 	removeAlbumDownload: () => {},
 	subscribe: () => () => {},
 };
+
+const preferences = new Preferences({ fetchString: async () => '', storeString: async () => {} });
 
 describe('AlbumView', () => {
 	valdiIt('renders track rows when tracks are present in state', async (driver) => {
@@ -50,7 +53,14 @@ describe('AlbumView', () => {
 
 		const component = driver.renderComponent(
 			AlbumView,
-			{ album, downloadService, onRootDetailControllerReady: () => {}, playbackStore, transport },
+			{
+				album,
+				downloadService,
+				onRootDetailControllerReady: () => {},
+				playbackStore,
+				preferences,
+				transport,
+			},
 			{ navigator: mockNavigator },
 		);
 
@@ -91,7 +101,14 @@ describe('AlbumView', () => {
 
 		const component = driver.renderComponent(
 			AlbumView,
-			{ album, downloadService, onRootDetailControllerReady: () => {}, playbackStore, transport },
+			{
+				album,
+				downloadService,
+				onRootDetailControllerReady: () => {},
+				playbackStore,
+				preferences,
+				transport,
+			},
 			{ navigator: mockNavigator },
 		);
 
@@ -127,7 +144,14 @@ describe('AlbumView', () => {
 
 		const component = driver.renderComponent(
 			AlbumView,
-			{ album, downloadService, onRootDetailControllerReady: () => {}, playbackStore, transport },
+			{
+				album,
+				downloadService,
+				onRootDetailControllerReady: () => {},
+				playbackStore,
+				preferences,
+				transport,
+			},
 			{ navigator: mockNavigator },
 		);
 
@@ -170,7 +194,14 @@ describe('AlbumView', () => {
 		};
 		const component = driver.renderComponent(
 			AlbumView,
-			{ album, downloadService, onRootDetailControllerReady: () => {}, playbackStore, transport },
+			{
+				album,
+				downloadService,
+				onRootDetailControllerReady: () => {},
+				playbackStore,
+				preferences,
+				transport,
+			},
 			{ navigator: trackingNavigator },
 		);
 		component.setState({
@@ -226,7 +257,14 @@ describe('AlbumView', () => {
 			};
 			const component = driver.renderComponent(
 				AlbumView,
-				{ album, downloadService, onRootDetailControllerReady: () => {}, playbackStore, transport },
+				{
+					album,
+					downloadService,
+					onRootDetailControllerReady: () => {},
+					playbackStore,
+					preferences,
+					transport,
+				},
 				{ navigator: trackingNavigator },
 			);
 
@@ -265,7 +303,14 @@ describe('AlbumView', () => {
 
 		const component = driver.renderComponent(
 			AlbumView,
-			{ album, downloadService, onRootDetailControllerReady: () => {}, playbackStore, transport },
+			{
+				album,
+				downloadService,
+				onRootDetailControllerReady: () => {},
+				playbackStore,
+				preferences,
+				transport,
+			},
 			{ navigator: mockNavigator },
 		);
 
@@ -305,7 +350,14 @@ describe('AlbumView', () => {
 
 		const component = driver.renderComponent(
 			AlbumView,
-			{ album, downloadService, onRootDetailControllerReady: () => {}, playbackStore, transport },
+			{
+				album,
+				downloadService,
+				onRootDetailControllerReady: () => {},
+				playbackStore,
+				preferences,
+				transport,
+			},
 			{ navigator: mockNavigator },
 		);
 
@@ -348,7 +400,14 @@ describe('AlbumView', () => {
 
 			const component = driver.renderComponent(
 				AlbumView,
-				{ album, downloadService, onRootDetailControllerReady: () => {}, playbackStore, transport },
+				{
+					album,
+					downloadService,
+					onRootDetailControllerReady: () => {},
+					playbackStore,
+					preferences,
+					transport,
+				},
 				{ navigator: mockNavigator },
 			);
 

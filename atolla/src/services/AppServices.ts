@@ -1,7 +1,7 @@
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { BarColorStore } from '../stores/BarColor';
 import type { PlaybackStore } from '../stores/Playback';
-import type { LanguageCode } from '../stores/Preferences';
+import type { Preferences } from '../stores/Preferences';
 import type { ConnectionMode } from '../transports/Model';
 import type { Transport } from '../transports/Transport';
 import type { ArtworkPaletteService } from './ArtworkPaletteService';
@@ -12,20 +12,18 @@ import type { PlaybackOrchestrator } from './PlaybackOrchestrator';
 import type { ToastService } from './ToastService';
 
 export interface AppServicesBag {
-	animationsEnabled: boolean;
 	barColors: BarColorStore;
 	connectionMode: ConnectionMode;
 	downloadingCount: number;
 	downloadService: DownloadService;
-	gridColumns: number;
 	imageCache: ImageCache;
-	language: LanguageCode;
 	modalSlot: DetachedSlot;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	paletteQueue: PaletteGenerationQueue;
 	paletteService: ArtworkPaletteService;
 	playbackOrchestrator: PlaybackOrchestrator;
 	playbackStore: PlaybackStore;
+	preferences: Preferences;
 	toastService: ToastService;
 	toastSlot: DetachedSlot;
 	transport: Transport;
@@ -70,11 +68,8 @@ export class AppServices {
 
 	private changed(previous: AppServicesBag, next: AppServicesBag): boolean {
 		return (
-			previous.animationsEnabled !== next.animationsEnabled ||
 			previous.connectionMode !== next.connectionMode ||
 			previous.downloadingCount !== next.downloadingCount ||
-			previous.gridColumns !== next.gridColumns ||
-			previous.language !== next.language ||
 			previous.transport !== next.transport
 		);
 	}

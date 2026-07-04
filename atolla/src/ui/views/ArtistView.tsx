@@ -18,6 +18,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { ToastService } from '../../services/ToastService';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/Async';
@@ -39,16 +40,15 @@ import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortArtistAlbums } from './sort/Albums';
 
 export interface ArtistViewModel {
-	animationsEnabled: boolean;
 	artist: Artist;
 	downloadService: DownloadService;
-	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
 }
@@ -59,6 +59,7 @@ interface ArtistState {
 	allTracks: Array<Track>;
 	contextMenuCard: CardContextMenuCard | null;
 	downloadState: DownloadState;
+	revision: number;
 	topTracks: Array<Track>;
 	topTracksLoaded: boolean;
 }
@@ -75,6 +76,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		allTracks: [],
 		contextMenuCard: null,
 		downloadState: 'not_downloaded',
+		revision: 0,
 		topTracks: [],
 		topTracksLoaded: false,
 	};
@@ -98,12 +100,14 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				this.syncDownloadState();
 			}),
 		);
+		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.syncDownloadState();
 		this.loadArtistData();
 	}
 
 	onRender(): void {
-		const { artist, animationsEnabled, imageCache, modalSlot } = this.viewModel;
+		const { artist, imageCache, modalSlot } = this.viewModel;
+		const { animationsEnabled } = this.viewModel.preferences;
 		const { albums, albumsLoaded, allTracks, downloadState, topTracks, topTracksLoaded } =
 			this.state;
 
@@ -164,7 +168,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 									<CardGrid
 										accessibilityId='artist-albums-grid'
 										cards={albumCards}
-										columnCount={this.viewModel.gridColumns}
+										columnCount={this.viewModel.preferences.gridColumns}
 										onCardLongPress={this.handleAlbumCardLongPress}
 										onCardTap={this.handleAlbumCardTap}
 									/>
@@ -175,7 +179,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 								<layout style={styles.section}>
 									<label style={styles.sectionHeader} value={Strings.artistSectionTopTracks()} />
 									<TrackList
-										animationsEnabled={this.viewModel.animationsEnabled}
+										animationsEnabled={this.viewModel.preferences.animationsEnabled}
 										imageCache={imageCache}
 										onTrackLongPress={this.handleTrackLongPress}
 										onTrackTap={this.handleTopTrackTap}
@@ -221,19 +225,22 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		}
 	}
 
+	private bump = (): void => {
+		this.setState({ revision: this.state.revision + 1 });
+	};
+
 	private closeModalSlot = (): void => {
 		closeSlot(this.viewModel.modalSlot);
 	};
 
 	private detailDeps(): DetailPushDeps {
 		return {
-			animationsEnabled: this.viewModel.animationsEnabled,
 			downloadService: this.viewModel.downloadService,
-			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
+			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		};
@@ -254,7 +261,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 		this.setState({ contextMenuCard: { album, kind: 'album' } });
 		this.contextMenuAlbumCard = card;
-		const { animationsEnabled, modalSlot, playbackStore, transport } = this.viewModel;
+		const { modalSlot, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled } = this.viewModel.preferences;
 		modalSlot.slotted(() => {
 			<CardContextMenu
 				animationsEnabled={animationsEnabled}
@@ -273,8 +281,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.modalSlot, () => {
 			<AddToPlaylistView
-				animationsEnabled={this.viewModel.animationsEnabled}
-				gridColumns={this.viewModel.gridColumns}
+				animationsEnabled={this.viewModel.preferences.animationsEnabled}
+				gridColumns={this.viewModel.preferences.gridColumns}
 				imageCache={this.viewModel.imageCache}
 				onDismiss={this.closeModalSlot}
 				toastService={this.viewModel.toastService}
@@ -289,7 +297,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.modalSlot, () => {
 			<CreatePlaylistModal
-				animationsEnabled={this.viewModel.animationsEnabled}
+				animationsEnabled={this.viewModel.preferences.animationsEnabled}
 				onCancel={this.closeModalSlot}
 				onCreate={this.handleAlbumContextMenuCreatePlaylistConfirm}
 			/>;
@@ -384,8 +392,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	};
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { animationsEnabled, gridColumns, imageCache, modalSlot, playbackStore, transport } =
-			this.viewModel;
+		const { imageCache, modalSlot, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const { albumId } = track;
 		openTrackContextMenu(track, modalSlot, {
 			animationsEnabled,

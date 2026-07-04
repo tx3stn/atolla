@@ -11,6 +11,7 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import { headerStore } from '../../stores/Header';
 import type { PlaybackStore } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import type { Transport } from '../../transports/Transport';
 import { AlbumView } from '../views/AlbumView';
 import { ArtistView } from '../views/ArtistView';
@@ -20,9 +21,7 @@ import { PlaylistView } from '../views/PlaylistView';
 // the services every detail push needs.
 // callers assemble this from their own view model so the push blocks live once.
 export interface DetailPushDeps {
-	animationsEnabled: boolean;
 	downloadService: DownloadService;
-	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -32,6 +31,7 @@ export interface DetailPushDeps {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlistEditService?: PlaylistEditService;
+	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
 }
@@ -47,20 +47,19 @@ export function pushAlbum(
 		AlbumView,
 		{
 			album,
-			animationsEnabled: deps.animationsEnabled,
 			downloadService: deps.downloadService,
-			gridColumns: deps.gridColumns,
 			imageCache: deps.imageCache,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
 			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
 			playbackStore: deps.playbackStore,
+			preferences: deps.preferences,
 			toastService: deps.toastService,
 			transport: deps.transport,
 		},
 		{},
-		{ animated: deps.animationsEnabled },
+		{ animated: deps.preferences.animationsEnabled },
 	);
 	headerStore.setVisible(true);
 }
@@ -73,21 +72,20 @@ export function pushArtist(
 	controller.push(
 		ArtistView,
 		{
-			animationsEnabled: deps.animationsEnabled,
 			artist,
 			downloadService: deps.downloadService,
-			gridColumns: deps.gridColumns,
 			imageCache: deps.imageCache,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
 			onNavigationControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
 			playbackStore: deps.playbackStore,
+			preferences: deps.preferences,
 			toastService: deps.toastService,
 			transport: deps.transport,
 		},
 		{},
-		{ animated: deps.animationsEnabled },
+		{ animated: deps.preferences.animationsEnabled },
 	);
 	headerStore.setVisible(true);
 }
@@ -100,9 +98,7 @@ export function pushPlaylist(
 	controller.push(
 		PlaylistView,
 		{
-			animationsEnabled: deps.animationsEnabled,
 			downloadService: deps.downloadService,
-			gridColumns: deps.gridColumns,
 			imageCache: deps.imageCache,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
@@ -112,11 +108,12 @@ export function pushPlaylist(
 			playbackStore: deps.playbackStore,
 			playlist,
 			playlistEditService: deps.playlistEditService,
+			preferences: deps.preferences,
 			toastService: deps.toastService,
 			transport: deps.transport,
 		},
 		{},
-		{ animated: deps.animationsEnabled },
+		{ animated: deps.preferences.animationsEnabled },
 	);
 	headerStore.setVisible(true);
 }
@@ -129,10 +126,8 @@ export function pushGenre(
 	controller.push(
 		GenreView,
 		{
-			animationsEnabled: deps.animationsEnabled,
 			downloadService: deps.downloadService,
 			genre,
-			gridColumns: deps.gridColumns,
 			imageCache: deps.imageCache,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
@@ -140,11 +135,12 @@ export function pushGenre(
 			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
 			playbackStore: deps.playbackStore,
+			preferences: deps.preferences,
 			toastService: deps.toastService,
 			transport: deps.transport,
 		},
 		{},
-		{ animated: deps.animationsEnabled },
+		{ animated: deps.preferences.animationsEnabled },
 	);
 	headerStore.setVisible(true);
 }

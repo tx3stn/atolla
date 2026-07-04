@@ -6,20 +6,18 @@ const stub = {} as unknown;
 
 function makeBag(overrides: Partial<AppServicesBag> = {}): AppServicesBag {
 	return {
-		animationsEnabled: true,
 		barColors: stub as AppServicesBag['barColors'],
 		connectionMode: ConnectionModes.online,
 		downloadingCount: 0,
 		downloadService: stub as AppServicesBag['downloadService'],
-		gridColumns: 3,
 		imageCache: stub as AppServicesBag['imageCache'],
-		language: 'en',
 		modalSlot: stub as AppServicesBag['modalSlot'],
 		onRequestModeChange: async () => true,
 		paletteQueue: stub as AppServicesBag['paletteQueue'],
 		paletteService: stub as AppServicesBag['paletteService'],
 		playbackOrchestrator: stub as AppServicesBag['playbackOrchestrator'],
 		playbackStore: stub as AppServicesBag['playbackStore'],
+		preferences: stub as AppServicesBag['preferences'],
 		toastService: stub as AppServicesBag['toastService'],
 		toastSlot: stub as AppServicesBag['toastSlot'],
 		transport: stub as AppServicesBag['transport'],

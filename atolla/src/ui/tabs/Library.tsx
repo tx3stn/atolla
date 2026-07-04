@@ -14,6 +14,7 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import { headerStore } from '../../stores/Header';
 import type { PlaybackStore } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { type DetailPushDeps, pushArtist } from '../flows/PushDetail';
@@ -23,16 +24,15 @@ import { GenresView } from '../views/GenresView';
 import { PlaylistsView } from '../views/PlaylistsView';
 
 export interface LibraryViewModel {
-	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
-	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	paletteQueue: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlistEditService: PlaylistEditService;
+	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
 }
@@ -67,9 +67,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 
 						if (tab === HeaderTabs.artists) {
 							<ArtistsView
-								animationsEnabled={this.viewModel.animationsEnabled}
 								downloadService={this.viewModel.downloadService}
-								gridColumns={this.viewModel.gridColumns}
 								imageCache={this.viewModel.imageCache}
 								isOfflineMode={isOfflineMode}
 								letterFilter={this.state.letterFilter}
@@ -78,14 +76,13 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 								onRootDetailControllerReady={this.setRootDetailController}
 								paletteQueue={this.viewModel.paletteQueue}
 								playbackStore={this.viewModel.playbackStore}
+								preferences={this.viewModel.preferences}
 								toastService={this.viewModel.toastService}
 								transport={this.viewModel.transport}
 							/>;
 						} else if (tab === HeaderTabs.albums) {
 							<AlbumsView
-								animationsEnabled={this.viewModel.animationsEnabled}
 								downloadService={this.viewModel.downloadService}
-								gridColumns={this.viewModel.gridColumns}
 								imageCache={this.viewModel.imageCache}
 								isOfflineMode={isOfflineMode}
 								letterFilter={this.state.letterFilter}
@@ -94,14 +91,13 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 								onRootDetailControllerReady={this.setRootDetailController}
 								paletteQueue={this.viewModel.paletteQueue}
 								playbackStore={this.viewModel.playbackStore}
+								preferences={this.viewModel.preferences}
 								toastService={this.viewModel.toastService}
 								transport={this.viewModel.transport}
 							/>;
 						} else if (tab === HeaderTabs.playlists) {
 							<PlaylistsView
-								animationsEnabled={this.viewModel.animationsEnabled}
 								downloadService={this.viewModel.downloadService}
-								gridColumns={this.viewModel.gridColumns}
 								imageCache={this.viewModel.imageCache}
 								letterFilter={this.state.letterFilter}
 								modalSlot={this.viewModel.modalSlot}
@@ -110,20 +106,20 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 								paletteQueue={this.viewModel.paletteQueue}
 								playbackStore={this.viewModel.playbackStore}
 								playlistEditService={this.viewModel.playlistEditService}
+								preferences={this.viewModel.preferences}
 								toastService={this.viewModel.toastService}
 								transport={this.viewModel.transport}
 							/>;
 						} else {
 							<GenresView
-								animationsEnabled={this.viewModel.animationsEnabled}
 								downloadService={this.viewModel.downloadService}
-								gridColumns={this.viewModel.gridColumns}
 								imageCache={this.viewModel.imageCache}
 								letterFilter={this.state.letterFilter}
 								modalSlot={this.viewModel.modalSlot}
 								navigationController={navigationController}
 								onRootDetailControllerReady={this.setRootDetailController}
 								playbackStore={this.viewModel.playbackStore}
+								preferences={this.viewModel.preferences}
 								toastService={this.viewModel.toastService}
 								transport={this.viewModel.transport}
 							/>;
@@ -179,9 +175,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 	// replace the tab's first detail.
 	private detailDeps(recordAsFirstDetail = true): DetailPushDeps {
 		return {
-			animationsEnabled: this.viewModel.animationsEnabled,
 			downloadService: this.viewModel.downloadService,
-			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			onNavigateToArtist: this.handlePlaylistArtistTap,
@@ -189,6 +183,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
 			playlistEditService: this.viewModel.playlistEditService,
+			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		};

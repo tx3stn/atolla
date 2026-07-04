@@ -313,20 +313,18 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		}
 
 		appServices.set({
-			animationsEnabled: this.preferences.animationsEnabled,
 			barColors: this.barColors,
 			connectionMode: this.state.connectionMode,
 			downloadingCount: this.state.downloadingCount,
 			downloadService: this.downloadService,
-			gridColumns: this.preferences.gridColumns,
 			imageCache: this.imageCache,
-			language: this.preferences.language,
 			modalSlot: this.modalSlot,
 			onRequestModeChange: this.handleRequestModeChange,
 			paletteQueue: this.userScope.getPaletteQueue(),
 			paletteService: this.userScope.getPaletteService(),
 			playbackOrchestrator: this.playbackOrchestrator,
 			playbackStore: this.playbackStore,
+			preferences: this.preferences,
 			toastService: this.toastService,
 			toastSlot: this.toastSlot,
 			transport: this.connectivity.getTransport(),
@@ -386,15 +384,14 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 
 	private buildHomeViewModel() {
 		return {
-			animationsEnabled: this.preferences.animationsEnabled,
 			connectionMode: this.state.connectionMode,
 			downloadService: this.downloadService,
-			gridColumns: this.preferences.gridColumns,
 			imageCache: this.imageCache,
 			modalSlot: this.modalSlot,
 			onThisDayService: this.userScope.getOnThisDayService(),
 			paletteQueue: this.userScope.getPaletteQueue(),
 			playbackStore: this.playbackStore,
+			preferences: this.preferences,
 			recentlyAddedService: this.userScope.getRecentlyAddedService(),
 			recentlyPlayedTracks: this.playbackOrchestrator.getRecentlyPlayedTracks(),
 			toastService: this.toastService,
@@ -404,15 +401,14 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 
 	private buildLibraryViewModel() {
 		return {
-			animationsEnabled: this.preferences.animationsEnabled,
 			connectionMode: this.state.connectionMode,
 			downloadService: this.downloadService,
-			gridColumns: this.preferences.gridColumns,
 			imageCache: this.imageCache,
 			modalSlot: this.modalSlot,
 			paletteQueue: this.userScope.getPaletteQueue(),
 			playbackStore: this.playbackStore,
 			playlistEditService: this.playlistEditService,
+			preferences: this.preferences,
 			toastService: this.toastService,
 			transport: this.connectivity.getTransport(),
 		};
@@ -420,15 +416,14 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 
 	private buildSearchViewModel() {
 		return {
-			animationsEnabled: this.preferences.animationsEnabled,
 			downloadService: this.downloadService,
 			focusSignal: 0,
-			gridColumns: this.preferences.gridColumns,
 			imageCache: this.imageCache,
 			modalSlot: this.modalSlot,
 			paletteQueue: this.userScope.getPaletteQueue(),
 			playbackStore: this.playbackStore,
 			playlistEditService: this.playlistEditService,
+			preferences: this.preferences,
 			searchStore: this.userScope.getSearchStore(),
 			toastService: this.toastService,
 			transport: this.connectivity.getTransport(),
@@ -474,8 +469,8 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	}
 
 	private handleLanguageChange(code: LanguageCode): void {
-		void this.preferences.setLanguage(code);
 		overrideLocales(Strings, () => [new Locale(code, undefined)]);
+		void this.preferences.setLanguage(code);
 		this.requestRerender();
 	}
 

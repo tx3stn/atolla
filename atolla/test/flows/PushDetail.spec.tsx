@@ -20,7 +20,7 @@ describe('PushDetail', () => {
 
 	it('reveals the collapsible header on every detail push', () => {
 		const controller = { push: jasmine.createSpy('push') } as unknown as NavigationController;
-		const deps = {} as unknown as DetailPushDeps;
+		const deps = { preferences: { animationsEnabled: false } } as unknown as DetailPushDeps;
 
 		headerStore.setVisible(false);
 		pushAlbum(controller, deps, {} as unknown as Album);

@@ -18,6 +18,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { ToastService } from '../../services/ToastService';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/Async';
@@ -36,15 +37,14 @@ import { openTrackContextMenu } from '../flows/TrackContextMenu';
 
 export interface AlbumViewModel {
 	album: Album;
-	animationsEnabled: boolean;
 	downloadService: DownloadService;
-	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
 }
@@ -55,6 +55,7 @@ interface AlbumState {
 	downloadState: DownloadState;
 	fullAlbum: Album | null;
 	isLoading: boolean;
+	revision: number;
 	tracks: Array<Track>;
 }
 
@@ -68,6 +69,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		downloadState: 'not_downloaded',
 		fullAlbum: null,
 		isLoading: true,
+		revision: 0,
 		tracks: [],
 	};
 
@@ -90,13 +92,15 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				this.syncDownloadState();
 			}),
 		);
+		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.syncDownloadState();
 		this.loadAlbumData();
 	}
 
 	onRender(): void {
 		const { artistLogoUrl, downloadState, fullAlbum, isLoading, tracks } = this.state;
-		const { album: partialAlbum, animationsEnabled, imageCache, modalSlot } = this.viewModel;
+		const { album: partialAlbum, imageCache, modalSlot } = this.viewModel;
+		const { animationsEnabled } = this.viewModel.preferences;
 		const album = fullAlbum ?? partialAlbum;
 		const albumGenres = normalizeGenres(album.genres);
 
@@ -224,6 +228,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.viewModel.playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 	};
 
+	private bump = (): void => {
+		this.setState({ revision: this.state.revision + 1 });
+	};
+
 	private handleDownloadTap = (): void => {
 		const { album, downloadService, transport } = this.viewModel;
 		const tracks = this.state.tracks
@@ -278,13 +286,12 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 	private detailDeps(): DetailPushDeps {
 		return {
-			animationsEnabled: this.viewModel.animationsEnabled,
 			downloadService: this.viewModel.downloadService,
-			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
+			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		};
@@ -295,7 +302,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { animationsEnabled, gridColumns, imageCache, playbackStore, transport } = this.viewModel;
+		const { imageCache, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 
 		openTrackContextMenu(track, this.viewModel.modalSlot, {
 			animationsEnabled,

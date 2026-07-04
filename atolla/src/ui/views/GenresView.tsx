@@ -11,6 +11,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
@@ -23,9 +24,7 @@ import { createPagedGridController, gridPaginationConfig } from '../pagination/G
 import { AddToPlaylistView } from './AddToPlaylistView';
 
 interface GenresViewModel {
-	animationsEnabled: boolean;
 	downloadService: DownloadService;
-	gridColumns: number;
 	imageCache: ImageCache;
 	letterFilter?: string | null;
 	modalSlot: DetachedSlot;
@@ -33,6 +32,7 @@ interface GenresViewModel {
 	onNavigateToArtist?: (artistId: string) => void;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	playbackStore: PlaybackStore;
+	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
 }
@@ -46,6 +46,7 @@ interface GenresState {
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
+	revision: number;
 }
 
 export class GenresView extends StatefulComponent<GenresViewModel, GenresState> {
@@ -60,14 +61,17 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
+		revision: 0,
 	};
 
 	onCreate(): void {
+		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		void this.loadInitialPages();
 	}
 
 	onRender(): void {
-		const { animationsEnabled, imageCache, toastService, transport } = this.viewModel;
+		const { imageCache, toastService, transport } = this.viewModel;
+		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
 		let genres = this.state.genres;
 		if (this.viewModel.letterFilter) {
@@ -92,7 +96,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 				<CardGrid
 					accessibilityId='library-genres-grid'
 					cards={cards}
-					columnCount={this.viewModel.gridColumns}
+					columnCount={gridColumns}
 					infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 					isLoadingMore={this.state.isLoadingNextPage}
 					onCardLongPress={this.handleGenreCardLongPress}
@@ -107,7 +111,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			{addToPlaylistTracks && (
 				<AddToPlaylistView
 					animationsEnabled={animationsEnabled}
-					gridColumns={this.viewModel.gridColumns}
+					gridColumns={this.viewModel.preferences.gridColumns}
 					imageCache={imageCache}
 					onDismiss={this.handleAddToPlaylistDismiss}
 					toastService={toastService}
@@ -124,6 +128,10 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			)}
 		</view>;
 	}
+
+	private bump = (): void => {
+		this.setState({ revision: this.state.revision + 1 });
+	};
 
 	private handleAddToPlaylistDismiss = (): void => {
 		this.setState({ addToPlaylistTracks: null });
@@ -186,7 +194,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		if (!genre) return;
 		this.setState({ contextMenuCard: { genre, kind: 'genre' } });
 		openCardContextMenu(this.viewModel.modalSlot, {
-			animationsEnabled: this.viewModel.animationsEnabled,
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card: { genre, kind: 'genre' },
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onCreatePlaylist: this.handleCreatePlaylistRequest,
@@ -237,14 +245,13 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 
 	private detailDeps(): DetailPushDeps {
 		return {
-			animationsEnabled: this.viewModel.animationsEnabled,
 			downloadService: this.viewModel.downloadService,
-			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
 			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			playbackStore: this.viewModel.playbackStore,
+			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		};

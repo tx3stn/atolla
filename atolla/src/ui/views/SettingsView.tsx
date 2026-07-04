@@ -477,8 +477,8 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 	};
 
 	private handleLanguageSelect = (code: LanguageCode): void => {
-		void this.viewModel.preferences.setLanguage(code);
 		overrideLocales(Strings, () => [new Locale(code, undefined)]);
+		void this.viewModel.preferences.setLanguage(code);
 		closeSlot(this.viewModel.modalSlot);
 	};
 

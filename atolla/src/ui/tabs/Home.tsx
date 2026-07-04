@@ -15,22 +15,22 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import type { ConnectionMode } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { type DetailPushDeps, pushAlbum, pushArtist, pushPlaylist } from '../flows/PushDetail';
 import { HomeView } from '../views/HomeView';
 
 export interface HomeTabViewModel {
-	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
-	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	onThisDayService?: OnThisDayService;
 	paletteQueue: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	preferences: Preferences;
 	recentlyAddedService?: RecentlyAddedService;
 	recentlyPlayedTracks: Array<Track>;
 	toastService: ToastService;
@@ -48,9 +48,7 @@ export class HomeTab extends Component<HomeTabViewModel> {
 					this.viewModel.onNavigationControllerReady(navigationController);
 
 					<HomeView
-						animationsEnabled={this.viewModel.animationsEnabled}
 						connectionMode={this.viewModel.connectionMode}
-						gridColumns={this.viewModel.gridColumns}
 						imageCache={this.viewModel.imageCache}
 						modalSlot={this.viewModel.modalSlot}
 						onNavigateToArtist={this.handleArtistTap}
@@ -58,6 +56,7 @@ export class HomeTab extends Component<HomeTabViewModel> {
 						onOpenPlaylist={this.handleOpenPlaylist}
 						onThisDayService={this.viewModel.onThisDayService}
 						playbackStore={this.viewModel.playbackStore}
+						preferences={this.viewModel.preferences}
 						recentlyAddedService={this.viewModel.recentlyAddedService}
 						recentlyPlayedTracks={this.viewModel.recentlyPlayedTracks}
 						toastService={this.viewModel.toastService}
@@ -70,14 +69,13 @@ export class HomeTab extends Component<HomeTabViewModel> {
 
 	private detailDeps(): DetailPushDeps {
 		return {
-			animationsEnabled: this.viewModel.animationsEnabled,
 			downloadService: this.viewModel.downloadService,
-			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			onNavigateToArtist: this.handleArtistTap,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
+			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		};

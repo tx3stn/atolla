@@ -21,11 +21,11 @@ import { type ConnectionMode, ConnectionModes } from './transports/Model';
 import { ErrorBoundary } from './ui/components/ErrorBoundary';
 import { GaplessPlayer } from './ui/components/GaplessPlayer';
 import { MockPlayer } from './ui/components/MockPlayer';
-import { OverlayHost } from './ui/components/OverlayHost';
 import { HomeTab, type HomeTabViewModel } from './ui/tabs/Home';
 import { LibraryView, type LibraryViewModel } from './ui/tabs/Library';
 import { SearchTab } from './ui/tabs/Search';
 import { SettingsTab } from './ui/tabs/Settings';
+import { OverlayHost } from './ui/views/OverlayHost';
 import type { SearchViewModel } from './ui/views/SearchView';
 
 export interface AuthedAppViewModel {
@@ -56,16 +56,9 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 		this.registerDisposable(
 			appShellStore.subscribe(() => this.setState({ revision: this.state.revision + 1 })),
 		);
+		this.registerDisposable(this.viewModel.preferences.subscribe(this.publishTitleHeaders));
 		backNavRouter.setActiveTab(appShellStore.activeFooterTab);
-		headerStore.setDescriptor(FooterTabs.home, { kind: 'title', title: Strings.homeTitle() });
-		headerStore.setDescriptor(FooterTabs.settings, {
-			kind: 'title',
-			title: Strings.settingsTitle(),
-		});
-		headerStore.setDescriptor(FooterTabs.search, {
-			kind: 'title',
-			title: Strings.searchTitle(),
-		});
+		this.publishTitleHeaders();
 	}
 
 	onDestroy(): void {
@@ -100,16 +93,15 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 				<view style={this.tabStyle(FooterTabs.home)}>
 					<ErrorBoundary resetKey='home'>
 						<HomeTab
-							animationsEnabled={home.animationsEnabled}
 							connectionMode={home.connectionMode}
 							downloadService={home.downloadService}
-							gridColumns={home.gridColumns}
 							imageCache={home.imageCache}
 							modalSlot={home.modalSlot}
 							onNavigationControllerReady={this.captureHomeController}
 							onThisDayService={home.onThisDayService}
 							paletteQueue={home.paletteQueue}
 							playbackStore={home.playbackStore}
+							preferences={home.preferences}
 							recentlyAddedService={home.recentlyAddedService}
 							recentlyPlayedTracks={home.recentlyPlayedTracks}
 							toastService={home.toastService}
@@ -121,16 +113,15 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 				<view style={this.tabStyle(FooterTabs.library)}>
 					<ErrorBoundary resetKey='library'>
 						<LibraryView
-							animationsEnabled={library.animationsEnabled}
 							connectionMode={library.connectionMode}
 							downloadService={library.downloadService}
-							gridColumns={library.gridColumns}
 							imageCache={library.imageCache}
 							modalSlot={library.modalSlot}
 							onNavigationControllerReady={this.captureLibraryController}
 							paletteQueue={library.paletteQueue}
 							playbackStore={library.playbackStore}
 							playlistEditService={library.playlistEditService}
+							preferences={library.preferences}
 							toastService={library.toastService}
 							transport={library.transport}
 						/>
@@ -201,6 +192,18 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 	}
 
 	private handleAndroidBack = (): boolean => backNavRouter.goBack();
+
+	private publishTitleHeaders = (): void => {
+		headerStore.setDescriptor(FooterTabs.home, { kind: 'title', title: Strings.homeTitle() });
+		headerStore.setDescriptor(FooterTabs.settings, {
+			kind: 'title',
+			title: Strings.settingsTitle(),
+		});
+		headerStore.setDescriptor(FooterTabs.search, {
+			kind: 'title',
+			title: Strings.searchTitle(),
+		});
+	};
 
 	private tabStyle(tab: FooterTab): Style<View> {
 		return appShellStore.activeFooterTab === tab ? styles.tabVisible : styles.tabHidden;

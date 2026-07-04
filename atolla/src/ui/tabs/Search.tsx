@@ -27,10 +27,8 @@ export class SearchTab extends Component<SearchTabViewModel> {
 					this.rootController = navigationController;
 					this.viewModel.onNavigationControllerReady(navigationController);
 					<SearchView
-						animationsEnabled={search.animationsEnabled}
 						downloadService={search.downloadService}
 						focusSignal={search.focusSignal}
-						gridColumns={search.gridColumns}
 						imageCache={search.imageCache}
 						modalSlot={search.modalSlot}
 						navigationController={navigationController}
@@ -38,6 +36,7 @@ export class SearchTab extends Component<SearchTabViewModel> {
 						paletteQueue={search.paletteQueue}
 						playbackStore={search.playbackStore}
 						playlistEditService={search.playlistEditService}
+						preferences={search.preferences}
 						searchStore={search.searchStore}
 						toastService={search.toastService}
 						transport={search.transport}
@@ -50,15 +49,14 @@ export class SearchTab extends Component<SearchTabViewModel> {
 	private detailDeps(): DetailPushDeps {
 		const search = this.viewModel.search;
 		return {
-			animationsEnabled: search.animationsEnabled,
 			downloadService: search.downloadService,
-			gridColumns: search.gridColumns,
 			imageCache: search.imageCache,
 			modalSlot: search.modalSlot,
 			onNavigateToArtist: this.handleArtistById,
 			paletteQueue: search.paletteQueue,
 			playbackStore: search.playbackStore,
 			playlistEditService: search.playlistEditService,
+			preferences: search.preferences,
 			toastService: search.toastService,
 			transport: search.transport,
 		};

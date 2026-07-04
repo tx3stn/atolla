@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import { HeaderTabs } from 'atolla/src/models/App';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
+import { Preferences } from 'atolla/src/stores/Preferences';
 import { ConnectionModes } from 'atolla/src/transports/Model';
 import { LibraryView } from 'atolla/src/ui/tabs/Library';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
@@ -28,15 +29,18 @@ async function flushAsyncWork() {
 	await Promise.resolve();
 }
 
+function makePreferences(): Preferences {
+	return new Preferences({ fetchString: async () => '', storeString: async () => {} });
+}
+
 function makeViewModel() {
 	return {
-		animationsEnabled: false,
 		connectionMode: ConnectionModes.online,
 		downloadService: stubDownloadService,
-		gridColumns: 3,
 		imageCache: stubImageCache,
 		onNavigationControllerReady: () => {},
 		playbackStore: new PlaybackStore(),
+		preferences: makePreferences(),
 		toastService: { show: () => {} },
 		transport: stubTransport,
 	};

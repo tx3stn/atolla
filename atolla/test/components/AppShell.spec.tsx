@@ -18,14 +18,11 @@ function fakeController(): NavigationController {
 function setServices(overrides: Partial<AppServicesBag> = {}): void {
 	const stub = {} as unknown;
 	appServices.set({
-		animationsEnabled: false,
 		barColors: stub as AppServicesBag['barColors'],
 		connectionMode: 'online',
 		downloadingCount: 0,
 		downloadService: stub as AppServicesBag['downloadService'],
-		gridColumns: 3,
 		imageCache: stub as AppServicesBag['imageCache'],
-		language: 'en',
 		modalSlot: stub as AppServicesBag['modalSlot'],
 		onRequestModeChange: async () => true,
 		paletteQueue: stub as AppServicesBag['paletteQueue'],
@@ -36,6 +33,7 @@ function setServices(overrides: Partial<AppServicesBag> = {}): void {
 			artistLogoUrl: null,
 			track: null,
 		} as unknown as AppServicesBag['playbackStore'],
+		preferences: stub as AppServicesBag['preferences'],
 		toastService: stub as AppServicesBag['toastService'],
 		toastSlot: stub as AppServicesBag['toastSlot'],
 		transport: { getArtist: () => Promise.resolve(null) } as unknown as AppServicesBag['transport'],

@@ -1,5 +1,6 @@
 import 'jasmine/src/jasmine';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
+import { Preferences } from 'atolla/src/stores/Preferences';
 import { AlbumView } from 'atolla/src/ui/views/AlbumView';
 import { ArtistView } from 'atolla/src/ui/views/ArtistView';
 import { PlaylistView } from 'atolla/src/ui/views/PlaylistView';
@@ -19,6 +20,10 @@ const stubImageCache = {
 
 function flushAsyncWork(): Promise<void> {
 	return Promise.resolve().then(() => Promise.resolve());
+}
+
+function makePreferences(): Preferences {
+	return new Preferences({ fetchString: async () => '', storeString: async () => {} });
 }
 
 function makeSearchStore(initialRecent: Array<string> = []) {
@@ -50,11 +55,10 @@ function makeNavigationController() {
 describe('SearchView', () => {
 	valdiIt('starts with an empty query', async (driver) => {
 		const viewModel = {
-			animationsEnabled: true,
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			searchStore: makeSearchStore(),
 			transport: {
 				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
@@ -67,11 +71,10 @@ describe('SearchView', () => {
 
 	valdiIt('updates query state when textfield changes', async (driver) => {
 		const viewModel = {
-			animationsEnabled: true,
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			searchStore: makeSearchStore(),
 			transport: {
 				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
@@ -91,11 +94,10 @@ describe('SearchView', () => {
 	valdiIt('does not search when submit is empty and clears results', async (driver) => {
 		let calls = 0;
 		const viewModel = {
-			animationsEnabled: true,
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			searchStore: makeSearchStore(),
 			transport: {
 				search: () => {
@@ -129,11 +131,10 @@ describe('SearchView', () => {
 	valdiIt('submits search and stores recent terms', async () => {
 		const searchCalls: Array<string> = [];
 		const viewModel = {
-			animationsEnabled: true,
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			searchStore: makeSearchStore(),
 			transport: {
 				search: (query: string) => {
@@ -167,11 +168,10 @@ describe('SearchView', () => {
 	valdiIt('submits search from keyboard return', async () => {
 		const searchCalls: Array<string> = [];
 		const viewModel = {
-			animationsEnabled: true,
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			searchStore: makeSearchStore(),
 			transport: {
 				search: (query: string) => {
@@ -200,11 +200,10 @@ describe('SearchView', () => {
 	valdiIt('accepts event-shaped submit payloads', async () => {
 		const searchCalls: Array<string> = [];
 		const viewModel = {
-			animationsEnabled: true,
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			searchStore: makeSearchStore(),
 			transport: {
 				search: (query: string) => {
@@ -229,11 +228,10 @@ describe('SearchView', () => {
 	valdiIt('opens artist/album/playlist views from tapped cards', async (driver) => {
 		const navigationController = makeNavigationController();
 		const viewModel = {
-			animationsEnabled: true,
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController,
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			searchStore: makeSearchStore(),
 			transport: {
 				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
@@ -266,12 +264,11 @@ describe('SearchView', () => {
 		async (driver) => {
 			const routed: Array<{ kind: string }> = [];
 			const viewModel = {
-				animationsEnabled: true,
-				gridColumns: 3,
 				imageCache: stubImageCache,
 				navigationController: makeNavigationController(),
 				onNavigateToLibraryResult: (target: { kind: string }) => routed.push(target),
 				playbackStore: new PlaybackStore(),
+				preferences: makePreferences(),
 				searchStore: makeSearchStore(),
 				transport: {
 					search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
@@ -302,11 +299,10 @@ describe('SearchView', () => {
 	valdiIt('plays only the tapped track from track list results', async (driver) => {
 		const playbackStore = new PlaybackStore();
 		const viewModel = {
-			animationsEnabled: true,
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
+			preferences: makePreferences(),
 			searchStore: makeSearchStore(),
 			transport: {
 				getArtistLogoUrl: () => Promise.resolve(null),
@@ -336,11 +332,10 @@ describe('SearchView', () => {
 
 	valdiIt('renders search bar with accessibility labels', async (driver) => {
 		const viewModel = {
-			animationsEnabled: true,
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			searchStore: makeSearchStore(),
 			transport: {
 				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),

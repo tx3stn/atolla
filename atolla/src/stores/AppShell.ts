@@ -161,14 +161,13 @@ export class AppShellStore {
 			return undefined;
 		}
 		return {
-			animationsEnabled: services.animationsEnabled,
 			downloadService: services.downloadService,
-			gridColumns: services.gridColumns,
 			imageCache: services.imageCache,
 			modalSlot: services.modalSlot,
 			onNavigateToArtist: this.handleDetailArtistTap,
 			paletteQueue: services.paletteQueue,
 			playbackStore: services.playbackStore,
+			preferences: services.preferences,
 			toastService: services.toastService,
 			transport: services.transport,
 		};

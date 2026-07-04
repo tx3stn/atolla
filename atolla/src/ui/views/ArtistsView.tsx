@@ -12,6 +12,7 @@ import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
@@ -26,9 +27,7 @@ import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortArtists } from './sort/Artists';
 
 export interface ArtistsViewModel {
-	animationsEnabled: boolean;
 	downloadService: DownloadService;
-	gridColumns: number;
 	imageCache: ImageCache;
 	isOfflineMode: boolean;
 	letterFilter?: string | null;
@@ -37,6 +36,7 @@ export interface ArtistsViewModel {
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	preferences: Preferences;
 	sortOrder?: SortOrder;
 	toastService: ToastService;
 	transport: Transport;
@@ -51,6 +51,7 @@ interface ArtistsState {
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
 	page: number;
+	revision: number;
 }
 
 interface ArtistPageResult {
@@ -68,14 +69,17 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		isLoadingNextPage: false,
 		nextPageFailed: false,
 		page: 0,
+		revision: 0,
 	};
 
 	onCreate(): void {
+		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		void this.loadInitialPages();
 	}
 
 	onRender(): void {
-		const { imageCache, animationsEnabled, toastService, transport } = this.viewModel;
+		const { imageCache, toastService, transport } = this.viewModel;
+		const { animationsEnabled } = this.viewModel.preferences;
 		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
 
 		const artists = this.getDisplayArtists();
@@ -92,7 +96,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 				<CardGrid
 					accessibilityId='library-artists-grid'
 					cards={cards}
-					columnCount={this.viewModel.gridColumns}
+					columnCount={this.viewModel.preferences.gridColumns}
 					infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 					isLoadingMore={this.state.isLoadingNextPage}
 					onCardLongPress={this.handleArtistCardLongPress}
@@ -105,7 +109,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			{addToPlaylistTracks && (
 				<AddToPlaylistView
 					animationsEnabled={animationsEnabled}
-					gridColumns={this.viewModel.gridColumns}
+					gridColumns={this.viewModel.preferences.gridColumns}
 					imageCache={imageCache}
 					onDismiss={this.handleAddToPlaylistDismiss}
 					toastService={toastService}
@@ -154,7 +158,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		if (!artist) return;
 		this.setState({ contextMenuCard: { artist, kind: 'artist' } });
 		openCardContextMenu(this.viewModel.modalSlot, {
-			animationsEnabled: this.viewModel.animationsEnabled,
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card: { artist, kind: 'artist' },
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onArtistTap: this.handleContextMenuArtistTap,
@@ -272,16 +276,19 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		}
 	};
 
+	private bump = (): void => {
+		this.setState({ revision: this.state.revision + 1 });
+	};
+
 	private detailDeps(): DetailPushDeps {
 		return {
-			animationsEnabled: this.viewModel.animationsEnabled,
 			downloadService: this.viewModel.downloadService,
-			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
+			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		};

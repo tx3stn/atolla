@@ -13,6 +13,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
@@ -27,9 +28,7 @@ import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortPlaylists } from './sort/Playlists';
 
 export interface PlaylistsViewModel {
-	animationsEnabled: boolean;
 	downloadService: DownloadService;
-	gridColumns: number;
 	imageCache: ImageCache;
 	letterFilter?: string | null;
 	modalSlot: DetachedSlot;
@@ -39,6 +38,7 @@ export interface PlaylistsViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	playlistEditService: PlaylistEditService;
+	preferences: Preferences;
 	sortOrder?: SortOrder;
 	toastService: ToastService;
 	transport: Transport;
@@ -53,6 +53,7 @@ interface PlaylistsState {
 	nextPageFailed: boolean;
 	page: number;
 	playlists: Array<Playlist>;
+	revision: number;
 }
 
 interface PlaylistPageResult {
@@ -72,9 +73,11 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		nextPageFailed: false,
 		page: 0,
 		playlists: [],
+		revision: 0,
 	};
 
 	onCreate(): void {
+		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		void this.loadInitialPages();
 	}
 
@@ -106,7 +109,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 		this.setState({ contextMenuCard: { kind: 'playlist', playlist } });
 		openCardContextMenu(this.viewModel.modalSlot, {
-			animationsEnabled: this.viewModel.animationsEnabled,
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card: { kind: 'playlist', playlist },
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onCreatePlaylist: this.handleCreatePlaylistRequest,
@@ -131,6 +134,10 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			});
 		},
 	});
+
+	private bump = (): void => {
+		this.setState({ revision: this.state.revision + 1 });
+	};
 
 	private async loadInitialPages(): Promise<void> {
 		await this.pagedGridController.loadNextPage();
@@ -185,9 +192,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 	private detailDeps(): DetailPushDeps {
 		return {
-			animationsEnabled: this.viewModel.animationsEnabled,
 			downloadService: this.viewModel.downloadService,
-			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
@@ -195,6 +200,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
 			playlistEditService: this.viewModel.playlistEditService,
+			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		};
@@ -248,7 +254,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	};
 
 	onRender(): void {
-		const { animationsEnabled, imageCache, toastService, transport } = this.viewModel;
 		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
 
 		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
@@ -270,7 +275,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 				<CardGrid
 					accessibilityId='library-playlists-grid'
 					cards={cards}
-					columnCount={this.viewModel.gridColumns}
+					columnCount={this.viewModel.preferences.gridColumns}
 					infiniteScrollTriggerRatio={gridPaginationConfig.nextPageTriggerRatio}
 					isLoadingMore={this.state.isLoadingNextPage}
 					onCardLongPress={this.handlePlaylistCardLongPress}
@@ -284,18 +289,18 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 			{addToPlaylistTracks && (
 				<AddToPlaylistView
-					animationsEnabled={animationsEnabled}
-					gridColumns={this.viewModel.gridColumns}
-					imageCache={imageCache}
+					animationsEnabled={this.viewModel.preferences.animationsEnabled}
+					gridColumns={this.viewModel.preferences.gridColumns}
+					imageCache={this.viewModel.imageCache}
 					onDismiss={this.handleAddToPlaylistDismiss}
-					toastService={toastService}
+					toastService={this.viewModel.toastService}
 					tracks={addToPlaylistTracks}
-					transport={transport}
+					transport={this.viewModel.transport}
 				/>
 			)}
 			{createPlaylistTracks && (
 				<CreatePlaylistModal
-					animationsEnabled={animationsEnabled}
+					animationsEnabled={this.viewModel.preferences.animationsEnabled}
 					onCancel={this.handleCreatePlaylistCancel}
 					onCreate={this.handleCreatePlaylistConfirm}
 				/>

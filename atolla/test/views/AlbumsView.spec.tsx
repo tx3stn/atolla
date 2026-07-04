@@ -1,5 +1,6 @@
 import 'jasmine/src/jasmine';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
+import { Preferences } from 'atolla/src/stores/Preferences';
 import { AlbumsView } from 'atolla/src/ui/views/AlbumsView';
 import { AlbumView } from 'atolla/src/ui/views/AlbumView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -45,6 +46,10 @@ function makeNavigationController() {
 	return navigationController;
 }
 
+function makePreferences(): Preferences {
+	return new Preferences({ fetchString: async () => '', storeString: async () => {} });
+}
+
 describe('AlbumsView', () => {
 	valdiIt('loads first page only on create', async (driver) => {
 		const allAlbums = makeAlbums(70);
@@ -60,10 +65,10 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
@@ -88,10 +93,10 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
@@ -146,10 +151,10 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
@@ -203,11 +208,11 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			letterFilter: 'a',
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		driver.renderComponent(AlbumsView, viewModel, undefined);
@@ -228,10 +233,10 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
@@ -257,10 +262,10 @@ describe('AlbumsView', () => {
 
 		const navigationController = makeNavigationController();
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController,
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
@@ -288,10 +293,10 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);

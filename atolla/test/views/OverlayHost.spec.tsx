@@ -3,7 +3,7 @@ import { type AppServicesBag, appServices } from 'atolla/src/services/AppService
 import { appShellStore } from 'atolla/src/stores/AppShell';
 import { BarColorStore } from 'atolla/src/stores/BarColor';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
-import { OverlayHost } from 'atolla/src/ui/components/OverlayHost';
+import { OverlayHost } from 'atolla/src/ui/views/OverlayHost';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { Component } from 'valdi_core/src/Component';
@@ -40,14 +40,11 @@ function playbackStore(overrides: Record<string, unknown> = {}): PlaybackStore {
 function setServices(store: PlaybackStore): void {
 	const stub = {} as unknown;
 	appServices.set({
-		animationsEnabled: false,
 		barColors: new BarColorStore(),
 		connectionMode: 'online',
 		downloadingCount: 0,
 		downloadService: stub as AppServicesBag['downloadService'],
-		gridColumns: 3,
 		imageCache: stub as AppServicesBag['imageCache'],
-		language: 'en',
 		modalSlot: new DetachedSlot(),
 		onRequestModeChange: async () => true,
 		paletteQueue: stub as AppServicesBag['paletteQueue'],
@@ -56,6 +53,12 @@ function setServices(store: PlaybackStore): void {
 			getWaveformMaskUrl: () => undefined,
 		} as unknown as AppServicesBag['playbackOrchestrator'],
 		playbackStore: store,
+		preferences: {
+			animationsEnabled: false,
+			gridColumns: 3,
+			language: 'en',
+			subscribe: () => () => {},
+		} as unknown as AppServicesBag['preferences'],
 		toastService: stub as AppServicesBag['toastService'],
 		toastSlot: new DetachedSlot(),
 		transport: stub as AppServicesBag['transport'],

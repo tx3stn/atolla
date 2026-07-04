@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import { Preferences } from 'atolla/src/stores/Preferences';
 import { PlaylistsView } from 'atolla/src/ui/views/PlaylistsView';
 import { PlaylistView } from 'atolla/src/ui/views/PlaylistView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -45,6 +46,10 @@ async function flushAsyncWork() {
 	await Promise.resolve();
 }
 
+function makePreferences(): Preferences {
+	return new Preferences({ fetchString: async () => '', storeString: async () => {} });
+}
+
 describe('PlaylistsView', () => {
 	valdiIt('renders playlist names from state', async (driver) => {
 		const playlists = [
@@ -56,10 +61,10 @@ describe('PlaylistsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
@@ -83,10 +88,10 @@ describe('PlaylistsView', () => {
 
 		const navigationController = makeNavigationController();
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController,
 			playbackStore,
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
@@ -111,10 +116,10 @@ describe('PlaylistsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
@@ -135,11 +140,11 @@ describe('PlaylistsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			letterFilter: 'a',
 			navigationController: makeNavigationController(),
 			playbackStore,
+			preferences: makePreferences(),
 			transport,
 		};
 		driver.renderComponent(PlaylistsView, viewModel, undefined);
@@ -164,10 +169,10 @@ describe('PlaylistsView', () => {
 		};
 
 		const viewModel = {
-			gridColumns: 3,
 			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
+			preferences: makePreferences(),
 			transport,
 		};
 		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);

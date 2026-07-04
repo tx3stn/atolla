@@ -16,6 +16,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { ToastService } from '../../services/ToastService';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/Async';
@@ -29,10 +30,8 @@ import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { TRACK_PAGE_SIZE } from '../pagination/Grid';
 
 export interface GenreViewModel {
-	animationsEnabled: boolean;
 	downloadService: DownloadService;
 	genre: Genre;
-	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
@@ -40,6 +39,7 @@ export interface GenreViewModel {
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
+	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
 }
@@ -50,6 +50,7 @@ interface GenreState {
 	isLoading: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
+	revision: number;
 	totalTrackCount: number | null;
 	tracks: Array<Track>;
 }
@@ -62,6 +63,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		isLoading: true,
 		isLoadingNextPage: false,
 		nextPageFailed: false,
+		revision: 0,
 		totalTrackCount: null,
 		tracks: [],
 	};
@@ -85,6 +87,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				this.syncDownloadState();
 			}),
 		);
+		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.syncDownloadState();
 		void this.loadNextPage();
 	}
@@ -111,7 +114,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 					style={styles.scroll}
 				>
 					<DetailHeader
-						animationsEnabled={this.viewModel.animationsEnabled}
+						animationsEnabled={this.viewModel.preferences.animationsEnabled}
 						artworkCategory='album_art'
 						artworkSource={genre.imageUrl ?? null}
 						downloadState={downloadState}
@@ -171,6 +174,10 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	private hasMoreTracks = true;
 	private isLoadingPage = false;
 	private triggeredAutoLoadForTrackCount: number | null = null;
+
+	private bump = (): void => {
+		this.setState({ revision: this.state.revision + 1 });
+	};
 
 	private fetchPage(
 		page: number,
@@ -285,26 +292,26 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 	private detailDeps(): DetailPushDeps {
 		return {
-			animationsEnabled: this.viewModel.animationsEnabled,
 			downloadService: this.viewModel.downloadService,
-			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
+			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		};
 	}
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { animationsEnabled, imageCache, modalSlot, playbackStore, transport } = this.viewModel;
+		const { imageCache, modalSlot, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const { albumId, artistId } = track;
 
 		openTrackContextMenu(track, modalSlot, {
 			animationsEnabled,
-			gridColumns: this.viewModel.gridColumns,
+			gridColumns,
 			imageCache,
 			onAlbumTap: albumId
 				? () => {

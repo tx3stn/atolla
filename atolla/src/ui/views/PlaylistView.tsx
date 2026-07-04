@@ -19,6 +19,7 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
+import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/Async';
@@ -35,9 +36,7 @@ import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { TRACK_PAGE_SIZE } from '../pagination/Grid';
 
 export interface PlaylistViewModel {
-	animationsEnabled: boolean;
 	downloadService: DownloadService;
-	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
@@ -48,6 +47,7 @@ export interface PlaylistViewModel {
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
 	playlistEditService?: PlaylistEditService;
+	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
 }
@@ -57,6 +57,7 @@ interface PlaylistState {
 	downloadState: DownloadState;
 	isLoading: boolean;
 	removedTrackPending: { index: number; track: Track } | null;
+	revision: number;
 	totalTrackCount: number | null;
 	tracks: Array<Track>;
 }
@@ -71,6 +72,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		downloadState: 'not_downloaded',
 		isLoading: true,
 		removedTrackPending: null,
+		revision: 0,
 		totalTrackCount: null,
 		tracks: [],
 	};
@@ -93,6 +95,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				this.syncDownloadState();
 			}),
 		);
+		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.syncDownloadState();
 		this.resetAndLoadPlaylistData();
 	}
@@ -122,7 +125,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					style={styles.scroll}
 				>
 					<DetailHeader
-						animationsEnabled={this.viewModel.animationsEnabled}
+						animationsEnabled={this.viewModel.preferences.animationsEnabled}
 						artworkCategory='playlist_image'
 						artworkSource={this.viewModel.playlist.imageUrl ?? null}
 						downloadState={downloadState}
@@ -147,7 +150,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						<LoadingView />
 					) : (
 						<TrackList
-							animationsEnabled={this.viewModel.animationsEnabled}
+							animationsEnabled={this.viewModel.preferences.animationsEnabled}
 							dragScroller={this.dragAutoScroller}
 							imageCache={this.viewModel.imageCache}
 							onTrackLongPress={this.handleTrackLongPress}
@@ -185,24 +188,28 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private dragAutoScroller = new ScrollDragAutoScroller(this.scrollRef);
 	private headerCollapse = new HeaderCollapse(headerStore);
 
+	private bump = (): void => {
+		this.setState({ revision: this.state.revision + 1 });
+	};
+
 	private detailDeps(): DetailPushDeps {
 		return {
-			animationsEnabled: this.viewModel.animationsEnabled,
 			downloadService: this.viewModel.downloadService,
-			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
 			playlistEditService: this.viewModel.playlistEditService,
+			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		};
 	}
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { animationsEnabled, gridColumns, imageCache, playbackStore, transport } = this.viewModel;
+		const { imageCache, playbackStore, transport } = this.viewModel;
+		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const modalSlot = this.viewModel.modalSlot;
 		const { albumId, artistId } = track;
 
@@ -302,7 +309,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 		this.viewModel.modalSlot?.slotted(() => {
 			<Modal
-				animationsEnabled={this.viewModel.animationsEnabled}
+				animationsEnabled={this.viewModel.preferences.animationsEnabled}
 				body={Strings.removeFromPlaylistBody(removedTrack.name)}
 				cancelAccessibilityId='playlist-remove-cancel'
 				confirmAccessibilityId='playlist-remove-confirm'
