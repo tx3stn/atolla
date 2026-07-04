@@ -50,10 +50,70 @@ class AtollaImageFallbackTest {
 
 	@Test
 	fun `blur source prefers the thumb then the full original`() {
-		val url = "https://media.example.com/Items/1/Images/Primary?tag=abc"
+		val identity = "album-1:abc"
 		assertEquals(
-			listOf("album_art_thumb:$url", "album_art:$url"),
-			AtollaImageFallback.blurSourceKeys(url),
+			listOf("album_art_thumb:album-1:abc", "album_art:album-1:abc"),
+			AtollaImageFallback.blurSourceKeys(identity),
+		)
+	}
+
+	// --- imageCacheIdentity ---
+
+	@Test
+	fun `derives entity id and tag from a Jellyfin image url`() {
+		assertEquals(
+			"album-1:abc",
+			AtollaImageFallback.imageCacheIdentity(
+				"https://media.example.com/Items/album-1/Images/Primary?tag=abc",
+			),
+		)
+	}
+
+	@Test
+	fun `derives artist id from a logo url`() {
+		assertEquals(
+			"artist-9:def",
+			AtollaImageFallback.imageCacheIdentity(
+				"https://media.example.com/Items/artist-9/Images/Logo?tag=def",
+			),
+		)
+	}
+
+	@Test
+	fun `omits the tag segment when there is no tag`() {
+		assertEquals(
+			"genre-3",
+			AtollaImageFallback.imageCacheIdentity(
+				"https://media.example.com/Items/genre-3/Images/Primary",
+			),
+		)
+	}
+
+	@Test
+	fun `ignores thumbnail sizing params so full and thumb share the identity`() {
+		assertEquals(
+			"album-1:abc",
+			AtollaImageFallback.imageCacheIdentity(
+				"https://media.example.com/Items/album-1/Images/Primary?tag=abc&maxWidth=384&quality=85",
+			),
+		)
+	}
+
+	@Test
+	fun `falls back to the api_key-stripped url for a non-Jellyfin url`() {
+		assertEquals(
+			"https://cdn.example.com/cover.jpg?x=1",
+			AtollaImageFallback.imageCacheIdentity(
+				"https://cdn.example.com/cover.jpg?api_key=SECRET&x=1",
+			),
+		)
+	}
+
+	@Test
+	fun `falls back to the url unchanged when it has no query`() {
+		assertEquals(
+			"https://cdn.example.com/cover.jpg",
+			AtollaImageFallback.imageCacheIdentity("https://cdn.example.com/cover.jpg"),
 		)
 	}
 }

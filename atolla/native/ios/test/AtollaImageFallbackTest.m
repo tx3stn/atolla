@@ -40,12 +40,47 @@
 // --- AtollaBlurSourceKeys ---
 
 - (void)testBlurSourcePrefersTheThumbThenTheFullOriginal {
-    NSString *url = @"https://media.example.com/Items/1/Images/Primary?tag=abc";
-    NSArray<NSString *> *expected = @[
-        [NSString stringWithFormat:@"album_art_thumb:%@", url],
-        [NSString stringWithFormat:@"album_art:%@", url],
-    ];
-    XCTAssertEqualObjects(expected, AtollaBlurSourceKeys(url));
+    NSArray<NSString *> *expected = @[@"album_art_thumb:album-1:abc", @"album_art:album-1:abc"];
+    XCTAssertEqualObjects(expected, AtollaBlurSourceKeys(@"album-1:abc"));
+}
+
+// --- AtollaImageCacheIdentity ---
+
+- (void)testDerivesEntityIdAndTagFromAJellyfinImageUrl {
+    XCTAssertEqualObjects(
+        @"album-1:abc",
+        AtollaImageCacheIdentity(@"https://media.example.com/Items/album-1/Images/Primary?tag=abc"));
+}
+
+- (void)testDerivesArtistIdFromALogoUrl {
+    XCTAssertEqualObjects(
+        @"artist-9:def",
+        AtollaImageCacheIdentity(@"https://media.example.com/Items/artist-9/Images/Logo?tag=def"));
+}
+
+- (void)testOmitsTheTagSegmentWhenThereIsNoTag {
+    XCTAssertEqualObjects(
+        @"genre-3",
+        AtollaImageCacheIdentity(@"https://media.example.com/Items/genre-3/Images/Primary"));
+}
+
+- (void)testIgnoresThumbnailSizingParamsSoFullAndThumbShareTheIdentity {
+    XCTAssertEqualObjects(
+        @"album-1:abc",
+        AtollaImageCacheIdentity(
+            @"https://media.example.com/Items/album-1/Images/Primary?tag=abc&maxWidth=384&quality=85"));
+}
+
+- (void)testFallsBackToTheApiKeyStrippedUrlForANonJellyfinUrl {
+    XCTAssertEqualObjects(
+        @"https://cdn.example.com/cover.jpg?x=1",
+        AtollaImageCacheIdentity(@"https://cdn.example.com/cover.jpg?api_key=SECRET&x=1"));
+}
+
+- (void)testFallsBackToTheUrlUnchangedWhenItHasNoQuery {
+    XCTAssertEqualObjects(
+        @"https://cdn.example.com/cover.jpg",
+        AtollaImageCacheIdentity(@"https://cdn.example.com/cover.jpg"));
 }
 
 @end

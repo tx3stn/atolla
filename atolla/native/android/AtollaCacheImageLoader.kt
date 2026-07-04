@@ -39,6 +39,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 data class AtollaCacheRequestPayload(
+	val cacheKey: String,
 	val cacheOnly: Boolean,
 	val category: String,
 	val sourceUrl: String,
@@ -241,21 +242,22 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	}
 
 	fun extractPalette(category: String, sourceUrl: String): String? {
+		val identity = AtollaImageFallback.imageCacheIdentity(sourceUrl)
 		// try the side-car key written at cache time, no decode needed
 		if (category == "album_art") {
-			val paletteKey = "album_art_palette:$sourceUrl"
+			val paletteKey = "album_art_palette:$identity"
 			val sidecar = memory.get(paletteKey) ?: readFromDisk(paletteKey)
 			if (sidecar != null) return String(sidecar, Charsets.UTF_8)
 		}
-		val key = "$category:$sourceUrl"
+		val key = "$category:$identity"
 		val bytes = memory.get(key) ?: readFromDisk(key) ?: return null
 		return extractPaletteFromBytes(bytes, key)
 	}
 
-	private fun writePaletteSidecarIfNeeded(sourceUrl: String, category: String, bytes: ByteArray) {
+	private fun writePaletteSidecarIfNeeded(identity: String, category: String, bytes: ByteArray) {
 		if (category != "album_art") return
-		val paletteJson = extractPaletteFromBytes(bytes, sourceUrl) ?: return
-		val paletteKey = "album_art_palette:$sourceUrl"
+		val paletteJson = extractPaletteFromBytes(bytes, identity) ?: return
+		val paletteKey = "album_art_palette:$identity"
 		val paletteBytes = paletteJson.toByteArray(Charsets.UTF_8)
 		memory.put(paletteKey, paletteBytes)
 		writeToDisk(paletteKey, paletteBytes)
@@ -287,7 +289,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			return null
 		}
 
-		val key = "$category:$sourceUrl"
+		val key = "$category:${AtollaImageFallback.imageCacheIdentity(sourceUrl)}"
 		val file = cacheFileForKey(key) ?: return null
 		if (!file.exists() || !file.isFile) {
 			return null
@@ -318,7 +320,12 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		if (url.scheme != "atolla-cache" || url.host != "image" || category.isNullOrBlank() || source.isNullOrBlank()) {
 			throw ValdiException("Invalid atolla-cache image URL")
 		}
-		return AtollaCacheRequestPayload(cacheOnly = cacheOnly, category = category, sourceUrl = source)
+		return AtollaCacheRequestPayload(
+			cacheKey = AtollaImageFallback.imageCacheIdentity(source),
+			cacheOnly = cacheOnly,
+			category = category,
+			sourceUrl = source,
+		)
 	}
 
 		override fun loadImage(
@@ -327,7 +334,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		completion: ValdiImageLoadCompletion,
 	): Disposable? {
 		val payload = requetPayload as AtollaCacheRequestPayload
-		val key = "${payload.category}:${payload.sourceUrl}"
+		val key = "${payload.category}:${payload.cacheKey}"
 		val bitmapPlan = resolveBitmapDecodePlan(key, payload.category, options)
 		Log.d(tag, "loadImage key=$key outputType=${options.outputType}")
 
@@ -476,8 +483,8 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			// downsampled to 200x200 so the thumb is plenty and is always downloaded), then the
 			// full original; only fetch the full from network if neither is cached
 			if (payload.category == "album_art_blurred") {
-				val originalKey = "album_art:${payload.sourceUrl}"
-				val cachedOriginal = AtollaImageFallback.blurSourceKeys(payload.sourceUrl)
+				val originalKey = "album_art:${payload.cacheKey}"
+				val cachedOriginal = AtollaImageFallback.blurSourceKeys(payload.cacheKey)
 					.firstNotNullOfOrNull { k -> memory.get(k) ?: readFromDisk(k) }
 				if (cachedOriginal != null) {
 					val blurredBytes = generateBlurredBytes(cachedOriginal)
@@ -497,7 +504,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				val originalBytes = fetchBytes(payload.sourceUrl)
 				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
-				writePaletteSidecarIfNeeded(payload.sourceUrl, "album_art", originalBytes)
+				writePaletteSidecarIfNeeded(payload.cacheKey, "album_art", originalBytes)
 				val blurredBytes = generateBlurredBytes(originalBytes)
 				inFlight.remove(key)
 				if (blurredBytes != null) {
@@ -518,7 +525,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			// thumbnail is, deliver that now so something shows immediately; the full variant
 			// still fetches below to populate the cache for the next render.
 			AtollaImageFallback.thumbFallbackCategory(payload.category)?.let { thumbCategory ->
-				val thumbKey = "$thumbCategory:${payload.sourceUrl}"
+				val thumbKey = "$thumbCategory:${payload.cacheKey}"
 				val thumbBytes = memory.get(thumbKey) ?: readFromDisk(thumbKey)
 				if (thumbBytes != null) {
 					Log.d(tag, "serving thumb fallback $thumbKey for missing $key")
@@ -544,7 +551,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			Log.d(tag, "network fetch success key=$key bytes=${bytes.size}")
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
-			writePaletteSidecarIfNeeded(payload.sourceUrl, payload.category, bytes)
+			writePaletteSidecarIfNeeded(payload.cacheKey, payload.category, bytes)
 			inFlight.remove(key)
 			future.complete(bytes)
 			// If we already served the thumb, don't re-deliver to the one-shot completion; the
@@ -573,7 +580,8 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 
 		val sourceUrl = stripApiKeyFromUrl(rawSourceUrl)
-		val key = "$category:$sourceUrl"
+		val identity = AtollaImageFallback.imageCacheIdentity(sourceUrl)
+		val key = "$category:$identity"
 		val bitmapPlan = resolveBitmapDecodePlan(key, category, null)
 
 		// bitmap already decoded and cached: nothing to do, but still report it as cached so
@@ -606,7 +614,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 		executor.execute(
 			LoadTask(LoadPriority.PREFETCH) {
-				executePreloadTask(sourceUrl, category, key, future)
+				executePreloadTask(sourceUrl, identity, category, key, future)
 			},
 		)
 	}
@@ -620,6 +628,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 	private fun executePreloadTask(
 		sourceUrl: String,
+		identity: String,
 		category: String,
 		key: String,
 		future: CompletableFuture<ByteArray>,
@@ -636,8 +645,8 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			}
 
 			if (category == "album_art_blurred") {
-				val originalKey = "album_art:$sourceUrl"
-				val cachedOriginal = AtollaImageFallback.blurSourceKeys(sourceUrl)
+				val originalKey = "album_art:$identity"
+				val cachedOriginal = AtollaImageFallback.blurSourceKeys(identity)
 					.firstNotNullOfOrNull { k -> memory.get(k) ?: readFromDisk(k) }
 				if (cachedOriginal != null) {
 					val blurredBytes = generateBlurredBytes(cachedOriginal)
@@ -655,7 +664,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				val originalBytes = fetchBytes(sourceUrl)
 				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
-				writePaletteSidecarIfNeeded(sourceUrl, "album_art", originalBytes)
+				writePaletteSidecarIfNeeded(identity, "album_art", originalBytes)
 				val blurredBytes = generateBlurredBytes(originalBytes)
 				inFlight.remove(key)
 				if (blurredBytes != null) {
@@ -672,7 +681,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			val bytes = fetchBytes(sourceUrl)
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
-			writePaletteSidecarIfNeeded(sourceUrl, category, bytes)
+			writePaletteSidecarIfNeeded(identity, category, bytes)
 			inFlight.remove(key)
 			future.complete(bytes)
 			warmBitmapCache(key, bytes, category)

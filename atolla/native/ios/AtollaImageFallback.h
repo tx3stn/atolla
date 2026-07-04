@@ -17,6 +17,13 @@ NSString *_Nullable AtollaThumbFallbackCategory(NSString *category);
 // 200x200 before storing, so the thumb is plenty and is preferred over the full original; this
 // lets the backdrop render offline whenever the thumb is downloaded, even if the full album_art
 // is still missing. only when neither is cached should the caller fetch
-NSArray<NSString *> *AtollaBlurSourceKeys(NSString *sourceURL);
+NSArray<NSString *> *AtollaBlurSourceKeys(NSString *identity);
+
+// stable, token-free cache identity for a Jellyfin image URL. every image URL carries the entity
+// id in its path (/Items/{id}/Images/{type}) — albumId for album_art, artistId for artist images,
+// etc. — so the cache keys on "<id>:<tag>" (the tag busts the cache when the art is replaced on
+// the server) rather than the whole URL. non-Jellyfin URLs fall back to the URL with api_key
+// stripped so a token can never reach a cache key.
+NSString *AtollaImageCacheIdentity(NSString *url);
 
 NS_ASSUME_NONNULL_END

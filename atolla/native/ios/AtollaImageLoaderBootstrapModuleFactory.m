@@ -15,6 +15,7 @@
 // MARK: - Request Payload
 
 @interface AtollaIOSImageRequestPayload : NSObject
+@property (nonatomic, copy) NSString *cacheKey;
 @property (nonatomic, copy) NSString *category;
 @property (nonatomic, strong) NSURL *sourceURL;
 @end
@@ -304,6 +305,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     AtollaIOSImageRequestPayload *payload = [[AtollaIOSImageRequestPayload alloc] init];
     payload.category = category;
     payload.sourceURL = sourceURL;
+    payload.cacheKey = AtollaImageCacheIdentity(sourceURL.absoluteString);
     return payload;
 }
 
@@ -320,7 +322,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 
 - (id<SCValdiCancelable>)loadBytesWithRequestPayload:(AtollaIOSImageRequestPayload *)payload
                                           completion:(SCValdiImageLoaderBytesCompletion)completion {
-    NSString *key = [NSString stringWithFormat:@"%@:%@", payload.category, payload.sourceURL.absoluteString];
+    NSString *key = [NSString stringWithFormat:@"%@:%@", payload.category, payload.cacheKey];
     NSData *cached = [_cache readForKey:key];
     if (cached) {
         completion(cached, nil);
@@ -332,7 +334,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     if ([payload.category isEqualToString:@"album_art_blurred"]) {
         // the blur is downsampled before storage, so prefer the (always-downloaded) thumb and
         // fall back to the full original; only fetch from network if neither is cached
-        NSArray<NSString *> *blurKeys = AtollaBlurSourceKeys(payload.sourceURL.absoluteString);
+        NSArray<NSString *> *blurKeys = AtollaBlurSourceKeys(payload.cacheKey);
         // the full-size original is the last key; a network fetch is cached under it below
         NSString *originalKey = blurKeys.lastObject;
         NSData *originalData = nil;
@@ -374,7 +376,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     // background to populate the cache for the next render (without calling completion again).
     NSString *thumbCategory = AtollaThumbFallbackCategory(payload.category);
     if (thumbCategory) {
-        NSString *thumbKey = [NSString stringWithFormat:@"%@:%@", thumbCategory, payload.sourceURL.absoluteString];
+        NSString *thumbKey = [NSString stringWithFormat:@"%@:%@", thumbCategory, payload.cacheKey];
         NSData *thumbData = [_cache readForKey:thumbKey];
         if (thumbData) {
             completion(thumbData, nil);
@@ -384,7 +386,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
                     if (!data) { return; }
                     [self->_cache writeData:data forKey:key];
                     if ([payload.category isEqualToString:@"album_art"]) {
-                        [self writePaletteSidecarForData:data url:payload.sourceURL.absoluteString];
+                        [self writePaletteSidecarForData:data identity:payload.cacheKey];
                     }
                     if (self->_imageCachedObserver) {
                         self->_imageCachedObserver(payload.sourceURL.absoluteString, payload.category);
@@ -401,7 +403,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
             if (!data) { completion(nil, err); return; }
             [self->_cache writeData:data forKey:key];
             if ([payload.category isEqualToString:@"album_art"]) {
-                [self writePaletteSidecarForData:data url:payload.sourceURL.absoluteString];
+                [self writePaletteSidecarForData:data identity:payload.cacheKey];
             }
             if (self->_imageCachedObserver) {
                 self->_imageCachedObserver(payload.sourceURL.absoluteString, payload.category);
@@ -416,23 +418,24 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     return [AtollaBlurProcessor blurImageData:originalData];
 }
 
-- (void)writePaletteSidecarForData:(NSData *)data url:(NSString *)urlString {
+- (void)writePaletteSidecarForData:(NSData *)data identity:(NSString *)identity {
     NSString *json = [AtollaPaletteExtractor extractPaletteFromData:data];
     if (!json) return;
     NSData *paletteData = [json dataUsingEncoding:NSUTF8StringEncoding];
-    NSString *paletteKey = [NSString stringWithFormat:@"album_art_palette:%@", urlString];
+    NSString *paletteKey = [NSString stringWithFormat:@"album_art_palette:%@", identity];
     [_cache writeData:paletteData forKey:paletteKey];
 }
 
 - (nullable NSString *)extractPaletteForCategory:(NSString *)category sourceURL:(NSString *)url {
+    NSString *identity = AtollaImageCacheIdentity(url);
     if ([category isEqualToString:@"album_art"]) {
-        NSString *paletteKey = [NSString stringWithFormat:@"album_art_palette:%@", url];
+        NSString *paletteKey = [NSString stringWithFormat:@"album_art_palette:%@", identity];
         NSData *paletteData = [_cache readForKey:paletteKey];
         if (paletteData) {
             return [[NSString alloc] initWithData:paletteData encoding:NSUTF8StringEncoding];
         }
     }
-    NSString *key = [NSString stringWithFormat:@"%@:%@", category, url];
+    NSString *key = [NSString stringWithFormat:@"%@:%@", category, identity];
     NSData *data = [_cache readForKey:key];
     if (!data) return nil;
     return [AtollaPaletteExtractor extractPaletteFromData:data];
@@ -453,7 +456,8 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
     NSString *cleanUrl = components.URL.absoluteString ?: rawUrl;
     NSURL *sourceURL = components.URL;
     if (!sourceURL) return;
-    NSString *key = [NSString stringWithFormat:@"%@:%@", category, cleanUrl];
+    NSString *identity = AtollaImageCacheIdentity(cleanUrl);
+    NSString *key = [NSString stringWithFormat:@"%@:%@", category, identity];
     if ([_cache readForKey:key]) {
         // already cached, still report it so offline-availability waiters resolve
         if (_imageCachedObserver) _imageCachedObserver(cleanUrl, category);
@@ -466,7 +470,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
             if (!data) return;
             [self->_cache writeData:data forKey:key];
             if ([category isEqualToString:@"album_art"]) {
-                [self writePaletteSidecarForData:data url:cleanUrl];
+                [self writePaletteSidecarForData:data identity:identity];
             }
             if (self->_imageCachedObserver) self->_imageCachedObserver(cleanUrl, category);
         }];
