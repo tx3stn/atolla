@@ -34,11 +34,9 @@ import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
+import { type DetailPushDeps, pushAlbum, pushArtist, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import { AlbumView } from './AlbumView';
-import { ArtistView } from './ArtistView';
-import { PlaylistView } from './PlaylistView';
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 
@@ -481,32 +479,38 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			onArtistTap: track.artistId ? () => this.handleContextMenuArtistTap(track) : undefined,
 			onDismiss: () => {},
 			onPlaylistCreated: (playlist) => {
-				this.viewModel.navigationController.push(
-					PlaylistView,
-					{
-						animationsEnabled: this.viewModel.animationsEnabled,
-						downloadService: this.viewModel.downloadService,
-						gridColumns: this.viewModel.gridColumns,
-						imageCache: this.viewModel.imageCache,
-						modalSlot: this.viewModel.modalSlot,
-						navigationController: this.viewModel.navigationController,
-						onRootDetailControllerReady: () => {},
-						paletteQueue: this.viewModel.paletteQueue,
-						playbackStore: this.viewModel.playbackStore,
-						playlist,
-						playlistEditService: this.viewModel.playlistEditService,
-						toastService: this.viewModel.toastService,
-						transport: this.viewModel.transport,
-					},
-					{},
-					{ animated: this.viewModel.animationsEnabled },
-				);
+				pushPlaylist(this.viewModel.navigationController, this.detailDeps(), playlist);
 			},
 			playbackStore: this.viewModel.playbackStore,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		});
 	};
+
+	private detailDeps(): DetailPushDeps {
+		return {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			downloadService: this.viewModel.downloadService,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			modalSlot: this.viewModel.modalSlot,
+			onNavigateToArtist: (artistId) => this.navigateToArtistId(artistId),
+			paletteQueue: this.viewModel.paletteQueue,
+			playbackStore: this.viewModel.playbackStore,
+			playlistEditService: this.viewModel.playlistEditService,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		};
+	}
+
+	private navigateToArtistId(artistId: string): void {
+		this.viewModel.transport.getArtist(artistId).then((artist) => {
+			if (!artist) {
+				return;
+			}
+			pushArtist(this.viewModel.navigationController, this.detailDeps(), artist);
+		});
+	}
 
 	private openCardContextMenu(card: CardContextMenuCard): void {
 		this.cardContextMenuCard = card;
@@ -553,29 +557,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		}
 		if (card.kind !== 'album') return;
 
-		this.viewModel.transport.getArtist(card.album.artistId).then((artist) => {
-			if (!artist) return;
-
-			this.viewModel.navigationController.push(
-				ArtistView,
-				{
-					animationsEnabled: this.viewModel.animationsEnabled,
-					artist,
-					downloadService: this.viewModel.downloadService,
-					gridColumns: this.viewModel.gridColumns,
-					imageCache: this.viewModel.imageCache,
-					modalSlot: this.viewModel.modalSlot,
-					navigationController: this.viewModel.navigationController,
-					onNavigationControllerReady: () => {},
-					paletteQueue: this.viewModel.paletteQueue,
-					playbackStore: this.viewModel.playbackStore,
-					toastService: this.viewModel.toastService,
-					transport: this.viewModel.transport,
-				},
-				{},
-				{ animated: this.viewModel.animationsEnabled },
-			);
-		});
+		this.navigateToArtistId(card.album.artistId);
 	};
 
 	private handleCardContextMenuEntityTap = (): void => {
@@ -599,26 +581,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		);
 		this.pendingCreatePlaylistTracks = null;
 		this.closeModalSlot();
-		this.viewModel.navigationController.push(
-			PlaylistView,
-			{
-				animationsEnabled: this.viewModel.animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				navigationController: this.viewModel.navigationController,
-				onRootDetailControllerReady: () => {},
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				playlist,
-				playlistEditService: this.viewModel.playlistEditService,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
+		pushPlaylist(this.viewModel.navigationController, this.detailDeps(), playlist);
 	};
 
 	private handleCardContextMenuCreatePlaylistRequest = (tracks: Array<Track>): void => {
@@ -693,29 +656,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			return;
 		}
 
-		this.viewModel.transport.getArtist(artistId).then((artist) => {
-			if (!artist) return;
-
-			this.viewModel.navigationController.push(
-				ArtistView,
-				{
-					animationsEnabled: this.viewModel.animationsEnabled,
-					artist,
-					downloadService: this.viewModel.downloadService,
-					gridColumns: this.viewModel.gridColumns,
-					imageCache: this.viewModel.imageCache,
-					modalSlot: this.viewModel.modalSlot,
-					navigationController: this.viewModel.navigationController,
-					onNavigationControllerReady: () => {},
-					paletteQueue: this.viewModel.paletteQueue,
-					playbackStore: this.viewModel.playbackStore,
-					toastService: this.viewModel.toastService,
-					transport: this.viewModel.transport,
-				},
-				{},
-				{ animated: this.viewModel.animationsEnabled },
-			);
-		});
+		this.navigateToArtistId(artistId);
 	};
 
 	handleAlbumTap = (albumId: string): void => {
@@ -729,25 +670,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			return;
 		}
 
-		this.viewModel.navigationController.push(
-			AlbumView,
-			{
-				album,
-				animationsEnabled: this.viewModel.animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				navigationController: this.viewModel.navigationController,
-				onRootDetailControllerReady: () => {},
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
+		pushAlbum(this.viewModel.navigationController, this.detailDeps(), album);
 	};
 
 	handleArtistTap = (artistId: string): void => {
@@ -761,25 +684,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			return;
 		}
 
-		this.viewModel.navigationController.push(
-			ArtistView,
-			{
-				animationsEnabled: this.viewModel.animationsEnabled,
-				artist,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				navigationController: this.viewModel.navigationController,
-				onNavigationControllerReady: () => {},
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
+		pushArtist(this.viewModel.navigationController, this.detailDeps(), artist);
 	};
 
 	handlePlaylistTap = (playlistId: string): void => {
@@ -793,51 +698,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			return;
 		}
 
-		this.viewModel.navigationController.push(
-			PlaylistView,
-			{
-				animationsEnabled: this.viewModel.animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				navigationController: this.viewModel.navigationController,
-				onNavigateToArtist: (artistId) => {
-					this.viewModel.transport.getArtist(artistId).then((artist) => {
-						if (!artist) return;
-
-						this.viewModel.navigationController.push(
-							ArtistView,
-							{
-								animationsEnabled: this.viewModel.animationsEnabled,
-								artist,
-								downloadService: this.viewModel.downloadService,
-								gridColumns: this.viewModel.gridColumns,
-								imageCache: this.viewModel.imageCache,
-								modalSlot: this.viewModel.modalSlot,
-								navigationController: this.viewModel.navigationController,
-								onNavigationControllerReady: () => {},
-								paletteQueue: this.viewModel.paletteQueue,
-								playbackStore: this.viewModel.playbackStore,
-								toastService: this.viewModel.toastService,
-								transport: this.viewModel.transport,
-							},
-							{},
-							{ animated: this.viewModel.animationsEnabled },
-						);
-					});
-				},
-				onRootDetailControllerReady: () => {},
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				playlist,
-				playlistEditService: this.viewModel.playlistEditService,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
+		pushPlaylist(this.viewModel.navigationController, this.detailDeps(), playlist);
 	};
 
 	private renderSectionTitle(title: string): void {

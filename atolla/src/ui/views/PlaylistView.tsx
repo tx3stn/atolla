@@ -30,9 +30,9 @@ import { ScrollDragAutoScroller } from '../components/ScrollDragAutoScroller';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
 import { closeSlot } from '../flows/ModalSlotFlow';
+import { type DetailPushDeps, pushAlbum, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { TRACK_PAGE_SIZE } from '../pagination/Grid';
-import { AlbumView } from './AlbumView';
 
 export interface PlaylistViewModel {
 	animationsEnabled: boolean;
@@ -48,7 +48,6 @@ export interface PlaylistViewModel {
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
 	playlistEditService?: PlaylistEditService;
-	restoreHeaderOnDestroy?: boolean;
 	toastService: ToastService;
 	transport: Transport;
 }
@@ -186,16 +185,24 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private dragAutoScroller = new ScrollDragAutoScroller(this.scrollRef);
 	private headerCollapse = new HeaderCollapse(headerStore);
 
+	private detailDeps(): DetailPushDeps {
+		return {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			downloadService: this.viewModel.downloadService,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			modalSlot: this.viewModel.modalSlot,
+			onNavigateToArtist: this.viewModel.onNavigateToArtist,
+			paletteQueue: this.viewModel.paletteQueue,
+			playbackStore: this.viewModel.playbackStore,
+			playlistEditService: this.viewModel.playlistEditService,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		};
+	}
+
 	private handleTrackLongPress = (track: Track): void => {
-		const {
-			animationsEnabled,
-			downloadService,
-			gridColumns,
-			imageCache,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
+		const { animationsEnabled, gridColumns, imageCache, playbackStore, transport } = this.viewModel;
 		const modalSlot = this.viewModel.modalSlot;
 		const { albumId, artistId } = track;
 
@@ -212,26 +219,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 							imageUrl: track.albumImageUrl,
 							name: track.albumName ?? '',
 						};
-						this.navigationController.push(
-							AlbumView,
-							{
-								album,
-								animationsEnabled,
-								downloadService,
-								gridColumns,
-								imageCache,
-								modalSlot,
-								navigationController: this.navigationController,
-								onRootDetailControllerReady: () => {},
-								paletteQueue,
-								playbackStore,
-								restoreHeaderOnDestroy: false,
-								toastService: this.viewModel.toastService,
-								transport,
-							},
-							{},
-							{ animated: animationsEnabled },
-						);
+						pushAlbum(this.navigationController, this.detailDeps(), album);
 					}
 				: undefined,
 			onArtistTap:
@@ -240,26 +228,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 					: undefined,
 			onDismiss: () => {},
 			onPlaylistCreated: (playlist) => {
-				this.navigationController.push(
-					PlaylistView,
-					{
-						animationsEnabled,
-						downloadService,
-						gridColumns,
-						imageCache,
-						modalSlot: this.viewModel.modalSlot,
-						navigationController: this.navigationController,
-						onRootDetailControllerReady: () => {},
-						paletteQueue,
-						playbackStore,
-						playlist,
-						playlistEditService: this.viewModel.playlistEditService,
-						toastService: this.viewModel.toastService,
-						transport,
-					},
-					{},
-					{ animated: animationsEnabled },
-				);
+				pushPlaylist(this.navigationController, this.detailDeps(), playlist);
 			},
 			playbackStore,
 			toastService: this.viewModel.toastService,

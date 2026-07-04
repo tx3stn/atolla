@@ -18,9 +18,9 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
+import { type DetailPushDeps, pushGenre } from '../flows/PushDetail';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import { GenreView } from './GenreView';
 
 interface GenresViewModel {
 	animationsEnabled: boolean;
@@ -235,34 +235,23 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		}
 	}
 
+	private detailDeps(): DetailPushDeps {
+		return {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			downloadService: this.viewModel.downloadService,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			modalSlot: this.viewModel.modalSlot,
+			onNavigateToArtist: this.viewModel.onNavigateToArtist,
+			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		};
+	}
+
 	private navigateToGenre = (genre: Genre): void => {
-		const {
-			animationsEnabled,
-			imageCache,
-			modalSlot,
-			navigationController,
-			playbackStore,
-			transport,
-		} = this.viewModel;
-		navigationController.push(
-			GenreView,
-			{
-				animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				genre,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache,
-				modalSlot: modalSlot,
-				navigationController,
-				onNavigateToArtist: this.viewModel.onNavigateToArtist,
-				onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
-				playbackStore,
-				toastService: this.viewModel.toastService,
-				transport,
-			},
-			{},
-			{ animated: animationsEnabled },
-		);
+		pushGenre(this.viewModel.navigationController, this.detailDeps(), genre);
 	};
 
 	private retryLoadMore(): void {

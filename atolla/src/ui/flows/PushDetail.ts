@@ -2,21 +2,23 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { Album } from '../../models/Album';
 import type { Artist } from '../../models/Artist';
+import type { Genre } from '../../models/Genre';
 import type { Playlist } from '../../models/Playlist';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
+import { headerStore } from '../../stores/Header';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Transport } from '../../transports/Transport';
 import { AlbumView } from '../views/AlbumView';
 import { ArtistView } from '../views/ArtistView';
+import { GenreView } from '../views/GenreView';
 import { PlaylistView } from '../views/PlaylistView';
 
-// The services every detail push needs. Callers assemble this from their own view model so the push
-// blocks live once. `onRootDetailControllerReady` is how a tab records its first detail for its own
-// unwind (Library uses it); tabs that don't need it can omit it.
+// the services every detail push needs.
+// callers assemble this from their own view model so the push blocks live once.
 export interface DetailPushDeps {
 	animationsEnabled: boolean;
 	downloadService: DownloadService;
@@ -24,6 +26,8 @@ export interface DetailPushDeps {
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	onNavigateToArtist?: (artistId: string) => void;
+	// onRootDetailControllerReady is how a tab records its first detail for its own
+	// unwind (used by library nav).
 	onRootDetailControllerReady?: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -58,6 +62,7 @@ export function pushAlbum(
 		{},
 		{ animated: deps.animationsEnabled },
 	);
+	headerStore.setVisible(true);
 }
 
 export function pushArtist(
@@ -84,6 +89,7 @@ export function pushArtist(
 		{},
 		{ animated: deps.animationsEnabled },
 	);
+	headerStore.setVisible(true);
 }
 
 export function pushPlaylist(
@@ -112,4 +118,33 @@ export function pushPlaylist(
 		{},
 		{ animated: deps.animationsEnabled },
 	);
+	headerStore.setVisible(true);
+}
+
+export function pushGenre(
+	controller: NavigationController,
+	deps: DetailPushDeps,
+	genre: Genre,
+): void {
+	controller.push(
+		GenreView,
+		{
+			animationsEnabled: deps.animationsEnabled,
+			downloadService: deps.downloadService,
+			genre,
+			gridColumns: deps.gridColumns,
+			imageCache: deps.imageCache,
+			modalSlot: deps.modalSlot,
+			navigationController: controller,
+			onNavigateToArtist: deps.onNavigateToArtist,
+			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
+			paletteQueue: deps.paletteQueue,
+			playbackStore: deps.playbackStore,
+			toastService: deps.toastService,
+			transport: deps.transport,
+		},
+		{},
+		{ animated: deps.animationsEnabled },
+	);
+	headerStore.setVisible(true);
 }

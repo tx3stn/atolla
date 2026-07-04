@@ -20,9 +20,9 @@ import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
+import { type DetailPushDeps, pushArtist } from '../flows/PushDetail';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import { ArtistView } from './ArtistView';
 import { sortArtists } from './sort/Artists';
 
 export interface ArtistsViewModel {
@@ -272,35 +272,23 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		}
 	};
 
+	private detailDeps(): DetailPushDeps {
+		return {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			downloadService: this.viewModel.downloadService,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			modalSlot: this.viewModel.modalSlot,
+			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+			paletteQueue: this.viewModel.paletteQueue,
+			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		};
+	}
+
 	private navigateToArtist = (artist: Artist): void => {
-		const {
-			animationsEnabled,
-			imageCache,
-			modalSlot,
-			navigationController,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
-		navigationController.push(
-			ArtistView,
-			{
-				animationsEnabled,
-				artist,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache,
-				modalSlot,
-				navigationController,
-				onNavigationControllerReady: this.viewModel.onRootDetailControllerReady,
-				paletteQueue,
-				playbackStore,
-				toastService: this.viewModel.toastService,
-				transport,
-			},
-			{},
-			{ animated: animationsEnabled },
-		);
+		pushArtist(this.viewModel.navigationController, this.detailDeps(), artist);
 	};
 
 	private readonly pagedGridController = createPagedGridController<Artist>({

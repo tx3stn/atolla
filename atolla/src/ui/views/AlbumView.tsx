@@ -31,10 +31,8 @@ import { normalizeGenres } from '../components/GenrePillsData';
 import { LoadingView } from '../components/LoadingView';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { resolveGenreForNavigation, resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
+import { type DetailPushDeps, pushArtist, pushGenre, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
-import { ArtistView } from './ArtistView';
-import { GenreView } from './GenreView';
-import { PlaylistView } from './PlaylistView';
 
 export interface AlbumViewModel {
 	album: Album;
@@ -47,7 +45,6 @@ export interface AlbumViewModel {
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
-	restoreHeaderOnDestroy?: boolean;
 	toastService: ToastService;
 	transport: Transport;
 }
@@ -217,25 +214,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				name: this.viewModel.album.artistName,
 			} as Artist);
 
-		this.navigationController.push(
-			ArtistView,
-			{
-				animationsEnabled: this.viewModel.animationsEnabled,
-				artist,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache: this.viewModel.imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				navigationController: this.navigationController,
-				onNavigationControllerReady: () => {},
-				paletteQueue: this.viewModel.paletteQueue,
-				playbackStore: this.viewModel.playbackStore,
-				toastService: this.viewModel.toastService,
-				transport: this.viewModel.transport,
-			},
-			{},
-			{ animated: this.viewModel.animationsEnabled },
-		);
+		pushArtist(this.navigationController, this.detailDeps(), artist);
 	};
 
 	handleHeaderPlayTap = (): void => {
@@ -297,20 +276,26 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 	};
 
+	private detailDeps(): DetailPushDeps {
+		return {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			downloadService: this.viewModel.downloadService,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			modalSlot: this.viewModel.modalSlot,
+			paletteQueue: this.viewModel.paletteQueue,
+			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		};
+	}
+
 	private handleRemoveDownloadTap = (): void => {
 		this.viewModel.downloadService.removeAlbumDownload(this.viewModel.album.id);
 	};
 
 	private handleTrackLongPress = (track: Track): void => {
-		const {
-			animationsEnabled,
-			downloadService,
-			gridColumns,
-			imageCache,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
+		const { animationsEnabled, gridColumns, imageCache, playbackStore, transport } = this.viewModel;
 
 		openTrackContextMenu(track, this.viewModel.modalSlot, {
 			animationsEnabled,
@@ -321,25 +306,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			onArtistTap: this.handleArtistLogoTap,
 			onDismiss: () => {},
 			onPlaylistCreated: (playlist) => {
-				this.navigationController.push(
-					PlaylistView,
-					{
-						animationsEnabled,
-						downloadService,
-						gridColumns,
-						imageCache,
-						modalSlot: this.viewModel.modalSlot,
-						navigationController: this.navigationController,
-						onRootDetailControllerReady: () => {},
-						paletteQueue,
-						playbackStore,
-						playlist,
-						toastService: this.viewModel.toastService,
-						transport,
-					},
-					{},
-					{ animated: animationsEnabled },
-				);
+				pushPlaylist(this.navigationController, this.detailDeps(), playlist);
 			},
 			playbackStore,
 			toastService: this.viewModel.toastService,
@@ -408,32 +375,13 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	private async navigateToGenre(genre: Genre): Promise<void> {
-		const { animationsEnabled, downloadService, imageCache, playbackStore, transport } =
-			this.viewModel;
-		const navigationController = this.navigationController;
-		const resolvedGenre = await resolveGenreForNavigation(transport, genre);
+		const resolvedGenre = await resolveGenreForNavigation(this.viewModel.transport, genre);
 
 		if (this.isDestroyed()) {
 			return;
 		}
 
-		navigationController.push(
-			GenreView,
-			{
-				animationsEnabled,
-				downloadService,
-				genre: resolvedGenre,
-				imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				navigationController: this.navigationController,
-				onRootDetailControllerReady: () => {},
-				playbackStore,
-				toastService: this.viewModel.toastService,
-				transport,
-			},
-			{},
-			{ animated: animationsEnabled },
-		);
+		pushGenre(this.navigationController, this.detailDeps(), resolvedGenre);
 	}
 
 	private syncDownloadState(): void {

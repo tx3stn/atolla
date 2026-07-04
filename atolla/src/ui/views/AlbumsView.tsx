@@ -20,10 +20,9 @@ import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
+import { type DetailPushDeps, pushAlbum, pushArtist } from '../flows/PushDetail';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import { AlbumView } from './AlbumView';
-import { ArtistView } from './ArtistView';
 import { sortAlbums } from './sort/Albums';
 
 export interface AlbumsViewModel {
@@ -171,25 +170,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 								id: album.artistId,
 								name: album.artistName,
 							};
-							this.viewModel.navigationController.push(
-								ArtistView,
-								{
-									animationsEnabled: this.viewModel.animationsEnabled,
-									artist: resolvedArtist,
-									downloadService: this.viewModel.downloadService,
-									gridColumns: this.viewModel.gridColumns,
-									imageCache: this.viewModel.imageCache,
-									modalSlot: this.viewModel.modalSlot,
-									navigationController: this.viewModel.navigationController,
-									onNavigationControllerReady: this.viewModel.onRootDetailControllerReady,
-									paletteQueue: this.viewModel.paletteQueue,
-									playbackStore: this.viewModel.playbackStore,
-									toastService: this.viewModel.toastService,
-									transport: this.viewModel.transport,
-								},
-								{},
-								{ animated: this.viewModel.animationsEnabled },
-							);
+							pushArtist(this.viewModel.navigationController, this.detailDeps(), resolvedArtist);
 						});
 					}
 				: undefined,
@@ -255,42 +236,31 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		this.setState({ addToPlaylistTracks: null });
 	};
 
+	private detailDeps(): DetailPushDeps {
+		return {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			downloadService: this.viewModel.downloadService,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			modalSlot: this.viewModel.modalSlot,
+			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+			paletteQueue: this.viewModel.paletteQueue,
+			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		};
+	}
+
 	private handleAlbumCardTap = (card: {
 		id: string;
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
 	}): void => {
-		const {
-			animationsEnabled,
-			imageCache,
-			navigationController,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
 		const album = this.state.albums.find((a) => a.id === card.id);
 		if (!album) {
 			return;
 		}
 
-		navigationController.push(
-			AlbumView,
-			{
-				album,
-				animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				navigationController: this.viewModel.navigationController,
-				onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
-				paletteQueue,
-				playbackStore,
-				toastService: this.viewModel.toastService,
-				transport,
-			},
-			{},
-			{ animated: animationsEnabled },
-		);
+		pushAlbum(this.viewModel.navigationController, this.detailDeps(), album);
 	};
 
 	private handleContextMenuDismiss = (toastMessage?: string): void => {
@@ -310,33 +280,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			return;
 		}
 		this.handleContextMenuDismiss();
-		const {
-			animationsEnabled,
-			imageCache,
-			navigationController,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
-		navigationController.push(
-			AlbumView,
-			{
-				album: card.album,
-				animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache,
-				modalSlot: this.viewModel.modalSlot,
-				navigationController: this.viewModel.navigationController,
-				onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
-				paletteQueue,
-				playbackStore,
-				toastService: this.viewModel.toastService,
-				transport,
-			},
-			{},
-			{ animated: animationsEnabled },
-		);
+		pushAlbum(this.viewModel.navigationController, this.detailDeps(), card.album);
 	};
 
 	private handleCreatePlaylistCancel = (): void => {

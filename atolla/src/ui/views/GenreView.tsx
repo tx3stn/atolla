@@ -24,16 +24,15 @@ import { DetailHeader } from '../components/DetailHeader';
 import { LoadingView } from '../components/LoadingView';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
+import { type DetailPushDeps, pushAlbum, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { TRACK_PAGE_SIZE } from '../pagination/Grid';
-import { AlbumView } from './AlbumView';
-import { PlaylistView } from './PlaylistView';
 
 export interface GenreViewModel {
 	animationsEnabled: boolean;
 	downloadService: DownloadService;
 	genre: Genre;
-	gridColumns?: number;
+	gridColumns: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
@@ -284,14 +283,28 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		this.viewModel.downloadService.removeGenreDownload(this.viewModel.genre.id);
 	};
 
+	private detailDeps(): DetailPushDeps {
+		return {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			downloadService: this.viewModel.downloadService,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			modalSlot: this.viewModel.modalSlot,
+			onNavigateToArtist: this.viewModel.onNavigateToArtist,
+			paletteQueue: this.viewModel.paletteQueue,
+			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		};
+	}
+
 	private handleTrackLongPress = (track: Track): void => {
-		const { animationsEnabled, downloadService, imageCache, modalSlot, playbackStore, transport } =
-			this.viewModel;
+		const { animationsEnabled, imageCache, modalSlot, playbackStore, transport } = this.viewModel;
 		const { albumId, artistId } = track;
 
 		openTrackContextMenu(track, modalSlot, {
 			animationsEnabled,
-			gridColumns: this.viewModel.gridColumns ?? 2,
+			gridColumns: this.viewModel.gridColumns,
 			imageCache,
 			onAlbumTap: albumId
 				? () => {
@@ -302,25 +315,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 							imageUrl: track.albumImageUrl,
 							name: track.albumName ?? '',
 						};
-						this.navigationController.push(
-							AlbumView,
-							{
-								album,
-								animationsEnabled,
-								downloadService,
-								gridColumns: 3,
-								imageCache,
-								modalSlot,
-								navigationController: this.navigationController,
-								onRootDetailControllerReady: () => {},
-								playbackStore,
-								restoreHeaderOnDestroy: false,
-								toastService: this.viewModel.toastService,
-								transport,
-							},
-							{},
-							{ animated: animationsEnabled },
-						);
+						pushAlbum(this.navigationController, this.detailDeps(), album);
 					}
 				: undefined,
 			onArtistTap:
@@ -329,25 +324,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 					: undefined,
 			onDismiss: () => {},
 			onPlaylistCreated: (playlist) => {
-				this.navigationController.push(
-					PlaylistView,
-					{
-						animationsEnabled,
-						downloadService,
-						gridColumns: this.viewModel.gridColumns ?? 2,
-						imageCache,
-						modalSlot,
-						navigationController: this.navigationController,
-						onRootDetailControllerReady: () => {},
-						paletteQueue: this.viewModel.paletteQueue,
-						playbackStore,
-						playlist,
-						toastService: this.viewModel.toastService,
-						transport,
-					},
-					{},
-					{ animated: animationsEnabled },
-				);
+				pushPlaylist(this.navigationController, this.detailDeps(), playlist);
 			},
 			playbackStore,
 			toastService: this.viewModel.toastService,

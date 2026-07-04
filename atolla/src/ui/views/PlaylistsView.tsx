@@ -21,9 +21,9 @@ import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
+import { type DetailPushDeps, pushPlaylist } from '../flows/PushDetail';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
 import { AddToPlaylistView } from './AddToPlaylistView';
-import { PlaylistView } from './PlaylistView';
 import { sortPlaylists } from './sort/Playlists';
 
 export interface PlaylistsViewModel {
@@ -183,38 +183,25 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		this.navigateToPlaylist(playlist);
 	};
 
-	private navigateToPlaylist(playlist: Playlist): void {
-		const {
-			animationsEnabled,
-			imageCache,
-			modalSlot,
-			onNavigateToArtist,
-			paletteQueue,
-			playbackStore,
-			transport,
-		} = this.viewModel;
+	private detailDeps(): DetailPushDeps {
+		return {
+			animationsEnabled: this.viewModel.animationsEnabled,
+			downloadService: this.viewModel.downloadService,
+			gridColumns: this.viewModel.gridColumns,
+			imageCache: this.viewModel.imageCache,
+			modalSlot: this.viewModel.modalSlot,
+			onNavigateToArtist: this.viewModel.onNavigateToArtist,
+			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+			paletteQueue: this.viewModel.paletteQueue,
+			playbackStore: this.viewModel.playbackStore,
+			playlistEditService: this.viewModel.playlistEditService,
+			toastService: this.viewModel.toastService,
+			transport: this.viewModel.transport,
+		};
+	}
 
-		this.viewModel.navigationController.push(
-			PlaylistView,
-			{
-				animationsEnabled,
-				downloadService: this.viewModel.downloadService,
-				gridColumns: this.viewModel.gridColumns,
-				imageCache,
-				modalSlot,
-				navigationController: this.viewModel.navigationController,
-				onNavigateToArtist,
-				onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
-				paletteQueue,
-				playbackStore,
-				playlist,
-				playlistEditService: this.viewModel.playlistEditService,
-				toastService: this.viewModel.toastService,
-				transport,
-			},
-			{},
-			{ animated: animationsEnabled },
-		);
+	private navigateToPlaylist(playlist: Playlist): void {
+		pushPlaylist(this.viewModel.navigationController, this.detailDeps(), playlist);
 	}
 
 	private handleContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
