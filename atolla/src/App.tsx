@@ -327,19 +327,11 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		});
 		<view style={theme.app.root}>
 			<AuthedApp
-				animationsEnabled={this.preferences.animationsEnabled}
-				barColors={this.barColors}
 				connectionMode={this.state.connectionMode}
-				downloadingCount={this.state.downloadingCount}
 				downloadService={this.downloadService}
-				gridColumns={this.preferences.gridColumns}
 				homeViewModel={this.buildHomeViewModel()}
-				imageCache={this.imageCache}
-				language={this.preferences.language}
 				libraryViewModel={this.buildLibraryViewModel()}
 				modalSlot={this.modalSlot}
-				onRequestModeChange={this.handleRequestModeChange}
-				paletteQueue={this.userScope.getPaletteQueue()}
 				paletteService={this.userScope.getPaletteService()}
 				playbackOrchestrator={this.playbackOrchestrator}
 				playbackStore={this.playbackStore}
@@ -347,8 +339,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 				searchViewModel={this.buildSearchViewModel()}
 				sessionController={this.sessionController}
 				toastService={this.toastService}
-				toastSlot={this.toastSlot}
-				transport={this.connectivity.getTransport()}
 			/>
 			{this.state.syncProgress != null && (
 				<SyncStatusBanner
