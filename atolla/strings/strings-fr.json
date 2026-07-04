@@ -135,12 +135,6 @@
 	"http_warning_modal_body": {
 		"defaultMessage": "ce serveur utilise HTTP. vos identifiants et données seront envoyés sans chiffrement sur le réseau.\n\ncontinuez uniquement si vous faites confiance à ce réseau et n'avez pas d'autre option."
 	},
-	"http_warning_modal_cancel": {
-		"defaultMessage": "annuler"
-	},
-	"http_warning_modal_confirm": {
-		"defaultMessage": "connecter quand même"
-	},
 	"http_warning_modal_title": {
 		"defaultMessage": "connexion non chiffrée"
 	},

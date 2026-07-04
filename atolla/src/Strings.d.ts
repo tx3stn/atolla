@@ -44,8 +44,6 @@ declare const Strings: {
 	homeSectionRecentlyPlayed: () => string;
 	homeTitle: () => string;
 	httpWarningModalBody: () => string;
-	httpWarningModalCancel: () => string;
-	httpWarningModalConfirm: () => string;
 	httpWarningModalTitle: () => string;
 	imagesOnDisk: (count: number, size: string) => string;
 	loading: () => string;

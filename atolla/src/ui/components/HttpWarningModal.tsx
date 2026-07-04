@@ -31,7 +31,7 @@ export class HttpWarningModal extends Component<HttpWarningModalViewModel> {
 					<Button
 						accessibilityId='http-warning-cancel'
 						animationsEnabled={this.viewModel.animationsEnabled}
-						label={Strings.httpWarningModalCancel()}
+						label={Strings.cancel()}
 						onTap={this.viewModel.onCancel}
 						style={ButtonType.Secondary}
 					/>
@@ -41,7 +41,7 @@ export class HttpWarningModal extends Component<HttpWarningModalViewModel> {
 					<Button
 						accessibilityId='http-warning-confirm'
 						animationsEnabled={this.viewModel.animationsEnabled}
-						label={Strings.httpWarningModalConfirm()}
+						label={Strings.connectButton()}
 						onTap={this.viewModel.onConfirm}
 						style={ButtonType.Warn}
 					/>
