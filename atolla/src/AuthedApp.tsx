@@ -162,7 +162,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 				</view>
 			</view>
 
-			<OverlayHost />
+			{Device.isAndroid() && <OverlayHost />}
 		</view>;
 	}
 

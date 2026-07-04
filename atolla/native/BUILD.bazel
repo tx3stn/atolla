@@ -109,6 +109,20 @@ objc_library(
 )
 
 objc_library(
+    name = "atolla_overlay_host_bootstrap_module_factory_ios",
+    srcs = [
+        "ios/AtollaOverlayHost.mm",
+        "ios/AtollaOverlayHostBootstrapModuleFactory.m",
+    ],
+    hdrs = ["ios/AtollaOverlayHost.h"],
+    copts = ["-I."],
+    sdk_frameworks = ["UIKit"],
+    deps = [
+        "//atolla:atolla_api_objc",
+    ],
+)
+
+objc_library(
     name = "atolla_track_playback_module_factory_ios",
     srcs = ["ios/AtollaTrackPlaybackNativeModuleFactory.m"],
     copts = ["-I."],

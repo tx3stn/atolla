@@ -21,6 +21,7 @@ import {
 	ensureAtollaImageLoaderBootstrap,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
+import { ensureAtollaOverlayHostBootstrap } from './OverlayHostBootstrap';
 import Strings from './Strings';
 import { appServices } from './services/AppServices';
 import { AssetCache } from './services/AssetCache';
@@ -237,6 +238,11 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			ensureAtollaHapticsBootstrap();
 		} catch {
 			// native bootstrap may be unavailable on non-Android/iOS targets
+		}
+		try {
+			ensureAtollaOverlayHostBootstrap();
+		} catch {
+			// overlay-window spike bootstrap is iOS-only
 		}
 		this.playbackOrchestrator.start();
 		this.sessionController.register({
