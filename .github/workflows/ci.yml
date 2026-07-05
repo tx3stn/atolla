@@ -32,12 +32,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc \
-            /usr/local/lib/android \
-            /opt/hostedtoolcache/CodeQL
-          df -h /
       - name: Cache bun dependencies
         uses: actions/cache@v6
         with:
@@ -52,6 +46,13 @@ jobs:
       - name: Resolve valdi CLI version
         id: valdi-version
         run: echo "valdi=$(jq -r .version node_modules/@snap/valdi/package.json)" >> "$GITHUB_OUTPUT"
+      # projectsync's generated res.ts is a typed accessor keyed by resource
+      # name/path, not file bytes — so key the cache on the sorted file LIST, not
+      # hashFiles (which hashes contents). A reformat or icon redesign that keeps
+      # the same filenames still hits; adds/removes/renames miss (as they should).
+      - name: Hash res file list
+        id: reslist
+        run: echo "hash=$(cd atolla && find res -type f | LC_ALL=C sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
       # tsc only needs projectsync's OUTPUTS: the valdi sources/types, the
       # generated res.ts, and the linux-rewritten tsconfig. Cache those directly,
       # keyed on everything that can change them — on a hit this job runs no
@@ -66,7 +67,12 @@ jobs:
             bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
             atolla/tsconfig.json
-          key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/res/**') }}
+          key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel') }}-res${{ steps.reslist.outputs.hash }}
+      # only the cold path runs bazel (projectsync builds Skia/Hermes/etc), so only
+      # it needs the extra room; a cache hit does no heavy build
+      - name: Free disk space
+        if: steps.projectsync-cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/free-disk-space
       - name: Install libtinfo5
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/install-libtinfo5
@@ -125,7 +131,7 @@ jobs:
             bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
             atolla/tsconfig.json
-          key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/res/**') }}
+          key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel') }}-res${{ steps.reslist.outputs.hash }}
       - name: Save bazel repository cache
         if: always() && steps.projectsync-cache.outputs.cache-hit != 'true' && steps.restore-bazel-repo.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
@@ -141,11 +147,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc \
-            /usr/local/lib/android \
-            /opt/hostedtoolcache/CodeQL
-          df -h /
+        uses: ./.github/actions/free-disk-space
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.15.2
@@ -188,11 +190,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc \
-            /usr/local/lib/android \
-            /opt/hostedtoolcache/CodeQL
-          df -h /
+        uses: ./.github/actions/free-disk-space
       - name: Install libtinfo5
         uses: ./.github/actions/install-libtinfo5
       - name: Configure bazel caching
@@ -271,11 +269,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc \
-            /usr/local/lib/android \
-            /opt/hostedtoolcache/CodeQL
-          df -h /
+        uses: ./.github/actions/free-disk-space
       - name: Install libtinfo5
         uses: ./.github/actions/install-libtinfo5
       - name: Configure bazel caching

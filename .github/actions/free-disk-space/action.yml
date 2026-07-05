@@ -1,0 +1,17 @@
+name: Free disk space
+description: >-
+  Reclaim ~25 GB on the runner by deleting preinstalled toolchains the bazel
+  builds never touch (dotnet, ghc, the Android SDK, CodeQL). The deletes run in
+  parallel: /usr/local/lib/android alone is ~12 GB of many small files and is the
+  long pole, so a serial rm wastes ~half the wall time waiting on it.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo rm -rf /usr/share/dotnet &
+        sudo rm -rf /opt/ghc &
+        sudo rm -rf /usr/local/lib/android &
+        sudo rm -rf /opt/hostedtoolcache/CodeQL &
+        wait
+        df -h /
