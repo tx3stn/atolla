@@ -16,6 +16,7 @@ import { buildImageSource } from '../../services/ImageSource';
 import type { ToastService } from '../../services/ToastService';
 import type { BarColorStore, FooterColors } from '../../stores/BarColor';
 import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playback';
+import { MAX_VISIBLE_QUEUE_TRACKS } from '../../stores/Queue';
 import { paletteDefaults, theme, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { createPlaylistAndAddTracks, selectQueueTracksForPlaylist } from '../flows/CreatePlaylist';
@@ -32,8 +33,6 @@ import { ScrollDragAutoScroller } from './ScrollDragAutoScroller';
 import { TappableIcon } from './TappableIcon';
 import { TouchEventState } from './TouchEventState';
 import { TrackList, type TrackListEntry } from './TrackList';
-
-const MAX_VISIBLE_QUEUE_TRACKS = 30;
 
 // a transition still flagged in-flight after this window was abandoned mid-animation
 // by a background freeze (Valdi animations/timers stop when backgrounded, so the

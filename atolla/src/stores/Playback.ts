@@ -215,6 +215,9 @@ export class PlaybackStore {
 
 	next(): void {
 		if (this.trackIndex >= this.tracks.length - 1) {
+			// already at the tail: nothing to advance to, but still notify so the shuffle
+			// loader can top up when the user has skipped to the end before a page landed
+			this.notify();
 			return;
 		}
 		this.allowBackwardRebuild = true;

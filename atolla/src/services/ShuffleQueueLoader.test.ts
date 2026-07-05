@@ -82,7 +82,7 @@ describe('ShuffleQueueLoader', () => {
 	});
 
 	it('does not fetch when remaining tracks are above the threshold', async () => {
-		const initialTracks = createTracks(25);
+		const initialTracks = createTracks(35);
 		const store = createMockStore(initialTracks, 0);
 		let fetchCallCount = 0;
 
@@ -99,6 +99,48 @@ describe('ShuffleQueueLoader', () => {
 		await new Promise((resolve) => setTimeout(resolve, 50));
 
 		expect(fetchCallCount).toBe(0);
+		loader.dispose();
+	});
+
+	it('does not fetch when remaining tracks are one above the visible window', async () => {
+		const store = createMockStore(createTracks(31), 0);
+		let fetchCallCount = 0;
+
+		const loader = new ShuffleQueueLoader(
+			store,
+			() => {
+				fetchCallCount++;
+				return Promise.resolve({ hasMore: true, items: [] });
+			},
+			SHUFFLE_PAGE_SIZE,
+		);
+
+		loader.start(2, true);
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(fetchCallCount).toBe(0);
+		loader.dispose();
+	});
+
+	it('fetches when remaining tracks reach the visible window', async () => {
+		const store = createMockStore(createTracks(30), 0);
+		const nextPageTracks = createTracks(5, 'p2-');
+		let fetchCallCount = 0;
+
+		const loader = new ShuffleQueueLoader(
+			store,
+			() => {
+				fetchCallCount++;
+				return Promise.resolve({ hasMore: false, items: nextPageTracks });
+			},
+			SHUFFLE_PAGE_SIZE,
+		);
+
+		loader.start(2, true);
+		await waitFor(() => fetchCallCount === 1);
+
+		expect(fetchCallCount).toBe(1);
+		expect(store.addedTracks).toEqual(nextPageTracks);
 		loader.dispose();
 	});
 
@@ -263,7 +305,7 @@ describe('ShuffleQueueLoader', () => {
 	});
 
 	it('does not fetch when the queue has been cleared to empty', async () => {
-		const initialTracks = createTracks(25);
+		const initialTracks = createTracks(35);
 		const store = createMockStore(initialTracks, 0);
 		let fetchCallCount = 0;
 

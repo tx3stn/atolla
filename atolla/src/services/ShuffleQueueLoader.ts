@@ -1,4 +1,5 @@
 import type { Track } from '../models/Track';
+import { MAX_VISIBLE_QUEUE_TRACKS } from '../stores/Queue';
 
 interface QueueState {
 	addToQueue(tracks: Array<Track>): void;
@@ -11,8 +12,6 @@ type FetchPage = (
 	page: number,
 	pageSize: number,
 ) => Promise<{ hasMore: boolean; items: Array<Track> }>;
-
-const PREFETCH_THRESHOLD = 10;
 
 // how many recently-queued ids to remember for de-duping. Jellyfin's Random sort
 // reshuffles every request, so consecutive pages overlap; dropping tracks seen in
@@ -94,8 +93,9 @@ export class ShuffleQueueLoader {
 			return;
 		}
 
-		const remaining = this.store.tracks.length - this.store.trackIndex;
-		if (remaining > PREFETCH_THRESHOLD) {
+		// refill once the upcoming tracks would no longer fill the now-playing surface's
+		// visible queue, so the "up next" list never drains to a gap while there is more to load
+		if (this.store.tracks.length - this.store.trackIndex > MAX_VISIBLE_QUEUE_TRACKS) {
 			return;
 		}
 

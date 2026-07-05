@@ -180,6 +180,16 @@ describe('PlaybackStore', () => {
 			store.next();
 			expect(calls).toBe(1);
 		});
+
+		it('notifies listeners even when already at the last track', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album, 2);
+			let calls = 0;
+			store.subscribe(() => calls++);
+			store.next();
+			expect(store.trackIndex).toBe(2);
+			expect(calls).toBe(1);
+		});
 	});
 
 	describe('advancePastTrackId()', () => {
