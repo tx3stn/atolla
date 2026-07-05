@@ -147,6 +147,9 @@ export class UserScope {
 			// observer bridge unavailable on non-Android targets
 		}
 		this.unsubscribePalette = this.paletteService.subscribe(() => this.deps.requestRerender());
+		// on the login path activate() runs after the home view has already mounted with these
+		// services undefined, so re-render to flow the newly created services into the view models
+		this.deps.requestRerender();
 	}
 
 	dispose(): void {

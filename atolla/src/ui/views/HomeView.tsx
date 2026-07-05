@@ -146,9 +146,16 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			return;
 		}
 
+		// on the login path the per-user services arrive after this view first mounts, so reload once
+		// they transition from undefined to defined rather than staying on the empty initial load
+		const servicesBecameAvailable =
+			(!prevViewModel.onThisDayService && !!this.viewModel.onThisDayService) ||
+			(!prevViewModel.recentlyAddedService && !!this.viewModel.recentlyAddedService);
+
 		if (
 			this.viewModel.transport !== prevViewModel.transport ||
-			this.viewModel.connectionMode !== prevViewModel.connectionMode
+			this.viewModel.connectionMode !== prevViewModel.connectionMode ||
+			servicesBecameAvailable
 		) {
 			DebugLogger.log('home', 'transport/mode changed, reloading', {
 				connectionMode: this.viewModel.connectionMode,
