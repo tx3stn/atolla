@@ -1,3 +1,4 @@
+import Strings from 'atolla/src/Strings';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
@@ -160,7 +161,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 							style={styles.loadMoreTrigger}
 						/>
 					)}
-					{isLoadingNextPage && <label style={styles.loadMoreLabel} value='Loading more...' />}
+					{isLoadingNextPage && <label style={styles.loadMoreLabel} value={Strings.loading()} />}
 					{nextPageFailed && (
 						<view
 							accessibilityId='genre-load-more-retry'
@@ -168,7 +169,11 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 							onTap={this.retryLoadMore}
 							style={styles.loadMoreRetryContainer}
 						>
-							<label style={styles.loadMoreRetryLabel} value='Failed to load more. Tap to retry.' />
+							<label
+								numberOfLines={0}
+								style={styles.loadMoreRetryLabel}
+								value={Strings.failedToLoadMore()}
+							/>
 						</view>
 					)}
 				</scroll>

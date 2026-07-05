@@ -97,7 +97,7 @@
 		"defaultMessage": "enter server URL"
 	},
 	"failed_to_load_more": {
-		"defaultMessage": "Failed to load more. Tap to retry."
+		"defaultMessage": "failed to load more\npull to retry"
 	},
 	"header_albums": {
 		"defaultMessage": "ALBUMS"
@@ -147,9 +147,6 @@
 	},
 	"loading_home": {
 		"defaultMessage": "loading home"
-	},
-	"loading_more": {
-		"defaultMessage": "Loading more..."
 	},
 	"no": {
 		"defaultMessage": "no"

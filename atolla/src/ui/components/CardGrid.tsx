@@ -147,7 +147,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 				</layout>
 			))}
 			{isLoadingMore ? (
-				<label style={styles.loadMoreLabel} value={Strings.loadingMore()} />
+				<label style={styles.loadMoreLabel} value={Strings.loading()} />
 			) : onRetryLoadMore ? (
 				<view
 					accessibilityId='grid-load-more-retry'
@@ -157,7 +157,11 @@ export class CardGrid extends Component<CardGridViewModel> {
 					})}
 					style={styles.loadMoreRetryContainer}
 				>
-					<label style={styles.loadMoreRetryLabel} value={Strings.failedToLoadMore()} />
+					<label
+						numberOfLines={0}
+						style={styles.loadMoreRetryLabel}
+						value={Strings.failedToLoadMore()}
+					/>
 				</view>
 			) : null}
 		</layout>;

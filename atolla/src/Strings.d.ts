@@ -48,7 +48,6 @@ declare const Strings: {
 	imagesOnDisk: (count: number, size: string) => string;
 	loading: () => string;
 	loadingHome: () => string;
-	loadingMore: () => string;
 	no: () => string;
 	nothingElseLinedUp: () => string;
 	play: () => string;

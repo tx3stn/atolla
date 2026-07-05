@@ -97,7 +97,7 @@
 		"defaultMessage": "entrer l'URL du serveur"
 	},
 	"failed_to_load_more": {
-		"defaultMessage": "Échec du chargement. Appuyez pour réessayer."
+		"defaultMessage": "échec du chargement\nappuyez pour réessayer"
 	},
 	"header_albums": {
 		"defaultMessage": "ALBUMS"
@@ -147,9 +147,6 @@
 	},
 	"loading_home": {
 		"defaultMessage": "chargement de l'accueil"
-	},
-	"loading_more": {
-		"defaultMessage": "Chargement..."
 	},
 	"no": {
 		"defaultMessage": "non"
