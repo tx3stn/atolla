@@ -38,4 +38,14 @@ BOOL AtollaShouldSuppressBackwardRebuild(BOOL isPlaying,
 // on Android
 BOOL AtollaShouldDeferLookaheadForSource(NSString *currentSourceUrl);
 
+// the loaded current item and the requested current track are the same item when their track
+// ids match, so a differing source URL for the same id (a stream URL replaced by its cached
+// file, or a re-signed stream query) must NOT rebuild the queue and restart playback. falls
+// back to comparing source URLs only when a track id is unknown. mirrors mediaItemMatches on
+// Android, where the MediaItem carries its mediaId
+BOOL AtollaCurrentItemMatches(NSString *loadedTrackId,
+                              NSString *requestedTrackId,
+                              NSString *loadedSourceUrl,
+                              NSString *requestedSourceUrl);
+
 NS_ASSUME_NONNULL_END

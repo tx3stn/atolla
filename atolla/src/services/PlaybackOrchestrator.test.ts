@@ -1022,6 +1022,137 @@ describe('PlaybackOrchestrator track source routing', () => {
 	});
 });
 
+describe('PlaybackOrchestrator cached current track source stability', () => {
+	function playingStore(
+		tracks: Array<Track>,
+		trackIndex = 0,
+	): {
+		album: null;
+		isPlaying: boolean;
+		loopMode: string;
+		track: Track | null;
+		trackIndex: number;
+		tracks: Array<Track>;
+	} {
+		return {
+			album: null,
+			isPlaying: true,
+			loopMode: 'none',
+			track: tracks[trackIndex] ?? null,
+			trackIndex,
+			tracks,
+		};
+	}
+
+	it('keeps the current track streaming when its download completes mid-playback', () => {
+		const cachedFiles: Record<string, string> = {};
+		let rerenders = 0;
+		const trackSourceNative = fakeTrackSourceNative({
+			getCachedTrackFileUrl: (id) => cachedFiles[id] ?? '',
+		});
+		const orchestrator = createOrchestrator(
+			playingStore([makeTrack('a')]),
+			() => {
+				rerenders += 1;
+			},
+			fakeNotification(),
+			{ getTrackCacheUrl: (id) => `stream://${id}`, trackSourceNative },
+		);
+
+		orchestrator.handleTrackPlaybackSourceChange();
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('stream://a');
+		const rerendersAfterBind = rerenders;
+
+		cachedFiles.a = '/cache/a';
+		orchestrator.handleTrackCached('a');
+
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('stream://a');
+		expect(rerenders).toBe(rerendersAfterBind);
+		orchestrator.dispose();
+	});
+
+	it('still generates the waveform from the cached file for the current track', () => {
+		const cachedFiles: Record<string, string> = {};
+		const waveform = fakeWaveformQueue();
+		const trackSourceNative = fakeTrackSourceNative({
+			getCachedTrackFileUrl: (id) => cachedFiles[id] ?? '',
+		});
+		const orchestrator = createOrchestrator(
+			playingStore([makeTrack('a')]),
+			() => {},
+			fakeNotification(),
+			{
+				getAudioFileUrl: (id) => (id === 'a' ? '/audio/a' : null),
+				getTrackCacheUrl: (id) => `stream://${id}`,
+				trackSourceNative,
+			},
+		);
+		orchestrator.setUserServices(userServices({ ...waveform.callbacks }));
+
+		orchestrator.handleTrackPlaybackSourceChange();
+		cachedFiles.a = '/cache/a';
+		orchestrator.handleTrackCached('a');
+
+		expect(waveform.state.enqueued).toContainEqual({ audioPath: '/audio/a', trackId: 'a' });
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('stream://a');
+		orchestrator.dispose();
+	});
+
+	it('refreshes the upcoming queue with the cached source when the current caches', () => {
+		const cachedFiles: Record<string, string> = {};
+		const trackSourceNative = fakeTrackSourceNative({
+			getCachedTrackFileUrl: (id) => cachedFiles[id] ?? '',
+		});
+		const orchestrator = createOrchestrator(
+			playingStore([makeTrack('a'), makeTrack('b')]),
+			() => {},
+			fakeNotification(),
+			{ getTrackCacheUrl: (id) => `stream://${id}`, trackSourceNative },
+		);
+
+		orchestrator.handleTrackPlaybackSourceChange();
+		orchestrator.syncUpcomingQueue();
+		const payloadsAfterBind = trackSourceNative.upcomingQueuePayloads.length;
+
+		cachedFiles.a = '/cache/a';
+		orchestrator.handleTrackCached('a');
+
+		expect(trackSourceNative.upcomingQueuePayloads.length).toBeGreaterThan(payloadsAfterBind);
+		orchestrator.dispose();
+	});
+
+	it('binds the cached file when the current source was never resolved', () => {
+		const cachedFiles: Record<string, string> = { a: '/cache/a' };
+		const trackSourceNative = fakeTrackSourceNative({
+			getCachedTrackFileUrl: (id) => cachedFiles[id] ?? '',
+		});
+		const orchestrator = createOrchestrator(
+			playingStore([makeTrack('a')]),
+			() => {},
+			fakeNotification(),
+			{ getTrackCacheUrl: (id) => `stream://${id}`, trackSourceNative },
+		);
+
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBeNull();
+		orchestrator.handleTrackCached('a');
+
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('/cache/a');
+		orchestrator.dispose();
+	});
+
+	it('does not schedule a source-format retry on source-bound', () => {
+		const orchestrator = createOrchestrator(playingStore([makeTrack('a')]));
+		const setTimeoutSpy = spyOn(globalThis, 'setTimeout');
+		try {
+			orchestrator.handlePlaybackEvent('source-bound');
+			expect(setTimeoutSpy).not.toHaveBeenCalled();
+		} finally {
+			setTimeoutSpy.mockRestore();
+		}
+		orchestrator.dispose();
+	});
+});
+
 describe('PlaybackOrchestrator upcoming palettes', () => {
 	it('prewarms album art and enqueues palettes for the up-next window', async () => {
 		const palette = fakePalette();
@@ -1117,6 +1248,45 @@ describe('PlaybackOrchestrator upcoming palettes', () => {
 	it('does nothing before user services are bound', () => {
 		const orchestrator = createOrchestrator(palettePlaybackStore(3, 0));
 		expect(() => orchestrator.prewarmUpcomingPalettes()).not.toThrow();
+	});
+
+	it('defers upcoming album-art downloads behind the playback cushion while streaming', async () => {
+		const palette = fakePalette();
+		const cached: Array<string> = [];
+		const tracks = [
+			{ albumImageUrl: 'art://a', duration: 100, id: 'a', name: 'A' },
+			{ albumImageUrl: 'art://b', duration: 100, id: 'b', name: 'B' },
+		] as Array<Track>;
+		const store = {
+			album: null,
+			isPlaying: true,
+			loopMode: 'none',
+			track: tracks[0] as Track | null,
+			trackIndex: 0,
+			tracks,
+		};
+		const trackSourceNative = fakeTrackSourceNative({ getCachedTrackFileUrl: () => '' });
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			cacheAlbumArt: (url) => {
+				cached.push(url);
+				return Promise.resolve();
+			},
+			getTrackCacheUrl: (id) => `stream://${id}`,
+			trackSourceNative,
+		});
+		orchestrator.setUserServices(
+			userServices({ paletteQueue: palette.queue, paletteService: palette.service }),
+		);
+
+		orchestrator.handleTrackPlaybackSourceChange();
+		orchestrator.prewarmUpcomingPalettes();
+		await flush();
+		expect(cached).toEqual([]);
+
+		orchestrator.handlePlaybackEvent('playback-cushion');
+		await flush();
+		expect(cached).toEqual(['art://b']);
+		orchestrator.dispose();
 	});
 });
 

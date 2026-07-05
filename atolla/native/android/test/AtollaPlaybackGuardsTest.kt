@@ -52,6 +52,50 @@ class AtollaPlaybackGuardsTest {
 	}
 
 	@Test
+	fun `current item matches on track id even when the source url changed`() {
+		assertTrue(
+			AtollaPlaybackGuards.currentItemMatches(
+				loadedTrackId = "track-1",
+				requestedTrackId = "track-1",
+				loadedSourceUrl = "https://server/Audio/track-1/stream.mp3",
+				requestedSourceUrl = "file:///data/tracks/track-1.mp3",
+			),
+		)
+	}
+
+	@Test
+	fun `current item does not match when the track id differs`() {
+		assertFalse(
+			AtollaPlaybackGuards.currentItemMatches(
+				loadedTrackId = "track-1",
+				requestedTrackId = "track-2",
+				loadedSourceUrl = "https://server/Audio/track-1/stream.mp3",
+				requestedSourceUrl = "https://server/Audio/track-1/stream.mp3",
+			),
+		)
+	}
+
+	@Test
+	fun `current item falls back to the source url when a track id is unknown`() {
+		assertTrue(
+			AtollaPlaybackGuards.currentItemMatches(
+				loadedTrackId = "",
+				requestedTrackId = "track-1",
+				loadedSourceUrl = "file:///a.mp3",
+				requestedSourceUrl = "file:///a.mp3",
+			),
+		)
+		assertFalse(
+			AtollaPlaybackGuards.currentItemMatches(
+				loadedTrackId = "track-1",
+				requestedTrackId = "",
+				loadedSourceUrl = "file:///a.mp3",
+				requestedSourceUrl = "file:///b.mp3",
+			),
+		)
+	}
+
+	@Test
 	fun `rebuilds queue when ended even if current item matches`() {
 		assertTrue(
 			AtollaPlaybackGuards.shouldRebuildQueueForState(

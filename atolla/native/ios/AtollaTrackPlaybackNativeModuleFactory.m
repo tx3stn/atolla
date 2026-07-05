@@ -3,7 +3,13 @@
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 #import <Foundation/Foundation.h>
+#import <objc/runtime.h>
 #import "atolla/native/ios/AtollaPlaybackGuards.h"
+
+// associates the source track id with each AVPlayerItem so the loaded current item can be
+// identified by track rather than by its (mutable) source URL, mirroring MediaItem.mediaId on
+// Android. the id travels with the item through every gapless advance
+static const void *kAtollaPlayerItemTrackIdKey = &kAtollaPlayerItemTrackIdKey;
 // MARK: - Track File Cache
 
 @interface AtollaTrackCache : NSObject
@@ -826,7 +832,9 @@ static id sLookaheadClearObserver = nil;
         if (nextWindowIndex >= (NSInteger)window.count) return;
         NSString *nextUrl = urls[nextWindowIndex];
         if (nextUrl.length == 0) return;
-        AVPlayerItem *item = [self playerItemForUrl:nextUrl];
+        NSString *nextWindowTrackId = [window[nextWindowIndex][@"trackId"] isKindOfClass:[NSString class]]
+            ? window[nextWindowIndex][@"trackId"] : @"";
+        AVPlayerItem *item = [self playerItemForUrl:nextUrl trackId:nextWindowTrackId];
         if (![sPlayer canInsertItem:item afterItem:currentItems.lastObject]) return;
         [sPlayer insertItem:item afterItem:currentItems.lastObject];
     }
@@ -897,17 +905,18 @@ static id sLookaheadClearObserver = nil;
             [self registerPlayerObservers];
         }
 
-        // match on the actual current item's URL. the previous trackId comparison was against
-        // sCurrentTrackId, which configure() assigns above before this block runs, so it was
-        // always true whenever any current item existed and a stale/ended item was never
-        // replaced. also treat an ended item as a mismatch so it gets re-prepared (the offline
-        // gapless transition can leave the player parked at end-of-queue, where [play] alone
-        // won't restart it)
+        // match on the loaded item's track id (carried as an associated object), falling back to
+        // its URL when the id is unknown. matching by id keeps the same track playing when only
+        // its source URL changes (stream URL replaced by its cached file, or a re-signed stream
+        // query), which would otherwise rebuild the queue and restart from zero. also treat an
+        // ended item as a mismatch so it gets re-prepared (the offline gapless transition can
+        // leave the player parked at end-of-queue, where [play] alone won't restart it)
         AVPlayerItem *currentItem = sPlayer.currentItem;
         BOOL currentMatches = NO;
         if (currentItem && ![self isItemAtEnd:currentItem]) {
             NSString *currentUrl = [(AVURLAsset *)currentItem.asset URL].absoluteString;
-            currentMatches = [currentUrl isEqualToString:currentSourceUrl];
+            currentMatches = AtollaCurrentItemMatches([self trackIdForItem:currentItem], currentTrackId,
+                                                      currentUrl, currentSourceUrl);
         }
 
         if (!currentMatches) {
@@ -958,10 +967,10 @@ static id sLookaheadClearObserver = nil;
             // observer in registerPlayerObservers). mirrors replaceQueue on Android
             sSuppressLookahead = AtollaShouldDeferLookaheadForSource(currentSourceUrl);
             [sPlayer removeAllItems];
-            AVPlayerItem *item = [self playerItemForUrl:currentSourceUrl];
+            AVPlayerItem *item = [self playerItemForUrl:currentSourceUrl trackId:currentTrackId];
             [sPlayer insertItem:item afterItem:nil];
             if (!sSuppressLookahead && nextSourceUrl.length > 0 && ![nextSourceUrl isEqualToString:currentSourceUrl]) {
-                AVPlayerItem *nextItem = [self playerItemForUrl:nextSourceUrl];
+                AVPlayerItem *nextItem = [self playerItemForUrl:nextSourceUrl trackId:nextTrackId];
                 [sPlayer insertItem:nextItem afterItem:item];
             }
             [self ensureWindow];
@@ -971,7 +980,7 @@ static id sLookaheadClearObserver = nil;
         } else {
             // currentMatches implies the item isn't at its end (see the isItemAtEnd guard
             // above), so no end-of-item recovery seek is needed on this fast path
-            [self syncQueueWithNext:nextSourceUrl];
+            [self syncQueueWithNext:nextSourceUrl trackId:nextTrackId];
             [self ensureWindow];
             if (sPlaybackRate > 0) {
                 [sPlayer play];
@@ -981,9 +990,18 @@ static id sLookaheadClearObserver = nil;
     });
 }
 
-+ (AVPlayerItem *)playerItemForUrl:(NSString *)urlString {
++ (AVPlayerItem *)playerItemForUrl:(NSString *)urlString trackId:(NSString *)trackId {
     NSURL *url = [NSURL URLWithString:urlString];
-    return [AVPlayerItem playerItemWithURL:url];
+    AVPlayerItem *item = [AVPlayerItem playerItemWithURL:url];
+    objc_setAssociatedObject(item, kAtollaPlayerItemTrackIdKey, trackId ?: @"",
+                             OBJC_ASSOCIATION_COPY_NONATOMIC);
+    return item;
+}
+
++ (NSString *)trackIdForItem:(AVPlayerItem *)item {
+    if (!item) return @"";
+    NSString *trackId = objc_getAssociatedObject(item, kAtollaPlayerItemTrackIdKey);
+    return trackId ?: @"";
 }
 
 // true when the item has effectively played to its end. a play/resume request can't
@@ -1008,14 +1026,14 @@ static id sLookaheadClearObserver = nil;
     }
 }
 
-+ (void)syncQueueWithNext:(NSString *)nextSourceUrl {
++ (void)syncQueueWithNext:(NSString *)nextSourceUrl trackId:(NSString *)nextTrackId {
     NSArray<AVPlayerItem *> *items = sPlayer.items;
     while (items.count > 1) {
         [sPlayer removeItem:items.lastObject];
         items = sPlayer.items;
     }
     if (!sSuppressLookahead && nextSourceUrl.length > 0 && ![nextSourceUrl isEqualToString:sCurrentSourceUrl]) {
-        AVPlayerItem *nextItem = [self playerItemForUrl:nextSourceUrl];
+        AVPlayerItem *nextItem = [self playerItemForUrl:nextSourceUrl trackId:nextTrackId];
         [sPlayer insertItem:nextItem afterItem:sPlayer.currentItem];
     }
 }
@@ -1173,8 +1191,9 @@ static id sLookaheadClearObserver = nil;
     sSuppressLookahead = NO;
     [sEngineLock lock];
     NSString *nextSrc = sNextSourceUrl;
+    NSString *nextId = sNextTrackId;
     [sEngineLock unlock];
-    [self syncQueueWithNext:nextSrc];
+    [self syncQueueWithNext:nextSrc trackId:nextId];
     [self ensureWindow];
 }
 

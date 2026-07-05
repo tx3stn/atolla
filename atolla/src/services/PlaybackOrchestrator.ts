@@ -18,6 +18,7 @@ import type { WaveformService } from './WaveformService';
 
 const NATIVE_ACTION_POLL_INTERVAL_MS = 350;
 const UPCOMING_PALETTE_PREWARM_COUNT = 10;
+const UPCOMING_PALETTE_CACHE_CONCURRENCY = 2;
 
 export interface NowPlayingPaletteService {
 	hasPalette(imageUrl: string | null | undefined): boolean;
@@ -98,9 +99,6 @@ export class PlaybackOrchestrator {
 	private playbackSourceRequestId = 0;
 	private readonly inFlightTrackDownloadIds = new Set<string>();
 	private lastPlaybackEventKey = '';
-	private playbackSourceBoundTimeout?: ReturnType<typeof setTimeout>;
-	private playbackReadySource = '';
-	private readonly playbackSourceRetryKeys = new Set<string>();
 	private lastPrefetchTracksRef: Array<Track> | null = null;
 	private lastPrefetchTrackIndex = -1;
 	private lastPrefetchTransport: unknown = null;
@@ -201,10 +199,10 @@ export class PlaybackOrchestrator {
 	// subscription and the at-startup pass so the ordering lives in one place
 	reconcilePlaybackState(): void {
 		this.handleAlbumChange();
-		this.prewarmUpcomingPalettes();
 		if (!this.handleTrackPlaybackSourceChange()) {
 			this.handleNextTrackPreload();
 		}
+		this.prewarmUpcomingPalettes();
 		this.syncUpcomingQueue();
 		this.handleTrackPrefetchQueueChange();
 		this.captureRecentlyPlayedTrack();
@@ -221,10 +219,6 @@ export class PlaybackOrchestrator {
 		if (this.actionPollInterval) {
 			clearInterval(this.actionPollInterval);
 			this.actionPollInterval = undefined;
-		}
-		if (this.playbackSourceBoundTimeout) {
-			clearTimeout(this.playbackSourceBoundTimeout);
-			this.playbackSourceBoundTimeout = undefined;
 		}
 		this.deferredDownloadCoordinator.reset();
 		this.trackPrefetchQueue.clearQueue();
@@ -404,24 +398,69 @@ export class PlaybackOrchestrator {
 			return;
 		}
 
+		const run = (): void => this.warmUpcomingPalettes(urls, paletteService, paletteQueue);
+		const deferralSource = this.upcomingPaletteDeferralSource();
+		if (deferralSource) {
+			this.deferredDownloadCoordinator.defer('palette', {
+				requestId: this.playbackSourceRequestId,
+				run,
+				source: deferralSource,
+				trackId: this.playbackStore.track?.id ?? '',
+			});
+			return;
+		}
+		run();
+	}
+
+	private upcomingPaletteDeferralSource(): string | null {
+		const activeTrack = this.playbackStore.track;
+		if (
+			!activeTrack ||
+			!this.playbackStore.isPlaying ||
+			this.isOfflinePlaybackMode() ||
+			this.getNativeCachedTrackSource(activeTrack.id) != null
+		) {
+			return null;
+		}
+		return this.getTrackStreamSource(activeTrack.id);
+	}
+
+	private warmUpcomingPalettes(
+		urls: Array<string>,
+		paletteService: NowPlayingPaletteService,
+		paletteQueue: NowPlayingPaletteQueue,
+	): void {
 		fireAndForget(
 			'upcomingPaletteWarmUp',
-			paletteService.warmUp(urls).then(() => {
-				for (const url of urls) {
-					if (paletteService.hasPalette(url)) {
-						continue;
-					}
-					fireAndForget(
-						'upcomingPaletteCache',
-						this.cacheAlbumArt(url).then(() => {
-							if (!paletteService.hasPalette(url)) {
-								paletteQueue.enqueue(url);
-							}
-						}),
-					);
-				}
-			}),
+			paletteService
+				.warmUp(urls)
+				.then(() => this.cacheUpcomingPaletteArt(urls, paletteService, paletteQueue)),
 		);
+	}
+
+	private async cacheUpcomingPaletteArt(
+		urls: Array<string>,
+		paletteService: NowPlayingPaletteService,
+		paletteQueue: NowPlayingPaletteQueue,
+	): Promise<void> {
+		const pending = urls.filter((url) => !paletteService.hasPalette(url));
+		let cursor = 0;
+		const worker = async (): Promise<void> => {
+			while (cursor < pending.length) {
+				const url = pending[cursor];
+				cursor += 1;
+				try {
+					await this.cacheAlbumArt(url);
+				} catch {
+					continue;
+				}
+				if (!paletteService.hasPalette(url)) {
+					paletteQueue.enqueue(url);
+				}
+			}
+		};
+		const workerCount = Math.min(UPCOMING_PALETTE_CACHE_CONCURRENCY, pending.length);
+		await Promise.all(Array.from({ length: workerCount }, () => worker()));
 	}
 
 	resolveCurrentArtistLogo(): void {
@@ -643,20 +682,6 @@ export class PlaybackOrchestrator {
 		return source.trim();
 	}
 
-	private toggleLocalFileSourceFormat(source: string): string {
-		const trimmed = source.trim();
-		if (!trimmed) {
-			return trimmed;
-		}
-		if (trimmed.startsWith('file://')) {
-			return trimmed.slice('file://'.length);
-		}
-		if (trimmed.startsWith('/')) {
-			return `file://${trimmed}`;
-		}
-		return trimmed;
-	}
-
 	private summarizeCacheError(message: string): string {
 		if (!message) {
 			return 'unknown error';
@@ -791,15 +816,14 @@ export class PlaybackOrchestrator {
 			this.enqueueWaveformIfNeeded(trackId, audioPath);
 		}
 
-		if (this.playbackStore.track?.id !== trackId) {
-			this.handleNextTrackPreload();
+		const isCurrentTrack = this.playbackStore.track?.id === trackId;
+		const currentSourceUnbound = this.getTrackPlaybackSourceUrl() == null;
+		if (isCurrentTrack && currentSourceUnbound && this.handleTrackPlaybackSourceChange(true)) {
 			this.syncUpcomingQueue();
 			return;
 		}
 
-		if (!this.handleTrackPlaybackSourceChange(true)) {
-			this.handleNextTrackPreload();
-		}
+		this.handleNextTrackPreload();
 		this.syncUpcomingQueue();
 	}
 
@@ -901,49 +925,12 @@ export class PlaybackOrchestrator {
 
 		this.lastPlaybackEventKey = eventKey;
 
-		if (event === 'loaded' || event === 'progress') {
-			this.playbackReadySource = source;
-			if (this.playbackSourceBoundTimeout) {
-				clearTimeout(this.playbackSourceBoundTimeout);
-				this.playbackSourceBoundTimeout = undefined;
-			}
-		}
-
 		if (event === 'playback-cushion') {
 			this.deferredDownloadCoordinator.onPlaybackStarted({
 				currentRequestId: this.playbackSourceRequestId,
 				currentTrackId: this.playbackStore.track?.id ?? null,
 				source,
 			});
-		}
-
-		if (event === 'source-bound') {
-			if (this.playbackSourceBoundTimeout) {
-				clearTimeout(this.playbackSourceBoundTimeout);
-			}
-
-			const retryKey = `${trackId}|${source}`;
-			this.playbackSourceBoundTimeout = setTimeout(() => {
-				if (this.getTrackPlaybackSourceUrl() !== source) {
-					return;
-				}
-
-				if (this.playbackReadySource === source) {
-					return;
-				}
-
-				if (this.playbackSourceRetryKeys.has(retryKey)) {
-					return;
-				}
-
-				const alternateSource = this.toggleLocalFileSourceFormat(source);
-				if (!alternateSource || alternateSource === source) {
-					return;
-				}
-
-				this.playbackSourceRetryKeys.add(retryKey);
-				this.setTrackPlaybackSource(alternateSource);
-			}, 1200);
 		}
 	}
 

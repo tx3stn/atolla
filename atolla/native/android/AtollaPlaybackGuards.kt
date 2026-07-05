@@ -49,6 +49,23 @@ object AtollaPlaybackGuards {
 	fun shouldRebuildQueueForState(isEnded: Boolean, isIdle: Boolean, currentItemMatches: Boolean): Boolean =
 		isEnded || isIdle || !currentItemMatches
 
+	// the loaded current item and the requested current track are the same item when their track
+	// ids match, so a differing source URL for the same id (a stream URL replaced by its cached
+	// file, or a re-signed stream query) must not rebuild the queue and restart playback. falls
+	// back to comparing source URLs only when a track id is unknown. mirrors AtollaCurrentItemMatches
+	// on iOS
+	fun currentItemMatches(
+		loadedTrackId: String,
+		requestedTrackId: String,
+		loadedSourceUrl: String,
+		requestedSourceUrl: String,
+	): Boolean {
+		if (loadedTrackId.isNotBlank() && requestedTrackId.isNotBlank()) {
+			return loadedTrackId == requestedTrackId
+		}
+		return loadedSourceUrl == requestedSourceUrl
+	}
+
 	// a streamed (remote) current track fills its initial playback buffer over the network.
 	// handing ExoPlayer the gapless next item at the same time makes the two compete for
 	// bandwidth and produces a brief stutter at the very start of streamed playback, so the

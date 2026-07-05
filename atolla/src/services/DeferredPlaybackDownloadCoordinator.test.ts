@@ -83,6 +83,27 @@ describe('DeferredPlaybackDownloadCoordinator', () => {
 		expect(fired.sort()).toEqual(['current', 'prefetch']);
 	});
 
+	it('holds a palette download until the current source starts playing', () => {
+		const coordinator = new DeferredPlaybackDownloadCoordinator();
+		const fired: Array<string> = [];
+		coordinator.defer('palette', {
+			requestId: 1,
+			run: () => fired.push('palette'),
+			source: 'https://audio/a',
+			trackId: 'a',
+		});
+
+		expect(fired).toEqual([]);
+
+		coordinator.onPlaybackStarted({
+			currentRequestId: 1,
+			currentTrackId: 'a',
+			source: 'https://audio/a',
+		});
+
+		expect(fired).toEqual(['palette']);
+	});
+
 	it('drops a superseded record when the same purpose is re-deferred', () => {
 		const coordinator = new DeferredPlaybackDownloadCoordinator();
 		const fired: Array<string> = [];

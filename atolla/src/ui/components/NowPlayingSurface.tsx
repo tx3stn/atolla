@@ -877,6 +877,7 @@ export class NowPlayingSurface extends StatefulComponent<
 										fallbackTextStyle={paletteStyles.expandedArtistNameStyle}
 										logoSource={artistLogoSource}
 										logoStyle={styles.expandedArtistLogo}
+										numberOfLines={2}
 										onTap={this.handleArtistLogoTap}
 									/>
 								</layout>

@@ -937,13 +937,13 @@ object AtollaGaplessAudioEngine {
 			.build()
 	}
 
-	private fun mediaItemMatches(item: MediaItem, expectedUrl: String, expectedTrackId: String): Boolean {
-		if (expectedTrackId.isNotBlank() && item.mediaId == expectedTrackId) {
-			return true
-		}
-
-		return item.localConfiguration?.uri?.toString() == expectedUrl
-	}
+	private fun mediaItemMatches(item: MediaItem, expectedUrl: String, expectedTrackId: String): Boolean =
+		AtollaPlaybackGuards.currentItemMatches(
+			loadedTrackId = item.mediaId,
+			requestedTrackId = expectedTrackId,
+			loadedSourceUrl = item.localConfiguration?.uri?.toString() ?: "",
+			requestedSourceUrl = expectedUrl,
+		)
 
 	private fun applyPendingSeekIfNeeded() {
 		val player = exoPlayer ?: return

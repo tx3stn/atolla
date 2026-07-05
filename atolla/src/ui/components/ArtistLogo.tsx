@@ -11,6 +11,7 @@ export interface ArtistLogoViewModel {
 	fallbackTextStyle?: Style<Label>;
 	logoSource?: string | null;
 	logoStyle?: Style<ImageView>;
+	numberOfLines?: number;
 	onTap?: () => void;
 }
 
@@ -25,6 +26,9 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 			logoStyle,
 			onTap,
 		} = this.viewModel;
+
+		const numberOfLines =
+			this.viewModel.numberOfLines === undefined ? 0 : this.viewModel.numberOfLines;
 
 		<view
 			accessibilityId={accessibilityId ?? 'artist-logo'}
@@ -44,7 +48,7 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 					<label
 						accessibilityId={accessibilityId ? `${accessibilityId}-text` : undefined}
 						accessibilityLabel={accessibilityId ? `${accessibilityId}-text` : undefined}
-						numberOfLines={0}
+						numberOfLines={numberOfLines}
 						style={fallbackTextStyle ?? styles.fallbackText}
 						value={fallbackText}
 					/>

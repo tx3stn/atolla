@@ -102,4 +102,27 @@
     XCTAssertFalse(AtollaShouldDeferLookaheadForSource(@""));
 }
 
+- (void)testCurrentItemMatchesOnTrackIdEvenWhenTheSourceUrlChanged {
+    // stream URL replaced by its cached file for the same track: still the same item, no rebuild
+    XCTAssertTrue(AtollaCurrentItemMatches(@"track-1", @"track-1",
+                                           @"https://server/Audio/track-1/stream.mp3",
+                                           @"file:///data/tracks/track-1.mp3"));
+}
+
+- (void)testCurrentItemDoesNotMatchWhenTheTrackIdDiffers {
+    XCTAssertFalse(AtollaCurrentItemMatches(@"track-1", @"track-2",
+                                            @"https://server/Audio/track-1/stream.mp3",
+                                            @"https://server/Audio/track-1/stream.mp3"));
+}
+
+- (void)testCurrentItemFallsBackToSourceUrlWhenTheLoadedIdIsUnknown {
+    XCTAssertTrue(AtollaCurrentItemMatches(@"", @"track-1", @"file:///a.mp3", @"file:///a.mp3"));
+    XCTAssertFalse(AtollaCurrentItemMatches(@"", @"track-1", @"file:///a.mp3", @"file:///b.mp3"));
+}
+
+- (void)testCurrentItemFallsBackToSourceUrlWhenTheRequestedIdIsUnknown {
+    XCTAssertTrue(AtollaCurrentItemMatches(@"track-1", @"", @"file:///a.mp3", @"file:///a.mp3"));
+    XCTAssertFalse(AtollaCurrentItemMatches(@"track-1", @"", @"file:///a.mp3", @"file:///b.mp3"));
+}
+
 @end

@@ -41,3 +41,13 @@ BOOL AtollaShouldDeferLookaheadForSource(NSString *currentSourceUrl) {
     return [currentSourceUrl.lowercaseString hasPrefix:@"http://"] ||
            [currentSourceUrl.lowercaseString hasPrefix:@"https://"];
 }
+
+BOOL AtollaCurrentItemMatches(NSString *loadedTrackId,
+                              NSString *requestedTrackId,
+                              NSString *loadedSourceUrl,
+                              NSString *requestedSourceUrl) {
+    if (loadedTrackId.length > 0 && requestedTrackId.length > 0) {
+        return [loadedTrackId isEqualToString:requestedTrackId];
+    }
+    return [loadedSourceUrl isEqualToString:requestedSourceUrl];
+}
