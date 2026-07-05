@@ -1215,9 +1215,9 @@ const styles = {
 	artwork: new Style<ImageView>({
 		borderRadius: theme.radius.default,
 		flexShrink: 0,
-		height: 75,
+		height: 80,
 		marginRight: 14,
-		width: 75,
+		width: 80,
 	}),
 	compactBar: new Style<View>({
 		alignItems: 'center',
@@ -1276,7 +1276,7 @@ const styles = {
 	expandedBottomSection: new Style<Layout>({
 		marginBottom: theme.footerHeight - 40,
 		marginTop: 'auto',
-		paddingTop: 16,
+		paddingTop: 8,
 		width: '100%',
 	}),
 	expandedContent: new Style<View>({
@@ -1292,8 +1292,8 @@ const styles = {
 		alignItems: 'center',
 		flexDirection: 'row',
 		justifyContent: 'space-evenly',
-		marginBottom: 12,
-		marginTop: 12,
+		marginBottom: 20,
+		marginTop: 20,
 		width: '100%',
 	}),
 	expandedFirstPage: new Style<Layout>({
@@ -1313,7 +1313,7 @@ const styles = {
 		justifyContent: 'center',
 		paddingLeft: 24,
 		paddingRight: 24,
-		paddingTop: 20,
+		paddingTop: 12,
 		width: '100%',
 	}),
 	expandedInner: new Style({
@@ -1363,7 +1363,9 @@ const styles = {
 	}),
 	expandedTrackMetaSection: new Style<Layout>({
 		alignItems: 'center',
-		marginBottom: 20,
+		height: 75,
+		justifyContent: 'flex-end',
+		marginBottom: 10,
 		width: '100%',
 	}),
 	expandedTrackMetaTextInset: new Style<Layout>({

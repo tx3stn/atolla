@@ -73,14 +73,16 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 
 		if (!maskImageUrl) {
 			this.waveformBranchActive = false;
-			<ProgressBarPlain
-				accentColor={accentColor}
-				onProgressTap={onProgressTap}
-				playbackStore={playbackStore}
-				thickness={thickness}
-				trackColor={trackColor}
-				trackDuration={trackDuration}
-			/>;
+			<view style={styles.tapZone}>
+				<ProgressBarPlain
+					accentColor={accentColor}
+					onProgressTap={onProgressTap}
+					playbackStore={playbackStore}
+					thickness={thickness}
+					trackColor={trackColor}
+					trackDuration={trackDuration}
+				/>
+			</view>;
 			return;
 		}
 
