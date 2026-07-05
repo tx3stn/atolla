@@ -92,4 +92,30 @@ describe('BackNavRouter', () => {
 
 		expect(router.firstPageOf(FooterTabs.home)).toBeUndefined();
 	});
+
+	it('reports no detail for a tab with no pushed pages', () => {
+		const router = new BackNavRouter();
+		router.setActiveTab(FooterTabs.library);
+
+		expect(router.hasDetail(FooterTabs.library)).toBe(false);
+	});
+
+	it('reports a detail once a page is pushed, scoped to that tab', () => {
+		const router = new BackNavRouter();
+		router.setActiveTab(FooterTabs.library);
+		router.registerPage(stubController().controller);
+
+		expect(router.hasDetail(FooterTabs.library)).toBe(true);
+		expect(router.hasDetail(FooterTabs.home)).toBe(false);
+	});
+
+	it('reports no detail again once the tab is unwound', () => {
+		const router = new BackNavRouter();
+		router.setActiveTab(FooterTabs.library);
+		const page = stubController();
+		router.registerPage(page.controller);
+		router.unregisterPage(page.controller);
+
+		expect(router.hasDetail(FooterTabs.library)).toBe(false);
+	});
 });

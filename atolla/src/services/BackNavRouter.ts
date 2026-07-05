@@ -27,6 +27,10 @@ export class BackNavRouter {
 		return true;
 	}
 
+	hasDetail(tab: FooterTab): boolean {
+		return (this.stacks.get(tab)?.length ?? 0) > 0;
+	}
+
 	registerPage(controller: NavigationController): void {
 		if (this.activeTab === undefined) {
 			return;

@@ -4,6 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type FooterTab, type HeaderTab, HeaderTabs } from '../../models/App';
+import { backNavRouter } from '../../services/BackNavRouter';
 import { headerStore } from '../../stores/Header';
 import { theme } from '../../theme';
 import type { ConnectionMode } from '../../transports/Model';
@@ -38,9 +39,13 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 	}
 
 	onRender(): void {
-		// A pushed detail overrides the active tab's header with the library section tabs, keyed to the
-		// detail's own type; only the real library root gets the interactive sort/letter panel.
-		const detailSection = headerStore.activeDetailSection();
+		// pushed detail overrides the active tab's header with the library section tabs, keyed to the
+		// detail's own type. only the real library root gets the interactive sort/letter panel. The
+		// section stack is global across tabs, so honour it only when the active tab actually has a
+		// detail open — otherwise a detail left mounted in another tab leaks onto this one's header.
+		const detailSection = backNavRouter.hasDetail(this.viewModel.activeFooterTab)
+			? headerStore.activeDetailSection()
+			: null;
 		const descriptor =
 			detailSection === null
 				? headerStore.descriptorFor(this.viewModel.activeFooterTab)
@@ -205,7 +210,10 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 	};
 
 	private tapTab(tab: HeaderTab): void {
-		if (headerStore.activeDetailSection() !== null) {
+		const inActiveTabDetail =
+			backNavRouter.hasDetail(this.viewModel.activeFooterTab) &&
+			headerStore.activeDetailSection() !== null;
+		if (inActiveTabDetail) {
 			this.viewModel.onDetailSectionTap(tab);
 			return;
 		}
