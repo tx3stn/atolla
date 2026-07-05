@@ -17,6 +17,7 @@ import type { WaveformRenderCache } from './WaveformRenderCache';
 import type { WaveformService } from './WaveformService';
 
 const NATIVE_ACTION_POLL_INTERVAL_MS = 350;
+const UPCOMING_PALETTE_PREWARM_COUNT = 10;
 
 export interface NowPlayingPaletteService {
 	hasPalette(imageUrl: string | null | undefined): boolean;
@@ -24,10 +25,12 @@ export interface NowPlayingPaletteService {
 }
 
 export interface NowPlayingPaletteQueue {
+	enqueue(imageUrl: string | null | undefined): void;
 	prioritize(imageUrl: string | null | undefined): void;
 }
 
 export interface PlaybackOrchestratorDeps {
+	cacheAlbumArt: (imageUrl: string) => Promise<void>;
 	getAccessToken: () => string;
 	getAudioFileUrl: (trackId: string) => string | null;
 	getTrackCacheUrl: (trackId: string) => string | null;
@@ -70,6 +73,7 @@ export class PlaybackOrchestrator {
 	private readonly getTransportToken: () => unknown;
 	private readonly isOfflinePlaybackMode: () => boolean;
 	private readonly onPlaybackTick: () => void;
+	private readonly cacheAlbumArt: (imageUrl: string) => Promise<void>;
 	private readonly prewarmArtwork: (imageUrl: string) => void;
 	private readonly refreshTrackCachedCount: () => void;
 	private readonly resolveArtistLogoUrl: (artistId: string) => Promise<string | null>;
@@ -109,6 +113,8 @@ export class PlaybackOrchestrator {
 	private unsubscribeWaveformRender?: () => void;
 	private lastWaveformPriorityTracksRef: Array<Track> | null = null;
 	private lastWaveformPriorityTrackIndex = -1;
+	private lastUpcomingPaletteTracksRef: Array<Track> | null = null;
+	private lastUpcomingPaletteTrackIndex = -1;
 	private recentlyPlayedTracks: Array<Track> = [];
 	private lastObservedRecentTrackId: string | null = null;
 	private recentlyPlayedRestoring = false;
@@ -131,6 +137,7 @@ export class PlaybackOrchestrator {
 		this.getTransportToken = deps.getTransportToken;
 		this.isOfflinePlaybackMode = deps.isOfflinePlaybackMode;
 		this.onPlaybackTick = deps.onPlaybackTick;
+		this.cacheAlbumArt = deps.cacheAlbumArt;
 		this.prewarmArtwork = deps.prewarmArtwork;
 		this.refreshTrackCachedCount = deps.refreshTrackCachedCount;
 		this.resolveArtistLogoUrl = deps.resolveArtistLogoUrl;
@@ -194,6 +201,7 @@ export class PlaybackOrchestrator {
 	// subscription and the at-startup pass so the ordering lives in one place
 	reconcilePlaybackState(): void {
 		this.handleAlbumChange();
+		this.prewarmUpcomingPalettes();
 		if (!this.handleTrackPlaybackSourceChange()) {
 			this.handleNextTrackPreload();
 		}
@@ -299,6 +307,8 @@ export class PlaybackOrchestrator {
 		this.disposeWaveformQueue = services.disposeWaveformQueue;
 		this.lastWaveformPriorityTracksRef = null;
 		this.lastWaveformPriorityTrackIndex = -1;
+		this.lastUpcomingPaletteTracksRef = null;
+		this.lastUpcomingPaletteTrackIndex = -1;
 		fireAndForget('waveformWarmUp', this.waveformService.warmUp());
 		this.unsubscribeWaveform = this.waveformService.subscribe(this.requestOverlayRerender);
 		this.unsubscribeWaveformRender = this.waveformRenderCache.subscribe(
@@ -353,6 +363,62 @@ export class PlaybackOrchestrator {
 			paletteService.warmUp([imageUrl]).then(() => {
 				if (!paletteService.hasPalette(imageUrl)) {
 					paletteQueue.prioritize(imageUrl);
+				}
+			}),
+		);
+	}
+
+	prewarmUpcomingPalettes(): void {
+		const paletteService = this.paletteService;
+		const paletteQueue = this.paletteQueue;
+		if (!paletteService || !paletteQueue) {
+			return;
+		}
+		const { tracks, trackIndex } = this.playbackStore;
+		if (tracks.length === 0) {
+			return;
+		}
+		if (
+			tracks === this.lastUpcomingPaletteTracksRef &&
+			trackIndex === this.lastUpcomingPaletteTrackIndex
+		) {
+			return;
+		}
+		this.lastUpcomingPaletteTracksRef = tracks;
+		this.lastUpcomingPaletteTrackIndex = trackIndex;
+
+		const seen = new Set<string>();
+		const urls: Array<string> = [];
+		for (const track of tracks.slice(
+			trackIndex + 1,
+			trackIndex + 1 + UPCOMING_PALETTE_PREWARM_COUNT,
+		)) {
+			const url = track.albumImageUrl;
+			if (!url || url === this.lastArtworkUrl || seen.has(url) || paletteService.hasPalette(url)) {
+				continue;
+			}
+			seen.add(url);
+			urls.push(url);
+		}
+		if (urls.length === 0) {
+			return;
+		}
+
+		fireAndForget(
+			'upcomingPaletteWarmUp',
+			paletteService.warmUp(urls).then(() => {
+				for (const url of urls) {
+					if (paletteService.hasPalette(url)) {
+						continue;
+					}
+					fireAndForget(
+						'upcomingPaletteCache',
+						this.cacheAlbumArt(url).then(() => {
+							if (!paletteService.hasPalette(url)) {
+								paletteQueue.enqueue(url);
+							}
+						}),
+					);
 				}
 			}),
 		);

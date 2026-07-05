@@ -969,6 +969,104 @@ describe('PlaybackOrchestrator track source routing', () => {
 	});
 });
 
+describe('PlaybackOrchestrator upcoming palettes', () => {
+	it('prewarms album art and enqueues palettes for the up-next window', async () => {
+		const palette = fakePalette();
+		const cached: Array<string> = [];
+		const orchestrator = createOrchestrator(
+			palettePlaybackStore(4, 0),
+			() => {},
+			fakeNotification(),
+			{
+				cacheAlbumArt: (url) => {
+					cached.push(url);
+					return Promise.resolve();
+				},
+			},
+		);
+		orchestrator.setUserServices(
+			userServices({ paletteQueue: palette.queue, paletteService: palette.service }),
+		);
+
+		orchestrator.prewarmUpcomingPalettes();
+		await flush();
+
+		expect(palette.state.warmedUp).toEqual([['art://1', 'art://2', 'art://3']]);
+		expect(cached).toEqual(['art://1', 'art://2', 'art://3']);
+		expect(palette.state.enqueued).toEqual(['art://1', 'art://2', 'art://3']);
+	});
+
+	it('skips the current artwork and tracks that already have a palette', async () => {
+		const palette = fakePalette();
+		palette.state.hasPaletteFor.add('art://b');
+		const tracks = [
+			{ albumImageUrl: 'art://a', duration: 100, id: 'a', name: 'A' },
+			{ albumImageUrl: 'art://b', duration: 100, id: 'b', name: 'B' },
+			{ albumImageUrl: 'art://a', duration: 100, id: 'c', name: 'C' },
+			{ albumImageUrl: 'art://d', duration: 100, id: 'd', name: 'D' },
+		] as Array<Track>;
+		const store: { track: Track | null; trackIndex: number; tracks: Array<Track> } = {
+			track: tracks[0],
+			trackIndex: 0,
+			tracks,
+		};
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification());
+		orchestrator.setUserServices(
+			userServices({ paletteQueue: palette.queue, paletteService: palette.service }),
+		);
+
+		orchestrator.handleAlbumChange();
+		orchestrator.prewarmUpcomingPalettes();
+		await flush();
+
+		expect(palette.state.enqueued).toEqual(['art://d']);
+	});
+
+	it('bounds the lookahead to the prewarm count', async () => {
+		const palette = fakePalette();
+		const orchestrator = createOrchestrator(
+			palettePlaybackStore(15, 0),
+			() => {},
+			fakeNotification(),
+		);
+		orchestrator.setUserServices(
+			userServices({ paletteQueue: palette.queue, paletteService: palette.service }),
+		);
+
+		orchestrator.prewarmUpcomingPalettes();
+		await flush();
+
+		expect(palette.state.enqueued).toHaveLength(10);
+		expect(palette.state.enqueued).toContain('art://10');
+		expect(palette.state.enqueued).not.toContain('art://11');
+	});
+
+	it('does not repeat work until the queue or index changes', async () => {
+		const palette = fakePalette();
+		const store = palettePlaybackStore(6, 0);
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification());
+		orchestrator.setUserServices(
+			userServices({ paletteQueue: palette.queue, paletteService: palette.service }),
+		);
+
+		orchestrator.prewarmUpcomingPalettes();
+		orchestrator.prewarmUpcomingPalettes();
+		await flush();
+		expect(palette.state.warmedUp).toHaveLength(1);
+
+		store.trackIndex = 1;
+		orchestrator.prewarmUpcomingPalettes();
+		await flush();
+		expect(palette.state.warmedUp).toHaveLength(2);
+		expect(palette.state.enqueued).toContain('art://5');
+	});
+
+	it('does nothing before user services are bound', () => {
+		const orchestrator = createOrchestrator(palettePlaybackStore(3, 0));
+		expect(() => orchestrator.prewarmUpcomingPalettes()).not.toThrow();
+	});
+});
+
 function makeTrack(id: string): Track {
 	return { duration: 100, id, name: `Track ${id}` } as Track;
 }
@@ -1046,6 +1144,7 @@ function createOrchestrator(
 	requestRerender: () => void = () => {},
 	notification: TrackPlaybackNotificationNative = fakeNotification(),
 	opts: {
+		cacheAlbumArt?: (imageUrl: string) => Promise<void>;
 		getAccessToken?: () => string;
 		getAudioFileUrl?: (trackId: string) => string | null;
 		getTrackCacheUrl?: (trackId: string) => string | null;
@@ -1061,6 +1160,7 @@ function createOrchestrator(
 	} = {},
 ): PlaybackOrchestrator {
 	return new PlaybackOrchestrator({
+		cacheAlbumArt: opts.cacheAlbumArt ?? (() => Promise.resolve()),
 		getAccessToken: opts.getAccessToken ?? (() => ''),
 		getAudioFileUrl: opts.getAudioFileUrl ?? (() => null),
 		getTrackCacheUrl: opts.getTrackCacheUrl ?? (() => null),
@@ -1148,15 +1248,24 @@ function fakeWaveformRenderCache(urls: Record<string, string> = {}): {
 function fakePalette(): {
 	service: PlaybackUserServices['paletteService'];
 	queue: PlaybackUserServices['paletteQueue'];
-	state: { warmedUp: Array<Array<string>>; hasPaletteFor: Set<string>; prioritized: Array<string> };
+	state: {
+		warmedUp: Array<Array<string>>;
+		hasPaletteFor: Set<string>;
+		prioritized: Array<string>;
+		enqueued: Array<string>;
+	};
 } {
 	const state = {
+		enqueued: [] as Array<string>,
 		hasPaletteFor: new Set<string>(),
 		prioritized: [] as Array<string>,
 		warmedUp: [] as Array<Array<string>>,
 	};
 	return {
 		queue: {
+			enqueue: (imageUrl) => {
+				if (imageUrl) state.enqueued.push(imageUrl);
+			},
 			prioritize: (imageUrl) => {
 				if (imageUrl) state.prioritized.push(imageUrl);
 			},
@@ -1191,6 +1300,18 @@ function waveformPlaybackStore(
 	trackIndex = 0,
 ): { track: Track | null; trackIndex: number; tracks: Array<Track> } {
 	const tracks = trackIds.map(makeTrack);
+	return { track: tracks[trackIndex] ?? null, trackIndex, tracks };
+}
+
+function palettePlaybackStore(
+	count: number,
+	trackIndex = 0,
+): { track: Track | null; trackIndex: number; tracks: Array<Track> } {
+	const tracks = Array.from(
+		{ length: count },
+		(_, i) =>
+			({ albumImageUrl: `art://${i}`, duration: 100, id: String(i), name: `Track ${i}` }) as Track,
+	);
 	return { track: tracks[trackIndex] ?? null, trackIndex, tracks };
 }
 

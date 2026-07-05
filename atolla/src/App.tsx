@@ -110,6 +110,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	);
 	private playbackStore = new PlaybackStore();
 	private playbackOrchestrator: PlaybackOrchestrator = new PlaybackOrchestrator({
+		cacheAlbumArt: (imageUrl) => this.assetCache.cacheImageAsset(imageUrl, 'album_art'),
 		getAccessToken: () => this.sessionManager.getAccessToken(),
 		getAudioFileUrl: (trackId) => this.assetCache.getAudioPathForWaveform(trackId),
 		getTrackCacheUrl: (trackId) => this.connectivity.getTransport().getTrackCacheUrl(trackId),

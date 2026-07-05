@@ -59,7 +59,7 @@ const styles = {
 		...theme.text.display,
 	}),
 	fallbackTextPadding: new Style<View>({
-		padding: 12,
+		padding: 4,
 	}),
 	logoArea: new Style<View>({
 		slowClipping: true,
