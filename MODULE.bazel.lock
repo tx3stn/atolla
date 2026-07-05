@@ -1035,7 +1035,7 @@
     "@@rules_zig~//zig:extensions.bzl%zig": {
       "general": {
         "bzlTransitiveDigest": "R9QIEJNzuVzktrkJ1KZ6g1Ifjw+ldKGatarq6GeehG4=",
-        "usagesDigest": "FIC/9gZaIt0RpRXGhC+/KaX/h+FhU6ZHa02YY3ag+Uo=",
+        "usagesDigest": "AmlFcTkBeYfgGTnx+XwNEIrz+0Bv8lNRYAWsRdpf99Q=",
         "recordedFileInputs": {
           "@@rules_zig~//zig/private/versions.json": "be9e64e6d54b73fab50f32ea3c39e9f74b1fdf317fc1deef13aaf17c435ba3db"
         },
@@ -1323,7 +1323,7 @@
     "@@valdi~//bzl:hermetic_android_sdk.bzl%hermetic_android_sdk_extension": {
       "general": {
         "bzlTransitiveDigest": "xQbCyuMOf2ylCGdIqv7gCQ+/2zY7ql/d7ZcsDCBGbIE=",
-        "usagesDigest": "//5N6rMhv9AHzSa4w94yaCKQdEUoMzRVmKcuf0xNdhA=",
+        "usagesDigest": "yb5OudzOibAQDPUqTXiTWA+amykP0SCJRD+JfG9Hqao=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1343,7 +1343,7 @@
     "@@valdi~//bzl:hermetic_ndk.bzl%hermetic_ndk_extension": {
       "general": {
         "bzlTransitiveDigest": "iC98a/IEvykEvlGZGW0TO4Yoo/xTqwPgOrJqLq37Hd8=",
-        "usagesDigest": "8BHr95TXQTQOvOqqkxQBMN/QTC8oE8jrD/CaqicpANE=",
+        "usagesDigest": "NH66XKPNcmsoNcoAYrcPHFDKKXNb17zZwNITLvLSXuU=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1419,7 +1419,7 @@
     "@@valdi~//bzl:valdi_toolchains.bzl%valdi_toolchains": {
       "general": {
         "bzlTransitiveDigest": "KyfrOjKcxTipbVasM1jgtuDrvpx0VY/hwvJetdQaez4=",
-        "usagesDigest": "G0yNigXZWWxQWJRhVcnRklC6CgUB3EHYxGh16gZeKT4=",
+        "usagesDigest": "grs9LxkVLIjgieVq2BgSKKmqBmkfyh/Qid49n1tLNoA=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},

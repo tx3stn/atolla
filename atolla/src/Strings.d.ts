@@ -49,6 +49,7 @@ declare const Strings: {
 	loading: () => string;
 	loadingHome: () => string;
 	no: () => string;
+	nothingDownloaded: () => string;
 	nothingElseLinedUp: () => string;
 	play: () => string;
 	playingNextToast: () => string;

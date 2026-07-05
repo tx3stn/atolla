@@ -151,6 +151,9 @@
 	"no": {
 		"defaultMessage": "no"
 	},
+	"nothing_downloaded": {
+		"defaultMessage": "nothing downloaded"
+	},
 	"nothing_else_lined_up": {
 		"defaultMessage": "nothing else lined up"
 	},

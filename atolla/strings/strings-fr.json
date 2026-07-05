@@ -151,6 +151,9 @@
 	"no": {
 		"defaultMessage": "non"
 	},
+	"nothing_downloaded": {
+		"defaultMessage": "rien de téléchargé"
+	},
 	"nothing_else_lined_up": {
 		"defaultMessage": "rien d'autre en attente"
 	},

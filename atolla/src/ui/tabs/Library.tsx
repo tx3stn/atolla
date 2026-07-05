@@ -99,6 +99,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 							<PlaylistsView
 								downloadService={this.viewModel.downloadService}
 								imageCache={this.viewModel.imageCache}
+								isOfflineMode={isOfflineMode}
 								letterFilter={this.state.letterFilter}
 								modalSlot={this.viewModel.modalSlot}
 								navigationController={navigationController}
@@ -115,6 +116,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 							<GenresView
 								downloadService={this.viewModel.downloadService}
 								imageCache={this.viewModel.imageCache}
+								isOfflineMode={isOfflineMode}
 								letterFilter={this.state.letterFilter}
 								modalSlot={this.viewModel.modalSlot}
 								navigationController={navigationController}

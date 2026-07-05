@@ -198,7 +198,7 @@ describe('CardGrid', () => {
 			IRenderedElementViewClass.Label,
 		);
 		const values = labels.map((label) => label.getAttribute('value'));
-		expect(values).toContain('Loading more...');
+		expect(values).toContain('loading...');
 	});
 
 	valdiIt('places prefetch trigger after first row when using 4 columns', async (driver) => {

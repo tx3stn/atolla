@@ -6,6 +6,7 @@ import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
+import Strings from '../../Strings';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
@@ -17,6 +18,7 @@ import type { Transport } from '../../transports/Transport';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
+import { EmptyState } from '../components/EmptyState';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { type DetailPushDeps, pushGenre } from '../flows/PushDetail';
@@ -26,6 +28,7 @@ import { AddToPlaylistView } from './AddToPlaylistView';
 interface GenresViewModel {
 	downloadService: DownloadService;
 	imageCache: ImageCache;
+	isOfflineMode: boolean;
 	letterFilter?: string | null;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
@@ -107,6 +110,12 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 				/>
 			</scroll>
+			<EmptyState
+				hasMore={this.state.hasMore}
+				isOfflineMode={this.viewModel.isOfflineMode}
+				itemCount={this.state.genres.length}
+				message={Strings.nothingDownloaded()}
+			/>
 
 			{addToPlaylistTracks && (
 				<AddToPlaylistView
@@ -127,6 +136,25 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 				/>
 			)}
 		</view>;
+	}
+
+	onViewModelUpdate(prevViewModel?: GenresViewModel): void {
+		if (!prevViewModel) {
+			return;
+		}
+		if (this.viewModel.isOfflineMode === prevViewModel.isOfflineMode) {
+			return;
+		}
+
+		this.pagedGridController.reset();
+		this.setState({
+			genres: [],
+			hasMore: true,
+			isLoadingNextPage: false,
+			nextPageFailed: false,
+			page: 0,
+		});
+		void this.loadInitialPages();
 	}
 
 	private bump = (): void => {
@@ -269,6 +297,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 const styles = {
 	container: new Style<View>({
 		flexGrow: 1,
+		position: 'relative',
 	}),
 	scroll: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,

@@ -190,4 +190,68 @@ describe('ArtistsView', () => {
 
 		expect(component.state.artists.length).toBe(pageSize * 2);
 	});
+
+	valdiIt(
+		'shows the nothing-downloaded empty state when offline with no artists',
+		async (driver) => {
+			const transport = {
+				getArtistsPage: async () => ({ hasMore: false, items: [] }),
+			};
+
+			const viewModel = {
+				imageCache: stubImageCache,
+				isOfflineMode: true,
+				navigationController: makeNavigationController(),
+				playbackStore: new PlaybackStore(),
+				preferences: makePreferences(),
+				transport,
+			};
+			const component = driver.renderComponent(ArtistsView, viewModel, undefined);
+
+			await flushAsyncWork();
+			await flushAsyncWork();
+
+			const views = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			);
+			const emptyState = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'library-empty-state',
+			);
+			expect(emptyState).toBeDefined();
+
+			const retry = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'grid-load-more-retry',
+			);
+			expect(retry).toBeUndefined();
+		},
+	);
+
+	valdiIt('hides the empty state when offline artists are present', async (driver) => {
+		const transport = {
+			getArtistsPage: async () => ({
+				hasMore: false,
+				items: [{ id: 'artist-1', name: 'Artist One' }],
+			}),
+		};
+
+		const viewModel = {
+			imageCache: stubImageCache,
+			isOfflineMode: true,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			transport,
+		};
+		const component = driver.renderComponent(ArtistsView, viewModel, undefined);
+
+		await flushAsyncWork();
+		await flushAsyncWork();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const emptyState = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'library-empty-state',
+		);
+		expect(emptyState).toBeUndefined();
+	});
 });

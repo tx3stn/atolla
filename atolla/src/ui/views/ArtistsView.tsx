@@ -6,6 +6,7 @@ import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Artist } from '../../models/Artist';
 import type { Track } from '../../models/Track';
+import Strings from '../../Strings';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
@@ -18,6 +19,7 @@ import type { Transport } from '../../transports/Transport';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
+import { EmptyState } from '../components/EmptyState';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
@@ -101,10 +103,16 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					isLoadingMore={this.state.isLoadingNextPage}
 					onCardLongPress={this.handleArtistCardLongPress}
 					onCardTap={this.handleArtistCardTap}
-					onLoadMore={this.loadMore}
-					onRetryLoadMore={this.retryLoadMore}
+					onLoadMore={this.state.hasMore && !this.state.nextPageFailed ? this.loadMore : undefined}
+					onRetryLoadMore={this.state.nextPageFailed ? this.retryLoadMore : undefined}
 				/>
 			</scroll>
+			<EmptyState
+				hasMore={this.state.hasMore}
+				isOfflineMode={this.viewModel.isOfflineMode}
+				itemCount={this.state.artists.length}
+				message={Strings.nothingDownloaded()}
+			/>
 
 			{addToPlaylistTracks && (
 				<AddToPlaylistView
@@ -356,6 +364,7 @@ function matchesArtistLetterFilter(name: string, letter: string): boolean {
 const styles = {
 	container: new Style<View>({
 		flexGrow: 1,
+		position: 'relative',
 	}),
 	scroll: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,

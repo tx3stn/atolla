@@ -190,4 +190,63 @@ describe('PlaylistsView', () => {
 
 		expect(component.state.playlists.length).toBe(pageSize * 2);
 	});
+
+	valdiIt(
+		'shows the nothing-downloaded empty state when offline with no playlists',
+		async (driver) => {
+			const transport = {
+				getPlaylistsPage: async () => ({ hasMore: false, items: [] }),
+			};
+
+			const viewModel = {
+				imageCache: stubImageCache,
+				isOfflineMode: true,
+				navigationController: makeNavigationController(),
+				playbackStore,
+				preferences: makePreferences(),
+				transport,
+			};
+			const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
+
+			await flushAsyncWork();
+			await flushAsyncWork();
+
+			const views = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			);
+			const emptyState = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'library-empty-state',
+			);
+			expect(emptyState).toBeDefined();
+		},
+	);
+
+	valdiIt('hides the empty state when offline playlists are present', async (driver) => {
+		const transport = {
+			getPlaylistsPage: async () => ({
+				hasMore: false,
+				items: [{ id: 'playlist-1', name: 'Roadtrip' }],
+			}),
+		};
+
+		const viewModel = {
+			imageCache: stubImageCache,
+			isOfflineMode: true,
+			navigationController: makeNavigationController(),
+			playbackStore,
+			preferences: makePreferences(),
+			transport,
+		};
+		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
+
+		await flushAsyncWork();
+		await flushAsyncWork();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const emptyState = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'library-empty-state',
+		);
+		expect(emptyState).toBeUndefined();
+	});
 });

@@ -306,4 +306,65 @@ describe('AlbumsView', () => {
 
 		expect(component.state.contextMenuCard).toEqual({ album: albums[0], kind: 'album' });
 	});
+
+	valdiIt(
+		'shows the nothing-downloaded empty state when offline with no albums',
+		async (driver) => {
+			const transport = {
+				getAlbumsPage: async () => ({ hasMore: false, items: [] }),
+			};
+
+			const viewModel = {
+				imageCache: stubImageCache,
+				isOfflineMode: true,
+				navigationController: makeNavigationController(),
+				playbackStore: new PlaybackStore(),
+				preferences: makePreferences(),
+				transport,
+			};
+			const component = driver.renderComponent(AlbumsView, viewModel, undefined);
+
+			await flushAsyncWork();
+			await flushAsyncWork();
+
+			const views = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			);
+			const emptyState = views.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'library-empty-state',
+			);
+			expect(emptyState).toBeDefined();
+		},
+	);
+
+	valdiIt('hides the empty state when offline albums are present', async (driver) => {
+		const transport = {
+			getAlbumsPage: async () => ({
+				hasMore: false,
+				items: [
+					{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
+				],
+			}),
+		};
+
+		const viewModel = {
+			imageCache: stubImageCache,
+			isOfflineMode: true,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			transport,
+		};
+		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
+
+		await flushAsyncWork();
+		await flushAsyncWork();
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const emptyState = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'library-empty-state',
+		);
+		expect(emptyState).toBeUndefined();
+	});
 });
