@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<svg height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg" >
   <defs>
-    <linearGradient id="nav-gradient" x1="16" y1="1" x2="9" y2="23" gradientUnits="userSpaceOnUse">
+    <linearGradient gradientUnits="userSpaceOnUse" id="nav-gradient" x1="16" x2="9" y1="1" y2="23" >
       <stop offset="0%" stop-color="#AA5CC3"/>
       <stop offset="22%" stop-color="#8B62D3"/>
       <stop offset="50%" stop-color="#3159BD"/>
@@ -9,6 +9,6 @@
     </linearGradient>
   </defs>
   <g transform="translate(0.988 -1.661) scale(0.918 1.156)">
-  <path fill="url(#nav-gradient)" d="M9.75 20v-7Q9.75 12 10.75 12h2.5Q14.25 12 14.25 13v7H21Q22 20 22 19V10.5Q22 9.5 21.3 8.8L13.5 4.6Q12 3.4 10.5 4.6L2.7 8.8Q2 9.5 2 10.5V19Q2 20 3 20H9.75z"/>
+  <path d="M9.75 20v-7Q9.75 12 10.75 12h2.5Q14.25 12 14.25 13v7H21Q22 20 22 19V10.5Q22 9.5 21.3 8.8L13.5 4.6Q12 3.4 10.5 4.6L2.7 8.8Q2 9.5 2 10.5V19Q2 20 3 20H9.75z" fill="url(#nav-gradient)" />
   </g>
 </svg>

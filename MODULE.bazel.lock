@@ -748,23 +748,6 @@
         ]
       }
     },
-    "@@rules_android_ndk~//:extension.bzl%android_ndk_repository_extension": {
-      "general": {
-        "bzlTransitiveDigest": "oV/TPZWCXAAcpJG/DBV/lNiWCISUTk5ba0KRjUb7adg=",
-        "usagesDigest": "bvgCKJaWVMN5HTCMA47z7mXM0HlLIRaCSDI+XpZUK/4=",
-        "recordedFileInputs": {},
-        "recordedDirentsInputs": {},
-        "envVariables": {},
-        "generatedRepoSpecs": {
-          "androidndk": {
-            "bzlFile": "@@rules_android_ndk~//:rules.bzl",
-            "ruleClassName": "android_ndk_repository",
-            "attributes": {}
-          }
-        },
-        "recordedRepoMappingEntries": []
-      }
-    },
     "@@rules_android~//bzlmod_extensions:com_android_dex.bzl%com_android_dex_extension": {
       "general": {
         "bzlTransitiveDigest": "/KJvxHLYhvSLJihEHN0e5Uzdd7OOMvpFb0BFUl1RUTs=",
@@ -789,23 +772,6 @@
             "bazel_tools"
           ]
         ]
-      }
-    },
-    "@@rules_android~//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension": {
-      "general": {
-        "bzlTransitiveDigest": "NAy+0M15JNVEBb8Tny6t7j3lKqTnsAMjoBB6LJ+C370=",
-        "usagesDigest": "rM6TZGm5ZpiF14997MLDHSRQjkECKLX1VYUG7HEYjXc=",
-        "recordedFileInputs": {},
-        "recordedDirentsInputs": {},
-        "envVariables": {},
-        "generatedRepoSpecs": {
-          "androidsdk": {
-            "bzlFile": "@@rules_android~//rules/android_sdk_repository:rule.bzl",
-            "ruleClassName": "_android_sdk_repository",
-            "attributes": {}
-          }
-        },
-        "recordedRepoMappingEntries": []
       }
     },
     "@@rules_kotlin~//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions": {
@@ -1035,7 +1001,7 @@
     "@@rules_zig~//zig:extensions.bzl%zig": {
       "general": {
         "bzlTransitiveDigest": "R9QIEJNzuVzktrkJ1KZ6g1Ifjw+ldKGatarq6GeehG4=",
-        "usagesDigest": "AYdXQOo3X9hbFQXiJJ15rz4poqy0KeIfuymWUB89fOI=",
+        "usagesDigest": "KGQbeWa04EyG5X2k6334Z1h9a0SitCYnHWZLmTVSzII=",
         "recordedFileInputs": {
           "@@rules_zig~//zig/private/versions.json": "be9e64e6d54b73fab50f32ea3c39e9f74b1fdf317fc1deef13aaf17c435ba3db"
         },
@@ -1323,7 +1289,7 @@
     "@@valdi~//bzl:hermetic_android_sdk.bzl%hermetic_android_sdk_extension": {
       "general": {
         "bzlTransitiveDigest": "xQbCyuMOf2ylCGdIqv7gCQ+/2zY7ql/d7ZcsDCBGbIE=",
-        "usagesDigest": "mfBDuL2XjKYnMRrjwCYnv6rkFGqUwj9pJd3Dj/EQVVs=",
+        "usagesDigest": "OqtqiOztNPOaWOcsKkeTp4zTWNzk34sbsu+IA9Mmvis=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1343,7 +1309,7 @@
     "@@valdi~//bzl:hermetic_ndk.bzl%hermetic_ndk_extension": {
       "general": {
         "bzlTransitiveDigest": "iC98a/IEvykEvlGZGW0TO4Yoo/xTqwPgOrJqLq37Hd8=",
-        "usagesDigest": "J+nZPiYOsBlA3Ucf9MPxBeoWKB07WX2ToP4DjpyyrG8=",
+        "usagesDigest": "0KNnT4IPGU2yk0tiSNRkQ/UARXKQBlNfajwluBHFwwA=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1419,7 +1385,7 @@
     "@@valdi~//bzl:valdi_toolchains.bzl%valdi_toolchains": {
       "general": {
         "bzlTransitiveDigest": "KyfrOjKcxTipbVasM1jgtuDrvpx0VY/hwvJetdQaez4=",
-        "usagesDigest": "kBzTWBDShdwIq4IZimktFv2z2qqNj4HkyYTRr3LeSPw=",
+        "usagesDigest": "OYxStVYK3wn7JHjc1fDh1U6iaOlkbMr7xPJrZ++n25I=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},

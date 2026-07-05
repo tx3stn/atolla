@@ -1,6 +1,6 @@
 <svg fill="none" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="nav-gradient" x1="16" y1="1" x2="9" y2="23" gradientUnits="userSpaceOnUse">
+    <linearGradient gradientUnits="userSpaceOnUse" id="nav-gradient" x1="16" x2="9" y1="1" y2="23" >
       <stop offset="0%" stop-color="#AA5CC3"/>
       <stop offset="22%" stop-color="#8B62D3"/>
       <stop offset="50%" stop-color="#3159BD"/>
@@ -8,11 +8,11 @@
       <stop offset="100%" stop-color="#57B3E8"/>
     </linearGradient>
   </defs>
-  <path d="M13 5H22" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <path d="M12 10H22" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <path d="M11 15H22" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <path d="M11 20H22" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <path d="M7 6V16" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <path d="M7 6C8.5 6.2 9.9 6.9 11 8" stroke="url(#nav-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <circle cx="6" cy="18" r="3" fill="url(#nav-gradient)"/>
+  <path d="M13 5H22" stroke="url(#nav-gradient)" stroke-linecap="round" stroke-width="2" />
+  <path d="M12 10H22" stroke="url(#nav-gradient)" stroke-linecap="round" stroke-width="2" />
+  <path d="M11 15H22" stroke="url(#nav-gradient)" stroke-linecap="round" stroke-width="2" />
+  <path d="M11 20H22" stroke="url(#nav-gradient)" stroke-linecap="round" stroke-width="2" />
+  <path d="M7 6V16" stroke="url(#nav-gradient)" stroke-linecap="round" stroke-width="2" />
+  <path d="M7 6C8.5 6.2 9.9 6.9 11 8" stroke="url(#nav-gradient)" stroke-linecap="round" stroke-width="2" />
+  <circle cx="6" cy="18" fill="url(#nav-gradient)" r="3" />
 </svg>

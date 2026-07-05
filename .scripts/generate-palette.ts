@@ -74,7 +74,7 @@ for (const file of readdirSync(RES).sort()) {
 	else skipped.push(name);
 }
 
-const composites: Array<sharp.OverlayOptions> = [];
+const composites: Array<import('sharp').OverlayOptions> = [];
 let row = 0;
 let col = 0;
 for (const name of square) {

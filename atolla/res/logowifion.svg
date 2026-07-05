@@ -1,32 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="92 25 880 880" fill="none">
+<svg fill="none" viewBox="92 25 880 880" xmlns="http://www.w3.org/2000/svg" >
   <defs>
-    <linearGradient id="atolla-gradient" x1="590" y1="84" x2="478" y2="914" gradientUnits="userSpaceOnUse">
+    <linearGradient gradientUnits="userSpaceOnUse" id="atolla-gradient" x1="590" x2="478" y1="84" y2="914" >
       <stop offset="0%" stop-color="#AA5CC3" />
       <stop offset="22%" stop-color="#8B62D3" />
       <stop offset="50%" stop-color="#3159BD" />
       <stop offset="76%" stop-color="#2D78CE" />
       <stop offset="100%" stop-color="#57B3E8" />
     </linearGradient>
-    <linearGradient id="atolla-tentacle-gradient" x1="512" y1="536" x2="512" y2="720" gradientUnits="userSpaceOnUse">
+    <linearGradient gradientUnits="userSpaceOnUse" id="atolla-tentacle-gradient" x1="512" x2="512" y1="536" y2="720" >
       <stop offset="0%" stop-color="#0F2A66" />
       <stop offset="58%" stop-color="#2E62C6" />
       <stop offset="94%" stop-color="#2B8DD8" />
       <stop offset="100%" stop-color="#00A4DC" />
     </linearGradient>
-    <mask id="wifi-cutout-mask" maskUnits="userSpaceOnUse" x="220" y="160" width="604" height="430">
-      <rect x="220" y="160" width="604" height="430" fill="white" />
+    <mask height="430" id="wifi-cutout-mask" maskUnits="userSpaceOnUse" width="604" x="220" y="160" >
+      <rect fill="white" height="430" width="604" x="220" y="160" />
       <path d="m1 9 2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8 3 3 3-3a4.237 4.237 0 0 0-6 0zm-4-4 2 2a7.074 7.074 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13z" fill="black" transform="translate(344, 212) scale(14)" />
     </mask>
   </defs>
 
-  <g id="icon-tentacles" fill="none" stroke="url(#atolla-tentacle-gradient)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" transform="translate(-245.76 -205.76) scale(1.52)">
+  <g fill="none" id="icon-tentacles" stroke="url(#atolla-tentacle-gradient)" stroke-linecap="round" stroke-linejoin="round" stroke-width="26" transform="translate(-245.76 -205.76) scale(1.52)">
     <path d="M350 546C326 574 374 602 346 631C322 658 350 685 372 707" />
     <path d="M456 548C430 577 482 607 450 639C424 666 456 692 484 716" />
     <path d="M568 548C596 579 540 610 574 642C602 667 568 695 538 719" />
     <path d="M674 546C702 575 646 603 680 634C706 659 678 685 650 707" />
   </g>
 
-  <g id="icon-bell" fill="url(#atolla-gradient)" mask="url(#wifi-cutout-mask)" transform="translate(-245.76 -205.76) scale(1.52)">
+  <g fill="url(#atolla-gradient)" id="icon-bell" mask="url(#wifi-cutout-mask)" transform="translate(-245.76 -205.76) scale(1.52)">
     <path d="M512 164C349 164 232 282 232 416C232 468 265 505 316 528C365 549 436 562 512 562C588 562 659 549 708 528C759 505 792 468 792 416C792 282 675 164 512 164Z" />
   </g>
 </svg>
