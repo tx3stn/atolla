@@ -707,7 +707,11 @@ export class PlaybackOrchestrator {
 			appliedNext = true;
 		}
 
-		if (this.playbackStore.isPlaying && !this.isOfflinePlaybackMode()) {
+		if (this.isOfflinePlaybackMode()) {
+			return appliedNext;
+		}
+
+		if (this.playbackStore.isPlaying) {
 			if (streamUrl) {
 				this.deferredDownloadCoordinator.defer('current', {
 					requestId,
@@ -720,6 +724,8 @@ export class PlaybackOrchestrator {
 			} else {
 				this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
 			}
+		} else if (streamUrl) {
+			this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
 		}
 
 		return appliedNext;

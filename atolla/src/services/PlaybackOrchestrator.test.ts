@@ -944,6 +944,59 @@ describe('PlaybackOrchestrator track source routing', () => {
 		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('stream://a');
 	});
 
+	it('fetches the current track while paused so its waveform and resume are ready', () => {
+		const cacheCalls: Array<{ trackId: string; url: string }> = [];
+		const trackSourceNative = fakeTrackSourceNative({
+			cacheTrackFromUrl: (trackId, url) => {
+				cacheCalls.push({ trackId, url });
+			},
+		});
+		const orchestrator = createOrchestrator(routingStore(false), () => {}, fakeNotification(), {
+			getTrackCacheUrl: (id) => `stream://${id}`,
+			trackSourceNative,
+		});
+
+		orchestrator.handleTrackPlaybackSourceChange();
+
+		expect(cacheCalls).toEqual([{ trackId: 'a', url: 'stream://a' }]);
+	});
+
+	it('defers the current track download while playing so the initial buffer stays uncontended', () => {
+		const cacheCalls: Array<string> = [];
+		const trackSourceNative = fakeTrackSourceNative({
+			cacheTrackFromUrl: (trackId) => {
+				cacheCalls.push(trackId);
+			},
+		});
+		const orchestrator = createOrchestrator(routingStore(true), () => {}, fakeNotification(), {
+			getTrackCacheUrl: (id) => `stream://${id}`,
+			trackSourceNative,
+		});
+
+		orchestrator.handleTrackPlaybackSourceChange();
+
+		expect(cacheCalls).toEqual([]);
+		orchestrator.dispose();
+	});
+
+	it('does not fetch the current track while paused in offline mode', () => {
+		const cacheCalls: Array<string> = [];
+		const trackSourceNative = fakeTrackSourceNative({
+			cacheTrackFromUrl: (trackId) => {
+				cacheCalls.push(trackId);
+			},
+		});
+		const orchestrator = createOrchestrator(routingStore(false), () => {}, fakeNotification(), {
+			getTrackCacheUrl: (id) => `stream://${id}`,
+			isOfflinePlaybackMode: () => true,
+			trackSourceNative,
+		});
+
+		orchestrator.handleTrackPlaybackSourceChange();
+
+		expect(cacheCalls).toEqual([]);
+	});
+
 	it('toasts on playback error', () => {
 		const toasts: Array<string> = [];
 		const orchestrator = createOrchestrator({ track: null }, () => {}, fakeNotification(), {
