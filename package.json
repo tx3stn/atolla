@@ -2,7 +2,7 @@
 	"dependencies": {},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.2",
-		"@snap/valdi": "^1.1.5",
+		"@snap/valdi": "^1.1.7",
 		"@types/bun": "^1.3.14",
 		"@types/node": "^26.1.0",
 		"@wdio/appium-service": "^9.29.1",
@@ -13,7 +13,7 @@
 		"@wdio/spec-reporter": "^9.29.1",
 		"appium": "^3.5.2",
 		"appium-inspector-plugin": "^2026.5.1",
-		"appium-uiautomator2-driver": "^8.0.1",
+		"appium-uiautomator2-driver": "^8.1.0",
 		"appium-xcuitest-driver": "^11.17.1",
 		"sharp": "^0.35.3",
 		"typescript": "^6.0.3",
