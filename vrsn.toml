@@ -1,12 +1,17 @@
 #:schema https://raw.githubusercontent.com/tx3stn/vrsn/refs/heads/main/.schema/vrsn.json
 verbose = false
-files = ['atolla/src/version.ts', 'BUILD.bazel']
+files = [
+	'atolla/src/version.ts',
+	'BUILD.bazel',
+	'atolla/native/android/AndroidManifest.prod.xml',
+]
 
 [bump]
 commit = false
 commit-msg = 'chore: bump version to {{.Version}}'
 git-tag = false
 tag-msg = 'release {{.Version}}'
+android-version-code = true
 
 [check]
 base-branch = 'main'

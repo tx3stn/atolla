@@ -16,6 +16,8 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:networkSecurityConfig="@xml/network_security_config"
+        android:versionName="0.3.0"
+        android:versionCode="300"
     >
         <activity
             android:name="com.tx3stn.atolla.StartActivity"
