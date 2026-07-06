@@ -40,12 +40,6 @@ jobs:
           restore-keys: |
             bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      # of all bun deps only the valdi CLI feeds projectsync output — keying on
-      # the locked CLI version (not bun.lock) lets dependabot's wdio/appium/etc.
-      # bumps still hit the cache
-      - name: Resolve valdi CLI version
-        id: valdi-version
-        run: echo "valdi=$(jq -r .version node_modules/@snap/valdi/package.json)" >> "$GITHUB_OUTPUT"
       # projectsync's generated res.ts is a typed accessor keyed by resource
       # name/path, not file bytes — so key the cache on the sorted file LIST, not
       # hashFiles (which hashes contents). A reformat or icon redesign that keeps
@@ -54,8 +48,12 @@ jobs:
         id: reslist
         run: echo "hash=$(cd atolla && find res -type f | LC_ALL=C sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
       # tsc only needs projectsync's OUTPUTS: the valdi sources/types, the
-      # generated res.ts, and the linux-rewritten tsconfig. Cache those directly,
-      # keyed on everything that can change them — on a hit this job runs no
+      # generated res.ts, and the linux-rewritten tsconfig. The heavy outputs
+      # (generated_ts + valdi module sources) are built by the bazel Valdi
+      # toolchain pinned in MODULE.bazel (VALDI_TAG), NOT the npm @snap/valdi CLI
+      # — which only orchestrates bazel and rewrites atolla/tsconfig.json. So the
+      # key covers the bazel dep-set (MODULE.bazel etc.) + BUILD.bazel + the res
+      # file list, and stays hit across CLI-only bumps — on a hit this job runs no
       # bazel at all (the 22-minute projectsync build disappears).
       - name: Restore projectsync outputs
         id: projectsync-cache
@@ -67,7 +65,7 @@ jobs:
             bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
             atolla/tsconfig.json
-          key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel') }}-res${{ steps.reslist.outputs.hash }}
+          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel') }}-res${{ steps.reslist.outputs.hash }}
       # only the cold path runs bazel (projectsync builds Skia/Hermes/etc), so only
       # it needs the extra room; a cache hit does no heavy build
       - name: Free disk space
@@ -131,7 +129,7 @@ jobs:
             bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
             atolla/tsconfig.json
-          key: projectsync-${{ runner.os }}-valdi${{ steps.valdi-version.outputs.valdi }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel') }}-res${{ steps.reslist.outputs.hash }}
+          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel') }}-res${{ steps.reslist.outputs.hash }}
       - name: Save bazel repository cache
         if: always() && steps.projectsync-cache.outputs.cache-hit != 'true' && steps.restore-bazel-repo.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
