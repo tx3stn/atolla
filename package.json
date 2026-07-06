@@ -52,5 +52,5 @@
 		"test:ios": "bazel test //atolla/native/ios/test/... //:valdi_editor_anchor --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",
 		"test:zig": "./.scripts/test-zig.sh"
 	},
-	"version": "0.2.8"
+	"version": "0.0.0"
 }

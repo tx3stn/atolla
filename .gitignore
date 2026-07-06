@@ -25,6 +25,11 @@ bazel-workspace/
 *.jpg
 *.png
 
+# committed image fixtures embedded by the native zig decoder tests (@embedFile)
+!atolla/native/zig/testdata/
+!atolla/native/zig/testdata/*.png
+!atolla/native/zig/testdata/*.jpg
+
 .claude/
 .opencode/
 .specify/

@@ -205,3 +205,31 @@ test "atolla_blur_pixels: uniform color survives blur" {
         try std.testing.expectApproxEqAbs(@as(f32, 100.0), @as(f32, @floatFromInt(out[i * 4 + 1])), 2.0);
     }
 }
+
+test "atolla_blur_pixels: a hard edge is smoothed into intermediate values" {
+    const std = @import("std");
+    // left half black, right half white. the pyramid must mix neighbours, producing a value that
+    // is neither pure black nor pure white — something a passthrough copy could never do.
+    const w = 16;
+    const h = 16;
+    var src: [w * h * 4]u8 = undefined;
+    for (0..h) |y| {
+        for (0..w) |x| {
+            const i = (y * w + x) * 4;
+            const v: u8 = if (x < w / 2) 0 else 255;
+            src[i + 0] = v;
+            src[i + 1] = v;
+            src[i + 2] = v;
+            src[i + 3] = 255;
+        }
+    }
+    var out: [w * h * 4]u8 = undefined;
+    atolla_blur_pixels(&src, w, h, &out, w, h);
+
+    var found_blend = false;
+    for (0..w * h) |p| {
+        const r = out[p * 4];
+        if (r > 30 and r < 225) found_blend = true;
+    }
+    try std.testing.expect(found_blend);
+}

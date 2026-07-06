@@ -3,6 +3,10 @@ load(":zig_ios_align.bzl", "zig_ios_align")
 
 package(default_visibility = ["//visibility:public"])
 
+# -fPIC: this archive is linked into the shared libvaldi.so. Zig 0.16's std runtime
+# references thread-locals (panic recursion guard, std.Io.Threaded, std.Thread) that,
+# without PIC, use the local-exec TLS model — which ld.lld rejects in a -shared link
+# (R_AARCH64_TLSLE_* "cannot be used with -shared"). 0.15.2 emitted no such TLS refs.
 zig_static_library(
     name = "atolla_algorithms_zig",
     srcs = [
@@ -11,6 +15,7 @@ zig_static_library(
         "waveform_generator.zig",
     ],
     main = "atolla_algorithms.zig",
+    zigopts = ["-fPIC"],
 )
 
 # rules_zig uses llvm-ar which writes 2-byte-aligned Mach-O archives.

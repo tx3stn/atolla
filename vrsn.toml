@@ -1,6 +1,6 @@
 #:schema https://raw.githubusercontent.com/tx3stn/vrsn/refs/heads/main/.schema/vrsn.json
 verbose = false
-files = ['package.json', 'MODULE.bazel', 'atolla/src/version.ts']
+files = ['atolla/src/version.ts', 'BUILD.bazel']
 
 [bump]
 commit = false

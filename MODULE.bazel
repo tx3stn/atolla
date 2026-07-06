@@ -1,6 +1,6 @@
 module(
     name = "atolla",
-    version = "0.2.8",
+    version = "0.0.0",
 )
 
 # -- Valdi framework (https://github.com/Snapchat/Valdi) ---------------------
@@ -224,10 +224,10 @@ maven.install(
 use_repo(maven, "android_mvn", "media3_mvn", "test_mvn")
 
 # -- Zig native algorithms (palette / blur / waveform) ------------------------
-bazel_dep(name = "rules_zig", version = "0.13.0")
+bazel_dep(name = "rules_zig", version = "0.16.0")
 
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
-zig.toolchain(zig_version = "0.15.2")
+zig.toolchain(zig_version = "0.16.0")
 
 register_toolchains(
     "//:zig_toolchain_android_arm64",

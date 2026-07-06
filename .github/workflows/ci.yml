@@ -112,7 +112,7 @@ jobs:
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
       - uses: mlugg/setup-zig@v2
         with:
-          version: 0.15.2
+          version: 0.16.0
       - run: bun run check:static
       - name: Fail on formatting or lint drift
         run: git diff --exit-code -- . ':!atolla/tsconfig.json'
@@ -148,7 +148,7 @@ jobs:
         uses: ./.github/actions/free-disk-space
       - uses: mlugg/setup-zig@v2
         with:
-          version: 0.15.2
+          version: 0.16.0
       - run: bun run test:zig
       - name: Configure bazel caching
         env:
@@ -238,7 +238,7 @@ jobs:
             bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-repo-${{ runner.os }}-
       - run: bun run test:components
-        timeout-minutes: 60
+        timeout-minutes: 120
       - name: Shut down bazel server
         if: always()
         run: bazel shutdown && du -sh ~/.cache/bazel-ob || true

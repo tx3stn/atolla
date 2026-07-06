@@ -1335,3 +1335,39 @@ test "extractFromPng: a crafted huge IHDR bails out instead of overflowing the s
 
     try std.testing.expect(!extractFromPng(&png, &bins));
 }
+
+test "atolla_extract_palette_from_bytes: Huffman-compressed PNG decodes to a blue-dominant palette" {
+    // real encoder output: fixed-Huffman DEFLATE blocks + Sub/Paeth row filters (unlike the
+    // stored-block, filter-0-only buildTestPng helper), so this exercises the actual inflate and
+    // filter-reconstruction path rather than just the reader/Decompress plumbing.
+    const png = @embedFile("testdata/dominant_blue.png");
+    var palette: Palette = std.mem.zeroes(Palette);
+    const ok = atolla_extract_palette_from_bytes(png, png.len, &palette);
+    try std.testing.expect(ok);
+    const primary = parseHex(palette.primary);
+    try std.testing.expect(primary.b > primary.r);
+    try std.testing.expect(primary.b > primary.g);
+}
+
+test "atolla_extract_palette_from_bytes: baseline JPEG decodes to a red-dominant palette" {
+    // exercises the whole baseline DC-only decoder end-to-end, not just its unit-tested helpers
+    const jpg = @embedFile("testdata/dominant_red_baseline.jpg");
+    var palette: Palette = std.mem.zeroes(Palette);
+    const ok = atolla_extract_palette_from_bytes(jpg, jpg.len, &palette);
+    try std.testing.expect(ok);
+    const primary = parseHex(palette.primary);
+    try std.testing.expect(primary.r > primary.g);
+    try std.testing.expect(primary.r > primary.b);
+}
+
+test "atolla_extract_palette_from_bytes: RGBA PNG ignores transparent pixels" {
+    // the transparent field is red; only the opaque green block should reach the histogram, so a
+    // fully-transparent colour must never win the primary.
+    const png = @embedFile("testdata/transparent_green.png");
+    var palette: Palette = std.mem.zeroes(Palette);
+    const ok = atolla_extract_palette_from_bytes(png, png.len, &palette);
+    try std.testing.expect(ok);
+    const primary = parseHex(palette.primary);
+    try std.testing.expect(primary.g > primary.r);
+    try std.testing.expect(primary.g > primary.b);
+}
