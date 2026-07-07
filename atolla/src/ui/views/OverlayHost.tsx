@@ -18,6 +18,7 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 
 	private playbackSubscribed = false;
 	private preferencesSubscribed = false;
+	private lastPlaybackSignature = '';
 
 	onCreate(): void {
 		this.registerDisposable(appServices.subscribe(this.handleChange));
@@ -48,7 +49,7 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 			return;
 		}
 		this.playbackSubscribed = true;
-		this.registerDisposable(services.playbackStore.subscribe(this.handleChange));
+		this.registerDisposable(services.playbackStore.subscribe(this.handlePlaybackChange));
 	}
 
 	private ensurePreferencesSubscription(): void {
@@ -66,6 +67,25 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 	private handleChange = (): void => {
 		this.ensurePlaybackSubscription();
 		this.ensurePreferencesSubscription();
+		this.setState({ revision: this.state.revision + 1 });
+	};
+
+	// the overlay renders the header/now-playing/footer, none of which show elapsed time (the surface
+	// tracks progress via its own subscription). re-rendering the whole overlay on every progress
+	// notify (~5x/s) needlessly re-requests artwork and re-creates native callback bindings, so
+	// collapse progress-only notifications: re-render only when a displayed field changes
+	private handlePlaybackChange = (): void => {
+		const services = appServices.get();
+		if (!services) {
+			return;
+		}
+		const { track, album, isPlaying, loopMode, trackIndex, tracks, artistLogoUrl } =
+			services.playbackStore;
+		const signature = `${track?.id ?? ''}|${album?.id ?? ''}|${isPlaying}|${loopMode}|${trackIndex}|${tracks.length}|${artistLogoUrl ?? ''}`;
+		if (signature === this.lastPlaybackSignature) {
+			return;
+		}
+		this.lastPlaybackSignature = signature;
 		this.setState({ revision: this.state.revision + 1 });
 	};
 
