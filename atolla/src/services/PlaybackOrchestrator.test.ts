@@ -358,11 +358,11 @@ describe('PlaybackOrchestrator waveforms', () => {
 		expect(state.reorders[state.reorders.length - 1]).toEqual(['b', 'a']);
 	});
 
-	it('enqueues every playback-queue track with a local file, skipping those without', () => {
+	it('enqueues windowed playback-queue tracks with a local file, skipping those without', () => {
 		const waveformService = new WaveformService(noopWaveformStore());
 		const { callbacks, state } = fakeWaveformQueue();
 		const orchestrator = createOrchestrator(
-			waveformPlaybackStore(['a', 'b', 'c'], 1),
+			waveformPlaybackStore(['a', 'b', 'c'], 0),
 			() => {},
 			fakeNotification(),
 			{ getAudioFileUrl: (id) => (id === 'b' ? null : `path://${id}`) },
@@ -372,7 +372,24 @@ describe('PlaybackOrchestrator waveforms', () => {
 		orchestrator.handleWaveformPriority();
 
 		expect(state.enqueued.map((e) => e.trackId)).toEqual(['a', 'c']);
-		expect(state.reorders[state.reorders.length - 1]).toEqual(['b', 'c', 'a']);
+		expect(state.reorders[state.reorders.length - 1]).toEqual(['a', 'b', 'c']);
+	});
+
+	it('caps waveform pre-generation to a forward window from the current track', () => {
+		const waveformService = new WaveformService(noopWaveformStore());
+		const { callbacks, state } = fakeWaveformQueue();
+		const orchestrator = createOrchestrator(
+			waveformPlaybackStore(['a', 'b', 'c', 'd', 'e', 'f'], 1),
+			() => {},
+			fakeNotification(),
+			{ getAudioFileUrl: (id) => `path://${id}` },
+		);
+		orchestrator.setUserServices(userServices({ ...callbacks, waveformService }));
+
+		orchestrator.handleWaveformPriority();
+
+		// window of 4 from the current track (index 1): b, c, d, e — not the behind 'a' or far 'f'
+		expect(state.enqueued.map((e) => e.trackId)).toEqual(['b', 'c', 'd', 'e']);
 	});
 
 	it('skips re-enqueueing when neither the track list nor the active index changed', () => {

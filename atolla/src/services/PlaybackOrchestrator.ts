@@ -19,6 +19,10 @@ import type { WaveformService } from './WaveformService';
 const NATIVE_ACTION_POLL_INTERVAL_MS = 350;
 const UPCOMING_PALETTE_PREWARM_COUNT = 10;
 const UPCOMING_PALETTE_CACHE_CONCURRENCY = 2;
+// waveform generation opens a MediaCodec per track; pre-generate only a small window from the current
+// track rather than the whole queue so the codec pool isn't exhausted. the window slides forward as
+// tracks advance, and the generation queue abandons superseded jobs when the user skips
+const WAVEFORM_PREGEN_WINDOW = 2;
 
 export interface NowPlayingPaletteService {
 	hasPalette(imageUrl: string | null | undefined): boolean;
@@ -620,10 +624,12 @@ export class PlaybackOrchestrator {
 		this.lastWaveformPriorityTracksRef = this.playbackStore.tracks;
 		this.lastWaveformPriorityTrackIndex = this.playbackStore.trackIndex;
 
-		for (const track of this.playbackStore.tracks) {
-			const audioPath = this.getAudioFileUrl(track.id);
+		const { tracks, trackIndex } = this.playbackStore;
+		const end = Math.min(tracks.length, trackIndex + WAVEFORM_PREGEN_WINDOW);
+		for (let i = trackIndex; i < end; i++) {
+			const audioPath = this.getAudioFileUrl(tracks[i].id);
 			if (audioPath) {
-				this.scheduleAndEnqueueWaveform(track.id, audioPath);
+				this.scheduleAndEnqueueWaveform(tracks[i].id, audioPath);
 			}
 		}
 		this.reorderWaveformQueue(this.getPlaybackTrackIds());
