@@ -368,7 +368,13 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				ValdiAssetLoadOutputType.BITMAP -> {
 					val bitmap = getOrDecodeBitmap(bytes, bitmapPlan)
 					if (bitmap != null) {
-						ValdiImageWithBitmap(bitmap)
+						val copy = safeCopyForDelivery(bitmap)
+						if (copy != null) {
+							ValdiImageWithBitmap(copy)
+						} else {
+							bitmapMemory.remove(bitmapPlan.bitmapKey)
+							ValdiImageFactory.fromByteArray(bytes)
+						}
 					} else {
 						ValdiImageFactory.fromByteArray(bytes)
 					}
