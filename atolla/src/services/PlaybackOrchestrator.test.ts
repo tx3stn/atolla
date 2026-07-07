@@ -936,12 +936,12 @@ describe('PlaybackOrchestrator track source routing', () => {
 
 	it('falls back to the stream source when nothing is cached', () => {
 		const orchestrator = createOrchestrator(routingStore(false), () => {}, fakeNotification(), {
-			getTrackCacheUrl: (id) => `stream://${id}`,
+			getTrackCacheUrl: (id) => `https://${id}`,
 		});
 
 		orchestrator.handleTrackPlaybackSourceChange();
 
-		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('stream://a');
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('https://a');
 	});
 
 	it('fetches the current track while paused so its waveform and resume are ready', () => {
@@ -952,13 +952,13 @@ describe('PlaybackOrchestrator track source routing', () => {
 			},
 		});
 		const orchestrator = createOrchestrator(routingStore(false), () => {}, fakeNotification(), {
-			getTrackCacheUrl: (id) => `stream://${id}`,
+			getTrackCacheUrl: (id) => `https://${id}`,
 			trackSourceNative,
 		});
 
 		orchestrator.handleTrackPlaybackSourceChange();
 
-		expect(cacheCalls).toEqual([{ trackId: 'a', url: 'stream://a' }]);
+		expect(cacheCalls).toEqual([{ trackId: 'a', url: 'https://a' }]);
 	});
 
 	it('defers the current track download while playing so the initial buffer stays uncontended', () => {
@@ -969,7 +969,7 @@ describe('PlaybackOrchestrator track source routing', () => {
 			},
 		});
 		const orchestrator = createOrchestrator(routingStore(true), () => {}, fakeNotification(), {
-			getTrackCacheUrl: (id) => `stream://${id}`,
+			getTrackCacheUrl: (id) => `https://${id}`,
 			trackSourceNative,
 		});
 
@@ -987,8 +987,25 @@ describe('PlaybackOrchestrator track source routing', () => {
 			},
 		});
 		const orchestrator = createOrchestrator(routingStore(false), () => {}, fakeNotification(), {
-			getTrackCacheUrl: (id) => `stream://${id}`,
+			getTrackCacheUrl: (id) => `https://${id}`,
 			isOfflinePlaybackMode: () => true,
+			trackSourceNative,
+		});
+
+		orchestrator.handleTrackPlaybackSourceChange();
+
+		expect(cacheCalls).toEqual([]);
+	});
+
+	it('does not route a local file:// current-track source to the HTTP cache', () => {
+		const cacheCalls: Array<string> = [];
+		const trackSourceNative = fakeTrackSourceNative({
+			cacheTrackFromUrl: (trackId) => {
+				cacheCalls.push(trackId);
+			},
+		});
+		const orchestrator = createOrchestrator(routingStore(false), () => {}, fakeNotification(), {
+			getTrackCacheUrl: (id) => `file://${id}`,
 			trackSourceNative,
 		});
 
@@ -1056,17 +1073,17 @@ describe('PlaybackOrchestrator cached current track source stability', () => {
 				rerenders += 1;
 			},
 			fakeNotification(),
-			{ getTrackCacheUrl: (id) => `stream://${id}`, trackSourceNative },
+			{ getTrackCacheUrl: (id) => `https://${id}`, trackSourceNative },
 		);
 
 		orchestrator.handleTrackPlaybackSourceChange();
-		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('stream://a');
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('https://a');
 		const rerendersAfterBind = rerenders;
 
 		cachedFiles.a = '/cache/a';
 		orchestrator.handleTrackCached('a');
 
-		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('stream://a');
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('https://a');
 		expect(rerenders).toBe(rerendersAfterBind);
 		orchestrator.dispose();
 	});
@@ -1083,7 +1100,7 @@ describe('PlaybackOrchestrator cached current track source stability', () => {
 			fakeNotification(),
 			{
 				getAudioFileUrl: (id) => (id === 'a' ? '/audio/a' : null),
-				getTrackCacheUrl: (id) => `stream://${id}`,
+				getTrackCacheUrl: (id) => `https://${id}`,
 				trackSourceNative,
 			},
 		);
@@ -1094,7 +1111,7 @@ describe('PlaybackOrchestrator cached current track source stability', () => {
 		orchestrator.handleTrackCached('a');
 
 		expect(waveform.state.enqueued).toContainEqual({ audioPath: '/audio/a', trackId: 'a' });
-		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('stream://a');
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('https://a');
 		orchestrator.dispose();
 	});
 
@@ -1107,7 +1124,7 @@ describe('PlaybackOrchestrator cached current track source stability', () => {
 			playingStore([makeTrack('a'), makeTrack('b')]),
 			() => {},
 			fakeNotification(),
-			{ getTrackCacheUrl: (id) => `stream://${id}`, trackSourceNative },
+			{ getTrackCacheUrl: (id) => `https://${id}`, trackSourceNative },
 		);
 
 		orchestrator.handleTrackPlaybackSourceChange();
@@ -1130,7 +1147,7 @@ describe('PlaybackOrchestrator cached current track source stability', () => {
 			playingStore([makeTrack('a')]),
 			() => {},
 			fakeNotification(),
-			{ getTrackCacheUrl: (id) => `stream://${id}`, trackSourceNative },
+			{ getTrackCacheUrl: (id) => `https://${id}`, trackSourceNative },
 		);
 
 		expect(orchestrator.getTrackPlaybackSourceUrl()).toBeNull();
@@ -1271,7 +1288,7 @@ describe('PlaybackOrchestrator upcoming palettes', () => {
 				cached.push(url);
 				return Promise.resolve();
 			},
-			getTrackCacheUrl: (id) => `stream://${id}`,
+			getTrackCacheUrl: (id) => `https://${id}`,
 			trackSourceNative,
 		});
 		orchestrator.setUserServices(

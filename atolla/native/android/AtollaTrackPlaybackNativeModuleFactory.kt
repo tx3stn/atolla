@@ -1050,6 +1050,12 @@ object AtollaTrackPlaybackNativeCache {
 			return ""
 		}
 
+		// only HTTP(S) sources are downloadable here; a local file:// (already-cached/offline) url
+		// would throw when cast to HttpURLConnection below, so treat it as nothing to download
+		if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
+			return ""
+		}
+
 		val cacheDir = resolveCacheDir() ?: return ""
 		val safeKey = safeTrackKey(trackId)
 
@@ -1344,6 +1350,12 @@ object AtollaDownloadedTrackNativeCache {
 
 	fun cacheTrackFromUrl(trackId: String, url: String, authToken: String): String {
 		if (trackId.isBlank() || url.isBlank()) {
+			return ""
+		}
+
+		// only HTTP(S) sources are downloadable here; a local file:// (already-cached/offline) url
+		// would throw when cast to HttpURLConnection below, so treat it as nothing to download
+		if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
 			return ""
 		}
 

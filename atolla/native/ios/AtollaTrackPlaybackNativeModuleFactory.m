@@ -198,6 +198,10 @@ static NSMutableSet<NSString *> *sInProgressKeys;
 + (NSString * _Nonnull)cacheTrackFromUrl:(NSString * _Nonnull)trackId url:(NSString * _Nonnull)url authToken:(NSString * _Nonnull)authToken {
     if (trackId.length == 0 || url.length == 0) return @"";
 
+    // only HTTP(S) sources are downloadable here; a local file:// (already-cached/offline) url
+    // is already available and must not be routed through the network download path
+    if (![url hasPrefix:@"http://"] && ![url hasPrefix:@"https://"]) return @"";
+
     NSURL *dir = [self resolveCacheDir];
     if (!dir) return @"";
     NSString *key = [self safeTrackKey:trackId];

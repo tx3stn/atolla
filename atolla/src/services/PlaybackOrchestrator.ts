@@ -147,6 +147,11 @@ export class PlaybackOrchestrator {
 			(track) => this.getTrackCacheUrl(track.id),
 			(trackId) => this.getNativeCachedTrackSource(trackId) != null,
 			(trackId, url, onComplete) => {
+				if (!this.isUrl(url)) {
+					// already a local file (downloaded/offline); nothing to fetch over HTTP
+					onComplete(null);
+					return;
+				}
 				this.trackSourceNative.cacheTrackFromUrl(
 					trackId,
 					url,
@@ -682,6 +687,10 @@ export class PlaybackOrchestrator {
 		return source.trim();
 	}
 
+	private isUrl(url: string | null | undefined): boolean {
+		return url != null && (url.startsWith('http://') || url.startsWith('https://'));
+	}
+
 	private summarizeCacheError(message: string): string {
 		if (!message) {
 			return 'unknown error';
@@ -765,16 +774,24 @@ export class PlaybackOrchestrator {
 			return;
 		}
 
+		const url = resolvedStreamSource ?? this.getTrackStreamSource(trackId);
+		if (!url) {
+			this.handleTrackCacheFetchFailed(trackId, 'no url');
+			return;
+		}
+
+		if (!this.isUrl(url)) {
+			// already a local file (downloaded/offline); nothing to download over HTTP
+			return;
+		}
+
+		// held until the async cache callback resolves; clearing it synchronously would let a
+		// still-in-flight (or instantly-failing) download re-fire in a tight loop
 		this.inFlightTrackDownloadIds.add(trackId);
 
 		try {
-			const url = resolvedStreamSource ?? this.getTrackStreamSource(trackId);
-			if (!url) {
-				this.handleTrackCacheFetchFailed(trackId, 'no url');
-				return;
-			}
-
 			this.trackSourceNative.cacheTrackFromUrl(trackId, url, this.getAccessToken(), (rawSource) => {
+				this.inFlightTrackDownloadIds.delete(trackId);
 				const nativeSource = rawSource ? this.normalizePlaybackFileSource(rawSource) : null;
 				if (nativeSource) {
 					if (requestId !== this.playbackSourceRequestId) {
@@ -791,8 +808,8 @@ export class PlaybackOrchestrator {
 
 				this.handleTrackCacheFetchFailed(trackId, 'native cache failed');
 			});
-			return;
 		} catch (error) {
+			this.inFlightTrackDownloadIds.delete(trackId);
 			const rawMessage =
 				typeof error === 'string'
 					? error
@@ -802,8 +819,6 @@ export class PlaybackOrchestrator {
 			const message = this.summarizeCacheError(rawMessage);
 			this.showPlaybackToast(`cache flow exception: ${message}`);
 			this.handleTrackCacheFetchFailed(trackId, `exception: ${message}`);
-		} finally {
-			this.inFlightTrackDownloadIds.delete(trackId);
 		}
 	}
 
@@ -858,6 +873,13 @@ export class PlaybackOrchestrator {
 			this.lastPrefetchTracksRef = null;
 			this.lastPrefetchTrackIndex = -1;
 			this.lastPrefetchTransport = this.getTransportToken();
+			this.deferredDownloadCoordinator.cancel('prefetch');
+			this.trackPrefetchQueue.clearQueue();
+			return;
+		}
+
+		if (this.isOfflinePlaybackMode()) {
+			// offline tracks are already local files; there is nothing to prefetch over HTTP
 			this.deferredDownloadCoordinator.cancel('prefetch');
 			this.trackPrefetchQueue.clearQueue();
 			return;
