@@ -113,6 +113,7 @@ export class PlaybackOrchestrator {
 	private disposeWaveformQueue?: () => void;
 	private unsubscribeWaveform?: () => void;
 	private unsubscribeWaveformRender?: () => void;
+	private readonly overlayContentListeners = new Set<() => void>();
 	private lastWaveformPriorityTracksRef: Array<Track> | null = null;
 	private lastWaveformPriorityTrackIndex = -1;
 	private lastUpcomingPaletteTracksRef: Array<Track> | null = null;
@@ -313,10 +314,27 @@ export class PlaybackOrchestrator {
 		this.lastUpcomingPaletteTracksRef = null;
 		this.lastUpcomingPaletteTrackIndex = -1;
 		fireAndForget('waveformWarmUp', this.waveformService.warmUp());
-		this.unsubscribeWaveform = this.waveformService.subscribe(this.requestOverlayRerender);
-		this.unsubscribeWaveformRender = this.waveformRenderCache.subscribe(
-			this.requestOverlayRerender,
+		this.unsubscribeWaveform = this.waveformService.subscribe(() => this.notifyOverlayContent());
+		this.unsubscribeWaveformRender = this.waveformRenderCache.subscribe(() =>
+			this.notifyOverlayContent(),
 		);
+	}
+
+	// the now-playing overlay reads waveform masks (getWaveformMaskUrl) which resolve asynchronously
+	// as decodes/renders complete; it subscribes here so it re-renders when they land, rather than
+	// waiting for the next playback-state change
+	subscribeOverlayContent(listener: () => void): () => void {
+		this.overlayContentListeners.add(listener);
+		return () => {
+			this.overlayContentListeners.delete(listener);
+		};
+	}
+
+	private notifyOverlayContent(): void {
+		this.requestOverlayRerender();
+		for (const listener of [...this.overlayContentListeners]) {
+			listener();
+		}
 	}
 
 	getRecentlyPlayedTracks(): Array<Track> {

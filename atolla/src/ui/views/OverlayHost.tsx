@@ -18,6 +18,7 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 
 	private playbackSubscribed = false;
 	private preferencesSubscribed = false;
+	private overlayContentSubscribed = false;
 	private lastPlaybackSignature = '';
 
 	onCreate(): void {
@@ -25,6 +26,7 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 		this.registerDisposable(appShellStore.subscribe(this.handleChange));
 		this.ensurePlaybackSubscription();
 		this.ensurePreferencesSubscription();
+		this.ensureOverlayContentSubscription();
 	}
 
 	onRender(): void {
@@ -64,9 +66,27 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 		this.registerDisposable(services.preferences.subscribe(this.handleChange));
 	}
 
+	// palette (bar colours) and waveform masks resolve asynchronously; subscribe so the overlay picks
+	// them up when they land rather than only on the next playback-state change (e.g. skipping tracks)
+	private ensureOverlayContentSubscription(): void {
+		if (this.overlayContentSubscribed) {
+			return;
+		}
+		const services = appServices.get();
+		if (!services) {
+			return;
+		}
+		this.overlayContentSubscribed = true;
+		this.registerDisposable(services.paletteService.subscribe(this.handleChange));
+		this.registerDisposable(
+			services.playbackOrchestrator.subscribeOverlayContent(this.handleChange),
+		);
+	}
+
 	private handleChange = (): void => {
 		this.ensurePlaybackSubscription();
 		this.ensurePreferencesSubscription();
+		this.ensureOverlayContentSubscription();
 		this.setState({ revision: this.state.revision + 1 });
 	};
 
