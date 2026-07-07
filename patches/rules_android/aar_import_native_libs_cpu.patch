@@ -1,0 +1,18 @@
+--- rules/aar_import/impl.bzl
++++ rules/aar_import/impl.bzl
+@@ -526,8 +526,9 @@
+-    native_libs_cpu = None
+-    for target, cpu in ctx.attr._cpu_constraints.items():
+-        constraint = target[platform_common.ConstraintValueInfo]
+-        if ctx.target_platform_has_constraint(constraint):
+-            native_libs_cpu = cpu
+-            break
++    native_libs_cpu = ctx.var.get("aar_import_native_libs_cpu")
++    if native_libs_cpu == None:
++        for target, cpu in ctx.attr._cpu_constraints.items():
++            constraint = target[platform_common.ConstraintValueInfo]
++            if ctx.target_platform_has_constraint(constraint):
++                native_libs_cpu = cpu
++                break
+     if native_libs_cpu == None:
+         fail(("Target platform %s does not match one of the " +

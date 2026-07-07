@@ -63,6 +63,18 @@ jobs:
           restore-keys: |
             bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
+      # Regenerate the Android icons from atolla/res/logo.svg in the background so it
+      # overlaps the bazel cache restores below; "Wait for icon generation" joins on
+      # it before Build APK. Output is byte-identical to the committed res/ files
+      # unless the logo changed, and must land before bazel reads res/.
+      - name: Start icon generation (background)
+        run: |
+          nohup bash -c '
+            bun run icons:generate --android > /tmp/icons.log 2>&1
+            echo $? > /tmp/icons.exit
+          ' >/dev/null 2>&1 &
+          echo $! > /tmp/icons.pid
+          echo "icon generation started (pid $(cat /tmp/icons.pid))"
       - name: Install libtinfo5
         uses: ./.github/actions/install-libtinfo5
       - name: Make room for the bazel build
@@ -77,18 +89,6 @@ jobs:
           sudo chown "$USER:$USER" /mnt/bazel-ob
           echo "startup --output_base=/mnt/bazel-ob" >> ~/.bazelrc
           df -h / /mnt
-      # Regenerate the Android icons from atolla/res/logo.svg in the background so it
-      # overlaps the bazel cache restores below; "Wait for icon generation" joins on
-      # it before Build APK. Output is byte-identical to the committed res/ files
-      # unless the logo changed, and must land before bazel reads res/.
-      - name: Start icon generation (background)
-        run: |
-          nohup bash -c '
-            bun run icons:generate --android > /tmp/icons.log 2>&1
-            echo $? > /tmp/icons.exit
-          ' >/dev/null 2>&1 &
-          echo $! > /tmp/icons.pid
-          echo "icon generation started (pid $(cat /tmp/icons.pid))"
       # the remote cache is CI's only cache: version bumps touch a few files, so
       # most compile actions hit artifacts uploaded by the previous release
       - name: Configure bazel caching

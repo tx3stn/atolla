@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.tx3stn.atolla"
+    android:versionCode="300"
+    android:versionName="0.3.0"
 >
     <uses-sdk
         android:minSdkVersion="19"
@@ -16,8 +18,6 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:versionName="0.3.0"
-        android:versionCode="300"
     >
         <activity
             android:name="com.tx3stn.atolla.StartActivity"
