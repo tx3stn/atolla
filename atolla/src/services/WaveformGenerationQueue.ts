@@ -40,7 +40,8 @@ export class WaveformGenerationQueue {
 
 	// no-op if the waveform is already ready/failed, or the track is queued or in-flight
 	enqueue(trackId: string, audioPath: string): void {
-		if (this.waveformService.getAmps(trackId) !== null) return;
+		const status = this.waveformService.getStatus(trackId);
+		if (status === 'ready' || status === 'failed') return;
 		if (this.queue.some((e) => e.trackId === trackId)) return;
 		if (this.activeJobs.some((j) => j.entry.trackId === trackId && !j.abandoned)) return;
 		this.queue.push({ audioPath, trackId });

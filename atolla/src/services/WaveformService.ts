@@ -26,10 +26,16 @@ export class WaveformService {
 	}
 
 	scheduleGeneration(trackId: string): void {
-		const existing = this.records.get(trackId);
-		if (existing?.status === 'ready' || existing?.status === 'pending') return;
+		// 'failed' is terminal: re-scheduling it would re-decode on every queue change, and since a
+		// failing decode (e.g. MediaCodec resource exhaustion) keeps failing, that churns codecs and
+		// the JS↔native callbacks feeding them. a fresh attempt requires removeForTrack first.
+		if (this.records.has(trackId)) return;
 		this.records.set(trackId, { amps: null, status: 'pending', trackId });
 		this.notify();
+	}
+
+	getStatus(trackId: string): WaveformStatus | null {
+		return this.records.get(trackId)?.status ?? null;
 	}
 
 	onGenerationSucceeded(trackId: string, amps: string): void {
