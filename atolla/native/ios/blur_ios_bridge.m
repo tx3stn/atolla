@@ -39,7 +39,7 @@ static const uint32_t kBlurOutputSize = 200;
     CGImageRelease(image);
 
     const size_t out_bytes = kBlurOutputSize * kBlurOutputSize * 4;
-    uint8_t *pixels_out = (uint8_t *)malloc(out_bytes);
+    uint8_t *pixels_out = (uint8_t *)calloc(out_bytes, 1);
     if (!pixels_out) { free(pixels_in); return nil; }
 
     atolla_blur_pixels(pixels_in, (uint32_t)width, (uint32_t)height,

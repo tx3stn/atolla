@@ -1102,7 +1102,7 @@ static id sLookaheadClearObserver = nil;
 
         [sEngineLock lock];
         if (upcomingEntry) {
-            sCurrentSourceUrl = upcomingEntry[@"sourceUrl"];
+            sCurrentSourceUrl = [upcomingEntry[@"sourceUrl"] isKindOfClass:[NSString class]] ? upcomingEntry[@"sourceUrl"] : @"";
             sCurrentTrackId = upcomingEntry[@"trackId"] ?: @"";
         } else {
             sCurrentSourceUrl = nextSrc;
