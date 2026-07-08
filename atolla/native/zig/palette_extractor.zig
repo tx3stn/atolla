@@ -23,6 +23,10 @@ const SHIFT = 4;
 const LEVELS: usize = 1 << SHIFT; // 16
 const MAX_BINS: usize = LEVELS * LEVELS * LEVELS; // 4096
 
+const DOMINANT_SHIFT = 5;
+const DOMINANT_BITS = 8 - DOMINANT_SHIFT;
+const DOMINANT_BINS: usize = 1 << (DOMINANT_BITS * 3); // 512
+
 const Bin = struct {
     count: u32,
     sum_r: u32,
@@ -137,12 +141,6 @@ fn enhanceAccent(r: u8, g: u8, b: u8) Rgb {
     return hslToRgb(hsl.h, clamp(@max(hsl.s, 0.34) * 1.08, 0.0, 0.95), clamp(hsl.l, 0.24, 0.74));
 }
 
-fn mutedVariant(hex: [8]u8) Rgb {
-    const rgb = parseHex(hex);
-    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-    return hslToRgb(hsl.h, @max(0.22, hsl.s * 0.6), @max(0.08, hsl.l * 0.8));
-}
-
 fn legibleText(surface: Rgb) Rgb {
     const hsl = rgbToHsl(surface.r, surface.g, surface.b);
     if (hsl.l < 0.5) {
@@ -229,7 +227,34 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
     }
 
     var totalPop: u64 = 0;
-    for (bins) |bin| totalPop +|= bin.count;
+    var coarse: [DOMINANT_BINS]Bin = std.mem.zeroes([DOMINANT_BINS]Bin);
+    for (bins) |bin| {
+        if (bin.count == 0) continue;
+        totalPop +|= bin.count;
+        const r: u8 = @intCast(bin.sum_r / bin.count);
+        const g: u8 = @intCast(bin.sum_g / bin.count);
+        const b: u8 = @intCast(bin.sum_b / bin.count);
+        const key: usize = (@as(usize, r >> DOMINANT_SHIFT) << (DOMINANT_BITS * 2)) |
+            (@as(usize, g >> DOMINANT_SHIFT) << DOMINANT_BITS) |
+            @as(usize, b >> DOMINANT_SHIFT);
+        coarse[key].count +|= bin.count;
+        coarse[key].sum_r +|= bin.sum_r;
+        coarse[key].sum_g +|= bin.sum_g;
+        coarse[key].sum_b +|= bin.sum_b;
+    }
+
+    var dominantCount: u32 = 0;
+    var dominantRgb: Rgb = .{ .r = 0x1e, .g = 0x20, .b = 0x30 };
+    for (coarse) |bin| {
+        if (bin.count > dominantCount) {
+            dominantCount = bin.count;
+            dominantRgb = .{
+                .r = @intCast(bin.sum_r / bin.count),
+                .g = @intCast(bin.sum_g / bin.count),
+                .b = @intCast(bin.sum_b / bin.count),
+            };
+        }
+    }
 
     var accentHex: [8]u8 = primaryHex;
     const primaryRgb = parseHex(primaryHex);
@@ -260,7 +285,7 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
         }
     }
 
-    const surfaceRgb = mutedVariant(primaryHex);
+    const surfaceRgb = dominantRgb;
     const onSurfaceRgb = legibleText(surfaceRgb);
     const mutedOnSurfaceRgb = mutedText(onSurfaceRgb, surfaceRgb);
 
@@ -459,4 +484,26 @@ test "atolla_extract_palette: saturated minority beats muted majority" {
     _ = atolla_extract_palette(&pixels, 4, 4, &palette);
     const primary = parseHex(palette.primary);
     try std.testing.expect(primary.r > primary.b);
+}
+
+test "atolla_extract_palette: surface tracks the dominant colour, not the vibrant primary" {
+    var pixels: [16 * 4]u8 = undefined;
+    for (0..12) |i| {
+        pixels[i * 4 + 0] = 112;
+        pixels[i * 4 + 1] = 127;
+        pixels[i * 4 + 2] = 143;
+        pixels[i * 4 + 3] = 255;
+    }
+    for (12..16) |i| {
+        pixels[i * 4 + 0] = 210;
+        pixels[i * 4 + 1] = 80;
+        pixels[i * 4 + 2] = 20;
+        pixels[i * 4 + 3] = 255;
+    }
+    var palette: Palette = std.mem.zeroes(Palette);
+    _ = atolla_extract_palette(&pixels, 4, 4, &palette);
+    const primary = parseHex(palette.primary);
+    const surface = parseHex(palette.surface);
+    try std.testing.expect(primary.r > primary.b);
+    try std.testing.expect(surface.b > surface.r);
 }

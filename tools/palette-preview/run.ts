@@ -37,6 +37,7 @@ const HEIGHT = 844;
 const THUMB_HEIGHT = 560;
 const SWATCH_WIDTH = 360;
 const GAP = 16;
+const COLUMNS = 3;
 const BG = { alpha: 1, b: 22, g: 15, r: 11 };
 
 const inputArgIndex = process.argv.indexOf('--input');
@@ -52,6 +53,16 @@ function run(command: string, args: Array<string>): void {
 	if (result.status !== 0) {
 		throw new Error(`${command} ${args.join(' ')} exited with ${result.status}`);
 	}
+}
+
+function nextVersionedPath(dir: string, base: string, ext: string): string {
+	let index = 1;
+	let candidate = resolve(dir, `${base}.${ext}`);
+	while (existsSync(candidate)) {
+		index++;
+		candidate = resolve(dir, `${base}-${index}.${ext}`);
+	}
+	return candidate;
 }
 
 function readHex(buffer: Uint8Array, offset: number): string {
@@ -125,15 +136,19 @@ async function composeContactSheet(entries: Array<ManifestEntry>): Promise<void>
 		return;
 	}
 
-	const sheetWidth = Math.max(...cards.map((c) => c.width)) + GAP * 2;
-	const sheetHeight = cards.reduce((sum, c) => sum + c.height + GAP, GAP);
+	const cellWidth = Math.max(...cards.map((c) => c.width));
+	const cellHeight = Math.max(...cards.map((c) => c.height));
+	const columns = Math.min(COLUMNS, cards.length);
+	const rows = Math.ceil(cards.length / COLUMNS);
+	const sheetWidth = GAP + columns * (cellWidth + GAP);
+	const sheetHeight = GAP + rows * (cellHeight + GAP);
 	const composites = cards.map((card, index) => ({
 		input: card.data,
-		left: GAP,
-		top: GAP + index * (cards[0].height + GAP),
+		left: GAP + (index % COLUMNS) * (cellWidth + GAP),
+		top: GAP + Math.floor(index / COLUMNS) * (cellHeight + GAP),
 	}));
 
-	const sheetPath = resolve(outDir, 'index.png');
+	const sheetPath = nextVersionedPath(outDir, 'index', 'png');
 	await sharp({
 		create: { background: BG, channels: 4, height: sheetHeight, width: sheetWidth },
 	})
