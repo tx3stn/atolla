@@ -27,6 +27,8 @@ const DOMINANT_SHIFT = 5;
 const DOMINANT_BITS = 8 - DOMINANT_SHIFT;
 const DOMINANT_BINS: usize = 1 << (DOMINANT_BITS * 3); // 512
 
+const TEXT_CONTRAST_FLOOR = 0.3;
+
 const Bin = struct {
     count: u32,
     sum_r: u32,
@@ -176,13 +178,30 @@ fn enhanceAccent(r: u8, g: u8, b: u8) Rgb {
     return hslToRgb(hsl.h, clamp(@max(hsl.s, 0.34) * 1.08, 0.0, 0.95), clamp(hsl.l, 0.24, 0.74));
 }
 
+// a very pale dominant colour reads washed-out as a translucent tint over the blurred artwork, and
+// sits noticeably lighter than the artwork's true shade. deepen only those (OKLab L >= 0.85) toward
+// a richer tone of the same hue; mid and dark surfaces are left untouched.
+fn enrichSurface(rgb: Rgb) Rgb {
+    const oklch = rgbToOklch(rgb.r, rgb.g, rgb.b);
+    if (oklch.l < 0.85) return rgb;
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    return hslToRgb(hsl.h, hsl.s, hsl.l - 0.08);
+}
+
 fn legibleText(surface: Rgb) Rgb {
     const hsl = rgbToHsl(surface.r, surface.g, surface.b);
-    if (hsl.l < 0.5) {
-        return hslToRgb(hsl.h, @min(hsl.s * 1.5, 0.35), @min(0.88, hsl.l + 0.65));
-    } else {
-        return hslToRgb(hsl.h, @min(hsl.s * 0.8, 0.45), @max(0.12, hsl.l - 0.6));
-    }
+    const surfaceL = rgbToOklch(surface.r, surface.g, surface.b).l;
+    const wantLight = hsl.l < 0.5;
+    const candidate = if (wantLight)
+        hslToRgb(hsl.h, @min(hsl.s * 1.5, 0.35), @min(0.88, hsl.l + 0.65))
+    else
+        hslToRgb(hsl.h, @min(hsl.s * 0.8, 0.45), @max(0.12, hsl.l - 0.6));
+    const candidateL = rgbToOklch(candidate.r, candidate.g, candidate.b).l;
+    if (@abs(candidateL - surfaceL) >= TEXT_CONTRAST_FLOOR) return candidate;
+    return if (wantLight)
+        hslToRgb(hsl.h, 0.10, 0.98)
+    else
+        hslToRgb(hsl.h, 0.10, 0.02);
 }
 
 fn mixChannel(t: u8, s: u8) u8 {
@@ -289,13 +308,14 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
         }
     }
 
+    const surfaceRgb = enrichSurface(dominantRgb);
+    const surfaceLab = rgbToOklch(surfaceRgb.r, surfaceRgb.g, surfaceRgb.b);
+
     var accentHex: [8]u8 = primaryHex;
-    const primaryRgb = parseHex(primaryHex);
-    const primaryLab = rgbToOklch(primaryRgb.r, primaryRgb.g, primaryRgb.b);
     var bestAccentScore: f64 = -std.math.inf(f64);
 
     if (totalPop > 0) {
-        for (bins) |bin| {
+        for (coarse) |bin| {
             if (bin.count == 0) continue;
             const r: u8 = @intCast(bin.sum_r / bin.count);
             const g: u8 = @intCast(bin.sum_g / bin.count);
@@ -304,12 +324,14 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
             if (lab.l <= 0.20 or lab.l >= 0.92) continue;
             if (lab.c < 0.05) continue;
             const share = @as(f64, @floatFromInt(bin.count)) / @as(f64, @floatFromInt(totalPop));
-            if (share < 0.01 or share > 0.35) continue;
-            const hueDist = normalizedHueDistance(primaryLab.h, lab.h);
-            if (hueDist < 0.12) continue;
-            const litDist = @abs(lab.l - primaryLab.l);
-            const rarityWeight = clamp(1.0 - @abs(share - 0.12) / 0.12, 0.0, 1.0);
-            const score = (hueDist * 1.4 + litDist * 0.35) * (0.35 + lab.c * 4.0) * (0.2 + rarityWeight);
+            if (share < 0.01) continue;
+            // chroma-plane (a,b) distance between this colour and the surface, via the law of cosines.
+            const dh = (surfaceLab.h - lab.h) * std.math.pi / 180.0;
+            const chromaDist = @sqrt(surfaceLab.c * surfaceLab.c + lab.c * lab.c -
+                2.0 * surfaceLab.c * lab.c * @cos(dh));
+            if (chromaDist < 0.06) continue;
+            const presence = clamp(share / 0.15, 0.0, 1.0);
+            const score = lab.c * (0.4 + 0.6 * presence);
             if (score > bestAccentScore) {
                 bestAccentScore = score;
                 const enhanced = enhanceAccent(r, g, b);
@@ -318,7 +340,6 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
         }
     }
 
-    const surfaceRgb = dominantRgb;
     const onSurfaceRgb = legibleText(surfaceRgb);
     const mutedOnSurfaceRgb = mutedText(onSurfaceRgb, surfaceRgb);
 
@@ -539,4 +560,15 @@ test "atolla_extract_palette: surface tracks the dominant colour, not the vibran
     const surface = parseHex(palette.surface);
     try std.testing.expect(primary.r > primary.b);
     try std.testing.expect(surface.b > surface.r);
+}
+
+test "atolla_extract_palette: on_surface clears the contrast floor on a mid-tone surface" {
+    const pixels: [4]u8 = .{ 128, 128, 128, 255 };
+    var palette: Palette = std.mem.zeroes(Palette);
+    _ = atolla_extract_palette(&pixels, 1, 1, &palette);
+    const surface = parseHex(palette.surface);
+    const text = parseHex(palette.on_surface);
+    const surfaceL = rgbToOklch(surface.r, surface.g, surface.b).l;
+    const textL = rgbToOklch(text.r, text.g, text.b).l;
+    try std.testing.expect(@abs(textL - surfaceL) >= TEXT_CONTRAST_FLOOR);
 }
