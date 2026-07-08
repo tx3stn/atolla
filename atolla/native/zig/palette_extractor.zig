@@ -59,6 +59,41 @@ fn rgbToHsl(r: u8, g: u8, b: u8) Hsl {
     return .{ .h = h, .s = s, .l = l };
 }
 
+// OKLCh is OKLab (Björn Ottosson's perceptually-uniform Lab colour space) in cylindrical form:
+// l = lightness, c = chroma (how colourful; 0 = grey), h = hue angle in degrees. Palette colours
+// are selected in this space because its chroma and lightness track human perception — unlike HSL,
+// which over-rates pale colours and misjudges brightness.
+const Oklch = struct { l: f64, c: f64, h: f64 };
+
+// undo the sRGB gamma curve so the channel is linear light, which the OKLab matrices expect.
+fn srgbToLinear(c: u8) f64 {
+    const cn: f64 = @as(f64, @floatFromInt(c)) / 255.0;
+    return if (cn <= 0.04045) cn / 12.92 else std.math.pow(f64, (cn + 0.055) / 1.055, 2.4);
+}
+
+fn rgbToOklch(r: u8, g: u8, b: u8) Oklch {
+    // linear RGB → LMS: approximate the response of the eye's long/medium/short-wavelength cones.
+    const lr = srgbToLinear(r);
+    const lg = srgbToLinear(g);
+    const lb = srgbToLinear(b);
+    const l = 0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb;
+    const m = 0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb;
+    const s = 0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb;
+    // cube root models the compressive nonlinearity of perceived brightness — the key to uniformity.
+    const l_ = std.math.cbrt(l);
+    const m_ = std.math.cbrt(m);
+    const s_ = std.math.cbrt(s);
+    // LMS' → OKLab: lab_l lightness (0 black … 1 white), lab_a green↔red, lab_b blue↔yellow.
+    const lab_l = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_;
+    const lab_a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_;
+    const lab_b = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_;
+    // rectangular (a, b) → polar: chroma is distance from the grey axis, hue is the angle in degrees.
+    const chroma = @sqrt(lab_a * lab_a + lab_b * lab_b);
+    var hue = std.math.atan2(lab_b, lab_a) * 180.0 / std.math.pi;
+    if (hue < 0.0) hue += 360.0;
+    return .{ .l = lab_l, .c = chroma, .h = hue };
+}
+
 fn hue2rgb(p: f64, q: f64, t_in: f64) f64 {
     var t = t_in;
     if (t < 0.0) t += 1.0;
@@ -193,14 +228,12 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
         const r: u8 = @intCast(bin.sum_r / bin.count);
         const g: u8 = @intCast(bin.sum_g / bin.count);
         const b: u8 = @intCast(bin.sum_b / bin.count);
-        const hsl = rgbToHsl(r, g, b);
-        if (hsl.l <= 0.08) continue;
-        const satWeight = 0.2 + hsl.s * 2.0;
-        const litWeight = clamp(1.0 - @abs(hsl.l - 0.45) * 1.7, 0.35, 1.0);
-        // darker colors need higher saturation to look visually distinct from grey.
-        // at L=0 threshold is 0.40; at L=0.5 it is 0.275; at L=1.0 it is 0.15
-        const neutralThreshold = 0.15 + (1.0 - hsl.l) * 0.25;
-        const neutralPenalty: f64 = if (hsl.s < neutralThreshold) 0.4 else 1.0;
+        const lab = rgbToOklch(r, g, b);
+        if (lab.l <= 0.10) continue;
+        const satWeight = 0.2 + lab.c * 6.5;
+        const litWeight = clamp(1.0 - @abs(lab.l - 0.6) * 1.7, 0.35, 1.0);
+        const neutralThreshold = 0.03 + (1.0 - lab.l) * 0.05;
+        const neutralPenalty: f64 = if (lab.c < neutralThreshold) 0.4 else 1.0;
         const score = @sqrt(@as(f64, @floatFromInt(bin.count))) * satWeight * litWeight * neutralPenalty;
         if (score > bestPrimaryScore) {
             bestPrimaryScore = score;
@@ -258,7 +291,7 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
 
     var accentHex: [8]u8 = primaryHex;
     const primaryRgb = parseHex(primaryHex);
-    const primaryHsl = rgbToHsl(primaryRgb.r, primaryRgb.g, primaryRgb.b);
+    const primaryLab = rgbToOklch(primaryRgb.r, primaryRgb.g, primaryRgb.b);
     var bestAccentScore: f64 = -std.math.inf(f64);
 
     if (totalPop > 0) {
@@ -267,16 +300,16 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
             const r: u8 = @intCast(bin.sum_r / bin.count);
             const g: u8 = @intCast(bin.sum_g / bin.count);
             const b: u8 = @intCast(bin.sum_b / bin.count);
-            const hsl = rgbToHsl(r, g, b);
-            if (hsl.l <= 0.15 or hsl.l >= 0.88) continue;
-            if (hsl.s < 0.2) continue;
+            const lab = rgbToOklch(r, g, b);
+            if (lab.l <= 0.20 or lab.l >= 0.92) continue;
+            if (lab.c < 0.05) continue;
             const share = @as(f64, @floatFromInt(bin.count)) / @as(f64, @floatFromInt(totalPop));
             if (share < 0.01 or share > 0.35) continue;
-            const hueDist = normalizedHueDistance(primaryHsl.h, hsl.h);
+            const hueDist = normalizedHueDistance(primaryLab.h, lab.h);
             if (hueDist < 0.12) continue;
-            const litDist = @abs(hsl.l - primaryHsl.l);
+            const litDist = @abs(lab.l - primaryLab.l);
             const rarityWeight = clamp(1.0 - @abs(share - 0.12) / 0.12, 0.0, 1.0);
-            const score = (hueDist * 1.4 + litDist * 0.35) * (0.35 + hsl.s) * (0.2 + rarityWeight);
+            const score = (hueDist * 1.4 + litDist * 0.35) * (0.35 + lab.c * 4.0) * (0.2 + rarityWeight);
             if (score > bestAccentScore) {
                 bestAccentScore = score;
                 const enhanced = enhanceAccent(r, g, b);
