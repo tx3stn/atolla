@@ -48,9 +48,13 @@ function setServices(store: PlaybackStore): void {
 		modalSlot: new DetachedSlot(),
 		onRequestModeChange: async () => true,
 		paletteQueue: stub as AppServicesBag['paletteQueue'],
-		paletteService: { getPalette: () => undefined } as unknown as AppServicesBag['paletteService'],
+		paletteService: {
+			getPalette: () => undefined,
+			subscribe: () => () => {},
+		} as unknown as AppServicesBag['paletteService'],
 		playbackOrchestrator: {
 			getWaveformMaskUrl: () => undefined,
+			subscribeOverlayContent: () => () => {},
 		} as unknown as AppServicesBag['playbackOrchestrator'],
 		playbackStore: store,
 		preferences: {

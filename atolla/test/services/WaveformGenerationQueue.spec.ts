@@ -26,6 +26,11 @@ function createMockService() {
 	return {
 		_ready: ready,
 		getAmps: (id: string) => ready.get(id) ?? null,
+		getStatus: (id: string): 'ready' | 'failed' | null => {
+			const value = ready.get(id);
+			if (value === undefined) return null;
+			return value === '__failed__' ? 'failed' : 'ready';
+		},
 		onGenerationFailed: jasmine.createSpy('onGenerationFailed').and.callFake((id: string) => {
 			ready.set(id, '__failed__');
 		}),

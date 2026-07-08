@@ -22,7 +22,7 @@ const UPCOMING_PALETTE_CACHE_CONCURRENCY = 2;
 // waveform generation opens a MediaCodec per track; pre-generate only a small window from the current
 // track rather than the whole queue so the codec pool isn't exhausted. the window slides forward as
 // tracks advance, and the generation queue abandons superseded jobs when the user skips
-const WAVEFORM_PREGEN_WINDOW = 2;
+export const WAVEFORM_PREGEN_WINDOW = 2;
 
 export interface NowPlayingPaletteService {
 	hasPalette(imageUrl: string | null | undefined): boolean;
