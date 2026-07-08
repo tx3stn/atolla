@@ -32,7 +32,6 @@ const SAMPLE_PALETTE: Palette = {
 	accent: { hex: '#ff6b6b' },
 	muted_on_surface: { hex: '#f4b7b7' },
 	on_surface: { hex: '#ffe0e0' },
-	primary: { hex: '#ff0000' },
 	surface: { hex: '#800000' },
 };
 
@@ -70,7 +69,6 @@ describe('ArtworkPaletteService', () => {
 				accent: { hex: '#ff6b6b' },
 				muted_on_surface: { hex: '#f4b7b7' },
 				on_surface: { hex: '#ffe0e0' },
-				primary: { hex: '#ff0000' },
 				surface: { hex: '#800000' },
 			};
 			const url = 'https://example.com/art.png';
@@ -87,7 +85,6 @@ describe('ArtworkPaletteService', () => {
 			const url = 'https://example.com/art-legacy.png';
 			mockStore.seed(url, {
 				on_surface: { hex: '#d8dee9' },
-				primary: { hex: '#ff0000' },
 				surface: { hex: '#111a2b' },
 			} as unknown as Palette);
 
@@ -103,14 +100,13 @@ describe('ArtworkPaletteService', () => {
 			mockStore.seed(url, {
 				muted_on_surface: { hex: '#9aa3b2' },
 				on_surface: { hex: '#d8dee9' },
-				primary: { hex: '#8899aa' },
 				surface: { hex: '#111a2b' },
 			} as unknown as Palette);
 
 			const service = new ArtworkPaletteService(mockStore);
 			await service.warmUp([url]);
 
-			expect(service.getPalette(url)?.accent.hex).toBe('#8899aa');
+			expect(service.getPalette(url)?.accent.hex).toBe('#111a2b');
 		});
 
 		it('notifies subscribers after warm-up loads a palette', async () => {
@@ -150,7 +146,6 @@ describe('ArtworkPaletteService', () => {
 				accent: { hex: '#7f87ff' },
 				muted_on_surface: { hex: '#2b2b2b' },
 				on_surface: { hex: '#333333' },
-				primary: { hex: '#111111' },
 				surface: { hex: '#222222' },
 			});
 

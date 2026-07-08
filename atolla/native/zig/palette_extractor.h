@@ -7,8 +7,7 @@ extern "C" {
 #endif
 
 typedef struct {
-    char primary[8];         // "#rrggbb\0"
-    char accent[8];
+    char accent[8];          // "#rrggbb\0"
     char surface[8];
     char on_surface[8];
     char muted_on_surface[8];

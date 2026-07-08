@@ -1199,7 +1199,6 @@ describe('TrackList', () => {
 			accent: { hex: '#f43f5e' },
 			muted_on_surface: { hex: '#d8cc99' },
 			on_surface: { hex: '#ffeeaa' },
-			primary: { hex: '#ff6600' },
 			surface: { hex: '#223344' },
 		};
 		const tracks = [{ id: 'a', meta: '2:15', title: 'Track Name' }];

@@ -70,7 +70,7 @@ export class ArtworkPaletteService {
 	private normalizePalette(palette: Palette): Palette {
 		return {
 			...palette,
-			accent: { hex: palette.accent?.hex ?? palette.primary.hex },
+			accent: { hex: palette.accent?.hex ?? palette.surface.hex },
 			muted_on_surface: { hex: palette.muted_on_surface?.hex ?? palette.on_surface.hex },
 		};
 	}

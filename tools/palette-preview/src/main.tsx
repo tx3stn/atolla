@@ -30,7 +30,6 @@ interface ManifestPalette {
 	accent: string;
 	muted_on_surface: string;
 	on_surface: string;
-	primary: string;
 	surface: string;
 }
 
@@ -114,7 +113,6 @@ function buildViewModel(
 		accent: { hex: entry.palette.accent },
 		muted_on_surface: { hex: entry.palette.muted_on_surface },
 		on_surface: { hex: entry.palette.on_surface },
-		primary: { hex: entry.palette.primary },
 		surface: { hex: entry.palette.surface },
 	};
 

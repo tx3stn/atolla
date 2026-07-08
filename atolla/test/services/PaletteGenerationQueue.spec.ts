@@ -16,7 +16,6 @@ const MOCK_PALETTE: Palette = {
 	accent: { hex: '#ff0000' },
 	muted_on_surface: { hex: '#cccccc' },
 	on_surface: { hex: '#ffffff' },
-	primary: { hex: '#ff0000' },
 	surface: { hex: '#880000' },
 };
 

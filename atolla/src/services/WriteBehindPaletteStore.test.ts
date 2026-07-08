@@ -7,7 +7,6 @@ const palette: Palette = {
 	accent: { hex: '#ff0000' },
 	muted_on_surface: { hex: '#888888' },
 	on_surface: { hex: '#ffffff' },
-	primary: { hex: '#ff0000' },
 	surface: { hex: '#000000' },
 };
 

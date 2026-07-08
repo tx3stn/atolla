@@ -35,10 +35,10 @@
 
     char json[256];
     snprintf(json, sizeof(json),
-        "{\"primary\":{\"hex\":\"%s\"},\"accent\":{\"hex\":\"%s\"},"
+        "{\"accent\":{\"hex\":\"%s\"},"
         "\"surface\":{\"hex\":\"%s\"},\"on_surface\":{\"hex\":\"%s\"},"
         "\"muted_on_surface\":{\"hex\":\"%s\"}}",
-        palette.primary, palette.accent, palette.surface,
+        palette.accent, palette.surface,
         palette.on_surface, palette.muted_on_surface);
     return [NSString stringWithUTF8String:json];
 }

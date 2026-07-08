@@ -13,7 +13,7 @@ class PaletteNativeWorkerImpl implements IPaletteNativeWorker {
 			const raw = extractAtollaPaletteFromCache(url, category);
 			if (!raw) return Promise.resolve(null);
 			const parsed = JSON.parse(raw) as Partial<Palette>;
-			if (!parsed.primary?.hex) return Promise.resolve(null);
+			if (!parsed.accent?.hex) return Promise.resolve(null);
 			return Promise.resolve(parsed as Palette);
 		} catch {
 			return Promise.resolve(null);

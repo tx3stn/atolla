@@ -48,7 +48,6 @@ function isPalette(value: unknown): value is Palette {
 		isColorHex(p.accent) &&
 		isColorHex(p.muted_on_surface) &&
 		isColorHex(p.on_surface) &&
-		isColorHex(p.primary) &&
 		isColorHex(p.surface)
 	);
 }

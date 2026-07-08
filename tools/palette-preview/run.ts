@@ -15,7 +15,6 @@ interface ManifestPalette {
 	accent: string;
 	muted_on_surface: string;
 	on_surface: string;
-	primary: string;
 	surface: string;
 }
 
@@ -29,7 +28,7 @@ interface ManifestEntry {
 	width: number;
 }
 
-const PALETTE_FIELDS = ['primary', 'accent', 'surface', 'on_surface', 'muted_on_surface'] as const;
+const PALETTE_FIELDS = ['accent', 'surface', 'on_surface', 'muted_on_surface'] as const;
 
 const CWD = process.cwd();
 const WIDTH = 390;
@@ -201,18 +200,17 @@ async function main(): Promise<void> {
 			.raw()
 			.toBuffer({ resolveWithObject: true });
 
-		const out = new Uint8Array(40);
+		const out = new Uint8Array(32);
 		const ok = lib.symbols.atolla_extract_palette(ptr(data), info.width, info.height, ptr(out));
 		if (!ok) {
 			console.warn(`extraction failed for ${file}, skipping`);
 			continue;
 		}
 		const palette: ManifestPalette = {
-			accent: readHex(out, 8),
-			muted_on_surface: readHex(out, 32),
-			on_surface: readHex(out, 24),
-			primary: readHex(out, 0),
-			surface: readHex(out, 16),
+			accent: readHex(out, 0),
+			muted_on_surface: readHex(out, 24),
+			on_surface: readHex(out, 16),
+			surface: readHex(out, 8),
 		};
 
 		const blurredPath = resolve(scratchDir, `${name}.blur.jpg`);

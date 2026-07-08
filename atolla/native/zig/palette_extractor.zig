@@ -1,7 +1,8 @@
 // palette extraction algorithm.
-// strategy: 4-bit RGB quantisation (4096 bins, 64 KB on stack) → score each bin for primary
-// colour (saturation/lightness weighted, neutral-penalised) → pick accent by hue distance +
-// rarity → derive surface/text colours from HSL.
+// strategy: 4-bit RGB quantisation (4096 bins, 64 KB on stack); colours are scored and compared in
+// perceptual OKLab/OKLCh. surface = the dominant (most-populous) colour; accent = the most chromatic
+// colour distinct from the surface, falling back to the most-vibrant colour on single-hue covers;
+// text colours are derived from the surface with a contrast floor.
 //
 // atolla_extract_palette accepts pre-decoded RGBA pixels (used by platform bridges).
 
@@ -11,7 +12,6 @@ extern fn malloc(size: usize) ?*anyopaque;
 extern fn free(ptr: ?*anyopaque) void;
 
 pub const Palette = extern struct {
-    primary: [8]u8,
     accent: [8]u8,
     surface: [8]u8,
     on_surface: [8]u8,
@@ -220,7 +220,6 @@ fn mutedText(text: Rgb, surface: Rgb) Rgb {
 }
 
 fn writeDefaults(out: *Palette) void {
-    writeHex(&out.primary, 0xd8, 0xde, 0xe9);
     writeHex(&out.accent, 0x3b, 0x82, 0xf6);
     writeHex(&out.surface, 0x1e, 0x20, 0x30);
     writeHex(&out.on_surface, 0xd8, 0xde, 0xe9);
@@ -238,9 +237,10 @@ fn addToBin(bins: *[MAX_BINS]Bin, r: u8, g: u8, b: u8) void {
 }
 
 fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
-    var primaryHex: [8]u8 = undefined;
-    var bestPrimaryScore: f64 = -std.math.inf(f64);
-    var hasPrimary = false;
+    // most-vibrant colour, used only as the accent fallback for single-hue covers.
+    var fallbackHex: [8]u8 = undefined;
+    var bestScore: f64 = -std.math.inf(f64);
+    var hasFallback = false;
 
     for (bins) |bin| {
         if (bin.count == 0) continue;
@@ -254,15 +254,15 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
         const neutralThreshold = 0.03 + (1.0 - lab.l) * 0.05;
         const neutralPenalty: f64 = if (lab.c < neutralThreshold) 0.4 else 1.0;
         const score = @sqrt(@as(f64, @floatFromInt(bin.count))) * satWeight * litWeight * neutralPenalty;
-        if (score > bestPrimaryScore) {
-            bestPrimaryScore = score;
+        if (score > bestScore) {
+            bestScore = score;
             const enhanced = enhancePrimary(r, g, b);
-            writeHex(&primaryHex, enhanced.r, enhanced.g, enhanced.b);
-            hasPrimary = true;
+            writeHex(&fallbackHex, enhanced.r, enhanced.g, enhanced.b);
+            hasFallback = true;
         }
     }
 
-    if (!hasPrimary) {
+    if (!hasFallback) {
         var found = false;
         for (bins) |bin| {
             if (bin.count == 0) continue;
@@ -270,12 +270,12 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
             const g: u8 = @intCast(bin.sum_g / bin.count);
             const b: u8 = @intCast(bin.sum_b / bin.count);
             if (rgbLightness(r, g, b) > 0.15) {
-                writeHex(&primaryHex, r, g, b);
+                writeHex(&fallbackHex, r, g, b);
                 found = true;
                 break;
             }
         }
-        if (!found) writeHex(&primaryHex, 0xd8, 0xde, 0xe9);
+        if (!found) writeHex(&fallbackHex, 0xd8, 0xde, 0xe9);
     }
 
     var totalPop: u64 = 0;
@@ -311,7 +311,7 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
     const surfaceRgb = enrichSurface(dominantRgb);
     const surfaceLab = rgbToOklch(surfaceRgb.r, surfaceRgb.g, surfaceRgb.b);
 
-    var accentHex: [8]u8 = primaryHex;
+    var accentHex: [8]u8 = fallbackHex;
     var bestAccentScore: f64 = -std.math.inf(f64);
 
     if (totalPop > 0) {
@@ -343,7 +343,6 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
     const onSurfaceRgb = legibleText(surfaceRgb);
     const mutedOnSurfaceRgb = mutedText(onSurfaceRgb, surfaceRgb);
 
-    out.primary = primaryHex;
     out.accent = accentHex;
     writeHex(&out.surface, surfaceRgb.r, surfaceRgb.g, surfaceRgb.b);
     writeHex(&out.on_surface, onSurfaceRgb.r, onSurfaceRgb.g, onSurfaceRgb.b);
@@ -470,7 +469,7 @@ test "atolla_extract_palette: zero dimensions writes defaults and returns false"
     const dummy: [4]u8 = .{ 255, 0, 0, 255 };
     const ok = atolla_extract_palette(&dummy, 0, 0, &palette);
     try std.testing.expect(!ok);
-    try std.testing.expectEqual(@as(u8, '#'), palette.primary[0]);
+    try std.testing.expectEqual(@as(u8, '#'), palette.accent[0]);
 }
 
 test "atolla_extract_palette: 1x1 red pixel returns true with valid hex strings" {
@@ -478,7 +477,7 @@ test "atolla_extract_palette: 1x1 red pixel returns true with valid hex strings"
     var palette: Palette = std.mem.zeroes(Palette);
     const ok = atolla_extract_palette(&pixels, 1, 1, &palette);
     try std.testing.expect(ok);
-    try std.testing.expectEqual(@as(u8, '#'), palette.primary[0]);
+    try std.testing.expectEqual(@as(u8, '#'), palette.accent[0]);
     try std.testing.expectEqual(@as(u8, '#'), palette.surface[0]);
     try std.testing.expectEqual(@as(u8, '#'), palette.on_surface[0]);
     try std.testing.expectEqual(@as(u8, '#'), palette.muted_on_surface[0]);
@@ -488,17 +487,14 @@ test "atolla_extract_palette: all-black image falls back to defaults" {
     const pixels: [4]u8 = .{ 0, 0, 0, 255 };
     var palette: Palette = std.mem.zeroes(Palette);
     _ = atolla_extract_palette(&pixels, 1, 1, &palette);
-    // black is filtered by lightness <= 0.15, default primary #d8dee9 applies
-    try std.testing.expectEqual(@as(u8, 'd'), palette.primary[1]);
-    try std.testing.expectEqual(@as(u8, '8'), palette.primary[2]);
+    // black is filtered out, so the accent falls back to the default vibrant colour #d8dee9
+    try std.testing.expectEqual(@as(u8, 'd'), palette.accent[1]);
+    try std.testing.expectEqual(@as(u8, '8'), palette.accent[2]);
 }
 
 test "atolla_extract_palette: dark warm-grey does not beat moderately-saturated cooler mid-tone" {
-    // 16 dark warm-grey pixels (l≈0.38, s≈0.18, hue≈12°): s is just above the old flat 0.15
-    // threshold so it escaped the neutral penalty in the old scoring. The new lightness-aware
-    // threshold (0.15 + (1-l)*0.25 ≈ 0.30 at l=0.38) correctly penalises it.
-    // 4 medium blue pixels (l=0.50, s≈0.30, hue≈220°): s exceeds the new threshold at l=0.5
-    // (0.275) so they score at full weight, and should now win despite fewer pixels.
+    // 16 low-chroma warm-grey pixels vs 4 chromatic blue pixels: the warm-grey is penalised as
+    // near-neutral, so the blue wins the vibrant score despite fewer pixels and becomes the accent.
     var pixels: [20 * 4]u8 = undefined;
     for (0..16) |i| {
         pixels[i * 4 + 0] = 114;
@@ -514,8 +510,8 @@ test "atolla_extract_palette: dark warm-grey does not beat moderately-saturated 
     }
     var palette: Palette = std.mem.zeroes(Palette);
     _ = atolla_extract_palette(&pixels, 4, 5, &palette);
-    const primary = parseHex(palette.primary);
-    try std.testing.expect(primary.b > primary.r);
+    const accent = parseHex(palette.accent);
+    try std.testing.expect(accent.b > accent.r);
 }
 
 test "atolla_extract_palette: saturated minority beats muted majority" {
@@ -536,11 +532,11 @@ test "atolla_extract_palette: saturated minority beats muted majority" {
     }
     var palette: Palette = std.mem.zeroes(Palette);
     _ = atolla_extract_palette(&pixels, 4, 4, &palette);
-    const primary = parseHex(palette.primary);
-    try std.testing.expect(primary.r > primary.b);
+    const accent = parseHex(palette.accent);
+    try std.testing.expect(accent.r > accent.b);
 }
 
-test "atolla_extract_palette: surface tracks the dominant colour, not the vibrant primary" {
+test "atolla_extract_palette: surface tracks the dominant colour, not the vibrant accent" {
     var pixels: [16 * 4]u8 = undefined;
     for (0..12) |i| {
         pixels[i * 4 + 0] = 112;
@@ -556,9 +552,9 @@ test "atolla_extract_palette: surface tracks the dominant colour, not the vibran
     }
     var palette: Palette = std.mem.zeroes(Palette);
     _ = atolla_extract_palette(&pixels, 4, 4, &palette);
-    const primary = parseHex(palette.primary);
+    const accent = parseHex(palette.accent);
     const surface = parseHex(palette.surface);
-    try std.testing.expect(primary.r > primary.b);
+    try std.testing.expect(accent.r > accent.b);
     try std.testing.expect(surface.b > surface.r);
 }
 

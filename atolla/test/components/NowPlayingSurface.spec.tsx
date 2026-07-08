@@ -332,7 +332,6 @@ describe('NowPlayingSurface', () => {
 				accent: { hex: '#aabbcc' },
 				muted_on_surface: { hex: '#778899' },
 				on_surface: { hex: '#445566' },
-				primary: { hex: '#ddeeff' },
 				surface: { hex: '#112233' },
 			};
 
@@ -427,7 +426,6 @@ describe('NowPlayingSurface', () => {
 				accent: { hex: '#aabbcc' },
 				muted_on_surface: { hex: '#778899' },
 				on_surface: { hex: '#445566' },
-				primary: { hex: '#ddeeff' },
 				surface: { hex: '#112233' },
 			};
 
@@ -485,7 +483,6 @@ describe('NowPlayingSurface', () => {
 				accent: { hex: '#aabbcc' },
 				muted_on_surface: { hex: '#778899' },
 				on_surface: { hex: '#445566' },
-				primary: { hex: '#ddeeff' },
 				surface: { hex: '#112233' },
 			};
 
@@ -545,7 +542,6 @@ describe('NowPlayingSurface', () => {
 				accent: { hex: '#aabbcc' },
 				muted_on_surface: { hex: '#778899' },
 				on_surface: { hex: '#445566' },
-				primary: { hex: '#ddeeff' },
 				surface: { hex: '#112233' },
 			};
 
@@ -609,14 +605,12 @@ describe('NowPlayingSurface', () => {
 				accent: { hex: '#aabbcc' },
 				muted_on_surface: { hex: '#778899' },
 				on_surface: { hex: '#445566' },
-				primary: { hex: '#ddeeff' },
 				surface: { hex: '#112233' },
 			};
 			const paletteB: Palette = {
 				accent: { hex: '#0a0b0c' },
 				muted_on_surface: { hex: '#998877' },
 				on_surface: { hex: '#665544' },
-				primary: { hex: '#102030' },
 				surface: { hex: '#221100' },
 			};
 
