@@ -1,0 +1,32 @@
+load("@valdi//bzl/valdi:valdi_cli_application.bzl", "valdi_cli_application")
+load("@valdi//bzl/valdi:valdi_module.bzl", "valdi_module")
+
+package(default_visibility = ["//visibility:public"])
+
+# Headless renderer for palette tuning: takes a manifest of {artwork, palette, track} entries
+# and renders the real NowPlayingSurface (expanded) to a PNG via SnapDrawing/Skia. Built as a
+# host target (no --config=ios/android) so //atolla:atolla_native resolves to its desktop variant.
+# Driven by ./run.ts (bun); see that file for the end-to-end flow.
+valdi_module(
+    name = "palette-preview",
+    srcs = glob([
+        "src/**/*.ts",
+        "src/**/*.tsx",
+    ]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//atolla",
+        "@valdi//src/valdi_modules/src/valdi/drawing",
+        "@valdi//src/valdi_modules/src/valdi/file_system",
+        "@valdi//src/valdi_modules/src/valdi/valdi_core",
+        "@valdi//src/valdi_modules/src/valdi/valdi_image_generator",
+        "@valdi//src/valdi_modules/src/valdi/valdi_standalone",
+        "@valdi//src/valdi_modules/src/valdi/valdi_tsx",
+    ],
+)
+
+valdi_cli_application(
+    name = "palette_preview_cli",
+    script_path = "palette-preview/src/main",
+    deps = [":palette-preview"],
+)

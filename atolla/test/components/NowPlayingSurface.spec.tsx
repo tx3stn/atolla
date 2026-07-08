@@ -1218,6 +1218,41 @@ describe('NowPlayingSurface', () => {
 		expect(src).not.toContain('u=atolla-cache%3A%2F%2Fimage');
 	});
 
+	valdiIt('renders injected artwork sources instead of the cache-scheme url', async () => {
+		const instrumented = mountNowPlaying({
+			album,
+			albumArtworkSource: 'preview://artwork',
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			blurredArtworkSource: 'preview://artwork-blurred',
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore: mockPlaybackStore(),
+			track,
+			trackIndex: 0,
+			tracks: [track],
+		});
+		const component = instrumented.getComponent();
+
+		const images = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		);
+		const srcs = images.map((image) => image.getAttribute('src'));
+
+		expect(srcs).toContain('preview://artwork');
+		expect(srcs).toContain('preview://artwork-blurred');
+		expect(srcs.every((src) => typeof src !== 'string' || !src.includes('atolla-cache'))).toBe(
+			true,
+		);
+	});
+
 	valdiIt(
 		'shows album name without year when playlist track has no valid date metadata',
 		async () => {

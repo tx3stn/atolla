@@ -4,6 +4,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import type { Asset } from 'valdi_tsx/src/Asset';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
@@ -42,9 +43,11 @@ const TRANSITION_TIMEOUT_MS = 1000;
 
 export interface NowPlayingSurfaceViewModel {
 	album: Album | null;
+	albumArtworkSource?: string | Asset;
 	animationsEnabled: boolean;
 	artistLogoUrl?: string | null;
 	barColors: BarColorStore;
+	blurredArtworkSource?: string | Asset;
 	collapseSignal: number;
 	gridColumns: number;
 	imageCache: ImageCache;
@@ -733,11 +736,13 @@ export class NowPlayingSurface extends StatefulComponent<
 		const canEditQueue = Boolean(this.viewModel.playbackStore);
 		const albumImageUrl = track.albumImageUrl ?? album?.imageUrl ?? null;
 		const albumArtworkSource =
-			albumImageUrl == null ? null : buildImageSource(albumImageUrl, 'album_art');
+			this.viewModel.albumArtworkSource ??
+			(albumImageUrl == null ? null : buildImageSource(albumImageUrl, 'album_art'));
 		// the native loader generates this on demand by downscaling the cached album_art to
 		// 24×24; GPU upscale to full-screen produces heavy blur
 		const blurredBgSource =
-			albumImageUrl != null ? buildImageSource(albumImageUrl, 'album_art_blurred') : null;
+			this.viewModel.blurredArtworkSource ??
+			(albumImageUrl != null ? buildImageSource(albumImageUrl, 'album_art_blurred') : null);
 		const artistLogoSource = artistLogoUrl ?? null;
 
 		// ── Palette-derived colours ──────────────────────────────────────────────

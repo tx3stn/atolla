@@ -45,3 +45,5 @@ image-cache-plan.md
 atolla/native/ios/Assets.xcassets/AppIcon.icon/Assets/*.svg
 e2e/screenshots/*.jpg
 atolla-offline-status.json
+tools/palettes-preview/samples/*.png
+tools/palettes-preview/samples/*.jpg
