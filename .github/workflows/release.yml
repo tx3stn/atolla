@@ -99,6 +99,14 @@ jobs:
           # --disk_cache to ~/.cache/bazel-disk-android; override at the same config
           # scope (home rc wins) so writing every output twice doesn't fill the disk.
           echo "build:android --disk_cache=" >> ~/.bazelrc
+          # --config=android also pins --spawn_strategy=local — a macOS-only perf hack
+          # (sandbox-exec is slow on Darwin) that has no place on the Linux runner. Combined
+          # with the remote cache's --remote_download_toplevel (build-without-the-bytes), a
+          # *local* MergeAndroidAssets can't read its tree-artifact asset inputs — cache hits
+          # were never downloaded — and dies with an opaque "Error during merging" (the
+          # rules_android busybox logs only UserException.getMessage() and drops the wrapped
+          # IOException). Sandboxing stages the inputs; override at the same config scope.
+          echo "build:android --spawn_strategy=sandboxed" >> ~/.bazelrc
           # remote-cache-hit downloads are gated by --jobs, not cores
           echo "build --jobs=32" >> ~/.bazelrc
           if [ -n "$BUILDBUDDY_API_KEY" ]; then
