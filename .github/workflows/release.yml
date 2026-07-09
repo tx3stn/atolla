@@ -120,18 +120,17 @@ jobs:
             echo "build --config=remote-cache" >> ~/.bazelrc
             echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
           fi
-      # restore/save split so a build that fails at minute 110 still banks its
-      # repo fetches and compile progress for the retry (actions/cache only
-      # saves on success); -${{ github.job }} keeps the android and ios repo
-      # sets from clobbering each other under one key
+      # Restore-only: read the shared repository cache that CI's android-tests job
+      # banks on main (default-branch caches are readable from tag runs). This tag
+      # build can't usefully SAVE — a tag-scoped cache isn't visible to main runs —
+      # and app-only maven deps not in the test set just partial-hit and re-fetch.
       - name: Restore bazel repository cache
         id: restore-bazel-repo
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
-            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-repo-${{ runner.os }}-
       # Join on the background icon generation started after bun install. The process
       # was launched in a different step's shell, so we poll its pid and read the
@@ -154,12 +153,6 @@ jobs:
           name: android-apk
           path: build/atolla_android.apk
           if-no-files-found: error
-      - name: Save bazel repository cache
-        if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
 
   # build-ios:
   #   needs: verify

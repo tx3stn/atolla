@@ -92,20 +92,18 @@ jobs:
             echo "build --config=remote-cache" >> ~/.bazelrc
             echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
           fi
-      # action outputs live in the BuildBuddy remote cache, but repository-rule
-      # downloads (llvm, NDK, JDK, skia sources…) don't — the GH repo cache covers
-      # those. Split restore/save so failed runs still bank it (actions/cache only
-      # saves on success); contents are deterministic per dep-set, so it saves
-      # once per hash+job instead of re-uploading gigabytes every run.
+      # ONE shared repository cache across all jobs (see android-tests for the full
+      # rationale). It's the content-addressed download store (llvm, NDK, JDK,
+      # skia/hermes sources) — identical across jobs — so it's keyed on the dep-set
+      # alone and only android-tests (a superset fetch) saves it. Restore-only here.
       - name: Restore bazel repository cache
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
         id: restore-bazel-repo
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
-            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-repo-${{ runner.os }}-
       - run: bunx valdi projectsync --target //atolla:atolla_projectsync
         id: projectsync
@@ -130,12 +128,6 @@ jobs:
             bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
             atolla/tsconfig.json
           key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel') }}-res${{ steps.reslist.outputs.hash }}
-      - name: Save bazel repository cache
-        if: always() && steps.projectsync-cache.outputs.cache-hit != 'true' && steps.restore-bazel-repo.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
 
   zig-tests:
     if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
@@ -163,22 +155,16 @@ jobs:
             echo "build --config=remote-cache" >> ~/.bazelrc
             echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
           fi
+      # Restore-only; the shared repo cache is saved by android-tests (see there).
       - name: Restore bazel repository cache
         id: restore-bazel-repo
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
-            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-repo-${{ runner.os }}-
       - run: bun run check:zig
-      - name: Save bazel repository cache
-        if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
 
   component-tests:
     if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
@@ -233,9 +219,8 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
-            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-repo-${{ runner.os }}-
       - run: bun run test:components
         timeout-minutes: 120
@@ -252,12 +237,6 @@ jobs:
         with:
           path: ~/.cache/bazel-ob
           key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
-      - name: Save bazel repository cache
-        if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-bazel-ob.outputs.cache-matched-key == '' && steps.restore-bazel-repo.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
 
   android-tests:
     if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
@@ -283,23 +262,34 @@ jobs:
             echo "build --config=remote-cache" >> ~/.bazelrc
             echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
           fi
+      # ONE shared repository cache for every job. ~/.cache/bazel-repo is bazel's
+      # --repository_cache (.bazelrc): a content-addressed store of downloaded
+      # tarballs (llvm, NDK, JDK, skia/hermes sources). Each artifact is byte-
+      # identical no matter which job/target fetched it and the store is additive,
+      # so there's no reason to partition by job — doing that minted a ~3.7 GiB copy
+      # per job (~15 GiB across the jobs) that thrashed the 10 GiB Actions pool and
+      # evicted the projectsync-outputs and bazel-ob caches every run. Keyed on the
+      # dep-set alone; android-tests is the sole saver (below) because its download
+      # set is a superset (host toolchain + the Android NDK/SDK). Every other job
+      # restores read-only; a partial hit self-heals as bazel fetches only what's missing.
       - name: Restore bazel repository cache
         id: restore-bazel-repo
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
-            bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
             bazel-repo-${{ runner.os }}-
       - run: bun run test:android
         timeout-minutes: 30
+      # Sole saver of the shared repo cache (superset: host toolchain + NDK), on
+      # main only so PR runs restore read-only and never churn the 10 GiB pool.
       - name: Save bazel repository cache
-        if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
+        if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-bazel-repo.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/bazel-repo
-          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
 
   # macos_unit_test targets need Xcode/Apple SDKs — the only tests that can't run on linux
   # ios-tests:
