@@ -1,0 +1,21 @@
+name: Wait for disk cleanup
+description: >-
+  Join the detached deletes launched by the free-disk-space action (poll for the
+  /tmp/freedisk.done marker it drops). Run this immediately before a job's heavy
+  bazel build so the reclaimed space is guaranteed available before it's needed.
+  The deletes normally finish during the setup/cache-restore steps in between, so
+  this is usually a no-op; the 180s cap keeps a hung delete from wedging the job.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        for _ in $(seq 1 180); do
+          if [ -f /tmp/freedisk.done ]; then break; fi
+          sleep 1
+        done
+        if [ -f /tmp/freedisk.done ]; then
+          echo "disk cleanup done:"; cat /tmp/freedisk.df 2>/dev/null || true
+        else
+          echo "::warning::disk cleanup not finished after 180s; continuing"
+        fi

@@ -1,17 +1,27 @@
 name: Free disk space
 description: >-
   Reclaim ~25 GB on the runner by deleting preinstalled toolchains the bazel
-  builds never touch (dotnet, ghc, the Android SDK, CodeQL). The deletes run in
-  parallel: /usr/local/lib/android alone is ~12 GB of many small files and is the
-  long pole, so a serial rm wastes ~half the wall time waiting on it.
+  builds never touch (dotnet, ghc, the Android SDK, CodeQL). /usr/local/lib/android
+  alone is ~12 GB of many small files and dominates the wall time, so the deletes
+  are launched DETACHED and this step returns immediately — they run while the
+  setup/cache-restore steps that follow do their own (largely I/O-bound) work.
+  Every consumer MUST add a "Wait for disk cleanup" step before its build that
+  polls for /tmp/freedisk.done, so the space is guaranteed freed before it's used.
 runs:
   using: composite
   steps:
     - shell: bash
       run: |
-        sudo rm -rf /usr/share/dotnet &
-        sudo rm -rf /opt/ghc &
-        sudo rm -rf /usr/local/lib/android &
-        sudo rm -rf /opt/hostedtoolcache/CodeQL &
-        wait
-        df -h /
+        # nohup + detached so the deletes survive this step boundary (same pattern as
+        # the background icon generation). The inner `wait` joins the four parallel rms,
+        # then records the freed space and drops the done-marker the join polls for.
+        nohup bash -c '
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /opt/hostedtoolcache/CodeQL &
+          wait
+          df -h / > /tmp/freedisk.df 2>&1
+          touch /tmp/freedisk.done
+        ' >/tmp/freedisk.log 2>&1 &
+        echo "disk cleanup launched in background (pid $!) — join before the build"

@@ -68,7 +68,7 @@ jobs:
           key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel') }}-res${{ steps.reslist.outputs.hash }}
       # only the cold path runs bazel (projectsync builds Skia/Hermes/etc), so only
       # it needs the extra room; a cache hit does no heavy build
-      - name: Free disk space
+      - name: free disk space
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/free-disk-space
       - name: Install libtinfo5
@@ -105,6 +105,10 @@ jobs:
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
             bazel-repo-${{ runner.os }}-
+      # Join the backgrounded disk cleanup before the first heavy bazel build.
+      - name: wait for disk cleanup
+        if: steps.projectsync-cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/wait-for-disk-cleanup
       - run: bunx valdi projectsync --target //atolla:atolla_projectsync
         id: projectsync
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
@@ -136,7 +140,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
-      - name: Free disk space
+      - name: free disk space
         uses: ./.github/actions/free-disk-space
       - uses: mlugg/setup-zig@v2
         with:
@@ -164,6 +168,8 @@ jobs:
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
             bazel-repo-${{ runner.os }}-
+      - name: wait for disk cleanup
+        uses: ./.github/actions/wait-for-disk-cleanup
       - run: bun run check:zig
 
   component-tests:
@@ -173,7 +179,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
-      - name: Free disk space
+      - name: free disk space
         uses: ./.github/actions/free-disk-space
       - name: Install libtinfo5
         uses: ./.github/actions/install-libtinfo5
@@ -222,6 +228,8 @@ jobs:
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
             bazel-repo-${{ runner.os }}-
+      - name: wait for disk cleanup
+        uses: ./.github/actions/wait-for-disk-cleanup
       - run: bun run test:components
         timeout-minutes: 120
       - name: Shut down bazel server
@@ -245,7 +253,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
-      - name: Free disk space
+      - name: free disk space
         uses: ./.github/actions/free-disk-space
       - name: Install libtinfo5
         uses: ./.github/actions/install-libtinfo5
@@ -280,6 +288,8 @@ jobs:
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
             bazel-repo-${{ runner.os }}-
+      - name: wait for disk cleanup
+        uses: ./.github/actions/wait-for-disk-cleanup
       - run: bun run test:android
         timeout-minutes: 30
       # Sole saver of the shared repo cache (superset: host toolchain + NDK), on
