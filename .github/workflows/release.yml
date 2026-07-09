@@ -49,7 +49,6 @@ jobs:
   #         echo "::error::Timed out waiting for CI on $SHA"; exit 1
 
   build-android:
-    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
