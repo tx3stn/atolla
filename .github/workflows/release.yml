@@ -99,23 +99,21 @@ jobs:
           # --disk_cache to ~/.cache/bazel-disk-android; override at the same config
           # scope (home rc wins) so writing every output twice doesn't fill the disk.
           echo "build:android --disk_cache=" >> ~/.bazelrc
-          # --config=android also pins --spawn_strategy=local — a macOS-only perf hack
-          # (sandbox-exec is slow on Darwin) that has no place on the Linux runner. Combined
-          # with the remote cache's --remote_download_toplevel (build-without-the-bytes), a
-          # *local* MergeAndroidAssets can't read its tree-artifact asset inputs — cache hits
-          # were never downloaded — and dies with an opaque "Error during merging" (the
-          # rules_android busybox logs only UserException.getMessage() and drops the wrapped
-          # IOException). Sandboxing stages the inputs; override at the same config scope.
-          #
-          # The list must keep `local` as a fallback. Bazel's internal CopyDirectory/CopyFile
-          # spawns (rules_js/rules_ts package trees, the CopyDirectory inside MergeAndroidAssets)
-          # cannot run in the sandbox; they used to survive via an implicit sandbox→local fallback
-          # that Bazel is removing (the "implicit fallback from sandbox to local is deprecated"
-          # warning). A bare --spawn_strategy=sandboxed leaves them no runnable strategy and the
-          # build dies with "cannot be executed with any of the available strategies". Ordered
-          # sandboxed,local: MergeAndroidAssets still runs sandboxed (inputs staged), copy actions
-          # fall back to local (they only consume already-materialized source inputs).
-          echo "build:android --spawn_strategy=sandboxed,local" >> ~/.bazelrc
+          # The remote cache's --remote_download_toplevel (build-without-the-bytes, .bazelrc)
+          # is what breaks the Android build. The app's MergeAndroidAssets/resource actions
+          # aren't cached (their sources change every version bump) so they execute on the
+          # runner, but their asset/resource *inputs* ARE cache hits — and under BwtB those
+          # blobs were never downloaded. The local (or even sandboxed) merge then reads inputs
+          # that aren't on disk and dies with an opaque "Error during merging" (the rules_android
+          # busybox logs only UserException.getMessage(), dropping the wrapped IOException).
+          # Forcing --spawn_strategy=sandboxed did NOT fix it — sandboxing doesn't reliably stage
+          # those inputs (a build proved MergeAndroidAssets fails even running in the sandbox).
+          # Fix the root cause instead: download every cache-hit output so all inputs are present,
+          # exactly as the local macOS build has them. Re-execution of cached compiles is still
+          # skipped — only their outputs are fetched. Same config scope as .bazelrc's
+          # --remote_download_toplevel (home rc wins → all), so it only applies when the cache is on.
+          # This makes .bazelrc's --config=android --spawn_strategy=local correct on Linux too.
+          echo "build:remote-cache --remote_download_all" >> ~/.bazelrc
           # remote-cache-hit downloads are gated by --jobs, not cores
           echo "build --jobs=32" >> ~/.bazelrc
           if [ -n "$BUILDBUDDY_API_KEY" ]; then
