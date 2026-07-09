@@ -262,6 +262,9 @@ jobs:
         run: |
           mv artifacts/atolla_android.apk "atolla-$GITHUB_REF_NAME.apk"
           # mv artifacts/atolla_ios.ipa "atolla-$GITHUB_REF_NAME.ipa"
+          # GitHub generates the notes from PRs merged since the previous release, grouped
+          # into Features/Fixes/Other by PR label (see .github/release.yml). GH_REPO tells gh
+          # which repo to target since this job doesn't check the sources out.
           gh release create "$GITHUB_REF_NAME" \
             "atolla-$GITHUB_REF_NAME.apk" \
             --title "$GITHUB_REF_NAME" \

@@ -232,7 +232,7 @@ async function generateIcons(targets: Array<IconOutput>): Promise<void> {
 	}
 }
 
-async function validateIcons(targets: Array<IconOutput>): Promise<void> {
+async function _validateIcons(targets: Array<IconOutput>): Promise<void> {
 	await access(sourceSvgPath);
 
 	const failures = (

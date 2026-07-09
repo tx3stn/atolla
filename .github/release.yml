@@ -1,0 +1,22 @@
+# Groups the notes GitHub auto-generates for a release (the Release workflow runs
+# `gh release create --generate-notes`). Each merged PR is bucketed by its labels;
+# an unlabelled PR (or any label not listed) falls through to Other, so nothing is
+# ever dropped. Label a PR `feature`/`enhancement` or `fix`/`bug` to sort it.
+changelog:
+  exclude:
+    labels:
+      - no-release-note
+    authors:
+      - dependabot
+  categories:
+    - title: Features
+      labels:
+        - feature
+        - enhancement
+    - title: Fixes
+      labels:
+        - fix
+        - bug
+    - title: Other
+      labels:
+        - "*"
