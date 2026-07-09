@@ -106,7 +106,16 @@ jobs:
           # were never downloaded — and dies with an opaque "Error during merging" (the
           # rules_android busybox logs only UserException.getMessage() and drops the wrapped
           # IOException). Sandboxing stages the inputs; override at the same config scope.
-          echo "build:android --spawn_strategy=sandboxed" >> ~/.bazelrc
+          #
+          # The list must keep `local` as a fallback. Bazel's internal CopyDirectory/CopyFile
+          # spawns (rules_js/rules_ts package trees, the CopyDirectory inside MergeAndroidAssets)
+          # cannot run in the sandbox; they used to survive via an implicit sandbox→local fallback
+          # that Bazel is removing (the "implicit fallback from sandbox to local is deprecated"
+          # warning). A bare --spawn_strategy=sandboxed leaves them no runnable strategy and the
+          # build dies with "cannot be executed with any of the available strategies". Ordered
+          # sandboxed,local: MergeAndroidAssets still runs sandboxed (inputs staged), copy actions
+          # fall back to local (they only consume already-materialized source inputs).
+          echo "build:android --spawn_strategy=sandboxed,local" >> ~/.bazelrc
           # remote-cache-hit downloads are gated by --jobs, not cores
           echo "build --jobs=32" >> ~/.bazelrc
           if [ -n "$BUILDBUDDY_API_KEY" ]; then
