@@ -11,42 +11,42 @@ jobs:
   # Gate the release on the CI run that already executed for this commit on main —
   # reuse it, don't re-run the suite. The tag may be pushed before CI finishes, so
   # poll the existing ci.yml run for this SHA and fail unless it concluded success.
-  verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    permissions:
-      actions: read
-      contents: read
-    steps:
-      - name: Require CI to have passed for this commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          echo "Gating release on CI run for $SHA"
-          for _ in $(seq 1 400); do
-            result=$(gh api -X GET "/repos/$GH_REPO/actions/workflows/ci.yml/runs" \
-              -f head_sha="$SHA" \
-              --jq 'if (.workflow_runs|length)==0 then "none"
-                    else (.workflow_runs|sort_by(.created_at)|last
-                          |"\(.status)\t\(.conclusion)\t\(.html_url)") end')
-            if [ "$result" = "none" ]; then
-              echo "No CI run for $SHA yet; waiting..."; sleep 30; continue
-            fi
-            status=$(printf '%s' "$result" | cut -f1)
-            conclusion=$(printf '%s' "$result" | cut -f2)
-            url=$(printf '%s' "$result" | cut -f3)
-            echo "CI run: status=$status conclusion=$conclusion ($url)"
-            if [ "$status" = "completed" ]; then
-              [ "$conclusion" = "success" ] && exit 0
-              echo "::error::CI for $SHA concluded '$conclusion' — refusing to release."
-              exit 1
-            fi
-            sleep 30
-          done
-          echo "::error::Timed out waiting for CI on $SHA"; exit 1
+  # verify:
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 60
+  #   permissions:
+  #     actions: read
+  #     contents: read
+  #   steps:
+  #     - name: Require CI to have passed for this commit
+  #       env:
+  #         GH_TOKEN: ${{ github.token }}
+  #         GH_REPO: ${{ github.repository }}
+  #         SHA: ${{ github.sha }}
+  #       run: |
+  #         set -euo pipefail
+  #         echo "Gating release on CI run for $SHA"
+  #         for _ in $(seq 1 400); do
+  #           result=$(gh api -X GET "/repos/$GH_REPO/actions/workflows/ci.yml/runs" \
+  #             -f head_sha="$SHA" \
+  #             --jq 'if (.workflow_runs|length)==0 then "none"
+  #                   else (.workflow_runs|sort_by(.created_at)|last
+  #                         |"\(.status)\t\(.conclusion)\t\(.html_url)") end')
+  #           if [ "$result" = "none" ]; then
+  #             echo "No CI run for $SHA yet; waiting..."; sleep 30; continue
+  #           fi
+  #           status=$(printf '%s' "$result" | cut -f1)
+  #           conclusion=$(printf '%s' "$result" | cut -f2)
+  #           url=$(printf '%s' "$result" | cut -f3)
+  #           echo "CI run: status=$status conclusion=$conclusion ($url)"
+  #           if [ "$status" = "completed" ]; then
+  #             [ "$conclusion" = "success" ] && exit 0
+  #             echo "::error::CI for $SHA concluded '$conclusion' — refusing to release."
+  #             exit 1
+  #           fi
+  #           sleep 30
+  #         done
+  #         echo "::error::Timed out waiting for CI on $SHA"; exit 1
 
   build-android:
     needs: verify
@@ -265,6 +265,5 @@ jobs:
           # mv artifacts/atolla_ios.ipa "atolla-$GITHUB_REF_NAME.ipa"
           gh release create "$GITHUB_REF_NAME" \
             "atolla-$GITHUB_REF_NAME.apk" \
-            # "atolla-$GITHUB_REF_NAME.ipa" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes

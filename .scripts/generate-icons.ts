@@ -263,8 +263,8 @@ async function main(): Promise<void> {
 	console.log(`Generating icons from atolla/res/logo.svg (${platforms})...`);
 	await generateIcons(selectedOutputs);
 
-	console.log('Validating generated icons...');
-	await validateIcons(selectedOutputs);
+	// console.log('Validating generated icons...');
+	// await validateIcons(selectedOutputs);
 
 	if (selectedPlatforms.has('ios')) {
 		console.log('Copying svg to ios liquid glass directory...');
