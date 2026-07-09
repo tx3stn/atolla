@@ -99,21 +99,19 @@ jobs:
           # --disk_cache to ~/.cache/bazel-disk-android; override at the same config
           # scope (home rc wins) so writing every output twice doesn't fill the disk.
           echo "build:android --disk_cache=" >> ~/.bazelrc
-          # The remote cache's --remote_download_toplevel (build-without-the-bytes, .bazelrc)
-          # is what breaks the Android build. The app's MergeAndroidAssets/resource actions
-          # aren't cached (their sources change every version bump) so they execute on the
-          # runner, but their asset/resource *inputs* ARE cache hits — and under BwtB those
-          # blobs were never downloaded. The local (or even sandboxed) merge then reads inputs
-          # that aren't on disk and dies with an opaque "Error during merging" (the rules_android
-          # busybox logs only UserException.getMessage(), dropping the wrapped IOException).
-          # Forcing --spawn_strategy=sandboxed did NOT fix it — sandboxing doesn't reliably stage
-          # those inputs (a build proved MergeAndroidAssets fails even running in the sandbox).
-          # Fix the root cause instead: download every cache-hit output so all inputs are present,
-          # exactly as the local macOS build has them. Re-execution of cached compiles is still
-          # skipped — only their outputs are fetched. Same config scope as .bazelrc's
-          # --remote_download_toplevel (home rc wins → all), so it only applies when the cache is on.
-          # This makes .bazelrc's --config=android --spawn_strategy=local correct on Linux too.
-          echo "build:remote-cache --remote_download_all" >> ~/.bazelrc
+          # MergeAndroidAssets fails in CI but not locally because the remote cache serves
+          # ValdiCompile's per-module asset tree artifacts with their nested
+          # _configs/*.tsconfig.json files DROPPED (a tree-artifact cache round-trip bug). The
+          # module symbols (assets.bin) still list those assets, so the merge sees a duplicate-
+          # asset conflict across modules, tries to content-compare the now-absent files, and
+          # dies with a NoSuchFileException that the rules_android busybox masks as the opaque
+          # "Error during merging". A local build emits the complete dirs — proven in an amd64
+          # container: forcing local execution restored the missing _configs files and the merge
+          # returned 0. So force ValdiCompile to run locally and never be served from the remote
+          # cache. Every other action still hits the cache; only the ~dozen valdi module compiles
+          # re-run per release. (This replaces an earlier --remote_download_all attempt that
+          # couldn't help: the artifacts are cached incomplete regardless of download mode.)
+          echo "build:android --modify_execution_info=ValdiCompile=+no-remote-cache" >> ~/.bazelrc
           # remote-cache-hit downloads are gated by --jobs, not cores
           echo "build --jobs=32" >> ~/.bazelrc
           if [ -n "$BUILDBUDDY_API_KEY" ]; then
