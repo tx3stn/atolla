@@ -24,6 +24,42 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Detect which areas a PR touches so the heavy native jobs can skip when they're
+  # irrelevant. On push/main (and workflow_call) the gates below force every job to run
+  # regardless — main is always fully tested; path-skipping only trims PR runs.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      zig: ${{ steps.filter.outputs.zig }}
+      android: ${{ steps.filter.outputs.android }}
+      components: ${{ steps.filter.outputs.components }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - 'MODULE.bazel'
+              - 'MODULE.bazel.lock'
+              - '.bazelversion'
+              - '.bazelrc'
+              - 'patches/**'
+              - 'BUILD.bazel'
+              - '.github/workflows/ci.yml'
+              - '.github/actions/**'
+            zig:
+              - *shared
+              - 'atolla/native/zig/**'
+            android:
+              - *shared
+              - 'atolla/native/**'
+            components:
+              - *shared
+              - 'atolla/**'
+              - 'package.json'
+              - 'bun.lock'
+              - 'tsconfig*.json'
   static-checks:
     runs-on: ubuntu-latest
     # cold path (projectsync cache miss + cold remote cache) measured ~25 min,
@@ -134,7 +170,8 @@ jobs:
           key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel') }}-res${{ steps.reslist.outputs.hash }}
 
   zig-tests:
-    if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
+    needs: changes
+    if: ${{ needs.changes.outputs.zig == 'true' || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -158,6 +195,10 @@ jobs:
           if [ -n "$BUILDBUDDY_API_KEY" ]; then
             echo "build --config=remote-cache" >> ~/.bazelrc
             echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
+            # No warm output base in this job, so every run re-pulls cache-hit outputs.
+            # `minimal` fetches only what actions actually need (this is a build, not an
+            # artifact we keep) — same scope as .bazelrc's toplevel, home rc wins → minimal.
+            echo "build:remote-cache --remote_download_minimal" >> ~/.bazelrc
           fi
       # Restore-only; the shared repo cache is saved by android-tests (see there).
       - name: Restore bazel repository cache
@@ -173,7 +214,8 @@ jobs:
       - run: bun run check:zig
 
   component-tests:
-    if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
+    needs: changes
+    if: ${{ needs.changes.outputs.components == 'true' || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -247,7 +289,8 @@ jobs:
           key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
 
   android-tests:
-    if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'javascript')) }}
+    needs: changes
+    if: ${{ needs.changes.outputs.android == 'true' || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -269,6 +312,10 @@ jobs:
           if [ -n "$BUILDBUDDY_API_KEY" ]; then
             echo "build --config=remote-cache" >> ~/.bazelrc
             echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
+            # No warm output base in this job, so every run re-pulls cache-hit outputs.
+            # `minimal` fetches only what actions actually need — same scope as .bazelrc's
+            # toplevel, home rc wins → minimal.
+            echo "build:remote-cache --remote_download_minimal" >> ~/.bazelrc
           fi
       # ONE shared repository cache for every job. ~/.cache/bazel-repo is bazel's
       # --repository_cache (.bazelrc): a content-addressed store of downloaded
