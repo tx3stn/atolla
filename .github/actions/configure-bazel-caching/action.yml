@@ -1,0 +1,51 @@
+name: Configure bazel caching
+description: >-
+  Append the CI bazel cache configuration to ~/.bazelrc: no local disk cache
+  (the remote cache covers reuse and a second copy fills the runner disk), a
+  wider --jobs for remote-cache-hit downloads, and the BuildBuddy remote cache
+  when the API key is present. remote-download-minimal fetches only what actions
+  need (for jobs with no warm output base that don't keep the outputs).
+inputs:
+  buildbuddy-api-key:
+    description: >-
+      BuildBuddy API key (pass ${{ secrets.BUILDBUDDY_API_KEY }}). When empty
+      the remote-cache lines are skipped so forks without the secret still build.
+    required: false
+    default: ""
+  remote-download-minimal:
+    description: >-
+      "true" adds build:remote-cache --remote_download_minimal. Use it for jobs
+      with no warm output base that don't need the full outputs afterwards; leave
+      it off when the job saves bazel-out artifacts or restores a warm base.
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        BUILDBUDDY_API_KEY: ${{ inputs.buildbuddy-api-key }}
+        REMOTE_DOWNLOAD_MINIMAL: ${{ inputs.remote-download-minimal }}
+      run: |
+        set -euo pipefail
+        {
+          # no local disk cache in CI: the remote cache covers reuse, and writing
+          # every output twice fills the runner disk (ENOSPC on cache save)
+          echo "build --disk_cache="
+          # remote-cache-hit downloads are gated by --jobs, not cores — 4-wide
+          # round-trips made 1,200 hit actions take 17 minutes; local execution
+          # is still capped separately by --local_resources
+          echo "build --jobs=32"
+          if [ -n "$BUILDBUDDY_API_KEY" ]; then
+            # build (not common): plain `bazel query` doesn't inherit build configs
+            # and errors on --config=remote-cache; test/run/info etc. inherit build
+            echo "build --config=remote-cache"
+            echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
+            if [ "$REMOTE_DOWNLOAD_MINIMAL" = "true" ]; then
+              # No warm output base in this job, so every run re-pulls cache-hit outputs.
+              # `minimal` fetches only what actions actually need (this is a build, not an
+              # artifact we keep) — same scope as .bazelrc's toplevel, home rc wins → minimal.
+              echo "build:remote-cache --remote_download_minimal"
+            fi
+          fi
+        } >> ~/.bazelrc

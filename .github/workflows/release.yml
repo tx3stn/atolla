@@ -8,53 +8,13 @@ permissions:
   contents: write
 
 jobs:
-  # Gate the release on the CI run that already executed for this commit on main —
-  # reuse it, don't re-run the suite. The tag may be pushed before CI finishes, so
-  # poll the existing ci.yml run for this SHA and fail unless it concluded success.
-  # verify:
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 60
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #   steps:
-  #     - name: Require CI to have passed for this commit
-  #       env:
-  #         GH_TOKEN: ${{ github.token }}
-  #         GH_REPO: ${{ github.repository }}
-  #         SHA: ${{ github.sha }}
-  #       run: |
-  #         set -euo pipefail
-  #         echo "Gating release on CI run for $SHA"
-  #         for _ in $(seq 1 400); do
-  #           result=$(gh api -X GET "/repos/$GH_REPO/actions/workflows/ci.yml/runs" \
-  #             -f head_sha="$SHA" \
-  #             --jq 'if (.workflow_runs|length)==0 then "none"
-  #                   else (.workflow_runs|sort_by(.created_at)|last
-  #                         |"\(.status)\t\(.conclusion)\t\(.html_url)") end')
-  #           if [ "$result" = "none" ]; then
-  #             echo "No CI run for $SHA yet; waiting..."; sleep 30; continue
-  #           fi
-  #           status=$(printf '%s' "$result" | cut -f1)
-  #           conclusion=$(printf '%s' "$result" | cut -f2)
-  #           url=$(printf '%s' "$result" | cut -f3)
-  #           echo "CI run: status=$status conclusion=$conclusion ($url)"
-  #           if [ "$status" = "completed" ]; then
-  #             [ "$conclusion" = "success" ] && exit 0
-  #             echo "::error::CI for $SHA concluded '$conclusion' — refusing to release."
-  #             exit 1
-  #           fi
-  #           sleep 30
-  #         done
-  #         echo "::error::Timed out waiting for CI on $SHA"; exit 1
-
   build-android:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
-      - name: Cache bun dependencies
+      - name: cache bun dependencies
         uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
@@ -66,7 +26,7 @@ jobs:
       # overlaps the bazel cache restores below; "Wait for icon generation" joins on
       # it before Build APK. Output is byte-identical to the committed res/ files
       # unless the logo changed, and must land before bazel reads res/.
-      - name: Start icon generation (background)
+      - name: start icon generation (background)
         run: |
           nohup bash -c '
             bun run icons:generate --android > /tmp/icons.log 2>&1
@@ -74,8 +34,7 @@ jobs:
           ' >/dev/null 2>&1 &
           echo $! > /tmp/icons.pid
           echo "icon generation started (pid $(cat /tmp/icons.pid))"
-      - name: Install libtinfo5
-        uses: ./.github/actions/install-libtinfo5
+      - uses: ./.github/actions/install-libtinfo5
       - name: Make room for the bazel build
         run: |
           # The full APK build (Skia/ICU/harfbuzz/abseil/Valdi + host tools) overflows the
@@ -90,38 +49,40 @@ jobs:
           df -h / /mnt
       # the remote cache is CI's only cache: version bumps touch a few files, so
       # most compile actions hit artifacts uploaded by the previous release
-      - name: Configure bazel caching
+      - name: configure bazel caching
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
         run: |
-          # build:apk passes --config=android, whose .bazelrc lines re-point
-          # --disk_cache to ~/.cache/bazel-disk-android; override at the same config
-          # scope (home rc wins) so writing every output twice doesn't fill the disk.
-          echo "build:android --disk_cache=" >> ~/.bazelrc
-          # MergeAndroidAssets fails in CI but not locally because the remote cache serves
-          # ValdiCompile's per-module asset tree artifacts with their nested
-          # _configs/*.tsconfig.json files DROPPED (a tree-artifact cache round-trip bug). The
-          # module symbols (assets.bin) still list those assets, so the merge sees a duplicate-
-          # asset conflict across modules, tries to content-compare the now-absent files, and
-          # dies with a NoSuchFileException that the rules_android busybox masks as the opaque
-          # "Error during merging". A local build emits the complete dirs — proven in an amd64
-          # container: forcing local execution restored the missing _configs files and the merge
-          # returned 0. So force ValdiCompile to run locally and never be served from the remote
-          # cache. Every other action still hits the cache; only the ~dozen valdi module compiles
-          # re-run per release. (This replaces an earlier --remote_download_all attempt that
-          # couldn't help: the artifacts are cached incomplete regardless of download mode.)
-          echo "build:android --modify_execution_info=ValdiCompile=+no-remote-cache" >> ~/.bazelrc
-          # remote-cache-hit downloads are gated by --jobs, not cores
-          echo "build --jobs=32" >> ~/.bazelrc
-          if [ -n "$BUILDBUDDY_API_KEY" ]; then
-            echo "build --config=remote-cache" >> ~/.bazelrc
-            echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
-          fi
+          {
+            # build:apk passes --config=android, whose .bazelrc lines re-point
+            # --disk_cache to ~/.cache/bazel-disk-android; override at the same config
+            # scope (home rc wins) so writing every output twice doesn't fill the disk.
+            echo "build:android --disk_cache="
+            # MergeAndroidAssets fails in CI but not locally because the remote cache serves
+            # ValdiCompile's per-module asset tree artifacts with their nested
+            # _configs/*.tsconfig.json files DROPPED (a tree-artifact cache round-trip bug). The
+            # module symbols (assets.bin) still list those assets, so the merge sees a duplicate-
+            # asset conflict across modules, tries to content-compare the now-absent files, and
+            # dies with a NoSuchFileException that the rules_android busybox masks as the opaque
+            # "Error during merging". A local build emits the complete dirs — proven in an amd64
+            # container: forcing local execution restored the missing _configs files and the merge
+            # returned 0. So force ValdiCompile to run locally and never be served from the remote
+            # cache. Every other action still hits the cache; only the ~dozen valdi module compiles
+            # re-run per release. (This replaces an earlier --remote_download_all attempt that
+            # couldn't help: the artifacts are cached incomplete regardless of download mode.)
+            echo "build:android --modify_execution_info=ValdiCompile=+no-remote-cache"
+            # remote-cache-hit downloads are gated by --jobs, not cores
+            echo "build --jobs=32"
+            if [ -n "$BUILDBUDDY_API_KEY" ]; then
+              echo "build --config=remote-cache"
+              echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
+            fi
+          } >> ~/.bazelrc
       # Restore-only: read the shared repository cache that CI's android-tests job
       # banks on main (default-branch caches are readable from tag runs). This tag
       # build can't usefully SAVE — a tag-scoped cache isn't visible to main runs —
       # and app-only maven deps not in the test set just partial-hit and re-fetch.
-      - name: Restore bazel repository cache
+      - name: restore bazel repository cache
         id: restore-bazel-repo
         uses: actions/cache/restore@v6
         with:
@@ -132,7 +93,7 @@ jobs:
       # Join on the background icon generation started after bun install. The process
       # was launched in a different step's shell, so we poll its pid and read the
       # exit status it wrote, rather than `wait` (which only works for child procs).
-      - name: Wait for icon generation
+      - name: wait for icon generation
         run: |
           pid="$(cat /tmp/icons.pid)"
           while kill -0 "$pid" 2>/dev/null; do sleep 1; done
@@ -143,7 +104,7 @@ jobs:
           code="$(cat /tmp/icons.exit)"
           echo "icon generation exit code: $code"
           exit "$code"
-      - name: Build APK
+      - name: build apk
         run: JAVA_HOME="$JAVA_HOME_17_X64" bun run build:apk
       - uses: actions/upload-artifact@v7
         with:
@@ -158,7 +119,7 @@ jobs:
   #   steps:
   #     - uses: actions/checkout@v7
   #     - uses: oven-sh/setup-bun@v2
-  #     - name: Cache bun dependencies
+  #     - name: cache bun dependencies
   #       uses: actions/cache@v6
   #       with:
   #         path: ~/.bun/install/cache
@@ -169,7 +130,7 @@ jobs:
   #     # Regenerate the iOS icons from atolla/res/logo.svg in the background so it
   #     # overlaps the bazel cache restores below; "Wait for icon generation" joins
   #     # on it before Build simulator IPA, and must land before bazel reads assets.
-  #     - name: Start icon generation (background)
+  #     - name: start icon generation (background)
   #       run: |
   #         nohup bash -c '
   #           bun run icons:generate --ios > /tmp/icons.log 2>&1
@@ -180,7 +141,7 @@ jobs:
   #     # remote cache on top of the disk cache (kept — macOS runners have the
   #     # space): version bumps only touch a few files, so most compile actions
   #     # hit artifacts uploaded by the previous release
-  #     - name: Configure bazel caching
+  #     - name: configure bazel caching
   #       env:
   #         BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
   #       run: |
@@ -192,7 +153,7 @@ jobs:
   #     # repo fetches and compile progress for the retry (actions/cache only
   #     # saves on success); -${{ github.job }} keeps the android and ios repo
   #     # sets from clobbering each other under one key
-  #     - name: Restore bazel repository cache
+  #     - name: restore bazel repository cache
   #       id: restore-bazel-repo
   #       uses: actions/cache/restore@v6
   #       with:
@@ -201,7 +162,7 @@ jobs:
   #         restore-keys: |
   #           bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-
   #           bazel-repo-${{ runner.os }}-
-  #     - name: Restore bazel disk cache
+  #     - name: restore bazel disk cache
   #       id: restore-bazel-disk
   #       uses: actions/cache/restore@v6
   #       with:
@@ -213,7 +174,7 @@ jobs:
   #     # Join on the background icon generation started after bun install. The process
   #     # was launched in a different step's shell, so we poll its pid and read the
   #     # exit status it wrote, rather than `wait` (which only works for child procs).
-  #     - name: Wait for icon generation
+  #     - name: wait for icon generation
   #       run: |
   #         pid="$(cat /tmp/icons.pid)"
   #         while kill -0 "$pid" 2>/dev/null; do sleep 1; done
@@ -226,20 +187,20 @@ jobs:
   #         exit "$code"
   #     # Simulator build — device (arm64) builds need an ios_provisioning_profile
   #     # on valdi_application plus signing secrets in CI
-  #     - name: Build simulator IPA
+  #     - name: build ipa
   #       run: IOS_CPUS=sim_arm64 bun run build:ipa
   #     - uses: actions/upload-artifact@v7
   #       with:
   #         name: ios-ipa
   #         path: build/atolla_ios.ipa
   #         if-no-files-found: error
-  #     - name: Save bazel repository cache
+  #     - name: save bazel repository cache
   #       if: always() && steps.restore-bazel-repo.outputs.cache-hit != 'true'
   #       uses: actions/cache/save@v6
   #       with:
   #         path: ~/.cache/bazel-repo
   #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}-${{ github.job }}
-  #     - name: Save bazel disk cache
+  #     - name: save bazel disk cache
   #       if: always() && steps.restore-bazel-disk.outputs.cache-hit != 'true'
   #       uses: actions/cache/save@v6
   #       with:
@@ -255,7 +216,7 @@ jobs:
         with:
           merge-multiple: true
           path: artifacts
-      - name: Create GitHub release
+      - name: create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}

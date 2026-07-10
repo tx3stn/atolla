@@ -68,7 +68,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
-      - name: Cache bun dependencies
+      - name: cache bun dependencies
         uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
@@ -80,7 +80,7 @@ jobs:
       # name/path, not file bytes — so key the cache on the sorted file LIST, not
       # hashFiles (which hashes contents). A reformat or icon redesign that keeps
       # the same filenames still hits; adds/removes/renames miss (as they should).
-      - name: Hash res file list
+      - name: hash res file list
         id: reslist
         run: echo "hash=$(cd atolla && find res -type f | LC_ALL=C sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
       # tsc only needs projectsync's OUTPUTS: the valdi sources/types, the
@@ -91,7 +91,7 @@ jobs:
       # key covers the bazel dep-set (MODULE.bazel etc.) + BUILD.bazel + the res
       # file list, and stays hit across CLI-only bumps — on a hit this job runs no
       # bazel at all (the 22-minute projectsync build disappears).
-      - name: Restore projectsync outputs
+      - name: restore projectsync outputs
         id: projectsync-cache
         uses: actions/cache/restore@v6
         with:
@@ -112,27 +112,14 @@ jobs:
         uses: ./.github/actions/install-libtinfo5
       - name: Configure bazel caching
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-        run: |
-          # no local disk cache in CI: the remote cache covers reuse, and writing
-          # every output twice fills the runner disk (ENOSPC on cache save)
-          echo "build --disk_cache=" >> ~/.bazelrc
-          # remote-cache-hit downloads are gated by --jobs, not cores — 4-wide
-          # round-trips made 1,200 hit actions take 17 minutes; local execution
-          # is still capped separately by --local_resources
-          echo "build --jobs=32" >> ~/.bazelrc
-          if [ -n "$BUILDBUDDY_API_KEY" ]; then
-            # build (not common): plain `bazel query` doesn't inherit build configs
-            # and errors on --config=remote-cache; test/run/info etc. inherit build
-            echo "build --config=remote-cache" >> ~/.bazelrc
-            echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
-          fi
+        uses: ./.github/actions/configure-bazel-caching
+        with:
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
       # ONE shared repository cache across all jobs (see android-tests for the full
       # rationale). It's the content-addressed download store (llvm, NDK, JDK,
       # skia/hermes sources) — identical across jobs — so it's keyed on the dep-set
       # alone and only android-tests (a superset fetch) saves it. Restore-only here.
-      - name: Restore bazel repository cache
+      - name: restore bazel repository cache
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
         id: restore-bazel-repo
         uses: actions/cache/restore@v6
@@ -152,12 +139,12 @@ jobs:
         with:
           version: 0.16.0
       - run: bun run check:static
-      - name: Fail on formatting or lint drift
+      - name: fail on formatting or lint drift
         run: git diff --exit-code -- . ':!atolla/tsconfig.json'
       # outcome guard: a projectsync that died midway must never get cached
       # under the canonical key (it would poison every later run); still banks
       # the cache when only check:static or the drift check fails
-      - name: Save projectsync outputs
+      - name: save projectsync outputs
         if: ${{ !cancelled() && steps.projectsync-cache.outputs.cache-hit != 'true' && steps.projectsync.outcome == 'success' }}
         uses: actions/cache/save@v6
         with:
@@ -183,23 +170,11 @@ jobs:
         with:
           version: 0.16.0
       - run: bun run test:zig
-      - name: Configure bazel caching
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-        run: |
-          echo "build --disk_cache=" >> ~/.bazelrc
-          # remote-cache-hit downloads are gated by --jobs, not cores — 4-wide
-          # round-trips made 1,200 hit actions take 17 minutes; local execution
-          # is still capped separately by --local_resources
-          echo "build --jobs=32" >> ~/.bazelrc
-          if [ -n "$BUILDBUDDY_API_KEY" ]; then
-            echo "build --config=remote-cache" >> ~/.bazelrc
-            echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
-            # No warm output base in this job, so every run re-pulls cache-hit outputs.
-            # `minimal` fetches only what actions actually need (this is a build, not an
-            # artifact we keep) — same scope as .bazelrc's toplevel, home rc wins → minimal.
-            echo "build:remote-cache --remote_download_minimal" >> ~/.bazelrc
-          fi
+      - name: configure bazel caching
+        uses: ./.github/actions/configure-bazel-caching
+        with:
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          remote-download-minimal: "true"
       # Restore-only; the shared repo cache is saved by android-tests (see there).
       - name: Restore bazel repository cache
         id: restore-bazel-repo
@@ -225,24 +200,17 @@ jobs:
         uses: ./.github/actions/free-disk-space
       - name: Install libtinfo5
         uses: ./.github/actions/install-libtinfo5
-      - name: Configure bazel caching
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-        run: |
-          # Pin the output base so it can be cached: restoring it gives a warm build
-          # (extracted external repos + bazel-out) with no re-extraction or recompile.
-          # It's SAVED only on the default branch (below), so MR runs read main's warm
-          # base but never write multi-GB entries that would churn the shared 10 GB pool.
-          echo "startup --output_base=$HOME/.cache/bazel-ob" >> ~/.bazelrc
-          # No local disk cache in CI — the output-base cache plus BuildBuddy cover reuse.
-          echo "build --disk_cache=" >> ~/.bazelrc
-          echo "build --jobs=32" >> ~/.bazelrc
-          if [ -n "$BUILDBUDDY_API_KEY" ]; then
-            # build (not common): plain `bazel query` doesn't inherit build configs
-            # and errors on --config=remote-cache; test/run/info etc. inherit build
-            echo "build --config=remote-cache" >> ~/.bazelrc
-            echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
-          fi
+      # Pin the output base so it can be cached: restoring it gives a warm build
+      # (extracted external repos + bazel-out) with no re-extraction or recompile.
+      # It's SAVED only on the default branch (below), so MR runs read main's warm
+      # base but never write multi-GB entries that would churn the shared 10 GB pool.
+      # No --remote_download_minimal below: this warm base already holds the outputs.
+      - name: pin bazel output base
+        run: echo "startup --output_base=$HOME/.cache/bazel-ob" >> ~/.bazelrc
+      - name: configure bazel caching
+        uses: ./.github/actions/configure-bazel-caching
+        with:
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
       # Restore the warm output base (extracted repos + bazel-out) — a hit means no
       # re-extraction and no recompile. Keyed on the dependency set (MODULE/patches), NOT
       # the commit SHA: a per-SHA key banked a fresh multi-GB base on every main push, and a
@@ -252,7 +220,7 @@ jobs:
       # (Hermes/Skia/Valdi core) only change when the dependency set does, so within a set
       # bazel just rebuilds the cheap app/test sources incrementally off the restored base.
       # SAVED only on the default branch (below), so MR runs read main's base but never write.
-      - name: Restore bazel output base
+      - name: restore bazel output base
         id: restore-bazel-ob
         uses: actions/cache/restore@v6
         with:
@@ -261,7 +229,7 @@ jobs:
           restore-keys: |
             bazel-ob-${{ github.job }}-${{ runner.os }}-
       # cold path only — a restored output base already contains every extracted repo
-      - name: Restore bazel repository cache
+      - name: restore bazel repository cache
         if: steps.restore-bazel-ob.outputs.cache-matched-key == ''
         id: restore-bazel-repo
         uses: actions/cache/restore@v6
@@ -274,14 +242,14 @@ jobs:
         uses: ./.github/actions/wait-for-disk-cleanup
       - run: bun run test:components
         timeout-minutes: 120
-      - name: Shut down bazel server
+      - name: shut down bazel server
         if: always()
         run: bazel shutdown && du -sh ~/.cache/bazel-ob || true
       # Save the multi-GB caches ONLY on the default branch so MR runs never write to (and
       # churn) the shared Actions pool. MR runs still get per-push reuse via BuildBuddy. With
       # the dep-set key above, main banks exactly one base per dependency set (the cache-hit
       # guard skips the save once it exists) instead of a fresh multi-GB entry per commit.
-      - name: Save bazel output base
+      - name: save bazel output base
         if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-bazel-ob.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
@@ -298,25 +266,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: free disk space
         uses: ./.github/actions/free-disk-space
-      - name: Install libtinfo5
+      - name: install libtinfo5
         uses: ./.github/actions/install-libtinfo5
-      - name: Configure bazel caching
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-        run: |
-          echo "build --disk_cache=" >> ~/.bazelrc
-          # remote-cache-hit downloads are gated by --jobs, not cores — 4-wide
-          # round-trips made 1,200 hit actions take 17 minutes; local execution
-          # is still capped separately by --local_resources
-          echo "build --jobs=32" >> ~/.bazelrc
-          if [ -n "$BUILDBUDDY_API_KEY" ]; then
-            echo "build --config=remote-cache" >> ~/.bazelrc
-            echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
-            # No warm output base in this job, so every run re-pulls cache-hit outputs.
-            # `minimal` fetches only what actions actually need — same scope as .bazelrc's
-            # toplevel, home rc wins → minimal.
-            echo "build:remote-cache --remote_download_minimal" >> ~/.bazelrc
-          fi
+      - name: configure bazel caching
+        uses: ./.github/actions/configure-bazel-caching
+        with:
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          remote-download-minimal: "true"
       # ONE shared repository cache for every job. ~/.cache/bazel-repo is bazel's
       # --repository_cache (.bazelrc): a content-addressed store of downloaded
       # tarballs (llvm, NDK, JDK, skia/hermes sources). Each artifact is byte-
@@ -327,7 +283,7 @@ jobs:
       # dep-set alone; android-tests is the sole saver (below) because its download
       # set is a superset (host toolchain + the Android NDK/SDK). Every other job
       # restores read-only; a partial hit self-heals as bazel fetches only what's missing.
-      - name: Restore bazel repository cache
+      - name: restore bazel repository cache
         id: restore-bazel-repo
         uses: actions/cache/restore@v6
         with:
@@ -341,7 +297,7 @@ jobs:
         timeout-minutes: 30
       # Sole saver of the shared repo cache (superset: host toolchain + NDK), on
       # main only so PR runs restore read-only and never churn the 10 GiB pool.
-      - name: Save bazel repository cache
+      - name: save bazel repository cache
         if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-bazel-repo.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
@@ -355,7 +311,7 @@ jobs:
   #   steps:
   #     - uses: actions/checkout@v7
   #     - uses: oven-sh/setup-bun@v2
-  #     - name: Cache bun dependencies
+  #     - name: cache bun dependencies
   #       uses: actions/cache@v6
   #       with:
   #         path: ~/.bun/install/cache
@@ -363,7 +319,7 @@ jobs:
   #         restore-keys: |
   #           bun-${{ runner.os }}-
   #     - run: bun install --frozen-lockfile
-  #     - name: Configure bazel caching
+  #     - name: configure bazel caching
   #       env:
   #         BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
   #       run: |
@@ -372,7 +328,7 @@ jobs:
   #           echo "build --config=remote-cache" >> ~/.bazelrc
   #           echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
   #         fi
-  #     - name: Cache bazel repository cache
+  #     - name: cache bazel repository cache
   #       uses: actions/cache@v6
   #       with:
   #         path: ~/.cache/bazel-repo
