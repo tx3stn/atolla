@@ -9,6 +9,7 @@ import type {
 	Label,
 	Layout,
 	ScrollView,
+	TextField,
 	View,
 } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
@@ -835,12 +836,11 @@ const styles = {
 		height: 24,
 		width: 24,
 	}),
-	searchInput: new Style({
+	searchInput: new Style<TextField>({
 		...theme.text.main,
 		color: theme.colors.white,
 		flexGrow: 1,
 		marginLeft: 20,
-		padding: theme.padding.pill,
 	}),
 	searchRoot: new Style<Layout>({
 		flexGrow: 1,

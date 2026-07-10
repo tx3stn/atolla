@@ -5,7 +5,7 @@ import { Style } from 'valdi_core/src/Style';
 import { systemFont } from 'valdi_core/src/SystemFont';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
-import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import type { ToastService } from '../../services/ToastService';
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
@@ -220,7 +220,7 @@ const styles = {
 		marginTop: 10,
 		textAlign: 'center',
 	}),
-	input: new Style({
+	input: new Style<TextField>({
 		...theme.text.main,
 		marginLeft: 10,
 		width: '100%',
