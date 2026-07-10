@@ -40,8 +40,8 @@
 ### player
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/dc0da699-e41f-4cd3-9213-238c3c8d5794" alt="player" width="49%" />
- <img src="https://github.com/user-attachments/assets/ad7f9f64-d32c-4f88-8962-15e3250e48f2" alt="player-play-queue" width="49%" />
+ <img src="https://github.com/user-attachments/assets/cad3ea3e-97d8-4261-88ad-b8bb5a101702" alt="player" width="49%" />
+ <img src="https://github.com/user-attachments/assets/71a88b15-31f9-401e-b1f0-d482d6ce0674" alt="player-play-queue" width="49%" />
 </p>
 
 * Color palettes generated from album art.
@@ -63,15 +63,15 @@
 ### artist view
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/83438302-2ebb-4cd1-89bf-b970910c585a" alt="artist-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/5af7c50f-7f1b-46d0-a15f-3510361caa9a" alt="artist-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/e918674b-76ce-4061-9a01-aed180ed6783" alt="artist-1" width="49%" />
+ <img src="https://github.com/user-attachments/assets/42d9f96e-a0f5-4cc3-8a21-d5f5ac5a0aef" alt="artist-2" width="49%" />
 </p>
 
 ### library & album view
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/4579959b-97aa-4cd0-a7b3-e35c506cf2b4" alt="artist-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/5d7ef4be-5957-4f3b-a539-10a23d40b569" alt="artist-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/426790e9-b969-43f1-8ab1-87d6147e1862" alt="artist-1" width="49%" />
+ <img src="https://github.com/user-attachments/assets/51d60600-ca2e-4bc7-b224-b0483ae6861d" alt="artist-2" width="49%" />
 </p>
 
 * Floating player progress bar
@@ -79,8 +79,8 @@
 ### search & genre list
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/a71c81e8-f112-41c2-9b69-d32e380ad394" alt="artist-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/3e43e8b0-d152-4d14-ac06-f06af624bd4e" alt="artist-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/5f909219-bb0e-4299-b617-74eb8b77add0" alt="artist-1" width="49%" />
+ <img src="https://github.com/user-attachments/assets/5fe69b87-4236-413b-bce6-a55079105a73" alt="artist-2" width="49%" />
 </p>
 
 * Search that works online and offline
@@ -170,11 +170,6 @@ the things that made me dismiss it in my search for the right Jellyfin music pla
 
 * The UI is ugly (to me), it's inconsistent, with lots of wasted space and tiny artwork.
 * Looking at the issues it's missing a lot of features I'd consider important for a music app (which atolla has implemented).
-
-It has a very long list of dependencies. We're living in the age of supply chain
-attacks with every dependency increasing the surface of poential issues.
-I'm not saying everyone should re-invent every wheel but tha build of atolla is
-intentionally minimal to reduce the security maintenance burdern.
 
 ### What atolla does differently
 
