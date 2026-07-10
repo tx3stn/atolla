@@ -74,9 +74,6 @@ interface SettingsViewState {
 }
 
 export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsViewState> {
-	// immutable for the component's life, so it's a field rather than reactive state (and avoids a
-	// setState in onCreate, which would force an update cycle before the first view model is committed)
-	private readonly debugLogFilePath = DebugLogger.getLogFilePath() || null;
 	private statsInterval?: ReturnType<typeof setInterval>;
 
 	state: SettingsViewState = {
@@ -226,15 +223,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 								onToggle={this.handleDebugLoggingToggle}
 							/>
 						</view>
-						{this.debugLogFilePath != null && (
-							<label
-								accessibilityId='settings-debug-log-path'
-								accessibilityLabel='settings-debug-log-path'
-								numberOfLines={2}
-								style={styles.debugLogPathLabel}
-								value={Strings.settingsDebugLogFilePath(this.debugLogFilePath)}
-							/>
-						)}
 						{debugLoggingEnabled && (
 							<Button
 								accessibilityId='settings-debug-log-export'
