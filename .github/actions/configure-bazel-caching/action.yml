@@ -8,7 +8,7 @@ description: >-
 inputs:
   buildbuddy-api-key:
     description: >-
-      BuildBuddy API key (pass ${{ secrets.BUILDBUDDY_API_KEY }}). When empty
+      BuildBuddy API key (pass the BUILDBUDDY_API_KEY secret). When empty
       the remote-cache lines are skipped so forks without the secret still build.
     required: false
     default: ""
