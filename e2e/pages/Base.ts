@@ -170,6 +170,27 @@ export class BasePage {
 		await this.driver.releaseActions();
 	}
 
+	// swipe the content up to reveal what sits below the fold
+	public async scrollDown(): Promise<void> {
+		const rect = await this.driver.getWindowRect();
+		const x = Math.floor(rect.width * 0.5);
+		await this.driver.performActions([
+			{
+				actions: [
+					{ duration: 0, type: 'pointerMove', x, y: Math.floor(rect.height * 0.75) },
+					{ button: 0, type: 'pointerDown' },
+					{ duration: 40, type: 'pause' },
+					{ duration: 260, type: 'pointerMove', x, y: Math.floor(rect.height * 0.3) },
+					{ button: 0, type: 'pointerUp' },
+				],
+				id: 'scroll-down-finger',
+				parameters: { pointerType: 'touch' },
+				type: 'pointer',
+			},
+		]);
+		await this.driver.releaseActions();
+	}
+
 	public async swipeBack(): Promise<void> {
 		const rect = await this.driver.getWindowRect();
 		if (this.isIOS()) {
