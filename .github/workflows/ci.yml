@@ -138,9 +138,30 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0
+      # On the projectsync cache-hit (fast) path the heavy bazel setup above is skipped,
+      # but check:static still runs `bazel build //:valdi_editor_anchor`, which fetches the
+      # Valdi archive/registry from GitHub. Warm a small dedicated repo cache (just this
+      # target's fetch set) so the fast path doesn't re-download it every run and flake on
+      # GitHub timeouts. The big shared bazel-repo cache stays cold-path-only — it's a
+      # multi-GB superset saved solely by android-tests, too heavy for this fast path.
+      - name: restore check:static repo cache
+        if: steps.projectsync-cache.outputs.cache-hit == 'true'
+        id: restore-checkstatic-repo
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-checkstatic-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
       - run: bun run check:static
       - name: fail on formatting or lint drift
         run: git diff --exit-code -- . ':!atolla/tsconfig.json'
+      # bank what valdi_editor_anchor fetched on the fast path (the small Valdi
+      # archive/registry set) so later cache-hit runs skip the GitHub download entirely
+      - name: save check:static repo cache
+        if: always() && steps.projectsync-cache.outputs.cache-hit == 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-checkstatic-repo.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-checkstatic-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
       # outcome guard: a projectsync that died midway must never get cached
       # under the canonical key (it would poison every later run); still banks
       # the cache when only check:static or the drift check fails
