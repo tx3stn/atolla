@@ -632,7 +632,7 @@ const styles = {
 	}),
 	authDeviceIdInput: new Style<TextField>({
 		...theme.text.main,
-		marginLeft: 18,
+		marginLeft: 10,
 		width: '100%',
 	}),
 	debugLogPathLabel: new Style<Label>({
