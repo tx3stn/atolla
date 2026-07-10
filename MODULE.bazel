@@ -4,7 +4,7 @@ module(
 )
 
 # -- Valdi framework (https://github.com/Snapchat/Valdi) ---------------------
-VALDI_TAG = "beta-0.1.0"
+VALDI_TAG = "beta-0.1.1"
 
 VALDI_URL = "https://github.com/Snapchat/Valdi/archive/" + VALDI_TAG + ".tar.gz"
 
@@ -12,7 +12,7 @@ VALDI_PREFIX = "Valdi-" + VALDI_TAG
 
 # Every Valdi module below is a slice of the same release tarball, so they all
 # share one integrity hash. Pinning it makes the download reproducible.
-VALDI_INTEGRITY = "sha256-uaGWCv8jwTZ/Z3djGf6SXzGrYb39mEqtYmhDHiK8kM8="
+VALDI_INTEGRITY = "sha256-y98Oa4cNuOu3XQM+HxNv78q6li6xwT2LT3SXw9y7Xzg="
 
 bazel_dep(name = "valdi", version = "0.1")
 archive_override(
