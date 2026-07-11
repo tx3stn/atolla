@@ -212,6 +212,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Full history + tags so git-cliff can diff this tag against the previous
+      # release. Must run before download-artifact: checkout cleans the workspace
+      # by default and would otherwise wipe the downloaded artifacts.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v8
         with:
           merge-multiple: true
@@ -250,17 +256,23 @@ jobs:
             artifacts/atolla_android_aligned.apk
           rm -f artifacts/atolla_android_aligned.apk
           "$bt/apksigner" verify --verbose --print-certs artifacts/atolla_android.apk
+      # Build the notes from the conventional commits since the previous tag,
+      # grouped into Features/Fixes/Other (see cliff.toml). --generate-notes only
+      # lists merged PRs, so it produced empty bodies for our direct-to-main pushes.
+      - name: generate release notes
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip all
+        env:
+          OUTPUT: RELEASE_NOTES.md
       - name: create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
         run: |
           mv artifacts/atolla_android.apk "atolla-$GITHUB_REF_NAME.apk"
           # mv artifacts/atolla_ios.ipa "atolla-$GITHUB_REF_NAME.ipa"
-          # GitHub generates the notes from PRs merged since the previous release, grouped
-          # into Features/Fixes/Other by PR label (see .github/release.yml). GH_REPO tells gh
-          # which repo to target since this job doesn't check the sources out.
           gh release create "$GITHUB_REF_NAME" \
             "atolla-$GITHUB_REF_NAME.apk" \
             --title "$GITHUB_REF_NAME" \
-            --generate-notes
+            --notes-file RELEASE_NOTES.md
