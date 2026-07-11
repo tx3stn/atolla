@@ -5,6 +5,7 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import "atolla/native/ios/AtollaPlaybackGuards.h"
+#import "atolla/native/ios/AtollaAuthRedirectGuard.h"
 
 // associates the source track id with each AVPlayerItem so the loaded current item can be
 // identified by track rather than by its (mutable) source URL, mirroring MediaItem.mediaId on
@@ -89,7 +90,9 @@ static NSMutableSet<NSString *> *sInProgressKeys;
     NSURLSessionConfiguration *config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
     config.timeoutIntervalForRequest = 30.0;
     config.timeoutIntervalForResource = 300.0;
-    NSURLSession *session = [NSURLSession sessionWithConfiguration:config];
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:config
+                                                          delegate:[[AtollaAuthRedirectGuard alloc] init]
+                                                     delegateQueue:nil];
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:sourceURL
                                                            cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
@@ -627,7 +630,7 @@ static BOOL sCommandsRegistered = NO;
                 }
                 __block NSData *data = nil;
                 dispatch_semaphore_t sem = dispatch_semaphore_create(0);
-                NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request
+                NSURLSessionDataTask *task = [[AtollaAuthRedirectGuard sharedDefaultSession] dataTaskWithRequest:request
                     completionHandler:^(NSData *d, NSURLResponse *r, NSError *e) {
                         data = d;
                         dispatch_semaphore_signal(sem);

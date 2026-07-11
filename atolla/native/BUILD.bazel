@@ -131,6 +131,7 @@ objc_library(
         "MediaPlayer",
     ],
     deps = [
+        ":atolla_auth_redirect_guard_ios",
         ":atolla_playback_guards_ios",
         "//atolla:atolla_api_objc",
     ],
@@ -151,6 +152,7 @@ objc_library(
     srcs = ["ios/AtollaImageLoaderBootstrapModuleFactory.m"],
     copts = ["-I."],
     deps = [
+        ":atolla_auth_redirect_guard_ios",
         ":atolla_disk_cache_stats_ios",
         ":atolla_image_fallback_ios",
         ":blur_ios_bridge",
@@ -191,6 +193,13 @@ objc_library(
     name = "atolla_playback_guards_ios",
     srcs = ["ios/AtollaPlaybackGuards.m"],
     hdrs = ["ios/AtollaPlaybackGuards.h"],
+    copts = ["-I."],
+)
+
+objc_library(
+    name = "atolla_auth_redirect_guard_ios",
+    srcs = ["ios/AtollaAuthRedirectGuard.m"],
+    hdrs = ["ios/AtollaAuthRedirectGuard.h"],
     copts = ["-I."],
 )
 

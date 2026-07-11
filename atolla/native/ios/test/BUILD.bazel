@@ -45,3 +45,18 @@ macos_unit_test(
     minimum_os_version = "12.0",
     deps = [":AtollaDiskCacheStatsTestLib"],
 )
+
+objc_library(
+    name = "AtollaAuthRedirectGuardTestLib",
+    testonly = True,
+    srcs = ["AtollaAuthRedirectGuardTest.m"],
+    copts = ["-I."],
+    deps = ["//atolla/native:atolla_auth_redirect_guard_ios"],
+)
+
+macos_unit_test(
+    name = "AtollaAuthRedirectGuardTest",
+    size = "small",
+    minimum_os_version = "12.0",
+    deps = [":AtollaAuthRedirectGuardTestLib"],
+)

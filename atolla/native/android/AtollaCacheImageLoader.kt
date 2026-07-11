@@ -21,6 +21,8 @@ import com.snap.valdi.utils.ValdiImageLoadOptions
 import com.snap.valdi.utils.ValdiImageLoader
 import com.snap.valdi.utils.ValdiImageWithBitmap
 import com.snap.valdi.utils.ValdiImageWithContent
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
@@ -74,6 +76,11 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			.protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
 			.connectTimeout(10, TimeUnit.SECONDS)
 			.readTimeout(30, TimeUnit.SECONDS)
+			.build()
+
+		private val redirectlessHttpClient = httpClient.newBuilder()
+			.followRedirects(false)
+			.followSslRedirects(false)
 			.build()
 
 		private enum class LoadPriority(val value: Int) {
@@ -726,19 +733,46 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 	}
 
-	private fun fetchBytes(url: String): ByteArray {
-		val token = AtollaCacheImageLoader.authToken
-		val builder = Request.Builder().url(url)
-		if (!token.isNullOrBlank()) {
-			builder.addHeader("X-Emby-Token", token)
-			builder.addHeader("Authorization", "MediaBrowser Token=\"$token\"")
+	private val maxImageRedirects = 5
+
+	// keep the token only while a redirect stays on the server's host and doesn't drop to http;
+	// anything off-host or downgraded to cleartext must not see it (same rule as the track download)
+	private fun redirectKeepsAuth(server: HttpUrl, target: HttpUrl): Boolean {
+		if (server.host != target.host) {
+			return false
 		}
-		val request = builder.build()
-		return httpClient.newCall(request).execute().use { response ->
-			if (!response.isSuccessful) {
-				throw IOException("HTTP ${response.code}")
+		return !(server.scheme == "https" && target.scheme == "http")
+	}
+
+	private fun fetchBytes(url: String): ByteArray {
+		val serverOrigin = url.toHttpUrlOrNull() ?: throw IOException("Invalid image url: $url")
+		var current = serverOrigin
+		var redirectCount = 0
+		while (true) {
+			val token = AtollaCacheImageLoader.authToken
+			val builder = Request.Builder().url(current)
+			if (!token.isNullOrBlank() && redirectKeepsAuth(serverOrigin, current)) {
+				builder.addHeader("X-Emby-Token", token)
+				builder.addHeader("Authorization", "MediaBrowser Token=\"$token\"")
 			}
-			response.body?.bytes() ?: throw IOException("Empty body")
+			val response = redirectlessHttpClient.newCall(builder.build()).execute()
+			if (response.isRedirect && redirectCount < maxImageRedirects) {
+				val location = response.header("Location")
+				val next = location?.let { current.resolve(it) }
+				response.close()
+				if (next == null) {
+					throw IOException("Image redirect missing Location")
+				}
+				current = next
+				redirectCount++
+				continue
+			}
+			return response.use {
+				if (!it.isSuccessful) {
+					throw IOException("HTTP ${it.code}")
+				}
+				it.body?.bytes() ?: throw IOException("Empty body")
+			}
 		}
 	}
 

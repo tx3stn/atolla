@@ -33,6 +33,7 @@ import com.snap.modules.atolla.TrackPlaybackNativeModuleFactory
 import com.snap.valdi.modules.RegisterValdiModule
 import java.io.File
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.ArrayDeque
@@ -1033,6 +1034,56 @@ object AtollaGaplessAudioEngine {
 	}
 }
 
+private const val maxDownloadRedirects = 5
+
+// the token belongs to the configured server, so only carry it on redirects that stay on that
+// host. a hop to a different host (a CDN, or a hostile redirect) or a downgrade to http would
+// leak it, so those go out unauthenticated instead
+private fun redirectKeepsAuth(server: URL, target: URL): Boolean {
+	if (!server.host.equals(target.host, ignoreCase = true)) {
+		return false
+	}
+	val isDowngrade = server.protocol.equals("https", ignoreCase = true) &&
+		target.protocol.equals("http", ignoreCase = true)
+	return !isDowngrade
+}
+
+private fun openAuthedConnectionFollowingRedirects(
+	rawUrl: String,
+	authToken: String?,
+	accept: String,
+): HttpURLConnection {
+	val token = authToken
+	val serverOrigin = URL(rawUrl)
+	var current = serverOrigin
+	var redirectCount = 0
+	while (true) {
+		val connection = (current.openConnection() as HttpURLConnection).apply {
+			connectTimeout = 10_000
+			readTimeout = 20_000
+			instanceFollowRedirects = false
+			requestMethod = "GET"
+			setRequestProperty("Accept", accept)
+			if (token != null && token.isNotBlank() && redirectKeepsAuth(serverOrigin, current)) {
+				setRequestProperty("X-Emby-Token", token)
+				setRequestProperty("Authorization", "MediaBrowser Token=\"$token\"")
+			}
+		}
+		val status = connection.responseCode
+		if (status in 300..399 && redirectCount < maxDownloadRedirects) {
+			val location = connection.getHeaderField("Location")
+			connection.disconnect()
+			if (location.isNullOrBlank()) {
+				throw IOException("Download redirect missing Location header")
+			}
+			current = URL(current, location)
+			redirectCount++
+			continue
+		}
+		return connection
+	}
+}
+
 object AtollaTrackPlaybackNativeCache {
 	private const val tag = "AtollaTrackCache"
 	private const val cacheFolder = "atolla-track-cache"
@@ -1079,17 +1130,7 @@ object AtollaTrackPlaybackNativeCache {
 		// download without holding the object lock so getCachedTrackFileUrl and other reads
 		// aren't blocked during slow network I/O
 		return try {
-			val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-				connectTimeout = 10_000
-				readTimeout = 20_000
-				instanceFollowRedirects = true
-				requestMethod = "GET"
-				setRequestProperty("Accept", "audio/*,*/*")
-				if (authToken.isNotBlank()) {
-					setRequestProperty("X-Emby-Token", authToken)
-					setRequestProperty("Authorization", "MediaBrowser Token=\"$authToken\"")
-				}
-			}
+			val connection = openAuthedConnectionFollowingRedirects(url, authToken, "audio/*,*/*")
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {
 				Log.e(tag, "Track download failed trackId=$trackId status=$status")
@@ -1376,17 +1417,7 @@ object AtollaDownloadedTrackNativeCache {
 		}
 
 		return try {
-			val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-				connectTimeout = 10_000
-				readTimeout = 20_000
-				instanceFollowRedirects = true
-				requestMethod = "GET"
-				setRequestProperty("Accept", "audio/*,*/*")
-				if (authToken.isNotBlank()) {
-					setRequestProperty("X-Emby-Token", authToken)
-					setRequestProperty("Authorization", "MediaBrowser Token=\"$authToken\"")
-				}
-			}
+			val connection = openAuthedConnectionFollowingRedirects(url, authToken, "audio/*,*/*")
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {
 				Log.e(tag, "Track download failed trackId=$trackId status=$status")
@@ -2197,18 +2228,7 @@ object AtollaTrackPlaybackMediaSession {
 				return decodeBitmapBytesWithSampling(file.readBytes())
 			}
 
-			val connection = (URL(artworkUrl).openConnection() as HttpURLConnection).apply {
-				connectTimeout = 10_000
-				readTimeout = 20_000
-				instanceFollowRedirects = true
-				requestMethod = "GET"
-				setRequestProperty("Accept", "image/*,*/*")
-				val token = authToken
-				if (!token.isNullOrBlank()) {
-					setRequestProperty("X-Emby-Token", token)
-					setRequestProperty("Authorization", "MediaBrowser Token=\"$token\"")
-				}
-			}
+			val connection = openAuthedConnectionFollowingRedirects(artworkUrl, authToken, "image/*,*/*")
 
 			val status = connection.responseCode
 			if (status < 200 || status >= 300) {

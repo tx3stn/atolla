@@ -11,6 +11,7 @@
 #import "atolla/native/ios/blur_ios_bridge.h"
 #import "atolla/native/ios/AtollaImageFallback.h"
 #import "atolla/native/ios/AtollaDiskCacheStats.h"
+#import "atolla/native/ios/AtollaAuthRedirectGuard.h"
 
 // MARK: - Request Payload
 
@@ -353,7 +354,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
             }
             return [[AtollaNoopCancelable alloc] init];
         }
-        NSURLSessionDataTask *task = [NSURLSession.sharedSession
+        NSURLSessionDataTask *task = [[AtollaAuthRedirectGuard sharedDefaultSession]
             dataTaskWithRequest:request
             completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
                 if (!data) { completion(nil, err); return; }
@@ -380,7 +381,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         NSData *thumbData = [_cache readForKey:thumbKey];
         if (thumbData) {
             completion(thumbData, nil);
-            NSURLSessionDataTask *bgTask = [NSURLSession.sharedSession
+            NSURLSessionDataTask *bgTask = [[AtollaAuthRedirectGuard sharedDefaultSession]
                 dataTaskWithRequest:request
                 completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
                     if (!data) { return; }
@@ -397,7 +398,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         }
     }
 
-    NSURLSessionDataTask *task = [NSURLSession.sharedSession
+    NSURLSessionDataTask *task = [[AtollaAuthRedirectGuard sharedDefaultSession]
         dataTaskWithRequest:request
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
             if (!data) { completion(nil, err); return; }
@@ -464,7 +465,7 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         return;
     }
     NSMutableURLRequest *request = [self imageRequestForURL:sourceURL];
-    NSURLSessionDataTask *task = [NSURLSession.sharedSession
+    NSURLSessionDataTask *task = [[AtollaAuthRedirectGuard sharedDefaultSession]
         dataTaskWithRequest:request
         completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
             if (!data) return;
