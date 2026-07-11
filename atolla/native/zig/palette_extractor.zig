@@ -2,7 +2,9 @@
 // strategy: 4-bit RGB quantisation (4096 bins, 64 KB on stack); colours are scored and compared in
 // perceptual OKLab/OKLCh. surface = the dominant (most-populous) colour; accent = the most chromatic
 // colour distinct from the surface, falling back to the most-vibrant colour on single-hue covers;
-// text colours are derived from the surface with a contrast floor.
+// text colours are derived from the surface with a contrast floor. a near-white dominant that only
+// narrowly out-populates a tied or larger chromatic hue family is swapped. the chromatic colour
+// becomes the surface and the near-white becomes the accent.
 //
 // atolla_extract_palette accepts pre-decoded RGBA pixels (used by platform bridges).
 
@@ -28,6 +30,15 @@ const DOMINANT_BITS = 8 - DOMINANT_SHIFT;
 const DOMINANT_BINS: usize = 1 << (DOMINANT_BITS * 3); // 512
 
 const TEXT_CONTRAST_FLOOR = 0.3;
+
+// a flat near-white region (e.g. a bright element over a colour field) can narrowly
+// out-populate a strong chromatic colour and steal the surface, reading washed-out.
+// when the dominant is near-white and a chromatic hue family is tied-or-larger they
+// swap. the chromatic colour becomes the surface, the near-white becomes the accent.
+const NEAR_WHITE_L = 0.90;
+const NEAR_WHITE_C = 0.03;
+const SWAP_HUE_WINDOW = 40.0;
+const SWAP_RATIO = 0.9;
 
 const Bin = struct {
     count: u32,
@@ -188,6 +199,11 @@ fn enrichSurface(rgb: Rgb) Rgb {
     return hslToRgb(hsl.h, hsl.s, hsl.l - 0.08);
 }
 
+fn isNearWhite(rgb: Rgb) bool {
+    const oklch = rgbToOklch(rgb.r, rgb.g, rgb.b);
+    return oklch.l >= NEAR_WHITE_L and oklch.c <= NEAR_WHITE_C;
+}
+
 fn legibleText(surface: Rgb) Rgb {
     const hsl = rgbToHsl(surface.r, surface.g, surface.b);
     const surfaceL = rgbToOklch(surface.r, surface.g, surface.b).l;
@@ -308,13 +324,59 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
         }
     }
 
-    const surfaceRgb = enrichSurface(dominantRgb);
+    var surfaceRgb = enrichSurface(dominantRgb);
+    var forcedAccent: ?Rgb = null;
+    if (isNearWhite(dominantRgb)) {
+        var anchorRgb: Rgb = undefined;
+        var anchorCount: u32 = 0;
+        var anchorHue: f64 = 0.0;
+        for (coarse) |bin| {
+            if (bin.count == 0) continue;
+            const r: u8 = @intCast(bin.sum_r / bin.count);
+            const g: u8 = @intCast(bin.sum_g / bin.count);
+            const b: u8 = @intCast(bin.sum_b / bin.count);
+            const lab = rgbToOklch(r, g, b);
+            if (lab.l <= 0.20 or lab.l >= 0.92 or lab.c < 0.05) continue;
+            if (bin.count > anchorCount) {
+                anchorCount = bin.count;
+                anchorRgb = .{ .r = r, .g = g, .b = b };
+                anchorHue = lab.h;
+            }
+        }
+        if (anchorCount > 0) {
+            var chromaticFamilyMass: u64 = 0;
+            var nearWhiteMass: u64 = 0;
+            for (coarse) |bin| {
+                if (bin.count == 0) continue;
+                const r: u8 = @intCast(bin.sum_r / bin.count);
+                const g: u8 = @intCast(bin.sum_g / bin.count);
+                const b: u8 = @intCast(bin.sum_b / bin.count);
+                if (isNearWhite(.{ .r = r, .g = g, .b = b })) {
+                    nearWhiteMass +|= bin.count;
+                    continue;
+                }
+                const lab = rgbToOklch(r, g, b);
+                if (lab.l <= 0.20 or lab.l >= 0.92 or lab.c < 0.05) continue;
+                if (normalizedHueDistance(lab.h, anchorHue) * 180.0 <= SWAP_HUE_WINDOW) {
+                    chromaticFamilyMass +|= bin.count;
+                }
+            }
+            const threshold = @as(f64, @floatFromInt(nearWhiteMass)) * SWAP_RATIO;
+            if (@as(f64, @floatFromInt(chromaticFamilyMass)) >= threshold) {
+                surfaceRgb = enrichSurface(anchorRgb);
+                forcedAccent = dominantRgb;
+            }
+        }
+    }
     const surfaceLab = rgbToOklch(surfaceRgb.r, surfaceRgb.g, surfaceRgb.b);
 
     var accentHex: [8]u8 = fallbackHex;
     var bestAccentScore: f64 = -std.math.inf(f64);
 
-    if (totalPop > 0) {
+    if (forcedAccent) |nw| {
+        // the near-white sampled from the art, used as-is (enhanceAccent would muddy it).
+        writeHex(&accentHex, nw.r, nw.g, nw.b);
+    } else if (totalPop > 0) {
         for (coarse) |bin| {
             if (bin.count == 0) continue;
             const r: u8 = @intCast(bin.sum_r / bin.count);
@@ -556,6 +618,56 @@ test "atolla_extract_palette: surface tracks the dominant colour, not the vibran
     const surface = parseHex(palette.surface);
     try std.testing.expect(accent.r > accent.b);
     try std.testing.expect(surface.b > surface.r);
+}
+
+test "atolla_extract_palette: near-white dominant swaps surface to a tied chromatic colour" {
+    // 11 near-white pixels vs 10 orange: white is the single-largest mass, but the chromatic
+    // family is within SWAP_RATIO of it, so the surface becomes orange and the near-white
+    // becomes the accent (sampled as-is).
+    var pixels: [21 * 4]u8 = undefined;
+    for (0..11) |i| {
+        pixels[i * 4 + 0] = 254;
+        pixels[i * 4 + 1] = 254;
+        pixels[i * 4 + 2] = 253;
+        pixels[i * 4 + 3] = 255;
+    }
+    for (11..21) |i| {
+        pixels[i * 4 + 0] = 217;
+        pixels[i * 4 + 1] = 136;
+        pixels[i * 4 + 2] = 51;
+        pixels[i * 4 + 3] = 255;
+    }
+    var palette: Palette = std.mem.zeroes(Palette);
+    _ = atolla_extract_palette(&pixels, 3, 7, &palette);
+    const surface = parseHex(palette.surface);
+    const accent = parseHex(palette.accent);
+    try std.testing.expect(!isNearWhite(surface));
+    try std.testing.expect(surface.r > surface.b);
+    try std.testing.expect(isNearWhite(accent));
+}
+
+test "atolla_extract_palette: mostly-white cover keeps the near-white surface" {
+    // 18 near-white pixels vs 2 orange: the chromatic family is far below SWAP_RATIO, so no
+    // swap happens — the surface stays near-white and the orange is the accent.
+    var pixels: [20 * 4]u8 = undefined;
+    for (0..18) |i| {
+        pixels[i * 4 + 0] = 254;
+        pixels[i * 4 + 1] = 254;
+        pixels[i * 4 + 2] = 253;
+        pixels[i * 4 + 3] = 255;
+    }
+    for (18..20) |i| {
+        pixels[i * 4 + 0] = 217;
+        pixels[i * 4 + 1] = 136;
+        pixels[i * 4 + 2] = 51;
+        pixels[i * 4 + 3] = 255;
+    }
+    var palette: Palette = std.mem.zeroes(Palette);
+    _ = atolla_extract_palette(&pixels, 4, 5, &palette);
+    const surface = parseHex(palette.surface);
+    const accent = parseHex(palette.accent);
+    try std.testing.expect(isNearWhite(surface));
+    try std.testing.expect(accent.r > accent.b);
 }
 
 test "atolla_extract_palette: on_surface clears the contrast floor on a mid-tone surface" {
