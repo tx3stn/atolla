@@ -60,3 +60,19 @@ macos_unit_test(
     minimum_os_version = "12.0",
     deps = [":AtollaAuthRedirectGuardTestLib"],
 )
+
+objc_library(
+    name = "AtollaBoundedImageDecodeTestLib",
+    testonly = True,
+    srcs = ["AtollaBoundedImageDecodeTest.m"],
+    copts = ["-I."],
+    sdk_frameworks = ["ImageIO"],
+    deps = ["//atolla/native:atolla_bounded_image_decode_ios"],
+)
+
+macos_unit_test(
+    name = "AtollaBoundedImageDecodeTest",
+    size = "small",
+    minimum_os_version = "12.0",
+    deps = [":AtollaBoundedImageDecodeTestLib"],
+)

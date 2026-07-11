@@ -1,4 +1,5 @@
 #import "blur_ios_bridge.h"
+#import "atolla/native/ios/AtollaBoundedImageDecode.h"
 #import <CoreGraphics/CoreGraphics.h>
 #import <UIKit/UIKit.h>
 #include <stdlib.h>
@@ -9,15 +10,7 @@ static const uint32_t kBlurOutputSize = 200;
 @implementation AtollaBlurProcessor
 
 + (nullable NSData *)blurImageData:(nonnull NSData *)imageData {
-    CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)imageData);
-    if (!provider) return nil;
-
-    // try PNG first, then JPEG, matching the palette bridge convention
-    CGImageRef image = CGImageCreateWithPNGDataProvider(provider, NULL, false, kCGRenderingIntentDefault);
-    if (!image) {
-        image = CGImageCreateWithJPEGDataProvider(provider, NULL, false, kCGRenderingIntentDefault);
-    }
-    CGDataProviderRelease(provider);
+    CGImageRef image = AtollaCreateBoundedCGImage(imageData, ATOLLA_PROCESSING_MAX_PIXEL_SIZE);
     if (!image) return nil;
 
     const size_t width = CGImageGetWidth(image);

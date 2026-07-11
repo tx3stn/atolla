@@ -69,6 +69,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		private const val DEFAULT_PLAYLIST_BITMAP_MAX_DIMENSION = 384
 		private const val DEFAULT_LOGO_BITMAP_MAX_DIMENSION = 512
 		private const val DEFAULT_BITMAP_MAX_DIMENSION = 768
+		private const val PROCESSING_DECODE_MAX_DIMENSION = 512
 		@Volatile var diskCacheMaxBytes = 200L * 1024 * 1024
 		private const val DISK_CACHE_TTL_MS = 30L * 24 * 3600 * 1000
 
@@ -271,7 +272,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	}
 
 	private fun extractPaletteFromBytes(bytes: ByteArray, logKey: String): String? {
-		val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: run {
+		val bitmap = decodeSampledBitmap(bytes, PROCESSING_DECODE_MAX_DIMENSION) ?: run {
 			Log.e(tag, "Failed to decode image for palette extraction: $logKey")
 			return null
 		}
@@ -1090,7 +1091,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 
 	private fun generateBlurredBytes(originalBytes: ByteArray): ByteArray? {
 		return try {
-			val original = BitmapFactory.decodeByteArray(originalBytes, 0, originalBytes.size)
+			val original = decodeSampledBitmap(originalBytes, PROCESSING_DECODE_MAX_DIMENSION)
 				?: return null
 			val w = original.width
 			val h = original.height

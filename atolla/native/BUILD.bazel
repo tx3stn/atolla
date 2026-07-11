@@ -35,6 +35,17 @@ filegroup(
     }),
 )
 
+objc_library(
+    name = "atolla_bounded_image_decode_ios",
+    srcs = ["ios/AtollaBoundedImageDecode.m"],
+    hdrs = ["ios/AtollaBoundedImageDecode.h"],
+    copts = ["-I."],
+    sdk_frameworks = [
+        "CoreGraphics",
+        "ImageIO",
+    ],
+)
+
 swift_interop_hint(
     name = "palette_ios_bridge_swift_interop",
     module_map = "ios/palette_ios_bridge.modulemap",
@@ -46,11 +57,15 @@ objc_library(
     srcs = ["ios/palette_ios_bridge.m"],
     hdrs = ["ios/palette_ios_bridge.h"],
     aspect_hints = [":palette_ios_bridge_swift_interop"],
+    copts = ["-I."],
     sdk_frameworks = [
         "CoreGraphics",
         "UIKit",
     ],
-    deps = ["//atolla/native/zig:palette_algorithm"],
+    deps = [
+        ":atolla_bounded_image_decode_ios",
+        "//atolla/native/zig:palette_algorithm",
+    ],
 )
 
 swift_interop_hint(
@@ -64,11 +79,15 @@ objc_library(
     srcs = ["ios/blur_ios_bridge.m"],
     hdrs = ["ios/blur_ios_bridge.h"],
     aspect_hints = [":blur_ios_bridge_swift_interop"],
+    copts = ["-I."],
     sdk_frameworks = [
         "CoreGraphics",
         "UIKit",
     ],
-    deps = ["//atolla/native/zig:blur_algorithm"],
+    deps = [
+        ":atolla_bounded_image_decode_ios",
+        "//atolla/native/zig:blur_algorithm",
+    ],
 )
 
 swift_interop_hint(
