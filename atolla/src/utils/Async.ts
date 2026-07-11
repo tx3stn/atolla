@@ -1,11 +1,13 @@
-import { DebugLogger } from '../services/DebugLogger';
+import { getLogger } from '../services/Logger';
+
+const log = getLogger('fireAndForget');
 
 // attach a logging .catch() to a detached promise so an async rejection can't escape
 // as an unhandled rejection (those tear down the whole app on RN-style runtimes). any
 // promise we deliberately don't await should go through here instead of a bare void
 export function fireAndForget(label: string, promise: Promise<unknown>): void {
 	void promise.catch((error: unknown) => {
-		DebugLogger.log('fireAndForget', label, {
+		log.warn(label, {
 			message: error instanceof Error ? error.message : String(error),
 		});
 	});

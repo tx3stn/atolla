@@ -109,8 +109,8 @@ objc_library(
 )
 
 objc_library(
-    name = "atolla_debug_logger_module_factory_ios",
-    srcs = ["ios/AtollaDebugLoggerNativeModuleFactory.m"],
+    name = "atolla_logger_module_factory_ios",
+    srcs = ["ios/AtollaLoggerNativeModuleFactory.m"],
     copts = ["-I."],
     deps = [
         "//atolla:atolla_api_objc",
@@ -233,7 +233,7 @@ kt_android_library(
     name = "atolla_cache_image_loader_android",
     srcs = [
         "android/AtollaCacheImageLoader.kt",
-        "android/AtollaDebugLoggerNativeModuleFactory.kt",
+        "android/AtollaLoggerNativeModuleFactory.kt",
         "android/AtollaDiskCacheStats.kt",
         "android/AtollaHapticsBootstrap.kt",
         "android/AtollaHapticsBootstrapModuleFactory.kt",
@@ -249,7 +249,7 @@ kt_android_library(
         "android/AtollaWaveformWorker.kt",
     ],
     assets = [
-        "android/assets/valdi_native_modules/atolla.native.android.AtollaDebugLoggerNativeModuleFactory",
+        "android/assets/valdi_native_modules/atolla.native.android.AtollaLoggerNativeModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaHapticsBootstrapModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaImageLoaderBootstrapModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaStatusBarNativeModuleFactory",

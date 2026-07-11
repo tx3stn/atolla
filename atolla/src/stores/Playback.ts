@@ -1,6 +1,8 @@
 import type { Album } from '../models/Album';
 import { isTrack, sanitizeTracks, type Track } from '../models/Track';
-import { DebugLogger } from '../services/DebugLogger';
+import { getLogger } from '../services/Logger';
+
+const log = getLogger('PlaybackStore');
 
 type PlaybackListener = () => void;
 
@@ -83,7 +85,7 @@ export class PlaybackStore {
 				this.queueStore !== store ||
 				this.queueRestoreSuperseded
 			) {
-				DebugLogger.log('PlaybackStore', 'queue restore aborted', {
+				log.debug('queue restore aborted', {
 					storeMismatch: this.queueStore !== store,
 					superseded: this.queueRestoreSuperseded,
 					tokenMismatch: token !== this.queueStoreLoadToken,
@@ -92,13 +94,13 @@ export class PlaybackStore {
 			}
 
 			if (activeMarker === 'false') {
-				DebugLogger.log('PlaybackStore', 'queue restore skipped: inactive marker set');
+				log.debug('queue restore skipped: inactive marker set');
 				return;
 			}
 
 			const parsed = JSON.parse(raw);
 			if (!isPersistedPlaybackQueue(parsed)) {
-				DebugLogger.log('PlaybackStore', 'queue restore: invalid persisted data');
+				log.warn('queue restore: invalid persisted data');
 				return;
 			}
 
@@ -108,7 +110,7 @@ export class PlaybackStore {
 			this._artistLogoUrls = parsed.tracks.map((_, index) => parsed.artistLogoUrls[index] ?? null);
 
 			this.isPlaying = isPlayingFn?.() === true;
-			DebugLogger.log('PlaybackStore', 'queue restore applied', {
+			log.debug('queue restore applied', {
 				isPlaying: this.isPlaying,
 				progressSeconds: parsed.progressSeconds,
 				trackCount: parsed.tracks.length,
@@ -178,7 +180,7 @@ export class PlaybackStore {
 	}
 
 	play(tracks: Array<Track>, album: Album, startIndex = 0): void {
-		DebugLogger.log('PlaybackStore', 'play', {
+		log.debug('play', {
 			albumId: album?.id,
 			startIndex,
 			trackCount: tracks.length,
@@ -201,7 +203,7 @@ export class PlaybackStore {
 	}
 
 	jumpToIndex(index: number): void {
-		DebugLogger.log('PlaybackStore', 'jumpToIndex', { index, trackCount: this.tracks.length });
+		log.debug('jumpToIndex', { index, trackCount: this.tracks.length });
 		this.queueRestoreSuperseded = true;
 		this.allowBackwardRebuild = true;
 		const clamped = Math.max(0, Math.min(this.tracks.length - 1, index));
@@ -366,7 +368,7 @@ export class PlaybackStore {
 	}
 
 	playPause(): void {
-		DebugLogger.log('PlaybackStore', 'playPause', {
+		log.debug('playPause', {
 			trackId: this.track?.id,
 			wasPlaying: this.isPlaying,
 		});

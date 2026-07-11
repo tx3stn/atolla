@@ -7,8 +7,8 @@ import type { CardDetailItem } from '../../models/App';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
-import { DebugLogger } from '../../services/DebugLogger';
 import type { ImageCache } from '../../services/ImageCache';
+import { getLogger } from '../../services/Logger';
 import { createOnThisDayCardDetails } from '../../services/OnThisDay';
 import type { OnThisDayService } from '../../services/OnThisDayService';
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
@@ -30,6 +30,8 @@ import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { AddToPlaylistView } from './AddToPlaylistView';
+
+const log = getLogger('home');
 
 export interface HomeViewModel {
 	connectionMode: ConnectionMode;
@@ -81,7 +83,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		const recentlyAddedCards = this.createRecentlyAddedCards();
 		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
 
-		DebugLogger.log('home', 'render', {
+		log.debug('render', {
 			onThisDay: onThisDayCards.length,
 			recentlyAdded: recentlyAddedCards.length,
 			recentlyPlayed: recentlyPlayedTracks.length,
@@ -157,7 +159,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			this.viewModel.connectionMode !== prevViewModel.connectionMode ||
 			servicesBecameAvailable
 		) {
-			DebugLogger.log('home', 'transport/mode changed, reloading', {
+			log.debug('transport/mode changed, reloading', {
 				connectionMode: this.viewModel.connectionMode,
 				onThisDay: this.state.onThisDayAlbums.length,
 			});
@@ -205,7 +207,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					return;
 				}
 				const cached = service.getAlbumsForDate(new Date());
-				DebugLogger.log('home', 'on-this-day from cache', { count: cached.length });
+				log.debug('on-this-day from cache', { count: cached.length });
 				this.setState({ onThisDayAlbums: cached });
 
 				// offline only has downloaded albums, so keep the cached snapshot
@@ -217,7 +219,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					if (this.isDestroyed() || generation !== this.loadGeneration) {
 						return;
 					}
-					DebugLogger.log('home', 'on-this-day refreshed', summary);
+					log.debug('on-this-day refreshed', summary);
 					this.setState({ onThisDayAlbums: service.getAlbumsForDate(new Date()) });
 				});
 			})

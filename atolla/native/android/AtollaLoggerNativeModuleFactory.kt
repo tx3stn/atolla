@@ -5,8 +5,8 @@ import android.net.Uri
 import android.os.Environment
 import android.util.Log
 import androidx.core.content.FileProvider
-import com.snap.modules.atolla.DebugLoggerNativeModule
-import com.snap.modules.atolla.DebugLoggerNativeModuleFactory
+import com.snap.modules.atolla.LoggerNativeModule
+import com.snap.modules.atolla.LoggerNativeModuleFactory
 import com.snap.valdi.modules.RegisterValdiModule
 import java.io.File
 import java.text.SimpleDateFormat
@@ -14,23 +14,23 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-private const val TAG = "AtollaDebugLogger"
+private const val TAG = "AtollaLogger"
 private const val LOG_FILE_NAME = "atolla-debug.log"
 private const val MAX_LOG_BYTES = 2 * 1024 * 1024L
 
 @RegisterValdiModule
-class AtollaDebugLoggerNativeModuleFactory : DebugLoggerNativeModuleFactory() {
+class AtollaLoggerNativeModuleFactory : LoggerNativeModuleFactory() {
 
     private var crashHandlerInstalled = false
 
-    override fun onLoadModule(): DebugLoggerNativeModule {
+    override fun onLoadModule(): LoggerNativeModule {
         installCrashHandler()
-        return object : DebugLoggerNativeModule {
-            override fun getAtollaDebugLogFilePath(): String {
+        return object : LoggerNativeModule {
+            override fun getAtollaLogFilePath(): String {
                 return resolveLogFile()?.absolutePath ?: ""
             }
 
-            override fun writeAtollaDebugLog(entry: String) {
+            override fun writeAtollaLog(entry: String) {
                 val file = resolveLogFile() ?: return
                 try {
                     if (file.length() > MAX_LOG_BYTES) {
@@ -42,7 +42,7 @@ class AtollaDebugLoggerNativeModuleFactory : DebugLoggerNativeModuleFactory() {
                 }
             }
 
-            override fun clearAtollaDebugLog() {
+            override fun clearAtollaLog() {
                 try {
                     resolveLogFile()?.writeText("")
                 } catch (e: Throwable) {
@@ -50,7 +50,7 @@ class AtollaDebugLoggerNativeModuleFactory : DebugLoggerNativeModuleFactory() {
                 }
             }
 
-            override fun exportAtollaDebugLog(): String {
+            override fun exportAtollaLog(): String {
                 val src = resolveLogFile() ?: return ""
                 if (!src.exists()) return ""
                 return try {
@@ -67,7 +67,7 @@ class AtollaDebugLoggerNativeModuleFactory : DebugLoggerNativeModuleFactory() {
                 }
             }
 
-            override fun shareAtollaDebugLog() {
+            override fun shareAtollaLog() {
                 val src = resolveLogFile() ?: return
                 if (!src.exists()) return
                 try {

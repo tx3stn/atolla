@@ -26,7 +26,7 @@ valdi_module(
         ".*\\.test\\.tsx$",
     ],
     ios_deps = [
-        "//atolla/native:atolla_debug_logger_module_factory_ios",
+        "//atolla/native:atolla_logger_module_factory_ios",
         "//atolla/native:atolla_haptics_bootstrap_module_factory_ios",
         "//atolla/native:atolla_overlay_host_bootstrap_module_factory_ios",
         "//atolla/native:atolla_track_playback_module_factory_ios",

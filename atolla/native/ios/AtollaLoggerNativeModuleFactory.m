@@ -111,16 +111,16 @@ static void presentShareForPath(NSString *path) {
     });
 }
 
-@interface AtollaDebugLoggerNativeModuleImpl : NSObject <atollaDebugLoggerNativeModule>
+@interface AtollaLoggerNativeModuleImpl : NSObject <atollaLoggerNativeModule>
 @end
 
-@implementation AtollaDebugLoggerNativeModuleImpl
+@implementation AtollaLoggerNativeModuleImpl
 
-- (NSString * _Nonnull)getAtollaDebugLogFilePath {
+- (NSString * _Nonnull)getAtollaLogFilePath {
     return resolveLogFilePath();
 }
 
-- (void)writeAtollaDebugLogWithEntry:(NSString * _Nonnull)entry {
+- (void)writeAtollaLogWithEntry:(NSString * _Nonnull)entry {
     NSString *path = resolveLogFilePath();
     rotateLogIfNeeded(path);
     NSString *line = [entry stringByAppendingString:@"\n"];
@@ -137,12 +137,12 @@ static void presentShareForPath(NSString *path) {
     [handle closeFile];
 }
 
-- (void)clearAtollaDebugLog {
+- (void)clearAtollaLog {
     NSString *path = resolveLogFilePath();
     [@"" writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
 }
 
-- (NSString * _Nonnull)exportAtollaDebugLog {
+- (NSString * _Nonnull)exportAtollaLog {
     NSString *src = resolveLogFilePath();
     if (![[NSFileManager defaultManager] fileExistsAtPath:src]) return @"";
     NSArray *docDirs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
@@ -155,7 +155,7 @@ static void presentShareForPath(NSString *path) {
     return error ? @"" : dest;
 }
 
-- (void)shareAtollaDebugLog {
+- (void)shareAtollaLog {
     presentShareForPath(resolveLogFilePath());
 }
 
@@ -180,20 +180,20 @@ static void presentShareForPath(NSString *path) {
 
 // MARK: - Module Factory
 
-@interface AtollaDebugLoggerNativeModuleFactoryImpl : atollaDebugLoggerNativeModuleFactory
+@interface AtollaLoggerNativeModuleFactoryImpl : atollaLoggerNativeModuleFactory
 @end
 
-@implementation AtollaDebugLoggerNativeModuleFactoryImpl
+@implementation AtollaLoggerNativeModuleFactoryImpl
 
 VALDI_REGISTER_MODULE()
 
-- (id<atollaDebugLoggerNativeModule> _Nonnull)onLoadModule {
+- (id<atollaLoggerNativeModule> _Nonnull)onLoadModule {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         gPreviousUncaughtExceptionHandler = NSGetUncaughtExceptionHandler();
         NSSetUncaughtExceptionHandler(&atollaUncaughtExceptionHandler);
     });
-    return [[AtollaDebugLoggerNativeModuleImpl alloc] init];
+    return [[AtollaLoggerNativeModuleImpl alloc] init];
 }
 
 @end

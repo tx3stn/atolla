@@ -7,27 +7,26 @@ import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
 import { AuthedApp } from './AuthedApp';
-import {
-	clearAtollaDebugLog,
-	exportAtollaDebugLog,
-	exportAtollaTextFile,
-	getAtollaDebugLogFilePath,
-	shareAtollaDebugLog,
-	shareAtollaTextFile,
-	writeAtollaDebugLog,
-} from './DebugLoggerNative';
 import { ensureAtollaHapticsBootstrap } from './HapticsBootstrap';
 import {
 	ensureAtollaImageLoaderBootstrap,
 	setAtollaImageLoaderAuthToken,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
+import {
+	clearAtollaLog,
+	exportAtollaLog,
+	exportAtollaTextFile,
+	getAtollaLogFilePath,
+	shareAtollaLog,
+	shareAtollaTextFile,
+	writeAtollaLog,
+} from './LoggerNative';
 import { ensureAtollaOverlayHostBootstrap } from './OverlayHostBootstrap';
 import Strings from './Strings';
 import { appServices } from './services/AppServices';
 import { AssetCache } from './services/AssetCache';
 import { Connectivity } from './services/Connectivity';
-import { DebugLogger } from './services/DebugLogger';
 import {
 	DownloadNativeWorkerEntryPoint,
 	type IDownloadNativeWorker,
@@ -35,6 +34,7 @@ import {
 import { DownloadService } from './services/DownloadService';
 import { ImageCache } from './services/ImageCache';
 import { JellyfinAuthService } from './services/JellyfinAuthService';
+import { getLogger, Logger } from './services/Logger';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import { PlaylistCreateService } from './services/PlaylistCreateService';
 import { type PlaylistEditError, PlaylistEditService } from './services/PlaylistEditService';
@@ -69,6 +69,8 @@ import { fireAndForget } from './utils/Async';
 
 const BOOTSTRAP_TIMEOUT_MS = 5000;
 const MINIMUM_BOOT_SPLASH_MS = 750;
+
+const log = getLogger('app');
 
 interface AppState {
 	authErrorMessage: string | null;
@@ -218,14 +220,14 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			);
 		});
 		try {
-			DebugLogger.register({
-				clearLog: clearAtollaDebugLog,
-				exportLog: exportAtollaDebugLog,
+			Logger.register({
+				clearLog: clearAtollaLog,
+				exportLog: exportAtollaLog,
 				exportTextFile: exportAtollaTextFile,
-				getLogFilePath: getAtollaDebugLogFilePath,
-				shareLog: shareAtollaDebugLog,
+				getLogFilePath: getAtollaLogFilePath,
+				shareLog: shareAtollaLog,
 				shareTextFile: shareAtollaTextFile,
-				writeLog: writeAtollaDebugLog,
+				writeLog: writeAtollaLog,
 			});
 		} catch {
 			// native logger unavailable (e.g. desktop/test environment)
@@ -383,7 +385,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		if (this.preferences.language !== DEFAULT_LANGUAGE) {
 			overrideLocales(Strings, () => [new Locale(this.preferences.language, undefined)]);
 		}
-		DebugLogger.setEnabled(this.preferences.debugLoggingEnabled);
+		Logger.setEnabled(this.preferences.debugLoggingEnabled);
 	}
 
 	private buildHomeViewModel() {
@@ -509,7 +511,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			const handler = (raw: unknown): void => {
 				const error =
 					(raw as { error?: unknown })?.error ?? (raw as { message?: unknown })?.message ?? raw;
-				DebugLogger.log('crash', 'uncaught error', {
+				log.error('uncaught error', {
 					message: error instanceof Error ? error.message : String(error),
 					stack: error instanceof Error ? error.stack : undefined,
 				});
@@ -532,7 +534,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			};
 			const handler = (event: unknown): void => {
 				const reason = (event as { reason?: unknown })?.reason ?? event;
-				DebugLogger.log('async', 'swallowed async error', {
+				log.error('swallowed async error', {
 					message: reason instanceof Error ? reason.message : String(reason),
 				});
 				try {
@@ -563,7 +565,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			.fetchString('session_active')
 			.then((value) => {
 				if (value === '1') {
-					DebugLogger.log('crash', 'previous session ended without clean shutdown');
+					log.warn('previous session ended without clean shutdown');
 				}
 				return this.diagnosticsStore.storeString('session_active', '1');
 			})

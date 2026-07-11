@@ -1,5 +1,5 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { DebugLogger } from '../../services/DebugLogger';
+import { getLogger } from '../../services/Logger';
 import {
 	applyNativeAudioPlaybackEventAction,
 	normalizeNativeAudioPlaybackEventAction,
@@ -28,6 +28,8 @@ const STALL_TIMEOUT_MS = 5000;
 // full-file download at that instant starves it and causes a brief pause at the start
 // measuring played progress (not wall-clock) lets the stream build a cushion and holds off on stall
 const PLAYBACK_BUFFER_CUSHION_MS = 3000;
+
+const log = getLogger('NativeAudioPlayer');
 
 export interface NativeAudioPlayerViewModel {
 	isActive?: boolean;
@@ -131,7 +133,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 				return;
 			}
 			this.hasEverBoundSource = true;
-			DebugLogger.log('NativeAudioPlayer', 'source changed', {
+			log.debug('source changed', {
 				isPlaying: this.viewModel.playbackStore.isPlaying,
 				isReattach,
 				next: source,
@@ -179,7 +181,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 		const currentDurationMs = this.resolveCurrentTrackDurationMs() ?? 0;
 		const nextDurationMs = this.resolveNextTrackDurationMs() ?? 0;
 
-		DebugLogger.log('NativeAudioPlayer', 'configurePlayback', {
+		log.debug('configurePlayback', {
 			currentDurationMs,
 			currentTrackId,
 			hasNext: !!normalizedNext,
@@ -394,7 +396,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 			if (jumpedTrackId) {
 				// native moved outside the forward advance (e.g. the previous button); follow
 				// it. jumpToTrackId is idempotent for duplicate/stale events
-				DebugLogger.log('NativeAudioPlayer', 'event:jumped', { trackId: jumpedTrackId });
+				log.debug('event:jumped', { trackId: jumpedTrackId });
 				this.viewModel.playbackStore.jumpToTrackId(jumpedTrackId);
 				nativeAdvanced = true;
 				continue;
@@ -407,7 +409,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 					// carries the finished track, so reconcile against it directly.
 					// advancePastTrackId is idempotent for stale/duplicate completions, so
 					// buffered background events land on the correct track without step-counting
-					DebugLogger.log('NativeAudioPlayer', 'event:completed', {
+					log.debug('event:completed', {
 						finishedTrackId: completedEvent.finishedTrackId,
 					});
 					this.viewModel.playbackStore.advancePastTrackId(completedEvent.finishedTrackId);
@@ -418,7 +420,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 				const activeTrackId = this.viewModel.playbackStore.track?.id ?? '';
 				const activeSourceUrl = this.viewModel.playbackSourceUrl ?? '';
 				const completionToken = `${activeTrackId}|${activeSourceUrl}`;
-				DebugLogger.log('NativeAudioPlayer', 'event:completed', {
+				log.debug('event:completed', {
 					isDuplicate: completionToken === this.lastCompletedToken,
 					trackId: activeTrackId,
 				});
@@ -436,7 +438,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 			}
 
 			if (event.startsWith('error:')) {
-				DebugLogger.log('NativeAudioPlayer', 'event:error', {
+				log.error('event:error', {
 					error: event.slice('error:'.length),
 					trackId: this.viewModel.playbackStore.track?.id,
 				});
@@ -450,7 +452,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 
 			const nativeAction = normalizeNativeAudioPlaybackEventAction(event);
 			if (nativeAction !== '') {
-				DebugLogger.log('NativeAudioPlayer', `event:${nativeAction}-requested`, {
+				log.debug(`event:${nativeAction}-requested`, {
 					trackId: this.viewModel.playbackStore.track?.id,
 				});
 				applyNativeAudioPlaybackEventAction(this.viewModel.playbackStore, nativeAction);

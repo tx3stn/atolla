@@ -1,5 +1,7 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { DebugLogger } from '../../services/DebugLogger';
+import { getLogger } from '../../services/Logger';
+
+const log = getLogger('ErrorBoundary');
 
 export interface ErrorBoundaryViewModel {
 	// changing this clears a caught error and retries rendering: pass an id for the current content
@@ -17,7 +19,7 @@ export class ErrorBoundary extends StatefulComponent<ErrorBoundaryViewModel, Err
 	state: ErrorBoundaryState = { hasError: false };
 
 	onError(error: Error): void {
-		DebugLogger.log('ErrorBoundary', 'caught render error', {
+		log.error('caught render error', {
 			message: error?.message ?? String(error),
 		});
 		this.setState({ hasError: true });

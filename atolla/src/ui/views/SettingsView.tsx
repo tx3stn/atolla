@@ -17,9 +17,9 @@ import {
 } from '../../ImageLoaderBootstrap';
 import Strings from '../../Strings';
 import type { ArtworkPaletteService } from '../../services/ArtworkPaletteService';
-import { DebugLogger } from '../../services/DebugLogger';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ClearCacheSelection } from '../../services/ImageCache';
+import { Logger } from '../../services/Logger';
 import type { PlaybackOrchestrator } from '../../services/PlaybackOrchestrator';
 import type { SessionController } from '../../services/SessionController';
 import type { ToastService } from '../../services/ToastService';
@@ -392,7 +392,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 	};
 
 	private handleClearDebugLogPress = (): void => {
-		DebugLogger.clearLog();
+		Logger.clearLog();
 		this.viewModel.toastService.show(Strings.settingsDebugLogClearedToast());
 	};
 
@@ -422,7 +422,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 
 	private handleDebugLoggingToggle = (enabled: boolean): void => {
 		void this.viewModel.preferences.setDebugLoggingEnabled(enabled);
-		DebugLogger.setEnabled(enabled);
+		Logger.setEnabled(enabled);
 	};
 
 	private handleDeviceIdInputChange = (value: unknown): void => {
@@ -432,7 +432,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 	};
 
 	private handleExportDebugLogPress = (): void => {
-		const dest = DebugLogger.exportLog();
+		const dest = Logger.exportLog();
 		this.setState({ debugExportPath: dest || null });
 	};
 

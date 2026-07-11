@@ -2,6 +2,9 @@ import { AuthErrors } from '../errors/AuthErrors';
 import type { ErrorConst } from '../errors/Const';
 import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
 import { version } from '../version';
+import { getLogger } from './Logger';
+
+const log = getLogger('auth');
 
 interface QuickConnectResult {
 	Authenticated?: boolean;
@@ -555,7 +558,7 @@ export class JellyfinAuthService {
 
 	private rememberConnectionError(error: unknown, context?: string): void {
 		this.lastConnectionErrorDetail = extractErrorDetail(error);
-		console.warn('[auth] connection error', {
+		log.error('connection error', {
 			context,
 			detail: this.lastConnectionErrorDetail,
 		});

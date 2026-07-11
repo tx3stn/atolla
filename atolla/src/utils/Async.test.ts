@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { DebugLogger } from '../services/DebugLogger';
+import { Logger } from '../services/Logger';
 import { fireAndForget, retryResolve } from './Async';
 
 describe('fireAndForget', () => {
@@ -21,9 +21,9 @@ describe('fireAndForget', () => {
 		expect(ran).toBe(true);
 	});
 
-	it('logs the label via DebugLogger when logging is enabled', async () => {
+	it('logs the label via Logger when logging is enabled', async () => {
 		const writes: Array<string> = [];
-		DebugLogger.register({
+		Logger.register({
 			clearLog: () => {},
 			exportLog: () => '',
 			exportTextFile: () => '',
@@ -32,12 +32,12 @@ describe('fireAndForget', () => {
 			shareTextFile: () => {},
 			writeLog: (entry: string) => writes.push(entry),
 		});
-		DebugLogger.setEnabled(true);
+		Logger.setEnabled(true);
 
 		fireAndForget('label-x', Promise.reject(new Error('kaboom')));
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
-		DebugLogger.setEnabled(false);
+		Logger.setEnabled(false);
 		expect(writes.some((entry) => entry.includes('label-x'))).toBe(true);
 	});
 });
