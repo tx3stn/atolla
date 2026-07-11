@@ -106,8 +106,26 @@ function isImageCategory(value: string): value is ImageCategory {
 	);
 }
 
+interface ImageSizing {
+	maxHeight: number;
+	maxWidth: number;
+	quality: number;
+}
+
+const categorySizing: Record<ImageCategory, ImageSizing | null> = {
+	album_art: { maxHeight: 1280, maxWidth: 1280, quality: 90 },
+	album_art_blurred: { maxHeight: 1280, maxWidth: 1280, quality: 90 },
+	album_art_thumb: { maxHeight: 512, maxWidth: 512, quality: 85 },
+	artist_image: { maxHeight: 768, maxWidth: 768, quality: 85 },
+	artist_image_thumb: { maxHeight: 512, maxWidth: 512, quality: 85 },
+	artist_logo: null,
+	genre_art: { maxHeight: 512, maxWidth: 512, quality: 85 },
+	playlist_image: { maxHeight: 768, maxWidth: 768, quality: 85 },
+	playlist_image_thumb: { maxHeight: 512, maxWidth: 512, quality: 85 },
+};
+
 function rewriteUrlForCategory(url: string, category: ImageCategory): string {
-	const imageSizing = thumbSizingForCategory(category);
+	const imageSizing = categorySizing[category];
 	if (!imageSizing) {
 		return url;
 	}
@@ -139,17 +157,4 @@ function rewriteUrlForCategory(url: string, category: ImageCategory): string {
 	}
 
 	return parsed.toString();
-}
-
-function thumbSizingForCategory(
-	category: ImageCategory,
-): { maxHeight: number; maxWidth: number; quality: number } | null {
-	if (category === 'album_art_thumb' || category === 'playlist_image_thumb') {
-		return { maxHeight: 384, maxWidth: 384, quality: 85 };
-	}
-	if (category === 'artist_image_thumb') {
-		return { maxHeight: 512, maxWidth: 512, quality: 85 };
-	}
-
-	return null;
 }
