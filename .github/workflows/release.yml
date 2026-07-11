@@ -216,6 +216,40 @@ jobs:
         with:
           merge-multiple: true
           path: artifacts
+      # Re-sign the bazel-built APK (debug-signed by default) with the private release
+      # key so published builds have a stable, verifiable identity and a working
+      # in-place upgrade path. Signing happens here, in the minimal publish job, so the
+      # keystore secret never enters the heavy build-android runner or bazel's action
+      # cache. The keystore lives only as a base64 CI secret, is decoded to a temp file
+      # for this step, and is removed on exit; the job fails closed if the secret is
+      # absent rather than shipping a debug-signed release.
+      - name: sign apk
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$ANDROID_KEYSTORE_B64" ]; then
+            echo "ANDROID_KEYSTORE_B64 secret is not set — refusing to publish a debug-signed release." >&2
+            exit 1
+          fi
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          bt="$(ls -d "$sdk"/build-tools/* | sort -V | tail -1)"
+          echo "Using build-tools: $bt"
+          keystore="$(mktemp)"
+          trap 'rm -f "$keystore"' EXIT
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > "$keystore"
+          "$bt/zipalign" -p -f 4 artifacts/atolla_android.apk artifacts/atolla_android_aligned.apk
+          "$bt/apksigner" sign \
+            --ks "$keystore" \
+            --ks-pass env:ANDROID_KEYSTORE_PASSWORD \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --key-pass env:ANDROID_KEY_PASSWORD \
+            --out artifacts/atolla_android.apk \
+            artifacts/atolla_android_aligned.apk
+          rm -f artifacts/atolla_android_aligned.apk
+          "$bt/apksigner" verify --verbose --print-certs artifacts/atolla_android.apk
       - name: create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

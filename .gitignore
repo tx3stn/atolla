@@ -4,6 +4,8 @@ dist/
 build/
 *.log
 .env*
+*.jks
+*.keystore
 .DS_Store
 Thumbs.db
 *.tmp
