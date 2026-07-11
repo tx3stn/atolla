@@ -51,6 +51,12 @@ static NSMutableSet<NSString *> *sInProgressKeys;
     return error ? nil : dir;
 }
 
++ (void)applyFileProtection:(NSURL * _Nonnull)file {
+    [[NSFileManager defaultManager] setAttributes:@{NSFileProtectionKey : NSFileProtectionCompleteUntilFirstUserAuthentication}
+                                     ofItemAtPath:file.path
+                                            error:nil];
+}
+
 + (NSString * _Nonnull)safeTrackKey:(NSString * _Nonnull)trackId {
     NSString *trimmed = [trackId stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     if (trimmed.length == 0) return @"track";
@@ -251,6 +257,7 @@ static NSMutableSet<NSString *> *sInProgressKeys;
             [[NSFileManager defaultManager] removeItemAtURL:downloadedTmp error:nil];
         } else {
             [self touchFile:file];
+            [self applyFileProtection:file];
             [self pruneIfNeededInDir:dir];
             result = [@"file://" stringByAppendingString:file.path];
         }
@@ -363,7 +370,9 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
                                withIntermediateDirectories:YES
                                                 attributes:nil
                                                      error:&error];
-    return error ? nil : dir;
+    if (error) return nil;
+    [dir setResourceValue:@YES forKey:NSURLIsExcludedFromBackupKey error:nil];
+    return dir;
 }
 
 + (NSString * _Nonnull)safeKey:(NSString * _Nonnull)trackId {
@@ -423,6 +432,7 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
             [[NSFileManager defaultManager] removeItemAtURL:downloadedTmp error:nil];
         } else {
             [AtollaTrackCache touchFile:file];
+            [AtollaTrackCache applyFileProtection:file];
             result = [@"file://" stringByAppendingString:file.path];
         }
         [sInProgressDownloadedKeys removeObject:key];
