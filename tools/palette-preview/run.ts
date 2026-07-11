@@ -21,6 +21,7 @@ interface ManifestPalette {
 interface ManifestEntry {
 	artworkPath: string;
 	blurredPath: string;
+	collapsedOutPath: string;
 	height: number;
 	outPath: string;
 	palette: ManifestPalette;
@@ -36,7 +37,8 @@ const HEIGHT = 844;
 const THUMB_HEIGHT = 560;
 const SWATCH_WIDTH = 360;
 const GAP = 16;
-const COLUMNS = 3;
+const COLUMNS = 4;
+const COLLAPSED_CROP = { height: 126, left: 6, top: 42, width: 378 };
 const BG = { alpha: 1, b: 22, g: 15, r: 11 };
 
 const inputArgIndex = process.argv.indexOf('--input');
@@ -107,6 +109,10 @@ async function buildCard(entry: ManifestEntry): Promise<Buffer> {
 		.toBuffer({ resolveWithObject: true });
 	const swatch = await sharp(swatchSvg(entry.track.name, entry.palette)).png().toBuffer();
 	const surfaceWidth = surface.info.width;
+	const collapsed = await sharp(entry.collapsedOutPath)
+		.extract(COLLAPSED_CROP)
+		.resize({ width: surfaceWidth })
+		.toBuffer({ resolveWithObject: true });
 	const cardWidth = surfaceWidth + GAP + SWATCH_WIDTH;
 	return sharp({
 		create: { background: BG, channels: 4, height: THUMB_HEIGHT, width: cardWidth },
@@ -114,6 +120,11 @@ async function buildCard(entry: ManifestEntry): Promise<Buffer> {
 		.composite([
 			{ input: surface.data, left: 0, top: 0 },
 			{ input: swatch, left: surfaceWidth + GAP, top: 0 },
+			{
+				input: collapsed.data,
+				left: surfaceWidth + GAP,
+				top: THUMB_HEIGHT - collapsed.info.height,
+			},
 		])
 		.png()
 		.toBuffer();
@@ -223,6 +234,7 @@ async function main(): Promise<void> {
 		manifest.push({
 			artworkPath: srcPath,
 			blurredPath,
+			collapsedOutPath: resolve(outDir, `${name}-collapsed.png`),
 			height: HEIGHT,
 			outPath: resolve(outDir, `${name}.png`),
 			palette,

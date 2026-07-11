@@ -44,9 +44,9 @@
  <img src="https://github.com/user-attachments/assets/71a88b15-31f9-401e-b1f0-d482d6ce0674" alt="player-play-queue" width="49%" />
 </p>
 
-* Color palettes generated from album art.
-* Track waveform progress bar
-* Artist logo front and center
+* color palettes generated from album art.
+* track waveform progress bar
+* artist logo front and center
 
 ### home tab
 
@@ -55,10 +55,10 @@
  <img src="https://github.com/user-attachments/assets/afe71749-36f0-4830-b10c-b0b26ecb3c9f" alt="artist-2" width="49%" />
 </p>
 
-* Albums released on this day
-* Recently added
-* Recently played
-* Various mixes
+* albums released on this day
+* recently added
+* recently played
+* various mixes
 
 ### artist view
 
@@ -67,6 +67,9 @@
  <img src="https://github.com/user-attachments/assets/42d9f96e-a0f5-4cc3-8a21-d5f5ac5a0aef" alt="artist-2" width="49%" />
 </p>
 
+* artist most played tracks
+* genre pills that link to the genre view
+
 ### library & album view
 
 <p align="center">
@@ -74,7 +77,8 @@
  <img src="https://github.com/user-attachments/assets/51d60600-ca2e-4bc7-b224-b0483ae6861d" alt="artist-2" width="49%" />
 </p>
 
-* Floating player progress bar
+* compact player bar floats over all views
+* audio file quality badges on albums
 
 ### search & genre list
 
@@ -83,13 +87,14 @@
  <img src="https://github.com/user-attachments/assets/5fe69b87-4236-413b-bce6-a55079105a73" alt="artist-2" width="49%" />
 </p>
 
-* Search that works online and offline
-* Genre playlists that work online and offline
-* Genre pills on artists and albums online and offline
+* search that works online and offline
+* genre playlists that work online and offline
+* genre pills on artists and albums online and offline
 
 ## Installing
 
 You can download the relevant `.apk` and `.ipa` files from the releases section.
+More release options will be coming in the future.
 
 ### Android
 
@@ -105,7 +110,7 @@ Install via your sideloading method of choice.
 > It has been tested a lot in an emulator, but I don't have an iPhone, so can't test
 > it on device.
 > As such I can't guarantee it will work as well as the Android version which I have
-> been using daily for weeks.
+> been using daily for months.
 >
 > If you run into issues please raise them. If you can create a PR to fix the
 > issues and test it out on your own device, even better.

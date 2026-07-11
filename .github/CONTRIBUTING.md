@@ -28,3 +28,25 @@ Before pushing up your changes make sure you run `bun run check:full` to keep
 all the tests passing to make sure everything still works.
 This includes end to end tests so will take about 10 minutes to build and test
 everything.
+
+## Palette generation tweaks
+
+The player colors are dynamically generated, so if you find a cover that doesn't
+work right, or becomes illegible you can test changes to the color extraction
+logic that lives in [atolla/native/zig/palette_extractor.zig](../atolla/native/zig/palette_extractor.zig)
+with the `palette-preview` tool.
+
+1. Downlaod the album art from your Jellyfin server.
+2. Save the downloaded file to `tools/palette-preview/samples/`. I'd recommend you
+incllude serveral files here so you can check how your change impacts a variety
+of artwork, not just the one you are trying to fix.
+3. Run the preview tool:
+
+```bash
+bun run palette:preview
+```
+
+Open the generated image file to review the impact of the change.
+
+Include a link to the artwork you used to test the changes in your pull request,
+so that it can be tested along side the sample set used to tune the colors.

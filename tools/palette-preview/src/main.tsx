@@ -26,6 +26,8 @@ import { ArgumentsParser } from 'valdi_standalone/src/ArgumentsParser';
 import { getStandaloneRuntime } from 'valdi_standalone/src/ValdiStandalone';
 import type { Asset } from 'valdi_tsx/src/Asset';
 
+const COLLAPSED_RENDER_HEIGHT = 240;
+
 interface ManifestPalette {
 	accent: string;
 	muted_on_surface: string;
@@ -45,6 +47,7 @@ interface ManifestTrack {
 interface ManifestEntry {
 	artworkPath: string;
 	blurredPath?: string;
+	collapsedOutPath: string;
 	height: number;
 	outPath: string;
 	palette: ManifestPalette;
@@ -139,7 +142,12 @@ function buildViewModel(
 	};
 }
 
-async function renderExpandedSurface(entry: ManifestEntry): Promise<void> {
+async function renderSurface(
+	entry: ManifestEntry,
+	expanded: boolean,
+	outPath: string,
+	renderHeight: number = entry.height,
+): Promise<void> {
 	const artwork = makeAssetFromBytes(fs.readFileSync(entry.artworkPath) as ArrayBuffer);
 	const blurred = entry.blurredPath
 		? makeAssetFromBytes(fs.readFileSync(entry.blurredPath) as ArrayBuffer)
@@ -152,17 +160,20 @@ async function renderExpandedSurface(entry: ManifestEntry): Promise<void> {
 		context.render(() => {
 			<CapturingNowPlayingSurface {...viewModel} />;
 		});
-		await context.layout(entry.width, entry.height, false);
+		await context.layout(entry.width, renderHeight, false);
 
-		// drive the surface open. with animationsEnabled=false the open animation applies its
-		// end-state synchronously and settleExpanded() runs on the promise chain's microtasks, so a
-		// few microtask turns are enough to settle before we re-layout the expanded geometry.
-		(capturedSurface as unknown as { openSurface: () => void } | undefined)?.openSurface();
-		for (let i = 0; i < 5; i++) {
-			await Promise.resolve();
+		if (expanded) {
+			// drive the surface open. with animationsEnabled=false the open animation applies its
+			// end-state synchronously and settleExpanded() runs on the promise chain's microtasks, so a
+			// few microtask turns are enough to settle before we re-layout the expanded geometry.
+			(capturedSurface as unknown as { openSurface: () => void } | undefined)?.openSurface();
+			for (let i = 0; i < 5; i++) {
+				await Promise.resolve();
+			}
+
+			await context.layout(entry.width, renderHeight, false);
 		}
 
-		await context.layout(entry.width, entry.height, false);
 		await waitForIdle();
 		await context.onAllAssetsLoaded();
 
@@ -170,14 +181,14 @@ async function renderExpandedSurface(entry: ManifestEntry): Promise<void> {
 		const bitmap = createBitmap({
 			alphaType: BitmapAlphaType.Premul,
 			colorType: BitmapColorType.RGBA8888,
-			height: entry.height,
+			height: renderHeight,
 			rowBytes: entry.width * 4,
 			width: entry.width,
 		});
 		frame.rasterInto(bitmap, true);
 		const png = bitmap.encode(ImageEncoding.PNG, 1.0);
 
-		const dir = entry.outPath.substring(0, entry.outPath.lastIndexOf('/'));
+		const dir = outPath.substring(0, outPath.lastIndexOf('/'));
 		if (dir) {
 			try {
 				fs.createDirectorySync(dir, true);
@@ -185,7 +196,7 @@ async function renderExpandedSurface(entry: ManifestEntry): Promise<void> {
 				// directory already exists
 			}
 		}
-		fs.writeFileSync(entry.outPath, png);
+		fs.writeFileSync(outPath, png);
 
 		frame.dispose();
 		bitmap.dispose();
@@ -215,7 +226,8 @@ const keepAlive = beginKeepAlive();
 (async () => {
 	for (const entry of manifest) {
 		console.info(`Rendering ${entry.outPath} (${entry.width}x${entry.height})...`);
-		await renderExpandedSurface(entry);
+		await renderSurface(entry, true, entry.outPath);
+		await renderSurface(entry, false, entry.collapsedOutPath, COLLAPSED_RENDER_HEIGHT);
 	}
 })()
 	.then(() => {
