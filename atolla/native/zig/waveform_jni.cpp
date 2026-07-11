@@ -3,6 +3,8 @@
 #include <vector>
 #include "waveform_generator.h"
 
+static const jsize kMaxWaveformAmps = 1 << 20;
+
 // Called from AtollaWaveformWorker.kt with the raw per-column RMS amplitudes
 // accumulated during streaming decode. Zig smooths/normalises the amps and
 // returns the waveform outline as a start point followed by cubic Bézier
@@ -14,7 +16,7 @@ Java_com_tx3stn_atolla_AtollaWaveformWorker_nativeBuildWaveformPath(
     jfloatArray amps, jint width, jint height) {
 
     const jsize num_amps = env->GetArrayLength(amps);
-    if (num_amps < 2) return nullptr;
+    if (num_amps < 2 || num_amps > kMaxWaveformAmps) return nullptr;
 
     jfloat* raw = env->GetFloatArrayElements(amps, nullptr);
     if (!raw) return nullptr;

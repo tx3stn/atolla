@@ -36,6 +36,10 @@ build --copt=-Wno-deprecated
 # without this, targets built with -Werror (protobuf) fail on -Wunknown-warning-option
 build:linux --copt=-Wno-unknown-warning-option
 build:linux --host_copt=-Wno-unknown-warning-option
+# Pin the Zig image/palette/waveform kernels to ReleaseSafe so their bounds and overflow checks
+# stay on in every build (a bad width/height panics instead of corrupting memory), independent of
+# Bazel's -c mode — rules_zig otherwise maps `-c opt` to ReleaseFast, which drops those checks.
+build --@rules_zig//zig/settings:mode=release_safe
 build --flag_alias=snap_flavor=@snap_platforms//flavors:snap_flavor
 build --snap_flavor=platform_development
 build --flag_alias=valdi_js_engine=@valdi//bzl/valdi:js_engine

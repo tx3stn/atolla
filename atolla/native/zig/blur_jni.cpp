@@ -1,4 +1,5 @@
 #include <jni.h>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include "image_blur.h"
@@ -10,6 +11,9 @@ Java_com_tx3stn_atolla_AtollaCacheImageLoader_nativeBlurPixels(
     jint out_width, jint out_height) {
 
     const jsize len = env->GetArrayLength(pixels);
+    if (len <= 0 || width <= 0 || height <= 0 || out_width <= 0 || out_height <= 0) return nullptr;
+    if (static_cast<int64_t>(width) * static_cast<int64_t>(height) > len) return nullptr;
+
     jint* argb = env->GetIntArrayElements(pixels, nullptr);
     if (!argb) return nullptr;
 

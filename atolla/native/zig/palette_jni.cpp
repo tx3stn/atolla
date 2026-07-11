@@ -12,7 +12,8 @@ Java_com_tx3stn_atolla_AtollaCacheImageLoader_nativeExtractPaletteFromPixels(
     JNIEnv* env, jobject /*thiz*/, jintArray pixels, jint width, jint height) {
 
     const jsize len = env->GetArrayLength(pixels);
-    if (len == 0 || width <= 0 || height <= 0) return nullptr;
+    if (len <= 0 || width <= 0 || height <= 0) return nullptr;
+    if (static_cast<int64_t>(width) * static_cast<int64_t>(height) > len) return nullptr;
 
     jint* argb = env->GetIntArrayElements(pixels, nullptr);
     if (!argb) return nullptr;
