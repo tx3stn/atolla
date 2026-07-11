@@ -40,6 +40,14 @@ const NEAR_WHITE_C = 0.03;
 const SWAP_HUE_WINDOW = 40.0;
 const SWAP_RATIO = 0.9;
 
+// on near-monochrome covers the accent falls to the vibrant score, where a small
+// pop of colour and near-neutral noise score within a hair of each other and flip
+// between platform image decoders. among bins that tie the top score (within
+// FALLBACK_TIE_FRACTION) lean to the most chromatic that clears FALLBACK_TIE_CHROMA_MIN,
+// so a genuinely greyscale cover keeps its neutral accent.
+const FALLBACK_TIE_FRACTION = 0.15;
+const FALLBACK_TIE_CHROMA_MIN = 0.04;
+
 const Bin = struct {
     count: u32,
     sum_r: u32,
@@ -252,10 +260,21 @@ fn addToBin(bins: *[MAX_BINS]Bin, r: u8, g: u8, b: u8) void {
     bins[key].sum_b +|= b;
 }
 
+// vibrant score for the accent fallback: rewards chroma and mid lightness, damps population with a
+// sqrt so a saturated minority can beat a muted majority, and penalises near-neutral bins.
+fn vibrantScore(count: u32, lab: Oklch) f64 {
+    const satWeight = 0.2 + lab.c * 6.5;
+    const litWeight = clamp(1.0 - @abs(lab.l - 0.6) * 1.7, 0.35, 1.0);
+    const neutralThreshold = 0.03 + (1.0 - lab.l) * 0.05;
+    const neutralPenalty: f64 = if (lab.c < neutralThreshold) 0.4 else 1.0;
+    return @sqrt(@as(f64, @floatFromInt(count))) * satWeight * litWeight * neutralPenalty;
+}
+
 fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
     // most-vibrant colour, used only as the accent fallback for single-hue covers.
     var fallbackHex: [8]u8 = undefined;
     var bestScore: f64 = -std.math.inf(f64);
+    var topRgb: Rgb = undefined;
     var hasFallback = false;
 
     for (bins) |bin| {
@@ -265,17 +284,35 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
         const b: u8 = @intCast(bin.sum_b / bin.count);
         const lab = rgbToOklch(r, g, b);
         if (lab.l <= 0.10) continue;
-        const satWeight = 0.2 + lab.c * 6.5;
-        const litWeight = clamp(1.0 - @abs(lab.l - 0.6) * 1.7, 0.35, 1.0);
-        const neutralThreshold = 0.03 + (1.0 - lab.l) * 0.05;
-        const neutralPenalty: f64 = if (lab.c < neutralThreshold) 0.4 else 1.0;
-        const score = @sqrt(@as(f64, @floatFromInt(bin.count))) * satWeight * litWeight * neutralPenalty;
+        const score = vibrantScore(bin.count, lab);
         if (score > bestScore) {
             bestScore = score;
-            const enhanced = enhancePrimary(r, g, b);
-            writeHex(&fallbackHex, enhanced.r, enhanced.g, enhanced.b);
+            topRgb = .{ .r = r, .g = g, .b = b };
             hasFallback = true;
         }
+    }
+
+    if (hasFallback) {
+        // among the bins that tie the top score, lean to the most chromatic one.
+        const tieFloor = bestScore * (1.0 - FALLBACK_TIE_FRACTION);
+        var chromaRgb = topRgb;
+        var bestChroma: f64 = -1.0;
+        for (bins) |bin| {
+            if (bin.count == 0) continue;
+            const r: u8 = @intCast(bin.sum_r / bin.count);
+            const g: u8 = @intCast(bin.sum_g / bin.count);
+            const b: u8 = @intCast(bin.sum_b / bin.count);
+            const lab = rgbToOklch(r, g, b);
+            if (lab.l <= 0.10) continue;
+            if (vibrantScore(bin.count, lab) < tieFloor) continue;
+            if (lab.c > bestChroma) {
+                bestChroma = lab.c;
+                chromaRgb = .{ .r = r, .g = g, .b = b };
+            }
+        }
+        const chosen = if (bestChroma >= FALLBACK_TIE_CHROMA_MIN) chromaRgb else topRgb;
+        const enhanced = enhancePrimary(chosen.r, chosen.g, chosen.b);
+        writeHex(&fallbackHex, enhanced.r, enhanced.g, enhanced.b);
     }
 
     if (!hasFallback) {
@@ -668,6 +705,29 @@ test "atolla_extract_palette: mostly-white cover keeps the near-white surface" {
     const accent = parseHex(palette.accent);
     try std.testing.expect(isNearWhite(surface));
     try std.testing.expect(accent.r > accent.b);
+}
+
+test "atolla_extract_palette: near-monochrome fallback leans to the chromatic tie, not the neutral" {
+    // 103 mid-grey pixels narrowly out-score 1 purple pixel on the vibrant fallback, but they tie
+    // within FALLBACK_TIE_FRACTION — the tie-break leans to the more chromatic purple, so a
+    // near-monochrome cover's accent stays stable across platform decoders instead of collapsing
+    // to a neutral. without the tie-break the accent would be the grey.
+    var pixels: [104 * 4]u8 = undefined;
+    for (0..103) |i| {
+        pixels[i * 4 + 0] = 128;
+        pixels[i * 4 + 1] = 128;
+        pixels[i * 4 + 2] = 128;
+        pixels[i * 4 + 3] = 255;
+    }
+    pixels[103 * 4 + 0] = 130;
+    pixels[103 * 4 + 1] = 121;
+    pixels[103 * 4 + 2] = 183;
+    pixels[103 * 4 + 3] = 255;
+    var palette: Palette = std.mem.zeroes(Palette);
+    _ = atolla_extract_palette(&pixels, 13, 8, &palette);
+    const accent = parseHex(palette.accent);
+    try std.testing.expect(accent.b > accent.r);
+    try std.testing.expect(accent.b > accent.g);
 }
 
 test "atolla_extract_palette: on_surface clears the contrast floor on a mid-tone surface" {

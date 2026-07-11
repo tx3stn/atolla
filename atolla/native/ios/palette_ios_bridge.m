@@ -18,7 +18,7 @@
     uint8_t *pixels = calloc(width * height * 4, 1);
     if (!pixels) return nil;
 
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
     CGContextRef ctx = CGBitmapContextCreate(pixels, width, height, 8, width * 4,
         colorSpace, kCGImageAlphaNoneSkipLast | kCGBitmapByteOrderDefault);
     CGColorSpaceRelease(colorSpace);
