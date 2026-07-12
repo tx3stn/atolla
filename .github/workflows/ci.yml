@@ -32,6 +32,7 @@ jobs:
     outputs:
       zig: ${{ steps.filter.outputs.zig }}
       android: ${{ steps.filter.outputs.android }}
+      ios: ${{ steps.filter.outputs.ios }}
       components: ${{ steps.filter.outputs.components }}
     steps:
       - uses: actions/checkout@v7
@@ -53,7 +54,12 @@ jobs:
               - 'atolla/native/zig/**'
             android:
               - *shared
-              - 'atolla/native/**'
+              - 'atolla/native/BUILD.bazel'
+              - 'atolla/native/android/**'
+            ios:
+              - *shared
+              - 'atolla/native/BUILD.bazel'
+              - 'atolla/native/ios/**'
             components:
               - *shared
               - 'atolla/**'
@@ -325,35 +331,40 @@ jobs:
           path: ~/.cache/bazel-repo
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
 
-  # macos_unit_test targets need Xcode/Apple SDKs — the only tests that can't run on linux
-  # ios-tests:
-  #   runs-on: macos-latest
-  #   timeout-minutes: 60
-  #   steps:
-  #     - uses: actions/checkout@v7
-  #     - uses: oven-sh/setup-bun@v2
-  #     - name: cache bun dependencies
-  #       uses: actions/cache@v6
-  #       with:
-  #         path: ~/.bun/install/cache
-  #         key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-  #         restore-keys: |
-  #           bun-${{ runner.os }}-
-  #     - run: bun install --frozen-lockfile
-  #     - name: configure bazel caching
-  #       env:
-  #         BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-  #       run: |
-  #         echo "build --disk_cache=" >> ~/.bazelrc
-  #         if [ -n "$BUILDBUDDY_API_KEY" ]; then
-  #           echo "build --config=remote-cache" >> ~/.bazelrc
-  #           echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY" >> ~/.bazelrc
-  #         fi
-  #     - name: cache bazel repository cache
-  #       uses: actions/cache@v6
-  #       with:
-  #         path: ~/.cache/bazel-repo
-  #         key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
-  #         restore-keys: |
-  #           bazel-repo-${{ runner.os }}-
-  #     - run: bun run test:ios
+  # macos_unit_test targets need Xcode/Apple SDKs — the only tests that can't run on
+  # linux, hence the sole macOS job. The Linux-only helpers (free-disk-space,
+  # install-libtinfo5, wait-for-disk-cleanup) don't apply here; macOS has the space
+  # and no hermetic-clang libtinfo dependency.
+  ios-tests:
+    needs: changes
+    if: ${{ needs.changes.outputs.ios == 'true' || github.event_name != 'pull_request' }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - name: configure bazel caching
+        uses: ./.github/actions/configure-bazel-caching
+        with:
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          remote-download-minimal: "true"
+      # Sole writer of the macOS repository cache — runner.os=macOS is a separate
+      # namespace from the Linux jobs, so unlike android-tests (which restores a cache
+      # another Linux job saves) nothing else banks bazel-repo-macOS. Save on main only
+      # so PR runs restore read-only; the release build-ios job reads what we bank here.
+      - name: restore bazel repository cache
+        id: restore-bazel-repo
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
+          restore-keys: |
+            bazel-repo-${{ runner.os }}-
+      - run: bun run test:ios
+        timeout-minutes: 45
+      - name: save bazel repository cache
+        if: always() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && steps.restore-bazel-repo.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}

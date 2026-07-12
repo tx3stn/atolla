@@ -2,8 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.tx3stn.atolla"
-    android:versionCode="317"
-    android:versionName="0.3.17"
+    android:versionCode="318"
+    android:versionName="0.3.18"
 >
     <uses-sdk
         android:minSdkVersion="19"
