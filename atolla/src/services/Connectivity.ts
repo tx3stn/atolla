@@ -66,7 +66,10 @@ export class Connectivity {
 			try {
 				// login emits onSessionChanged → handleSessionChanged rebuilds the live transport
 				const session = await this.deps.sessionManager.login(serverUrl);
+				// activate the user scope first so the reconnect coordinator exists, then flush any
+				// work queued while offline — same online transition setMode() performs on a toggle.
 				this.deps.onUserChanged(session.userId);
+				this.deps.onOnline();
 			} catch {
 				// SessionManager.login already surfaced the auth error; stay on the connect screen
 				this.deps.applyState({ connectionMode: ConnectionModes.online, isAuthRequired: true });
@@ -84,7 +87,11 @@ export class Connectivity {
 
 	handleSessionChanged(session: AuthSession | null): void {
 		this.rebuildTransport(session);
+		// connect() sets the mode to online without touching render state, so a login from a
+		// non-online mode (e.g. a fresh install's offline default) must sync connectionMode here —
+		// otherwise the app renders offline over a live transport. Logging in is always online.
 		this.deps.applyState({
+			connectionMode: this.mode,
 			isAuthRequired: this.mode === ConnectionModes.online && session == null,
 		});
 	}

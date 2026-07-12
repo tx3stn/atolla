@@ -15,28 +15,43 @@ function makeSession(): AuthSession {
 	} as AuthSession;
 }
 
+interface Calls {
+	onOnline: number;
+	onUserChanged: Array<string>;
+}
+
+function flush(): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function makeConnectivity(over?: { hasStoredMode?: boolean; mode?: ConnectionMode }): {
+	calls: Calls;
 	connectivity: Connectivity;
 	state: Array<Partial<ConnectivityRenderState>>;
 } {
 	const state: Array<Partial<ConnectivityRenderState>> = [];
+	const calls: Calls = { onOnline: 0, onUserChanged: [] };
 
 	const preferences = {
 		hasStoredMode: over?.hasStoredMode ?? true,
 		mode: over?.mode ?? ConnectionModes.offline,
+		setMode: () => Promise.resolve(),
 	} as unknown as Preferences;
 
 	const sessionManager = {
 		getEffectiveDeviceId: () => 'atolla-default',
 		getSession: () => null,
+		login: () => Promise.resolve(makeSession()),
 		setMockMode: () => {},
 	} as unknown as SessionManager;
 
 	const deps: ConnectivityDeps = {
 		applyState: (partial) => state.push(partial),
 		downloadService: {} as ConnectivityDeps['downloadService'],
-		onOnline: () => {},
-		onUserChanged: () => {},
+		onOnline: () => {
+			calls.onOnline += 1;
+		},
+		onUserChanged: (userId) => calls.onUserChanged.push(userId),
 		playlistCreateService: {} as ConnectivityDeps['playlistCreateService'],
 		playlistEditService: {} as ConnectivityDeps['playlistEditService'],
 		preferences,
@@ -45,7 +60,7 @@ function makeConnectivity(over?: { hasStoredMode?: boolean; mode?: ConnectionMod
 		showToast: () => {},
 	};
 
-	return { connectivity: new Connectivity(deps), state };
+	return { calls, connectivity: new Connectivity(deps), state };
 }
 
 describe('Connectivity.bootstrap auth-required decision', () => {
@@ -91,5 +106,39 @@ describe('Connectivity.bootstrap auth-required decision', () => {
 		connectivity.bootstrap(makeSession());
 
 		expect(state[state.length - 1]?.isAuthRequired).toBe(false);
+	});
+
+	it('logging in from a fresh install lands in online mode, not offline', () => {
+		const { connectivity, state } = makeConnectivity({
+			hasStoredMode: false,
+			mode: ConnectionModes.offline,
+		});
+		// fresh install: bootstrap leaves render state in the offline default on the connect screen
+		connectivity.bootstrap(null);
+		// connect() flips the internal mode to online synchronously (before its first await)
+		connectivity.connect('https://server');
+		state.length = 0;
+
+		// SessionManager.login emits onSessionChanged, which App routes to handleSessionChanged
+		connectivity.handleSessionChanged(makeSession());
+
+		const last = state[state.length - 1];
+		expect(last?.connectionMode).toBe(ConnectionModes.online);
+		expect(last?.isAuthRequired).toBe(false);
+	});
+
+	it('a successful login flushes queued offline work by going online (after activating the user)', async () => {
+		const { calls, connectivity } = makeConnectivity({
+			hasStoredMode: false,
+			mode: ConnectionModes.offline,
+		});
+		connectivity.bootstrap(null);
+
+		connectivity.connect('https://server');
+		await flush();
+
+		expect(calls.onOnline).toBe(1);
+		// the user scope must be activated before the reconnect sync runs
+		expect(calls.onUserChanged).toEqual(['shared', 'user-1']);
 	});
 });
