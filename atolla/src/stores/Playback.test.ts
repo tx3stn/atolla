@@ -34,6 +34,16 @@ class InMemoryQueueStore {
 	}
 }
 
+function createFiller(): { disposed: number; dispose: () => void } {
+	const filler = {
+		dispose(): void {
+			filler.disposed += 1;
+		},
+		disposed: 0,
+	};
+	return filler;
+}
+
 describe('PlaybackStore', () => {
 	describe('initial state', () => {
 		it('starts with no track, album, or playback', () => {
@@ -139,12 +149,105 @@ describe('PlaybackStore', () => {
 			expect(store.progressSeconds).toBe(0);
 		});
 
+		it('replaces a previously longer queue entirely', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			store.play([track1], album);
+			expect(store.tracks).toEqual([track1]);
+		});
+
 		it('notifies listeners', () => {
 			const store = new PlaybackStore();
 			let calls = 0;
 			store.subscribe(() => calls++);
 			store.play(tracks, album);
 			expect(calls).toBe(1);
+		});
+	});
+
+	describe('queue filler', () => {
+		it('disposes a registered filler on play()', () => {
+			const store = new PlaybackStore();
+			const filler = createFiller();
+			store.setQueueFiller(filler);
+			store.play(tracks, album);
+			expect(filler.disposed).toBe(1);
+		});
+
+		it('disposes a registered filler on playTracks()', () => {
+			const store = new PlaybackStore();
+			const filler = createFiller();
+			store.setQueueFiller(filler);
+			store.playTracks(tracks);
+			expect(filler.disposed).toBe(1);
+		});
+
+		it('disposes a registered filler on playWithArtistLogos()', () => {
+			const store = new PlaybackStore();
+			const filler = createFiller();
+			store.setQueueFiller(filler);
+			store.playWithArtistLogos(tracks, []);
+			expect(filler.disposed).toBe(1);
+		});
+
+		it('disposes a registered filler on stop()', () => {
+			const store = new PlaybackStore();
+			const filler = createFiller();
+			store.setQueueFiller(filler);
+			store.stop();
+			expect(filler.disposed).toBe(1);
+		});
+
+		it('disposes the previous filler when a new one replaces it', () => {
+			const store = new PlaybackStore();
+			const first = createFiller();
+			const second = createFiller();
+			store.setQueueFiller(first);
+			store.setQueueFiller(second);
+			expect(first.disposed).toBe(1);
+			expect(second.disposed).toBe(0);
+		});
+
+		it('disposes the current filler when cleared with null', () => {
+			const store = new PlaybackStore();
+			const filler = createFiller();
+			store.setQueueFiller(filler);
+			store.setQueueFiller(null);
+			expect(filler.disposed).toBe(1);
+		});
+
+		it('does not dispose a filler that is re-registered with the same reference', () => {
+			const store = new PlaybackStore();
+			const filler = createFiller();
+			store.setQueueFiller(filler);
+			store.setQueueFiller(filler);
+			expect(filler.disposed).toBe(0);
+		});
+
+		it('disposes the filler before notifying subscribers', () => {
+			const store = new PlaybackStore();
+			const events: Array<string> = [];
+			store.setQueueFiller({ dispose: () => events.push('dispose') });
+			store.subscribe(() => events.push('notify'));
+			store.play(tracks, album);
+			expect(events).toEqual(['dispose', 'notify']);
+		});
+
+		it('keeps the filler alive across non-replacing queue changes', () => {
+			const store = new PlaybackStore();
+			store.play(tracks, album);
+			const filler = createFiller();
+			store.setQueueFiller(filler);
+
+			store.addToQueue([track1]);
+			store.playNext([track2]);
+			store.next();
+			store.jumpToIndex(0);
+			store.shuffle();
+			store.moveQueueTrack(0, 1);
+			store.removeFromQueueAt(0);
+
+			expect(filler.disposed).toBe(0);
 		});
 	});
 
@@ -1034,6 +1137,13 @@ describe('PlaybackStore', () => {
 			expect(store.album).toBeNull();
 		});
 
+		it('replaces a previously longer queue entirely', () => {
+			const store = new PlaybackStore();
+			store.playTracks(tracks);
+			store.playTracks([track1]);
+			expect(store.tracks).toEqual([track1]);
+		});
+
 		it('starts from a given index', () => {
 			const store = new PlaybackStore();
 			store.playTracks(tracks, 2);
@@ -1253,6 +1363,13 @@ describe('PlaybackStore', () => {
 			store.play(tracks, album);
 			store.playWithArtistLogos(tracks, []);
 			expect(store.album).toBeNull();
+		});
+
+		it('replaces a previously longer queue entirely', () => {
+			const store = new PlaybackStore();
+			store.playWithArtistLogos(tracks, ['logo1', 'logo2', 'logo3']);
+			store.playWithArtistLogos([track1], ['logo1']);
+			expect(store.tracks).toEqual([track1]);
 		});
 
 		it('returns the logo url for the current track', () => {

@@ -33,22 +33,25 @@ function mockTransport(overrides: Record<string, unknown> = {}): Transport {
 
 interface MockPlaybackStore {
 	playTracks: jasmine.Spy;
+	setQueueFiller: jasmine.Spy;
 	store: PlaybackStore;
 	unsubscribe: jasmine.Spy;
 }
 
 function mockPlaybackStore(): MockPlaybackStore {
 	const playTracks = jasmine.createSpy('playTracks');
+	const setQueueFiller = jasmine.createSpy('setQueueFiller');
 	const unsubscribe = jasmine.createSpy('unsubscribe');
 	const store = {
 		addToQueue: jasmine.createSpy('addToQueue'),
 		play: jasmine.createSpy('play'),
 		playTracks,
+		setQueueFiller,
 		subscribe: () => unsubscribe,
 		trackIndex: 0,
 		tracks: [] as Array<Track>,
 	} as unknown as PlaybackStore;
-	return { playTracks, store, unsubscribe };
+	return { playTracks, setQueueFiller, store, unsubscribe };
 }
 
 // drains the microtask queue so the fire-and-forget mix chains settle
@@ -56,12 +59,6 @@ async function flush(): Promise<void> {
 	for (let i = 0; i < 10; i++) {
 		await Promise.resolve();
 	}
-}
-
-type SectionInternal = Record<string, unknown>;
-
-function getInternal(component: MixesSection): SectionInternal {
-	return component as unknown as SectionInternal;
 }
 
 function tapTile(component: MixesSection, accessibilityLabel: string): void {
@@ -163,24 +160,27 @@ describe('MixesSection', () => {
 			expect(playback.playTracks).not.toHaveBeenCalled();
 		});
 
-		valdiIt('starts a background loader when more pages remain', async (driver) => {
-			const playback = mockPlaybackStore();
-			const viewModel = {
-				connectionMode: ConnectionModes.online,
-				gridColumns: 3,
-				playbackStore: playback.store,
-				transport: mockTransport({
-					getShuffledLibraryTracksPage: () =>
-						Promise.resolve({ hasMore: true, items: [mockTrack('p1')] }),
-				}),
-			};
-			const component = driver.renderComponent(MixesSection, viewModel, undefined);
+		valdiIt(
+			'registers a background loader with the store when more pages remain',
+			async (driver) => {
+				const playback = mockPlaybackStore();
+				const viewModel = {
+					connectionMode: ConnectionModes.online,
+					gridColumns: 3,
+					playbackStore: playback.store,
+					transport: mockTransport({
+						getShuffledLibraryTracksPage: () =>
+							Promise.resolve({ hasMore: true, items: [mockTrack('p1')] }),
+					}),
+				};
+				const component = driver.renderComponent(MixesSection, viewModel, undefined);
 
-			tapTile(component, SHUFFLE_LIBRARY_TILE);
-			await flush();
+				tapTile(component, SHUFFLE_LIBRARY_TILE);
+				await flush();
 
-			expect(getInternal(component).shuffleLoader).not.toBeNull();
-		});
+				expect(playback.setQueueFiller.calls.mostRecent().args[0]).not.toBeNull();
+			},
+		);
 	});
 
 	describe('random album mix', () => {
@@ -263,25 +263,22 @@ describe('MixesSection', () => {
 		});
 	});
 
-	describe('onDestroy()', () => {
-		valdiIt('disposes the active background loader', async (driver) => {
+	describe('starting a mix', () => {
+		valdiIt('clears any active loader on the store even when nothing plays', async (driver) => {
 			const playback = mockPlaybackStore();
 			const viewModel = {
-				connectionMode: ConnectionModes.online,
+				connectionMode: ConnectionModes.offline,
 				gridColumns: 3,
 				playbackStore: playback.store,
-				transport: mockTransport({
-					getShuffledLibraryTracksPage: () =>
-						Promise.resolve({ hasMore: true, items: [mockTrack('p1')] }),
-				}),
+				transport: mockTransport({ getShuffledLibraryTracks: () => Promise.resolve([]) }),
 			};
 			const component = driver.renderComponent(MixesSection, viewModel, undefined);
 
 			tapTile(component, SHUFFLE_LIBRARY_TILE);
 			await flush();
-			(getInternal(component).onDestroy as () => void)();
 
-			expect(playback.unsubscribe).toHaveBeenCalled();
+			expect(playback.setQueueFiller).toHaveBeenCalledWith(null);
+			expect(playback.playTracks).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -11,6 +11,10 @@ interface PlaybackQueueStore {
 	storeString(key: string, value: string): Promise<void>;
 }
 
+interface QueueFiller {
+	dispose(): void;
+}
+
 interface PersistedPlaybackQueue {
 	album: Album | null;
 	artistLogoUrls: Array<string | null>;
@@ -44,6 +48,7 @@ export function shuffleArray<T>(arr: Array<T>): Array<T> {
 export class PlaybackStore {
 	private listeners = new Set<PlaybackListener>();
 	private _artistLogoUrls: Array<string | null> = [];
+	private queueFiller: QueueFiller | null = null;
 	private queueStore: PlaybackQueueStore | null = null;
 	private queueStoreLoadToken = 0;
 	private queueRestoreSuperseded = false;
@@ -187,6 +192,7 @@ export class PlaybackStore {
 		});
 		const sanitizedTracks = sanitizeTracks(tracks);
 		const clampedIndex = Math.max(0, Math.min(sanitizedTracks.length - 1, startIndex));
+		this.setQueueFiller(null);
 		this.queueRestoreSuperseded = true;
 		this.allowBackwardRebuild = true;
 		this.tracks = sanitizedTracks;
@@ -394,6 +400,13 @@ export class PlaybackStore {
 		this.notify();
 	}
 
+	setQueueFiller(filler: QueueFiller | null): void {
+		if (this.queueFiller !== null && this.queueFiller !== filler) {
+			this.queueFiller.dispose();
+		}
+		this.queueFiller = filler;
+	}
+
 	updateProgress(seconds: number): void {
 		const activeTrack = this.track;
 		if (!activeTrack) return;
@@ -468,6 +481,7 @@ export class PlaybackStore {
 	}
 
 	stop(): void {
+		this.setQueueFiller(null);
 		this.queueRestoreSuperseded = true;
 		this.tracks = [];
 		this.album = null;
@@ -486,6 +500,7 @@ export class PlaybackStore {
 	playTracks(tracks: Array<Track>, startIndex = 0): void {
 		const sanitizedTracks = sanitizeTracks(tracks);
 		const clampedIndex = Math.max(0, Math.min(sanitizedTracks.length - 1, startIndex));
+		this.setQueueFiller(null);
 		this.queueRestoreSuperseded = true;
 		this.allowBackwardRebuild = true;
 		this.tracks = sanitizedTracks;
@@ -502,6 +517,7 @@ export class PlaybackStore {
 	playWithArtistLogos(tracks: Array<Track>, logoUrls: Array<string | null>, startIndex = 0): void {
 		const sanitizedTracks = sanitizeTracks(tracks);
 		const clampedIndex = Math.max(0, Math.min(sanitizedTracks.length - 1, startIndex));
+		this.setQueueFiller(null);
 		this.queueRestoreSuperseded = true;
 		this.allowBackwardRebuild = true;
 		this.tracks = sanitizedTracks;

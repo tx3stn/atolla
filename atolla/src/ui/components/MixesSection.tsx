@@ -26,12 +26,7 @@ const RANDOM_ALBUM_MIX_ID = 'mix-random-album';
 const RANDOM_YEAR_MIX_ID = 'mix-random-year';
 
 export class MixesSection extends Component<MixesSectionViewModel> {
-	private shuffleLoader: ShuffleQueueLoader | null = null;
 	private shuffleLoadToken = 0;
-
-	onDestroy(): void {
-		this.shuffleLoader?.dispose();
-	}
 
 	private createMixCards(): Array<Card> {
 		return [
@@ -75,8 +70,7 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 	};
 
 	private async startShuffleLibraryMix(): Promise<void> {
-		this.shuffleLoader?.dispose();
-		this.shuffleLoader = null;
+		this.viewModel.playbackStore.setQueueFiller(null);
 		const token = ++this.shuffleLoadToken;
 
 		const { connectionMode, playbackStore, transport } = this.viewModel;
@@ -101,8 +95,7 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 	}
 
 	private async startRandomYearMix(): Promise<void> {
-		this.shuffleLoader?.dispose();
-		this.shuffleLoader = null;
+		this.viewModel.playbackStore.setQueueFiller(null);
 		const token = ++this.shuffleLoadToken;
 
 		const { transport } = this.viewModel;
@@ -157,7 +150,7 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 		if (result.hasMore) {
 			const loader = new ShuffleQueueLoader(playbackStore, fetchPage, SHUFFLE_PAGE_SIZE);
 			loader.start(2, true);
-			this.shuffleLoader = loader;
+			playbackStore.setQueueFiller(loader);
 		}
 
 		return 'played';

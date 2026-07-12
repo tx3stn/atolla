@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test';
+import type { Album } from '../models/Album';
 import type { Track } from '../models/Track';
+import { PlaybackStore } from '../stores/Playback';
 import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from './ShuffleQueueLoader';
 
 function createTrack(id: string): Track {
@@ -422,5 +424,47 @@ describe('ShuffleQueueLoader', () => {
 		// restart must not have left a second live subscription behind
 		expect(store.listeners.size).toBe(1);
 		loader.dispose();
+	});
+});
+
+describe('ShuffleQueueLoader with the real PlaybackStore', () => {
+	const album: Album = {
+		artistId: 'artist-1',
+		artistName: 'Test Artist',
+		id: 'album-1',
+		name: 'Test Album',
+	};
+
+	it('stops topping up after a new item replaces the mix queue', async () => {
+		const store = new PlaybackStore();
+		store.playTracks(createTracks(30, 'mix-'));
+
+		let fetchCount = 0;
+		const fetchPage = (page: number) => {
+			fetchCount += 1;
+			return Promise.resolve({ hasMore: true, items: createTracks(50, `p${page}-`) });
+		};
+
+		const loader = new ShuffleQueueLoader(store, fetchPage, SHUFFLE_PAGE_SIZE);
+		loader.start(2, true);
+		store.setQueueFiller(loader);
+
+		await waitFor(() => fetchCount >= 1 && store.tracks.length > 30);
+		const fetchCountBefore = fetchCount;
+
+		const albumTracks = createTracks(10, 'album-');
+		store.play(albumTracks, album);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		expect(store.tracks.map((track) => track.id)).toEqual(albumTracks.map((track) => track.id));
+		expect(store.album).toBe(album);
+		expect(fetchCount).toBe(fetchCountBefore);
+
+		store.next();
+		store.next();
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		expect(store.tracks).toHaveLength(albumTracks.length);
+		expect(fetchCount).toBe(fetchCountBefore);
 	});
 });
