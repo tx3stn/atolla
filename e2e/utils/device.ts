@@ -105,7 +105,11 @@ function buildCapability(cfg: DeviceConfig, appPath: string | undefined) {
 			'appium:avd': cfg.avd,
 			'appium:avdLaunchTimeout': 180_000,
 		}),
-		...(cfg.bundleId && { 'appium:bundleId': cfg.bundleId }),
+		// Only pin the bundle id when no app binary is supplied (attaching to a pre-installed app).
+		// When an .ipa is provided, appium reads the bundle id from it, so the release (com.tx3stn.atolla)
+		// and dev (com.tx3stn.atolla.dev) builds both launch — hardcoding one here would try to open the
+		// wrong id and fail with "Application info provider returned nil".
+		...(!resolvedPath && cfg.bundleId && { 'appium:bundleId': cfg.bundleId }),
 		'appium:fullReset': false,
 		'appium:newCommandTimeout': cfg.newCommandTimeout,
 		'appium:noReset': false,

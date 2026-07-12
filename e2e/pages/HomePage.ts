@@ -33,6 +33,8 @@ export class HomePage extends BasePage {
 			const card = this.elementByID(this.shuffleLibraryMix);
 			if ((await card.isExisting()) && (await card.isDisplayed().catch(() => false))) {
 				await card.click();
+				await this.dismissPermissionDialogIfPresent();
+
 				return;
 			}
 			await this.swipeUp(`home-scroll-${attempt}`);
