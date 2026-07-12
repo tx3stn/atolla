@@ -1,12 +1,15 @@
 import { FooterPage } from '../../pages/Footer';
+import { LibraryPage } from '../../pages/LibraryPage';
 import { SearchPage } from '../../pages/SearchPage';
 
 describe('search', () => {
 	let footer: FooterPage;
+	let library: LibraryPage;
 	let searchPage: SearchPage;
 
 	before(() => {
 		footer = new FooterPage(browser);
+		library = new LibraryPage(browser);
 		searchPage = new SearchPage(browser);
 	});
 
@@ -29,6 +32,7 @@ describe('search', () => {
 
 	it('shows search view after navigating away and back', async () => {
 		await footer.tapLibrary();
+		await library.waitForLoad();
 		await footer.tapSearch();
 		await searchPage.waitForLoad();
 

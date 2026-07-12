@@ -8,7 +8,11 @@ import { TrackContextMenu } from '../../../pages/TrackContextModal';
 describe('track context menu from now playing surface', () => {
 	let playingArtist = '';
 
-	beforeEach(async () => {
+	beforeEach(async function () {
+		if (shouldSkip()) {
+			this.skip();
+		}
+
 		const footer = new FooterPage(browser);
 		const home = new HomePage(browser);
 		await footer.tapHome();
@@ -55,11 +59,7 @@ describe('track context menu from now playing surface', () => {
 		await footer.tapHome();
 	});
 
-	it('opens the selected track artist', async function () {
-		if (shouldSkip()) {
-			this.skip();
-		}
-
+	it('opens the selected track artist', async () => {
 		const { artist } = await openModalOnDifferentArtistRow(playingArtist);
 		expect(artist).not.toBe(playingArtist);
 
@@ -73,11 +73,7 @@ describe('track context menu from now playing surface', () => {
 		await artistDetail.swipeBack();
 	});
 
-	it('opens the selected track album', async function () {
-		if (shouldSkip()) {
-			this.skip();
-		}
-
+	it('opens the selected track album', async () => {
 		const { trackTitle } = await openModalOnDifferentArtistRow(playingArtist);
 
 		const menu = new TrackContextMenu(browser);

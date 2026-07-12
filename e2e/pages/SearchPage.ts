@@ -1,18 +1,19 @@
 import { BasePage } from './Base';
 
 export class SearchPage extends BasePage {
+	private readonly view = 'search-bar';
 	private readonly input = 'search-input';
 	private readonly searchSubmit = 'search-submit';
 	private readonly retryButton = 'search-retry';
 
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.input).waitForDisplayed({
+		await this.elementByID(this.view).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for search view',
 		});
 	}
 
 	isVisible(): Promise<boolean> {
-		return this.elementByID(this.input).isExisting();
+		return this.elementByID(this.view).isExisting();
 	}
 
 	async dismissKeyboard(): Promise<void> {
