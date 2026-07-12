@@ -7,9 +7,9 @@ files = [
 ]
 
 [bump]
-commit = false
-commit-msg = 'chore: bump version to {{.Version}}'
-git-tag = false
+commit = true
+commit-msg = 'release {{.Version}}'
+git-tag = true
 tag-msg = 'release {{.Version}}'
 android-version-code = true
 
