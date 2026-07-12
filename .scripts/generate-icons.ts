@@ -147,55 +147,50 @@ const outputs: Array<IconOutput> = [
 	},
 ];
 
-// Dev-variant launcher icons for //:atolla_dev. Android keeps them in the same res/
-// root under a distinct name (ic_launcher_dev) so no resource merge is needed; iOS
-// gets its own asset catalog so the required "AppIcon" set name doesn't collide.
+// Dev-variant launcher icons for //atolla_dev. They live in the dev app's own resource
+// root (atolla_dev/res) so the released app's build — which compiles the whole
+// atolla/native/android/res tree — never sees them; iOS gets its own asset catalog so
+// the required "AppIcon" set name doesn't collide.
 const devOutputs: Array<IconOutput> = [
 	{
-		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-mdpi/ic_launcher_dev.png'),
+		path: resolve(process.cwd(), 'atolla_dev/res/mipmap-mdpi/ic_launcher_dev.png'),
 		platform: 'android',
 		size: 48,
 		src: devSourceSvgPath,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-hdpi/ic_launcher_dev.png'),
+		path: resolve(process.cwd(), 'atolla_dev/res/mipmap-hdpi/ic_launcher_dev.png'),
 		platform: 'android',
 		size: 72,
 		src: devSourceSvgPath,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xhdpi/ic_launcher_dev.png'),
+		path: resolve(process.cwd(), 'atolla_dev/res/mipmap-xhdpi/ic_launcher_dev.png'),
 		platform: 'android',
 		size: 96,
 		src: devSourceSvgPath,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xxhdpi/ic_launcher_dev.png'),
+		path: resolve(process.cwd(), 'atolla_dev/res/mipmap-xxhdpi/ic_launcher_dev.png'),
 		platform: 'android',
 		size: 144,
 		src: devSourceSvgPath,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xxxhdpi/ic_launcher_dev.png'),
+		path: resolve(process.cwd(), 'atolla_dev/res/mipmap-xxxhdpi/ic_launcher_dev.png'),
 		platform: 'android',
 		size: 192,
 		src: devSourceSvgPath,
 	},
 	{
-		path: resolve(
-			process.cwd(),
-			'atolla/native/android/res/drawable/ic_launcher_dev_foreground.png',
-		),
+		path: resolve(process.cwd(), 'atolla_dev/res/drawable/ic_launcher_dev_foreground.png'),
 		platform: 'android',
 		size: 432,
 		src: devSourceSvgPath,
 	},
 	{
 		monochrome: true,
-		path: resolve(
-			process.cwd(),
-			'atolla/native/android/res/drawable/ic_launcher_dev_monochrome.png',
-		),
+		path: resolve(process.cwd(), 'atolla_dev/res/drawable/ic_launcher_dev_monochrome.png'),
 		platform: 'android',
 		size: 432,
 		src: devSourceSvgPath,
@@ -246,7 +241,7 @@ async function generateIcons(targets: Array<IconOutput>): Promise<void> {
 		console.log(`generating: ${output.path}`);
 		await mkdir(dirname(output.path), { recursive: true });
 
-		const isAndroidOutput = output.path.includes('/android/');
+		const isAndroidOutput = output.platform === 'android';
 		const isIosOutput = output.path.includes('/AppIcon.appiconset/');
 		const paddingRatio = isAndroidOutput
 			? androidIconPaddingRatio

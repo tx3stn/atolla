@@ -2,6 +2,22 @@ load("@valdi//bzl/valdi:valdi_application.bzl", "valdi_application")
 
 package(default_visibility = ["//visibility:public"])
 
+# The dev launcher icon lives in this package's own resource root (res/) rather than the
+# shared atolla/native/android/res tree, because the resource packaging compiles a whole
+# res root — so anything left in the shared tree is pulled into the released //:atolla
+# build too. Keeping the dev icon here means the dev app gets it while the released app's
+# res tree stays free of dev resources. The generated rasters/drawables (res/**/*.png) are
+# produced by `bun run icons:generate --dev` and gitignored; only the anydpi XML is checked
+# in. Shared resources (colours, notification icon, splash) still come from android_res_common.
+filegroup(
+    name = "android_launcher_icons",
+    srcs = ["//atolla/native:android_res_common"] + glob([
+        "res/mipmap-*/ic_launcher_dev.png",
+        "res/mipmap-anydpi-*/ic_launcher_dev.xml",
+        "res/drawable/ic_launcher_dev_*.png",
+    ]),
+)
+
 # Local dev variant of the app with a distinct id (com.tx3stn.atolla.dev) + "atolla dev"
 # label + "DEV" launcher icon, so it installs alongside the released //:atolla build.
 # Built by the build-and-run scripts (`bun run android` / `bun run ios`); the release
@@ -12,12 +28,12 @@ valdi_application(
     name = "atolla",
     android_app_manifest = "//atolla/native:android_manifest_dev",
     android_package = "com.tx3stn.atolla.dev",
-    android_resource_files = ["//atolla/native:android_launcher_icons_dev"],
+    android_resource_files = [":android_launcher_icons"],
     ios_app_icons = ["//atolla/native:ios_launcher_icons_dev"],
     ios_bundle_id = "com.tx3stn.atolla.dev",
     ios_families = ["iphone"],
     root_component_path = "App@atolla/src/App",
     title = "atolla dev",
-    version = "0.4.0",
+    version = "0.4.1",
     deps = ["//atolla"],
 )

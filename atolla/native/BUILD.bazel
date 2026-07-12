@@ -35,23 +35,6 @@ filegroup(
     srcs = [":android_res_common"] + glob(["android/res/mipmap-*/ic_launcher.png"]),
 )
 
-# Dev variant keeps its launcher resources in the same res/ root under distinct names
-# (ic_launcher_dev*) so no resource-root merge is needed; the dev manifest points at
-# @mipmap/ic_launcher_dev. Bundles the full adaptive-icon set (anydpi xml + foreground +
-# monochrome + the night background colour) so it renders as a themed, full-bleed icon
-# rather than a transparent raster the launcher plates onto a white square.
-filegroup(
-    name = "android_launcher_icons_dev",
-    srcs = [":android_res_common"] + glob([
-        "android/res/mipmap-*/ic_launcher_dev.png",
-        "android/res/mipmap-anydpi-*/ic_launcher_dev.xml",
-    ]) + [
-        "android/res/drawable/ic_launcher_dev_foreground.png",
-        "android/res/drawable/ic_launcher_dev_monochrome.png",
-        "android/res/values-night/colors.xml",
-    ],
-)
-
 # The released app (//:atolla, com.tx3stn.atolla).
 filegroup(
     name = "android_manifest",
