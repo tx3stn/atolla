@@ -268,10 +268,10 @@ async function main(): Promise<void> {
 
 	if (selectedPlatforms.has('ios')) {
 		console.log('Copying svg to ios liquid glass directory...');
-		copyFileSync(
-			'atolla/res/logo.svg',
-			'atolla/native/ios/Assets.xcassets/AppIcon.icon/Assets/logo.svg',
-		);
+		const iosLiquidGlassSvg =
+			'atolla/native/ios/Assets.xcassets/AppIcon.icon/Assets/logo.svg';
+		await mkdir(dirname(iosLiquidGlassSvg), { recursive: true });
+		copyFileSync('atolla/res/logo.svg', iosLiquidGlassSvg);
 	}
 
 	console.log(`Icon generation/validation complete: ${selectedOutputs.length} files OK`);
