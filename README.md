@@ -124,17 +124,20 @@ This is the music app I want to use.
 
 However, there are a few things I'd like to stress that this app isn't:
 
-**It's not a comprehensive Jellyfin music management solution**
+### It's not a comprehensive Jellyfin music management solution
+
 The focus is on the listening experience not managing the data on your server.
 There will always be some functionality that's available in Jellyfin but not in
 the app as it's not a good fit, and that's fine.
 
-**It's not a feature compatible alternative to Plexamp.**
+### It's not a feature compatible alternative to Plexamp
+
 I'm not trying to build "Plexamp for Jellyfin", I'm trying to build a great
 music player for Jellyfin, so there will be some things that Plexamp does that
 atolla doesn't, and some things atolla does that Plexamp doesn't.
 
-**It's not a fully customisable 'make it your own' app.**
+### It's not a fully customisable 'make it your own' app
+
 The design is intentionally opinionated, it won't try to give you all of the
 customisation options you *might* want, as that makes it a lot harder
 to maintain. Suggestions for improvements or things that could be tweakable are
@@ -176,9 +179,9 @@ the things that made me dismiss it in my search for the right Jellyfin music pla
 * The UI is ugly (to me), it's inconsistent, with lots of wasted space and tiny artwork.
 * Looking at the issues it's missing a lot of features I'd consider important for a music app (which atolla has implemented).
 
-### What atolla does differently
+## What atolla does differently
 
-#### Seamless offline mode
+### Seamless offline mode
 
 Offline mode works just likes online mode so the app is always consistent to use.
 It's not relegated to it's own non searchable tab like Plexamp where most of the
@@ -192,13 +195,18 @@ whenever you want, and have it auto sync the next time you connect to your serve
 When you download a playlist, the playlist tracks will show up in the library
 artists, albums and genres views for an experience truely on par with online mode.
 
-#### Artist logos
+You can search your downloaded data. You'll get results for only the things you
+have downloaded.
+
+Library mixes like "shuffle library" and "random album" all work offline.
+
+### Artist logos
 
 This is such a tiny thing but it's honestly one of my favourite things Jellyfin
 supports that Plex doesn't.
 
-Everyone wants to see the unreadable logos of most listened to black metal bands
-prominently displayed in their music apps right?
+Everyone wants to see the unreadable logos of their most listened to black metal
+bands prominently displayed in their music apps right?
 
 ## Feature Requests
 
