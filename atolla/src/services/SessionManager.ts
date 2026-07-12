@@ -16,8 +16,6 @@ export interface SessionManagerDeps {
 	defaultDeviceId: string;
 	// the current session changed (login / clear / device-id reload) — connectivity rebuilds transport
 	onSessionChanged(session: AuthSession | null): void;
-	// a previously-valid session was found invalid in the background — connectivity drops to offline
-	onSessionInvalidated(): void;
 	preferences: Preferences;
 	showToast(message: string): void;
 }
@@ -126,7 +124,6 @@ export class SessionManager {
 			} catch {
 				this.deps.showToast(AuthErrors.FAILED_TO_FETCH_DATA.msg());
 			}
-			void this.validateSessionInBackground(session);
 			return session;
 		} catch (error) {
 			this.deps.applyState({
@@ -148,16 +145,5 @@ export class SessionManager {
 			return '';
 		}
 		return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
-	}
-
-	private async validateSessionInBackground(session: AuthSession): Promise<void> {
-		const isValid = await this.deps.authService.validateSession(session);
-		if (isValid) {
-			return;
-		}
-		await this.clearSession();
-		this.deps.onSessionInvalidated();
-		this.deps.applyState({ authErrorMessage: null, quickConnectCode: null });
-		this.deps.showToast(AuthErrors.SESSION_EXPIRED.msg());
 	}
 }

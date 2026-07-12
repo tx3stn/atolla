@@ -16,7 +16,6 @@ function makeSession(): AuthSession {
 interface Calls {
 	applyState: Array<Partial<AuthRenderState>>;
 	onSessionChanged: Array<AuthSession | null>;
-	onSessionInvalidated: number;
 	setClientDeviceId: Array<string>;
 	showToast: Array<string>;
 }
@@ -28,7 +27,6 @@ function makeManager(over?: {
 	const calls: Calls = {
 		applyState: [],
 		onSessionChanged: [],
-		onSessionInvalidated: 0,
 		setClientDeviceId: [],
 		showToast: [],
 	};
@@ -59,9 +57,6 @@ function makeManager(over?: {
 		authService,
 		defaultDeviceId: 'atolla-default',
 		onSessionChanged: (session) => calls.onSessionChanged.push(session),
-		onSessionInvalidated: () => {
-			calls.onSessionInvalidated += 1;
-		},
 		preferences,
 		showToast: (message) => calls.showToast.push(message),
 	};
@@ -154,16 +149,18 @@ describe('SessionManager', () => {
 		expect(manager.getEffectiveDeviceId()).toBe('atolla-default');
 	});
 
-	it('a session that fails background validation is cleared and reported as invalidated', async () => {
+	it('login keeps the session online and never runs a follow-up check that could drop it', async () => {
+		// even if a background /Users/Me check would fail, login must stay online: the auth exchange
+		// and probeInitialAlbums already validated the token, and a fresh install has no downloads to
+		// fall back to, so dropping to offline would leave an empty app.
 		const { calls, manager } = makeManager({
 			authService: { validateSession: () => Promise.resolve(false) },
 		});
 
-		await manager.login('https://server');
+		const session = await manager.login('https://server');
 		await flush();
 
-		expect(calls.onSessionInvalidated).toBe(1);
-		expect(manager.getSession()).toBeNull();
-		expect(calls.showToast.some((m) => m.length > 0)).toBe(true);
+		expect(manager.getSession()?.userId).toBe('user-1');
+		expect(calls.onSessionChanged).toEqual([session]);
 	});
 });

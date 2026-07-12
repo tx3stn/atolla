@@ -82,12 +82,6 @@ export class Connectivity {
 		return this.transport;
 	}
 
-	// previously valid session was invalidated in the background: drop to offline so the app stays
-	// usable with downloads rather than bouncing the user to the connect screen
-	goOffline(): void {
-		void this.setMode(ConnectionModes.offline);
-	}
-
 	handleSessionChanged(session: AuthSession | null): void {
 		this.rebuildTransport(session);
 		this.deps.applyState({

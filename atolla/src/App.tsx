@@ -157,7 +157,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		authService: this.authService,
 		defaultDeviceId: this.defaultJellyfinClientDeviceId,
 		onSessionChanged: (session) => this.connectivity.handleSessionChanged(session),
-		onSessionInvalidated: () => this.connectivity.goOffline(),
 		preferences: this.preferences,
 		showToast: (message) => this.toastService.show(message),
 	});
