@@ -4,6 +4,7 @@ files = [
 	'atolla/src/version.ts',
 	'BUILD.bazel',
 	'atolla/native/android/AndroidManifest.prod.xml',
+	'atolla_dev/BUILD.bazel',
 ]
 
 [bump]

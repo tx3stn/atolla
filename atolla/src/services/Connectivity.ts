@@ -46,9 +46,11 @@ export class Connectivity {
 		this.mode = this.deps.preferences.mode;
 		this.deps.sessionManager.setMockMode(this.mode === ConnectionModes.mock);
 		this.rebuildTransport(session);
+
+		const neverConnected = !this.deps.preferences.hasStoredMode;
 		this.deps.applyState({
 			connectionMode: this.mode,
-			isAuthRequired: this.mode === ConnectionModes.online && session == null,
+			isAuthRequired: session == null && (this.mode === ConnectionModes.online || neverConnected),
 		});
 		this.deps.onUserChanged(session != null ? session.userId : 'shared');
 	}

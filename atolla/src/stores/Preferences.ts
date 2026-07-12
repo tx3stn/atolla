@@ -34,6 +34,9 @@ const PreferenceKeys = {
 } as const;
 
 interface PreferencesStore {
+	// optional: not every backend can report key existence (some test fakes only fetch/store). When
+	// it is absent hasMode() treats the mode as never stored, which is the correct fresh-install answer.
+	exists?(key: string): Promise<boolean>;
 	fetchString(key: string): Promise<string>;
 	storeString(key: string, value: string): Promise<void>;
 }
@@ -49,6 +52,7 @@ export class Preferences {
 	private _animationsEnabled = true;
 	private _debugLoggingEnabled = false;
 	private _gridColumns = DEFAULT_GRID_COLUMNS;
+	private _hasStoredMode = false;
 	private _imageCacheMaxBytes = DEFAULT_IMAGE_CACHE_MAX_BYTES;
 	private _jellyfinClientDeviceIdOverride = '';
 	private _language: LanguageCode = DEFAULT_LANGUAGE;
@@ -69,6 +73,14 @@ export class Preferences {
 
 	get gridColumns(): number {
 		return this._gridColumns;
+	}
+
+	// Whether a connection mode has ever been persisted. Offline mode is only reachable after the
+	// user has connected at least once, so a device with no stored mode has never been set up — the
+	// cold-start launch decision uses this to send a fresh install to the connection screen rather
+	// than into the app on the empty offline transport.
+	get hasStoredMode(): boolean {
+		return this._hasStoredMode;
 	}
 
 	get imageCacheMaxBytes(): number {
@@ -173,11 +185,20 @@ export class Preferences {
 		}
 	}
 
+	async hasMode(): Promise<boolean> {
+		try {
+			return (await this.store.exists?.(PreferenceKeys.mode)) ?? false;
+		} catch {
+			return false;
+		}
+	}
+
 	async load(): Promise<void> {
 		const [
 			animationsEnabled,
 			debugLoggingEnabled,
 			gridColumns,
+			hasStoredMode,
 			imageCacheMaxBytes,
 			jellyfinClientDeviceIdOverride,
 			language,
@@ -187,6 +208,7 @@ export class Preferences {
 			this.getAnimationsEnabled(),
 			this.getDebugLoggingEnabled(),
 			this.getGridColumns(),
+			this.hasMode(),
 			this.getImageCacheMaxBytes(),
 			this.getJellyfinClientDeviceIdOverride(),
 			this.getLanguage(),
@@ -196,6 +218,7 @@ export class Preferences {
 		this._animationsEnabled = animationsEnabled;
 		this._debugLoggingEnabled = debugLoggingEnabled;
 		this._gridColumns = gridColumns;
+		this._hasStoredMode = hasStoredMode;
 		this._imageCacheMaxBytes = imageCacheMaxBytes;
 		this._jellyfinClientDeviceIdOverride = jellyfinClientDeviceIdOverride;
 		this._language = language;
@@ -249,6 +272,7 @@ export class Preferences {
 
 	setMode(mode: ConnectionMode): Promise<void> {
 		this._mode = mode;
+		this._hasStoredMode = true;
 		this.notify();
 		return this.store.storeString(PreferenceKeys.mode, mode);
 	}

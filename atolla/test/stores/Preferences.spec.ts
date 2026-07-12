@@ -215,4 +215,32 @@ describe('Preferences', () => {
 			expect(preferences.jellyfinClientDeviceIdOverride).toBe('custom-device');
 		});
 	});
+
+	describe('hasStoredMode', () => {
+		it('is false on a fresh install where no mode was ever persisted', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+
+			await preferences.load();
+
+			expect(preferences.hasStoredMode).toBe(false);
+		});
+
+		it('is true after load when a mode has been persisted', async () => {
+			const store = new InMemoryKeyValueStore();
+			await store.storeString('mode', ConnectionModes.offline);
+			const preferences = new Preferences(store);
+
+			await preferences.load();
+
+			expect(preferences.hasStoredMode).toBe(true);
+		});
+
+		it('flips to true synchronously once a mode is set', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+
+			await preferences.setMode(ConnectionModes.online);
+
+			expect(preferences.hasStoredMode).toBe(true);
+		});
+	});
 });

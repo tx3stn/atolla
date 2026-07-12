@@ -9,6 +9,10 @@ export interface KeyValueStore {
 export class InMemoryKeyValueStore implements KeyValueStore {
 	private values = new Map<string, string>();
 
+	exists(key: string): Promise<boolean> {
+		return Promise.resolve(this.values.has(key));
+	}
+
 	fetchString(key: string): Promise<string> {
 		const value = this.values.get(key);
 		if (value == null) {
