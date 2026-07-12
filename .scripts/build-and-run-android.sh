@@ -39,6 +39,10 @@ fi
 
 echo "Using Android device: $ANDROID_DEVICE_ID"
 
+# Install the dev variant (com.tx3stn.atolla.dev) so it sits alongside a released
+# build; override VALDI_APPLICATION_TARGET=//:atolla_android to run the release id.
+export VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//atolla_dev:atolla_android}"
+
 "$SCRIPT_DIR/build-android-apk.sh"
 
 echo "Installing on device..."

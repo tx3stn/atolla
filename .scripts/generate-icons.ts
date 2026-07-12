@@ -12,9 +12,14 @@ type IconOutput = {
 	path: string;
 	platform: Platform;
 	size: number;
+	src?: string;
 };
 
 const sourceSvgPath = resolve(process.cwd(), 'atolla/res/logo.svg');
+// The local dev build (//:atolla_dev) is a separate app id so it can be installed
+// alongside the released app; its icon swaps the waveform cutout for "DEV" so the
+// two are distinguishable on the home screen. See atolla/res/logo-dev.svg.
+const devSourceSvgPath = resolve(process.cwd(), 'atolla/res/logo-dev.svg');
 const androidIconPaddingRatio = 0.28;
 const iosIconPaddingRatio = 0.12;
 const defaultIconPaddingRatio = 0.01;
@@ -142,22 +147,89 @@ const outputs: Array<IconOutput> = [
 	},
 ];
 
-function resolveSelectedPlatforms(): Set<Platform> {
-	const knownFlags = new Set(['--android', '--ios']);
-	const args = process.argv.slice(2);
+// Dev-variant launcher icons for //:atolla_dev. Android keeps them in the same res/
+// root under a distinct name (ic_launcher_dev) so no resource merge is needed; iOS
+// gets its own asset catalog so the required "AppIcon" set name doesn't collide.
+const devOutputs: Array<IconOutput> = [
+	{
+		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-mdpi/ic_launcher_dev.png'),
+		platform: 'android',
+		size: 48,
+		src: devSourceSvgPath,
+	},
+	{
+		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-hdpi/ic_launcher_dev.png'),
+		platform: 'android',
+		size: 72,
+		src: devSourceSvgPath,
+	},
+	{
+		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xhdpi/ic_launcher_dev.png'),
+		platform: 'android',
+		size: 96,
+		src: devSourceSvgPath,
+	},
+	{
+		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xxhdpi/ic_launcher_dev.png'),
+		platform: 'android',
+		size: 144,
+		src: devSourceSvgPath,
+	},
+	{
+		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xxxhdpi/ic_launcher_dev.png'),
+		platform: 'android',
+		size: 192,
+		src: devSourceSvgPath,
+	},
+	{
+		path: resolve(
+			process.cwd(),
+			'atolla/native/android/res/drawable/ic_launcher_dev_foreground.png',
+		),
+		platform: 'android',
+		size: 432,
+		src: devSourceSvgPath,
+	},
+	{
+		monochrome: true,
+		path: resolve(
+			process.cwd(),
+			'atolla/native/android/res/drawable/ic_launcher_dev_monochrome.png',
+		),
+		platform: 'android',
+		size: 432,
+		src: devSourceSvgPath,
+	},
+	{
+		path: resolve(
+			process.cwd(),
+			'atolla/native/ios/Assets-dev.xcassets/AppIcon.appiconset/icon-1024.png',
+		),
+		platform: 'ios',
+		size: 1024,
+		src: devSourceSvgPath,
+	},
+];
 
-	for (const arg of args) {
-		if (arg.startsWith('--') && !knownFlags.has(arg)) {
-			console.warn(`warning: ignoring unrecognised flag '${arg}'`);
-		}
+const args = process.argv.slice(2);
+const knownFlags = new Set(['--android', '--ios', '--dev']);
+
+for (const arg of args) {
+	if (arg.startsWith('--') && !knownFlags.has(arg)) {
+		console.warn(`warning: ignoring unrecognised flag '${arg}'`);
 	}
+}
 
+const generateDev = args.includes('--dev');
+
+function resolveSelectedPlatforms(): Set<Platform> {
 	const selected = new Set<Platform>();
 	if (args.includes('--android')) selected.add('android');
 	if (args.includes('--ios')) selected.add('ios');
 
-	// no platform flag generates everything, preserving behaviour for existing callers
-	if (selected.size === 0) {
+	// no platform flag generates everything, preserving behaviour for existing callers;
+	// `--dev` on its own targets only the dev variant, so it doesn't default to all.
+	if (selected.size === 0 && !generateDev) {
 		selected.add('android');
 		selected.add('ios');
 		selected.add('web');
@@ -185,7 +257,7 @@ async function generateIcons(targets: Array<IconOutput>): Promise<void> {
 		const contentSize = output.size - padding * 2;
 		const fitMode = 'contain';
 
-		const rendered = sharp(sourceSvgPath, { density: 512, limitInputPixels: false })
+		const rendered = sharp(output.src ?? sourceSvgPath, { density: 512, limitInputPixels: false })
 			.trim({ threshold: 0 })
 			.resize(contentSize, contentSize, {
 				background: { alpha: 0, b: 0, g: 0, r: 0 },
@@ -259,12 +331,13 @@ async function _validateIcons(targets: Array<IconOutput>): Promise<void> {
 }
 
 async function main(): Promise<void> {
-	const platforms = [...selectedPlatforms].sort().join(', ');
-	console.log(`Generating icons from atolla/res/logo.svg (${platforms})...`);
-	await generateIcons(selectedOutputs);
+	const tasks = [...selectedOutputs];
+	if (generateDev) tasks.push(...devOutputs);
 
-	// console.log('Validating generated icons...');
-	// await validateIcons(selectedOutputs);
+	const labels: Array<string> = [...selectedPlatforms].sort();
+	if (generateDev) labels.push('dev');
+	console.log(`Generating icons (${labels.join(', ')})...`);
+	await generateIcons(tasks);
 
 	if (selectedPlatforms.has('ios')) {
 		console.log('Copying svg to ios liquid glass directory...');
@@ -273,7 +346,7 @@ async function main(): Promise<void> {
 		copyFileSync('atolla/res/logo.svg', iosLiquidGlassSvg);
 	}
 
-	console.log(`Icon generation/validation complete: ${selectedOutputs.length} files OK`);
+	console.log(`Icon generation complete: ${tasks.length} files OK`);
 }
 
 await main();

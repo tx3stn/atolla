@@ -17,6 +17,9 @@ valdi_application(
     deps = ["//atolla"],
 )
 
+# The local dev variant lives in its own package (//atolla_dev) because valdi_application
+# emits a fixed-name libvaldi.so cc_binary that would collide with this one's.
+
 zig_target_toolchain(
     name = "zig_target_android_arm64",
     target = "aarch64-linux-android",

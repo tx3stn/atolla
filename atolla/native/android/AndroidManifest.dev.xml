@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.tx3stn.atolla"
+    package="com.tx3stn.atolla.dev"
 >
     <uses-sdk
         android:minSdkVersion="19"
@@ -10,17 +10,17 @@
 
     <application
         android:allowBackup="false"
-        android:label="atolla"
+        android:label="atolla dev"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher"
+        android:icon="@mipmap/ic_launcher_dev"
+        android:roundIcon="@mipmap/ic_launcher_dev"
         android:networkSecurityConfig="@xml/network_security_config"
     >
         <profileable android:shell="true" />
 
         <activity
-            android:name="com.tx3stn.atolla.StartActivity"
+            android:name="com.tx3stn.atolla.dev.StartActivity"
             android:screenOrientation="portrait"
             android:exported="true"
         >

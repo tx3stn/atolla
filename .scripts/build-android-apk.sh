@@ -67,10 +67,14 @@ echo "Building app..."
 read -r -a BAZEL_ARGS_ARRAY <<<"$VALDI_BAZEL_ARGS"
 bazel build "$VALDI_APPLICATION_TARGET" "${BAZEL_ARGS_ARRAY[@]}"
 
-BAZEL_BIN="$(bazel info bazel-bin "${BAZEL_ARGS_ARRAY[@]}" 2>/dev/null)"
-APK_SRC="${BAZEL_BIN}/atolla_android.apk"
+# Locate the built .apk via cquery so it resolves regardless of the target's package
+# (//:atolla_android vs //atolla_dev:atolla_android); copy it to the stable build/ path
+# the install and release steps expect. Match <name>.apk exactly to skip the _unsigned one.
+APK_NAME="${VALDI_APPLICATION_TARGET##*:}"
+APK_SRC="$(bazel cquery --output=files "$VALDI_APPLICATION_TARGET" "${BAZEL_ARGS_ARRAY[@]}" 2>/dev/null |
+	grep "/${APK_NAME}\.apk$" | head -1)"
 if [[ ! -f "$APK_SRC" ]]; then
-	echo "Error: could not locate atolla_android.apk at ${APK_SRC}" >&2
+	echo "Error: could not locate the built apk (cquery returned: '${APK_SRC}')" >&2
 	exit 1
 fi
 

@@ -1,0 +1,23 @@
+load("@valdi//bzl/valdi:valdi_application.bzl", "valdi_application")
+
+package(default_visibility = ["//visibility:public"])
+
+# Local dev variant of the app with a distinct id (com.tx3stn.atolla.dev) + "atolla dev"
+# label + "DEV" launcher icon, so it installs alongside the released //:atolla build.
+# Built by the build-and-run scripts (`bun run android` / `bun run ios`); the release
+# pipeline keeps building //:atolla. Only the identity and launcher icon differ — the app
+# sources (//atolla) are shared. It's a separate package (not root) because the macro
+# emits a fixed-name libvaldi.so that would collide with the one //:atolla emits.
+valdi_application(
+    name = "atolla",
+    android_app_manifest = "//atolla/native:android_manifest_dev",
+    android_package = "com.tx3stn.atolla.dev",
+    android_resource_files = ["//atolla/native:android_launcher_icons_dev"],
+    ios_app_icons = ["//atolla/native:ios_launcher_icons_dev"],
+    ios_bundle_id = "com.tx3stn.atolla.dev",
+    ios_families = ["iphone"],
+    root_component_path = "App@atolla/src/App",
+    title = "atolla dev",
+    version = "0.3.19",
+    deps = ["//atolla"],
+)

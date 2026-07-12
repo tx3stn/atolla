@@ -61,6 +61,10 @@ fi
 
 echo "Using simulator: $SIMULATOR_NAME ($SIMULATOR_ID)"
 
+# Install the dev variant (com.tx3stn.atolla.dev) so it sits alongside a released
+# build; override VALDI_APPLICATION_TARGET=//:atolla_ios to run the release id.
+export VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//atolla_dev:atolla_ios}"
+
 IOS_CPUS=sim_arm64 "$SCRIPT_DIR/build-ios-ipa.sh"
 
 echo "Installing on simulator..."
