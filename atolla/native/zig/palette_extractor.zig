@@ -31,6 +31,12 @@ const DOMINANT_BINS: usize = 1 << (DOMINANT_BITS * 3); // 512
 
 const TEXT_CONTRAST_FLOOR = 0.3;
 
+// on_surface / muted_on_surface also sit over the accent in the collapsed player.
+// so the text must clear a second, softer floor against the accent. it is gentler
+// than the surface floor because the accent only covers part of the bar.
+const ACCENT_CONTRAST_FLOOR = 0.18;
+const MUTED_ACCENT_CONTRAST_FLOOR = 0.10;
+
 // a flat near-white region (e.g. a bright element over a colour field) can narrowly
 // out-populate a strong chromatic colour and steal the surface, reading washed-out.
 // when the dominant is near-white and a chromatic hue family is tied-or-larger they
@@ -212,35 +218,66 @@ fn isNearWhite(rgb: Rgb) bool {
     return oklch.l >= NEAR_WHITE_L and oklch.c <= NEAR_WHITE_C;
 }
 
-fn legibleText(surface: Rgb) Rgb {
+// text is picked to contrast the surface first (light text on a dark surface, dark on light),
+// then walked toward the extreme (near-white / near-black) until it also clears the accent floor.
+// walking away from the surface only ever raises surface contrast, so the accent nudge can never
+// cost surface legibility. it only bites when text and accent land on the same side (e.g. a dark
+// surface's light text against a light accent) — the case that reads washed-out over the played
+// fill. where the base candidate already clears both floors it is returned unchanged.
+fn legibleText(surface: Rgb, accent: Rgb) Rgb {
     const hsl = rgbToHsl(surface.r, surface.g, surface.b);
     const surfaceL = rgbToOklch(surface.r, surface.g, surface.b).l;
+    const accentL = rgbToOklch(accent.r, accent.g, accent.b).l;
     const wantLight = hsl.l < 0.5;
-    const candidate = if (wantLight)
-        hslToRgb(hsl.h, @min(hsl.s * 1.5, 0.35), @min(0.88, hsl.l + 0.65))
-    else
-        hslToRgb(hsl.h, @min(hsl.s * 0.8, 0.45), @max(0.12, hsl.l - 0.6));
-    const candidateL = rgbToOklch(candidate.r, candidate.g, candidate.b).l;
-    if (@abs(candidateL - surfaceL) >= TEXT_CONTRAST_FLOOR) return candidate;
-    return if (wantLight)
-        hslToRgb(hsl.h, 0.10, 0.98)
-    else
-        hslToRgb(hsl.h, 0.10, 0.02);
+
+    const baseS = if (wantLight) @min(hsl.s * 1.5, 0.35) else @min(hsl.s * 0.8, 0.45);
+    const baseL = if (wantLight) @min(0.88, hsl.l + 0.65) else @max(0.12, hsl.l - 0.6);
+    const extremeS = 0.10;
+    const extremeL: f64 = if (wantLight) 0.98 else 0.02;
+
+    const steps = 12;
+    var candidate = hslToRgb(hsl.h, baseS, baseL);
+    var i: usize = 0;
+    while (i <= steps) : (i += 1) {
+        const t = @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(steps));
+        candidate = hslToRgb(hsl.h, baseS + (extremeS - baseS) * t, baseL + (extremeL - baseL) * t);
+        const candidateL = rgbToOklch(candidate.r, candidate.g, candidate.b).l;
+        if (@abs(candidateL - surfaceL) >= TEXT_CONTRAST_FLOOR and
+            @abs(candidateL - accentL) >= ACCENT_CONTRAST_FLOOR) return candidate;
+    }
+    return candidate; // best effort: the extreme (near-white / near-black)
 }
 
-fn mixChannel(t: u8, s: u8) u8 {
+fn mixChannel(t: u8, s: u8, fraction: f64) u8 {
     const diff: f64 = @as(f64, @floatFromInt(s)) - @as(f64, @floatFromInt(t));
-    const blend: i32 = @intFromFloat(diff * 0.22);
+    const blend: i32 = @intFromFloat(diff * fraction);
     const result: i32 = @as(i32, t) + blend;
     return @intCast(@max(0, @min(255, result)));
 }
 
-fn mutedText(text: Rgb, surface: Rgb) Rgb {
+fn blendToward(text: Rgb, surface: Rgb, fraction: f64) Rgb {
     return .{
-        .r = mixChannel(text.r, surface.r),
-        .g = mixChannel(text.g, surface.g),
-        .b = mixChannel(text.b, surface.b),
+        .r = mixChannel(text.r, surface.r, fraction),
+        .g = mixChannel(text.g, surface.g, fraction),
+        .b = mixChannel(text.b, surface.b, fraction),
     };
+}
+
+// muted text is the on_surface pulled toward the surface, which softens it against the surface but
+// can also drag it back toward the accent's lightness. back the blend off from the full 0.22 until
+// it clears the accent floor; fraction 0 is on_surface itself, which already clears it, so this
+// always converges. where the full blend is already fine it stays at 0.22 and nothing changes.
+fn mutedText(text: Rgb, surface: Rgb, accent: Rgb) Rgb {
+    const accentL = rgbToOklch(accent.r, accent.g, accent.b).l;
+    const steps = 11;
+    var muted = blendToward(text, surface, 0.22);
+    var i: usize = 0;
+    while (i <= steps) : (i += 1) {
+        const fraction = 0.22 * (1.0 - @as(f64, @floatFromInt(i)) / @as(f64, @floatFromInt(steps)));
+        muted = blendToward(text, surface, fraction);
+        if (@abs(rgbToOklch(muted.r, muted.g, muted.b).l - accentL) >= MUTED_ACCENT_CONTRAST_FLOOR) return muted;
+    }
+    return muted;
 }
 
 fn writeDefaults(out: *Palette) void {
@@ -439,8 +476,9 @@ fn selectPaletteFromBins(bins: *const [MAX_BINS]Bin, out: *Palette) void {
         }
     }
 
-    const onSurfaceRgb = legibleText(surfaceRgb);
-    const mutedOnSurfaceRgb = mutedText(onSurfaceRgb, surfaceRgb);
+    const accentRgb = parseHex(accentHex);
+    const onSurfaceRgb = legibleText(surfaceRgb, accentRgb);
+    const mutedOnSurfaceRgb = mutedText(onSurfaceRgb, surfaceRgb, accentRgb);
 
     out.accent = accentHex;
     writeHex(&out.surface, surfaceRgb.r, surfaceRgb.g, surfaceRgb.b);
@@ -730,13 +768,70 @@ test "atolla_extract_palette: near-monochrome fallback leans to the chromatic ti
     try std.testing.expect(accent.b > accent.g);
 }
 
-test "atolla_extract_palette: on_surface clears the contrast floor on a mid-tone surface" {
+test "atolla_extract_palette: on_surface clears the surface and accent floors on a mid-tone surface" {
     const pixels: [4]u8 = .{ 128, 128, 128, 255 };
     var palette: Palette = std.mem.zeroes(Palette);
     _ = atolla_extract_palette(&pixels, 1, 1, &palette);
     const surface = parseHex(palette.surface);
+    const accent = parseHex(palette.accent);
     const text = parseHex(palette.on_surface);
     const surfaceL = rgbToOklch(surface.r, surface.g, surface.b).l;
+    const accentL = rgbToOklch(accent.r, accent.g, accent.b).l;
     const textL = rgbToOklch(text.r, text.g, text.b).l;
     try std.testing.expect(@abs(textL - surfaceL) >= TEXT_CONTRAST_FLOOR);
+    try std.testing.expect(@abs(textL - accentL) >= ACCENT_CONTRAST_FLOOR);
+}
+
+test "legibleText: a light accent over a dark surface drives the text past the surface-only base" {
+    // knower/converge case: dark surface wants light text, but a light accent sits right where the
+    // base candidate lands. factoring the accent in pushes the text lighter than both the accent and
+    // the old surface-only candidate (which was a low-contrast mid-grey against the played fill).
+    const surface = Rgb{ .r = 0, .g = 0, .b = 0 };
+    const accent = Rgb{ .r = 0xa7, .g = 0xa7, .b = 0xa6 };
+    const base = hslToRgb(0.0, @min(0.0 * 1.5, 0.35), @min(0.88, 0.0 + 0.65));
+    const text = legibleText(surface, accent);
+    const surfaceL = rgbToOklch(surface.r, surface.g, surface.b).l;
+    const accentL = rgbToOklch(accent.r, accent.g, accent.b).l;
+    const baseL = rgbToOklch(base.r, base.g, base.b).l;
+    const textL = rgbToOklch(text.r, text.g, text.b).l;
+    try std.testing.expect(@abs(textL - surfaceL) >= TEXT_CONTRAST_FLOOR);
+    try std.testing.expect(textL > accentL);
+    try std.testing.expect(textL > baseL);
+}
+
+test "legibleText: an opposite-side accent leaves the base candidate untouched" {
+    // dark surface, dark accent: the light base candidate already clears both floors, so the walk
+    // returns it as-is and today's good outputs don't drift.
+    const surface = Rgb{ .r = 0, .g = 0, .b = 0 };
+    const accent = Rgb{ .r = 0x10, .g = 0x14, .b = 0x2b };
+    const base = hslToRgb(0.0, @min(0.0 * 1.5, 0.35), @min(0.88, 0.0 + 0.65));
+    const text = legibleText(surface, accent);
+    try std.testing.expectEqual(base.r, text.r);
+    try std.testing.expectEqual(base.g, text.g);
+    try std.testing.expectEqual(base.b, text.b);
+}
+
+test "mutedText: backs the blend off so muted text clears the accent floor" {
+    // near-white on_surface muted toward a black surface lands as a light grey; against a light-grey
+    // accent that would collapse the contrast, so the blend eases back until the accent floor clears.
+    const text = Rgb{ .r = 0xfa, .g = 0xfa, .b = 0xfa };
+    const surface = Rgb{ .r = 0, .g = 0, .b = 0 };
+    const accent = Rgb{ .r = 0xa7, .g = 0xa7, .b = 0xa6 };
+    const muted = mutedText(text, surface, accent);
+    const accentL = rgbToOklch(accent.r, accent.g, accent.b).l;
+    const mutedL = rgbToOklch(muted.r, muted.g, muted.b).l;
+    try std.testing.expect(@abs(mutedL - accentL) >= MUTED_ACCENT_CONTRAST_FLOOR);
+}
+
+test "mutedText: keeps the full blend when it already clears the accent" {
+    // dark accent: the standard 0.22 blend toward the surface is already clear of it, so muted text
+    // stays at the full blend and nothing changes.
+    const text = Rgb{ .r = 0xd8, .g = 0xde, .b = 0xe9 };
+    const surface = Rgb{ .r = 0x1e, .g = 0x20, .b = 0x30 };
+    const accent = Rgb{ .r = 0x10, .g = 0x14, .b = 0x2b };
+    const muted = mutedText(text, surface, accent);
+    const full = blendToward(text, surface, 0.22);
+    try std.testing.expectEqual(full.r, muted.r);
+    try std.testing.expectEqual(full.g, muted.g);
+    try std.testing.expectEqual(full.b, muted.b);
 }
