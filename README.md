@@ -51,8 +51,8 @@
 ### home tab
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/be27c459-f952-469e-ac76-e5f2f79a6adb" alt="artist-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/afe71749-36f0-4830-b10c-b0b26ecb3c9f" alt="artist-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/2f8b7a01-ef09-46f9-b8b5-4fdc92743164" alt="artist-1" width="49%" />
+ <img src="https://github.com/user-attachments/assets/e59b6072-0e94-45e7-8b84-125b293b7d9a" alt="artist-2" width="49%" />
 </p>
 
 * albums released on this day
@@ -68,28 +68,37 @@
 </p>
 
 * artist most played tracks
-* genre pills that link to the genre view
+* genre pills that link to the genre view (including offline)
+* artist bios in modal
 
-### library & album view
+### library
 
 <p align="center">
  <img src="https://github.com/user-attachments/assets/426790e9-b969-43f1-8ab1-87d6147e1862" alt="artist-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/51d60600-ca2e-4bc7-b224-b0483ae6861d" alt="artist-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/5fe69b87-4236-413b-bce6-a55079105a73" alt="artist-2" width="49%" />
 </p>
 
-* compact player bar floats over all views
-* audio file quality badges on albums
+### album
 
-### search & genre list
+<p align="center">
+ <img src="https://github.com/user-attachments/assets/75b4ebd8-2bdd-48d3-8253-b6909dc4d5dc" alt="album-1" width="49%" />
+ <img src="https://github.com/user-attachments/assets/d5eec9da-1864-4f6b-bdaf-101662fef309" alt="album-2" width="49%" />
+</p>
+
+* audio file quality badges on albums
+* genre pills that link to the genre view (including offline)
+* album bios in modal
+
+### search & settings
 
 <p align="center">
  <img src="https://github.com/user-attachments/assets/5f909219-bb0e-4299-b617-74eb8b77add0" alt="artist-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/5fe69b87-4236-413b-bce6-a55079105a73" alt="artist-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/32ccc4f9-ad68-4214-8abe-1dfa994f163e" alt="artist-2" width="49%" />
 </p>
 
 * search that works online and offline
 * genre playlists that work online and offline
-* genre pills on artists and albums online and offline
+* genre tags on artists and albums online and offline
 
 ## Installing
 
