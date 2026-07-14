@@ -261,7 +261,7 @@ describe('OfflineTransport', () => {
 		);
 
 		const genresPage = await transport.getGenres(1, 10);
-		const tracksPage = await transport.getTracksByGenrePage('genre-1', 1, 10);
+		const tracksPage = await transport.getTracksByGenre('genre-1', 1, 10);
 		const logoUrl = await transport.getArtistLogoUrl('artist-1');
 
 		expect(genresPage.items.map((genre) => genre.id)).toEqual(['genre-1']);

@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'bun:test';
+import type { Track } from '../../models/Track';
+import { pagedFromArray, type TrackSource } from '../../services/TrackSource';
 import {
 	addTracksToPlaylist,
 	createPlaylistAndAddTracks,
 	selectQueueTracksForPlaylist,
 } from './CreatePlaylist';
+
+// a TrackSource that yields the given pages in order
+function pagedSource(pages: Array<Array<Track>>): TrackSource {
+	return (page) => Promise.resolve({ hasMore: page < pages.length, items: pages[page - 1] ?? [] });
+}
 
 const tracks = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }, { id: 'e' }];
 
@@ -74,21 +81,33 @@ describe('selectQueueTracksForPlaylist', () => {
 });
 
 describe('addTracksToPlaylist', () => {
-	it('adds every track in order', async () => {
-		const added: Array<string> = [];
+	it('adds every track across pages in order, one bulk call per page', async () => {
+		const calls: Array<Array<string>> = [];
 		await addTracksToPlaylist(
 			'pl-1',
-			[{ id: 'a' }, { id: 'b' }, { id: 'c' }],
-			(_playlistId, trackId) => {
-				added.push(trackId);
+			pagedSource([[{ id: 'a' }, { id: 'b' }] as Array<Track>, [{ id: 'c' }] as Array<Track>]),
+			(_playlistId, trackIds) => {
+				calls.push(trackIds);
 				return Promise.resolve();
 			},
 		);
-		expect(added).toEqual(['a', 'b', 'c']);
+		expect(calls).toEqual([['a', 'b'], ['c']]);
 	});
 
-	it('does nothing when there is no add function', async () => {
-		await expect(addTracksToPlaylist('pl-1', [{ id: 'a' }], undefined)).resolves.toBeUndefined();
+	it('stops between pages once cancelled', async () => {
+		const calls: Array<Array<string>> = [];
+		let cancelled = false;
+		await addTracksToPlaylist(
+			'pl-1',
+			pagedSource([[{ id: 'a' }] as Array<Track>, [{ id: 'b' }] as Array<Track>]),
+			(_playlistId, trackIds) => {
+				calls.push(trackIds);
+				cancelled = true;
+				return Promise.resolve();
+			},
+			{ isCancelled: () => cancelled },
+		);
+		expect(calls).toEqual([['a']]);
 	});
 });
 
@@ -98,11 +117,11 @@ describe('createPlaylistAndAddTracks', () => {
 		const playlist = await createPlaylistAndAddTracks(
 			'My Playlist',
 			async (name) => ({ id: 'pl-1', name }),
-			(_playlistId, trackId) => {
-				added.push(trackId);
+			(_playlistId, trackIds) => {
+				added.push(...trackIds);
 				return Promise.resolve();
 			},
-			[{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+			pagedFromArray([{ id: 'a' }, { id: 'b' }, { id: 'c' }] as Array<Track>),
 		);
 		expect(playlist.id).toBe('pl-1');
 		expect(added).toEqual(['a', 'b', 'c']);

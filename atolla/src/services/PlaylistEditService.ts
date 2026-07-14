@@ -58,7 +58,7 @@ export class PlaylistEditService {
 	async execute(op: PlaylistOperation, transport: Transport): Promise<PlaylistEditError | null> {
 		try {
 			if (op.type === 'add') {
-				await transport.addItemToPlaylist(op.playlistId, op.trackId);
+				await transport.addItemsToPlaylist(op.playlistId, [op.trackId]);
 			} else if (op.type === 'move') {
 				await transport.movePlaylistTrack(op.playlistId, op.trackId, op.toIndex);
 			} else if (op.type === 'remove') {
@@ -126,7 +126,7 @@ export class PlaylistEditService {
 		for (const op of ops) {
 			try {
 				if (op.type === 'add') {
-					await transport.addItemToPlaylist(op.playlistId, op.trackId);
+					await transport.addItemsToPlaylist(op.playlistId, [op.trackId]);
 				} else if (op.type === 'move') {
 					await transport.movePlaylistTrack(op.playlistId, op.trackId, op.toIndex);
 				} else if (op.type === 'remove') {

@@ -6,7 +6,7 @@ import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 
 export interface Transport {
-	addItemToPlaylist(playlistId: string, trackId: string): Promise<void>;
+	addItemsToPlaylist(playlistId: string, trackIds: Array<string>): Promise<void>;
 	createPlaylist(name: string, trackId?: string): Promise<Playlist>;
 	getAlbumReleaseDates(
 		page: number,
@@ -45,8 +45,7 @@ export interface Transport {
 	getTrackCacheUrl(trackId: string): string | null;
 	getTracksByAlbum(albumId: string): Promise<Array<Track>>;
 	getTracksByArtist(artistId: string): Promise<Array<Track>>;
-	getTracksByGenre(genreId: string): Promise<Array<Track>>;
-	getTracksByGenrePage(
+	getTracksByGenre(
 		genreId: string,
 		page: number,
 		pageSize: number,

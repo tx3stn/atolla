@@ -34,8 +34,7 @@ function mockTransport(overrides: Record<string, unknown> = {}): Transport {
 		getArtistLogoUrl: () => Promise.resolve(null),
 		getTracksByAlbum: () => Promise.resolve([mockTrack()]),
 		getTracksByArtist: () => Promise.resolve([mockTrack()]),
-		getTracksByGenre: () => Promise.resolve([mockTrack()]),
-		getTracksByGenrePage: () =>
+		getTracksByGenre: () =>
 			Promise.resolve({ hasMore: false, items: [mockTrack()], totalCount: 1 }),
 		getTracksByPlaylist: () => Promise.resolve({ hasMore: false, items: [mockTrack()] }),
 		...overrides,
@@ -176,7 +175,7 @@ describe('CardContextMenu', () => {
 						onDismiss: jasmine.createSpy('onDismiss'),
 						playbackStore: store,
 						transport: mockTransport({
-							getTracksByGenrePage: () =>
+							getTracksByGenre: () =>
 								Promise.resolve({ hasMore: true, items: page, totalCount: 99 }),
 						}),
 					},
@@ -252,8 +251,8 @@ describe('CardContextMenu', () => {
 			async (driver) => {
 				const { playNext, store } = mockPagedStore();
 				const page = [mockTrack('g1'), mockTrack('g2')];
-				const getTracksByGenrePage = jasmine
-					.createSpy('getTracksByGenrePage')
+				const getTracksByGenre = jasmine
+					.createSpy('getTracksByGenre')
 					.and.returnValue(Promise.resolve({ hasMore: true, items: page, totalCount: 99 }));
 				const component = driver.renderComponent(
 					CardContextMenu,
@@ -262,7 +261,7 @@ describe('CardContextMenu', () => {
 						card: { genre: mockGenre(), kind: 'genre' },
 						onDismiss: jasmine.createSpy('onDismiss'),
 						playbackStore: store,
-						transport: mockTransport({ getTracksByGenrePage }),
+						transport: mockTransport({ getTracksByGenre }),
 					},
 					undefined,
 				);
@@ -270,7 +269,7 @@ describe('CardContextMenu', () => {
 				(getInternal(component).handlePlayNext as () => void)();
 				await flush();
 
-				expect(getTracksByGenrePage).toHaveBeenCalledWith('genre-1', 1, jasmine.any(Number));
+				expect(getTracksByGenre).toHaveBeenCalledWith('genre-1', 1, jasmine.any(Number));
 				expect(playNext).toHaveBeenCalledWith(page);
 			},
 		);
@@ -300,9 +299,9 @@ describe('CardContextMenu', () => {
 			expect(addToQueue).toHaveBeenCalledWith(page);
 		});
 
-		valdiIt('genre Add to Playlist still passes the full genre track list', async (driver) => {
+		valdiIt('genre Add to Playlist hands over a paged track source', async (driver) => {
 			const onAddToPlaylist = jasmine.createSpy('onAddToPlaylist');
-			const full = [mockTrack('g1'), mockTrack('g2')];
+			const page = [mockTrack('g1'), mockTrack('g2')];
 			const component = driver.renderComponent(
 				CardContextMenu,
 				{
@@ -311,7 +310,9 @@ describe('CardContextMenu', () => {
 					onAddToPlaylist,
 					onDismiss: jasmine.createSpy('onDismiss'),
 					playbackStore: {} as unknown as PlaybackStore,
-					transport: mockTransport({ getTracksByGenre: () => Promise.resolve(full) }),
+					transport: mockTransport({
+						getTracksByGenre: () => Promise.resolve({ hasMore: false, items: page, totalCount: 2 }),
+					}),
 				},
 				undefined,
 			);
@@ -319,7 +320,12 @@ describe('CardContextMenu', () => {
 			(getInternal(component).handleAddToPlaylist as () => void)();
 			await flush();
 
-			expect(onAddToPlaylist).toHaveBeenCalledWith(full);
+			expect(onAddToPlaylist).toHaveBeenCalled();
+			const tracks = onAddToPlaylist.calls.mostRecent().args[0] as (
+				p: number,
+				s: number,
+			) => Promise<{ items: Array<Track> }>;
+			expect((await tracks(1, 200)).items).toEqual(page);
 		});
 	});
 });

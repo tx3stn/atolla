@@ -1446,7 +1446,7 @@ describe('NowPlayingSurface', () => {
 			const tracks = createQueueTracks(3);
 			let openedPlaylist: { id: string; name: string } | undefined;
 			const transport = {
-				addItemToPlaylist: () => Promise.resolve(),
+				addItemsToPlaylist: () => Promise.resolve(),
 				createPlaylist: (name: string) => Promise.resolve({ id: 'pl-new', name }),
 			};
 			const { instrumented, surface } = mountNowPlayingWithSlot({

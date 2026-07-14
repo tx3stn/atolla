@@ -55,7 +55,6 @@ interface AlbumsPageResult {
 	items: Array<Album>;
 }
 
-const defaultPageSize = 100;
 const defaultSearchLimit = 100;
 
 export class LiveTransport implements Transport {
@@ -82,10 +81,11 @@ export class LiveTransport implements Transport {
 		this.clientDeviceId = normalizeClientDeviceId(options.clientDeviceId);
 	}
 
-	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
+	async addItemsToPlaylist(playlistId: string, trackIds: Array<string>): Promise<void> {
+		if (trackIds.length === 0) return;
 		await this.request('POST', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
 			query: {
-				ids: trackId,
+				ids: trackIds.join(','),
 				userId: this.userId,
 			},
 		});
@@ -426,20 +426,7 @@ export class LiveTransport implements Transport {
 		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
-	async getTracksByGenre(genreId: string): Promise<Array<Track>> {
-		const items = await this.fetchAllItems<JellyfinTrackItem>({
-			fields: 'Overview,MediaSources',
-			genreIds: genreId,
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			recursive: true,
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
-		});
-
-		return items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
-	}
-
-	async getTracksByGenrePage(
+	async getTracksByGenre(
 		genreId: string,
 		page: number,
 		pageSize: number,
@@ -629,31 +616,6 @@ export class LiveTransport implements Transport {
 			headers['X-Emby-Token'] = this.accessToken;
 		}
 		return headers;
-	}
-
-	private async fetchAllItems<TItem>(
-		params: Record<string, string | number | boolean | undefined>,
-	): Promise<Array<TItem>> {
-		const items: Array<TItem> = [];
-		let startIndex = 0;
-
-		while (true) {
-			const list = await this.fetchItemsPage<TItem>({
-				...params,
-				limit: defaultPageSize,
-				startIndex,
-			});
-
-			const page = list.Items ?? [];
-			items.push(...page);
-			startIndex += page.length;
-
-			if (startIndex >= list.TotalRecordCount || page.length === 0) {
-				break;
-			}
-		}
-
-		return items;
 	}
 
 	private fetchItemsPage<TItem>(

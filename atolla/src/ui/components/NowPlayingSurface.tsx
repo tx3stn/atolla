@@ -15,6 +15,7 @@ import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
 import type { ToastService } from '../../services/ToastService';
+import { pagedFromArray } from '../../services/TrackSource';
 import type { BarColorStore, FooterColors } from '../../stores/BarColor';
 import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playback';
 import { MAX_VISIBLE_QUEUE_TRACKS } from '../../stores/Queue';
@@ -654,8 +655,9 @@ export class NowPlayingSurface extends StatefulComponent<
 		const playlist = await createPlaylistAndAddTracks(
 			name,
 			(playlistName) => transport.createPlaylist(playlistName),
-			(playlistId, trackId) => transport.addItemToPlaylist(playlistId, trackId),
-			selected,
+			(playlistId, trackIds) => transport.addItemsToPlaylist(playlistId, trackIds),
+			pagedFromArray(selected),
+			{ isCancelled: () => this.isDestroyed() },
 		);
 		closeSlot(this.viewModel.modalSlot);
 		await this.closeSurface();

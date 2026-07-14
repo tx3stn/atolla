@@ -82,9 +82,9 @@ export class MockTransport implements Transport {
 			mockGenrePrimaryImageUrls[itemId],
 	};
 
-	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
+	async addItemsToPlaylist(playlistId: string, trackIds: Array<string>): Promise<void> {
 		const order = this.playlistItemOrder.get(playlistId) ?? [];
-		this.playlistItemOrder.set(playlistId, [...order, trackId]);
+		this.playlistItemOrder.set(playlistId, [...order, ...trackIds]);
 	}
 
 	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
@@ -290,29 +290,12 @@ export class MockTransport implements Transport {
 			);
 	}
 
-	async getTracksByGenre(genreId: string): Promise<Array<Track>> {
-		const trackIds = mockGenreTrackIds[genreId] ?? [];
-		const tracksById = new Map(mockJellyfinTracks.map((track) => [track.Id, track]));
-
-		return trackIds.flatMap((trackId) => {
-			const item = tracksById.get(trackId);
-			return item
-				? [
-						mapJellyfinTrackToTrack(
-							{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
-							this.imageResolvers,
-						),
-					]
-				: [];
-		});
-	}
-
-	async getTracksByGenrePage(
+	async getTracksByGenre(
 		genreId: string,
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
-		const allTracks = await this.getTracksByGenre(genreId);
+		const allTracks = await this.collectGenreTracks(genreId);
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const items = allTracks.slice(startIndex, startIndex + pageSize);
 
@@ -429,6 +412,23 @@ export class MockTransport implements Transport {
 				this.imageResolvers,
 			),
 		);
+	}
+
+	private async collectGenreTracks(genreId: string): Promise<Array<Track>> {
+		const trackIds = mockGenreTrackIds[genreId] ?? [];
+		const tracksById = new Map(mockJellyfinTracks.map((track) => [track.Id, track]));
+
+		return trackIds.flatMap((trackId) => {
+			const item = tracksById.get(trackId);
+			return item
+				? [
+						mapJellyfinTrackToTrack(
+							{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
+							this.imageResolvers,
+						),
+					]
+				: [];
+		});
 	}
 
 	private async collectPlaylistTracks(playlistId: string): Promise<Array<Track>> {

@@ -487,7 +487,7 @@ describe('LiveTransport core collections', () => {
 		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([track], 7, 3))]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		const page = await transport.getTracksByGenrePage('genre-1', 2, 3);
+		const page = await transport.getTracksByGenre('genre-1', 2, 3);
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'genreIds')).toBe('genre-1');

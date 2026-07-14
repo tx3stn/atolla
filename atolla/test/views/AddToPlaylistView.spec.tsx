@@ -1,7 +1,13 @@
 import 'jasmine/src/jasmine';
+import type { Track } from 'atolla/src/models/Track';
 import { ToastService } from 'atolla/src/services/ToastService';
+import { pagedFromArray } from 'atolla/src/services/TrackSource';
 import { AddToPlaylistView } from 'atolla/src/ui/views/AddToPlaylistView';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
+
+const oneTrack = pagedFromArray([
+	{ duration: 120, id: 'track-1', name: 'Track One' },
+] as unknown as Array<Track>);
 
 const pageSize = 24;
 
@@ -97,8 +103,8 @@ describe('AddToPlaylistView', () => {
 		let dismissed = false;
 		const toastService = new ToastService();
 		const transport = {
-			addItemToPlaylist: (playlistId: string, trackId: string) => {
-				added.push([playlistId, trackId]);
+			addItemsToPlaylist: (playlistId: string, trackIds: Array<string>) => {
+				added.push([playlistId, trackIds[0]]);
 				return Promise.resolve();
 			},
 			getPlaylists: () => Promise.resolve({ hasMore: false, items: makePlaylists(2) }),
@@ -112,7 +118,7 @@ describe('AddToPlaylistView', () => {
 				dismissed = true;
 			},
 			toastService,
-			tracks: [{ duration: 120, id: 'track-1', name: 'Track One' }],
+			tracks: oneTrack,
 			transport,
 		};
 		const component = driver.renderComponent(AddToPlaylistView, viewModel, undefined);
@@ -132,7 +138,7 @@ describe('AddToPlaylistView', () => {
 	valdiIt('reverts the adding state and surfaces an error when adding fails', async (driver) => {
 		let dismissed = false;
 		const transport = {
-			addItemToPlaylist: () => Promise.reject(new Error('could not add')),
+			addItemsToPlaylist: () => Promise.reject(new Error('could not add')),
 			getPlaylists: () => Promise.resolve({ hasMore: false, items: makePlaylists(2) }),
 		};
 
@@ -144,7 +150,7 @@ describe('AddToPlaylistView', () => {
 				dismissed = true;
 			},
 			toastService: new ToastService(),
-			tracks: [{ duration: 120, id: 'track-1', name: 'Track One' }],
+			tracks: oneTrack,
 			transport,
 		};
 		const component = driver.renderComponent(AddToPlaylistView, viewModel, undefined);

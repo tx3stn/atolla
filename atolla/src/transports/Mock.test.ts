@@ -42,7 +42,7 @@ describe('MockTransport pagination', () => {
 
 		const artistsPage = await transport.getArtists(1, 2);
 		const genresPage = await transport.getGenres(1, 3);
-		const genreTracksPage = await transport.getTracksByGenrePage('genre-1', 1, 2);
+		const genreTracksPage = await transport.getTracksByGenre('genre-1', 1, 2);
 		const playlistsPage = await transport.getPlaylists(1, 1);
 
 		expect(artistsPage.items.length).toBe(2);
@@ -139,9 +139,7 @@ describe('MockTransport playlist creation', () => {
 			.items;
 
 		const playlist = await transport.createPlaylist('Queue Playlist');
-		await transport.addItemToPlaylist(playlist.id, first.id);
-		await transport.addItemToPlaylist(playlist.id, second.id);
-		await transport.addItemToPlaylist(playlist.id, third.id);
+		await transport.addItemsToPlaylist(playlist.id, [first.id, second.id, third.id]);
 
 		const tracks = (await transport.getTracksByPlaylist(playlist.id, 1, 500)).items;
 		expect(tracks.map((track) => track.id)).toEqual([first.id, second.id, third.id]);
@@ -161,7 +159,7 @@ describe('MockTransport playlist creation', () => {
 		const transport = new MockTransport();
 		const [track] = (await transport.getTracksByPlaylist('playlist-1', 1, 500)).items;
 		const playlist = await transport.createPlaylist('Ephemeral');
-		await transport.addItemToPlaylist(playlist.id, track.id);
+		await transport.addItemsToPlaylist(playlist.id, [track.id]);
 
 		const fresh = (await new MockTransport().getTracksByPlaylist(playlist.id, 1, 500)).items;
 		expect(fresh).toEqual([]);

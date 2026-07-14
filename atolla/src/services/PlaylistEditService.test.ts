@@ -371,8 +371,8 @@ describe('PlaylistEditService', () => {
 			const addCalls: Array<{ playlistId: string; trackId: string }> = [];
 			const fullTransport = {
 				...transport,
-				addItemToPlaylist: (playlistId: string, trackId: string) => {
-					addCalls.push({ playlistId, trackId });
+				addItemsToPlaylist: (playlistId: string, trackIds: Array<string>) => {
+					addCalls.push({ playlistId, trackId: trackIds[0] });
 					return Promise.resolve();
 				},
 			} as unknown as Transport;
@@ -392,8 +392,8 @@ describe('PlaylistEditService', () => {
 
 			const addCalls: Array<{ playlistId: string; trackId: string }> = [];
 			const transport = {
-				addItemToPlaylist: (playlistId: string, trackId: string) => {
-					addCalls.push({ playlistId, trackId });
+				addItemsToPlaylist: (playlistId: string, trackIds: Array<string>) => {
+					addCalls.push({ playlistId, trackId: trackIds[0] });
 					return Promise.resolve();
 				},
 			} as unknown as Transport;
@@ -420,8 +420,8 @@ describe('PlaylistEditService', () => {
 			const service2 = new PlaylistEditService(store);
 			const addCalls: Array<{ playlistId: string; trackId: string }> = [];
 			const transport = {
-				addItemToPlaylist: (playlistId: string, trackId: string) => {
-					addCalls.push({ playlistId, trackId });
+				addItemsToPlaylist: (playlistId: string, trackIds: Array<string>) => {
+					addCalls.push({ playlistId, trackId: trackIds[0] });
 					return Promise.resolve();
 				},
 			} as unknown as Transport;

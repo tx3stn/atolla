@@ -2,10 +2,10 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Playlist } from '../../models/Playlist';
-import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
 import type { ToastService } from '../../services/ToastService';
+import type { TrackSource } from '../../services/TrackSource';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { type Card, CardGrid } from '../components/CardGrid';
@@ -20,7 +20,7 @@ export interface AddToPlaylistViewModel {
 	imageCache?: ImageCache;
 	onDismiss: () => void;
 	toastService: ToastService;
-	tracks: Array<Track>;
+	tracks: TrackSource;
 	transport: Transport;
 }
 
@@ -81,8 +81,11 @@ export class AddToPlaylistView extends StatefulComponent<
 		const { tracks, transport, toastService, onDismiss } = this.viewModel;
 
 		this.setState({ isAddingToPlaylist: true });
-		void addTracksToPlaylist(card.id, tracks, (playlistId, trackId) =>
-			transport.addItemToPlaylist(playlistId, trackId),
+		void addTracksToPlaylist(
+			card.id,
+			tracks,
+			(playlistId, trackIds) => transport.addItemsToPlaylist(playlistId, trackIds),
+			{ isCancelled: () => this.isDestroyed() },
 		)
 			.then(() => {
 				toastService.show(Strings.addedToPlaylist());

@@ -23,6 +23,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
+import type { TrackSource } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import type { SearchStore } from '../../stores/Search';
@@ -76,7 +77,7 @@ interface SearchState {
 
 export class SearchView extends StatefulComponent<SearchViewModel, SearchState> {
 	private cardContextMenuCard: CardContextMenuCard | null = null;
-	private pendingCreatePlaylistTracks: Array<Track> | null = null;
+	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private requestVersion = 0;
 	private recentSearchTapHandlers = new Map<string, () => void>();
 	private searchInputRef = new ElementRef();
@@ -539,7 +540,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		});
 	}
 
-	private handleCardContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
+	private handleCardContextMenuAddToPlaylist = (tracks: TrackSource): void => {
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.modalSlot, () => {
 			<AddToPlaylistView
@@ -582,15 +583,16 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		const playlist = await createPlaylistAndAddTracks(
 			name,
 			(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-			(playlistId, trackId) => this.viewModel.transport.addItemToPlaylist(playlistId, trackId),
+			(playlistId, trackIds) => this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
 			tracks,
+			{ isCancelled: () => this.isDestroyed() },
 		);
 		this.pendingCreatePlaylistTracks = null;
 		this.closeModalSlot();
 		pushPlaylist(this.viewModel.navigationController, this.detailDeps(), playlist);
 	};
 
-	private handleCardContextMenuCreatePlaylistRequest = (tracks: Array<Track>): void => {
+	private handleCardContextMenuCreatePlaylistRequest = (tracks: TrackSource): void => {
 		this.pendingCreatePlaylistTracks = tracks;
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.modalSlot, () => {

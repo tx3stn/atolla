@@ -1,8 +1,6 @@
-interface PlaylistLike {
-	id: string;
-}
+import type { TrackSource } from '../../services/TrackSource';
 
-interface TrackLike {
+interface PlaylistLike {
 	id: string;
 }
 
@@ -10,6 +8,16 @@ export interface QueueTrackSelection {
 	includePlayed: boolean;
 	includeUpNext: boolean;
 }
+
+export interface PagedAddOptions {
+	// re-checked between pages so a dismissed/destroyed consumer stops the add promptly
+	isCancelled?: () => boolean;
+	pageSize?: number;
+}
+
+type AddItems = (playlistId: string, trackIds: Array<string>) => Promise<void>;
+
+const DEFAULT_ADD_PAGE_SIZE = 200;
 
 export function selectQueueTracksForPlaylist<T>(
 	tracks: ReadonlyArray<T>,
@@ -26,23 +34,36 @@ export function selectQueueTracksForPlaylist<T>(
 export async function createPlaylistAndAddTracks<TPlaylist extends PlaylistLike>(
 	name: string,
 	createPlaylist: (name: string) => Promise<TPlaylist>,
-	addItemToPlaylist: ((playlistId: string, trackId: string) => Promise<void>) | undefined,
-	tracks: Array<TrackLike>,
+	addItems: AddItems,
+	tracks: TrackSource,
+	options?: PagedAddOptions,
 ): Promise<TPlaylist> {
 	const playlist = await createPlaylist(name);
-	await addTracksToPlaylist(playlist.id, tracks, addItemToPlaylist);
+	await addTracksToPlaylist(playlist.id, tracks, addItems, options);
 	return playlist;
 }
 
+// streams the tracks a page at a time, adding each page in one bulk request; re-checks
+// isCancelled between pages so a dismissed/destroyed consumer stops promptly
 export async function addTracksToPlaylist(
 	playlistId: string,
-	tracks: Array<TrackLike>,
-	addItemToPlaylist: ((playlistId: string, trackId: string) => Promise<void>) | undefined,
+	tracks: TrackSource,
+	addItems: AddItems,
+	options?: PagedAddOptions,
 ): Promise<void> {
-	if (addItemToPlaylist && tracks.length > 0) {
-		await tracks.reduce<Promise<void>>(
-			(chain, track) => chain.then(() => addItemToPlaylist(playlistId, track.id)),
-			Promise.resolve(),
-		);
+	const pageSize = options?.pageSize ?? DEFAULT_ADD_PAGE_SIZE;
+	let page = 1;
+	while (true) {
+		if (options?.isCancelled?.()) return;
+		const { hasMore, items } = await tracks(page, pageSize);
+		if (options?.isCancelled?.()) return;
+		if (items.length > 0) {
+			await addItems(
+				playlistId,
+				items.map((track) => track.id),
+			);
+		}
+		if (!hasMore) return;
+		page += 1;
 	}
 }

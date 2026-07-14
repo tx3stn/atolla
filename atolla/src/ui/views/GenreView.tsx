@@ -194,7 +194,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		page: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
 		const { genre, transport } = this.viewModel;
-		return transport.getTracksByGenrePage(genre.id, page, TRACK_PAGE_SIZE);
+		return transport.getTracksByGenre(genre.id, page, TRACK_PAGE_SIZE);
 	}
 
 	private handleDownloadTap = (): void => {

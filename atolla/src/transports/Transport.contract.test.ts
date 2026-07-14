@@ -142,7 +142,7 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 			expect(genre.id.length).toBeGreaterThan(0);
 			expect(typeof genre.name).toBe('string');
 
-			const genreTracks = await transport.getTracksByGenre(genre.id);
+			const genreTracks = (await transport.getTracksByGenre(genre.id, 1, 50)).items;
 			expect(genreTracks.length).toBeGreaterThan(0);
 			genreTracks.forEach(assertTrackContract);
 		});

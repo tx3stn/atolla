@@ -8,7 +8,8 @@ import type { Genre } from '../../models/Genre';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
-import { type FetchPage, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
+import { ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
+import { singlePage, type TrackSource } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -26,9 +27,9 @@ export type CardContextMenuCard =
 export interface CardContextMenuViewModel {
 	animationsEnabled: boolean;
 	card: CardContextMenuCard;
-	onAddToPlaylist?: (tracks: Array<Track>) => void;
+	onAddToPlaylist?: (tracks: TrackSource) => void;
 	onArtistTap?: () => void;
-	onCreatePlaylist?: (tracks: Array<Track>) => void;
+	onCreatePlaylist?: (tracks: TrackSource) => void;
 	onDismiss: (toastMessage?: string) => void;
 	onEntityTap?: () => void;
 	playbackStore: PlaybackStore;
@@ -53,9 +54,9 @@ export class CardContextMenu extends StatefulComponent<
 	};
 
 	onCreate(): void {
-		const { card, transport } = this.viewModel;
+		const { card } = this.viewModel;
 		if (card.kind === 'album') {
-			transport
+			this.viewModel.transport
 				.getArtistLogoUrl(card.album.artistId)
 				.then((artistLogoUrl) => {
 					if (!this.isDestroyed()) {
@@ -68,48 +69,16 @@ export class CardContextMenu extends StatefulComponent<
 		}
 	}
 
-	private fetchTracks(): Promise<Array<Track>> {
-		const { card, transport } = this.viewModel;
-		switch (card.kind) {
-			case 'album':
-				return transport.getTracksByAlbum(card.album.id);
-			case 'artist':
-				return transport.getTracksByArtist(card.artist.id);
-			case 'genre':
-				return transport.getTracksByGenre(card.genre.id);
-			case 'playlist':
-				return transport.getTracksByPlaylist(card.playlist.id, 1, 500).then(({ items }) => items);
-		}
-	}
-
-	// card kinds backed by a paginated endpoint stream their tracks lazily; album/artist have no
-	// paged endpoint (and are bounded), so they return null and fall back to the eager fetch
-	private pagedTrackSource(): FetchPage | null {
-		const { card, transport } = this.viewModel;
-		switch (card.kind) {
-			case 'genre': {
-				const genreId = card.genre.id;
-				return (page, pageSize) => transport.getTracksByGenrePage(genreId, page, pageSize);
-			}
-			case 'playlist': {
-				const playlistId = card.playlist.id;
-				return (page, pageSize) => transport.getTracksByPlaylist(playlistId, page, pageSize);
-			}
-			default:
-				return null;
-		}
-	}
-
 	// paged playback avoids materializing a large collection: play the first page and backfill the
 	// queue as it drains via a paged loader; with nothing more to load, no loader is registered
-	private startPagedPlayback(fetchPage: FetchPage): void {
+	private startPagedPlayback(tracks: TrackSource): void {
 		const { playbackStore } = this.viewModel;
-		fetchPage(1, TRACK_PAGE_SIZE)
+		tracks(1, TRACK_PAGE_SIZE)
 			.then((result) => {
 				if (result.items.length === 0) return;
 				playbackStore.playTracks(result.items, 0);
 				if (result.hasMore) {
-					const loader = new ShuffleQueueLoader(playbackStore, fetchPage, TRACK_PAGE_SIZE);
+					const loader = new ShuffleQueueLoader(playbackStore, tracks, TRACK_PAGE_SIZE);
 					loader.start(2, true);
 					playbackStore.setQueueFiller(loader);
 				}
@@ -117,20 +86,31 @@ export class CardContextMenu extends StatefulComponent<
 			.catch(() => {});
 	}
 
-	// menu is dismissed optimistically, so the fetch runs fire-and-forget: run action on a non-empty
-	// list and swallow rejections here rather than let them surface as unhandled promise rejections
-	private withFetchedTracks(action: (tracks: Array<Track>) => void): void {
-		this.fetchTracks()
-			.then((tracks) => {
-				if (tracks.length === 0) return;
-				action(tracks);
-			})
-			.catch(() => {});
+	// the paged tracks for this card, shared by playback and add-to-playlist: genre/playlist page
+	// their endpoints; album/artist wrap their bounded fetch as a single page
+	private trackSource(): TrackSource {
+		const { card } = this.viewModel;
+		switch (card.kind) {
+			case 'album': {
+				return singlePage(() => this.viewModel.transport.getTracksByAlbum(card.album.id));
+			}
+			case 'artist': {
+				return singlePage(() => this.viewModel.transport.getTracksByArtist(card.artist.id));
+			}
+			case 'genre': {
+				return (page, pageSize) =>
+					this.viewModel.transport.getTracksByGenre(card.genre.id, page, pageSize);
+			}
+			case 'playlist': {
+				return (page, pageSize) =>
+					this.viewModel.transport.getTracksByPlaylist(card.playlist.id, page, pageSize);
+			}
+		}
 	}
 
-	// Play Next / Add to Queue for a paged collection take a single bounded page, not the whole thing
-	private withPagedPage(fetchPage: FetchPage, action: (tracks: Array<Track>) => void): void {
-		fetchPage(1, TRACK_PAGE_SIZE)
+	// Play Next / Add to Queue take a single bounded page rather than the whole collection
+	private withPagedPage(tracks: TrackSource, action: (tracks: Array<Track>) => void): void {
+		tracks(1, TRACK_PAGE_SIZE)
 			.then(({ items }) => {
 				if (items.length === 0) return;
 				action(items);
@@ -140,50 +120,40 @@ export class CardContextMenu extends StatefulComponent<
 
 	handlePlay = (): void => {
 		const { card, playbackStore } = this.viewModel;
-		const pagedSource = this.pagedTrackSource();
-		if (pagedSource) {
-			this.startPagedPlayback(pagedSource);
+		const tracks = this.trackSource();
+		if (card.kind === 'album') {
+			// album keeps its now-playing album context and is bounded (a single page)
+			const album = card.album;
+			tracks(1, TRACK_PAGE_SIZE)
+				.then(({ items }) => {
+					if (items.length > 0) playbackStore.play(items, album);
+				})
+				.catch(() => {});
 		} else {
-			this.withFetchedTracks((tracks) => {
-				if (card.kind === 'album') {
-					playbackStore.play(tracks, card.album);
-				} else {
-					playbackStore.playTracks(tracks);
-				}
-			});
+			this.startPagedPlayback(tracks);
 		}
 		this.viewModel.onDismiss('');
 	};
 
 	handlePlayNext = (): void => {
 		const { playbackStore } = this.viewModel;
-		const pagedSource = this.pagedTrackSource();
-		if (pagedSource) {
-			this.withPagedPage(pagedSource, (tracks) => playbackStore.playNext(tracks));
-		} else {
-			this.withFetchedTracks((tracks) => playbackStore.playNext(tracks));
-		}
+		this.withPagedPage(this.trackSource(), (tracks) => playbackStore.playNext(tracks));
 		this.viewModel.onDismiss(Strings.playingNextToast());
 	};
 
 	handleAddToQueue = (): void => {
 		const { playbackStore } = this.viewModel;
-		const pagedSource = this.pagedTrackSource();
-		if (pagedSource) {
-			this.withPagedPage(pagedSource, (tracks) => playbackStore.addToQueue(tracks));
-		} else {
-			this.withFetchedTracks((tracks) => playbackStore.addToQueue(tracks));
-		}
+		this.withPagedPage(this.trackSource(), (tracks) => playbackStore.addToQueue(tracks));
 		this.viewModel.onDismiss(Strings.addedToQueueToast());
 	};
 
 	handleAddToPlaylist = (): void => {
-		this.withFetchedTracks((tracks) => this.viewModel.onAddToPlaylist?.(tracks));
+		this.viewModel.onAddToPlaylist?.(this.trackSource());
 		this.viewModel.onDismiss();
 	};
 
 	handleCreatePlaylist = (): void => {
-		this.withFetchedTracks((tracks) => this.viewModel.onCreatePlaylist?.(tracks));
+		this.viewModel.onCreatePlaylist?.(this.trackSource());
 		this.viewModel.onDismiss();
 	};
 

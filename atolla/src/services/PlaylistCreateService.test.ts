@@ -25,23 +25,15 @@ function createStoreMock(initial: string | null = null): {
 }
 
 function createTransportMock(options: { failCreate?: boolean } = {}): {
-	addItemToPlaylist: (playlistId: string, trackId: string) => Promise<void>;
 	createPlaylist: (
 		name: string,
 		trackId?: string,
 	) => Promise<{ id: string; imageUrl?: string; name: string }>;
-	addedItems: Array<{ playlistId: string; trackId: string }>;
 	createdPlaylists: Array<{ name: string; trackId?: string }>;
 } {
 	const createdPlaylists: Array<{ name: string; trackId?: string }> = [];
-	const addedItems: Array<{ playlistId: string; trackId: string }> = [];
 	let idCounter = 1;
 	return {
-		addedItems,
-		addItemToPlaylist: (playlistId: string, trackId: string) => {
-			addedItems.push({ playlistId, trackId });
-			return Promise.resolve();
-		},
 		createdPlaylists,
 		createPlaylist: (name: string, trackId?: string) => {
 			if (options.failCreate) return Promise.reject(new Error('server error'));

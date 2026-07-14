@@ -42,7 +42,7 @@ describe('GenreView', () => {
 				getGenreCalls += 1;
 				return { id: 'genre-1', imageUrl: 'https://g.png', name: 'Rock' };
 			},
-			getTracksByGenrePage: emptyTracksPage,
+			getTracksByGenre: emptyTracksPage,
 		};
 
 		const component = driver.renderComponent(
@@ -73,7 +73,7 @@ describe('GenreView', () => {
 				getGenreCalls += 1;
 				return null;
 			},
-			getTracksByGenrePage: emptyTracksPage,
+			getTracksByGenre: emptyTracksPage,
 		};
 
 		const component = driver.renderComponent(

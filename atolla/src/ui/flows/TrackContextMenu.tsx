@@ -3,6 +3,7 @@ import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import type { ImageCache } from '../../services/ImageCache';
 import type { ToastService } from '../../services/ToastService';
+import { pagedFromArray } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Transport } from '../../transports/Transport';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
@@ -41,7 +42,7 @@ export function openTrackContextMenu(
 				imageCache={options.imageCache}
 				onDismiss={() => closeSlot(modalSlot)}
 				toastService={options.toastService}
-				tracks={[track]}
+				tracks={pagedFromArray([track])}
 				transport={options.transport}
 			/>;
 		});

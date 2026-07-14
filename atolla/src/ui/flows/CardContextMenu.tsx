@@ -1,5 +1,5 @@
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
-import type { Track } from '../../models/Track';
+import type { TrackSource } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Transport } from '../../transports/Transport';
 import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
@@ -8,9 +8,9 @@ import { closeSlot, openSlot } from './ModalSlotFlow';
 export interface OpenCardContextMenuOptions {
 	animationsEnabled: boolean;
 	card: CardContextMenuCard;
-	onAddToPlaylist?: (tracks: Array<Track>) => void;
+	onAddToPlaylist?: (tracks: TrackSource) => void;
 	onArtistTap?: () => void;
-	onCreatePlaylist?: (tracks: Array<Track>) => void;
+	onCreatePlaylist?: (tracks: TrackSource) => void;
 	onDismiss: (toastMessage?: string) => void;
 	onEntityTap?: () => void;
 	playbackStore: PlaybackStore;

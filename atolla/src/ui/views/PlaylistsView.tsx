@@ -5,7 +5,6 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Playlist } from '../../models/Playlist';
-import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
@@ -13,6 +12,7 @@ import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
+import type { TrackSource } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -48,9 +48,9 @@ export interface PlaylistsViewModel {
 }
 
 interface PlaylistsState {
-	addToPlaylistTracks: Array<Track> | null;
+	addToPlaylistTracks: TrackSource | null;
 	contextMenuCard: CardContextMenuCard | null;
-	createPlaylistTracks: Array<Track> | null;
+	createPlaylistTracks: TrackSource | null;
 	hasMore: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
@@ -65,7 +65,7 @@ interface PlaylistPageResult {
 }
 
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
-	private pendingCreatePlaylistTracks: Array<Track> | null = null;
+	private pendingCreatePlaylistTracks: TrackSource | null = null;
 
 	state: PlaylistsState = {
 		addToPlaylistTracks: null,
@@ -217,7 +217,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		pushPlaylist(this.viewModel.navigationController, this.detailDeps(), playlist);
 	}
 
-	private handleContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
+	private handleContextMenuAddToPlaylist = (tracks: TrackSource): void => {
 		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
 	};
 
@@ -234,7 +234,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		this.setState({ addToPlaylistTracks: null });
 	};
 
-	private handleCreatePlaylistRequest = (tracks: Array<Track>): void => {
+	private handleCreatePlaylistRequest = (tracks: TrackSource): void => {
 		this.pendingCreatePlaylistTracks = tracks;
 		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
 	};
@@ -253,8 +253,9 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		await createPlaylistAndAddTracks(
 			name,
 			(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-			(playlistId, trackId) => this.viewModel.transport.addItemToPlaylist(playlistId, trackId),
+			(playlistId, trackIds) => this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
 			tracks,
+			{ isCancelled: () => this.isDestroyed() },
 		);
 		this.pendingCreatePlaylistTracks = null;
 		this.setState({ createPlaylistTracks: null });

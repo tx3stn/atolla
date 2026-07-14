@@ -28,9 +28,11 @@ export class OfflineTransport implements Transport {
 		this.playlistEditService = playlistEditService ?? null;
 	}
 
-	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
+	async addItemsToPlaylist(playlistId: string, trackIds: Array<string>): Promise<void> {
 		const playlistName = this.resolvePlaylistName(playlistId);
-		this.playlistEditService?.enqueue({ playlistId, playlistName, trackId, type: 'add' });
+		for (const trackId of trackIds) {
+			this.playlistEditService?.enqueue({ playlistId, playlistName, trackId, type: 'add' });
+		}
 	}
 
 	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
@@ -301,26 +303,12 @@ export class OfflineTransport implements Transport {
 			.map((entry) => entry.track);
 	}
 
-	async getTracksByGenre(genreId: string): Promise<Array<Track>> {
-		const genreEntry = this.downloads.getGenre(genreId);
-		if (genreEntry) {
-			return genreEntry.trackIds
-				.map((trackId) => this.downloads.getTrack(trackId)?.track)
-				.filter((track): track is Track => track != null);
-		}
-
-		return this.downloads
-			.getAllTracks()
-			.filter((entry) => entry.genreIds.includes(genreId))
-			.map((entry) => entry.track);
-	}
-
-	async getTracksByGenrePage(
+	async getTracksByGenre(
 		genreId: string,
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
-		const allTracks = await this.getTracksByGenre(genreId);
+		const allTracks = await this.collectGenreTracks(genreId);
 		const start = Math.max(0, page - 1) * pageSize;
 		const end = start + pageSize;
 		return {
@@ -472,6 +460,20 @@ export class OfflineTransport implements Transport {
 		const pending = this.playlistCreateService?.getPending() ?? [];
 		const pendingPlaylists = pending.map((op) => ({ id: op.localId, name: op.name }));
 		return [...downloaded, ...pendingPlaylists];
+	}
+
+	private async collectGenreTracks(genreId: string): Promise<Array<Track>> {
+		const genreEntry = this.downloads.getGenre(genreId);
+		if (genreEntry) {
+			return genreEntry.trackIds
+				.map((trackId) => this.downloads.getTrack(trackId)?.track)
+				.filter((track): track is Track => track != null);
+		}
+
+		return this.downloads
+			.getAllTracks()
+			.filter((entry) => entry.genreIds.includes(genreId))
+			.map((entry) => entry.track);
 	}
 
 	private async collectPlaylistTracks(playlistId: string): Promise<Array<Track>> {

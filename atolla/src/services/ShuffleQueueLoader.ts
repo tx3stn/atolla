@@ -1,5 +1,6 @@
 import type { Track } from '../models/Track';
 import { MAX_VISIBLE_QUEUE_TRACKS } from '../stores/Queue';
+import type { TrackSource } from './TrackSource';
 
 interface QueueState {
 	addToQueue(tracks: Array<Track>): void;
@@ -7,11 +8,6 @@ interface QueueState {
 	trackIndex: number;
 	tracks: Array<Track>;
 }
-
-export type FetchPage = (
-	page: number,
-	pageSize: number,
-) => Promise<{ hasMore: boolean; items: Array<Track> }>;
 
 // how many recently-queued ids to remember for de-duping. Jellyfin's Random sort
 // reshuffles every request, so consecutive pages overlap; dropping tracks seen in
@@ -37,7 +33,7 @@ export class ShuffleQueueLoader {
 
 	constructor(
 		private readonly store: QueueState,
-		private readonly fetchPage: FetchPage,
+		private readonly fetchPage: TrackSource,
 		private readonly pageSize: number,
 	) {
 		this.dedupeWindow = Math.max(1, pageSize) * DEDUPE_WINDOW_PAGES;

@@ -5,12 +5,12 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Genre } from '../../models/Genre';
-import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { ToastService } from '../../services/ToastService';
+import type { TrackSource } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -41,9 +41,9 @@ interface GenresViewModel {
 }
 
 interface GenresState {
-	addToPlaylistTracks: Array<Track> | null;
+	addToPlaylistTracks: TrackSource | null;
 	contextMenuCard: CardContextMenuCard | null;
-	createPlaylistTracks: Array<Track> | null;
+	createPlaylistTracks: TrackSource | null;
 	genres: Array<Genre>;
 	hasMore: boolean;
 	isLoadingNextPage: boolean;
@@ -53,7 +53,7 @@ interface GenresState {
 }
 
 export class GenresView extends StatefulComponent<GenresViewModel, GenresState> {
-	private pendingCreatePlaylistTracks: Array<Track> | null = null;
+	private pendingCreatePlaylistTracks: TrackSource | null = null;
 
 	state: GenresState = {
 		addToPlaylistTracks: null,
@@ -165,7 +165,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		this.setState({ addToPlaylistTracks: null });
 	};
 
-	private handleContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
+	private handleContextMenuAddToPlaylist = (tracks: TrackSource): void => {
 		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
 	};
 
@@ -190,17 +190,19 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	private handleCreatePlaylistConfirm = async (name: string): Promise<void> => {
 		const tracks = this.pendingCreatePlaylistTracks;
 		if (!tracks) return;
+
 		await createPlaylistAndAddTracks(
 			name,
 			(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-			(playlistId, trackId) => this.viewModel.transport.addItemToPlaylist(playlistId, trackId),
+			(playlistId, trackIds) => this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
 			tracks,
+			{ isCancelled: () => this.isDestroyed() },
 		);
 		this.pendingCreatePlaylistTracks = null;
 		this.setState({ createPlaylistTracks: null });
 	};
 
-	private handleCreatePlaylistRequest = (tracks: Array<Track>): void => {
+	private handleCreatePlaylistRequest = (tracks: TrackSource): void => {
 		this.pendingCreatePlaylistTracks = tracks;
 		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
 	};

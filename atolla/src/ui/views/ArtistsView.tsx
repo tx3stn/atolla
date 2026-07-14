@@ -5,13 +5,13 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
 import type { Artist } from '../../models/Artist';
-import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
+import type { TrackSource } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -45,10 +45,10 @@ export interface ArtistsViewModel {
 }
 
 interface ArtistsState {
-	addToPlaylistTracks: Array<Track> | null;
+	addToPlaylistTracks: TrackSource | null;
 	artists: Array<Artist>;
 	contextMenuCard: CardContextMenuCard | null;
-	createPlaylistTracks: Array<Track> | null;
+	createPlaylistTracks: TrackSource | null;
 	hasMore: boolean;
 	isLoadingNextPage: boolean;
 	nextPageFailed: boolean;
@@ -183,7 +183,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private cachedDisplaySortOrder: SortOrder | undefined = undefined;
 	private cachedDisplayLetterFilter: string | null | undefined = undefined;
 	private cachedDisplayIsOffline = false;
-	private pendingCreatePlaylistTracks: Array<Track> | null = null;
+	private pendingCreatePlaylistTracks: TrackSource | null = null;
 
 	private fetchPage(page: number): Promise<ArtistPageResult> {
 		return this.viewModel.transport.getArtists(page, gridPaginationConfig.pageSize, {
@@ -230,7 +230,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		this.navigateToArtist(artist);
 	};
 
-	private handleContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
+	private handleContextMenuAddToPlaylist = (tracks: TrackSource): void => {
 		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
 	};
 
@@ -255,14 +255,15 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		await createPlaylistAndAddTracks(
 			name,
 			(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-			(playlistId, trackId) => this.viewModel.transport.addItemToPlaylist(playlistId, trackId),
+			(playlistId, trackIds) => this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
 			tracks,
+			{ isCancelled: () => this.isDestroyed() },
 		);
 		this.pendingCreatePlaylistTracks = null;
 		this.setState({ createPlaylistTracks: null });
 	};
 
-	private handleCreatePlaylistRequest = (tracks: Array<Track>): void => {
+	private handleCreatePlaylistRequest = (tracks: TrackSource): void => {
 		this.pendingCreatePlaylistTracks = tracks;
 		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
 	};

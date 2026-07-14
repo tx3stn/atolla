@@ -16,6 +16,7 @@ import type { DownloadService, DownloadState } from '../../services/DownloadServ
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
+import type { TrackSource } from '../../services/TrackSource';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
@@ -68,7 +69,7 @@ interface ArtistState {
 @NavigationPage(module)
 export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel, ArtistState> {
 	private loadGeneration = 0;
-	private pendingCreatePlaylistTracks: Array<Track> | null = null;
+	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private contextMenuAlbumCard: { id: string; kind: Card['kind'] } | null = null;
 
 	state: ArtistState = {
@@ -301,7 +302,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		});
 	};
 
-	private handleAlbumContextMenuAddToPlaylist = (tracks: Array<Track>): void => {
+	private handleAlbumContextMenuAddToPlaylist = (tracks: TrackSource): void => {
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.modalSlot, () => {
 			<AddToPlaylistView
@@ -316,7 +317,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		});
 	};
 
-	private handleAlbumContextMenuCreatePlaylist = (tracks: Array<Track>): void => {
+	private handleAlbumContextMenuCreatePlaylist = (tracks: TrackSource): void => {
 		this.pendingCreatePlaylistTracks = tracks;
 		this.setState({ contextMenuCard: null });
 		openSlot(this.viewModel.modalSlot, () => {
@@ -334,8 +335,9 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		const playlist = await createPlaylistAndAddTracks(
 			name,
 			(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-			(playlistId, trackId) => this.viewModel.transport.addItemToPlaylist(playlistId, trackId),
+			(playlistId, trackIds) => this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
 			tracks,
+			{ isCancelled: () => this.isDestroyed() },
 		);
 		this.pendingCreatePlaylistTracks = null;
 		this.closeModalSlot();
