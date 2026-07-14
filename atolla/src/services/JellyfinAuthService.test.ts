@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import { AuthErrors } from '../errors/AuthErrors';
+import { AuthErrors } from './AuthErrors';
 import { type AuthSession, JellyfinAuthService, normalizeServerUrl } from './JellyfinAuthService';
 
 interface MockHTTPResponse {
@@ -204,10 +204,19 @@ describe('startQuickConnect', () => {
 		);
 	});
 
+	it('throws CONNECTION_ERROR when the enabled check cannot reach the server', async () => {
+		const { client } = createHTTPClient([new Error('server unreachable')]);
+		await expect(makeService({ client }).startQuickConnect()).rejects.toHaveProperty(
+			'err',
+			AuthErrors.CONNECTION_ERROR.err,
+		);
+	});
+
 	it('throws CONNECTION_ERROR on network failure during initiate', async () => {
 		const { client } = createHTTPClient([jsonResponse(200, true), new Error('ECONNREFUSED')]);
-		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
-			AuthErrors.CONNECTION_ERROR,
+		await expect(makeService({ client }).startQuickConnect()).rejects.toHaveProperty(
+			'err',
+			AuthErrors.CONNECTION_ERROR.err,
 		);
 	});
 
@@ -216,15 +225,17 @@ describe('startQuickConnect', () => {
 			jsonResponse(200, true),
 			jsonResponse(200, { Secret: 'secret-only' }),
 		]);
-		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
-			AuthErrors.CONNECTION_ERROR,
+		await expect(makeService({ client }).startQuickConnect()).rejects.toHaveProperty(
+			'err',
+			AuthErrors.CONNECTION_ERROR.err,
 		);
 	});
 
 	it('throws CONNECTION_ERROR when response body is empty', async () => {
 		const { client } = createHTTPClient([jsonResponse(200, true), jsonResponse(200)]);
-		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
-			AuthErrors.CONNECTION_ERROR,
+		await expect(makeService({ client }).startQuickConnect()).rejects.toHaveProperty(
+			'err',
+			AuthErrors.CONNECTION_ERROR.err,
 		);
 	});
 });
@@ -271,9 +282,9 @@ describe('waitForQuickConnectApproval', () => {
 			now: () => 0,
 			sleep: () => Promise.resolve(),
 		});
-		await expect(service.waitForQuickConnectApproval('secret', 10_000, 1_000)).rejects.toBe(
-			AuthErrors.CONNECTION_ERROR,
-		);
+		await expect(
+			service.waitForQuickConnectApproval('secret', 10_000, 1_000),
+		).rejects.toHaveProperty('err', AuthErrors.CONNECTION_ERROR.err);
 	});
 });
 
@@ -282,7 +293,7 @@ describe('authenticateWithQuickConnect', () => {
 		const { client } = createHTTPClient([jsonResponse(401, {})]);
 		await expect(
 			makeService({ client }).authenticateWithQuickConnect('https://demo.jellyfin.local', 'secret'),
-		).rejects.toBe(AuthErrors.CONNECTION_ERROR);
+		).rejects.toHaveProperty('err', AuthErrors.CONNECTION_ERROR.err);
 	});
 
 	it('throws CONNECTION_ERROR when AccessToken is missing from response', async () => {
@@ -291,7 +302,7 @@ describe('authenticateWithQuickConnect', () => {
 		]);
 		await expect(
 			makeService({ client }).authenticateWithQuickConnect('https://demo.jellyfin.local', 'secret'),
-		).rejects.toBe(AuthErrors.CONNECTION_ERROR);
+		).rejects.toHaveProperty('err', AuthErrors.CONNECTION_ERROR.err);
 	});
 
 	it('throws CONNECTION_ERROR when User.Id is missing from response', async () => {
@@ -300,7 +311,7 @@ describe('authenticateWithQuickConnect', () => {
 		]);
 		await expect(
 			makeService({ client }).authenticateWithQuickConnect('https://demo.jellyfin.local', 'secret'),
-		).rejects.toBe(AuthErrors.CONNECTION_ERROR);
+		).rejects.toHaveProperty('err', AuthErrors.CONNECTION_ERROR.err);
 	});
 
 	it('returns a session including the server name from /System/Info/Public', async () => {
@@ -428,35 +439,5 @@ describe('probeInitialAlbums', () => {
 		await expect(makeService({ client }).probeInitialAlbums(validSession)).rejects.toBe(
 			AuthErrors.FAILED_TO_FETCH_DATA,
 		);
-	});
-});
-
-describe('errorMessage', () => {
-	it('returns fallback when CONNECTION_ERROR has no stored detail', () => {
-		expect(makeService().errorMessage(AuthErrors.CONNECTION_ERROR)).toBe(
-			'could not reach server — check the URL and try again',
-		);
-	});
-
-	it('returns the correct message for non-connection ErrorConst values', () => {
-		const service = makeService();
-		expect(service.errorMessage(AuthErrors.QUICK_CONNECT_NOT_AVAILABLE)).toBe(
-			'quick connect not available',
-		);
-		expect(service.errorMessage(AuthErrors.QUICK_CONNECT_TIMED_OUT)).toBe(
-			'quick connect timed out',
-		);
-	});
-
-	it('prefixes connection error message for plain string errors', () => {
-		expect(makeService().errorMessage('something broke')).toBe('connection error: something broke');
-	});
-
-	it('returns connection error for null', () => {
-		expect(makeService().errorMessage(null)).toBe('connection error');
-	});
-
-	it('includes HTTP status code from an object with statusCode field', () => {
-		expect(makeService().errorMessage({ statusCode: 503 })).toBe('connection error: HTTP 503');
 	});
 });

@@ -1,4 +1,4 @@
-import { ErrorConst } from './Const';
+import { ErrorConst, type ErrorType } from '../utils/Errors';
 
 export const AuthErrors = {
 	CONNECTION_ERROR: new ErrorConst('auth_connection_error', 'connection error'),
@@ -13,3 +13,5 @@ export const AuthErrors = {
 	),
 	SESSION_EXPIRED: new ErrorConst('auth_session_expired', 'session expired'),
 } as const;
+
+export type AuthError = ErrorType<typeof AuthErrors>;

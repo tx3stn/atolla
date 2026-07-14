@@ -1,4 +1,5 @@
 import res from 'atolla/res';
+import type { AuthError } from 'atolla/src/services/AuthErrors';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
@@ -19,7 +20,7 @@ import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 
 export interface ConnectionViewModel {
 	animationsEnabled?: boolean;
-	errorMessage: string | null;
+	errorMessage: AuthError | null;
 	isConnecting: boolean;
 	modalSlot?: DetachedSlot;
 	onConnect: (serverUrl: string) => void;
@@ -198,7 +199,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				</view>
 			</view>
 			{this.viewModel.errorMessage && (
-				<label style={styles.errorMessage} value={this.viewModel.errorMessage} />
+				<label style={styles.errorMessage} value={this.viewModel.errorMessage.msg()} />
 			)}
 
 			<view

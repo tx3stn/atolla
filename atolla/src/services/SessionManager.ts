@@ -1,6 +1,6 @@
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import { AuthErrors } from '../errors/AuthErrors';
 import type { Preferences } from '../stores/Preferences';
+import { type AuthError, AuthErrors } from './AuthErrors';
 import {
 	type AuthSession,
 	type JellyfinAuthService,
@@ -8,7 +8,7 @@ import {
 } from './JellyfinAuthService';
 
 export interface AuthRenderState {
-	authErrorMessage: string | null;
+	authErrorMessage: AuthError | null;
 	isAuthenticating: boolean;
 	quickConnectCode: string | null;
 	serverName: string;
@@ -140,9 +140,9 @@ export class SessionManager {
 				this.deps.showToast(AuthErrors.FAILED_TO_FETCH_DATA.msg());
 			}
 			return session;
-		} catch (error) {
+		} catch (error: unknown) {
 			this.deps.applyState({
-				authErrorMessage: this.deps.authService.errorMessage(error),
+				authErrorMessage: error as AuthError,
 				isAuthenticating: false,
 				quickConnectCode: null,
 			});

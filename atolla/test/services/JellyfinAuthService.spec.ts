@@ -1,5 +1,5 @@
 import 'jasmine/src/jasmine';
-import { AuthErrors } from 'atolla/src/errors/AuthErrors';
+import { type AuthError, AuthErrors } from 'atolla/src/services/AuthErrors';
 import { JellyfinAuthService } from 'atolla/src/services/JellyfinAuthService';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 
@@ -221,26 +221,6 @@ describe('JellyfinAuthService', () => {
 			thrown = error;
 		}
 
-		expect(service.errorMessage(thrown)).toBe('connection error: HTTP 503');
-	});
-
-	it('includes generic error message detail for unknown errors', () => {
-		const service = new JellyfinAuthService({
-			client: createHTTPClient([]).client,
-			store: createStore(),
-		});
-
-		expect(service.errorMessage(new Error('socket hang up'))).toBe(
-			'connection error: socket hang up',
-		);
-	});
-
-	it('does not duplicate connection error detail when message is identical', () => {
-		const service = new JellyfinAuthService({
-			client: createHTTPClient([]).client,
-			store: createStore(),
-		});
-
-		expect(service.errorMessage(new Error('connection error'))).toBe('connection error');
+		expect((thrown as AuthError).msg()).toBe('connection error: HTTP 503');
 	});
 });

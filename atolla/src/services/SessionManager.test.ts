@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { Preferences } from '../stores/Preferences';
+import { AuthErrors } from './AuthErrors';
 import type { AuthSession, JellyfinAuthService } from './JellyfinAuthService';
 import { type AuthRenderState, SessionManager, type SessionManagerDeps } from './SessionManager';
 
@@ -108,14 +109,14 @@ describe('SessionManager', () => {
 
 	it('login surfaces the error and rethrows without changing the session on failure', async () => {
 		const { calls, manager } = makeManager({
-			authService: { startQuickConnect: () => Promise.reject(new Error('nope')) },
+			authService: { startQuickConnect: () => Promise.reject(AuthErrors.CONNECTION_ERROR) },
 		});
 
 		await expect(manager.login('https://server')).rejects.toThrow();
 		expect(manager.getSession()).toBeNull();
 		expect(calls.onSessionChanged).toEqual([]);
 		expect(calls.applyState).toContainEqual({
-			authErrorMessage: 'failed',
+			authErrorMessage: AuthErrors.CONNECTION_ERROR,
 			isAuthenticating: false,
 			quickConnectCode: null,
 		});

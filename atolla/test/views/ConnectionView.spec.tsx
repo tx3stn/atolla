@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import { AuthErrors } from 'atolla/src/services/AuthErrors';
 import { ConnectionView } from 'atolla/src/ui/views/ConnectionView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
@@ -139,7 +140,7 @@ describe('ConnectionView', () => {
 
 			instrumented.setViewModel(
 				makeViewModel({
-					errorMessage: 'connection error',
+					errorMessage: AuthErrors.CONNECTION_ERROR,
 					isConnecting: false,
 					serverUrl: '',
 				}),
@@ -193,7 +194,7 @@ describe('ConnectionView', () => {
 			const component = driver.renderComponent(
 				ConnectionView,
 				makeViewModel({
-					errorMessage: 'connection error',
+					errorMessage: AuthErrors.CONNECTION_ERROR,
 					isConnecting: true,
 					onConnect: (serverUrl: string) => {
 						calls.push(serverUrl);

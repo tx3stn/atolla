@@ -27,6 +27,7 @@ import { ensureAtollaOverlayHostBootstrap } from './OverlayHostBootstrap';
 import Strings from './Strings';
 import { appServices } from './services/AppServices';
 import { AssetCache } from './services/AssetCache';
+import type { AuthError } from './services/AuthErrors';
 import { Connectivity } from './services/Connectivity';
 import {
 	DownloadNativeWorkerEntryPoint,
@@ -74,7 +75,7 @@ const MINIMUM_BOOT_SPLASH_MS = 750;
 const log = getLogger('app');
 
 interface AppState {
-	authErrorMessage: string | null;
+	authErrorMessage: AuthError | null;
 	connectionMode: ConnectionMode;
 	downloadedSizeBytes: number | null;
 	downloadedTrackCount: number;

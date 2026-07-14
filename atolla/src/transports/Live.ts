@@ -1,7 +1,6 @@
 import type { StringMap } from 'coreutils/src/StringMap';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import { AuthErrors } from '../errors/AuthErrors';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
 import type { Genre } from '../models/Genre';
@@ -18,6 +17,7 @@ import { JellyfinMusicItemTypes } from '../models/jellyfin/Types';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
+import { AuthErrors } from '../services/AuthErrors';
 import { version } from '../version';
 import { TransportErrors } from './Errors';
 import {

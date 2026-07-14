@@ -1,9 +1,8 @@
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import { AuthErrors } from '../errors/AuthErrors';
-import type { ErrorConst } from '../errors/Const';
 import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
 import { version } from '../version';
+import { AuthErrors } from './AuthErrors';
 import { getLogger } from './Logger';
 
 const log = getLogger('auth');
@@ -77,68 +76,6 @@ function defaultSleep(ms: number): Promise<void> {
 	});
 }
 
-function extractErrorDetail(error: unknown): string | null {
-	if (typeof error === 'string') {
-		return sanitizeErrorDetail(error);
-	}
-
-	if (error instanceof Error) {
-		return sanitizeErrorDetail(error.message);
-	}
-
-	if (!error || typeof error !== 'object') {
-		return null;
-	}
-
-	const candidate = error as {
-		code?: unknown;
-		error?: unknown;
-		message?: unknown;
-		reason?: unknown;
-		status?: unknown;
-		statusCode?: unknown;
-	};
-
-	const statusCode =
-		typeof candidate.statusCode === 'number'
-			? candidate.statusCode
-			: typeof candidate.status === 'number'
-				? candidate.status
-				: null;
-	const statusDetail = statusCode != null ? `HTTP ${statusCode}` : null;
-	const messageDetail =
-		sanitizeErrorDetail(candidate.message) ??
-		sanitizeErrorDetail(candidate.reason) ??
-		sanitizeErrorDetail(candidate.error);
-
-	if (statusDetail && messageDetail) {
-		return `${statusDetail} ${messageDetail}`;
-	}
-
-	if (statusDetail) {
-		return statusDetail;
-	}
-
-	if (messageDetail) {
-		return messageDetail;
-	}
-
-	if (typeof candidate.code === 'string' && candidate.code.trim().length > 0) {
-		return `code ${candidate.code.trim()}`;
-	}
-
-	try {
-		const serialized = JSON.stringify(error);
-		if (serialized && serialized !== '{}' && serialized !== 'null') {
-			return serialized.length > 200 ? `${serialized.substring(0, 200)}…` : serialized;
-		}
-	} catch {
-		// not serializable
-	}
-
-	return null;
-}
-
 export function normalizeServerUrl(url: string): string {
 	const trimmed = url.trim();
 	const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
@@ -158,15 +95,6 @@ function normalizeClientDeviceId(value: string | null | undefined): string {
 	return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
 }
 
-function sanitizeErrorDetail(value: unknown): string | null {
-	if (typeof value !== 'string') {
-		return null;
-	}
-
-	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : null;
-}
-
 export class JellyfinAuthService {
 	private client: IHTTPClient;
 	private readonly store: JellyfinAuthStoreLike;
@@ -175,7 +103,6 @@ export class JellyfinAuthService {
 	private readonly now: NowFn;
 	private isMockMode: boolean;
 	private clientDeviceId: string;
-	private lastConnectionErrorDetail: string | null = null;
 
 	constructor(options: JellyfinAuthServiceOptions) {
 		this.client = options.client;
@@ -230,7 +157,6 @@ export class JellyfinAuthService {
 	}
 
 	async startQuickConnect(): Promise<QuickConnectStartResult> {
-		this.lastConnectionErrorDetail = null;
 		if (this.isMockMode) {
 			return {
 				code: 'ATOLLA-MOCK',
@@ -238,7 +164,13 @@ export class JellyfinAuthService {
 			};
 		}
 
-		const enabledResponse = await this.client.get('/QuickConnect/Enabled', this.createHeaders());
+		let enabledResponse: HTTPResponse;
+		try {
+			enabledResponse = await this.client.get('/QuickConnect/Enabled', this.createHeaders());
+		} catch (error) {
+			throw this.connectionError(error, 'startQuickConnect enabled check failed');
+		}
+
 		if (
 			!this.isSuccessStatus(enabledResponse.statusCode) ||
 			this.parseJSON<boolean>(enabledResponse) !== true
@@ -251,8 +183,7 @@ export class JellyfinAuthService {
 		try {
 			response = await this.client.post('/QuickConnect/Initiate', undefined, this.createHeaders());
 		} catch (error) {
-			this.rememberConnectionError(error, 'startQuickConnect request failed');
-			throw AuthErrors.CONNECTION_ERROR;
+			throw this.connectionError(error, 'startQuickConnect request failed');
 		}
 
 		if (response.statusCode === 401) {
@@ -260,20 +191,18 @@ export class JellyfinAuthService {
 		}
 
 		if (!this.isSuccessStatus(response.statusCode)) {
-			this.rememberConnectionError(
+			throw this.connectionError(
 				`HTTP ${response.statusCode}`,
 				'startQuickConnect returned non-success status',
 			);
-			throw AuthErrors.CONNECTION_ERROR;
 		}
 
 		const parsed = this.parseJSON<QuickConnectResult>(response);
 		if (!parsed.Secret || !parsed.Code) {
-			this.rememberConnectionError(
+			throw this.connectionError(
 				'invalid quick connect response',
 				'startQuickConnect invalid body',
 			);
-			throw AuthErrors.CONNECTION_ERROR;
 		}
 
 		return {
@@ -287,7 +216,6 @@ export class JellyfinAuthService {
 		timeoutMs = 60_000,
 		pollIntervalMs = 2_000,
 	): Promise<void> {
-		this.lastConnectionErrorDetail = null;
 		if (this.isMockMode) {
 			const delayMs = Math.max(0, this.mockApprovalDelayMs);
 			if (timeoutMs < delayMs) {
@@ -309,16 +237,14 @@ export class JellyfinAuthService {
 					this.createHeaders(),
 				);
 			} catch (error) {
-				this.rememberConnectionError(error, 'waitForQuickConnectApproval request failed');
-				throw AuthErrors.CONNECTION_ERROR;
+				throw this.connectionError(error, 'waitForQuickConnectApproval request failed');
 			}
 
 			if (!this.isSuccessStatus(response.statusCode)) {
-				this.rememberConnectionError(
+				throw this.connectionError(
 					`HTTP ${response.statusCode}`,
 					'waitForQuickConnectApproval returned non-success status',
 				);
-				throw AuthErrors.CONNECTION_ERROR;
 			}
 
 			const parsed = this.parseJSON<QuickConnectResult>(response);
@@ -333,7 +259,6 @@ export class JellyfinAuthService {
 	}
 
 	async authenticateWithQuickConnect(serverUrl: string, secret: string): Promise<AuthSession> {
-		this.lastConnectionErrorDetail = null;
 		const normalizedUrl = normalizeServerUrl(serverUrl);
 
 		if (this.isMockMode) {
@@ -354,25 +279,22 @@ export class JellyfinAuthService {
 				this.createHeaders(),
 			);
 		} catch (error) {
-			this.rememberConnectionError(error, 'authenticateWithQuickConnect request failed');
-			throw AuthErrors.CONNECTION_ERROR;
+			throw this.connectionError(error, 'authenticateWithQuickConnect request failed');
 		}
 
 		if (!this.isSuccessStatus(response.statusCode)) {
-			this.rememberConnectionError(
+			throw this.connectionError(
 				`HTTP ${response.statusCode}`,
 				'authenticateWithQuickConnect returned non-success status',
 			);
-			throw AuthErrors.CONNECTION_ERROR;
 		}
 
 		const parsed = this.parseJSON<QuickConnectAuthenticationResult>(response);
 		if (!parsed.AccessToken || !parsed.ServerId || !parsed.User?.Id) {
-			this.rememberConnectionError(
+			throw this.connectionError(
 				'invalid authentication response',
 				'authenticateWithQuickConnect invalid body',
 			);
-			throw AuthErrors.CONNECTION_ERROR;
 		}
 
 		const details = await this.fetchServerDetails();
@@ -443,53 +365,23 @@ export class JellyfinAuthService {
 		}
 	}
 
-	errorMessage(error: unknown): string {
-		const connectionErrorMessage = AuthErrors.CONNECTION_ERROR.msg();
-
-		if (error && typeof error === 'object') {
-			const maybeErrorConst = error as ErrorConst<string>;
-			if (typeof maybeErrorConst.msg === 'function') {
-				const message = maybeErrorConst.msg();
-				if (message === connectionErrorMessage) {
-					const detail = this.lastConnectionErrorDetail;
-					if (detail && detail.toLowerCase() !== connectionErrorMessage.toLowerCase()) {
-						return `${message}: ${detail}`;
-					}
-					return 'could not reach server — check the URL and try again';
-				}
-				return message;
-			}
-		}
-
-		const detail = extractErrorDetail(error);
-		if (detail && detail.toLowerCase() !== connectionErrorMessage.toLowerCase()) {
-			return `${connectionErrorMessage}: ${detail}`;
-		}
-
-		return connectionErrorMessage;
-	}
-
 	private parseJSON<T>(response: HTTPResponse): T {
 		if (!response.body) {
-			this.rememberConnectionError('empty response body', 'parseJSON missing body');
-			throw AuthErrors.CONNECTION_ERROR;
+			throw this.connectionError('empty response body', 'parseJSON missing body');
 		}
 
 		try {
 			const text = new TextDecoder().decode(response.body);
 			return JSON.parse(text) as T;
 		} catch (error) {
-			this.rememberConnectionError(error, 'parseJSON decode failed');
-			throw AuthErrors.CONNECTION_ERROR;
+			throw this.connectionError(error, 'parseJSON decode failed');
 		}
 	}
 
-	private rememberConnectionError(error: unknown, context?: string): void {
-		this.lastConnectionErrorDetail = extractErrorDetail(error);
-		log.error('connection error', {
-			context,
-			detail: this.lastConnectionErrorDetail,
-		});
+	private connectionError(cause: unknown, context: string) {
+		const detail = typeof cause === 'string' ? cause : cause instanceof Error ? cause.message : '';
+		log.error('connection error', { context, detail });
+		return detail ? AuthErrors.CONNECTION_ERROR.withDetail(detail) : AuthErrors.CONNECTION_ERROR;
 	}
 
 	private isSuccessStatus(statusCode: number): boolean {
