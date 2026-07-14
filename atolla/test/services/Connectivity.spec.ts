@@ -6,6 +6,7 @@ import type { Preferences } from 'atolla/src/stores/Preferences';
 import { LiveTransport } from 'atolla/src/transports/Live';
 import { type ConnectionMode, ConnectionModes } from 'atolla/src/transports/Model';
 import { OfflineTransport } from 'atolla/src/transports/Offline';
+import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 
 function makeSession(): AuthSession {
 	return {
@@ -44,6 +45,7 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 			return Promise.resolve();
 		},
 		getEffectiveDeviceId: () => 'dev-1',
+		getHttpClient: () => ({}) as unknown as IHTTPClient,
 		getSession: () => session,
 		setMockMode: (isMock: boolean) => calls.setMockMode.push(isMock),
 	} as unknown as SessionManager;

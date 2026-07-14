@@ -4,6 +4,7 @@ import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
 import { Locale } from 'valdi_core/src/localization/Locale';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
+import { HTTPClient } from 'valdi_http/src/HTTPClient';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
 import { AuthedApp } from './AuthedApp';
@@ -155,6 +156,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	private sessionManager: SessionManager = new SessionManager({
 		applyState: (partial) => this.applyConnectionState(partial),
 		authService: this.authService,
+		createHttpClient: (baseUrl) => new HTTPClient(baseUrl),
 		defaultDeviceId: this.defaultJellyfinClientDeviceId,
 		onSessionChanged: (session) => this.connectivity.handleSessionChanged(session),
 		preferences: this.preferences,
@@ -454,7 +456,11 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 
 	private createAuthService(): JellyfinAuthService {
 		const authStoreNamespace = `atolla/device-user/${this.deviceUserScopeKey}/jellyfin_auth`;
-		const sharedOptions = { clientDeviceId: this.defaultJellyfinClientDeviceId };
+		const sharedOptions = {
+			client: new HTTPClient(),
+			clientDeviceId: this.defaultJellyfinClientDeviceId,
+		};
+
 		try {
 			return new JellyfinAuthService({
 				...sharedOptions,

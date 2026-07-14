@@ -1,4 +1,4 @@
-import { ErrorConst } from './Const';
+import { ErrorConst } from '../errors/Const';
 
 export const TransportErrors = {
 	LIVE_INVALID_RESPONSE: new ErrorConst(

@@ -373,7 +373,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	private handleContextMenuDismiss = (): void => {
-		this.closeModalSlot();
+		closeSlot(this.viewModel.modalSlot);
 		this.contextMenuAlbum = null;
 		this.setState({ contextMenuCard: null });
 	};

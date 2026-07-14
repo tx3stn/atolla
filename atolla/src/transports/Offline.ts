@@ -1,6 +1,5 @@
 // biome-ignore-all lint/suspicious/useAwait: async used for Transport interface conformance
 
-import { TransportErrors } from '../errors/TransportErrors';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
 import type { Genre } from '../models/Genre';
@@ -11,6 +10,7 @@ import { trackReleaseYear } from '../models/Track';
 import type { DownloadService } from '../services/DownloadService';
 import type { PlaylistCreateService } from '../services/PlaylistCreateService';
 import type { PlaylistEditService } from '../services/PlaylistEditService';
+import { TransportErrors } from './Errors';
 import type { Transport } from './Transport';
 
 export class OfflineTransport implements Transport {

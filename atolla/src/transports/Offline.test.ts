@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'bun:test';
-import { TransportErrors } from '../errors/TransportErrors';
 import type {
 	DownloadedAlbumEntry,
 	DownloadedArtistEntry,
@@ -8,6 +7,7 @@ import type {
 	DownloadedTrackEntry,
 } from '../services/DownloadService';
 import { PlaylistCreateService } from '../services/PlaylistCreateService';
+import { TransportErrors } from './Errors';
 import { OfflineTransport } from './Offline';
 
 function createDownloadsMock(params: {

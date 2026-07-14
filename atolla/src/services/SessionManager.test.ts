@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { Preferences } from '../stores/Preferences';
 import type { AuthSession, JellyfinAuthService } from './JellyfinAuthService';
 import { type AuthRenderState, SessionManager, type SessionManagerDeps } from './SessionManager';
@@ -40,6 +41,7 @@ function makeManager(over?: {
 		probeInitialAlbums: () => Promise.resolve(),
 		rememberServerUrl: () => Promise.resolve(),
 		saveSession: () => Promise.resolve(),
+		setClient: () => {},
 		setClientDeviceId: (id: string) => calls.setClientDeviceId.push(id),
 		setMockMode: () => {},
 		startQuickConnect: () => Promise.resolve({ code: 'CODE', secret: 'SECRET' }),
@@ -55,6 +57,7 @@ function makeManager(over?: {
 	const deps: SessionManagerDeps = {
 		applyState: (partial) => calls.applyState.push(partial),
 		authService,
+		createHttpClient: () => ({}) as unknown as IHTTPClient,
 		defaultDeviceId: 'atolla-default',
 		onSessionChanged: (session) => calls.onSessionChanged.push(session),
 		preferences,

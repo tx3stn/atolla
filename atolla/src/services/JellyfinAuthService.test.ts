@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
+import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import { AuthErrors } from '../errors/AuthErrors';
-import { type AuthSession, JellyfinAuthService } from './JellyfinAuthService';
+import { type AuthSession, JellyfinAuthService, normalizeServerUrl } from './JellyfinAuthService';
 
 interface MockHTTPResponse {
 	body?: Uint8Array;
@@ -16,9 +17,8 @@ function jsonResponse(statusCode: number, body?: unknown): MockHTTPResponse {
 	};
 }
 
-function createHTTPClientFactory(responses: Array<MockHTTPResponse | Error>) {
+function createHTTPClient(responses: Array<MockHTTPResponse | Error>) {
 	const calls: Array<{
-		baseUrl: string;
 		body?: ArrayBuffer | Uint8Array;
 		headers?: Record<string, string>;
 		method: 'GET' | 'POST';
@@ -32,23 +32,34 @@ function createHTTPClientFactory(responses: Array<MockHTTPResponse | Error>) {
 		return Promise.resolve(next);
 	};
 
-	return {
-		calls,
-		factory: (baseUrl: string) => ({
-			get: (pathOrUrl: string, headers?: Record<string, string>) => {
-				calls.push({ baseUrl, headers, method: 'GET', pathOrUrl });
-				return nextResponse();
-			},
-			post: (
-				pathOrUrl: string,
-				body?: ArrayBuffer | Uint8Array,
-				headers?: Record<string, string>,
-			) => {
-				calls.push({ baseUrl, body, headers, method: 'POST', pathOrUrl });
-				return nextResponse();
-			},
-		}),
+	const client = {
+		get: (pathOrUrl: string, headers?: Record<string, string>) => {
+			calls.push({ headers, method: 'GET', pathOrUrl });
+			return nextResponse();
+		},
+		post: (
+			pathOrUrl: string,
+			body?: ArrayBuffer | Uint8Array,
+			headers?: Record<string, string>,
+		) => {
+			calls.push({ body, headers, method: 'POST', pathOrUrl });
+			return nextResponse();
+		},
 	};
+
+	return { calls, client: client as unknown as IHTTPClient };
+}
+
+// a client whose every request behaves the same way, for polling / failure tests that
+// don't queue a fixed sequence of responses
+function stubClient(impl: {
+	get?: () => Promise<MockHTTPResponse>;
+	post?: () => Promise<MockHTTPResponse>;
+}): IHTTPClient {
+	return {
+		get: impl.get ?? (() => Promise.reject(new Error('unexpected get'))),
+		post: impl.post ?? (() => Promise.reject(new Error('unexpected post'))),
+	} as unknown as IHTTPClient;
 }
 
 function createStore() {
@@ -62,7 +73,11 @@ function createStore() {
 }
 
 function makeService(options: Partial<ConstructorParameters<typeof JellyfinAuthService>[0]> = {}) {
-	return new JellyfinAuthService({ store: createStore(), ...options });
+	return new JellyfinAuthService({
+		client: createHTTPClient([]).client,
+		store: createStore(),
+		...options,
+	});
 }
 
 const validSession = {
@@ -73,82 +88,58 @@ const validSession = {
 	userId: 'user-1',
 };
 
-describe('URL normalization', () => {
-	it('adds https:// when no scheme is present', async () => {
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, true),
-			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
-		]);
-		await makeService({ httpClientFactory: factory }).startQuickConnect('demo.jellyfin.local');
-		expect(calls[0].baseUrl).toBe('https://demo.jellyfin.local');
+describe('normalizeServerUrl', () => {
+	it('adds https:// when no scheme is present', () => {
+		expect(normalizeServerUrl('demo.jellyfin.local')).toBe('https://demo.jellyfin.local');
 	});
 
-	it('preserves explicit http://', async () => {
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, true),
-			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
-		]);
-		await makeService({ httpClientFactory: factory }).startQuickConnect(
-			'http://demo.jellyfin.local',
-		);
-		expect(calls[0].baseUrl).toBe('http://demo.jellyfin.local');
+	it('preserves explicit http://', () => {
+		expect(normalizeServerUrl('http://demo.jellyfin.local')).toBe('http://demo.jellyfin.local');
 	});
 
-	it('strips trailing slashes', async () => {
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, true),
-			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
-		]);
-		await makeService({ httpClientFactory: factory }).startQuickConnect(
-			'https://demo.jellyfin.local///',
+	it('strips trailing slashes', () => {
+		expect(normalizeServerUrl('https://demo.jellyfin.local///')).toBe(
+			'https://demo.jellyfin.local',
 		);
-		expect(calls[0].baseUrl).toBe('https://demo.jellyfin.local');
 	});
 });
 
 describe('client device ID', () => {
 	it('defaults to "atolla" when no clientDeviceId is provided', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, true),
 			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
 		]);
-		await makeService({ httpClientFactory: factory }).startQuickConnect(
-			'https://demo.jellyfin.local',
-		);
+		await makeService({ client }).startQuickConnect();
 		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="atolla"');
 	});
 
 	it('defaults to "atolla" for empty string', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, true),
 			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
 		]);
-		await makeService({ clientDeviceId: '', httpClientFactory: factory }).startQuickConnect(
-			'https://demo.jellyfin.local',
-		);
+		await makeService({ client, clientDeviceId: '' }).startQuickConnect();
 		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="atolla"');
 	});
 
 	it('sanitizes special characters to underscores', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, true),
 			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
 		]);
-		await makeService({
-			clientDeviceId: 'my device!',
-			httpClientFactory: factory,
-		}).startQuickConnect('https://demo.jellyfin.local');
+		await makeService({ client, clientDeviceId: 'my device!' }).startQuickConnect();
 		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="my_device_"');
 	});
 
 	it('setClientDeviceId updates the ID used in subsequent requests', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, true),
 			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
 		]);
-		const service = makeService({ httpClientFactory: factory });
+		const service = makeService({ client });
 		service.setClientDeviceId('updated-device');
-		await service.startQuickConnect('https://demo.jellyfin.local');
+		await service.startQuickConnect();
 		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="updated-device"');
 	});
 });
@@ -156,6 +147,7 @@ describe('client device ID', () => {
 describe('loadSession', () => {
 	const serviceWithStored = (stored: AuthSession | null) =>
 		new JellyfinAuthService({
+			client: createHTTPClient([]).client,
 			store: { ...createStore(), loadSession: () => Promise.resolve(stored) },
 		});
 
@@ -197,44 +189,43 @@ describe('saveSession', () => {
 				return Promise.resolve();
 			},
 		};
-		await new JellyfinAuthService({ store }).saveSession(validSession);
+		await new JellyfinAuthService({ client: createHTTPClient([]).client, store }).saveSession(
+			validSession,
+		);
 		expect(saved).toEqual(validSession);
 	});
 });
 
 describe('startQuickConnect', () => {
 	it('throws QUICK_CONNECT_NOT_AVAILABLE when initiate returns 401', async () => {
-		const { factory } = createHTTPClientFactory([jsonResponse(200, true), jsonResponse(401, {})]);
-		await expect(
-			makeService({ httpClientFactory: factory }).startQuickConnect('https://demo.jellyfin.local'),
-		).rejects.toBe(AuthErrors.QUICK_CONNECT_NOT_AVAILABLE);
+		const { client } = createHTTPClient([jsonResponse(200, true), jsonResponse(401, {})]);
+		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
+			AuthErrors.QUICK_CONNECT_NOT_AVAILABLE,
+		);
 	});
 
 	it('throws CONNECTION_ERROR on network failure during initiate', async () => {
-		const { factory } = createHTTPClientFactory([
-			jsonResponse(200, true),
-			new Error('ECONNREFUSED'),
-		]);
-		await expect(
-			makeService({ httpClientFactory: factory }).startQuickConnect('https://demo.jellyfin.local'),
-		).rejects.toBe(AuthErrors.CONNECTION_ERROR);
+		const { client } = createHTTPClient([jsonResponse(200, true), new Error('ECONNREFUSED')]);
+		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
+			AuthErrors.CONNECTION_ERROR,
+		);
 	});
 
 	it('throws CONNECTION_ERROR when response is missing Code', async () => {
-		const { factory } = createHTTPClientFactory([
+		const { client } = createHTTPClient([
 			jsonResponse(200, true),
 			jsonResponse(200, { Secret: 'secret-only' }),
 		]);
-		await expect(
-			makeService({ httpClientFactory: factory }).startQuickConnect('https://demo.jellyfin.local'),
-		).rejects.toBe(AuthErrors.CONNECTION_ERROR);
+		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
+			AuthErrors.CONNECTION_ERROR,
+		);
 	});
 
 	it('throws CONNECTION_ERROR when response body is empty', async () => {
-		const { factory } = createHTTPClientFactory([jsonResponse(200, true), jsonResponse(200)]);
-		await expect(
-			makeService({ httpClientFactory: factory }).startQuickConnect('https://demo.jellyfin.local'),
-		).rejects.toBe(AuthErrors.CONNECTION_ERROR);
+		const { client } = createHTTPClient([jsonResponse(200, true), jsonResponse(200)]);
+		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
+			AuthErrors.CONNECTION_ERROR,
+		);
 	});
 });
 
@@ -249,88 +240,75 @@ describe('waitForQuickConnectApproval', () => {
 				return Promise.resolve();
 			},
 		});
-		await expect(
-			service.waitForQuickConnectApproval('https://demo.jellyfin.local', 'secret', 3_000),
-		).rejects.toBe(AuthErrors.QUICK_CONNECT_TIMED_OUT);
+		await expect(service.waitForQuickConnectApproval('secret', 3_000)).rejects.toBe(
+			AuthErrors.QUICK_CONNECT_TIMED_OUT,
+		);
 		expect(sleepCalls).toEqual([3_000]);
 	});
 
 	it('real: throws QUICK_CONNECT_TIMED_OUT after all polls fail to authenticate', async () => {
-		const factory = () => ({
+		const client = stubClient({
 			get: () => Promise.resolve(jsonResponse(200, { Authenticated: false })),
-			post: () => Promise.reject(new Error('unexpected')),
 		});
 		let nowMs = 0;
 		const service = makeService({
-			httpClientFactory: factory,
+			client,
 			now: () => nowMs,
 			sleep: (ms: number) => {
 				nowMs += ms;
 				return Promise.resolve();
 			},
 		});
-		await expect(
-			service.waitForQuickConnectApproval('https://demo.jellyfin.local', 'secret', 2_000, 1_000),
-		).rejects.toBe(AuthErrors.QUICK_CONNECT_TIMED_OUT);
+		await expect(service.waitForQuickConnectApproval('secret', 2_000, 1_000)).rejects.toBe(
+			AuthErrors.QUICK_CONNECT_TIMED_OUT,
+		);
 	});
 
 	it('real: throws CONNECTION_ERROR on network failure during poll', async () => {
-		const factory = () => ({
-			get: () => Promise.reject(new Error('network down')),
-			post: () => Promise.reject(new Error('unexpected')),
-		});
+		const client = stubClient({ get: () => Promise.reject(new Error('network down')) });
 		const service = makeService({
-			httpClientFactory: factory,
+			client,
 			now: () => 0,
 			sleep: () => Promise.resolve(),
 		});
-		await expect(
-			service.waitForQuickConnectApproval('https://demo.jellyfin.local', 'secret', 10_000, 1_000),
-		).rejects.toBe(AuthErrors.CONNECTION_ERROR);
+		await expect(service.waitForQuickConnectApproval('secret', 10_000, 1_000)).rejects.toBe(
+			AuthErrors.CONNECTION_ERROR,
+		);
 	});
 });
 
 describe('authenticateWithQuickConnect', () => {
 	it('throws CONNECTION_ERROR on non-success HTTP status', async () => {
-		const { factory } = createHTTPClientFactory([jsonResponse(401, {})]);
+		const { client } = createHTTPClient([jsonResponse(401, {})]);
 		await expect(
-			makeService({ httpClientFactory: factory }).authenticateWithQuickConnect(
-				'https://demo.jellyfin.local',
-				'secret',
-			),
+			makeService({ client }).authenticateWithQuickConnect('https://demo.jellyfin.local', 'secret'),
 		).rejects.toBe(AuthErrors.CONNECTION_ERROR);
 	});
 
 	it('throws CONNECTION_ERROR when AccessToken is missing from response', async () => {
-		const { factory } = createHTTPClientFactory([
+		const { client } = createHTTPClient([
 			jsonResponse(200, { ServerId: 's1', User: { Id: 'u1' } }),
 		]);
 		await expect(
-			makeService({ httpClientFactory: factory }).authenticateWithQuickConnect(
-				'https://demo.jellyfin.local',
-				'secret',
-			),
+			makeService({ client }).authenticateWithQuickConnect('https://demo.jellyfin.local', 'secret'),
 		).rejects.toBe(AuthErrors.CONNECTION_ERROR);
 	});
 
 	it('throws CONNECTION_ERROR when User.Id is missing from response', async () => {
-		const { factory } = createHTTPClientFactory([
+		const { client } = createHTTPClient([
 			jsonResponse(200, { AccessToken: 'tok', ServerId: 's1', User: {} }),
 		]);
 		await expect(
-			makeService({ httpClientFactory: factory }).authenticateWithQuickConnect(
-				'https://demo.jellyfin.local',
-				'secret',
-			),
+			makeService({ client }).authenticateWithQuickConnect('https://demo.jellyfin.local', 'secret'),
 		).rejects.toBe(AuthErrors.CONNECTION_ERROR);
 	});
 
 	it('returns a session including the server name from /System/Info/Public', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, { AccessToken: 'tok', ServerId: 's1', User: { Id: 'u1' } }),
 			jsonResponse(200, { ServerName: 'Living Room Server' }),
 		]);
-		const session = await makeService({ httpClientFactory: factory }).authenticateWithQuickConnect(
+		const session = await makeService({ client }).authenticateWithQuickConnect(
 			'https://demo.jellyfin.local',
 			'secret',
 		);
@@ -345,11 +323,11 @@ describe('authenticateWithQuickConnect', () => {
 	});
 
 	it('still authenticates with an empty server name when the info fetch fails', async () => {
-		const { factory } = createHTTPClientFactory([
+		const { client } = createHTTPClient([
 			jsonResponse(200, { AccessToken: 'tok', ServerId: 's1', User: { Id: 'u1' } }),
 			new Error('network down'),
 		]);
-		const session = await makeService({ httpClientFactory: factory }).authenticateWithQuickConnect(
+		const session = await makeService({ client }).authenticateWithQuickConnect(
 			'https://demo.jellyfin.local',
 			'secret',
 		);
@@ -360,46 +338,35 @@ describe('authenticateWithQuickConnect', () => {
 
 describe('fetchServerDetails', () => {
 	it('returns the server name from /System/Info/Public', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, { ServerName: 'My Jellyfin', Version: '10.9.0' }),
 		]);
-		const details = await makeService({ httpClientFactory: factory }).fetchServerDetails(
-			'https://demo.jellyfin.local',
-		);
+		const details = await makeService({ client }).fetchServerDetails();
 		expect(details.ServerName).toBe('My Jellyfin');
 		expect(calls[0].pathOrUrl).toBe('/System/Info/Public');
 	});
 
 	it('returns an empty result on a non-success status', async () => {
-		const { factory } = createHTTPClientFactory([jsonResponse(500, {})]);
-		const details = await makeService({ httpClientFactory: factory }).fetchServerDetails(
-			'https://demo.jellyfin.local',
-		);
+		const { client } = createHTTPClient([jsonResponse(500, {})]);
+		const details = await makeService({ client }).fetchServerDetails();
 		expect(details.ServerName).toBeUndefined();
 	});
 
 	it('returns an empty result on a network error', async () => {
-		const { factory } = createHTTPClientFactory([new Error('network error')]);
-		const details = await makeService({ httpClientFactory: factory }).fetchServerDetails(
-			'https://demo.jellyfin.local',
-		);
+		const { client } = createHTTPClient([new Error('network error')]);
+		const details = await makeService({ client }).fetchServerDetails();
 		expect(details.ServerName).toBeUndefined();
 	});
 
 	it('returns an empty result for a malformed body', async () => {
-		const { factory } = createHTTPClientFactory([jsonResponse(200)]);
-		const details = await makeService({ httpClientFactory: factory }).fetchServerDetails(
-			'https://demo.jellyfin.local',
-		);
+		const { client } = createHTTPClient([jsonResponse(200)]);
+		const details = await makeService({ client }).fetchServerDetails();
 		expect(details.ServerName).toBeUndefined();
 	});
 
 	it('mock mode returns the mock server name without a request', async () => {
-		const { calls, factory } = createHTTPClientFactory([]);
-		const details = await makeService({
-			httpClientFactory: factory,
-			isMockMode: true,
-		}).fetchServerDetails('https://demo.jellyfin.local');
+		const { calls, client } = createHTTPClient([]);
+		const details = await makeService({ client, isMockMode: true }).fetchServerDetails();
 		expect(details.ServerName).toBe('atolla mock server');
 		expect(calls.length).toBe(0);
 	});
@@ -431,20 +398,13 @@ describe('validateSession', () => {
 	});
 
 	it('returns false on network error', async () => {
-		const factory = () => ({
-			get: () => Promise.reject(new Error('network error')),
-			post: () => Promise.reject(new Error('unexpected')),
-		});
-		expect(await makeService({ httpClientFactory: factory }).validateSession(validSession)).toBe(
-			false,
-		);
+		const client = stubClient({ get: () => Promise.reject(new Error('network error')) });
+		expect(await makeService({ client }).validateSession(validSession)).toBe(false);
 	});
 
 	it('returns false on non-success HTTP status', async () => {
-		const { factory } = createHTTPClientFactory([jsonResponse(401, {})]);
-		expect(await makeService({ httpClientFactory: factory }).validateSession(validSession)).toBe(
-			false,
-		);
+		const { client } = createHTTPClient([jsonResponse(401, {})]);
+		expect(await makeService({ client }).validateSession(validSession)).toBe(false);
 	});
 });
 
@@ -457,20 +417,17 @@ describe('probeInitialAlbums', () => {
 	});
 
 	it('throws FAILED_TO_FETCH_DATA on non-success HTTP status', async () => {
-		const { factory } = createHTTPClientFactory([jsonResponse(403, {})]);
-		await expect(
-			makeService({ httpClientFactory: factory }).probeInitialAlbums(validSession),
-		).rejects.toBe(AuthErrors.FAILED_TO_FETCH_DATA);
+		const { client } = createHTTPClient([jsonResponse(403, {})]);
+		await expect(makeService({ client }).probeInitialAlbums(validSession)).rejects.toBe(
+			AuthErrors.FAILED_TO_FETCH_DATA,
+		);
 	});
 
 	it('throws FAILED_TO_FETCH_DATA on network error', async () => {
-		const factory = () => ({
-			get: () => Promise.reject(new Error('network error')),
-			post: () => Promise.reject(new Error('unexpected')),
-		});
-		await expect(
-			makeService({ httpClientFactory: factory }).probeInitialAlbums(validSession),
-		).rejects.toBe(AuthErrors.FAILED_TO_FETCH_DATA);
+		const client = stubClient({ get: () => Promise.reject(new Error('network error')) });
+		await expect(makeService({ client }).probeInitialAlbums(validSession)).rejects.toBe(
+			AuthErrors.FAILED_TO_FETCH_DATA,
+		);
 	});
 });
 
@@ -501,16 +458,5 @@ describe('errorMessage', () => {
 
 	it('includes HTTP status code from an object with statusCode field', () => {
 		expect(makeService().errorMessage({ statusCode: 503 })).toBe('connection error: HTTP 503');
-	});
-});
-
-describe('request timeout', () => {
-	it('rejects the request and validateSession returns false after timeout', async () => {
-		const factory = () => ({
-			get: () => new Promise<never>(() => {}),
-			post: () => new Promise<never>(() => {}),
-		});
-		const service = makeService({ httpClientFactory: factory, requestTimeoutMs: 20 });
-		expect(await service.validateSession(validSession)).toBe(false);
 	});
 });

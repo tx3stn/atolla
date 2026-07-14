@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import { AuthErrors } from 'atolla/src/errors/AuthErrors';
 import { JellyfinAuthService } from 'atolla/src/services/JellyfinAuthService';
+import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 
 interface MockHTTPResponse {
 	body?: Uint8Array;
@@ -16,9 +17,8 @@ function jsonResponse(statusCode: number, body?: unknown): MockHTTPResponse {
 	};
 }
 
-function createHTTPClientFactory(responses: Array<MockHTTPResponse | Error>) {
+function createHTTPClient(responses: Array<MockHTTPResponse | Error>) {
 	const calls: Array<{
-		baseUrl: string;
 		body?: ArrayBuffer | Uint8Array;
 		headers?: Record<string, string>;
 		method: 'GET' | 'POST';
@@ -36,34 +36,22 @@ function createHTTPClientFactory(responses: Array<MockHTTPResponse | Error>) {
 		return Promise.resolve(next);
 	};
 
-	return {
-		calls,
-		factory: (baseUrl: string) => ({
-			get: (pathOrUrl: string, headers?: Record<string, string>) => {
-				calls.push({
-					baseUrl,
-					headers,
-					method: 'GET',
-					pathOrUrl,
-				});
-				return nextResponse();
-			},
-			post: (
-				pathOrUrl: string,
-				body?: ArrayBuffer | Uint8Array,
-				headers?: Record<string, string>,
-			) => {
-				calls.push({
-					baseUrl,
-					body,
-					headers,
-					method: 'POST',
-					pathOrUrl,
-				});
-				return nextResponse();
-			},
-		}),
+	const client = {
+		get: (pathOrUrl: string, headers?: Record<string, string>) => {
+			calls.push({ headers, method: 'GET', pathOrUrl });
+			return nextResponse();
+		},
+		post: (
+			pathOrUrl: string,
+			body?: ArrayBuffer | Uint8Array,
+			headers?: Record<string, string>,
+		) => {
+			calls.push({ body, headers, method: 'POST', pathOrUrl });
+			return nextResponse();
+		},
 	};
+
+	return { calls, client: client as unknown as IHTTPClient };
 }
 
 function createStore() {
@@ -77,26 +65,24 @@ function createStore() {
 }
 
 describe('JellyfinAuthService', () => {
-	it('starts quick connect through valdi_http client', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+	it('starts quick connect through the injected valdi_http client', async () => {
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, true),
 			jsonResponse(200, { Code: 'ABCD', Secret: 'secret-1' }),
 		]);
-		const service = new JellyfinAuthService({ httpClientFactory: factory, store: createStore() });
+		const service = new JellyfinAuthService({ client, store: createStore() });
 
-		const result = await service.startQuickConnect('demo.jellyfin.local');
+		const result = await service.startQuickConnect();
 
 		expect(result).toEqual({ code: 'ABCD', secret: 'secret-1' });
 		expect(calls[0]).toEqual(
 			jasmine.objectContaining({
-				baseUrl: 'https://demo.jellyfin.local',
 				method: 'GET',
 				pathOrUrl: '/QuickConnect/Enabled',
 			}),
 		);
 		expect(calls[1]).toEqual(
 			jasmine.objectContaining({
-				baseUrl: 'https://demo.jellyfin.local',
 				method: 'POST',
 				pathOrUrl: '/QuickConnect/Initiate',
 			}),
@@ -104,29 +90,29 @@ describe('JellyfinAuthService', () => {
 	});
 
 	it('uses configured client device id in auth headers', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, true),
 			jsonResponse(200, { Code: 'ABCD', Secret: 'secret-1' }),
 		]);
 		const service = new JellyfinAuthService({
+			client,
 			clientDeviceId: 'profile-2-device',
-			httpClientFactory: factory,
 			store: createStore(),
 		});
 
-		await service.startQuickConnect('demo.jellyfin.local');
+		await service.startQuickConnect();
 
 		expect(calls[0].headers?.['X-Emby-Authorization']).toContain('DeviceId="profile-2-device"');
 		expect(calls[1].headers?.['X-Emby-Authorization']).toContain('DeviceId="profile-2-device"');
 	});
 
 	it('throws quick-connect unavailable when server reports disabled', async () => {
-		const { factory } = createHTTPClientFactory([jsonResponse(200, false)]);
-		const service = new JellyfinAuthService({ httpClientFactory: factory, store: createStore() });
+		const { client } = createHTTPClient([jsonResponse(200, false)]);
+		const service = new JellyfinAuthService({ client, store: createStore() });
 
 		let thrown: unknown;
 		try {
-			await service.startQuickConnect('https://demo.jellyfin.local');
+			await service.startQuickConnect();
 		} catch (error) {
 			thrown = error;
 		}
@@ -135,13 +121,13 @@ describe('JellyfinAuthService', () => {
 	});
 
 	it('polls for quick-connect approval until authenticated', async () => {
-		const { factory } = createHTTPClientFactory([
+		const { client } = createHTTPClient([
 			jsonResponse(200, { Authenticated: false }),
 			jsonResponse(200, { Authenticated: true }),
 		]);
 		let nowMs = 0;
 		const service = new JellyfinAuthService({
-			httpClientFactory: factory,
+			client,
 			now: () => nowMs,
 			sleep: (ms: number) => {
 				nowMs += ms;
@@ -150,16 +136,11 @@ describe('JellyfinAuthService', () => {
 			store: createStore(),
 		});
 
-		await service.waitForQuickConnectApproval(
-			'https://demo.jellyfin.local',
-			'secret-1',
-			30_000,
-			1_000,
-		);
+		await service.waitForQuickConnectApproval('secret-1', 30_000, 1_000);
 	});
 
 	it('authenticates with quick connect using valdi_http post body', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, {
 				AccessToken: 'token-1',
 				ServerId: 'server-1',
@@ -167,7 +148,7 @@ describe('JellyfinAuthService', () => {
 			}),
 			jsonResponse(200, { ServerName: 'Demo Server' }),
 		]);
-		const service = new JellyfinAuthService({ httpClientFactory: factory, store: createStore() });
+		const service = new JellyfinAuthService({ client, store: createStore() });
 
 		const session = await service.authenticateWithQuickConnect(
 			'https://demo.jellyfin.local',
@@ -187,13 +168,20 @@ describe('JellyfinAuthService', () => {
 	});
 
 	it('returns mock responses in mock mode without network access', async () => {
-		let factoryCalls = 0;
-		const sleepCalls: Array<number> = [];
-		const service = new JellyfinAuthService({
-			httpClientFactory: () => {
-				factoryCalls += 1;
+		let clientCalls = 0;
+		const throwingClient = {
+			get: () => {
+				clientCalls += 1;
 				throw new Error('network should not be used in mock mode');
 			},
+			post: () => {
+				clientCalls += 1;
+				throw new Error('network should not be used in mock mode');
+			},
+		} as unknown as IHTTPClient;
+		const sleepCalls: Array<number> = [];
+		const service = new JellyfinAuthService({
+			client: throwingClient,
 			isMockMode: true,
 			mockApprovalDelayMs: 1_500,
 			sleep: (ms: number) => {
@@ -203,13 +191,13 @@ describe('JellyfinAuthService', () => {
 			store: createStore(),
 		});
 
-		const quickConnect = await service.startQuickConnect('demo.jellyfin.local');
+		const quickConnect = await service.startQuickConnect();
 		expect(quickConnect).toEqual({
 			code: 'ATOLLA-MOCK',
 			secret: 'atolla-mock-secret',
 		});
 
-		await service.waitForQuickConnectApproval('demo.jellyfin.local', quickConnect.secret);
+		await service.waitForQuickConnectApproval(quickConnect.secret);
 		expect(sleepCalls).toEqual([1_500]);
 
 		const session = await service.authenticateWithQuickConnect(
@@ -219,16 +207,16 @@ describe('JellyfinAuthService', () => {
 		expect(session.serverId).toBe('mock-server-id');
 		expect(await service.validateSession(session)).toBe(true);
 		await service.probeInitialAlbums(session);
-		expect(factoryCalls).toBe(0);
+		expect(clientCalls).toBe(0);
 	});
 
 	it('includes HTTP status detail in connection error message', async () => {
-		const { factory } = createHTTPClientFactory([jsonResponse(200, true), jsonResponse(503, {})]);
-		const service = new JellyfinAuthService({ httpClientFactory: factory, store: createStore() });
+		const { client } = createHTTPClient([jsonResponse(200, true), jsonResponse(503, {})]);
+		const service = new JellyfinAuthService({ client, store: createStore() });
 
 		let thrown: unknown;
 		try {
-			await service.startQuickConnect('https://demo.jellyfin.local');
+			await service.startQuickConnect();
 		} catch (error) {
 			thrown = error;
 		}
@@ -237,7 +225,10 @@ describe('JellyfinAuthService', () => {
 	});
 
 	it('includes generic error message detail for unknown errors', () => {
-		const service = new JellyfinAuthService({ store: createStore() });
+		const service = new JellyfinAuthService({
+			client: createHTTPClient([]).client,
+			store: createStore(),
+		});
 
 		expect(service.errorMessage(new Error('socket hang up'))).toBe(
 			'connection error: socket hang up',
@@ -245,7 +236,10 @@ describe('JellyfinAuthService', () => {
 	});
 
 	it('does not duplicate connection error detail when message is identical', () => {
-		const service = new JellyfinAuthService({ store: createStore() });
+		const service = new JellyfinAuthService({
+			client: createHTTPClient([]).client,
+			store: createStore(),
+		});
 
 		expect(service.errorMessage(new Error('connection error'))).toBe('connection error');
 	});

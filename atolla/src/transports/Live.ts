@@ -1,5 +1,7 @@
+import type { StringMap } from 'coreutils/src/StringMap';
+import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
+import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import { AuthErrors } from '../errors/AuthErrors';
-import { TransportErrors } from '../errors/TransportErrors';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
 import type { Genre } from '../models/Genre';
@@ -17,6 +19,7 @@ import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 import { version } from '../version';
+import { TransportErrors } from './Errors';
 import {
 	type JellyfinImageResolvers,
 	mapJellyfinAlbumToAlbum,
@@ -26,10 +29,6 @@ import {
 	mapJellyfinTrackToTrack,
 } from './JellyfinMappers';
 import type { Transport } from './Transport';
-
-declare const require: (moduleName: string) => {
-	HTTPClient: new (baseUrl: string) => HTTPClientLike;
-};
 
 export {
 	type JellyfinImageResolvers,
@@ -43,36 +42,13 @@ export {
 	runTimeTicksToSeconds,
 } from './JellyfinMappers';
 
-interface HTTPResponseLike {
-	body?: Uint8Array;
-	headers: Record<string, string>;
-	statusCode: number;
-}
-
-function getHeaderValue(headers: Record<string, string>, key: string): string | null {
-	const normalizedKey = key.toLowerCase();
-	for (const [headerKey, headerValue] of Object.entries(headers)) {
-		if (headerKey.toLowerCase() === normalizedKey) {
-			return headerValue;
-		}
-	}
-	return null;
-}
-
-interface HTTPClientLike {
-	delete?(pathOrUrl: string, headers?: Record<string, string>): Promise<HTTPResponseLike>;
-	get(pathOrUrl: string, headers?: Record<string, string>): Promise<HTTPResponseLike>;
-	post?(
-		pathOrUrl: string,
-		body?: Uint8Array,
-		headers?: Record<string, string>,
-	): Promise<HTTPResponseLike>;
-}
-
 interface LiveTransportOptions {
 	clientDeviceId?: string;
-	httpClientFactory?: (baseUrl: string) => HTTPClientLike;
-	requestTimeoutMs?: number;
+}
+
+interface RequestOptions {
+	body?: Record<string, unknown>;
+	query?: Record<string, string | number | boolean | undefined>;
 }
 
 interface AlbumsPageResult {
@@ -85,8 +61,8 @@ const defaultSearchLimit = 100;
 
 export class LiveTransport implements Transport {
 	private readonly baseUrl: string;
+	private readonly client: IHTTPClient;
 	private readonly clientDeviceId: string;
-	private readonly httpClientFactory: (baseUrl: string) => HTTPClientLike;
 	private readonly imageResolvers: JellyfinImageResolvers = {
 		albumPrimaryImageUrl: (albumId: string, imageTag?: string): string =>
 			this.buildItemImageUrl(albumId, 'Primary', imageTag),
@@ -95,36 +71,31 @@ export class LiveTransport implements Transport {
 		itemPrimaryImageUrl: (itemId: string, imageTag?: string): string =>
 			this.buildItemImageUrl(itemId, 'Primary', imageTag),
 	};
-	private readonly requestTimeoutMs: number;
-
 	constructor(
 		readonly serverUrl: string,
 		readonly accessToken: string,
 		readonly userId: string,
+		client: IHTTPClient,
 		options: LiveTransportOptions = {},
 	) {
 		this.baseUrl = this.normalizeBaseUrl(serverUrl);
+		this.client = client;
 		this.clientDeviceId = normalizeClientDeviceId(options.clientDeviceId);
-		this.httpClientFactory =
-			options.httpClientFactory ??
-			((baseUrl: string) => {
-				const { HTTPClient } = require('valdi_http/src/HTTPClient');
-				return new HTTPClient(baseUrl) as unknown as HTTPClientLike;
-			});
-		this.requestTimeoutMs = options.requestTimeoutMs ?? 10_000;
 	}
 
 	async addItemToPlaylist(playlistId: string, trackId: string): Promise<void> {
-		await this.requestVoid('POST', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
-			ids: trackId,
-			userId: this.userId,
+		await this.request('POST', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
+			query: {
+				ids: trackId,
+				userId: this.userId,
+			},
 		});
 	}
 
 	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
 		const body: Record<string, unknown> = { MediaType: 'Audio', Name: name };
 		if (trackId) body.Ids = [trackId];
-		const result = await this.requestJsonPost<{ Id: string }>('/Playlists', body);
+		const result = await this.requestJson<{ Id: string }>('POST', '/Playlists', { body });
 		// Fetch the full item to get ImageTags (Jellyfin generates the collage image
 		// synchronously when the first track is provided). This gives us the correct
 		// tagged imageUrl so the playlist cover can be cached for offline use.
@@ -296,14 +267,20 @@ export class LiveTransport implements Transport {
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.requestJson<JellyfinListEnvelope<JellyfinGenreItem>>('/MusicGenres', {
-			fields: 'Overview',
-			limit: Math.max(1, pageSize),
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
-			startIndex,
-			userId: this.userId,
-		});
+		const list = await this.requestJson<JellyfinListEnvelope<JellyfinGenreItem>>(
+			'GET',
+			'/MusicGenres',
+			{
+				query: {
+					fields: 'Overview',
+					limit: Math.max(1, pageSize),
+					sortBy: 'SortName',
+					sortOrder: 'Ascending',
+					startIndex,
+					userId: this.userId,
+				},
+			},
+		);
 
 		return {
 			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
@@ -357,13 +334,15 @@ export class LiveTransport implements Transport {
 	}
 
 	async getRandomMusicYears(limit: number): Promise<Array<number>> {
-		const years = await this.requestJson<JellyfinListEnvelope<JellyfinYearItem>>('/Years', {
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			limit: Math.max(1, limit),
-			mediaTypes: 'Audio',
-			recursive: true,
-			sortBy: 'Random',
-			userId: this.userId,
+		const years = await this.requestJson<JellyfinListEnvelope<JellyfinYearItem>>('GET', '/Years', {
+			query: {
+				includeItemTypes: JellyfinMusicItemTypes.Audio,
+				limit: Math.max(1, limit),
+				mediaTypes: 'Audio',
+				recursive: true,
+				sortBy: 'Random',
+				userId: this.userId,
+			},
 		});
 
 		const result: Array<number> = [];
@@ -504,12 +483,15 @@ export class LiveTransport implements Transport {
 
 	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
 		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
+			'GET',
 			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
 			{
-				fields: 'Overview,Genres,MediaSources',
-				limit: 500,
-				startIndex: 0,
-				userId: this.userId,
+				query: {
+					fields: 'Overview,Genres,MediaSources',
+					limit: 500,
+					startIndex: 0,
+					userId: this.userId,
+				},
 			},
 		);
 
@@ -523,12 +505,15 @@ export class LiveTransport implements Transport {
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
+			'GET',
 			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
 			{
-				fields: 'Overview,Genres,MediaSources',
-				limit: Math.max(1, pageSize),
-				startIndex,
-				userId: this.userId,
+				query: {
+					fields: 'Overview,Genres,MediaSources',
+					limit: Math.max(1, pageSize),
+					startIndex,
+					userId: this.userId,
+				},
 			},
 		);
 
@@ -562,15 +547,17 @@ export class LiveTransport implements Transport {
 	}
 
 	async movePlaylistTrack(playlistId: string, entryId: string, toIndex: number): Promise<void> {
-		await this.requestVoid(
+		await this.request(
 			'POST',
 			`/Playlists/${encodeURIComponent(playlistId)}/Items/${encodeURIComponent(entryId)}/Move/${toIndex}`,
 		);
 	}
 
 	async removePlaylistTrack(playlistId: string, entryId: string): Promise<void> {
-		await this.requestVoid('DELETE', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
-			entryIds: entryId,
+		await this.request('DELETE', `/Playlists/${encodeURIComponent(playlistId)}/Items`, {
+			query: {
+				entryIds: entryId,
+			},
 		});
 	}
 
@@ -579,22 +566,11 @@ export class LiveTransport implements Transport {
 			throw TransportErrors.LIVE_REQUEST_FAILED;
 		}
 
-		const client = this.httpClientFactory(this.baseUrl);
-		if (typeof client.post !== 'function') {
-			throw TransportErrors.LIVE_NOT_IMPLEMENTED;
-		}
-
-		const requestPath = this.buildPath(`/UserPlayedItems/${encodeURIComponent(trackId)}`, {
-			datePlayed,
-			userId: this.userId,
-		});
-
-		await this.runWithRequestTimeout(
-			client.post(requestPath, undefined, this.createHeaders()),
-		).then((response) => {
-			if (response.statusCode < 200 || response.statusCode >= 300) {
-				throw TransportErrors.LIVE_REQUEST_FAILED;
-			}
+		await this.request('POST', `/UserPlayedItems/${encodeURIComponent(trackId)}`, {
+			query: {
+				datePlayed,
+				userId: this.userId,
+			},
 		});
 	}
 
@@ -726,18 +702,22 @@ export class LiveTransport implements Transport {
 		params: Record<string, string | number | boolean | undefined>,
 	): Promise<JellyfinListEnvelope<TItem>> {
 		const fields = typeof params.fields === 'string' ? params.fields : 'Overview';
-		return this.requestJson<JellyfinListEnvelope<TItem>>('/Items', {
-			...params,
-			fields,
-			recursive: params.recursive ?? true,
-			userId: this.userId,
+		return this.requestJson<JellyfinListEnvelope<TItem>>('GET', '/Items', {
+			query: {
+				...params,
+				fields,
+				recursive: params.recursive ?? true,
+				userId: this.userId,
+			},
 		});
 	}
 
 	private getItem<TItem>(itemId: string): Promise<TItem | null> {
-		return this.requestJson<TItem>(`/Items/${encodeURIComponent(itemId)}`, {
-			fields: 'Overview',
-			userId: this.userId,
+		return this.requestJson<TItem>('GET', `/Items/${encodeURIComponent(itemId)}`, {
+			query: {
+				fields: 'Overview',
+				userId: this.userId,
+			},
 		}).catch((error) => {
 			if (error === TransportErrors.LIVE_REQUEST_FAILED) {
 				return null;
@@ -750,21 +730,42 @@ export class LiveTransport implements Transport {
 		return url.replace(/\/+$/, '');
 	}
 
+	private async request(
+		method: 'DELETE' | 'GET' | 'POST',
+		path: string,
+		options: RequestOptions = {},
+	): Promise<HTTPResponse> {
+		const requestPath = this.buildPath(path, options.query ?? {});
+		const headers = this.createHeaders();
+
+		let response: HTTPResponse;
+		if (method === 'POST') {
+			let body: Uint8Array | undefined;
+			if (options.body) {
+				headers['Content-Type'] = 'application/json';
+				body = new TextEncoder().encode(JSON.stringify(options.body));
+			}
+			response = await this.client.post(requestPath, body, headers);
+		} else if (method === 'DELETE') {
+			response = await this.client.delete(requestPath, headers);
+		} else {
+			response = await this.client.get(requestPath, headers);
+		}
+
+		if (response.statusCode === 401) {
+			throw AuthErrors.SESSION_EXPIRED;
+		}
+		if (response.statusCode < 200 || response.statusCode >= 300) {
+			throw TransportErrors.LIVE_REQUEST_FAILED;
+		}
+		return response;
+	}
+
 	private async requestBinaryWithRedirects(
 		url: string,
 		remainingRedirects: number,
 	): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
-		const split = splitAbsoluteUrl(url);
-		if (!split) {
-			throw new Error(`invalid download url: ${url}`);
-		}
-
-		const { baseUrl, pathWithQuery } = split;
-		const client = this.httpClientFactory(baseUrl);
-
-		const response = await this.runWithRequestTimeout(
-			client.get(pathWithQuery, this.createBinaryHeaders()),
-		);
+		const response = await this.client.get(url, this.createBinaryHeaders());
 
 		if (isRedirectStatus(response.statusCode)) {
 			if (remainingRedirects <= 0) {
@@ -776,7 +777,8 @@ export class LiveTransport implements Transport {
 				throw new Error(`download redirect missing location status=${response.statusCode}`);
 			}
 
-			const nextUrl = resolveRedirectUrl(baseUrl, location);
+			const origin = originOf(url);
+			const nextUrl = origin ? resolveRedirectUrl(origin, location) : null;
 			if (!nextUrl) {
 				throw new Error(`download redirect invalid location status=${response.statusCode}`);
 			}
@@ -802,122 +804,22 @@ export class LiveTransport implements Transport {
 		return { buffer, mimeType };
 	}
 
-	private requestJson<T>(
+	private async requestJson<T>(
+		method: 'DELETE' | 'GET' | 'POST',
 		path: string,
-		query: Record<string, string | number | boolean | undefined> = {},
+		options: RequestOptions = {},
 	): Promise<T> {
-		const client = this.httpClientFactory(this.baseUrl);
-		const requestPath = this.buildPath(path, query);
+		const response = await this.request(method, path, options);
 
-		return this.runWithRequestTimeout(client.get(requestPath, this.createHeaders())).then(
-			(response) => {
-				if (response.statusCode === 401) {
-					throw AuthErrors.SESSION_EXPIRED;
-				}
-
-				if (response.statusCode < 200 || response.statusCode >= 300) {
-					throw TransportErrors.LIVE_REQUEST_FAILED;
-				}
-
-				if (!response.body) {
-					throw TransportErrors.LIVE_INVALID_RESPONSE;
-				}
-
-				try {
-					return JSON.parse(new TextDecoder().decode(response.body)) as T;
-				} catch {
-					throw TransportErrors.LIVE_INVALID_RESPONSE;
-				}
-			},
-		);
-	}
-
-	private async requestJsonPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
-		const client = this.httpClientFactory(this.baseUrl);
-		if (!client.post) throw new Error('HTTP client does not support POST');
-
-		const encoded = new TextEncoder().encode(JSON.stringify(body));
-		const headers = { ...this.createHeaders(), 'Content-Type': 'application/json' };
-
-		const response = await this.runWithRequestTimeout(client.post(path, encoded, headers));
-
-		if (response.statusCode < 200 || response.statusCode >= 300) {
-			let message = `Request failed [${response.statusCode}]`;
-			if (response.body) {
-				try {
-					const parsed = JSON.parse(new TextDecoder().decode(response.body)) as {
-						Message?: string;
-					};
-					if (parsed.Message) message = `${message}\n${parsed.Message}`;
-				} catch {
-					// ignore parse failure
-				}
-			}
-			throw new Error(message);
+		if (!response.body) {
+			throw TransportErrors.LIVE_INVALID_RESPONSE;
 		}
-
-		if (!response.body) throw TransportErrors.LIVE_INVALID_RESPONSE;
 
 		try {
 			return JSON.parse(new TextDecoder().decode(response.body)) as T;
 		} catch {
 			throw TransportErrors.LIVE_INVALID_RESPONSE;
 		}
-	}
-
-	private async requestVoid(
-		method: 'DELETE' | 'POST',
-		path: string,
-		query: Record<string, string | number | boolean | undefined> = {},
-	): Promise<void> {
-		const client = this.httpClientFactory(this.baseUrl);
-		const requestPath = this.buildPath(path, query);
-		const headers = this.createHeaders();
-
-		let response: HTTPResponseLike;
-		if (method === 'POST') {
-			if (!client.post) throw new Error('HTTP client does not support POST');
-			response = await this.runWithRequestTimeout(
-				client.post(requestPath, new Uint8Array(0), headers),
-			);
-		} else {
-			if (!client.delete) throw new Error('HTTP client does not support DELETE');
-			response = await this.runWithRequestTimeout(client.delete(requestPath, headers));
-		}
-
-		if (response.statusCode < 200 || response.statusCode >= 300) {
-			let message = `Request failed [${response.statusCode}]`;
-			if (response.body) {
-				try {
-					const parsed = JSON.parse(new TextDecoder().decode(response.body)) as {
-						Message?: string;
-					};
-					if (parsed.Message) message = `${message}\n${parsed.Message}`;
-				} catch {
-					// ignore parse failure, use status-based message
-				}
-			}
-			throw new Error(message);
-		}
-	}
-
-	private runWithRequestTimeout<T>(promise: Promise<T>): Promise<T> {
-		return new Promise((resolve, reject) => {
-			const timer = setTimeout(() => {
-				reject(TransportErrors.LIVE_REQUEST_FAILED);
-			}, this.requestTimeoutMs);
-
-			promise.then(
-				(value) => {
-					clearTimeout(timer);
-					resolve(value);
-				},
-				(error) => {
-					clearTimeout(timer);
-					reject(error);
-				},
-			);
-		});
 	}
 }
 
@@ -927,6 +829,16 @@ function createClientHeader(accessToken?: string, clientDeviceId = 'atolla'): st
 		return base;
 	}
 	return `${base}, Token="${accessToken}"`;
+}
+
+function getHeaderValue(headers: StringMap<string>, key: string): string | null {
+	const normalizedKey = key.toLowerCase();
+	for (const [headerKey, headerValue] of Object.entries(headers)) {
+		if (headerKey.toLowerCase() === normalizedKey) {
+			return headerValue ?? null;
+		}
+	}
+	return null;
 }
 
 function isRedirectStatus(statusCode: number): boolean {
@@ -986,15 +898,7 @@ function resolveRedirectUrl(baseUrl: string, location: string): string | null {
 	return `${baseUrl}/${trimmedLocation}`;
 }
 
-function splitAbsoluteUrl(url: string): { baseUrl: string; pathWithQuery: string } | null {
-	const trimmed = (url ?? '').trim();
-	const match = /^(https?:\/\/[^/]+)(\/.*)?$/i.exec(trimmed);
-	if (!match) {
-		return null;
-	}
-
-	return {
-		baseUrl: match[1],
-		pathWithQuery: match[2] && match[2].length > 0 ? match[2] : '/',
-	};
+function originOf(url: string): string | null {
+	const match = /^(https?:\/\/[^/]+)/i.exec((url ?? '').trim());
+	return match ? match[1] : null;
 }

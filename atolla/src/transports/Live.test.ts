@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type {
 	JellyfinAlbumItem,
 	JellyfinArtistItem,
@@ -43,36 +44,38 @@ function listResponse<TItem>(
 	};
 }
 
-function createHTTPClientFactory(responses: Array<MockHTTPResponse>) {
+function createHTTPClient(responses: Array<MockHTTPResponse>) {
 	const calls: Array<{
-		baseUrl: string;
 		body?: Uint8Array;
 		headers?: Record<string, string>;
-		method: 'get' | 'post';
+		method: 'delete' | 'get' | 'post';
 		pathOrUrl: string;
 	}> = [];
 
-	return {
-		calls,
-		factory: (baseUrl: string) => ({
-			get: (pathOrUrl: string, headers?: Record<string, string>) => {
-				calls.push({ baseUrl, headers, method: 'get', pathOrUrl });
-				const response = responses.shift();
-				if (!response) {
-					throw new Error('no queued response');
-				}
-				return Promise.resolve(response);
-			},
-			post: (pathOrUrl: string, body?: Uint8Array, headers?: Record<string, string>) => {
-				calls.push({ baseUrl, body, headers, method: 'post', pathOrUrl });
-				const response = responses.shift();
-				if (!response) {
-					throw new Error('no queued response');
-				}
-				return Promise.resolve(response);
-			},
-		}),
+	const next = () => {
+		const response = responses.shift();
+		if (!response) {
+			throw new Error('no queued response');
+		}
+		return Promise.resolve(response);
 	};
+
+	const client = {
+		delete: (pathOrUrl: string, headers?: Record<string, string>) => {
+			calls.push({ headers, method: 'delete', pathOrUrl });
+			return next();
+		},
+		get: (pathOrUrl: string, headers?: Record<string, string>) => {
+			calls.push({ headers, method: 'get', pathOrUrl });
+			return next();
+		},
+		post: (pathOrUrl: string, body?: Uint8Array, headers?: Record<string, string>) => {
+			calls.push({ body, headers, method: 'post', pathOrUrl });
+			return next();
+		},
+	};
+
+	return { calls, client: client as unknown as IHTTPClient };
 }
 
 function queryParam(pathOrUrl: string, key: string): string | null {
@@ -271,17 +274,17 @@ describe('LiveTransport core collections', () => {
 			Name: 'Album A',
 			Type: 'MusicAlbum',
 		};
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([album], 3, 0)),
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local/', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([album], 3, 0))]);
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local/',
+			'token-1',
+			'user-1',
+			client,
+		);
 
 		const page = await transport.getAlbumsPage(1, 1);
 
 		expect(calls).toHaveLength(1);
-		expect(calls[0].baseUrl).toBe('https://demo.jellyfin.local');
 		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('0');
 		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('1');
 		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBe('Overview,Genres');
@@ -310,12 +313,8 @@ describe('LiveTransport core collections', () => {
 			PremiereDate: '2001-06-15T00:00:00.0000000Z',
 			Type: 'MusicAlbum',
 		};
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([album], 5, 0)),
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([album], 5, 0))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const page = await transport.getAlbumReleaseDatesPage(1, 2);
 
@@ -335,12 +334,10 @@ describe('LiveTransport core collections', () => {
 	it('hydrates albums by id in a single ids= request', async () => {
 		const albumA: JellyfinAlbumItem = { Id: 'a', Name: 'A', Type: 'MusicAlbum' };
 		const albumB: JellyfinAlbumItem = { Id: 'b', Name: 'B', Type: 'MusicAlbum' };
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, listResponse([albumA, albumB], 2, 0)),
 		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const albums = await transport.getAlbumsByIds(['a', 'b']);
 
@@ -351,10 +348,8 @@ describe('LiveTransport core collections', () => {
 	});
 
 	it('returns no albums and makes no request for an empty id list', async () => {
-		const { calls, factory } = createHTTPClientFactory([]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		expect(await transport.getAlbumsByIds([])).toEqual([]);
 		expect(calls).toHaveLength(0);
@@ -367,12 +362,8 @@ describe('LiveTransport core collections', () => {
 			Name: 'Album A',
 			Type: 'MusicAlbum',
 		};
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([album], 1, 0)),
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([album], 1, 0))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		await transport.getAlbumsPage(1, 50, { startsWith: 'a' });
 
@@ -387,12 +378,8 @@ describe('LiveTransport core collections', () => {
 			Name: '5 Seconds',
 			Type: 'MusicArtist',
 		};
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([artist], 1, 0)),
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([artist], 1, 0))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		await transport.getArtistsPage(1, 50, { startsWith: '0' });
 
@@ -407,12 +394,8 @@ describe('LiveTransport core collections', () => {
 			Name: 'Playlist A',
 			Type: 'Playlist',
 		};
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([playlist], 1, 0)),
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([playlist], 1, 0))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		await transport.getPlaylistsPage(1, 50);
 
@@ -428,12 +411,8 @@ describe('LiveTransport core collections', () => {
 			Name: 'Artist A',
 			Type: 'MusicArtist',
 		};
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([artist], 10, 3)),
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([artist], 10, 3))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const page = await transport.getArtistsPage(2, 3);
 
@@ -452,12 +431,8 @@ describe('LiveTransport core collections', () => {
 			Name: 'Playlist A',
 			Type: 'Playlist',
 		};
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([playlist], 3, 2)),
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([playlist], 3, 2))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const page = await transport.getPlaylistsPage(2, 2);
 
@@ -478,12 +453,8 @@ describe('LiveTransport core collections', () => {
 			RecursiveItemCount: 42,
 			Type: 'MusicGenre',
 		};
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([genre], 3, 2)),
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([genre], 3, 2))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const page = await transport.getGenresPage(2, 2);
 
@@ -513,12 +484,8 @@ describe('LiveTransport core collections', () => {
 			RunTimeTicks: 120_000_000,
 			Type: 'Audio',
 		};
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([track], 7, 3)),
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([track], 7, 3))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const page = await transport.getTracksByGenrePage('genre-1', 2, 3);
 
@@ -541,12 +508,8 @@ describe('LiveTransport core collections', () => {
 			RunTimeTicks: 120_000_000,
 			Type: 'Audio',
 		};
-		const { calls, factory } = createHTTPClientFactory([
-			jsonResponse(200, listResponse([track], 3, 1)),
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([track], 3, 1))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const page = await transport.getTracksByPlaylistPage('playlist-1', 2, 1);
 
@@ -574,12 +537,10 @@ describe('LiveTransport core collections', () => {
 			RunTimeTicks: 180_000_000,
 			Type: 'Audio',
 		};
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, listResponse([firstTrack, secondTrack], 2, 0)),
 		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const tracks = await transport.getArtistTopTracks('artist-1');
 
@@ -607,12 +568,10 @@ describe('LiveTransport core collections', () => {
 			RunTimeTicks: 180_000_000,
 			Type: 'Audio',
 		};
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, listResponse([firstTrack, secondTrack], 2, 0)),
 		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const tracks = await transport.getShuffledLibraryTracks();
 
@@ -624,7 +583,7 @@ describe('LiveTransport core collections', () => {
 	});
 
 	it('picks several random populated years from the years endpoint in one request', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(
 				200,
 				listResponse(
@@ -638,9 +597,7 @@ describe('LiveTransport core collections', () => {
 				),
 			),
 		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const years = await transport.getRandomMusicYears(3);
 
@@ -653,21 +610,17 @@ describe('LiveTransport core collections', () => {
 	});
 
 	it('falls back to the year name when productionYear is absent', async () => {
-		const { factory } = createHTTPClientFactory([
+		const { client } = createHTTPClient([
 			jsonResponse(200, listResponse([{ Name: '1994' }], 1, 0)),
 		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		expect(await transport.getRandomMusicYears(3)).toEqual([1994]);
 	});
 
 	it('returns an empty array when no years are available', async () => {
-		const { factory } = createHTTPClientFactory([jsonResponse(200, listResponse([], 0, 0))]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { client } = createHTTPClient([jsonResponse(200, listResponse([], 0, 0))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		expect(await transport.getRandomMusicYears(3)).toEqual([]);
 	});
@@ -687,12 +640,10 @@ describe('LiveTransport core collections', () => {
 			RunTimeTicks: 180_000_000,
 			Type: 'Audio',
 		};
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, listResponse([firstTrack, secondTrack], 130, 50)),
 		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const result = await transport.getTracksByYearPage(2003, 2, 50);
 
@@ -714,10 +665,8 @@ describe('LiveTransport core collections', () => {
 			RunTimeTicks: 120_000_000,
 			Type: 'Audio',
 		};
-		const { factory } = createHTTPClientFactory([jsonResponse(200, listResponse([track], 51, 50))]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { client } = createHTTPClient([jsonResponse(200, listResponse([track], 51, 50))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const result = await transport.getTracksByYearPage(2003, 2, 50);
 
@@ -731,10 +680,8 @@ describe('LiveTransport core collections', () => {
 			Name: 'Artist A',
 			Type: 'MusicArtist',
 		};
-		const { calls, factory } = createHTTPClientFactory([jsonResponse(200, artist)]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, artist)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const logoUrl = await transport.getArtistLogoUrl('artist-1');
 
@@ -750,10 +697,8 @@ describe('LiveTransport core collections', () => {
 			Name: 'Artist A',
 			Type: 'MusicArtist',
 		};
-		const { factory } = createHTTPClientFactory([jsonResponse(200, artist)]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { client } = createHTTPClient([jsonResponse(200, artist)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const logoUrl = await transport.getArtistLogoUrl('artist-1');
 
@@ -768,10 +713,8 @@ describe('LiveTransport core collections', () => {
 			Name: 'Rock',
 			Type: 'MusicGenre',
 		};
-		const { calls, factory } = createHTTPClientFactory([jsonResponse(200, genre)]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, genre)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const result = await transport.getGenre('genre-1');
 
@@ -784,10 +727,8 @@ describe('LiveTransport core collections', () => {
 
 	it('returns null when the fetched item is not a genre', async () => {
 		const artist: JellyfinArtistItem = { Id: 'genre-1', Name: 'Not a genre', Type: 'MusicArtist' };
-		const { factory } = createHTTPClientFactory([jsonResponse(200, artist)]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { client } = createHTTPClient([jsonResponse(200, artist)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		expect(await transport.getGenre('genre-1')).toBeNull();
 	});
@@ -799,10 +740,8 @@ describe('LiveTransport core collections', () => {
 			Name: 'Roadtrip',
 			Type: 'Playlist',
 		};
-		const { calls, factory } = createHTTPClientFactory([jsonResponse(200, playlist)]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([jsonResponse(200, playlist)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const result = await transport.getPlaylist('playlist-1');
 
@@ -819,19 +758,15 @@ describe('LiveTransport core collections', () => {
 			Name: 'Not a playlist',
 			Type: 'MusicGenre',
 		};
-		const { factory } = createHTTPClientFactory([jsonResponse(200, genre)]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { client } = createHTTPClient([jsonResponse(200, genre)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		expect(await transport.getPlaylist('playlist-1')).toBeNull();
 	});
 
 	it('builds a downloadable track cache url', () => {
-		const { factory } = createHTTPClientFactory([]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { client } = createHTTPClient([]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const cacheUrl = transport.getTrackCacheUrl('track-123');
 
@@ -841,11 +776,16 @@ describe('LiveTransport core collections', () => {
 	});
 
 	it('builds track cache url with configured device id', () => {
-		const { factory } = createHTTPClientFactory([]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			clientDeviceId: 'profile-2-device',
-			httpClientFactory: factory,
-		});
+		const { client } = createHTTPClient([]);
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local',
+			'token-1',
+			'user-1',
+			client,
+			{
+				clientDeviceId: 'profile-2-device',
+			},
+		);
 
 		const cacheUrl = transport.getTrackCacheUrl('track-123');
 
@@ -853,7 +793,7 @@ describe('LiveTransport core collections', () => {
 	});
 
 	it('creates a playlist and returns it with the server id and imageUrl', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, { Id: 'server-playlist-id' }),
 			jsonResponse(200, {
 				Id: 'server-playlist-id',
@@ -862,9 +802,7 @@ describe('LiveTransport core collections', () => {
 				Type: 'Playlist',
 			}),
 		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		const playlist = await transport.createPlaylist('My Playlist');
 
@@ -884,7 +822,7 @@ describe('LiveTransport core collections', () => {
 	});
 
 	it('includes track id in playlist create body when provided', async () => {
-		const { calls, factory } = createHTTPClientFactory([
+		const { calls, client } = createHTTPClient([
 			jsonResponse(200, { Id: 'server-playlist-id' }),
 			jsonResponse(200, {
 				Id: 'server-playlist-id',
@@ -893,9 +831,7 @@ describe('LiveTransport core collections', () => {
 				Type: 'Playlist',
 			}),
 		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		await transport.createPlaylist('My Playlist', 'track-abc');
 
@@ -904,12 +840,8 @@ describe('LiveTransport core collections', () => {
 	});
 
 	it('posts scrobble events with datePlayed', async () => {
-		const { calls, factory } = createHTTPClientFactory([
-			{ body: undefined, headers: {}, statusCode: 204 },
-		]);
-		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { calls, client } = createHTTPClient([{ body: undefined, headers: {}, statusCode: 204 }]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
 		await transport.scrobbleTrackPlayed('track-1', '2026-01-01T00:00:00.000Z');
 
@@ -921,10 +853,13 @@ describe('LiveTransport core collections', () => {
 	});
 
 	it('throws SESSION_EXPIRED when the server responds with 401', async () => {
-		const { factory } = createHTTPClientFactory([jsonResponse(401, {})]);
-		const transport = new LiveTransport('https://demo.jellyfin.local/', 'token-1', 'user-1', {
-			httpClientFactory: factory,
-		});
+		const { client } = createHTTPClient([jsonResponse(401, {})]);
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local/',
+			'token-1',
+			'user-1',
+			client,
+		);
 
 		await expect(transport.getAlbumsPage(1, 50)).rejects.toMatchObject({
 			err: 'auth_session_expired',

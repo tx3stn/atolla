@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { Preferences } from '../stores/Preferences';
 import { type ConnectionMode, ConnectionModes } from '../transports/Model';
 import { Connectivity, type ConnectivityDeps, type ConnectivityRenderState } from './Connectivity';
@@ -40,6 +41,7 @@ function makeConnectivity(over?: { hasStoredMode?: boolean; mode?: ConnectionMod
 
 	const sessionManager = {
 		getEffectiveDeviceId: () => 'atolla-default',
+		getHttpClient: () => ({}) as unknown as IHTTPClient,
 		getSession: () => null,
 		login: () => Promise.resolve(makeSession()),
 		setMockMode: () => {},

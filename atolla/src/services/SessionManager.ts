@@ -1,6 +1,11 @@
+import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import { AuthErrors } from '../errors/AuthErrors';
 import type { Preferences } from '../stores/Preferences';
-import type { AuthSession, JellyfinAuthService } from './JellyfinAuthService';
+import {
+	type AuthSession,
+	type JellyfinAuthService,
+	normalizeServerUrl,
+} from './JellyfinAuthService';
 
 export interface AuthRenderState {
 	authErrorMessage: string | null;
@@ -13,6 +18,9 @@ export interface AuthRenderState {
 export interface SessionManagerDeps {
 	applyState(partial: Partial<AuthRenderState>): void;
 	authService: JellyfinAuthService;
+	// builds the per-server HTTP client at the connect/bootstrap seam. injected so this service
+	// stays free of valdi value imports and remains unit-testable (valdi imports need bazel).
+	createHttpClient(baseUrl?: string): IHTTPClient;
 	defaultDeviceId: string;
 	// the current session changed (login / clear / device-id reload) — connectivity rebuilds transport
 	onSessionChanged(session: AuthSession | null): void;
@@ -24,10 +32,13 @@ export interface SessionManagerDeps {
 // device-id credential. Holds the current session and knows nothing about transport or connectivity
 // mode — it just emits when the session changes so Connectivity can react.
 export class SessionManager {
+	private currentClient: IHTTPClient;
 	private currentSession: AuthSession | null = null;
 	private deviceIdOverride = '';
 
-	constructor(private readonly deps: SessionManagerDeps) {}
+	constructor(private readonly deps: SessionManagerDeps) {
+		this.currentClient = deps.createHttpClient();
+	}
 
 	// device-id is an auth credential: update it on the auth service, then signal so connectivity can
 	// reload the live transport with the new id (the settings view persists the value to Preferences)
@@ -58,6 +69,10 @@ export class SessionManager {
 		return this.deviceIdOverride || this.deps.defaultDeviceId;
 	}
 
+	getHttpClient(): IHTTPClient {
+		return this.currentClient;
+	}
+
 	getSession(): AuthSession | null {
 		return this.currentSession;
 	}
@@ -74,6 +89,9 @@ export class SessionManager {
 			this.deps.authService.loadRememberedServerUrl(),
 		]);
 		this.currentSession = session;
+		if (session != null) {
+			this.bindHttpClient(session.serverUrl);
+		}
 		this.deps.applyState({
 			serverName: session != null ? session.serverName : '',
 			serverUrlPrefill: rememberedServerUrl,
@@ -85,6 +103,7 @@ export class SessionManager {
 	// onSessionChanged so Connectivity stands up the live transport. throws on failure.
 	async login(serverUrl: string): Promise<AuthSession> {
 		this.deps.authService.setMockMode(false);
+		this.bindHttpClient(serverUrl);
 		this.deps.applyState({
 			authErrorMessage: null,
 			isAuthenticating: true,
@@ -93,14 +112,10 @@ export class SessionManager {
 		});
 		try {
 			await this.deps.authService.rememberServerUrl(serverUrl);
-			const quickConnect = await this.deps.authService.startQuickConnect(serverUrl);
+			const quickConnect = await this.deps.authService.startQuickConnect();
 
 			this.deps.applyState({ quickConnectCode: quickConnect.code });
-			await this.deps.authService.waitForQuickConnectApproval(
-				serverUrl,
-				quickConnect.secret,
-				60_000,
-			);
+			await this.deps.authService.waitForQuickConnectApproval(quickConnect.secret, 60_000);
 
 			const session = await this.deps.authService.authenticateWithQuickConnect(
 				serverUrl,
@@ -137,6 +152,11 @@ export class SessionManager {
 
 	setMockMode(isMock: boolean): void {
 		this.deps.authService.setMockMode(isMock);
+	}
+
+	private bindHttpClient(serverUrl: string): void {
+		this.currentClient = this.deps.createHttpClient(normalizeServerUrl(serverUrl));
+		this.deps.authService.setClient(this.currentClient);
 	}
 
 	private normalizeDeviceId(value: string): string {

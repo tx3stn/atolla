@@ -96,7 +96,7 @@ export class CardContextMenu extends StatefulComponent<
 				playbackStore.playTracks(tracks);
 			}
 		});
-		this.viewModel.onDismiss(Strings.playingNowToast());
+		this.viewModel.onDismiss('');
 	};
 
 	handlePlayNext = (): void => {

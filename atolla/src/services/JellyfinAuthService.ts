@@ -1,3 +1,5 @@
+import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
+import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import { AuthErrors } from '../errors/AuthErrors';
 import type { ErrorConst } from '../errors/Const';
 import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
@@ -52,73 +54,27 @@ export interface QuickConnectStartResult {
 	secret: string;
 }
 
-interface HTTPResponseLike {
-	body?: Uint8Array;
-	headers: Record<string, string>;
-	statusCode: number;
-}
-
-interface HTTPClientLike {
-	get(pathOrUrl: string, headers?: Record<string, string>): Promise<HTTPResponseLike>;
-	post(
-		pathOrUrl: string,
-		body?: ArrayBuffer | Uint8Array,
-		headers?: Record<string, string>,
-	): Promise<HTTPResponseLike>;
-}
-
 interface JellyfinAuthServiceOptions {
+	client: IHTTPClient;
 	clientDeviceId?: string;
-	httpClientFactory?: (baseUrl: string) => HTTPClientLike;
 	isMockMode?: boolean;
 	mockApprovalDelayMs?: number;
 	now?: NowFn;
-	requestTimeoutMs?: number;
 	sleep?: SleepFn;
 	store: JellyfinAuthStoreLike;
 }
 
-declare function require(id: string): unknown;
-
 type SleepFn = (ms: number) => Promise<void>;
 type NowFn = () => number;
-
-function defaultSleep(ms: number): Promise<void> {
-	return new Promise((resolve) => {
-		setTimeout(resolve, ms);
-	});
-}
-
-function normalizeServerUrl(url: string): string {
-	const trimmed = url.trim();
-	const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-	return withScheme.replace(/\/+$/, '');
-}
-
-function normalizeClientDeviceId(value: string | null | undefined): string {
-	if (typeof value !== 'string') {
-		return 'atolla';
-	}
-
-	const trimmed = value.trim();
-	if (trimmed.length === 0) {
-		return 'atolla';
-	}
-
-	return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
-}
 
 function createClientHeaderWithDeviceId(clientDeviceId: string): string {
 	return `MediaBrowser Client="atolla", Device="${clientDeviceId}", DeviceId="${clientDeviceId}", Version="${version}"`;
 }
 
-function sanitizeErrorDetail(value: unknown): string | null {
-	if (typeof value !== 'string') {
-		return null;
-	}
-
-	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : null;
+function defaultSleep(ms: number): Promise<void> {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
 }
 
 function extractErrorDetail(error: unknown): string | null {
@@ -183,37 +139,60 @@ function extractErrorDetail(error: unknown): string | null {
 	return null;
 }
 
+export function normalizeServerUrl(url: string): string {
+	const trimmed = url.trim();
+	const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+	return withScheme.replace(/\/+$/, '');
+}
+
+function normalizeClientDeviceId(value: string | null | undefined): string {
+	if (typeof value !== 'string') {
+		return 'atolla';
+	}
+
+	const trimmed = value.trim();
+	if (trimmed.length === 0) {
+		return 'atolla';
+	}
+
+	return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function sanitizeErrorDetail(value: unknown): string | null {
+	if (typeof value !== 'string') {
+		return null;
+	}
+
+	const trimmed = value.trim();
+	return trimmed.length > 0 ? trimmed : null;
+}
+
 export class JellyfinAuthService {
+	private client: IHTTPClient;
 	private readonly store: JellyfinAuthStoreLike;
-	private readonly httpClientFactory: (baseUrl: string) => HTTPClientLike;
 	private readonly mockApprovalDelayMs: number;
 	private readonly sleep: SleepFn;
 	private readonly now: NowFn;
-	private readonly requestTimeoutMs: number;
 	private isMockMode: boolean;
 	private clientDeviceId: string;
 	private lastConnectionErrorDetail: string | null = null;
 
 	constructor(options: JellyfinAuthServiceOptions) {
+		this.client = options.client;
 		this.store = options.store;
-		this.httpClientFactory =
-			options.httpClientFactory ??
-			((baseUrl: string) => {
-				const mod = require('valdi_http/src/HTTPClient') as {
-					HTTPClient: new (url: string) => HTTPClientLike;
-				};
-				return new mod.HTTPClient(baseUrl);
-			});
 		this.isMockMode = options.isMockMode ?? false;
 		this.clientDeviceId = normalizeClientDeviceId(options.clientDeviceId);
 		this.mockApprovalDelayMs = options.mockApprovalDelayMs ?? 3_000;
 		this.sleep = options.sleep ?? defaultSleep;
 		this.now = options.now ?? (() => Date.now());
-		this.requestTimeoutMs = options.requestTimeoutMs ?? 10_000;
 	}
 
 	setMockMode(enabled: boolean): void {
 		this.isMockMode = enabled;
+	}
+
+	setClient(client: IHTTPClient): void {
+		this.client = client;
 	}
 
 	setClientDeviceId(value: string): void {
@@ -250,9 +229,8 @@ export class JellyfinAuthService {
 		return this.store.loadRememberedServerUrl().then((url) => url ?? '');
 	}
 
-	async startQuickConnect(serverUrl: string): Promise<QuickConnectStartResult> {
+	async startQuickConnect(): Promise<QuickConnectStartResult> {
 		this.lastConnectionErrorDetail = null;
-		const normalizedUrl = normalizeServerUrl(serverUrl);
 		if (this.isMockMode) {
 			return {
 				code: 'ATOLLA-MOCK',
@@ -260,24 +238,18 @@ export class JellyfinAuthService {
 			};
 		}
 
-		const enabled = await this.fetchBoolean(
-			normalizedUrl,
-			'/QuickConnect/Enabled',
-			this.createHeaders(),
-		);
-		if (!enabled) {
+		const enabledResponse = await this.client.get('/QuickConnect/Enabled', this.createHeaders());
+		if (
+			!this.isSuccessStatus(enabledResponse.statusCode) ||
+			this.parseJSON<boolean>(enabledResponse) !== true
+		) {
 			throw AuthErrors.QUICK_CONNECT_NOT_AVAILABLE;
 		}
 
-		let response: HTTPResponseLike;
+		let response: HTTPResponse;
+
 		try {
-			response = await this.runWithRequestTimeout(
-				this.createHttpClient(normalizedUrl).post(
-					'/QuickConnect/Initiate',
-					undefined,
-					this.createHeaders(),
-				),
-			);
+			response = await this.client.post('/QuickConnect/Initiate', undefined, this.createHeaders());
 		} catch (error) {
 			this.rememberConnectionError(error, 'startQuickConnect request failed');
 			throw AuthErrors.CONNECTION_ERROR;
@@ -286,6 +258,7 @@ export class JellyfinAuthService {
 		if (response.statusCode === 401) {
 			throw AuthErrors.QUICK_CONNECT_NOT_AVAILABLE;
 		}
+
 		if (!this.isSuccessStatus(response.statusCode)) {
 			this.rememberConnectionError(
 				`HTTP ${response.statusCode}`,
@@ -310,13 +283,11 @@ export class JellyfinAuthService {
 	}
 
 	async waitForQuickConnectApproval(
-		serverUrl: string,
 		secret: string,
 		timeoutMs = 60_000,
 		pollIntervalMs = 2_000,
 	): Promise<void> {
 		this.lastConnectionErrorDetail = null;
-		const normalizedUrl = normalizeServerUrl(serverUrl);
 		if (this.isMockMode) {
 			const delayMs = Math.max(0, this.mockApprovalDelayMs);
 			if (timeoutMs < delayMs) {
@@ -331,13 +302,11 @@ export class JellyfinAuthService {
 		const start = this.now();
 
 		while (this.now() - start < timeoutMs) {
-			let response: HTTPResponseLike;
+			let response: HTTPResponse;
 			try {
-				response = await this.runWithRequestTimeout(
-					this.createHttpClient(normalizedUrl).get(
-						`/QuickConnect/Connect?secret=${encodeURIComponent(secret)}`,
-						this.createHeaders(),
-					),
+				response = await this.client.get(
+					`/QuickConnect/Connect?secret=${encodeURIComponent(secret)}`,
+					this.createHeaders(),
 				);
 			} catch (error) {
 				this.rememberConnectionError(error, 'waitForQuickConnectApproval request failed');
@@ -377,14 +346,12 @@ export class JellyfinAuthService {
 			};
 		}
 
-		let response: HTTPResponseLike;
+		let response: HTTPResponse;
 		try {
-			response = await this.runWithRequestTimeout(
-				this.createHttpClient(normalizedUrl).post(
-					'/Users/AuthenticateWithQuickConnect',
-					new TextEncoder().encode(JSON.stringify({ Secret: secret })),
-					this.createHeaders(),
-				),
+			response = await this.client.post(
+				'/Users/AuthenticateWithQuickConnect',
+				new TextEncoder().encode(JSON.stringify({ Secret: secret })),
+				this.createHeaders(),
 			);
 		} catch (error) {
 			this.rememberConnectionError(error, 'authenticateWithQuickConnect request failed');
@@ -408,7 +375,7 @@ export class JellyfinAuthService {
 			throw AuthErrors.CONNECTION_ERROR;
 		}
 
-		const details = await this.fetchServerDetails(normalizedUrl);
+		const details = await this.fetchServerDetails();
 
 		return {
 			accessToken: parsed.AccessToken,
@@ -419,16 +386,13 @@ export class JellyfinAuthService {
 		};
 	}
 
-	async fetchServerDetails(serverUrl: string): Promise<SystemInfoPublicResult> {
-		const normalizedUrl = normalizeServerUrl(serverUrl);
+	async fetchServerDetails(): Promise<SystemInfoPublicResult> {
 		if (this.isMockMode) {
 			return { ServerName: 'atolla mock server' };
 		}
 
 		try {
-			const response = await this.runWithRequestTimeout(
-				this.createHttpClient(normalizedUrl).get('/System/Info/Public', this.createHeaders()),
-			);
+			const response = await this.client.get('/System/Info/Public', this.createHeaders());
 			if (!this.isSuccessStatus(response.statusCode)) {
 				return {};
 			}
@@ -448,12 +412,7 @@ export class JellyfinAuthService {
 		}
 
 		try {
-			const response = await this.runWithRequestTimeout(
-				this.createHttpClient(session.serverUrl).get(
-					'/Users/Me',
-					this.createHeaders(session.accessToken),
-				),
-			);
+			const response = await this.client.get('/Users/Me', this.createHeaders(session.accessToken));
 			return this.isSuccessStatus(response.statusCode);
 		} catch {
 			return false;
@@ -469,11 +428,11 @@ export class JellyfinAuthService {
 			return;
 		}
 
-		const path = `/Users/${encodeURIComponent(session.userId)}/Items?IncludeItemTypes=MusicAlbum&Recursive=true&Limit=1`;
-		let response: HTTPResponseLike;
+		let response: HTTPResponse;
 		try {
-			response = await this.runWithRequestTimeout(
-				this.createHttpClient(session.serverUrl).get(path, this.createHeaders(session.accessToken)),
+			response = await this.client.get(
+				`/Users/${encodeURIComponent(session.userId)}/Items?IncludeItemTypes=MusicAlbum&Recursive=true&Limit=1`,
+				this.createHeaders(session.accessToken),
 			);
 		} catch {
 			throw AuthErrors.FAILED_TO_FETCH_DATA;
@@ -510,34 +469,7 @@ export class JellyfinAuthService {
 		return connectionErrorMessage;
 	}
 
-	private async fetchBoolean(
-		baseUrl: string,
-		path: string,
-		headers: Record<string, string>,
-	): Promise<boolean> {
-		let response: HTTPResponseLike;
-		try {
-			response = await this.runWithRequestTimeout(
-				this.createHttpClient(baseUrl).get(path, headers),
-			);
-		} catch (error) {
-			this.rememberConnectionError(error, 'fetchBoolean request failed');
-			throw AuthErrors.CONNECTION_ERROR;
-		}
-
-		if (!this.isSuccessStatus(response.statusCode)) {
-			this.rememberConnectionError(
-				`HTTP ${response.statusCode}`,
-				'fetchBoolean returned non-success status',
-			);
-			throw AuthErrors.CONNECTION_ERROR;
-		}
-
-		const body = this.parseJSON<boolean>(response);
-		return body === true;
-	}
-
-	private parseJSON<T>(response: HTTPResponseLike): T {
+	private parseJSON<T>(response: HTTPResponse): T {
 		if (!response.body) {
 			this.rememberConnectionError('empty response body', 'parseJSON missing body');
 			throw AuthErrors.CONNECTION_ERROR;
@@ -552,34 +484,11 @@ export class JellyfinAuthService {
 		}
 	}
 
-	private createHttpClient(baseUrl: string): HTTPClientLike {
-		return this.httpClientFactory(baseUrl);
-	}
-
 	private rememberConnectionError(error: unknown, context?: string): void {
 		this.lastConnectionErrorDetail = extractErrorDetail(error);
 		log.error('connection error', {
 			context,
 			detail: this.lastConnectionErrorDetail,
-		});
-	}
-
-	private runWithRequestTimeout<T>(promise: Promise<T>): Promise<T> {
-		return new Promise((resolve, reject) => {
-			const timer = setTimeout(() => {
-				reject(AuthErrors.CONNECTION_ERROR);
-			}, this.requestTimeoutMs);
-
-			promise.then(
-				(value) => {
-					clearTimeout(timer);
-					resolve(value);
-				},
-				(error) => {
-					clearTimeout(timer);
-					reject(error);
-				},
-			);
 		});
 	}
 

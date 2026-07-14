@@ -132,9 +132,13 @@ export class Connectivity {
 			this.mode === ConnectionModes.online && session != null ? session.accessToken : '',
 		);
 		if (this.mode === ConnectionModes.online && session != null) {
-			this.transport = new LiveTransport(session.serverUrl, session.accessToken, session.userId, {
-				clientDeviceId: this.deps.sessionManager.getEffectiveDeviceId(),
-			});
+			this.transport = new LiveTransport(
+				session.serverUrl,
+				session.accessToken,
+				session.userId,
+				this.deps.sessionManager.getHttpClient(),
+				{ clientDeviceId: this.deps.sessionManager.getEffectiveDeviceId() },
+			);
 		} else if (this.mode === ConnectionModes.mock) {
 			this.transport = new MockTransport();
 		} else {
