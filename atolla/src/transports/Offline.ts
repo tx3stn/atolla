@@ -40,10 +40,6 @@ export class OfflineTransport implements Transport {
 		return this.playlistCreateService.enqueue(name, trackId ?? '');
 	}
 
-	async downloadBinary(_url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
-		return null;
-	}
-
 	async getAlbumReleaseDatesPage(
 		page: number,
 		pageSize: number,

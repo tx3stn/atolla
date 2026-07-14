@@ -1,4 +1,3 @@
-import type { StringMap } from 'coreutils/src/StringMap';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { Album } from '../models/Album';
@@ -104,10 +103,6 @@ export class LiveTransport implements Transport {
 			return mapJellyfinPlaylistToPlaylist(item, this.imageResolvers);
 		}
 		return { id: result.Id, name };
-	}
-
-	downloadBinary(url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
-		return this.requestBinaryWithRedirects(url, 5);
 	}
 
 	async getAlbumReleaseDatesPage(
@@ -651,13 +646,6 @@ export class LiveTransport implements Transport {
 		return queryString.length > 0 ? `${path}?${queryString}` : path;
 	}
 
-	private createBinaryHeaders(): Record<string, string> {
-		const defaultHeaders = this.createHeaders();
-		defaultHeaders.Accept = '*/*';
-
-		return defaultHeaders;
-	}
-
 	private createHeaders(): Record<string, string> {
 		const authHeader = createClientHeader(this.accessToken, this.clientDeviceId);
 		const headers: Record<string, string> = {
@@ -761,49 +749,6 @@ export class LiveTransport implements Transport {
 		return response;
 	}
 
-	private async requestBinaryWithRedirects(
-		url: string,
-		remainingRedirects: number,
-	): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
-		const response = await this.client.get(url, this.createBinaryHeaders());
-
-		if (isRedirectStatus(response.statusCode)) {
-			if (remainingRedirects <= 0) {
-				throw new Error(`download redirect limit reached status=${response.statusCode}`);
-			}
-
-			const location = getHeaderValue(response.headers, 'location');
-			if (!location) {
-				throw new Error(`download redirect missing location status=${response.statusCode}`);
-			}
-
-			const origin = originOf(url);
-			const nextUrl = origin ? resolveRedirectUrl(origin, location) : null;
-			if (!nextUrl) {
-				throw new Error(`download redirect invalid location status=${response.statusCode}`);
-			}
-			return this.requestBinaryWithRedirects(nextUrl, remainingRedirects - 1);
-		}
-
-		if (response.statusCode < 200 || response.statusCode >= 300 || !response.body) {
-			const location = getHeaderValue(response.headers, 'location') ?? 'none';
-			const contentType = getHeaderValue(response.headers, 'content-type') ?? 'none';
-			const contentLength = getHeaderValue(response.headers, 'content-length') ?? 'none';
-			const hasBody = response.body ? '1' : '0';
-			throw new Error(
-				`download missing body status=${response.statusCode} body=${hasBody} ct=${contentType} cl=${contentLength} loc=${location}`,
-			);
-		}
-
-		const bytes = response.body;
-		const buffer = bytes.buffer.slice(
-			bytes.byteOffset,
-			bytes.byteOffset + bytes.byteLength,
-		) as ArrayBuffer;
-		const mimeType = getHeaderValue(response.headers, 'content-type') ?? 'audio/mpeg';
-		return { buffer, mimeType };
-	}
-
 	private async requestJson<T>(
 		method: 'DELETE' | 'GET' | 'POST',
 		path: string,
@@ -829,26 +774,6 @@ function createClientHeader(accessToken?: string, clientDeviceId = 'atolla'): st
 		return base;
 	}
 	return `${base}, Token="${accessToken}"`;
-}
-
-function getHeaderValue(headers: StringMap<string>, key: string): string | null {
-	const normalizedKey = key.toLowerCase();
-	for (const [headerKey, headerValue] of Object.entries(headers)) {
-		if (headerKey.toLowerCase() === normalizedKey) {
-			return headerValue ?? null;
-		}
-	}
-	return null;
-}
-
-function isRedirectStatus(statusCode: number): boolean {
-	return (
-		statusCode === 301 ||
-		statusCode === 302 ||
-		statusCode === 303 ||
-		statusCode === 307 ||
-		statusCode === 308
-	);
 }
 
 // maps a library letter-filter token to Jellyfin `/Items` query params so prefix
@@ -879,26 +804,4 @@ function normalizeClientDeviceId(value: string | null | undefined): string {
 	}
 
 	return trimmed.replace(/[^a-zA-Z0-9._-]/g, '_');
-}
-
-function resolveRedirectUrl(baseUrl: string, location: string): string | null {
-	const trimmedLocation = (location ?? '').trim();
-	if (!trimmedLocation) {
-		return null;
-	}
-
-	if (/^https?:\/\//i.test(trimmedLocation)) {
-		return trimmedLocation;
-	}
-
-	if (trimmedLocation.startsWith('/')) {
-		return `${baseUrl}${trimmedLocation}`;
-	}
-
-	return `${baseUrl}/${trimmedLocation}`;
-}
-
-function originOf(url: string): string | null {
-	const match = /^(https?:\/\/[^/]+)/i.exec((url ?? '').trim());
-	return match ? match[1] : null;
 }

@@ -94,10 +94,6 @@ export class MockTransport implements Transport {
 		return { id, name };
 	}
 
-	async downloadBinary(_url: string): Promise<{ buffer: ArrayBuffer; mimeType: string } | null> {
-		return null;
-	}
-
 	async getAlbumReleaseDatesPage(
 		page: number,
 		pageSize: number,
