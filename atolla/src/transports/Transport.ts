@@ -38,7 +38,6 @@ export interface Transport {
 	getRandomAlbum(): Promise<Album | null>;
 	getRandomMusicYears(limit: number): Promise<Array<number>>;
 	getRecentlyAddedAlbums(limit: number): Promise<Array<Album>>;
-	getShuffledLibraryTracks(): Promise<Array<Track>>;
 	getShuffledLibraryTracksPage(
 		page: number,
 		pageSize: number,
@@ -52,7 +51,6 @@ export interface Transport {
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }>;
-	getTracksByPlaylist(playlistId: string): Promise<Array<Track>>;
 	getTracksByPlaylistPage(
 		playlistId: string,
 		page: number,

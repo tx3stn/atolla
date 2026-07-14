@@ -82,7 +82,10 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 			return;
 		}
 
-		const queue = await transport.getShuffledLibraryTracks().catch(() => []);
+		const queue = await transport
+			.getShuffledLibraryTracksPage(1, 500)
+			.then(({ items }) => items)
+			.catch(() => []);
 
 		if (this.isDestroyed() || token !== this.shuffleLoadToken) {
 			return;

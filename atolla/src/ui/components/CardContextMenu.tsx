@@ -72,7 +72,9 @@ export class CardContextMenu extends StatefulComponent<
 			case 'genre':
 				return transport.getTracksByGenre(card.genre.id);
 			case 'playlist':
-				return transport.getTracksByPlaylist(card.playlist.id);
+				return transport
+					.getTracksByPlaylistPage(card.playlist.id, 1, 500)
+					.then(({ items }) => items);
 		}
 	}
 

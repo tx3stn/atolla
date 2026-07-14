@@ -363,19 +363,6 @@ export class LiveTransport implements Transport {
 		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
-	async getShuffledLibraryTracks(): Promise<Array<Track>> {
-		const list = await this.fetchItemsPage<JellyfinTrackItem>({
-			fields: 'MediaSources',
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			limit: 500,
-			recursive: true,
-			sortBy: 'Random',
-			startIndex: 0,
-		});
-
-		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
-	}
-
 	async getShuffledLibraryTracksPage(
 		page: number,
 		pageSize: number,
@@ -474,23 +461,6 @@ export class LiveTransport implements Transport {
 			items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
 			totalCount: list.TotalRecordCount,
 		};
-	}
-
-	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
-		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
-			'GET',
-			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
-			{
-				query: {
-					fields: 'Overview,Genres,MediaSources',
-					limit: 500,
-					startIndex: 0,
-					userId: this.userId,
-				},
-			},
-		);
-
-		return (list.Items ?? []).map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 	}
 
 	async getTracksByPlaylistPage(

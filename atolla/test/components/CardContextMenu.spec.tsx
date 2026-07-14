@@ -25,7 +25,7 @@ function mockTransport(overrides: Record<string, unknown> = {}): Transport {
 		getTracksByAlbum: () => Promise.resolve([mockTrack()]),
 		getTracksByArtist: () => Promise.resolve([mockTrack()]),
 		getTracksByGenre: () => Promise.resolve([mockTrack()]),
-		getTracksByPlaylist: () => Promise.resolve([mockTrack()]),
+		getTracksByPlaylistPage: () => Promise.resolve({ hasMore: false, items: [mockTrack()] }),
 		...overrides,
 	} as unknown as Transport;
 }

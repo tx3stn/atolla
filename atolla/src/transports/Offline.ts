@@ -236,14 +236,6 @@ export class OfflineTransport implements Transport {
 			.slice(0, Math.max(1, limit));
 	}
 
-	async getShuffledLibraryTracks(): Promise<Array<Track>> {
-		const availableTracks = this.downloads
-			.getAllTracks()
-			.filter((entry) => entry.complete)
-			.map((entry) => entry.track);
-		return shuffleTracks(availableTracks);
-	}
-
 	async getShuffledLibraryTracksPage(
 		page: number,
 		pageSize: number,
@@ -338,53 +330,12 @@ export class OfflineTransport implements Transport {
 		};
 	}
 
-	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
-		let trackIds: Array<string>;
-
-		if (this.playlistCreateService) {
-			const pending = this.playlistCreateService.getPending();
-			const localEntry = pending.find((op) => op.localId === playlistId);
-			if (localEntry) {
-				trackIds = localEntry.trackId ? [localEntry.trackId] : [];
-			} else {
-				trackIds = this.downloads.getPlaylist(playlistId)?.trackIds ?? [];
-			}
-		} else {
-			trackIds = this.downloads.getPlaylist(playlistId)?.trackIds ?? [];
-		}
-
-		if (this.playlistEditService) {
-			const ops = await this.playlistEditService.getPendingOpsForPlaylist(playlistId);
-			for (const op of ops) {
-				if (op.type === 'add') {
-					if (!trackIds.includes(op.trackId)) {
-						trackIds = [...trackIds, op.trackId];
-					}
-				} else if (op.type === 'remove') {
-					trackIds = trackIds.filter((id) => id !== op.trackId);
-				} else if (op.type === 'move') {
-					const from = trackIds.indexOf(op.trackId);
-					if (from >= 0) {
-						const reordered = [...trackIds];
-						reordered.splice(from, 1);
-						reordered.splice(op.toIndex, 0, op.trackId);
-						trackIds = reordered;
-					}
-				}
-			}
-		}
-
-		return trackIds
-			.map((id) => this.downloads.getTrack(id)?.track)
-			.filter((t): t is Track => t != null);
-	}
-
 	async getTracksByPlaylistPage(
 		playlistId: string,
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
-		const all = await this.getTracksByPlaylist(playlistId);
+		const all = await this.collectPlaylistTracks(playlistId);
 		return singleLocalPage(all, page, pageSize);
 	}
 
@@ -521,6 +472,47 @@ export class OfflineTransport implements Transport {
 		const pending = this.playlistCreateService?.getPending() ?? [];
 		const pendingPlaylists = pending.map((op) => ({ id: op.localId, name: op.name }));
 		return [...downloaded, ...pendingPlaylists];
+	}
+
+	private async collectPlaylistTracks(playlistId: string): Promise<Array<Track>> {
+		let trackIds: Array<string>;
+
+		if (this.playlistCreateService) {
+			const pending = this.playlistCreateService.getPending();
+			const localEntry = pending.find((op) => op.localId === playlistId);
+			if (localEntry) {
+				trackIds = localEntry.trackId ? [localEntry.trackId] : [];
+			} else {
+				trackIds = this.downloads.getPlaylist(playlistId)?.trackIds ?? [];
+			}
+		} else {
+			trackIds = this.downloads.getPlaylist(playlistId)?.trackIds ?? [];
+		}
+
+		if (this.playlistEditService) {
+			const ops = await this.playlistEditService.getPendingOpsForPlaylist(playlistId);
+			for (const op of ops) {
+				if (op.type === 'add') {
+					if (!trackIds.includes(op.trackId)) {
+						trackIds = [...trackIds, op.trackId];
+					}
+				} else if (op.type === 'remove') {
+					trackIds = trackIds.filter((id) => id !== op.trackId);
+				} else if (op.type === 'move') {
+					const from = trackIds.indexOf(op.trackId);
+					if (from >= 0) {
+						const reordered = [...trackIds];
+						reordered.splice(from, 1);
+						reordered.splice(op.toIndex, 0, op.trackId);
+						trackIds = reordered;
+					}
+				}
+			}
+		}
+
+		return trackIds
+			.map((id) => this.downloads.getTrack(id)?.track)
+			.filter((t): t is Track => t != null);
 	}
 
 	private resolvePlaylistName(playlistId: string): string {

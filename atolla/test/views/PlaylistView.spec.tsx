@@ -108,7 +108,7 @@ describe('PlaylistView', () => {
 			{ artistName: 'Artist Two', duration: 90, id: 'track-2', name: 'Song Two' },
 		];
 		const transport = {
-			getTracksByPlaylist: async () => tracks,
+			getTracksByPlaylistPage: async () => ({ hasMore: false, items: tracks, totalCount: tracks.length }),
 		};
 
 		const component = driver.renderComponent(
@@ -138,10 +138,14 @@ describe('PlaylistView', () => {
 	valdiIt('renders track count and total duration in header', async (driver) => {
 		const playlist = { id: 'playlist-1', name: 'Roadtrip' };
 		const transport = {
-			getTracksByPlaylist: async () => [
-				{ artistName: 'Artist One', duration: 60, id: 'track-1', name: 'Song One' },
-				{ artistName: 'Artist Two', duration: 75, id: 'track-2', name: 'Song Two' },
-			],
+			getTracksByPlaylistPage: async () => ({
+				hasMore: false,
+				items: [
+					{ artistName: 'Artist One', duration: 60, id: 'track-1', name: 'Song One' },
+					{ artistName: 'Artist Two', duration: 75, id: 'track-2', name: 'Song Two' },
+				],
+				totalCount: 2,
+			}),
 		};
 
 		const component = driver.renderComponent(

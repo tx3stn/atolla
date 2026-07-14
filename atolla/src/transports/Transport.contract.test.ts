@@ -33,11 +33,12 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 			expect(artistsPage.items.length).toBeGreaterThan(0);
 			expect(playlistsPage.items.length).toBeGreaterThan(0);
 
-			const [albumTracks, artistTracks, playlistTracks] = await Promise.all([
+			const [albumTracks, artistTracks, playlistPage] = await Promise.all([
 				transport.getTracksByAlbum(albumsPage.items[0].id),
 				transport.getTracksByArtist(artistsPage.items[0].id),
-				transport.getTracksByPlaylist(playlistsPage.items[0].id),
+				transport.getTracksByPlaylistPage(playlistsPage.items[0].id, 1, 50),
 			]);
+			const playlistTracks = playlistPage.items;
 
 			expect(albumTracks.length).toBeGreaterThan(0);
 			expect(artistTracks.length).toBeGreaterThan(0);
@@ -69,7 +70,8 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 			const playlists = (await transport.getPlaylistsPage(1, 50)).items;
 			expect(playlists.length).toBeGreaterThan(0);
 
-			const playlistTracks = await transport.getTracksByPlaylist(playlists[0].id);
+			const playlistTracks = (await transport.getTracksByPlaylistPage(playlists[0].id, 1, 50))
+				.items;
 			expect(playlistTracks.length).toBeGreaterThan(0);
 
 			const playlistTrack = playlistTracks.find((track) => Boolean(track.albumId));

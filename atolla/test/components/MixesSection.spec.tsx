@@ -23,7 +23,6 @@ function mockTransport(overrides: Record<string, unknown> = {}): Transport {
 	return {
 		getRandomAlbum: () => Promise.resolve({ id: 'album-1', name: 'Album One' }),
 		getRandomMusicYears: () => Promise.resolve([1990]),
-		getShuffledLibraryTracks: () => Promise.resolve([mockTrack()]),
 		getShuffledLibraryTracksPage: () => Promise.resolve({ hasMore: false, items: [mockTrack()] }),
 		getTracksByAlbum: () => Promise.resolve([mockTrack()]),
 		getTracksByYearPage: () => Promise.resolve({ hasMore: false, items: [mockTrack()] }),
@@ -116,7 +115,9 @@ describe('MixesSection', () => {
 				connectionMode: ConnectionModes.offline,
 				gridColumns: 3,
 				playbackStore: playback.store,
-				transport: mockTransport({ getShuffledLibraryTracks: () => Promise.resolve(queue) }),
+				transport: mockTransport({
+					getShuffledLibraryTracksPage: () => Promise.resolve({ hasMore: false, items: queue }),
+				}),
 			};
 			const component = driver.renderComponent(MixesSection, viewModel, undefined);
 
@@ -132,7 +133,9 @@ describe('MixesSection', () => {
 				connectionMode: ConnectionModes.offline,
 				gridColumns: 3,
 				playbackStore: playback.store,
-				transport: mockTransport({ getShuffledLibraryTracks: () => Promise.resolve([]) }),
+				transport: mockTransport({
+					getShuffledLibraryTracksPage: () => Promise.resolve({ hasMore: false, items: [] }),
+				}),
 			};
 			const component = driver.renderComponent(MixesSection, viewModel, undefined);
 
@@ -149,7 +152,7 @@ describe('MixesSection', () => {
 				gridColumns: 3,
 				playbackStore: playback.store,
 				transport: mockTransport({
-					getShuffledLibraryTracks: () => Promise.reject(new Error('boom')),
+					getShuffledLibraryTracksPage: () => Promise.reject(new Error('boom')),
 				}),
 			};
 			const component = driver.renderComponent(MixesSection, viewModel, undefined);
@@ -270,7 +273,9 @@ describe('MixesSection', () => {
 				connectionMode: ConnectionModes.offline,
 				gridColumns: 3,
 				playbackStore: playback.store,
-				transport: mockTransport({ getShuffledLibraryTracks: () => Promise.resolve([]) }),
+				transport: mockTransport({
+					getShuffledLibraryTracksPage: () => Promise.resolve({ hasMore: false, items: [] }),
+				}),
 			};
 			const component = driver.renderComponent(MixesSection, viewModel, undefined);
 

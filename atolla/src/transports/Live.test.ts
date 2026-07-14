@@ -573,13 +573,13 @@ describe('LiveTransport core collections', () => {
 		]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		const tracks = await transport.getShuffledLibraryTracks();
+		const page = await transport.getShuffledLibraryTracksPage(1, 500);
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('Audio');
 		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('Random');
 		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('500');
-		expect(tracks.map((track) => track.id)).toEqual(['track-1', 'track-2']);
+		expect(page.items.map((track) => track.id)).toEqual(['track-1', 'track-2']);
 	});
 
 	it('picks several random populated years from the years endpoint in one request', async () => {

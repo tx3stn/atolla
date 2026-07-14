@@ -959,7 +959,7 @@ describe('OfflineTransport', () => {
 				playlistCreateService,
 			);
 
-			const tracks = await transport.getTracksByPlaylist(pending.id);
+			const tracks = (await transport.getTracksByPlaylistPage(pending.id, 1, 500)).items;
 
 			expect(tracks).toHaveLength(1);
 			expect(tracks[0].id).toBe('track-42');
@@ -974,7 +974,7 @@ describe('OfflineTransport', () => {
 				playlistCreateService,
 			);
 
-			const tracks = await transport.getTracksByPlaylist(pending.id);
+			const tracks = (await transport.getTracksByPlaylistPage(pending.id, 1, 500)).items;
 
 			expect(tracks).toHaveLength(0);
 		});

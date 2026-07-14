@@ -237,10 +237,6 @@ export class MockTransport implements Transport {
 			.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
-	async getShuffledLibraryTracks(): Promise<Array<Track>> {
-		return shuffleTracks(this.buildAllTracks());
-	}
-
 	async getShuffledLibraryTracksPage(
 		page: number,
 		pageSize: number,
@@ -327,38 +323,12 @@ export class MockTransport implements Transport {
 		};
 	}
 
-	async getTracksByPlaylist(playlistId: string): Promise<Array<Track>> {
-		const playlist = mockJellyfinPlaylists.find((candidate) => candidate.Id === playlistId);
-		if (!playlist && !this.createdPlaylists.has(playlistId)) {
-			return [];
-		}
-
-		const trackIds = this.playlistItemOrder.get(playlistId) ?? playlist?.ItemIds ?? [];
-		const tracksById = new Map(mockJellyfinTracks.map((track) => [track.Id, track]));
-
-		return trackIds.flatMap((trackId) => {
-			const item = tracksById.get(trackId);
-			return item
-				? [
-						mapJellyfinTrackToTrack(
-							{
-								...item,
-								MediaSources: mockMediaSourcesForAlbum(item.AlbumId),
-								PlaylistItemId: trackId,
-							},
-							this.imageResolvers,
-						),
-					]
-				: [];
-		});
-	}
-
 	async getTracksByPlaylistPage(
 		playlistId: string,
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
-		const allTracks = await this.getTracksByPlaylist(playlistId);
+		const allTracks = await this.collectPlaylistTracks(playlistId);
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const items = allTracks.slice(startIndex, startIndex + pageSize);
 		return {
@@ -459,6 +429,32 @@ export class MockTransport implements Transport {
 				this.imageResolvers,
 			),
 		);
+	}
+
+	private async collectPlaylistTracks(playlistId: string): Promise<Array<Track>> {
+		const playlist = mockJellyfinPlaylists.find((candidate) => candidate.Id === playlistId);
+		if (!playlist && !this.createdPlaylists.has(playlistId)) {
+			return [];
+		}
+
+		const trackIds = this.playlistItemOrder.get(playlistId) ?? playlist?.ItemIds ?? [];
+		const tracksById = new Map(mockJellyfinTracks.map((track) => [track.Id, track]));
+
+		return trackIds.flatMap((trackId) => {
+			const item = tracksById.get(trackId);
+			return item
+				? [
+						mapJellyfinTrackToTrack(
+							{
+								...item,
+								MediaSources: mockMediaSourcesForAlbum(item.AlbumId),
+								PlaylistItemId: trackId,
+							},
+							this.imageResolvers,
+						),
+					]
+				: [];
+		});
 	}
 }
 
