@@ -282,7 +282,7 @@ describe('LiveTransport core collections', () => {
 			client,
 		);
 
-		const page = await transport.getAlbumsPage(1, 1);
+		const page = await transport.getAlbums(1, 1);
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('0');
@@ -316,7 +316,7 @@ describe('LiveTransport core collections', () => {
 		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([album], 5, 0))]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		const page = await transport.getAlbumReleaseDatesPage(1, 2);
+		const page = await transport.getAlbumReleaseDates(1, 2);
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('0');
@@ -365,7 +365,7 @@ describe('LiveTransport core collections', () => {
 		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([album], 1, 0))]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		await transport.getAlbumsPage(1, 50, { startsWith: 'a' });
+		await transport.getAlbums(1, 50, { startsWith: 'a' });
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'nameStartsWith')).toBe('a');
@@ -381,7 +381,7 @@ describe('LiveTransport core collections', () => {
 		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([artist], 1, 0))]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		await transport.getArtistsPage(1, 50, { startsWith: '0' });
+		await transport.getArtists(1, 50, { startsWith: '0' });
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'nameLessThan')).toBe('A');
@@ -397,7 +397,7 @@ describe('LiveTransport core collections', () => {
 		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([playlist], 1, 0))]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		await transport.getPlaylistsPage(1, 50);
+		await transport.getPlaylists(1, 50);
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('Playlist');
@@ -414,7 +414,7 @@ describe('LiveTransport core collections', () => {
 		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([artist], 10, 3))]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		const page = await transport.getArtistsPage(2, 3);
+		const page = await transport.getArtists(2, 3);
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('3');
@@ -434,7 +434,7 @@ describe('LiveTransport core collections', () => {
 		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([playlist], 3, 2))]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		const page = await transport.getPlaylistsPage(2, 2);
+		const page = await transport.getPlaylists(2, 2);
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('2');
@@ -456,7 +456,7 @@ describe('LiveTransport core collections', () => {
 		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([genre], 3, 2))]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		const page = await transport.getGenresPage(2, 2);
+		const page = await transport.getGenres(2, 2);
 
 		expect(calls).toHaveLength(1);
 		expect(calls[0].pathOrUrl.startsWith('/MusicGenres?')).toBe(true);
@@ -511,7 +511,7 @@ describe('LiveTransport core collections', () => {
 		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([track], 3, 1))]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		const page = await transport.getTracksByPlaylistPage('playlist-1', 2, 1);
+		const page = await transport.getTracksByPlaylist('playlist-1', 2, 1);
 
 		expect(calls).toHaveLength(1);
 		expect(calls[0].pathOrUrl).toContain('/Playlists/playlist-1/Items');
@@ -573,7 +573,7 @@ describe('LiveTransport core collections', () => {
 		]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		const page = await transport.getShuffledLibraryTracksPage(1, 500);
+		const page = await transport.getShuffledLibraryTracks(1, 500);
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('Audio');
@@ -645,7 +645,7 @@ describe('LiveTransport core collections', () => {
 		]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		const result = await transport.getTracksByYearPage(2003, 2, 50);
+		const result = await transport.getTracksByYear(2003, 2, 50);
 
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'years')).toBe('2003');
@@ -668,7 +668,7 @@ describe('LiveTransport core collections', () => {
 		const { client } = createHTTPClient([jsonResponse(200, listResponse([track], 51, 50))]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
 
-		const result = await transport.getTracksByYearPage(2003, 2, 50);
+		const result = await transport.getTracksByYear(2003, 2, 50);
 
 		expect(result.hasMore).toBe(false);
 		expect(result.items.map((track) => track.id)).toEqual(['track-9']);
@@ -861,7 +861,7 @@ describe('LiveTransport core collections', () => {
 			client,
 		);
 
-		await expect(transport.getAlbumsPage(1, 50)).rejects.toMatchObject({
+		await expect(transport.getAlbums(1, 50)).rejects.toMatchObject({
 			err: 'auth_session_expired',
 		});
 	});

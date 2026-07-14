@@ -57,7 +57,7 @@ describe('PlaylistsView', () => {
 			{ id: 'playlist-2', name: 'Night Run' },
 		];
 		const transport = {
-			getPlaylistsPage: async () => ({ hasMore: false, items: playlists }),
+			getPlaylists: async () => ({ hasMore: false, items: playlists }),
 		};
 
 		const viewModel = {
@@ -83,7 +83,7 @@ describe('PlaylistsView', () => {
 	valdiIt('pushes PlaylistView when card is tapped', async (driver) => {
 		const playlists = [{ id: 'playlist-1', name: 'Roadtrip' }];
 		const transport = {
-			getPlaylistsPage: async () => ({ hasMore: false, items: playlists }),
+			getPlaylists: async () => ({ hasMore: false, items: playlists }),
 		};
 
 		const navigationController = makeNavigationController();
@@ -112,7 +112,7 @@ describe('PlaylistsView', () => {
 	valdiIt('opens context menu when card is long pressed', async (driver) => {
 		const playlists = [{ id: 'playlist-1', name: 'Roadtrip' }];
 		const transport = {
-			getPlaylistsPage: async () => ({ hasMore: false, items: playlists }),
+			getPlaylists: async () => ({ hasMore: false, items: playlists }),
 		};
 
 		const viewModel = {
@@ -133,7 +133,7 @@ describe('PlaylistsView', () => {
 	valdiIt('requests a server-side prefix filter when a letter filter is active', async (driver) => {
 		const requestedStartsWith: Array<string | undefined> = [];
 		const transport = {
-			getPlaylistsPage: (_page: number, _size: number, options?: { startsWith?: string }) => {
+			getPlaylists: (_page: number, _size: number, options?: { startsWith?: string }) => {
 				requestedStartsWith.push(options?.startsWith);
 				return Promise.resolve({ hasMore: false, items: makePlaylists(3) });
 			},
@@ -158,7 +158,7 @@ describe('PlaylistsView', () => {
 	valdiIt('loads next playlist page when prefetch trigger is laid out', async (driver) => {
 		const allPlaylists = makePlaylists(60);
 		const transport = {
-			getPlaylistsPage: (page: number, size: number) => {
+			getPlaylists: (page: number, size: number) => {
 				const start = (page - 1) * size;
 				const end = start + size;
 				return Promise.resolve({
@@ -195,7 +195,7 @@ describe('PlaylistsView', () => {
 		'shows the nothing-downloaded empty state when offline with no playlists',
 		async (driver) => {
 			const transport = {
-				getPlaylistsPage: async () => ({ hasMore: false, items: [] }),
+				getPlaylists: async () => ({ hasMore: false, items: [] }),
 			};
 
 			const viewModel = {
@@ -224,7 +224,7 @@ describe('PlaylistsView', () => {
 
 	valdiIt('hides the empty state when offline playlists are present', async (driver) => {
 		const transport = {
-			getPlaylistsPage: async () => ({
+			getPlaylists: async () => ({
 				hasMore: false,
 				items: [{ id: 'playlist-1', name: 'Roadtrip' }],
 			}),

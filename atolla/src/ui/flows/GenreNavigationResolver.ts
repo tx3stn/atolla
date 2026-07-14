@@ -5,7 +5,7 @@ import { TRACK_PAGE_SIZE } from '../pagination/Grid';
 const MAX_GENRE_PAGES = 20;
 
 export interface GenreLookupTransport {
-	getGenresPage: Transport['getGenresPage'];
+	getGenres: Transport['getGenres'];
 }
 
 export async function resolveGenreForNavigation(
@@ -22,7 +22,7 @@ export async function resolveGenreForNavigation(
 	while (hasMore && page <= MAX_GENRE_PAGES) {
 		let result: { hasMore: boolean; items: Array<Genre> };
 		try {
-			result = await transport.getGenresPage(page, TRACK_PAGE_SIZE);
+			result = await transport.getGenres(page, TRACK_PAGE_SIZE);
 		} catch {
 			return genre;
 		}
@@ -55,7 +55,7 @@ export async function resolveGenreImageUrls(
 	while (hasMore && unresolved.size > 0 && page <= MAX_GENRE_PAGES) {
 		let result: { hasMore: boolean; items: Array<Genre> };
 		try {
-			result = await transport.getGenresPage(page, TRACK_PAGE_SIZE);
+			result = await transport.getGenres(page, TRACK_PAGE_SIZE);
 		} catch {
 			break;
 		}

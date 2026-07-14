@@ -17,7 +17,7 @@ export interface OnThisDayStore {
 	storeString(key: string, value: string): Promise<void>;
 }
 
-export type OnThisDayTransport = Pick<Transport, 'getAlbumReleaseDatesPage' | 'getAlbumsByIds'>;
+export type OnThisDayTransport = Pick<Transport, 'getAlbumReleaseDates' | 'getAlbumsByIds'>;
 
 export interface OnThisDayRefreshSummary {
 	error?: string;
@@ -166,7 +166,7 @@ export class OnThisDayService {
 		}
 
 		// bind: these methods use `this`, so an unbound reference would throw
-		const discover = transport.getAlbumReleaseDatesPage.bind(transport);
+		const discover = transport.getAlbumReleaseDates.bind(transport);
 		const hydrate = transport.getAlbumsByIds.bind(transport);
 
 		summary.ran = true;
@@ -204,7 +204,7 @@ export class OnThisDayService {
 	}
 
 	private async discoverMatchedIds(
-		discover: Transport['getAlbumReleaseDatesPage'],
+		discover: Transport['getAlbumReleaseDates'],
 		today: Date,
 		tomorrow: Date,
 	): Promise<{ ids: Array<string>; scanned: number; withReleaseDate: number }> {

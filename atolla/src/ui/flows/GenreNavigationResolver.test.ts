@@ -11,7 +11,7 @@ function createTransport(
 	onGetGenresPage?: (page: number, pageSize: number) => void,
 ): GenreLookupTransport {
 	return {
-		getGenresPage: (page: number, pageSize: number) => {
+		getGenres: (page: number, pageSize: number) => {
 			onGetGenresPage?.(page, pageSize);
 			return Promise.resolve(pages[page] ?? { hasMore: false, items: [] });
 		},
@@ -64,7 +64,7 @@ describe('resolveGenreForNavigation', () => {
 
 	it('falls back to original genre when transport lookup fails', async () => {
 		const transport: GenreLookupTransport = {
-			getGenresPage: () => {
+			getGenres: () => {
 				throw new Error('network failed');
 			},
 		};
@@ -136,7 +136,7 @@ describe('resolveGenreImageUrls', () => {
 
 	it('returns partial results when transport fails', async () => {
 		const transport: GenreLookupTransport = {
-			getGenresPage: () => Promise.reject(new Error('network failed')),
+			getGenres: () => Promise.reject(new Error('network failed')),
 		};
 
 		const genres = await resolveGenreImageUrls(transport, [

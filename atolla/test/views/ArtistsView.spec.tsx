@@ -55,7 +55,7 @@ describe('ArtistsView', () => {
 			{ id: 'artist-2', name: 'Artist Two' },
 		];
 		const transport = {
-			getArtistsPage: async () => ({ hasMore: false, items: artists }),
+			getArtists: async () => ({ hasMore: false, items: artists }),
 		};
 
 		const viewModel = {
@@ -81,7 +81,7 @@ describe('ArtistsView', () => {
 	valdiIt('pushes ArtistView when card is tapped', async (driver) => {
 		const artists = [{ id: 'artist-1', name: 'Artist One' }];
 		const transport = {
-			getArtistsPage: async () => ({ hasMore: false, items: artists }),
+			getArtists: async () => ({ hasMore: false, items: artists }),
 		};
 
 		const navigationController = makeNavigationController();
@@ -112,7 +112,7 @@ describe('ArtistsView', () => {
 			{ id: 'artist-1', logoUrl: 'https://example.com/logo.jpg', name: 'Artist One' },
 		];
 		const transport = {
-			getArtistsPage: async () => ({ hasMore: false, items: artists }),
+			getArtists: async () => ({ hasMore: false, items: artists }),
 		};
 
 		const viewModel = {
@@ -133,7 +133,7 @@ describe('ArtistsView', () => {
 	valdiIt('requests a server-side prefix filter when a letter filter is active', async (driver) => {
 		const requestedStartsWith: Array<string | undefined> = [];
 		const transport = {
-			getArtistsPage: (_page: number, _size: number, options?: { startsWith?: string }) => {
+			getArtists: (_page: number, _size: number, options?: { startsWith?: string }) => {
 				requestedStartsWith.push(options?.startsWith);
 				return Promise.resolve({ hasMore: false, items: makeArtists(3) });
 			},
@@ -158,7 +158,7 @@ describe('ArtistsView', () => {
 	valdiIt('loads next artist page when prefetch trigger is laid out', async (driver) => {
 		const allArtists = makeArtists(60);
 		const transport = {
-			getArtistsPage: (page: number, size: number) => {
+			getArtists: (page: number, size: number) => {
 				const start = (page - 1) * size;
 				const end = start + size;
 				return Promise.resolve({
@@ -195,7 +195,7 @@ describe('ArtistsView', () => {
 		'shows the nothing-downloaded empty state when offline with no artists',
 		async (driver) => {
 			const transport = {
-				getArtistsPage: async () => ({ hasMore: false, items: [] }),
+				getArtists: async () => ({ hasMore: false, items: [] }),
 			};
 
 			const viewModel = {
@@ -229,7 +229,7 @@ describe('ArtistsView', () => {
 
 	valdiIt('hides the empty state when offline artists are present', async (driver) => {
 		const transport = {
-			getArtistsPage: async () => ({
+			getArtists: async () => ({
 				hasMore: false,
 				items: [{ id: 'artist-1', name: 'Artist One' }],
 			}),

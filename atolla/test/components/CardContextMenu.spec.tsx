@@ -37,7 +37,7 @@ function mockTransport(overrides: Record<string, unknown> = {}): Transport {
 		getTracksByGenre: () => Promise.resolve([mockTrack()]),
 		getTracksByGenrePage: () =>
 			Promise.resolve({ hasMore: false, items: [mockTrack()], totalCount: 1 }),
-		getTracksByPlaylistPage: () => Promise.resolve({ hasMore: false, items: [mockTrack()] }),
+		getTracksByPlaylist: () => Promise.resolve({ hasMore: false, items: [mockTrack()] }),
 		...overrides,
 	} as unknown as Transport;
 }
@@ -204,7 +204,7 @@ describe('CardContextMenu', () => {
 						onDismiss: jasmine.createSpy('onDismiss'),
 						playbackStore: store,
 						transport: mockTransport({
-							getTracksByPlaylistPage: () =>
+							getTracksByPlaylist: () =>
 								Promise.resolve({ hasMore: true, items: page, totalCount: 600 }),
 						}),
 					},
@@ -232,7 +232,7 @@ describe('CardContextMenu', () => {
 						onDismiss: jasmine.createSpy('onDismiss'),
 						playbackStore: store,
 						transport: mockTransport({
-							getTracksByPlaylistPage: () =>
+							getTracksByPlaylist: () =>
 								Promise.resolve({ hasMore: false, items: page, totalCount: 1 }),
 						}),
 					},
@@ -278,8 +278,8 @@ describe('CardContextMenu', () => {
 		valdiIt('playlist Add to Queue appends a single bounded page', async (driver) => {
 			const { addToQueue, store } = mockPagedStore();
 			const page = [mockTrack('p1')];
-			const getTracksByPlaylistPage = jasmine
-				.createSpy('getTracksByPlaylistPage')
+			const getTracksByPlaylist = jasmine
+				.createSpy('getTracksByPlaylist')
 				.and.returnValue(Promise.resolve({ hasMore: true, items: page, totalCount: 600 }));
 			const component = driver.renderComponent(
 				CardContextMenu,
@@ -288,7 +288,7 @@ describe('CardContextMenu', () => {
 					card: { kind: 'playlist', playlist: mockPlaylist() },
 					onDismiss: jasmine.createSpy('onDismiss'),
 					playbackStore: store,
-					transport: mockTransport({ getTracksByPlaylistPage }),
+					transport: mockTransport({ getTracksByPlaylist }),
 				},
 				undefined,
 			);
@@ -296,7 +296,7 @@ describe('CardContextMenu', () => {
 			(getInternal(component).handleAddToQueue as () => void)();
 			await flush();
 
-			expect(getTracksByPlaylistPage).toHaveBeenCalledWith('playlist-1', 1, jasmine.any(Number));
+			expect(getTracksByPlaylist).toHaveBeenCalledWith('playlist-1', 1, jasmine.any(Number));
 			expect(addToQueue).toHaveBeenCalledWith(page);
 		});
 

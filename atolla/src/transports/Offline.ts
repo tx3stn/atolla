@@ -40,7 +40,7 @@ export class OfflineTransport implements Transport {
 		return this.playlistCreateService.enqueue(name, trackId ?? '');
 	}
 
-	async getAlbumReleaseDatesPage(
+	async getAlbumReleaseDates(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }> {
@@ -73,7 +73,7 @@ export class OfflineTransport implements Transport {
 		return this.collectAllAlbums().filter((album) => wanted.has(album.id));
 	}
 
-	async getAlbumsPage(
+	async getAlbums(
 		page: number,
 		pageSize: number,
 		_options?: { startsWith?: string },
@@ -157,7 +157,7 @@ export class OfflineTransport implements Transport {
 		return null;
 	}
 
-	async getArtistsPage(
+	async getArtists(
 		page: number,
 		pageSize: number,
 		_options?: { startsWith?: string },
@@ -178,7 +178,7 @@ export class OfflineTransport implements Transport {
 		return this.downloads.getGenre(genreId)?.genre ?? null;
 	}
 
-	async getGenresPage(
+	async getGenres(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
@@ -198,7 +198,7 @@ export class OfflineTransport implements Transport {
 		return this.downloads.getPlaylist(playlistId)?.playlist ?? null;
 	}
 
-	async getPlaylistsPage(
+	async getPlaylists(
 		page: number,
 		pageSize: number,
 		_options?: { startsWith?: string },
@@ -236,7 +236,7 @@ export class OfflineTransport implements Transport {
 			.slice(0, Math.max(1, limit));
 	}
 
-	async getShuffledLibraryTracksPage(
+	async getShuffledLibraryTracks(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track> }> {
@@ -330,7 +330,7 @@ export class OfflineTransport implements Transport {
 		};
 	}
 
-	async getTracksByPlaylistPage(
+	async getTracksByPlaylist(
 		playlistId: string,
 		page: number,
 		pageSize: number,
@@ -339,12 +339,12 @@ export class OfflineTransport implements Transport {
 		return singleLocalPage(all, page, pageSize);
 	}
 
-	async getTracksByYearPage(
+	async getTracksByYear(
 		year: number,
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track> }> {
-		// sort by id so paging through the local set is stable, matching getShuffledLibraryTracksPage
+		// sort by id so paging through the local set is stable, matching getShuffledLibraryTracks
 		const yearTracks = this.downloads
 			.getAllTracks()
 			.filter((entry) => entry.complete && trackReleaseYear(entry.track) === year)

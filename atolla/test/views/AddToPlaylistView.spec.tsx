@@ -25,11 +25,11 @@ async function flushAsyncWork() {
 }
 
 describe('AddToPlaylistView', () => {
-	valdiIt('loads the first playlist page on create via getPlaylistsPage', async (driver) => {
+	valdiIt('loads the first playlist page on create via getPlaylists', async (driver) => {
 		const requestedPages: Array<number> = [];
 		const allPlaylists = makePlaylists(60);
 		const transport = {
-			getPlaylistsPage: (page: number, size: number) => {
+			getPlaylists: (page: number, size: number) => {
 				requestedPages.push(page);
 				const start = (page - 1) * size;
 				return Promise.resolve({
@@ -61,7 +61,7 @@ describe('AddToPlaylistView', () => {
 	valdiIt('appends the next page when loadMore runs', async (driver) => {
 		const allPlaylists = makePlaylists(40);
 		const transport = {
-			getPlaylistsPage: (page: number, size: number) => {
+			getPlaylists: (page: number, size: number) => {
 				const start = (page - 1) * size;
 				return Promise.resolve({
 					hasMore: start + size < allPlaylists.length,
@@ -101,7 +101,7 @@ describe('AddToPlaylistView', () => {
 				added.push([playlistId, trackId]);
 				return Promise.resolve();
 			},
-			getPlaylistsPage: () => Promise.resolve({ hasMore: false, items: makePlaylists(2) }),
+			getPlaylists: () => Promise.resolve({ hasMore: false, items: makePlaylists(2) }),
 		};
 
 		const viewModel = {
@@ -133,7 +133,7 @@ describe('AddToPlaylistView', () => {
 		let dismissed = false;
 		const transport = {
 			addItemToPlaylist: () => Promise.reject(new Error('could not add')),
-			getPlaylistsPage: () => Promise.resolve({ hasMore: false, items: makePlaylists(2) }),
+			getPlaylists: () => Promise.resolve({ hasMore: false, items: makePlaylists(2) }),
 		};
 
 		const viewModel = {

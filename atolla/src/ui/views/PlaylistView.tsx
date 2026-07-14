@@ -564,7 +564,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		page: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
 		const { playlist, transport } = this.viewModel;
-		return transport.getTracksByPlaylistPage(playlist.id, page, TRACK_PAGE_SIZE);
+		return transport.getTracksByPlaylist(playlist.id, page, TRACK_PAGE_SIZE);
 	}
 }
 

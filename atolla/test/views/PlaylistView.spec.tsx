@@ -47,7 +47,7 @@ describe('PlaylistView', () => {
 				getPlaylistCalls += 1;
 				return { id: 'playlist-1', imageUrl: 'https://p.png', name: 'Roadtrip' };
 			},
-			getTracksByPlaylistPage: emptyTracksPage,
+			getTracksByPlaylist: emptyTracksPage,
 		};
 
 		const component = driver.renderComponent(
@@ -78,7 +78,7 @@ describe('PlaylistView', () => {
 				getPlaylistCalls += 1;
 				return null;
 			},
-			getTracksByPlaylistPage: emptyTracksPage,
+			getTracksByPlaylist: emptyTracksPage,
 		};
 
 		const component = driver.renderComponent(
@@ -108,7 +108,7 @@ describe('PlaylistView', () => {
 			{ artistName: 'Artist Two', duration: 90, id: 'track-2', name: 'Song Two' },
 		];
 		const transport = {
-			getTracksByPlaylistPage: async () => ({
+			getTracksByPlaylist: async () => ({
 				hasMore: false,
 				items: tracks,
 				totalCount: tracks.length,
@@ -142,7 +142,7 @@ describe('PlaylistView', () => {
 	valdiIt('renders track count and total duration in header', async (driver) => {
 		const playlist = { id: 'playlist-1', name: 'Roadtrip' };
 		const transport = {
-			getTracksByPlaylistPage: async () => ({
+			getTracksByPlaylist: async () => ({
 				hasMore: false,
 				items: [
 					{ artistName: 'Artist One', duration: 60, id: 'track-1', name: 'Song One' },

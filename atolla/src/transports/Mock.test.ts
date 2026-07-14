@@ -40,10 +40,10 @@ describe('MockTransport pagination', () => {
 	it('paginates artists and playlists', async () => {
 		const transport = new MockTransport();
 
-		const artistsPage = await transport.getArtistsPage(1, 2);
-		const genresPage = await transport.getGenresPage(1, 3);
+		const artistsPage = await transport.getArtists(1, 2);
+		const genresPage = await transport.getGenres(1, 3);
 		const genreTracksPage = await transport.getTracksByGenrePage('genre-1', 1, 2);
-		const playlistsPage = await transport.getPlaylistsPage(1, 1);
+		const playlistsPage = await transport.getPlaylists(1, 1);
 
 		expect(artistsPage.items.length).toBe(2);
 		expect(artistsPage.hasMore).toBe(true);
@@ -58,8 +58,8 @@ describe('MockTransport pagination', () => {
 	it('orders albums by release date descending for all and paged responses', async () => {
 		const transport = new MockTransport();
 
-		const allAlbums = (await transport.getAlbumsPage(1, 1000)).items;
-		const firstPage = await transport.getAlbumsPage(1, 5);
+		const allAlbums = (await transport.getAlbums(1, 1000)).items;
+		const firstPage = await transport.getAlbums(1, 5);
 
 		expect(firstPage.items.map((album) => album.id)).toEqual(
 			allAlbums.slice(0, 5).map((album) => album.id),
@@ -86,7 +86,7 @@ describe('MockTransport pagination', () => {
 describe('MockTransport playlist reorder', () => {
 	it('exposes a playlistItemId for each playlist track', async () => {
 		const transport = new MockTransport();
-		const tracks = (await transport.getTracksByPlaylistPage('playlist-1', 1, 500)).items;
+		const tracks = (await transport.getTracksByPlaylist('playlist-1', 1, 500)).items;
 
 		expect(tracks.length).toBeGreaterThan(1);
 		for (const track of tracks) {
@@ -96,13 +96,13 @@ describe('MockTransport playlist reorder', () => {
 
 	it('persists a reordered playlist track for the session', async () => {
 		const transport = new MockTransport();
-		const before = (await transport.getTracksByPlaylistPage('playlist-1', 1, 500)).items;
+		const before = (await transport.getTracksByPlaylist('playlist-1', 1, 500)).items;
 		const movedId = before[0].playlistItemId;
 		expect(movedId).toBeDefined();
 
 		await transport.movePlaylistTrack('playlist-1', movedId ?? '', 2);
 
-		const after = (await transport.getTracksByPlaylistPage('playlist-1', 1, 500)).items;
+		const after = (await transport.getTracksByPlaylist('playlist-1', 1, 500)).items;
 		expect(after.map((track) => track.id)).toEqual([
 			before[1].id,
 			before[2].id,
@@ -111,23 +111,23 @@ describe('MockTransport playlist reorder', () => {
 		]);
 	});
 
-	it('reflects the reorder through getTracksByPlaylistPage', async () => {
+	it('reflects the reorder through getTracksByPlaylist', async () => {
 		const transport = new MockTransport();
-		const before = (await transport.getTracksByPlaylistPage('playlist-1', 1, 500)).items;
+		const before = (await transport.getTracksByPlaylist('playlist-1', 1, 500)).items;
 		const movedId = before[0].playlistItemId ?? '';
 
 		await transport.movePlaylistTrack('playlist-1', movedId, 2);
 
-		const page = await transport.getTracksByPlaylistPage('playlist-1', 1, 10);
+		const page = await transport.getTracksByPlaylist('playlist-1', 1, 10);
 		expect(page.items[2].id).toBe(before[0].id);
 	});
 
 	it('does not leak reorder state across transport instances', async () => {
 		const transport = new MockTransport();
-		const original = (await transport.getTracksByPlaylistPage('playlist-1', 1, 500)).items;
+		const original = (await transport.getTracksByPlaylist('playlist-1', 1, 500)).items;
 		await transport.movePlaylistTrack('playlist-1', original[0].playlistItemId ?? '', 2);
 
-		const fresh = (await new MockTransport().getTracksByPlaylistPage('playlist-1', 1, 500)).items;
+		const fresh = (await new MockTransport().getTracksByPlaylist('playlist-1', 1, 500)).items;
 		expect(fresh.map((track) => track.id)).toEqual(original.map((track) => track.id));
 	});
 });
@@ -135,7 +135,7 @@ describe('MockTransport playlist reorder', () => {
 describe('MockTransport playlist creation', () => {
 	it('returns the added tracks in order for a created playlist', async () => {
 		const transport = new MockTransport();
-		const [first, second, third] = (await transport.getTracksByPlaylistPage('playlist-1', 1, 500))
+		const [first, second, third] = (await transport.getTracksByPlaylist('playlist-1', 1, 500))
 			.items;
 
 		const playlist = await transport.createPlaylist('Queue Playlist');
@@ -143,27 +143,27 @@ describe('MockTransport playlist creation', () => {
 		await transport.addItemToPlaylist(playlist.id, second.id);
 		await transport.addItemToPlaylist(playlist.id, third.id);
 
-		const tracks = (await transport.getTracksByPlaylistPage(playlist.id, 1, 500)).items;
+		const tracks = (await transport.getTracksByPlaylist(playlist.id, 1, 500)).items;
 		expect(tracks.map((track) => track.id)).toEqual([first.id, second.id, third.id]);
 	});
 
 	it('seeds the initial track when createPlaylist is given one', async () => {
 		const transport = new MockTransport();
-		const [seed] = (await transport.getTracksByPlaylistPage('playlist-1', 1, 500)).items;
+		const [seed] = (await transport.getTracksByPlaylist('playlist-1', 1, 500)).items;
 
 		const playlist = await transport.createPlaylist('Seeded', seed.id);
 
-		const tracks = (await transport.getTracksByPlaylistPage(playlist.id, 1, 500)).items;
+		const tracks = (await transport.getTracksByPlaylist(playlist.id, 1, 500)).items;
 		expect(tracks.map((track) => track.id)).toEqual([seed.id]);
 	});
 
 	it('does not leak created playlists across transport instances', async () => {
 		const transport = new MockTransport();
-		const [track] = (await transport.getTracksByPlaylistPage('playlist-1', 1, 500)).items;
+		const [track] = (await transport.getTracksByPlaylist('playlist-1', 1, 500)).items;
 		const playlist = await transport.createPlaylist('Ephemeral');
 		await transport.addItemToPlaylist(playlist.id, track.id);
 
-		const fresh = (await new MockTransport().getTracksByPlaylistPage(playlist.id, 1, 500)).items;
+		const fresh = (await new MockTransport().getTracksByPlaylist(playlist.id, 1, 500)).items;
 		expect(fresh).toEqual([]);
 	});
 });

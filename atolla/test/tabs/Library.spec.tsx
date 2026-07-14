@@ -14,9 +14,9 @@ const stubImageCache = {
 };
 
 const stubTransport = {
-	getAlbumsPage: async () => ({ hasMore: false, items: [] }),
-	getArtistsPage: async () => ({ hasMore: false, items: [] }),
-	getPlaylistsPage: async () => ({ hasMore: false, items: [] }),
+	getAlbums: async () => ({ hasMore: false, items: [] }),
+	getArtists: async () => ({ hasMore: false, items: [] }),
+	getPlaylists: async () => ({ hasMore: false, items: [] }),
 };
 
 const stubDownloadService = {

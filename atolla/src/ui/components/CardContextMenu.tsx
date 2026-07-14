@@ -78,9 +78,7 @@ export class CardContextMenu extends StatefulComponent<
 			case 'genre':
 				return transport.getTracksByGenre(card.genre.id);
 			case 'playlist':
-				return transport
-					.getTracksByPlaylistPage(card.playlist.id, 1, 500)
-					.then(({ items }) => items);
+				return transport.getTracksByPlaylist(card.playlist.id, 1, 500).then(({ items }) => items);
 		}
 	}
 
@@ -95,7 +93,7 @@ export class CardContextMenu extends StatefulComponent<
 			}
 			case 'playlist': {
 				const playlistId = card.playlist.id;
-				return (page, pageSize) => transport.getTracksByPlaylistPage(playlistId, page, pageSize);
+				return (page, pageSize) => transport.getTracksByPlaylist(playlistId, page, pageSize);
 			}
 			default:
 				return null;

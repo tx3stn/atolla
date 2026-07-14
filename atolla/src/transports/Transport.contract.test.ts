@@ -24,9 +24,9 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 			const transport = createTransport();
 
 			const [albumsPage, artistsPage, playlistsPage] = await Promise.all([
-				transport.getAlbumsPage(1, 50),
-				transport.getArtistsPage(1, 50),
-				transport.getPlaylistsPage(1, 50),
+				transport.getAlbums(1, 50),
+				transport.getArtists(1, 50),
+				transport.getPlaylists(1, 50),
 			]);
 
 			expect(albumsPage.items.length).toBeGreaterThan(0);
@@ -36,7 +36,7 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 			const [albumTracks, artistTracks, playlistPage] = await Promise.all([
 				transport.getTracksByAlbum(albumsPage.items[0].id),
 				transport.getTracksByArtist(artistsPage.items[0].id),
-				transport.getTracksByPlaylistPage(playlistsPage.items[0].id, 1, 50),
+				transport.getTracksByPlaylist(playlistsPage.items[0].id, 1, 50),
 			]);
 			const playlistTracks = playlistPage.items;
 
@@ -52,8 +52,8 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 		it('resolves a single genre and playlist by id for detail-view self-heal', async () => {
 			const transport = createTransport();
 			const [genresPage, playlistsPage] = await Promise.all([
-				transport.getGenresPage(1, 50),
-				transport.getPlaylistsPage(1, 50),
+				transport.getGenres(1, 50),
+				transport.getPlaylists(1, 50),
 			]);
 			expect(genresPage.items.length).toBeGreaterThan(0);
 			expect(playlistsPage.items.length).toBeGreaterThan(0);
@@ -67,11 +67,10 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 
 		it('keeps release metadata stable for same track across endpoints', async () => {
 			const transport = createTransport();
-			const playlists = (await transport.getPlaylistsPage(1, 50)).items;
+			const playlists = (await transport.getPlaylists(1, 50)).items;
 			expect(playlists.length).toBeGreaterThan(0);
 
-			const playlistTracks = (await transport.getTracksByPlaylistPage(playlists[0].id, 1, 50))
-				.items;
+			const playlistTracks = (await transport.getTracksByPlaylist(playlists[0].id, 1, 50)).items;
 			expect(playlistTracks.length).toBeGreaterThan(0);
 
 			const playlistTrack = playlistTracks.find((track) => Boolean(track.albumId));
@@ -92,9 +91,9 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 			const transport = createTransport();
 
 			const [albums, artists, playlists] = await Promise.all([
-				transport.getAlbumsPage(1, 50).then((page) => page.items),
-				transport.getArtistsPage(1, 50).then((page) => page.items),
-				transport.getPlaylistsPage(1, 50).then((page) => page.items),
+				transport.getAlbums(1, 50).then((page) => page.items),
+				transport.getArtists(1, 50).then((page) => page.items),
+				transport.getPlaylists(1, 50).then((page) => page.items),
 			]);
 
 			const prefixOf = (name: string): string => name.trim().charAt(0).toLowerCase();
@@ -104,7 +103,7 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 				return;
 			}
 
-			const filtered = await transport.getAlbumsPage(1, 50, { startsWith: albumPrefix });
+			const filtered = await transport.getAlbums(1, 50, { startsWith: albumPrefix });
 			expect(filtered.items.length).toBeGreaterThan(0);
 			filtered.items.forEach((album) => {
 				expect(prefixOf(album.name)).toBe(albumPrefix);
@@ -112,8 +111,8 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 
 			// the prefix filter must not change the shape of the result set type for
 			// artists/playlists either; exercise them so every transport honours the arg
-			await transport.getArtistsPage(1, 50, { startsWith: prefixOf(artists[0].name) });
-			await transport.getPlaylistsPage(1, 50, { startsWith: prefixOf(playlists[0].name) });
+			await transport.getArtists(1, 50, { startsWith: prefixOf(artists[0].name) });
+			await transport.getPlaylists(1, 50, { startsWith: prefixOf(playlists[0].name) });
 		});
 
 		it('returns contract-compliant tracks for a randomly picked populated year', async () => {
@@ -123,7 +122,7 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 			expect(years.length).toBeGreaterThan(0);
 			const year = years[0];
 
-			const page = await transport.getTracksByYearPage(year, 1, 50);
+			const page = await transport.getTracksByYear(year, 1, 50);
 			expect(page.items.length).toBeGreaterThan(0);
 			page.items.forEach(assertTrackContract);
 			page.items.forEach((track) => {
@@ -135,7 +134,7 @@ function runTransportTrackContractSuite(name: string, createTransport: () => Tra
 
 		it('returns genre pages and genre tracks with contract-compliant tracks', async () => {
 			const transport = createTransport();
-			const genresPage = await transport.getGenresPage(1, 5);
+			const genresPage = await transport.getGenres(1, 5);
 			expect(genresPage.items.length).toBeGreaterThan(0);
 
 			const genre = genresPage.items[0];

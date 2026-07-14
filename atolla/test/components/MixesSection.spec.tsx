@@ -23,9 +23,9 @@ function mockTransport(overrides: Record<string, unknown> = {}): Transport {
 	return {
 		getRandomAlbum: () => Promise.resolve({ id: 'album-1', name: 'Album One' }),
 		getRandomMusicYears: () => Promise.resolve([1990]),
-		getShuffledLibraryTracksPage: () => Promise.resolve({ hasMore: false, items: [mockTrack()] }),
+		getShuffledLibraryTracks: () => Promise.resolve({ hasMore: false, items: [mockTrack()] }),
 		getTracksByAlbum: () => Promise.resolve([mockTrack()]),
-		getTracksByYearPage: () => Promise.resolve({ hasMore: false, items: [mockTrack()] }),
+		getTracksByYear: () => Promise.resolve({ hasMore: false, items: [mockTrack()] }),
 		...overrides,
 	} as unknown as Transport;
 }
@@ -97,7 +97,7 @@ describe('MixesSection', () => {
 				gridColumns: 3,
 				playbackStore: playback.store,
 				transport: mockTransport({
-					getShuffledLibraryTracksPage: () => Promise.resolve({ hasMore: false, items: [page] }),
+					getShuffledLibraryTracks: () => Promise.resolve({ hasMore: false, items: [page] }),
 				}),
 			};
 			const component = driver.renderComponent(MixesSection, viewModel, undefined);
@@ -116,7 +116,7 @@ describe('MixesSection', () => {
 				gridColumns: 3,
 				playbackStore: playback.store,
 				transport: mockTransport({
-					getShuffledLibraryTracksPage: () => Promise.resolve({ hasMore: false, items: queue }),
+					getShuffledLibraryTracks: () => Promise.resolve({ hasMore: false, items: queue }),
 				}),
 			};
 			const component = driver.renderComponent(MixesSection, viewModel, undefined);
@@ -134,7 +134,7 @@ describe('MixesSection', () => {
 				gridColumns: 3,
 				playbackStore: playback.store,
 				transport: mockTransport({
-					getShuffledLibraryTracksPage: () => Promise.resolve({ hasMore: false, items: [] }),
+					getShuffledLibraryTracks: () => Promise.resolve({ hasMore: false, items: [] }),
 				}),
 			};
 			const component = driver.renderComponent(MixesSection, viewModel, undefined);
@@ -152,7 +152,7 @@ describe('MixesSection', () => {
 				gridColumns: 3,
 				playbackStore: playback.store,
 				transport: mockTransport({
-					getShuffledLibraryTracksPage: () => Promise.reject(new Error('boom')),
+					getShuffledLibraryTracks: () => Promise.reject(new Error('boom')),
 				}),
 			};
 			const component = driver.renderComponent(MixesSection, viewModel, undefined);
@@ -172,7 +172,7 @@ describe('MixesSection', () => {
 					gridColumns: 3,
 					playbackStore: playback.store,
 					transport: mockTransport({
-						getShuffledLibraryTracksPage: () =>
+						getShuffledLibraryTracks: () =>
 							Promise.resolve({ hasMore: true, items: [mockTrack('p1')] }),
 					}),
 				};
@@ -250,7 +250,7 @@ describe('MixesSection', () => {
 				playbackStore: playback.store,
 				transport: mockTransport({
 					getRandomMusicYears: () => Promise.resolve([1990, 1991]),
-					getTracksByYearPage: (year: number) =>
+					getTracksByYear: (year: number) =>
 						year === 1991
 							? Promise.resolve({ hasMore: false, items: [yearTrack] })
 							: Promise.resolve({ hasMore: false, items: [] }),
@@ -274,7 +274,7 @@ describe('MixesSection', () => {
 				gridColumns: 3,
 				playbackStore: playback.store,
 				transport: mockTransport({
-					getShuffledLibraryTracksPage: () => Promise.resolve({ hasMore: false, items: [] }),
+					getShuffledLibraryTracks: () => Promise.resolve({ hasMore: false, items: [] }),
 				}),
 			};
 			const component = driver.renderComponent(MixesSection, viewModel, undefined);

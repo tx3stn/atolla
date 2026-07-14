@@ -242,8 +242,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	}
 
 	private readonly pagedGridController = createPagedGridController<Genre>({
-		fetchPage: (page) =>
-			this.viewModel.transport.getGenresPage(page, gridPaginationConfig.pageSize),
+		fetchPage: (page) => this.viewModel.transport.getGenres(page, gridPaginationConfig.pageSize),
 		isDestroyed: () => this.isDestroyed(),
 		onPageLoaded: (items) => this.preloadGenreImages(items),
 		setState: (patch) => {

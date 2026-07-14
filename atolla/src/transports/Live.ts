@@ -105,7 +105,7 @@ export class LiveTransport implements Transport {
 		return { id: result.Id, name };
 	}
 
-	async getAlbumReleaseDatesPage(
+	async getAlbumReleaseDates(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }> {
@@ -164,7 +164,7 @@ export class LiveTransport implements Transport {
 		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
-	async getAlbumsPage(
+	async getAlbums(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
@@ -211,7 +211,7 @@ export class LiveTransport implements Transport {
 		return this.buildItemImageUrl(logoItemId, 'Logo', logoTag);
 	}
 
-	async getArtistsPage(
+	async getArtists(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
@@ -257,7 +257,7 @@ export class LiveTransport implements Transport {
 		return mapJellyfinGenreToGenre(item, this.imageResolvers);
 	}
 
-	async getGenresPage(
+	async getGenres(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
@@ -292,7 +292,7 @@ export class LiveTransport implements Transport {
 		return mapJellyfinPlaylistToPlaylist(item, this.imageResolvers);
 	}
 
-	async getPlaylistsPage(
+	async getPlaylists(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
@@ -363,7 +363,7 @@ export class LiveTransport implements Transport {
 		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
-	async getShuffledLibraryTracksPage(
+	async getShuffledLibraryTracks(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track> }> {
@@ -463,7 +463,7 @@ export class LiveTransport implements Transport {
 		};
 	}
 
-	async getTracksByPlaylistPage(
+	async getTracksByPlaylist(
 		playlistId: string,
 		page: number,
 		pageSize: number,
@@ -489,7 +489,7 @@ export class LiveTransport implements Transport {
 		};
 	}
 
-	async getTracksByYearPage(
+	async getTracksByYear(
 		year: number,
 		page: number,
 		pageSize: number,

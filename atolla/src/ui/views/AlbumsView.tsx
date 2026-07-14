@@ -243,7 +243,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	private fetchPage(page: number): Promise<AlbumPageResult> {
-		return this.viewModel.transport.getAlbumsPage(page, gridPaginationConfig.pageSize, {
+		return this.viewModel.transport.getAlbums(page, gridPaginationConfig.pageSize, {
 			startsWith: this.viewModel.letterFilter ?? undefined,
 		});
 	}

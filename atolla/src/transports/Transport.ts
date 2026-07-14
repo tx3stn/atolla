@@ -8,29 +8,29 @@ import type { Track } from '../models/Track';
 export interface Transport {
 	addItemToPlaylist(playlistId: string, trackId: string): Promise<void>;
 	createPlaylist(name: string, trackId?: string): Promise<Playlist>;
-	getAlbumReleaseDatesPage(
+	getAlbumReleaseDates(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }>;
-	getAlbumsByArtist(artistId: string): Promise<Array<Album>>;
-	getAlbumsByIds(ids: Array<string>): Promise<Array<Album>>;
-	getAlbumsPage(
+	getAlbums(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
 	): Promise<{ hasMore: boolean; items: Array<Album> }>;
+	getAlbumsByArtist(artistId: string): Promise<Array<Album>>;
+	getAlbumsByIds(ids: Array<string>): Promise<Array<Album>>;
 	getArtist(artistId: string): Promise<Artist | null>;
 	getArtistLogoUrl(artistId: string): Promise<string | null>;
-	getArtistsPage(
+	getArtists(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
 	): Promise<{ hasMore: boolean; items: Array<Artist> }>;
 	getArtistTopTracks(artistId: string): Promise<Array<Track>>;
 	getGenre(genreId: string): Promise<Genre | null>;
-	getGenresPage(page: number, pageSize: number): Promise<{ hasMore: boolean; items: Array<Genre> }>;
+	getGenres(page: number, pageSize: number): Promise<{ hasMore: boolean; items: Array<Genre> }>;
 	getPlaylist(playlistId: string): Promise<Playlist | null>;
-	getPlaylistsPage(
+	getPlaylists(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
@@ -38,7 +38,7 @@ export interface Transport {
 	getRandomAlbum(): Promise<Album | null>;
 	getRandomMusicYears(limit: number): Promise<Array<number>>;
 	getRecentlyAddedAlbums(limit: number): Promise<Array<Album>>;
-	getShuffledLibraryTracksPage(
+	getShuffledLibraryTracks(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track> }>;
@@ -51,12 +51,12 @@ export interface Transport {
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }>;
-	getTracksByPlaylistPage(
+	getTracksByPlaylist(
 		playlistId: string,
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }>;
-	getTracksByYearPage(
+	getTracksByYear(
 		year: number,
 		page: number,
 		pageSize: number,

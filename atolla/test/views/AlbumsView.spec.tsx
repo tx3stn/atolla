@@ -54,7 +54,7 @@ describe('AlbumsView', () => {
 	valdiIt('loads first page only on create', async (driver) => {
 		const allAlbums = makeAlbums(70);
 		const transport = {
-			getAlbumsPage: (page: number, size: number) => {
+			getAlbums: (page: number, size: number) => {
 				const start = (page - 1) * size;
 				const end = start + size;
 				return Promise.resolve({
@@ -82,7 +82,7 @@ describe('AlbumsView', () => {
 	valdiIt('loads next page when prefetch trigger is laid out', async (driver) => {
 		const allAlbums = makeAlbums(80);
 		const transport = {
-			getAlbumsPage: (page: number, size: number) => {
+			getAlbums: (page: number, size: number) => {
 				const start = (page - 1) * size;
 				const end = start + size;
 				return Promise.resolve({
@@ -137,7 +137,7 @@ describe('AlbumsView', () => {
 		const allAlbums = makeAlbums(90);
 		let shouldFailThirdPage = true;
 		const transport = {
-			getAlbumsPage: (page: number, size: number) => {
+			getAlbums: (page: number, size: number) => {
 				if (page === 3 && shouldFailThirdPage) {
 					return Promise.reject(new Error('load more failed'));
 				}
@@ -201,7 +201,7 @@ describe('AlbumsView', () => {
 	valdiIt('requests a server-side prefix filter when a letter filter is active', async (driver) => {
 		const requestedStartsWith: Array<string | undefined> = [];
 		const transport = {
-			getAlbumsPage: (_page: number, _size: number, options?: { startsWith?: string }) => {
+			getAlbums: (_page: number, _size: number, options?: { startsWith?: string }) => {
 				requestedStartsWith.push(options?.startsWith);
 				return Promise.resolve({ hasMore: false, items: makeAlbums(3) });
 			},
@@ -229,7 +229,7 @@ describe('AlbumsView', () => {
 			{ artistId: 'artist-2', artistName: 'Artist Two', id: 'album-2', name: 'Second Album' },
 		];
 		const transport = {
-			getAlbumsPage: async () => ({ hasMore: false, items: albums }),
+			getAlbums: async () => ({ hasMore: false, items: albums }),
 		};
 
 		const viewModel = {
@@ -257,7 +257,7 @@ describe('AlbumsView', () => {
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
 		];
 		const transport = {
-			getAlbumsPage: async () => ({ hasMore: false, items: albums }),
+			getAlbums: async () => ({ hasMore: false, items: albums }),
 		};
 
 		const navigationController = makeNavigationController();
@@ -288,7 +288,7 @@ describe('AlbumsView', () => {
 			{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },
 		];
 		const transport = {
-			getAlbumsPage: async () => ({ hasMore: false, items: albums }),
+			getAlbums: async () => ({ hasMore: false, items: albums }),
 			getArtistLogoUrl: async () => null,
 		};
 
@@ -311,7 +311,7 @@ describe('AlbumsView', () => {
 		'shows the nothing-downloaded empty state when offline with no albums',
 		async (driver) => {
 			const transport = {
-				getAlbumsPage: async () => ({ hasMore: false, items: [] }),
+				getAlbums: async () => ({ hasMore: false, items: [] }),
 			};
 
 			const viewModel = {
@@ -340,7 +340,7 @@ describe('AlbumsView', () => {
 
 	valdiIt('hides the empty state when offline albums are present', async (driver) => {
 		const transport = {
-			getAlbumsPage: async () => ({
+			getAlbums: async () => ({
 				hasMore: false,
 				items: [
 					{ artistId: 'artist-1', artistName: 'Artist One', id: 'album-1', name: 'First Album' },

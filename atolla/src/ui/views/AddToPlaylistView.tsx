@@ -39,8 +39,7 @@ export class AddToPlaylistView extends StatefulComponent<
 	AddToPlaylistState
 > {
 	private readonly pagedGridController = createPagedGridController<Playlist>({
-		fetchPage: (page) =>
-			this.viewModel.transport.getPlaylistsPage(page, gridPaginationConfig.pageSize),
+		fetchPage: (page) => this.viewModel.transport.getPlaylists(page, gridPaginationConfig.pageSize),
 		isDestroyed: () => this.isDestroyed(),
 		setState: (patch) => {
 			this.setState({

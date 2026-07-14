@@ -94,7 +94,7 @@ export class MockTransport implements Transport {
 		return { id, name };
 	}
 
-	async getAlbumReleaseDatesPage(
+	async getAlbumReleaseDates(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }> {
@@ -120,7 +120,7 @@ export class MockTransport implements Transport {
 		return this.buildAllAlbums().filter((album) => wanted.has(album.id));
 	}
 
-	async getAlbumsPage(
+	async getAlbums(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
@@ -146,7 +146,7 @@ export class MockTransport implements Transport {
 		return mockArtistLogoUrls[artistId] ?? null;
 	}
 
-	async getArtistsPage(
+	async getArtists(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
@@ -173,7 +173,7 @@ export class MockTransport implements Transport {
 		return item ? mapJellyfinGenreToGenre(item, this.imageResolvers) : null;
 	}
 
-	async getGenresPage(
+	async getGenres(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
@@ -192,7 +192,7 @@ export class MockTransport implements Transport {
 		return item ? mapJellyfinPlaylistToPlaylist(item, this.imageResolvers) : null;
 	}
 
-	async getPlaylistsPage(
+	async getPlaylists(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
@@ -237,7 +237,7 @@ export class MockTransport implements Transport {
 			.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
-	async getShuffledLibraryTracksPage(
+	async getShuffledLibraryTracks(
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track> }> {
@@ -323,7 +323,7 @@ export class MockTransport implements Transport {
 		};
 	}
 
-	async getTracksByPlaylistPage(
+	async getTracksByPlaylist(
 		playlistId: string,
 		page: number,
 		pageSize: number,
@@ -338,7 +338,7 @@ export class MockTransport implements Transport {
 		};
 	}
 
-	async getTracksByYearPage(
+	async getTracksByYear(
 		year: number,
 		page: number,
 		pageSize: number,

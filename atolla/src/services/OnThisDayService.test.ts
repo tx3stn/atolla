@@ -54,7 +54,7 @@ function transportFromPages(
 		get discoverCalls() {
 			return state.discoverCalls;
 		},
-		getAlbumReleaseDatesPage: (page) => {
+		getAlbumReleaseDates: (page) => {
 			state.discoverCalls += 1;
 			return Promise.resolve(pages[page - 1] ?? { hasMore: false, items: [] });
 		},
@@ -126,7 +126,7 @@ describe('OnThisDayService.refresh', () => {
 		// service must not invoke an extracted reference unbound
 		class ClassTransport {
 			pageSize = DISCOVERY_PAGE_SIZE;
-			getAlbumReleaseDatesPage(page: number, _size: number) {
+			getAlbumReleaseDates(page: number, _size: number) {
 				void this.pageSize; // throws "Cannot read property 'pageSize' of undefined" if unbound
 				return Promise.resolve({
 					hasMore: false,
@@ -182,7 +182,7 @@ describe('OnThisDayService.refresh', () => {
 		const service = new OnThisDayService(store);
 
 		const emptyTransport: OnThisDayTransport = {
-			getAlbumReleaseDatesPage: () => Promise.resolve({ hasMore: false, items: [] }),
+			getAlbumReleaseDates: () => Promise.resolve({ hasMore: false, items: [] }),
 			getAlbumsByIds: () => Promise.resolve([]),
 		};
 		await service.refresh(emptyTransport, NOW);
@@ -196,7 +196,7 @@ describe('OnThisDayService.refresh', () => {
 		await service.refresh(singlePageTransport(), NOW); // seed a good cache
 
 		const failing: OnThisDayTransport = {
-			getAlbumReleaseDatesPage: () => Promise.reject(new Error('network down')),
+			getAlbumReleaseDates: () => Promise.reject(new Error('network down')),
 			getAlbumsByIds: () => Promise.reject(new Error('network down')),
 		};
 

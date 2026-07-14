@@ -45,7 +45,7 @@ describe('GenresView', () => {
 			{ id: 'genre-2', name: 'Jazz' },
 		];
 		const transport = {
-			getGenresPage: async () => ({ hasMore: false, items: genres }),
+			getGenres: async () => ({ hasMore: false, items: genres }),
 		};
 
 		const viewModel = {
@@ -72,7 +72,7 @@ describe('GenresView', () => {
 		'shows the nothing-downloaded empty state when offline with no genres',
 		async (driver) => {
 			const transport = {
-				getGenresPage: async () => ({ hasMore: false, items: [] }),
+				getGenres: async () => ({ hasMore: false, items: [] }),
 			};
 
 			const viewModel = {
@@ -101,7 +101,7 @@ describe('GenresView', () => {
 
 	valdiIt('hides the empty state when offline genres are present', async (driver) => {
 		const transport = {
-			getGenresPage: async () => ({ hasMore: false, items: [{ id: 'genre-1', name: 'Rock' }] }),
+			getGenres: async () => ({ hasMore: false, items: [{ id: 'genre-1', name: 'Rock' }] }),
 		};
 
 		const viewModel = {
