@@ -8,6 +8,7 @@ import type { Genre } from '../../models/Genre';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
+import { type FetchPage, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -37,6 +38,11 @@ export interface CardContextMenuViewModel {
 interface CardContextMenuState {
 	artistLogoUrl: string | null;
 }
+
+// large collections (genres, big playlists) stream their tracks into the queue a page at a time
+// rather than materializing everything up front: Play backfills as the queue drains, while
+// Play Next / Add to Queue take a single page
+const TRACK_PAGE_SIZE = 50;
 
 export class CardContextMenu extends StatefulComponent<
 	CardContextMenuViewModel,
@@ -78,6 +84,41 @@ export class CardContextMenu extends StatefulComponent<
 		}
 	}
 
+	// card kinds backed by a paginated endpoint stream their tracks lazily; album/artist have no
+	// paged endpoint (and are bounded), so they return null and fall back to the eager fetch
+	private pagedTrackSource(): FetchPage | null {
+		const { card, transport } = this.viewModel;
+		switch (card.kind) {
+			case 'genre': {
+				const genreId = card.genre.id;
+				return (page, pageSize) => transport.getTracksByGenrePage(genreId, page, pageSize);
+			}
+			case 'playlist': {
+				const playlistId = card.playlist.id;
+				return (page, pageSize) => transport.getTracksByPlaylistPage(playlistId, page, pageSize);
+			}
+			default:
+				return null;
+		}
+	}
+
+	// paged playback avoids materializing a large collection: play the first page and backfill the
+	// queue as it drains via a paged loader; with nothing more to load, no loader is registered
+	private startPagedPlayback(fetchPage: FetchPage): void {
+		const { playbackStore } = this.viewModel;
+		fetchPage(1, TRACK_PAGE_SIZE)
+			.then((result) => {
+				if (result.items.length === 0) return;
+				playbackStore.playTracks(result.items, 0);
+				if (result.hasMore) {
+					const loader = new ShuffleQueueLoader(playbackStore, fetchPage, TRACK_PAGE_SIZE);
+					loader.start(2, true);
+					playbackStore.setQueueFiller(loader);
+				}
+			})
+			.catch(() => {});
+	}
+
 	// menu is dismissed optimistically, so the fetch runs fire-and-forget: run action on a non-empty
 	// list and swallow rejections here rather than let them surface as unhandled promise rejections
 	private withFetchedTracks(action: (tracks: Array<Track>) => void): void {
@@ -89,26 +130,52 @@ export class CardContextMenu extends StatefulComponent<
 			.catch(() => {});
 	}
 
+	// Play Next / Add to Queue for a paged collection take a single bounded page, not the whole thing
+	private withPagedPage(fetchPage: FetchPage, action: (tracks: Array<Track>) => void): void {
+		fetchPage(1, TRACK_PAGE_SIZE)
+			.then(({ items }) => {
+				if (items.length === 0) return;
+				action(items);
+			})
+			.catch(() => {});
+	}
+
 	handlePlay = (): void => {
 		const { card, playbackStore } = this.viewModel;
-		this.withFetchedTracks((tracks) => {
-			if (card.kind === 'album') {
-				playbackStore.play(tracks, card.album);
-			} else {
-				playbackStore.playTracks(tracks);
-			}
-		});
+		const pagedSource = this.pagedTrackSource();
+		if (pagedSource) {
+			this.startPagedPlayback(pagedSource);
+		} else {
+			this.withFetchedTracks((tracks) => {
+				if (card.kind === 'album') {
+					playbackStore.play(tracks, card.album);
+				} else {
+					playbackStore.playTracks(tracks);
+				}
+			});
+		}
 		this.viewModel.onDismiss('');
 	};
 
 	handlePlayNext = (): void => {
 		const { playbackStore } = this.viewModel;
-		this.withFetchedTracks((tracks) => playbackStore.playNext(tracks));
+		const pagedSource = this.pagedTrackSource();
+		if (pagedSource) {
+			this.withPagedPage(pagedSource, (tracks) => playbackStore.playNext(tracks));
+		} else {
+			this.withFetchedTracks((tracks) => playbackStore.playNext(tracks));
+		}
 		this.viewModel.onDismiss(Strings.playingNextToast());
 	};
 
 	handleAddToQueue = (): void => {
-		this.withFetchedTracks((tracks) => this.viewModel.playbackStore.addToQueue(tracks));
+		const { playbackStore } = this.viewModel;
+		const pagedSource = this.pagedTrackSource();
+		if (pagedSource) {
+			this.withPagedPage(pagedSource, (tracks) => playbackStore.addToQueue(tracks));
+		} else {
+			this.withFetchedTracks((tracks) => playbackStore.addToQueue(tracks));
+		}
 		this.viewModel.onDismiss(Strings.addedToQueueToast());
 	};
 

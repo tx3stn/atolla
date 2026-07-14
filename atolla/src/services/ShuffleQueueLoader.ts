@@ -8,7 +8,7 @@ interface QueueState {
 	tracks: Array<Track>;
 }
 
-type FetchPage = (
+export type FetchPage = (
 	page: number,
 	pageSize: number,
 ) => Promise<{ hasMore: boolean; items: Array<Track> }>;

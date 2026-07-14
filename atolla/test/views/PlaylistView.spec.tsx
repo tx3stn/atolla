@@ -108,7 +108,11 @@ describe('PlaylistView', () => {
 			{ artistName: 'Artist Two', duration: 90, id: 'track-2', name: 'Song Two' },
 		];
 		const transport = {
-			getTracksByPlaylistPage: async () => ({ hasMore: false, items: tracks, totalCount: tracks.length }),
+			getTracksByPlaylistPage: async () => ({
+				hasMore: false,
+				items: tracks,
+				totalCount: tracks.length,
+			}),
 		};
 
 		const component = driver.renderComponent(
