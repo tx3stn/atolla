@@ -653,8 +653,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		const selected = selectQueueTracksForPlaylist(tracks, trackIndex, options);
 		const playlist = await createPlaylistAndAddTracks(
 			name,
-			transport.createPlaylist.bind(transport),
-			transport.addItemToPlaylist.bind(transport),
+			(playlistName) => transport.createPlaylist(playlistName),
+			(playlistId, trackId) => transport.addItemToPlaylist(playlistId, trackId),
 			selected,
 		);
 		closeSlot(this.viewModel.modalSlot);

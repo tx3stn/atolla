@@ -311,8 +311,8 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 		await createPlaylistAndAddTracks(
 			name,
-			this.viewModel.transport.createPlaylist.bind(this.viewModel.transport),
-			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
+			(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
+			(playlistId, trackId) => this.viewModel.transport.addItemToPlaylist(playlistId, trackId),
 			tracks,
 		);
 		this.pendingCreatePlaylistTracks = null;

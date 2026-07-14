@@ -81,7 +81,9 @@ export class AddToPlaylistView extends StatefulComponent<
 		const { tracks, transport, toastService, onDismiss } = this.viewModel;
 
 		this.setState({ isAddingToPlaylist: true });
-		void addTracksToPlaylist(card.id, tracks, transport.addItemToPlaylist.bind(transport))
+		void addTracksToPlaylist(card.id, tracks, (playlistId, trackId) =>
+			transport.addItemToPlaylist(playlistId, trackId),
+		)
 			.then(() => {
 				toastService.show(Strings.addedToPlaylist());
 				if (this.isDestroyed()) return;

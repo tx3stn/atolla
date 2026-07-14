@@ -165,9 +165,9 @@ export class OnThisDayService {
 			return summary;
 		}
 
-		// bind: these methods use `this`, so an unbound reference would throw
-		const discover = transport.getAlbumReleaseDates.bind(transport);
-		const hydrate = transport.getAlbumsByIds.bind(transport);
+		const discover = (page: number, pageSize: number) =>
+			transport.getAlbumReleaseDates(page, pageSize);
+		const hydrate = (ids: Array<string>) => transport.getAlbumsByIds(ids);
 
 		summary.ran = true;
 		try {

@@ -329,13 +329,12 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	};
 
 	private handleAlbumContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
-		const createPlaylistFn = this.viewModel.transport.createPlaylist.bind(this.viewModel.transport);
 		const tracks = this.pendingCreatePlaylistTracks;
-		if (!createPlaylistFn || !tracks) return;
+		if (!tracks) return;
 		const playlist = await createPlaylistAndAddTracks(
 			name,
-			createPlaylistFn,
-			this.viewModel.transport.addItemToPlaylist.bind(this.viewModel.transport),
+			(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
+			(playlistId, trackId) => this.viewModel.transport.addItemToPlaylist(playlistId, trackId),
 			tracks,
 		);
 		this.pendingCreatePlaylistTracks = null;
