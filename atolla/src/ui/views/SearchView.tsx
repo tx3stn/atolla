@@ -30,6 +30,7 @@ import type { Preferences } from '../../stores/Preferences';
 import type { SearchStore } from '../../stores/Search';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { CancelableController } from '../../utils/CancelableController';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
@@ -79,6 +80,7 @@ interface SearchState {
 export class SearchView extends StatefulComponent<SearchViewModel, SearchState> {
 	private cardContextMenuCard: CardContextMenuCard | null = null;
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
+	private playlistFlow = new CancelableController(() => this.isDestroyed());
 	private requestVersion = 0;
 	private recentSearchTapHandlers = new Map<string, () => void>();
 	private search?: CancelablePromise<SearchResults>;
@@ -103,6 +105,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	onCreate(): void {
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(() => this.cancelInFlightSearch());
+		this.registerDisposable(this.playlistFlow.cancel);
 
 		this.focusSearchInput();
 
@@ -594,16 +597,26 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private handleCardContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
 		const tracks = this.pendingCreatePlaylistTracks;
 		if (!tracks) return;
-		const playlist = await createPlaylistAndAddTracks(
-			name,
-			(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-			(playlistId, trackIds) => this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
-			tracks,
-			{ isCancelled: () => this.isDestroyed() },
-		);
-		this.pendingCreatePlaylistTracks = null;
-		this.closeModalSlot();
-		pushPlaylist(this.viewModel.navigationController, this.detailDeps(), playlist);
+		try {
+			const { alive, value: playlist } = await this.playlistFlow.run(
+				createPlaylistAndAddTracks(
+					name,
+					(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
+					(playlistId, trackIds) =>
+						this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
+					tracks,
+					{ isCancelled: () => this.isDestroyed() },
+				),
+			);
+			if (!alive) return;
+			this.pendingCreatePlaylistTracks = null;
+			this.closeModalSlot();
+			pushPlaylist(this.viewModel.navigationController, this.detailDeps(), playlist);
+		} catch {
+			if (this.isDestroyed()) return;
+			this.pendingCreatePlaylistTracks = null;
+			this.closeModalSlot();
+		}
 	};
 
 	private handleCardContextMenuCreatePlaylistRequest = (tracks: TrackSource): void => {

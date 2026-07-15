@@ -8,6 +8,7 @@ import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { CancelableController } from '../../utils/CancelableController';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { Modal } from '../components/Modal';
@@ -51,6 +52,7 @@ export class AddToPlaylistView extends StatefulComponent<
 			});
 		},
 	});
+	private addFlow = new CancelableController(() => this.isDestroyed());
 	private clearErrorMessage = (): void => {
 		this.setState({ errorMessage: null });
 	};
@@ -67,6 +69,7 @@ export class AddToPlaylistView extends StatefulComponent<
 
 	onCreate(): void {
 		this.registerDisposable(() => this.pagedGridController.dispose());
+		this.registerDisposable(this.addFlow.cancel);
 		void this.pagedGridController.loadNextPage();
 	}
 
@@ -74,36 +77,37 @@ export class AddToPlaylistView extends StatefulComponent<
 		void this.pagedGridController.loadNextPage();
 	};
 
-	handlePlaylistTap = (card: {
+	handlePlaylistTap = async (card: {
 		id: string;
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
-	}): void => {
+	}): Promise<void> => {
 		if (this.state.isAddingToPlaylist) return;
 		const { tracks, transport, toastService, onDismiss } = this.viewModel;
 
 		this.setState({ isAddingToPlaylist: true });
-		void addTracksToPlaylist(
-			card.id,
-			tracks,
-			(playlistId, trackIds) => transport.addItemsToPlaylist(playlistId, trackIds),
-			{ isCancelled: () => this.isDestroyed() },
-		)
-			.then(() => {
-				toastService.show(Strings.addedToPlaylist());
-				if (this.isDestroyed()) return;
-				onDismiss();
-			})
-			.catch((e: unknown) => {
-				if (this.isDestroyed()) return;
-				const message =
-					e != null &&
-					typeof e === 'object' &&
-					'message' in e &&
-					typeof (e as { message: unknown }).message === 'string'
-						? (e as { message: string }).message
-						: 'Unknown error';
-				this.setState({ errorMessage: message, isAddingToPlaylist: false });
-			});
+		try {
+			const { alive } = await this.addFlow.run(
+				addTracksToPlaylist(
+					card.id,
+					tracks,
+					(playlistId, trackIds) => transport.addItemsToPlaylist(playlistId, trackIds),
+					{ isCancelled: () => this.isDestroyed() },
+				),
+			);
+			if (!alive) return;
+			toastService.show(Strings.addedToPlaylist());
+			onDismiss();
+		} catch (e: unknown) {
+			if (this.isDestroyed()) return;
+			const message =
+				e != null &&
+				typeof e === 'object' &&
+				'message' in e &&
+				typeof (e as { message: unknown }).message === 'string'
+					? (e as { message: string }).message
+					: 'Unknown error';
+			this.setState({ errorMessage: message, isAddingToPlaylist: false });
+		}
 	};
 
 	onRender(): void {

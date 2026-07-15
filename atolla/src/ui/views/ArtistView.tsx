@@ -23,6 +23,7 @@ import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { retryResolve } from '../../utils/Async';
+import { CancelableController } from '../../utils/CancelableController';
 import { BioSection } from '../components/BioSection';
 import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
@@ -71,6 +72,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	private loadGeneration = 0;
 	private inFlightReads: Array<{ cancel?(): void }> = [];
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
+	private playlistFlow = new CancelableController(() => this.isDestroyed());
 	private contextMenuAlbumCard: { id: string; kind: Card['kind'] } | null = null;
 
 	state: ArtistState = {
@@ -106,6 +108,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(() => this.cancelInFlightReads());
+		this.registerDisposable(this.playlistFlow.cancel);
 		this.syncDownloadState();
 		this.loadArtistData();
 	}
@@ -342,16 +345,26 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	private handleAlbumContextMenuCreatePlaylistConfirm = async (name: string): Promise<void> => {
 		const tracks = this.pendingCreatePlaylistTracks;
 		if (!tracks) return;
-		const playlist = await createPlaylistAndAddTracks(
-			name,
-			(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-			(playlistId, trackIds) => this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
-			tracks,
-			{ isCancelled: () => this.isDestroyed() },
-		);
-		this.pendingCreatePlaylistTracks = null;
-		this.closeModalSlot();
-		pushPlaylist(this.navigationController, this.detailDeps(), playlist);
+		try {
+			const { alive, value: playlist } = await this.playlistFlow.run(
+				createPlaylistAndAddTracks(
+					name,
+					(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
+					(playlistId, trackIds) =>
+						this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
+					tracks,
+					{ isCancelled: () => this.isDestroyed() },
+				),
+			);
+			if (!alive) return;
+			this.pendingCreatePlaylistTracks = null;
+			this.closeModalSlot();
+			pushPlaylist(this.navigationController, this.detailDeps(), playlist);
+		} catch {
+			if (this.isDestroyed()) return;
+			this.pendingCreatePlaylistTracks = null;
+			this.closeModalSlot();
+		}
 	};
 
 	private handleAlbumContextMenuEntityTap = (): void => {

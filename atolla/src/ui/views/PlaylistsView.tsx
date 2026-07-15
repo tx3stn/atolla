@@ -18,6 +18,7 @@ import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { CancelableController } from '../../utils/CancelableController';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
@@ -67,6 +68,7 @@ interface PlaylistPageResult {
 
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
+	private playlistFlow = new CancelableController(() => this.isDestroyed());
 
 	state: PlaylistsState = {
 		addToPlaylistTracks: null,
@@ -83,6 +85,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	onCreate(): void {
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(() => this.pagedGridController.dispose());
+		this.registerDisposable(this.playlistFlow.cancel);
 		void this.loadInitialPages();
 	}
 
@@ -252,13 +255,21 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			return;
 		}
 
-		await createPlaylistAndAddTracks(
-			name,
-			(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-			(playlistId, trackIds) => this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
-			tracks,
-			{ isCancelled: () => this.isDestroyed() },
-		);
+		try {
+			const { alive } = await this.playlistFlow.run(
+				createPlaylistAndAddTracks(
+					name,
+					(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
+					(playlistId, trackIds) =>
+						this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
+					tracks,
+					{ isCancelled: () => this.isDestroyed() },
+				),
+			);
+			if (!alive) return;
+		} catch {
+			if (this.isDestroyed()) return;
+		}
 		this.pendingCreatePlaylistTracks = null;
 		this.setState({ createPlaylistTracks: null });
 	};

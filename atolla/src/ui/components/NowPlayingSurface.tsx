@@ -21,6 +21,7 @@ import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playb
 import { MAX_VISIBLE_QUEUE_TRACKS } from '../../stores/Queue';
 import { paletteDefaults, theme, withAlpha } from '../../theme';
 import type { Transport } from '../../transports/Transport';
+import { CancelableController } from '../../utils/CancelableController';
 import { createPlaylistAndAddTracks, selectQueueTracksForPlaylist } from '../flows/CreatePlaylist';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
@@ -101,6 +102,7 @@ export class NowPlayingSurface extends StatefulComponent<
 	private transitionTarget: 'expanded' | 'collapsed' | null = null;
 	private isQueueSliding = false;
 	private hasRendered = false;
+	private playlistFlow = new CancelableController(() => this.isDestroyed());
 	private unsubscribeProgress?: () => void;
 
 	// most recent non-empty palette, held while the next track's is still extracting
@@ -333,6 +335,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			this.applyCollapsedBarColors();
 		}
 		this.unsubscribeProgress?.();
+		this.playlistFlow.cancel();
 	}
 
 	private rebuildPaletteStyles(palette: Palette | undefined, activeTab: QueueTab): void {
@@ -652,16 +655,24 @@ export class NowPlayingSurface extends StatefulComponent<
 	): Promise<void> => {
 		const { tracks, trackIndex, transport } = this.viewModel;
 		const selected = selectQueueTracksForPlaylist(tracks, trackIndex, options);
-		const playlist = await createPlaylistAndAddTracks(
-			name,
-			(playlistName) => transport.createPlaylist(playlistName),
-			(playlistId, trackIds) => transport.addItemsToPlaylist(playlistId, trackIds),
-			pagedFromArray(selected),
-			{ isCancelled: () => this.isDestroyed() },
-		);
-		closeSlot(this.viewModel.modalSlot);
-		await this.closeSurface();
-		this.viewModel.onOpenPlaylist?.(playlist);
+		try {
+			const { alive, value: playlist } = await this.playlistFlow.run(
+				createPlaylistAndAddTracks(
+					name,
+					(playlistName) => transport.createPlaylist(playlistName),
+					(playlistId, trackIds) => transport.addItemsToPlaylist(playlistId, trackIds),
+					pagedFromArray(selected),
+					{ isCancelled: () => this.isDestroyed() },
+				),
+			);
+			if (!alive) return;
+			closeSlot(this.viewModel.modalSlot);
+			await this.closeSurface();
+			this.viewModel.onOpenPlaylist?.(playlist);
+		} catch {
+			if (this.isDestroyed()) return;
+			closeSlot(this.viewModel.modalSlot);
+		}
 	};
 
 	private handleNext = (): void => {

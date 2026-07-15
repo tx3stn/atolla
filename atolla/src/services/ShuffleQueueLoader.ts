@@ -1,6 +1,7 @@
+import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { Track } from '../models/Track';
 import { MAX_VISIBLE_QUEUE_TRACKS } from '../stores/Queue';
-import type { TrackSource } from './TrackSource';
+import type { TrackPage, TrackSource } from './TrackSource';
 
 interface QueueState {
 	addToQueue(tracks: Array<Track>): void;
@@ -25,6 +26,7 @@ export class ShuffleQueueLoader {
 	private isFetching = false;
 	private nextPage = 2;
 	private hasMore = true;
+	private currentFetch: CancelablePromise<TrackPage> | null = null;
 	private unsubscribe: (() => void) | null = null;
 	private readonly seenIds = new Set<string>();
 	private readonly recentOrder: Array<string> = [];
@@ -44,6 +46,8 @@ export class ShuffleQueueLoader {
 		// subscription, and invalidates any in-flight fetch
 		this.unsubscribe?.();
 		this.generation += 1;
+		this.currentFetch?.cancel?.();
+		this.currentFetch = null;
 		this.isFetching = false;
 		this.emptyPageRetries = 0;
 		this.seenIds.clear();
@@ -60,6 +64,8 @@ export class ShuffleQueueLoader {
 
 	dispose(): void {
 		this.generation++;
+		this.currentFetch?.cancel?.();
+		this.currentFetch = null;
 		this.unsubscribe?.();
 		this.unsubscribe = null;
 	}
@@ -99,11 +105,14 @@ export class ShuffleQueueLoader {
 		const generation = this.generation;
 		const page = this.nextPage;
 
-		this.fetchPage(page, this.pageSize)
-			.then(({ hasMore, items }) => {
+		const fetch = this.fetchPage(page, this.pageSize);
+		this.currentFetch = fetch;
+		fetch.then(
+			({ hasMore, items }) => {
 				if (generation !== this.generation) {
 					return;
 				}
+				this.currentFetch = null;
 				this.nextPage = page + 1;
 				this.hasMore = hasMore;
 				this.isFetching = false;
@@ -126,12 +135,14 @@ export class ShuffleQueueLoader {
 					this.emptyPageRetries += 1;
 					this.onStoreChange();
 				}
-			})
-			.catch(() => {
+			},
+			() => {
 				if (generation !== this.generation) {
 					return;
 				}
+				this.currentFetch = null;
 				this.isFetching = false;
-			});
+			},
+		);
 	}
 }

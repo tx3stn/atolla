@@ -56,13 +56,14 @@ export class CardContextMenu extends StatefulComponent<
 	onCreate(): void {
 		const { card } = this.viewModel;
 		if (card.kind === 'album') {
-			Promise.resolve(this.viewModel.transport.getArtistLogoUrl(card.album.artistId))
-				.then((artistLogoUrl) => {
+			this.viewModel.transport.getArtistLogoUrl(card.album.artistId).then(
+				(artistLogoUrl) => {
 					if (!this.isDestroyed()) {
 						this.setState({ artistLogoUrl });
 					}
-				})
-				.catch(() => {});
+				},
+				() => {},
+			);
 		} else if (card.kind === 'artist' && card.artist.logoUrl) {
 			this.setState({ artistLogoUrl: card.artist.logoUrl });
 		}
@@ -72,8 +73,8 @@ export class CardContextMenu extends StatefulComponent<
 	// queue as it drains via a paged loader; with nothing more to load, no loader is registered
 	private startPagedPlayback(tracks: TrackSource): void {
 		const { playbackStore } = this.viewModel;
-		tracks(1, TRACK_PAGE_SIZE)
-			.then((result) => {
+		tracks(1, TRACK_PAGE_SIZE).then(
+			(result) => {
 				if (result.items.length === 0) return;
 				playbackStore.playTracks(result.items, 0);
 				if (result.hasMore) {
@@ -81,8 +82,9 @@ export class CardContextMenu extends StatefulComponent<
 					loader.start(2, true);
 					playbackStore.setQueueFiller(loader);
 				}
-			})
-			.catch(() => {});
+			},
+			() => {},
+		);
 	}
 
 	// the paged tracks for this card, shared by playback and add-to-playlist: genre/playlist page
@@ -91,36 +93,31 @@ export class CardContextMenu extends StatefulComponent<
 		const { card } = this.viewModel;
 		switch (card.kind) {
 			case 'album': {
-				return singlePage(() =>
-					Promise.resolve(this.viewModel.transport.getTracksByAlbum(card.album.id)),
-				);
+				return singlePage(() => this.viewModel.transport.getTracksByAlbum(card.album.id));
 			}
 			case 'artist': {
-				return singlePage(() =>
-					Promise.resolve(this.viewModel.transport.getTracksByArtist(card.artist.id)),
-				);
+				return singlePage(() => this.viewModel.transport.getTracksByArtist(card.artist.id));
 			}
 			case 'genre': {
 				return (page, pageSize) =>
-					Promise.resolve(this.viewModel.transport.getTracksByGenre(card.genre.id, page, pageSize));
+					this.viewModel.transport.getTracksByGenre(card.genre.id, page, pageSize);
 			}
 			case 'playlist': {
 				return (page, pageSize) =>
-					Promise.resolve(
-						this.viewModel.transport.getTracksByPlaylist(card.playlist.id, page, pageSize),
-					);
+					this.viewModel.transport.getTracksByPlaylist(card.playlist.id, page, pageSize);
 			}
 		}
 	}
 
 	// Play Next / Add to Queue take a single bounded page rather than the whole collection
 	private withPagedPage(tracks: TrackSource, action: (tracks: Array<Track>) => void): void {
-		tracks(1, TRACK_PAGE_SIZE)
-			.then(({ items }) => {
+		tracks(1, TRACK_PAGE_SIZE).then(
+			({ items }) => {
 				if (items.length === 0) return;
 				action(items);
-			})
-			.catch(() => {});
+			},
+			() => {},
+		);
 	}
 
 	handlePlay = (): void => {
@@ -129,11 +126,12 @@ export class CardContextMenu extends StatefulComponent<
 		if (card.kind === 'album') {
 			// album keeps its now-playing album context and is bounded (a single page)
 			const album = card.album;
-			tracks(1, TRACK_PAGE_SIZE)
-				.then(({ items }) => {
+			tracks(1, TRACK_PAGE_SIZE).then(
+				({ items }) => {
 					if (items.length > 0) playbackStore.play(items, album);
-				})
-				.catch(() => {});
+				},
+				() => {},
+			);
 		} else {
 			this.startPagedPlayback(tracks);
 		}
