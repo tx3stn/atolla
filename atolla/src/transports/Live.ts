@@ -1,3 +1,4 @@
+import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { Album } from '../models/Album';
@@ -18,6 +19,7 @@ import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 import { AuthErrors } from '../services/AuthErrors';
 import { version } from '../version';
+import { cancelable, tracked } from './Cancelable';
 import { TransportErrors } from './Errors';
 import {
 	type JellyfinImageResolvers,
@@ -105,282 +107,346 @@ export class LiveTransport implements Transport {
 		return { id: result.Id, name };
 	}
 
-	async getAlbumReleaseDates(
+	getAlbumReleaseDates(
 		page: number,
 		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
-			enableImages: false,
-			enableUserData: false,
-			// Minimal projection for the On This Day discovery sweep: an empty
-			// `fields` is dropped by buildPath, so the server returns only the base
-			// item DTO (id + PremiereDate) with no heavy Overview/Genres payload.
-			fields: '',
-			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-			limit: Math.max(1, pageSize),
-			recursive: true,
-			sortBy: 'PremiereDate',
-			sortOrder: 'Descending',
-			startIndex,
-		});
-
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => ({ id: item.Id, releaseDate: item.PremiereDate })),
-		};
-	}
-
-	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
-		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
-			albumArtistIds: artistId,
-			fields: 'Overview,Genres',
-			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-			limit: defaultSearchLimit,
-			recursive: true,
-			sortBy: 'PremiereDate,SortName',
-			sortOrder: 'Descending,Ascending',
-			startIndex: 0,
-		});
-
-		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
-	}
-
-	async getAlbumsByIds(ids: Array<string>): Promise<Array<Album>> {
-		const cleaned = ids.filter((id) => id.length > 0);
-		if (cleaned.length === 0) {
-			return [];
-		}
-
-		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
-			fields: 'Overview,Genres',
-			ids: cleaned.join(','),
-			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-			limit: cleaned.length,
-			recursive: true,
-			startIndex: 0,
-		});
-
-		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
-	}
-
-	async getAlbums(
-		page: number,
-		pageSize: number,
-		options?: { startsWith?: string },
-	): Promise<AlbumsPageResult> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
-			fields: 'Overview,Genres',
-			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-			limit: Math.max(1, pageSize),
-			recursive: true,
-			sortBy: 'PremiereDate,SortName',
-			sortOrder: 'Descending,Ascending',
-			startIndex,
-			...nameFilterParams(options?.startsWith),
-		});
-
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers)),
-		};
-	}
-
-	async getArtist(artistId: string): Promise<Artist | null> {
-		const item = await this.getItem<JellyfinArtistItem>(artistId);
-		if (!item || item.Type !== JellyfinMusicItemTypes.MusicArtist) {
-			return null;
-		}
-
-		return mapJellyfinArtistToArtist(item, this.imageResolvers);
-	}
-
-	async getArtistLogoUrl(artistId: string): Promise<string | null> {
-		const item = await this.getItem<JellyfinArtistItem>(artistId);
-		if (!item || item.Type !== JellyfinMusicItemTypes.MusicArtist) {
-			return null;
-		}
-
-		const logoTag = item.ParentLogoImageTag ?? item.ImageTags?.Logo;
-		if (!logoTag) {
-			return null;
-		}
-
-		const logoItemId = item.ParentLogoItemId ?? item.Id;
-		return this.buildItemImageUrl(logoItemId, 'Logo', logoTag);
-	}
-
-	async getArtists(
-		page: number,
-		pageSize: number,
-		options?: { startsWith?: string },
-	): Promise<{ hasMore: boolean; items: Array<Artist> }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.fetchItemsPage<JellyfinArtistItem>({
-			includeItemTypes: JellyfinMusicItemTypes.MusicArtist,
-			limit: Math.max(1, pageSize),
-			recursive: true,
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
-			startIndex,
-			...nameFilterParams(options?.startsWith),
-		});
-
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers)),
-		};
-	}
-
-	async getArtistTopTracks(artistId: string): Promise<Array<Track>> {
-		const list = await this.fetchItemsPage<JellyfinTrackItem>({
-			artistIds: artistId,
-			fields: 'Overview,MediaSources',
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			limit: 5,
-			recursive: true,
-			sortBy: 'PlayCount,SortName',
-			sortOrder: 'Descending,Ascending',
-			startIndex: 0,
-		});
-
-		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
-	}
-
-	async getGenre(genreId: string): Promise<Genre | null> {
-		const item = await this.getItem<JellyfinGenreItem>(genreId);
-		if (!item || item.Type !== JellyfinMusicItemTypes.MusicGenre) {
-			return null;
-		}
-
-		return mapJellyfinGenreToGenre(item, this.imageResolvers);
-	}
-
-	async getGenres(
-		page: number,
-		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.requestJson<JellyfinListEnvelope<JellyfinGenreItem>>(
-			'GET',
-			'/MusicGenres',
-			{
-				query: {
-					fields: 'Overview',
+	): CancelablePromise<{ hasMore: boolean; items: Array<{ id: string; releaseDate?: string }> }> {
+		return cancelable(async (canceler) => {
+			const startIndex = Math.max(0, page - 1) * pageSize;
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinAlbumItem>({
+					enableImages: false,
+					enableUserData: false,
+					// Minimal projection for the On This Day discovery sweep: an empty
+					// `fields` is dropped by buildPath, so the server returns only the base
+					// item DTO (id + PremiereDate) with no heavy Overview/Genres payload.
+					fields: '',
+					includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 					limit: Math.max(1, pageSize),
+					recursive: true,
+					sortBy: 'PremiereDate',
+					sortOrder: 'Descending',
+					startIndex,
+				}),
+			);
+
+			return {
+				hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+				items: list.Items.map((item) => ({ id: item.Id, releaseDate: item.PremiereDate })),
+			};
+		});
+	}
+
+	getAlbumsByArtist(artistId: string): CancelablePromise<Array<Album>> {
+		return cancelable(async (canceler) => {
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinAlbumItem>({
+					albumArtistIds: artistId,
+					fields: 'Overview,Genres',
+					includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+					limit: defaultSearchLimit,
+					recursive: true,
+					sortBy: 'PremiereDate,SortName',
+					sortOrder: 'Descending,Ascending',
+					startIndex: 0,
+				}),
+			);
+
+			return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+		});
+	}
+
+	getAlbumsByIds(ids: Array<string>): CancelablePromise<Array<Album>> {
+		return cancelable(async (canceler) => {
+			const cleaned = ids.filter((id) => id.length > 0);
+			if (cleaned.length === 0) {
+				return [];
+			}
+
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinAlbumItem>({
+					fields: 'Overview,Genres',
+					ids: cleaned.join(','),
+					includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+					limit: cleaned.length,
+					recursive: true,
+					startIndex: 0,
+				}),
+			);
+
+			return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+		});
+	}
+
+	getAlbums(
+		page: number,
+		pageSize: number,
+		options?: { startsWith?: string },
+	): CancelablePromise<AlbumsPageResult> {
+		return cancelable(async (canceler) => {
+			const startIndex = Math.max(0, page - 1) * pageSize;
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinAlbumItem>({
+					fields: 'Overview,Genres',
+					includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+					limit: Math.max(1, pageSize),
+					recursive: true,
+					sortBy: 'PremiereDate,SortName',
+					sortOrder: 'Descending,Ascending',
+					startIndex,
+					...nameFilterParams(options?.startsWith),
+				}),
+			);
+
+			return {
+				hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+				items: list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers)),
+			};
+		});
+	}
+
+	getArtist(artistId: string): CancelablePromise<Artist | null> {
+		return cancelable(async (canceler) => {
+			const item = await tracked(canceler, this.getItem<JellyfinArtistItem>(artistId));
+			if (!item || item.Type !== JellyfinMusicItemTypes.MusicArtist) {
+				return null;
+			}
+
+			return mapJellyfinArtistToArtist(item, this.imageResolvers);
+		});
+	}
+
+	getArtistLogoUrl(artistId: string): CancelablePromise<string | null> {
+		return cancelable(async (canceler) => {
+			const item = await tracked(canceler, this.getItem<JellyfinArtistItem>(artistId));
+			if (!item || item.Type !== JellyfinMusicItemTypes.MusicArtist) {
+				return null;
+			}
+
+			const logoTag = item.ParentLogoImageTag ?? item.ImageTags?.Logo;
+			if (!logoTag) {
+				return null;
+			}
+
+			const logoItemId = item.ParentLogoItemId ?? item.Id;
+			return this.buildItemImageUrl(logoItemId, 'Logo', logoTag);
+		});
+	}
+
+	getArtists(
+		page: number,
+		pageSize: number,
+		options?: { startsWith?: string },
+	): CancelablePromise<{ hasMore: boolean; items: Array<Artist> }> {
+		return cancelable(async (canceler) => {
+			const startIndex = Math.max(0, page - 1) * pageSize;
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinArtistItem>({
+					includeItemTypes: JellyfinMusicItemTypes.MusicArtist,
+					limit: Math.max(1, pageSize),
+					recursive: true,
 					sortBy: 'SortName',
 					sortOrder: 'Ascending',
 					startIndex,
-					userId: this.userId,
-				},
-			},
-		);
+					...nameFilterParams(options?.startsWith),
+				}),
+			);
 
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinGenreToGenre(item, this.imageResolvers)),
-		};
+			return {
+				hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+				items: list.Items.map((item) => mapJellyfinArtistToArtist(item, this.imageResolvers)),
+			};
+		});
 	}
 
-	async getPlaylist(playlistId: string): Promise<Playlist | null> {
-		const item = await this.getItem<JellyfinPlaylistItem>(playlistId);
-		if (!item || item.Type !== JellyfinMusicItemTypes.Playlist) {
-			return null;
-		}
+	getArtistTopTracks(artistId: string): CancelablePromise<Array<Track>> {
+		return cancelable(async (canceler) => {
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinTrackItem>({
+					artistIds: artistId,
+					fields: 'Overview,MediaSources',
+					includeItemTypes: JellyfinMusicItemTypes.Audio,
+					limit: 5,
+					recursive: true,
+					sortBy: 'PlayCount,SortName',
+					sortOrder: 'Descending,Ascending',
+					startIndex: 0,
+				}),
+			);
 
-		return mapJellyfinPlaylistToPlaylist(item, this.imageResolvers);
+			return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+		});
 	}
 
-	async getPlaylists(
+	getGenre(genreId: string): CancelablePromise<Genre | null> {
+		return cancelable(async (canceler) => {
+			const item = await tracked(canceler, this.getItem<JellyfinGenreItem>(genreId));
+			if (!item || item.Type !== JellyfinMusicItemTypes.MusicGenre) {
+				return null;
+			}
+
+			return mapJellyfinGenreToGenre(item, this.imageResolvers);
+		});
+	}
+
+	getGenres(
+		page: number,
+		pageSize: number,
+	): CancelablePromise<{ hasMore: boolean; items: Array<Genre> }> {
+		return cancelable(async (canceler) => {
+			const startIndex = Math.max(0, page - 1) * pageSize;
+			const list = await tracked(
+				canceler,
+				this.requestJson<JellyfinListEnvelope<JellyfinGenreItem>>('GET', '/MusicGenres', {
+					query: {
+						fields: 'Overview',
+						limit: Math.max(1, pageSize),
+						sortBy: 'SortName',
+						sortOrder: 'Ascending',
+						startIndex,
+						userId: this.userId,
+					},
+				}),
+			);
+
+			return {
+				hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+				items: list.Items.map((item) => mapJellyfinGenreToGenre(item, this.imageResolvers)),
+			};
+		});
+	}
+
+	getPlaylist(playlistId: string): CancelablePromise<Playlist | null> {
+		return cancelable(async (canceler) => {
+			const item = await tracked(canceler, this.getItem<JellyfinPlaylistItem>(playlistId));
+			if (!item || item.Type !== JellyfinMusicItemTypes.Playlist) {
+				return null;
+			}
+
+			return mapJellyfinPlaylistToPlaylist(item, this.imageResolvers);
+		});
+	}
+
+	getPlaylists(
 		page: number,
 		pageSize: number,
 		options?: { startsWith?: string },
-	): Promise<{ hasMore: boolean; items: Array<Playlist> }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.fetchItemsPage<JellyfinPlaylistItem>({
-			includeItemTypes: JellyfinMusicItemTypes.Playlist,
-			limit: Math.max(1, pageSize),
-			recursive: true,
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
-			startIndex,
-			...nameFilterParams(options?.startsWith),
-		});
+	): CancelablePromise<{ hasMore: boolean; items: Array<Playlist> }> {
+		return cancelable(async (canceler) => {
+			const startIndex = Math.max(0, page - 1) * pageSize;
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinPlaylistItem>({
+					includeItemTypes: JellyfinMusicItemTypes.Playlist,
+					limit: Math.max(1, pageSize),
+					recursive: true,
+					sortBy: 'SortName',
+					sortOrder: 'Ascending',
+					startIndex,
+					...nameFilterParams(options?.startsWith),
+				}),
+			);
 
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers)),
-		};
+			return {
+				hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+				items: list.Items.map((item) => mapJellyfinPlaylistToPlaylist(item, this.imageResolvers)),
+			};
+		});
 	}
 
-	async getRandomAlbum(): Promise<Album | null> {
-		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
-			fields: 'Overview,Genres',
-			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-			limit: 1,
-			recursive: true,
-			sortBy: 'Random',
-			startIndex: 0,
-		});
+	getRandomAlbum(): CancelablePromise<Album | null> {
+		return cancelable(async (canceler) => {
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinAlbumItem>({
+					fields: 'Overview,Genres',
+					includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+					limit: 1,
+					recursive: true,
+					sortBy: 'Random',
+					startIndex: 0,
+				}),
+			);
 
-		const item = list.Items[0];
-		return item ? mapJellyfinAlbumToAlbum(item, this.imageResolvers) : null;
+			const item = list.Items[0];
+			return item ? mapJellyfinAlbumToAlbum(item, this.imageResolvers) : null;
+		});
 	}
 
-	async getRandomMusicYears(limit: number): Promise<Array<number>> {
-		const years = await this.requestJson<JellyfinListEnvelope<JellyfinYearItem>>('GET', '/Years', {
-			query: {
-				includeItemTypes: JellyfinMusicItemTypes.Audio,
-				limit: Math.max(1, limit),
-				mediaTypes: 'Audio',
-				recursive: true,
-				sortBy: 'Random',
-				userId: this.userId,
-			},
-		});
+	getRandomMusicYears(limit: number): CancelablePromise<Array<number>> {
+		return cancelable(async (canceler) => {
+			const years = await tracked(
+				canceler,
+				this.requestJson<JellyfinListEnvelope<JellyfinYearItem>>('GET', '/Years', {
+					query: {
+						includeItemTypes: JellyfinMusicItemTypes.Audio,
+						limit: Math.max(1, limit),
+						mediaTypes: 'Audio',
+						recursive: true,
+						sortBy: 'Random',
+						userId: this.userId,
+					},
+				}),
+			);
 
-		const result: Array<number> = [];
-		for (const item of years.Items ?? []) {
-			const year = item.ProductionYear ?? Number.parseInt(item.Name ?? '', 10);
-			if (year && !Number.isNaN(year)) {
-				result.push(year);
+			const result: Array<number> = [];
+			for (const item of years.Items ?? []) {
+				const year = item.ProductionYear ?? Number.parseInt(item.Name ?? '', 10);
+				if (year && !Number.isNaN(year)) {
+					result.push(year);
+				}
 			}
-		}
-		return result;
-	}
-
-	async getRecentlyAddedAlbums(limit: number): Promise<Array<Album>> {
-		const list = await this.fetchItemsPage<JellyfinAlbumItem>({
-			fields: 'DateCreated,Genres,Overview',
-			includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-			limit: Math.max(1, limit),
-			recursive: true,
-			sortBy: 'DateCreated',
-			sortOrder: 'Descending',
-			startIndex: 0,
+			return result;
 		});
-		return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
 	}
 
-	async getShuffledLibraryTracks(
+	getRecentlyAddedAlbums(limit: number): CancelablePromise<Array<Album>> {
+		return cancelable(async (canceler) => {
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinAlbumItem>({
+					fields: 'DateCreated,Genres,Overview',
+					includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+					limit: Math.max(1, limit),
+					recursive: true,
+					sortBy: 'DateCreated',
+					sortOrder: 'Descending',
+					startIndex: 0,
+				}),
+			);
+			return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+		});
+	}
+
+	getShuffledLibraryTracks(
 		page: number,
 		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Track> }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.fetchItemsPage<JellyfinTrackItem>({
-			fields: 'MediaSources',
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			limit: Math.max(1, pageSize),
-			recursive: true,
-			sortBy: 'Random',
-			startIndex,
-		});
+	): CancelablePromise<{ hasMore: boolean; items: Array<Track> }> {
+		return cancelable(async (canceler) => {
+			const startIndex = Math.max(0, page - 1) * pageSize;
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinTrackItem>({
+					fields: 'MediaSources',
+					includeItemTypes: JellyfinMusicItemTypes.Audio,
+					limit: Math.max(1, pageSize),
+					recursive: true,
+					sortBy: 'Random',
+					startIndex,
+				}),
+			);
 
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
-		};
+			return {
+				hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+				items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
+			};
+		});
 	}
 
 	getTrackCacheUrl(trackId: string): string | null {
@@ -396,106 +462,131 @@ export class LiveTransport implements Transport {
 		return `${this.baseUrl}${path}`;
 	}
 
-	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
-		const list = await this.fetchItemsPage<JellyfinTrackItem>({
-			fields: 'Overview,MediaSources',
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			limit: 500,
-			parentId: albumId,
-			recursive: true,
-			sortBy: 'IndexNumber,SortName',
-			sortOrder: 'Ascending,Ascending',
-			startIndex: 0,
-		});
+	getTracksByAlbum(albumId: string): CancelablePromise<Array<Track>> {
+		return cancelable(async (canceler) => {
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinTrackItem>({
+					fields: 'Overview,MediaSources',
+					includeItemTypes: JellyfinMusicItemTypes.Audio,
+					limit: 500,
+					parentId: albumId,
+					recursive: true,
+					sortBy: 'IndexNumber,SortName',
+					sortOrder: 'Ascending,Ascending',
+					startIndex: 0,
+				}),
+			);
 
-		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+			return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+		});
 	}
 
-	async getTracksByArtist(artistId: string): Promise<Array<Track>> {
-		const list = await this.fetchItemsPage<JellyfinTrackItem>({
-			artistIds: artistId,
-			fields: 'Overview,MediaSources',
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			limit: 500,
-			recursive: true,
-			sortBy: 'PremiereDate,SortName',
-			sortOrder: 'Descending,Ascending',
-			startIndex: 0,
-		});
+	getTracksByArtist(artistId: string): CancelablePromise<Array<Track>> {
+		return cancelable(async (canceler) => {
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinTrackItem>({
+					artistIds: artistId,
+					fields: 'Overview,MediaSources',
+					includeItemTypes: JellyfinMusicItemTypes.Audio,
+					limit: 500,
+					recursive: true,
+					sortBy: 'PremiereDate,SortName',
+					sortOrder: 'Descending,Ascending',
+					startIndex: 0,
+				}),
+			);
 
-		return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+			return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+		});
 	}
 
-	async getTracksByGenre(
+	getTracksByGenre(
 		genreId: string,
 		page: number,
 		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.fetchItemsPage<JellyfinTrackItem>({
-			fields: 'Overview,MediaSources',
-			genreIds: genreId,
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			limit: Math.max(1, pageSize),
-			recursive: true,
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
-			startIndex,
-		});
+	): CancelablePromise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
+		return cancelable(async (canceler) => {
+			const startIndex = Math.max(0, page - 1) * pageSize;
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinTrackItem>({
+					fields: 'Overview,MediaSources',
+					genreIds: genreId,
+					includeItemTypes: JellyfinMusicItemTypes.Audio,
+					limit: Math.max(1, pageSize),
+					recursive: true,
+					sortBy: 'SortName',
+					sortOrder: 'Ascending',
+					startIndex,
+				}),
+			);
 
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
-			totalCount: list.TotalRecordCount,
-		};
+			return {
+				hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+				items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
+				totalCount: list.TotalRecordCount,
+			};
+		});
 	}
 
-	async getTracksByPlaylist(
+	getTracksByPlaylist(
 		playlistId: string,
 		page: number,
 		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
-			'GET',
-			`/Playlists/${encodeURIComponent(playlistId)}/Items`,
-			{
-				query: {
-					fields: 'Overview,Genres,MediaSources',
-					limit: Math.max(1, pageSize),
-					startIndex,
-					userId: this.userId,
-				},
-			},
-		);
+	): CancelablePromise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
+		return cancelable(async (canceler) => {
+			const startIndex = Math.max(0, page - 1) * pageSize;
+			const list = await tracked(
+				canceler,
+				this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
+					'GET',
+					`/Playlists/${encodeURIComponent(playlistId)}/Items`,
+					{
+						query: {
+							fields: 'Overview,Genres,MediaSources',
+							limit: Math.max(1, pageSize),
+							startIndex,
+							userId: this.userId,
+						},
+					},
+				),
+			);
 
-		return {
-			hasMore: startIndex + (list.Items ?? []).length < list.TotalRecordCount,
-			items: (list.Items ?? []).map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
-			totalCount: list.TotalRecordCount,
-		};
+			return {
+				hasMore: startIndex + (list.Items ?? []).length < list.TotalRecordCount,
+				items: (list.Items ?? []).map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
+				totalCount: list.TotalRecordCount,
+			};
+		});
 	}
 
-	async getTracksByYear(
+	getTracksByYear(
 		year: number,
 		page: number,
 		pageSize: number,
-	): Promise<{ hasMore: boolean; items: Array<Track> }> {
-		const startIndex = Math.max(0, page - 1) * pageSize;
-		const list = await this.fetchItemsPage<JellyfinTrackItem>({
-			fields: 'MediaSources',
-			includeItemTypes: JellyfinMusicItemTypes.Audio,
-			limit: Math.max(1, pageSize),
-			recursive: true,
-			sortBy: 'Random',
-			startIndex,
-			years: year,
-		});
+	): CancelablePromise<{ hasMore: boolean; items: Array<Track> }> {
+		return cancelable(async (canceler) => {
+			const startIndex = Math.max(0, page - 1) * pageSize;
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<JellyfinTrackItem>({
+					fields: 'MediaSources',
+					includeItemTypes: JellyfinMusicItemTypes.Audio,
+					limit: Math.max(1, pageSize),
+					recursive: true,
+					sortBy: 'Random',
+					startIndex,
+					years: year,
+				}),
+			);
 
-		return {
-			hasMore: startIndex + list.Items.length < list.TotalRecordCount,
-			items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
-		};
+			return {
+				hasMore: startIndex + list.Items.length < list.TotalRecordCount,
+				items: list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers)),
+			};
+		});
 	}
 
 	async movePlaylistTrack(playlistId: string, entryId: string, toIndex: number): Promise<void> {
@@ -526,60 +617,67 @@ export class LiveTransport implements Transport {
 		});
 	}
 
-	async search(query: string): Promise<SearchResults> {
-		const normalizedQuery = query.trim();
-		if (!normalizedQuery) {
-			return {
-				albums: [],
-				artists: [],
-				playlists: [],
-				tracks: [],
-			};
-		}
-
-		const list = await this.fetchItemsPage<
-			JellyfinAlbumItem | JellyfinArtistItem | JellyfinPlaylistItem | JellyfinTrackItem
-		>({
-			fields: 'Overview,MediaSources',
-			includeItemTypes: [
-				JellyfinMusicItemTypes.MusicArtist,
-				JellyfinMusicItemTypes.MusicAlbum,
-				JellyfinMusicItemTypes.Playlist,
-				JellyfinMusicItemTypes.Audio,
-			].join(','),
-			limit: defaultSearchLimit,
-			recursive: true,
-			searchTerm: normalizedQuery,
-			sortBy: 'SortName',
-			sortOrder: 'Ascending',
-			startIndex: 0,
-		});
-
-		const albums: Array<Album> = [];
-		const artists: Array<Artist> = [];
-		const playlists: Array<Playlist> = [];
-		const tracks: Array<Track> = [];
-
-		for (const item of list.Items) {
-			switch (item.Type) {
-				case JellyfinMusicItemTypes.MusicAlbum:
-					albums.push(mapJellyfinAlbumToAlbum(item as JellyfinAlbumItem, this.imageResolvers));
-					break;
-				case JellyfinMusicItemTypes.MusicArtist:
-					artists.push(mapJellyfinArtistToArtist(item as JellyfinArtistItem, this.imageResolvers));
-					break;
-				case JellyfinMusicItemTypes.Playlist:
-					playlists.push(
-						mapJellyfinPlaylistToPlaylist(item as JellyfinPlaylistItem, this.imageResolvers),
-					);
-					break;
-				case JellyfinMusicItemTypes.Audio:
-					tracks.push(mapJellyfinTrackToTrack(item as JellyfinTrackItem, this.imageResolvers));
-					break;
+	search(query: string): CancelablePromise<SearchResults> {
+		return cancelable(async (canceler) => {
+			const normalizedQuery = query.trim();
+			if (!normalizedQuery) {
+				return {
+					albums: [],
+					artists: [],
+					playlists: [],
+					tracks: [],
+				};
 			}
-		}
 
-		return { albums, artists, playlists, tracks };
+			const list = await tracked(
+				canceler,
+				this.fetchItemsPage<
+					JellyfinAlbumItem | JellyfinArtistItem | JellyfinPlaylistItem | JellyfinTrackItem
+				>({
+					fields: 'Overview,MediaSources',
+					includeItemTypes: [
+						JellyfinMusicItemTypes.MusicArtist,
+						JellyfinMusicItemTypes.MusicAlbum,
+						JellyfinMusicItemTypes.Playlist,
+						JellyfinMusicItemTypes.Audio,
+					].join(','),
+					limit: defaultSearchLimit,
+					recursive: true,
+					searchTerm: normalizedQuery,
+					sortBy: 'SortName',
+					sortOrder: 'Ascending',
+					startIndex: 0,
+				}),
+			);
+
+			const albums: Array<Album> = [];
+			const artists: Array<Artist> = [];
+			const playlists: Array<Playlist> = [];
+			const tracks: Array<Track> = [];
+
+			for (const item of list.Items) {
+				switch (item.Type) {
+					case JellyfinMusicItemTypes.MusicAlbum:
+						albums.push(mapJellyfinAlbumToAlbum(item as JellyfinAlbumItem, this.imageResolvers));
+						break;
+					case JellyfinMusicItemTypes.MusicArtist:
+						artists.push(
+							mapJellyfinArtistToArtist(item as JellyfinArtistItem, this.imageResolvers),
+						);
+						break;
+					case JellyfinMusicItemTypes.Playlist:
+						playlists.push(
+							mapJellyfinPlaylistToPlaylist(item as JellyfinPlaylistItem, this.imageResolvers),
+						);
+						break;
+					case JellyfinMusicItemTypes.Audio:
+						tracks.push(mapJellyfinTrackToTrack(item as JellyfinTrackItem, this.imageResolvers));
+						break;
+				}
+			}
+
+			return { albums, artists, playlists, tracks };
+		});
 	}
 
 	private buildItemImageUrl(itemId: string, imageType: 'Logo' | 'Primary', tag?: string): string {
@@ -620,7 +718,7 @@ export class LiveTransport implements Transport {
 
 	private fetchItemsPage<TItem>(
 		params: Record<string, string | number | boolean | undefined>,
-	): Promise<JellyfinListEnvelope<TItem>> {
+	): CancelablePromise<JellyfinListEnvelope<TItem>> {
 		const fields = typeof params.fields === 'string' ? params.fields : 'Overview';
 		return this.requestJson<JellyfinListEnvelope<TItem>>('GET', '/Items', {
 			query: {
@@ -632,17 +730,24 @@ export class LiveTransport implements Transport {
 		});
 	}
 
-	private getItem<TItem>(itemId: string): Promise<TItem | null> {
-		return this.requestJson<TItem>('GET', `/Items/${encodeURIComponent(itemId)}`, {
-			query: {
-				fields: 'Overview',
-				userId: this.userId,
-			},
-		}).catch((error) => {
-			if (error === TransportErrors.LIVE_REQUEST_FAILED) {
-				return null;
+	private getItem<TItem>(itemId: string): CancelablePromise<TItem | null> {
+		return cancelable(async (canceler) => {
+			try {
+				return await tracked(
+					canceler,
+					this.requestJson<TItem>('GET', `/Items/${encodeURIComponent(itemId)}`, {
+						query: {
+							fields: 'Overview',
+							userId: this.userId,
+						},
+					}),
+				);
+			} catch (error) {
+				if (error === TransportErrors.LIVE_REQUEST_FAILED) {
+					return null;
+				}
+				throw error;
 			}
-			throw error;
 		});
 	}
 
@@ -650,53 +755,57 @@ export class LiveTransport implements Transport {
 		return url.replace(/\/+$/, '');
 	}
 
-	private async request(
+	private request(
 		method: 'DELETE' | 'GET' | 'POST',
 		path: string,
 		options: RequestOptions = {},
-	): Promise<HTTPResponse> {
-		const requestPath = this.buildPath(path, options.query ?? {});
-		const headers = this.createHeaders();
+	): CancelablePromise<HTTPResponse> {
+		return cancelable(async (canceler) => {
+			const requestPath = this.buildPath(path, options.query ?? {});
+			const headers = this.createHeaders();
 
-		let response: HTTPResponse;
-		if (method === 'POST') {
-			let body: Uint8Array | undefined;
-			if (options.body) {
-				headers['Content-Type'] = 'application/json';
-				body = new TextEncoder().encode(JSON.stringify(options.body));
+			let response: HTTPResponse;
+			if (method === 'POST') {
+				let body: Uint8Array | undefined;
+				if (options.body) {
+					headers['Content-Type'] = 'application/json';
+					body = new TextEncoder().encode(JSON.stringify(options.body));
+				}
+				response = await tracked(canceler, this.client.post(requestPath, body, headers));
+			} else if (method === 'DELETE') {
+				response = await tracked(canceler, this.client.delete(requestPath, headers));
+			} else {
+				response = await tracked(canceler, this.client.get(requestPath, headers));
 			}
-			response = await this.client.post(requestPath, body, headers);
-		} else if (method === 'DELETE') {
-			response = await this.client.delete(requestPath, headers);
-		} else {
-			response = await this.client.get(requestPath, headers);
-		}
 
-		if (response.statusCode === 401) {
-			throw AuthErrors.SESSION_EXPIRED;
-		}
-		if (response.statusCode < 200 || response.statusCode >= 300) {
-			throw TransportErrors.LIVE_REQUEST_FAILED;
-		}
-		return response;
+			if (response.statusCode === 401) {
+				throw AuthErrors.SESSION_EXPIRED;
+			}
+			if (response.statusCode < 200 || response.statusCode >= 300) {
+				throw TransportErrors.LIVE_REQUEST_FAILED;
+			}
+			return response;
+		});
 	}
 
-	private async requestJson<T>(
+	private requestJson<T>(
 		method: 'DELETE' | 'GET' | 'POST',
 		path: string,
 		options: RequestOptions = {},
-	): Promise<T> {
-		const response = await this.request(method, path, options);
+	): CancelablePromise<T> {
+		return cancelable(async (canceler) => {
+			const response = await tracked(canceler, this.request(method, path, options));
 
-		if (!response.body) {
-			throw TransportErrors.LIVE_INVALID_RESPONSE;
-		}
+			if (!response.body) {
+				throw TransportErrors.LIVE_INVALID_RESPONSE;
+			}
 
-		try {
-			return JSON.parse(new TextDecoder().decode(response.body)) as T;
-		} catch {
-			throw TransportErrors.LIVE_INVALID_RESPONSE;
-		}
+			try {
+				return JSON.parse(new TextDecoder().decode(response.body)) as T;
+			} catch {
+				throw TransportErrors.LIVE_INVALID_RESPONSE;
+			}
+		});
 	}
 }
 

@@ -28,7 +28,7 @@ interface PagedGridState<TItem> {
 type PagedGridPatch<TItem> = Partial<PagedGridState<TItem>>;
 
 interface CreatePagedGridControllerArgs<TItem> {
-	fetchPage: (page: number) => Promise<PagedResult<TItem>>;
+	fetchPage: (page: number) => PromiseLike<PagedResult<TItem>>;
 	isDestroyed: () => boolean;
 	onPageLoaded?: (items: Array<TItem>) => void;
 	setState: (patch: PagedGridPatch<TItem>) => void;

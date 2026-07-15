@@ -479,21 +479,17 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		});
 
 		Promise.all([
-			transport
-				.getAlbumsByArtist(artist.id)
+			Promise.resolve(transport.getAlbumsByArtist(artist.id))
 				.then((v) => ({ status: 'fulfilled' as const, value: v }))
 				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-			transport
-				.getTracksByArtist(artist.id)
+			Promise.resolve(transport.getTracksByArtist(artist.id))
 				.then((v) => ({ status: 'fulfilled' as const, value: v }))
 				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-			transport
-				.getArtistTopTracks(artist.id)
+			Promise.resolve(transport.getArtistTopTracks(artist.id))
 				.then((v) => ({ status: 'fulfilled' as const, value: v }))
 				.catch((r) => ({ reason: r, status: 'rejected' as const })),
 			needsArtist
-				? transport
-						.getArtist(artist.id)
+				? Promise.resolve(transport.getArtist(artist.id))
 						.then((v) => ({ status: 'fulfilled' as const, value: v }))
 						.catch((r) => ({ reason: r, status: 'rejected' as const }))
 				: Promise.resolve({ status: 'fulfilled' as const, value: null as Artist | null }),

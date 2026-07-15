@@ -186,9 +186,11 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
 
 	private fetchPage(page: number): Promise<ArtistPageResult> {
-		return this.viewModel.transport.getArtists(page, gridPaginationConfig.pageSize, {
-			startsWith: this.viewModel.letterFilter ?? undefined,
-		});
+		return Promise.resolve(
+			this.viewModel.transport.getArtists(page, gridPaginationConfig.pageSize, {
+				startsWith: this.viewModel.letterFilter ?? undefined,
+			}),
+		);
 	}
 
 	private getDisplayArtists(): Array<Artist> {

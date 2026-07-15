@@ -444,8 +444,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			this.setState({ recentSearches });
 		});
 
-		this.viewModel.transport
-			.search(trimmedQuery)
+		Promise.resolve(this.viewModel.transport.search(trimmedQuery))
 			.then((results) => {
 				if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
 					return;

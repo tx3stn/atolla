@@ -18,7 +18,7 @@ export function fireAndForget(label: string, promise: Promise<unknown>): void {
 // doesn't permanently leave the value missing. rethrows the last error after the final
 // attempt, so callers keep their own fallback
 export async function retryResolve<T>(
-	resolver: () => Promise<T>,
+	resolver: () => PromiseLike<T>,
 	options: { attempts?: number; delayMs?: number } = {},
 ): Promise<T> {
 	const attempts = Math.max(1, options.attempts ?? 3);

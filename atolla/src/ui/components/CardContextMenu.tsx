@@ -56,8 +56,7 @@ export class CardContextMenu extends StatefulComponent<
 	onCreate(): void {
 		const { card } = this.viewModel;
 		if (card.kind === 'album') {
-			this.viewModel.transport
-				.getArtistLogoUrl(card.album.artistId)
+			Promise.resolve(this.viewModel.transport.getArtistLogoUrl(card.album.artistId))
 				.then((artistLogoUrl) => {
 					if (!this.isDestroyed()) {
 						this.setState({ artistLogoUrl });
@@ -92,18 +91,24 @@ export class CardContextMenu extends StatefulComponent<
 		const { card } = this.viewModel;
 		switch (card.kind) {
 			case 'album': {
-				return singlePage(() => this.viewModel.transport.getTracksByAlbum(card.album.id));
+				return singlePage(() =>
+					Promise.resolve(this.viewModel.transport.getTracksByAlbum(card.album.id)),
+				);
 			}
 			case 'artist': {
-				return singlePage(() => this.viewModel.transport.getTracksByArtist(card.artist.id));
+				return singlePage(() =>
+					Promise.resolve(this.viewModel.transport.getTracksByArtist(card.artist.id)),
+				);
 			}
 			case 'genre': {
 				return (page, pageSize) =>
-					this.viewModel.transport.getTracksByGenre(card.genre.id, page, pageSize);
+					Promise.resolve(this.viewModel.transport.getTracksByGenre(card.genre.id, page, pageSize));
 			}
 			case 'playlist': {
 				return (page, pageSize) =>
-					this.viewModel.transport.getTracksByPlaylist(card.playlist.id, page, pageSize);
+					Promise.resolve(
+						this.viewModel.transport.getTracksByPlaylist(card.playlist.id, page, pageSize),
+					);
 			}
 		}
 	}

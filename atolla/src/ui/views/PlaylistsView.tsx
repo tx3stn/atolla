@@ -165,9 +165,11 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	private fetchPage(page: number): Promise<PlaylistPageResult> {
-		return this.viewModel.transport.getPlaylists(page, gridPaginationConfig.pageSize, {
-			startsWith: this.viewModel.letterFilter ?? undefined,
-		});
+		return Promise.resolve(
+			this.viewModel.transport.getPlaylists(page, gridPaginationConfig.pageSize, {
+				startsWith: this.viewModel.letterFilter ?? undefined,
+			}),
+		);
 	}
 
 	private loadMore(): void {

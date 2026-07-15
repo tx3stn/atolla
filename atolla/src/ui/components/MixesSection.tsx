@@ -77,13 +77,12 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 
 		if (connectionMode === ConnectionModes.online) {
 			const fetchPage = (page: number, pageSize: number) =>
-				transport.getShuffledLibraryTracks(page, pageSize);
+				Promise.resolve(transport.getShuffledLibraryTracks(page, pageSize));
 			await this.startPaginatedMix(fetchPage, token);
 			return;
 		}
 
-		const queue = await transport
-			.getShuffledLibraryTracks(1, 500)
+		const queue = await Promise.resolve(transport.getShuffledLibraryTracks(1, 500))
 			.then(({ items }) => items)
 			.catch(() => []);
 
@@ -118,7 +117,7 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 
 		for (const year of years) {
 			const fetchPage = (page: number, pageSize: number) =>
-				transport.getTracksByYear(year, page, pageSize);
+				Promise.resolve(transport.getTracksByYear(year, page, pageSize));
 			const outcome = await this.startPaginatedMix(fetchPage, token);
 			if (outcome !== 'empty') {
 				return;
@@ -164,7 +163,7 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 
 		let tracks: Array<Track>;
 		try {
-			const album = await transport.getRandomAlbum().catch(() => null);
+			const album = await Promise.resolve(transport.getRandomAlbum()).catch(() => null);
 			tracks = album ? await transport.getTracksByAlbum(album.id) : [];
 		} catch {
 			return;

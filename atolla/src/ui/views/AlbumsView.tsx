@@ -243,9 +243,11 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	private fetchPage(page: number): Promise<AlbumPageResult> {
-		return this.viewModel.transport.getAlbums(page, gridPaginationConfig.pageSize, {
-			startsWith: this.viewModel.letterFilter ?? undefined,
-		});
+		return Promise.resolve(
+			this.viewModel.transport.getAlbums(page, gridPaginationConfig.pageSize, {
+				startsWith: this.viewModel.letterFilter ?? undefined,
+			}),
+		);
 	}
 
 	private handleAddToPlaylistDismiss = (): void => {

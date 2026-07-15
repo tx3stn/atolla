@@ -130,7 +130,8 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		refreshTrackCachedCount: () => {},
 		requestOverlayRerender: () => this.requestRerender(),
 		requestRerender: () => this.requestRerender(),
-		resolveArtistLogoUrl: (artistId) => this.connectivity.getTransport().getArtistLogoUrl(artistId),
+		resolveArtistLogoUrl: (artistId) =>
+			Promise.resolve(this.connectivity.getTransport().getArtistLogoUrl(artistId)),
 		showPlaybackToast: (message) => this.toastService.show(message),
 		trackSourceNative: new TrackSourceNativeAdapter(),
 	});

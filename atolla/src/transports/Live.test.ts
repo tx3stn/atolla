@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type {
 	JellyfinAlbumItem,
@@ -864,5 +865,25 @@ describe('LiveTransport core collections', () => {
 		await expect(transport.getAlbums(1, 50)).rejects.toMatchObject({
 			err: 'auth_session_expired',
 		});
+	});
+
+	it('cancels the in-flight HTTP request when a read is canceled', () => {
+		let canceled = false;
+		// never resolves, so the request is still in-flight when we cancel it
+		const pending = new Promise<MockHTTPResponse>(() => {}) as CancelablePromise<MockHTTPResponse>;
+		pending.cancel = () => {
+			canceled = true;
+		};
+		const client = {
+			delete: () => pending,
+			get: () => pending,
+			post: () => pending,
+		} as unknown as IHTTPClient;
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		const request = transport.getAlbums(1, 50);
+		request.cancel?.();
+
+		expect(canceled).toBe(true);
 	});
 });

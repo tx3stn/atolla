@@ -352,17 +352,14 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const needsFullAlbum = album.genres === undefined || album.imageUrl === undefined;
 
 		Promise.all([
-			transport
-				.getTracksByAlbum(album.id)
+			Promise.resolve(transport.getTracksByAlbum(album.id))
 				.then((v) => ({ status: 'fulfilled' as const, value: v }))
 				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-			transport
-				.getArtist(album.artistId)
+			Promise.resolve(transport.getArtist(album.artistId))
 				.then((v) => ({ status: 'fulfilled' as const, value: v }))
 				.catch((r) => ({ reason: r, status: 'rejected' as const })),
 			needsFullAlbum
-				? transport
-						.getAlbumsByIds([album.id])
+				? Promise.resolve(transport.getAlbumsByIds([album.id]))
 						.then((v) => ({ status: 'fulfilled' as const, value: v }))
 						.catch((r) => ({ reason: r, status: 'rejected' as const }))
 				: Promise.resolve({ status: 'fulfilled' as const, value: [] as Array<Album> }),
