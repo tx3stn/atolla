@@ -132,6 +132,16 @@ objc_library(
 )
 
 objc_library(
+    name = "atolla_network_reachability_module_factory_ios",
+    srcs = ["ios/AtollaNetworkReachabilityNativeModuleFactory.m"],
+    copts = ["-I."],
+    sdk_frameworks = ["Network"],
+    deps = [
+        "//atolla:atolla_api_objc",
+    ],
+)
+
+objc_library(
     name = "atolla_haptics_bootstrap_module_factory_ios",
     srcs = ["ios/AtollaHapticsBootstrapModuleFactory.m"],
     copts = ["-I."],
@@ -255,6 +265,7 @@ kt_android_library(
         "android/AtollaImageLoaderAutoBootstrap.kt",
         "android/AtollaImageLoaderBootstrapModuleFactory.kt",
         "android/AtollaImageLoaderRegistration.kt",
+        "android/AtollaNetworkReachabilityNativeModuleFactory.kt",
         "android/AtollaPlaybackGuards.kt",
         "android/AtollaPlaybackService.kt",
         "android/AtollaStatusBarNativeModuleFactory.kt",
@@ -266,6 +277,7 @@ kt_android_library(
         "android/assets/valdi_native_modules/atolla.native.android.AtollaLoggerNativeModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaHapticsBootstrapModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaImageLoaderBootstrapModuleFactory",
+        "android/assets/valdi_native_modules/atolla.native.android.AtollaNetworkReachabilityNativeModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaStatusBarNativeModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaTrackPlaybackNativeModuleFactory",
         "android/assets/valdi_native_modules/atolla.native.android.AtollaWaveformNativeModuleFactory",

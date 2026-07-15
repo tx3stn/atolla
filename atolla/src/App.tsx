@@ -23,6 +23,11 @@ import {
 	shareAtollaTextFile,
 	writeAtollaLog,
 } from './LoggerNative';
+import {
+	clearAtollaNetworkStatusObserver,
+	getAtollaNetworkStatus,
+	setAtollaNetworkStatusObserver,
+} from './NetworkReachabilityNative';
 import { ensureAtollaOverlayHostBootstrap } from './OverlayHostBootstrap';
 import Strings from './Strings';
 import { appServices } from './services/AppServices';
@@ -37,6 +42,7 @@ import { DownloadService } from './services/DownloadService';
 import { ImageCache } from './services/ImageCache';
 import { JellyfinAuthService } from './services/JellyfinAuthService';
 import { getLogger, Logger } from './services/Logger';
+import { NetworkStatus } from './services/NetworkStatus';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import { PlaylistCreateService } from './services/PlaylistCreateService';
 import { type PlaylistEditError, PlaylistEditService } from './services/PlaylistEditService';
@@ -139,6 +145,27 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		DownloadNativeWorkerEntryPoint,
 		[],
 	);
+	private networkStatus = new NetworkStatus({
+		getStatusJson: () => {
+			try {
+				return getAtollaNetworkStatus();
+			} catch {
+				return '';
+			}
+		},
+		observe: (onChange) => {
+			try {
+				setAtollaNetworkStatusObserver(onChange);
+			} catch {
+				return () => {};
+			}
+			return () => {
+				try {
+					clearAtollaNetworkStatusObserver();
+				} catch {}
+			};
+		},
+	});
 	private downloadService = new DownloadService({
 		cacheImage: (url, category) => this.assetCache.cacheImageAsset(url, category),
 		cacheTrack: (trackId, url) =>
@@ -272,6 +299,14 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			});
 		});
 		this.downloadService.onAppReady();
+		// resume parked downloads the moment the radio comes back, not just on relaunch
+		this.registerDisposable(
+			this.networkStatus.subscribe(() => {
+				if (this.networkStatus.isReachable()) {
+					this.downloadService.onAppReady();
+				}
+			}),
+		);
 		this.playbackOrchestrator.reconcilePlaybackState();
 		this.startBootstrap();
 	}
@@ -291,6 +326,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		}
 		this.userScope.dispose();
 		this.downloadWorkerClient.dispose();
+		this.networkStatus.dispose();
 	}
 
 	onRender(): void {
