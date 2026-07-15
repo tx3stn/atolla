@@ -69,6 +69,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 
 	onCreate(): void {
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(() => this.pagedGridController.dispose());
 		void this.loadInitialPages();
 	}
 

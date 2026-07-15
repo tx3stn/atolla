@@ -1,4 +1,5 @@
 import Strings from 'atolla/src/Strings';
+import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
@@ -57,6 +58,8 @@ interface GenreState {
 	tracks: Array<Track>;
 }
 
+type GenreTracksPage = { hasMore: boolean; items: Array<Track>; totalCount?: number };
+
 @NavigationPage(module)
 export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, GenreState> {
 	state: GenreState = {
@@ -92,6 +95,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			}),
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
 		void this.loadNextPage();
 		void this.hydrateGenreIfNeeded();
@@ -184,17 +188,24 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	private currentPage = 0;
 	private hasMoreTracks = true;
 	private isLoadingPage = false;
+	private inFlightPageRead?: CancelablePromise<GenreTracksPage>;
+	private inFlightHydrateRead?: CancelablePromise<Genre | null>;
 	private triggeredAutoLoadForTrackCount: number | null = null;
 
 	private bump = (): void => {
 		this.setState({ revision: this.state.revision + 1 });
 	};
 
-	private fetchPage(
-		page: number,
-	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
+	private cancelInFlightReads(): void {
+		this.inFlightPageRead?.cancel?.();
+		this.inFlightPageRead = undefined;
+		this.inFlightHydrateRead?.cancel?.();
+		this.inFlightHydrateRead = undefined;
+	}
+
+	private fetchPage(page: number): CancelablePromise<GenreTracksPage> {
 		const { genre, transport } = this.viewModel;
-		return Promise.resolve(transport.getTracksByGenre(genre.id, page, TRACK_PAGE_SIZE));
+		return transport.getTracksByGenre(genre.id, page, TRACK_PAGE_SIZE);
 	}
 
 	private handleDownloadTap = (): void => {
@@ -369,13 +380,16 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		const generation = ++this.hydrateGeneration;
 		let fetched: Genre | null = null;
 		try {
-			fetched = await transport.getGenre(genre.id);
+			const hydrateRead = transport.getGenre(genre.id);
+			this.inFlightHydrateRead = hydrateRead;
+			fetched = await hydrateRead;
 		} catch {
 			return;
 		}
 		if (this.isDestroyed() || generation !== this.hydrateGeneration || !fetched) {
 			return;
 		}
+		this.inFlightHydrateRead = undefined;
 		this.setState({ hydratedGenre: fetched });
 	}
 
@@ -392,8 +406,11 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		}
 
 		try {
-			const result = await this.fetchPage(nextPage);
+			const pageRead = this.fetchPage(nextPage);
+			this.inFlightPageRead = pageRead;
+			const result = await pageRead;
 			if (this.isDestroyed()) return;
+			this.inFlightPageRead = undefined;
 
 			const artistLogoUrls = await Promise.all(
 				result.items.map((t) =>

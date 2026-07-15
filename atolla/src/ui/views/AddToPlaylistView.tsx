@@ -66,6 +66,7 @@ export class AddToPlaylistView extends StatefulComponent<
 	};
 
 	onCreate(): void {
+		this.registerDisposable(() => this.pagedGridController.dispose());
 		void this.pagedGridController.loadNextPage();
 	}
 

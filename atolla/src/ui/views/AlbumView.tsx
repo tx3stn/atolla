@@ -62,6 +62,7 @@ interface AlbumState {
 @NavigationPage(module)
 export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, AlbumState> {
 	private loadGeneration = 0;
+	private inFlightReads: Array<{ cancel?(): void }> = [];
 
 	state: AlbumState = {
 		artist: null,
@@ -93,6 +94,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			}),
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
 		this.loadAlbumData();
 	}
@@ -239,6 +241,14 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.setState({ revision: this.state.revision + 1 });
 	};
 
+	private cancelInFlightReads(): void {
+		const reads = this.inFlightReads;
+		this.inFlightReads = [];
+		for (const read of reads) {
+			read.cancel?.();
+		}
+	}
+
 	private handleDownloadTap = (): void => {
 		const { album, downloadService, transport } = this.viewModel;
 		const tracks = this.state.tracks
@@ -344,6 +354,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	private loadAlbumData(): void {
 		const generation = this.loadGeneration + 1;
 		this.loadGeneration = generation;
+		this.cancelInFlightReads();
 
 		const { album, paletteQueue, transport } = this.viewModel;
 		paletteQueue?.prioritize(album.imageUrl);
@@ -351,22 +362,33 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 		const needsFullAlbum = album.genres === undefined || album.imageUrl === undefined;
 
+		const tracksRead = transport.getTracksByAlbum(album.id);
+		const artistRead = transport.getArtist(album.artistId);
+		const fullAlbumRead = needsFullAlbum ? transport.getAlbumsByIds([album.id]) : undefined;
+		this.inFlightReads = fullAlbumRead
+			? [tracksRead, artistRead, fullAlbumRead]
+			: [tracksRead, artistRead];
+
 		Promise.all([
-			Promise.resolve(transport.getTracksByAlbum(album.id))
-				.then((v) => ({ status: 'fulfilled' as const, value: v }))
-				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-			Promise.resolve(transport.getArtist(album.artistId))
-				.then((v) => ({ status: 'fulfilled' as const, value: v }))
-				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-			needsFullAlbum
-				? Promise.resolve(transport.getAlbumsByIds([album.id]))
-						.then((v) => ({ status: 'fulfilled' as const, value: v }))
-						.catch((r) => ({ reason: r, status: 'rejected' as const }))
+			tracksRead.then(
+				(v) => ({ status: 'fulfilled' as const, value: v }),
+				(r) => ({ reason: r, status: 'rejected' as const }),
+			),
+			artistRead.then(
+				(v) => ({ status: 'fulfilled' as const, value: v }),
+				(r) => ({ reason: r, status: 'rejected' as const }),
+			),
+			fullAlbumRead
+				? fullAlbumRead.then(
+						(v) => ({ status: 'fulfilled' as const, value: v }),
+						(r) => ({ reason: r, status: 'rejected' as const }),
+					)
 				: Promise.resolve({ status: 'fulfilled' as const, value: [] as Array<Album> }),
 		]).then(([tracksResult, artistResult, fullAlbumResult]) => {
 			if (this.isDestroyed() || generation !== this.loadGeneration) {
 				return;
 			}
+			this.inFlightReads = [];
 
 			const fetchedTracks = tracksResult.status === 'fulfilled' ? tracksResult.value : [];
 			// keep stored order disc-grouped so playback (indexing into state.tracks) matches the per-disc sections we render

@@ -1,3 +1,4 @@
+import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
@@ -76,6 +77,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 	onCreate(): void {
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(() => this.pagedGridController.dispose());
 		void this.loadInitialPages();
 	}
 
@@ -185,12 +187,10 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private cachedDisplayIsOffline = false;
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
 
-	private fetchPage(page: number): Promise<ArtistPageResult> {
-		return Promise.resolve(
-			this.viewModel.transport.getArtists(page, gridPaginationConfig.pageSize, {
-				startsWith: this.viewModel.letterFilter ?? undefined,
-			}),
-		);
+	private fetchPage(page: number): CancelablePromise<ArtistPageResult> {
+		return this.viewModel.transport.getArtists(page, gridPaginationConfig.pageSize, {
+			startsWith: this.viewModel.letterFilter ?? undefined,
+		});
 	}
 
 	private getDisplayArtists(): Array<Artist> {

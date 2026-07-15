@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import type { SearchResults } from 'atolla/src/models/Search';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import { AlbumView } from 'atolla/src/ui/views/AlbumView';
@@ -7,6 +8,7 @@ import { PlaylistView } from 'atolla/src/ui/views/PlaylistView';
 import { SearchView } from 'atolla/src/ui/views/SearchView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { editTextEvent } from '../util/testEvents';
@@ -163,6 +165,36 @@ describe('SearchView', () => {
 		expect(searchCalls).toEqual(['jane']);
 		expect(component.state.status).toBe('success');
 		expect(component.state.recentSearches[0]).toBe('jane');
+	});
+
+	valdiIt('cancels the prior in-flight search when a new query is submitted', async () => {
+		const canceledQueries: Array<string> = [];
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: (query: string) => {
+					// never resolves, so the request is still in-flight when superseded
+					const pending = new Promise<SearchResults>(() => {}) as CancelablePromise<SearchResults>;
+					pending.cancel = () => canceledQueries.push(query);
+					return pending;
+				},
+			},
+		};
+		const component = InstrumentedComponentJSX.create(
+			SearchView,
+			viewModel,
+			undefined,
+		).getComponent();
+
+		component.handleSubmitSearch('first');
+		component.handleSubmitSearch('second');
+		await flushAsyncWork();
+
+		expect(canceledQueries).toEqual(['first']);
 	});
 
 	valdiIt('submits search from keyboard return', async () => {

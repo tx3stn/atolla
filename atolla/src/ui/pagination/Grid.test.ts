@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { createPagedGridController } from './Grid';
+import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
+import { createPagedGridController, type PagedResult } from './Grid';
 
 interface TestItem {
 	id: string;
@@ -156,5 +157,70 @@ describe('createPagedGridController', () => {
 
 		expect(state.page).toBe(1);
 		expect(state.items).toEqual([{ id: '1' }]);
+	});
+
+	it('cancels the in-flight page fetch on reset', () => {
+		let canceled = false;
+		const pending = new Promise<PagedResult<TestItem>>(() => {}) as CancelablePromise<
+			PagedResult<TestItem>
+		>;
+		pending.cancel = () => {
+			canceled = true;
+		};
+
+		const controller = createPagedGridController<TestItem>({
+			fetchPage: () => pending,
+			isDestroyed: () => false,
+			setState: () => {},
+		});
+
+		void controller.loadNextPage();
+		controller.reset();
+
+		expect(canceled).toBe(true);
+	});
+
+	it('cancels the in-flight page fetch on dispose', () => {
+		let canceled = false;
+		const pending = new Promise<PagedResult<TestItem>>(() => {}) as CancelablePromise<
+			PagedResult<TestItem>
+		>;
+		pending.cancel = () => {
+			canceled = true;
+		};
+
+		const controller = createPagedGridController<TestItem>({
+			fetchPage: () => pending,
+			isDestroyed: () => false,
+			setState: () => {},
+		});
+
+		void controller.loadNextPage();
+		controller.dispose();
+
+		expect(canceled).toBe(true);
+	});
+
+	it('drops a page that resolves after reset', async () => {
+		let resolvePage: (result: PagedResult<TestItem>) => void = () => {};
+		const deferred = new Promise<PagedResult<TestItem>>((resolve) => {
+			resolvePage = resolve;
+		}) as CancelablePromise<PagedResult<TestItem>>;
+		const patches: Array<Partial<TestState>> = [];
+
+		const controller = createPagedGridController<TestItem>({
+			fetchPage: () => deferred,
+			isDestroyed: () => false,
+			setState: (patch) => {
+				patches.push(patch);
+			},
+		});
+
+		const load = controller.loadNextPage();
+		controller.reset();
+		resolvePage({ hasMore: true, items: [{ id: 'stale' }] });
+		await load;
+
+		expect(patches.some((patch) => patch.items !== undefined)).toBe(false);
 	});
 });

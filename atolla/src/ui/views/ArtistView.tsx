@@ -69,6 +69,7 @@ interface ArtistState {
 @NavigationPage(module)
 export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel, ArtistState> {
 	private loadGeneration = 0;
+	private inFlightReads: Array<{ cancel?(): void }> = [];
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private contextMenuAlbumCard: { id: string; kind: Card['kind'] } | null = null;
 
@@ -104,6 +105,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			}),
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
 		this.loadArtistData();
 	}
@@ -253,6 +255,14 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	private bump = (): void => {
 		this.setState({ revision: this.state.revision + 1 });
 	};
+
+	private cancelInFlightReads(): void {
+		const reads = this.inFlightReads;
+		this.inFlightReads = [];
+		for (const read of reads) {
+			read.cancel?.();
+		}
+	}
 
 	private closeModalSlot = (): void => {
 		closeSlot(this.viewModel.modalSlot);
@@ -464,6 +474,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	private loadArtistData(): void {
 		const generation = this.loadGeneration + 1;
 		this.loadGeneration = generation;
+		this.cancelInFlightReads();
 
 		const { artist, transport } = this.viewModel;
 		// self-heal: callers may push a partial artist (id + name only, e.g. from a context menu);
@@ -478,25 +489,38 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			topTracksLoaded: false,
 		});
 
+		const albumsRead = transport.getAlbumsByArtist(artist.id);
+		const allTracksRead = transport.getTracksByArtist(artist.id);
+		const topTracksRead = transport.getArtistTopTracks(artist.id);
+		const artistRead = needsArtist ? transport.getArtist(artist.id) : undefined;
+		this.inFlightReads = artistRead
+			? [albumsRead, allTracksRead, topTracksRead, artistRead]
+			: [albumsRead, allTracksRead, topTracksRead];
+
 		Promise.all([
-			Promise.resolve(transport.getAlbumsByArtist(artist.id))
-				.then((v) => ({ status: 'fulfilled' as const, value: v }))
-				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-			Promise.resolve(transport.getTracksByArtist(artist.id))
-				.then((v) => ({ status: 'fulfilled' as const, value: v }))
-				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-			Promise.resolve(transport.getArtistTopTracks(artist.id))
-				.then((v) => ({ status: 'fulfilled' as const, value: v }))
-				.catch((r) => ({ reason: r, status: 'rejected' as const })),
-			needsArtist
-				? Promise.resolve(transport.getArtist(artist.id))
-						.then((v) => ({ status: 'fulfilled' as const, value: v }))
-						.catch((r) => ({ reason: r, status: 'rejected' as const }))
+			albumsRead.then(
+				(v) => ({ status: 'fulfilled' as const, value: v }),
+				(r) => ({ reason: r, status: 'rejected' as const }),
+			),
+			allTracksRead.then(
+				(v) => ({ status: 'fulfilled' as const, value: v }),
+				(r) => ({ reason: r, status: 'rejected' as const }),
+			),
+			topTracksRead.then(
+				(v) => ({ status: 'fulfilled' as const, value: v }),
+				(r) => ({ reason: r, status: 'rejected' as const }),
+			),
+			artistRead
+				? artistRead.then(
+						(v) => ({ status: 'fulfilled' as const, value: v }),
+						(r) => ({ reason: r, status: 'rejected' as const }),
+					)
 				: Promise.resolve({ status: 'fulfilled' as const, value: null as Artist | null }),
 		]).then(([albumsResult, allTracksResult, topTracksResult, artistResult]) => {
 			if (this.isDestroyed() || generation !== this.loadGeneration) {
 				return;
 			}
+			this.inFlightReads = [];
 
 			const albums =
 				albumsResult.status === 'fulfilled' ? sortArtistAlbums(albumsResult.value) : [];

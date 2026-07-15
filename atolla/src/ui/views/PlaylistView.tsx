@@ -1,3 +1,4 @@
+import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
@@ -63,6 +64,8 @@ interface PlaylistState {
 	tracks: Array<Track>;
 }
 
+type PlaylistTracksPage = { hasMore: boolean; items: Array<Track>; totalCount?: number };
+
 @NavigationPage(module)
 export class PlaylistView extends NavigationPageStatefulComponent<
 	PlaylistViewModel,
@@ -98,6 +101,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			}),
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
 		this.resetAndLoadPlaylistData();
 	}
@@ -188,6 +192,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private hasMoreTracks = true;
 	private loadGeneration = 0;
 	private isLoadingPage = false;
+	private inFlightPageRead?: CancelablePromise<PlaylistTracksPage>;
+	private inFlightHydrateRead?: CancelablePromise<Playlist | null>;
 	private scrollRef = new ElementRef();
 	private dragAutoScroller = new ScrollDragAutoScroller(this.scrollRef);
 	private headerCollapse = new HeaderCollapse(headerStore);
@@ -195,6 +201,13 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private bump = (): void => {
 		this.setState({ revision: this.state.revision + 1 });
 	};
+
+	private cancelInFlightReads(): void {
+		this.inFlightPageRead?.cancel?.();
+		this.inFlightPageRead = undefined;
+		this.inFlightHydrateRead?.cancel?.();
+		this.inFlightHydrateRead = undefined;
+	}
 
 	private detailDeps(): DetailPushDeps {
 		return {
@@ -467,6 +480,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	private resetAndLoadPlaylistData(): void {
 		this.loadGeneration += 1;
+		this.cancelInFlightReads();
 		this.currentPage = 0;
 		this.hasMoreTracks = true;
 		this.isLoadingPage = false;
@@ -488,13 +502,16 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		}
 		let fetched: Playlist | null = null;
 		try {
-			fetched = await transport.getPlaylist(playlist.id);
+			const hydrateRead = transport.getPlaylist(playlist.id);
+			this.inFlightHydrateRead = hydrateRead;
+			fetched = await hydrateRead;
 		} catch {
 			return;
 		}
 		if (this.isDestroyed() || generation !== this.loadGeneration || !fetched) {
 			return;
 		}
+		this.inFlightHydrateRead = undefined;
 		this.setState({ hydratedPlaylist: fetched });
 	}
 
@@ -520,8 +537,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.isLoadingPage = true;
 
 		try {
-			const result = await this.fetchPage(nextPage);
+			const pageRead = this.fetchPage(nextPage);
+			this.inFlightPageRead = pageRead;
+			const result = await pageRead;
 			if (this.isDestroyed() || generation !== this.loadGeneration) return;
+			this.inFlightPageRead = undefined;
 
 			const artistLogoUrls = await Promise.all(
 				result.items.map((t) =>
@@ -560,11 +580,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		}
 	}
 
-	private fetchPage(
-		page: number,
-	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
+	private fetchPage(page: number): CancelablePromise<PlaylistTracksPage> {
 		const { playlist, transport } = this.viewModel;
-		return Promise.resolve(transport.getTracksByPlaylist(playlist.id, page, TRACK_PAGE_SIZE));
+		return transport.getTracksByPlaylist(playlist.id, page, TRACK_PAGE_SIZE);
 	}
 }
 

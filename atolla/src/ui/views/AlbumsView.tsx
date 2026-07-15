@@ -1,3 +1,4 @@
+import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
@@ -76,6 +77,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 	onCreate(): void {
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(() => this.pagedGridController.dispose());
 		void this.loadInitialPages();
 	}
 
@@ -242,12 +244,10 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		}
 	}
 
-	private fetchPage(page: number): Promise<AlbumPageResult> {
-		return Promise.resolve(
-			this.viewModel.transport.getAlbums(page, gridPaginationConfig.pageSize, {
-				startsWith: this.viewModel.letterFilter ?? undefined,
-			}),
-		);
+	private fetchPage(page: number): CancelablePromise<AlbumPageResult> {
+		return this.viewModel.transport.getAlbums(page, gridPaginationConfig.pageSize, {
+			startsWith: this.viewModel.letterFilter ?? undefined,
+		});
 	}
 
 	private handleAddToPlaylistDismiss = (): void => {

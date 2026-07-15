@@ -1,4 +1,5 @@
 import res from 'atolla/res';
+import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
@@ -80,6 +81,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private requestVersion = 0;
 	private recentSearchTapHandlers = new Map<string, () => void>();
+	private search?: CancelablePromise<SearchResults>;
 	private searchInputRef = new ElementRef();
 
 	state: SearchState = {
@@ -100,6 +102,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	onCreate(): void {
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(() => this.cancelInFlightSearch());
 
 		this.focusSearchInput();
 
@@ -282,6 +285,11 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.setState({ revision: this.state.revision + 1 });
 	};
 
+	private cancelInFlightSearch(): void {
+		this.search?.cancel?.();
+		this.search = undefined;
+	}
+
 	private closeModalSlot = (): void => {
 		closeSlot(this.viewModel.modalSlot);
 	};
@@ -407,6 +415,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		const trimmedQuery = normalizeSearchInput(query).trim();
 		if (!trimmedQuery) {
 			this.requestVersion += 1;
+			this.cancelInFlightSearch();
 			this.setState({
 				errorMessage: null,
 				lastSubmittedQuery: '',
@@ -423,6 +432,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 		this.requestVersion += 1;
 		const currentRequestVersion = this.requestVersion;
+		this.cancelInFlightSearch();
 		this.setState({
 			errorMessage: null,
 			lastSubmittedQuery: trimmedQuery,
@@ -444,11 +454,14 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			this.setState({ recentSearches });
 		});
 
-		Promise.resolve(this.viewModel.transport.search(trimmedQuery))
-			.then((results) => {
+		const search = this.viewModel.transport.search(trimmedQuery);
+		this.search = search;
+		search.then(
+			(results) => {
 				if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
 					return;
 				}
+				this.search = undefined;
 
 				const hasResults =
 					results.tracks.length > 0 ||
@@ -460,11 +473,12 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					results,
 					status: hasResults ? 'success' : 'empty',
 				});
-			})
-			.catch((error) => {
+			},
+			(error) => {
 				if (this.isDestroyed() || currentRequestVersion !== this.requestVersion) {
 					return;
 				}
+				this.search = undefined;
 
 				this.setState({
 					errorMessage: error instanceof Error ? error.message : 'Could not search right now.',
@@ -476,7 +490,8 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					},
 					status: 'error',
 				});
-			});
+			},
+		);
 	};
 
 	private handleTrackLongPress = (track: Track): void => {
