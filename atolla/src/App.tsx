@@ -176,6 +176,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			),
 		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
+		isOnline: () => this.networkStatus.isReachable(),
 		onTrackDownloaded: (trackId) => this.playbackOrchestrator.handleTrackCached(trackId),
 		removeTrack: (trackId) => this.downloadWorkerClient.api.removeDownloadedTrack(trackId),
 		removeTracks: (trackIds) => this.downloadWorkerClient.api.removeDownloadedTracks(trackIds),

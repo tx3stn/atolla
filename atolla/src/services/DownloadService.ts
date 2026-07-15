@@ -6,11 +6,13 @@ import type { Track } from '../models/Track';
 import type { ImageCategory } from './ImageCache';
 import { imageCacheKey } from './ImageSource';
 
-export type DownloadState = 'not_downloaded' | 'downloading' | 'downloaded';
+export type DownloadState = 'not_downloaded' | 'downloading' | 'downloaded' | 'partial';
 
 export interface DownloadedTrackEntry {
 	albumIds: Array<string>;
+	attempts: number;
 	complete: boolean;
+	failed: boolean;
 	genreIds: Array<string>;
 	playlistIds: Array<string>;
 	requiredImageKeys: Array<string>;
@@ -61,12 +63,11 @@ export interface DownloadServiceStore {
 }
 
 export interface DownloadServiceOptions {
-	// when omitted, image tracking is disabled and downloads complete on audio alone.
-	// resolves once cached (already present or freshly fetched), rejects on failure
 	cacheImage?: (url: string, category: ImageCategory) => Promise<void>;
 	cacheTrack: (trackId: string, url: string) => Promise<void>;
 	getTotalDownloadedSizeBytes?: () => number;
 	getTrackPlaybackUrl: (trackId: string) => string;
+	isOnline?: () => boolean;
 	onTrackDownloaded?: (trackId: string) => void;
 	removeTrack: (trackId: string) => Promise<void> | void;
 	removeTracks?: (trackIds: Array<string>) => Promise<void> | void;
@@ -84,6 +85,7 @@ const MAX_CONCURRENT_DOWNLOADS = 3;
 // images are cheap (often already cached), so allow more in flight than tracks
 const MAX_CONCURRENT_IMAGE_DOWNLOADS = 8;
 const IMAGE_MAX_ATTEMPTS = 3;
+const TRACK_MAX_ATTEMPTS = 3;
 
 export class DownloadService {
 	private albums: Record<string, DownloadedAlbumEntry> = {};
@@ -98,6 +100,7 @@ export class DownloadService {
 
 	private queue: Array<{ trackId: string; streamUrl: string }> = [];
 	private activeCount = 0;
+	private readonly activeTrackIds = new Set<string>();
 	private imageQueue: Array<string> = [];
 	private activeImageCount = 0;
 	private readonly activeImageKeys = new Set<string>();
@@ -112,6 +115,7 @@ export class DownloadService {
 	private readonly onTrackDownloadedFn: DownloadServiceOptions['onTrackDownloaded'];
 	private readonly removeTrackFn: DownloadServiceOptions['removeTrack'];
 	private readonly removeTracksFn: DownloadServiceOptions['removeTracks'];
+	private readonly isOnlineFn: () => boolean;
 
 	constructor(options: DownloadServiceOptions) {
 		this.store = options.store;
@@ -122,6 +126,7 @@ export class DownloadService {
 		this.onTrackDownloadedFn = options.onTrackDownloaded;
 		this.removeTrackFn = options.removeTrack;
 		this.removeTracksFn = options.removeTracks;
+		this.isOnlineFn = options.isOnline ?? (() => true);
 	}
 
 	private enqueueOperation(operation: () => Promise<void>): void {
@@ -171,9 +176,9 @@ export class DownloadService {
 		this.enqueueOperation(async () => {
 			try {
 				await this.ensureLoaded();
-				// re-enqueue tracks that didn't finish downloading
+				// re-enqueue tracks that didn't finish downloading. failed tracks are terminal
 				for (const entry of Object.values(this.tracks)) {
-					if (!entry.complete) {
+					if (!entry.complete && !entry.failed) {
 						this.enqueueTrack(entry.track.id, entry.streamUrl);
 					}
 				}
@@ -206,22 +211,19 @@ export class DownloadService {
 	getAlbumDownloadState(albumId: string): DownloadState {
 		const entry = this.albums[albumId];
 		if (!entry) return 'not_downloaded';
-		const allComplete = entry.trackIds.every((id) => this.tracks[id]?.complete === true);
-		return allComplete ? 'downloaded' : 'downloading';
+		return this.aggregateTrackStates(entry.trackIds);
 	}
 
 	getPlaylistDownloadState(playlistId: string): DownloadState {
 		const entry = this.playlists[playlistId];
 		if (!entry) return 'not_downloaded';
-		const allComplete = entry.trackIds.every((id) => this.tracks[id]?.complete === true);
-		return allComplete ? 'downloaded' : 'downloading';
+		return this.aggregateTrackStates(entry.trackIds);
 	}
 
 	getGenreDownloadState(genreId: string): DownloadState {
 		const entry = this.genres[genreId];
 		if (!entry) return 'not_downloaded';
-		const allComplete = entry.trackIds.every((id) => this.tracks[id]?.complete === true);
-		return allComplete ? 'downloaded' : 'downloading';
+		return this.aggregateTrackStates(entry.trackIds);
 	}
 
 	getArtistDownloadState(artistId: string): DownloadState {
@@ -231,13 +233,39 @@ export class DownloadService {
 		// downloaded; guard against [].every() reporting it as fully downloaded
 		if (entry.albumIds.length === 0) return 'not_downloaded';
 		const albumStates = entry.albumIds.map((id) => this.getAlbumDownloadState(id));
+		// an artist is only "downloaded" when every one of its albums is; a partial artist
+		// (some albums downloaded by choice, or an album that failed) is just downloadable —
+		// unlike an album, it never shows a failure state (the failure surfaces on the album)
+		if (albumStates.some((s) => s === 'downloading')) return 'downloading';
 		if (albumStates.every((s) => s === 'downloaded')) return 'downloaded';
-		if (albumStates.some((s) => s !== 'not_downloaded')) return 'downloading';
 		return 'not_downloaded';
 	}
 
 	getDownloadingCount(): number {
-		return Object.values(this.tracks).filter((t) => !t.complete).length;
+		return Object.values(this.tracks).filter((t) => !t.complete && !t.failed).length;
+	}
+
+	// downloaded when every track completed; partial when some completed and the rest failed;
+	// downloading while any track is still pending. a settled set with zero completions is
+	// treated as not_downloaded (all-failed artifacts are pruned, so this is only a fallback).
+	private aggregateTrackStates(trackIds: Array<string>): DownloadState {
+		// an artifact with no tracks is vacuously complete (e.g. a synced playlist we hold no
+		// downloadable tracks for), matching the prior every()-based semantics
+		if (trackIds.length === 0) return 'downloaded';
+		let anyComplete = false;
+		let anyPending = false;
+		for (const id of trackIds) {
+			const track = this.tracks[id];
+			if (track?.complete) {
+				anyComplete = true;
+			} else if (track && !track.failed) {
+				anyPending = true;
+			}
+			// a missing or failed track counts as settled-but-not-complete
+		}
+		if (anyPending) return 'downloading';
+		if (!anyComplete) return 'not_downloaded';
+		return trackIds.every((id) => this.tracks[id]?.complete === true) ? 'downloaded' : 'partial';
 	}
 
 	getDownloadedTrackCount(): number {
@@ -617,6 +645,9 @@ export class DownloadService {
 		const explicitGenreIds: Array<string> = genreId ? [genreId] : [];
 		const existing = this.tracks[track.id];
 		if (existing) {
+			// an explicit (re)download request clears a prior failure so the track retries
+			existing.failed = false;
+			existing.attempts = 0;
 			if (albumId && !existing.albumIds.includes(albumId)) {
 				existing.albumIds.push(albumId);
 				// propagate the normalized artistId to the stored track. the caller
@@ -642,7 +673,9 @@ export class DownloadService {
 		} else {
 			this.tracks[track.id] = {
 				albumIds: albumId ? [albumId] : [],
+				attempts: 0,
 				complete: false,
+				failed: false,
 				genreIds: explicitGenreIds,
 				playlistIds: playlistId ? [playlistId] : [],
 				requiredImageKeys: [],
@@ -780,7 +813,8 @@ export class DownloadService {
 	}
 
 	private enqueueTrack(trackId: string, streamUrl: string): void {
-		if (this.queue.some((q) => q.trackId === trackId)) return;
+		if (this.tracks[trackId]?.failed) return;
+		if (this.queue.some((q) => q.trackId === trackId) || this.activeTrackIds.has(trackId)) return;
 		this.queue.push({ streamUrl, trackId });
 		this.drainQueue();
 	}
@@ -987,8 +1021,16 @@ export class DownloadService {
 			const item = this.queue.shift();
 			if (!item) break;
 			this.activeCount += 1;
+			this.activeTrackIds.add(item.trackId);
 			this.downloadTrack(item).then(() => {
 				this.activeCount -= 1;
+				this.activeTrackIds.delete(item.trackId);
+				// retry in-session while reachable; when offline the track parks (no hot-loop)
+				// and resumes on the next reachability-up / onAppReady
+				const entry = this.tracks[item.trackId];
+				if (entry && !entry.complete && !entry.failed && this.isOnlineFn()) {
+					this.enqueueTrack(item.trackId, item.streamUrl);
+				}
 				this.drainQueue();
 			});
 		}
@@ -1011,8 +1053,50 @@ export class DownloadService {
 			this.notify();
 			this.onTrackDownloadedFn?.(trackId);
 		} catch {
-			// leave incomplete; will retry on next onAppReady
+			const entry = this.tracks[trackId];
+			// only count the failure toward giving up when the device is really online; an
+			// offline stretch leaves the track parked to retry when connectivity returns
+			if (!entry || !this.isOnlineFn()) return;
+			entry.attempts += 1;
+			if (entry.attempts >= TRACK_MAX_ATTEMPTS) {
+				entry.failed = true;
+				this.pruneAllFailedArtifacts(trackId);
+			}
+			await this.persistAll();
+			this.notify();
 		}
+	}
+
+	// when a track gives up, drop any album/playlist/genre whose tracks have all failed so it
+	// stops looking downloaded — a partial artifact (some tracks still complete) is kept
+	private pruneAllFailedArtifacts(trackId: string): void {
+		const entry = this.tracks[trackId];
+		if (!entry) return;
+		for (const albumId of entry.albumIds) {
+			if (this.isArtifactAllFailed(this.albums[albumId]?.trackIds)) {
+				this.removeAlbumDownload(albumId);
+			}
+		}
+		for (const playlistId of entry.playlistIds) {
+			if (this.isArtifactAllFailed(this.playlists[playlistId]?.trackIds)) {
+				this.removePlaylistDownload(playlistId);
+			}
+		}
+		for (const [genreId, genreEntry] of Object.entries(this.genres)) {
+			if (genreEntry.trackIds.includes(trackId) && this.isArtifactAllFailed(genreEntry.trackIds)) {
+				this.removeGenreDownload(genreId);
+			}
+		}
+	}
+
+	private isArtifactAllFailed(trackIds: Array<string> | undefined): boolean {
+		if (!trackIds || trackIds.length === 0) return false;
+		for (const id of trackIds) {
+			const track = this.tracks[id];
+			if (track?.complete) return false;
+			if (track && !track.failed) return false; // still pending — not settled yet
+		}
+		return true;
 	}
 
 	private ensureLoaded(): Promise<void> {
@@ -1034,6 +1118,12 @@ export class DownloadService {
 				}
 				if (!Array.isArray(trackEntry.requiredImageKeys)) {
 					trackEntry.requiredImageKeys = [];
+				}
+				if (typeof trackEntry.attempts !== 'number') {
+					trackEntry.attempts = 0;
+				}
+				if (typeof trackEntry.failed !== 'boolean') {
+					trackEntry.failed = false;
 				}
 			}
 			this.isLoaded = true;

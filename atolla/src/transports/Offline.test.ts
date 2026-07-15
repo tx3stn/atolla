@@ -52,7 +52,9 @@ function downloadedTrack(
 ): DownloadedTrackEntry {
 	return {
 		albumIds: [],
+		attempts: 0,
 		complete: options.complete,
+		failed: false,
 		genreIds: [],
 		playlistIds: [],
 		requiredImageKeys: [],
@@ -210,7 +212,9 @@ describe('OfflineTransport', () => {
 				tracks: [
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -244,7 +248,9 @@ describe('OfflineTransport', () => {
 				tracks: [
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: ['genre-1'],
 						playlistIds: [],
 						requiredImageKeys: [],
@@ -295,7 +301,9 @@ describe('OfflineTransport', () => {
 				tracks: [
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -313,7 +321,9 @@ describe('OfflineTransport', () => {
 					},
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -378,7 +388,9 @@ describe('OfflineTransport', () => {
 				tracks: [
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -395,7 +407,9 @@ describe('OfflineTransport', () => {
 					},
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -427,7 +441,9 @@ describe('OfflineTransport', () => {
 				tracks: [
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -442,7 +458,9 @@ describe('OfflineTransport', () => {
 					},
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -535,7 +553,9 @@ describe('OfflineTransport', () => {
 				tracks: [
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -595,7 +615,9 @@ describe('OfflineTransport', () => {
 				tracks: [
 					{
 						albumIds: ['album-1'],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: [],
 						requiredImageKeys: [],
@@ -610,7 +632,9 @@ describe('OfflineTransport', () => {
 					},
 					{
 						albumIds: ['album-1'],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: [],
 						requiredImageKeys: [],
@@ -625,7 +649,9 @@ describe('OfflineTransport', () => {
 					},
 					{
 						albumIds: ['album-1'],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: [],
 						requiredImageKeys: [],
@@ -653,7 +679,9 @@ describe('OfflineTransport', () => {
 				tracks: [
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -668,7 +696,9 @@ describe('OfflineTransport', () => {
 					},
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -683,7 +713,9 @@ describe('OfflineTransport', () => {
 					},
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -711,7 +743,9 @@ describe('OfflineTransport', () => {
 				tracks: [
 					{
 						albumIds: [],
+						attempts: 0,
 						complete: true,
+						failed: false,
 						genreIds: [],
 						playlistIds: ['playlist-1'],
 						requiredImageKeys: [],
@@ -936,7 +970,9 @@ describe('OfflineTransport', () => {
 					tracks: [
 						{
 							albumIds: [],
+							attempts: 0,
 							complete: true,
+							failed: false,
 							genreIds: [],
 							playlistIds: [],
 							requiredImageKeys: [],

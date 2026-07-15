@@ -51,6 +51,10 @@ declare const Strings: {
 	no: () => string;
 	nothingDownloaded: () => string;
 	nothingElseLinedUp: () => string;
+	partialDownloadBody: () => string;
+	partialDownloadRemove: () => string;
+	partialDownloadRetry: () => string;
+	partialDownloadTitle: () => string;
 	play: () => string;
 	playingNextToast: () => string;
 	playingNowToast: () => string;

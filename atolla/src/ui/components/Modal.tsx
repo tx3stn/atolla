@@ -18,6 +18,11 @@ export interface ModalViewModel {
 	modalAccessibilityId?: string;
 	onClose: () => void;
 	onConfirm?: () => void;
+	// when provided, the left button becomes a distinct action (e.g. "remove") instead of a
+	// plain cancel, so the backdrop tap (onClose) stays the only "dismiss"
+	onSecondary?: () => void;
+	secondaryAccessibilityId?: string;
+	secondaryLabel?: string;
 	title: string;
 }
 
@@ -34,8 +39,16 @@ export class Modal extends Component<ModalViewModel> {
 			modalAccessibilityId,
 			onClose,
 			onConfirm,
+			onSecondary,
+			secondaryAccessibilityId,
+			secondaryLabel,
 			title,
 		} = this.viewModel;
+
+		const leftAction = onSecondary ?? onClose;
+		const leftLabel = onSecondary ? (secondaryLabel ?? '') : (cancelLabel ?? Strings.cancel());
+		const leftAccessibilityId =
+			(onSecondary ? secondaryAccessibilityId : cancelAccessibilityId) ?? '';
 
 		<ModalBase
 			backdropAccessibilityId={modalAccessibilityId}
@@ -57,10 +70,10 @@ export class Modal extends Component<ModalViewModel> {
 					<view style={modalStyles.actions}>
 						<view style={modalStyles.actionButton}>
 							<Button
-								accessibilityId={cancelAccessibilityId ?? ''}
+								accessibilityId={leftAccessibilityId}
 								animationsEnabled={animationsEnabled}
-								label={cancelLabel ?? Strings.cancel()}
-								onTap={onClose}
+								label={leftLabel}
+								onTap={leftAction}
 								style={ButtonType.Secondary}
 							/>
 						</view>

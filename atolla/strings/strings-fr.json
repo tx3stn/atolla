@@ -157,6 +157,18 @@
 	"nothing_else_lined_up": {
 		"defaultMessage": "rien d'autre en attente"
 	},
+	"partial_download_body": {
+		"defaultMessage": "certains titres n'ont pas pu être téléchargés"
+	},
+	"partial_download_remove": {
+		"defaultMessage": "supprimer"
+	},
+	"partial_download_retry": {
+		"defaultMessage": "réessayer"
+	},
+	"partial_download_title": {
+		"defaultMessage": "TÉLÉCHARGEMENT INCOMPLET"
+	},
 	"play_next": {
 		"defaultMessage": "lire ensuite"
 	},

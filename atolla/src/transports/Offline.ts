@@ -263,9 +263,7 @@ export class OfflineTransport implements Transport {
 	async getTracksByAlbum(albumId: string): Promise<Array<Track>> {
 		const albumEntry = this.downloads.getAlbum(albumId);
 		if (albumEntry) {
-			const tracks = albumEntry.trackIds
-				.map((id) => this.downloads.getTrack(id)?.track)
-				.filter((t): t is Track => t != null);
+			const tracks = this.completedTracks(albumEntry.trackIds);
 			if (tracks.length > 0) {
 				return sortTracksByNumber(tracks);
 			}
@@ -274,7 +272,7 @@ export class OfflineTransport implements Transport {
 		return sortTracksByNumber(
 			this.downloads
 				.getAllTracks()
-				.filter((entry) => entry.track.albumId === albumId)
+				.filter((entry) => entry.track.albumId === albumId && entry.complete)
 				.map((entry) => entry.track),
 		);
 	}
@@ -282,16 +280,10 @@ export class OfflineTransport implements Transport {
 	async getTracksByArtist(artistId: string): Promise<Array<Track>> {
 		const artistEntry = this.downloads.getArtist(artistId);
 		if (artistEntry) {
-			const tracks: Array<Track> = [];
-			for (const albumId of artistEntry.albumIds) {
-				const albumEntry = this.downloads.getAlbum(albumId);
-				if (!albumEntry) continue;
-				for (const trackId of albumEntry.trackIds) {
-					const trackEntry = this.downloads.getTrack(trackId);
-					if (trackEntry) tracks.push(trackEntry.track);
-				}
-			}
-
+			const trackIds = artistEntry.albumIds.flatMap(
+				(albumId) => this.downloads.getAlbum(albumId)?.trackIds ?? [],
+			);
+			const tracks = this.completedTracks(trackIds);
 			if (tracks.length > 0) {
 				return tracks;
 			}
@@ -299,7 +291,7 @@ export class OfflineTransport implements Transport {
 
 		return this.downloads
 			.getAllTracks()
-			.filter((entry) => entry.track.artistId === artistId)
+			.filter((entry) => entry.track.artistId === artistId && entry.complete)
 			.map((entry) => entry.track);
 	}
 
@@ -465,14 +457,12 @@ export class OfflineTransport implements Transport {
 	private async collectGenreTracks(genreId: string): Promise<Array<Track>> {
 		const genreEntry = this.downloads.getGenre(genreId);
 		if (genreEntry) {
-			return genreEntry.trackIds
-				.map((trackId) => this.downloads.getTrack(trackId)?.track)
-				.filter((track): track is Track => track != null);
+			return this.completedTracks(genreEntry.trackIds);
 		}
 
 		return this.downloads
 			.getAllTracks()
-			.filter((entry) => entry.genreIds.includes(genreId))
+			.filter((entry) => entry.genreIds.includes(genreId) && entry.complete)
 			.map((entry) => entry.track);
 	}
 
@@ -512,9 +502,20 @@ export class OfflineTransport implements Transport {
 			}
 		}
 
-		return trackIds
-			.map((id) => this.downloads.getTrack(id)?.track)
-			.filter((t): t is Track => t != null);
+		return this.completedTracks(trackIds);
+	}
+
+	// tracks that are actually downloaded (cached); failed/pending tracks are omitted so
+	// offline listings and playback queues never include an unplayable entry
+	private completedTracks(trackIds: Array<string>): Array<Track> {
+		const tracks: Array<Track> = [];
+		for (const id of trackIds) {
+			const entry = this.downloads.getTrack(id);
+			if (entry?.complete) {
+				tracks.push(entry.track);
+			}
+		}
+		return tracks;
 	}
 
 	private resolvePlaylistName(playlistId: string): string {

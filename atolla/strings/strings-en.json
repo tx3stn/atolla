@@ -157,6 +157,18 @@
 	"nothing_else_lined_up": {
 		"defaultMessage": "nothing else lined up"
 	},
+	"partial_download_body": {
+		"defaultMessage": "some tracks could not be downloaded"
+	},
+	"partial_download_remove": {
+		"defaultMessage": "remove"
+	},
+	"partial_download_retry": {
+		"defaultMessage": "retry"
+	},
+	"partial_download_title": {
+		"defaultMessage": "DOWNLOAD INCOMPLETE"
+	},
 	"play": {
 		"defaultMessage": "play"
 	},

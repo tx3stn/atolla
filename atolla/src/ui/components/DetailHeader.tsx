@@ -111,6 +111,40 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		}, 2000);
 	};
 
+	// a partial download offers the same modal as a completed one, but with two actions:
+	// retry the failed tracks (re-runs onDownload) or remove what did download
+	private handlePartialDownloadTap = (): void => {
+		this.viewModel.modalSlot?.slotted(() => {
+			<Modal
+				animationsEnabled={this.viewModel.animationsEnabled}
+				body={Strings.partialDownloadBody()}
+				confirmAccessibilityId='detail-header-partial-download-retry'
+				confirmLabel={Strings.partialDownloadRetry()}
+				modalAccessibilityId='detail-header-partial-download-modal'
+				onClose={this.handlePartialDownloadDismiss}
+				onConfirm={this.handlePartialDownloadRetry}
+				onSecondary={this.handlePartialDownloadRemove}
+				secondaryAccessibilityId='detail-header-partial-download-remove'
+				secondaryLabel={Strings.partialDownloadRemove()}
+				title={Strings.partialDownloadTitle()}
+			/>;
+		});
+	};
+
+	private handlePartialDownloadDismiss = (): void => {
+		this.viewModel.modalSlot?.slotted(this.emptySlot);
+	};
+
+	private handlePartialDownloadRetry = (): void => {
+		this.viewModel.modalSlot?.slotted(this.emptySlot);
+		this.viewModel.onDownload?.();
+	};
+
+	private handlePartialDownloadRemove = (): void => {
+		this.viewModel.modalSlot?.slotted(this.emptySlot);
+		this.viewModel.onRemoveDownload?.();
+	};
+
 	onViewModelUpdate(prevViewModel?: DetailHeaderViewModel): void {
 		if (!prevViewModel) return;
 
@@ -207,13 +241,17 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			? res.trash
 			: downloadState === 'downloaded'
 				? res.downloaded
-				: res.download;
+				: downloadState === 'partial'
+					? res.downloadpartial
+					: res.download;
 		const onDownloadTap =
 			showRemoveModal || showRemoveConfirmation
 				? undefined
 				: downloadState === 'downloaded'
 					? this.handleRemoveDownloadTap
-					: onDownload;
+					: downloadState === 'partial'
+						? this.handlePartialDownloadTap
+						: onDownload;
 		<view onDrag={this.handleHeaderDrag} onDragPredicate={this.isVerticalDrag} style={styles.root}>
 			<layout style={styles.headerRow}>
 				<view
