@@ -48,7 +48,7 @@ export class ErrorBoundary extends StatefulComponent<ErrorBoundaryViewModel, Err
 					<label style={styles.message} value={error.message} />
 					{error.stack != null && (
 						<scroll style={styles.stackScroll}>
-							<label style={styles.stack} value={error.stack} />
+							<label numberOfLines={0} style={styles.stack} value={error.stack} />
 						</scroll>
 					)}
 				</view>
