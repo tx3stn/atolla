@@ -241,14 +241,14 @@ export class MockTransport implements Transport {
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track> }> {
-		const allTracks = mockJellyfinTracks
-			.map((item) =>
+		const allTracks = shuffleTracks(
+			mockJellyfinTracks.map((item) =>
 				mapJellyfinTrackToTrack(
 					{ ...item, MediaSources: mockMediaSourcesForAlbum(item.AlbumId) },
 					this.imageResolvers,
 				),
-			)
-			.sort((a, b) => a.id.localeCompare(b.id));
+			),
+		);
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const items = allTracks.slice(startIndex, startIndex + pageSize);
 		return {

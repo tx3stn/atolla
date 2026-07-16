@@ -903,6 +903,75 @@ describe('OfflineTransport', () => {
 		expect(secondPage.hasMore).toBe(false);
 	});
 
+	describe('getShuffledLibraryTracks', () => {
+		function withStubbedRandom<T>(value: number, run: () => T): T {
+			const original = Math.random;
+			Math.random = () => value;
+			try {
+				return run();
+			} finally {
+				Math.random = original;
+			}
+		}
+
+		it('shuffles the completed tracks rather than returning them id-sorted', async () => {
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					tracks: [
+						downloadedTrack('track-a', { complete: true }),
+						downloadedTrack('track-b', { complete: true }),
+						downloadedTrack('track-c', { complete: true }),
+						downloadedTrack('track-d', { complete: true }),
+					],
+				}) as never,
+			);
+
+			const { items } = await withStubbedRandom(0, () =>
+				transport.getShuffledLibraryTracks(1, 500),
+			);
+			const ids = items.map((track) => track.id);
+
+			expect([...ids].sort()).toEqual(['track-a', 'track-b', 'track-c', 'track-d']);
+			expect(ids).not.toEqual(['track-a', 'track-b', 'track-c', 'track-d']);
+		});
+
+		it('excludes tracks that are not fully downloaded', async () => {
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					tracks: [
+						downloadedTrack('track-a', { complete: true }),
+						downloadedTrack('track-b', { complete: false }),
+						downloadedTrack('track-c', { complete: true }),
+					],
+				}) as never,
+			);
+
+			const { items } = await transport.getShuffledLibraryTracks(1, 500);
+
+			expect(items.map((track) => track.id).sort()).toEqual(['track-a', 'track-c']);
+		});
+
+		it('pages the shuffled result and reports whether more remain', async () => {
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					tracks: [
+						downloadedTrack('track-a', { complete: true }),
+						downloadedTrack('track-b', { complete: true }),
+						downloadedTrack('track-c', { complete: true }),
+					],
+				}) as never,
+			);
+
+			const firstPage = await transport.getShuffledLibraryTracks(1, 2);
+			const secondPage = await transport.getShuffledLibraryTracks(2, 2);
+
+			expect(firstPage.items).toHaveLength(2);
+			expect(firstPage.hasMore).toBe(true);
+			expect(secondPage.items).toHaveLength(1);
+			expect(secondPage.hasMore).toBe(false);
+		});
+	});
+
 	describe('createPlaylist (offline)', () => {
 		function createNullStore(): {
 			fetchString: () => Promise<string>;

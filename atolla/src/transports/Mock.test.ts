@@ -83,6 +83,41 @@ describe('MockTransport pagination', () => {
 	});
 });
 
+describe('MockTransport.getShuffledLibraryTracks', () => {
+	function withStubbedRandom<T>(value: number, run: () => T): T {
+		const original = Math.random;
+		Math.random = () => value;
+		try {
+			return run();
+		} finally {
+			Math.random = original;
+		}
+	}
+
+	it('shuffles the library rather than returning it id-sorted', async () => {
+		const transport = new MockTransport();
+
+		const { items } = await withStubbedRandom(0, () => transport.getShuffledLibraryTracks(1, 1000));
+		const ids = items.map((track) => track.id);
+		const sortedIds = [...ids].sort((a, b) => a.localeCompare(b));
+
+		expect(ids.length).toBeGreaterThan(1);
+		expect(new Set(ids).size).toBe(ids.length);
+		expect(ids).not.toEqual(sortedIds);
+	});
+
+	it('pages the shuffled library and reports whether more remain', async () => {
+		const transport = new MockTransport();
+
+		const full = await transport.getShuffledLibraryTracks(1, 1000);
+		const firstPage = await transport.getShuffledLibraryTracks(1, 5);
+
+		expect(full.items.length).toBeGreaterThan(5);
+		expect(firstPage.items).toHaveLength(5);
+		expect(firstPage.hasMore).toBe(true);
+	});
+});
+
 describe('MockTransport playlist reorder', () => {
 	it('exposes a playlistItemId for each playlist track', async () => {
 		const transport = new MockTransport();

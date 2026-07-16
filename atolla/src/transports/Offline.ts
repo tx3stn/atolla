@@ -242,11 +242,12 @@ export class OfflineTransport implements Transport {
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track> }> {
-		const allTracks = this.downloads
-			.getAllTracks()
-			.filter((entry) => entry.complete)
-			.map((entry) => entry.track)
-			.sort((a, b) => a.id.localeCompare(b.id));
+		const allTracks = shuffleTracks(
+			this.downloads
+				.getAllTracks()
+				.filter((entry) => entry.complete)
+				.map((entry) => entry.track),
+		);
 		const start = Math.max(0, page - 1) * pageSize;
 		const end = start + pageSize;
 		return {
@@ -324,7 +325,6 @@ export class OfflineTransport implements Transport {
 		page: number,
 		pageSize: number,
 	): Promise<{ hasMore: boolean; items: Array<Track> }> {
-		// sort by id so paging through the local set is stable, matching getShuffledLibraryTracks
 		const yearTracks = this.downloads
 			.getAllTracks()
 			.filter((entry) => entry.complete && trackReleaseYear(entry.track) === year)
