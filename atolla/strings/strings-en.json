@@ -96,6 +96,9 @@
 	"enter_server_url": {
 		"defaultMessage": "enter server URL"
 	},
+	"error_boundary_title": {
+		"defaultMessage": "an error occurred"
+	},
 	"failed_to_load_more": {
 		"defaultMessage": "failed to load more\npull to retry"
 	},

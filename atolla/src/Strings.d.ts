@@ -31,6 +31,7 @@ declare const Strings: {
 	createPlaylistModalTitle: () => string;
 	done: () => string;
 	enterServerUrl: () => string;
+	errorBoundaryTitle: () => string;
 	failedToLoadMore: () => string;
 	headerAlbums: () => string;
 	headerArtists: () => string;

@@ -96,6 +96,9 @@
 	"enter_server_url": {
 		"defaultMessage": "entrer l'URL du serveur"
 	},
+	"error_boundary_title": {
+		"defaultMessage": "une erreur s'est produite"
+	},
 	"failed_to_load_more": {
 		"defaultMessage": "échec du chargement\nappuyez pour réessayer"
 	},
