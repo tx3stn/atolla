@@ -18,6 +18,12 @@ export function tracked<T>(
 	canceler: PromiseCanceler,
 	request: CancelablePromise<T>,
 ): CancelablePromise<T> {
-	canceler.onCancel(() => request.cancel?.());
+	canceler.onCancel(() => {
+		try {
+			request.cancel?.();
+		} catch {
+			// valdi's native HTTP cancel throws due to a bug, so just ignore for now.
+		}
+	});
 	return request;
 }
