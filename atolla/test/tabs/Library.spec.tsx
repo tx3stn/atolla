@@ -3,7 +3,9 @@ import { HeaderTabs } from 'atolla/src/models/App';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import { ConnectionModes } from 'atolla/src/transports/Model';
+import { ErrorBoundary } from 'atolla/src/ui/components/ErrorBoundary';
 import { LibraryView } from 'atolla/src/ui/tabs/Library';
+import { componentTypeFind } from 'foundation/test/util/componentTypeFind';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 const stubImageCache = {
@@ -55,5 +57,34 @@ describe('LibraryView', () => {
 
 		expect(component.state.activeTab).toBe(HeaderTabs.artists);
 		expect(component.state.letterFilter).toBeNull();
+	});
+
+	valdiIt('wraps the tab content in an ErrorBoundary keyed by the active tab', async (driver) => {
+		const viewModel = makeViewModel();
+		const component = driver.renderComponent(LibraryView, viewModel, undefined);
+
+		await flushAsyncWork();
+
+		const [boundary] = componentTypeFind(component, ErrorBoundary);
+		expect(boundary).toBeDefined();
+		expect(boundary.viewModel.resetKey).toBe(HeaderTabs.artists);
+	});
+
+	valdiIt('recovers a crashed tab boundary when the active tab changes', async (driver) => {
+		const viewModel = makeViewModel();
+		const component = driver.renderComponent(LibraryView, viewModel, undefined);
+
+		await flushAsyncWork();
+
+		const [boundary] = componentTypeFind(component, ErrorBoundary);
+		boundary.onError(new Error('teardown cancel threw'));
+		expect(boundary.state.error).not.toBeNull();
+
+		(component as unknown as { setState: (state: { activeTab: string }) => void }).setState({
+			activeTab: HeaderTabs.albums,
+		});
+		await flushAsyncWork();
+
+		expect(boundary.state.error).toBeNull();
 	});
 });

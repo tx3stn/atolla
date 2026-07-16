@@ -17,6 +17,7 @@ import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { type DetailPushDeps, pushArtist } from '../flows/PushDetail';
 import { AlbumsView } from '../views/AlbumsView';
 import { ArtistsView } from '../views/ArtistsView';
@@ -60,76 +61,78 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 		const isOfflineMode = this.viewModel.connectionMode === ConnectionModes.offline;
 		<view style={styles.root}>
 			<view style={styles.tabHost}>
-				<NavigationRoot>
-					{$slot((navigationController: NavigationController) => {
-						this.rootController = navigationController;
-						this.viewModel.onNavigationControllerReady(navigationController);
+				<ErrorBoundary resetKey={tab}>
+					<NavigationRoot>
+						{$slot((navigationController: NavigationController) => {
+							this.rootController = navigationController;
+							this.viewModel.onNavigationControllerReady(navigationController);
 
-						if (tab === HeaderTabs.artists) {
-							<ArtistsView
-								downloadService={this.viewModel.downloadService}
-								imageCache={this.viewModel.imageCache}
-								isOfflineMode={isOfflineMode}
-								letterFilter={this.state.letterFilter}
-								modalSlot={this.viewModel.modalSlot}
-								navigationController={navigationController}
-								onRootDetailControllerReady={this.setRootDetailController}
-								paletteQueue={this.viewModel.paletteQueue}
-								playbackStore={this.viewModel.playbackStore}
-								preferences={this.viewModel.preferences}
-								toastService={this.viewModel.toastService}
-								transport={this.viewModel.transport}
-							/>;
-						} else if (tab === HeaderTabs.albums) {
-							<AlbumsView
-								downloadService={this.viewModel.downloadService}
-								imageCache={this.viewModel.imageCache}
-								isOfflineMode={isOfflineMode}
-								letterFilter={this.state.letterFilter}
-								modalSlot={this.viewModel.modalSlot}
-								navigationController={navigationController}
-								onRootDetailControllerReady={this.setRootDetailController}
-								paletteQueue={this.viewModel.paletteQueue}
-								playbackStore={this.viewModel.playbackStore}
-								preferences={this.viewModel.preferences}
-								toastService={this.viewModel.toastService}
-								transport={this.viewModel.transport}
-							/>;
-						} else if (tab === HeaderTabs.playlists) {
-							<PlaylistsView
-								downloadService={this.viewModel.downloadService}
-								imageCache={this.viewModel.imageCache}
-								isOfflineMode={isOfflineMode}
-								letterFilter={this.state.letterFilter}
-								modalSlot={this.viewModel.modalSlot}
-								navigationController={navigationController}
-								onNavigateToArtist={this.handlePlaylistArtistTap}
-								onRootDetailControllerReady={this.setRootDetailController}
-								paletteQueue={this.viewModel.paletteQueue}
-								playbackStore={this.viewModel.playbackStore}
-								playlistEditService={this.viewModel.playlistEditService}
-								preferences={this.viewModel.preferences}
-								toastService={this.viewModel.toastService}
-								transport={this.viewModel.transport}
-							/>;
-						} else {
-							<GenresView
-								downloadService={this.viewModel.downloadService}
-								imageCache={this.viewModel.imageCache}
-								isOfflineMode={isOfflineMode}
-								letterFilter={this.state.letterFilter}
-								modalSlot={this.viewModel.modalSlot}
-								navigationController={navigationController}
-								onNavigateToArtist={this.handlePlaylistArtistTap}
-								onRootDetailControllerReady={this.setRootDetailController}
-								playbackStore={this.viewModel.playbackStore}
-								preferences={this.viewModel.preferences}
-								toastService={this.viewModel.toastService}
-								transport={this.viewModel.transport}
-							/>;
-						}
-					})}
-				</NavigationRoot>
+							if (tab === HeaderTabs.artists) {
+								<ArtistsView
+									downloadService={this.viewModel.downloadService}
+									imageCache={this.viewModel.imageCache}
+									isOfflineMode={isOfflineMode}
+									letterFilter={this.state.letterFilter}
+									modalSlot={this.viewModel.modalSlot}
+									navigationController={navigationController}
+									onRootDetailControllerReady={this.setRootDetailController}
+									paletteQueue={this.viewModel.paletteQueue}
+									playbackStore={this.viewModel.playbackStore}
+									preferences={this.viewModel.preferences}
+									toastService={this.viewModel.toastService}
+									transport={this.viewModel.transport}
+								/>;
+							} else if (tab === HeaderTabs.albums) {
+								<AlbumsView
+									downloadService={this.viewModel.downloadService}
+									imageCache={this.viewModel.imageCache}
+									isOfflineMode={isOfflineMode}
+									letterFilter={this.state.letterFilter}
+									modalSlot={this.viewModel.modalSlot}
+									navigationController={navigationController}
+									onRootDetailControllerReady={this.setRootDetailController}
+									paletteQueue={this.viewModel.paletteQueue}
+									playbackStore={this.viewModel.playbackStore}
+									preferences={this.viewModel.preferences}
+									toastService={this.viewModel.toastService}
+									transport={this.viewModel.transport}
+								/>;
+							} else if (tab === HeaderTabs.playlists) {
+								<PlaylistsView
+									downloadService={this.viewModel.downloadService}
+									imageCache={this.viewModel.imageCache}
+									isOfflineMode={isOfflineMode}
+									letterFilter={this.state.letterFilter}
+									modalSlot={this.viewModel.modalSlot}
+									navigationController={navigationController}
+									onNavigateToArtist={this.handlePlaylistArtistTap}
+									onRootDetailControllerReady={this.setRootDetailController}
+									paletteQueue={this.viewModel.paletteQueue}
+									playbackStore={this.viewModel.playbackStore}
+									playlistEditService={this.viewModel.playlistEditService}
+									preferences={this.viewModel.preferences}
+									toastService={this.viewModel.toastService}
+									transport={this.viewModel.transport}
+								/>;
+							} else {
+								<GenresView
+									downloadService={this.viewModel.downloadService}
+									imageCache={this.viewModel.imageCache}
+									isOfflineMode={isOfflineMode}
+									letterFilter={this.state.letterFilter}
+									modalSlot={this.viewModel.modalSlot}
+									navigationController={navigationController}
+									onNavigateToArtist={this.handlePlaylistArtistTap}
+									onRootDetailControllerReady={this.setRootDetailController}
+									playbackStore={this.viewModel.playbackStore}
+									preferences={this.viewModel.preferences}
+									toastService={this.viewModel.toastService}
+									transport={this.viewModel.transport}
+								/>;
+							}
+						})}
+					</NavigationRoot>
+				</ErrorBoundary>
 			</view>
 		</view>;
 	}
