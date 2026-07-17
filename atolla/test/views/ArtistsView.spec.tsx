@@ -3,6 +3,7 @@ import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import { ArtistsView } from 'atolla/src/ui/views/ArtistsView';
 import { ArtistView } from 'atolla/src/ui/views/ArtistView';
+import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
@@ -64,6 +65,7 @@ describe('ArtistsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(ArtistsView, viewModel, undefined);
 		component.setState({ artists });
@@ -91,6 +93,7 @@ describe('ArtistsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(ArtistsView, viewModel, undefined);
 		component.setState({ artists });
@@ -121,6 +124,7 @@ describe('ArtistsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(ArtistsView, viewModel, undefined);
 		component.setState({ artists });
@@ -146,6 +150,7 @@ describe('ArtistsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		driver.renderComponent(ArtistsView, viewModel, undefined);
 
@@ -174,6 +179,7 @@ describe('ArtistsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(ArtistsView, viewModel, undefined);
 
@@ -205,6 +211,7 @@ describe('ArtistsView', () => {
 				playbackStore: new PlaybackStore(),
 				preferences: makePreferences(),
 				transport,
+				viewCache: makeTestViewCache(),
 			};
 			const component = driver.renderComponent(ArtistsView, viewModel, undefined);
 
@@ -242,6 +249,7 @@ describe('ArtistsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(ArtistsView, viewModel, undefined);
 

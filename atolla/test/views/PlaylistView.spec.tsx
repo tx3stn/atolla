@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import { PlaylistView } from 'atolla/src/ui/views/PlaylistView';
+import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
@@ -59,6 +60,7 @@ describe('PlaylistView', () => {
 				playlist,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: mockNavigator },
 		);
@@ -90,6 +92,7 @@ describe('PlaylistView', () => {
 				playlist,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: mockNavigator },
 		);
@@ -124,6 +127,7 @@ describe('PlaylistView', () => {
 				playlist,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: mockNavigator },
 		);
@@ -161,6 +165,7 @@ describe('PlaylistView', () => {
 				playlist,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: mockNavigator },
 		);

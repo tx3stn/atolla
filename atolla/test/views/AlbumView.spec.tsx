@@ -2,6 +2,7 @@ import 'jasmine/src/jasmine';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import { AlbumView } from 'atolla/src/ui/views/AlbumView';
 import { ArtistView } from 'atolla/src/ui/views/ArtistView';
+import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
@@ -69,6 +70,7 @@ describe('AlbumView', () => {
 					playbackStore,
 					preferences,
 					transport,
+					viewCache: makeTestViewCache(),
 				},
 				{ navigator: mockNavigator },
 			);
@@ -113,6 +115,7 @@ describe('AlbumView', () => {
 				playbackStore,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: mockNavigator },
 		);
@@ -161,6 +164,7 @@ describe('AlbumView', () => {
 				playbackStore,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: mockNavigator },
 		);
@@ -204,6 +208,7 @@ describe('AlbumView', () => {
 				playbackStore,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: mockNavigator },
 		);
@@ -254,6 +259,7 @@ describe('AlbumView', () => {
 				playbackStore,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: trackingNavigator },
 		);
@@ -317,6 +323,7 @@ describe('AlbumView', () => {
 					playbackStore,
 					preferences,
 					transport,
+					viewCache: makeTestViewCache(),
 				},
 				{ navigator: trackingNavigator },
 			);
@@ -363,6 +370,7 @@ describe('AlbumView', () => {
 				playbackStore,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: mockNavigator },
 		);
@@ -410,6 +418,7 @@ describe('AlbumView', () => {
 				playbackStore,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: mockNavigator },
 		);
@@ -460,6 +469,7 @@ describe('AlbumView', () => {
 					playbackStore,
 					preferences,
 					transport,
+					viewCache: makeTestViewCache(),
 				},
 				{ navigator: mockNavigator },
 			);

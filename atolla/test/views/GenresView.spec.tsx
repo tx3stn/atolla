@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import { GenresView } from 'atolla/src/ui/views/GenresView';
+import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
@@ -55,6 +56,7 @@ describe('GenresView', () => {
 			playbackStore,
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(GenresView, viewModel, undefined);
 		component.setState({ genres });
@@ -82,6 +84,7 @@ describe('GenresView', () => {
 				playbackStore,
 				preferences: makePreferences(),
 				transport,
+				viewCache: makeTestViewCache(),
 			};
 			const component = driver.renderComponent(GenresView, viewModel, undefined);
 
@@ -111,6 +114,7 @@ describe('GenresView', () => {
 			playbackStore,
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(GenresView, viewModel, undefined);
 

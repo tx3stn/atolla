@@ -33,6 +33,7 @@ import { DetailHeader } from '../components/DetailHeader';
 import { GenrePills } from '../components/GenrePills';
 import { mergeGenreCollections } from '../components/GenrePillsData';
 import { LoadingView } from '../components/LoadingView';
+import { RefreshableScroll } from '../components/RefreshableScroll';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { resolveGenreForNavigation, resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
@@ -64,9 +65,17 @@ interface ArtistState {
 	contextMenuCard: CardContextMenuCard | null;
 	downloadState: DownloadState;
 	hydratedArtist: Artist | null;
+	isRefreshing: boolean;
 	revision: number;
 	topTracks: Array<Track>;
 	topTracksLoaded: boolean;
+}
+
+interface ArtistCachePayload {
+	albums: Array<Album>;
+	allTracks: Array<Track>;
+	hydratedArtist: Artist | null;
+	topTracks: Array<Track>;
 }
 
 @NavigationPage(module)
@@ -84,6 +93,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		contextMenuCard: null,
 		downloadState: 'not_downloaded',
 		hydratedArtist: null,
+		isRefreshing: false,
 		revision: 0,
 		topTracks: [],
 		topTracksLoaded: false,
@@ -112,6 +122,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.registerDisposable(this.playlistFlow.cancel);
 		this.syncDownloadState();
+		this.seedFromCache();
 		this.loadArtistData();
 	}
 
@@ -166,8 +177,11 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 		<layout accessibilityLabel='artist-view' style={styles.root}>
 			<view accessibilityId='artist-view' style={styles.fullScreen}>
-				<scroll
-					onScroll={(event) => this.headerCollapse.handleScroll(event.y)}
+				<RefreshableScroll
+					accessibilityId='artist'
+					isRefreshing={this.state.isRefreshing}
+					onRefresh={this.handleRefresh}
+					onScroll={(y) => this.headerCollapse.handleScroll(y)}
 					style={styles.scroll}
 				>
 					<DetailHeader
@@ -239,7 +253,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 							)}
 						</layout>
 					)}
-				</scroll>
+				</RefreshableScroll>
 			</view>
 		</layout>;
 	}
@@ -496,14 +510,17 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		// self-heal: callers may push a partial artist (id + name only, e.g. from a context menu);
 		// fetch the full artist to fill the header artwork/logo when either is missing
 		const needsArtist = !artist.imageUrl || !artist.logoUrl;
-		this.setState({
-			albums: [],
-			albumsLoaded: false,
-			allTracks: [],
-			hydratedArtist: null,
-			topTracks: [],
-			topTracksLoaded: false,
-		});
+		// keep any seeded/previous content visible during a revalidate; only blank to the spinner cold
+		if (!this.state.albumsLoaded && !this.state.topTracksLoaded) {
+			this.setState({
+				albums: [],
+				albumsLoaded: false,
+				allTracks: [],
+				hydratedArtist: null,
+				topTracks: [],
+				topTracksLoaded: false,
+			});
+		}
 
 		const albumsRead = transport.getAlbumsByArtist(artist.id);
 		const allTracksRead = transport.getTracksByArtist(artist.id);
@@ -544,15 +561,43 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			const topTracks = topTracksResult.status === 'fulfilled' ? topTracksResult.value : [];
 			const hydratedArtist = artistResult.status === 'fulfilled' ? artistResult.value : null;
 
+			const payload: ArtistCachePayload = { albums, allTracks, hydratedArtist, topTracks };
+			if (albums.length > 0 || topTracks.length > 0 || allTracks.length > 0) {
+				this.viewModel.viewCache.store(this.cacheKey(), payload);
+			}
 			this.setState({
-				albums,
+				...payload,
 				albumsLoaded: true,
-				allTracks,
-				hydratedArtist,
-				topTracks,
+				isRefreshing: false,
 				topTracksLoaded: true,
 			});
 			this.viewModel.paletteQueue?.enqueueAlbums(albums);
+		});
+	}
+
+	private cacheKey(): string {
+		return `artist:${this.viewModel.artist.id}`;
+	}
+
+	private handleRefresh = (): void => {
+		if (this.state.isRefreshing) {
+			return;
+		}
+		this.viewModel.viewCache.invalidate(this.cacheKey());
+		this.setState({ isRefreshing: true });
+		this.loadArtistData();
+	};
+
+	private seedFromCache(): void {
+		const cached = this.viewModel.viewCache.get<ArtistCachePayload>(this.cacheKey());
+		if (cached) {
+			this.setState({ ...cached, albumsLoaded: true, topTracksLoaded: true });
+			return;
+		}
+		void this.viewModel.viewCache.load<ArtistCachePayload>(this.cacheKey()).then((disk) => {
+			if (disk && !this.isDestroyed() && !this.state.albumsLoaded) {
+				this.setState({ ...disk, albumsLoaded: true, topTracksLoaded: true });
+			}
 		});
 	}
 

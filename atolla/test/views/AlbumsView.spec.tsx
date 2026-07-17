@@ -3,6 +3,7 @@ import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import { AlbumsView } from 'atolla/src/ui/views/AlbumsView';
 import { AlbumView } from 'atolla/src/ui/views/AlbumView';
+import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
@@ -70,6 +71,7 @@ describe('AlbumsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 
@@ -77,6 +79,40 @@ describe('AlbumsView', () => {
 		await flushAsyncWork();
 
 		expect(component.state.albums.length).toBe(pageSize);
+	});
+
+	valdiIt('paints albums from the view cache before the network resolves', async (driver) => {
+		const cached = makeAlbums(5);
+		const viewCache = makeTestViewCache();
+		viewCache.store('list:albums:all:online', cached);
+
+		type Page = { hasMore: boolean; items: ReturnType<typeof makeAlbums> };
+		let resolveNetwork: ((value: Page) => void) | undefined;
+		const transport = {
+			getAlbums: () =>
+				new Promise<Page>((resolve) => {
+					resolveNetwork = resolve;
+				}),
+		};
+
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			transport,
+			viewCache,
+		};
+		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
+
+		// the cached page paints synchronously on create, before the network settles
+		expect(component.state.albums.length).toBe(5);
+
+		resolveNetwork?.({ hasMore: false, items: makeAlbums(24) });
+		await flushAsyncWork();
+
+		// the fresh network result replaces the cached paint
+		expect(component.state.albums.length).toBe(24);
 	});
 
 	valdiIt('loads next page when prefetch trigger is laid out', async (driver) => {
@@ -98,6 +134,7 @@ describe('AlbumsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 
@@ -156,6 +193,7 @@ describe('AlbumsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 
@@ -214,6 +252,7 @@ describe('AlbumsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		driver.renderComponent(AlbumsView, viewModel, undefined);
 
@@ -238,6 +277,7 @@ describe('AlbumsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 		component.setState({ albums });
@@ -267,6 +307,7 @@ describe('AlbumsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 		component.setState({ albums });
@@ -298,6 +339,7 @@ describe('AlbumsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 		component.setState({ albums });
@@ -321,6 +363,7 @@ describe('AlbumsView', () => {
 				playbackStore: new PlaybackStore(),
 				preferences: makePreferences(),
 				transport,
+				viewCache: makeTestViewCache(),
 			};
 			const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 
@@ -355,6 +398,7 @@ describe('AlbumsView', () => {
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(AlbumsView, viewModel, undefined);
 

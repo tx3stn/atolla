@@ -23,6 +23,7 @@ import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { EmptyState } from '../components/EmptyState';
+import { RefreshableScroll } from '../components/RefreshableScroll';
 import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
@@ -55,6 +56,7 @@ interface ArtistsState {
 	createPlaylistTracks: TrackSource | null;
 	hasMore: boolean;
 	isLoadingNextPage: boolean;
+	isRefreshing: boolean;
 	nextPageFailed: boolean;
 	page: number;
 	revision: number;
@@ -73,6 +75,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		createPlaylistTracks: null,
 		hasMore: true,
 		isLoadingNextPage: false,
+		isRefreshing: false,
 		nextPageFailed: false,
 		page: 0,
 		revision: 0,
@@ -82,6 +85,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(() => this.pagedGridController.dispose());
 		this.registerDisposable(this.playlistFlow.cancel);
+		this.seedFromCache();
 		void this.loadInitialPages();
 	}
 
@@ -100,7 +104,12 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			secondaryText: '',
 		}));
 		<view style={styles.container}>
-			<scroll style={styles.scroll}>
+			<RefreshableScroll
+				accessibilityId='library-artists'
+				isRefreshing={this.state.isRefreshing}
+				onRefresh={this.handleRefresh}
+				style={styles.scroll}
+			>
 				<CardGrid
 					accessibilityId='library-artists-grid'
 					cards={cards}
@@ -112,7 +121,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 					onLoadMore={this.state.hasMore && !this.state.nextPageFailed ? this.loadMore : undefined}
 					onRetryLoadMore={this.state.nextPageFailed ? this.retryLoadMore : undefined}
 				/>
-			</scroll>
+			</RefreshableScroll>
 			<EmptyState
 				hasMore={this.state.hasMore}
 				isOfflineMode={this.viewModel.isOfflineMode}
@@ -161,6 +170,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			nextPageFailed: false,
 			page: 0,
 		});
+		this.seedFromCache();
 		void this.loadInitialPages();
 	}
 
@@ -290,6 +300,40 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		}
 	};
 
+	private cacheKey(): string {
+		const filter = this.viewModel.letterFilter ?? 'all';
+		const mode = this.viewModel.isOfflineMode ? 'offline' : 'online';
+		return `list:artists:${filter}:${mode}`;
+	}
+
+	private handleRefresh = (): void => {
+		if (this.state.isRefreshing) {
+			return;
+		}
+		this.viewModel.viewCache.invalidate(this.cacheKey());
+		this.pagedGridController.reset();
+		this.setState({ hasMore: true, isRefreshing: true, nextPageFailed: false, page: 0 });
+		void this.pagedGridController.loadNextPage().then(() => {
+			if (!this.isDestroyed()) {
+				this.setState({ isRefreshing: false });
+			}
+		});
+	};
+
+	private seedFromCache(): void {
+		const key = this.cacheKey();
+		const cached = this.viewModel.viewCache.get<Array<Artist>>(key);
+		if (cached && cached.length > 0) {
+			this.setState({ artists: cached });
+			return;
+		}
+		void this.viewModel.viewCache.load<Array<Artist>>(key).then((disk) => {
+			if (disk && disk.length > 0 && !this.isDestroyed() && this.state.artists.length === 0) {
+				this.setState({ artists: disk });
+			}
+		});
+	}
+
 	private async loadInitialPages(): Promise<void> {
 		await this.pagedGridController.loadNextPage();
 	}
@@ -328,6 +372,9 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		isDestroyed: () => this.isDestroyed(),
 		onPageLoaded: (items) => this.preloadArtistImages(items),
 		setState: (patch) => {
+			if (patch.page === 1 && patch.items) {
+				this.viewModel.viewCache.store(this.cacheKey(), patch.items);
+			}
 			this.setState({
 				artists: patch.items ?? this.state.artists,
 				hasMore: patch.hasMore ?? this.state.hasMore,

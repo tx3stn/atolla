@@ -26,6 +26,7 @@ import { retryResolve } from '../../utils/Async';
 import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
 import { LoadingView } from '../components/LoadingView';
+import { RefreshableScroll } from '../components/RefreshableScroll';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
 import { type DetailPushDeps, pushAlbum, pushPlaylist } from '../flows/PushDetail';
@@ -54,8 +55,16 @@ interface GenreState {
 	hydratedGenre: Genre | null;
 	isLoading: boolean;
 	isLoadingNextPage: boolean;
+	isRefreshing: boolean;
 	nextPageFailed: boolean;
 	revision: number;
+	totalTrackCount: number | null;
+	tracks: Array<Track>;
+}
+
+interface GenreCachePayload {
+	artistLogoUrls: Array<string | null>;
+	hydratedGenre: Genre | null;
 	totalTrackCount: number | null;
 	tracks: Array<Track>;
 }
@@ -70,6 +79,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		hydratedGenre: null,
 		isLoading: true,
 		isLoadingNextPage: false,
+		isRefreshing: false,
 		nextPageFailed: false,
 		revision: 0,
 		totalTrackCount: null,
@@ -99,6 +109,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
+		this.seedFromCache();
 		void this.loadNextPage();
 		void this.hydrateGenreIfNeeded();
 	}
@@ -122,8 +133,11 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 		<layout accessibilityLabel='genre-view' style={styles.root}>
 			<view style={styles.fullScreen}>
-				<scroll
-					onScroll={(event) => this.headerCollapse.handleScroll(event.y)}
+				<RefreshableScroll
+					accessibilityId='genre'
+					isRefreshing={this.state.isRefreshing}
+					onRefresh={this.handleRefresh}
+					onScroll={(y) => this.headerCollapse.handleScroll(y)}
 					style={styles.scroll}
 				>
 					<DetailHeader
@@ -182,7 +196,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 							/>
 						</view>
 					)}
-				</scroll>
+				</RefreshableScroll>
 			</view>
 		</layout>;
 	}
@@ -435,10 +449,19 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 				? (this.viewModel.genre.trackCount ?? result.totalCount ?? tracks.length)
 				: this.state.totalTrackCount;
 
+			if (isFirstPage) {
+				this.viewModel.viewCache.store(this.cacheKey(), {
+					artistLogoUrls: allArtistLogoUrls,
+					hydratedGenre: this.state.hydratedGenre,
+					totalTrackCount,
+					tracks,
+				});
+			}
 			this.setState({
 				artistLogoUrls: allArtistLogoUrls,
 				isLoading: false,
 				isLoadingNextPage: false,
+				isRefreshing: false,
 				nextPageFailed: false,
 				totalTrackCount,
 				tracks,
@@ -454,6 +477,37 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		this.triggeredAutoLoadForTrackCount = null;
 		void this.loadNextPage();
 	};
+
+	private cacheKey(): string {
+		return `genre:${this.viewModel.genre.id}`;
+	}
+
+	private handleRefresh = (): void => {
+		if (this.state.isRefreshing) {
+			return;
+		}
+		this.viewModel.viewCache.invalidate(this.cacheKey());
+		this.cancelInFlightReads();
+		this.currentPage = 0;
+		this.hasMoreTracks = true;
+		this.isLoadingPage = false;
+		this.triggeredAutoLoadForTrackCount = null;
+		this.setState({ isRefreshing: true, nextPageFailed: false });
+		void this.loadNextPage();
+	};
+
+	private seedFromCache(): void {
+		const cached = this.viewModel.viewCache.get<GenreCachePayload>(this.cacheKey());
+		if (cached) {
+			this.setState({ ...cached, isLoading: false });
+			return;
+		}
+		void this.viewModel.viewCache.load<GenreCachePayload>(this.cacheKey()).then((disk) => {
+			if (disk && !this.isDestroyed() && this.state.tracks.length === 0) {
+				this.setState({ ...disk, isLoading: false });
+			}
+		});
+	}
 
 	private syncDownloadState(): void {
 		this.setState({

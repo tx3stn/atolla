@@ -2,6 +2,7 @@ import 'jasmine/src/jasmine';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import { PlaylistsView } from 'atolla/src/ui/views/PlaylistsView';
 import { PlaylistView } from 'atolla/src/ui/views/PlaylistView';
+import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
@@ -66,6 +67,7 @@ describe('PlaylistsView', () => {
 			playbackStore,
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
 		component.setState({ playlists });
@@ -93,6 +95,7 @@ describe('PlaylistsView', () => {
 			playbackStore,
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
 		component.setState({ playlists });
@@ -121,6 +124,7 @@ describe('PlaylistsView', () => {
 			playbackStore,
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
 		component.setState({ playlists });
@@ -146,6 +150,7 @@ describe('PlaylistsView', () => {
 			playbackStore,
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		driver.renderComponent(PlaylistsView, viewModel, undefined);
 
@@ -174,6 +179,7 @@ describe('PlaylistsView', () => {
 			playbackStore,
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
 
@@ -205,6 +211,7 @@ describe('PlaylistsView', () => {
 				playbackStore,
 				preferences: makePreferences(),
 				transport,
+				viewCache: makeTestViewCache(),
 			};
 			const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
 
@@ -237,6 +244,7 @@ describe('PlaylistsView', () => {
 			playbackStore,
 			preferences: makePreferences(),
 			transport,
+			viewCache: makeTestViewCache(),
 		};
 		const component = driver.renderComponent(PlaylistsView, viewModel, undefined);
 

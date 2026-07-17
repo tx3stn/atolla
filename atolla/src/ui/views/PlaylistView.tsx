@@ -29,6 +29,7 @@ import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
 import { LoadingView } from '../components/LoadingView';
 import { Modal } from '../components/Modal';
+import { RefreshableScroll } from '../components/RefreshableScroll';
 import { ScrollDragAutoScroller } from '../components/ScrollDragAutoScroller';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
@@ -60,8 +61,16 @@ interface PlaylistState {
 	downloadState: DownloadState;
 	hydratedPlaylist: Playlist | null;
 	isLoading: boolean;
+	isRefreshing: boolean;
 	removedTrackPending: { index: number; track: Track } | null;
 	revision: number;
+	totalTrackCount: number | null;
+	tracks: Array<Track>;
+}
+
+interface PlaylistCachePayload {
+	artistLogoUrls: Array<string | null>;
+	hydratedPlaylist: Playlist | null;
 	totalTrackCount: number | null;
 	tracks: Array<Track>;
 }
@@ -78,6 +87,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		downloadState: 'not_downloaded',
 		hydratedPlaylist: null,
 		isLoading: true,
+		isRefreshing: false,
 		removedTrackPending: null,
 		revision: 0,
 		totalTrackCount: null,
@@ -105,6 +115,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
+		this.seedFromCache();
 		this.resetAndLoadPlaylistData();
 	}
 
@@ -125,13 +136,16 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 		<layout accessibilityLabel='playlist-view' style={styles.root}>
 			<view accessibilityId='playlist-view' style={styles.fullScreen}>
-				<scroll
+				<RefreshableScroll
+					accessibilityId='playlist'
+					isRefreshing={this.state.isRefreshing}
 					onContentSizeChange={(size) => this.dragAutoScroller.setContentHeight(size.height)}
-					onScroll={(event) => {
-						this.dragAutoScroller.setOffset(event.y);
-						this.headerCollapse.handleScroll(event.y);
+					onRefresh={this.handleRefresh}
+					onScroll={(y) => {
+						this.dragAutoScroller.setOffset(y);
+						this.headerCollapse.handleScroll(y);
 					}}
-					ref={this.scrollRef}
+					scrollRef={this.scrollRef}
 					style={styles.scroll}
 				>
 					<DetailHeader
@@ -172,7 +186,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 							tracks={entries}
 						/>
 					)}
-				</scroll>
+				</RefreshableScroll>
 			</view>
 		</layout>;
 	}
@@ -487,15 +501,44 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.currentPage = 0;
 		this.hasMoreTracks = true;
 		this.isLoadingPage = false;
-		this.setState({
-			artistLogoUrls: [],
-			hydratedPlaylist: null,
-			isLoading: true,
-			totalTrackCount: null,
-			tracks: [],
-		});
+		// keep any seeded/previous tracks visible during a revalidate; only blank to the spinner cold
+		if (this.state.tracks.length === 0) {
+			this.setState({
+				artistLogoUrls: [],
+				hydratedPlaylist: null,
+				isLoading: true,
+				totalTrackCount: null,
+				tracks: [],
+			});
+		}
 		void this.loadNextPage(this.loadGeneration);
 		void this.hydratePlaylistIfNeeded(this.loadGeneration);
+	}
+
+	private cacheKey(): string {
+		return `playlist:${this.viewModel.playlist.id}`;
+	}
+
+	private handleRefresh = (): void => {
+		if (this.state.isRefreshing) {
+			return;
+		}
+		this.viewModel.viewCache.invalidate(this.cacheKey());
+		this.setState({ isRefreshing: true });
+		this.resetAndLoadPlaylistData();
+	};
+
+	private seedFromCache(): void {
+		const cached = this.viewModel.viewCache.get<PlaylistCachePayload>(this.cacheKey());
+		if (cached) {
+			this.setState({ ...cached, isLoading: false });
+			return;
+		}
+		void this.viewModel.viewCache.load<PlaylistCachePayload>(this.cacheKey()).then((disk) => {
+			if (disk && !this.isDestroyed() && this.state.tracks.length === 0) {
+				this.setState({ ...disk, isLoading: false });
+			}
+		});
 	}
 
 	private async hydratePlaylistIfNeeded(generation: number): Promise<void> {
@@ -565,9 +608,18 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			const totalTrackCount = isFirstPage
 				? (result.totalCount ?? tracks.length)
 				: this.state.totalTrackCount;
+			if (isFirstPage) {
+				this.viewModel.viewCache.store(this.cacheKey(), {
+					artistLogoUrls: allArtistLogoUrls,
+					hydratedPlaylist: this.state.hydratedPlaylist,
+					totalTrackCount,
+					tracks,
+				});
+			}
 			this.setState({
 				artistLogoUrls: allArtistLogoUrls,
 				isLoading: false,
+				isRefreshing: false,
 				totalTrackCount,
 				tracks,
 			});

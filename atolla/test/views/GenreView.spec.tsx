@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import { GenreView } from 'atolla/src/ui/views/GenreView';
+import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 const mockNavigator = {
@@ -54,6 +55,7 @@ describe('GenreView', () => {
 				playbackStore,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: mockNavigator },
 		);
@@ -85,6 +87,7 @@ describe('GenreView', () => {
 				playbackStore,
 				preferences,
 				transport,
+				viewCache: makeTestViewCache(),
 			},
 			{ navigator: mockNavigator },
 		);

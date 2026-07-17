@@ -21,6 +21,7 @@ import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { EmptyState } from '../components/EmptyState';
+import { RefreshableScroll } from '../components/RefreshableScroll';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { type DetailPushDeps, pushGenre } from '../flows/PushDetail';
@@ -50,6 +51,7 @@ interface GenresState {
 	genres: Array<Genre>;
 	hasMore: boolean;
 	isLoadingNextPage: boolean;
+	isRefreshing: boolean;
 	nextPageFailed: boolean;
 	page: number;
 	revision: number;
@@ -66,6 +68,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		genres: [],
 		hasMore: true,
 		isLoadingNextPage: false,
+		isRefreshing: false,
 		nextPageFailed: false,
 		page: 0,
 		revision: 0,
@@ -75,6 +78,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(() => this.pagedGridController.dispose());
 		this.registerDisposable(this.playlistFlow.cancel);
+		this.seedFromCache();
 		void this.loadInitialPages();
 	}
 
@@ -101,7 +105,12 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		}));
 
 		<view style={styles.container}>
-			<scroll style={styles.scroll}>
+			<RefreshableScroll
+				accessibilityId='library-genres'
+				isRefreshing={this.state.isRefreshing}
+				onRefresh={this.handleRefresh}
+				style={styles.scroll}
+			>
 				<CardGrid
 					accessibilityId='library-genres-grid'
 					cards={cards}
@@ -115,7 +124,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 					}
 					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
 				/>
-			</scroll>
+			</RefreshableScroll>
 			<EmptyState
 				hasMore={this.state.hasMore}
 				isOfflineMode={this.viewModel.isOfflineMode}
@@ -160,6 +169,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			nextPageFailed: false,
 			page: 0,
 		});
+		this.seedFromCache();
 		void this.loadInitialPages();
 	}
 
@@ -249,6 +259,38 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		});
 	};
 
+	private cacheKey(): string {
+		return `list:genres:${this.viewModel.isOfflineMode ? 'offline' : 'online'}`;
+	}
+
+	private handleRefresh = (): void => {
+		if (this.state.isRefreshing) {
+			return;
+		}
+		this.viewModel.viewCache.invalidate(this.cacheKey());
+		this.pagedGridController.reset();
+		this.setState({ hasMore: true, isRefreshing: true, nextPageFailed: false, page: 0 });
+		void this.pagedGridController.loadNextPage().then(() => {
+			if (!this.isDestroyed()) {
+				this.setState({ isRefreshing: false });
+			}
+		});
+	};
+
+	private seedFromCache(): void {
+		const key = this.cacheKey();
+		const cached = this.viewModel.viewCache.get<Array<Genre>>(key);
+		if (cached && cached.length > 0) {
+			this.setState({ genres: cached });
+			return;
+		}
+		void this.viewModel.viewCache.load<Array<Genre>>(key).then((disk) => {
+			if (disk && disk.length > 0 && !this.isDestroyed() && this.state.genres.length === 0) {
+				this.setState({ genres: disk });
+			}
+		});
+	}
+
 	private async loadInitialPages(): Promise<void> {
 		await this.pagedGridController.loadNextPage();
 	}
@@ -262,6 +304,9 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		isDestroyed: () => this.isDestroyed(),
 		onPageLoaded: (items) => this.preloadGenreImages(items),
 		setState: (patch) => {
+			if (patch.page === 1 && patch.items) {
+				this.viewModel.viewCache.store(this.cacheKey(), patch.items);
+			}
 			this.setState({
 				genres: patch.items ?? this.state.genres,
 				hasMore: patch.hasMore ?? this.state.hasMore,

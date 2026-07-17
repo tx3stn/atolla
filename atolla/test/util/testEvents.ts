@@ -1,6 +1,11 @@
 import type { IRenderedElement } from 'valdi_core/src/IRenderedElement';
 import type { ElementFrame } from 'valdi_tsx/src/Geometry';
-import type { DragEvent, TouchEvent } from 'valdi_tsx/src/GestureEvents';
+import type {
+	DragEvent,
+	ScrollEndEvent,
+	ScrollEvent,
+	TouchEvent,
+} from 'valdi_tsx/src/GestureEvents';
 
 // synthetic events / attribute readers for driving rendered elements in tests. Valdi 0.1.0
 // made the rendered handler signatures and style attributes strongly typed; the components
@@ -28,6 +33,16 @@ export function touchEventWith(overrides: Record<string, unknown>): TouchEvent {
 // onDrag: pass the drag fields the component reads (state, deltaY, velocityY, …)
 export function dragEvent(overrides: Record<string, unknown>): DragEvent {
 	return { x: 0, y: 0, ...overrides } as DragEvent;
+}
+
+// onScroll: pass the offset fields the component reads (y, overscrollTensionY, …)
+export function scrollEvent(overrides: Record<string, unknown>): ScrollEvent {
+	return { x: 0, y: 0, ...overrides } as unknown as ScrollEvent;
+}
+
+// onScrollEnd: fires once the scroll settles; the handlers under test read no fields off it
+export function scrollEndEvent(overrides: Record<string, unknown> = {}): ScrollEndEvent {
+	return { x: 0, y: 0, ...overrides } as unknown as ScrollEndEvent;
 }
 
 // reads a computed style attribute. Valdi 0.1.0 types style.attributes as the element's

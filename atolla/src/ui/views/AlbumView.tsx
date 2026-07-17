@@ -31,6 +31,7 @@ import { DetailHeader } from '../components/DetailHeader';
 import { GenrePills } from '../components/GenrePills';
 import { normalizeGenres } from '../components/GenrePillsData';
 import { LoadingView } from '../components/LoadingView';
+import { RefreshableScroll } from '../components/RefreshableScroll';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { resolveGenreForNavigation, resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
 import { type DetailPushDeps, pushArtist, pushGenre, pushPlaylist } from '../flows/PushDetail';
@@ -57,7 +58,15 @@ interface AlbumState {
 	downloadState: DownloadState;
 	fullAlbum: Album | null;
 	isLoading: boolean;
+	isRefreshing: boolean;
 	revision: number;
+	tracks: Array<Track>;
+}
+
+interface AlbumCachePayload {
+	artist: Artist | null;
+	artistLogoUrl: string | null;
+	fullAlbum: Album | null;
 	tracks: Array<Track>;
 }
 
@@ -72,6 +81,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		downloadState: 'not_downloaded',
 		fullAlbum: null,
 		isLoading: true,
+		isRefreshing: false,
 		revision: 0,
 		tracks: [],
 	};
@@ -98,6 +108,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
+		this.seedFromCache();
 		this.loadAlbumData();
 	}
 
@@ -129,8 +140,11 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 		<layout accessibilityLabel='album-view' style={styles.root}>
 			<view accessibilityId='album-view' style={styles.fullScreen}>
-				<scroll
-					onScroll={(event) => this.headerCollapse.handleScroll(event.y)}
+				<RefreshableScroll
+					accessibilityId='album'
+					isRefreshing={this.state.isRefreshing}
+					onRefresh={this.handleRefresh}
+					onScroll={(y) => this.headerCollapse.handleScroll(y)}
 					style={styles.scroll}
 				>
 					<DetailHeader
@@ -201,7 +215,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 							onGenreTap={this.handleGenreTap}
 						/>
 					)}
-				</scroll>
+				</RefreshableScroll>
 			</view>
 		</layout>;
 	}
@@ -361,7 +375,12 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 		const { album, paletteQueue, transport } = this.viewModel;
 		paletteQueue?.prioritize(album.imageUrl);
-		this.setState({ fullAlbum: null, isLoading: true });
+		// keep any seeded/previous content visible during a revalidate; only show the spinner cold
+		const hasContent = this.state.tracks.length > 0;
+		this.setState({
+			fullAlbum: hasContent ? this.state.fullAlbum : null,
+			isLoading: !hasContent,
+		});
 
 		const needsFullAlbum = album.genres === undefined || album.imageUrl === undefined;
 
@@ -401,13 +420,42 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			const fullAlbum =
 				fullAlbumResult.status === 'fulfilled' ? (fullAlbumResult.value[0] ?? null) : null;
 
-			this.setState({
+			const payload: AlbumCachePayload = {
 				artist: artist ?? null,
 				artistLogoUrl: logoUrl,
 				fullAlbum,
-				isLoading: false,
 				tracks,
-			});
+			};
+			if (tracks.length > 0) {
+				this.viewModel.viewCache.store(this.cacheKey(), payload);
+			}
+			this.setState({ ...payload, isLoading: false, isRefreshing: false });
+		});
+	}
+
+	private cacheKey(): string {
+		return `album:${this.viewModel.album.id}`;
+	}
+
+	private handleRefresh = (): void => {
+		if (this.state.isRefreshing) {
+			return;
+		}
+		this.viewModel.viewCache.invalidate(this.cacheKey());
+		this.setState({ isRefreshing: true });
+		this.loadAlbumData();
+	};
+
+	private seedFromCache(): void {
+		const cached = this.viewModel.viewCache.get<AlbumCachePayload>(this.cacheKey());
+		if (cached) {
+			this.setState({ ...cached, isLoading: false });
+			return;
+		}
+		void this.viewModel.viewCache.load<AlbumCachePayload>(this.cacheKey()).then((disk) => {
+			if (disk && !this.isDestroyed() && this.state.tracks.length === 0) {
+				this.setState({ ...disk, isLoading: false });
+			}
 		});
 	}
 

@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import { ArtistView } from 'atolla/src/ui/views/ArtistView';
+import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 const mockNavigator = {
@@ -58,7 +59,14 @@ describe('ArtistView', () => {
 
 		const component = driver.renderComponent(
 			ArtistView,
-			{ artist, downloadService, playbackStore, preferences, transport },
+			{
+				artist,
+				downloadService,
+				playbackStore,
+				preferences,
+				transport,
+				viewCache: makeTestViewCache(),
+			},
 			{ navigator: mockNavigator },
 		);
 		component.setState({ albumsLoaded: true, topTracksLoaded: true });
@@ -88,7 +96,14 @@ describe('ArtistView', () => {
 
 		const component = driver.renderComponent(
 			ArtistView,
-			{ artist, downloadService, playbackStore, preferences, transport },
+			{
+				artist,
+				downloadService,
+				playbackStore,
+				preferences,
+				transport,
+				viewCache: makeTestViewCache(),
+			},
 			{ navigator: mockNavigator },
 		);
 		component.setState({ albumsLoaded: true, topTracksLoaded: true });

@@ -5,6 +5,7 @@ import { Preferences } from 'atolla/src/stores/Preferences';
 import { ConnectionModes } from 'atolla/src/transports/Model';
 import { ErrorBoundary } from 'atolla/src/ui/components/ErrorBoundary';
 import { LibraryView } from 'atolla/src/ui/tabs/Library';
+import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import { componentTypeFind } from 'foundation/test/util/componentTypeFind';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
@@ -45,6 +46,7 @@ function makeViewModel() {
 		preferences: makePreferences(),
 		toastService: { show: () => {} },
 		transport: stubTransport,
+		viewCache: makeTestViewCache(),
 	};
 }
 
