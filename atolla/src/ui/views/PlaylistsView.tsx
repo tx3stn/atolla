@@ -14,6 +14,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
+import type { ViewCache } from '../../services/ViewCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -47,6 +48,7 @@ export interface PlaylistsViewModel {
 	sortOrder?: SortOrder;
 	toastService: ToastService;
 	transport: Transport;
+	viewCache: ViewCache;
 }
 
 interface PlaylistsState {
@@ -215,6 +217,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
+			viewCache: this.viewModel.viewCache,
 		};
 	}
 

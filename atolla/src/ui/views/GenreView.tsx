@@ -16,6 +16,7 @@ import type { DownloadService, DownloadState } from '../../services/DownloadServ
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
+import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
@@ -44,6 +45,7 @@ export interface GenreViewModel {
 	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
+	viewCache: ViewCache;
 }
 
 interface GenreState {
@@ -323,6 +325,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
+			viewCache: this.viewModel.viewCache,
 		};
 	}
 

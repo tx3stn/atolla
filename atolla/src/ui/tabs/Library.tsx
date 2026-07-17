@@ -12,6 +12,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
+import type { ViewCache } from '../../services/ViewCache';
 import { headerStore } from '../../stores/Header';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
@@ -36,6 +37,7 @@ export interface LibraryViewModel {
 	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
+	viewCache: ViewCache;
 }
 
 interface LibraryViewState {
@@ -81,6 +83,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									preferences={this.viewModel.preferences}
 									toastService={this.viewModel.toastService}
 									transport={this.viewModel.transport}
+									viewCache={this.viewModel.viewCache}
 								/>;
 							} else if (tab === HeaderTabs.albums) {
 								<AlbumsView
@@ -96,6 +99,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									preferences={this.viewModel.preferences}
 									toastService={this.viewModel.toastService}
 									transport={this.viewModel.transport}
+									viewCache={this.viewModel.viewCache}
 								/>;
 							} else if (tab === HeaderTabs.playlists) {
 								<PlaylistsView
@@ -113,6 +117,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									preferences={this.viewModel.preferences}
 									toastService={this.viewModel.toastService}
 									transport={this.viewModel.transport}
+									viewCache={this.viewModel.viewCache}
 								/>;
 							} else {
 								<GenresView
@@ -128,6 +133,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									preferences={this.viewModel.preferences}
 									toastService={this.viewModel.toastService}
 									transport={this.viewModel.transport}
+									viewCache={this.viewModel.viewCache}
 								/>;
 							}
 						})}
@@ -193,6 +199,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
+			viewCache: this.viewModel.viewCache,
 		};
 	}
 

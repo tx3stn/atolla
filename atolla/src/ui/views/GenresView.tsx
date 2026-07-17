@@ -11,6 +11,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
+import type { ViewCache } from '../../services/ViewCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -39,6 +40,7 @@ interface GenresViewModel {
 	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
+	viewCache: ViewCache;
 }
 
 interface GenresState {
@@ -295,6 +297,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
+			viewCache: this.viewModel.viewCache,
 		};
 	}
 

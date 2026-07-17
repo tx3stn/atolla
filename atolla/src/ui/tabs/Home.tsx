@@ -14,6 +14,7 @@ import type { OnThisDayService } from '../../services/OnThisDayService';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
 import type { ToastService } from '../../services/ToastService';
+import type { ViewCache } from '../../services/ViewCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import type { ConnectionMode } from '../../transports/Model';
@@ -35,6 +36,7 @@ export interface HomeTabViewModel {
 	recentlyPlayedTracks: Array<Track>;
 	toastService: ToastService;
 	transport: Transport;
+	viewCache: ViewCache;
 }
 
 export class HomeTab extends Component<HomeTabViewModel> {
@@ -78,6 +80,7 @@ export class HomeTab extends Component<HomeTabViewModel> {
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
+			viewCache: this.viewModel.viewCache,
 		};
 	}
 

@@ -165,6 +165,7 @@ export class AppShellStore {
 			preferences: services.preferences,
 			toastService: services.toastService,
 			transport: services.transport,
+			viewCache: services.viewCache,
 		};
 	}
 

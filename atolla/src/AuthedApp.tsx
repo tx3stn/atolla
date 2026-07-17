@@ -106,6 +106,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							recentlyPlayedTracks={home.recentlyPlayedTracks}
 							toastService={home.toastService}
 							transport={home.transport}
+							viewCache={home.viewCache}
 						/>
 					</ErrorBoundary>
 				</view>
@@ -124,6 +125,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							preferences={library.preferences}
 							toastService={library.toastService}
 							transport={library.transport}
+							viewCache={library.viewCache}
 						/>
 					</ErrorBoundary>
 				</view>

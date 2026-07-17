@@ -23,6 +23,7 @@ import type { PlaylistEditService } from './PlaylistEditService';
 import { RecentlyAddedService } from './RecentlyAddedService';
 import { ReconnectSyncCoordinator } from './ReconnectSyncCoordinator';
 import { ScrobbleService } from './ScrobbleService';
+import { VIEW_CACHE_MAX_BYTES, VIEW_CACHE_MAX_ENTRIES, ViewCache } from './ViewCache';
 import { WaveformGenerationQueue } from './WaveformGenerationQueue';
 import { WaveformRenderCache } from './WaveformRenderCache';
 import { WaveformService } from './WaveformService';
@@ -50,6 +51,7 @@ export class UserScope {
 	private recentlyAddedService?: RecentlyAddedService;
 	private searchStore!: SearchStore;
 	private unsubscribePalette?: () => void;
+	private viewCache!: ViewCache;
 
 	constructor(private readonly deps: UserScopeDeps) {}
 
@@ -98,6 +100,13 @@ export class UserScope {
 		this.onThisDayService = new OnThisDayService(homeAlbumsStore);
 		this.recentlyAddedService = new RecentlyAddedService(homeAlbumsStore);
 		void this.onThisDayService.ensureLoaded();
+		this.viewCache = new ViewCache({
+			disk: new PersistentStore(`atolla/user/${userId}/view`, {
+				deviceGlobal: true,
+				maxWeight: VIEW_CACHE_MAX_BYTES,
+			}),
+			maxEntries: VIEW_CACHE_MAX_ENTRIES,
+		});
 		this.paletteService = new ArtworkPaletteService(
 			new WriteBehindPaletteStore(
 				new PersistentPaletteStore(
@@ -181,5 +190,9 @@ export class UserScope {
 
 	getSearchStore(): SearchStore {
 		return this.searchStore;
+	}
+
+	getViewCache(): ViewCache {
+		return this.viewCache;
 	}
 }

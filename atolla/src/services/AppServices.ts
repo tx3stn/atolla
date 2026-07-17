@@ -10,6 +10,7 @@ import type { ImageCache } from './ImageCache';
 import type { PaletteGenerationQueue } from './PaletteGenerationQueue';
 import type { PlaybackOrchestrator } from './PlaybackOrchestrator';
 import type { ToastService } from './ToastService';
+import type { ViewCache } from './ViewCache';
 
 export interface AppServicesBag {
 	barColors: BarColorStore;
@@ -27,6 +28,7 @@ export interface AppServicesBag {
 	toastService: ToastService;
 	toastSlot: DetachedSlot;
 	transport: Transport;
+	viewCache: ViewCache;
 }
 
 type AppServicesListener = () => void;

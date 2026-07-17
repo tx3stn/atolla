@@ -25,6 +25,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
+import type { ViewCache } from '../../services/ViewCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import type { SearchStore } from '../../stores/Search';
@@ -59,6 +60,7 @@ export interface SearchViewModel {
 	searchStore: SearchStore;
 	toastService: ToastService;
 	transport: Transport;
+	viewCache: ViewCache;
 }
 
 export type SearchLibraryNavigationTarget =
@@ -526,6 +528,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
+			viewCache: this.viewModel.viewCache,
 		};
 	}
 

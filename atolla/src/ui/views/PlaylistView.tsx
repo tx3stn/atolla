@@ -18,6 +18,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
+import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
@@ -51,6 +52,7 @@ export interface PlaylistViewModel {
 	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
+	viewCache: ViewCache;
 }
 
 interface PlaylistState {
@@ -221,6 +223,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
+			viewCache: this.viewModel.viewCache,
 		};
 	}
 

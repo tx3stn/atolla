@@ -5,6 +5,7 @@ import { type AppServicesBag, appServices } from 'atolla/src/services/AppService
 import { backNavRouter } from 'atolla/src/services/BackNavRouter';
 import { AppShellStore } from 'atolla/src/stores/AppShell';
 import { headerStore } from 'atolla/src/stores/Header';
+import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 
 function fakeController(): NavigationController {
@@ -37,6 +38,7 @@ function setServices(overrides: Partial<AppServicesBag> = {}): void {
 		toastService: stub as AppServicesBag['toastService'],
 		toastSlot: stub as AppServicesBag['toastSlot'],
 		transport: { getArtist: () => Promise.resolve(null) } as unknown as AppServicesBag['transport'],
+		viewCache: makeTestViewCache(),
 		...overrides,
 	});
 }

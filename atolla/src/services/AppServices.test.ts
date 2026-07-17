@@ -21,6 +21,7 @@ function makeBag(overrides: Partial<AppServicesBag> = {}): AppServicesBag {
 		toastService: stub as AppServicesBag['toastService'],
 		toastSlot: stub as AppServicesBag['toastSlot'],
 		transport: stub as AppServicesBag['transport'],
+		viewCache: stub as AppServicesBag['viewCache'],
 		...overrides,
 	};
 }

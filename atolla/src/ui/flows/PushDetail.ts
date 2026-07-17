@@ -9,6 +9,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
+import type { ViewCache } from '../../services/ViewCache';
 import { headerStore } from '../../stores/Header';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
@@ -34,6 +35,7 @@ export interface DetailPushDeps {
 	preferences: Preferences;
 	toastService: ToastService;
 	transport: Transport;
+	viewCache: ViewCache;
 }
 
 const noop = (): void => {};
@@ -57,6 +59,7 @@ export function pushAlbum(
 			preferences: deps.preferences,
 			toastService: deps.toastService,
 			transport: deps.transport,
+			viewCache: deps.viewCache,
 		},
 		{},
 		{ animated: deps.preferences.animationsEnabled },
@@ -83,6 +86,7 @@ export function pushArtist(
 			preferences: deps.preferences,
 			toastService: deps.toastService,
 			transport: deps.transport,
+			viewCache: deps.viewCache,
 		},
 		{},
 		{ animated: deps.preferences.animationsEnabled },
@@ -111,6 +115,7 @@ export function pushPlaylist(
 			preferences: deps.preferences,
 			toastService: deps.toastService,
 			transport: deps.transport,
+			viewCache: deps.viewCache,
 		},
 		{},
 		{ animated: deps.preferences.animationsEnabled },
@@ -138,6 +143,7 @@ export function pushGenre(
 			preferences: deps.preferences,
 			toastService: deps.toastService,
 			transport: deps.transport,
+			viewCache: deps.viewCache,
 		},
 		{},
 		{ animated: deps.preferences.animationsEnabled },

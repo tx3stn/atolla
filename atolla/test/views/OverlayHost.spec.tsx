@@ -4,6 +4,7 @@ import { appShellStore } from 'atolla/src/stores/AppShell';
 import { BarColorStore } from 'atolla/src/stores/BarColor';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
 import { OverlayHost } from 'atolla/src/ui/views/OverlayHost';
+import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { Component } from 'valdi_core/src/Component';
@@ -66,6 +67,7 @@ function setServices(store: PlaybackStore): void {
 		toastService: stub as AppServicesBag['toastService'],
 		toastSlot: new DetachedSlot(),
 		transport: stub as AppServicesBag['transport'],
+		viewCache: makeTestViewCache(),
 	});
 }
 

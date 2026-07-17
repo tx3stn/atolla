@@ -374,6 +374,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			toastService: this.toastService,
 			toastSlot: this.toastSlot,
 			transport: this.connectivity.getTransport(),
+			viewCache: this.userScope.getViewCache(),
 		});
 		<view style={theme.app.root}>
 			<AuthedApp
@@ -442,6 +443,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			recentlyPlayedTracks: this.playbackOrchestrator.getRecentlyPlayedTracks(),
 			toastService: this.toastService,
 			transport: this.connectivity.getTransport(),
+			viewCache: this.userScope.getViewCache(),
 		};
 	}
 
@@ -457,6 +459,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			preferences: this.preferences,
 			toastService: this.toastService,
 			transport: this.connectivity.getTransport(),
+			viewCache: this.userScope.getViewCache(),
 		};
 	}
 
@@ -473,6 +476,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			searchStore: this.userScope.getSearchStore(),
 			toastService: this.toastService,
 			transport: this.connectivity.getTransport(),
+			viewCache: this.userScope.getViewCache(),
 		};
 	}
 

@@ -40,6 +40,7 @@ export class SearchTab extends Component<SearchTabViewModel> {
 						searchStore={search.searchStore}
 						toastService={search.toastService}
 						transport={search.transport}
+						viewCache={search.viewCache}
 					/>;
 				})}
 			</NavigationRoot>
@@ -59,6 +60,7 @@ export class SearchTab extends Component<SearchTabViewModel> {
 			preferences: search.preferences,
 			toastService: search.toastService,
 			transport: search.transport,
+			viewCache: search.viewCache,
 		};
 	}
 
