@@ -65,6 +65,34 @@ echo "Using simulator: $SIMULATOR_NAME ($SIMULATOR_ID)"
 # build; override VALDI_APPLICATION_TARGET=//:atolla_ios to run the release id.
 export VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//atolla_dev:atolla_ios}"
 
+# Stamp a dev version onto this local build without disturbing the committed
+# 0.0.0 placeholders. version.ts keeps the -dev suffix so the app shows it, but
+# the bazel version fields are reverted to the committed 0.0.0 after stamping,
+# because iOS CFBundleVersion must be numeric period-separated integers (no
+# -dev). Defaults to the latest release tag plus -dev; override with
+# DEV_VERSION=<x.y.z[-suffix]>. Requires vrsn; without it the build uses the
+# committed placeholder. The trap restores all version files on exit, even on
+# build failure or Ctrl-C.
+if command -v vrsn >/dev/null 2>&1; then
+	require_cmd git
+	repo_root="$SCRIPT_DIR/.."
+	tag="$(cd "$repo_root" && git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0)"
+	version_files=(
+		atolla/src/version.ts
+		BUILD.bazel
+		atolla/native/android/AndroidManifest.prod.xml
+		atolla_dev/BUILD.bazel
+	)
+	trap 'git -C "$repo_root" checkout -- "${version_files[@]}"' EXIT
+	(cd "$repo_root" && vrsn set "${DEV_VERSION:-${tag}-dev}")
+	# Keep CFBundleVersion numeric: revert the bazel version fields, leaving
+	# version.ts (the app-visible version) on the -dev version.
+	(cd "$repo_root" && git checkout -- BUILD.bazel atolla_dev/BUILD.bazel)
+	echo "Stamped dev version ${DEV_VERSION:-${tag}-dev} in version.ts (bazel version kept at 0.0.0; reverts on exit)."
+else
+	echo "vrsn not installed — building the committed placeholder version."
+fi
+
 IOS_CPUS=sim_arm64 "$SCRIPT_DIR/build-ios-ipa.sh"
 
 echo "Installing on simulator..."

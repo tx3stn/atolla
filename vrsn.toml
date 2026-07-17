@@ -9,10 +9,13 @@ files = [
 
 [bump]
 commit = false
-commit-msg = 'release {{.Version}}'
-git-tag = false
+commit-msg = ''
+git-tag = true
 tag-msg = 'release {{.Version}}'
 android-version-code = true
 
 [check]
 base-branch = 'main'
+
+[set]
+android-version-code = true

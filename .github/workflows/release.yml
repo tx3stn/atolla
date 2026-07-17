@@ -8,11 +8,39 @@ permissions:
   contents: write
 
 jobs:
+  set-version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: tx3stn/vrsn@1
+        with:
+          command: set
+          args: ${{ github.ref_name }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: version-files
+          path: |
+            atolla/src/version.ts
+            BUILD.bazel
+            atolla/native/android/AndroidManifest.prod.xml
+          if-no-files-found: error
+      - uses: tx3stn/vrsn@1
+        with:
+          command: get
+          args: --git-tag=false
+
   build-android:
+    needs: set-version
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
+      - name: get version files
+        uses: actions/download-artifact@v8
+        with:
+          name: version-files
+          path: .
       - uses: oven-sh/setup-bun@v2
       - name: cache bun dependencies
         uses: actions/cache@v6
@@ -113,10 +141,16 @@ jobs:
           if-no-files-found: error
 
   build-ios:
+    needs: set-version
     runs-on: macos-latest
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
+      - name: apply version files
+        uses: actions/download-artifact@v8
+        with:
+          name: version-files
+          path: .
       - uses: oven-sh/setup-bun@v2
       - name: cache bun dependencies
         uses: actions/cache@v6
