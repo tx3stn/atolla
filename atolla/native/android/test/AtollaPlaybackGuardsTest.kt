@@ -139,13 +139,13 @@ class AtollaPlaybackGuardsTest {
 	}
 
 	@Test
-	fun `keeps lookahead for a file source`() {
-		assertFalse(AtollaPlaybackGuards.shouldDeferLookaheadForSource("file:///data/tracks/123.mp3"))
+	fun `defers lookahead for a file source`() {
+		assertTrue(AtollaPlaybackGuards.shouldDeferLookaheadForSource("file:///data/tracks/123.mp3"))
 	}
 
 	@Test
-	fun `keeps lookahead for a bare local path source`() {
-		assertFalse(AtollaPlaybackGuards.shouldDeferLookaheadForSource("/data/tracks/123.mp3"))
+	fun `defers lookahead for a bare local path source`() {
+		assertTrue(AtollaPlaybackGuards.shouldDeferLookaheadForSource("/data/tracks/123.mp3"))
 	}
 
 	@Test

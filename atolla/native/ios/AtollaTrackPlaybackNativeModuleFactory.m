@@ -980,8 +980,8 @@ static id sLookaheadClearObserver = nil;
         }
     }
 
-    // held back while the current remote track fills its initial buffer; the access-log
-    // observer re-runs ensureWindow once it is ready. mirrors syncQueue's guard on Android
+    // held back while the current track builds its initial buffer/decoder; the readiness
+    // observers re-run ensureWindow once it is ready. mirrors syncQueue's guard on Android
     while (!sSuppressLookahead && (NSInteger)sPlayer.items.count - 1 < kAtollaLookaheadTargetAhead) {
         NSArray<AVPlayerItem *> *currentItems = sPlayer.items;
         if (currentItems.count == 0) return;
@@ -1128,10 +1128,10 @@ static id sLookaheadClearObserver = nil;
                     return;
                 }
             }
-            // a streamed current track must fill its initial network buffer alone. adding the
-            // gapless next item here makes AVQueuePlayer pre-buffer it in parallel and stutters
-            // the start, so hold the lookahead back until the item is ready (see the access-log
-            // observer in registerPlayerObservers). mirrors replaceQueue on Android
+            // adding the gapless next item here makes AVQueuePlayer build/pre-buffer it in
+            // parallel with the current one and stutters the start, so hold the lookahead back
+            // until the item is ready (see the readiness observers in registerPlayerObservers).
+            // mirrors replaceQueue on Android
             sSuppressLookahead = AtollaShouldDeferLookaheadForSource(currentSourceUrl);
             [sPlayer removeAllItems];
             AVPlayerItem *item = [self playerItemForUrl:currentSourceUrl trackId:currentTrackId];
@@ -1345,8 +1345,9 @@ static id sLookaheadClearObserver = nil;
     }]];
 
     // fallback clear for sSuppressLookahead: the access-log notification above isn't guaranteed
-    // for progressive (non-HLS) streams, so once the current item is actually advancing, attach
-    // the gapless lookahead that was held back. mirrors clearing at STATE_READY on Android
+    // for progressive (non-HLS) streams or local file playback, so once the current item is
+    // actually advancing, attach the gapless lookahead that was held back. mirrors clearing at
+    // STATE_READY on Android
     sLookaheadClearObserver = [sPlayer addPeriodicTimeObserverForInterval:CMTimeMakeWithSeconds(0.5, NSEC_PER_SEC)
                                                                     queue:dispatch_get_main_queue()
                                                                usingBlock:^(CMTime time) {

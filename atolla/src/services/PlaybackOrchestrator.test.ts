@@ -470,6 +470,53 @@ describe('PlaybackOrchestrator waveforms', () => {
 		expect(state.disposed).toBe(1);
 		expect(renderCache.state.cleared).toBe(1);
 	});
+
+	it('holds the waveform pass back while playing until the playback cushion', () => {
+		const waveformService = new WaveformService(noopWaveformStore());
+		const { callbacks, state } = fakeWaveformQueue();
+		const tracks = [makeTrack('a'), makeTrack('b')];
+		const store = {
+			album: null,
+			isPlaying: true,
+			loopMode: 'off',
+			track: tracks[0] as Track | null,
+			trackIndex: 0,
+			tracks,
+		};
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			getAudioFileUrl: (id) => `path://${id}`,
+			getTrackCacheUrl: (id) => `/downloads/${id}.mp3`,
+			isOfflinePlaybackMode: () => true,
+		});
+		orchestrator.setUserServices(userServices({ ...callbacks, waveformService }));
+
+		orchestrator.handleTrackPlaybackSourceChange();
+		orchestrator.handleWaveformPriority();
+
+		// held back so the decode does not contend with the engine opening the current file at start
+		expect(state.enqueued).toEqual([]);
+
+		orchestrator.handlePlaybackEvent('playback-cushion');
+
+		expect(state.enqueued.map((e) => e.trackId)).toEqual(['a', 'b']);
+		orchestrator.dispose();
+	});
+
+	it('runs the waveform pass immediately when not playing', () => {
+		const waveformService = new WaveformService(noopWaveformStore());
+		const { callbacks, state } = fakeWaveformQueue();
+		const tracks = [makeTrack('a')];
+		const store = { isPlaying: false, track: tracks[0] as Track | null, trackIndex: 0, tracks };
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			getAudioFileUrl: (id) => `path://${id}`,
+		});
+		orchestrator.setUserServices(userServices({ ...callbacks, waveformService }));
+
+		orchestrator.setTrackPlaybackSource('/downloads/a.mp3');
+		orchestrator.handleWaveformPriority();
+
+		expect(state.enqueued.map((e) => e.trackId)).toEqual(['a']);
+	});
 });
 
 describe('PlaybackOrchestrator playback subscription', () => {
@@ -1261,6 +1308,46 @@ describe('PlaybackOrchestrator upcoming palettes', () => {
 				return Promise.resolve();
 			},
 			getTrackCacheUrl: (id) => `https://${id}`,
+			trackSourceNative,
+		});
+		orchestrator.setUserServices(
+			userServices({ paletteQueue: palette.queue, paletteService: palette.service }),
+		);
+
+		orchestrator.handleTrackPlaybackSourceChange();
+		orchestrator.prewarmUpcomingPalettes();
+		await flush();
+		expect(cached).toEqual([]);
+
+		orchestrator.handlePlaybackEvent('playback-cushion');
+		await flush();
+		expect(cached).toEqual(['art://b']);
+		orchestrator.dispose();
+	});
+
+	it('defers upcoming album-art downloads behind the playback cushion while offline', async () => {
+		const palette = fakePalette();
+		const cached: Array<string> = [];
+		const tracks = [
+			{ albumImageUrl: 'art://a', duration: 100, id: 'a', name: 'A' },
+			{ albumImageUrl: 'art://b', duration: 100, id: 'b', name: 'B' },
+		] as Array<Track>;
+		const store = {
+			album: null,
+			isPlaying: true,
+			loopMode: 'none',
+			track: tracks[0] as Track | null,
+			trackIndex: 0,
+			tracks,
+		};
+		const trackSourceNative = fakeTrackSourceNative({ getCachedTrackFileUrl: () => '' });
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			cacheAlbumArt: (url) => {
+				cached.push(url);
+				return Promise.resolve();
+			},
+			getTrackCacheUrl: (id) => `/downloads/${id}.mp3`,
+			isOfflinePlaybackMode: () => true,
 			trackSourceNative,
 		});
 		orchestrator.setUserServices(

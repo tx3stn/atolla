@@ -38,8 +38,10 @@ BOOL AtollaShouldSuppressBackwardRebuild(BOOL isPlaying,
 }
 
 BOOL AtollaShouldDeferLookaheadForSource(NSString *currentSourceUrl) {
-    return [currentSourceUrl.lowercaseString hasPrefix:@"http://"] ||
-           [currentSourceUrl.lowercaseString hasPrefix:@"https://"];
+    // hold the gapless next item back until the current item is ready, so building its decoder
+    // doesn't compete with the current track starting. every source benefits: a remote next item
+    // also pre-buffers over the network, and a local one competes for disk IO + the audio codec
+    return currentSourceUrl.length > 0;
 }
 
 BOOL AtollaCurrentItemMatches(NSString *loadedTrackId,

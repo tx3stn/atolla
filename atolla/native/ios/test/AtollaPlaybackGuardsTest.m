@@ -90,12 +90,12 @@
     XCTAssertTrue(AtollaShouldDeferLookaheadForSource(@"http://server/Audio/123/stream.mp3"));
 }
 
-- (void)testKeepsLookaheadForAFileSource {
-    XCTAssertFalse(AtollaShouldDeferLookaheadForSource(@"file:///data/tracks/123.mp3"));
+- (void)testDefersLookaheadForAFileSource {
+    XCTAssertTrue(AtollaShouldDeferLookaheadForSource(@"file:///data/tracks/123.mp3"));
 }
 
-- (void)testKeepsLookaheadForABareLocalPathSource {
-    XCTAssertFalse(AtollaShouldDeferLookaheadForSource(@"/data/tracks/123.mp3"));
+- (void)testDefersLookaheadForABareLocalPathSource {
+    XCTAssertTrue(AtollaShouldDeferLookaheadForSource(@"/data/tracks/123.mp3"));
 }
 
 - (void)testKeepsLookaheadForABlankSource {

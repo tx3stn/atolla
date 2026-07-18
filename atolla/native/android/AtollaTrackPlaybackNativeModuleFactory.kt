@@ -309,10 +309,10 @@ object AtollaGaplessAudioEngine {
 	private const val lookaheadTargetAhead = 2
 	private const val historyTargetBehind = 10
 
-	// while a freshly-started remote track is filling its initial network buffer, hold back the
-	// gapless next item / lookahead top-up so they don't compete for bandwidth and stutter the
-	// start of playback. cleared (and the lookahead attached) once the current item reaches
-	// STATE_READY. see AtollaPlaybackGuards.shouldDeferLookaheadForSource
+	// while a freshly-started track is buffering/building its decoder, hold back the gapless next
+	// item / lookahead top-up so they don't compete (bandwidth for remote, disk IO + codec for
+	// local) and stutter the start of playback. cleared (and the lookahead attached) once the
+	// current item reaches STATE_READY. see AtollaPlaybackGuards.shouldDeferLookaheadForSource
 	@Volatile private var suppressLookahead: Boolean = false
 
 	private var exoPlayer: ExoPlayer? = null
@@ -799,7 +799,7 @@ object AtollaGaplessAudioEngine {
 		}
 
 		// top up ahead for gapless auto-advance, unless the lookahead is held back while the
-		// current remote track fills its initial buffer (see replaceQueue / suppressLookahead)
+		// current track builds its initial buffer/decoder (see replaceQueue / suppressLookahead)
 		while (!suppressLookahead) {
 			val nowCurrent = player.currentMediaItemIndex
 			val ahead = player.mediaItemCount - 1 - nowCurrent
@@ -949,9 +949,9 @@ object AtollaGaplessAudioEngine {
 			return
 		}
 
-		// a streamed current track must fill its initial network buffer alone; adding the
-		// gapless next item here makes ExoPlayer pre-buffer it in parallel and stutters the
-		// start, so hold the lookahead back until STATE_READY (see onPlaybackStateChanged)
+		// adding the gapless next item here makes ExoPlayer build its decoder in parallel with
+		// the current track's (and pre-buffer it over the network when remote), which stutters
+		// the start, so hold the lookahead back until STATE_READY (see onPlaybackStateChanged)
 		suppressLookahead = AtollaPlaybackGuards.shouldDeferLookaheadForSource(sourceUrl)
 
 		Log.d(tag, "replaceQueue trackId=$sourceTrackId rate=$capturedPlaybackRate pendingSeek=$pendingSeekToMs suppressLookahead=$suppressLookahead")

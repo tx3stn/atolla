@@ -449,11 +449,12 @@ export class PlaybackOrchestrator {
 		if (
 			!activeTrack ||
 			!this.playbackStore.isPlaying ||
-			this.isOfflinePlaybackMode() ||
 			this.getNativeCachedTrackSource(activeTrack.id) != null
 		) {
 			return null;
 		}
+		// includes offline/downloaded playback: decoding upcoming artwork still contends with the
+		// engine opening the current local file at play start, so hold it behind the cushion too
 		return this.getTrackStreamSource(activeTrack.id);
 	}
 
@@ -632,6 +633,25 @@ export class PlaybackOrchestrator {
 		this.lastWaveformPriorityTracksRef = this.playbackStore.tracks;
 		this.lastWaveformPriorityTrackIndex = this.playbackStore.trackIndex;
 
+		// decoding the current (and upcoming) files competes with the engine opening the current
+		// track at play start and stutters it, so hold the waveform pass back until the track has
+		// actually started playing (playback-cushion). pre-generation then keeps upcoming tracks
+		// ready ahead of their turn. paused, or before a source is bound, there is no start to
+		// protect (and nothing to release it), so run immediately
+		const deferralSource = this.playbackStore.isPlaying ? this.getTrackPlaybackSourceUrl() : null;
+		if (deferralSource) {
+			this.deferredDownloadCoordinator.defer('waveform', {
+				requestId: this.playbackSourceRequestId,
+				run: () => this.runWaveformPriority(),
+				source: deferralSource,
+				trackId: this.playbackStore.track?.id ?? '',
+			});
+			return;
+		}
+		this.runWaveformPriority();
+	}
+
+	private runWaveformPriority(): void {
 		const { tracks, trackIndex } = this.playbackStore;
 		const end = Math.min(tracks.length, trackIndex + WAVEFORM_PREGEN_WINDOW);
 		for (let i = trackIndex; i < end; i++) {
@@ -640,7 +660,7 @@ export class PlaybackOrchestrator {
 				this.scheduleAndEnqueueWaveform(tracks[i].id, audioPath);
 			}
 		}
-		this.reorderWaveformQueue(this.getPlaybackTrackIds());
+		this.reorderWaveformQueue?.(this.getPlaybackTrackIds());
 	}
 
 	enqueueWaveformIfNeeded(trackId: string, audioPath: string): void {

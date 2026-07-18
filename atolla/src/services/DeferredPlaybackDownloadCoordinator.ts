@@ -1,4 +1,4 @@
-export type DeferredDownloadPurpose = 'current' | 'prefetch' | 'palette';
+export type DeferredDownloadPurpose = 'current' | 'prefetch' | 'palette' | 'waveform';
 
 export interface DeferredDownloadRecord {
 	requestId: number;
