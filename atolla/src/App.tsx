@@ -47,6 +47,7 @@ import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import { PlaylistCreateService } from './services/PlaylistCreateService';
 import { type PlaylistEditError, PlaylistEditService } from './services/PlaylistEditService';
 import type { SyncProgress } from './services/ReconnectSyncCoordinator';
+import { shouldTriggerReconnectSync } from './services/ReconnectTrigger';
 import { SessionController } from './services/SessionController';
 import { SessionManager } from './services/SessionManager';
 import { ToastService } from './services/ToastService';
@@ -219,6 +220,8 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	private bootstrapCommitTimer?: ReturnType<typeof setTimeout>;
 	private syncBannerTimer?: ReturnType<typeof setTimeout>;
 	private lastSyncEditErrors: Array<PlaylistEditError> = [];
+	private reconnectSyncInFlight = false;
+	private lastNetworkReachable = this.networkStatus.isReachable();
 	private unsubscribeToast?: () => void;
 	private readonly handleRequestModeChange = (mode: ConnectionMode): Promise<boolean> =>
 		this.connectivity.setMode(mode);
@@ -300,12 +303,25 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			});
 		});
 		this.downloadService.onAppReady();
-		// resume parked downloads the moment the radio comes back, not just on relaunch
+		// resume parked downloads and drain queued sync work (scrobbles, playlist edits) the moment the
+		// radio comes back, not just on relaunch or a manual mode toggle
 		this.registerDisposable(
 			this.networkStatus.subscribe(() => {
-				if (this.networkStatus.isReachable()) {
+				const reachable = this.networkStatus.isReachable();
+				if (reachable) {
 					this.downloadService.onAppReady();
 				}
+				if (
+					shouldTriggerReconnectSync({
+						inFlight: this.reconnectSyncInFlight,
+						mode: this.connectivity.getMode(),
+						reachable,
+						wasReachable: this.lastNetworkReachable,
+					})
+				) {
+					this.startReconnectSync();
+				}
+				this.lastNetworkReachable = reachable;
 			}),
 		);
 		this.playbackOrchestrator.reconcilePlaybackState();
@@ -688,9 +704,11 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	}
 
 	private startReconnectSync(): void {
+		if (this.reconnectSyncInFlight) return;
 		const coordinator = this.userScope.getReconnectSync();
 		if (!coordinator) return;
 		const transport = this.connectivity.getTransport();
+		this.reconnectSyncInFlight = true;
 		fireAndForget(
 			'reconnect-sync',
 			coordinator
@@ -707,6 +725,9 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 					}
 					this.setState({ syncProgress: result });
 					this.scheduleSyncBannerDismiss(result.status === 'partial' ? 6000 : 2500);
+				})
+				.finally(() => {
+					this.reconnectSyncInFlight = false;
 				}),
 		);
 	}

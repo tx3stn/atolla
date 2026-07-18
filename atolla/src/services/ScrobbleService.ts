@@ -1,4 +1,5 @@
 import type { KeyValueStore } from '../stores/KeyValueStore';
+import { getLogger } from './Logger';
 
 export interface PendingScrobble {
 	id?: string;
@@ -25,6 +26,8 @@ export interface ScrobbleServiceOptions {
 const pendingScrobblesKey = 'pending_scrobbles';
 const defaultThresholdRatio = 0.8;
 const defaultMaxAgeMs = 30 * 24 * 60 * 60 * 1000;
+
+const log = getLogger('scrobble');
 
 interface TrackPlayState {
 	activeListenSeconds: number;
@@ -114,6 +117,7 @@ export class ScrobbleService {
 			trackId: currentPlay.trackId,
 			triggeredAt: new Date(this.now()).toISOString(),
 		};
+		log.debug('scrobble queued', { trackId: pending.trackId, triggeredAt: pending.triggeredAt });
 
 		this.enqueueOperation(async () => {
 			await this.ensureLoaded();
@@ -137,6 +141,11 @@ export class ScrobbleService {
 		});
 
 		return this.flush();
+	}
+
+	async getPendingCount(): Promise<number> {
+		await this.ensureLoaded();
+		return this.pendingScrobbles.length;
 	}
 
 	getPendingScrobbles(): Array<PendingScrobble> {
@@ -228,9 +237,16 @@ export class ScrobbleService {
 	private async attemptDelivery(pending: PendingScrobble): Promise<boolean> {
 		try {
 			await this.deliverScrobble(pending);
-		} catch {
+		} catch (error) {
+			log.warn('scrobble not delivered, keeping queued', {
+				error: error instanceof Error ? error.message : String(error),
+				trackId: pending.trackId,
+				triggeredAt: pending.triggeredAt,
+			});
 			return false;
 		}
+
+		log.debug('scrobble delivered', { trackId: pending.trackId, triggeredAt: pending.triggeredAt });
 
 		const index = this.pendingScrobbles.findIndex((candidate) =>
 			pending.id && candidate.id

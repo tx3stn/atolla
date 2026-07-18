@@ -18,6 +18,7 @@ import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 import { AuthErrors } from '../services/AuthErrors';
+import { getLogger } from '../services/Logger';
 import { version } from '../version';
 import { cancelable, tracked } from './Cancelable';
 import { TransportErrors } from './Errors';
@@ -58,6 +59,8 @@ interface AlbumsPageResult {
 }
 
 const defaultSearchLimit = 100;
+
+const log = getLogger('transport');
 
 export class LiveTransport implements Transport {
 	private readonly baseUrl: string;
@@ -779,9 +782,16 @@ export class LiveTransport implements Transport {
 			}
 
 			if (response.statusCode === 401) {
+				log.warn('request rejected', { method, path: requestPath, status: 401 });
 				throw AuthErrors.SESSION_EXPIRED;
 			}
 			if (response.statusCode < 200 || response.statusCode >= 300) {
+				log.warn('request failed', {
+					body: response.body ? new TextDecoder().decode(response.body).slice(0, 200) : undefined,
+					method,
+					path: requestPath,
+					status: response.statusCode,
+				});
 				throw TransportErrors.LIVE_REQUEST_FAILED;
 			}
 			return response;

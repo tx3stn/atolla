@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, spyOn } from 'bun:test';
 import { InMemoryKeyValueStore, type KeyValueStore } from '../stores/KeyValueStore';
 import {
 	type PendingScrobble,
@@ -194,6 +194,89 @@ describe('ScrobbleService', () => {
 		await service.flush();
 
 		expect(deliverCalls).toHaveLength(2);
+	});
+
+	it('surfaces a delivery failure via the logger instead of swallowing it', async () => {
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const { service } = createService({
+				deliverScrobble: () => Promise.reject(new Error('server rejected: 400')),
+			});
+
+			service.observePlayback({
+				hasSeekTarget: false,
+				isPlaying: true,
+				progressSeconds: 0,
+				trackDurationSeconds: 100,
+				trackId: 'track-1',
+			});
+			service.observePlayback({
+				hasSeekTarget: false,
+				isPlaying: true,
+				progressSeconds: 80,
+				trackDurationSeconds: 100,
+				trackId: 'track-1',
+			});
+
+			await service.flush();
+
+			expect(warnSpy).toHaveBeenCalled();
+			const logged = warnSpy.mock.calls.map((args: Array<unknown>) => String(args[0])).join('\n');
+			expect(logged).toContain('track-1');
+			expect(service.getPendingScrobbles()).toHaveLength(1);
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
+	it('hydrates the persisted queue before counting via getPendingCount', async () => {
+		const seededStore = new InMemoryKeyValueStore();
+		await seededStore.storeString(
+			'pending_scrobbles',
+			JSON.stringify([
+				{ trackId: 'track-1', triggeredAt: '2026-01-01T00:00:01.000Z' },
+				{ trackId: 'track-2', triggeredAt: '2026-01-01T00:00:02.000Z' },
+			]),
+		);
+		const { service } = createService({ store: seededStore });
+
+		// no observePlayback: the count must come from disk, not the in-memory array
+		expect(await service.getPendingCount()).toBe(2);
+	});
+
+	it('drives delivery through a transport-shaped closure', async () => {
+		const calls: Array<{ datePlayed: string; trackId: string }> = [];
+		const fakeTransport = {
+			scrobbleTrackPlayed: (trackId: string, datePlayed: string): Promise<void> => {
+				calls.push({ datePlayed, trackId });
+				return Promise.resolve();
+			},
+		};
+		const { service } = createService({
+			deliverScrobble: (pending) =>
+				fakeTransport.scrobbleTrackPlayed(pending.trackId, pending.triggeredAt),
+		});
+
+		service.observePlayback({
+			hasSeekTarget: false,
+			isPlaying: true,
+			progressSeconds: 0,
+			trackDurationSeconds: 100,
+			trackId: 'track-9',
+		});
+		service.observePlayback({
+			hasSeekTarget: false,
+			isPlaying: true,
+			progressSeconds: 85,
+			trackDurationSeconds: 100,
+			trackId: 'track-9',
+		});
+
+		await service.flush();
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0].trackId).toBe('track-9');
+		expect(Number.isNaN(Date.parse(calls[0].datePlayed))).toBe(false);
 	});
 
 	it('keeps failed deliveries pending and retries them on app ready', async () => {

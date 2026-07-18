@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, spyOn } from 'bun:test';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type {
@@ -851,6 +851,87 @@ describe('LiveTransport core collections', () => {
 		expect(calls[0].pathOrUrl).toContain('/UserPlayedItems/track-1');
 		expect(queryParam(calls[0].pathOrUrl, 'datePlayed')).toBe('2026-01-01T00:00:00.000Z');
 		expect(queryParam(calls[0].pathOrUrl, 'userId')).toBe('user-1');
+	});
+
+	it('resolves and reaches the endpoint with auth headers on a 200 UserItemDataDto', async () => {
+		const { calls, client } = createHTTPClient([
+			jsonResponse(200, { ItemId: 'track-1', PlayCount: 3, Played: true }),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		await transport.scrobbleTrackPlayed('track-1', '2026-01-01T00:00:00.000Z');
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0].method).toBe('post');
+		expect(calls[0].pathOrUrl).toContain('/UserPlayedItems/track-1');
+		expect(calls[0].headers?.Authorization).toContain('MediaBrowser');
+		expect(calls[0].headers?.['X-Emby-Token']).toBe('token-1');
+	});
+
+	it('sends a bodyless scrobble POST with no Content-Type', async () => {
+		const { calls, client } = createHTTPClient([{ body: undefined, headers: {}, statusCode: 204 }]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		await transport.scrobbleTrackPlayed('track-1', '2026-01-01T00:00:00.000Z');
+
+		expect(calls[0].body).toBeUndefined();
+		expect(calls[0].headers?.['Content-Type']).toBeUndefined();
+	});
+
+	it('rejects and logs the status when the scrobble endpoint returns a non-2xx', async () => {
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const { client } = createHTTPClient([jsonResponse(400, { Error: 'bad request' })]);
+			const transport = new LiveTransport(
+				'https://demo.jellyfin.local',
+				'token-1',
+				'user-1',
+				client,
+			);
+
+			await expect(
+				transport.scrobbleTrackPlayed('track-1', '2026-01-01T00:00:00.000Z'),
+			).rejects.toMatchObject({ err: 'transport_live_request_failed' });
+
+			expect(warnSpy).toHaveBeenCalled();
+			const logged = warnSpy.mock.calls.map((args: Array<unknown>) => String(args[0])).join('\n');
+			expect(logged).toContain('400');
+			expect(logged).toContain('/UserPlayedItems/track-1');
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
+	it('rejects with SESSION_EXPIRED when the scrobble endpoint returns 401', async () => {
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const { client } = createHTTPClient([jsonResponse(401, {})]);
+			const transport = new LiveTransport(
+				'https://demo.jellyfin.local',
+				'token-1',
+				'user-1',
+				client,
+			);
+
+			await expect(
+				transport.scrobbleTrackPlayed('track-1', '2026-01-01T00:00:00.000Z'),
+			).rejects.toMatchObject({ err: 'auth_session_expired' });
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
+	it('throws without contacting the server when trackId or datePlayed is empty', async () => {
+		const { calls, client } = createHTTPClient([]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		await expect(
+			transport.scrobbleTrackPlayed('', '2026-01-01T00:00:00.000Z'),
+		).rejects.toMatchObject({ err: 'transport_live_request_failed' });
+		await expect(transport.scrobbleTrackPlayed('track-1', '')).rejects.toMatchObject({
+			err: 'transport_live_request_failed',
+		});
+		expect(calls).toHaveLength(0);
 	});
 
 	it('throws SESSION_EXPIRED when the server responds with 401', async () => {

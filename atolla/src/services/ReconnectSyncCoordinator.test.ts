@@ -79,14 +79,10 @@ function makeDeps(config: FakeConfig): {
 			},
 		},
 		scrobbleService: {
-			getPendingScrobbles: (() => {
-				let calls = 0;
-				return () => {
-					// first read is the up-front snapshot; later reads are post-delivery
-					calls += 1;
-					return new Array(calls === 1 ? (config.scrobblePending ?? 0) : scrobbleAfter).fill({});
-				};
-			})(),
+			// up-front denominator hydrates from the persisted queue
+			getPendingCount: () => Promise.resolve(config.scrobblePending ?? 0),
+			// only read post-delivery, for the not-yet-synced delta
+			getPendingScrobbles: () => new Array(scrobbleAfter).fill({}),
 			onAppReady: config.scrobbleOnAppReady ?? (() => Promise.resolve()),
 		},
 	};
@@ -242,6 +238,20 @@ describe('ReconnectSyncCoordinator', () => {
 		expect(result.failed).toBe(2);
 		expect(result.completed).toBe(0);
 		expect(result.status).toBe('partial');
+	});
+
+	it('counts persisted-but-unhydrated scrobbles via getPendingCount so the banner shows', async () => {
+		// the fresh-start case: getPendingScrobbles() (in-memory) is empty until onAppReady hydrates,
+		// but getPendingCount() reflects the persisted queue, so total must be non-zero and syncing shows
+		const { deps } = makeDeps({ scrobbleAfter: 0, scrobblePending: 2 });
+		const coordinator = new ReconnectSyncCoordinator(deps);
+		const updates: Array<SyncProgress> = [];
+
+		const result = await coordinator.run(transport, (p) => updates.push(p));
+
+		expect(result.total).toBe(2);
+		expect(result.completed).toBe(2);
+		expect(updates.some((update) => update.status === 'syncing')).toBe(true);
 	});
 
 	it('counts undelivered scrobbles as not-yet-synced', async () => {

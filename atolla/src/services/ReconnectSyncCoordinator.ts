@@ -47,6 +47,7 @@ interface DownloadLike {
 }
 
 interface ScrobbleLike {
+	getPendingCount(): Promise<number>;
 	getPendingScrobbles(): Array<unknown>;
 	onAppReady(): Promise<void>;
 }
@@ -89,7 +90,7 @@ export class ReconnectSyncCoordinator {
 			return playlistCreateService.getPending().length;
 		});
 		const editBefore = await this.safeCount(() => playlistEditService.getPendingCount());
-		const scrobbleBefore = await this.safeCount(() => scrobbleService.getPendingScrobbles().length);
+		const scrobbleBefore = await this.safeCount(() => scrobbleService.getPendingCount());
 
 		const total = createBefore + editBefore + scrobbleBefore;
 
