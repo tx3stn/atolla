@@ -473,6 +473,120 @@ describe('DownloadService', () => {
 		});
 	});
 
+	describe('addTracksToPlaylist', () => {
+		it('appends newly-added tracks and enqueues only the new ones', async () => {
+			const { cacheCalls, service } = createService();
+			const playlist = makePlaylist('playlist-1');
+			service.downloadPlaylist({
+				playlist,
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+			await flush();
+			const countBefore = cacheCalls.length;
+
+			service.addTracksToPlaylist({
+				playlist,
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-2', track: makeTrack('track-2') },
+				],
+			});
+			await flush();
+
+			expect(service.getPlaylist('playlist-1')?.trackIds).toEqual(['track-1', 'track-2']);
+			expect(cacheCalls.slice(countBefore)).toEqual([
+				{ trackId: 'track-2', url: 'http://s/track-2' },
+			]);
+			expect(service.isTrackDownloaded('track-2')).toBe(true);
+		});
+
+		it('does not re-enqueue tracks already in the snapshot', async () => {
+			const { cacheCalls, service } = createService();
+			const playlist = makePlaylist('playlist-1');
+			service.downloadPlaylist({
+				playlist,
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+			await flush();
+			const countBefore = cacheCalls.length;
+
+			service.addTracksToPlaylist({
+				playlist,
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+			await flush();
+
+			expect(cacheCalls.length).toBe(countBefore);
+			expect(service.getPlaylist('playlist-1')?.trackIds).toEqual(['track-1']);
+		});
+
+		it('is a no-op when the playlist is not downloaded', async () => {
+			const { cacheCalls, service } = createService();
+
+			service.addTracksToPlaylist({
+				playlist: makePlaylist('ghost'),
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+			await flush();
+
+			expect(service.getPlaylist('ghost')).toBeUndefined();
+			expect(cacheCalls).toHaveLength(0);
+		});
+
+		it('surfaces new tracks in the downloading count', async () => {
+			const { service } = createService({ cacheTrack: () => new Promise<void>(() => {}) });
+			const playlist = makePlaylist('playlist-1');
+			service.downloadPlaylist({
+				playlist,
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+			await flush();
+			expect(service.getDownloadingCount()).toBe(1);
+
+			service.addTracksToPlaylist({
+				playlist,
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-2', track: makeTrack('track-2') },
+				],
+			});
+			await flush();
+
+			expect(service.getDownloadingCount()).toBe(2);
+		});
+
+		it('refreshes playlist metadata from the server copy', async () => {
+			const { service } = createService();
+			const playlist = makePlaylist('playlist-1');
+			service.downloadPlaylist({
+				playlist,
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+			await flush();
+
+			service.addTracksToPlaylist({
+				playlist: { id: 'playlist-1', imageUrl: 'https://img/new.jpg', name: 'Renamed' },
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-2', track: makeTrack('track-2') },
+				],
+			});
+			await flush();
+
+			expect(service.getPlaylist('playlist-1')?.playlist.name).toBe('Renamed');
+			expect(service.getPlaylist('playlist-1')?.playlist.imageUrl).toBe('https://img/new.jpg');
+		});
+	});
+
 	describe('downloadGenre', () => {
 		it('marks all genre tracks as downloaded', async () => {
 			const { service } = createService();

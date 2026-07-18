@@ -13,6 +13,7 @@ import type { Genre } from '../../models/Genre';
 import type { Track } from '../../models/Track';
 import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
+import { resolveDownloadTracks } from '../../services/DownloadTrackResolver';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
@@ -22,13 +23,12 @@ import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { retryResolve } from '../../utils/Async';
+import { fireAndForget } from '../../utils/Async';
 import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
 import { LoadingView } from '../components/LoadingView';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
-import { resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
 import { type DetailPushDeps, pushAlbum, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { TRACK_PAGE_SIZE } from '../pagination/Grid';
@@ -226,63 +226,18 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 	private handleDownloadTap = (): void => {
 		const { downloadService, genre, transport } = this.viewModel;
-		Promise.all(
-			this.state.tracks.map(async (track, i) => {
-				const streamUrl = transport.getTrackCacheUrl(track.id);
-				if (!streamUrl) {
-					return null;
+		fireAndForget(
+			'genre-download',
+			resolveDownloadTracks(transport, this.state.tracks, {
+				existingLogos: this.state.artistLogoUrls,
+				resolveMissingLogos: true,
+			}).then(({ artists, resolvedGenres, tracks }) => {
+				if (tracks.length === 0) {
+					return;
 				}
-
-				const existingLogoUrl = this.state.artistLogoUrls[i] ?? null;
-				if (existingLogoUrl) {
-					return { artistLogoUrl: existingLogoUrl, streamUrl, track };
-				}
-
-				const artistId = track.artistId;
-				if (!artistId) {
-					return { artistLogoUrl: null, streamUrl, track };
-				}
-
-				try {
-					const resolvedLogoUrl = await retryResolve(() => transport.getArtistLogoUrl(artistId));
-					return { artistLogoUrl: resolvedLogoUrl, streamUrl, track };
-				} catch {
-					return { artistLogoUrl: null, streamUrl, track };
-				}
+				downloadService.downloadGenre({ artists, genre, resolvedGenres, tracks });
 			}),
-		).then((resolvedTracks) => {
-			const tracks = resolvedTracks.filter(
-				(t): t is { artistLogoUrl: string | null; streamUrl: string; track: Track } => t !== null,
-			);
-
-			const uniqueArtistIds = Array.from(
-				new Set(
-					tracks
-						.map(({ track }) => track.artistId)
-						.filter((artistId): artistId is string => artistId != null && artistId.length > 0),
-				),
-			);
-
-			const allTrackGenres = tracks.flatMap(({ track }) => track.genres ?? []);
-
-			Promise.all([
-				Promise.all(
-					uniqueArtistIds.map((artistId) =>
-						retryResolve(() => transport.getArtist(artistId)).catch(() => null),
-					),
-				),
-				resolveGenreImageUrls(transport, allTrackGenres),
-			]).then(([artistResults, resolvedGenres]) => {
-				downloadService.downloadGenre({
-					artists: artistResults.filter(
-						(artist): artist is NonNullable<typeof artist> => artist != null,
-					),
-					genre,
-					resolvedGenres,
-					tracks,
-				});
-			});
-		});
+		);
 	};
 
 	private handleHeaderAddToQueueTap = (): Promise<void> => {

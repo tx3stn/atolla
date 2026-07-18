@@ -39,6 +39,7 @@ import {
 	type IDownloadNativeWorker,
 } from './services/DownloadNativeWorker';
 import { DownloadService } from './services/DownloadService';
+import { DownloadSyncService } from './services/DownloadSyncService';
 import { ImageCache } from './services/ImageCache';
 import { JellyfinAuthService } from './services/JellyfinAuthService';
 import { getLogger, Logger } from './services/Logger';
@@ -182,6 +183,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		removeTracks: (trackIds) => this.downloadWorkerClient.api.removeDownloadedTracks(trackIds),
 		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
 	});
+	private downloadSyncService = new DownloadSyncService({ downloadService: this.downloadService });
 	private assetCache = new AssetCache();
 	private sessionManager: SessionManager = new SessionManager({
 		applyState: (partial) => this.applyConnectionState(partial),
@@ -495,6 +497,8 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			if (this.isDestroyed()) return;
 			this.setState({ isBootstrapped: true });
 			this.playbackOrchestrator.notifyAppReady();
+			// cold start doesn't fire onOnline(), so kick the downloaded-collection sync here
+			this.syncDownloadedCollections();
 		}, remaining);
 	}
 
@@ -687,7 +691,21 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		})();
 	}
 
+	// reconcile downloaded playlists/genres with the server on every online transition;
+	// a no-op unless the connection mode is online. single-flight in the sync service, so
+	// overlapping with the cold-start trigger is safe
+	private syncDownloadedCollections(): void {
+		if (this.connectivity.getMode() !== ConnectionModes.online) {
+			return;
+		}
+		fireAndForget(
+			'download-sync',
+			this.downloadSyncService.syncAll(this.connectivity.getTransport()),
+		);
+	}
+
 	private startReconnectSync(): void {
+		this.syncDownloadedCollections();
 		const coordinator = this.userScope.getReconnectSync();
 		if (!coordinator) return;
 		const transport = this.connectivity.getTransport();

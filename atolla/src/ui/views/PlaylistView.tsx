@@ -14,6 +14,7 @@ import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
+import { resolveDownloadTracks } from '../../services/DownloadTrackResolver';
 import type { ImageCache } from '../../services/ImageCache';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
@@ -24,7 +25,7 @@ import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { retryResolve } from '../../utils/Async';
+import { fireAndForget } from '../../utils/Async';
 import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
 import { LoadingView } from '../components/LoadingView';
@@ -32,7 +33,6 @@ import { Modal } from '../components/Modal';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { ScrollDragAutoScroller } from '../components/ScrollDragAutoScroller';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
-import { resolveGenreImageUrls } from '../flows/GenreNavigationResolver';
 import { closeSlot } from '../flows/ModalSlotFlow';
 import { type DetailPushDeps, pushAlbum, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
@@ -408,55 +408,25 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 
 	private handleDownloadTap = (): void => {
 		const { downloadService, playlist, transport } = this.viewModel;
-		const tracks = this.state.tracks
-			.map((track, i) => {
-				const streamUrl = transport.getTrackCacheUrl(track.id);
-				if (!streamUrl) {
-					return null;
-				}
-
-				return {
-					artistLogoUrl: this.state.artistLogoUrls[i] ?? null,
-					streamUrl,
-					track,
-				};
-			})
-			.filter(
-				(t): t is { artistLogoUrl: string | null; streamUrl: string; track: Track } => t !== null,
-			);
-
-		if (tracks.length === 0) {
+		const hasCacheableTrack = this.state.tracks.some((track) =>
+			transport.getTrackCacheUrl(track.id),
+		);
+		if (!hasCacheableTrack) {
 			return;
 		}
 
-		const uniqueArtistIds = Array.from(
-			new Set(
-				tracks
-					.map(({ track }) => track.artistId)
-					.filter((artistId): artistId is string => artistId != null && artistId.length > 0),
-			),
-		);
-
-		const allGenres = tracks.flatMap(({ track }) => track.genres ?? []);
-
 		this.setState({ downloadState: 'downloading' });
-		Promise.all([
-			Promise.all(
-				uniqueArtistIds.map((artistId) =>
-					retryResolve(() => transport.getArtist(artistId)).catch(() => null),
-				),
-			),
-			resolveGenreImageUrls(transport, allGenres),
-		]).then(([artistResults, resolvedGenres]) => {
-			downloadService.downloadPlaylist({
-				artists: artistResults.filter(
-					(artist): artist is NonNullable<typeof artist> => artist != null,
-				),
-				playlist,
-				resolvedGenres,
-				tracks,
-			});
-		});
+		fireAndForget(
+			'playlist-download',
+			resolveDownloadTracks(transport, this.state.tracks, {
+				existingLogos: this.state.artistLogoUrls,
+			}).then(({ artists, resolvedGenres, tracks }) => {
+				if (tracks.length === 0) {
+					return;
+				}
+				downloadService.downloadPlaylist({ artists, playlist, resolvedGenres, tracks });
+			}),
+		);
 	};
 
 	private handleHeaderAddToQueueTap = (): Promise<void> => {

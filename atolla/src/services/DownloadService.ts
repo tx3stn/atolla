@@ -57,6 +57,19 @@ export interface DownloadedGenreEntry {
 	trackIds: Array<string>;
 }
 
+export interface CollectionTrackDownload {
+	artistLogoUrl: string | null;
+	streamUrl: string;
+	track: Track;
+}
+
+export interface AddTracksToPlaylistParams {
+	artists?: Array<Artist>;
+	playlist: Playlist;
+	resolvedGenres?: Array<Genre>;
+	tracks: Array<CollectionTrackDownload>;
+}
+
 export interface DownloadServiceStore {
 	fetchString(key: string): Promise<string>;
 	storeString(key: string, value: string): Promise<void>;
@@ -532,6 +545,63 @@ export class DownloadService {
 					if (!this.tracks[track.id]?.complete) {
 						this.enqueueTrack(track.id, streamUrl);
 					}
+				}
+			}
+			this.notify();
+		});
+	}
+
+	// additive sync: pull newly-added tracks into an already-downloaded playlist. never
+	// removes tracks that dropped off the server (downloads stay a superset). no-op if
+	// the playlist isn't downloaded, so it only ever tops up an existing download.
+	addTracksToPlaylist(params: AddTracksToPlaylistParams): void {
+		const { artists = [], playlist, tracks, resolvedGenres = [] } = params;
+		this.enqueueOperation(async () => {
+			await this.ensureLoaded();
+			const entry = this.playlists[playlist.id];
+			if (!entry) return;
+
+			for (const artist of artists) {
+				this.upsertArtistEntry({ albumIds: [], artist });
+			}
+
+			entry.playlist = {
+				...entry.playlist,
+				...playlist,
+				imageUrl: playlist.imageUrl ?? entry.playlist.imageUrl,
+			};
+
+			const existingIds = new Set(entry.trackIds);
+			const newTracks = tracks.filter(({ track }) => !existingIds.has(track.id));
+			if (newTracks.length === 0) {
+				await this.persistAll();
+				this.notify();
+				return;
+			}
+
+			const sharedReqs = [
+				...this.playlistImageReqs(playlist.imageUrl),
+				...artists.flatMap((artist) => this.artistReqs(artist.imageUrl, null)),
+			];
+			const enrichGenres = this.genreEnricher(resolvedGenres);
+			for (const { artistLogoUrl, streamUrl, track } of newTracks) {
+				const trackGenres = enrichGenres(track.genres ?? []);
+				this.addTrackRef(track, streamUrl, null, null, playlist.id, trackGenres, artistLogoUrl);
+				this.addTrackImageRequirements(track.id, [
+					...this.albumArtReqs(track.albumImageUrl),
+					...this.artistReqs(null, artistLogoUrl),
+					...this.genreArtReqs(trackGenres),
+					...sharedReqs,
+				]);
+				// unlike genres, addTrackRef doesn't touch the playlist entry, so append here
+				entry.trackArtistLogoUrls[track.id] = artistLogoUrl;
+				entry.trackIds.push(track.id);
+			}
+
+			await this.persistAll();
+			for (const { streamUrl, track } of newTracks) {
+				if (!this.tracks[track.id]?.complete) {
+					this.enqueueTrack(track.id, streamUrl);
 				}
 			}
 			this.notify();
