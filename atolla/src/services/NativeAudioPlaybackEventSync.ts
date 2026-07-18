@@ -1,4 +1,5 @@
 import type { PlaybackStore } from '../stores/Playback';
+import type { PendingScrobble } from './ScrobbleService';
 
 export type NativeAudioPlaybackEventAction = 'pause' | 'play' | '';
 
@@ -31,6 +32,41 @@ export function parseNativeAudioJumpedEvent(rawEvent: string): string | null {
 
 	const trackId = rawEvent.slice('jumped:'.length).trim();
 	return trackId || null;
+}
+
+// native readAtollaPendingScrobbles() returns a JSON array [{ trackId, playedAtMs }]; parse
+// defensively (native/desktop stubs may return "" or malformed data) and drop invalid entries
+export function parseNativePendingScrobbles(rawJson: string): Array<PendingScrobble> {
+	if (!rawJson) {
+		return [];
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(rawJson);
+	} catch {
+		return [];
+	}
+	if (!Array.isArray(parsed)) {
+		return [];
+	}
+
+	const scrobbles: Array<PendingScrobble> = [];
+	for (const entry of parsed) {
+		if (!entry || typeof entry !== 'object') {
+			continue;
+		}
+		const candidate = entry as { playedAtMs?: unknown; trackId?: unknown };
+		if (
+			typeof candidate.trackId === 'string' &&
+			candidate.trackId.length > 0 &&
+			typeof candidate.playedAtMs === 'number' &&
+			Number.isFinite(candidate.playedAtMs)
+		) {
+			scrobbles.push({ playedAtMs: candidate.playedAtMs, trackId: candidate.trackId });
+		}
+	}
+	return scrobbles;
 }
 
 export function normalizeNativeAudioPlaybackEventAction(

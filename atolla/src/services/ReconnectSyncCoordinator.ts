@@ -47,9 +47,8 @@ interface DownloadLike {
 }
 
 interface ScrobbleLike {
-	getPendingCount(): Promise<number>;
-	getPendingScrobbles(): Array<unknown>;
-	onAppReady(): Promise<void>;
+	getPendingCount(): number;
+	syncFromNative(): Promise<void>;
 }
 
 export interface ReconnectSyncDeps {
@@ -139,11 +138,11 @@ export class ReconnectSyncCoordinator {
 		}
 		emit('syncing');
 
-		// scrobbles retry via the service's own delivery closure; undelivered ones
+		// deliver the native pending-scrobble queue via the active transport; undelivered ones
 		// stay queued and count as not-yet-synced for this window
 		try {
-			await scrobbleService.onAppReady();
-			const after = scrobbleService.getPendingScrobbles().length;
+			await scrobbleService.syncFromNative();
+			const after = scrobbleService.getPendingCount();
 			const delivered = Math.max(0, scrobbleBefore - after);
 			completed += delivered;
 			failed += Math.max(0, scrobbleBefore - delivered);

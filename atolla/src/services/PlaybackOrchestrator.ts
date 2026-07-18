@@ -185,7 +185,6 @@ export class PlaybackOrchestrator {
 	}
 
 	private handlePlaybackTick(): void {
-		this.syncScrobblePlaybackSnapshot();
 		this.syncTrackPlaybackNotification();
 
 		const now = Date.now();
@@ -201,7 +200,14 @@ export class PlaybackOrchestrator {
 		}
 		this.lastPlaybackSignature = sig;
 
+		// a track change means the engine may have just persisted a scrobble (natural end or a leave
+		// past threshold); deliver anything pending. offline deliveries fail and stay queued.
+		fireAndForget('deliverScrobbles', this.deliverPendingScrobbles());
 		this.onPlaybackTick();
+	}
+
+	private deliverPendingScrobbles(): Promise<void> {
+		return this.scrobbleService?.syncFromNative() ?? Promise.resolve();
 	}
 
 	// run the full ordered reconciliation against the current playback state: artwork, sources,
@@ -295,13 +301,12 @@ export class PlaybackOrchestrator {
 		this.scrobbleService = services.scrobble;
 		this.paletteService = services.paletteService;
 		this.paletteQueue = services.paletteQueue;
-		fireAndForget('scrobbleAppReady', services.scrobble.onAppReady());
+		fireAndForget('deliverScrobbles', services.scrobble.syncFromNative());
 		this.recentlyPlayedRestoring = true;
 		this.recentlyPlayedTracks = [];
 		this.lastObservedRecentTrackId = null;
 		this.restoreGeneration += 1;
 		fireAndForget('restoreRecentlyPlayed', this.restoreRecentlyPlayed(this.restoreGeneration));
-		this.syncScrobblePlaybackSnapshot();
 
 		this.teardownWaveform();
 		this.waveformService = services.waveformService;
@@ -357,12 +362,12 @@ export class PlaybackOrchestrator {
 	}
 
 	getPendingScrobbleCount(): number | undefined {
-		return this.scrobbleService?.getPendingScrobbles().length;
+		return this.scrobbleService?.getPendingCount();
 	}
 
 	notifyAppReady(): void {
 		if (this.scrobbleService) {
-			fireAndForget('scrobbleAppReady', this.scrobbleService.onAppReady());
+			fireAndForget('deliverScrobbles', this.scrobbleService.syncFromNative());
 		}
 	}
 
@@ -586,21 +591,6 @@ export class PlaybackOrchestrator {
 		} catch {
 			// native module without upcoming-queue support (e.g. mock platform builds)
 		}
-	}
-
-	syncScrobblePlaybackSnapshot(): void {
-		if (!this.scrobbleService) {
-			return;
-		}
-
-		const activeTrack = this.playbackStore.track;
-		this.scrobbleService.observePlayback({
-			hasSeekTarget: this.playbackStore.seekTarget != null,
-			isPlaying: this.playbackStore.isPlaying,
-			progressSeconds: this.playbackStore.progressSeconds,
-			trackDurationSeconds: activeTrack?.duration ?? 0,
-			trackId: activeTrack?.id ?? null,
-		});
 	}
 
 	captureRecentlyPlayedTrack(): void {

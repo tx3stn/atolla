@@ -6,6 +6,7 @@
 #import <objc/runtime.h>
 #import "atolla/native/ios/AtollaPlaybackGuards.h"
 #import "atolla/native/ios/AtollaAuthRedirectGuard.h"
+#import "scrobble_ios_bridge.h"
 
 // associates the source track id with each AVPlayerItem so the loaded current item can be
 // identified by track rather than by its (mutable) source URL, mirroring MediaItem.mediaId on
@@ -687,7 +688,116 @@ static BOOL sCommandsRegistered = NO;
 
 // MARK: - Gapless Audio Engine
 
+// MARK: - Pending Scrobble Queue
+
+// Durable, kill-safe pending-scrobble queue. The engine appends one line the instant a track is
+// left past threshold or reaches its natural end; the entry survives backgrounding and process
+// death because it lives in the Documents dir (unlike the in-memory playback event queue). JS reads
+// the pending list, delivers each to Jellyfin, and acks it. Line format: "<trackId>\t<epochMs>".
+@interface AtollaScrobbleQueue : NSObject
++ (void)appendTrackId:(NSString *)trackId playedAtMs:(long long)playedAtMs;
++ (NSString *)readPendingJson;
++ (void)ackTrackId:(NSString *)trackId playedAtMs:(long long)playedAtMs;
+@end
+
+@implementation AtollaScrobbleQueue
+
+static NSLock *sScrobbleQueueLock;
+
++ (void)initialize {
+    if (self == [AtollaScrobbleQueue class]) {
+        sScrobbleQueueLock = [[NSLock alloc] init];
+    }
+}
+
++ (NSString *)filePath {
+    NSURL *docs = [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory
+                                                          inDomains:NSUserDomainMask] firstObject];
+    if (!docs) return nil;
+    return [[docs URLByAppendingPathComponent:@"pending_scrobbles.log"] path];
+}
+
++ (NSArray<NSDictionary *> *)readEntriesLocked {
+    NSString *path = [self filePath];
+    if (!path) return @[];
+    NSString *contents = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+    if (contents.length == 0) return @[];
+    NSMutableArray<NSDictionary *> *entries = [NSMutableArray array];
+    for (NSString *line in [contents componentsSeparatedByString:@"\n"]) {
+        NSRange tab = [line rangeOfString:@"\t"];
+        if (tab.location == NSNotFound || tab.location == 0) continue;
+        long long ms = [[line substringFromIndex:tab.location + 1] longLongValue];
+        if (ms <= 0) continue;
+        [entries addObject:@{@"trackId": [line substringToIndex:tab.location], @"playedAtMs": @(ms)}];
+    }
+    return entries;
+}
+
++ (void)appendTrackId:(NSString *)trackId playedAtMs:(long long)playedAtMs {
+    if (trackId.length == 0) return;
+    [sScrobbleQueueLock lock];
+    @try {
+        NSString *path = [self filePath];
+        if (!path) return;
+        NSString *line = [NSString stringWithFormat:@"%@\t%lld\n", trackId, playedAtMs];
+        NSFileHandle *handle = [NSFileHandle fileHandleForWritingAtPath:path];
+        if (handle) {
+            [handle seekToEndOfFile];
+            [handle writeData:[line dataUsingEncoding:NSUTF8StringEncoding]];
+            [handle closeFile];
+        } else {
+            [line writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        }
+    } @finally {
+        [sScrobbleQueueLock unlock];
+    }
+}
+
++ (NSString *)readPendingJson {
+    [sScrobbleQueueLock lock];
+    @try {
+        NSArray<NSDictionary *> *entries = [self readEntriesLocked];
+        NSData *json = [NSJSONSerialization dataWithJSONObject:entries options:0 error:nil];
+        return json ? [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding] : @"[]";
+    } @finally {
+        [sScrobbleQueueLock unlock];
+    }
+}
+
++ (void)ackTrackId:(NSString *)trackId playedAtMs:(long long)playedAtMs {
+    [sScrobbleQueueLock lock];
+    @try {
+        NSString *path = [self filePath];
+        if (!path) return;
+        NSMutableString *remaining = [NSMutableString string];
+        for (NSDictionary *entry in [self readEntriesLocked]) {
+            if ([entry[@"trackId"] isEqualToString:trackId] &&
+                [entry[@"playedAtMs"] longLongValue] == playedAtMs) {
+                continue;
+            }
+            [remaining appendFormat:@"%@\t%lld\n", entry[@"trackId"], [entry[@"playedAtMs"] longLongValue]];
+        }
+        if (remaining.length == 0) {
+            [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
+        } else {
+            [remaining writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        }
+    } @finally {
+        [sScrobbleQueueLock unlock];
+    }
+}
+
+@end
+
 @interface AtollaGaplessAudioEngine : NSObject
+
+// scrobble threshold: a track left after this fraction of its duration counts as played (a natural
+// end always counts). the played? decision runs in shared Zig via AtollaScrobbleTracker.
++ (void)maybeAppendScrobble:(NSString *)trackId
+                 positionMs:(long)positionMs
+                 durationMs:(long)durationMs
+               isNaturalEnd:(BOOL)isNaturalEnd;
++ (void)maybeAppendScrobbleForLeavingTrack:(NSString *)leavingTrackId;
 
 + (void)configureWithCurrentSourceUrl:(NSString *)currentSourceUrl
                        currentTrackId:(NSString *)currentTrackId
@@ -779,6 +889,36 @@ static id sLookaheadClearObserver = nil;
     if (sEventQueue.count >= 128) [sEventQueue removeObjectAtIndex:0];
     [sEventQueue addObject:event];
     [sEngineLock unlock];
+}
+
+// evaluate the shared "played?" rule for a track being left or ended and, when it counts, append a
+// durable pending scrobble for JS to deliver
++ (void)maybeAppendScrobble:(NSString *)trackId
+                 positionMs:(long)positionMs
+                 durationMs:(long)durationMs
+               isNaturalEnd:(BOOL)isNaturalEnd {
+    if (trackId.length == 0) return;
+    if ([AtollaScrobbleTracker shouldCountWithPositionMs:positionMs
+                                             durationMs:durationMs
+                                         thresholdRatio:0.8f
+                                           isNaturalEnd:isNaturalEnd]) {
+        long long playedAtMs = (long long)([[NSDate date] timeIntervalSince1970] * 1000.0);
+        [AtollaScrobbleQueue appendTrackId:trackId playedAtMs:playedAtMs];
+    }
+}
+
+// count an in-app track change: read the leaving item's position before the queue rebuild moves the
+// player on. main thread only.
++ (void)maybeAppendScrobbleForLeavingTrack:(NSString *)leavingTrackId {
+    AVPlayerItem *item = sPlayer.currentItem;
+    if (!item) return;
+    // only while the player is still on the leaving item (guards a race with a native advance)
+    if (![[self trackIdForItem:item] isEqualToString:leavingTrackId]) return;
+    CMTime position = [sPlayer currentTime];
+    long positionMs = CMTIME_IS_NUMERIC(position) ? (long)(CMTimeGetSeconds(position) * 1000.0) : 0;
+    CMTime duration = item.duration;
+    long durationMs = CMTIME_IS_NUMERIC(duration) ? (long)(CMTimeGetSeconds(duration) * 1000.0) : 0;
+    [self maybeAppendScrobble:leavingTrackId positionMs:positionMs durationMs:durationMs isNaturalEnd:NO];
 }
 
 + (NSString *)urlStringForItem:(AVPlayerItem *)item {
@@ -905,13 +1045,23 @@ static id sLookaheadClearObserver = nil;
                          nextDurationMs:(double)nextDurationMs
                    allowBackwardRebuild:(BOOL)allowBackwardRebuild {
     [sEngineLock lock];
+    NSString *leavingTrackId = sCurrentTrackId;
     sCurrentSourceUrl = currentSourceUrl ?: @"";
     sCurrentTrackId = currentTrackId ?: @"";
     sNextSourceUrl = nextSourceUrl ?: @"";
     sNextTrackId = nextTrackId ?: @"";
     [sEngineLock unlock];
 
+    // an in-app track change (skip / jump / new album) leaves the current track; count it if it was
+    // played far enough. a native auto-advance already advanced sCurrentTrackId, so there
+    // leavingTrackId == currentTrackId and this is skipped (the natural-end path handled it).
+    BOOL isTrackChange =
+        leavingTrackId.length > 0 && ![leavingTrackId isEqualToString:(currentTrackId ?: @"")];
+
     dispatch_async(dispatch_get_main_queue(), ^{
+        if (isTrackChange) {
+            [self maybeAppendScrobbleForLeavingTrack:leavingTrackId];
+        }
         if (currentSourceUrl.length == 0) return;
 
         [self ensureAudioSession];
@@ -1087,6 +1237,10 @@ static id sLookaheadClearObserver = nil;
         sNextNotificationHasPrevious = NO;
         sNextNotificationHasNext = NO;
         [sEngineLock unlock];
+
+        // the finished item played to its natural end and counts as played (a user skip is instead
+        // an in-app reconfigure, handled at its leave point in configure)
+        [self maybeAppendScrobble:finishedTrackId positionMs:0 durationMs:0 isNaturalEnd:YES];
 
         // carry the finished trackId so JS can reconcile deterministically after being
         // frozen across several background transitions
@@ -1511,6 +1665,14 @@ static id sLookaheadClearObserver = nil;
 
 - (NSString * _Nonnull)consumeAtollaAudioPlaybackEvent {
     return [AtollaGaplessAudioEngine consumeEvent];
+}
+
+- (NSString * _Nonnull)readAtollaPendingScrobbles {
+    return [AtollaScrobbleQueue readPendingJson];
+}
+
+- (void)ackAtollaScrobbleWithTrackId:(NSString * _Nonnull)trackId playedAtMs:(double)playedAtMs {
+    [AtollaScrobbleQueue ackTrackId:trackId playedAtMs:(long long)playedAtMs];
 }
 
 - (void)clearAtollaAudioPlayback {

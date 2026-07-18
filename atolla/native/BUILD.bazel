@@ -122,6 +122,20 @@ objc_library(
     deps = ["//atolla/native/zig:waveform_algorithm"],
 )
 
+swift_interop_hint(
+    name = "scrobble_ios_bridge_swift_interop",
+    module_map = "ios/scrobble_ios_bridge.modulemap",
+    module_name = "scrobble_ios_bridge",
+)
+
+objc_library(
+    name = "scrobble_ios_bridge",
+    srcs = ["ios/scrobble_ios_bridge.m"],
+    hdrs = ["ios/scrobble_ios_bridge.h"],
+    aspect_hints = [":scrobble_ios_bridge_swift_interop"],
+    deps = ["//atolla/native/zig:scrobble_algorithm"],
+)
+
 objc_library(
     name = "atolla_logger_module_factory_ios",
     srcs = ["ios/AtollaLoggerNativeModuleFactory.m"],
@@ -176,6 +190,7 @@ objc_library(
     deps = [
         ":atolla_auth_redirect_guard_ios",
         ":atolla_playback_guards_ios",
+        ":scrobble_ios_bridge",
         "//atolla:atolla_api_objc",
     ],
 )
@@ -268,6 +283,8 @@ kt_android_library(
         "android/AtollaNetworkReachabilityNativeModuleFactory.kt",
         "android/AtollaPlaybackGuards.kt",
         "android/AtollaPlaybackService.kt",
+        "android/AtollaScrobbleNative.kt",
+        "android/AtollaScrobbleQueue.kt",
         "android/AtollaStatusBarNativeModuleFactory.kt",
         "android/AtollaTrackPlaybackNativeModuleFactory.kt",
         "android/AtollaWaveformNativeModuleFactory.kt",

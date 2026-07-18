@@ -5,14 +5,17 @@ import type { PlaybackStore } from '../stores/Playback';
 import { RecentlyPlayedStore } from '../stores/RecentlyPlayed';
 import { SearchStore } from '../stores/Search';
 import {
+	ackAtollaScrobble,
 	getAtollaAudioPlaybackCurrentTrackId,
 	getAtollaAudioPlaybackIsActive,
 	getAtollaAudioPlaybackPositionMs,
+	readAtollaPendingScrobbles,
 } from '../TrackPlaybackNative';
 import type { Transport } from '../transports/Transport';
 import { ArtworkPaletteService } from './ArtworkPaletteService';
 import type { AssetCache } from './AssetCache';
 import type { DownloadService } from './DownloadService';
+import { parseNativePendingScrobbles } from './NativeAudioPlaybackEventSync';
 import { OnThisDayService } from './OnThisDayService';
 import { PaletteGenerationQueue } from './PaletteGenerationQueue';
 import { PersistentPaletteStore } from './PersistentPaletteStore';
@@ -115,10 +118,15 @@ export class UserScope {
 			),
 		);
 		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
+		// the pending-scrobble queue is owned and persisted by the native engine (device-global,
+		// kill-safe), so it is not per-user here; JS only delivers under whoever is online
 		const scrobble = new ScrobbleService({
-			deliverScrobble: (pending) =>
-				this.deps.getTransport().scrobbleTrackPlayed(pending.trackId, pending.triggeredAt),
-			store: new PersistentStore(`atolla/user/${userId}/pending_scrobbles`, { deviceGlobal: true }),
+			deliverScrobble: (trackId, playedAtIso) =>
+				this.deps.getTransport().scrobbleTrackPlayed(trackId, playedAtIso),
+			queue: {
+				ack: (trackId, playedAtMs) => ackAtollaScrobble(trackId, playedAtMs),
+				read: () => parseNativePendingScrobbles(readAtollaPendingScrobbles()),
+			},
 		});
 		const waveformService = new WaveformService(
 			new PersistentWaveformStore(

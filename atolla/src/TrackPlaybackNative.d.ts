@@ -96,6 +96,15 @@ export function getAtollaAudioPlaybackDurationMs(): number;
 // @ExportFunction
 export function consumeAtollaAudioPlaybackEvent(): string;
 
+// pending scrobbles the native engine has decided are "played" and persisted to a durable,
+// kill-safe on-disk queue. returns a JSON array [{ trackId, playedAtMs }], oldest first
+// @ExportFunction
+export function readAtollaPendingScrobbles(): string;
+
+// remove a pending scrobble once JS has delivered it to the server
+// @ExportFunction
+export function ackAtollaScrobble(trackId: string, playedAtMs: number): void;
+
 // @ExportFunction
 export function clearAtollaAudioPlayback(): void;
 

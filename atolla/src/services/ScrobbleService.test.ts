@@ -1,404 +1,229 @@
 import { describe, expect, it, spyOn } from 'bun:test';
-import { InMemoryKeyValueStore, type KeyValueStore } from '../stores/KeyValueStore';
-import {
-	type PendingScrobble,
-	ScrobbleService,
-	type ScrobbleServiceOptions,
-} from './ScrobbleService';
+import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
+import { LiveTransport } from '../transports/Live';
+import { type NativeScrobbleQueue, type PendingScrobble, ScrobbleService } from './ScrobbleService';
+
+const TEST_NOW = Date.UTC(2026, 0, 15, 0, 0, 0);
+
+type FakeQueue = NativeScrobbleQueue & { entries: Array<PendingScrobble> };
+
+function createQueue(initial: Array<PendingScrobble> = []): FakeQueue {
+	const entries = [...initial];
+	return {
+		ack: (trackId: string, playedAtMs: number) => {
+			const index = entries.findIndex((e) => e.trackId === trackId && e.playedAtMs === playedAtMs);
+			if (index >= 0) {
+				entries.splice(index, 1);
+			}
+		},
+		entries,
+		read: () => [...entries],
+	};
+}
 
 function createService(
-	options: Partial<Omit<ScrobbleServiceOptions, 'deliverScrobble' | 'store'>> & {
-		deliverScrobble?: ScrobbleServiceOptions['deliverScrobble'];
-		store?: KeyValueStore;
+	options: {
+		deliverScrobble?: (trackId: string, playedAtIso: string) => Promise<void>;
+		maxAgeMs?: number;
+		now?: () => number;
+		queue?: FakeQueue;
 	} = {},
 ): {
-	deliverCalls: Array<PendingScrobble>;
+	delivered: Array<{ playedAtIso: string; trackId: string }>;
+	queue: FakeQueue;
 	service: ScrobbleService;
-	store: KeyValueStore;
-	time: { nowMs: number };
 } {
-	const store = options.store ?? new InMemoryKeyValueStore();
-	const deliverCalls: Array<PendingScrobble> = [];
-	const time = { nowMs: options.now?.() ?? Date.UTC(2026, 0, 1, 0, 0, 0) };
+	const queue = options.queue ?? createQueue();
+	const delivered: Array<{ playedAtIso: string; trackId: string }> = [];
 	const deliverScrobble =
 		options.deliverScrobble ??
-		((pending: PendingScrobble) => {
-			deliverCalls.push(pending);
+		((trackId: string, playedAtIso: string) => {
+			delivered.push({ playedAtIso, trackId });
 			return Promise.resolve();
 		});
-
 	const service = new ScrobbleService({
 		deliverScrobble,
 		maxAgeMs: options.maxAgeMs,
-		now: () => time.nowMs,
-		store,
-		thresholdRatio: options.thresholdRatio,
+		now: options.now ?? (() => TEST_NOW),
+		queue,
 	});
-
-	return { deliverCalls, service, store, time };
+	return { delivered, queue, service };
 }
 
 describe('ScrobbleService', () => {
-	it('creates and attempts a scrobble when active listening crosses threshold', async () => {
-		const { deliverCalls, service } = createService();
-
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 0,
-			trackDurationSeconds: 200,
-			trackId: 'track-1',
+	it('reports the native pending count', () => {
+		const { service } = createService({
+			queue: createQueue([
+				{ playedAtMs: TEST_NOW - 2000, trackId: 'a' },
+				{ playedAtMs: TEST_NOW - 1000, trackId: 'b' },
+			]),
 		});
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 100,
-			trackDurationSeconds: 200,
-			trackId: 'track-1',
-		});
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 160,
-			trackDurationSeconds: 200,
-			trackId: 'track-1',
-		});
-
-		await service.flush();
-
-		expect(deliverCalls).toHaveLength(1);
-		expect(deliverCalls[0].trackId).toBe('track-1');
-		expect(service.getPendingScrobbles()).toHaveLength(0);
+		expect(service.getPendingCount()).toBe(2);
 	});
 
-	it('keeps accrued listen time across a mid-track backward scrub', async () => {
-		const { deliverCalls, service } = createService();
-		const base = {
-			hasSeekTarget: false,
-			isPlaying: true,
-			trackDurationSeconds: 200, // threshold = 160s of active listening
-			trackId: 'track-1',
-		};
+	it('delivers all pending oldest-first and acks each', async () => {
+		const queue = createQueue([
+			{ playedAtMs: TEST_NOW - 2000, trackId: 'a' },
+			{ playedAtMs: TEST_NOW - 1000, trackId: 'b' },
+		]);
+		const { service, delivered } = createService({ queue });
 
-		service.observePlayback({ ...base, progressSeconds: 0 });
-		service.observePlayback({ ...base, progressSeconds: 100 }); // +100 → 100
-		service.observePlayback({ ...base, progressSeconds: 150 }); // +50 → 150 (still below threshold)
-		service.observePlayback({ ...base, progressSeconds: 120 }); // backward scrub, mid-track
-		service.observePlayback({ ...base, progressSeconds: 140 }); // +20 → 170 ≥ 160 → scrobble
+		await service.syncFromNative();
 
-		await service.flush();
-
-		expect(deliverCalls).toHaveLength(1);
-		expect(deliverCalls[0].trackId).toBe('track-1');
+		expect(delivered.map((d) => d.trackId)).toEqual(['a', 'b']);
+		expect(queue.entries).toHaveLength(0);
 	});
 
-	it('does not count seek jumps toward active listen time', async () => {
-		const { deliverCalls, service } = createService();
+	it('converts the epoch ms to an ISO date for delivery', async () => {
+		const playedAtMs = Date.UTC(2026, 0, 1, 0, 0, 0);
+		const queue = createQueue([{ playedAtMs, trackId: 'a' }]);
+		const { service, delivered } = createService({ queue });
 
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 0,
-			trackDurationSeconds: 200,
-			trackId: 'track-1',
-		});
-		service.observePlayback({
-			hasSeekTarget: true,
-			isPlaying: true,
-			progressSeconds: 150,
-			trackDurationSeconds: 200,
-			trackId: 'track-1',
-		});
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 160,
-			trackDurationSeconds: 200,
-			trackId: 'track-1',
-		});
+		await service.syncFromNative();
 
-		await service.flush();
-
-		expect(deliverCalls).toHaveLength(0);
+		expect(delivered[0].playedAtIso).toBe('2026-01-01T00:00:00.000Z');
 	});
 
-	it('does not re-trigger within the same play after threshold is crossed', async () => {
-		const { deliverCalls, service } = createService();
-
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 0,
-			trackDurationSeconds: 100,
-			trackId: 'track-1',
-		});
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 80,
-			trackDurationSeconds: 100,
-			trackId: 'track-1',
-		});
-		service.observePlayback({
-			hasSeekTarget: true,
-			isPlaying: true,
-			progressSeconds: 20,
-			trackDurationSeconds: 100,
-			trackId: 'track-1',
-		});
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 95,
-			trackDurationSeconds: 100,
-			trackId: 'track-1',
-		});
-
-		await service.flush();
-
-		expect(deliverCalls).toHaveLength(1);
-	});
-
-	it('re-arms for a new play of the same track after progress resets', async () => {
-		const { deliverCalls, service } = createService();
-
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 0,
-			trackDurationSeconds: 100,
-			trackId: 'track-1',
-		});
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 80,
-			trackDurationSeconds: 100,
-			trackId: 'track-1',
-		});
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 0,
-			trackDurationSeconds: 100,
-			trackId: 'track-1',
-		});
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 80,
-			trackDurationSeconds: 100,
-			trackId: 'track-1',
-		});
-
-		await service.flush();
-
-		expect(deliverCalls).toHaveLength(2);
-	});
-
-	it('surfaces a delivery failure via the logger instead of swallowing it', async () => {
+	it('keeps a failed delivery queued and stops after three consecutive failures', async () => {
 		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 		try {
+			const queue = createQueue([
+				{ playedAtMs: TEST_NOW - 4000, trackId: 'a' },
+				{ playedAtMs: TEST_NOW - 3000, trackId: 'b' },
+				{ playedAtMs: TEST_NOW - 2000, trackId: 'c' },
+				{ playedAtMs: TEST_NOW - 1000, trackId: 'd' },
+			]);
+			const attempted: Array<string> = [];
 			const { service } = createService({
-				deliverScrobble: () => Promise.reject(new Error('server rejected: 400')),
+				deliverScrobble: (trackId) => {
+					attempted.push(trackId);
+					return Promise.reject(new Error('offline'));
+				},
+				queue,
 			});
 
-			service.observePlayback({
-				hasSeekTarget: false,
-				isPlaying: true,
-				progressSeconds: 0,
-				trackDurationSeconds: 100,
-				trackId: 'track-1',
-			});
-			service.observePlayback({
-				hasSeekTarget: false,
-				isPlaying: true,
-				progressSeconds: 80,
-				trackDurationSeconds: 100,
-				trackId: 'track-1',
-			});
+			await service.syncFromNative();
 
-			await service.flush();
-
+			expect(attempted).toEqual(['a', 'b', 'c']);
+			expect(queue.entries).toHaveLength(4);
 			expect(warnSpy).toHaveBeenCalled();
-			const logged = warnSpy.mock.calls.map((args: Array<unknown>) => String(args[0])).join('\n');
-			expect(logged).toContain('track-1');
-			expect(service.getPendingScrobbles()).toHaveLength(1);
 		} finally {
 			warnSpy.mockRestore();
 		}
 	});
 
-	it('hydrates the persisted queue before counting via getPendingCount', async () => {
-		const seededStore = new InMemoryKeyValueStore();
-		await seededStore.storeString(
-			'pending_scrobbles',
-			JSON.stringify([
-				{ trackId: 'track-1', triggeredAt: '2026-01-01T00:00:01.000Z' },
-				{ trackId: 'track-2', triggeredAt: '2026-01-01T00:00:02.000Z' },
-			]),
-		);
-		const { service } = createService({ store: seededStore });
-
-		// no observePlayback: the count must come from disk, not the in-memory array
-		expect(await service.getPendingCount()).toBe(2);
-	});
-
-	it('drives delivery through a transport-shaped closure', async () => {
-		const calls: Array<{ datePlayed: string; trackId: string }> = [];
-		const fakeTransport = {
-			scrobbleTrackPlayed: (trackId: string, datePlayed: string): Promise<void> => {
-				calls.push({ datePlayed, trackId });
-				return Promise.resolve();
-			},
-		};
-		const { service } = createService({
-			deliverScrobble: (pending) =>
-				fakeTransport.scrobbleTrackPlayed(pending.trackId, pending.triggeredAt),
-		});
-
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 0,
-			trackDurationSeconds: 100,
-			trackId: 'track-9',
-		});
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 85,
-			trackDurationSeconds: 100,
-			trackId: 'track-9',
-		});
-
-		await service.flush();
-
-		expect(calls).toHaveLength(1);
-		expect(calls[0].trackId).toBe('track-9');
-		expect(Number.isNaN(Date.parse(calls[0].datePlayed))).toBe(false);
-	});
-
-	it('keeps failed deliveries pending and retries them on app ready', async () => {
-		let failFirst = true;
+	it('delivers again on the next sync after a transient failure clears', async () => {
+		const queue = createQueue([{ playedAtMs: TEST_NOW - 1000, trackId: 'a' }]);
+		let failNext = true;
 		const { service } = createService({
 			deliverScrobble: () => {
-				if (failFirst) {
-					failFirst = false;
-					return Promise.reject(new Error('network failure'));
+				if (failNext) {
+					failNext = false;
+					return Promise.reject(new Error('offline'));
 				}
 				return Promise.resolve();
 			},
+			queue,
 		});
 
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 0,
-			trackDurationSeconds: 100,
-			trackId: 'track-1',
-		});
-		service.observePlayback({
-			hasSeekTarget: false,
-			isPlaying: true,
-			progressSeconds: 80,
-			trackDurationSeconds: 100,
-			trackId: 'track-1',
-		});
+		await service.syncFromNative();
+		expect(queue.entries).toHaveLength(1);
 
-		await service.flush();
-		expect(service.getPendingScrobbles()).toHaveLength(1);
-
-		await service.onAppReady();
-		await service.flush();
-
-		expect(service.getPendingScrobbles()).toHaveLength(0);
+		await service.syncFromNative();
+		expect(queue.entries).toHaveLength(0);
 	});
 
-	it('retries oldest pending first and stops after three consecutive failures', async () => {
-		const seededStore = new InMemoryKeyValueStore();
-		await seededStore.storeString(
-			'pending_scrobbles',
-			JSON.stringify([
-				{ trackId: 'track-1', triggeredAt: '2026-01-01T00:00:01.000Z' },
-				{ trackId: 'track-2', triggeredAt: '2026-01-01T00:00:02.000Z' },
-				{ trackId: 'track-3', triggeredAt: '2026-01-01T00:00:03.000Z' },
-				{ trackId: 'track-4', triggeredAt: '2026-01-01T00:00:04.000Z' },
-			]),
-		);
-
-		const attempted: Array<string> = [];
-		const { service } = createService({
-			deliverScrobble: (pending) => {
-				attempted.push(pending.trackId);
-				return Promise.reject(new Error('still offline'));
-			},
-			store: seededStore,
-		});
-
-		await service.onAppReady();
-		await service.flush();
-
-		expect(attempted).toEqual(['track-1', 'track-2', 'track-3']);
-		expect(service.getPendingScrobbles().map((pending) => pending.trackId)).toEqual([
-			'track-1',
-			'track-2',
-			'track-3',
-			'track-4',
+	it('acks stale entries without delivering them', async () => {
+		const queue = createQueue([
+			{ playedAtMs: TEST_NOW - 40 * 24 * 60 * 60 * 1000, trackId: 'stale' },
+			{ playedAtMs: TEST_NOW - 1000, trackId: 'fresh' },
 		]);
+		const { service, delivered } = createService({ queue });
+
+		await service.syncFromNative();
+
+		expect(delivered.map((d) => d.trackId)).toEqual(['fresh']);
+		expect(queue.entries).toHaveLength(0);
 	});
 
-	it('delivers two same-timestamp scrobbles for the same track independently', async () => {
-		const seededStore = new InMemoryKeyValueStore();
-		await seededStore.storeString(
-			'pending_scrobbles',
-			JSON.stringify([
-				{ id: 'id-1', trackId: 'track-x', triggeredAt: '2026-01-01T00:00:00.000Z' },
-				{ id: 'id-2', trackId: 'track-x', triggeredAt: '2026-01-01T00:00:00.000Z' },
-			]),
-		);
-
-		const deliveredIds: Array<string | undefined> = [];
+	it('does not deliver concurrently when already syncing', async () => {
+		let releaseFirst: () => void = () => {};
+		const gate = new Promise<void>((resolve) => {
+			releaseFirst = resolve;
+		});
+		const queue = createQueue([{ playedAtMs: TEST_NOW - 1000, trackId: 'a' }]);
+		let calls = 0;
 		const { service } = createService({
-			deliverScrobble: (pending) => {
-				deliveredIds.push(pending.id);
-				return Promise.resolve();
+			deliverScrobble: () => {
+				calls += 1;
+				return gate;
 			},
-			store: seededStore,
+			queue,
 		});
 
-		await service.onAppReady();
+		const first = service.syncFromNative();
+		const second = service.syncFromNative();
+		releaseFirst();
+		await Promise.all([first, second]);
 
-		expect(deliveredIds).toHaveLength(2);
-		expect(deliveredIds).toContain('id-1');
-		expect(deliveredIds).toContain('id-2');
-		expect(service.getPendingScrobbles()).toHaveLength(0);
+		expect(calls).toBe(1);
+	});
+});
+
+// exercises the real ScrobbleService -> LiveTransport -> HTTP path (the delivery seam), rather than
+// a stubbed deliverScrobble
+describe('ScrobbleService with LiveTransport', () => {
+	function createHTTPClient(
+		statusCode: number,
+		body?: Uint8Array,
+	): { calls: Array<{ method: string; pathOrUrl: string }>; client: IHTTPClient } {
+		const calls: Array<{ method: string; pathOrUrl: string }> = [];
+		const respond = (method: string) => (pathOrUrl: string) => {
+			calls.push({ method, pathOrUrl });
+			return Promise.resolve({ body, headers: {}, statusCode });
+		};
+		const client = { delete: respond('delete'), get: respond('get'), post: respond('post') };
+		return { calls, client: client as unknown as IHTTPClient };
+	}
+
+	function serviceWith(client: IHTTPClient, queue: FakeQueue): ScrobbleService {
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+		return new ScrobbleService({
+			deliverScrobble: (trackId, playedAtIso) =>
+				transport.scrobbleTrackPlayed(trackId, playedAtIso),
+			now: () => TEST_NOW,
+			queue,
+		});
+	}
+
+	it('delivers a native pending scrobble to the server and acks it on 200', async () => {
+		const { calls, client } = createHTTPClient(200);
+		const queue = createQueue([{ playedAtMs: TEST_NOW - 1000, trackId: 'track-1' }]);
+		const service = serviceWith(client, queue);
+
+		await service.syncFromNative();
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0].method).toBe('post');
+		expect(calls[0].pathOrUrl).toContain('/UserPlayedItems/track-1');
+		expect(calls[0].pathOrUrl).toContain('datePlayed=');
+		expect(queue.entries).toHaveLength(0);
 	});
 
-	it('prunes pending scrobbles older than max age before startup retries', async () => {
-		const seededStore = new InMemoryKeyValueStore();
-		await seededStore.storeString(
-			'pending_scrobbles',
-			JSON.stringify([
-				{ trackId: 'expired', triggeredAt: '2025-11-01T00:00:00.000Z' },
-				{ trackId: 'fresh', triggeredAt: '2025-12-25T00:00:00.000Z' },
-			]),
-		);
+	it('keeps the scrobble queued and logs when the server returns 400', async () => {
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const { calls, client } = createHTTPClient(400, new TextEncoder().encode('{"Error":"bad"}'));
+			const queue = createQueue([{ playedAtMs: TEST_NOW - 1000, trackId: 'track-1' }]);
+			const service = serviceWith(client, queue);
 
-		const attempted: Array<string> = [];
-		const { service } = createService({
-			deliverScrobble: (pending) => {
-				attempted.push(pending.trackId);
-				return Promise.resolve();
-			},
-			now: () => Date.UTC(2026, 0, 1, 0, 0, 0),
-			store: seededStore,
-		});
+			await service.syncFromNative();
 
-		await service.onAppReady();
-		await service.flush();
-
-		expect(attempted).toEqual(['fresh']);
-		expect(service.getPendingScrobbles()).toHaveLength(0);
+			expect(calls).toHaveLength(1);
+			expect(queue.entries).toHaveLength(1);
+			expect(warnSpy).toHaveBeenCalled();
+		} finally {
+			warnSpy.mockRestore();
+		}
 	});
 });

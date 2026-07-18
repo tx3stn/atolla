@@ -1,0 +1,4 @@
+module scrobble_ios_bridge {
+    header "scrobble_ios_bridge.h"
+    export *
+}

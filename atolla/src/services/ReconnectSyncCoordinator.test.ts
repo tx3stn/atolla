@@ -27,8 +27,8 @@ interface FakeConfig {
 	editFlush?: () => Promise<Array<PlaylistEditError>>;
 	editPending?: number;
 	scrobbleAfter?: number;
-	scrobbleOnAppReady?: () => Promise<void>;
 	scrobblePending?: number;
+	scrobbleSyncFromNative?: () => Promise<void>;
 }
 
 function makeDeps(config: FakeConfig): {
@@ -79,11 +79,15 @@ function makeDeps(config: FakeConfig): {
 			},
 		},
 		scrobbleService: {
-			// up-front denominator hydrates from the persisted queue
-			getPendingCount: () => Promise.resolve(config.scrobblePending ?? 0),
-			// only read post-delivery, for the not-yet-synced delta
-			getPendingScrobbles: () => new Array(scrobbleAfter).fill({}),
-			onAppReady: config.scrobbleOnAppReady ?? (() => Promise.resolve()),
+			// the native pending count: the up-front denominator, then the post-delivery remainder
+			getPendingCount: (() => {
+				let calls = 0;
+				return () => {
+					calls += 1;
+					return calls === 1 ? (config.scrobblePending ?? 0) : scrobbleAfter;
+				};
+			})(),
+			syncFromNative: config.scrobbleSyncFromNative ?? (() => Promise.resolve()),
 		},
 	};
 
@@ -240,9 +244,7 @@ describe('ReconnectSyncCoordinator', () => {
 		expect(result.status).toBe('partial');
 	});
 
-	it('counts persisted-but-unhydrated scrobbles via getPendingCount so the banner shows', async () => {
-		// the fresh-start case: getPendingScrobbles() (in-memory) is empty until onAppReady hydrates,
-		// but getPendingCount() reflects the persisted queue, so total must be non-zero and syncing shows
+	it('counts the native pending scrobbles so the banner shows and delivers them', async () => {
 		const { deps } = makeDeps({ scrobbleAfter: 0, scrobblePending: 2 });
 		const coordinator = new ReconnectSyncCoordinator(deps);
 		const updates: Array<SyncProgress> = [];
@@ -269,10 +271,10 @@ describe('ReconnectSyncCoordinator', () => {
 		expect(result.status).toBe('partial');
 	});
 
-	it('does not reject when scrobble retry itself throws', async () => {
+	it('does not reject when scrobble delivery itself throws', async () => {
 		const { deps } = makeDeps({
-			scrobbleOnAppReady: () => Promise.reject(new Error('scrobble boom')),
 			scrobblePending: 2,
+			scrobbleSyncFromNative: () => Promise.reject(new Error('scrobble boom')),
 		});
 		const coordinator = new ReconnectSyncCoordinator(deps);
 

@@ -2,6 +2,8 @@ package atolla.native.android
 
 import android.app.Notification
 import com.tx3stn.atolla.AtollaCacheImageLoader
+import com.tx3stn.atolla.AtollaScrobbleNative
+import com.tx3stn.atolla.AtollaScrobbleQueue
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -190,6 +192,14 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				return AtollaGaplessAudioEngine.consumeEvent()
 			}
 
+			override fun readAtollaPendingScrobbles(): String {
+				return AtollaScrobbleQueue.readPendingJson()
+			}
+
+			override fun ackAtollaScrobble(trackId: String, playedAtMs: Double) {
+				AtollaScrobbleQueue.ack(trackId, playedAtMs.toLong())
+			}
+
 			override fun clearAtollaAudioPlayback() {
 				AtollaGaplessAudioEngine.clear()
 			}
@@ -259,6 +269,12 @@ object AtollaGaplessAudioEngine {
 	@Volatile private var expectingNativeSkip: Boolean = false
 	@Volatile private var expectingNativeStepBack: Boolean = false
 
+	// scrobble threshold: a track left after this fraction of its duration counts as played (a
+	// natural end always counts). the played? decision runs in shared Zig via AtollaScrobbleNative,
+	// evaluated at the discrete points a track ends or is left — so it works while the JS runtime is
+	// frozen in the background — and a durable line is appended to AtollaScrobbleQueue for JS to send.
+	private const val scrobbleThresholdRatio = 0.8f
+
 	@Volatile private var nextNotificationTrackName: String = ""
 	@Volatile private var nextNotificationArtistName: String = ""
 	@Volatile private var nextNotificationAlbumName: String = ""
@@ -315,6 +331,9 @@ object AtollaGaplessAudioEngine {
 		}
 
 		override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+			// captured before shouldClearTransitionExpectation() clears it: distinguishes a user
+			// "next" (handled at the leave point) from a genuine auto-advance (natural end)
+			val wasUserSkip = expectingNativeSkip
 			val kind = AtollaPlaybackGuards.classifyTransition(
 				reason,
 				expectingNativeSkip = expectingNativeSkip,
@@ -332,6 +351,12 @@ object AtollaGaplessAudioEngine {
 			val finishedTrackId = sourceTrackId
 			Log.d(tag, "onMediaItemTransition $kind trackId=${mediaItem?.mediaId} finished=$finishedTrackId reason=$reason")
 			if (kind == AtollaPlaybackGuards.TransitionKind.ADVANCE) {
+				// an auto-advance means the finished track played to its natural end and counts as
+				// played; a user "next" is instead handled at its leave point (handleMediaAction /
+				// configure) so a skip before the end does not force a scrobble
+				if (!wasUserSkip) {
+					maybeAppendScrobble(finishedTrackId, 0L, 0L, isNaturalEnd = true)
+				}
 				// carry the finished trackId so JS can reconcile deterministically after being
 				// frozen across several transitions (it advances past the last finished id
 				// rather than counting events)
@@ -420,6 +445,8 @@ object AtollaGaplessAudioEngine {
 
 			if (playbackState == Player.STATE_ENDED) {
 				val endedTrackId = sourceTrackId
+				// end of the queue: the current track played to its natural end
+				maybeAppendScrobble(endedTrackId, 0L, 0L, isNaturalEnd = true)
 				enqueueEvent(if (endedTrackId.isBlank()) "completed" else "completed:$endedTrackId")
 			}
 		}
@@ -443,6 +470,26 @@ object AtollaGaplessAudioEngine {
 		allowBackwardRebuild: Boolean = false,
 	) {
 		Log.d(tag, "configure trackId=$currentTrackId rate=$playbackRate hasNext=${nextSourceUrl.isNotBlank()} allowBackward=$allowBackwardRebuild thread=${Thread.currentThread().name}")
+		// an in-app track change (skip / jump / new album) leaves the current track; count it if it
+		// was played far enough. a native auto-advance already advanced sourceTrackId, so there
+		// currentTrackId == sourceTrackId and this is skipped (the natural-end path handled it).
+		val leavingTrackId = sourceTrackId
+		val leavingDurationMs = sourceDurationMs
+		if (leavingTrackId.isNotBlank() && leavingTrackId != currentTrackId) {
+			mainHandler.post {
+				val player = exoPlayer ?: return@post
+				// only while the player is still on the leaving track (guards a race with a native
+				// advance) and before the queued syncQueue() rebuild moves it on
+				if (player.currentMediaItem?.mediaId == leavingTrackId) {
+					maybeAppendScrobble(
+						leavingTrackId,
+						player.currentPosition.coerceAtLeast(0L),
+						leavingDurationMs,
+						isNaturalEnd = false,
+					)
+				}
+			}
+		}
 		this.sourceUrl = currentSourceUrl
 		this.sourceTrackId = currentTrackId
 		this.sourceDurationMs = currentDurationMs.coerceAtLeast(0L)
@@ -604,6 +651,13 @@ object AtollaGaplessAudioEngine {
 				}
 				"next" -> {
 					if (player.hasNextMediaItem()) {
+						// count the leaving track before skipping past it (position lost after)
+						maybeAppendScrobble(
+							sourceTrackId,
+							player.currentPosition.coerceAtLeast(0L),
+							sourceDurationMs,
+							isNaturalEnd = false,
+						)
 						expectingNativeSkip = true
 						player.seekToNextMediaItem()
 					}
@@ -617,6 +671,7 @@ object AtollaGaplessAudioEngine {
 							positionSeconds = 0.0,
 						)
 					} else {
+						maybeAppendScrobble(sourceTrackId, positionMs, sourceDurationMs, isNaturalEnd = false)
 						expectingNativeStepBack = true
 						player.seekToPreviousMediaItem()
 					}
@@ -975,6 +1030,26 @@ object AtollaGaplessAudioEngine {
 				eventQueue.removeFirst()
 			}
 			eventQueue.addLast(event)
+		}
+	}
+
+	// evaluate the shared "played?" rule for a track being left or ended and, when it counts, append
+	// a durable pending scrobble for JS to deliver
+	private fun maybeAppendScrobble(
+		trackId: String,
+		positionMs: Long,
+		durationMs: Long,
+		isNaturalEnd: Boolean,
+	) {
+		if (trackId.isBlank()) return
+		val counts = try {
+			AtollaScrobbleNative.shouldCount(positionMs, durationMs, scrobbleThresholdRatio, isNaturalEnd)
+		} catch (error: Throwable) {
+			Log.e(tag, "scrobble decision failed", error)
+			return
+		}
+		if (counts) {
+			AtollaScrobbleQueue.append(trackId, System.currentTimeMillis())
 		}
 	}
 

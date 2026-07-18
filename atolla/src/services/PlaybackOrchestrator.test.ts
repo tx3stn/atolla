@@ -135,29 +135,6 @@ describe('PlaybackOrchestrator recently played', () => {
 	});
 });
 
-describe('PlaybackOrchestrator scrobble snapshots', () => {
-	it('forwards playback snapshots to the scrobble service', () => {
-		const observed: Array<{ trackId: string | null; isPlaying: boolean; progressSeconds: number }> =
-			[];
-		const playbackStore = {
-			isPlaying: true,
-			progressSeconds: 12,
-			seekTarget: null,
-			track: makeTrack('a') as Track | null,
-		};
-		const orchestrator = createOrchestrator(playbackStore);
-
-		orchestrator.setUserServices(userServices({ scrobble: fakeScrobbleService(observed) }));
-		orchestrator.syncScrobblePlaybackSnapshot();
-
-		expect(observed[observed.length - 1]).toMatchObject({
-			isPlaying: true,
-			progressSeconds: 12,
-			trackId: 'a',
-		});
-	});
-});
-
 describe('PlaybackOrchestrator notification sync', () => {
 	it('updates the notification with the current track payload', () => {
 		const { store } = notificationPlaybackStore();
@@ -496,50 +473,19 @@ describe('PlaybackOrchestrator waveforms', () => {
 });
 
 describe('PlaybackOrchestrator playback subscription', () => {
-	it('subscribes in start and fires onPlaybackTick behind the gate, after the pre-gate syncs', () => {
+	it('subscribes in start and fires onPlaybackTick behind the gate', () => {
 		const sequence: Array<string> = [];
-		const scrobble = {
-			getPendingScrobbles: () => [],
-			observePlayback: () => sequence.push('scrobble'),
-			onAppReady: () => Promise.resolve(),
-		} as unknown as ScrobbleService;
 		const { store, notify } = subscribablePlaybackStore();
 		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
 			onPlaybackTick: () => sequence.push('tick'),
 		});
-		orchestrator.setUserServices(userServices({ scrobble }));
 		orchestrator.start();
 
 		sequence.length = 0;
 		notify();
 		orchestrator.dispose();
 
-		expect(sequence).toEqual(['scrobble', 'tick']);
-	});
-
-	it('runs the pre-gate syncs every tick even when the gate suppresses onPlaybackTick', () => {
-		const observed: Array<{
-			trackId: string | null;
-			isPlaying: boolean;
-			progressSeconds: number;
-		}> = [];
-		const { store, notify } = subscribablePlaybackStore();
-		let tickCount = 0;
-		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
-			onPlaybackTick: () => {
-				tickCount += 1;
-			},
-		});
-		orchestrator.setUserServices(userServices({ scrobble: fakeScrobbleService(observed) }));
-		orchestrator.start();
-
-		observed.length = 0;
-		notify();
-		notify();
-		orchestrator.dispose();
-
-		expect(observed.length).toBe(2);
-		expect(tickCount).toBe(1);
+		expect(sequence).toEqual(['tick']);
 	});
 
 	it('re-runs onPlaybackTick after a >1s gap (backgrounding signature reset)', () => {
@@ -607,26 +553,26 @@ describe('PlaybackOrchestrator lifecycle ownership', () => {
 		expect(orchestrator.getPendingScrobbleCount()).toBe(3);
 	});
 
-	it('invokes scrobble onAppReady when user services are bound', () => {
+	it('delivers pending scrobbles when user services are bound', () => {
 		const { service, state } = trackingScrobbleService();
 		const orchestrator = createOrchestrator({ track: null });
 
 		orchestrator.setUserServices(userServices({ scrobble: service }));
 
-		expect(state.appReadyCalls).toBe(1);
+		expect(state.syncCalls).toBe(1);
 	});
 
-	it('notifyAppReady forwards to scrobble onAppReady when bound and is a no-op before', () => {
+	it('notifyAppReady delivers pending scrobbles when bound and is a no-op before', () => {
 		const { service, state } = trackingScrobbleService();
 		const orchestrator = createOrchestrator({ track: null });
 
 		orchestrator.notifyAppReady();
-		expect(state.appReadyCalls).toBe(0);
+		expect(state.syncCalls).toBe(0);
 
 		orchestrator.setUserServices(userServices({ scrobble: service }));
 		orchestrator.notifyAppReady();
 
-		expect(state.appReadyCalls).toBe(2);
+		expect(state.syncCalls).toBe(2);
 	});
 });
 
@@ -1581,30 +1527,22 @@ function palettePlaybackStore(
 	return { track: tracks[trackIndex] ?? null, trackIndex, tracks };
 }
 
-function fakeScrobbleService(
-	observed: Array<{ trackId: string | null; isPlaying: boolean; progressSeconds: number }> = [],
-): ScrobbleService {
+function fakeScrobbleService(): ScrobbleService {
 	return {
-		getPendingScrobbles: () => [],
-		observePlayback: (snapshot: {
-			trackId: string | null;
-			isPlaying: boolean;
-			progressSeconds: number;
-		}) => observed.push(snapshot),
-		onAppReady: () => Promise.resolve(),
+		getPendingCount: () => 0,
+		syncFromNative: () => Promise.resolve(),
 	} as unknown as ScrobbleService;
 }
 
 function trackingScrobbleService(pending = 0): {
 	service: ScrobbleService;
-	state: { appReadyCalls: number };
+	state: { syncCalls: number };
 } {
-	const state = { appReadyCalls: 0 };
+	const state = { syncCalls: 0 };
 	const service = {
-		getPendingScrobbles: () => new Array(pending).fill({ trackId: 'x', triggeredAt: 0 }),
-		observePlayback: () => {},
-		onAppReady: () => {
-			state.appReadyCalls += 1;
+		getPendingCount: () => pending,
+		syncFromNative: () => {
+			state.syncCalls += 1;
 			return Promise.resolve();
 		},
 	} as unknown as ScrobbleService;

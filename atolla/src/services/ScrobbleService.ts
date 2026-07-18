@@ -1,283 +1,113 @@
-import type { KeyValueStore } from '../stores/KeyValueStore';
 import { getLogger } from './Logger';
 
 export interface PendingScrobble {
-	id?: string;
+	playedAtMs: number;
 	trackId: string;
-	triggeredAt: string;
 }
 
-export interface PlaybackSnapshot {
-	hasSeekTarget: boolean;
-	isPlaying: boolean;
-	progressSeconds: number;
-	trackDurationSeconds: number;
-	trackId: string | null;
+// the durable pending-scrobble queue owned by the native audio engine (survives backgrounding and
+// process death). injected so the service stays unit-testable with a fake queue.
+export interface NativeScrobbleQueue {
+	ack(trackId: string, playedAtMs: number): void;
+	read(): Array<PendingScrobble>;
 }
 
 export interface ScrobbleServiceOptions {
-	deliverScrobble: (pending: PendingScrobble) => Promise<void>;
+	deliverScrobble: (trackId: string, playedAtIso: string) => Promise<void>;
 	maxAgeMs?: number;
 	now?: () => number;
-	store: KeyValueStore;
-	thresholdRatio?: number;
+	queue: NativeScrobbleQueue;
 }
 
-const pendingScrobblesKey = 'pending_scrobbles';
-const defaultThresholdRatio = 0.8;
 const defaultMaxAgeMs = 30 * 24 * 60 * 60 * 1000;
+const maxConsecutiveFailures = 3;
 
 const log = getLogger('scrobble');
 
-interface TrackPlayState {
-	activeListenSeconds: number;
-	lastProgressSeconds: number;
-	scrobbleTriggered: boolean;
-	trackDurationSeconds: number;
-	trackId: string;
-}
-
+// delivery pump for the native scrobble queue. detection + durability live natively (the engine
+// decides a track is played and persists it to disk); JS only reads the pending queue, delivers
+// each entry to the server via the active transport, and acks it. offline deliveries fail and stay
+// queued for the next sync.
 export class ScrobbleService {
-	private readonly now: () => number;
-	private readonly thresholdRatio: number;
+	private readonly deliverScrobble: (trackId: string, playedAtIso: string) => Promise<void>;
+	private readonly queue: NativeScrobbleQueue;
 	private readonly maxAgeMs: number;
-	private readonly store: KeyValueStore;
-	private readonly deliverScrobble: (pending: PendingScrobble) => Promise<void>;
-
-	private pendingScrobbles: Array<PendingScrobble> = [];
-	private isLoaded = false;
-	private operationChain: Promise<void> = Promise.resolve();
-	private retryInProgress = false;
-
-	private trackPlay: TrackPlayState | null = null;
+	private readonly now: () => number;
+	private syncing = false;
 
 	constructor(options: ScrobbleServiceOptions) {
-		this.store = options.store;
 		this.deliverScrobble = options.deliverScrobble;
-		this.thresholdRatio = options.thresholdRatio ?? defaultThresholdRatio;
+		this.queue = options.queue;
 		this.maxAgeMs = options.maxAgeMs ?? defaultMaxAgeMs;
 		this.now = options.now ?? Date.now;
 	}
 
-	observePlayback(snapshot: PlaybackSnapshot): void {
-		if (!snapshot.trackId || snapshot.trackDurationSeconds <= 0) {
-			this.trackPlay = null;
-			return;
-		}
-
-		if (this.trackPlay == null || this.trackPlay.trackId !== snapshot.trackId) {
-			this.trackPlay = {
-				activeListenSeconds: 0,
-				lastProgressSeconds: sanitizeProgress(snapshot.progressSeconds),
-				scrobbleTriggered: false,
-				trackDurationSeconds: snapshot.trackDurationSeconds,
-				trackId: snapshot.trackId,
-			};
-			return;
-		}
-
-		const currentPlay = this.trackPlay;
-		const nextProgress = sanitizeProgress(snapshot.progressSeconds);
-		const delta = nextProgress - currentPlay.lastProgressSeconds;
-
-		if (delta < 0) {
-			// a jump back to the very start re-arms for a fresh listen; a mid-song scrub keeps
-			// the accrued listening (and scrobbleTriggered) so a rewind doesn't discard
-			// progress or double-scrobble
-			const isTrackRestart = nextProgress < 1;
-			this.trackPlay = {
-				activeListenSeconds: isTrackRestart ? 0 : currentPlay.activeListenSeconds,
-				lastProgressSeconds: nextProgress,
-				scrobbleTriggered: isTrackRestart ? false : currentPlay.scrobbleTriggered,
-				trackDurationSeconds: snapshot.trackDurationSeconds,
-				trackId: snapshot.trackId,
-			};
-			return;
-		}
-
-		currentPlay.trackDurationSeconds = snapshot.trackDurationSeconds;
-		currentPlay.lastProgressSeconds = nextProgress;
-
-		if (snapshot.isPlaying && !snapshot.hasSeekTarget && delta > 0) {
-			currentPlay.activeListenSeconds += delta;
-		}
-
-		if (currentPlay.scrobbleTriggered) {
-			return;
-		}
-
-		const thresholdSeconds = currentPlay.trackDurationSeconds * this.thresholdRatio;
-		if (currentPlay.activeListenSeconds < thresholdSeconds) {
-			return;
-		}
-
-		currentPlay.scrobbleTriggered = true;
-		const pending: PendingScrobble = {
-			id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
-			trackId: currentPlay.trackId,
-			triggeredAt: new Date(this.now()).toISOString(),
-		};
-		log.debug('scrobble queued', { trackId: pending.trackId, triggeredAt: pending.triggeredAt });
-
-		this.enqueueOperation(async () => {
-			await this.ensureLoaded();
-			this.pendingScrobbles.push(pending);
-			this.sortPending();
-			await this.persistPendingScrobbles();
-			const delivered = await this.attemptDelivery(pending);
-			if (!delivered) {
-				return;
-			}
-			await this.retryAllPending();
-		});
+	getPendingCount(): number {
+		return this.readPending().length;
 	}
 
-	onAppReady(): Promise<void> {
-		this.enqueueOperation(async () => {
-			await this.ensureLoaded();
-			this.pruneExpiredPending();
-			await this.persistPendingScrobbles();
-			await this.retryAllPending();
-		});
-
-		return this.flush();
-	}
-
-	async getPendingCount(): Promise<number> {
-		await this.ensureLoaded();
-		return this.pendingScrobbles.length;
-	}
-
-	getPendingScrobbles(): Array<PendingScrobble> {
-		return [...this.pendingScrobbles];
-	}
-
-	flush(): Promise<void> {
-		return this.operationChain;
-	}
-
-	private enqueueOperation(operation: () => Promise<void>): void {
-		this.operationChain = this.operationChain.then(operation, operation);
-	}
-
-	private async ensureLoaded(): Promise<void> {
-		if (this.isLoaded) {
+	// deliver everything currently pending, oldest first; acks each on success, keeps it on failure.
+	// guarded so overlapping triggers (playback tick, reconnect, app ready) don't double-deliver.
+	async syncFromNative(): Promise<void> {
+		if (this.syncing) {
 			return;
 		}
-
+		this.syncing = true;
 		try {
-			const raw = await this.store.fetchString(pendingScrobblesKey);
-			const parsed: unknown = JSON.parse(raw);
-			this.pendingScrobbles = Array.isArray(parsed) ? parsed.filter(isPendingScrobble) : [];
-			this.sortPending();
-		} catch {
-			this.pendingScrobbles = [];
-		}
-
-		this.isLoaded = true;
-	}
-
-	private sortPending(): void {
-		this.pendingScrobbles.sort((left, right) => {
-			const leftMs = Date.parse(left.triggeredAt);
-			const rightMs = Date.parse(right.triggeredAt);
-			if (Number.isNaN(leftMs) && Number.isNaN(rightMs)) {
-				return 0;
-			}
-			if (Number.isNaN(leftMs)) {
-				return 1;
-			}
-			if (Number.isNaN(rightMs)) {
-				return -1;
-			}
-			return leftMs - rightMs;
-		});
-	}
-
-	private pruneExpiredPending(): void {
-		const nowMs = this.now();
-		this.pendingScrobbles = this.pendingScrobbles.filter((pending) => {
-			const triggeredAtMs = Date.parse(pending.triggeredAt);
-			if (Number.isNaN(triggeredAtMs)) {
-				return false;
-			}
-			return triggeredAtMs + this.maxAgeMs > nowMs;
-		});
-	}
-
-	private persistPendingScrobbles(): Promise<void> {
-		return this.store.storeString(pendingScrobblesKey, JSON.stringify(this.pendingScrobbles));
-	}
-
-	private async retryAllPending(): Promise<void> {
-		if (this.retryInProgress) {
-			return;
-		}
-
-		this.retryInProgress = true;
-		try {
-			let consecutiveFailures = 0;
-			for (const pending of [...this.pendingScrobbles]) {
-				const delivered = await this.attemptDelivery(pending);
-				if (delivered) {
-					consecutiveFailures = 0;
-					continue;
-				}
-
-				consecutiveFailures += 1;
-				if (consecutiveFailures >= 3) {
-					break;
-				}
-			}
+			await this.drain();
 		} finally {
-			this.retryInProgress = false;
+			this.syncing = false;
 		}
 	}
 
-	private async attemptDelivery(pending: PendingScrobble): Promise<boolean> {
+	private async drain(): Promise<void> {
+		const nowMs = this.now();
+		let consecutiveFailures = 0;
+		for (const entry of this.readPending()) {
+			if (entry.playedAtMs + this.maxAgeMs <= nowMs) {
+				this.ack(entry);
+				continue;
+			}
+
+			try {
+				await this.deliverScrobble(entry.trackId, new Date(entry.playedAtMs).toISOString());
+			} catch (error) {
+				log.warn('scrobble not delivered, keeping queued', {
+					error: error instanceof Error ? error.message : String(error),
+					playedAtMs: entry.playedAtMs,
+					trackId: entry.trackId,
+				});
+				consecutiveFailures += 1;
+				if (consecutiveFailures >= maxConsecutiveFailures) {
+					return;
+				}
+				continue;
+			}
+
+			log.debug('scrobble delivered', { playedAtMs: entry.playedAtMs, trackId: entry.trackId });
+			this.ack(entry);
+		}
+	}
+
+	private readPending(): Array<PendingScrobble> {
 		try {
-			await this.deliverScrobble(pending);
+			return this.queue.read();
 		} catch (error) {
-			log.warn('scrobble not delivered, keeping queued', {
+			log.warn('failed to read native scrobble queue', {
 				error: error instanceof Error ? error.message : String(error),
-				trackId: pending.trackId,
-				triggeredAt: pending.triggeredAt,
 			});
-			return false;
+			return [];
 		}
+	}
 
-		log.debug('scrobble delivered', { trackId: pending.trackId, triggeredAt: pending.triggeredAt });
-
-		const index = this.pendingScrobbles.findIndex((candidate) =>
-			pending.id && candidate.id
-				? candidate.id === pending.id
-				: candidate.trackId === pending.trackId && candidate.triggeredAt === pending.triggeredAt,
-		);
-		if (index >= 0) {
-			this.pendingScrobbles.splice(index, 1);
-			await this.persistPendingScrobbles();
+	private ack(entry: PendingScrobble): void {
+		try {
+			this.queue.ack(entry.trackId, entry.playedAtMs);
+		} catch (error) {
+			log.warn('failed to ack scrobble', {
+				error: error instanceof Error ? error.message : String(error),
+				trackId: entry.trackId,
+			});
 		}
-
-		return true;
 	}
-}
-
-function isPendingScrobble(value: unknown): value is PendingScrobble {
-	if (!value || typeof value !== 'object') {
-		return false;
-	}
-
-	const candidate = value as Partial<PendingScrobble>;
-	return (
-		typeof candidate.trackId === 'string' &&
-		typeof candidate.triggeredAt === 'string' &&
-		!Number.isNaN(Date.parse(candidate.triggeredAt))
-	);
-}
-
-function sanitizeProgress(value: number): number {
-	if (!Number.isFinite(value) || value < 0) {
-		return 0;
-	}
-	return value;
 }
