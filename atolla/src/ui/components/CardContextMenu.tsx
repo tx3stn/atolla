@@ -41,8 +41,8 @@ interface CardContextMenuState {
 }
 
 // large collections (genres, big playlists) stream their tracks into the queue a page at a time
-// rather than materializing everything up front: Play backfills as the queue drains, while
-// Play Next / Add to Queue take a single page
+// rather than materializing everything up front.
+// play backfills as the queue drains, play next / add to queue take a single page
 const TRACK_PAGE_SIZE = 50;
 
 export class CardContextMenu extends StatefulComponent<
@@ -87,8 +87,6 @@ export class CardContextMenu extends StatefulComponent<
 		);
 	}
 
-	// the paged tracks for this card, shared by playback and add-to-playlist: genre/playlist page
-	// their endpoints; album/artist wrap their bounded fetch as a single page
 	private trackSource(): TrackSource {
 		const { card } = this.viewModel;
 		switch (card.kind) {
@@ -109,7 +107,6 @@ export class CardContextMenu extends StatefulComponent<
 		}
 	}
 
-	// Play Next / Add to Queue take a single bounded page rather than the whole collection
 	private withPagedPage(tracks: TrackSource, action: (tracks: Array<Track>) => void): void {
 		tracks(1, TRACK_PAGE_SIZE).then(
 			({ items }) => {
@@ -121,21 +118,21 @@ export class CardContextMenu extends StatefulComponent<
 	}
 
 	handlePlay = (): void => {
-		const { card, playbackStore } = this.viewModel;
 		const tracks = this.trackSource();
-		if (card.kind === 'album') {
-			// album keeps its now-playing album context and is bounded (a single page)
-			const album = card.album;
+		if (this.viewModel.card.kind === 'album') {
+			const album = this.viewModel.card.album;
+
 			tracks(1, TRACK_PAGE_SIZE).then(
 				({ items }) => {
-					if (items.length > 0) playbackStore.play(items, album);
+					if (items.length > 0) this.viewModel.playbackStore.play(items, album);
 				},
 				() => {},
 			);
 		} else {
 			this.startPagedPlayback(tracks);
 		}
-		this.viewModel.onDismiss('');
+
+		this.viewModel.onDismiss();
 	};
 
 	handlePlayNext = (): void => {

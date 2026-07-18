@@ -181,9 +181,6 @@
 	"playing_next_toast": {
 		"defaultMessage": "playing next"
 	},
-	"playing_now_toast": {
-		"defaultMessage": "playing now"
-	},
 	"playlist_edit_error_body": {
 		"defaultMessage": "{operation%s} failed for '{playlist%s}'\n{error%s}",
 		"example": "move failed for 'My Playlist'\nNetwork error"

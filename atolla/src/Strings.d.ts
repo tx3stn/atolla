@@ -58,7 +58,6 @@ declare const Strings: {
 	partialDownloadTitle: () => string;
 	play: () => string;
 	playingNextToast: () => string;
-	playingNowToast: () => string;
 	playNext: () => string;
 	playlistEditErrorBody: (operation: string, playlist: string, error: string) => string;
 	playlistEditErrorTitle: () => string;
