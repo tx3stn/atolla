@@ -1,1 +1,2 @@
-export const version = '0.4.5';
+// set at build
+export const version = '0.0.0';
