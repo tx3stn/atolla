@@ -76,7 +76,7 @@ import { ConnectionView } from './ui/views/ConnectionView';
 import { fireAndForget } from './utils/Async';
 
 const BOOTSTRAP_TIMEOUT_MS = 5000;
-const MINIMUM_BOOT_SPLASH_MS = 750;
+const MINIMUM_BOOT_SPLASH_MS = 250;
 
 const log = getLogger('app');
 
@@ -488,6 +488,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		if (this.bootstrapCommitTimer != null || this.state.isBootstrapped) {
 			return;
 		}
+
 		const elapsed = Date.now() - this.bootstrapStartedAt;
 		const remaining = Math.max(0, MINIMUM_BOOT_SPLASH_MS - elapsed);
 		this.bootstrapCommitTimer = setTimeout(() => {

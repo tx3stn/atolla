@@ -26,6 +26,7 @@ import { CardDetailList } from '../components/CardDetailList';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { MixesSection } from '../components/MixesSection';
+import { RefreshableScroll } from '../components/RefreshableScroll';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
@@ -53,6 +54,7 @@ export interface HomeViewModel {
 
 interface HomeState {
 	contextMenuCard: CardContextMenuCard | null;
+	isRefreshing: boolean;
 	onThisDayAlbums: Array<Album>;
 	recentlyAddedAlbums: Array<Album>;
 	revision: number;
@@ -70,6 +72,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 
 	state: HomeState = {
 		contextMenuCard: null,
+		isRefreshing: false,
 		onThisDayAlbums: [],
 		recentlyAddedAlbums: [],
 		revision: 0,
@@ -94,7 +97,12 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		});
 
 		<layout accessibilityLabel='home-view' style={styles.root}>
-			<scroll style={styles.scroll}>
+			<RefreshableScroll
+				accessibilityId='home'
+				isRefreshing={this.state.isRefreshing}
+				onRefresh={this.handleRefresh}
+				style={styles.scroll}
+			>
 				<layout style={styles.content}>
 					<layout style={styles.section}>
 						<label style={styles.sectionTitle} value={Strings.homeSectionOnThisDay()} />
@@ -143,7 +151,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						transport={this.viewModel.transport}
 					/>
 				</layout>
-			</scroll>
+			</RefreshableScroll>
 		</layout>;
 	}
 
@@ -178,33 +186,53 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			this.lastKnownGridColumns = gridColumns;
 
 			if (this.viewModel.connectionMode !== ConnectionModes.offline) {
-				this.loadRecentlyAdded(this.loadGeneration);
+				void this.loadRecentlyAdded(this.loadGeneration);
 			}
 		}
 
 		this.setState({ revision: this.state.revision + 1 });
 	};
 
+	private handleRefresh = (): void => {
+		if (this.state.isRefreshing) {
+			return;
+		}
+
+		const generation = this.loadGeneration + 1;
+		this.loadGeneration = generation;
+		this.setState({ isRefreshing: true });
+
+		const online = this.viewModel.connectionMode !== ConnectionModes.offline;
+		void Promise.all([
+			this.loadOnThisDay(generation, true),
+			online ? this.loadRecentlyAdded(generation) : Promise.resolve(),
+		]).then(() => {
+			if (!this.isDestroyed()) {
+				this.setState({ isRefreshing: false });
+			}
+		});
+	};
+
 	private loadAlbums(): void {
 		const generation = this.loadGeneration + 1;
 		this.loadGeneration = generation;
-		this.loadOnThisDay(generation);
+		void this.loadOnThisDay(generation);
 		this.restoreCachedRecentlyAdded(generation);
 
 		// offline only has downloaded albums, so keep the last full-library snapshot rather than overwrite home with the downloads subset
 		if (this.viewModel.connectionMode !== ConnectionModes.offline) {
-			this.loadRecentlyAdded(generation);
+			void this.loadRecentlyAdded(generation);
 		}
 	}
 
 	// shows cached anniversary albums immediately, then (online) rebuilds in the background via OnThisDayService and re-renders from its own state, so display never depends on a parent re-render arriving at the right moment
-	private loadOnThisDay(generation: number): void {
+	private loadOnThisDay(generation: number, force = false): Promise<void> {
 		const service = this.viewModel.onThisDayService;
 		if (!service) {
-			return;
+			return Promise.resolve();
 		}
 
-		void service
+		return service
 			.ensureLoaded()
 			.then(() => {
 				if (this.isDestroyed() || generation !== this.loadGeneration) {
@@ -219,7 +247,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					return undefined;
 				}
 
-				return service.refresh(this.viewModel.transport, new Date()).then((summary) => {
+				return service.refresh(this.viewModel.transport, new Date(), { force }).then((summary) => {
 					if (this.isDestroyed() || generation !== this.loadGeneration) {
 						return;
 					}
@@ -253,14 +281,14 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			.catch(() => {});
 	}
 
-	private loadRecentlyAdded(generation: number): void {
+	private loadRecentlyAdded(generation: number): Promise<void> {
 		const service = this.viewModel.recentlyAddedService;
 		if (!service) {
-			return;
+			return Promise.resolve();
 		}
 
 		const limit = Math.max(1, this.viewModel.preferences.gridColumns) * 2;
-		void service
+		return service
 			.refresh(this.viewModel.transport, limit)
 			.then((albums) => {
 				if (this.isDestroyed() || generation !== this.loadGeneration) {
