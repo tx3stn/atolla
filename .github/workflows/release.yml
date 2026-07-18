@@ -10,10 +10,10 @@ permissions:
 jobs:
   set-version:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v7
-      - uses: tx3stn/vrsn@1
+      - uses: tx3stn/vrsn@2
         with:
           command: set
           args: ${{ github.ref_name }}
@@ -25,7 +25,7 @@ jobs:
             BUILD.bazel
             atolla/native/android/AndroidManifest.prod.xml
           if-no-files-found: error
-      - uses: tx3stn/vrsn@1
+      - uses: tx3stn/vrsn@2
         with:
           command: get
           args: --git-tag=false
