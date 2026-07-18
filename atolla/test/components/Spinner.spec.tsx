@@ -37,4 +37,14 @@ describe('LoopingArrowSpinner', () => {
 		);
 		expect(images.length).toBe(1);
 	});
+
+	valdiIt('renders the arrow when not spinning', async (driver) => {
+		const viewModel = { spinning: false };
+		const component = driver.renderComponent(LoopingArrowSpinner, viewModel, undefined);
+		const images = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		);
+		expect(images.length).toBe(1);
+	});
 });

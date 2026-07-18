@@ -1,76 +1,67 @@
 import res from 'atolla/res';
 import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
+import type { SpinnerController } from './SpinnerController';
 
-const fullTurnRadians = Math.PI * 2;
+const stepsPerRevolution = 3;
+const stepRadians = (Math.PI * 2) / stepsPerRevolution;
+const defaultSecondsPerRevolution = 0.9;
 
 export interface LoopingArrowSpinnerViewModel {
 	accessibilityId?: string;
+	controller?: SpinnerController;
 	durationSeconds?: number;
 	label?: string;
 	size?: number;
+	spinning?: boolean;
 	tint?: string;
 }
 
-export class LoopingArrowSpinner extends StatefulComponent<LoopingArrowSpinnerViewModel> {
-	private spinnerRef = new ElementRef();
-	private spinnerRunning = false;
-	private spinnerAngle = 0;
-	private startTimer?: ReturnType<typeof setTimeout>;
+interface LoopingArrowSpinnerState {
+	tick: number;
+}
+
+function isSpinning(viewModel: LoopingArrowSpinnerViewModel): boolean {
+	return viewModel.spinning ?? true;
+}
+
+export class LoopingArrowSpinner extends StatefulComponent<
+	LoopingArrowSpinnerViewModel,
+	LoopingArrowSpinnerState
+> {
+	state: LoopingArrowSpinnerState = { tick: 0 };
+	private ticker?: ReturnType<typeof setInterval>;
+	private running = false;
 
 	onCreate(): void {
-		this.startTimer = setTimeout(() => {
-			this.startSpinner();
-		}, 0);
+		this.viewModel.controller?.attach({
+			start: () => this.startSpinning(),
+			stop: () => this.stopSpinning(),
+		});
+		if (isSpinning(this.viewModel)) {
+			this.startSpinning();
+		}
 	}
 
 	onDestroy(): void {
-		if (this.startTimer) {
-			clearTimeout(this.startTimer);
-		}
-		this.stopSpinner();
+		this.viewModel.controller?.detach();
+		this.stopSpinning();
 	}
 
-	private startSpinner(): void {
-		if (this.spinnerRunning) {
+	onViewModelUpdate(previousViewModel?: LoopingArrowSpinnerViewModel): void {
+		const wasSpinning = previousViewModel ? isSpinning(previousViewModel) : true;
+		const nowSpinning = isSpinning(this.viewModel);
+		if (wasSpinning === nowSpinning) {
 			return;
 		}
-
-		this.spinnerRunning = true;
-		this.spin();
-	}
-
-	private stopSpinner(): void {
-		this.spinnerRunning = false;
-		this.spinnerAngle = 0;
-		this.spinnerRef.setAttribute('rotation', 0);
-	}
-
-	private spin(): void {
-		if (!this.spinnerRunning) {
-			return;
+		if (nowSpinning) {
+			this.startSpinning();
+		} else {
+			this.stopSpinning();
 		}
-
-		const duration = this.viewModel.durationSeconds ?? 0.9;
-		const nextAngle = this.spinnerAngle + fullTurnRadians;
-
-		this.animatePromise(
-			{ beginFromCurrentState: true, curve: AnimationCurve.Linear, duration },
-			() => {
-				this.spinnerRef.setAttribute('rotation', nextAngle);
-			},
-		)
-			.then(() => {
-				this.spinnerAngle = nextAngle;
-				this.spin();
-			})
-			.catch(() => {
-				this.spinnerRunning = false;
-			});
 	}
 
 	onRender(): void {
@@ -78,21 +69,63 @@ export class LoopingArrowSpinner extends StatefulComponent<LoopingArrowSpinnerVi
 		const label = this.viewModel.label;
 		const size = this.viewModel.size ?? 24;
 		const tint = this.viewModel.tint ?? theme.colors.active;
-		const hasLabel = Boolean(label);
 
 		<view
 			accessibilityId={accessibilityId}
 			accessibilityLabel={accessibilityId}
-			style={hasLabel ? styles.root : getIconOnlyRootStyle(size)}
+			style={label ? styles.root : getIconOnlyRootStyle(size)}
 		>
 			<image
-				ref={this.spinnerRef}
+				rotation={stepRadians * this.state.tick}
 				src={res.loopingarrow}
 				style={getSpinnerStyle(size)}
 				tint={tint}
 			/>
 			{label && <label style={styles.label} value={label} />}
 		</view>;
+	}
+
+	private advance(stepSeconds: number): void {
+		this.setStateAnimated(
+			{ tick: this.state.tick + 1 },
+			{ curve: AnimationCurve.Linear, duration: stepSeconds },
+		);
+	}
+
+	private startSpinning(): void {
+		if (this.running) {
+			return;
+		}
+		this.running = true;
+		void Promise.resolve().then(() => {
+			if (!this.running || this.isDestroyed()) {
+				return;
+			}
+			const stepSeconds = this.stepSeconds();
+			this.advance(stepSeconds);
+			this.ticker = setInterval(() => {
+				if (!this.running || this.isDestroyed()) {
+					return;
+				}
+				this.advance(stepSeconds);
+			}, stepSeconds * 1000);
+		});
+	}
+
+	private stepSeconds(): number {
+		const secondsPerRevolution = this.viewModel.durationSeconds ?? defaultSecondsPerRevolution;
+		return secondsPerRevolution / stepsPerRevolution;
+	}
+
+	private stopSpinning(): void {
+		this.running = false;
+		if (this.ticker !== undefined) {
+			clearInterval(this.ticker);
+			this.ticker = undefined;
+		}
+		if (!this.isDestroyed() && this.state.tick !== 0) {
+			this.setState({ tick: 0 });
+		}
 	}
 }
 

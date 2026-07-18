@@ -40,6 +40,19 @@ describe('RefreshableScroll', () => {
 		expect(refreshed).toBe(1);
 	});
 
+	valdiIt('lights the spinner overlay as soon as a refresh is triggered', async (driver) => {
+		// onRefresh never flips isRefreshing (mirrors an instant/cached refresh); the overlay must
+		// still show immediately rather than waiting on a state round-trip that would coalesce away
+		const viewModel = { isRefreshing: false, onRefresh: () => {} };
+		const component = driver.renderComponent(RefreshableScroll, viewModel, undefined);
+		const scroll = scrollOf(component);
+
+		scroll?.getAttribute('onScroll')?.(scrollEvent({ y: -120 }));
+		scroll?.getAttribute('onScrollEnd')?.(scrollEndEvent());
+
+		expect(overlayOpacityOf(component)).toBe(1);
+	});
+
 	valdiIt('does not fire onRefresh for a pull short of the threshold', async (driver) => {
 		let refreshed = 0;
 		const viewModel = {

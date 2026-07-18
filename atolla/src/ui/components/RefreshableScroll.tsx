@@ -1,15 +1,16 @@
-import res from 'atolla/res';
-import { Component } from 'valdi_core/src/Component';
+import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { ContentSizeChangeEvent, ScrollEvent } from 'valdi_tsx/src/GestureEvents';
-import type { ImageView, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { LoopingArrowSpinner } from './LoopingArrowSpinner';
+import { SpinnerController } from './SpinnerController';
 
-// how far past the top the user must overscroll before releasing triggers a refresh — a small tug
+// how far past the top the user must overscroll before releasing triggers a refresh
 const PULL_TRIGGER = 35;
+const MIN_SPIN_MS = 750;
 
 export interface RefreshableScrollViewModel {
 	accessibilityId?: string;
@@ -24,28 +25,36 @@ export interface RefreshableScrollViewModel {
 	style?: Style<ScrollView>;
 }
 
-// Wraps a vertical <scroll> with pull-to-refresh. The spinner overlay fades in as the pull grows
-// and stays lit while refreshing. Crucially it never re-renders mid-gesture — a setState during
-// the drag disturbs the native overscroll/bounce (on iOS it leaves the pulled-open gap stuck) — so
-// the pull fade is applied imperatively through a ref during onScroll, and the refresh only fires
-// on onScrollEnd, once the scroll has settled. The refreshing state is declarative (isRefreshing,
-// owned by the caller); that only flips between gestures, so re-rendering for it is safe.
-export class RefreshableScroll extends Component<RefreshableScrollViewModel> {
+interface RefreshableScrollState {
+	spinning: boolean;
+}
+
+export class RefreshableScroll extends StatefulComponent<
+	RefreshableScrollViewModel,
+	RefreshableScrollState
+> {
+	state: RefreshableScrollState = { spinning: false };
 	private readonly overlayRef = new ElementRef<View>();
+	private readonly spinnerController = new SpinnerController();
 	private maxPull = 0;
 	private armed = false;
+	private spinTimer?: ReturnType<typeof setTimeout>;
 
-	// A ref-set opacity persists across re-renders and wins over the style, so the declarative
-	// overlayHidden/overlayVisible alone can't clear a pull's fade. Reconcile the ref to match
-	// whenever the refreshing state flips (which only happens between gestures, never mid-drag).
+	onDestroy(): void {
+		this.clearSpinTimer();
+	}
+
 	onViewModelUpdate(previousViewModel?: RefreshableScrollViewModel): void {
 		const wasRefreshing = previousViewModel?.isRefreshing ?? false;
-		if (wasRefreshing !== this.viewModel.isRefreshing) {
-			this.setOverlayOpacity(this.viewModel.isRefreshing ? 1 : 0);
+		if (!wasRefreshing && this.viewModel.isRefreshing) {
+			this.setOverlayOpacity(1);
+		} else if (wasRefreshing && !this.viewModel.isRefreshing) {
+			this.hideIfIdle();
 		}
 	}
 
 	onRender(): void {
+		const showing = this.isShowing();
 		<view style={styles.root}>
 			<scroll
 				onContentSizeChange={this.viewModel.onContentSizeChange}
@@ -60,16 +69,15 @@ export class RefreshableScroll extends Component<RefreshableScrollViewModel> {
 				accessibilityId={this.overlayAccessibilityId()}
 				accessibilityLabel={this.overlayAccessibilityId()}
 				ref={this.overlayRef}
-				style={this.viewModel.isRefreshing ? styles.overlayVisible : styles.overlayHidden}
+				style={showing ? styles.overlayVisible : styles.overlayHidden}
 			>
 				<view style={styles.spinnerPill}>
-					{this.viewModel.isRefreshing ? (
-						// only mounted while refreshing so it never animates at rest — a perpetual
-						// animation keeps Android's UiAutomator2 from ever reporting idle, hanging e2e
-						<LoopingArrowSpinner accessibilityId={this.spinnerAccessibilityId()} size={22} />
-					) : (
-						<image src={res.loopingarrow} style={styles.staticArrow} tint={theme.colors.active} />
-					)}
+					<LoopingArrowSpinner
+						accessibilityId={this.spinnerAccessibilityId()}
+						controller={this.spinnerController}
+						size={22}
+						spinning={showing}
+					/>
 				</view>
 			</view>
 		</view>;
@@ -77,22 +85,26 @@ export class RefreshableScroll extends Component<RefreshableScrollViewModel> {
 
 	private handleScroll = (event: ScrollEvent): void => {
 		this.viewModel.onScroll?.(event.y);
-		if (this.viewModel.isRefreshing) {
+		if (this.isShowing()) {
 			return;
 		}
+
 		if (event.y > 0) {
 			// scrolled down into content: this is not a pull-to-refresh, so forget any tracked pull
 			this.resetPull();
 			return;
 		}
+
 		const pull = pullDistance(event.y, event.overscrollTensionY);
 		if (pull > this.maxPull) {
 			this.maxPull = pull;
 		}
+
 		if (this.maxPull >= PULL_TRIGGER) {
 			if (!this.armed) {
 				this.armed = true;
 				hapticFeedback();
+				this.spinnerController.start();
 			}
 			this.setOverlayOpacity(1);
 		} else {
@@ -101,20 +113,57 @@ export class RefreshableScroll extends Component<RefreshableScrollViewModel> {
 	};
 
 	private handleScrollEnd = (): void => {
-		const shouldRefresh = this.armed && !this.viewModel.isRefreshing;
+		const shouldRefresh = this.armed && !this.isShowing();
 		this.maxPull = 0;
 		this.armed = false;
 		if (shouldRefresh) {
-			// the caller flips isRefreshing on, which re-renders the overlay lit; leave the ref as-is
+			this.startSpin();
 			this.viewModel.onRefresh();
-		} else if (!this.viewModel.isRefreshing) {
+		} else if (!this.isShowing()) {
 			this.setOverlayOpacity(0);
 		}
 	};
 
+	private startSpin(): void {
+		this.clearSpinTimer();
+		this.setOverlayOpacity(1);
+		if (!this.state.spinning) {
+			this.setState({ spinning: true });
+		}
+		this.spinTimer = setTimeout(() => {
+			this.spinTimer = undefined;
+			if (this.isDestroyed()) {
+				return;
+			}
+			this.setState({ spinning: false });
+			// keep it up if the caller's refresh is still running; onViewModelUpdate hides it later
+			if (!this.viewModel.isRefreshing) {
+				this.setOverlayOpacity(0);
+			}
+		}, MIN_SPIN_MS);
+	}
+
+	private hideIfIdle(): void {
+		if (!this.state.spinning && !this.viewModel.isRefreshing) {
+			this.setOverlayOpacity(0);
+		}
+	}
+
+	private isShowing(): boolean {
+		return this.state.spinning || this.viewModel.isRefreshing;
+	}
+
+	private clearSpinTimer(): void {
+		if (this.spinTimer !== undefined) {
+			clearTimeout(this.spinTimer);
+			this.spinTimer = undefined;
+		}
+	}
+
 	private resetPull(): void {
 		this.maxPull = 0;
 		this.armed = false;
+		this.spinnerController.stop();
 		this.setOverlayOpacity(0);
 	}
 
@@ -163,9 +212,5 @@ const styles = {
 		height: 40,
 		justifyContent: 'center',
 		width: 40,
-	}),
-	staticArrow: new Style<ImageView>({
-		height: 22,
-		width: 22,
 	}),
 };
