@@ -80,6 +80,14 @@ interface SearchState {
 }
 
 export class SearchView extends StatefulComponent<SearchViewModel, SearchState> {
+	private cachedAlbumCards: Array<Card> = [];
+	private cachedAlbumCardsSource?: Array<Album>;
+	private cachedArtistCards: Array<Card> = [];
+	private cachedArtistCardsSource?: Array<Artist>;
+	private cachedPlaylistCards: Array<Card> = [];
+	private cachedPlaylistCardsSource?: Array<Playlist>;
+	private cachedTrackEntries: Array<TrackListEntry> = [];
+	private cachedTrackEntriesSource?: Array<Track>;
 	private cardContextMenuCard: CardContextMenuCard | null = null;
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
@@ -300,43 +308,63 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	};
 
 	private createAlbumCards(albums: Array<Album>): Array<Card> {
-		return albums.map((album) => ({
-			artworkKey: album.imageUrl ?? '',
-			id: album.id,
-			kind: 'album',
-			primaryText: album.name,
-			secondaryText: album.artistName,
-		}));
+		if (albums !== this.cachedAlbumCardsSource) {
+			this.cachedAlbumCardsSource = albums;
+			this.cachedAlbumCards = albums.map((album) => ({
+				artworkKey: album.imageUrl ?? '',
+				id: album.id,
+				kind: 'album',
+				primaryText: album.name,
+				secondaryText: album.artistName,
+			}));
+		}
+
+		return this.cachedAlbumCards;
 	}
 
 	private createArtistCards(artists: Array<Artist>): Array<Card> {
-		return artists.map((artist) => ({
-			artworkKey: artist.imageUrl ?? '',
-			id: artist.id,
-			kind: 'artist',
-			primaryText: artist.name,
-			secondaryText: '',
-		}));
+		if (artists !== this.cachedArtistCardsSource) {
+			this.cachedArtistCardsSource = artists;
+			this.cachedArtistCards = artists.map((artist) => ({
+				artworkKey: artist.imageUrl ?? '',
+				id: artist.id,
+				kind: 'artist',
+				primaryText: artist.name,
+				secondaryText: '',
+			}));
+		}
+
+		return this.cachedArtistCards;
 	}
 
 	private createPlaylistCards(playlists: Array<Playlist>): Array<Card> {
-		return playlists.map((playlist) => ({
-			artworkKey: playlist.imageUrl ?? '',
-			id: playlist.id,
-			kind: 'playlist',
-			primaryText: playlist.name,
-			secondaryText: '',
-		}));
+		if (playlists !== this.cachedPlaylistCardsSource) {
+			this.cachedPlaylistCardsSource = playlists;
+			this.cachedPlaylistCards = playlists.map((playlist) => ({
+				artworkKey: playlist.imageUrl ?? '',
+				id: playlist.id,
+				kind: 'playlist',
+				primaryText: playlist.name,
+				secondaryText: '',
+			}));
+		}
+
+		return this.cachedPlaylistCards;
 	}
 
 	private createTrackEntries(tracks: Array<Track>): Array<TrackListEntry> {
-		return tracks.map((track) => ({
-			artworkSource: track.albumImageUrl ?? null,
-			id: track.id,
-			meta: track.artistName ?? track.albumName ?? '',
-			title: track.name,
-			track,
-		}));
+		if (tracks !== this.cachedTrackEntriesSource) {
+			this.cachedTrackEntriesSource = tracks;
+			this.cachedTrackEntries = tracks.map((track) => ({
+				artworkSource: track.albumImageUrl ?? null,
+				id: track.id,
+				meta: track.artistName ?? track.albumName ?? '',
+				title: track.name,
+				track,
+			}));
+		}
+
+		return this.cachedTrackEntries;
 	}
 
 	private focusSearchInput(): void {
