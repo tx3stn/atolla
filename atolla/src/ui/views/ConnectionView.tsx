@@ -23,6 +23,7 @@ export interface ConnectionViewModel {
 	errorMessage: AuthError | null;
 	isConnecting: boolean;
 	modalSlot?: DetachedSlot;
+	onCancelConnect: () => void;
 	onConnect: (serverUrl: string) => void;
 	onLanguageChange?: (code: LanguageCode) => void;
 	quickConnectCode: string | null;
@@ -83,8 +84,18 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 		/>;
 	};
 
+	// editing the url abandons the attempt it no longer describes, so the spinner stops and any
+	// stale error clears instead of sitting under the field the user is already fixing. the local
+	// input is committed first because cancelling re-renders this view through the parent, which
+	// would otherwise redraw the textfield with the pre-keystroke value.
 	private handleServerUrlChange = (value: unknown): void => {
-		this.setState({ serverUrlInput: normalizeInputValue(value) });
+		const next = normalizeInputValue(value);
+		const changed = next !== this.state.serverUrlInput;
+		this.setState({ serverUrlInput: next });
+
+		if (changed && (this.viewModel.isConnecting || this.viewModel.errorMessage != null)) {
+			this.viewModel.onCancelConnect();
+		}
 	};
 
 	onViewModelUpdate(prevViewModel?: ConnectionViewModel): void {

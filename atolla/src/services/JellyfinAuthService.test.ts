@@ -62,6 +62,30 @@ function stubClient(impl: {
 	} as unknown as IHTTPClient;
 }
 
+// hands back the scheduled deadline so a test can fire it synchronously instead of waiting 10s,
+// and records clears so we can assert a settled request doesn't leave its timer running
+function manualTimer() {
+	const state = { cleared: 0, fire: () => {}, scheduled: 0 };
+	const timer = (callback: () => void, _ms: number) => {
+		state.scheduled += 1;
+		state.fire = callback;
+
+		return () => {
+			state.cleared += 1;
+		};
+	};
+
+	return { state, timer };
+}
+
+// a request that never settles, so only the deadline can resolve it. optionally reports cancelation.
+function neverSettles(onCancel?: () => void) {
+	const promise = new Promise<never>(() => {}) as Promise<never> & { cancel?: () => void };
+	promise.cancel = () => onCancel?.();
+
+	return promise;
+}
+
 function createStore() {
 	return {
 		clearSession: () => Promise.resolve(),
@@ -204,19 +228,19 @@ describe('startQuickConnect', () => {
 		);
 	});
 
-	it('throws CONNECTION_ERROR when the enabled check cannot reach the server', async () => {
+	it('throws SERVER_UNREACHABLE when the enabled check cannot reach the server', async () => {
 		const { client } = createHTTPClient([new Error('server unreachable')]);
 		await expect(makeService({ client }).startQuickConnect()).rejects.toHaveProperty(
 			'err',
-			AuthErrors.CONNECTION_ERROR.err,
+			AuthErrors.SERVER_UNREACHABLE.err,
 		);
 	});
 
-	it('throws CONNECTION_ERROR on network failure during initiate', async () => {
+	it('throws SERVER_UNREACHABLE on network failure during initiate', async () => {
 		const { client } = createHTTPClient([jsonResponse(200, true), new Error('ECONNREFUSED')]);
 		await expect(makeService({ client }).startQuickConnect()).rejects.toHaveProperty(
 			'err',
-			AuthErrors.CONNECTION_ERROR.err,
+			AuthErrors.SERVER_UNREACHABLE.err,
 		);
 	});
 
@@ -236,6 +260,138 @@ describe('startQuickConnect', () => {
 		await expect(makeService({ client }).startQuickConnect()).rejects.toHaveProperty(
 			'err',
 			AuthErrors.CONNECTION_ERROR.err,
+		);
+	});
+});
+
+describe('request deadline', () => {
+	it('rejects with SERVER_UNREACHABLE when the request outlives the deadline', async () => {
+		const { state, timer } = manualTimer();
+		const service = makeService({ client: stubClient({ get: () => neverSettles() }), timer });
+
+		const pending = service.startQuickConnect();
+		state.fire();
+
+		await expect(pending).rejects.toHaveProperty('err', AuthErrors.SERVER_UNREACHABLE.err);
+	});
+
+	it('cancels the in-flight request when the deadline fires', async () => {
+		let canceled = 0;
+		const { state, timer } = manualTimer();
+		const service = makeService({
+			client: stubClient({ get: () => neverSettles(() => (canceled += 1)) }),
+			timer,
+		});
+
+		const pending = service.startQuickConnect();
+		state.fire();
+
+		await expect(pending).rejects.toHaveProperty('err', AuthErrors.SERVER_UNREACHABLE.err);
+		expect(canceled).toBe(1);
+	});
+
+	// valdi's native cancel currently throws; a deadline must still report cleanly through it
+	it('still rejects cleanly when the underlying cancel throws', async () => {
+		const { state, timer } = manualTimer();
+		const service = makeService({
+			client: stubClient({
+				get: () =>
+					neverSettles(() => {
+						throw new TypeError('l is not a function (it is Object)');
+					}),
+			}),
+			timer,
+		});
+
+		const pending = service.startQuickConnect();
+		state.fire();
+
+		await expect(pending).rejects.toHaveProperty('err', AuthErrors.SERVER_UNREACHABLE.err);
+	});
+
+	it('clears the deadline when the request settles normally', async () => {
+		const { state, timer } = manualTimer();
+		const { client } = createHTTPClient([
+			jsonResponse(200, true),
+			jsonResponse(200, { Code: 'X', Secret: 'Y' }),
+		]);
+
+		await makeService({ client, timer }).startQuickConnect();
+
+		expect(state.scheduled).toBe(2);
+		expect(state.cleared).toBe(2);
+	});
+
+	it('ignores a response that lands after the deadline already rejected', async () => {
+		const { state, timer } = manualTimer();
+		let release: (value: MockHTTPResponse) => void = () => {};
+		const service = makeService({
+			client: stubClient({ get: () => new Promise<MockHTTPResponse>((r) => (release = r)) }),
+			timer,
+		});
+
+		const pending = service.startQuickConnect();
+		state.fire();
+		release(jsonResponse(200, true));
+
+		await expect(pending).rejects.toHaveProperty('err', AuthErrors.SERVER_UNREACHABLE.err);
+	});
+
+	it('applies the deadline per poll without consuming the approval budget', async () => {
+		const { state, timer } = manualTimer();
+		let nowMs = 0;
+		const service = makeService({
+			client: stubClient({ get: () => neverSettles() }),
+			now: () => nowMs,
+			sleep: (ms: number) => {
+				nowMs += ms;
+				return Promise.resolve();
+			},
+			timer,
+		});
+
+		const pending = service.waitForQuickConnectApproval('secret', 60_000, 2_000);
+		state.fire();
+
+		await expect(pending).rejects.toHaveProperty('err', AuthErrors.SERVER_UNREACHABLE.err);
+		// the first poll failed the deadline; the 60s budget was never spent looping
+		expect(nowMs).toBe(0);
+	});
+});
+
+describe('startQuickConnect server classification', () => {
+	it('reports NOT_A_JELLYFIN_SERVER when the host answers with a non-success status', async () => {
+		const { client } = createHTTPClient([jsonResponse(404, {})]);
+		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
+			AuthErrors.NOT_A_JELLYFIN_SERVER,
+		);
+	});
+
+	it('reports NOT_A_JELLYFIN_SERVER when the host answers 200 with an html body', async () => {
+		const { client } = createHTTPClient([
+			{
+				body: new TextEncoder().encode('<html><body>router admin</body></html>'),
+				headers: {},
+				statusCode: 200,
+			},
+		]);
+		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
+			AuthErrors.NOT_A_JELLYFIN_SERVER,
+		);
+	});
+
+	it('reports NOT_A_JELLYFIN_SERVER when the body is valid json but not a boolean', async () => {
+		const { client } = createHTTPClient([jsonResponse(200, { Items: [] })]);
+		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
+			AuthErrors.NOT_A_JELLYFIN_SERVER,
+		);
+	});
+
+	// only a real jellyfin that says "no" earns the message pointing at the jellyfin dashboard
+	it('reports QUICK_CONNECT_NOT_AVAILABLE when jellyfin returns enabled:false', async () => {
+		const { client } = createHTTPClient([jsonResponse(200, false)]);
+		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
+			AuthErrors.QUICK_CONNECT_NOT_AVAILABLE,
 		);
 	});
 });
@@ -275,7 +431,47 @@ describe('waitForQuickConnectApproval', () => {
 		);
 	});
 
-	it('real: throws CONNECTION_ERROR on network failure during poll', async () => {
+	it('real: stops polling as soon as isCancelled flips', async () => {
+		let polls = 0;
+		let cancelled = false;
+		const client = stubClient({
+			get: () => {
+				polls += 1;
+				cancelled = polls >= 2;
+				return Promise.resolve(jsonResponse(200, { Authenticated: false }));
+			},
+		});
+		let nowMs = 0;
+		const service = makeService({
+			client,
+			now: () => nowMs,
+			sleep: (ms: number) => {
+				nowMs += ms;
+				return Promise.resolve();
+			},
+		});
+
+		await service.waitForQuickConnectApproval('secret', 60_000, 2_000, {
+			isCancelled: () => cancelled,
+		});
+
+		// the second poll set the flag; the loop must not issue a third
+		expect(polls).toBe(2);
+	});
+
+	// cancel is not a failure — the caller distinguishes it from approval by its own state
+	it('real: resolves rather than timing out when canceled before the budget expires', async () => {
+		const client = stubClient({
+			get: () => Promise.resolve(jsonResponse(200, { Authenticated: false })),
+		});
+		const service = makeService({ client, now: () => 0, sleep: () => Promise.resolve() });
+
+		await expect(
+			service.waitForQuickConnectApproval('secret', 60_000, 2_000, { isCancelled: () => true }),
+		).resolves.toBeUndefined();
+	});
+
+	it('real: throws SERVER_UNREACHABLE on network failure during poll', async () => {
 		const client = stubClient({ get: () => Promise.reject(new Error('network down')) });
 		const service = makeService({
 			client,
@@ -284,7 +480,7 @@ describe('waitForQuickConnectApproval', () => {
 		});
 		await expect(
 			service.waitForQuickConnectApproval('secret', 10_000, 1_000),
-		).rejects.toHaveProperty('err', AuthErrors.CONNECTION_ERROR.err);
+		).rejects.toHaveProperty('err', AuthErrors.SERVER_UNREACHABLE.err);
 	});
 });
 

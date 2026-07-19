@@ -1,6 +1,6 @@
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { Preferences } from '../stores/Preferences';
-import { type AuthError, AuthErrors } from './AuthErrors';
+import { type AuthError, AuthErrors, toAuthError } from './AuthErrors';
 import {
 	type AuthSession,
 	type JellyfinAuthService,
@@ -35,6 +35,9 @@ export class SessionManager {
 	private currentClient: IHTTPClient;
 	private currentSession: AuthSession | null = null;
 	private deviceIdOverride = '';
+	// bumped by cancelLogin and by each new attempt, so a superseded or canceled login can neither
+	// write render state nor adopt a session it no longer owns
+	private loginGeneration = 0;
 
 	constructor(private readonly deps: SessionManagerDeps) {
 		this.currentClient = deps.createHttpClient();
@@ -49,6 +52,18 @@ export class SessionManager {
 		if (this.currentSession != null) {
 			this.deps.onSessionChanged(this.currentSession);
 		}
+	}
+
+	// abandons any in-flight login and returns the connect screen to a clean, retryable state.
+	// all three fields go out together: an intermediate render with isAuthenticating still true
+	// would leave the connect button disabled while the user is retyping the url.
+	cancelLogin(): void {
+		this.loginGeneration += 1;
+		this.deps.applyState({
+			authErrorMessage: null,
+			isAuthenticating: false,
+			quickConnectCode: null,
+		});
 	}
 
 	async clearSession(): Promise<void> {
@@ -102,9 +117,19 @@ export class SessionManager {
 	// quick-connect login flow. drives the auth render, saves + sets the session, and emits
 	// onSessionChanged so Connectivity stands up the live transport. throws on failure.
 	async login(serverUrl: string): Promise<AuthSession> {
+		// claimed before the first await so the spinner still appears synchronously
+		const generation = ++this.loginGeneration;
+		const isStale = () => generation !== this.loginGeneration;
+		const applyIfCurrent = (partial: Partial<AuthRenderState>) => {
+			if (isStale()) {
+				return;
+			}
+			this.deps.applyState(partial);
+		};
+
 		this.deps.authService.setMockMode(false);
 		this.bindHttpClient(serverUrl);
-		this.deps.applyState({
+		applyIfCurrent({
 			authErrorMessage: null,
 			isAuthenticating: true,
 			quickConnectCode: null,
@@ -112,20 +137,31 @@ export class SessionManager {
 		});
 		try {
 			await this.deps.authService.rememberServerUrl(serverUrl);
-			const quickConnect = await this.deps.authService.startQuickConnect();
+			if (isStale()) throw AuthErrors.LOGIN_CANCELED;
 
-			this.deps.applyState({ quickConnectCode: quickConnect.code });
-			await this.deps.authService.waitForQuickConnectApproval(quickConnect.secret, 60_000);
+			const quickConnect = await this.deps.authService.startQuickConnect();
+			if (isStale()) throw AuthErrors.LOGIN_CANCELED;
+
+			applyIfCurrent({ quickConnectCode: quickConnect.code });
+			await this.deps.authService.waitForQuickConnectApproval(quickConnect.secret, 60_000, 2_000, {
+				isCancelled: isStale,
+			});
+			// the wait returns rather than throws on cancel, so this check is what distinguishes a
+			// cancelation from a genuine approval
+			if (isStale()) throw AuthErrors.LOGIN_CANCELED;
 
 			const session = await this.deps.authService.authenticateWithQuickConnect(
 				serverUrl,
 				quickConnect.secret,
 			);
+			// checked before the write: a canceled attempt must not leave a session on disk for a
+			// server the user has already moved on from, which would silently restore next launch
+			if (isStale()) throw AuthErrors.LOGIN_CANCELED;
 			await this.deps.authService.saveSession(session);
 
 			this.currentSession = session;
 			this.deps.onSessionChanged(session);
-			this.deps.applyState({
+			applyIfCurrent({
 				authErrorMessage: null,
 				isAuthenticating: false,
 				quickConnectCode: null,
@@ -141,8 +177,9 @@ export class SessionManager {
 			}
 			return session;
 		} catch (error: unknown) {
-			this.deps.applyState({
-				authErrorMessage: error as AuthError,
+			// toAuthError keeps a non-ErrorConst throw from reaching the view, which renders msg()
+			applyIfCurrent({
+				authErrorMessage: toAuthError(error),
 				isAuthenticating: false,
 				quickConnectCode: null,
 			});

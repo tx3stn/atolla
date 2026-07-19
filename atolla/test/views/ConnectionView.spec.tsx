@@ -25,6 +25,7 @@ function makeViewModel(overrides = {}) {
 	return {
 		errorMessage: null,
 		isConnecting: false,
+		onCancelConnect: () => {},
 		onConnect: () => {},
 		quickConnectCode: null,
 		serverUrl: '',
@@ -150,6 +151,106 @@ describe('ConnectionView', () => {
 			expect(typeof getConnectButton(component)?.getAttribute('onTap')).toBe('function');
 		},
 	);
+
+	valdiIt('cancels the in-flight connect when the url is edited', async (driver) => {
+		let cancels = 0;
+		const component = driver.renderComponent(
+			ConnectionView,
+			makeViewModel({
+				isConnecting: true,
+				onCancelConnect: () => {
+					cancels += 1;
+				},
+			}),
+			undefined,
+		);
+
+		getTextField(component).getAttribute('onChange')?.(editTextEvent('https://corrected:8096'));
+
+		expect(cancels).toBe(1);
+	});
+
+	valdiIt('cancels when an error is showing so the stale message clears', async (driver) => {
+		let cancels = 0;
+		const component = driver.renderComponent(
+			ConnectionView,
+			makeViewModel({
+				errorMessage: AuthErrors.CONNECTION_ERROR,
+				isConnecting: false,
+				onCancelConnect: () => {
+					cancels += 1;
+				},
+			}),
+			undefined,
+		);
+
+		getTextField(component).getAttribute('onChange')?.(editTextEvent('https://corrected:8096'));
+
+		expect(cancels).toBe(1);
+	});
+
+	// onChange fires per keystroke and can re-fire with an unchanged value, so an idle screen must
+	// not push a state update into the app on every character typed
+	valdiIt('does not cancel while idle with nothing in flight', async (driver) => {
+		let cancels = 0;
+		const component = driver.renderComponent(
+			ConnectionView,
+			makeViewModel({
+				onCancelConnect: () => {
+					cancels += 1;
+				},
+			}),
+			undefined,
+		);
+
+		getTextField(component).getAttribute('onChange')?.(editTextEvent('https://server:8096'));
+
+		expect(cancels).toBe(0);
+	});
+
+	valdiIt('does not cancel when the value is unchanged', async (driver) => {
+		let cancels = 0;
+		const component = driver.renderComponent(
+			ConnectionView,
+			makeViewModel({
+				isConnecting: true,
+				onCancelConnect: () => {
+					cancels += 1;
+				},
+				serverUrl: 'https://server:8096',
+			}),
+			undefined,
+		);
+
+		getTextField(component).getAttribute('onChange')?.(editTextEvent('https://server:8096'));
+
+		expect(cancels).toBe(0);
+	});
+
+	valdiIt('drops the spinner and re-enables connect once the cancel lands', async () => {
+		const instrumented = InstrumentedComponentJSX.create(
+			ConnectionView,
+			makeViewModel({ isConnecting: true, serverUrl: 'https://wrong:8096' }),
+			undefined,
+		);
+		const component = instrumented.getComponent();
+
+		getTextField(component).getAttribute('onChange')?.(editTextEvent('https://corrected:8096'));
+
+		// what SessionManager.cancelLogin applies: all three cleared in one update
+		instrumented.setViewModel(
+			makeViewModel({
+				errorMessage: null,
+				isConnecting: false,
+				quickConnectCode: null,
+				serverUrl: 'https://wrong:8096',
+			}),
+		);
+
+		expect(findSpinner(component)).toBeUndefined();
+		expect(getTextField(component)?.getAttribute('value')).toBe('https://corrected:8096');
+		expect(typeof getConnectButton(component)?.getAttribute('onTap')).toBe('function');
+	});
 
 	valdiIt('shows spinner immediately when isConnecting is true', async (driver) => {
 		const component = driver.renderComponent(

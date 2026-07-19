@@ -153,6 +153,145 @@ describe('SessionManager', () => {
 		expect(manager.getEffectiveDeviceId()).toBe('atolla-default');
 	});
 
+	it('cancelLogin clears the spinner, the code and any error in a single update', () => {
+		const { calls, manager } = makeManager();
+
+		manager.cancelLogin();
+
+		// one partial, not three: an intermediate render with isAuthenticating still true would
+		// leave the connect button disabled while the user is trying to retype the url
+		expect(calls.applyState).toEqual([
+			{ authErrorMessage: null, isAuthenticating: false, quickConnectCode: null },
+		]);
+	});
+
+	it('a canceled login stops writing render state', async () => {
+		let release: (value: { code: string; secret: string }) => void = () => {};
+		const { calls, manager } = makeManager({
+			authService: {
+				startQuickConnect: () => new Promise((resolve) => (release = resolve)),
+			},
+		});
+
+		const pending = manager.login('https://server');
+		await flush();
+		manager.cancelLogin();
+		const applyCountAtCancel = calls.applyState.length;
+		release({ code: 'CODE', secret: 'SECRET' });
+
+		await expect(pending).rejects.toHaveProperty('err', AuthErrors.LOGIN_CANCELED.err);
+		expect(calls.applyState.length).toBe(applyCountAtCancel);
+	});
+
+	// the user is mid-edit when the abandoned request fails; surfacing its error would put a stale
+	// message under the field they are already fixing
+	it('a canceled login stays silent when its request fails afterwards', async () => {
+		let failIt: (reason: unknown) => void = () => {};
+		const { calls, manager } = makeManager({
+			authService: {
+				startQuickConnect: () => new Promise((_resolve, reject) => (failIt = reject)),
+			},
+		});
+
+		const pending = manager.login('https://server');
+		await flush();
+		manager.cancelLogin();
+		failIt(AuthErrors.CONNECTION_ERROR);
+
+		await expect(pending).rejects.toBeDefined();
+		expect(calls.applyState.filter((s) => s.authErrorMessage != null)).toEqual([]);
+	});
+
+	it('a canceled login neither saves nor adopts the session', async () => {
+		let saved = 0;
+		let release: () => void = () => {};
+		const { calls, manager } = makeManager({
+			authService: {
+				saveSession: () => {
+					saved += 1;
+					return Promise.resolve();
+				},
+				waitForQuickConnectApproval: () => new Promise<void>((resolve) => (release = resolve)),
+			},
+		});
+
+		const pending = manager.login('https://server');
+		await flush();
+		manager.cancelLogin();
+		release();
+
+		await expect(pending).rejects.toHaveProperty('err', AuthErrors.LOGIN_CANCELED.err);
+		expect(saved).toBe(0);
+		expect(manager.getSession()).toBeNull();
+		expect(calls.onSessionChanged).toEqual([]);
+	});
+
+	it('cancelLogin signals the in-flight approval wait to stop polling', async () => {
+		let isCancelled: (() => boolean) | undefined;
+		let release: () => void = () => {};
+		const { manager } = makeManager({
+			authService: {
+				waitForQuickConnectApproval: (
+					_secret: string,
+					_timeoutMs?: number,
+					_pollIntervalMs?: number,
+					options?: { isCancelled?: () => boolean },
+				) => {
+					isCancelled = options?.isCancelled;
+					return new Promise<void>((resolve) => (release = resolve));
+				},
+			},
+		});
+
+		const pending = manager.login('https://server');
+		await flush();
+
+		expect(isCancelled?.()).toBe(false);
+		manager.cancelLogin();
+		expect(isCancelled?.()).toBe(true);
+		release();
+
+		await expect(pending).rejects.toHaveProperty('err', AuthErrors.LOGIN_CANCELED.err);
+	});
+
+	it('a superseded login cannot clobber the attempt that replaced it', async () => {
+		let failFirst: (reason: unknown) => void = () => {};
+		let first = true;
+		const { calls, manager } = makeManager({
+			authService: {
+				startQuickConnect: () => {
+					if (first) {
+						first = false;
+						return new Promise((_resolve, reject) => (failFirst = reject));
+					}
+					return Promise.resolve({ code: 'CODE', secret: 'SECRET' });
+				},
+			},
+		});
+
+		const stale = manager.login('https://first');
+		await flush();
+		const winner = manager.login('https://second');
+		failFirst(AuthErrors.CONNECTION_ERROR);
+
+		await expect(stale).rejects.toBeDefined();
+		await expect(winner).resolves.toBeDefined();
+		expect(calls.applyState.filter((s) => s.authErrorMessage != null)).toEqual([]);
+	});
+
+	// a non-ErrorConst reaching the view crashes it: ConnectionView renders errorMessage.msg()
+	it('login maps an unexpected throw to a renderable error', async () => {
+		const { calls, manager } = makeManager({
+			authService: { rememberServerUrl: () => Promise.reject(new TypeError('store gone')) },
+		});
+
+		await expect(manager.login('https://server')).rejects.toBeDefined();
+
+		const surfaced = calls.applyState.find((s) => s.authErrorMessage != null)?.authErrorMessage;
+		expect(surfaced?.err).toBe(AuthErrors.CONNECTION_ERROR.err);
+		expect(surfaced?.msg()).toBe('connection error: store gone');
+	});
+
 	it('login keeps the session online and never runs a follow-up check that could drop it', async () => {
 		// even if a background /Users/Me check would fail, login must stay online: the auth exchange
 		// and probeInitialAlbums already validated the token, and a fresh install has no downloads to

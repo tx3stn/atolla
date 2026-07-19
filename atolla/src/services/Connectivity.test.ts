@@ -17,6 +17,8 @@ function makeSession(): AuthSession {
 }
 
 interface Calls {
+	cancelLogin: number;
+	login: Array<string>;
 	onOnline: number;
 	onUserChanged: Array<string>;
 }
@@ -25,25 +27,35 @@ function flush(): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function makeConnectivity(over?: { hasStoredMode?: boolean; mode?: ConnectionMode }): {
+function makeConnectivity(over?: {
+	hasStoredMode?: boolean;
+	mode?: ConnectionMode;
+	setMode?: () => Promise<void>;
+}): {
 	calls: Calls;
 	connectivity: Connectivity;
 	state: Array<Partial<ConnectivityRenderState>>;
 } {
 	const state: Array<Partial<ConnectivityRenderState>> = [];
-	const calls: Calls = { onOnline: 0, onUserChanged: [] };
+	const calls: Calls = { cancelLogin: 0, login: [], onOnline: 0, onUserChanged: [] };
 
 	const preferences = {
 		hasStoredMode: over?.hasStoredMode ?? true,
 		mode: over?.mode ?? ConnectionModes.offline,
-		setMode: () => Promise.resolve(),
+		setMode: over?.setMode ?? (() => Promise.resolve()),
 	} as unknown as Preferences;
 
 	const sessionManager = {
+		cancelLogin: () => {
+			calls.cancelLogin += 1;
+		},
 		getEffectiveDeviceId: () => 'atolla-default',
 		getHttpClient: () => ({}) as unknown as IHTTPClient,
 		getSession: () => null,
-		login: () => Promise.resolve(makeSession()),
+		login: (serverUrl: string) => {
+			calls.login.push(serverUrl);
+			return Promise.resolve(makeSession());
+		},
 		setMockMode: () => {},
 	} as unknown as SessionManager;
 
@@ -142,5 +154,47 @@ describe('Connectivity.bootstrap auth-required decision', () => {
 		expect(calls.onOnline).toBe(1);
 		// the user scope must be activated before the reconnect sync runs
 		expect(calls.onUserChanged).toEqual(['shared', 'user-1']);
+	});
+});
+
+describe('Connectivity.cancelConnect', () => {
+	it('abandons the in-flight login', () => {
+		const { calls, connectivity } = makeConnectivity();
+		connectivity.bootstrap(null);
+
+		connectivity.connect('https://server');
+		connectivity.cancelConnect();
+
+		expect(calls.cancelLogin).toBe(1);
+	});
+
+	// connect() awaits setMode before it ever reaches login(), so a cancel landing in that window
+	// has no login to stop yet — without the attempt token it would be silently discarded and the
+	// login would start anyway, moments after the user asked it not to
+	it('stops a login that has not started yet when canceled during the setMode await', async () => {
+		let releaseSetMode: () => void = () => {};
+		const { calls, connectivity } = makeConnectivity({
+			setMode: () => new Promise<void>((resolve) => (releaseSetMode = resolve)),
+		});
+		connectivity.bootstrap(null);
+
+		connectivity.connect('https://server');
+		connectivity.cancelConnect();
+		releaseSetMode();
+		await flush();
+
+		expect(calls.login).toEqual([]);
+	});
+
+	it('still connects on a fresh attempt after a cancel', async () => {
+		const { calls, connectivity } = makeConnectivity();
+		connectivity.bootstrap(null);
+
+		connectivity.connect('https://first');
+		connectivity.cancelConnect();
+		connectivity.connect('https://second');
+		await flush();
+
+		expect(calls.login).toEqual(['https://second']);
 	});
 });

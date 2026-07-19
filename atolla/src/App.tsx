@@ -348,6 +348,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 					errorMessage={this.state.authErrorMessage}
 					isConnecting={this.state.isAuthenticating}
 					modalSlot={this.modalSlot}
+					onCancelConnect={() => this.connectivity.cancelConnect()}
 					onConnect={(serverUrl) => this.connectivity.connect(serverUrl)}
 					onLanguageChange={(code) => this.handleLanguageChange(code)}
 					quickConnectCode={this.state.quickConnectCode}

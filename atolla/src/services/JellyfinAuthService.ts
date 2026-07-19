@@ -1,11 +1,20 @@
+import { type CancelablePromise, PromiseCanceler } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
+import { tracked } from '../transports/Cancelable';
+import { toErrorConst } from '../utils/Errors';
 import { version } from '../version';
 import { AuthErrors } from './AuthErrors';
 import { getLogger } from './Logger';
 
 const log = getLogger('auth');
+
+// valdi's HTTPRequest carries no timeout and neither native client sets one: iOS inherits
+// NSURLSession's 60s default, android's HttpURLConnection is left unbounded. this is the only
+// deadline a request actually gets, so it has to be short enough that a wrong url reports back
+// while the user is still looking at the screen.
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 
 interface QuickConnectResult {
 	Authenticated?: boolean;
@@ -59,12 +68,23 @@ interface JellyfinAuthServiceOptions {
 	isMockMode?: boolean;
 	mockApprovalDelayMs?: number;
 	now?: NowFn;
+	requestTimeoutMs?: number;
 	sleep?: SleepFn;
 	store: JellyfinAuthStoreLike;
+	timer?: TimerFn;
 }
 
 type SleepFn = (ms: number) => Promise<void>;
 type NowFn = () => number;
+// returns its own clear function. sleep can't serve here: a request deadline has to be cancelable
+// or a 60s approval wait would leave a live timer behind for every poll it outlived.
+type TimerFn = (callback: () => void, ms: number) => () => void;
+
+function defaultTimer(callback: () => void, ms: number): () => void {
+	const id = setTimeout(callback, ms);
+
+	return () => clearTimeout(id);
+}
 
 function createClientHeaderWithDeviceId(clientDeviceId: string): string {
 	return `MediaBrowser Client="atolla", Device="${clientDeviceId}", DeviceId="${clientDeviceId}", Version="${version}"`;
@@ -99,8 +119,10 @@ export class JellyfinAuthService {
 	private client: IHTTPClient;
 	private readonly store: JellyfinAuthStoreLike;
 	private readonly mockApprovalDelayMs: number;
+	private readonly requestTimeoutMs: number;
 	private readonly sleep: SleepFn;
 	private readonly now: NowFn;
+	private readonly timer: TimerFn;
 	private isMockMode: boolean;
 	private clientDeviceId: string;
 
@@ -110,8 +132,10 @@ export class JellyfinAuthService {
 		this.isMockMode = options.isMockMode ?? false;
 		this.clientDeviceId = normalizeClientDeviceId(options.clientDeviceId);
 		this.mockApprovalDelayMs = options.mockApprovalDelayMs ?? 3_000;
+		this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
 		this.sleep = options.sleep ?? defaultSleep;
 		this.now = options.now ?? (() => Date.now());
+		this.timer = options.timer ?? defaultTimer;
 	}
 
 	setMockMode(enabled: boolean): void {
@@ -164,27 +188,32 @@ export class JellyfinAuthService {
 			};
 		}
 
-		let enabledResponse: HTTPResponse;
-		try {
-			enabledResponse = await this.client.get('/QuickConnect/Enabled', this.createHeaders());
-		} catch (error) {
-			throw this.connectionError(error, 'startQuickConnect enabled check failed');
+		const enabledResponse = await this.send(
+			() => this.client.get('/QuickConnect/Enabled', this.createHeaders()),
+			'startQuickConnect enabled check',
+		);
+
+		// a host that answers but isn't jellyfin (a router page, a reverse proxy, a stray 404) is the
+		// likeliest outcome of a typo'd url, and it must not be reported as "quick connect not
+		// available" — that sends the user to the jellyfin dashboard to fix the wrong thing. only a
+		// real jellyfin saying enabled:false earns that message.
+		if (!this.isSuccessStatus(enabledResponse.statusCode)) {
+			throw AuthErrors.NOT_A_JELLYFIN_SERVER;
 		}
 
-		if (
-			!this.isSuccessStatus(enabledResponse.statusCode) ||
-			this.parseJSON<boolean>(enabledResponse) !== true
-		) {
+		const enabled = this.tryParseJSON<unknown>(enabledResponse);
+		if (typeof enabled !== 'boolean') {
+			throw AuthErrors.NOT_A_JELLYFIN_SERVER;
+		}
+
+		if (!enabled) {
 			throw AuthErrors.QUICK_CONNECT_NOT_AVAILABLE;
 		}
 
-		let response: HTTPResponse;
-
-		try {
-			response = await this.client.post('/QuickConnect/Initiate', undefined, this.createHeaders());
-		} catch (error) {
-			throw this.connectionError(error, 'startQuickConnect request failed');
-		}
+		const response = await this.send(
+			() => this.client.post('/QuickConnect/Initiate', undefined, this.createHeaders()),
+			'startQuickConnect initiate',
+		);
 
 		if (response.statusCode === 401) {
 			throw AuthErrors.QUICK_CONNECT_NOT_AVAILABLE;
@@ -211,11 +240,16 @@ export class JellyfinAuthService {
 		};
 	}
 
+	// cancelation returns rather than throws, so it is indistinguishable from approval here. the
+	// caller owns the difference and must re-check its own cancel state after awaiting this.
 	async waitForQuickConnectApproval(
 		secret: string,
 		timeoutMs = 60_000,
 		pollIntervalMs = 2_000,
+		options?: { isCancelled?: () => boolean },
 	): Promise<void> {
+		const isCancelled = () => options?.isCancelled?.() === true;
+
 		if (this.isMockMode) {
 			const delayMs = Math.max(0, this.mockApprovalDelayMs);
 			if (timeoutMs < delayMs) {
@@ -230,14 +264,21 @@ export class JellyfinAuthService {
 		const start = this.now();
 
 		while (this.now() - start < timeoutMs) {
-			let response: HTTPResponse;
-			try {
-				response = await this.client.get(
-					`/QuickConnect/Connect?secret=${encodeURIComponent(secret)}`,
-					this.createHeaders(),
-				);
-			} catch (error) {
-				throw this.connectionError(error, 'waitForQuickConnectApproval request failed');
+			if (isCancelled()) {
+				return;
+			}
+
+			const response = await this.send(
+				() =>
+					this.client.get(
+						`/QuickConnect/Connect?secret=${encodeURIComponent(secret)}`,
+						this.createHeaders(),
+					),
+				'waitForQuickConnectApproval poll',
+			);
+
+			if (isCancelled()) {
+				return;
 			}
 
 			if (!this.isSuccessStatus(response.statusCode)) {
@@ -252,6 +293,8 @@ export class JellyfinAuthService {
 				return;
 			}
 
+			// sleep isn't interruptible, so cancel latency is bounded by one interval: the check at the
+			// top of the loop is what stops a canceled attempt polling the old server for the full budget.
 			await this.sleep(pollIntervalMs);
 		}
 
@@ -271,16 +314,15 @@ export class JellyfinAuthService {
 			};
 		}
 
-		let response: HTTPResponse;
-		try {
-			response = await this.client.post(
-				'/Users/AuthenticateWithQuickConnect',
-				new TextEncoder().encode(JSON.stringify({ Secret: secret })),
-				this.createHeaders(),
-			);
-		} catch (error) {
-			throw this.connectionError(error, 'authenticateWithQuickConnect request failed');
-		}
+		const response = await this.send(
+			() =>
+				this.client.post(
+					'/Users/AuthenticateWithQuickConnect',
+					new TextEncoder().encode(JSON.stringify({ Secret: secret })),
+					this.createHeaders(),
+				),
+			'authenticateWithQuickConnect',
+		);
 
 		if (!this.isSuccessStatus(response.statusCode)) {
 			throw this.connectionError(
@@ -314,7 +356,10 @@ export class JellyfinAuthService {
 		}
 
 		try {
-			const response = await this.client.get('/System/Info/Public', this.createHeaders());
+			const response = await this.send(
+				() => this.client.get('/System/Info/Public', this.createHeaders()),
+				'fetchServerDetails',
+			);
 			if (!this.isSuccessStatus(response.statusCode)) {
 				return {};
 			}
@@ -334,7 +379,10 @@ export class JellyfinAuthService {
 		}
 
 		try {
-			const response = await this.client.get('/Users/Me', this.createHeaders(session.accessToken));
+			const response = await this.send(
+				() => this.client.get('/Users/Me', this.createHeaders(session.accessToken)),
+				'validateSession',
+			);
 			return this.isSuccessStatus(response.statusCode);
 		} catch {
 			return false;
@@ -352,9 +400,13 @@ export class JellyfinAuthService {
 
 		let response: HTTPResponse;
 		try {
-			response = await this.client.get(
-				`/Users/${encodeURIComponent(session.userId)}/Items?IncludeItemTypes=MusicAlbum&Recursive=true&Limit=1`,
-				this.createHeaders(session.accessToken),
+			response = await this.send(
+				() =>
+					this.client.get(
+						`/Users/${encodeURIComponent(session.userId)}/Items?IncludeItemTypes=MusicAlbum&Recursive=true&Limit=1`,
+						this.createHeaders(session.accessToken),
+					),
+				'probeInitialAlbums',
 			);
 		} catch {
 			throw AuthErrors.FAILED_TO_FETCH_DATA;
@@ -362,6 +414,20 @@ export class JellyfinAuthService {
 
 		if (!this.isSuccessStatus(response.statusCode)) {
 			throw AuthErrors.FAILED_TO_FETCH_DATA;
+		}
+	}
+
+	// parseJSON throws CONNECTION_ERROR on a body it can't decode, which is exactly the case the
+	// enabled-check ladder needs to classify as NOT_A_JELLYFIN_SERVER, so that path parses leniently.
+	private tryParseJSON<T>(response: HTTPResponse): T | undefined {
+		if (!response.body) {
+			return undefined;
+		}
+
+		try {
+			return JSON.parse(new TextDecoder().decode(response.body)) as T;
+		} catch {
+			return undefined;
 		}
 	}
 
@@ -382,6 +448,53 @@ export class JellyfinAuthService {
 		const detail = typeof cause === 'string' ? cause : cause instanceof Error ? cause.message : '';
 		log.error('connection error', { context, detail });
 		return detail ? AuthErrors.CONNECTION_ERROR.withDetail(detail) : AuthErrors.CONNECTION_ERROR;
+	}
+
+	// every request goes through here so none can outlive the deadline. a rejection and a timeout
+	// both surface as SERVER_UNREACHABLE: from the connect screen they are the same fact, and the
+	// native cause is dns/socket jargon that belongs in a log rather than under the url field.
+	private send(
+		perform: () => CancelablePromise<HTTPResponse>,
+		context: string,
+		timeoutMs = this.requestTimeoutMs,
+	): Promise<HTTPResponse> {
+		const request = perform();
+		const canceler = new PromiseCanceler();
+		tracked(canceler, request);
+
+		return new Promise<HTTPResponse>((resolve, reject) => {
+			let settled = false;
+			const finish = (): boolean => {
+				if (settled) return false;
+				settled = true;
+
+				return true;
+			};
+
+			const clearDeadline = this.timer(() => {
+				if (!finish()) return;
+				canceler.cancel();
+				log.error('request timed out', { context, timeoutMs });
+				reject(AuthErrors.SERVER_UNREACHABLE);
+			}, timeoutMs);
+
+			request.then(
+				(response) => {
+					if (!finish()) return;
+					clearDeadline();
+					resolve(response);
+				},
+				(error: unknown) => {
+					if (!finish()) return;
+					clearDeadline();
+					log.error('request failed', {
+						context,
+						detail: toErrorConst(error, AuthErrors.SERVER_UNREACHABLE).detail,
+					});
+					reject(AuthErrors.SERVER_UNREACHABLE);
+				},
+			);
+		});
 	}
 
 	private isSuccessStatus(statusCode: number): boolean {

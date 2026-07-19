@@ -32,6 +32,9 @@ export interface ConnectivityDeps {
 // always derived from (mode, current session). coordinates auth via SessionManager but never
 // implements it; it reacts to session changes by rebuilding the transport.
 export class Connectivity {
+	// claimed synchronously by connect() and bumped by cancelConnect(), so a cancel arriving while
+	// connect() is still awaiting setMode — before there is any login to stop — is not discarded
+	private connectAttempt = 0;
 	private mode: ConnectionMode = ConnectionModes.offline;
 	private transport!: Transport;
 
@@ -55,14 +58,26 @@ export class Connectivity {
 		this.deps.onUserChanged(session != null ? session.userId : 'shared');
 	}
 
+	// abandons any connect attempt, whether or not it has reached the login yet. the mode is left
+	// online: we stay on the connect screen with isAuthRequired already true, and reverting it would
+	// reintroduce the fresh-install bug handleSessionChanged guards against.
+	cancelConnect(): void {
+		this.connectAttempt += 1;
+		this.deps.sessionManager.cancelLogin();
+	}
+
 	connect(serverUrl: string): void {
 		if (serverUrl.trim().toLowerCase() === 'mock') {
 			void this.setMode(ConnectionModes.mock);
 			return;
 		}
+		const attempt = ++this.connectAttempt;
 		void (async () => {
 			this.mode = ConnectionModes.online;
 			await this.deps.preferences.setMode(ConnectionModes.online);
+			if (attempt !== this.connectAttempt) {
+				return;
+			}
 			try {
 				// login emits onSessionChanged → handleSessionChanged rebuilds the live transport
 				const session = await this.deps.sessionManager.login(serverUrl);
