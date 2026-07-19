@@ -332,6 +332,61 @@ describe('NativeAudioPlayer', () => {
 			expect(player.hasReportedProgressForSource).toBe(true);
 		});
 
+		// the poll keeps running at 5Hz while paused, and a paused engine reports the same position
+		// every tick. each write notifies the store, which renders and re-checks the native player,
+		// so a track left paused churns indefinitely for a value nobody changed
+		valdiIt('stops writing to the store while paused', async (driver) => {
+			const store = mockPlaybackStore({
+				isPlaying: false,
+				progressSeconds: 50,
+				track: mockTrack({ duration: 180 }),
+			});
+			const component = mountPlayer(driver, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(component);
+			player.lastConfiguredTrackId = 'track-1';
+			const pollAt = (positionMs: number) =>
+				(player.applyNativePosition as (positionMs: number) => void).call(player, positionMs);
+			const updateProgress = (store as unknown as PlayerInternal).updateProgress as jasmine.Spy;
+
+			pollAt(50000);
+			updateProgress.calls.reset();
+
+			pollAt(50000);
+			pollAt(50000);
+			pollAt(50000);
+
+			expect(updateProgress).not.toHaveBeenCalled();
+		});
+
+		valdiIt('writes again once playback moves the position on', async (driver) => {
+			const store = mockPlaybackStore({
+				progressSeconds: 50,
+				track: mockTrack({ duration: 180 }),
+			});
+			const component = mountPlayer(driver, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(component);
+			player.lastConfiguredTrackId = 'track-1';
+			const pollAt = (positionMs: number) =>
+				(player.applyNativePosition as (positionMs: number) => void).call(player, positionMs);
+			const updateProgress = (store as unknown as PlayerInternal).updateProgress as jasmine.Spy;
+
+			pollAt(50000);
+			pollAt(50000);
+			updateProgress.calls.reset();
+
+			pollAt(50200);
+
+			expect(updateProgress).toHaveBeenCalledWith(50.2);
+		});
+
 		valdiIt('does not write while the native player is on a different track', async (driver) => {
 			const store = mockPlaybackStore({
 				progressSeconds: 0,

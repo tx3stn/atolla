@@ -1299,6 +1299,88 @@ describe('NowPlayingSurface', () => {
 		expect(calls).toBe(1);
 	});
 
+	// both the compact and expanded time labels are written on every 5Hz progress tick, but only
+	// one pair is ever on screen
+	valdiIt('writes only the visible time labels while collapsed', async () => {
+		const playbackStore = mockPlaybackStore({
+			progressSeconds: 90,
+			track: { duration: 240 },
+		}) as unknown as { progressSeconds: number };
+
+		const instrumented = mountNowPlaying({
+			album,
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore,
+			track,
+			trackIndex: 0,
+			tracks: [track],
+		});
+		const component = instrumented.getComponent();
+
+		playbackStore.progressSeconds = 120;
+		(component as unknown as { updateProgressRefs(): void }).updateProgressRefs();
+
+		const labelValues = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Label,
+		).map((label) => label.getAttribute('value'));
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const fillWidth = views
+			.find(
+				(view) => view.getAttribute('accessibilityLabel') === 'now-playing-compact-progress-fill',
+			)
+			?.getAttribute('width');
+
+		expect(fillWidth).toBe('50%');
+		expect(labelValues).toContain('2:00 / 4:00');
+		expect(labelValues).not.toContain('2:00');
+		expect(labelValues).not.toContain('-2:00');
+	});
+
+	// the surface stays mounted while collapsed, parked off-screen at top 2000. rendering the
+	// queue there costs up to 60 rows on every playback tick for something nobody can see
+	valdiIt('does not render queue rows while collapsed', async () => {
+		const tracks = createQueueTracks(60);
+
+		const instrumented = mountNowPlaying({
+			album,
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			onDismiss: () => {},
+			onLoopModeToggle: () => {},
+			onNext: () => {},
+			onPlayPause: () => {},
+			onPrevious: () => {},
+			playbackStore: mockPlaybackStore(),
+			track: tracks[30],
+			trackIndex: 30,
+			tracks,
+		});
+		const component = instrumented.getComponent();
+
+		expect(getQueuePageRows(component, 'now-playing-queue-page-back-to')).toEqual([]);
+		expect(getQueuePageRows(component, 'now-playing-queue-page-up-next')).toEqual([]);
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		views
+			.find((view) => view.getAttribute('id') === 'now-playing-surface-bar')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(getQueuePageRows(component, 'now-playing-queue-page-up-next').length).toBeGreaterThan(0);
+	});
+
 	valdiIt('renders both queue pages simultaneously without requiring a tab switch', async () => {
 		const tracks = [
 			{ ...track, id: 'track-1', name: 'Track One' },

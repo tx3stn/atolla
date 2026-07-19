@@ -79,6 +79,10 @@ describe('NowPlayingSurface render identity', () => {
 			undefined,
 		);
 
+		// the queue only renders while the surface is expanded, so a collapsed surface would
+		// measure a subtree that is not there
+		instrumented.getComponent().setState({ isExpanded: true });
+
 		const stats = attachRenderStats(instrumented.getComponent());
 		instrumented.setViewModel(makeViewModel(true));
 

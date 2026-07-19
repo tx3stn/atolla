@@ -83,6 +83,8 @@ interface QueueEntries {
 	upNextEntries: Array<TrackListEntry>;
 }
 
+const emptyQueueEntries: QueueEntries = { backToEntries: [], upNextEntries: [] };
+
 interface NowPlayingSurfaceState {
 	activeQueueTab: QueueTab;
 	isExpanded: boolean;
@@ -382,16 +384,24 @@ export class NowPlayingSurface extends StatefulComponent<
 		const duration = playbackStore.track.duration;
 		const ratio = duration > 0 ? Math.min(progressSeconds / duration, 1) : 0;
 		const percent = Math.round(ratio * 100);
-		this.compactFillRef.setAttribute('width', `${percent}%`);
-		this.compactTimeLabelRef.setAttribute(
-			'value',
-			`${formatDuration(progressSeconds)} / ${formatDuration(duration)}`,
-		);
-		this.expandedElapsedRef.setAttribute('value', formatDuration(progressSeconds));
-		this.expandedRemainingRef.setAttribute(
-			'value',
-			`-${formatDuration(Math.max(0, duration - progressSeconds))}`,
-		);
+		// only write the pair that is on screen. a transition counts as both: the compact bar is
+		// still being revealed while isExpanded is true through the whole close animation, so
+		// skipping it there would snap a stale time into view as the surface slides away
+		const isSettled = !this.isTransitioning;
+		if (!this.state.isExpanded || !isSettled) {
+			this.compactFillRef.setAttribute('width', `${percent}%`);
+			this.compactTimeLabelRef.setAttribute(
+				'value',
+				`${formatDuration(progressSeconds)} / ${formatDuration(duration)}`,
+			);
+		}
+		if (this.state.isExpanded || !isSettled) {
+			this.expandedElapsedRef.setAttribute('value', formatDuration(progressSeconds));
+			this.expandedRemainingRef.setAttribute(
+				'value',
+				`-${formatDuration(Math.max(0, duration - progressSeconds))}`,
+			);
+		}
 	}
 
 	private closeSurface = (): Promise<void> => {
@@ -791,11 +801,10 @@ export class NowPlayingSurface extends StatefulComponent<
 		const playbackStore = this.viewModel.playbackStore;
 		const progressSeconds = playbackStore?.progressSeconds ?? 0;
 
-		const { backToEntries, upNextEntries } = this.getQueueEntries(
-			tracks,
-			trackIndex,
-			album?.imageUrl ?? null,
-		);
+		const { isExpanded } = this.state;
+		const { backToEntries, upNextEntries } = isExpanded
+			? this.getQueueEntries(tracks, trackIndex, album?.imageUrl ?? null)
+			: emptyQueueEntries;
 		const canEditQueue = Boolean(this.viewModel.playbackStore);
 		const albumImageUrl = track.albumImageUrl ?? album?.imageUrl ?? null;
 		const albumArtworkSource =
@@ -1089,51 +1098,55 @@ export class NowPlayingSurface extends StatefulComponent<
 							<layout accessibilityLabel='now-playing-queue-list' style={styles.expandedQueueList}>
 								{/* Strip holds both pages side-by-side; sliding it reveals one at a time */}
 								<layout ref={this.queueSlideRef} style={styles.queueListStrip}>
-									<view
-										accessibilityId='now-playing-queue-page-back-to'
-										accessibilityLabel='now-playing-queue-page-back-to'
-										onLayout={this.handleQueuePageLayout}
-										style={styles.queueListPage}
-									>
-										<TrackList
-											animationsEnabled={this.viewModel.animationsEnabled}
-											dragScroller={this.dragAutoScroller}
-											noRowBackground
-											onTrackLongPress={this.handleTrackLongPress}
-											onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}
-											onTrackSwipeRemove={
-												canEditQueue ? this.handleQueueTrackSwipeRemove : undefined
-											}
-											onTrackTap={this.handleTrackTap}
-											palette={palette}
-											rowIdentityPrefix='back-to-'
-											showDragHandles
-											tapPulseColor={accentColor}
-											tracks={backToEntries}
-										/>
-									</view>
-									<view
-										accessibilityId='now-playing-queue-page-up-next'
-										accessibilityLabel='now-playing-queue-page-up-next'
-										style={styles.queueListPage}
-									>
-										<TrackList
-											animationsEnabled={this.viewModel.animationsEnabled}
-											dragScroller={this.dragAutoScroller}
-											noRowBackground
-											onTrackLongPress={this.handleTrackLongPress}
-											onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}
-											onTrackSwipeRemove={
-												canEditQueue ? this.handleQueueTrackSwipeRemove : undefined
-											}
-											onTrackTap={this.handleTrackTap}
-											palette={palette}
-											rowIdentityPrefix='up-next-'
-											showDragHandles
-											tapPulseColor={accentColor}
-											tracks={upNextEntries}
-										/>
-									</view>
+									{isExpanded && (
+										<view
+											accessibilityId='now-playing-queue-page-back-to'
+											accessibilityLabel='now-playing-queue-page-back-to'
+											onLayout={this.handleQueuePageLayout}
+											style={styles.queueListPage}
+										>
+											<TrackList
+												animationsEnabled={this.viewModel.animationsEnabled}
+												dragScroller={this.dragAutoScroller}
+												noRowBackground
+												onTrackLongPress={this.handleTrackLongPress}
+												onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}
+												onTrackSwipeRemove={
+													canEditQueue ? this.handleQueueTrackSwipeRemove : undefined
+												}
+												onTrackTap={this.handleTrackTap}
+												palette={palette}
+												rowIdentityPrefix='back-to-'
+												showDragHandles
+												tapPulseColor={accentColor}
+												tracks={backToEntries}
+											/>
+										</view>
+									)}
+									{isExpanded && (
+										<view
+											accessibilityId='now-playing-queue-page-up-next'
+											accessibilityLabel='now-playing-queue-page-up-next'
+											style={styles.queueListPage}
+										>
+											<TrackList
+												animationsEnabled={this.viewModel.animationsEnabled}
+												dragScroller={this.dragAutoScroller}
+												noRowBackground
+												onTrackLongPress={this.handleTrackLongPress}
+												onTrackReorder={canEditQueue ? this.handleQueueTrackReorder : undefined}
+												onTrackSwipeRemove={
+													canEditQueue ? this.handleQueueTrackSwipeRemove : undefined
+												}
+												onTrackTap={this.handleTrackTap}
+												palette={palette}
+												rowIdentityPrefix='up-next-'
+												showDragHandles
+												tapPulseColor={accentColor}
+												tracks={upNextEntries}
+											/>
+										</view>
+									)}
 								</layout>
 							</layout>
 						</scroll>

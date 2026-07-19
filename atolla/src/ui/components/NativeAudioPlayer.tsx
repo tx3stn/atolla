@@ -491,6 +491,12 @@ export class NativeAudioPlayer extends StatefulComponent<
 			trackDurationSeconds > 0
 				? Math.min(positionSeconds, Math.max(0, trackDurationSeconds - 0.05))
 				: positionSeconds;
+		// a paused or stalled engine reports the same position on every 200ms tick. writing it
+		// notifies the store, which renders and re-checks the native player, so a track left
+		// paused churns indefinitely for a value that has not moved
+		if (safePositionSeconds === this.lastNativePositionSeconds) {
+			return;
+		}
 		this.lastNativePositionSeconds = safePositionSeconds;
 		// once the track has played a cushion forward from where it started (a fresh 0 or a
 		// resumed offset), it's safe to release the deferred downloads: the stream has had time

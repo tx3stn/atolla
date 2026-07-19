@@ -121,6 +121,7 @@ describe('derived-array cache invalidation', () => {
 			nowPlayingViewModel(0),
 			undefined,
 		);
+		instrumented.getComponent().setState({ isExpanded: true });
 		const before = labelValues(instrumented.getComponent());
 		expect(before).toContain('Track 1');
 
