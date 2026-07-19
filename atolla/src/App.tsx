@@ -295,13 +295,15 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			serverUrl: () => this.state.serverUrlPrefill,
 		});
 		this.registerDisposable(this.preferences.subscribe(() => this.requestRerender()));
-		this.downloadService.subscribe(() => {
-			this.setState({
-				downloadedSizeBytes: this.downloadService.getTotalDownloadedSizeBytes(),
-				downloadedTrackCount: this.downloadService.getDownloadedTrackCount(),
-				downloadingCount: this.downloadService.getDownloadingCount(),
-			});
-		});
+		this.registerDisposable(
+			this.downloadService.subscribe(() => {
+				this.setState({
+					downloadedSizeBytes: this.downloadService.getTotalDownloadedSizeBytes(),
+					downloadedTrackCount: this.downloadService.getDownloadedTrackCount(),
+					downloadingCount: this.downloadService.getDownloadingCount(),
+				});
+			}),
+		);
 		this.downloadService.onAppReady();
 		// resume parked downloads the moment the radio comes back, not just on relaunch
 		this.registerDisposable(
