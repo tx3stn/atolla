@@ -3,6 +3,7 @@ import type { Track } from '../models/Track';
 import type { PlaybackStore } from '../stores/Playback';
 import { RecentlyPlayedStore } from '../stores/RecentlyPlayed';
 import {
+	type DownloadedTrackSource,
 	PlaybackOrchestrator,
 	type PlaybackUserServices,
 	WAVEFORM_PREGEN_WINDOW,
@@ -1366,6 +1367,106 @@ describe('PlaybackOrchestrator upcoming palettes', () => {
 	});
 });
 
+describe('PlaybackOrchestrator downloaded track source precedence', () => {
+	function downloadedStore(
+		tracks: Array<Track>,
+		trackIndex = 0,
+	): {
+		album: null;
+		isPlaying: boolean;
+		loopMode: string;
+		track: Track | null;
+		trackIndex: number;
+		tracks: Array<Track>;
+	} {
+		return {
+			album: null,
+			isPlaying: true,
+			loopMode: 'none',
+			track: tracks[trackIndex] ?? null,
+			trackIndex,
+			tracks,
+		};
+	}
+
+	it('plays a downloaded track from disk instead of streaming while online', () => {
+		const orchestrator = createOrchestrator(
+			downloadedStore([makeTrack('a')]),
+			() => {},
+			fakeNotification(),
+			{
+				downloads: fakeDownloads({ a: '/downloads/a.mp3' }),
+				getTrackCacheUrl: (id) => `https://${id}`,
+				isOfflinePlaybackMode: () => false,
+			},
+		);
+
+		orchestrator.handleTrackPlaybackSourceChange();
+
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('/downloads/a.mp3');
+		orchestrator.dispose();
+	});
+
+	it('prefers the downloaded file over the transient native cache', () => {
+		const trackSourceNative = fakeTrackSourceNative({
+			getCachedTrackFileUrl: (id) => (id === 'a' ? '/cache/a' : ''),
+		});
+		const orchestrator = createOrchestrator(
+			downloadedStore([makeTrack('a')]),
+			() => {},
+			fakeNotification(),
+			{
+				downloads: fakeDownloads({ a: '/downloads/a.mp3' }),
+				getTrackCacheUrl: (id) => `https://${id}`,
+				trackSourceNative,
+			},
+		);
+
+		orchestrator.handleTrackPlaybackSourceChange();
+
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('/downloads/a.mp3');
+		orchestrator.dispose();
+	});
+
+	it('resolves the upcoming source to the downloaded file for a downloaded next track', () => {
+		const trackSourceNative = fakeTrackSourceNative({ getCachedTrackFileUrl: () => '' });
+		const orchestrator = createOrchestrator(
+			downloadedStore([makeTrack('a'), makeTrack('b')]),
+			() => {},
+			fakeNotification(),
+			{
+				downloads: fakeDownloads({ b: '/downloads/b.mp3' }),
+				getTrackCacheUrl: (id) => `https://${id}`,
+				trackSourceNative,
+			},
+		);
+
+		orchestrator.handleTrackPlaybackSourceChange();
+
+		expect(orchestrator.getNextTrackSourceUrl()).toBe('/downloads/b.mp3');
+		orchestrator.dispose();
+	});
+
+	it('still streams a track that is not downloaded', () => {
+		const trackSourceNative = fakeTrackSourceNative({ getCachedTrackFileUrl: () => '' });
+		const orchestrator = createOrchestrator(
+			downloadedStore([makeTrack('a')]),
+			() => {},
+			fakeNotification(),
+			{
+				downloads: fakeDownloads(),
+				getTrackCacheUrl: (id) => `https://${id}`,
+				trackSourceNative,
+			},
+		);
+
+		orchestrator.handleTrackPlaybackSourceChange();
+
+		expect(orchestrator.getTrackPlaybackSourceUrl()).toBe('https://a');
+		orchestrator.dispose();
+	});
+});
+
 function makeTrack(id: string): Track {
 	return { duration: 100, id, name: `Track ${id}` } as Track;
 }
@@ -1444,6 +1545,7 @@ function createOrchestrator(
 	notification: TrackPlaybackNotificationNative = fakeNotification(),
 	opts: {
 		cacheAlbumArt?: (imageUrl: string) => Promise<void>;
+		downloads?: DownloadedTrackSource;
 		getAccessToken?: () => string;
 		getAudioFileUrl?: (trackId: string) => string | null;
 		getTrackCacheUrl?: (trackId: string) => string | null;
@@ -1460,6 +1562,7 @@ function createOrchestrator(
 ): PlaybackOrchestrator {
 	return new PlaybackOrchestrator({
 		cacheAlbumArt: opts.cacheAlbumArt ?? (() => Promise.resolve()),
+		downloads: opts.downloads ?? fakeDownloads(),
 		getAccessToken: opts.getAccessToken ?? (() => ''),
 		getAudioFileUrl: opts.getAudioFileUrl ?? (() => null),
 		getTrackCacheUrl: opts.getTrackCacheUrl ?? (() => null),
@@ -1476,6 +1579,13 @@ function createOrchestrator(
 		showPlaybackToast: opts.showPlaybackToast ?? (() => {}),
 		trackSourceNative: opts.trackSourceNative ?? fakeTrackSourceNative(),
 	});
+}
+
+function fakeDownloads(downloadedFiles: Record<string, string> = {}): DownloadedTrackSource {
+	return {
+		getTrackPlaybackUrl: (id) => downloadedFiles[id] ?? '',
+		isTrackDownloaded: (id) => downloadedFiles[id] != null,
+	};
 }
 
 function fakeTrackSourceNative(

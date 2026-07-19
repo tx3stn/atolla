@@ -120,8 +120,25 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		new PersistentStore('atolla/playlist_edits', { deviceGlobal: true }),
 	);
 	private playbackStore = new PlaybackStore();
+	private downloadService = new DownloadService({
+		cacheImage: (url, category) => this.assetCache.cacheImageAsset(url, category),
+		cacheTrack: (trackId, url) =>
+			this.downloadWorkerClient.api.cacheDownloadedTrack(
+				trackId,
+				url,
+				this.sessionManager.getAccessToken(),
+			),
+		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
+		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
+		isOnline: () => this.networkStatus.isReachable(),
+		onTrackDownloaded: (trackId) => this.playbackOrchestrator.handleTrackCached(trackId),
+		removeTrack: (trackId) => this.downloadWorkerClient.api.removeDownloadedTrack(trackId),
+		removeTracks: (trackIds) => this.downloadWorkerClient.api.removeDownloadedTracks(trackIds),
+		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
+	});
 	private playbackOrchestrator: PlaybackOrchestrator = new PlaybackOrchestrator({
 		cacheAlbumArt: (imageUrl) => this.assetCache.cacheImageAsset(imageUrl, 'album_art'),
+		downloads: this.downloadService,
 		getAccessToken: () => this.sessionManager.getAccessToken(),
 		getAudioFileUrl: (trackId) => this.assetCache.getAudioPathForWaveform(trackId),
 		getTrackCacheUrl: (trackId) => this.connectivity.getTransport().getTrackCacheUrl(trackId),
@@ -166,22 +183,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 				} catch {}
 			};
 		},
-	});
-	private downloadService = new DownloadService({
-		cacheImage: (url, category) => this.assetCache.cacheImageAsset(url, category),
-		cacheTrack: (trackId, url) =>
-			this.downloadWorkerClient.api.cacheDownloadedTrack(
-				trackId,
-				url,
-				this.sessionManager.getAccessToken(),
-			),
-		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
-		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
-		isOnline: () => this.networkStatus.isReachable(),
-		onTrackDownloaded: (trackId) => this.playbackOrchestrator.handleTrackCached(trackId),
-		removeTrack: (trackId) => this.downloadWorkerClient.api.removeDownloadedTrack(trackId),
-		removeTracks: (trackIds) => this.downloadWorkerClient.api.removeDownloadedTracks(trackIds),
-		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
 	});
 	private downloadSyncService = new DownloadSyncService({ downloadService: this.downloadService });
 	private assetCache = new AssetCache();

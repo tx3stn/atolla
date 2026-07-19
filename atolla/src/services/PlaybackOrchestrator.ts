@@ -24,6 +24,11 @@ const UPCOMING_PALETTE_CACHE_CONCURRENCY = 2;
 // tracks advance, and the generation queue abandons superseded jobs when the user skips
 export const WAVEFORM_PREGEN_WINDOW = 2;
 
+export interface DownloadedTrackSource {
+	getTrackPlaybackUrl(trackId: string): string;
+	isTrackDownloaded(trackId: string): boolean;
+}
+
 export interface NowPlayingPaletteService {
 	hasPalette(imageUrl: string | null | undefined): boolean;
 	warmUp(imageUrls: Array<string>): Promise<void>;
@@ -36,6 +41,7 @@ export interface NowPlayingPaletteQueue {
 
 export interface PlaybackOrchestratorDeps {
 	cacheAlbumArt: (imageUrl: string) => Promise<void>;
+	downloads: DownloadedTrackSource;
 	getAccessToken: () => string;
 	getAudioFileUrl: (trackId: string) => string | null;
 	getTrackCacheUrl: (trackId: string) => string | null;
@@ -74,6 +80,7 @@ export class PlaybackOrchestrator {
 	private readonly notification: TrackPlaybackNotificationNative;
 	private readonly getAudioFileUrl: (trackId: string) => string | null;
 	private readonly getAccessToken: () => string;
+	private readonly downloads: DownloadedTrackSource;
 	private readonly getTrackCacheUrl: (trackId: string) => string | null;
 	private readonly getTransportToken: () => unknown;
 	private readonly isOfflinePlaybackMode: () => boolean;
@@ -136,6 +143,7 @@ export class PlaybackOrchestrator {
 		this.notification = deps.notification;
 		this.getAudioFileUrl = deps.getAudioFileUrl;
 		this.getAccessToken = deps.getAccessToken;
+		this.downloads = deps.downloads;
 		this.getTrackCacheUrl = deps.getTrackCacheUrl;
 		this.getTransportToken = deps.getTransportToken;
 		this.isOfflinePlaybackMode = deps.isOfflinePlaybackMode;
@@ -150,7 +158,9 @@ export class PlaybackOrchestrator {
 		this.requestOverlayRerender = deps.requestOverlayRerender;
 		this.trackPrefetchQueue = new TrackPlaybackNativePrefetchQueue(
 			(track) => this.getTrackCacheUrl(track.id),
-			(trackId) => this.getNativeCachedTrackSource(trackId) != null,
+			(trackId) =>
+				this.getNativeCachedTrackSource(trackId) != null ||
+				this.getDownloadedTrackSource(trackId) != null,
 			(trackId, url, onComplete) => {
 				if (!this.isUrl(url)) {
 					// already a local file (downloaded/offline); nothing to fetch over HTTP
@@ -691,7 +701,26 @@ export class PlaybackOrchestrator {
 	}
 
 	private resolveTrackSource(trackId: string): string | null {
-		return this.getNativeCachedTrackSource(trackId) ?? this.getTrackStreamSource(trackId);
+		return (
+			this.getDownloadedTrackSource(trackId) ??
+			this.getNativeCachedTrackSource(trackId) ??
+			this.getTrackStreamSource(trackId)
+		);
+	}
+
+	private getDownloadedTrackSource(trackId: string): string | null {
+		if (!trackId) {
+			return null;
+		}
+		try {
+			if (!this.downloads.isTrackDownloaded(trackId)) {
+				return null;
+			}
+			const source = this.downloads.getTrackPlaybackUrl(trackId);
+			return source ? this.normalizePlaybackFileSource(source) : null;
+		} catch {
+			return null;
+		}
 	}
 
 	private getNativeCachedTrackSource(trackId: string): string | null {
@@ -757,43 +786,28 @@ export class PlaybackOrchestrator {
 		this.lastTrackSourceTrackId = activeTrack.id;
 		const requestId = this.playbackSourceRequestId + 1;
 		this.playbackSourceRequestId = requestId;
-		const nativeSource = this.getNativeCachedTrackSource(activeTrack.id);
-		if (nativeSource) {
-			let appliedNext = false;
-			if (this.getTrackPlaybackSourceUrl() !== nativeSource) {
-				this.applyPlaybackSources(nativeSource);
-				appliedNext = true;
-			}
-			this.enqueueWaveformIfNeeded(activeTrack.id, nativeSource);
-			return appliedNext;
-		}
-
-		const streamUrl = this.getTrackStreamSource(activeTrack.id);
+		const source = this.resolveTrackSource(activeTrack.id);
 		let appliedNext = false;
-		if (streamUrl && this.getTrackPlaybackSourceUrl() !== streamUrl) {
-			this.applyPlaybackSources(streamUrl);
+		if (source && this.getTrackPlaybackSourceUrl() !== source) {
+			this.applyPlaybackSources(source);
 			appliedNext = true;
 		}
 
-		if (this.isOfflinePlaybackMode()) {
+		if (!source || !this.isUrl(source) || this.isOfflinePlaybackMode()) {
 			return appliedNext;
 		}
 
 		if (this.playbackStore.isPlaying) {
-			if (streamUrl) {
-				this.deferredDownloadCoordinator.defer('current', {
-					requestId,
-					run: () => {
-						this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
-					},
-					source: streamUrl,
-					trackId: activeTrack.id,
-				});
-			} else {
-				this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
-			}
-		} else if (streamUrl) {
-			this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, streamUrl);
+			this.deferredDownloadCoordinator.defer('current', {
+				requestId,
+				run: () => {
+					this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, source);
+				},
+				source,
+				trackId: activeTrack.id,
+			});
+		} else {
+			this.downloadCurrentTrackForPlayback(activeTrack.id, requestId, source);
 		}
 
 		return appliedNext;
