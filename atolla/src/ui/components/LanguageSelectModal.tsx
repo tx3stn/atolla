@@ -17,14 +17,14 @@ export class LanguageSelectModal extends Component<LanguageSelectModalViewModel>
 	private readonly selectHandlers = new Map<LanguageCode, () => void>();
 
 	private getSelectHandler = (code: LanguageCode): (() => void) => {
-		hapticFeedback();
-
 		const existing = this.selectHandlers.get(code);
 		if (existing) {
 			return existing;
 		}
 
 		const handler = (): void => {
+			hapticFeedback();
+
 			this.viewModel.onSelect(code);
 		};
 		this.selectHandlers.set(code, handler);
