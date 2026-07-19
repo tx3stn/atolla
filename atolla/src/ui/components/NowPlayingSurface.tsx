@@ -1283,13 +1283,22 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 	};
 }
 
+const topInsetBarStyleBySurfaceColor: Record<string, Style<View>> = {};
+
 function getTopInsetBarStyle(surfaceColor: string): Style<View> {
-	return new Style<View>({
+	const cached = topInsetBarStyleBySurfaceColor[surfaceColor];
+	if (cached) {
+		return cached;
+	}
+
+	const style = new Style<View>({
 		backgroundColor: surfaceColor,
 		flexShrink: 0,
 		height: theme.padding.deviceInset,
 		width: '100%',
 	});
+	topInsetBarStyleBySurfaceColor[surfaceColor] = style;
+	return style;
 }
 
 const styles = {

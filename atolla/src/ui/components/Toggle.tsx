@@ -18,7 +18,6 @@ export interface ToggleViewModel {
 export class Toggle extends Component<ToggleViewModel> {
 	onRender(): void {
 		const { accessibilityId, enabled, onToggle } = this.viewModel;
-		const thumbOffset = enabled ? TRACK_WIDTH - THUMB_SIZE - THUMB_MARGIN : THUMB_MARGIN;
 
 		<view
 			accessibilityId={accessibilityId}
@@ -26,12 +25,12 @@ export class Toggle extends Component<ToggleViewModel> {
 			onTap={createReusableCallback(() => onToggle(!enabled))}
 			style={enabled ? styles.trackOn : styles.trackOff}
 		>
-			<view style={createThumbStyle(thumbOffset)} />
+			<view style={enabled ? styles.thumbOn : styles.thumbOff} />
 		</view>;
 	}
 }
 
-function createThumbStyle(marginLeft: number): Style<View> {
+function thumbStyle(marginLeft: number): Style<View> {
 	return new Style<View>({
 		backgroundColor: theme.colors.white,
 		borderRadius: THUMB_SIZE / 2,
@@ -42,6 +41,8 @@ function createThumbStyle(marginLeft: number): Style<View> {
 }
 
 const styles = {
+	thumbOff: thumbStyle(THUMB_MARGIN),
+	thumbOn: thumbStyle(TRACK_WIDTH - THUMB_SIZE - THUMB_MARGIN),
 	trackOff: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: TRACK_HEIGHT / 2,

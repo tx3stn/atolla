@@ -1138,7 +1138,15 @@ export class TrackList extends Component<TrackListViewModel> {
 	}
 }
 
+const resolvedStylesByColors: Record<string, TrackListResolvedStyles> = {};
+
 function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedStyles {
+	const key = `${colors.meta}|${colors.rowBackground}|${colors.tileBackground}|${colors.title}`;
+	const cached = resolvedStylesByColors[key];
+	if (cached) {
+		return cached;
+	}
+
 	const created: TrackListResolvedStyles = {
 		artworkTileStyle: new Style<View>({
 			aspectRatio: 1,
@@ -1179,6 +1187,7 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 		}),
 	};
 
+	resolvedStylesByColors[key] = created;
 	return created;
 }
 

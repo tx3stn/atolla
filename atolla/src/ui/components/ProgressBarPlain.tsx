@@ -107,31 +107,57 @@ export class ProgressBarPlain extends Component<ProgressBarPlainViewModel> {
 	}
 }
 
+const trackStyleByThickness: Record<number, Style<View>> = {};
+
 function createTrackStyle(thickness: number): Style<View> {
+	const cached = trackStyleByThickness[thickness];
+	if (cached) {
+		return cached;
+	}
+
 	const clampedThickness = Math.max(2, thickness);
 	const hitHeight = Math.max(24, clampedThickness + 10);
-	return new Style<View>({
+	const style = new Style<View>({
 		height: hitHeight,
 		justifyContent: 'center',
 		position: 'relative',
 		width: '100%',
 	});
+	trackStyleByThickness[thickness] = style;
+	return style;
 }
 
+const railStyleByColorAndThickness: Record<string, Style<View>> = {};
+
 function createRailStyle(trackColor: string, thickness: number): Style<View> {
+	const key = `${trackColor}|${thickness}`;
+	const cached = railStyleByColorAndThickness[key];
+	if (cached) {
+		return cached;
+	}
+
 	const clampedThickness = Math.max(2, thickness);
-	return new Style<View>({
+	const style = new Style<View>({
 		backgroundColor: trackColor,
 		borderRadius: clampedThickness / 2,
 		height: clampedThickness,
 		overflow: 'visible',
 		width: '100%',
 	});
+	railStyleByColorAndThickness[key] = style;
+	return style;
 }
 
+const fillStyleByAccentColor: Record<string, Style<View>> = {};
+
 function createFillStyle(accentColor: string): Style<View> {
+	const cached = fillStyleByAccentColor[accentColor];
+	if (cached) {
+		return cached;
+	}
+
 	// width is intentionally omitted: set via ref in updateProgressRefs()
-	return new Style<View>({
+	const style = new Style<View>({
 		alignItems: 'flex-end',
 		backgroundColor: accentColor,
 		borderRadius: theme.radius.pill,
@@ -139,12 +165,22 @@ function createFillStyle(accentColor: string): Style<View> {
 		height: '100%',
 		justifyContent: 'center',
 	});
+	fillStyleByAccentColor[accentColor] = style;
+	return style;
 }
 
+const playheadStyleByColorAndThickness: Record<string, Style<View>> = {};
+
 function createPlayheadStyle(accentColor: string, thickness: number): Style<View> {
+	const key = `${accentColor}|${thickness}`;
+	const cached = playheadStyleByColorAndThickness[key];
+	if (cached) {
+		return cached;
+	}
+
 	// opacity is intentionally omitted: set via ref in updateProgressRefs()
 	const size = Math.max(10, thickness + 6);
-	return new Style<View>({
+	const style = new Style<View>({
 		backgroundColor: accentColor,
 		borderColor: theme.colors.pureWhite,
 		borderRadius: size / 2,
@@ -154,6 +190,8 @@ function createPlayheadStyle(accentColor: string, thickness: number): Style<View
 		marginRight: -size / 2,
 		width: size,
 	});
+	playheadStyleByColorAndThickness[key] = style;
+	return style;
 }
 
 function clamp(value: number, min: number, max: number): number {

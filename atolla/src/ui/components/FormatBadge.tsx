@@ -19,8 +19,16 @@ export class FormatBadge extends Component<FormatBadgeViewModel> {
 	}
 }
 
+const containerStyleByBackgroundColor: Record<string, Style<View>> = {};
+const labelStyleByColor: Record<string, Style<Label>> = {};
+
 function createContainerStyle(backgroundColor: string): Style<View> {
-	return new Style<View>({
+	const cached = containerStyleByBackgroundColor[backgroundColor];
+	if (cached) {
+		return cached;
+	}
+
+	const style = new Style<View>({
 		backgroundColor,
 		borderRadius: theme.radius.card,
 		paddingBottom: 3,
@@ -28,11 +36,20 @@ function createContainerStyle(backgroundColor: string): Style<View> {
 		paddingRight: 7,
 		paddingTop: 3,
 	});
+	containerStyleByBackgroundColor[backgroundColor] = style;
+	return style;
 }
 
 function createLabelStyle(color: string): Style<Label> {
-	return new Style<Label>({
+	const cached = labelStyleByColor[color];
+	if (cached) {
+		return cached;
+	}
+
+	const style = new Style<Label>({
 		...theme.text.sub,
 		color,
 	});
+	labelStyleByColor[color] = style;
+	return style;
 }

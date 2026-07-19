@@ -14,9 +14,17 @@ export const iconImageStyle = new Style<ImageView>({
 	width: 24,
 });
 
+const rippleStyleByTintAndHitSize: Record<string, Style<View>> = {};
+
 export function createRippleStyle(tint: string, hitSize = 40): Style<View> {
+	const key = `${tint}|${hitSize}`;
+	const cached = rippleStyleByTintAndHitSize[key];
+	if (cached) {
+		return cached;
+	}
+
 	const center = hitSize / 2;
-	return new Style<View>({
+	const style = new Style<View>({
 		backgroundColor: tint,
 		borderRadius: 0,
 		height: 0,
@@ -26,6 +34,8 @@ export function createRippleStyle(tint: string, hitSize = 40): Style<View> {
 		top: center,
 		width: 0,
 	});
+	rippleStyleByTintAndHitSize[key] = style;
+	return style;
 }
 
 export function animateRipple(

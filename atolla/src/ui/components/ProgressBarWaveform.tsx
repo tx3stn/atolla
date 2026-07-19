@@ -141,8 +141,15 @@ export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel>
 	}
 }
 
+const mutedImageStyleByColor: Record<string, Style<ImageView>> = {};
+
 function createMutedImageStyle(mutedColor: string): Style<ImageView> {
-	return new Style<ImageView>({
+	const cached = mutedImageStyleByColor[mutedColor];
+	if (cached) {
+		return cached;
+	}
+
+	const style = new Style<ImageView>({
 		bottom: 0,
 		left: 0,
 		position: 'absolute',
@@ -150,18 +157,29 @@ function createMutedImageStyle(mutedColor: string): Style<ImageView> {
 		tint: mutedColor,
 		top: 0,
 	});
+	mutedImageStyleByColor[mutedColor] = style;
+	return style;
 }
 
+const accentImageStyleByColor: Record<string, Style<ImageView>> = {};
+
 function createAccentImageStyle(accentColor: string): Style<ImageView> {
+	const cached = accentImageStyleByColor[accentColor];
+	if (cached) {
+		return cached;
+	}
+
 	// width is intentionally omitted: set via ref in updateProgressRefs() so re-render
 	// Style applications don't override more recent setAttribute calls
-	return new Style<ImageView>({
+	const style = new Style<ImageView>({
 		bottom: 0,
 		left: 0,
 		position: 'absolute',
 		tint: accentColor,
 		top: 0,
 	});
+	accentImageStyleByColor[accentColor] = style;
+	return style;
 }
 
 const TAP_ZONE_HEIGHT = 48;
