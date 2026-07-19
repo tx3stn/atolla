@@ -8,7 +8,7 @@ import type { Genre } from '../../models/Genre';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
-import { ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
+import { startPagedPlayback } from '../../services/PagedPlayback';
 import { singlePage, type TrackSource } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
@@ -69,24 +69,6 @@ export class CardContextMenu extends StatefulComponent<
 		}
 	}
 
-	// paged playback avoids materializing a large collection: play the first page and backfill the
-	// queue as it drains via a paged loader; with nothing more to load, no loader is registered
-	private startPagedPlayback(tracks: TrackSource): void {
-		const { playbackStore } = this.viewModel;
-		tracks(1, TRACK_PAGE_SIZE).then(
-			(result) => {
-				if (result.items.length === 0) return;
-				playbackStore.playTracks(result.items, 0);
-				if (result.hasMore) {
-					const loader = new ShuffleQueueLoader(playbackStore, tracks, TRACK_PAGE_SIZE);
-					loader.start(2, true);
-					playbackStore.setQueueFiller(loader);
-				}
-			},
-			() => {},
-		);
-	}
-
 	private trackSource(): TrackSource {
 		const { card } = this.viewModel;
 		switch (card.kind) {
@@ -129,7 +111,7 @@ export class CardContextMenu extends StatefulComponent<
 				() => {},
 			);
 		} else {
-			this.startPagedPlayback(tracks);
+			startPagedPlayback(this.viewModel.playbackStore, tracks, TRACK_PAGE_SIZE);
 		}
 
 		this.viewModel.onDismiss();

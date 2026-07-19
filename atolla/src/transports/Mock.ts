@@ -31,7 +31,7 @@ import {
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
 } from './JellyfinMappers';
-import type { Transport } from './Transport';
+import type { TrackPageSort, Transport } from './Transport';
 
 const mockFormatCycle: Array<JellyfinMediaSource> = [
 	{ MediaStreams: [{ BitDepth: 24, Codec: 'flac', SampleRate: 96000, Type: 'Audio' }] },
@@ -294,8 +294,10 @@ export class MockTransport implements Transport {
 		genreId: string,
 		page: number,
 		pageSize: number,
+		options?: { sort?: TrackPageSort },
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
-		const allTracks = await this.collectGenreTracks(genreId);
+		const collected = await this.collectGenreTracks(genreId);
+		const allTracks = options?.sort === 'random' ? shuffleTracks(collected) : collected;
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const items = allTracks.slice(startIndex, startIndex + pageSize);
 
@@ -310,8 +312,10 @@ export class MockTransport implements Transport {
 		playlistId: string,
 		page: number,
 		pageSize: number,
+		options?: { sort?: TrackPageSort },
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
-		const allTracks = await this.collectPlaylistTracks(playlistId);
+		const collected = await this.collectPlaylistTracks(playlistId);
+		const allTracks = options?.sort === 'random' ? shuffleTracks(collected) : collected;
 		const startIndex = Math.max(0, page - 1) * pageSize;
 		const items = allTracks.slice(startIndex, startIndex + pageSize);
 		return {

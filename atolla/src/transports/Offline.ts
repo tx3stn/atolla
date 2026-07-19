@@ -11,7 +11,7 @@ import type { DownloadService } from '../services/DownloadService';
 import type { PlaylistCreateService } from '../services/PlaylistCreateService';
 import type { PlaylistEditService } from '../services/PlaylistEditService';
 import { TransportErrors } from './Errors';
-import type { Transport } from './Transport';
+import type { TrackPageSort, Transport } from './Transport';
 
 export class OfflineTransport implements Transport {
 	private readonly downloads: DownloadService;
@@ -300,8 +300,10 @@ export class OfflineTransport implements Transport {
 		genreId: string,
 		page: number,
 		pageSize: number,
+		options?: { sort?: TrackPageSort },
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
-		const allTracks = await this.collectGenreTracks(genreId);
+		const collected = await this.collectGenreTracks(genreId);
+		const allTracks = options?.sort === 'random' ? shuffleTracks(collected) : collected;
 		const start = Math.max(0, page - 1) * pageSize;
 		const end = start + pageSize;
 		return {
@@ -315,9 +317,10 @@ export class OfflineTransport implements Transport {
 		playlistId: string,
 		page: number,
 		pageSize: number,
+		options?: { sort?: TrackPageSort },
 	): Promise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }> {
 		const all = await this.collectPlaylistTracks(playlistId);
-		return singleLocalPage(all, page, pageSize);
+		return singleLocalPage(options?.sort === 'random' ? shuffleTracks(all) : all, page, pageSize);
 	}
 
 	async getTracksByYear(

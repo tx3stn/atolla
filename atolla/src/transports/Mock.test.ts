@@ -106,6 +106,25 @@ describe('MockTransport.getShuffledLibraryTracks', () => {
 		expect(ids).not.toEqual(sortedIds);
 	});
 
+	// shuffling must reorder the collection, never narrow it: a shuffle that drops tracks
+	// would silently shrink what a genre or playlist plays
+	it('shuffles genre tracks without losing any of them', async () => {
+		const transport = new MockTransport();
+
+		const ordered = await transport.getTracksByGenre('genre-1', 1, 1000);
+		const shuffled = await withStubbedRandom(0, () =>
+			transport.getTracksByGenre('genre-1', 1, 1000, { sort: 'random' }),
+		);
+
+		const orderedIds = ordered.items.map((track) => track.id);
+		const shuffledIds = shuffled.items.map((track) => track.id);
+
+		expect(orderedIds.length).toBeGreaterThan(1);
+		expect([...shuffledIds].sort()).toEqual([...orderedIds].sort());
+		expect(shuffledIds).not.toEqual(orderedIds);
+		expect(shuffled.totalCount).toBe(ordered.totalCount);
+	});
+
 	it('pages the shuffled library and reports whether more remain', async () => {
 		const transport = new MockTransport();
 

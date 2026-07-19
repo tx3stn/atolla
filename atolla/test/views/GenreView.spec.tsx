@@ -7,6 +7,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent } from '../util/testEvents';
 
 const mockNavigator = {
 	dismiss: () => {},
@@ -153,5 +154,106 @@ describe('GenreView', () => {
 		await flushAsyncWork();
 
 		expect(component.state.tracks.length).toBe(TRACK_PAGE_SIZE * 2);
+	});
+
+	// the header actions must play the whole genre, not the slice that happens to be on screen
+	describe('header playback with only the first page rendered', () => {
+		function makePagedTransport(totalTracks: number) {
+			const sorts: Array<string | undefined> = [];
+			const allTracks = Array.from({ length: totalTracks }, (_, index) => ({
+				artistName: 'Converge',
+				duration: 100 + index,
+				id: `track-${index}`,
+				name: `Track ${index}`,
+			}));
+			return {
+				sorts,
+				transport: {
+					getGenre: async () => ({ id: 'genre-1', name: 'Hardcore' }),
+					getTracksByGenre: async (
+						_id: string,
+						page: number,
+						size: number,
+						options?: { sort?: string },
+					) => {
+						sorts.push(options?.sort);
+						const start = (page - 1) * size;
+						return {
+							hasMore: start + size < allTracks.length,
+							items: allTracks.slice(start, start + size),
+							totalCount: allTracks.length,
+						};
+					},
+				},
+			};
+		}
+
+		function makeRecordingPlaybackStore() {
+			return {
+				addToQueue: () => {},
+				played: [] as Array<Array<{ id: string }>>,
+				playTracks(tracks: Array<{ id: string }>) {
+					this.played.push(tracks);
+				},
+				playWithArtistLogos(tracks: Array<{ id: string }>) {
+					this.played.push(tracks);
+				},
+				queueFiller: null as unknown,
+				setQueueFiller(filler: unknown) {
+					this.queueFiller = filler;
+				},
+				subscribe: () => () => {},
+				track: null,
+				trackIndex: 0,
+				tracks: [] as Array<{ id: string }>,
+			};
+		}
+
+		async function renderAndTap(
+			driver: Parameters<Parameters<typeof valdiIt>[1]>[0],
+			accessibilityLabel: string,
+		) {
+			const { sorts, transport } = makePagedTransport(TRACK_PAGE_SIZE * 3);
+			const store = makeRecordingPlaybackStore();
+			const component = driver.renderComponent(
+				GenreView,
+				{
+					downloadService,
+					genre: { id: 'genre-1', name: 'Hardcore' },
+					onRootDetailControllerReady: () => {},
+					playbackStore: store,
+					preferences,
+					transport,
+					viewCache: makeTestViewCache(),
+				},
+				{ navigator: mockNavigator },
+			);
+			await flushAsyncWork();
+			expect(component.state.tracks.length).toBe(TRACK_PAGE_SIZE);
+
+			const button = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			).find((view) => view.getAttribute('accessibilityLabel') === accessibilityLabel);
+			button?.getAttribute('onTap')?.(touchEvent);
+			await flushAsyncWork();
+
+			return { component, sorts, store };
+		}
+
+		valdiIt('arms queue backfill when play is tapped', async (driver) => {
+			const { store } = await renderAndTap(driver, 'detail-header-play-button');
+
+			expect(store.played.length).toBe(1);
+			expect(store.queueFiller).not.toBeNull();
+		});
+
+		valdiIt('asks the server to shuffle rather than shuffling the loaded page', async (driver) => {
+			const { sorts, store } = await renderAndTap(driver, 'detail-header-shuffle-button');
+
+			expect(sorts).toContain('random');
+			expect(store.played.length).toBe(1);
+			expect(store.queueFiller).not.toBeNull();
+		});
 	});
 });

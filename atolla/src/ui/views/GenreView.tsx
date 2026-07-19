@@ -15,14 +15,16 @@ import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import { resolveDownloadTracks } from '../../services/DownloadTrackResolver';
 import type { ImageCache } from '../../services/ImageCache';
+import { startPagedPlayback } from '../../services/PagedPlayback';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
+import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
-import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
+import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
-import type { Transport } from '../../transports/Transport';
+import type { TrackPageSort, Transport } from '../../transports/Transport';
 import { fireAndForget } from '../../utils/Async';
 import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
@@ -228,6 +230,11 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		return transport.getTracksByGenre(genre.id, page, TRACK_PAGE_SIZE);
 	}
 
+	private trackSource(options?: { sort?: TrackPageSort }): TrackSource {
+		const { genre, transport } = this.viewModel;
+		return (page, pageSize) => transport.getTracksByGenre(genre.id, page, pageSize, options);
+	}
+
 	private handleDownloadTap = (): void => {
 		const { downloadService, genre, transport } = this.viewModel;
 		fireAndForget(
@@ -249,19 +256,17 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		return Promise.resolve();
 	};
 
+	// play and shuffle read from the transport, not state.tracks: how far the list has been
+	// scrolled must not decide how much of the genre plays
 	private handleHeaderPlayTap = (): void => {
-		const { playbackStore } = this.viewModel;
-		const { artistLogoUrls, tracks } = this.state;
-		playbackStore.playWithArtistLogos(tracks, artistLogoUrls);
+		startPagedPlayback(this.viewModel.playbackStore, this.trackSource(), TRACK_PAGE_SIZE);
 	};
 
 	private handleHeaderShuffleTap = (): void => {
-		const { playbackStore } = this.viewModel;
-		const { artistLogoUrls, tracks } = this.state;
-		const indices = shuffleArray(tracks.map((_, i) => i));
-		playbackStore.playWithArtistLogos(
-			indices.map((i) => tracks[i]),
-			indices.map((i) => artistLogoUrls[i] ?? null),
+		startPagedPlayback(
+			this.viewModel.playbackStore,
+			this.trackSource({ sort: 'random' }),
+			TRACK_PAGE_SIZE,
 		);
 	};
 

@@ -501,6 +501,49 @@ describe('LiveTransport core collections', () => {
 		expect(page.items[0].id).toBe('track-1');
 	});
 
+	it('asks the server to shuffle genre tracks when the random sort is requested', async () => {
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([], 0, 0))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		await transport.getTracksByGenre('genre-1', 1, 50, { sort: 'random' });
+
+		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('Random');
+	});
+
+	it('sorts genre tracks by name when no sort is requested', async () => {
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([], 0, 0))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		await transport.getTracksByGenre('genre-1', 1, 50);
+
+		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('SortName');
+	});
+
+	// /Playlists/{id}/Items preserves the playlist's running order and ignores sortBy, so a
+	// shuffle has to go through /Items with the playlist as parent for the server to honour it
+	it('asks the server to shuffle playlist tracks when the random sort is requested', async () => {
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([], 0, 0))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		await transport.getTracksByPlaylist('playlist-1', 1, 50, { sort: 'random' });
+
+		expect(calls[0].pathOrUrl).toContain('/Items?');
+		expect(calls[0].pathOrUrl).not.toContain('/Playlists/');
+		expect(queryParam(calls[0].pathOrUrl, 'parentId')).toBe('playlist-1');
+		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('Random');
+	});
+
+	// a playlist has its own running order, so the default read stays on the playlist endpoint
+	it('reads the playlist in its own order when no sort is requested', async () => {
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([], 0, 0))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		await transport.getTracksByPlaylist('playlist-1', 1, 50);
+
+		expect(calls[0].pathOrUrl).toContain('/Playlists/playlist-1/Items');
+		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBeNull();
+	});
+
 	it('fetches playlist tracks page with genre fields', async () => {
 		const track: JellyfinTrackItem = {
 			GenreItems: [{ Id: 'genre-1', Name: 'Noise Rock' }],

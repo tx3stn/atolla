@@ -30,7 +30,7 @@ import {
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
 } from './JellyfinMappers';
-import type { Transport } from './Transport';
+import type { TrackPageSort, Transport } from './Transport';
 
 export {
 	type JellyfinImageResolvers,
@@ -509,6 +509,7 @@ export class LiveTransport implements Transport {
 		genreId: string,
 		page: number,
 		pageSize: number,
+		options?: { sort?: TrackPageSort },
 	): CancelablePromise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
 		return cancelable(async (canceler) => {
 			const startIndex = Math.max(0, page - 1) * pageSize;
@@ -520,7 +521,7 @@ export class LiveTransport implements Transport {
 					includeItemTypes: JellyfinMusicItemTypes.Audio,
 					limit: Math.max(1, pageSize),
 					recursive: true,
-					sortBy: 'SortName',
+					sortBy: options?.sort === 'random' ? 'Random' : 'SortName',
 					sortOrder: 'Ascending',
 					startIndex,
 				}),
@@ -538,24 +539,36 @@ export class LiveTransport implements Transport {
 		playlistId: string,
 		page: number,
 		pageSize: number,
+		options?: { sort?: TrackPageSort },
 	): CancelablePromise<{ hasMore: boolean; items: Array<Track>; totalCount: number }> {
 		return cancelable(async (canceler) => {
 			const startIndex = Math.max(0, page - 1) * pageSize;
-			const list = await tracked(
-				canceler,
-				this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
-					'GET',
-					`/Playlists/${encodeURIComponent(playlistId)}/Items`,
-					{
-						query: {
+			// /Playlists/{id}/Items always returns the playlist's own running order and ignores
+			// sortBy, so a shuffle has to query the playlist as a parent folder instead
+			const read =
+				options?.sort === 'random'
+					? this.fetchItemsPage<JellyfinTrackItem>({
 							fields: 'Overview,Genres,MediaSources',
+							includeItemTypes: JellyfinMusicItemTypes.Audio,
 							limit: Math.max(1, pageSize),
+							parentId: playlistId,
+							recursive: true,
+							sortBy: 'Random',
 							startIndex,
-							userId: this.userId,
-						},
-					},
-				),
-			);
+						})
+					: this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
+							'GET',
+							`/Playlists/${encodeURIComponent(playlistId)}/Items`,
+							{
+								query: {
+									fields: 'Overview,Genres,MediaSources',
+									limit: Math.max(1, pageSize),
+									startIndex,
+									userId: this.userId,
+								},
+							},
+						);
+			const list = await tracked(canceler, read);
 
 			return {
 				hasMore: startIndex + (list.Items ?? []).length < list.TotalRecordCount,

@@ -17,15 +17,17 @@ import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import { resolveDownloadTracks } from '../../services/DownloadTrackResolver';
 import type { ImageCache } from '../../services/ImageCache';
+import { startPagedPlayback } from '../../services/PagedPlayback';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
+import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
-import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
+import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
-import type { Transport } from '../../transports/Transport';
+import type { TrackPageSort, Transport } from '../../transports/Transport';
 import { fireAndForget } from '../../utils/Async';
 import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
@@ -436,19 +438,17 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		return Promise.resolve();
 	};
 
+	// play and shuffle read from the transport, not state.tracks: how much of the playlist has
+	// been paged in must not decide how much of it plays
 	private handleHeaderPlayTap = (): void => {
-		const { playbackStore } = this.viewModel;
-		const { artistLogoUrls, tracks } = this.state;
-		playbackStore.playWithArtistLogos(tracks, artistLogoUrls);
+		startPagedPlayback(this.viewModel.playbackStore, this.trackSource(), TRACK_PAGE_SIZE);
 	};
 
 	private handleHeaderShuffleTap = (): void => {
-		const { artistLogoUrls, tracks } = this.state;
-		const indices = shuffleArray(tracks.map((_, i) => i));
-
-		this.viewModel.playbackStore.playWithArtistLogos(
-			indices.map((i) => tracks[i]),
-			indices.map((i) => artistLogoUrls[i] ?? null),
+		startPagedPlayback(
+			this.viewModel.playbackStore,
+			this.trackSource({ sort: 'random' }),
+			TRACK_PAGE_SIZE,
 		);
 	};
 
@@ -619,6 +619,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private fetchPage(page: number): CancelablePromise<PlaylistTracksPage> {
 		const { playlist, transport } = this.viewModel;
 		return transport.getTracksByPlaylist(playlist.id, page, TRACK_PAGE_SIZE);
+	}
+
+	private trackSource(options?: { sort?: TrackPageSort }): TrackSource {
+		const { playlist, transport } = this.viewModel;
+		return (page, pageSize) => transport.getTracksByPlaylist(playlist.id, page, pageSize, options);
 	}
 }
 

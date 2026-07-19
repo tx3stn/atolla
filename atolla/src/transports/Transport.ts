@@ -6,6 +6,10 @@ import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 
+// how a paged track collection should be ordered. 'random' reshuffles per request, so
+// consecutive pages can overlap — consumers that stitch pages together must de-dupe
+export type TrackPageSort = 'default' | 'random';
+
 export interface Transport {
 	addItemsToPlaylist(playlistId: string, trackIds: Array<string>): Promise<void>;
 	createPlaylist(name: string, trackId?: string): Promise<Playlist>;
@@ -53,11 +57,13 @@ export interface Transport {
 		genreId: string,
 		page: number,
 		pageSize: number,
+		options?: { sort?: TrackPageSort },
 	): CancelablePromise<{ hasMore: boolean; items: Array<Track>; totalCount: number }>;
 	getTracksByPlaylist(
 		playlistId: string,
 		page: number,
 		pageSize: number,
+		options?: { sort?: TrackPageSort },
 	): CancelablePromise<{ hasMore: boolean; items: Array<Track>; totalCount?: number }>;
 	getTracksByYear(
 		year: number,
