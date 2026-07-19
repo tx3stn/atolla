@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import type { Palette } from '../models/Color';
-import { ArtworkPaletteService, type PaletteStore } from './ArtworkPaletteService';
+import type { PaletteStorage } from '../stores/PaletteStore';
+import { ArtworkPaletteService } from './ArtworkPaletteService';
 
-class MockPaletteStore implements PaletteStore {
+class MockPaletteStore implements PaletteStorage {
 	private data = new Map<string, Palette>();
 
 	loadPalette(url: string): Promise<Palette | null> {
@@ -42,12 +43,12 @@ describe('ArtworkPaletteService', () => {
 			expect(service.getPalette('https://example.com/art.png')).toBeUndefined();
 		});
 
-		it('reports whether a palette is cached for a url', async () => {
+		it('reports whether a palette is cached for a url', () => {
 			const service = new ArtworkPaletteService(new MockPaletteStore());
 			const url = 'https://example.com/art.png';
 
 			expect(service.hasPalette(url)).toBe(false);
-			await service.persistPalette(url, SAMPLE_PALETTE);
+			service.persistPalette(url, SAMPLE_PALETTE);
 			expect(service.hasPalette(url)).toBe(true);
 		});
 
@@ -150,14 +151,14 @@ describe('ArtworkPaletteService', () => {
 			});
 
 			const service = new ArtworkPaletteService(mockStore);
-			await service.persistPalette(url, SAMPLE_PALETTE);
+			service.persistPalette(url, SAMPLE_PALETTE);
 			const afterPersist = service.getPalette(url);
 
 			await service.warmUp([url]);
 			expect(service.getPalette(url)).toEqual(afterPersist);
 		});
 
-		it('returns an unsubscribe function that stops notifications', async () => {
+		it('returns an unsubscribe function that stops notifications', () => {
 			const service = new ArtworkPaletteService(new MockPaletteStore());
 			let calls = 0;
 			const unsub = service.subscribe(() => calls++);
@@ -167,7 +168,7 @@ describe('ArtworkPaletteService', () => {
 			service2.subscribe(() => calls++);
 			const unsub2 = service2.subscribe(() => calls++);
 			unsub2();
-			await service2.persistPalette('u', SAMPLE_PALETTE);
+			service2.persistPalette('u', SAMPLE_PALETTE);
 			expect(calls).toBe(1); // only the non-unsubscribed listener fires
 		});
 	});

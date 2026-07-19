@@ -106,7 +106,7 @@ export class PaletteGenerationQueue {
 		try {
 			const palette = await worker.api.extractPalette(url, 'album_art');
 			if (palette) {
-				await this.paletteService.persistPalette(url, palette);
+				this.paletteService.persistPalette(url, palette);
 			}
 		} catch {
 			// extraction failures are silent

@@ -1,9 +1,27 @@
-import type { PersistentStore } from 'persistence/src/PersistentStore';
 import type { Palette } from '../models/Color';
-import type { PaletteStore } from './ArtworkPaletteService';
 
-export class PersistentPaletteStore implements PaletteStore {
-	constructor(private store: PersistentStore) {}
+export interface PaletteStorage {
+	clearAll(): Promise<void>;
+	loadPalette(imageUrl: string): Promise<Palette | null>;
+	savePalette(imageUrl: string, palette: Palette): Promise<void>;
+}
+
+export interface PaletteBackingStore {
+	fetchString(key: string): Promise<string>;
+	removeAll(): Promise<void>;
+	storeString(key: string, value: string): Promise<void>;
+}
+
+export class PaletteStore implements PaletteStorage {
+	constructor(private store: PaletteBackingStore) {}
+
+	async clearAll(): Promise<void> {
+		try {
+			await this.store.removeAll();
+		} catch {
+			// best-effort
+		}
+	}
 
 	async loadPalette(imageUrl: string): Promise<Palette | null> {
 		try {
@@ -21,14 +39,6 @@ export class PersistentPaletteStore implements PaletteStore {
 			await this.store.storeString(imageUrl, JSON.stringify(palette));
 		} catch {
 			// best-effort persistence
-		}
-	}
-
-	async clearAll(): Promise<void> {
-		try {
-			await this.store.removeAll();
-		} catch {
-			// best-effort
 		}
 	}
 }

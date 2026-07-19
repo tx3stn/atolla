@@ -1,17 +1,12 @@
 import type { Palette } from '../models/Color';
-
-export interface PaletteStore {
-	clearAll(): Promise<void>;
-	loadPalette(imageUrl: string): Promise<Palette | null>;
-	savePalette(imageUrl: string, palette: Palette): Promise<void>;
-}
+import type { PaletteStorage } from '../stores/PaletteStore';
 
 export class ArtworkPaletteService {
 	private cache = new Map<string, Palette>();
 	private listeners = new Set<() => void>();
 	lastError: string | null = null;
 
-	constructor(private store: PaletteStore) {}
+	constructor(private store: PaletteStorage) {}
 
 	get cacheSize(): number {
 		return this.cache.size;
@@ -54,10 +49,10 @@ export class ArtworkPaletteService {
 		this.notify();
 	}
 
-	async persistPalette(url: string, palette: Palette): Promise<void> {
+	persistPalette(url: string, palette: Palette): void {
 		const normalized = this.normalizePalette(palette);
 		this.cache.set(url, normalized);
-		await this.store.savePalette(url, normalized);
+		void this.store.savePalette(url, normalized);
 		this.notify();
 	}
 

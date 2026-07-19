@@ -40,7 +40,6 @@ function createMockPaletteService() {
 			.createSpy('persistPalette')
 			.and.callFake((url: string, palette: Palette) => {
 				palettes.set(url, palette);
-				return Promise.resolve();
 			}),
 	};
 }

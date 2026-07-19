@@ -1,6 +1,7 @@
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { setAtollaImageCachedObserver } from '../ImageLoaderBootstrap';
 import type { KeyValueStore } from '../stores/KeyValueStore';
+import { PaletteStore } from '../stores/PaletteStore';
 import type { PlaybackStore } from '../stores/Playback';
 import { RecentlyPlayedStore } from '../stores/RecentlyPlayed';
 import { SearchStore } from '../stores/Search';
@@ -18,7 +19,6 @@ import type { DownloadService } from './DownloadService';
 import { parseNativePendingScrobbles } from './NativeAudioPlaybackEventSync';
 import { OnThisDayService } from './OnThisDayService';
 import { PaletteGenerationQueue } from './PaletteGenerationQueue';
-import { PersistentPaletteStore } from './PersistentPaletteStore';
 import { PersistentWaveformStore } from './PersistentWaveformStore';
 import type { PlaybackOrchestrator } from './PlaybackOrchestrator';
 import type { PlaylistCreateService } from './PlaylistCreateService';
@@ -30,7 +30,6 @@ import { VIEW_CACHE_MAX_BYTES, VIEW_CACHE_MAX_ENTRIES, ViewCache } from './ViewC
 import { WaveformGenerationQueue } from './WaveformGenerationQueue';
 import { WaveformRenderCache } from './WaveformRenderCache';
 import { WaveformService } from './WaveformService';
-import { WriteBehindPaletteStore } from './WriteBehindPaletteStore';
 
 export interface UserScopeDeps {
 	assetCache: AssetCache;
@@ -111,10 +110,8 @@ export class UserScope {
 			maxEntries: VIEW_CACHE_MAX_ENTRIES,
 		});
 		this.paletteService = new ArtworkPaletteService(
-			new WriteBehindPaletteStore(
-				new PersistentPaletteStore(
-					new PersistentStore(`atolla/user/${userId}/artwork_palettes`, { deviceGlobal: true }),
-				),
+			new PaletteStore(
+				new PersistentStore(`atolla/user/${userId}/artwork_palettes`, { deviceGlobal: true }),
 			),
 		);
 		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
