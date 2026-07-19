@@ -126,13 +126,16 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 		}
 	}
 
-	private copyQuickConnectCode(code: string): () => void {
-		return () => {
-			hapticFeedback();
-			Device.copyToClipBoard(code);
-			this.viewModel.toastService.show(Strings.copiedToClipboard());
-		};
-	}
+	private copyQuickConnectCode = (): void => {
+		const code = this.viewModel.quickConnectCode;
+		if (code == null) {
+			return;
+		}
+
+		hapticFeedback();
+		Device.copyToClipBoard(code);
+		this.viewModel.toastService.show(Strings.copiedToClipboard());
+	};
 
 	private onConnectTap = (): void => {
 		const input = normalizeInputValue(this.state.serverUrlInput).trim();
@@ -189,7 +192,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				{this.viewModel.quickConnectCode && (
 					<view
 						accessibilityId='connection-quick-connect-code'
-						onTap={this.copyQuickConnectCode(this.viewModel.quickConnectCode)}
+						onTap={this.copyQuickConnectCode}
 						style={styles.quickConnectCodeSlot}
 					>
 						<label

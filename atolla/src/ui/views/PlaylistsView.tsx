@@ -264,13 +264,13 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		});
 	}
 
-	private loadMore(): void {
+	private loadMore = (): void => {
 		void this.pagedGridController.loadNextPage();
-	}
+	};
 
-	private retryLoadMore(): void {
+	private retryLoadMore = (): void => {
 		void this.pagedGridController.loadNextPage();
-	}
+	};
 
 	private handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuCard: null });
@@ -383,10 +383,8 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 					isLoadingMore={this.state.isLoadingNextPage}
 					onCardLongPress={this.handlePlaylistCardLongPress}
 					onCardTap={this.handlePlaylistCardTap}
-					onLoadMore={
-						this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
-					}
-					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
+					onLoadMore={this.state.hasMore && !this.state.nextPageFailed ? this.loadMore : undefined}
+					onRetryLoadMore={this.state.nextPageFailed ? this.retryLoadMore : undefined}
 				/>
 			</RefreshableScroll>
 			<EmptyState

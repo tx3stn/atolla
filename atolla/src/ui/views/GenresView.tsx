@@ -108,10 +108,8 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 					isLoadingMore={this.state.isLoadingNextPage}
 					onCardLongPress={this.handleGenreCardLongPress}
 					onCardTap={this.handleGenreCardTap}
-					onLoadMore={
-						this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
-					}
-					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
+					onLoadMore={this.state.hasMore && !this.state.nextPageFailed ? this.loadMore : undefined}
+					onRetryLoadMore={this.state.nextPageFailed ? this.retryLoadMore : undefined}
 				/>
 			</RefreshableScroll>
 			<EmptyState
@@ -321,9 +319,9 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		await this.pagedGridController.loadNextPage();
 	}
 
-	private loadMore(): void {
+	private loadMore = (): void => {
 		void this.pagedGridController.loadNextPage();
-	}
+	};
 
 	private readonly pagedGridController = createPagedGridController<Genre>({
 		fetchPage: (page) => this.viewModel.transport.getGenres(page, gridPaginationConfig.pageSize),
@@ -376,9 +374,9 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		pushGenre(this.viewModel.navigationController, this.detailDeps(), genre);
 	};
 
-	private retryLoadMore(): void {
+	private retryLoadMore = (): void => {
 		void this.pagedGridController.loadNextPage();
-	}
+	};
 }
 
 const styles = {

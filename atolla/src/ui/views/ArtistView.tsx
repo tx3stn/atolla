@@ -171,7 +171,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					accessibilityId='artist'
 					isRefreshing={this.state.isRefreshing}
 					onRefresh={this.handleRefresh}
-					onScroll={(y) => this.headerCollapse.handleScroll(y)}
+					onScroll={this.handleScroll}
 					style={styles.scroll}
 				>
 					<DetailHeader
@@ -622,6 +622,10 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.viewModel.viewCache.invalidate(this.cacheKey());
 		this.setState({ isRefreshing: true });
 		this.loadArtistData();
+	};
+
+	private handleScroll = (y: number): void => {
+		this.headerCollapse.handleScroll(y);
 	};
 
 	private seedFromCache(): void {

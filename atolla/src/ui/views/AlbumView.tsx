@@ -156,7 +156,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					accessibilityId='album'
 					isRefreshing={this.state.isRefreshing}
 					onRefresh={this.handleRefresh}
-					onScroll={(y) => this.headerCollapse.handleScroll(y)}
+					onScroll={this.handleScroll}
 					style={styles.scroll}
 				>
 					<DetailHeader
@@ -503,6 +503,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.viewModel.viewCache.invalidate(this.cacheKey());
 		this.setState({ isRefreshing: true });
 		this.loadAlbumData();
+	};
+
+	private handleScroll = (y: number): void => {
+		this.headerCollapse.handleScroll(y);
 	};
 
 	private seedFromCache(): void {

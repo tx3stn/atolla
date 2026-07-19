@@ -134,10 +134,8 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 					isLoadingMore={this.state.isLoadingNextPage}
 					onCardLongPress={this.handleAlbumCardLongPress}
 					onCardTap={this.handleAlbumCardTap}
-					onLoadMore={
-						this.state.hasMore && !this.state.nextPageFailed ? () => this.loadMore() : undefined
-					}
-					onRetryLoadMore={this.state.nextPageFailed ? () => this.retryLoadMore() : undefined}
+					onLoadMore={this.state.hasMore && !this.state.nextPageFailed ? this.loadMore : undefined}
+					onRetryLoadMore={this.state.nextPageFailed ? this.retryLoadMore : undefined}
 				/>
 			</RefreshableScroll>
 			<EmptyState
@@ -202,9 +200,9 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		});
 	};
 
-	retryLoadMore(): void {
+	retryLoadMore = (): void => {
 		void this.pagedGridController.loadNextPage();
-	}
+	};
 
 	private bump = (): void => {
 		this.setState({ revision: this.state.revision + 1 });
@@ -424,9 +422,9 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		return albums;
 	}
 
-	private loadMore(): void {
+	private loadMore = (): void => {
 		void this.pagedGridController.loadNextPage();
-	}
+	};
 }
 
 function sortAlbumsForView(

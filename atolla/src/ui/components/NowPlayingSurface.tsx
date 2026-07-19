@@ -5,7 +5,7 @@ import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Asset } from 'valdi_tsx/src/Asset';
-import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
+import type { ContentSizeChangeEvent, DragEvent, ScrollEvent } from 'valdi_tsx/src/GestureEvents';
 import type {
 	ImageView,
 	Label,
@@ -510,6 +510,10 @@ export class NowPlayingSurface extends StatefulComponent<
 		});
 	};
 
+	private handleExpandedContentSizeChange = (size: ContentSizeChangeEvent): void => {
+		this.dragAutoScroller.setContentHeight(size.height);
+	};
+
 	private handleExpandedDrag = (event: DragEvent): void => {
 		if (!this.state.isExpanded) {
 			return;
@@ -549,6 +553,10 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.overlayRef.setAttribute('top', 0);
 			},
 		);
+	};
+
+	private handleExpandedScroll = (event: ScrollEvent): void => {
+		this.dragAutoScroller.setOffset(event.y);
 	};
 
 	private getQueueEntries(
@@ -906,8 +914,8 @@ export class NowPlayingSurface extends StatefulComponent<
 					)}
 					<view ref={this.expandedContentRef} style={styles.expandedContent}>
 						<scroll
-							onContentSizeChange={(size) => this.dragAutoScroller.setContentHeight(size.height)}
-							onScroll={(event) => this.dragAutoScroller.setOffset(event.y)}
+							onContentSizeChange={this.handleExpandedContentSizeChange}
+							onScroll={this.handleExpandedScroll}
 							ref={this.expandedScrollRef}
 							style={styles.expandedInner}
 						>

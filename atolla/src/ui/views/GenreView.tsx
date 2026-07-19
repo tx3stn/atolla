@@ -130,7 +130,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 					accessibilityId='genre'
 					isRefreshing={this.state.isRefreshing}
 					onRefresh={this.handleRefresh}
-					onScroll={(y) => this.headerCollapse.handleScroll(y)}
+					onScroll={this.handleScroll}
 					style={styles.scroll}
 				>
 					<DetailHeader
@@ -453,6 +453,10 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		this.triggeredAutoLoadForTrackCount = null;
 		this.setState({ isRefreshing: true, nextPageFailed: false });
 		void this.loadNextPage();
+	};
+
+	private handleScroll = (y: number): void => {
+		this.headerCollapse.handleScroll(y);
 	};
 
 	private seedFromCache(): void {

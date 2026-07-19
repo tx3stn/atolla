@@ -350,9 +350,9 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 					errorMessage={this.state.authErrorMessage}
 					isConnecting={this.state.isAuthenticating}
 					modalSlot={this.modalSlot}
-					onCancelConnect={() => this.connectivity.cancelConnect()}
-					onConnect={(serverUrl) => this.connectivity.connect(serverUrl)}
-					onLanguageChange={(code) => this.handleLanguageChange(code)}
+					onCancelConnect={this.handleCancelConnect}
+					onConnect={this.handleConnect}
+					onLanguageChange={this.handleLanguageChange}
 					quickConnectCode={this.state.quickConnectCode}
 					selectedLanguage={this.preferences.language}
 					serverUrl={this.state.serverUrlPrefill}
@@ -531,11 +531,19 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		}
 	}
 
-	private handleLanguageChange(code: LanguageCode): void {
+	private handleCancelConnect = (): void => {
+		this.connectivity.cancelConnect();
+	};
+
+	private handleConnect = (serverUrl: string): void => {
+		this.connectivity.connect(serverUrl);
+	};
+
+	private handleLanguageChange = (code: LanguageCode): void => {
 		overrideLocales(Strings, () => [new Locale(code, undefined)]);
 		void this.preferences.setLanguage(code);
 		this.requestRerender();
-	}
+	};
 
 	private handleSyncBannerTap = (): void => {
 		if (this.syncBannerTimer) {

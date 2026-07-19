@@ -6,6 +6,7 @@ import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
+import type { ContentSizeChangeEvent } from 'valdi_tsx/src/GestureEvents';
 import type { Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import { HeaderTabs } from '../../models/App';
@@ -132,12 +133,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				<RefreshableScroll
 					accessibilityId='playlist'
 					isRefreshing={this.state.isRefreshing}
-					onContentSizeChange={(size) => this.dragAutoScroller.setContentHeight(size.height)}
+					onContentSizeChange={this.handleContentSizeChange}
 					onRefresh={this.handleRefresh}
-					onScroll={(y) => {
-						this.dragAutoScroller.setOffset(y);
-						this.headerCollapse.handleScroll(y);
-					}}
+					onScroll={this.handleScroll}
 					scrollRef={this.scrollRef}
 					style={styles.scroll}
 				>
@@ -500,6 +498,15 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.viewModel.viewCache.invalidate(this.cacheKey());
 		this.setState({ isRefreshing: true });
 		this.resetAndLoadPlaylistData();
+	};
+
+	private handleContentSizeChange = (size: ContentSizeChangeEvent): void => {
+		this.dragAutoScroller.setContentHeight(size.height);
+	};
+
+	private handleScroll = (y: number): void => {
+		this.dragAutoScroller.setOffset(y);
+		this.headerCollapse.handleScroll(y);
 	};
 
 	private seedFromCache(): void {

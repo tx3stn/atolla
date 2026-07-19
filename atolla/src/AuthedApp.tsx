@@ -52,6 +52,18 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 
 	private androidBackObserverInstalled = false;
 
+	private handlePlaybackError = (error: string): void => {
+		this.viewModel.playbackOrchestrator.handlePlaybackError(error);
+	};
+
+	private handlePlaybackEvent = (event: string): void => {
+		this.viewModel.playbackOrchestrator.handlePlaybackEvent(event);
+	};
+
+	private handleTrackCompleted = (): void => {
+		this.viewModel.playbackOrchestrator.handleTrackCompleted();
+	};
+
 	onCreate(): void {
 		this.registerDisposable(
 			appShellStore.subscribe(() => this.setState({ revision: this.state.revision + 1 })),
@@ -79,13 +91,9 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 					<GaplessPlayer
 						activeSourceUrl={this.viewModel.playbackOrchestrator.getTrackPlaybackSourceUrl()}
 						nextSourceUrl={this.viewModel.playbackOrchestrator.getNextTrackSourceUrl()}
-						onPlaybackError={(error) =>
-							this.viewModel.playbackOrchestrator.handlePlaybackError(error)
-						}
-						onPlaybackEvent={(event) =>
-							this.viewModel.playbackOrchestrator.handlePlaybackEvent(event)
-						}
-						onTrackCompleted={() => this.viewModel.playbackOrchestrator.handleTrackCompleted()}
+						onPlaybackError={this.handlePlaybackError}
+						onPlaybackEvent={this.handlePlaybackEvent}
+						onTrackCompleted={this.handleTrackCompleted}
 						playbackStore={this.viewModel.playbackStore}
 					/>
 				)}

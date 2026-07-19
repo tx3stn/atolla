@@ -29,9 +29,19 @@ export function openTrackContextMenu(
 	modalSlot: DetachedSlot | undefined,
 	options: OpenTrackContextMenuOptions,
 ): void {
+	const closeModal = (): void => {
+		closeSlot(modalSlot);
+	};
+
 	const dismiss = (toastMessage?: string): void => {
 		closeSlot(modalSlot);
 		options.onDismiss(toastMessage);
+	};
+
+	const createPlaylist = async (name: string): Promise<void> => {
+		const playlist = await options.transport.createPlaylist(name, track.id);
+		closeSlot(modalSlot);
+		options.onPlaylistCreated?.(playlist);
 	};
 
 	const onAddToPlaylist = (): void => {
@@ -40,7 +50,7 @@ export function openTrackContextMenu(
 				animationsEnabled={options.animationsEnabled}
 				gridColumns={options.gridColumns}
 				imageCache={options.imageCache}
-				onDismiss={() => closeSlot(modalSlot)}
+				onDismiss={closeModal}
 				toastService={options.toastService}
 				tracks={pagedFromArray([track])}
 				transport={options.transport}
@@ -52,12 +62,8 @@ export function openTrackContextMenu(
 		openSlot(modalSlot, () => {
 			<CreatePlaylistModal
 				animationsEnabled={options.animationsEnabled}
-				onCancel={() => closeSlot(modalSlot)}
-				onCreate={async (name: string) => {
-					const playlist = await options.transport.createPlaylist(name, track.id);
-					closeSlot(modalSlot);
-					options.onPlaylistCreated?.(playlist);
-				}}
+				onCancel={closeModal}
+				onCreate={createPlaylist}
 			/>;
 		});
 	};
