@@ -8,7 +8,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { layoutFrame, touchEvent } from '../util/testEvents';
+import { touchEvent } from '../util/testEvents';
 
 const pageSize = 24;
 
@@ -160,7 +160,7 @@ describe('ArtistsView', () => {
 		expect(requestedStartsWith).toContain('a');
 	});
 
-	valdiIt('loads next artist page when prefetch trigger is laid out', async (driver) => {
+	valdiIt('loads next artist page when prefetch trigger scrolls into view', async (driver) => {
 		const allArtists = makeArtists(60);
 		const transport = {
 			getArtists: (page: number, size: number) => {
@@ -191,7 +191,7 @@ describe('ArtistsView', () => {
 		const prefetchTrigger = views.find(
 			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
 		);
-		prefetchTrigger?.getAttribute('onLayout')?.(layoutFrame);
+		prefetchTrigger?.getAttribute('onVisibilityChanged')?.(true, 0);
 		await flushAsyncWork();
 
 		expect(component.state.artists.length).toBe(pageSize * 2);

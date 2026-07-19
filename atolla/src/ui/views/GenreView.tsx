@@ -170,7 +170,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 						<view
 							accessibilityId='genre-load-more-trigger'
 							accessibilityLabel='genre-load-more-trigger'
-							onLayout={this.handleLoadMoreTriggerLayout}
+							onVisibilityChanged={this.handleLoadMoreTriggerVisibility}
 							style={styles.loadMoreTrigger}
 						/>
 					)}
@@ -265,7 +265,13 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		);
 	};
 
-	private handleLoadMoreTriggerLayout = (): void => {
+	// paging hangs off visibility, not layout: a layout edge only arrives when the trigger's frame
+	// changes, which made paging depend on the view re-rendering for unrelated reasons
+	private handleLoadMoreTriggerVisibility = (isVisible: boolean): void => {
+		if (!isVisible) {
+			return;
+		}
+
 		if (
 			this.isLoadingPage ||
 			this.state.nextPageFailed ||

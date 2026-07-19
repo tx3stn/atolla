@@ -138,8 +138,8 @@ export class CardGrid extends Component<CardGridViewModel> {
 						<view
 							accessibilityId='grid-prefetch-trigger'
 							accessibilityLabel='grid-prefetch-trigger'
-							onLayout={createReusableCallback(() => {
-								this.handleAutoLoadTriggerLayout();
+							onVisibilityChanged={createReusableCallback((isVisible: boolean) => {
+								this.handleAutoLoadTriggerVisibility(isVisible);
 							})}
 							style={styles.prefetchTrigger}
 						/>
@@ -167,7 +167,13 @@ export class CardGrid extends Component<CardGridViewModel> {
 		</layout>;
 	}
 
-	private handleAutoLoadTriggerLayout(): void {
+	// paging hangs off visibility, not layout: a layout edge only arrives when the trigger's frame
+	// changes, which made paging depend on the grid re-rendering for unrelated reasons
+	private handleAutoLoadTriggerVisibility(isVisible: boolean): void {
+		if (!isVisible) {
+			return;
+		}
+
 		const { cards, onLoadMore } = this.viewModel;
 		if (!onLoadMore) {
 			return;

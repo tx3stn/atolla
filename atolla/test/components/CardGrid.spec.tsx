@@ -4,7 +4,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { layoutFrame, touchEvent, touchEventWith } from '../util/testEvents';
+import { touchEvent, touchEventWith } from '../util/testEvents';
 
 const makeCard = (id: string, primaryText = 'Album', secondaryText = '2024') => ({
 	artworkKey: `key-${id}`,
@@ -153,7 +153,7 @@ describe('CardGrid', () => {
 		expect(images[0].getAttribute('src')).toContain('atolla-cache://image?c=album_art_thumb&u=');
 	});
 
-	valdiIt('auto-loads more when prefetch trigger is laid out', async (driver) => {
+	valdiIt('auto-loads more when prefetch trigger scrolls into view', async (driver) => {
 		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
 		let loadMoreCalls = 0;
 		const viewModel = {
@@ -174,8 +174,8 @@ describe('CardGrid', () => {
 		);
 		expect(trigger).toBeDefined();
 
-		trigger?.getAttribute('onLayout')?.(layoutFrame);
-		trigger?.getAttribute('onLayout')?.(layoutFrame);
+		trigger?.getAttribute('onVisibilityChanged')?.(true, 0);
+		trigger?.getAttribute('onVisibilityChanged')?.(true, 0);
 
 		expect(loadMoreCalls).toBe(1);
 	});

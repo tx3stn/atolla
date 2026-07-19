@@ -8,7 +8,7 @@ import { componentGetElements } from 'foundation/test/util/componentGetElements'
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { layoutFrame, touchEvent } from '../util/testEvents';
+import { touchEvent } from '../util/testEvents';
 
 const pageSize = 24;
 
@@ -49,6 +49,18 @@ function makeNavigationController() {
 
 function makePreferences(): Preferences {
 	return new Preferences({ fetchString: async () => '', storeString: async () => {} });
+}
+
+// the grid pages in when its prefetch trigger scrolls into view, so drive that signal rather
+// than a layout pass: a layout edge only arrives incidentally and paging must not depend on it
+function scrollPrefetchTriggerIntoView(
+	component: Parameters<typeof componentGetElements>[0],
+): void {
+	const trigger = elementTypeFind(
+		componentGetElements(component),
+		IRenderedElementViewClass.View,
+	).find((view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger');
+	trigger?.getAttribute('onVisibilityChanged')?.(true, 0);
 }
 
 describe('AlbumsView', () => {
@@ -115,7 +127,7 @@ describe('AlbumsView', () => {
 		expect(component.state.albums.length).toBe(24);
 	});
 
-	valdiIt('loads next page when prefetch trigger is laid out', async (driver) => {
+	valdiIt('loads next page when prefetch trigger scrolls into view', async (driver) => {
 		const allAlbums = makeAlbums(80);
 		const transport = {
 			getAlbums: (page: number, size: number) => {
@@ -142,29 +154,17 @@ describe('AlbumsView', () => {
 		await flushAsyncWork();
 		expect(component.state.albums.length).toBe(pageSize);
 
-		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		let prefetchTrigger = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
-		);
-		prefetchTrigger?.getAttribute('onLayout')?.(layoutFrame);
+		scrollPrefetchTriggerIntoView(component);
 		await flushAsyncWork();
 
 		expect(component.state.albums.length).toBe(pageSize * 2);
 
-		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		prefetchTrigger = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
-		);
-		prefetchTrigger?.getAttribute('onLayout')?.(layoutFrame);
+		scrollPrefetchTriggerIntoView(component);
 		await flushAsyncWork();
 
 		expect(component.state.albums.length).toBe(pageSize * 3);
 
-		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		prefetchTrigger = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
-		);
-		prefetchTrigger?.getAttribute('onLayout')?.(layoutFrame);
+		scrollPrefetchTriggerIntoView(component);
 		await flushAsyncWork();
 
 		expect(component.state.albums.length).toBe(80);
@@ -201,20 +201,12 @@ describe('AlbumsView', () => {
 		await flushAsyncWork();
 		expect(component.state.albums.length).toBe(pageSize);
 
-		let views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		let prefetchTrigger = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
-		);
-		prefetchTrigger?.getAttribute('onLayout')?.(layoutFrame);
+		scrollPrefetchTriggerIntoView(component);
 		await flushAsyncWork();
 
 		expect(component.state.albums.length).toBe(pageSize * 2);
 
-		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		prefetchTrigger = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
-		);
-		prefetchTrigger?.getAttribute('onLayout')?.(layoutFrame);
+		scrollPrefetchTriggerIntoView(component);
 		await flushAsyncWork();
 
 		expect(component.state.nextPageFailed).toBeTrue();
@@ -227,11 +219,7 @@ describe('AlbumsView', () => {
 		expect(component.state.nextPageFailed).toBeFalse();
 		expect(component.state.albums.length).toBe(pageSize * 3);
 
-		views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		prefetchTrigger = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
-		);
-		prefetchTrigger?.getAttribute('onLayout')?.(layoutFrame);
+		scrollPrefetchTriggerIntoView(component);
 		await flushAsyncWork();
 		expect(component.state.albums.length).toBe(90);
 	});
