@@ -7,7 +7,7 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { ContentSizeChangeEvent } from 'valdi_tsx/src/GestureEvents';
-import type { Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import { HeaderTabs } from '../../models/App';
 import type { Playlist } from '../../models/Playlist';
@@ -61,11 +61,12 @@ export interface PlaylistViewModel {
 }
 
 interface PlaylistState {
-	artistLogoUrls: Array<string | null>;
 	downloadState: DownloadState;
 	hydratedPlaylist: Playlist | null;
 	isLoading: boolean;
+	isLoadingNextPage: boolean;
 	isRefreshing: boolean;
+	nextPageFailed: boolean;
 	removedTrackPending: { index: number; track: Track } | null;
 	revision: number;
 	totalTrackCount: number | null;
@@ -73,7 +74,6 @@ interface PlaylistState {
 }
 
 interface PlaylistCachePayload {
-	artistLogoUrls: Array<string | null>;
 	hydratedPlaylist: Playlist | null;
 	totalTrackCount: number | null;
 	tracks: Array<Track>;
@@ -87,11 +87,12 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	PlaylistState
 > {
 	state: PlaylistState = {
-		artistLogoUrls: [],
 		downloadState: 'not_downloaded',
 		hydratedPlaylist: null,
 		isLoading: true,
+		isLoadingNextPage: false,
 		isRefreshing: false,
+		nextPageFailed: false,
 		removedTrackPending: null,
 		revision: 0,
 		totalTrackCount: null,
@@ -124,7 +125,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	}
 
 	onRender(): void {
-		const { downloadState, isLoading, totalTrackCount, tracks } = this.state;
+		const { downloadState, isLoading, isLoadingNextPage, nextPageFailed, totalTrackCount, tracks } =
+			this.state;
 		// self-heal: a playlist pushed without imageUrl gets the fetched one merged in for the header
 		const playlist = { ...this.viewModel.playlist, ...(this.state.hydratedPlaylist ?? {}) };
 
@@ -179,6 +181,29 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 							tracks={entries}
 						/>
 					)}
+					{!isLoading && this.hasMoreTracks && !nextPageFailed && (
+						<view
+							accessibilityId='playlist-load-more-trigger'
+							accessibilityLabel='playlist-load-more-trigger'
+							onVisibilityChanged={this.handleLoadMoreTriggerVisibility}
+							style={styles.loadMoreTrigger}
+						/>
+					)}
+					{isLoadingNextPage && <label style={styles.loadMoreLabel} value={Strings.loading()} />}
+					{nextPageFailed && (
+						<view
+							accessibilityId='playlist-load-more-retry'
+							accessibilityLabel='playlist-load-more-retry'
+							onTap={this.retryLoadMore}
+							style={styles.loadMoreRetryContainer}
+						>
+							<label
+								numberOfLines={0}
+								style={styles.loadMoreRetryLabel}
+								value={Strings.failedToLoadMore()}
+							/>
+						</view>
+					)}
 				</RefreshableScroll>
 			</view>
 		</layout>;
@@ -208,6 +233,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private scrollRef = new ElementRef();
 	private dragAutoScroller = new ScrollDragAutoScroller(this.scrollRef);
 	private headerCollapse = new HeaderCollapse(headerStore);
+	private triggeredAutoLoadForTrackCount: number | null = null;
 
 	private bump = (): void => {
 		this.setState({ revision: this.state.revision + 1 });
@@ -290,20 +316,16 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const { playlist, playlistEditService, transport } = this.viewModel;
 		if (!playlistEditService) return;
 		const prevTracks = this.state.tracks;
-		const prevArtistLogoUrls = this.state.artistLogoUrls;
 
 		const tracks = [...prevTracks];
-		const artistLogoUrls = [...prevArtistLogoUrls];
 		const [movedTrack] = tracks.splice(fromEntryIndex, 1);
-		const [movedLogo] = artistLogoUrls.splice(fromEntryIndex, 1);
 		tracks.splice(toEntryIndex, 0, movedTrack);
-		artistLogoUrls.splice(toEntryIndex, 0, movedLogo);
 
-		this.setState({ artistLogoUrls, tracks });
+		this.setState({ tracks });
 
 		if (!movedTrack.playlistItemId) {
 			console.warn('[playlist] missing playlistItemId on move, aborting reorder');
-			this.setState({ artistLogoUrls: prevArtistLogoUrls, tracks: prevTracks });
+			this.setState({ tracks: prevTracks });
 			return;
 		}
 
@@ -320,7 +342,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			)
 			.then((result) => {
 				if (result) {
-					this.setState({ artistLogoUrls: prevArtistLogoUrls, tracks: prevTracks });
+					this.setState({ tracks: prevTracks });
 					this.showEditErrorModal(result.type, result.playlistName, result.error);
 				}
 			});
@@ -335,12 +357,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			return;
 		}
 		const tracks = [...this.state.tracks];
-		const artistLogoUrls = [...this.state.artistLogoUrls];
 		const [removedTrack] = tracks.splice(entryIndex, 1);
-		artistLogoUrls.splice(entryIndex, 1);
 
 		this.setState({
-			artistLogoUrls,
 			removedTrackPending: { index: entryIndex, track: removedTrack },
 			tracks,
 		});
@@ -376,10 +395,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				if (result) {
 					if (removedTrackPending) {
 						const tracks = [...this.state.tracks];
-						const artistLogoUrls = [...this.state.artistLogoUrls];
 						tracks.splice(removedTrackPending.index, 0, removedTrackPending.track);
-						artistLogoUrls.splice(removedTrackPending.index, 0, null);
-						this.setState({ artistLogoUrls, tracks });
+						this.setState({ tracks });
 					}
 					this.showEditErrorModal(result.type, result.playlistName, result.error);
 				}
@@ -403,11 +420,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		if (!removedTrackPending) return;
 
 		const tracks = [...this.state.tracks];
-		const artistLogoUrls = [...this.state.artistLogoUrls];
 		tracks.splice(removedTrackPending.index, 0, removedTrackPending.track);
-		artistLogoUrls.splice(removedTrackPending.index, 0, null);
 
-		this.setState({ artistLogoUrls, removedTrackPending: null, tracks });
+		this.setState({ removedTrackPending: null, tracks });
 	};
 
 	private handleDownloadTap = (): void => {
@@ -423,7 +438,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		fireAndForget(
 			'playlist-download',
 			resolveDownloadTracks(transport, this.state.tracks, {
-				existingLogos: this.state.artistLogoUrls,
+				resolveMissingLogos: true,
 			}).then(({ artists, resolvedGenres, tracks }) => {
 				if (tracks.length === 0) {
 					return;
@@ -452,19 +467,43 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		);
 	};
 
+	// paging hangs off visibility, not layout: a layout edge only arrives when the trigger's frame
+	// changes, which made paging depend on the view re-rendering for unrelated reasons
+	private handleLoadMoreTriggerVisibility = (isVisible: boolean): void => {
+		if (!isVisible) {
+			return;
+		}
+
+		if (
+			this.isLoadingPage ||
+			this.state.nextPageFailed ||
+			!this.hasMoreTracks ||
+			this.state.isLoading
+		) {
+			return;
+		}
+
+		if (this.triggeredAutoLoadForTrackCount === this.state.tracks.length) {
+			return;
+		}
+
+		this.triggeredAutoLoadForTrackCount = this.state.tracks.length;
+		void this.loadNextPage();
+	};
+
 	private handleRemoveDownloadTap = (): void => {
 		this.viewModel.downloadService.removePlaylistDownload(this.viewModel.playlist.id);
 	};
 
 	private handleTrackTap = (trackId: string): void => {
 		const { playbackStore } = this.viewModel;
-		const { artistLogoUrls, tracks } = this.state;
-		const trackIndex = this.state.tracks.findIndex((track) => track.id === trackId);
+		const { tracks } = this.state;
+		const trackIndex = tracks.findIndex((track) => track.id === trackId);
 		if (trackIndex < 0) {
 			return;
 		}
 
-		playbackStore.playWithArtistLogos(tracks, artistLogoUrls, trackIndex);
+		playbackStore.playTracks(tracks, trackIndex);
 	};
 
 	private resetAndLoadPlaylistData(): void {
@@ -473,10 +512,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.currentPage = 0;
 		this.hasMoreTracks = true;
 		this.isLoadingPage = false;
+		this.triggeredAutoLoadForTrackCount = null;
+		this.setState({ nextPageFailed: false });
 		// keep any seeded/previous tracks visible during a revalidate; only blank to the spinner cold
 		if (this.state.tracks.length === 0) {
 			this.setState({
-				artistLogoUrls: [],
 				hydratedPlaylist: null,
 				isLoading: true,
 				totalTrackCount: null,
@@ -562,6 +602,9 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		const nextPage = this.currentPage + 1;
 		const isFirstPage = nextPage === 1;
 		this.isLoadingPage = true;
+		if (!isFirstPage) {
+			this.setState({ isLoadingNextPage: true, nextPageFailed: false });
+		}
 
 		try {
 			const pageRead = this.fetchPage(nextPage);
@@ -570,17 +613,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			if (this.isDestroyed() || generation !== this.loadGeneration) return;
 			this.inFlightPageRead = undefined;
 
-			const artistLogoUrls = await Promise.all(
-				result.items.map((t) =>
-					t.artistId ? this.viewModel.transport.getArtistLogoUrl(t.artistId) : null,
-				),
-			);
-			if (this.isDestroyed() || generation !== this.loadGeneration) return;
-
 			const tracks = isFirstPage ? result.items : [...this.state.tracks, ...result.items];
-			const allArtistLogoUrls = isFirstPage
-				? artistLogoUrls
-				: [...this.state.artistLogoUrls, ...artistLogoUrls];
 
 			this.currentPage = nextPage;
 			this.hasMoreTracks = result.hasMore;
@@ -591,30 +624,31 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 				: this.state.totalTrackCount;
 			if (isFirstPage) {
 				this.viewModel.viewCache.store(this.cacheKey(), {
-					artistLogoUrls: allArtistLogoUrls,
 					hydratedPlaylist: this.state.hydratedPlaylist,
 					totalTrackCount,
 					tracks,
 				});
 			}
 			this.setState({
-				artistLogoUrls: allArtistLogoUrls,
 				isLoading: false,
+				isLoadingNextPage: false,
 				isRefreshing: false,
+				nextPageFailed: false,
 				totalTrackCount,
 				tracks,
 			});
 			this.viewModel.paletteQueue?.enqueuePlaylistTracks(result.items);
-
-			if (result.hasMore) {
-				void this.loadNextPage(generation);
-			}
 		} catch {
 			if (this.isDestroyed() || generation !== this.loadGeneration) return;
 			this.isLoadingPage = false;
-			this.setState({ isLoading: false });
+			this.setState({ isLoading: false, isLoadingNextPage: false, nextPageFailed: true });
 		}
 	}
+
+	private retryLoadMore = (): void => {
+		this.triggeredAutoLoadForTrackCount = null;
+		void this.loadNextPage();
+	};
 
 	private fetchPage(page: number): CancelablePromise<PlaylistTracksPage> {
 		const { playlist, transport } = this.viewModel;
@@ -631,6 +665,25 @@ const styles = {
 	fullScreen: new Style<View>({
 		height: '100%',
 		position: 'relative',
+		width: '100%',
+	}),
+	loadMoreLabel: new Style<Label>({
+		...theme.text.sub,
+		marginTop: 12,
+		textAlign: 'center',
+	}),
+	loadMoreRetryContainer: new Style<Layout>({
+		alignItems: 'center',
+		marginTop: 12,
+		paddingBottom: 8,
+		paddingTop: 8,
+	}),
+	loadMoreRetryLabel: new Style<Label>({
+		...theme.text.main,
+		textAlign: 'center',
+	}),
+	loadMoreTrigger: new Style<View>({
+		height: 1,
 		width: '100%',
 	}),
 	root: new Style<Layout>({

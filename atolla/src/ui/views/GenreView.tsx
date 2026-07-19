@@ -53,7 +53,6 @@ export interface GenreViewModel {
 }
 
 interface GenreState {
-	artistLogoUrls: Array<string | null>;
 	downloadState: DownloadState;
 	hydratedGenre: Genre | null;
 	isLoading: boolean;
@@ -66,7 +65,6 @@ interface GenreState {
 }
 
 interface GenreCachePayload {
-	artistLogoUrls: Array<string | null>;
 	hydratedGenre: Genre | null;
 	totalTrackCount: number | null;
 	tracks: Array<Track>;
@@ -77,7 +75,6 @@ type GenreTracksPage = { hasMore: boolean; items: Array<Track>; totalCount?: num
 @NavigationPage(module)
 export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, GenreState> {
 	state: GenreState = {
-		artistLogoUrls: [],
 		downloadState: 'not_downloaded',
 		hydratedGenre: null,
 		isLoading: true,
@@ -240,7 +237,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		fireAndForget(
 			'genre-download',
 			resolveDownloadTracks(transport, this.state.tracks, {
-				existingLogos: this.state.artistLogoUrls,
 				resolveMissingLogos: true,
 			}).then(({ artists, resolvedGenres, tracks }) => {
 				if (tracks.length === 0) {
@@ -350,13 +346,13 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 	private handleTrackTap = (trackId: string): void => {
 		const { playbackStore } = this.viewModel;
-		const { artistLogoUrls, tracks } = this.state;
-		const trackIndex = this.state.tracks.findIndex((track) => track.id === trackId);
+		const { tracks } = this.state;
+		const trackIndex = tracks.findIndex((track) => track.id === trackId);
 		if (trackIndex < 0) {
 			return;
 		}
 
-		playbackStore.playWithArtistLogos(tracks, artistLogoUrls, trackIndex);
+		playbackStore.playTracks(tracks, trackIndex);
 	};
 
 	private async hydrateGenreIfNeeded(): Promise<void> {
@@ -399,17 +395,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			if (this.isDestroyed()) return;
 			this.inFlightPageRead = undefined;
 
-			const artistLogoUrls = await Promise.all(
-				result.items.map((t) =>
-					t.artistId ? this.viewModel.transport.getArtistLogoUrl(t.artistId) : null,
-				),
-			);
-			if (this.isDestroyed()) return;
-
 			const tracks = isFirstPage ? result.items : [...this.state.tracks, ...result.items];
-			const allArtistLogoUrls = isFirstPage
-				? artistLogoUrls
-				: [...this.state.artistLogoUrls, ...artistLogoUrls];
 
 			this.currentPage = nextPage;
 			this.hasMoreTracks = result.hasMore;
@@ -421,14 +407,12 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 			if (isFirstPage) {
 				this.viewModel.viewCache.store(this.cacheKey(), {
-					artistLogoUrls: allArtistLogoUrls,
 					hydratedGenre: this.state.hydratedGenre,
 					totalTrackCount,
 					tracks,
 				});
 			}
 			this.setState({
-				artistLogoUrls: allArtistLogoUrls,
 				isLoading: false,
 				isLoadingNextPage: false,
 				isRefreshing: false,
