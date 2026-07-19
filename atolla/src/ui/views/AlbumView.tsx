@@ -63,6 +63,21 @@ interface AlbumState {
 	tracks: Array<Track>;
 }
 
+interface AlbumDiscSection {
+	disc: number | null;
+	entries: Array<TrackListEntry>;
+}
+
+// discSections is populated only for multi-disc albums, entries only for single-disc ones; the
+// renderer picks one branch, so building both would double the work on every track change
+interface AlbumDerivedTracks {
+	discSections: Array<AlbumDiscSection>;
+	durationText: string | null;
+	entries: Array<TrackListEntry>;
+	formatText: string | null;
+	multiDisc: boolean;
+}
+
 interface AlbumCachePayload {
 	artist: Artist | null;
 	artistLogoUrl: string | null;
@@ -72,6 +87,17 @@ interface AlbumCachePayload {
 
 @NavigationPage(module)
 export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, AlbumState> {
+	private cachedAlbumGenres: Array<Genre> = [];
+	private cachedAlbumGenresSource: Album['genres'] | undefined = undefined;
+	private cachedDerivedTracks: AlbumDerivedTracks = {
+		discSections: [],
+		durationText: null,
+		entries: [],
+		formatText: null,
+		multiDisc: false,
+	};
+	private cachedDerivedTracksArtistName: string | undefined = undefined;
+	private cachedDerivedTracksSource: Array<Track> | null = null;
 	private loadGeneration = 0;
 	private inFlightReads: Array<{ cancel?(): void }> = [];
 
@@ -117,26 +143,12 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const { album: partialAlbum, imageCache, modalSlot } = this.viewModel;
 		const { animationsEnabled, language } = this.viewModel.preferences;
 		const album = fullAlbum ?? partialAlbum;
-		const albumGenres = normalizeGenres(album.genres);
-
-		const toEntry = (track: Track): TrackListEntry => {
-			const duration = formatDuration(track.duration);
-			const showTrackArtist = track.artistName != null && track.artistName !== album.artistName;
-			return {
-				id: track.id,
-				leadingLabel: track.trackNumber != null ? String(track.trackNumber) : null,
-				meta: showTrackArtist ? `${duration}  ·  ${track.artistName}` : duration,
-				title: track.name,
-				track,
-			};
-		};
-
-		const { groups, multiDisc } = groupTracksByDisc(tracks);
-
-		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
+		const albumGenres = this.getAlbumGenres(album.genres);
+		const { discSections, durationText, entries, formatText, multiDisc } = this.getDerivedTracks(
+			tracks,
+			album.artistName,
+		);
 		const releaseDateText = formatReleaseDate(album.releaseDate);
-		const formatText = tracks.find((t) => t.audioFormat != null)?.audioFormat ?? null;
-		const durationText = tracks.length > 0 ? formatDuration(totalDuration) : null;
 
 		<layout accessibilityLabel='album-view' style={styles.root}>
 			<view accessibilityId='album-view' style={styles.fullScreen}>
@@ -170,14 +182,14 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					{isLoading ? (
 						<LoadingView />
 					) : multiDisc ? (
-						groups.map((group) => (
-							<layout key={`album-disc-${group.disc ?? 'none'}`} style={styles.discSection}>
-								{group.disc !== null && (
+						discSections.map((section) => (
+							<layout key={`album-disc-${section.disc ?? 'none'}`} style={styles.discSection}>
+								{section.disc !== null && (
 									<label
-										accessibilityId={`album-disc-header-${group.disc}`}
-										accessibilityLabel={`album-disc-header-${group.disc}`}
+										accessibilityId={`album-disc-header-${section.disc}`}
+										accessibilityLabel={`album-disc-header-${section.disc}`}
 										style={styles.discHeader}
-										value={Strings.albumDiscHeader(group.disc)}
+										value={Strings.albumDiscHeader(section.disc)}
 									/>
 								)}
 								<TrackList
@@ -185,8 +197,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 									imageCache={imageCache}
 									onTrackLongPress={this.handleTrackLongPress}
 									onTrackTap={this.handleTrackTap}
-									rowIdentityPrefix={`album-disc-${group.disc ?? 'none'}-track-`}
-									tracks={group.tracks.map(toEntry)}
+									rowIdentityPrefix={`album-disc-${section.disc ?? 'none'}-track-`}
+									tracks={section.entries}
 								/>
 							</layout>
 						))
@@ -197,7 +209,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 							onTrackLongPress={this.handleTrackLongPress}
 							onTrackTap={this.handleTrackTap}
 							rowIdentityPrefix='album-track-'
-							tracks={tracks.map(toEntry)}
+							tracks={entries}
 						/>
 					)}
 					{album.bio && (
@@ -316,6 +328,53 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		playbackStore.play(shuffledTracks, album);
 		playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 	};
+
+	private getAlbumGenres(genres: Album['genres']): Array<Genre> {
+		if (genres !== this.cachedAlbumGenresSource) {
+			this.cachedAlbumGenresSource = genres;
+			this.cachedAlbumGenres = normalizeGenres(genres);
+		}
+
+		return this.cachedAlbumGenres;
+	}
+
+	private getDerivedTracks(tracks: Array<Track>, artistName: string): AlbumDerivedTracks {
+		if (
+			tracks === this.cachedDerivedTracksSource &&
+			artistName === this.cachedDerivedTracksArtistName
+		) {
+			return this.cachedDerivedTracks;
+		}
+
+		this.cachedDerivedTracksSource = tracks;
+		this.cachedDerivedTracksArtistName = artistName;
+
+		const toEntry = (track: Track): TrackListEntry => {
+			const duration = formatDuration(track.duration);
+			const showTrackArtist = track.artistName != null && track.artistName !== artistName;
+			return {
+				id: track.id,
+				leadingLabel: track.trackNumber != null ? String(track.trackNumber) : null,
+				meta: showTrackArtist ? `${duration}  ·  ${track.artistName}` : duration,
+				title: track.name,
+				track,
+			};
+		};
+
+		const { groups, multiDisc } = groupTracksByDisc(tracks);
+		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
+
+		this.cachedDerivedTracks = {
+			discSections: multiDisc
+				? groups.map((group) => ({ disc: group.disc, entries: group.tracks.map(toEntry) }))
+				: [],
+			durationText: tracks.length > 0 ? formatDuration(totalDuration) : null,
+			entries: multiDisc ? [] : tracks.map(toEntry),
+			formatText: tracks.find((t) => t.audioFormat != null)?.audioFormat ?? null,
+			multiDisc,
+		};
+		return this.cachedDerivedTracks;
+	}
 
 	private detailDeps(): DetailPushDeps {
 		return {

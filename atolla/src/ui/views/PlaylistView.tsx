@@ -32,7 +32,8 @@ import { LoadingView } from '../components/LoadingView';
 import { Modal } from '../components/Modal';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { ScrollDragAutoScroller } from '../components/ScrollDragAutoScroller';
-import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { TrackList } from '../components/TrackList';
+import { type DerivedTracks, deriveTracks } from '../components/TrackListEntries';
 import { closeSlot } from '../flows/ModalSlotFlow';
 import { type DetailPushDeps, pushAlbum, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
@@ -124,15 +125,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		// self-heal: a playlist pushed without imageUrl gets the fetched one merged in for the header
 		const playlist = { ...this.viewModel.playlist, ...(this.state.hydratedPlaylist ?? {}) };
 
-		const entries: Array<TrackListEntry> = tracks.map((track) => ({
-			artworkSource: track.albumImageUrl ?? null,
-			id: track.id,
-			meta: track.artistName ?? '',
-			title: track.name,
-			track,
-		}));
-
-		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
+		const { entries, totalDuration } = this.getDerivedTracks(tracks);
 
 		<layout accessibilityLabel='playlist-view' style={styles.root}>
 			<view accessibilityId='playlist-view' style={styles.fullScreen}>
@@ -204,6 +197,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		}
 	}
 
+	private cachedDerivedTracks: DerivedTracks = { entries: [], totalDuration: 0 };
+	private cachedDerivedTracksSource: Array<Track> | null = null;
 	private currentPage = 0;
 	private hasMoreTracks = true;
 	private loadGeneration = 0;
@@ -223,6 +218,15 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.inFlightPageRead = undefined;
 		this.inFlightHydrateRead?.cancel?.();
 		this.inFlightHydrateRead = undefined;
+	}
+
+	private getDerivedTracks(tracks: Array<Track>): DerivedTracks {
+		if (tracks !== this.cachedDerivedTracksSource) {
+			this.cachedDerivedTracksSource = tracks;
+			this.cachedDerivedTracks = deriveTracks(tracks);
+		}
+
+		return this.cachedDerivedTracks;
 	}
 
 	private detailDeps(): DetailPushDeps {

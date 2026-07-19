@@ -71,6 +71,12 @@ interface PlaylistPageResult {
 }
 
 export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, PlaylistsState> {
+	private cachedDisplayLetterFilter: string | null | undefined = undefined;
+	private cachedDisplayPlaylists: Array<Playlist> = [];
+	private cachedDisplayPlaylistsRef: Array<Playlist> | null = null;
+	private cachedDisplaySortOrder: SortOrder | undefined = undefined;
+	private cachedPlaylistCards: Array<Card> = [];
+	private cachedPlaylistCardsSource: Array<Playlist> | null = null;
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 
@@ -160,6 +166,45 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	private bump = (): void => {
 		this.setState({ revision: this.state.revision + 1 });
 	};
+
+	private createPlaylistCards(playlists: Array<Playlist>): Array<Card> {
+		if (playlists !== this.cachedPlaylistCardsSource) {
+			this.cachedPlaylistCardsSource = playlists;
+			this.cachedPlaylistCards = playlists.map((playlist) => ({
+				artworkKey: playlist.imageUrl ?? '',
+				id: playlist.id,
+				kind: 'playlist',
+				primaryText: playlist.name,
+				secondaryText: '',
+			}));
+		}
+
+		return this.cachedPlaylistCards;
+	}
+
+	private getDisplayPlaylists(): Array<Playlist> {
+		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
+		const letterFilter = this.viewModel.letterFilter;
+
+		if (
+			this.state.playlists === this.cachedDisplayPlaylistsRef &&
+			sort === this.cachedDisplaySortOrder &&
+			letterFilter === this.cachedDisplayLetterFilter
+		) {
+			return this.cachedDisplayPlaylists;
+		}
+
+		this.cachedDisplayPlaylistsRef = this.state.playlists;
+		this.cachedDisplaySortOrder = sort;
+		this.cachedDisplayLetterFilter = letterFilter;
+
+		let playlists = sortPlaylists(this.state.playlists, sort);
+		if (letterFilter) {
+			playlists = playlists.filter((p) => matchesLetterFilter(p.name, letterFilter));
+		}
+		this.cachedDisplayPlaylists = playlists;
+		return playlists;
+	}
 
 	private cacheKey(): string {
 		const filter = this.viewModel.letterFilter ?? 'all';
@@ -322,20 +367,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	onRender(): void {
 		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
 
-		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
-		let playlists = sortPlaylists(this.state.playlists, sort);
-		if (this.viewModel.letterFilter) {
-			const letter = this.viewModel.letterFilter;
-			playlists = playlists.filter((p) => matchesLetterFilter(p.name, letter));
-		}
-
-		const cards: Array<Card> = playlists.map((playlist) => ({
-			artworkKey: playlist.imageUrl ?? '',
-			id: playlist.id,
-			kind: 'playlist',
-			primaryText: playlist.name,
-			secondaryText: '',
-		}));
+		const cards = this.createPlaylistCards(this.getDisplayPlaylists());
 		<view style={styles.container}>
 			<RefreshableScroll
 				accessibilityId='library-playlists'

@@ -11,7 +11,7 @@ import type { Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
 import { ContextMenuActionRow } from './ContextMenuActionRow';
 import { ModalBase } from './ModalBase';
-import { TrackList } from './TrackList';
+import { TrackList, type TrackListEntry } from './TrackList';
 
 export interface TrackContextMenuViewModel {
 	animationsEnabled: boolean;
@@ -38,6 +38,9 @@ export class TrackContextMenu extends StatefulComponent<
 		artistLogoUrl: null,
 	};
 
+	private cachedPreviewEntry: Array<TrackListEntry> = [];
+	private cachedPreviewEntrySource: Track | null = null;
+
 	onCreate(): void {
 		const { track, transport } = this.viewModel;
 		if (track.artistId) {
@@ -47,6 +50,22 @@ export class TrackContextMenu extends StatefulComponent<
 				}
 			});
 		}
+	}
+
+	private getPreviewEntry(track: Track): Array<TrackListEntry> {
+		if (track !== this.cachedPreviewEntrySource) {
+			this.cachedPreviewEntrySource = track;
+			this.cachedPreviewEntry = [
+				{
+					artworkSource: track.albumImageUrl ?? null,
+					id: track.id,
+					meta: track.artistName ?? track.albumName ?? '',
+					title: track.name,
+				},
+			];
+		}
+
+		return this.cachedPreviewEntry;
 	}
 
 	handlePlayNext = (): void => {
@@ -90,14 +109,7 @@ export class TrackContextMenu extends StatefulComponent<
 		const { animationsEnabled, imageCache, onCreatePlaylist, track } = this.viewModel;
 		const { artistLogoUrl } = this.state;
 
-		const previewEntry = [
-			{
-				artworkSource: track.albumImageUrl ?? null,
-				id: track.id,
-				meta: track.artistName ?? track.albumName ?? '',
-				title: track.name,
-			},
-		];
+		const previewEntry = this.getPreviewEntry(track);
 
 		<ModalBase
 			accessibilityId='track-context-menu'

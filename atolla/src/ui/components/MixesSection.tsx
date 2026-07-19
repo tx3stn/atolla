@@ -26,7 +26,19 @@ const RANDOM_ALBUM_MIX_ID = 'mix-random-album';
 const RANDOM_YEAR_MIX_ID = 'mix-random-year';
 
 export class MixesSection extends Component<MixesSectionViewModel> {
+	private cachedMixCards: Array<Card> = [];
+	private cachedMixCardsLanguage: LanguageCode | null = null;
 	private shuffleLoadToken = 0;
+
+	// the card titles are localized, so a language change has to rebuild them
+	private getMixCards(): Array<Card> {
+		if (this.viewModel.language !== this.cachedMixCardsLanguage) {
+			this.cachedMixCardsLanguage = this.viewModel.language;
+			this.cachedMixCards = this.createMixCards();
+		}
+
+		return this.cachedMixCards;
+	}
 
 	private createMixCards(): Array<Card> {
 		return [
@@ -184,7 +196,7 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 			<label style={styles.sectionTitle} value={Strings.homeSectionMixes()} />
 			<CardGrid
 				accessibilityId='home-mixes-grid'
-				cards={this.createMixCards()}
+				cards={this.getMixCards()}
 				columnCount={this.viewModel.gridColumns}
 				onCardTap={this.handleMixCardTap}
 			/>

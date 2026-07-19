@@ -94,15 +94,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		const { animationsEnabled } = this.viewModel.preferences;
 		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
 
-		const artists = this.getDisplayArtists();
-
-		const cards: Array<Card> = artists.map((artist) => ({
-			artworkKey: artist.imageUrl ?? '',
-			id: artist.id,
-			kind: 'artist',
-			primaryText: artist.name,
-			secondaryText: '',
-		}));
+		const cards = this.createArtistCards(this.getDisplayArtists());
 		<view style={styles.container}>
 			<RefreshableScroll
 				accessibilityId='library-artists'
@@ -194,6 +186,8 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		});
 	};
 
+	private cachedArtistCards: Array<Card> = [];
+	private cachedArtistCardsSource: Array<Artist> | null = null;
 	private cachedDisplayArtists: Array<Artist> = [];
 	private cachedDisplayArtistsRef: Array<Artist> | null = null;
 	private cachedDisplaySortOrder: SortOrder | undefined = undefined;
@@ -201,6 +195,21 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private cachedDisplayIsOffline = false;
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
+
+	private createArtistCards(artists: Array<Artist>): Array<Card> {
+		if (artists !== this.cachedArtistCardsSource) {
+			this.cachedArtistCardsSource = artists;
+			this.cachedArtistCards = artists.map((artist) => ({
+				artworkKey: artist.imageUrl ?? '',
+				id: artist.id,
+				kind: 'artist',
+				primaryText: artist.name,
+				secondaryText: '',
+			}));
+		}
+
+		return this.cachedArtistCards;
+	}
 
 	private fetchPage(page: number): CancelablePromise<ArtistPageResult> {
 		return this.viewModel.transport.getArtists(page, gridPaginationConfig.pageSize, {

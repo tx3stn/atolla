@@ -118,15 +118,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
 
-		const albums = this.getDisplayAlbums();
-
-		const cards: Array<Card> = albums.map((album) => ({
-			artworkKey: album.imageUrl ?? '',
-			id: album.id,
-			kind: 'album',
-			primaryText: album.name,
-			secondaryText: album.artistName,
-		}));
+		const cards = this.createAlbumCards(this.getDisplayAlbums());
 		<view style={styles.container}>
 			<RefreshableScroll
 				accessibilityId='library-albums'
@@ -218,6 +210,8 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		this.setState({ revision: this.state.revision + 1 });
 	};
 
+	private cachedAlbumCards: Array<Card> = [];
+	private cachedAlbumCardsSource: Array<Album> | null = null;
 	private cachedDisplayAlbums: Array<Album> = [];
 	private cachedDisplayAlbumsRef: Array<Album> | null = null;
 	private cachedDisplaySortOrder: SortOrder | undefined = undefined;
@@ -387,6 +381,21 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		this.pendingCreatePlaylistTracks = tracks;
 		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
 	};
+
+	private createAlbumCards(albums: Array<Album>): Array<Card> {
+		if (albums !== this.cachedAlbumCardsSource) {
+			this.cachedAlbumCardsSource = albums;
+			this.cachedAlbumCards = albums.map((album) => ({
+				artworkKey: album.imageUrl ?? '',
+				id: album.id,
+				kind: 'album',
+				primaryText: album.name,
+				secondaryText: album.artistName,
+			}));
+		}
+
+		return this.cachedAlbumCards;
+	}
 
 	private getDisplayAlbums(): Array<Album> {
 		const sort = this.viewModel.sortOrder ?? SortOrders.newToOld;

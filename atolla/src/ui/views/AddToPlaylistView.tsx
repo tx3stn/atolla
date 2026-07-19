@@ -53,6 +53,24 @@ export class AddToPlaylistView extends StatefulComponent<
 		},
 	});
 	private addFlow = new CancelableController(() => this.isDestroyed());
+	private cachedPlaylistCards: Array<Card> = [];
+	private cachedPlaylistCardsSource: Array<Playlist> | null = null;
+
+	private createPlaylistCards(playlists: Array<Playlist>): Array<Card> {
+		if (playlists !== this.cachedPlaylistCardsSource) {
+			this.cachedPlaylistCardsSource = playlists;
+			this.cachedPlaylistCards = playlists.map((p) => ({
+				artworkKey: p.imageUrl ?? '',
+				id: p.id,
+				kind: 'playlist',
+				primaryText: p.name,
+				secondaryText: '',
+			}));
+		}
+
+		return this.cachedPlaylistCards;
+	}
+
 	private clearErrorMessage = (): void => {
 		this.setState({ errorMessage: null });
 	};
@@ -115,13 +133,7 @@ export class AddToPlaylistView extends StatefulComponent<
 		const { errorMessage, isAddingToPlaylist, playlists } = this.state;
 		const gridColumns = this.viewModel.gridColumns ?? 2;
 
-		const cards: Array<Card> = playlists.map((p) => ({
-			artworkKey: p.imageUrl ?? '',
-			id: p.id,
-			kind: 'playlist',
-			primaryText: p.name,
-			secondaryText: '',
-		}));
+		const cards = this.createPlaylistCards(playlists);
 
 		<view
 			accessibilityId='add-to-playlist-view'

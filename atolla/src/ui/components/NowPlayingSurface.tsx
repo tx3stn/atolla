@@ -78,6 +78,11 @@ export interface NowPlayingSurfaceViewModel {
 
 type QueueTab = 'backTo' | 'upNext';
 
+interface QueueEntries {
+	backToEntries: Array<TrackListEntry>;
+	upNextEntries: Array<TrackListEntry>;
+}
+
 interface NowPlayingSurfaceState {
 	activeQueueTab: QueueTab;
 	isExpanded: boolean;
@@ -117,6 +122,10 @@ export class NowPlayingSurface extends StatefulComponent<
 	private lastPalette?: Palette;
 
 	// cached palette-derived styles, rebuilt only when palette or activeTab changes
+	private cachedQueueAlbumImageUrl: string | null = null;
+	private cachedQueueEntries: QueueEntries = { backToEntries: [], upNextEntries: [] };
+	private cachedQueueTrackIndex = -1;
+	private cachedQueueTracksSource: Array<Track> | null = null;
 	private cachedCompactProgressFillStyle = createCompactProgressFillStyle(paletteDefaults.accent);
 	private cachedCompactSolidBgStyle = getOverlayTintStyle(paletteDefaults.surface, 1);
 	private cachedExpandedSolidBgStyle = getOverlayTintStyle(paletteDefaults.surface, 1, 0);
@@ -542,6 +551,43 @@ export class NowPlayingSurface extends StatefulComponent<
 		);
 	};
 
+	private getQueueEntries(
+		tracks: Array<Track>,
+		trackIndex: number,
+		albumImageUrl: string | null,
+	): QueueEntries {
+		if (
+			tracks === this.cachedQueueTracksSource &&
+			trackIndex === this.cachedQueueTrackIndex &&
+			albumImageUrl === this.cachedQueueAlbumImageUrl
+		) {
+			return this.cachedQueueEntries;
+		}
+
+		this.cachedQueueTracksSource = tracks;
+		this.cachedQueueTrackIndex = trackIndex;
+		this.cachedQueueAlbumImageUrl = albumImageUrl;
+
+		const toEntry = (t: Track): TrackListEntry => ({
+			artworkSource: t.albumImageUrl ?? albumImageUrl,
+			id: t.id,
+			meta: t.artistName ?? '',
+			title: t.name,
+			track: t,
+		});
+
+		this.cachedQueueEntries = {
+			backToEntries: tracks
+				.slice(Math.max(0, trackIndex - MAX_VISIBLE_QUEUE_TRACKS), trackIndex)
+				.reverse()
+				.map(toEntry),
+			upNextEntries: tracks
+				.slice(trackIndex + 1, trackIndex + 1 + MAX_VISIBLE_QUEUE_TRACKS)
+				.map(toEntry),
+		};
+		return this.cachedQueueEntries;
+	}
+
 	private handleQueuePageLayout = (frame: { width: number }): void => {
 		this.queueListWidth = frame.width;
 		if (!this.isQueueSliding) {
@@ -737,21 +783,11 @@ export class NowPlayingSurface extends StatefulComponent<
 		const playbackStore = this.viewModel.playbackStore;
 		const progressSeconds = playbackStore?.progressSeconds ?? 0;
 
-		const toEntry = (t: Track): TrackListEntry => ({
-			artworkSource: t.albumImageUrl ?? album?.imageUrl ?? null,
-			id: t.id,
-			meta: t.artistName ?? '',
-			title: t.name,
-			track: t,
-		});
-
-		const upNextEntries = tracks
-			.slice(trackIndex + 1, trackIndex + 1 + MAX_VISIBLE_QUEUE_TRACKS)
-			.map(toEntry);
-		const backToEntries = tracks
-			.slice(Math.max(0, trackIndex - MAX_VISIBLE_QUEUE_TRACKS), trackIndex)
-			.reverse()
-			.map(toEntry);
+		const { backToEntries, upNextEntries } = this.getQueueEntries(
+			tracks,
+			trackIndex,
+			album?.imageUrl ?? null,
+		);
 		const canEditQueue = Boolean(this.viewModel.playbackStore);
 		const albumImageUrl = track.albumImageUrl ?? album?.imageUrl ?? null;
 		const albumArtworkSource =

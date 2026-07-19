@@ -80,6 +80,13 @@ interface ArtistCachePayload {
 
 @NavigationPage(module)
 export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel, ArtistState> {
+	private cachedAlbumCards: Array<Card> = [];
+	private cachedAlbumCardsSource: Array<Album> | null = null;
+	private cachedArtistGenres: Array<Genre> = [];
+	private cachedArtistGenresAlbumsSource: Array<Album> | null = null;
+	private cachedArtistGenresSource: Artist['genres'] | undefined = undefined;
+	private cachedTopTrackEntries: Array<TrackListEntry> = [];
+	private cachedTopTrackEntriesSource: Array<Track> | null = null;
 	private loadGeneration = 0;
 	private inFlightReads: Array<{ cancel?(): void }> = [];
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
@@ -153,27 +160,10 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			allTracks[0]?.artistName ||
 			'';
 
-		const albumCards: Array<Card> = albums.map((album) => ({
-			artworkKey: album.imageUrl ?? '',
-			id: album.id,
-			kind: 'album',
-			primaryText: album.name,
-			secondaryText: album.releaseDate?.slice(0, 4) ?? '',
-		}));
-
-		const trackEntries: Array<TrackListEntry> = topTracks.slice(0, 5).map((track) => ({
-			artworkSource: track.albumImageUrl ?? null,
-			id: track.id,
-			meta: track.albumName ?? '',
-			title: track.name,
-			track,
-		}));
-
+		const albumCards = this.getAlbumCards(albums);
+		const trackEntries = this.getTopTrackEntries(topTracks);
 		const isLoading = !albumsLoaded || !topTracksLoaded;
-		const artistGenres = mergeGenreCollections([
-			artist.genres,
-			...albums.map((album) => album.genres),
-		]);
+		const artistGenres = this.getArtistGenres(artist.genres, albums);
 
 		<layout accessibilityLabel='artist-view' style={styles.root}>
 			<view accessibilityId='artist-view' style={styles.fullScreen}>
@@ -286,6 +276,52 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	private closeModalSlot = (): void => {
 		closeSlot(this.viewModel.modalSlot);
 	};
+
+	private getAlbumCards(albums: Array<Album>): Array<Card> {
+		if (albums !== this.cachedAlbumCardsSource) {
+			this.cachedAlbumCardsSource = albums;
+			this.cachedAlbumCards = albums.map((album) => ({
+				artworkKey: album.imageUrl ?? '',
+				id: album.id,
+				kind: 'album',
+				primaryText: album.name,
+				secondaryText: album.releaseDate?.slice(0, 4) ?? '',
+			}));
+		}
+
+		return this.cachedAlbumCards;
+	}
+
+	private getArtistGenres(genres: Artist['genres'], albums: Array<Album>): Array<Genre> {
+		if (
+			genres !== this.cachedArtistGenresSource ||
+			albums !== this.cachedArtistGenresAlbumsSource
+		) {
+			this.cachedArtistGenresSource = genres;
+			this.cachedArtistGenresAlbumsSource = albums;
+			this.cachedArtistGenres = mergeGenreCollections([
+				genres,
+				...albums.map((album) => album.genres),
+			]);
+		}
+
+		return this.cachedArtistGenres;
+	}
+
+	private getTopTrackEntries(topTracks: Array<Track>): Array<TrackListEntry> {
+		if (topTracks !== this.cachedTopTrackEntriesSource) {
+			this.cachedTopTrackEntriesSource = topTracks;
+			this.cachedTopTrackEntries = topTracks.slice(0, 5).map((track) => ({
+				artworkSource: track.albumImageUrl ?? null,
+				id: track.id,
+				meta: track.albumName ?? '',
+				title: track.name,
+				track,
+			}));
+		}
+
+		return this.cachedTopTrackEntries;
+	}
 
 	private detailDeps(): DetailPushDeps {
 		return {

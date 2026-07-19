@@ -58,6 +58,11 @@ interface GenresState {
 }
 
 export class GenresView extends StatefulComponent<GenresViewModel, GenresState> {
+	private cachedDisplayGenres: Array<Genre> = [];
+	private cachedDisplayGenresRef: Array<Genre> | null = null;
+	private cachedDisplayLetterFilter: string | null | undefined = undefined;
+	private cachedGenreCards: Array<Card> = [];
+	private cachedGenreCardsSource: Array<Genre> | null = null;
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 
@@ -86,23 +91,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		const { imageCache, toastService, transport } = this.viewModel;
 		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
-		let genres = this.state.genres;
-		if (this.viewModel.letterFilter) {
-			const letter = this.viewModel.letterFilter;
-			genres = genres.filter((g) =>
-				letter === '0'
-					? /^\d/.test(g.name.trim())
-					: g.name.trim().toLowerCase().startsWith(letter.toLowerCase()),
-			);
-		}
-
-		const cards: Array<Card> = genres.map((genre) => ({
-			artworkKey: genre.imageUrl ?? '',
-			id: genre.id,
-			kind: 'genre',
-			primaryText: genre.name,
-			secondaryText: genre.trackCount != null ? `${genre.trackCount} tracks` : '',
-		}));
+		const cards = this.createGenreCards(this.getDisplayGenres());
 
 		<view style={styles.container}>
 			<RefreshableScroll
@@ -258,6 +247,43 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			transport: this.viewModel.transport,
 		});
 	};
+
+	private createGenreCards(genres: Array<Genre>): Array<Card> {
+		if (genres !== this.cachedGenreCardsSource) {
+			this.cachedGenreCardsSource = genres;
+			this.cachedGenreCards = genres.map((genre) => ({
+				artworkKey: genre.imageUrl ?? '',
+				id: genre.id,
+				kind: 'genre',
+				primaryText: genre.name,
+				secondaryText: genre.trackCount != null ? `${genre.trackCount} tracks` : '',
+			}));
+		}
+
+		return this.cachedGenreCards;
+	}
+
+	private getDisplayGenres(): Array<Genre> {
+		const letterFilter = this.viewModel.letterFilter;
+
+		if (
+			this.state.genres === this.cachedDisplayGenresRef &&
+			letterFilter === this.cachedDisplayLetterFilter
+		) {
+			return this.cachedDisplayGenres;
+		}
+
+		this.cachedDisplayGenresRef = this.state.genres;
+		this.cachedDisplayLetterFilter = letterFilter;
+		this.cachedDisplayGenres = letterFilter
+			? this.state.genres.filter((g) =>
+					letterFilter === '0'
+						? /^\d/.test(g.name.trim())
+						: g.name.trim().toLowerCase().startsWith(letterFilter.toLowerCase()),
+				)
+			: this.state.genres;
+		return this.cachedDisplayGenres;
+	}
 
 	private cacheKey(): string {
 		return `list:genres:${this.viewModel.isOfflineMode ? 'offline' : 'online'}`;

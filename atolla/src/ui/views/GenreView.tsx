@@ -28,7 +28,8 @@ import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
 import { LoadingView } from '../components/LoadingView';
 import { RefreshableScroll } from '../components/RefreshableScroll';
-import { TrackList, type TrackListEntry } from '../components/TrackList';
+import { TrackList } from '../components/TrackList';
+import { type DerivedTracks, deriveTracks } from '../components/TrackListEntries';
 import { type DetailPushDeps, pushAlbum, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import { TRACK_PAGE_SIZE } from '../pagination/Grid';
@@ -121,15 +122,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		// self-heal: a genre pushed from an album/track chip may lack imageUrl; merge the fetched one
 		const genre = { ...this.viewModel.genre, ...(this.state.hydratedGenre ?? {}) };
 
-		const entries: Array<TrackListEntry> = tracks.map((track) => ({
-			artworkSource: track.albumImageUrl ?? null,
-			id: track.id,
-			meta: track.artistName ?? '',
-			title: track.name,
-			track,
-		}));
-
-		const totalDuration = tracks.reduce((sum, t) => sum + t.duration, 0);
+		const { entries, totalDuration } = this.getDerivedTracks(tracks);
 
 		<layout accessibilityLabel='genre-view' style={styles.root}>
 			<view style={styles.fullScreen}>
@@ -201,6 +194,8 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		</layout>;
 	}
 
+	private cachedDerivedTracks: DerivedTracks = { entries: [], totalDuration: 0 };
+	private cachedDerivedTracksSource: Array<Track> | null = null;
 	private currentPage = 0;
 	private hasMoreTracks = true;
 	private isLoadingPage = false;
@@ -217,6 +212,15 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		this.inFlightPageRead = undefined;
 		this.inFlightHydrateRead?.cancel?.();
 		this.inFlightHydrateRead = undefined;
+	}
+
+	private getDerivedTracks(tracks: Array<Track>): DerivedTracks {
+		if (tracks !== this.cachedDerivedTracksSource) {
+			this.cachedDerivedTracksSource = tracks;
+			this.cachedDerivedTracks = deriveTracks(tracks);
+		}
+
+		return this.cachedDerivedTracks;
 	}
 
 	private fetchPage(page: number): CancelablePromise<GenreTracksPage> {

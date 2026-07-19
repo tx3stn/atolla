@@ -62,6 +62,11 @@ interface HomeState {
 
 export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private loadGeneration = 0;
+	private cachedOnThisDayAlbumsRef: Array<Album> | null = null;
+	private cachedOnThisDayCards: Array<CardDetailItem> = [];
+	private cachedOnThisDayDayKey = '';
+	private cachedRecentlyPlayedEntries: Array<TrackListEntry> = [];
+	private cachedRecentlyPlayedTracksRef: Array<Track> | null = null;
 	private cachedRecentlyAddedCards: Array<Card> = [];
 	private cachedRecentlyAddedAlbumsRef: Array<Album> | null = null;
 	private cachedRecentlyAddedGridColumns = -1;
@@ -299,8 +304,23 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			.catch(() => {});
 	}
 
+	// the cards depend on today's date, so the day is part of the cache key: an app left open
+	// across midnight must re-derive rather than keep yesterday's anniversaries
 	private createOnThisDayCards(): Array<CardDetailItem> {
-		return createOnThisDayCardDetails(this.state.onThisDayAlbums, new Date());
+		const now = new Date();
+		const dayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+
+		if (
+			this.state.onThisDayAlbums === this.cachedOnThisDayAlbumsRef &&
+			dayKey === this.cachedOnThisDayDayKey
+		) {
+			return this.cachedOnThisDayCards;
+		}
+
+		this.cachedOnThisDayAlbumsRef = this.state.onThisDayAlbums;
+		this.cachedOnThisDayDayKey = dayKey;
+		this.cachedOnThisDayCards = createOnThisDayCardDetails(this.state.onThisDayAlbums, now);
+		return this.cachedOnThisDayCards;
 	}
 
 	private findHomeAlbum(id: string): Album | undefined {
@@ -332,14 +352,20 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	private createRecentlyPlayedEntries(): Array<TrackListEntry> {
-		return this.viewModel.recentlyPlayedTracks.slice(0, 5).map((track, index) => ({
-			artworkSource: track.albumImageUrl ?? null,
-			id: track.id,
-			leadingLabel: String(index + 1),
-			meta: track.artistName ?? track.albumName ?? '',
-			title: track.name,
-			track,
-		}));
+		const { recentlyPlayedTracks } = this.viewModel;
+		if (recentlyPlayedTracks !== this.cachedRecentlyPlayedTracksRef) {
+			this.cachedRecentlyPlayedTracksRef = recentlyPlayedTracks;
+			this.cachedRecentlyPlayedEntries = recentlyPlayedTracks.slice(0, 5).map((track, index) => ({
+				artworkSource: track.albumImageUrl ?? null,
+				id: track.id,
+				leadingLabel: String(index + 1),
+				meta: track.artistName ?? track.albumName ?? '',
+				title: track.name,
+				track,
+			}));
+		}
+
+		return this.cachedRecentlyPlayedEntries;
 	}
 
 	private handleAlbumCardTap = (card: {
