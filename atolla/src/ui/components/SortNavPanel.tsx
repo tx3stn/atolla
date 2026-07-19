@@ -1,7 +1,7 @@
 import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView, Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type SortOrder, SortOrders } from '../../models/App';
 import { theme } from '../../theme';
 
@@ -101,7 +101,7 @@ const styles = {
 		marginRight: 1,
 		width: 24,
 	}),
-	letterButtonActive: new Style({
+	letterButtonActive: new Style<View>({
 		alignItems: 'center' as const,
 		borderRadius: theme.radius.pill,
 		height: 24,
@@ -127,7 +127,7 @@ const styles = {
 		...theme.text.mainMuted,
 		color: theme.colors.bg,
 	}),
-	panel: new Style({
+	panel: new Style<View>({
 		backgroundColor: theme.colors.bgFrosted,
 		borderRadius: theme.radius.default,
 		left: 16,

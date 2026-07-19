@@ -70,7 +70,7 @@ export const modalStyles = {
 		flexBasis: 0,
 		flexGrow: 1,
 	}),
-	actionSeparator: new Style({
+	actionSeparator: new Style<View>({
 		width: 10,
 	}),
 	actions: new Style<Layout>({

@@ -1,6 +1,7 @@
 import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
+import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 
 const isAndroid = Device.isAndroid();
 
@@ -35,14 +36,14 @@ const topInset = Device.getDisplayTopInset();
 
 export const theme = {
 	app: {
-		content: new Style({
+		content: new Style<View>({
 			alignItems: 'center' as const,
 			flexGrow: 1,
 			justifyContent: 'flex-start' as const,
 			position: 'relative' as const,
 			width: '100%',
 		}),
-		root: new Style({
+		root: new Style<View>({
 			backgroundColor: colors.bg,
 			flexDirection: 'column' as const,
 			height: '100%',

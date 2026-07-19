@@ -1,7 +1,7 @@
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
-import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import type { LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -48,7 +48,7 @@ const styles = {
 		...theme.text.main,
 		color: theme.colors.grey,
 	}),
-	section: new Style({
+	section: new Style<Layout>({
 		marginBottom: 16,
 		padding: 8,
 		width: '100%',

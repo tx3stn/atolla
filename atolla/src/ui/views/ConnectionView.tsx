@@ -6,7 +6,7 @@ import { Style } from 'valdi_core/src/Style';
 import { systemFont } from 'valdi_core/src/SystemFont';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
-import type { Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import type { ToastService } from '../../services/ToastService';
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
@@ -237,7 +237,7 @@ const styles = {
 		marginLeft: 10,
 		width: '100%',
 	}),
-	inputContainer: new Style({
+	inputContainer: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.radius.pill,
 		marginTop: 16,
@@ -259,7 +259,7 @@ const styles = {
 		font: systemFont(16),
 		textAlign: 'center',
 	}),
-	logoContainer: new Style({
+	logoContainer: new Style<View>({
 		alignItems: 'center' as const,
 		backgroundColor: theme.colors.bg,
 		height: 96,
@@ -267,7 +267,7 @@ const styles = {
 		marginBottom: 30,
 		width: 96,
 	}),
-	logoImage: new Style({
+	logoImage: new Style<ImageView>({
 		height: 96,
 		width: 96,
 	}),
@@ -276,22 +276,22 @@ const styles = {
 		color: theme.colors.active,
 		textAlign: 'center',
 	}),
-	quickConnectCodeSlot: new Style({
+	quickConnectCodeSlot: new Style<View>({
 		alignItems: 'center' as const,
 		height: 28,
 		justifyContent: 'center' as const,
 	}),
-	quickConnectContainer: new Style({
+	quickConnectContainer: new Style<View>({
 		alignItems: 'center' as const,
 		marginTop: 10,
 	}),
-	quickConnectSpinnerSlot: new Style({
+	quickConnectSpinnerSlot: new Style<View>({
 		alignItems: 'center' as const,
 		height: 46,
 		justifyContent: 'center' as const,
 		marginTop: 10,
 	}),
-	root: new Style({
+	root: new Style<View>({
 		alignItems: 'center' as const,
 		backgroundColor: theme.colors.bg,
 		height: '100%',

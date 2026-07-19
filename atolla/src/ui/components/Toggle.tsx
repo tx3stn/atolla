@@ -32,7 +32,7 @@ export class Toggle extends Component<ToggleViewModel> {
 }
 
 function createThumbStyle(marginLeft: number): Style<View> {
-	return new Style({
+	return new Style<View>({
 		backgroundColor: theme.colors.white,
 		borderRadius: THUMB_SIZE / 2,
 		height: THUMB_SIZE,

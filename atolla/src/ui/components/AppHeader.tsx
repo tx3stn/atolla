@@ -280,7 +280,7 @@ const styles = {
 		paddingLeft: 6,
 		paddingRight: 10,
 	}),
-	scrollViewport: new Style({
+	scrollViewport: new Style<View>({
 		flexGrow: 1,
 		minWidth: 0,
 		slowClipping: true,

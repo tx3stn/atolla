@@ -1,7 +1,7 @@
 import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
@@ -193,7 +193,7 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 }
 
 const styles = {
-	section: new Style({
+	section: new Style<Layout>({
 		marginBottom: 24,
 		width: '100%',
 	}),

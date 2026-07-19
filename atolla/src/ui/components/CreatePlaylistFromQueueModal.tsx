@@ -133,7 +133,7 @@ export class CreatePlaylistFromQueueModal extends StatefulComponent<
 }
 
 const styles = {
-	checkboxes: new Style({
+	checkboxes: new Style<View>({
 		marginTop: 14,
 	}),
 	errorLabel: new Style<Label>({

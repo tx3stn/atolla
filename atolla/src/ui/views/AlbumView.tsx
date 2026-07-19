@@ -4,7 +4,7 @@ import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
-import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import { HeaderTabs } from '../../models/App';
 import type { Artist } from '../../models/Artist';
@@ -483,7 +483,7 @@ const styles = {
 		marginLeft: 8,
 		marginTop: 12,
 	}),
-	discSection: new Style({
+	discSection: new Style<Layout>({
 		width: '100%',
 	}),
 	fullScreen: new Style<View>({
@@ -491,8 +491,7 @@ const styles = {
 		position: 'relative',
 		width: '100%',
 	}),
-	root: new Style({
-		backgroundColor: theme.colors.bg,
+	root: new Style<Layout>({
 		flexGrow: 1,
 		width: '100%',
 	}),

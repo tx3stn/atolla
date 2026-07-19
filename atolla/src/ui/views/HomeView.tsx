@@ -1,7 +1,7 @@
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
-import type { Label, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, Layout, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { CardDetailItem } from '../../models/App';
 import type { Playlist } from '../../models/Playlist';
@@ -519,7 +519,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 }
 
 const styles = {
-	content: new Style({
+	content: new Style<Layout>({
 		paddingBottom: 18,
 		paddingLeft: 14,
 		paddingRight: 14,
@@ -530,7 +530,7 @@ const styles = {
 		...theme.text.sub,
 		marginTop: 6,
 	}),
-	root: new Style({
+	root: new Style<Layout>({
 		flexGrow: 1,
 		width: '100%',
 	}),
@@ -540,11 +540,8 @@ const styles = {
 		paddingBottom: theme.padding.scrollBottom,
 		width: '100%',
 	}),
-	section: new Style({
+	section: new Style<Layout>({
 		marginBottom: 24,
-		width: '100%',
-	}),
-	sections: new Style({
 		width: '100%',
 	}),
 	sectionTitle: new Style<Label>({

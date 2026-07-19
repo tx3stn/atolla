@@ -2,7 +2,7 @@ import { Component } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { Asset } from 'valdi_tsx/src/Asset';
-import type { ImageView, Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { animateRowRipple, rowRippleStyle } from '../animations/Row';
 
@@ -61,7 +61,7 @@ const styles = {
 	actionLabel: new Style<Label>({
 		...theme.text.subLarger,
 	}),
-	actionRow: new Style({
+	actionRow: new Style<View>({
 		...theme.text.subLarger,
 		flexDirection: 'row' as const,
 		padding: 4,

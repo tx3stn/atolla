@@ -621,7 +621,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 }
 
 const styles = {
-	content: new Style({
+	content: new Style<Layout>({
 		width: '100%',
 	}),
 	fullScreen: new Style<View>({
@@ -629,8 +629,7 @@ const styles = {
 		position: 'relative',
 		width: '100%',
 	}),
-	root: new Style({
-		backgroundColor: theme.colors.bg,
+	root: new Style<Layout>({
 		flexGrow: 1,
 		width: '100%',
 	}),
@@ -642,7 +641,7 @@ const styles = {
 		paddingTop: theme.padding.scrollHeader(true),
 		width: '100%',
 	}),
-	section: new Style({
+	section: new Style<Layout>({
 		marginBottom: 16,
 		width: '100%',
 	}),

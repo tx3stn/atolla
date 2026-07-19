@@ -9,15 +9,6 @@ interface RippleElementRef {
 	setAttribute(name: string, value: unknown): void;
 }
 
-export const iconButtonStyle = new Style({
-	alignItems: 'center',
-	height: 40,
-	justifyContent: 'center',
-	overflow: 'visible',
-	position: 'relative',
-	width: 40,
-});
-
 export const iconImageStyle = new Style<ImageView>({
 	height: 24,
 	width: 24,
@@ -25,7 +16,7 @@ export const iconImageStyle = new Style<ImageView>({
 
 export function createRippleStyle(tint: string, hitSize = 40): Style<View> {
 	const center = hitSize / 2;
-	return new Style({
+	return new Style<View>({
 		backgroundColor: tint,
 		borderRadius: 0,
 		height: 0,

@@ -629,10 +629,8 @@ const styles = {
 		marginLeft: 4,
 		marginTop: 8,
 	}),
-	httpWarningCallout: new Style({
+	httpWarningCallout: new Style<View>({
 		backgroundColor: withAlpha(theme.colors.warning, 0.12),
-		borderColor: theme.colors.warning,
-		borderLeftWidth: 3,
 		borderRadius: theme.radius.default,
 		marginBottom: 12,
 		padding: 12,

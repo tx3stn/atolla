@@ -154,7 +154,7 @@ function getSpinnerStyle(size: number): Style<ImageView> {
 		return existingStyle;
 	}
 
-	const createdStyle = new Style({
+	const createdStyle = new Style<ImageView>({
 		height: size,
 		width: size,
 	});

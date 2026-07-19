@@ -496,8 +496,7 @@ const styles = {
 		height: 1,
 		width: '100%',
 	}),
-	root: new Style({
-		backgroundColor: theme.colors.bg,
+	root: new Style<Layout>({
 		flexGrow: 1,
 		width: '100%',
 	}),

@@ -247,7 +247,7 @@ const styles = {
 		height: '100%',
 		width: '100%',
 	}),
-	artworkTile: new Style({
+	artworkTile: new Style<View>({
 		alignItems: 'center' as const,
 		aspectRatio: 1,
 		backgroundColor: theme.colors.bgAccent,
@@ -256,7 +256,7 @@ const styles = {
 		slowClipping: true,
 		width: '100%',
 	}),
-	artworkTileIcon: new Style({
+	artworkTileIcon: new Style<View>({
 		alignItems: 'center' as const,
 		aspectRatio: 1,
 		backgroundColor: theme.colors.bgRaised,
@@ -268,7 +268,6 @@ const styles = {
 	browseCardBase: {
 		padding: 2,
 		paddingTop: 12,
-		rowGap: 4,
 	},
 	cardGridRowFull: new Style<Layout>({
 		flexDirection: 'row',
@@ -277,8 +276,7 @@ const styles = {
 		marginBottom: 4,
 		width: '100%',
 	}),
-	cardGridRowPartial: new Style({
-		columnGap: '1%',
+	cardGridRowPartial: new Style<Layout>({
 		flexDirection: 'row' as const,
 		flexShrink: 0,
 		justifyContent: 'flex-start' as const,
@@ -301,7 +299,7 @@ const styles = {
 		marginRight: 6,
 		marginTop: 7,
 	}),
-	grid: new Style({
+	grid: new Style<Layout>({
 		width: '100%',
 	}),
 	gridMarker: new Style<View>({
@@ -324,7 +322,7 @@ const styles = {
 		...theme.text.main,
 		textAlign: 'center',
 	}),
-	prefetchTrigger: new Style({
+	prefetchTrigger: new Style<View>({
 		height: 1,
 		width: '100%',
 	}),
@@ -338,7 +336,7 @@ function createBrowseCardStyle(columnCount: number): Style<Layout> {
 	}
 
 	const width = columnCount === 4 ? '24.5%' : columnCount === 3 ? '33%' : `${99 / columnCount}%`;
-	const style = new Style({
+	const style = new Style<Layout>({
 		...styles.browseCardBase,
 		width,
 	});

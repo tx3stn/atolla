@@ -292,7 +292,7 @@ const styles = {
 		slowClipping: true,
 		width: '90%',
 	}),
-	divider: new Style({
+	divider: new Style<View>({
 		backgroundColor: theme.colors.separator,
 		height: 1,
 		marginBottom: 8,
@@ -310,7 +310,7 @@ const styles = {
 		flexGrow: 1,
 		flexShrink: 1,
 	}),
-	entityRow: new Style({
+	entityRow: new Style<View>({
 		alignItems: 'center' as const,
 		flexDirection: 'row' as const,
 		marginBottom: 4,
@@ -320,19 +320,19 @@ const styles = {
 		paddingTop: 8,
 		width: '100%',
 	}),
-	logoContainer: new Style({
+	logoContainer: new Style<View>({
 		alignItems: 'center' as const,
 		height: 60,
 		marginBottom: 12,
 		slowClipping: true,
 		width: '100%',
 	}),
-	logoImage: new Style({
+	logoImage: new Style<ImageView>({
 		height: '100%',
 		objectFit: 'contain' as const,
 		width: '100%',
 	}),
-	logoTapArea: new Style({
+	logoTapArea: new Style<View>({
 		width: '100%',
 	}),
 };

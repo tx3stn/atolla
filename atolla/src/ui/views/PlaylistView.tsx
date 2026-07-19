@@ -6,7 +6,7 @@ import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
-import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import { HeaderTabs } from '../../models/App';
 import type { Playlist } from '../../models/Playlist';
@@ -617,8 +617,7 @@ const styles = {
 		position: 'relative',
 		width: '100%',
 	}),
-	root: new Style({
-		backgroundColor: theme.colors.bg,
+	root: new Style<Layout>({
 		flexGrow: 1,
 		width: '100%',
 	}),

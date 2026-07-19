@@ -1,6 +1,6 @@
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { Label } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
 import { theme, withAlpha } from '../../theme';
 import { Button, ButtonType } from './Button';
@@ -52,10 +52,8 @@ export class HttpWarningModal extends Component<HttpWarningModalViewModel> {
 }
 
 const styles = {
-	callout: new Style({
+	callout: new Style<View>({
 		backgroundColor: withAlpha(theme.colors.warning, 0.12),
-		borderColor: theme.colors.warning,
-		borderLeftWidth: 3,
 		borderRadius: theme.radius.default,
 		marginBottom: 4,
 		padding: 12,

@@ -6,7 +6,13 @@ import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Asset } from 'valdi_tsx/src/Asset';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
-import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type {
+	ImageView,
+	Label,
+	Layout,
+	ScrollView,
+	View,
+} from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { Palette } from '../../models/Color';
 import type { Playlist } from '../../models/Playlist';
@@ -1334,7 +1340,7 @@ const styles = {
 		paddingTop: 12,
 		width: '100%',
 	}),
-	expandedInner: new Style({
+	expandedInner: new Style<ScrollView>({
 		flexGrow: 1,
 		width: '100%',
 	}),
@@ -1357,9 +1363,7 @@ const styles = {
 		paddingBottom: 15,
 		paddingTop: 15,
 	}),
-	expandedQueueTabsRow: new Style({
-		borderTopColor: theme.colors.bgAccent,
-		borderTopWidth: 1,
+	expandedQueueTabsRow: new Style<Layout>({
 		flexDirection: 'row' as const,
 		padding: 10,
 		width: '100%',

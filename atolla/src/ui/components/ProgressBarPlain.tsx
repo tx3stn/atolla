@@ -161,7 +161,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 const styles = {
-	root: new Style({
+	root: new Style<View>({
 		width: '100%',
 	}),
 };

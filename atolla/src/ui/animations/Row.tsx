@@ -1,4 +1,5 @@
 import { Style } from 'valdi_core/src/Style';
+import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
 interface RippleAnimator {
@@ -9,7 +10,7 @@ interface RippleElementRef {
 	setAttribute(name: string, value: unknown): void;
 }
 
-export const rowRippleStyle = new Style({
+export const rowRippleStyle = new Style<View>({
 	backgroundColor: theme.colors.white,
 	height: 0,
 	left: 0,

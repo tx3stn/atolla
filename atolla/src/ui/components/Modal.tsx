@@ -1,7 +1,7 @@
 import Strings from 'atolla/src/Strings';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { Button, ButtonType } from './Button';
 import { CachedImage } from './CachedImage';
@@ -109,18 +109,11 @@ const styles = {
 		slowClipping: true,
 		width: '90%',
 	}),
-	confirmDivider: new Style({
-		backgroundColor: theme.colors.separator,
-		height: 1,
-		marginBottom: 14,
-		marginTop: 14,
-		width: '100%',
-	}),
 	logo: new Style<ImageView>({
 		height: 40,
 		width: '100%',
 	}),
-	scroll: new Style({
+	scroll: new Style<ScrollView>({
 		flexGrow: 1,
 		paddingBottom: 100,
 	}),

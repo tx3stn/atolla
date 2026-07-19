@@ -112,7 +112,7 @@ const styles = {
 		color: theme.colors.grey,
 		textAlign: 'center',
 	}),
-	tabWrap: new Style({
+	tabWrap: new Style<View>({
 		flexShrink: 0,
 		marginRight: 4,
 	}),
