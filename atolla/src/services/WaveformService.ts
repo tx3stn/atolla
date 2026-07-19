@@ -31,7 +31,6 @@ export class WaveformService {
 		// the JS↔native callbacks feeding them. a fresh attempt requires removeForTrack first.
 		if (this.records.has(trackId)) return;
 		this.records.set(trackId, { amps: null, status: 'pending', trackId });
-		this.notify();
 	}
 
 	getStatus(trackId: string): WaveformStatus | null {

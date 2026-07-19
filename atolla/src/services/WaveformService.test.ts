@@ -43,7 +43,11 @@ describe('WaveformService', () => {
 			expect(store.saveCount).toBe(0);
 		});
 
-		it('notifies listeners', () => {
+		// a pending record renders identically to no record at all — getAmps returns null for both
+		// and getReadyCount ignores it — so notifying only re-renders the overlay to the same output.
+		// runWaveformPriority schedules the whole pre-gen window per track advance, so this fires
+		// WAVEFORM_PREGEN_WINDOW times a track for no visible change
+		it('does not notify listeners, since a pending record renders identically', () => {
 			const store = new MockWaveformStore();
 			const service = new WaveformService(store);
 			let notified = 0;
@@ -52,6 +56,21 @@ describe('WaveformService', () => {
 			});
 
 			service.scheduleGeneration('track-1');
+
+			expect(notified).toBe(0);
+			expect(service.getAmps('track-1')).toBeNull();
+		});
+
+		it('notifies listeners once the generation succeeds', () => {
+			const store = new MockWaveformStore();
+			const service = new WaveformService(store);
+			service.scheduleGeneration('track-1');
+			let notified = 0;
+			service.subscribe(() => {
+				notified += 1;
+			});
+
+			service.onGenerationSucceeded('track-1', 'amps-base64-track-1');
 
 			expect(notified).toBe(1);
 		});

@@ -52,6 +52,28 @@ describe('ArtworkPaletteService', () => {
 			expect(service.hasPalette(url)).toBe(true);
 		});
 
+		// NowPlayingSurface only rebuilds its palette styles when the palette prop changes identity,
+		// and OverlayHost calls getPalette on every render, so a fresh object per call would rebuild
+		// 18 non-interned styles on every unrelated overlay render
+		it('returns the same instance across calls for a persisted palette', () => {
+			const service = new ArtworkPaletteService(new MockPaletteStore());
+			const url = 'https://example.com/art.png';
+			service.persistPalette(url, SAMPLE_PALETTE);
+
+			expect(service.getPalette(url)).toBe(service.getPalette(url));
+		});
+
+		it('returns the same instance across calls for a warmed-up palette', async () => {
+			const mockStore = new MockPaletteStore();
+			const url = 'https://example.com/art.png';
+			mockStore.seed(url, SAMPLE_PALETTE);
+
+			const service = new ArtworkPaletteService(mockStore);
+			await service.warmUp([url]);
+
+			expect(service.getPalette(url)).toBe(service.getPalette(url));
+		});
+
 		it('returns undefined for null url', () => {
 			const service = new ArtworkPaletteService(new MockPaletteStore());
 			expect(service.getPalette(null)).toBeUndefined();
@@ -170,6 +192,67 @@ describe('ArtworkPaletteService', () => {
 			unsub2();
 			service2.persistPalette('u', SAMPLE_PALETTE);
 			expect(calls).toBe(1); // only the non-unsubscribed listener fires
+		});
+	});
+
+	// palettes are pre-extracted for the whole library as artwork is cached, but the only consumer
+	// renders one URL at a time. an identity-free notification forces it to treat all of them as
+	// relevant, so the URL has to travel with the notification for it to filter
+	describe('notification payload', () => {
+		it('tells listeners which url was persisted', () => {
+			const service = new ArtworkPaletteService(new MockPaletteStore());
+			const notified: Array<string | undefined> = [];
+			service.subscribe((imageUrl) => notified.push(imageUrl));
+
+			service.persistPalette('https://example.com/a.png', SAMPLE_PALETTE);
+
+			expect(notified).toEqual(['https://example.com/a.png']);
+		});
+
+		// warm-up and clear both change many urls at once, so they carry no single url and every
+		// listener has to treat them as relevant
+		it('omits the url when warm-up loads palettes in bulk', async () => {
+			const mockStore = new MockPaletteStore();
+			mockStore.seed('https://example.com/a.png', SAMPLE_PALETTE);
+			const service = new ArtworkPaletteService(mockStore);
+			const notified: Array<string | undefined> = [];
+			service.subscribe((imageUrl) => notified.push(imageUrl));
+
+			await service.warmUp(['https://example.com/a.png']);
+
+			expect(notified).toEqual([undefined]);
+		});
+
+		// warmUp runs per track play, so a miss must not announce a change that did not happen
+		it('does not notify when warm-up loads nothing', async () => {
+			const service = new ArtworkPaletteService(new MockPaletteStore());
+			let calls = 0;
+			service.subscribe(() => calls++);
+
+			await service.warmUp(['https://example.com/never-persisted.png']);
+
+			expect(calls).toBe(0);
+		});
+
+		it('does not notify when clearing an already-empty cache', async () => {
+			const service = new ArtworkPaletteService(new MockPaletteStore());
+			let calls = 0;
+			service.subscribe(() => calls++);
+
+			await service.clearAll();
+
+			expect(calls).toBe(0);
+		});
+
+		it('omits the url when every palette is cleared', async () => {
+			const service = new ArtworkPaletteService(new MockPaletteStore());
+			service.persistPalette('https://example.com/a.png', SAMPLE_PALETTE);
+			const notified: Array<string | undefined> = [];
+			service.subscribe((imageUrl) => notified.push(imageUrl));
+
+			await service.clearAll();
+
+			expect(notified).toEqual([undefined]);
 		});
 	});
 });

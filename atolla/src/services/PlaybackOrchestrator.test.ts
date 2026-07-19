@@ -439,9 +439,12 @@ describe('PlaybackOrchestrator waveforms', () => {
 			},
 		});
 		orchestrator.setUserServices(userServices({ waveformService }));
+		// scheduling only writes a pending record, which renders identically and so does not notify;
+		// the ready transition is the one that changes what the surface draws
+		waveformService.scheduleGeneration('a');
 		const before = overlayRerenders;
 
-		waveformService.scheduleGeneration('a');
+		waveformService.onGenerationSucceeded('a', 'AMPS');
 
 		expect(overlayRerenders).toBeGreaterThan(before);
 	});

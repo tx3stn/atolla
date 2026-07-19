@@ -228,14 +228,18 @@ export class Preferences {
 	}
 
 	setAnimationsEnabled(enabled: boolean): Promise<void> {
-		this._animationsEnabled = enabled;
-		this.notify();
+		if (this._animationsEnabled !== enabled) {
+			this._animationsEnabled = enabled;
+			this.notify();
+		}
 		return this.store.storeString(PreferenceKeys.navigationAnimationsEnabled, String(enabled));
 	}
 
 	setDebugLoggingEnabled(enabled: boolean): Promise<void> {
-		this._debugLoggingEnabled = enabled;
-		this.notify();
+		if (this._debugLoggingEnabled !== enabled) {
+			this._debugLoggingEnabled = enabled;
+			this.notify();
+		}
 		return this.store.storeString(PreferenceKeys.debugLoggingEnabled, String(enabled));
 	}
 
@@ -243,8 +247,10 @@ export class Preferences {
 		if (!GRID_COLUMN_OPTIONS.includes(count as (typeof GRID_COLUMN_OPTIONS)[number])) {
 			return Promise.resolve();
 		}
-		this._gridColumns = count;
-		this.notify();
+		if (this._gridColumns !== count) {
+			this._gridColumns = count;
+			this.notify();
+		}
 		return this.store.storeString(PreferenceKeys.gridColumns, String(count));
 	}
 
@@ -252,28 +258,38 @@ export class Preferences {
 		if (!IMAGE_CACHE_SIZE_OPTIONS.includes(bytes as (typeof IMAGE_CACHE_SIZE_OPTIONS)[number])) {
 			return Promise.resolve();
 		}
-		this._imageCacheMaxBytes = bytes;
-		this.notify();
+		if (this._imageCacheMaxBytes !== bytes) {
+			this._imageCacheMaxBytes = bytes;
+			this.notify();
+		}
 		return this.store.storeString(PreferenceKeys.imageCacheMaxBytes, String(bytes));
 	}
 
 	setJellyfinClientDeviceIdOverride(value: string): Promise<void> {
 		const normalized = value.trim();
-		this._jellyfinClientDeviceIdOverride = normalized;
-		this.notify();
+		if (this._jellyfinClientDeviceIdOverride !== normalized) {
+			this._jellyfinClientDeviceIdOverride = normalized;
+			this.notify();
+		}
 		return this.store.storeString(PreferenceKeys.jellyfinClientDeviceIdOverride, normalized);
 	}
 
 	setLanguage(code: LanguageCode): Promise<void> {
-		this._language = code;
-		this.notify();
+		if (this._language !== code) {
+			this._language = code;
+			this.notify();
+		}
 		return this.store.storeString(PreferenceKeys.language, code);
 	}
 
+	// re-selecting the current mode on a fresh install still flips hasStoredMode, which the
+	// cold-start launch decision reads, so that counts as a change even when the mode matches
 	setMode(mode: ConnectionMode): Promise<void> {
-		this._mode = mode;
-		this._hasStoredMode = true;
-		this.notify();
+		if (this._mode !== mode || !this._hasStoredMode) {
+			this._mode = mode;
+			this._hasStoredMode = true;
+			this.notify();
+		}
 		return this.store.storeString(PreferenceKeys.mode, mode);
 	}
 
@@ -281,8 +297,10 @@ export class Preferences {
 		if (!TRACK_CACHE_LIMIT_OPTIONS.includes(count as (typeof TRACK_CACHE_LIMIT_OPTIONS)[number])) {
 			return Promise.resolve();
 		}
-		this._trackCacheMaxTracks = count;
-		this.notify();
+		if (this._trackCacheMaxTracks !== count) {
+			this._trackCacheMaxTracks = count;
+			this.notify();
+		}
 		return this.store.storeString(PreferenceKeys.trackCacheMaxTracks, String(count));
 	}
 

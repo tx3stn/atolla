@@ -77,7 +77,7 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 			return;
 		}
 		this.overlayContentSubscribed = true;
-		this.registerDisposable(services.paletteService.subscribe(this.handleChange));
+		this.registerDisposable(services.paletteService.subscribe(this.handlePaletteChange));
 		this.registerDisposable(
 			services.playbackOrchestrator.subscribeOverlayContent(this.handleChange),
 		);
@@ -88,6 +88,23 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 		this.ensurePreferencesSubscription();
 		this.ensureOverlayContentSubscription();
 		this.setState({ revision: this.state.revision + 1 });
+	};
+
+	// palettes are extracted for every album cover the image cache sees, but the overlay only draws
+	// the playing track's, so a notification naming any other artwork would re-render to identical
+	// output. an absent url means a bulk change (warm-up, clear) and is always relevant
+	private handlePaletteChange = (imageUrl?: string): void => {
+		const services = appServices.get();
+		if (!services || imageUrl === undefined) {
+			this.handleChange();
+			return;
+		}
+
+		const { track, album } = services.playbackStore;
+		if (imageUrl !== (track?.albumImageUrl ?? album?.imageUrl)) {
+			return;
+		}
+		this.handleChange();
 	};
 
 	// the overlay renders the header/now-playing/footer, none of which show elapsed time (the surface

@@ -52,15 +52,11 @@ export class UserScope {
 	private reconnectSync?: ReconnectSyncCoordinator;
 	private recentlyAddedService?: RecentlyAddedService;
 	private searchStore!: SearchStore;
-	private unsubscribePalette?: () => void;
 	private viewCache!: ViewCache;
 
 	constructor(private readonly deps: UserScopeDeps) {}
 
 	activate(userId: string): void {
-		if (this.unsubscribePalette) {
-			this.unsubscribePalette();
-		}
 		this.searchStore = new SearchStore(
 			new PersistentStore(`atolla/user/${userId}/search_history`, { deviceGlobal: true }),
 		);
@@ -160,16 +156,12 @@ export class UserScope {
 		} catch {
 			// observer bridge unavailable on non-Android targets
 		}
-		this.unsubscribePalette = this.paletteService.subscribe(() => this.deps.requestRerender());
 		// on the login path activate() runs after the home view has already mounted with these
 		// services undefined, so re-render to flow the newly created services into the view models
 		this.deps.requestRerender();
 	}
 
 	dispose(): void {
-		if (this.unsubscribePalette) {
-			this.unsubscribePalette();
-		}
 		this.paletteQueue?.dispose();
 	}
 

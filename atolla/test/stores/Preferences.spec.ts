@@ -243,4 +243,88 @@ describe('Preferences', () => {
 			expect(preferences.hasStoredMode).toBe(true);
 		});
 	});
+
+	// every screen view subscribes and re-reads the getters, so a notify for a value that did not
+	// change re-renders the whole settings tree for nothing
+	describe('notify deduplication', () => {
+		it('does not notify when the grid column count is unchanged', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[1]);
+			let notified = 0;
+			preferences.subscribe(() => notified++);
+
+			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[1]);
+
+			expect(notified).toBe(0);
+		});
+
+		it('notifies when the grid column count actually changes', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[1]);
+			let notified = 0;
+			preferences.subscribe(() => notified++);
+
+			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[0]);
+
+			expect(notified).toBe(1);
+		});
+
+		it('does not notify when the language is unchanged', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+			await preferences.setLanguage(DEFAULT_LANGUAGE);
+			let notified = 0;
+			preferences.subscribe(() => notified++);
+
+			await preferences.setLanguage(DEFAULT_LANGUAGE);
+
+			expect(notified).toBe(0);
+		});
+
+		it('does not notify when animations enabled is unchanged', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+			await preferences.setAnimationsEnabled(false);
+			let notified = 0;
+			preferences.subscribe(() => notified++);
+
+			await preferences.setAnimationsEnabled(false);
+
+			expect(notified).toBe(0);
+		});
+
+		// re-selecting the current mode on a fresh install still flips hasStoredMode, which the
+		// cold-start launch decision reads — that is a real change even though the mode matches
+		it('notifies when re-setting the current mode first persists it', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+			await preferences.load();
+			let notified = 0;
+			preferences.subscribe(() => notified++);
+
+			await preferences.setMode(preferences.mode);
+
+			expect(preferences.hasStoredMode).toBe(true);
+			expect(notified).toBe(1);
+		});
+
+		it('does not notify when the mode is already stored and unchanged', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+			await preferences.setMode(ConnectionModes.offline);
+			let notified = 0;
+			preferences.subscribe(() => notified++);
+
+			await preferences.setMode(ConnectionModes.offline);
+
+			expect(notified).toBe(0);
+		});
+
+		// the write stays unconditional: a value equal to the in-memory default may never have been
+		// persisted, so skipping it would leave disk and memory disagreeing
+		it('still persists a value that is unchanged in memory', async () => {
+			const store = new InMemoryKeyValueStore();
+			const preferences = new Preferences(store);
+
+			await preferences.setGridColumns(DEFAULT_GRID_COLUMNS);
+
+			expect(await store.fetchString('grid_columns')).toBe(String(DEFAULT_GRID_COLUMNS));
+		});
+	});
 });
