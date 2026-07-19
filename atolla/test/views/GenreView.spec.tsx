@@ -195,9 +195,6 @@ describe('GenreView', () => {
 				playTracks(tracks: Array<{ id: string }>) {
 					this.played.push(tracks);
 				},
-				playWithArtistLogos(tracks: Array<{ id: string }>) {
-					this.played.push(tracks);
-				},
 				queueFiller: null as unknown,
 				setQueueFiller(filler: unknown) {
 					this.queueFiller = filler;

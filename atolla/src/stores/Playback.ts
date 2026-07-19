@@ -514,23 +514,6 @@ export class PlaybackStore {
 		this.notify();
 	}
 
-	playWithArtistLogos(tracks: Array<Track>, logoUrls: Array<string | null>, startIndex = 0): void {
-		const sanitizedTracks = sanitizeTracks(tracks);
-		const clampedIndex = Math.max(0, Math.min(sanitizedTracks.length - 1, startIndex));
-		this.setQueueFiller(null);
-		this.queueRestoreSuperseded = true;
-		this.allowBackwardRebuild = true;
-		this.tracks = sanitizedTracks;
-		this.album = null;
-		this.trackIndex = clampedIndex;
-		this.isPlaying = true;
-		this.progressSeconds = 0;
-		this._artistLogoUrls = tracks.map((_, index) => logoUrls[index] ?? null);
-		void this.queueStore?.storeString(playbackActiveKey, 'true').catch(() => {});
-		this.persistQueue();
-		this.notify();
-	}
-
 	addToQueue(tracks: Array<Track>): void {
 		this.tracks = [...this.tracks, ...sanitizeTracks(tracks)];
 		this._artistLogoUrls = [...this._artistLogoUrls, ...tracks.map(() => null)];
