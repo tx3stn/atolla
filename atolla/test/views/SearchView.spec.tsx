@@ -366,7 +366,10 @@ describe('SearchView', () => {
 	// search field unless the search tab is the active one — otherwise launch pops the keyboard.
 	// focus instead follows tab activation, which onViewModelUpdate drives on a false->true flip.
 	valdiIt('does not focus the search input when mounted inactive', async () => {
-		const focus = spyOn(SearchView.prototype as unknown as { focusSearchInput: () => void }, 'focusSearchInput');
+		const focus = spyOn(
+			SearchView.prototype as unknown as { focusSearchInput: () => void },
+			'focusSearchInput',
+		);
 		const viewModel = {
 			active: false,
 			imageCache: stubImageCache,
@@ -386,7 +389,10 @@ describe('SearchView', () => {
 	});
 
 	valdiIt('focuses the search input when mounted active', async () => {
-		const focus = spyOn(SearchView.prototype as unknown as { focusSearchInput: () => void }, 'focusSearchInput');
+		const focus = spyOn(
+			SearchView.prototype as unknown as { focusSearchInput: () => void },
+			'focusSearchInput',
+		);
 		const viewModel = {
 			active: true,
 			imageCache: stubImageCache,
@@ -405,31 +411,37 @@ describe('SearchView', () => {
 		expect(focus).toHaveBeenCalledTimes(1);
 	});
 
-	valdiIt('focuses once when the tab becomes active and not again while it stays active', async () => {
-		const focus = spyOn(SearchView.prototype as unknown as { focusSearchInput: () => void }, 'focusSearchInput');
-		const viewModel = {
-			active: false,
-			imageCache: stubImageCache,
-			navigationController: makeNavigationController(),
-			playbackStore: new PlaybackStore(),
-			preferences: makePreferences(),
-			searchStore: makeSearchStore(),
-			transport: {
-				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
-			},
-		};
-		const instrumented = InstrumentedComponentJSX.create(SearchView, viewModel, undefined);
-		await flushAsyncWork();
-		expect(focus).not.toHaveBeenCalled();
+	valdiIt(
+		'focuses once when the tab becomes active and not again while it stays active',
+		async () => {
+			const focus = spyOn(
+				SearchView.prototype as unknown as { focusSearchInput: () => void },
+				'focusSearchInput',
+			);
+			const viewModel = {
+				active: false,
+				imageCache: stubImageCache,
+				navigationController: makeNavigationController(),
+				playbackStore: new PlaybackStore(),
+				preferences: makePreferences(),
+				searchStore: makeSearchStore(),
+				transport: {
+					search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+				},
+			};
+			const instrumented = InstrumentedComponentJSX.create(SearchView, viewModel, undefined);
+			await flushAsyncWork();
+			expect(focus).not.toHaveBeenCalled();
 
-		instrumented.setViewModel({ ...viewModel, active: true });
-		await flushAsyncWork();
-		expect(focus).toHaveBeenCalledTimes(1);
+			instrumented.setViewModel({ ...viewModel, active: true });
+			await flushAsyncWork();
+			expect(focus).toHaveBeenCalledTimes(1);
 
-		instrumented.setViewModel({ ...viewModel, active: true });
-		await flushAsyncWork();
-		expect(focus).toHaveBeenCalledTimes(1);
-	});
+			instrumented.setViewModel({ ...viewModel, active: true });
+			await flushAsyncWork();
+			expect(focus).toHaveBeenCalledTimes(1);
+		},
+	);
 
 	valdiIt('renders search bar with accessibility labels', async (driver) => {
 		const viewModel = {

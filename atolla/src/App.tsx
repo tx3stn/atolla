@@ -1,3 +1,4 @@
+import { Lazy } from 'foundation/src/Lazy';
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
@@ -110,9 +111,9 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	private readonly imageCache = new ImageCache({});
 	private modalSlot = new DetachedSlot();
 	private toastSlot = new DetachedSlot();
-	private readonly diagnosticsStore = new PersistentStore('atolla/diagnostics', {
-		deviceGlobal: true,
-	});
+	private readonly diagnosticsStore = new Lazy(
+		() => new PersistentStore('atolla/diagnostics', { deviceGlobal: true }),
+	);
 	private readonly playlistCreateService = new PlaylistCreateService(
 		new PersistentStore('atolla/playlist_creates', { deviceGlobal: true }),
 	);
@@ -123,7 +124,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	private downloadService = new DownloadService({
 		cacheImage: (url, category) => this.assetCache.cacheImageAsset(url, category),
 		cacheTrack: (trackId, url) =>
-			this.downloadWorkerClient.api.cacheDownloadedTrack(
+			this.downloadWorkerClient.target.api.cacheDownloadedTrack(
 				trackId,
 				url,
 				this.sessionManager.getAccessToken(),
@@ -132,8 +133,9 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
 		isOnline: () => this.networkStatus.isReachable(),
 		onTrackDownloaded: (trackId) => this.playbackOrchestrator.handleTrackCached(trackId),
-		removeTrack: (trackId) => this.downloadWorkerClient.api.removeDownloadedTrack(trackId),
-		removeTracks: (trackIds) => this.downloadWorkerClient.api.removeDownloadedTracks(trackIds),
+		removeTrack: (trackId) => this.downloadWorkerClient.target.api.removeDownloadedTrack(trackId),
+		removeTracks: (trackIds) =>
+			this.downloadWorkerClient.target.api.removeDownloadedTracks(trackIds),
 		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
 	});
 	private playbackOrchestrator: PlaybackOrchestrator = new PlaybackOrchestrator({
@@ -159,9 +161,8 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		showPlaybackToast: (message) => this.toastService.show(message),
 		trackSourceNative: new TrackSourceNativeAdapter(),
 	});
-	private downloadWorkerClient: IWorkerServiceClient<IDownloadNativeWorker> = startWorkerService(
-		DownloadNativeWorkerEntryPoint,
-		[],
+	private downloadWorkerClient = new Lazy<IWorkerServiceClient<IDownloadNativeWorker>>(() =>
+		startWorkerService(DownloadNativeWorkerEntryPoint, []),
 	);
 	private networkStatus = new NetworkStatus({
 		getStatusJson: () => {
@@ -318,7 +319,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	}
 
 	onDestroy(): void {
-		void this.diagnosticsStore.storeString('session_active', '0').catch(() => {});
+		void this.diagnosticsStore.target.storeString('session_active', '0').catch(() => {});
 		this.playbackStore.persistNow();
 		this.playbackOrchestrator.dispose();
 		if (this.bootstrapCommitTimer) {
@@ -331,7 +332,9 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			clearTimeout(this.syncBannerTimer);
 		}
 		this.userScope.dispose();
-		this.downloadWorkerClient.dispose();
+		if (this.downloadWorkerClient.isCreated) {
+			this.downloadWorkerClient.target.dispose();
+		}
 		this.networkStatus.dispose();
 	}
 
@@ -625,13 +628,13 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	}
 
 	private markSessionStartAndDetectPriorCrash(): void {
-		void this.diagnosticsStore
+		void this.diagnosticsStore.target
 			.fetchString('session_active')
 			.then((value) => {
 				if (value === '1') {
 					log.warn('previous session ended without clean shutdown');
 				}
-				return this.diagnosticsStore.storeString('session_active', '1');
+				return this.diagnosticsStore.target.storeString('session_active', '1');
 			})
 			.catch(() => {});
 	}
