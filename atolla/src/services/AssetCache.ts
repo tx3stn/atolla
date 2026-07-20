@@ -54,7 +54,7 @@ export class AssetCache {
 	getAudioPathForWaveform(trackId: string): string | null {
 		try {
 			const cached = getAtollaCachedTrackFileUrl(trackId);
-			if (cached) return cached;
+			if (cached && !cached.endsWith('.tmp')) return cached;
 		} catch {}
 		try {
 			const downloaded = getAtollaDownloadedTrackFileUrl(trackId);
