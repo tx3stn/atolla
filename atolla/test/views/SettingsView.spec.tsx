@@ -99,12 +99,23 @@ function makeViewModel(overrides?: Partial<SettingsViewModel>): SettingsViewMode
 		preferences: mockPreferences(),
 		sessionController: makeSessionController().controller,
 		toastService: new ToastService(),
-		visible: false,
+		visible: true,
 		...overrides,
 	};
 }
 
 describe('SettingsView', () => {
+	// all four tabs mount at first authed paint; a hidden settings tab must not render its whole
+	// tree (or run its stats poll) every second in the background
+	valdiIt('renders nothing while hidden', async (driver) => {
+		const viewModel = makeViewModel({ visible: false });
+		const component = driver.renderComponent(SettingsView, viewModel, undefined);
+
+		expect(
+			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View).length,
+		).toBe(0);
+	});
+
 	valdiIt(
 		'renders the server name from the session controller in a disabled field',
 		async (driver) => {

@@ -98,6 +98,9 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 	}
 
 	onRender(): void {
+		if (!this.viewModel.visible) {
+			return;
+		}
 		const serverName = this.viewModel.sessionController.serverName() ?? '';
 		const serverUrl = this.viewModel.sessionController.serverUrl();
 		const isHttpServer = typeof serverUrl === 'string' && /^http:\/\//i.test(serverUrl);
@@ -520,6 +523,13 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 				} catch {
 					// leave existing counts on parse failure
 				}
+				if (
+					diskBytes === this.state.imageCacheDiskBytes &&
+					diskCount === this.state.imageCacheDiskCount &&
+					countsEqual(imageCategoryCounts, this.state.imageCategoryCounts)
+				) {
+					return;
+				}
 				this.setState({
 					imageCacheDiskBytes: diskBytes,
 					imageCacheDiskCount: diskCount,
@@ -537,6 +547,9 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 			count = getAtollaTrackCacheEntryCount();
 		} catch {
 			// native track cache count unavailable on non-Android targets
+		}
+		if (count === this.state.trackCacheCachedCount) {
+			return;
 		}
 		this.setState({ trackCacheCachedCount: count });
 	}
@@ -558,6 +571,17 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 			this.statsInterval = undefined;
 		}
 	}
+}
+
+function countsEqual(a: Record<string, number>, b: Record<string, number>): boolean {
+	if (a === b) {
+		return true;
+	}
+	const keys = Object.keys(a);
+	if (keys.length !== Object.keys(b).length) {
+		return false;
+	}
+	return keys.every((key) => a[key] === b[key]);
 }
 
 function getLanguageLabel(code: LanguageCode): string {

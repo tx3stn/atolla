@@ -47,8 +47,8 @@ import { AddToPlaylistView } from './AddToPlaylistView';
 type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 
 export interface SearchViewModel {
+	active: boolean;
 	downloadService: DownloadService;
-	focusSignal?: number;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
@@ -117,7 +117,9 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		this.registerDisposable(() => this.cancelInFlightSearch());
 		this.registerDisposable(this.playlistFlow.cancel);
 
-		this.focusSearchInput();
+		if (this.viewModel.active) {
+			this.focusSearchInput();
+		}
 
 		this.viewModel.searchStore.getRecentSearches().then((recentSearches) => {
 			if (this.isDestroyed()) {
@@ -281,9 +283,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			return;
 		}
 
-		const nextFocusSignal = this.viewModel.focusSignal ?? 0;
-		const prevFocusSignal = prevViewModel.focusSignal ?? 0;
-		if (nextFocusSignal === prevFocusSignal) {
+		if (prevViewModel.active || !this.viewModel.active) {
 			return;
 		}
 

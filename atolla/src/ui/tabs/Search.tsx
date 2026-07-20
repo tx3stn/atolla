@@ -12,8 +12,9 @@ import {
 } from '../views/SearchView';
 
 export interface SearchTabViewModel {
+	active: boolean;
 	onNavigationControllerReady: (controller: NavigationController) => void;
-	search: Omit<SearchViewModel, 'navigationController'>;
+	search: Omit<SearchViewModel, 'active' | 'navigationController'>;
 }
 
 export class SearchTab extends Component<SearchTabViewModel> {
@@ -27,8 +28,8 @@ export class SearchTab extends Component<SearchTabViewModel> {
 					this.rootController = navigationController;
 					this.viewModel.onNavigationControllerReady(navigationController);
 					<SearchView
+						active={this.viewModel.active}
 						downloadService={search.downloadService}
-						focusSignal={search.focusSignal}
 						imageCache={search.imageCache}
 						modalSlot={search.modalSlot}
 						navigationController={navigationController}

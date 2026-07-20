@@ -38,7 +38,7 @@ export interface AuthedAppViewModel {
 	playbackOrchestrator: PlaybackOrchestrator;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
-	searchViewModel: Omit<SearchViewModel, 'navigationController'>;
+	searchViewModel: Omit<SearchViewModel, 'active' | 'navigationController'>;
 	sessionController: SessionController;
 	toastService: ToastService;
 }
@@ -141,6 +141,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 				<view style={this.tabStyle(FooterTabs.search)}>
 					<ErrorBoundary resetKey='search'>
 						<SearchTab
+							active={appShellStore.activeFooterTab === FooterTabs.search}
 							onNavigationControllerReady={this.captureSearchController}
 							search={this.viewModel.searchViewModel}
 						/>

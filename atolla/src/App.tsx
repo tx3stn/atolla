@@ -472,7 +472,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	private buildSearchViewModel() {
 		return {
 			downloadService: this.downloadService,
-			focusSignal: 0,
 			imageCache: this.imageCache,
 			modalSlot: this.modalSlot,
 			paletteQueue: this.userScope.getPaletteQueue(),
