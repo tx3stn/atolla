@@ -20,6 +20,11 @@ class MockWaveformStore implements WaveformStore {
 	}
 }
 
+// drain the trailing-edge persist timer so coalesced writes land
+function flush(): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 describe('WaveformService', () => {
 	describe('scheduleGeneration', () => {
 		it('creates a pending record for a new track', () => {
@@ -87,14 +92,16 @@ describe('WaveformService', () => {
 			expect(service.getAmps('track-1')).toBe('amps-base64-track-1');
 		});
 
-		it('is a no-op when the record is not pending', () => {
+		it('is a no-op when the record is not pending', async () => {
 			const store = new MockWaveformStore();
 			const service = new WaveformService(store);
 			service.scheduleGeneration('track-1');
 			service.onGenerationSucceeded('track-1', 'amps-base64-track-1');
+			await flush();
 			const savesBefore = store.saveCount;
 
 			service.onGenerationSucceeded('track-1', 'amps-base64-other');
+			await flush();
 
 			expect(service.getAmps('track-1')).toBe('amps-base64-track-1');
 			expect(store.saveCount).toBe(savesBefore);
@@ -135,14 +142,16 @@ describe('WaveformService', () => {
 			expect(service.getAmps('track-1')).toBeNull();
 		});
 
-		it('is a no-op when the record is not pending', () => {
+		it('is a no-op when the record is not pending', async () => {
 			const store = new MockWaveformStore();
 			const service = new WaveformService(store);
 			service.scheduleGeneration('track-1');
 			service.onGenerationFailed('track-1');
+			await flush();
 			const savesBefore = store.saveCount;
 
 			service.onGenerationFailed('track-1');
+			await flush();
 
 			expect(store.saveCount).toBe(savesBefore);
 		});
@@ -365,6 +374,49 @@ describe('WaveformService', () => {
 			await service.warmUp();
 
 			expect(notified).toBe(1);
+		});
+	});
+
+	// runWaveformPriority schedules the whole pre-gen window per track advance, so a burst of
+	// successes each used to re-stringify every record (amps strings included) to disk
+	describe('persist coalescing', () => {
+		it('collapses a burst of writes into a single save', async () => {
+			const store = new MockWaveformStore();
+			const service = new WaveformService(store);
+			for (let i = 0; i < 5; i += 1) service.scheduleGeneration(`track-${i}`);
+
+			for (let i = 0; i < 5; i += 1) service.onGenerationSucceeded(`track-${i}`, `amps-${i}`);
+			await flush();
+
+			expect(store.saveCount).toBe(1);
+		});
+
+		it('persists the final state of every record after coalescing', async () => {
+			const store = new MockWaveformStore();
+			const service = new WaveformService(store);
+			for (let i = 0; i < 5; i += 1) service.scheduleGeneration(`track-${i}`);
+
+			for (let i = 0; i < 5; i += 1) service.onGenerationSucceeded(`track-${i}`, `amps-${i}`);
+			await flush();
+
+			const persisted = await store.load();
+			expect(Object.keys(persisted).length).toBe(5);
+			expect(persisted['track-4']?.amps).toBe('amps-4');
+		});
+
+		it('notifies synchronously even though the write is deferred', () => {
+			const store = new MockWaveformStore();
+			const service = new WaveformService(store);
+			service.scheduleGeneration('track-1');
+			let notified = 0;
+			service.subscribe(() => {
+				notified += 1;
+			});
+
+			service.onGenerationSucceeded('track-1', 'amps-base64-track-1');
+
+			expect(notified).toBe(1);
+			expect(store.saveCount).toBe(0);
 		});
 	});
 });

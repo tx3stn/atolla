@@ -619,6 +619,71 @@ describe('PlaybackStore', () => {
 		});
 	});
 
+	// ShuffleQueueLoader appends 50 tracks per page and never trims, so a long shuffle grows
+	// tracks unboundedly; persistQueue used to stringify the whole array on every 5s progress step
+	describe('persisted queue window', () => {
+		function makeTracks(count: number): Array<Track> {
+			return Array.from({ length: count }, (_, i) => ({
+				duration: 180,
+				id: `track-${i}`,
+				name: `Track ${i}`,
+			}));
+		}
+
+		function readPayload(queueStore: InMemoryQueueStore) {
+			return JSON.parse(queueStore.values.get('queue') ?? '{}') as {
+				artistLogoUrls: Array<string | null>;
+				trackIndex: number;
+				tracks: Array<Track>;
+			};
+		}
+
+		it('caps the persisted queue and re-bases the index around the current track', async () => {
+			const queueStore = new InMemoryQueueStore();
+			const store = new PlaybackStore();
+			await store.setQueueStore(queueStore);
+			store.playTracks(makeTracks(250), 200);
+			store.setArtistLogoUrl('http://logo');
+
+			store.persistNow();
+
+			const payload = readPayload(queueStore);
+			expect(payload.tracks.length).toBe(100);
+			// window is [175, 275) clamped to [150, 250); index 200 → 50
+			expect(payload.trackIndex).toBe(50);
+			expect(payload.tracks[50]?.id).toBe('track-200');
+			expect(payload.artistLogoUrls.length).toBe(payload.tracks.length);
+		});
+
+		it('clamps the window to the tail when the current track is near the end', async () => {
+			const queueStore = new InMemoryQueueStore();
+			const store = new PlaybackStore();
+			await store.setQueueStore(queueStore);
+			store.playTracks(makeTracks(250), 248);
+
+			store.persistNow();
+
+			const payload = readPayload(queueStore);
+			expect(payload.tracks.length).toBe(100);
+			// window clamped to [150, 250); index 248 → 98
+			expect(payload.trackIndex).toBe(98);
+			expect(payload.tracks[98]?.id).toBe('track-248');
+		});
+
+		it('persists queues within the cap unchanged', async () => {
+			const queueStore = new InMemoryQueueStore();
+			const store = new PlaybackStore();
+			await store.setQueueStore(queueStore);
+			store.playTracks(makeTracks(80), 40);
+
+			store.persistNow();
+
+			const payload = readPayload(queueStore);
+			expect(payload.tracks.length).toBe(80);
+			expect(payload.trackIndex).toBe(40);
+		});
+	});
+
 	describe('allowBackwardRebuild', () => {
 		it('is true after a deliberate previous()', () => {
 			const store = new PlaybackStore();

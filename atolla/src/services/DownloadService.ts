@@ -119,6 +119,11 @@ export class DownloadService {
 	private readonly activeImageKeys = new Set<string>();
 	private operationChain: Promise<void> = Promise.resolve();
 
+	private readonly dirtyPersistKeys = new Set<string>();
+	private persistFlushScheduled = false;
+	private persistNotifyPending = false;
+	private persistFlushChain: Promise<void> = Promise.resolve();
+
 	private readonly subscribers = new Set<() => void>();
 	private readonly store: DownloadServiceStore;
 	private readonly cacheTrackFn: DownloadServiceOptions['cacheTrack'];
@@ -1035,13 +1040,13 @@ export class DownloadService {
 		try {
 			if (!this.cacheImageFn) {
 				// no image cache bridge, treat as best-effort done so nothing wedges
-				await this.markImageExhausted(key);
+				this.markImageExhausted(key);
 				return;
 			}
 			// the native cache only fetches when missing and reports cached either way,
 			// so this resolves promptly for already-cached assets too
 			await this.cacheImageFn(image.url, image.category);
-			await this.markImageDone(key);
+			this.markImageDone(key);
 		} catch {
 			const current = this.images[key];
 			if (!current) return;
@@ -1050,25 +1055,25 @@ export class DownloadService {
 				current.exhausted = true;
 			}
 			// otherwise the drain loop re-queues this key once it leaves the in-flight set
-			await this.persistAll();
-			this.notify();
+			this.markPersistDirty(KEY_IMAGES);
+			this.schedulePersistFlush();
 		}
 	}
 
-	private async markImageDone(key: string): Promise<void> {
+	private markImageDone(key: string): void {
 		const image = this.images[key];
 		if (!image) return;
 		image.complete = true;
-		await this.persistAll();
-		this.notify();
+		this.markPersistDirty(KEY_IMAGES);
+		this.schedulePersistFlush();
 	}
 
-	private async markImageExhausted(key: string): Promise<void> {
+	private markImageExhausted(key: string): void {
 		const image = this.images[key];
 		if (!image) return;
 		image.exhausted = true;
-		await this.persistAll();
-		this.notify();
+		this.markPersistDirty(KEY_IMAGES);
+		this.schedulePersistFlush();
 	}
 
 	private pruneOrphanImages(): void {
@@ -1119,8 +1124,8 @@ export class DownloadService {
 				entry.complete = true;
 			}
 
-			await this.persistAll();
-			this.notify();
+			this.markPersistDirty(KEY_TRACKS);
+			this.schedulePersistFlush();
 			this.onTrackDownloadedFn?.(trackId);
 		} catch {
 			const entry = this.tracks[trackId];
@@ -1132,8 +1137,8 @@ export class DownloadService {
 				entry.failed = true;
 				this.pruneAllFailedArtifacts(trackId);
 			}
-			await this.persistAll();
-			this.notify();
+			this.markPersistDirty(KEY_TRACKS);
+			this.schedulePersistFlush();
 		}
 	}
 
@@ -1209,14 +1214,53 @@ export class DownloadService {
 		}
 	}
 
+	private async flushPersist(): Promise<void> {
+		const keys = new Set(this.dirtyPersistKeys);
+		this.dirtyPersistKeys.clear();
+		this.persistFlushScheduled = false;
+		const shouldNotify = this.persistNotifyPending;
+		this.persistNotifyPending = false;
+
+		const targets = this.persistTargets().filter(([key]) => keys.has(key));
+		this.persistFlushChain = this.persistFlushChain.then(async () => {
+			await Promise.all(
+				targets.map(([key, value]) => this.store.storeString(key, JSON.stringify(value))),
+			);
+		});
+		await this.persistFlushChain;
+
+		if (shouldNotify) this.notify();
+	}
+
+	private markPersistDirty(...keys: Array<string>): void {
+		for (const key of keys) this.dirtyPersistKeys.add(key);
+		this.persistNotifyPending = true;
+	}
+
 	private async persistAll(): Promise<void> {
-		await Promise.all([
-			this.store.storeString(KEY_ALBUMS, JSON.stringify(this.albums)),
-			this.store.storeString(KEY_GENRES, JSON.stringify(this.genres)),
-			this.store.storeString(KEY_PLAYLISTS, JSON.stringify(this.playlists)),
-			this.store.storeString(KEY_ARTISTS, JSON.stringify(this.artists)),
-			this.store.storeString(KEY_TRACKS, JSON.stringify(this.tracks)),
-			this.store.storeString(KEY_IMAGES, JSON.stringify(this.images)),
-		]);
+		await Promise.all(
+			this.persistTargets().map(([key, value]) =>
+				this.store.storeString(key, JSON.stringify(value)),
+			),
+		);
+	}
+
+	private persistTargets(): Array<[string, unknown]> {
+		return [
+			[KEY_ALBUMS, this.albums],
+			[KEY_GENRES, this.genres],
+			[KEY_PLAYLISTS, this.playlists],
+			[KEY_ARTISTS, this.artists],
+			[KEY_TRACKS, this.tracks],
+			[KEY_IMAGES, this.images],
+		];
+	}
+
+	private schedulePersistFlush(): void {
+		if (this.persistFlushScheduled) return;
+		this.persistFlushScheduled = true;
+		setTimeout(() => {
+			void this.flushPersist();
+		}, 0);
 	}
 }

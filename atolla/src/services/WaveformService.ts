@@ -14,6 +14,7 @@ export interface WaveformStore {
 export class WaveformService {
 	private records = new Map<string, WaveformRecord>();
 	private listeners = new Set<() => void>();
+	private persistScheduled = false;
 
 	constructor(private store: WaveformStore) {}
 
@@ -41,7 +42,7 @@ export class WaveformService {
 		const record = this.records.get(trackId);
 		if (record?.status !== 'pending') return;
 		this.records.set(trackId, { amps, status: 'ready', trackId });
-		void this.persist();
+		this.schedulePersist();
 		this.notify();
 	}
 
@@ -49,21 +50,21 @@ export class WaveformService {
 		const record = this.records.get(trackId);
 		if (record?.status !== 'pending') return;
 		this.records.set(trackId, { amps: null, status: 'failed', trackId });
-		void this.persist();
+		this.schedulePersist();
 		this.notify();
 	}
 
 	removeForTrack(trackId: string): void {
 		if (!this.records.has(trackId)) return;
 		this.records.delete(trackId);
-		void this.persist();
+		this.schedulePersist();
 		this.notify();
 	}
 
 	clearAll(): void {
 		if (this.records.size === 0) return;
 		this.records.clear();
-		void this.persist();
+		this.schedulePersist();
 		this.notify();
 	}
 
@@ -105,5 +106,14 @@ export class WaveformService {
 		} catch (err) {
 			console.warn('[waveforms] failed to persist records', err);
 		}
+	}
+
+	private schedulePersist(): void {
+		if (this.persistScheduled) return;
+		this.persistScheduled = true;
+		setTimeout(() => {
+			this.persistScheduled = false;
+			void this.persist();
+		}, 0);
 	}
 }

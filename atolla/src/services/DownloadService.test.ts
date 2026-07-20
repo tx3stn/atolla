@@ -12,6 +12,13 @@ import {
 
 class InMemoryStore implements DownloadServiceStore {
 	private values = new Map<string, string>();
+	readonly writeCounts = new Map<string, number>();
+
+	get totalWrites(): number {
+		let total = 0;
+		for (const count of this.writeCounts.values()) total += count;
+		return total;
+	}
 
 	fetchString(key: string): Promise<string> {
 		const value = this.values.get(key);
@@ -21,6 +28,7 @@ class InMemoryStore implements DownloadServiceStore {
 
 	storeString(key: string, value: string): Promise<void> {
 		this.values.set(key, value);
+		this.writeCounts.set(key, (this.writeCounts.get(key) ?? 0) + 1);
 		return Promise.resolve();
 	}
 }
@@ -88,6 +96,11 @@ function createService(
 // drain the microtask/promise queue so async effects settle
 function flush(): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+// wait past the trailing-edge persist timer so coalesced completion writes land
+function settle(): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, 10));
 }
 
 describe('DownloadService', () => {
@@ -1443,6 +1456,72 @@ describe('DownloadService', () => {
 
 			const persistedImages = JSON.parse(await store.fetchString('dl_images'));
 			expect(Object.keys(persistedImages)).toEqual([]);
+		});
+	});
+
+	// the 5 completion sites (track success/failure, image done/exhausted/failed) run outside
+	// enqueueOperation, so up to MAX_CONCURRENT_DOWNLOADS + MAX_CONCURRENT_IMAGE_DOWNLOADS of them
+	// fire concurrently. each used to run 6 JSON.stringify over the whole library + a global notify
+	describe('completion write coalescing', () => {
+		it('collapses a burst of track completions into few track writes', async () => {
+			const store = new InMemoryStore();
+			const { service } = createService({ store });
+			const tracks = Array.from({ length: 20 }, (_, i) => ({
+				streamUrl: `http://s/track-${i}`,
+				track: makeTrack(`track-${i}`),
+			}));
+
+			service.downloadAlbum({ album: makeAlbum('album-1'), artistLogoUrl: null, tracks });
+			await settle();
+
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
+			// the one enqueue-path write + a single coalesced completion flush
+			expect(store.writeCounts.get('dl_tracks') ?? 0).toBeLessThanOrEqual(3);
+		});
+
+		it('keeps total writes linear rather than 6-per-completion', async () => {
+			const store = new InMemoryStore();
+			const { service } = createService({ store });
+			const tracks = Array.from({ length: 20 }, (_, i) => ({
+				streamUrl: `http://s/track-${i}`,
+				track: makeTrack(`track-${i}`),
+			}));
+
+			service.downloadAlbum({ album: makeAlbum('album-1'), artistLogoUrl: null, tracks });
+			await settle();
+
+			// 6 keys for the enqueue-path persistAll + one coalesced completion flush, not 6×20
+			expect(store.totalWrites).toBeLessThanOrEqual(10);
+		});
+
+		it('coalesces image completions on their own key, independent of tracks', async () => {
+			const store = new InMemoryStore();
+			const { service } = createService({ store });
+			const tracks = Array.from({ length: 10 }, (_, i) => ({
+				streamUrl: `http://s/track-${i}`,
+				track: { ...makeTrack(`track-${i}`), albumImageUrl: `https://img/track-${i}.jpg` },
+			}));
+
+			service.downloadAlbum({ album: makeAlbum('album-1'), artistLogoUrl: null, tracks });
+			await settle();
+
+			expect(store.writeCounts.get('dl_images') ?? 0).toBeLessThanOrEqual(3);
+		});
+
+		it('still persists the final completed state', async () => {
+			const store = new InMemoryStore();
+			const { service } = createService({ store });
+			const tracks = Array.from({ length: 20 }, (_, i) => ({
+				streamUrl: `http://s/track-${i}`,
+				track: makeTrack(`track-${i}`),
+			}));
+
+			service.downloadAlbum({ album: makeAlbum('album-1'), artistLogoUrl: null, tracks });
+			await settle();
+
+			const persisted = JSON.parse(await store.fetchString('dl_tracks'));
+			expect(Object.keys(persisted).length).toBe(20);
+			expect(persisted['track-19']?.complete).toBe(true);
 		});
 	});
 });

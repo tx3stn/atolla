@@ -27,6 +27,8 @@ const playbackQueueCacheKey = 'queue';
 const playbackActiveKey = 'queue_active';
 const progressPersistStepSeconds = 5;
 const PREVIOUS_RESTART_THRESHOLD_SECONDS = 3;
+const MAX_PERSISTED_QUEUE_TRACKS = 100;
+const PERSISTED_QUEUE_BEHIND = 25;
 
 export const LoopModes = {
 	none: 'none',
@@ -631,12 +633,21 @@ export class PlaybackStore {
 			return;
 		}
 
+		const start =
+			this.tracks.length > MAX_PERSISTED_QUEUE_TRACKS
+				? Math.min(
+						Math.max(0, this.trackIndex - PERSISTED_QUEUE_BEHIND),
+						this.tracks.length - MAX_PERSISTED_QUEUE_TRACKS,
+					)
+				: 0;
+		const end = start + MAX_PERSISTED_QUEUE_TRACKS;
+
 		const payload: PersistedPlaybackQueue = {
 			album: this.album,
-			artistLogoUrls: this._artistLogoUrls,
+			artistLogoUrls: this._artistLogoUrls.slice(start, end),
 			progressSeconds: this.progressSeconds,
-			trackIndex: this.trackIndex,
-			tracks: this.tracks,
+			trackIndex: this.trackIndex - start,
+			tracks: this.tracks.slice(start, end),
 		};
 		this.lastPersistedProgressSeconds = this.progressSeconds;
 
