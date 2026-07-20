@@ -58,9 +58,11 @@ if command -v vrsn >/dev/null 2>&1; then
 		atolla/native/android/AndroidManifest.prod.xml
 		atolla_dev/BUILD.bazel
 	)
+	commit=$(git rev-parse --short HEAD)
+	version="${tag}-dev-${commit}"
 	trap 'git -C "$repo_root" checkout -- "${version_files[@]}"' EXIT
-	(cd "$repo_root" && vrsn set "${DEV_VERSION:-${tag}-dev}")
-	echo "Stamped dev version ${DEV_VERSION:-${tag}-dev} (version files revert on exit)."
+	(cd "$repo_root" && vrsn set "${DEV_VERSION:-${version}}")
+	echo "Stamped dev version ${DEV_VERSION:-${version}} (version files revert on exit)."
 else
 	echo "vrsn not installed — building the committed placeholder version."
 fi
