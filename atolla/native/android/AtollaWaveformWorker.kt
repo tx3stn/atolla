@@ -47,7 +47,8 @@ class AtollaWaveformWorker {
 	companion object {
 		private const val tag = "AtollaWaveformWorker"
 		private const val waveformControlPoints = 300
-		private const val windowSamplesPerColumn = 2048
+		private const val waveformSamplePoints = 150
+		private const val windowSamplesPerPoint = 4096
 
 		// reused instance solely to reach the JNI bridge from the (static) render path
 		private val bridge = AtollaWaveformWorker()
@@ -91,9 +92,6 @@ class AtollaWaveformWorker {
 			return out.toByteArray()
 		}
 
-		// MediaCodec emits the stream's native sample rate and can't downsample, so decoding the whole
-		// file is what makes this slow; instead seek to waveformControlPoints points across the track
-		// and decode a short window at each, mirroring iOS's cheap low-rate read
 		private fun decodeToAmplitudes(audioPath: String): FloatArray? {
 			val enterNs = System.nanoTime()
 			val path = if (audioPath.startsWith("file://")) audioPath.substring(7) else audioPath
@@ -111,7 +109,7 @@ class AtollaWaveformWorker {
 					format.getLong(MediaFormat.KEY_DURATION) else 0L
 				if (durationUs <= 0L) return null
 
-				val amps = FloatArray(waveformControlPoints)
+				val samples = FloatArray(waveformSamplePoints)
 				val codec = createSoftwareDecoder(mime)
 				try {
 					codec.configure(format, null, null, 0)
@@ -120,8 +118,8 @@ class AtollaWaveformWorker {
 					val info = MediaCodec.BufferInfo()
 
 					var populated = 0
-					for (col in 0 until waveformControlPoints) {
-						val seekUs = durationUs * col / waveformControlPoints
+					for (p in 0 until waveformSamplePoints) {
+						val seekUs = durationUs * p / waveformSamplePoints
 						extractor.seekTo(seekUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
 						codec.flush()
 
@@ -129,7 +127,7 @@ class AtollaWaveformWorker {
 						var count = 0
 						var attempts = 0
 						var reachedEos = false
-						while (count < windowSamplesPerColumn && attempts < 32 && !reachedEos) {
+						while (count < windowSamplesPerPoint && attempts < 64 && !reachedEos) {
 							attempts++
 							val inputIndex = codec.dequeueInputBuffer(2_000)
 							if (inputIndex >= 0) {
@@ -162,14 +160,14 @@ class AtollaWaveformWorker {
 						}
 
 						if (count > 0) {
-							amps[col] = kotlin.math.sqrt(sumSq / count)
+							samples[p] = kotlin.math.sqrt(sumSq / count)
 							populated++
 						}
 					}
 
 					codec.stop()
-					Log.i(tag, "waveform decode: setupMs=" + ((decodeStartNs - enterNs) / 1000000) + " decodeMs=" + ((System.nanoTime() - decodeStartNs) / 1000000) + " codec=" + codec.name + " rate=" + sampleRate + " populated=" + populated)
-					if (populated == 0) null else amps
+					Log.i(tag, "waveform decode: setupMs=" + ((decodeStartNs - enterNs) / 1000000) + " decodeMs=" + ((System.nanoTime() - decodeStartNs) / 1000000) + " codec=" + codec.name + " rate=" + sampleRate + " points=" + populated + "/" + waveformSamplePoints)
+					if (populated == 0) null else interpolateToColumns(samples)
 				} finally {
 					codec.release()
 				}
@@ -179,6 +177,22 @@ class AtollaWaveformWorker {
 			} finally {
 				extractor.release()
 			}
+		}
+
+		private fun interpolateToColumns(samples: FloatArray): FloatArray {
+			val amps = FloatArray(waveformControlPoints)
+			if (samples.size < 2) {
+				amps.fill(samples.firstOrNull() ?: 0f)
+				return amps
+			}
+			for (c in 0 until waveformControlPoints) {
+				val fp = c.toFloat() * (samples.size - 1) / (waveformControlPoints - 1)
+				val lo = fp.toInt()
+				val hi = minOf(lo + 1, samples.size - 1)
+				val frac = fp - lo
+				amps[c] = samples[lo] * (1f - frac) + samples[hi] * frac
+			}
+			return amps
 		}
 
 		private fun findAudioTrack(extractor: MediaExtractor): Int? {
