@@ -4,7 +4,7 @@
     package="com.tx3stn.atolla.dev"
 >
     <uses-sdk
-        android:minSdkVersion="19"
+        android:minSdkVersion="29"
         android:targetSdkVersion="34"
     />
 

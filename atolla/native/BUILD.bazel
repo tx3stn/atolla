@@ -287,6 +287,7 @@ kt_android_library(
         "android/AtollaScrobbleQueue.kt",
         "android/AtollaStatusBarNativeModuleFactory.kt",
         "android/AtollaTrackPlaybackNativeModuleFactory.kt",
+        "android/AtollaWaveformCodecSelector.kt",
         "android/AtollaWaveformNativeModuleFactory.kt",
         "android/AtollaWaveformWorker.kt",
     ],
@@ -323,4 +324,9 @@ kt_jvm_library(
 kt_jvm_library(
     name = "atolla_disk_cache_stats",
     srcs = ["android/AtollaDiskCacheStats.kt"],
+)
+
+kt_jvm_library(
+    name = "atolla_waveform_codec_selector",
+    srcs = ["android/AtollaWaveformCodecSelector.kt"],
 )

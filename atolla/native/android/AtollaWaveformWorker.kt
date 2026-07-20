@@ -6,9 +6,11 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.media.MediaCodec
+import android.media.MediaCodecList
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.util.Log
+import atolla.native.android.AtollaWaveformCodecSelector
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.ByteOrder
@@ -45,6 +47,7 @@ class AtollaWaveformWorker {
 	companion object {
 		private const val tag = "AtollaWaveformWorker"
 		private const val waveformControlPoints = 300
+		private const val windowSamplesPerColumn = 4096
 
 		// reused instance solely to reach the JNI bridge from the (static) render path
 		private val bridge = AtollaWaveformWorker()
@@ -88,10 +91,11 @@ class AtollaWaveformWorker {
 			return out.toByteArray()
 		}
 
-		// streams audio through MediaCodec, accumulating peak amplitudes per waveform column
-		// directly (no full sample buffer). uses the track duration to map each decoded frame
-		// to the correct column, so the waveform spans the full track regardless of length
+		// MediaCodec emits the stream's native sample rate and can't downsample, so decoding the whole
+		// file is what makes this slow; instead seek to waveformControlPoints points across the track
+		// and decode a short window at each, mirroring iOS's cheap low-rate read
 		private fun decodeToAmplitudes(audioPath: String): FloatArray? {
+			val enterNs = System.nanoTime()
 			val path = if (audioPath.startsWith("file://")) audioPath.substring(7) else audioPath
 			val extractor = MediaExtractor()
 			return try {
@@ -101,94 +105,70 @@ class AtollaWaveformWorker {
 
 				val format = extractor.getTrackFormat(trackIndex)
 				val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
-				val channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
 				val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-				// duration in microseconds; convert to total frames for column mapping
 				val durationUs = if (format.containsKey(MediaFormat.KEY_DURATION))
 					format.getLong(MediaFormat.KEY_DURATION) else 0L
-				val totalFrames = if (durationUs > 0)
-					(durationUs * sampleRate / 1_000_000L) else 0L
+				if (durationUs <= 0L) return null
 
-				val sumSq = FloatArray(waveformControlPoints)
-				val counts = IntArray(waveformControlPoints)
-				var decodedFrames = 0L
-
-				val codec = MediaCodec.createDecoderByType(mime)
+				val amps = FloatArray(waveformControlPoints)
+				val codec = createSoftwareDecoder(mime)
 				try {
 					codec.configure(format, null, null, 0)
 					codec.start()
-
+					val decodeStartNs = System.nanoTime()
 					val info = MediaCodec.BufferInfo()
-					var inputDone = false
-					var outputDone = false
 
-					while (!outputDone) {
-						if (!inputDone) {
+					var populated = 0
+					for (col in 0 until waveformControlPoints) {
+						val seekUs = durationUs * col / waveformControlPoints
+						extractor.seekTo(seekUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+						codec.flush()
+
+						var sumSq = 0f
+						var count = 0
+						var attempts = 0
+						var reachedEos = false
+						while (count < windowSamplesPerColumn && attempts < 32 && !reachedEos) {
+							attempts++
 							val inputIndex = codec.dequeueInputBuffer(10_000)
 							if (inputIndex >= 0) {
 								val inputBuffer = codec.getInputBuffer(inputIndex)
-								if (inputBuffer != null) {
-									val sampleSize = extractor.readSampleData(inputBuffer, 0)
-									if (sampleSize < 0) {
-										codec.queueInputBuffer(inputIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-										inputDone = true
-									} else {
-										codec.queueInputBuffer(inputIndex, 0, sampleSize, extractor.sampleTime, 0)
-										extractor.advance()
+								val sampleSize = if (inputBuffer != null) extractor.readSampleData(inputBuffer, 0) else -1
+								if (sampleSize < 0) {
+									codec.queueInputBuffer(inputIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+									reachedEos = true
+								} else {
+									codec.queueInputBuffer(inputIndex, 0, sampleSize, extractor.sampleTime, 0)
+									extractor.advance()
+								}
+							}
+
+							val outputIndex = codec.dequeueOutputBuffer(info, 10_000)
+							if (outputIndex >= 0) {
+								val outputBuffer = codec.getOutputBuffer(outputIndex)
+								if (outputBuffer != null && info.size > 0) {
+									outputBuffer.position(info.offset)
+									outputBuffer.limit(info.offset + info.size)
+									val shortBuffer = outputBuffer.slice().order(ByteOrder.nativeOrder()).asShortBuffer()
+									while (shortBuffer.hasRemaining()) {
+										val s = shortBuffer.get().toFloat() / 32768f
+										sumSq += s * s
+										count++
 									}
 								}
+								codec.releaseOutputBuffer(outputIndex, false)
 							}
 						}
 
-						val outputIndex = codec.dequeueOutputBuffer(info, 10_000)
-						if (outputIndex >= 0) {
-							val outputBuffer = codec.getOutputBuffer(outputIndex)
-							if (outputBuffer != null && info.size > 0) {
-								outputBuffer.position(info.offset)
-								outputBuffer.limit(info.offset + info.size)
-								val shortBuffer = outputBuffer.slice().order(ByteOrder.nativeOrder()).asShortBuffer()
-								val bufferFrames = shortBuffer.remaining() / channelCount
-								// presentation time of the first frame in this buffer (µs → frames)
-								val bufferStartFrame = info.presentationTimeUs * sampleRate / 1_000_000L
-								// sample at most 4 frames per decoded buffer, accurate enough for
-								// peak detection and avoids processing millions of frames
-								val stride = maxOf(1, bufferFrames / 4)
-
-								var frameOffset = 0
-								while (frameOffset < bufferFrames) {
-									val frameIndex = bufferStartFrame + frameOffset
-									val col = if (totalFrames > 0) {
-										((frameIndex * waveformControlPoints) / totalFrames).toInt()
-									} else {
-										((decodedFrames + frameOffset) % waveformControlPoints).toInt()
-									}.coerceIn(0, waveformControlPoints - 1)
-
-									for (ch in 0 until channelCount) {
-										val s = shortBuffer.get().toFloat() / 32768f
-										sumSq[col] += s * s
-										counts[col]++
-									}
-
-									frameOffset += stride
-									val skipSamples = (stride - 1) * channelCount
-									if (skipSamples > 0) {
-										val newPos = shortBuffer.position() + skipSamples
-										shortBuffer.position(minOf(newPos, shortBuffer.limit()))
-									}
-								}
-								decodedFrames += bufferFrames
-							}
-							codec.releaseOutputBuffer(outputIndex, false)
-							if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-								outputDone = true
-							}
+						if (count > 0) {
+							amps[col] = kotlin.math.sqrt(sumSq / count)
+							populated++
 						}
 					}
 
 					codec.stop()
-					if (decodedFrames == 0L) null else FloatArray(waveformControlPoints) { i ->
-						if (counts[i] > 0) kotlin.math.sqrt(sumSq[i] / counts[i]) else 0f
-					}
+					Log.i(tag, "waveform decode: setupMs=" + ((decodeStartNs - enterNs) / 1000000) + " decodeMs=" + ((System.nanoTime() - decodeStartNs) / 1000000) + " codec=" + codec.name + " rate=" + sampleRate + " populated=" + populated)
+					if (populated == 0) null else amps
 				} finally {
 					codec.release()
 				}
@@ -206,6 +186,34 @@ class AtollaWaveformWorker {
 				if (mime.startsWith("audio/")) return i
 			}
 			return null
+		}
+
+		private fun createSoftwareDecoder(mime: String): MediaCodec {
+			val name = softwareDecoderNameFor(mime)
+			if (name != null) {
+				try {
+					return MediaCodec.createByCodecName(name)
+				} catch (e: Throwable) {
+					Log.w(tag, "software decoder $name unavailable, falling back to default", e)
+				}
+			}
+			return MediaCodec.createDecoderByType(mime)
+		}
+
+		private fun softwareDecoderNameFor(mime: String): String? {
+			return try {
+				val candidates = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.map { info ->
+					AtollaWaveformCodecSelector.DecoderCandidate(
+						name = info.name,
+						isEncoder = info.isEncoder,
+						isSoftwareOnly = info.isSoftwareOnly,
+						supportedTypes = info.supportedTypes.toList(),
+					)
+				}
+				AtollaWaveformCodecSelector.selectSoftwareDecoderName(candidates, mime)
+			} catch (e: Throwable) {
+				null
+			}
 		}
 	}
 }

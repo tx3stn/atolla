@@ -35,3 +35,15 @@ kt_jvm_test(
         "@test_mvn//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "AtollaWaveformCodecSelectorTest",
+    size = "small",
+    srcs = ["AtollaWaveformCodecSelectorTest.kt"],
+    jvm_flags = ["-Djava.security.manager=allow"],
+    test_class = "atolla.native.android.AtollaWaveformCodecSelectorTest",
+    deps = [
+        "//atolla/native:atolla_waveform_codec_selector",
+        "@test_mvn//:junit_junit",
+    ],
+)
