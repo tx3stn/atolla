@@ -11,8 +11,11 @@ export interface WaveformStore {
 	save(records: Record<string, WaveformRecord>): Promise<void>;
 }
 
+export const WAVEFORM_MAX_ATTEMPTS = 3;
+
 export class WaveformService {
 	private records = new Map<string, WaveformRecord>();
+	private failureCounts = new Map<string, number>();
 	private listeners = new Set<() => void>();
 	private persistScheduled = false;
 
@@ -27,10 +30,11 @@ export class WaveformService {
 	}
 
 	scheduleGeneration(trackId: string): void {
-		// 'failed' is terminal: re-scheduling it would re-decode on every queue change, and since a
-		// failing decode (e.g. MediaCodec resource exhaustion) keeps failing, that churns codecs and
-		// the JS↔native callbacks feeding them. a fresh attempt requires removeForTrack first.
-		if (this.records.has(trackId)) return;
+		const existing = this.records.get(trackId);
+		if (existing) {
+			if (existing.status !== 'failed') return;
+			if ((this.failureCounts.get(trackId) ?? 0) >= WAVEFORM_MAX_ATTEMPTS) return;
+		}
 		this.records.set(trackId, { amps: null, status: 'pending', trackId });
 	}
 
@@ -42,6 +46,7 @@ export class WaveformService {
 		const record = this.records.get(trackId);
 		if (record?.status !== 'pending') return;
 		this.records.set(trackId, { amps, status: 'ready', trackId });
+		this.failureCounts.delete(trackId);
 		this.schedulePersist();
 		this.notify();
 	}
@@ -49,6 +54,7 @@ export class WaveformService {
 	onGenerationFailed(trackId: string): void {
 		const record = this.records.get(trackId);
 		if (record?.status !== 'pending') return;
+		this.failureCounts.set(trackId, (this.failureCounts.get(trackId) ?? 0) + 1);
 		this.records.set(trackId, { amps: null, status: 'failed', trackId });
 		this.schedulePersist();
 		this.notify();
@@ -57,6 +63,7 @@ export class WaveformService {
 	removeForTrack(trackId: string): void {
 		if (!this.records.has(trackId)) return;
 		this.records.delete(trackId);
+		this.failureCounts.delete(trackId);
 		this.schedulePersist();
 		this.notify();
 	}
@@ -64,6 +71,7 @@ export class WaveformService {
 	clearAll(): void {
 		if (this.records.size === 0) return;
 		this.records.clear();
+		this.failureCounts.clear();
 		this.schedulePersist();
 		this.notify();
 	}

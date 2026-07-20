@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import { type WaveformRecord, WaveformService, type WaveformStore } from './WaveformService';
+import {
+	WAVEFORM_MAX_ATTEMPTS,
+	type WaveformRecord,
+	WaveformService,
+	type WaveformStore,
+} from './WaveformService';
 
 class MockWaveformStore implements WaveformStore {
 	private data: Record<string, WaveformRecord> = {};
@@ -374,6 +379,53 @@ describe('WaveformService', () => {
 			await service.warmUp();
 
 			expect(notified).toBe(1);
+		});
+	});
+
+	// a decode can fail transiently (the cache file was evicted or still incomplete when it ran),
+	// so a failed record is retryable up to a cap rather than permanently terminal
+	describe('failed-track retry', () => {
+		it('retries a failed track until it exhausts its attempts, then stays failed', () => {
+			const store = new MockWaveformStore();
+			const service = new WaveformService(store);
+			service.scheduleGeneration('track-1');
+
+			for (let i = 0; i < WAVEFORM_MAX_ATTEMPTS; i += 1) {
+				expect(service.getStatus('track-1')).toBe('pending');
+				service.onGenerationFailed('track-1');
+				expect(service.getStatus('track-1')).toBe('failed');
+				service.scheduleGeneration('track-1');
+			}
+
+			expect(service.getStatus('track-1')).toBe('failed');
+		});
+
+		it('gives a fresh set of attempts after removeForTrack', () => {
+			const store = new MockWaveformStore();
+			const service = new WaveformService(store);
+			service.scheduleGeneration('track-1');
+			for (let i = 0; i < WAVEFORM_MAX_ATTEMPTS; i += 1) {
+				service.onGenerationFailed('track-1');
+				service.scheduleGeneration('track-1');
+			}
+			expect(service.getStatus('track-1')).toBe('failed');
+
+			service.removeForTrack('track-1');
+			service.scheduleGeneration('track-1');
+
+			expect(service.getStatus('track-1')).toBe('pending');
+		});
+
+		it('can still succeed after a failed attempt was retried', () => {
+			const store = new MockWaveformStore();
+			const service = new WaveformService(store);
+			service.scheduleGeneration('track-1');
+			service.onGenerationFailed('track-1');
+			service.scheduleGeneration('track-1');
+
+			service.onGenerationSucceeded('track-1', 'amps');
+
+			expect(service.getAmps('track-1')).toBe('amps');
 		});
 	});
 

@@ -47,7 +47,7 @@ class AtollaWaveformWorker {
 	companion object {
 		private const val tag = "AtollaWaveformWorker"
 		private const val waveformControlPoints = 300
-		private const val windowSamplesPerColumn = 4096
+		private const val windowSamplesPerColumn = 2048
 
 		// reused instance solely to reach the JNI bridge from the (static) render path
 		private val bridge = AtollaWaveformWorker()
@@ -97,6 +97,7 @@ class AtollaWaveformWorker {
 		private fun decodeToAmplitudes(audioPath: String): FloatArray? {
 			val enterNs = System.nanoTime()
 			val path = if (audioPath.startsWith("file://")) audioPath.substring(7) else audioPath
+			if (!File(path).exists()) return null
 			val extractor = MediaExtractor()
 			return try {
 				extractor.setDataSource(path)
@@ -130,7 +131,7 @@ class AtollaWaveformWorker {
 						var reachedEos = false
 						while (count < windowSamplesPerColumn && attempts < 32 && !reachedEos) {
 							attempts++
-							val inputIndex = codec.dequeueInputBuffer(10_000)
+							val inputIndex = codec.dequeueInputBuffer(2_000)
 							if (inputIndex >= 0) {
 								val inputBuffer = codec.getInputBuffer(inputIndex)
 								val sampleSize = if (inputBuffer != null) extractor.readSampleData(inputBuffer, 0) else -1
@@ -143,7 +144,7 @@ class AtollaWaveformWorker {
 								}
 							}
 
-							val outputIndex = codec.dequeueOutputBuffer(info, 10_000)
+							val outputIndex = codec.dequeueOutputBuffer(info, 2_000)
 							if (outputIndex >= 0) {
 								val outputBuffer = codec.getOutputBuffer(outputIndex)
 								if (outputBuffer != null && info.size > 0) {
