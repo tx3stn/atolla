@@ -35,8 +35,8 @@ export class SortNavPanel extends Component<SortNavPanelViewModel> {
 		const { activeLetterFilter } = this.viewModel;
 
 		<view style={styles.panel}>
-			<view style={styles.alphabetGrid}>
-				<view style={styles.alphabetRow}>
+			<layout style={styles.alphabetGrid}>
+				<layout style={styles.alphabetRow}>
 					{ALPHA_TOP.map((letter) => (
 						<view
 							key={letter}
@@ -56,8 +56,8 @@ export class SortNavPanel extends Component<SortNavPanelViewModel> {
 							/>
 						</view>
 					))}
-				</view>
-				<view style={styles.alphabetRow}>
+				</layout>
+				<layout style={styles.alphabetRow}>
 					{ALPHA_BOTTOM.map((letter) => (
 						<view
 							key={letter}
@@ -77,8 +77,8 @@ export class SortNavPanel extends Component<SortNavPanelViewModel> {
 							/>
 						</view>
 					))}
-				</view>
-			</view>
+				</layout>
+			</layout>
 		</view>;
 	}
 }

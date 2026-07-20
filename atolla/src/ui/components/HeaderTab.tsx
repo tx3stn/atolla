@@ -3,7 +3,7 @@ import Strings from 'atolla/src/Strings';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
-import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type HeaderTab, HeaderTabs } from '../../models/App';
 import { theme } from '../../theme';
 
@@ -15,7 +15,7 @@ interface LibraryHeaderViewModel {
 
 export class LibraryHeaderTab extends Component<LibraryHeaderViewModel> {
 	onRender() {
-		<view style={styles.tabWrap}>
+		<layout style={styles.tabWrap}>
 			<view
 				accessibilityId={`header-tab-${this.viewModel.tab.toLowerCase()}`}
 				accessibilityLabel={`header-tab-${this.viewModel.tab.toLowerCase()}`}
@@ -34,7 +34,7 @@ export class LibraryHeaderTab extends Component<LibraryHeaderViewModel> {
 					value={this.getLabel(this.viewModel.tab)}
 				/>
 			</view>
-		</view>;
+		</layout>;
 	}
 
 	private getLabel = (tab: HeaderTab): string => {
@@ -112,7 +112,7 @@ const styles = {
 		color: theme.colors.grey,
 		textAlign: 'center',
 	}),
-	tabWrap: new Style<View>({
+	tabWrap: new Style<Layout>({
 		flexShrink: 0,
 		marginRight: 4,
 	}),

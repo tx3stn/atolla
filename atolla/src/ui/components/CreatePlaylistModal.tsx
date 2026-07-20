@@ -71,8 +71,8 @@ export class CreatePlaylistModal extends StatefulComponent<
 				/>
 			</view>
 			{errorMessage && <label style={styles.errorLabel} value={errorMessage} />}
-			<view style={modalStyles.actions}>
-				<view style={modalStyles.actionButton}>
+			<layout style={modalStyles.actions}>
+				<layout style={modalStyles.actionButton}>
 					<Button
 						accessibilityId='create-playlist-cancel'
 						animationsEnabled={this.viewModel.animationsEnabled}
@@ -80,9 +80,9 @@ export class CreatePlaylistModal extends StatefulComponent<
 						onTap={onCancel}
 						style={ButtonType.Secondary}
 					/>
-				</view>
-				<view style={modalStyles.actionSeparator} />
-				<view style={modalStyles.actionButton}>
+				</layout>
+				<layout style={modalStyles.actionSeparator} />
+				<layout style={modalStyles.actionButton}>
 					<Button
 						accessibilityId='create-playlist-create'
 						animationsEnabled={this.viewModel.animationsEnabled}
@@ -91,8 +91,8 @@ export class CreatePlaylistModal extends StatefulComponent<
 						onTap={this.handleCreate}
 						style={ButtonType.Confirm}
 					/>
-				</view>
-			</view>
+				</layout>
+			</layout>
 		</ModalBase>;
 	}
 }

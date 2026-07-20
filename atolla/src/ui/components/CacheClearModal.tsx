@@ -151,8 +151,8 @@ export class CacheClearModal extends StatefulComponent<
 				onToggle={this.toggleWaveformData}
 			/>
 
-			<view style={modalStyles.actions}>
-				<view style={modalStyles.actionButton}>
+			<layout style={modalStyles.actions}>
+				<layout style={modalStyles.actionButton}>
 					<Button
 						accessibilityId='cache-clear-cancel'
 						animationsEnabled={this.viewModel.animationsEnabled}
@@ -160,9 +160,9 @@ export class CacheClearModal extends StatefulComponent<
 						onTap={this.viewModel.onCancel}
 						style={ButtonType.Secondary}
 					/>
-				</view>
-				<view style={modalStyles.actionSeparator} />
-				<view style={modalStyles.actionButton}>
+				</layout>
+				<layout style={modalStyles.actionSeparator} />
+				<layout style={modalStyles.actionButton}>
 					<Button
 						accessibilityId='cache-clear-confirm'
 						animationsEnabled={this.viewModel.animationsEnabled}
@@ -171,8 +171,8 @@ export class CacheClearModal extends StatefulComponent<
 						onTap={this.handleConfirm}
 						style={ButtonType.Confirm}
 					/>
-				</view>
-			</view>
+				</layout>
+			</layout>
 		</ModalBase>;
 	}
 }

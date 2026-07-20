@@ -66,11 +66,11 @@ const styles = {
 };
 
 export const modalStyles = {
-	actionButton: new Style<View>({
+	actionButton: new Style<Layout>({
 		flexBasis: 0,
 		flexGrow: 1,
 	}),
-	actionSeparator: new Style<View>({
+	actionSeparator: new Style<Layout>({
 		width: 10,
 	}),
 	actions: new Style<Layout>({

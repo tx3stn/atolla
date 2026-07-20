@@ -66,9 +66,9 @@ export class Modal extends Component<ModalViewModel> {
 				<label numberOfLines={0} style={styles.body} value={body} />
 			</scroll>
 			{onConfirm && (
-				<view>
-					<view style={modalStyles.actions}>
-						<view style={modalStyles.actionButton}>
+				<layout>
+					<layout style={modalStyles.actions}>
+						<layout style={modalStyles.actionButton}>
 							<Button
 								accessibilityId={leftAccessibilityId}
 								animationsEnabled={animationsEnabled}
@@ -76,9 +76,9 @@ export class Modal extends Component<ModalViewModel> {
 								onTap={leftAction}
 								style={ButtonType.Secondary}
 							/>
-						</view>
-						<view style={modalStyles.actionSeparator} />
-						<view style={modalStyles.actionButton}>
+						</layout>
+						<layout style={modalStyles.actionSeparator} />
+						<layout style={modalStyles.actionButton}>
 							<Button
 								accessibilityId={confirmAccessibilityId ?? ''}
 								animationsEnabled={animationsEnabled}
@@ -86,9 +86,9 @@ export class Modal extends Component<ModalViewModel> {
 								onTap={onConfirm}
 								style={ButtonType.Confirm}
 							/>
-						</view>
-					</view>
-				</view>
+						</layout>
+					</layout>
+				</layout>
 			)}
 		</ModalBase>;
 	}

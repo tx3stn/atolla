@@ -1,6 +1,6 @@
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
 
@@ -44,7 +44,7 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 					url={logoSource}
 				/>
 			) : fallbackText ? (
-				<view style={styles.fallbackTextPadding}>
+				<layout style={styles.fallbackTextPadding}>
 					<label
 						accessibilityId={accessibilityId ? `${accessibilityId}-text` : undefined}
 						accessibilityLabel={accessibilityId ? `${accessibilityId}-text` : undefined}
@@ -52,7 +52,7 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 						style={fallbackTextStyle ?? styles.fallbackText}
 						value={fallbackText}
 					/>
-				</view>
+				</layout>
 			) : null}
 		</view>;
 	}
@@ -62,7 +62,7 @@ const styles = {
 	fallbackText: new Style<Label>({
 		...theme.text.display,
 	}),
-	fallbackTextPadding: new Style<View>({
+	fallbackTextPadding: new Style<Layout>({
 		padding: 8,
 	}),
 	logoArea: new Style<View>({

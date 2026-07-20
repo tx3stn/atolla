@@ -2,7 +2,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
-import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type FooterTab, type HeaderTab, HeaderTabs } from '../../models/App';
 import { backNavRouter } from '../../services/BackNavRouter';
 import { headerStore } from '../../stores/Header';
@@ -109,7 +109,7 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 								onTap={this.handleGenresTabTap}
 								tab={HeaderTabs.genres}
 							/>
-							<view style={styles.trailingSpacer} />
+							<layout style={styles.trailingSpacer} />
 						</view>
 					</scroll>
 				</view>
@@ -312,7 +312,7 @@ const styles = {
 		right: 0,
 		top: theme.padding.deviceInset,
 	}),
-	trailingSpacer: new Style<View>({
+	trailingSpacer: new Style<Layout>({
 		width: 65,
 	}),
 };

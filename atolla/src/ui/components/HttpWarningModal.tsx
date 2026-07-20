@@ -26,8 +26,8 @@ export class HttpWarningModal extends Component<HttpWarningModalViewModel> {
 				/>
 			</view>
 
-			<view style={modalStyles.actions}>
-				<view style={modalStyles.actionButton}>
+			<layout style={modalStyles.actions}>
+				<layout style={modalStyles.actionButton}>
 					<Button
 						accessibilityId='http-warning-cancel'
 						animationsEnabled={this.viewModel.animationsEnabled}
@@ -35,9 +35,9 @@ export class HttpWarningModal extends Component<HttpWarningModalViewModel> {
 						onTap={this.viewModel.onCancel}
 						style={ButtonType.Secondary}
 					/>
-				</view>
-				<view style={modalStyles.actionSeparator} />
-				<view style={modalStyles.actionButton}>
+				</layout>
+				<layout style={modalStyles.actionSeparator} />
+				<layout style={modalStyles.actionButton}>
 					<Button
 						accessibilityId='http-warning-confirm'
 						animationsEnabled={this.viewModel.animationsEnabled}
@@ -45,8 +45,8 @@ export class HttpWarningModal extends Component<HttpWarningModalViewModel> {
 						onTap={this.viewModel.onConfirm}
 						style={ButtonType.Warn}
 					/>
-				</view>
-			</view>
+				</layout>
+			</layout>
 		</ModalBase>;
 	}
 }

@@ -375,12 +375,12 @@ export class TrackList extends Component<TrackListViewModel> {
 												/>
 											</view>
 										) : entry.leadingLabel ? (
-											<view style={styles.leadingLabelTile}>
+											<layout style={styles.leadingLabelTile}>
 												<label
 													style={resolvedStyles.leadingLabelTextStyle}
 													value={entry.leadingLabel}
 												/>
-											</view>
+											</layout>
 										) : null}
 
 										<layout style={styles.textBlock}>
@@ -1233,7 +1233,7 @@ const styles = {
 		height: 24,
 		width: 24,
 	}),
-	leadingLabelTile: new Style<View>({
+	leadingLabelTile: new Style<Layout>({
 		alignItems: 'center',
 		alignSelf: 'flex-start',
 		aspectRatio: 1,
