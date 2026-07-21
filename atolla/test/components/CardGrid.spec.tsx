@@ -214,6 +214,80 @@ describe('CardGrid', () => {
 		expect(loadMoreCalls).toBe(2);
 	});
 
+	valdiIt('auto-loads more when the bottom trigger scrolls into view', async (driver) => {
+		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
+		let loadMoreCalls = 0;
+		const viewModel = {
+			accessibilityId: 'grid',
+			cards,
+			columnCount: 3,
+			onCardTap: () => {},
+			onLoadMore: () => {
+				loadMoreCalls += 1;
+			},
+			resolveArtworkSource: () => null,
+		};
+		const component = driver.renderComponent(CardGrid, viewModel, undefined);
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const bottomTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger-bottom',
+		);
+		expect(bottomTrigger).toBeDefined();
+
+		bottomTrigger?.getAttribute('onVisibilityChanged')?.(true, 0);
+
+		expect(loadMoreCalls).toBe(1);
+	});
+
+	valdiIt('loads once when both triggers fire for the same card set', async (driver) => {
+		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
+		let loadMoreCalls = 0;
+		const viewModel = {
+			accessibilityId: 'grid',
+			cards,
+			columnCount: 3,
+			onCardTap: () => {},
+			onLoadMore: () => {
+				loadMoreCalls += 1;
+			},
+			resolveArtworkSource: () => null,
+		};
+		const component = driver.renderComponent(CardGrid, viewModel, undefined);
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const topTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger',
+		);
+		const bottomTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger-bottom',
+		);
+
+		topTrigger?.getAttribute('onVisibilityChanged')?.(true, 0);
+		bottomTrigger?.getAttribute('onVisibilityChanged')?.(true, 0);
+
+		expect(loadMoreCalls).toBe(1);
+	});
+
+	valdiIt('does not render the bottom trigger when onLoadMore is absent', async (driver) => {
+		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
+		const viewModel = {
+			accessibilityId: 'grid',
+			cards,
+			columnCount: 3,
+			onCardTap: () => {},
+			resolveArtworkSource: () => null,
+		};
+		const component = driver.renderComponent(CardGrid, viewModel, undefined);
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const bottomTrigger = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger-bottom',
+		);
+
+		expect(bottomTrigger).toBeUndefined();
+	});
+
 	valdiIt('shows loading spinner label while loading next page', async (driver) => {
 		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
 		const viewModel = {

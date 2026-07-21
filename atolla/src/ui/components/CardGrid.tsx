@@ -146,6 +146,16 @@ export class CardGrid extends Component<CardGridViewModel> {
 					)}
 				</layout>
 			))}
+			{onLoadMore && rows.length > 0 && (
+				<view
+					accessibilityId='grid-prefetch-trigger-bottom'
+					accessibilityLabel='grid-prefetch-trigger-bottom'
+					onVisibilityChanged={createReusableCallback((isVisible: boolean) => {
+						this.handleAutoLoadTriggerVisibility(isVisible);
+					})}
+					style={styles.prefetchTrigger}
+				/>
+			)}
 			{isLoadingMore ? (
 				<label style={styles.loadMoreLabel} value={Strings.loading()} />
 			) : onRetryLoadMore ? (
@@ -329,7 +339,7 @@ const styles = {
 		textAlign: 'center',
 	}),
 	prefetchTrigger: new Style<View>({
-		height: 1,
+		height: 8,
 		width: '100%',
 	}),
 };
