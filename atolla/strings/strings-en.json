@@ -154,6 +154,9 @@
 	"no": {
 		"defaultMessage": "no"
 	},
+	"none": {
+		"defaultMessage": "none"
+	},
 	"nothing_downloaded": {
 		"defaultMessage": "nothing downloaded"
 	},
@@ -310,7 +313,7 @@
 		"defaultMessage": "connected via HTTP — credentials are sent unencrypted"
 	},
 	"settings_image_cache_size": {
-		"defaultMessage": "image cache size"
+		"defaultMessage": "image cache max"
 	},
 	"settings_language": {
 		"defaultMessage": "language"

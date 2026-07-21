@@ -154,6 +154,9 @@
 	"no": {
 		"defaultMessage": "non"
 	},
+	"none": {
+		"defaultMessage": "aucune"
+	},
 	"nothing_downloaded": {
 		"defaultMessage": "rien de téléchargé"
 	},

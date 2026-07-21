@@ -50,7 +50,6 @@
 // MARK: - Disk + Memory Cache
 
 static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
-static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 
 @interface AtollaIOSImageCacheStore : NSObject
 - (nullable NSData *)readForKey:(NSString *)key;
@@ -201,12 +200,12 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
 }
 
 - (void)evictIfNeeded {
+    if (sImageDiskCacheMaxBytes <= 0) return;
     if (!_diskDir) return;
     NSArray<NSURL *> *files = [NSFileManager.defaultManager
         contentsOfDirectoryAtURL:_diskDir
         includingPropertiesForKeys:@[NSURLFileSizeKey, NSURLContentModificationDateKey]
         options:0 error:nil];
-    NSDate *now = NSDate.date;
     NSMutableArray *live = [NSMutableArray array];
     long long total = 0;
     for (NSURL *f in files) {
@@ -214,12 +213,8 @@ static NSTimeInterval const kImageDiskCacheTTL = 30 * 24 * 3600;
         [f getResourceValue:&mod forKey:NSURLContentModificationDateKey error:nil];
         [f getResourceValue:&sz forKey:NSURLFileSizeKey error:nil];
         if (!mod || !sz) continue;
-        if ([now timeIntervalSinceDate:mod] > kImageDiskCacheTTL) {
-            [NSFileManager.defaultManager removeItemAtURL:f error:nil];
-        } else {
-            [live addObject:@{@"u": f, @"s": sz, @"m": mod}];
-            total += sz.longLongValue;
-        }
+        [live addObject:@{@"u": f, @"s": sz, @"m": mod}];
+        total += sz.longLongValue;
     }
     if (total <= sImageDiskCacheMaxBytes) return;
     NSArray *sorted = [live sortedArrayUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {

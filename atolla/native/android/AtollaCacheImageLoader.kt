@@ -71,7 +71,6 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		private const val DEFAULT_BITMAP_MAX_DIMENSION = 768
 		private const val PROCESSING_DECODE_MAX_DIMENSION = 512
 		@Volatile var diskCacheMaxBytes = 200L * 1024 * 1024
-		private const val DISK_CACHE_TTL_MS = 30L * 24 * 3600 * 1000
 
 		private val httpClient = OkHttpClient.Builder()
 			.protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
@@ -1031,6 +1030,9 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	}
 
 	private fun runDiskEvictionPass() {
+		if (diskCacheMaxBytes <= 0L) {
+			return
+		}
 		val dir = diskCacheDir ?: return
 		val files = try {
 			dir.listFiles()?.filter { it.isFile }
@@ -1038,25 +1040,11 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			null
 		} ?: return
 
-		val now = System.currentTimeMillis()
-		val liveFiles = mutableListOf<DiskCacheEntry>()
-		for (file in files) {
-			val modifiedAtMs = file.lastModified()
-			val age = now - modifiedAtMs
-			if (age > DISK_CACHE_TTL_MS) {
-				try {
-					file.delete()
-				} catch (_: Throwable) {
-					// best effort disk cleanup
-				}
-				continue
-			}
-			liveFiles.add(
-				DiskCacheEntry(
-					file = file,
-					bytes = file.length(),
-					modifiedAtMs = modifiedAtMs,
-				),
+		val liveFiles = files.map { file ->
+			DiskCacheEntry(
+				file = file,
+				bytes = file.length(),
+				modifiedAtMs = file.lastModified(),
 			)
 		}
 

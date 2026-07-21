@@ -1,14 +1,8 @@
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { type ConnectionMode, ConnectionModes } from '../transports/Model';
 
-const GB = 1024 * 1024 * 1024;
-export const IMAGE_CACHE_SIZE_OPTIONS = [
-	1 * GB,
-	Math.round(1.5 * GB),
-	2 * GB,
-	Math.round(2.5 * GB),
-	3 * GB,
-];
+export const GB = 1024 * 1024 * 1024;
+export const IMAGE_CACHE_SIZE_OPTIONS = [1 * GB, 2 * GB, 3 * GB, 5 * GB, 0];
 export const DEFAULT_IMAGE_CACHE_MAX_BYTES = 2 * GB;
 export const GRID_COLUMN_OPTIONS = [3, 4];
 export const DEFAULT_GRID_COLUMNS = 3;

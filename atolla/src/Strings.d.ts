@@ -50,6 +50,7 @@ declare const Strings: {
 	loading: () => string;
 	loadingHome: () => string;
 	no: () => string;
+	none: () => string;
 	nothingDownloaded: () => string;
 	nothingElseLinedUp: () => string;
 	partialDownloadBody: () => string;

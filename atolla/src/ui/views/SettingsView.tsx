@@ -28,6 +28,7 @@ import {
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
 	DEFAULT_LANGUAGE,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
+	GB,
 	GRID_COLUMN_OPTIONS,
 	IMAGE_CACHE_SIZE_OPTIONS,
 	LANGUAGE_OPTIONS,
@@ -50,7 +51,6 @@ import { SelectOption } from '../components/SelectOption';
 import { Toggle } from '../components/Toggle';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 
-const GB = 1024 * 1024 * 1024;
 const NATIVE_CACHE_STATS_INTERVAL_MS = 1000;
 
 export interface SettingsViewModel {
@@ -590,9 +590,8 @@ function getLanguageLabel(code: LanguageCode): string {
 }
 
 function formatCacheSizeLabel(bytes: number): string {
-	const gb = bytes / GB;
-	if (gb < 1) return `${Math.round(bytes / (1024 * 1024))} MB`;
-	return `${gb} GB`;
+	if (bytes <= 0) return Strings.none();
+	return `${bytes / GB} GB`;
 }
 
 function formatBytes(bytes: number): string {
