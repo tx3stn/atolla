@@ -180,6 +180,40 @@ describe('CardGrid', () => {
 		expect(loadMoreCalls).toBe(1);
 	});
 
+	valdiIt('re-arms auto-load when the card set is replaced with a new array', async (driver) => {
+		let loadMoreCalls = 0;
+		const makeCards = () => Array.from({ length: 24 }, (_, index) => makeCard(String(index + 1)));
+		const renderWith = (cards: ReturnType<typeof makeCards>) =>
+			driver.render(() => {
+				<CardGrid
+					accessibilityId='grid'
+					cards={cards}
+					columnCount={3}
+					onCardTap={() => {}}
+					onLoadMore={() => {
+						loadMoreCalls += 1;
+					}}
+					resolveArtworkSource={() => null}
+				/>;
+			});
+		const fireTrigger = (nodes: ReturnType<typeof renderWith>) => {
+			const component = nodes[0].component as CardGrid;
+			const trigger = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			).find((view) => view.getAttribute('accessibilityLabel') === 'grid-prefetch-trigger');
+			trigger?.getAttribute('onVisibilityChanged')?.(true, 0);
+		};
+
+		fireTrigger(renderWith(makeCards()));
+		expect(loadMoreCalls).toBe(1);
+
+		// same instance is reconciled, so the de-dupe latch persists across the re-render;
+		// a fresh array of the same length must still re-arm the auto-load trigger
+		fireTrigger(renderWith(makeCards()));
+		expect(loadMoreCalls).toBe(2);
+	});
+
 	valdiIt('shows loading spinner label while loading next page', async (driver) => {
 		const cards = Array.from({ length: 30 }, (_, index) => makeCard(String(index + 1)));
 		const viewModel = {

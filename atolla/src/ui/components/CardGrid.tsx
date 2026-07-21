@@ -38,7 +38,7 @@ const CARD_LONG_PRESS_DELAY_MS = 500;
 
 export class CardGrid extends Component<CardGridViewModel> {
 	private longPressTimeout: ReturnType<typeof setTimeout> | null = null;
-	private triggeredAutoLoadForCardCount: number | null = null;
+	private triggeredAutoLoadForCards: Array<Card> | null = null;
 	private suppressNextTap = false;
 
 	onDestroy(): void {
@@ -179,11 +179,11 @@ export class CardGrid extends Component<CardGridViewModel> {
 			return;
 		}
 
-		if (this.triggeredAutoLoadForCardCount === cards.length) {
+		if (this.triggeredAutoLoadForCards === cards) {
 			return;
 		}
 
-		this.triggeredAutoLoadForCardCount = cards.length;
+		this.triggeredAutoLoadForCards = cards;
 		onLoadMore();
 	}
 

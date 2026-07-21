@@ -7,7 +7,7 @@ import { makeTestViewCache } from 'atolla/test/util/viewCache';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { touchEvent } from '../util/testEvents';
 
 const pageSize = 24;
@@ -168,6 +168,66 @@ describe('AlbumsView', () => {
 		await flushAsyncWork();
 
 		expect(component.state.albums.length).toBe(80);
+	});
+
+	// AlbumsView.onViewModelUpdate calls setState, so re-rendering through the shared driver
+	// re-enters ('Already rendering'); root-mount via InstrumentedComponentJSX so setViewModel
+	// re-renders on its own renderer, matching the production offline->online toggle.
+	valdiIt('resumes pagination after toggling from offline to online', async () => {
+		const allAlbums = makeAlbums(80);
+		const viewCache = makeTestViewCache();
+		// the online page-1 the app cached before going offline; paints on the toggle back
+		viewCache.store('list:albums:all:online', allAlbums.slice(0, pageSize));
+
+		type Page = { hasMore: boolean; items: ReturnType<typeof makeAlbums> };
+		let resolvePageOne: ((value: Page) => void) | undefined;
+		const transport = {
+			getAlbums: (page: number, size: number) => {
+				if (page === 1) {
+					return new Promise<Page>((resolve) => {
+						resolvePageOne = resolve;
+					});
+				}
+				const start = (page - 1) * size;
+				const end = start + size;
+				return Promise.resolve({
+					hasMore: end < allAlbums.length,
+					items: allAlbums.slice(start, end),
+				});
+			},
+		};
+
+		const viewModel = (isOfflineMode: boolean) => ({
+			imageCache: stubImageCache,
+			isOfflineMode,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			transport,
+			viewCache,
+		});
+
+		const instrumented = InstrumentedComponentJSX.create(AlbumsView, viewModel(true), undefined);
+		const component = instrumented.getComponent();
+		await flushAsyncWork();
+
+		// toggle online: reset + seed the cached page-1 (pageSize) while page 1 refetches
+		instrumented.setViewModel(viewModel(false));
+		expect(component.state.albums.length).toBe(pageSize);
+
+		// the prefetch trigger fires while page 1 is still in flight, so the controller drops it
+		scrollPrefetchTriggerIntoView(component);
+		await flushAsyncWork();
+
+		// page 1 resolves at the same count the seed painted
+		resolvePageOne?.({ hasMore: true, items: allAlbums.slice(0, pageSize) });
+		await flushAsyncWork();
+		expect(component.state.albums.length).toBe(pageSize);
+
+		// scrolling must now page again rather than staying stuck on the first page
+		scrollPrefetchTriggerIntoView(component);
+		await flushAsyncWork();
+		expect(component.state.albums.length).toBe(pageSize * 2);
 	});
 
 	valdiIt('shows retry state when next page fails and recovers on retry', async (driver) => {
