@@ -86,10 +86,10 @@ if command -v vrsn >/dev/null 2>&1; then
 	commit=$(git rev-parse --short HEAD)
 	version="${tag}-dev-${commit}"
 	trap 'git -C "$repo_root" checkout -- "${version_files[@]}"' EXIT
-	(cd "$repo_root" && vrsn set "${DEV_VERSION:-${tag}-dev}")
+	(cd "$repo_root" && vrsn set "${DEV_VERSION:-${version}}")
 	# Keep CFBundleVersion numeric: revert the bazel version fields, leaving
 	# version.ts (the app-visible version) on the -dev version.
-	(cd "$repo_root" && vrsn set "${DEV_VERSION:-${version}}")
+	(cd "$repo_root" && git checkout -- BUILD.bazel atolla_dev/BUILD.bazel)
 	echo "Stamped dev version ${DEV_VERSION:-${version}} (version files revert on exit)."
 else
 	echo "vrsn not installed — building the committed placeholder version."
