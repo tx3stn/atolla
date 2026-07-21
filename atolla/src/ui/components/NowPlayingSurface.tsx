@@ -951,6 +951,7 @@ export class NowPlayingSurface extends StatefulComponent<
 										accessibilityId='now-playing-artist-logo'
 										containerStyle={styles.expandedArtistLogoArea}
 										fallbackText={track.artistName ?? ''}
+										fallbackTextContainerStyle={styles.expandedArtistFallbackContainer}
 										fallbackTextStyle={paletteStyles.expandedArtistNameStyle}
 										logoSource={artistLogoSource}
 										logoStyle={styles.expandedArtistLogo}
@@ -1256,7 +1257,6 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 		expandedArtistNameStyle: new Style<Label>({
 			...theme.text.display,
 			color: mutedOnSurfaceColor,
-			marginBottom: 8,
 			textAlign: 'center',
 			width: '100%',
 		}),
@@ -1343,6 +1343,10 @@ const styles = {
 		height: 62,
 		width: 62,
 	}),
+	expandedArtistFallbackContainer: new Style<Layout>({
+		padding: 0,
+		width: '100%',
+	}),
 	expandedArtistLogo: new Style<ImageView>({
 		height: 70,
 		marginBottom: -4,
@@ -1350,6 +1354,9 @@ const styles = {
 		width: '100%',
 	}),
 	expandedArtistLogoArea: new Style<View>({
+		alignItems: 'center',
+		height: 70,
+		justifyContent: 'center',
 		width: '100%',
 	}),
 	expandedArtworkGestureZone: new Style<View>({

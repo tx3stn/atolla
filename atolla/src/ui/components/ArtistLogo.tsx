@@ -8,6 +8,7 @@ export interface ArtistLogoViewModel {
 	accessibilityId?: string;
 	containerStyle?: Style<View>;
 	fallbackText?: string | null;
+	fallbackTextContainerStyle?: Style<Layout>;
 	fallbackTextStyle?: Style<Label>;
 	logoSource?: string | null;
 	logoStyle?: Style<ImageView>;
@@ -21,6 +22,7 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 			accessibilityId,
 			containerStyle,
 			fallbackText,
+			fallbackTextContainerStyle,
 			fallbackTextStyle,
 			logoSource,
 			logoStyle,
@@ -44,7 +46,7 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 					url={logoSource}
 				/>
 			) : fallbackText ? (
-				<layout style={styles.fallbackTextPadding}>
+				<layout style={fallbackTextContainerStyle ?? styles.fallbackTextPadding}>
 					<label
 						accessibilityId={accessibilityId ? `${accessibilityId}-text` : undefined}
 						accessibilityLabel={accessibilityId ? `${accessibilityId}-text` : undefined}
