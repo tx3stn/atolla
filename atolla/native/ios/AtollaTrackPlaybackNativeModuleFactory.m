@@ -5,6 +5,7 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import "atolla/native/ios/AtollaPlaybackGuards.h"
+#import "atolla/native/ios/AtollaTrackCacheRetention.h"
 #import "atolla/native/ios/AtollaAuthRedirectGuard.h"
 #import "scrobble_ios_bridge.h"
 
@@ -21,6 +22,7 @@ static const void *kAtollaPlayerItemTrackIdKey = &kAtollaPlayerItemTrackIdKey;
 + (NSInteger)getCacheEntryCount;
 + (void)clearCache;
 + (void)setCacheMaxTracks:(NSInteger)maxTracks;
++ (void)setRetainedTrackIds:(NSString * _Nonnull)idsJson;
 
 @end
 
@@ -31,11 +33,14 @@ static NSInteger sTrackCacheMaxTracks = 20;
 static NSString * const kTrackCacheFolder = @"atolla-track-cache";
 static NSLock *sTrackCacheLock;
 static NSMutableSet<NSString *> *sInProgressKeys;
+// safeKeys of the current sliding playback window; pruneIfNeededInDir never evicts these
+static NSSet<NSString *> *sRetainedKeys;
 
 + (void)initialize {
     if (self == [AtollaTrackCache class]) {
         sTrackCacheLock = [[NSLock alloc] init];
         sInProgressKeys = [NSMutableSet set];
+        sRetainedKeys = [NSSet set];
     }
 }
 
@@ -182,26 +187,32 @@ static NSMutableSet<NSString *> *sInProgressKeys;
                            error:nil];
 
     NSMutableArray<NSURL *> *trackFiles = [NSMutableArray array];
+    NSMutableArray<NSDictionary<NSString *, id> *> *entries = [NSMutableArray array];
     for (NSURL *file in files) {
         NSNumber *isDir = nil;
         [file getResourceValue:&isDir forKey:NSURLIsDirectoryKey error:nil];
-        if (![isDir boolValue]) [trackFiles addObject:file];
+        if ([isDir boolValue]) continue;
+        [trackFiles addObject:file];
+
+        NSDate *date = nil;
+        [file getResourceValue:&date forKey:NSURLContentModificationDateKey error:nil];
+        NSString *name = [file lastPathComponent];
+        [entries addObject:@{
+            @"name": name ?: @"",
+            @"mtime": @(date ? [date timeIntervalSinceReferenceDate] : 0.0),
+        }];
     }
 
-    if ((NSInteger)trackFiles.count <= maxTracks) return;
+    // retained window tracks are never evicted, even if that leaves the cache above max
+    // transiently. the JS window size is bounded by maxTracks so this converges
+    NSSet<NSString *> *victims =
+        [NSSet setWithArray:AtollaTrackCacheSelectPruneVictims(entries, sRetainedKeys, maxTracks)];
+    if (victims.count == 0) return;
 
-    [trackFiles sortUsingComparator:^NSComparisonResult(NSURL *a, NSURL *b) {
-        NSDate *dateA = nil, *dateB = nil;
-        [a getResourceValue:&dateA forKey:NSURLContentModificationDateKey error:nil];
-        [b getResourceValue:&dateB forKey:NSURLContentModificationDateKey error:nil];
-        if (!dateA) return NSOrderedAscending;
-        if (!dateB) return NSOrderedDescending;
-        return [dateA compare:dateB];
-    }];
-
-    NSInteger toDelete = trackFiles.count - maxTracks;
-    for (NSInteger i = 0; i < toDelete; i++) {
-        [[NSFileManager defaultManager] removeItemAtURL:trackFiles[i] error:nil];
+    for (NSURL *file in trackFiles) {
+        if ([victims containsObject:[file lastPathComponent]]) {
+            [[NSFileManager defaultManager] removeItemAtURL:file error:nil];
+        }
     }
 }
 
@@ -329,6 +340,26 @@ static NSMutableSet<NSString *> *sInProgressKeys;
         sTrackCacheMaxTracks = maxTracks;
         NSURL *dir = [self resolveCacheDir];
         if (dir) [self pruneIfNeededInDir:dir];
+    } @finally {
+        [sTrackCacheLock unlock];
+    }
+}
+
++ (void)setRetainedTrackIds:(NSString * _Nonnull)idsJson {
+    NSData *data = [idsJson dataUsingEncoding:NSUTF8StringEncoding];
+    if (!data) return;
+    id parsed = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![parsed isKindOfClass:[NSArray class]]) return;
+
+    NSMutableSet<NSString *> *keys = [NSMutableSet set];
+    for (id item in (NSArray *)parsed) {
+        if (![item isKindOfClass:[NSString class]] || [(NSString *)item length] == 0) continue;
+        [keys addObject:[self safeTrackKey:(NSString *)item]];
+    }
+
+    [sTrackCacheLock lock];
+    @try {
+        sRetainedKeys = keys;
     } @finally {
         [sTrackCacheLock unlock];
     }
@@ -1568,6 +1599,10 @@ static id sLookaheadClearObserver = nil;
 
 - (void)setAtollaTrackCacheMaxTracksWithMaxTracks:(double)maxTracks {
     [AtollaTrackCache setCacheMaxTracks:(NSInteger)maxTracks];
+}
+
+- (void)setAtollaRetainedTrackIdsWithIdsJson:(NSString * _Nonnull)idsJson {
+    [AtollaTrackCache setRetainedTrackIds:idsJson];
 }
 
 - (void)cacheAtollaDownloadedTrackFromUrlAsyncWithTrackId:(NSString * _Nonnull)trackId

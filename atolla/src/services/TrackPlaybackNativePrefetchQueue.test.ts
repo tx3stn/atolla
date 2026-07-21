@@ -41,6 +41,31 @@ describe('TrackPlaybackNativePrefetchQueue', () => {
 		expect(attemptedTrackIds).toEqual(['b', 'c']);
 	});
 
+	it('limits prefetch depth to maxCount from the start index', async () => {
+		const attemptedTrackIds: Array<string> = [];
+		const cached = new Set<string>();
+
+		const queue = new TrackPlaybackNativePrefetchQueue(
+			(track) => `https://audio/${track.id}`,
+			(trackId) => cached.has(trackId),
+			(trackId, _url, onComplete) => {
+				attemptedTrackIds.push(trackId);
+				cached.add(trackId);
+				onComplete(`file:///tmp/${trackId}.mp3`);
+			},
+		);
+
+		queue.replaceQueue(
+			[createTrack('a'), createTrack('b'), createTrack('c'), createTrack('d')],
+			1,
+			2,
+		);
+		await waitFor(() => attemptedTrackIds.length === 2);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		expect(attemptedTrackIds).toEqual(['b', 'c']);
+	});
+
 	it('replaces pending queue when new queue is provided', async () => {
 		const attemptedTrackIds: Array<string> = [];
 		const cached = new Set<string>();

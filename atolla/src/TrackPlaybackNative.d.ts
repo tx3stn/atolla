@@ -129,4 +129,7 @@ export function setAtollaAudioPlaybackNextNotification(
 export function setAtollaAudioPlaybackUpcomingQueue(queueJson: string): void;
 
 // @ExportFunction
+export function setAtollaRetainedTrackIds(idsJson: string): void;
+
+// @ExportFunction
 export function setAtollaTrackPlaybackAuthToken(token: string): void;

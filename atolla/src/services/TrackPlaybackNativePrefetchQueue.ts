@@ -26,7 +26,7 @@ export class TrackPlaybackNativePrefetchQueue {
 		private readonly onTrackFetchFailed?: (trackId: string, reason?: string) => void,
 	) {}
 
-	replaceQueue(tracks: Array<Track>, startIndex: number): void {
+	replaceQueue(tracks: Array<Track>, startIndex: number, maxCount?: number): void {
 		this.generation += 1;
 
 		if (tracks.length === 0 || startIndex >= tracks.length) {
@@ -36,7 +36,9 @@ export class TrackPlaybackNativePrefetchQueue {
 		}
 
 		const normalizedStartIndex = Math.max(0, Math.min(startIndex, tracks.length - 1));
-		const orderedTracks = tracks.slice(normalizedStartIndex);
+		const endIndex =
+			maxCount == null ? tracks.length : normalizedStartIndex + Math.max(0, maxCount);
+		const orderedTracks = tracks.slice(normalizedStartIndex, endIndex);
 
 		const seen = new Set<string>();
 		this.queue = orderedTracks.flatMap((track) => {

@@ -53,3 +53,4 @@ tools/palettes-preview/samples/*.jpg
 
 neotest*-xml.txt
 .code-review-graph/
+.mcp.json

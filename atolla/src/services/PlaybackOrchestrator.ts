@@ -11,7 +11,12 @@ import {
 	buildTrackPlaybackNotificationPayload,
 	normalizeTrackPlaybackNotificationAction,
 } from './TrackPlaybackNotificationSync';
-import { buildPlaybackQueueWindow, serializeQueueWindow } from './TrackPlaybackUpcomingQueue';
+import {
+	buildPlaybackQueueWindow,
+	buildRetainedTrackIds,
+	retainedForwardCount,
+	serializeQueueWindow,
+} from './TrackPlaybackUpcomingQueue';
 import type { TrackSourceNative } from './TrackSourceNativeAdapter';
 import type { WaveformRenderCache } from './WaveformRenderCache';
 import type { WaveformService } from './WaveformService';
@@ -44,6 +49,7 @@ export interface PlaybackOrchestratorDeps {
 	downloads: DownloadedTrackSource;
 	getAccessToken: () => string;
 	getAudioFileUrl: (trackId: string) => string | null;
+	getTrackCacheMaxTracks: () => number;
 	getTrackCacheUrl: (trackId: string) => string | null;
 	getTransportToken: () => unknown;
 	isOfflinePlaybackMode: () => boolean;
@@ -81,6 +87,7 @@ export class PlaybackOrchestrator {
 	private readonly getAudioFileUrl: (trackId: string) => string | null;
 	private readonly getAccessToken: () => string;
 	private readonly downloads: DownloadedTrackSource;
+	private readonly getTrackCacheMaxTracks: () => number;
 	private readonly getTrackCacheUrl: (trackId: string) => string | null;
 	private readonly getTransportToken: () => unknown;
 	private readonly isOfflinePlaybackMode: () => boolean;
@@ -105,6 +112,7 @@ export class PlaybackOrchestrator {
 	private trackPlaybackSourceUrl: string | null = null;
 	private nextTrackSourceUrl: string | null = null;
 	private lastUpcomingQueueKey = '';
+	private lastRetainedTrackIdsKey = '';
 	private lastTrackSourceTrackId: string | null = null;
 	private lastTrackFetchErrorTrackId: string | null = null;
 	private playbackSourceRequestId = 0;
@@ -144,6 +152,7 @@ export class PlaybackOrchestrator {
 		this.getAudioFileUrl = deps.getAudioFileUrl;
 		this.getAccessToken = deps.getAccessToken;
 		this.downloads = deps.downloads;
+		this.getTrackCacheMaxTracks = deps.getTrackCacheMaxTracks;
 		this.getTrackCacheUrl = deps.getTrackCacheUrl;
 		this.getTransportToken = deps.getTransportToken;
 		this.isOfflinePlaybackMode = deps.isOfflinePlaybackMode;
@@ -230,6 +239,7 @@ export class PlaybackOrchestrator {
 		}
 		this.prewarmUpcomingPalettes();
 		this.syncUpcomingQueue();
+		this.syncRetainedTrackIds();
 		this.handleTrackPrefetchQueueChange();
 		this.captureRecentlyPlayedTrack();
 		this.handleWaveformPriority();
@@ -604,6 +614,24 @@ export class PlaybackOrchestrator {
 		}
 	}
 
+	// tells the streaming cache which track ids form the current sliding window so its prune
+	// never evicts them. index-based, so it converges on every queue mutation regardless of
+	// which sources have resolved yet
+	syncRetainedTrackIds(): void {
+		const ids = buildRetainedTrackIds(this.playbackStore, this.getTrackCacheMaxTracks());
+		const key = JSON.stringify(ids);
+		if (key === this.lastRetainedTrackIdsKey) {
+			return;
+		}
+
+		this.lastRetainedTrackIdsKey = key;
+		try {
+			this.trackSourceNative.setRetainedTrackIds(ids);
+		} catch {
+			// native module without retained-ids support (e.g. mock platform builds)
+		}
+	}
+
 	captureRecentlyPlayedTrack(): void {
 		const activeTrack = this.playbackStore.track;
 		if (!activeTrack) {
@@ -953,6 +981,15 @@ export class PlaybackOrchestrator {
 			return;
 		}
 
+		// bound prefetch to the retained forward runway so we never fetch a track the cache
+		// would immediately evict
+		const prefetchDepth = retainedForwardCount(this.playbackStore, this.getTrackCacheMaxTracks());
+		if (prefetchDepth <= 0) {
+			this.deferredDownloadCoordinator.cancel('prefetch');
+			this.trackPrefetchQueue.clearQueue();
+			return;
+		}
+
 		const streamSource =
 			this.playbackStore.isPlaying &&
 			!this.isOfflinePlaybackMode() &&
@@ -963,7 +1000,7 @@ export class PlaybackOrchestrator {
 		if (streamSource) {
 			this.deferredDownloadCoordinator.defer('prefetch', {
 				requestId: this.playbackSourceRequestId,
-				run: () => this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex),
+				run: () => this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex, prefetchDepth),
 				source: streamSource,
 				trackId: activeTrack.id,
 			});
@@ -971,7 +1008,7 @@ export class PlaybackOrchestrator {
 		}
 
 		this.deferredDownloadCoordinator.cancel('prefetch');
-		this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex);
+		this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex, prefetchDepth);
 	}
 
 	handlePlaybackError(error: string): void {

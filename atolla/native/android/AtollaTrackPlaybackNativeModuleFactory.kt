@@ -79,6 +79,10 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				AtollaTrackPlaybackNativeCache.setCacheMaxTracks(maxTracks.toInt())
 			}
 
+			override fun setAtollaRetainedTrackIds(idsJson: String) {
+				AtollaTrackPlaybackNativeCache.setRetainedTrackIds(idsJson)
+			}
+
 			override fun cacheAtollaDownloadedTrackFromUrlAsync(trackId: String, url: String, authToken: String, onComplete: (String) -> Unit) {
 				Thread {
 					val result = try {
@@ -1167,6 +1171,11 @@ object AtollaTrackPlaybackNativeCache {
 	@Volatile
 	private var cacheMaxTracks = defaultMaxTracks
 
+	// safeKeys of the current sliding playback window (history + current + forward runway).
+	// prune never evicts these so upcoming/back-skip tracks survive an LRU pass
+	@Volatile
+	private var retainedKeys: Set<String> = emptySet()
+
 	// tracks which safeKeys are currently downloading to prevent duplicate concurrent
 	// downloads writing to the same temp file
 	private val inProgressKeys = java.util.Collections.synchronizedSet(mutableSetOf<String>())
@@ -1317,6 +1326,24 @@ object AtollaTrackPlaybackNativeCache {
 		pruneIfNeeded(dir)
 	}
 
+	@Synchronized
+	fun setRetainedTrackIds(idsJson: String) {
+		retainedKeys = try {
+			val array = org.json.JSONArray(idsJson)
+			val keys = mutableSetOf<String>()
+			for (index in 0 until array.length()) {
+				val id = array.optString(index, "")
+				if (id.isNotBlank()) {
+					keys.add(safeTrackKey(id))
+				}
+			}
+			keys
+		} catch (error: Throwable) {
+			Log.e(tag, "Failed to parse retained track ids", error)
+			retainedKeys
+		}
+	}
+
 	private fun resolveExistingTrackFile(trackId: String): File? {
 		val dir = resolveCacheDir() ?: return null
 		val key = safeTrackKey(trackId)
@@ -1422,18 +1449,17 @@ object AtollaTrackPlaybackNativeCache {
 		} ?: return
 
 		val trackFiles = files.filter { it.isFile }
-		if (trackFiles.size <= maxTracks) {
+		val entries = trackFiles.map { AtollaTrackCacheRetention.Entry(it.name, it.lastModified()) }
+		val victims = AtollaTrackCacheRetention.selectPruneVictims(entries, retainedKeys, maxTracks).toSet()
+		if (victims.isEmpty()) {
 			return
 		}
 
-		val byLru = trackFiles.sortedWith(
-			compareBy<File> { it.lastModified() }
-				.thenBy { it.name },
-		)
-
-		val filesToDelete = byLru.take(trackFiles.size - maxTracks)
 		var deleted = 0
-		for (file in filesToDelete) {
+		for (file in trackFiles) {
+			if (file.name !in victims) {
+				continue
+			}
 			try {
 				if (file.delete()) {
 					deleted += 1

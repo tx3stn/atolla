@@ -32,6 +32,21 @@ macos_unit_test(
 )
 
 objc_library(
+    name = "AtollaTrackCacheRetentionTestLib",
+    testonly = True,
+    srcs = ["AtollaTrackCacheRetentionTest.m"],
+    copts = ["-I."],
+    deps = ["//atolla/native:atolla_track_cache_retention_ios"],
+)
+
+macos_unit_test(
+    name = "AtollaTrackCacheRetentionTest",
+    size = "small",
+    minimum_os_version = "12.0",
+    deps = [":AtollaTrackCacheRetentionTestLib"],
+)
+
+objc_library(
     name = "AtollaDiskCacheStatsTestLib",
     testonly = True,
     srcs = ["AtollaDiskCacheStatsTest.m"],

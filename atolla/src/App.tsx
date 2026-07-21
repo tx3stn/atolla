@@ -143,6 +143,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		downloads: this.downloadService,
 		getAccessToken: () => this.sessionManager.getAccessToken(),
 		getAudioFileUrl: (trackId) => this.assetCache.getAudioPathForWaveform(trackId),
+		getTrackCacheMaxTracks: () => this.preferences.trackCacheMaxTracks,
 		getTrackCacheUrl: (trackId) => this.connectivity.getTransport().getTrackCacheUrl(trackId),
 		getTransportToken: () => this.connectivity.getTransport(),
 		isOfflinePlaybackMode: () => this.connectivity.getMode() === ConnectionModes.offline,

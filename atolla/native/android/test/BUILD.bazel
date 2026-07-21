@@ -13,6 +13,18 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "AtollaTrackCacheRetentionTest",
+    size = "small",
+    srcs = ["AtollaTrackCacheRetentionTest.kt"],
+    jvm_flags = ["-Djava.security.manager=allow"],
+    test_class = "atolla.native.android.AtollaTrackCacheRetentionTest",
+    deps = [
+        "//atolla/native:atolla_track_cache_retention",
+        "@test_mvn//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "AtollaImageFallbackTest",
     size = "small",
     srcs = ["AtollaImageFallbackTest.kt"],

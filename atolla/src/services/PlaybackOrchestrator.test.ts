@@ -924,6 +924,79 @@ describe('PlaybackOrchestrator upcoming queue', () => {
 	});
 });
 
+describe('PlaybackOrchestrator retained track ids', () => {
+	function longQueueStore(startIndex: number): {
+		loopMode: string;
+		track: Track | null;
+		trackIndex: number;
+		tracks: Array<Track>;
+	} {
+		const tracks = Array.from({ length: 100 }, (_, index) => makeTrack(`t${index}`));
+		return { loopMode: 'none', track: tracks[startIndex], trackIndex: startIndex, tracks };
+	}
+
+	it('pushes the sliding-window ids to the native cache (3 history + current + forward)', () => {
+		const trackSourceNative = fakeTrackSourceNative();
+		const orchestrator = createOrchestrator(longQueueStore(50), () => {}, fakeNotification(), {
+			getTrackCacheMaxTracks: () => 20,
+			trackSourceNative,
+		});
+
+		orchestrator.syncRetainedTrackIds();
+
+		expect(trackSourceNative.retainedTrackIdsPayloads.length).toBe(1);
+		expect(trackSourceNative.retainedTrackIdsPayloads[0]).toEqual(
+			Array.from({ length: 20 }, (_, offset) => `t${47 + offset}`),
+		);
+	});
+
+	it('dedupes when the retained ids are unchanged', () => {
+		const trackSourceNative = fakeTrackSourceNative();
+		const orchestrator = createOrchestrator(longQueueStore(50), () => {}, fakeNotification(), {
+			getTrackCacheMaxTracks: () => 20,
+			trackSourceNative,
+		});
+
+		orchestrator.syncRetainedTrackIds();
+		orchestrator.syncRetainedTrackIds();
+
+		expect(trackSourceNative.retainedTrackIdsPayloads.length).toBe(1);
+	});
+
+	it('pushes fresh ids when the window slides', () => {
+		const trackSourceNative = fakeTrackSourceNative();
+		const store = longQueueStore(50);
+		const orchestrator = createOrchestrator(store, () => {}, fakeNotification(), {
+			getTrackCacheMaxTracks: () => 20,
+			trackSourceNative,
+		});
+
+		orchestrator.syncRetainedTrackIds();
+		store.trackIndex = 51;
+		store.track = store.tracks[51];
+		orchestrator.syncRetainedTrackIds();
+
+		expect(trackSourceNative.retainedTrackIdsPayloads.length).toBe(2);
+		expect(trackSourceNative.retainedTrackIdsPayloads[1]).toEqual(
+			Array.from({ length: 20 }, (_, offset) => `t${48 + offset}`),
+		);
+	});
+
+	it('swallows a throwing native adapter', () => {
+		const trackSourceNative = fakeTrackSourceNative({
+			setRetainedTrackIds: () => {
+				throw new Error('no native support');
+			},
+		});
+		const orchestrator = createOrchestrator(longQueueStore(50), () => {}, fakeNotification(), {
+			getTrackCacheMaxTracks: () => 20,
+			trackSourceNative,
+		});
+
+		expect(() => orchestrator.syncRetainedTrackIds()).not.toThrow();
+	});
+});
+
 describe('PlaybackOrchestrator track source routing', () => {
 	function routingStore(isPlaying = true): {
 		album: null;
@@ -1551,6 +1624,7 @@ function createOrchestrator(
 		downloads?: DownloadedTrackSource;
 		getAccessToken?: () => string;
 		getAudioFileUrl?: (trackId: string) => string | null;
+		getTrackCacheMaxTracks?: () => number;
 		getTrackCacheUrl?: (trackId: string) => string | null;
 		getTransportToken?: () => unknown;
 		isOfflinePlaybackMode?: () => boolean;
@@ -1568,6 +1642,7 @@ function createOrchestrator(
 		downloads: opts.downloads ?? fakeDownloads(),
 		getAccessToken: opts.getAccessToken ?? (() => ''),
 		getAudioFileUrl: opts.getAudioFileUrl ?? (() => null),
+		getTrackCacheMaxTracks: opts.getTrackCacheMaxTracks ?? (() => 20),
 		getTrackCacheUrl: opts.getTrackCacheUrl ?? (() => null),
 		getTransportToken: opts.getTransportToken ?? (() => null),
 		isOfflinePlaybackMode: opts.isOfflinePlaybackMode ?? (() => false),
@@ -1591,13 +1666,19 @@ function fakeDownloads(downloadedFiles: Record<string, string> = {}): Downloaded
 	};
 }
 
-function fakeTrackSourceNative(
-	overrides: Partial<TrackSourceNative> = {},
-): TrackSourceNative & { upcomingQueuePayloads: Array<string> } {
+function fakeTrackSourceNative(overrides: Partial<TrackSourceNative> = {}): TrackSourceNative & {
+	retainedTrackIdsPayloads: Array<Array<string>>;
+	upcomingQueuePayloads: Array<string>;
+} {
+	const retainedTrackIdsPayloads: Array<Array<string>> = [];
 	const upcomingQueuePayloads: Array<string> = [];
 	return {
 		cacheTrackFromUrl: () => {},
 		getCachedTrackFileUrl: () => '',
+		retainedTrackIdsPayloads,
+		setRetainedTrackIds: (ids) => {
+			retainedTrackIdsPayloads.push(ids);
+		},
 		setUpcomingQueue: (payload) => {
 			upcomingQueuePayloads.push(payload);
 		},
