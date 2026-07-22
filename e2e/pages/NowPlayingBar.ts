@@ -79,24 +79,39 @@ export class NowPlayingBar extends BasePage {
 		return (await el.isExisting()) && (await el.isDisplayed());
 	}
 
+	// the queue pages only mount once expanded and sit below the fold, so on iOS they aren't in the
+	// accessibility tree until a scroll triggers layout. fall back to the expanded play/pause control,
+	// which lives only on the expanded surface (not the compact bar) and reads as displayed only when
+	// on screen — i.e. once the surface is expanded and settled, off-screen while collapsed
+	async isExpanded(): Promise<boolean> {
+		if (await this.isQueueListVisible()) return true;
+		try {
+			return await this.elementByID(this.togglePlayback).isDisplayed();
+		} catch {
+			return false;
+		}
+	}
+
 	async openExpandedSurface(): Promise<void> {
-		const el = this.elementByID(this.bar);
-		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for now playing bar' });
+		await this.elementByID(this.bar).waitForDisplayed({
+			timeoutMsg: 'Timed out waiting for now playing bar',
+		});
 
 		// tapping the bar starts a ~0.4s expand animation; returning before it settles is the cold-start
 		// flake, the queue tab is still parked off-screen so the tab tap lands on the footer nav instead.
-		// confirm expansion via queue-page existence (isDisplayed lies at alpha 0), re-tapping if dropped
+		// re-resolve the bar each attempt: playback/palette/artwork settling at play-start recreates its
+		// native view, and iOS throws stale-element on a cached handle where Android silently re-resolves
 		for (let attempt = 0; attempt < 4; attempt += 1) {
-			if (await this.isQueueListVisible()) return;
-			await el.click();
+			if (await this.isExpanded()) return;
 			try {
-				await this.driver.waitUntil(async () => this.isQueueListVisible(), {
+				await this.elementByID(this.bar).click();
+				await this.driver.waitUntil(async () => this.isExpanded(), {
 					timeout: 4000,
 					timeoutMsg: '',
 				});
 				return;
 			} catch {
-				// expand gesture dropped (cold start under load), re-tap and retry
+				// expand gesture dropped or the bar handle staled mid-tap (cold start under load), re-tap
 			}
 		}
 
@@ -273,14 +288,14 @@ export class NowPlayingBar extends BasePage {
 	}
 
 	async collapseExpandedIfVisible(): Promise<void> {
-		if (!(await this.isQueueListVisible())) return;
+		if (!(await this.isExpanded())) return;
 
 		// scroll back to top so the artwork drag zone is under the collapse swipe
 		await this.swipeVertical('scroll-to-top', 0.28, 0.78);
 
 		for (let attempt = 0; attempt < 5; attempt += 1) {
 			await this.swipeVertical(`collapse-${attempt}`, 0.12, 0.45, 50, 250);
-			if (!(await this.isQueueListVisible())) return;
+			if (!(await this.isExpanded())) return;
 		}
 
 		throw new Error('Timed out collapsing expanded now playing surface');
