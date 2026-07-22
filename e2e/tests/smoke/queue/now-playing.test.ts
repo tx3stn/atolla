@@ -60,13 +60,8 @@ describe('now playing queue', () => {
 	});
 
 	it('restarts the track on previous mid-playback and goes back on a quick second tap', async () => {
-		// previous follows the 3-second rule: more than 3s into the track the first tap
-		// restarts it (queue unchanged), and a quick follow-up tap steps back a track.
-		// seek near the end to push progress past the threshold deterministically; a timed
-		// pause races the native player's progress reconciliation, which lags under parallel
-		// device load and leaves progress under 3s. the back-to tab is still open from the
-		// previous test
 		await nowPlaying.seekToNearEnd();
+		await nowPlaying.tapTogglePlayback();
 		await nowPlaying.tapPrevious();
 		expect(await nowPlaying.firstBackToTrackName()).toBe(firstUpNextTrackName);
 
