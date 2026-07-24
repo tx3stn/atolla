@@ -21,6 +21,7 @@ import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
+import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
@@ -52,6 +53,7 @@ export interface SearchViewModel {
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
+	networkStatus: NetworkStatus;
 	onNavigateToLibraryResult?: (target: SearchLibraryNavigationTarget) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -549,6 +551,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
+			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: (artistId) => this.navigateToArtistId(artistId),
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,

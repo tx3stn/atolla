@@ -7,6 +7,7 @@ import type { Transport } from '../transports/Transport';
 import type { ArtworkPaletteService } from './ArtworkPaletteService';
 import type { DownloadService } from './DownloadService';
 import type { ImageCache } from './ImageCache';
+import type { NetworkStatus } from './NetworkStatus';
 import type { PaletteGenerationQueue } from './PaletteGenerationQueue';
 import type { PlaybackOrchestrator } from './PlaybackOrchestrator';
 import type { ToastService } from './ToastService';
@@ -19,6 +20,7 @@ export interface AppServicesBag {
 	downloadService: DownloadService;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
+	networkStatus: NetworkStatus;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	paletteQueue: PaletteGenerationQueue;
 	paletteService: ArtworkPaletteService;

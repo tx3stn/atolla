@@ -105,6 +105,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							downloadService={home.downloadService}
 							imageCache={home.imageCache}
 							modalSlot={home.modalSlot}
+							networkStatus={home.networkStatus}
 							onNavigationControllerReady={this.captureHomeController}
 							onThisDayService={home.onThisDayService}
 							paletteQueue={home.paletteQueue}
@@ -126,6 +127,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							downloadService={library.downloadService}
 							imageCache={library.imageCache}
 							modalSlot={library.modalSlot}
+							networkStatus={library.networkStatus}
 							onNavigationControllerReady={this.captureLibraryController}
 							paletteQueue={library.paletteQueue}
 							playbackStore={library.playbackStore}

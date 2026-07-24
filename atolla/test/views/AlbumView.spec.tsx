@@ -26,6 +26,8 @@ const downloadService = {
 	subscribe: () => () => {},
 };
 
+const networkStatus = { getTransport: () => 'wifi', subscribe: () => () => {} };
+
 const preferences = new Preferences({ fetchString: async () => '', storeString: async () => {} });
 
 async function flushAsyncWork() {
@@ -66,6 +68,7 @@ describe('AlbumView', () => {
 				{
 					album,
 					downloadService,
+					networkStatus,
 					onRootDetailControllerReady: () => {},
 					playbackStore,
 					preferences,
@@ -111,6 +114,7 @@ describe('AlbumView', () => {
 			{
 				album,
 				downloadService,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences,
@@ -160,6 +164,7 @@ describe('AlbumView', () => {
 			{
 				album,
 				downloadService,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences,
@@ -204,6 +209,7 @@ describe('AlbumView', () => {
 			{
 				album,
 				downloadService,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences,
@@ -255,6 +261,7 @@ describe('AlbumView', () => {
 			{
 				album,
 				downloadService,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences,
@@ -319,6 +326,7 @@ describe('AlbumView', () => {
 				{
 					album,
 					downloadService,
+					networkStatus,
 					onRootDetailControllerReady: () => {},
 					playbackStore,
 					preferences,
@@ -366,6 +374,7 @@ describe('AlbumView', () => {
 			{
 				album,
 				downloadService,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences,
@@ -414,6 +423,7 @@ describe('AlbumView', () => {
 			{
 				album,
 				downloadService,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences,
@@ -465,6 +475,7 @@ describe('AlbumView', () => {
 				{
 					album,
 					downloadService,
+					networkStatus,
 					onRootDetailControllerReady: () => {},
 					playbackStore,
 					preferences,

@@ -28,8 +28,13 @@ class AtollaNetworkReachabilityNativeModuleFactory : NetworkReachabilityNativeMo
 
 			override fun getAtollaNetworkStatus(): String {
 				val capabilities =
-					connectivityManager?.activeNetwork?.let {
-						connectivityManager.getNetworkCapabilities(it)
+					try {
+						connectivityManager?.activeNetwork?.let {
+							connectivityManager.getNetworkCapabilities(it)
+						}
+					} catch (error: Throwable) {
+						Log.e(TAG, "Unable to read network capabilities", error)
+						null
 					}
 				return statusJson(capabilities)
 			}

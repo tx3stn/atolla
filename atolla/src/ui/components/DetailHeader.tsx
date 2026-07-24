@@ -25,6 +25,7 @@ export interface DetailHeaderViewModel {
 	animationsEnabled: boolean;
 	artworkCategory: ImageCategory;
 	artworkSource: string | null;
+	downloadEnabled?: boolean;
 	downloadState?: DownloadState;
 	fallbackText?: string | null;
 	logoSource?: string | null;
@@ -220,6 +221,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 	onRender() {
 		const {
 			artworkSource,
+			downloadEnabled,
 			downloadState,
 			fallbackText,
 			logoSource,
@@ -252,6 +254,12 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					: downloadState === 'partial'
 						? this.handlePartialDownloadTap
 						: onDownload;
+		const isFreshDownload =
+			!showRemoveModal &&
+			!showRemoveConfirmation &&
+			downloadState !== 'downloaded' &&
+			downloadState !== 'partial';
+		const downloadTapEnabled = !isFreshDownload || downloadEnabled !== false;
 		<view onDrag={this.handleHeaderDrag} onDragPredicate={this.isVerticalDrag} style={styles.root}>
 			<layout style={styles.headerRow}>
 				<view
@@ -290,6 +298,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 							<TappableIcon
 								accessibilityId='detail-header-download-button'
 								animationsEnabled={this.viewModel.animationsEnabled}
+								enabled={downloadTapEnabled}
 								icon={downloadIcon}
 								onTap={onDownloadTap}
 							/>

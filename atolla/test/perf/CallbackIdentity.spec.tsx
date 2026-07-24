@@ -36,6 +36,8 @@ const playbackStore = {
 	track: null,
 };
 
+const networkStatus = { getTransport: () => 'wifi', subscribe: () => () => {} };
+
 const stubImageCache = {
 	get: () => null,
 	getOrLoad: () => null,
@@ -86,6 +88,7 @@ function makeDetailViewModel(transport: Record<string, unknown>) {
 	return {
 		downloadService,
 		imageCache: stubImageCache,
+		networkStatus,
 		onRootDetailControllerReady: () => {},
 		playbackStore,
 		preferences: makePreferences(),

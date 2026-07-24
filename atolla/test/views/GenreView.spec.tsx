@@ -29,6 +29,8 @@ const playbackStore = {
 	track: null,
 };
 
+const networkStatus = { getTransport: () => 'wifi', subscribe: () => () => {} };
+
 const preferences = new Preferences({ fetchString: async () => '', storeString: async () => {} });
 
 async function flushAsyncWork() {
@@ -67,6 +69,7 @@ describe('GenreView', () => {
 			{
 				downloadService,
 				genre,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences,
@@ -99,6 +102,7 @@ describe('GenreView', () => {
 			{
 				downloadService,
 				genre,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences,
@@ -139,6 +143,7 @@ describe('GenreView', () => {
 			{
 				downloadService,
 				genre: { id: 'genre-1', name: 'Hardcore' },
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences,
@@ -217,6 +222,7 @@ describe('GenreView', () => {
 				{
 					downloadService,
 					genre: { id: 'genre-1', name: 'Hardcore' },
+					networkStatus,
 					onRootDetailControllerReady: () => {},
 					playbackStore: store,
 					preferences,

@@ -25,6 +25,7 @@ function setServices(overrides: Partial<AppServicesBag> = {}): void {
 		downloadService: stub as AppServicesBag['downloadService'],
 		imageCache: stub as AppServicesBag['imageCache'],
 		modalSlot: stub as AppServicesBag['modalSlot'],
+		networkStatus: stub as AppServicesBag['networkStatus'],
 		onRequestModeChange: async () => true,
 		paletteQueue: stub as AppServicesBag['paletteQueue'],
 		paletteService: stub as AppServicesBag['paletteService'],

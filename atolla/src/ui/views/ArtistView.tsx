@@ -14,6 +14,7 @@ import Strings from '../../Strings';
 import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
+import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
@@ -30,6 +31,7 @@ import { CardContextMenu, type CardContextMenuCard } from '../components/CardCon
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { DetailHeader } from '../components/DetailHeader';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { GenrePills } from '../components/GenrePills';
 import { mergeGenreCollections } from '../components/GenrePillsData';
 import { LoadingView } from '../components/LoadingView';
@@ -49,6 +51,7 @@ export interface ArtistViewModel {
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
+	networkStatus: NetworkStatus;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -126,6 +129,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			}),
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(this.viewModel.networkStatus.subscribe(this.bump));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.registerDisposable(this.playlistFlow.cancel);
 		this.syncDownloadState();
@@ -148,7 +152,10 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					logoUrl: hydrated.logoUrl ?? partialArtist.logoUrl,
 				}
 			: partialArtist;
-		const { animationsEnabled } = this.viewModel.preferences;
+		const { animationsEnabled, downloadOnWifiOnly } = this.viewModel.preferences;
+		const downloadEnabled = !(
+			downloadOnWifiOnly && this.viewModel.networkStatus.getTransport() === 'cellular'
+		);
 		const { albums, albumsLoaded, allTracks, downloadState, topTracks, topTracksLoaded } =
 			this.state;
 		// name is empty when we navigated best-effort with only an id and the server didn't resolve
@@ -166,85 +173,88 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		const artistGenres = this.getArtistGenres(artist.genres, albums);
 
 		<layout accessibilityLabel='artist-view' style={styles.root}>
-			<view accessibilityId='artist-view' style={styles.fullScreen}>
-				<RefreshableScroll
-					accessibilityId='artist'
-					isRefreshing={this.state.isRefreshing}
-					onRefresh={this.handleRefresh}
-					onScroll={this.handleScroll}
-					style={styles.scroll}
-				>
-					<DetailHeader
-						animationsEnabled={animationsEnabled}
-						artworkCategory='artist_image'
-						artworkSource={artist.imageUrl ?? null}
-						downloadState={downloadState}
-						fallbackText={artistName}
-						logoSource={artist.logoUrl || null}
-						modalSlot={modalSlot}
-						onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
-						onDownload={this.handleDownloadTap}
-						onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}
-						onRemoveDownload={this.handleRemoveDownloadTap}
-						onShuffle={allTracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
-						toastService={this.viewModel.toastService}
-					/>
+			<ErrorBoundary resetKey={this.viewModel.artist.id}>
+				<view accessibilityId='artist-view' style={styles.fullScreen}>
+					<RefreshableScroll
+						accessibilityId='artist'
+						isRefreshing={this.state.isRefreshing}
+						onRefresh={this.handleRefresh}
+						onScroll={this.handleScroll}
+						style={styles.scroll}
+					>
+						<DetailHeader
+							animationsEnabled={animationsEnabled}
+							artworkCategory='artist_image'
+							artworkSource={artist.imageUrl ?? null}
+							downloadEnabled={downloadEnabled}
+							downloadState={downloadState}
+							fallbackText={artistName}
+							logoSource={artist.logoUrl || null}
+							modalSlot={modalSlot}
+							onAddToQueue={allTracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+							onDownload={this.handleDownloadTap}
+							onPlay={allTracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+							onRemoveDownload={this.handleRemoveDownloadTap}
+							onShuffle={allTracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
+							toastService={this.viewModel.toastService}
+						/>
 
-					{isLoading ? (
-						<LoadingView />
-					) : (
-						<layout style={styles.content}>
-							{albums.length > 0 && (
-								<layout style={styles.section}>
-									<layout style={styles.sectionHeaderRow}>
-										<label style={styles.sectionHeader} value={Strings.artistSectionAlbums()} />
-										<label style={styles.sectionCount} value={`[ ${albums.length} ]`} />
+						{isLoading ? (
+							<LoadingView />
+						) : (
+							<layout style={styles.content}>
+								{albums.length > 0 && (
+									<layout style={styles.section}>
+										<layout style={styles.sectionHeaderRow}>
+											<label style={styles.sectionHeader} value={Strings.artistSectionAlbums()} />
+											<label style={styles.sectionCount} value={`[ ${albums.length} ]`} />
+										</layout>
+										<CardGrid
+											accessibilityId='artist-albums-grid'
+											cards={albumCards}
+											columnCount={this.viewModel.preferences.gridColumns}
+											onCardLongPress={this.handleAlbumCardLongPress}
+											onCardTap={this.handleAlbumCardTap}
+										/>
 									</layout>
-									<CardGrid
-										accessibilityId='artist-albums-grid'
-										cards={albumCards}
-										columnCount={this.viewModel.preferences.gridColumns}
-										onCardLongPress={this.handleAlbumCardLongPress}
-										onCardTap={this.handleAlbumCardTap}
+								)}
+
+								{trackEntries.length > 0 && (
+									<layout style={styles.section}>
+										<label style={styles.sectionHeader} value={Strings.artistSectionTopTracks()} />
+										<TrackList
+											animationsEnabled={this.viewModel.preferences.animationsEnabled}
+											imageCache={imageCache}
+											onTrackLongPress={this.handleTrackLongPress}
+											onTrackTap={this.handleTopTrackTap}
+											rowIdentityPrefix='artist-top-track-'
+											tracks={trackEntries}
+										/>
+									</layout>
+								)}
+
+								{artist.bio && (
+									<BioSection
+										bio={artist.bio}
+										language={this.viewModel.preferences.language}
+										logoUrl={artist.logoUrl}
+										modalSlot={modalSlot}
+										title={artistName}
 									/>
-								</layout>
-							)}
+								)}
 
-							{trackEntries.length > 0 && (
-								<layout style={styles.section}>
-									<label style={styles.sectionHeader} value={Strings.artistSectionTopTracks()} />
-									<TrackList
-										animationsEnabled={this.viewModel.preferences.animationsEnabled}
-										imageCache={imageCache}
-										onTrackLongPress={this.handleTrackLongPress}
-										onTrackTap={this.handleTopTrackTap}
-										rowIdentityPrefix='artist-top-track-'
-										tracks={trackEntries}
+								{artistGenres.length > 0 && (
+									<GenrePills
+										accessibilityId='artist-genres'
+										genres={artistGenres}
+										onGenreTap={this.handleGenreTap}
 									/>
-								</layout>
-							)}
-
-							{artist.bio && (
-								<BioSection
-									bio={artist.bio}
-									language={this.viewModel.preferences.language}
-									logoUrl={artist.logoUrl}
-									modalSlot={modalSlot}
-									title={artistName}
-								/>
-							)}
-
-							{artistGenres.length > 0 && (
-								<GenrePills
-									accessibilityId='artist-genres'
-									genres={artistGenres}
-									onGenreTap={this.handleGenreTap}
-								/>
-							)}
-						</layout>
-					)}
-				</RefreshableScroll>
-			</view>
+								)}
+							</layout>
+						)}
+					</RefreshableScroll>
+				</view>
+			</ErrorBoundary>
 		</layout>;
 	}
 
@@ -328,6 +338,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
+			networkStatus: this.viewModel.networkStatus,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,

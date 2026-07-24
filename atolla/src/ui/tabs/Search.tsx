@@ -33,6 +33,7 @@ export class SearchTab extends Component<SearchTabViewModel> {
 						imageCache={search.imageCache}
 						modalSlot={search.modalSlot}
 						navigationController={navigationController}
+						networkStatus={search.networkStatus}
 						onNavigateToLibraryResult={this.handleNavigateToLibraryResult}
 						paletteQueue={search.paletteQueue}
 						playbackStore={search.playbackStore}
@@ -54,6 +55,7 @@ export class SearchTab extends Component<SearchTabViewModel> {
 			downloadService: search.downloadService,
 			imageCache: search.imageCache,
 			modalSlot: search.modalSlot,
+			networkStatus: search.networkStatus,
 			onNavigateToArtist: this.handleArtistById,
 			paletteQueue: search.paletteQueue,
 			playbackStore: search.playbackStore,

@@ -303,6 +303,9 @@
 	"settings_device_name": {
 		"defaultMessage": "device name"
 	},
+	"settings_download_on_wifi": {
+		"defaultMessage": "only on wi-fi"
+	},
 	"settings_export_offline_status_button": {
 		"defaultMessage": "export offline status"
 	},

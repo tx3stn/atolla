@@ -14,6 +14,7 @@ import Strings from '../../Strings';
 import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
+import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
@@ -28,6 +29,7 @@ import { formatDuration } from '../../utils/Time';
 import { groupTracksByDisc } from '../components/AlbumDiscGrouping';
 import { BioSection } from '../components/BioSection';
 import { DetailHeader } from '../components/DetailHeader';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { GenrePills } from '../components/GenrePills';
 import { normalizeGenres } from '../components/GenrePillsData';
 import { LoadingView } from '../components/LoadingView';
@@ -43,6 +45,7 @@ export interface AlbumViewModel {
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
+	networkStatus: NetworkStatus;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -132,6 +135,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			}),
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(this.viewModel.networkStatus.subscribe(this.bump));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
 		this.seedFromCache();
@@ -141,7 +145,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	onRender(): void {
 		const { artistLogoUrl, downloadState, fullAlbum, isLoading, tracks } = this.state;
 		const { album: partialAlbum, imageCache, modalSlot } = this.viewModel;
-		const { animationsEnabled, language } = this.viewModel.preferences;
+		const { animationsEnabled, downloadOnWifiOnly, language } = this.viewModel.preferences;
+		const downloadEnabled = !(
+			downloadOnWifiOnly && this.viewModel.networkStatus.getTransport() === 'cellular'
+		);
 		const album = fullAlbum ?? partialAlbum;
 		const albumGenres = this.getAlbumGenres(album.genres);
 		const { discSections, durationText, entries, formatText, multiDisc } = this.getDerivedTracks(
@@ -151,84 +158,87 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		const releaseDateText = formatReleaseDate(album.releaseDate);
 
 		<layout accessibilityLabel='album-view' style={styles.root}>
-			<view accessibilityId='album-view' style={styles.fullScreen}>
-				<RefreshableScroll
-					accessibilityId='album'
-					isRefreshing={this.state.isRefreshing}
-					onRefresh={this.handleRefresh}
-					onScroll={this.handleScroll}
-					style={styles.scroll}
-				>
-					<DetailHeader
-						animationsEnabled={animationsEnabled}
-						artworkCategory='album_art'
-						artworkSource={album.imageUrl ?? null}
-						downloadState={downloadState}
-						fallbackText={album.artistName}
-						logoSource={artistLogoUrl}
-						modalSlot={modalSlot}
-						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
-						onArtistTap={this.handleArtistLogoTap}
-						onDownload={this.handleDownloadTap}
-						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
-						onRemoveDownload={this.handleRemoveDownloadTap}
-						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
-						subheaderLineOneLeft={album.name}
-						subheaderLineTwoBadge={formatText}
-						subheaderLineTwoLeft={releaseDateText}
-						subheaderLineTwoRight={durationText}
-						toastService={this.viewModel.toastService}
-					/>
-					{isLoading ? (
-						<LoadingView />
-					) : multiDisc ? (
-						discSections.map((section) => (
-							<layout key={`album-disc-${section.disc ?? 'none'}`} style={styles.discSection}>
-								{section.disc !== null && (
-									<label
-										accessibilityId={`album-disc-header-${section.disc}`}
-										accessibilityLabel={`album-disc-header-${section.disc}`}
-										style={styles.discHeader}
-										value={Strings.albumDiscHeader(section.disc)}
-									/>
-								)}
-								<TrackList
-									animationsEnabled={animationsEnabled}
-									imageCache={imageCache}
-									onTrackLongPress={this.handleTrackLongPress}
-									onTrackTap={this.handleTrackTap}
-									rowIdentityPrefix={`album-disc-${section.disc ?? 'none'}-track-`}
-									tracks={section.entries}
-								/>
-							</layout>
-						))
-					) : (
-						<TrackList
+			<ErrorBoundary resetKey={this.viewModel.album.id}>
+				<view accessibilityId='album-view' style={styles.fullScreen}>
+					<RefreshableScroll
+						accessibilityId='album'
+						isRefreshing={this.state.isRefreshing}
+						onRefresh={this.handleRefresh}
+						onScroll={this.handleScroll}
+						style={styles.scroll}
+					>
+						<DetailHeader
 							animationsEnabled={animationsEnabled}
-							imageCache={imageCache}
-							onTrackLongPress={this.handleTrackLongPress}
-							onTrackTap={this.handleTrackTap}
-							rowIdentityPrefix='album-track-'
-							tracks={entries}
-						/>
-					)}
-					{album.bio && (
-						<BioSection
-							bio={album.bio}
-							language={language}
+							artworkCategory='album_art'
+							artworkSource={album.imageUrl ?? null}
+							downloadEnabled={downloadEnabled}
+							downloadState={downloadState}
+							fallbackText={album.artistName}
+							logoSource={artistLogoUrl}
 							modalSlot={modalSlot}
-							title={album.name}
+							onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+							onArtistTap={this.handleArtistLogoTap}
+							onDownload={this.handleDownloadTap}
+							onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+							onRemoveDownload={this.handleRemoveDownloadTap}
+							onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
+							subheaderLineOneLeft={album.name}
+							subheaderLineTwoBadge={formatText}
+							subheaderLineTwoLeft={releaseDateText}
+							subheaderLineTwoRight={durationText}
+							toastService={this.viewModel.toastService}
 						/>
-					)}
-					{albumGenres.length > 0 && (
-						<GenrePills
-							accessibilityId='album-genres'
-							genres={albumGenres}
-							onGenreTap={this.handleGenreTap}
-						/>
-					)}
-				</RefreshableScroll>
-			</view>
+						{isLoading ? (
+							<LoadingView />
+						) : multiDisc ? (
+							discSections.map((section) => (
+								<layout key={`album-disc-${section.disc ?? 'none'}`} style={styles.discSection}>
+									{section.disc !== null && (
+										<label
+											accessibilityId={`album-disc-header-${section.disc}`}
+											accessibilityLabel={`album-disc-header-${section.disc}`}
+											style={styles.discHeader}
+											value={Strings.albumDiscHeader(section.disc)}
+										/>
+									)}
+									<TrackList
+										animationsEnabled={animationsEnabled}
+										imageCache={imageCache}
+										onTrackLongPress={this.handleTrackLongPress}
+										onTrackTap={this.handleTrackTap}
+										rowIdentityPrefix={`album-disc-${section.disc ?? 'none'}-track-`}
+										tracks={section.entries}
+									/>
+								</layout>
+							))
+						) : (
+							<TrackList
+								animationsEnabled={animationsEnabled}
+								imageCache={imageCache}
+								onTrackLongPress={this.handleTrackLongPress}
+								onTrackTap={this.handleTrackTap}
+								rowIdentityPrefix='album-track-'
+								tracks={entries}
+							/>
+						)}
+						{album.bio && (
+							<BioSection
+								bio={album.bio}
+								language={language}
+								modalSlot={modalSlot}
+								title={album.name}
+							/>
+						)}
+						{albumGenres.length > 0 && (
+							<GenrePills
+								accessibilityId='album-genres'
+								genres={albumGenres}
+								onGenreTap={this.handleGenreTap}
+							/>
+						)}
+					</RefreshableScroll>
+				</view>
+			</ErrorBoundary>
 		</layout>;
 	}
 
@@ -381,6 +391,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
+			networkStatus: this.viewModel.networkStatus,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,

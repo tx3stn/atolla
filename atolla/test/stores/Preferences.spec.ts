@@ -137,6 +137,65 @@ describe('Preferences', () => {
 		});
 	});
 
+	describe('getDownloadOnWifiOnly()', () => {
+		it('returns false when preference is missing', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+
+			expect(await preferences.getDownloadOnWifiOnly()).toBe(false);
+		});
+
+		it('returns true only when stored value is the string "true"', async () => {
+			const store = new InMemoryKeyValueStore();
+			await store.storeString('download_on_wifi_only', 'true');
+			const preferences = new Preferences(store);
+
+			expect(await preferences.getDownloadOnWifiOnly()).toBe(true);
+		});
+	});
+
+	describe('setDownloadOnWifiOnly()', () => {
+		it('persists and exposes the value synchronously', async () => {
+			const store = new InMemoryKeyValueStore();
+			const preferences = new Preferences(store);
+
+			await preferences.setDownloadOnWifiOnly(true);
+
+			expect(preferences.downloadOnWifiOnly).toBe(true);
+			expect(await store.fetchString('download_on_wifi_only')).toBe('true');
+		});
+
+		it('notifies subscribers when the value changes', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+			let notified = 0;
+			preferences.subscribe(() => notified++);
+
+			await preferences.setDownloadOnWifiOnly(true);
+
+			expect(notified).toBe(1);
+		});
+
+		it('does not notify when the value is unchanged', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+			await preferences.setDownloadOnWifiOnly(true);
+			let notified = 0;
+			preferences.subscribe(() => notified++);
+
+			await preferences.setDownloadOnWifiOnly(true);
+
+			expect(notified).toBe(0);
+		});
+
+		it('hydrates from the store on load()', async () => {
+			const store = new InMemoryKeyValueStore();
+			await store.storeString('download_on_wifi_only', 'true');
+			const preferences = new Preferences(store);
+
+			await preferences.load();
+
+			expect(preferences.downloadOnWifiOnly).toBe(true);
+		});
+	});
+
 	describe('observable layer', () => {
 		it('exposes defaults synchronously before load', () => {
 			const preferences = new Preferences(new InMemoryKeyValueStore());

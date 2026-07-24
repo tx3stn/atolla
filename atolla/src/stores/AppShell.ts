@@ -159,6 +159,7 @@ export class AppShellStore {
 			downloadService: services.downloadService,
 			imageCache: services.imageCache,
 			modalSlot: services.modalSlot,
+			networkStatus: services.networkStatus,
 			onNavigateToArtist: this.handleDetailArtistTap,
 			paletteQueue: services.paletteQueue,
 			playbackStore: services.playbackStore,

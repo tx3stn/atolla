@@ -76,6 +76,52 @@ describe('DetailHeader', () => {
 
 		expect(removed).toBe(true);
 	});
+
+	valdiIt(
+		'disables the fresh-download control when downloads are gated to wi-fi',
+		async (driver) => {
+			let downloaded = false;
+			const component = driver.renderComponent(
+				DetailHeaderWithSlot,
+				freshViewModel({ downloadEnabled: false, onDownload: () => (downloaded = true) }),
+				undefined,
+			);
+
+			const control = findByLabel(component, 'detail-header-download-button');
+			control?.getAttribute('onTap')?.(touchEvent);
+
+			expect(control?.getAttribute('onTap')).toBeUndefined();
+			expect(downloaded).toBe(false);
+		},
+	);
+
+	valdiIt(
+		'keeps the fresh-download control tappable when downloads are allowed',
+		async (driver) => {
+			let downloaded = false;
+			const component = driver.renderComponent(
+				DetailHeaderWithSlot,
+				freshViewModel({ downloadEnabled: true, onDownload: () => (downloaded = true) }),
+				undefined,
+			);
+
+			findByLabel(component, 'detail-header-download-button')?.getAttribute('onTap')?.(touchEvent);
+
+			expect(downloaded).toBe(true);
+		},
+	);
+
+	valdiIt('still allows removing an existing download when gated to wi-fi', async (driver) => {
+		const component = driver.renderComponent(
+			DetailHeaderWithSlot,
+			freshViewModel({ downloadEnabled: false, downloadState: 'downloaded' }),
+			undefined,
+		);
+
+		expect(
+			findByLabel(component, 'detail-header-download-button')?.getAttribute('onTap'),
+		).toBeDefined();
+	});
 });
 
 type DetailHeaderProps = Omit<DetailHeaderViewModel, 'modalSlot'>;
@@ -99,6 +145,19 @@ function partialViewModel(overrides: Partial<DetailHeaderProps> = {}): DetailHea
 		artworkCategory: 'album_art',
 		artworkSource: null,
 		downloadState: 'partial',
+		onDownload: () => {},
+		onRemoveDownload: () => {},
+		toastService: new ToastService(),
+		...overrides,
+	};
+}
+
+function freshViewModel(overrides: Partial<DetailHeaderProps> = {}): DetailHeaderProps {
+	return {
+		animationsEnabled: false,
+		artworkCategory: 'album_art',
+		artworkSource: null,
+		downloadState: 'not_downloaded',
 		onDownload: () => {},
 		onRemoveDownload: () => {},
 		toastService: new ToastService(),

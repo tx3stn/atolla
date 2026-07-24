@@ -10,6 +10,7 @@ import Strings from '../../Strings';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
+import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
@@ -40,6 +41,7 @@ export interface PlaylistsViewModel {
 	letterFilter?: string | null;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
+	networkStatus: NetworkStatus;
 	onNavigateToArtist?: (artistId: string) => void;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
@@ -296,6 +298,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
+			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
 			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			paletteQueue: this.viewModel.paletteQueue,

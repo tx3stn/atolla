@@ -300,6 +300,9 @@
 	"settings_device_name": {
 		"defaultMessage": "nom de l'appareil"
 	},
+	"settings_download_on_wifi": {
+		"defaultMessage": "uniquement en wi-fi"
+	},
 	"settings_export_offline_status_button": {
 		"defaultMessage": "exporter l'état hors ligne"
 	},

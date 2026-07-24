@@ -31,6 +31,8 @@ const playbackStore = {
 	track: null,
 };
 
+const networkStatus = { getTransport: () => 'wifi', subscribe: () => () => {} };
+
 const stubImageCache = {
 	get: () => null,
 	getOrLoad: () => null,
@@ -74,6 +76,7 @@ describe('detail view render identity', () => {
 			{
 				downloadService,
 				imageCache: stubImageCache,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist: { id: 'playlist-1', name: 'Roadtrip' },
@@ -104,6 +107,7 @@ describe('detail view render identity', () => {
 				downloadService,
 				genre: { id: 'genre-1', name: 'Hardcore' },
 				imageCache: stubImageCache,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences: makePreferences(),
@@ -134,6 +138,7 @@ describe('detail view render identity', () => {
 				album,
 				downloadService,
 				imageCache: stubImageCache,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences: makePreferences(),
@@ -169,6 +174,7 @@ describe('detail view render identity', () => {
 				artist,
 				downloadService,
 				imageCache: stubImageCache,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences: makePreferences(),

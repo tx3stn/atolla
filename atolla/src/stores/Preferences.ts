@@ -18,6 +18,7 @@ export const DEFAULT_LANGUAGE: LanguageCode = 'en';
 
 const PreferenceKeys = {
 	debugLoggingEnabled: 'debug_logging_enabled',
+	downloadOnWifiOnly: 'download_on_wifi_only',
 	gridColumns: 'grid_columns',
 	imageCacheMaxBytes: 'image_cache_max_bytes',
 	jellyfinClientDeviceIdOverride: 'jellyfin_client_device_id_override',
@@ -45,6 +46,7 @@ export class Preferences {
 
 	private _animationsEnabled = true;
 	private _debugLoggingEnabled = false;
+	private _downloadOnWifiOnly = false;
 	private _gridColumns = DEFAULT_GRID_COLUMNS;
 	private _hasStoredMode = false;
 	private _imageCacheMaxBytes = DEFAULT_IMAGE_CACHE_MAX_BYTES;
@@ -63,6 +65,10 @@ export class Preferences {
 
 	get debugLoggingEnabled(): boolean {
 		return this._debugLoggingEnabled;
+	}
+
+	get downloadOnWifiOnly(): boolean {
+		return this._downloadOnWifiOnly;
 	}
 
 	get gridColumns(): number {
@@ -108,6 +114,14 @@ export class Preferences {
 	async getDebugLoggingEnabled(): Promise<boolean> {
 		try {
 			return (await this.store.fetchString(PreferenceKeys.debugLoggingEnabled)) === 'true';
+		} catch {
+			return false;
+		}
+	}
+
+	async getDownloadOnWifiOnly(): Promise<boolean> {
+		try {
+			return (await this.store.fetchString(PreferenceKeys.downloadOnWifiOnly)) === 'true';
 		} catch {
 			return false;
 		}
@@ -191,6 +205,7 @@ export class Preferences {
 		const [
 			animationsEnabled,
 			debugLoggingEnabled,
+			downloadOnWifiOnly,
 			gridColumns,
 			hasStoredMode,
 			imageCacheMaxBytes,
@@ -201,6 +216,7 @@ export class Preferences {
 		] = await Promise.all([
 			this.getAnimationsEnabled(),
 			this.getDebugLoggingEnabled(),
+			this.getDownloadOnWifiOnly(),
 			this.getGridColumns(),
 			this.hasMode(),
 			this.getImageCacheMaxBytes(),
@@ -211,6 +227,7 @@ export class Preferences {
 		]);
 		this._animationsEnabled = animationsEnabled;
 		this._debugLoggingEnabled = debugLoggingEnabled;
+		this._downloadOnWifiOnly = downloadOnWifiOnly;
 		this._gridColumns = gridColumns;
 		this._hasStoredMode = hasStoredMode;
 		this._imageCacheMaxBytes = imageCacheMaxBytes;
@@ -235,6 +252,14 @@ export class Preferences {
 			this.notify();
 		}
 		return this.store.storeString(PreferenceKeys.debugLoggingEnabled, String(enabled));
+	}
+
+	setDownloadOnWifiOnly(enabled: boolean): Promise<void> {
+		if (this._downloadOnWifiOnly !== enabled) {
+			this._downloadOnWifiOnly = enabled;
+			this.notify();
+		}
+		return this.store.storeString(PreferenceKeys.downloadOnWifiOnly, String(enabled));
 	}
 
 	setGridColumns(count: number): Promise<void> {

@@ -198,6 +198,18 @@ describe('SettingsView', () => {
 		expect(preferences.animationsEnabled).toBe(false);
 	});
 
+	valdiIt('toggling download on wi-fi only writes to preferences', async (driver) => {
+		const preferences = mockPreferences();
+		const viewModel = makeViewModel({ preferences });
+		const component = driver.renderComponent(SettingsView, viewModel, undefined);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-download-on-wifi-toggle')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(preferences.downloadOnWifiOnly).toBe(true);
+	});
+
 	valdiIt('logout confirm routes to the session controller', async (driver) => {
 		const { calls, controller } = makeSessionController();
 		const viewModel = makeViewModel({ sessionController: controller });

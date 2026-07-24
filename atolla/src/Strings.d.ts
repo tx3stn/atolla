@@ -98,6 +98,7 @@ declare const Strings: {
 	settingsDeviceId: () => string;
 	settingsDeviceIdPlaceholder: () => string;
 	settingsDeviceName: () => string;
+	settingsDownloadOnWifi: () => string;
 	settingsExportOfflineStatusButton: () => string;
 	settingsGridColumns: () => string;
 	settingsHttpWarning: () => string;

@@ -6,6 +6,7 @@ import type { Genre } from '../../models/Genre';
 import type { Playlist } from '../../models/Playlist';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
+import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
@@ -25,6 +26,7 @@ export interface DetailPushDeps {
 	downloadService: DownloadService;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
+	networkStatus: NetworkStatus;
 	onNavigateToArtist?: (artistId: string) => void;
 	// onRootDetailControllerReady is how a tab records its first detail for its own
 	// unwind (used by library nav).
@@ -53,6 +55,7 @@ export function pushAlbum(
 			imageCache: deps.imageCache,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
+			networkStatus: deps.networkStatus,
 			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
 			playbackStore: deps.playbackStore,
@@ -80,6 +83,7 @@ export function pushArtist(
 			imageCache: deps.imageCache,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
+			networkStatus: deps.networkStatus,
 			onNavigationControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
 			playbackStore: deps.playbackStore,
@@ -106,6 +110,7 @@ export function pushPlaylist(
 			imageCache: deps.imageCache,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
+			networkStatus: deps.networkStatus,
 			onNavigateToArtist: deps.onNavigateToArtist,
 			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
@@ -136,6 +141,7 @@ export function pushGenre(
 			imageCache: deps.imageCache,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
+			networkStatus: deps.networkStatus,
 			onNavigateToArtist: deps.onNavigateToArtist,
 			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,

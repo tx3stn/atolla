@@ -31,6 +31,8 @@ const downloadService = {
 	subscribe: () => () => {},
 };
 
+const networkStatus = { getTransport: () => 'wifi', subscribe: () => () => {} };
+
 const preferences = new Preferences({ fetchString: async () => '', storeString: async () => {} });
 
 async function flushAsyncWork() {
@@ -105,6 +107,7 @@ describe('PlaylistView', () => {
 			PlaylistView,
 			{
 				downloadService,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist,
@@ -137,6 +140,7 @@ describe('PlaylistView', () => {
 			PlaylistView,
 			{
 				downloadService,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist,
@@ -172,6 +176,7 @@ describe('PlaylistView', () => {
 			PlaylistView,
 			{
 				downloadService,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist,
@@ -210,6 +215,7 @@ describe('PlaylistView', () => {
 			PlaylistView,
 			{
 				downloadService,
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist,
@@ -263,6 +269,7 @@ describe('PlaylistView', () => {
 						downloaded.push(payload);
 					},
 				},
+				networkStatus,
 				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist: { id: 'playlist-1', name: 'Roadtrip' },
@@ -289,6 +296,7 @@ describe('PlaylistView', () => {
 				PlaylistView,
 				{
 					downloadService,
+					networkStatus,
 					onRootDetailControllerReady: () => {},
 					playbackStore,
 					playlist: { id: 'playlist-1', name: 'Roadtrip' },

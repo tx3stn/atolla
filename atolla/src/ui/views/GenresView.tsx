@@ -9,6 +9,7 @@ import Strings from '../../Strings';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
+import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
@@ -35,6 +36,7 @@ interface GenresViewModel {
 	letterFilter?: string | null;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
+	networkStatus: NetworkStatus;
 	onNavigateToArtist?: (artistId: string) => void;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	playbackStore: PlaybackStore;
@@ -360,6 +362,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
+			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
 			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			playbackStore: this.viewModel.playbackStore,

@@ -24,6 +24,8 @@ const playbackStore = {
 	track: null,
 };
 
+const networkStatus = { getTransport: () => 'wifi', subscribe: () => () => {} };
+
 const preferences = new Preferences({ fetchString: async () => '', storeString: async () => {} });
 
 async function flushAsyncWork() {
@@ -62,6 +64,7 @@ describe('ArtistView', () => {
 			{
 				artist,
 				downloadService,
+				networkStatus,
 				playbackStore,
 				preferences,
 				transport,
@@ -99,6 +102,7 @@ describe('ArtistView', () => {
 			{
 				artist,
 				downloadService,
+				networkStatus,
 				playbackStore,
 				preferences,
 				transport,

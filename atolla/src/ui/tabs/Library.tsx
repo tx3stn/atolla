@@ -9,6 +9,7 @@ import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import { FooterTabs, type HeaderTab, HeaderTabs } from '../../models/App';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
+import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
@@ -30,6 +31,7 @@ export interface LibraryViewModel {
 	downloadService: DownloadService;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
+	networkStatus: NetworkStatus;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	paletteQueue: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -77,6 +79,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									letterFilter={this.state.letterFilter}
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
+									networkStatus={this.viewModel.networkStatus}
 									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
 									playbackStore={this.viewModel.playbackStore}
@@ -93,6 +96,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									letterFilter={this.state.letterFilter}
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
+									networkStatus={this.viewModel.networkStatus}
 									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
 									playbackStore={this.viewModel.playbackStore}
@@ -109,6 +113,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									letterFilter={this.state.letterFilter}
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
+									networkStatus={this.viewModel.networkStatus}
 									onNavigateToArtist={this.handlePlaylistArtistTap}
 									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
@@ -127,6 +132,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									letterFilter={this.state.letterFilter}
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
+									networkStatus={this.viewModel.networkStatus}
 									onNavigateToArtist={this.handlePlaylistArtistTap}
 									onRootDetailControllerReady={this.setRootDetailController}
 									playbackStore={this.viewModel.playbackStore}
@@ -191,6 +197,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
+			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.handlePlaylistArtistTap,
 			onRootDetailControllerReady: recordAsFirstDetail ? this.setRootDetailController : undefined,
 			paletteQueue: this.viewModel.paletteQueue,

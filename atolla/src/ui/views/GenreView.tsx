@@ -15,6 +15,7 @@ import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import { resolveDownloadTracks } from '../../services/DownloadTrackResolver';
 import type { ImageCache } from '../../services/ImageCache';
+import type { NetworkStatus } from '../../services/NetworkStatus';
 import { startPagedPlayback } from '../../services/PagedPlayback';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
@@ -28,6 +29,7 @@ import type { TrackPageSort, Transport } from '../../transports/Transport';
 import { fireAndForget } from '../../utils/Async';
 import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { LoadingView } from '../components/LoadingView';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { TrackList } from '../components/TrackList';
@@ -42,6 +44,7 @@ export interface GenreViewModel {
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
+	networkStatus: NetworkStatus;
 	onNavigateToArtist?: (artistId: string) => void;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
@@ -107,6 +110,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			}),
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(this.viewModel.networkStatus.subscribe(this.bump));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
 		this.seedFromCache();
@@ -118,78 +122,85 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		const { downloadState, isLoading, isLoadingNextPage, nextPageFailed, totalTrackCount, tracks } =
 			this.state;
 		const { imageCache, modalSlot } = this.viewModel;
+		const downloadEnabled = !(
+			this.viewModel.preferences.downloadOnWifiOnly &&
+			this.viewModel.networkStatus.getTransport() === 'cellular'
+		);
 		// self-heal: a genre pushed from an album/track chip may lack imageUrl; merge the fetched one
 		const genre = { ...this.viewModel.genre, ...(this.state.hydratedGenre ?? {}) };
 
 		const { entries, totalDuration } = this.getDerivedTracks(tracks);
 
 		<layout accessibilityLabel='genre-view' style={styles.root}>
-			<view style={styles.fullScreen}>
-				<RefreshableScroll
-					accessibilityId='genre'
-					isRefreshing={this.state.isRefreshing}
-					onRefresh={this.handleRefresh}
-					onScroll={this.handleScroll}
-					style={styles.scroll}
-				>
-					<DetailHeader
-						animationsEnabled={this.viewModel.preferences.animationsEnabled}
-						artworkCategory='album_art'
-						artworkSource={genre.imageUrl ?? null}
-						downloadState={downloadState}
-						fallbackText={genre.name}
-						modalSlot={modalSlot}
-						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
-						onDownload={this.handleDownloadTap}
-						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
-						onRemoveDownload={this.handleRemoveDownloadTap}
-						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
-						subheaderLineOneLeft={
-							totalTrackCount != null
-								? `${totalTrackCount} tracks`
-								: tracks.length > 0
-									? `${tracks.length} tracks`
-									: null
-						}
-						subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
-						toastService={this.viewModel.toastService}
-					/>
-					{isLoading ? (
-						<LoadingView />
-					) : (
-						<TrackList
-							imageCache={imageCache}
-							onTrackLongPress={this.handleTrackLongPress}
-							onTrackTap={this.handleTrackTap}
-							rowIdentityPrefix='genre-track-'
-							tracks={entries}
+			<ErrorBoundary resetKey={this.viewModel.genre.id}>
+				<view style={styles.fullScreen}>
+					<RefreshableScroll
+						accessibilityId='genre'
+						isRefreshing={this.state.isRefreshing}
+						onRefresh={this.handleRefresh}
+						onScroll={this.handleScroll}
+						style={styles.scroll}
+					>
+						<DetailHeader
+							animationsEnabled={this.viewModel.preferences.animationsEnabled}
+							artworkCategory='album_art'
+							artworkSource={genre.imageUrl ?? null}
+							downloadEnabled={downloadEnabled}
+							downloadState={downloadState}
+							fallbackText={genre.name}
+							modalSlot={modalSlot}
+							onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+							onDownload={this.handleDownloadTap}
+							onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+							onRemoveDownload={this.handleRemoveDownloadTap}
+							onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
+							subheaderLineOneLeft={
+								totalTrackCount != null
+									? `${totalTrackCount} tracks`
+									: tracks.length > 0
+										? `${tracks.length} tracks`
+										: null
+							}
+							subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
+							toastService={this.viewModel.toastService}
 						/>
-					)}
-					{!isLoading && this.hasMoreTracks && !nextPageFailed && (
-						<view
-							accessibilityId='genre-load-more-trigger'
-							accessibilityLabel='genre-load-more-trigger'
-							onVisibilityChanged={this.handleLoadMoreTriggerVisibility}
-							style={styles.loadMoreTrigger}
-						/>
-					)}
-					{isLoadingNextPage && <label style={styles.loadMoreLabel} value={Strings.loading()} />}
-					{nextPageFailed && (
-						<view
-							accessibilityId='genre-load-more-retry'
-							accessibilityLabel='genre-load-more-retry'
-							onTap={this.retryLoadMore}
-							style={styles.loadMoreRetryContainer}
-						>
-							<label
-								numberOfLines={0}
-								style={styles.loadMoreRetryLabel}
-								value={Strings.failedToLoadMore()}
+						{isLoading ? (
+							<LoadingView />
+						) : (
+							<TrackList
+								imageCache={imageCache}
+								onTrackLongPress={this.handleTrackLongPress}
+								onTrackTap={this.handleTrackTap}
+								rowIdentityPrefix='genre-track-'
+								tracks={entries}
 							/>
-						</view>
-					)}
-				</RefreshableScroll>
-			</view>
+						)}
+						{!isLoading && this.hasMoreTracks && !nextPageFailed && (
+							<view
+								accessibilityId='genre-load-more-trigger'
+								accessibilityLabel='genre-load-more-trigger'
+								onVisibilityChanged={this.handleLoadMoreTriggerVisibility}
+								style={styles.loadMoreTrigger}
+							/>
+						)}
+						{isLoadingNextPage && <label style={styles.loadMoreLabel} value={Strings.loading()} />}
+						{nextPageFailed && (
+							<view
+								accessibilityId='genre-load-more-retry'
+								accessibilityLabel='genre-load-more-retry'
+								onTap={this.retryLoadMore}
+								style={styles.loadMoreRetryContainer}
+							>
+								<label
+									numberOfLines={0}
+									style={styles.loadMoreRetryLabel}
+									value={Strings.failedToLoadMore()}
+								/>
+							</view>
+						)}
+					</RefreshableScroll>
+				</view>
+			</ErrorBoundary>
 		</layout>;
 	}
 
@@ -299,6 +310,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
+			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,

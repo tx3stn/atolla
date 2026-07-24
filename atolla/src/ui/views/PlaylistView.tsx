@@ -17,6 +17,7 @@ import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import { resolveDownloadTracks } from '../../services/DownloadTrackResolver';
 import type { ImageCache } from '../../services/ImageCache';
+import type { NetworkStatus } from '../../services/NetworkStatus';
 import { startPagedPlayback } from '../../services/PagedPlayback';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
@@ -31,6 +32,7 @@ import type { TrackPageSort, Transport } from '../../transports/Transport';
 import { fireAndForget } from '../../utils/Async';
 import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { LoadingView } from '../components/LoadingView';
 import { Modal } from '../components/Modal';
 import { RefreshableScroll } from '../components/RefreshableScroll';
@@ -47,6 +49,7 @@ export interface PlaylistViewModel {
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
+	networkStatus: NetworkStatus;
 	onExitFromSearchNavigation?: () => void;
 	onNavigateToArtist?: (artistId: string) => void;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
@@ -118,6 +121,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			}),
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
+		this.registerDisposable(this.viewModel.networkStatus.subscribe(this.bump));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
 		this.seedFromCache();
@@ -127,85 +131,92 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	onRender(): void {
 		const { downloadState, isLoading, isLoadingNextPage, nextPageFailed, totalTrackCount, tracks } =
 			this.state;
+		const downloadEnabled = !(
+			this.viewModel.preferences.downloadOnWifiOnly &&
+			this.viewModel.networkStatus.getTransport() === 'cellular'
+		);
 		// self-heal: a playlist pushed without imageUrl gets the fetched one merged in for the header
 		const playlist = { ...this.viewModel.playlist, ...(this.state.hydratedPlaylist ?? {}) };
 
 		const { entries, totalDuration } = this.getDerivedTracks(tracks);
 
 		<layout accessibilityLabel='playlist-view' style={styles.root}>
-			<view accessibilityId='playlist-view' style={styles.fullScreen}>
-				<RefreshableScroll
-					accessibilityId='playlist'
-					isRefreshing={this.state.isRefreshing}
-					onContentSizeChange={this.handleContentSizeChange}
-					onRefresh={this.handleRefresh}
-					onScroll={this.handleScroll}
-					scrollRef={this.scrollRef}
-					style={styles.scroll}
-				>
-					<DetailHeader
-						animationsEnabled={this.viewModel.preferences.animationsEnabled}
-						artworkCategory='playlist_image'
-						artworkSource={playlist.imageUrl ?? null}
-						downloadState={downloadState}
-						fallbackText={playlist.name}
-						modalSlot={this.viewModel.modalSlot}
-						onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
-						onDownload={this.handleDownloadTap}
-						onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
-						onRemoveDownload={this.handleRemoveDownloadTap}
-						onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
-						subheaderLineOneLeft={
-							totalTrackCount != null
-								? `${totalTrackCount} tracks`
-								: tracks.length > 0
-									? `${tracks.length} tracks`
-									: null
-						}
-						subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
-						toastService={this.viewModel.toastService}
-					/>
-					{isLoading ? (
-						<LoadingView />
-					) : (
-						<TrackList
+			<ErrorBoundary resetKey={this.viewModel.playlist.id}>
+				<view accessibilityId='playlist-view' style={styles.fullScreen}>
+					<RefreshableScroll
+						accessibilityId='playlist'
+						isRefreshing={this.state.isRefreshing}
+						onContentSizeChange={this.handleContentSizeChange}
+						onRefresh={this.handleRefresh}
+						onScroll={this.handleScroll}
+						scrollRef={this.scrollRef}
+						style={styles.scroll}
+					>
+						<DetailHeader
 							animationsEnabled={this.viewModel.preferences.animationsEnabled}
-							dragScroller={this.dragAutoScroller}
-							imageCache={this.viewModel.imageCache}
-							onTrackLongPress={this.handleTrackLongPress}
-							onTrackReorder={this.handleTrackReorder}
-							onTrackSwipeRemove={this.handleTrackSwipeRemove}
-							onTrackTap={this.handleTrackTap}
-							rowIdentityPrefix='playlist-track-'
-							showDragHandles={true}
-							tracks={entries}
+							artworkCategory='playlist_image'
+							artworkSource={playlist.imageUrl ?? null}
+							downloadEnabled={downloadEnabled}
+							downloadState={downloadState}
+							fallbackText={playlist.name}
+							modalSlot={this.viewModel.modalSlot}
+							onAddToQueue={tracks.length > 0 ? this.handleHeaderAddToQueueTap : undefined}
+							onDownload={this.handleDownloadTap}
+							onPlay={tracks.length > 0 ? this.handleHeaderPlayTap : undefined}
+							onRemoveDownload={this.handleRemoveDownloadTap}
+							onShuffle={tracks.length > 0 ? this.handleHeaderShuffleTap : undefined}
+							subheaderLineOneLeft={
+								totalTrackCount != null
+									? `${totalTrackCount} tracks`
+									: tracks.length > 0
+										? `${tracks.length} tracks`
+										: null
+							}
+							subheaderLineOneRight={tracks.length > 0 ? formatDuration(totalDuration) : null}
+							toastService={this.viewModel.toastService}
 						/>
-					)}
-					{!isLoading && this.hasMoreTracks && !nextPageFailed && (
-						<view
-							accessibilityId='playlist-load-more-trigger'
-							accessibilityLabel='playlist-load-more-trigger'
-							onVisibilityChanged={this.handleLoadMoreTriggerVisibility}
-							style={styles.loadMoreTrigger}
-						/>
-					)}
-					{isLoadingNextPage && <label style={styles.loadMoreLabel} value={Strings.loading()} />}
-					{nextPageFailed && (
-						<view
-							accessibilityId='playlist-load-more-retry'
-							accessibilityLabel='playlist-load-more-retry'
-							onTap={this.retryLoadMore}
-							style={styles.loadMoreRetryContainer}
-						>
-							<label
-								numberOfLines={0}
-								style={styles.loadMoreRetryLabel}
-								value={Strings.failedToLoadMore()}
+						{isLoading ? (
+							<LoadingView />
+						) : (
+							<TrackList
+								animationsEnabled={this.viewModel.preferences.animationsEnabled}
+								dragScroller={this.dragAutoScroller}
+								imageCache={this.viewModel.imageCache}
+								onTrackLongPress={this.handleTrackLongPress}
+								onTrackReorder={this.handleTrackReorder}
+								onTrackSwipeRemove={this.handleTrackSwipeRemove}
+								onTrackTap={this.handleTrackTap}
+								rowIdentityPrefix='playlist-track-'
+								showDragHandles={true}
+								tracks={entries}
 							/>
-						</view>
-					)}
-				</RefreshableScroll>
-			</view>
+						)}
+						{!isLoading && this.hasMoreTracks && !nextPageFailed && (
+							<view
+								accessibilityId='playlist-load-more-trigger'
+								accessibilityLabel='playlist-load-more-trigger'
+								onVisibilityChanged={this.handleLoadMoreTriggerVisibility}
+								style={styles.loadMoreTrigger}
+							/>
+						)}
+						{isLoadingNextPage && <label style={styles.loadMoreLabel} value={Strings.loading()} />}
+						{nextPageFailed && (
+							<view
+								accessibilityId='playlist-load-more-retry'
+								accessibilityLabel='playlist-load-more-retry'
+								onTap={this.retryLoadMore}
+								style={styles.loadMoreRetryContainer}
+							>
+								<label
+									numberOfLines={0}
+									style={styles.loadMoreRetryLabel}
+									value={Strings.failedToLoadMore()}
+								/>
+							</view>
+						)}
+					</RefreshableScroll>
+				</view>
+			</ErrorBoundary>
 		</layout>;
 	}
 
@@ -260,6 +271,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
+			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,

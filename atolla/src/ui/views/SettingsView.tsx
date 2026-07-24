@@ -253,6 +253,14 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 
 					<label style={styles.sectionTitle} value={Strings.settingsSectionDownloads()} />
 					<view style={styles.section}>
+						<view style={styles.settingRow}>
+							<label style={styles.settingLabel} value={Strings.settingsDownloadOnWifi()} />
+							<Toggle
+								accessibilityId='settings-download-on-wifi-toggle'
+								enabled={this.viewModel.preferences.downloadOnWifiOnly}
+								onToggle={this.handleDownloadOnWifiToggle}
+							/>
+						</view>
 						<label
 							accessibilityId='settings-downloaded-track-count'
 							accessibilityLabel='settings-downloaded-track-count'
@@ -432,6 +440,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		const normalized = this.normalizeDeviceId(normalizeInputValue(value));
 		void this.viewModel.preferences.setJellyfinClientDeviceIdOverride(normalized);
 		this.viewModel.sessionController.applyDeviceIdOverride(normalized);
+	};
+
+	private handleDownloadOnWifiToggle = (enabled: boolean): void => {
+		void this.viewModel.preferences.setDownloadOnWifiOnly(enabled);
 	};
 
 	private handleExportDebugLogPress = (): void => {
@@ -702,7 +714,7 @@ const styles = {
 	settingRow: new Style<Layout>({
 		alignItems: 'center',
 		flexDirection: 'row',
-		marginBottom: 4,
+		marginBottom: 8,
 	}),
 	trackCacheCountLabel: new Style<Label>({
 		...theme.text.sub,

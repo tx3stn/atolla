@@ -10,6 +10,7 @@ import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
+import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { OnThisDayService } from '../../services/OnThisDayService';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
@@ -27,6 +28,7 @@ export interface HomeTabViewModel {
 	downloadService: DownloadService;
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
+	networkStatus: NetworkStatus;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	onThisDayService?: OnThisDayService;
 	paletteQueue: PaletteGenerationQueue;
@@ -74,6 +76,7 @@ export class HomeTab extends Component<HomeTabViewModel> {
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
+			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.handleArtistTap,
 			paletteQueue: this.viewModel.paletteQueue,
 			playbackStore: this.viewModel.playbackStore,
