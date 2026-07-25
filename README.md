@@ -28,12 +28,13 @@
 
 ## Features
 
-* Seamless offline experience, everything that works online also works offline (including search, scrobbling, playlist creation and editing)
+* Seamless offline experience, everything that works online also works offline (search, scrobbling, playlist creation and editing, mixes)
 * Gap-less playback
 * Dynamic colour palettes generated from album artwork
 * Local waveform generation for fancy progress bars
 * Image focussed UI (featuring artist logos)
 * Playlist creation & editing
+* Localised UI
 
 ## Screenshots
 
@@ -114,12 +115,11 @@ Install via [Obtainium](https://github.com/ImranR98/Obtainium)
 Install via your sideloading method of choice.
 
 > [!IMPORTANT]
-> **The iOS app is in beta.**
+> **The iOS app is considered beta.**
 >
-> It has been tested a lot in an emulator, but I don't have an iPhone, so can't test
+> It has been tested **a lot** in an emulator, but I don't have an iPhone, so can't test
 > it on device.
-> As such I can't guarantee it will work as well as the Android version which I have
-> been using daily for months.
+> As such there may be things to iron out on an actual device.
 >
 > If you run into issues please raise them. If you can create a PR to fix the
 > issues and test it out on your own device, even better.
@@ -195,7 +195,7 @@ the things that made me dismiss it in my search for the right Jellyfin music pla
 Offline mode works just likes online mode so the app is always consistent to use.
 It's not relegated to it's own non searchable tab like Plexamp where most of the
 app becomes unusable without data.
-Offline mode is a first class citizen.
+Offline mode is (and will always be) a first class citizen.
 
 Actions that require the connection to work (like playlist creation or editing)
 get queued until you next have a connection. You can create a playlist fully offline

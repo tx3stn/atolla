@@ -50,3 +50,13 @@ Open the generated image file to review the impact of the change.
 
 Include a link to the artwork you used to test the changes in your pull request,
 so that it can be tested along side the sample set used to tune the colors.
+
+## Adding translations
+
+All text visible to a user should be localised.
+
+The text can be found in [the strings directory](../atolla/strings/).
+
+To add a new language you need to add a new file for it in the strings directory
+with the country code in the name (see the existign files for reference).
+Then update `LANGUAGE_OPTIONS` in [the preferences store](../atolla/src/stores/Preferences.ts) to include the new language.
