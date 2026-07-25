@@ -1,12 +1,26 @@
-export class ErrorConst<TErr extends string> {
+// InternalError is a constant to use for sentinel errors.
+export class InternalError<TErr extends string> {
 	readonly err: TErr;
-	readonly message: string;
-	readonly detail: string;
 
-	constructor(code: TErr, message: string, detail = '') {
+	constructor(code: TErr) {
 		this.err = code;
-		this.message = message;
+	}
+}
+
+// UserError extends InternalError to add a user friendly error message.
+// Intended to be localised and displayed in app.
+export class UserError<TErr extends string> extends InternalError<TErr> {
+	readonly detail: string;
+	private readonly resolveMessage: string | (() => string);
+
+	constructor(code: TErr, message: string | (() => string), detail = '') {
+		super(code);
+		this.resolveMessage = message;
 		this.detail = detail;
+	}
+
+	get message(): string {
+		return typeof this.resolveMessage === 'function' ? this.resolveMessage() : this.resolveMessage;
 	}
 
 	msg(): string {
@@ -15,38 +29,19 @@ export class ErrorConst<TErr extends string> {
 		return `${this.message}: ${this.detail}`;
 	}
 
-	withDetail(detail: string): ErrorConst<TErr> {
-		return new ErrorConst(this.err, this.message, detail);
+	withDetail(detail: string): UserError<TErr> {
+		return new UserError(this.err, this.resolveMessage, detail);
 	}
 }
 
-export function isErrorConst(value: unknown): value is ErrorConst<string> {
-	return value instanceof ErrorConst;
+export function isErrorConst(value: unknown): value is InternalError<string> {
+	return value instanceof InternalError;
 }
 
-// normalises an unknown throw into an ErrorConst so callers can always render msg() safely. a value
-// that is already an ErrorConst passes through, even a foreign one — it still renders, and the
-// alternative is discarding a usable error. anything else takes the fallback, carrying whatever
-// detail could be recovered from the cause so an unexpected throw isn't reduced to a bare message.
-export function toErrorConst<TError extends ErrorConst<string>>(
-	cause: unknown,
-	fallback: TError,
-): TError {
-	if (isErrorConst(cause)) {
-		return cause as TError;
-	}
-
-	const detail = detailOf(cause);
-
-	return detail ? (fallback.withDetail(detail) as TError) : fallback;
+export function errorIs(value: unknown, sentinel: InternalError<string>): boolean {
+	return isErrorConst(value) && value.err === sentinel.err;
 }
 
-export type ErrorType<ErrorConstMap extends Record<string, ErrorConst<string>>> =
-	ErrorConstMap[keyof ErrorConstMap];
-
-function detailOf(cause: unknown): string {
-	if (typeof cause === 'string') return cause;
-	if (cause instanceof Error) return cause.message;
-
-	return '';
-}
+export type ErrorType<
+	ErrorConstMap extends Record<string, InternalError<string> | UserError<string>>,
+> = ErrorConstMap[keyof ErrorConstMap];

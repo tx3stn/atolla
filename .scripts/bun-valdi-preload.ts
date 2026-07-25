@@ -12,3 +12,7 @@ const valdiCoreRoot = join(
 mock.module('valdi_core/src/CancelablePromise', () =>
 	require(join(valdiCoreRoot, 'src/CancelablePromise.ts')),
 );
+
+mock.module(new URL('../atolla/src/Strings', import.meta.url).href, () => ({
+	default: new Proxy({}, { get: (_, key) => () => String(key) }),
+}));

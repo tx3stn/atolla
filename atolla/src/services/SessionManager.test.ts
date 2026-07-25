@@ -289,7 +289,7 @@ describe('SessionManager', () => {
 
 		const surfaced = calls.applyState.find((s) => s.authErrorMessage != null)?.authErrorMessage;
 		expect(surfaced?.err).toBe(AuthErrors.CONNECTION_ERROR.err);
-		expect(surfaced?.msg()).toBe('connection error: store gone');
+		expect((surfaced as { detail?: string })?.detail).toBe('store gone');
 	});
 
 	it('login keeps the session online and never runs a follow-up check that could drop it', async () => {

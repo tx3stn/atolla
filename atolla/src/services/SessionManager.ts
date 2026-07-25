@@ -1,6 +1,7 @@
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { Preferences } from '../stores/Preferences';
-import { type AuthError, AuthErrors, toAuthError } from './AuthErrors';
+import { isErrorConst } from '../utils/Errors';
+import { type AuthError, AuthErrors } from './AuthErrors';
 import {
 	type AuthSession,
 	type JellyfinAuthService,
@@ -179,7 +180,9 @@ export class SessionManager {
 		} catch (error: unknown) {
 			// toAuthError keeps a non-ErrorConst throw from reaching the view, which renders msg()
 			applyIfCurrent({
-				authErrorMessage: toAuthError(error),
+				authErrorMessage: isErrorConst(error)
+					? (error as AuthError)
+					: AuthErrors.CONNECTION_ERROR.withDetail(error instanceof Error ? error.message : ''),
 				isAuthenticating: false,
 				quickConnectCode: null,
 			});

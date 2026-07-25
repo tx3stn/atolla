@@ -99,6 +99,39 @@
 	"error_boundary_title": {
 		"defaultMessage": "an error occurred"
 	},
+	"errors_auth_connection": {
+		"defaultMessage": "connection error"
+	},
+	"errors_auth_failed_to_fetch": {
+		"defaultMessage": "failed to fetch data"
+	},
+	"errors_auth_login_canceled": {
+		"defaultMessage": "login canceled"
+	},
+	"errors_auth_not_jellyfin": {
+		"defaultMessage": "not a jellyfin server"
+	},
+	"errors_auth_quick_connect_not_available": {
+		"defaultMessage": "quick connect not available"
+	},
+	"errors_auth_quick_connect_timed_out": {
+		"defaultMessage": "quick connect timed out"
+	},
+	"errors_auth_server_unreachable": {
+		"defaultMessage": "can't reach server"
+	},
+	"errors_auth_session_expired": {
+		"defaultMessage": "session expired"
+	},
+	"errors_transport_live_invalid_response": {
+		"defaultMessage": "live transport returned invalid response"
+	},
+	"errors_transport_live_request_failed": {
+		"defaultMessage": "live transport request failed"
+	},
+	"errors_transport_offline_scrobble_unavailable": {
+		"defaultMessage": "offline transport cannot scrobble while disconnected"
+	},
 	"failed_to_load_more": {
 		"defaultMessage": "failed to load more\npull to retry"
 	},

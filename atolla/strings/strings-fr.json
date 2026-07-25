@@ -99,6 +99,39 @@
 	"error_boundary_title": {
 		"defaultMessage": "une erreur s'est produite"
 	},
+	"errors_auth_connection": {
+		"defaultMessage": "erreur de connexion"
+	},
+	"errors_auth_failed_to_fetch": {
+		"defaultMessage": "échec de la récupération des données"
+	},
+	"errors_auth_login_canceled": {
+		"defaultMessage": "connexion annulée"
+	},
+	"errors_auth_not_jellyfin": {
+		"defaultMessage": "ce n'est pas un serveur jellyfin"
+	},
+	"errors_auth_quick_connect_not_available": {
+		"defaultMessage": "connexion rapide indisponible"
+	},
+	"errors_auth_quick_connect_timed_out": {
+		"defaultMessage": "délai de connexion rapide dépassé"
+	},
+	"errors_auth_server_unreachable": {
+		"defaultMessage": "serveur injoignable"
+	},
+	"errors_auth_session_expired": {
+		"defaultMessage": "session expirée"
+	},
+	"errors_transport_live_invalid_response": {
+		"defaultMessage": "réponse invalide du transport en direct"
+	},
+	"errors_transport_live_request_failed": {
+		"defaultMessage": "échec de la requête du transport en direct"
+	},
+	"errors_transport_offline_scrobble_unavailable": {
+		"defaultMessage": "impossible de scrobbler hors ligne"
+	},
 	"failed_to_load_more": {
 		"defaultMessage": "échec du chargement\nappuyez pour réessayer"
 	},

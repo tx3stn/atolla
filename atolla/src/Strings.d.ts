@@ -32,6 +32,17 @@ declare const Strings: {
 	done: () => string;
 	enterServerUrl: () => string;
 	errorBoundaryTitle: () => string;
+	errorsAuthConnection: () => string;
+	errorsAuthFailedToFetch: () => string;
+	errorsAuthLoginCanceled: () => string;
+	errorsAuthNotJellyfin: () => string;
+	errorsAuthQuickConnectNotAvailable: () => string;
+	errorsAuthQuickConnectTimedOut: () => string;
+	errorsAuthServerUnreachable: () => string;
+	errorsAuthSessionExpired: () => string;
+	errorsTransportLiveInvalidResponse: () => string;
+	errorsTransportLiveRequestFailed: () => string;
+	errorsTransportOfflineScrobbleUnavailable: () => string;
 	failedToLoadMore: () => string;
 	headerAlbums: () => string;
 	headerArtists: () => string;

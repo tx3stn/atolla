@@ -70,6 +70,8 @@ function downloadedTrack(
 }
 
 describe('OfflineTransport', () => {
+	const playlistCreateService = new PlaylistCreateService(createNullStore());
+
 	it('resolves artist fallback from downloaded album metadata', async () => {
 		const transport = new OfflineTransport(
 			createDownloadsMock({
@@ -86,6 +88,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const artist = await transport.getArtist('artist-1');
@@ -113,6 +116,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const logoUrl = await transport.getArtistLogoUrl('artist-1');
@@ -131,6 +135,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const genre = await transport.getGenre('genre-1');
@@ -139,7 +144,7 @@ describe('OfflineTransport', () => {
 	});
 
 	it('returns null for a genre that is not downloaded', async () => {
-		const transport = new OfflineTransport(createDownloadsMock({}) as never);
+		const transport = new OfflineTransport(createDownloadsMock({}) as never, playlistCreateService);
 
 		expect(await transport.getGenre('genre-1')).toBeNull();
 	});
@@ -159,6 +164,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const playlist = await transport.getPlaylist('playlist-1');
@@ -171,7 +177,7 @@ describe('OfflineTransport', () => {
 	});
 
 	it('returns null for a playlist that is not downloaded', async () => {
-		const transport = new OfflineTransport(createDownloadsMock({}) as never);
+		const transport = new OfflineTransport(createDownloadsMock({}) as never, playlistCreateService);
 
 		expect(await transport.getPlaylist('playlist-1')).toBeNull();
 	});
@@ -188,6 +194,7 @@ describe('OfflineTransport', () => {
 					} as unknown as DownloadedAlbumEntry,
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const albums = (await transport.getAlbums(1, 1000)).items;
@@ -228,6 +235,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const logoUrl = await transport.getArtistLogoUrl('artist-1');
@@ -264,6 +272,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const genresPage = await transport.getGenres(1, 10);
@@ -277,11 +286,11 @@ describe('OfflineTransport', () => {
 	});
 
 	it('rejects scrobble delivery while offline', async () => {
-		const transport = new OfflineTransport(createDownloadsMock({}) as never);
+		const transport = new OfflineTransport(createDownloadsMock({}) as never, playlistCreateService);
 
-		await expect(
-			transport.scrobbleTrackPlayed('track-1', '2026-01-01T00:00:00.000Z'),
-		).rejects.toThrow(TransportErrors.OFFLINE_SCROBBLE_UNAVAILABLE.msg());
+		await expect(transport.scrobbleTrackPlayed('track-1', '2026-01-01T00:00:00.000Z')).rejects.toBe(
+			TransportErrors.OFFLINE_SCROBBLE,
+		);
 	});
 
 	it('derives artists and albums from playlist-only downloaded tracks', async () => {
@@ -341,6 +350,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const artists = (await transport.getArtists(1, 1000)).items;
@@ -426,6 +436,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const artists = (await transport.getArtists(1, 1000)).items;
@@ -475,6 +486,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const artists = (await transport.getArtists(1, 1000)).items;
@@ -498,6 +510,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const artists = (await transport.getArtists(1, 1000)).items;
@@ -533,6 +546,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const artists = (await transport.getArtists(1, 1000)).items;
@@ -570,6 +584,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const artists = (await transport.getArtists(1, 1000)).items;
@@ -588,6 +603,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const artists = (await transport.getArtists(1, 1000)).items;
@@ -666,6 +682,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const tracks = await transport.getTracksByAlbum('album-1');
@@ -730,6 +747,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const tracks = await transport.getTracksByAlbum('album-1');
@@ -763,6 +781,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const albums = (await transport.getAlbums(1, 1000)).items;
@@ -808,6 +827,7 @@ describe('OfflineTransport', () => {
 					},
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const albums = (await transport.getAlbums(1, 1000)).items;
@@ -846,6 +866,7 @@ describe('OfflineTransport', () => {
 					{ albumIds: ['album-new', 'album-old'], artist: { id: 'artist-1', name: 'Artist One' } },
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const albums = await transport.getAlbumsByArtist('artist-1');
@@ -862,6 +883,7 @@ describe('OfflineTransport', () => {
 					downloadedTrack('track-3', { complete: true, productionYear: 1998 }),
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const years = await transport.getRandomMusicYears(3);
@@ -877,6 +899,7 @@ describe('OfflineTransport', () => {
 					downloadedTrack('track-2', { complete: true }),
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		expect(await transport.getRandomMusicYears(3)).toEqual([]);
@@ -892,6 +915,7 @@ describe('OfflineTransport', () => {
 					downloadedTrack('track-d', { complete: false, productionYear: 2010 }),
 				],
 			}) as never,
+			playlistCreateService,
 		);
 
 		const firstPage = await transport.getTracksByYear(2010, 1, 1);
@@ -924,6 +948,7 @@ describe('OfflineTransport', () => {
 						downloadedTrack('track-d', { complete: true }),
 					],
 				}) as never,
+				playlistCreateService,
 			);
 
 			const { items } = await withStubbedRandom(0, () =>
@@ -944,6 +969,7 @@ describe('OfflineTransport', () => {
 						downloadedTrack('track-c', { complete: true }),
 					],
 				}) as never,
+				playlistCreateService,
 			);
 
 			const { items } = await transport.getShuffledLibraryTracks(1, 500);
@@ -960,6 +986,7 @@ describe('OfflineTransport', () => {
 						downloadedTrack('track-c', { complete: true }),
 					],
 				}) as never,
+				playlistCreateService,
 			);
 
 			const firstPage = await transport.getShuffledLibraryTracks(1, 2);
@@ -996,14 +1023,6 @@ describe('OfflineTransport', () => {
 			expect(playlist.id).toContain('local-playlist-');
 			expect(playlistCreateService.getPending()).toHaveLength(1);
 			expect(playlistCreateService.getPending()[0].trackId).toBe('track-1');
-		});
-
-		it('rejects when no PlaylistCreateService is provided', async () => {
-			const transport = new OfflineTransport(createDownloadsMock({}) as never);
-
-			await expect(transport.createPlaylist('My Playlist')).rejects.toThrow(
-				TransportErrors.OFFLINE_PLAYLIST_CREATE_UNAVAILABLE.msg(),
-			);
 		});
 
 		it('getAllPlaylists includes pending creates alongside downloaded playlists', async () => {
@@ -1085,3 +1104,13 @@ describe('OfflineTransport', () => {
 		});
 	});
 });
+
+function createNullStore(): {
+	fetchString: () => Promise<string>;
+	storeString: () => Promise<void>;
+} {
+	return {
+		fetchString: () => Promise.reject(new Error('not found')),
+		storeString: () => Promise.resolve(),
+	};
+}

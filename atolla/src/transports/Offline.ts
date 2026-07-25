@@ -15,16 +15,16 @@ import type { TrackPageSort, Transport } from './Transport';
 
 export class OfflineTransport implements Transport {
 	private readonly downloads: DownloadService;
-	private readonly playlistCreateService: PlaylistCreateService | null;
+	private readonly playlistCreateService: PlaylistCreateService;
 	private readonly playlistEditService: PlaylistEditService | null;
 
 	constructor(
 		downloads: DownloadService,
-		playlistCreateService?: PlaylistCreateService,
+		playlistCreateService: PlaylistCreateService,
 		playlistEditService?: PlaylistEditService,
 	) {
 		this.downloads = downloads;
-		this.playlistCreateService = playlistCreateService ?? null;
+		this.playlistCreateService = playlistCreateService;
 		this.playlistEditService = playlistEditService ?? null;
 	}
 
@@ -36,9 +36,6 @@ export class OfflineTransport implements Transport {
 	}
 
 	async createPlaylist(name: string, trackId?: string): Promise<Playlist> {
-		if (!this.playlistCreateService) {
-			return Promise.reject(new Error(TransportErrors.OFFLINE_PLAYLIST_CREATE_UNAVAILABLE.msg()));
-		}
 		return this.playlistCreateService.enqueue(name, trackId ?? '');
 	}
 
@@ -352,7 +349,7 @@ export class OfflineTransport implements Transport {
 	}
 
 	async scrobbleTrackPlayed(_trackId: string, _datePlayed: string): Promise<void> {
-		return Promise.reject(new Error(TransportErrors.OFFLINE_SCROBBLE_UNAVAILABLE.msg()));
+		return Promise.reject(TransportErrors.OFFLINE_SCROBBLE);
 	}
 
 	async search(query: string): Promise<SearchResults> {

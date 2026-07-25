@@ -3,7 +3,7 @@ import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
 import { tracked } from '../transports/Cancelable';
-import { toErrorConst } from '../utils/Errors';
+import { UserError } from '../utils/Errors';
 import { version } from '../version';
 import { AuthErrors } from './AuthErrors';
 import { getLogger } from './Logger';
@@ -481,16 +481,19 @@ export class JellyfinAuthService {
 			request.then(
 				(response) => {
 					if (!finish()) return;
+
 					clearDeadline();
 					resolve(response);
 				},
 				(error: unknown) => {
 					if (!finish()) return;
+
 					clearDeadline();
 					log.error('request failed', {
 						context,
-						detail: toErrorConst(error, AuthErrors.SERVER_UNREACHABLE).detail,
+						detail: new UserError(AuthErrors.SERVER_UNREACHABLE.err, error as string),
 					});
+
 					reject(AuthErrors.SERVER_UNREACHABLE);
 				},
 			);
