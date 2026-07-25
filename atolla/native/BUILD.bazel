@@ -5,6 +5,15 @@ load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 
 package(default_visibility = ["//visibility:public"])
 
+# Custom Info.plist so the app can pin UIUserInterfaceStyle=Dark — the theme is a
+# fixed dark palette (black background, off-white text) and iOS must not resolve
+# system colours against the device's light appearance. Supplying this replaces
+# Valdi's generated template wholesale, so it carries the template's other keys too.
+filegroup(
+    name = "ios_info_plist",
+    srcs = ["ios/Info.plist"],
+)
+
 filegroup(
     name = "ios_launcher_icons",
     srcs = glob(["ios/Assets.xcassets/AppIcon.*/**"]),

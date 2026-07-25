@@ -11,6 +11,7 @@ valdi_application(
     ios_app_icons = ["//atolla/native:ios_launcher_icons"],
     ios_bundle_id = "com.tx3stn.atolla",
     ios_families = ["iphone"],
+    ios_info_plist = "//atolla/native:ios_info_plist",
     root_component_path = "App@atolla/src/App",
     title = "atolla",
     version = "0.0.0",
