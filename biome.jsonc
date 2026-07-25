@@ -15,7 +15,14 @@
 	},
 	"files": {
 		"ignoreUnknown": true,
-		"includes": ["**", "!**/assets", "!!**/build", "!!**/coverage", "!!**/dist"]
+		"includes": [
+			"**",
+			"!**/assets",
+			"!tools/mock-server/spec",
+			"!!**/build",
+			"!!**/coverage",
+			"!!**/dist"
+		]
 	},
 	"formatter": {
 		"enabled": true,

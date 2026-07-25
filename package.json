@@ -40,6 +40,8 @@
 		"icons:palette": "bun ./.scripts/generate-palette.ts",
 		"ios": "./.scripts/build-and-run-ios.sh",
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true --unsafe .",
+		"mock:generate": "bun tools/mock-server/generate.ts",
+		"mock:serve": "bun tools/mock-server/serve.ts",
 		"palette:preview": "bun ./tools/palette-preview/run.ts",
 		"rebuild:android": "bun run check && bun run test:components && bun run android",
 		"rebuild:ios": "bun run check && bun run test:components && bun run ios",
