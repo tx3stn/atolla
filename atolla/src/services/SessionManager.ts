@@ -169,8 +169,6 @@ export class SessionManager {
 				serverName: session.serverName,
 			});
 
-			this.deps.showToast('connected');
-
 			try {
 				await this.deps.authService.probeInitialAlbums(session);
 			} catch {

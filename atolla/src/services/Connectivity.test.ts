@@ -71,7 +71,6 @@ function makeConnectivity(over?: {
 		preferences,
 		sessionManager,
 		setNativeAuthToken: () => {},
-		showToast: () => {},
 	};
 
 	return { calls, connectivity: new Connectivity(deps), state };

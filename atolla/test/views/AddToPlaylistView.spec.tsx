@@ -131,7 +131,7 @@ describe('AddToPlaylistView', () => {
 		await flushAsyncWork();
 
 		expect(added).toEqual([['playlist-0', 'track-1']]);
-		expect(toastService.getMessage()).not.toBeNull();
+		expect(toastService.getCurrent()).not.toBeNull();
 		expect(dismissed).toBeTrue();
 	});
 

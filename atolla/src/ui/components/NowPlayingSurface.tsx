@@ -20,7 +20,7 @@ import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
 import { buildImageSource } from '../../services/ImageSource';
-import type { ToastService } from '../../services/ToastService';
+import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { pagedFromArray } from '../../services/TrackSource';
 import type { BarColorStore, FooterColors } from '../../stores/BarColor';
 import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playback';
@@ -663,7 +663,10 @@ export class NowPlayingSurface extends StatefulComponent<
 					: undefined,
 			onDismiss: (toastMessage?: string) => {
 				if (toastMessage) {
-					this.viewModel.toastService.show(toastMessage);
+					this.viewModel.toastService.show({
+						message: toastMessage,
+						variant: ToastTypes.success,
+					});
 				}
 			},
 			onPlaylistCreated: (playlist) => {

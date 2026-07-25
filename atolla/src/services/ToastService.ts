@@ -1,22 +1,72 @@
+export const ToastTypes = {
+	error: 'error',
+	info: 'info',
+	progress: 'progress',
+	success: 'success',
+} as const;
+
+export type ToastType = (typeof ToastTypes)[keyof typeof ToastTypes];
+
+export interface ToastModel {
+	message: string;
+	// when set the toast is tappable (e.g. a partial sync surfaces its failure detail)
+	onTap?: () => void;
+	variant: ToastType;
+}
+
+// what the renderer consumes: the model plus whether it is animating out before removal
+export interface ActiveToast {
+	closing: boolean;
+	model: ToastModel;
+}
+
+// single-slot toast store. transient toasts auto-dismiss; the progress toast is persistent until
+// replaced. dismissal is two-phase (startClose → dismissed) so the renderer can animate out before
+// the slot clears. auto-dismiss timers live here, never in the component.
 export class ToastService {
-	private message: string | null = null;
+	private current: ActiveToast | null = null;
 	private timer?: ReturnType<typeof setTimeout>;
 	private readonly listeners = new Set<() => void>();
 
-	getMessage(): string | null {
-		return this.message;
+	// removes the current toast immediately (no exit animation). called by the renderer once its exit
+	// animation has finished, or directly when animations are disabled.
+	dismissed(): void {
+		this.timer = clearToastTimer(this.timer);
+		if (this.current) {
+			this.current = null;
+			this.notify();
+		}
 	}
 
-	show(message: string, durationMs = 2500): void {
-		this.timer = scheduleToastDismiss(
-			this.timer,
-			(next) => {
-				this.message = next;
-				this.notify();
-			},
-			message,
-			durationMs,
-		);
+	getCurrent(): ActiveToast | null {
+		return this.current;
+	}
+
+	// transient: shows the toast and schedules it to begin closing after durationMs
+	show(model: ToastModel, durationMs = 2500): void {
+		this.timer = clearToastTimer(this.timer);
+		this.current = { closing: false, model };
+		this.notify();
+		this.timer = setTimeout(() => {
+			this.startClose();
+		}, durationMs);
+	}
+
+	// persistent: shows the toast with no auto-dismiss (used for in-progress sync). calling again
+	// replaces the model, so progress updates flow through here.
+	showPersistent(model: ToastModel): void {
+		this.timer = clearToastTimer(this.timer);
+		this.current = { closing: false, model };
+		this.notify();
+	}
+
+	// marks the current toast as closing so the renderer animates it out
+	startClose(): void {
+		this.timer = clearToastTimer(this.timer);
+		if (this.current && !this.current.closing) {
+			this.current = { closing: true, model: this.current.model };
+			this.notify();
+		}
 	}
 
 	subscribe(listener: () => void): () => void {
@@ -33,27 +83,9 @@ export class ToastService {
 	}
 }
 
-function scheduleToastDismiss(
-	activeTimer: ReturnType<typeof setTimeout> | undefined,
-	setToastMessage: (message: string | null) => void,
-	message: string,
-	durationMs: number,
-): ReturnType<typeof setTimeout> {
-	if (activeTimer) {
-		clearTimeout(activeTimer);
-	}
-
-	setToastMessage(message);
-	return setTimeout(() => {
-		setToastMessage(null);
-	}, durationMs);
-}
-
-export function clearScheduledToast(
-	activeTimer: ReturnType<typeof setTimeout> | undefined,
-): undefined {
-	if (activeTimer) {
-		clearTimeout(activeTimer);
+function clearToastTimer(timer: ReturnType<typeof setTimeout> | undefined): undefined {
+	if (timer) {
+		clearTimeout(timer);
 	}
 
 	return undefined;

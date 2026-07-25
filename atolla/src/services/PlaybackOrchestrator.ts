@@ -3,6 +3,7 @@ import type { PlaybackStore } from '../stores/Playback';
 import { RECENTLY_PLAYED_LIMIT, type RecentlyPlayedStore } from '../stores/RecentlyPlayed';
 import { fireAndForget } from '../utils/Async';
 import { DeferredPlaybackDownloadCoordinator } from './DeferredPlaybackDownloadCoordinator';
+import { getLogger } from './Logger';
 import type { ScrobbleService } from './ScrobbleService';
 import { TrackPlaybackNativePrefetchQueue } from './TrackPlaybackNativePrefetchQueue';
 import type { TrackPlaybackNotificationNative } from './TrackPlaybackNotificationAdapter';
@@ -20,6 +21,8 @@ import {
 import type { TrackSourceNative } from './TrackSourceNativeAdapter';
 import type { WaveformRenderCache } from './WaveformRenderCache';
 import type { WaveformService } from './WaveformService';
+
+const log = getLogger('playback');
 
 const NATIVE_ACTION_POLL_INTERVAL_MS = 350;
 const UPCOMING_PALETTE_PREWARM_COUNT = 10;
@@ -62,7 +65,6 @@ export interface PlaybackOrchestratorDeps {
 	// force a host re-render after async work resolves (e.g. recently-played restore)
 	requestRerender: () => void;
 	resolveArtistLogoUrl: (artistId: string) => Promise<string | null>;
-	showPlaybackToast: (message: string) => void;
 	trackSourceNative: TrackSourceNative;
 }
 
@@ -96,7 +98,6 @@ export class PlaybackOrchestrator {
 	private readonly prewarmArtwork: (imageUrl: string) => void;
 	private readonly refreshTrackCachedCount: () => void;
 	private readonly resolveArtistLogoUrl: (artistId: string) => Promise<string | null>;
-	private readonly showPlaybackToast: (message: string) => void;
 	private readonly trackSourceNative: TrackSourceNative;
 	private readonly requestRerender: () => void;
 	private readonly requestOverlayRerender: () => void;
@@ -161,7 +162,6 @@ export class PlaybackOrchestrator {
 		this.prewarmArtwork = deps.prewarmArtwork;
 		this.refreshTrackCachedCount = deps.refreshTrackCachedCount;
 		this.resolveArtistLogoUrl = deps.resolveArtistLogoUrl;
-		this.showPlaybackToast = deps.showPlaybackToast;
 		this.trackSourceNative = deps.trackSourceNative;
 		this.requestRerender = deps.requestRerender;
 		this.requestOverlayRerender = deps.requestOverlayRerender;
@@ -893,7 +893,7 @@ export class PlaybackOrchestrator {
 						? error.message
 						: 'unknown error';
 			const message = this.summarizeCacheError(rawMessage);
-			this.showPlaybackToast(`cache flow exception: ${message}`);
+			log.error('cache flow exception', { message });
 			this.handleTrackCacheFetchFailed(trackId, `exception: ${message}`);
 		}
 	}
@@ -932,7 +932,7 @@ export class PlaybackOrchestrator {
 		}
 
 		this.lastTrackFetchErrorTrackId = trackId;
-		this.showPlaybackToast(`cache failed: ${reason}`);
+		log.warn('cache fetch failed', { reason });
 
 		const streamUrl = this.getTrackStreamSource(trackId);
 		if (streamUrl) {
@@ -1013,9 +1013,7 @@ export class PlaybackOrchestrator {
 
 	handlePlaybackError(error: string): void {
 		const normalized = error?.trim() ?? '';
-		this.showPlaybackToast(
-			normalized.length > 0 ? `playback error: ${normalized}` : 'playback error',
-		);
+		log.error('playback error', { error: normalized.length > 0 ? normalized : 'unknown' });
 	}
 
 	handlePlaybackEvent(event: string): void {

@@ -92,7 +92,7 @@ describe('SessionManager', () => {
 		});
 	});
 
-	it('login runs quick-connect, sets the session, emits onSessionChanged, and toasts', async () => {
+	it('login runs quick-connect, sets the session, and emits onSessionChanged', async () => {
 		const { calls, manager } = makeManager();
 
 		const session = await manager.login('https://server');
@@ -100,7 +100,6 @@ describe('SessionManager', () => {
 		expect(session.userId).toBe('user-1');
 		expect(manager.getSession()?.userId).toBe('user-1');
 		expect(calls.onSessionChanged).toEqual([session]);
-		expect(calls.showToast).toContain('connected');
 		const codes = calls.applyState.flatMap((s) =>
 			'quickConnectCode' in s ? [s.quickConnectCode] : [],
 		);

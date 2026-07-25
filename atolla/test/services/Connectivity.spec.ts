@@ -67,7 +67,6 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 		preferences,
 		sessionManager,
 		setNativeAuthToken: (token) => calls.setNativeAuthToken.push(token),
-		showToast: () => {},
 	};
 
 	return { calls, connectivity: new Connectivity(deps) };

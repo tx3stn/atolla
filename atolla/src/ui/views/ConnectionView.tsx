@@ -8,7 +8,7 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ImageView, Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
 import Strings from '../../Strings';
-import type { ToastService } from '../../services/ToastService';
+import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
@@ -134,7 +134,10 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 
 		hapticFeedback();
 		Device.copyToClipBoard(code);
-		this.viewModel.toastService.show(Strings.copiedToClipboard());
+		this.viewModel.toastService.show({
+			message: Strings.copiedToClipboard(),
+			variant: ToastTypes.success,
+		});
 	};
 
 	private onConnectTap = (): void => {

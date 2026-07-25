@@ -265,7 +265,7 @@ describe('SettingsView', () => {
 			?.getAttribute('onTap')?.(touchEvent);
 
 		expect(resetForTrackCacheCleared).toBe(1);
-		expect(toastService.getMessage()).toBeTruthy();
+		expect(toastService.getCurrent()?.model.message).toBeTruthy();
 	});
 
 	valdiIt('sharing the debug log opens the native share sheet', async (driver) => {

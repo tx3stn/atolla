@@ -1110,17 +1110,6 @@ describe('PlaybackOrchestrator track source routing', () => {
 		expect(cacheCalls).toEqual([]);
 	});
 
-	it('toasts on playback error', () => {
-		const toasts: Array<string> = [];
-		const orchestrator = createOrchestrator({ track: null }, () => {}, fakeNotification(), {
-			showPlaybackToast: (message) => toasts.push(message),
-		});
-
-		orchestrator.handlePlaybackError('boom');
-
-		expect(toasts).toEqual(['playback error: boom']);
-	});
-
 	it('marks the active track complete at its full duration', () => {
 		const progress: Array<number> = [];
 		const store = {
@@ -1633,7 +1622,6 @@ function createOrchestrator(
 		refreshTrackCachedCount?: () => void;
 		requestOverlayRerender?: () => void;
 		resolveArtistLogoUrl?: (artistId: string) => Promise<string | null>;
-		showPlaybackToast?: (message: string) => void;
 		trackSourceNative?: TrackSourceNative;
 	} = {},
 ): PlaybackOrchestrator {
@@ -1654,7 +1642,6 @@ function createOrchestrator(
 		requestOverlayRerender: opts.requestOverlayRerender ?? (() => {}),
 		requestRerender,
 		resolveArtistLogoUrl: opts.resolveArtistLogoUrl ?? (() => Promise.resolve(null)),
-		showPlaybackToast: opts.showPlaybackToast ?? (() => {}),
 		trackSourceNative: opts.trackSourceNative ?? fakeTrackSourceNative(),
 	});
 }

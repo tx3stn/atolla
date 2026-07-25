@@ -32,7 +32,7 @@ describe('DetailHeader', () => {
 		// block shows the toast
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
-		expect(toastService.getMessage()).toBe(Strings.addToQueueFailedToast());
+		expect(toastService.getCurrent()?.model.message).toBe(Strings.addToQueueFailedToast());
 	});
 
 	valdiIt(

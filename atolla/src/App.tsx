@@ -40,10 +40,10 @@ import { NetworkStatus } from './services/NetworkStatus';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import { PlaylistCreateService } from './services/PlaylistCreateService';
 import { type PlaylistEditError, PlaylistEditService } from './services/PlaylistEditService';
-import type { SyncProgress } from './services/ReconnectSyncCoordinator';
+import { syncToastText } from './services/ReconnectSyncCoordinator';
 import { SessionController } from './services/SessionController';
 import { SessionManager } from './services/SessionManager';
-import { ToastService } from './services/ToastService';
+import { ToastService, ToastTypes } from './services/ToastService';
 import { TrackPlaybackNotificationAdapter } from './services/TrackPlaybackNotificationAdapter';
 import { TrackSourceNativeAdapter } from './services/TrackSourceNativeAdapter';
 import { UserScope } from './services/UserScope';
@@ -63,7 +63,6 @@ import { theme } from './theme';
 import { type ConnectionMode, ConnectionModes } from './transports/Model';
 import { BootSplash } from './ui/components/BootSplash';
 import { Modal } from './ui/components/Modal';
-import { SyncStatusBanner } from './ui/components/SyncStatusBanner';
 import { Toast } from './ui/components/Toast';
 import { closeSlot, EMPTY_SLOT_RENDERER } from './ui/flows/ModalSlotFlow';
 import { ConnectionView } from './ui/views/ConnectionView';
@@ -86,7 +85,6 @@ interface AppState {
 	quickConnectCode: string | null;
 	serverName: string;
 	serverUrlPrefill: string;
-	syncProgress: SyncProgress | null;
 	version: number;
 }
 
@@ -151,7 +149,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		requestRerender: () => this.requestRerender(),
 		resolveArtistLogoUrl: (artistId) =>
 			Promise.resolve(this.connectivity.getTransport().getArtistLogoUrl(artistId)),
-		showPlaybackToast: (message) => this.toastService.show(message),
 		trackSourceNative: new TrackSourceNativeAdapter(),
 	});
 	private downloadWorkerClient = new Lazy<IWorkerServiceClient<IDownloadNativeWorker>>(() =>
@@ -187,7 +184,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		defaultDeviceId: this.defaultJellyfinClientDeviceId,
 		onSessionChanged: (session) => this.connectivity.handleSessionChanged(session),
 		preferences: this.preferences,
-		showToast: (message) => this.toastService.show(message),
+		showToast: (message) => this.toastService.show({ message, variant: ToastTypes.error }),
 	});
 	private connectivity: Connectivity = new Connectivity({
 		applyState: (partial) => this.applyConnectionState(partial),
@@ -199,7 +196,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		preferences: this.preferences,
 		sessionManager: this.sessionManager,
 		setNativeAuthToken: (token) => this.pushNativeAuthToken(token),
-		showToast: (message) => this.toastService.show(message),
 	});
 	private userScope: UserScope = new UserScope({
 		assetCache: this.assetCache,
@@ -214,7 +210,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 
 	private readonly bootstrapStartedAt = Date.now();
 	private bootstrapCommitTimer?: ReturnType<typeof setTimeout>;
-	private syncBannerTimer?: ReturnType<typeof setTimeout>;
 	private lastSyncEditErrors: Array<PlaylistEditError> = [];
 	private unsubscribeToast?: () => void;
 	private readonly handleRequestModeChange = (mode: ConnectionMode): Promise<boolean> =>
@@ -232,17 +227,23 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		quickConnectCode: null,
 		serverName: '',
 		serverUrlPrefill: '',
-		syncProgress: null,
 		version: 0,
 	};
 
 	onCreate(): void {
 		this.unsubscribeToast = this.toastService.subscribe(() => {
-			const message = this.toastService.getMessage();
+			const active = this.toastService.getCurrent();
 			this.toastSlot.slotted(
-				message
+				active
 					? () => {
-							<Toast message={message} />;
+							<Toast
+								animationsEnabled={this.preferences.animationsEnabled}
+								closing={active.closing}
+								message={active.model.message}
+								onDismissed={() => this.toastService.dismissed()}
+								onTap={active.model.onTap}
+								variant={active.model.variant}
+							/>;
 						}
 					: EMPTY_SLOT_RENDERER,
 			);
@@ -317,9 +318,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		if (this.unsubscribeToast) {
 			this.unsubscribeToast();
 		}
-		if (this.syncBannerTimer) {
-			clearTimeout(this.syncBannerTimer);
-		}
 		this.userScope.dispose();
 		if (this.downloadWorkerClient.isCreated) {
 			this.downloadWorkerClient.target.dispose();
@@ -390,14 +388,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 				sessionController={this.sessionController}
 				toastService={this.toastService}
 			/>
-			{this.state.syncProgress != null && (
-				<SyncStatusBanner
-					completed={this.state.syncProgress.completed}
-					onTap={this.handleSyncBannerTap}
-					status={this.state.syncProgress.status}
-					total={this.state.syncProgress.total}
-				/>
-			)}
 		</view>;
 	}
 
@@ -541,11 +531,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 	};
 
 	private handleSyncBannerTap = (): void => {
-		if (this.syncBannerTimer) {
-			clearTimeout(this.syncBannerTimer);
-			this.syncBannerTimer = undefined;
-		}
-		this.setState({ syncProgress: null });
+		this.toastService.dismissed();
 		const errors = this.lastSyncEditErrors;
 		if (errors.length === 0) {
 			return;
@@ -668,17 +654,6 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		}
 	}
 
-	private scheduleSyncBannerDismiss(durationMs: number): void {
-		if (this.syncBannerTimer) {
-			clearTimeout(this.syncBannerTimer);
-		}
-		this.syncBannerTimer = setTimeout(() => {
-			this.syncBannerTimer = undefined;
-			if (this.isDestroyed()) return;
-			this.setState({ syncProgress: null });
-		}, durationMs);
-	}
-
 	private startBootstrap(): void {
 		void (async () => {
 			try {
@@ -721,17 +696,32 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 			coordinator
 				.run(transport, (progress) => {
 					if (this.isDestroyed()) return;
-					this.setState({ syncProgress: progress });
+					this.toastService.showPersistent({
+						message: syncToastText(progress),
+						variant: ToastTypes.progress,
+					});
 				})
 				.then((result) => {
 					if (this.isDestroyed()) return;
 					this.lastSyncEditErrors = result.playlistEditErrors;
 					if (result.total === 0) {
-						this.setState({ syncProgress: null });
 						return;
 					}
-					this.setState({ syncProgress: result });
-					this.scheduleSyncBannerDismiss(result.status === 'partial' ? 6000 : 2500);
+					if (result.status === 'partial') {
+						this.toastService.show(
+							{
+								message: syncToastText(result),
+								onTap: this.handleSyncBannerTap,
+								variant: ToastTypes.error,
+							},
+							6000,
+						);
+						return;
+					}
+					this.toastService.show(
+						{ message: syncToastText(result), variant: ToastTypes.success },
+						2500,
+					);
 				}),
 		);
 	}

@@ -13,7 +13,7 @@ import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
-import type { ToastService } from '../../services/ToastService';
+import { type ToastService, ToastTypes } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
 import type { PlaybackStore } from '../../stores/Playback';
@@ -277,7 +277,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	private handleContextMenuDismiss = (toastMessage?: string): void => {
 		this.setState({ contextMenuCard: null });
 		if (toastMessage) {
-			this.viewModel.toastService.show(toastMessage);
+			this.viewModel.toastService.show({ message: toastMessage, variant: ToastTypes.success });
 		}
 	};
 

@@ -25,7 +25,6 @@ export interface ConnectivityDeps {
 	preferences: Preferences;
 	sessionManager: SessionManager;
 	setNativeAuthToken(token: string): void;
-	showToast(message: string): void;
 }
 
 // connection state machine: owns the online/offline/mock mode and the active transport, which is
@@ -118,7 +117,6 @@ export class Connectivity {
 			// clearSession emits onSessionChanged(null) → handleSessionChanged rebuilds offline +
 			// marks auth-required (online with no session)
 			await this.deps.sessionManager.clearSession();
-			this.deps.showToast('logged out');
 		})();
 	}
 

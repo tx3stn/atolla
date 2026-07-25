@@ -713,7 +713,7 @@ describe('NowPlayingSurface', () => {
 		addToQueueAction?.getAttribute('onTap')?.(touchEvent);
 
 		expect(addToQueueCalls).toBe(1);
-		expect(toastService.getMessage()).toBe('added to queue');
+		expect(toastService.getCurrent()?.model.message).toBe('added to queue');
 	});
 
 	valdiIt('context menu artist tap targets the selected track, not the playing one', async () => {

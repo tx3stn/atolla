@@ -15,6 +15,19 @@ export interface SyncResult extends SyncProgress {
 	playlistEditErrors: Array<PlaylistEditError>;
 }
 
+// the toast message for a sync progress snapshot
+export function syncToastText(
+	progress: Pick<SyncProgress, 'completed' | 'status' | 'total'>,
+): string {
+	if (progress.status === 'syncing') {
+		return `syncing ${progress.total} ${progress.total === 1 ? 'change' : 'changes'}…`;
+	}
+	if (progress.status === 'partial') {
+		return `${progress.completed} of ${progress.total} synced`;
+	}
+	return 'synced';
+}
+
 // narrow structural interfaces (DI-friendly, testable without the real services);
 // each captures only the methods the coordinator touches
 interface PlaylistCreateLike {

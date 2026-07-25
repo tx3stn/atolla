@@ -9,7 +9,7 @@ import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplat
 import Strings from '../../Strings';
 import type { DownloadState } from '../../services/DownloadService';
 import type { ImageCategory } from '../../services/ImageCache';
-import type { ToastService } from '../../services/ToastService';
+import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
@@ -172,7 +172,10 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		try {
 			await onAddToQueue();
 		} catch {
-			this.viewModel.toastService.show(Strings.addToQueueFailedToast());
+			this.viewModel.toastService.show({
+				message: Strings.addToQueueFailedToast(),
+				variant: ToastTypes.error,
+			});
 			return;
 		}
 

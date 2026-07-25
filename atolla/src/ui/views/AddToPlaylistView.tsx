@@ -4,7 +4,7 @@ import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElemen
 import type { Playlist } from '../../models/Playlist';
 import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
-import type { ToastService } from '../../services/ToastService';
+import { type ToastService, ToastTypes } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
@@ -113,7 +113,7 @@ export class AddToPlaylistView extends StatefulComponent<
 				),
 			);
 			if (!alive) return;
-			toastService.show(Strings.addedToPlaylist());
+			toastService.show({ message: Strings.addedToPlaylist(), variant: ToastTypes.success });
 			onDismiss();
 		} catch (e: unknown) {
 			if (this.isDestroyed()) return;

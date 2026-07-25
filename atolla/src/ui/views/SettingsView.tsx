@@ -22,7 +22,7 @@ import type { ClearCacheSelection } from '../../services/ImageCache';
 import { Logger } from '../../services/Logger';
 import type { PlaybackOrchestrator } from '../../services/PlaybackOrchestrator';
 import type { SessionController } from '../../services/SessionController';
-import type { ToastService } from '../../services/ToastService';
+import { type ToastService, ToastTypes } from '../../services/ToastService';
 import {
 	DEFAULT_GRID_COLUMNS,
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
@@ -366,7 +366,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		this.refreshNativeCacheStats();
 		this.refreshTrackCachedCount();
 		closeSlot(this.viewModel.modalSlot);
-		this.viewModel.toastService.show(Strings.settingsCacheClearedToast());
+		this.viewModel.toastService.show({
+			message: Strings.settingsCacheClearedToast(),
+			variant: ToastTypes.success,
+		});
 	};
 
 	private handleClearCachePress = (): void => {
@@ -393,7 +396,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 
 	private handleClearDebugLogPress = (): void => {
 		Logger.clearLog();
-		this.viewModel.toastService.show(Strings.settingsDebugLogClearedToast());
+		this.viewModel.toastService.show({
+			message: Strings.settingsDebugLogClearedToast(),
+			variant: ToastTypes.success,
+		});
 	};
 
 	private handleClearDownloadsCancel = (): void => {

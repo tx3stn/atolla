@@ -18,7 +18,7 @@ const colors = {
 	muted: '#667085',
 	pureWhite: '#ffffff',
 	separator: 'rgba(255,255,255,0.08)',
-	toastGlassBg: 'rgba(16,24,40,0.85)',
+	success: '#22c55e',
 	transparent: 'rgba(0,0,0,0)',
 	warning: '#f5a623',
 	white: '#d8dee9',
