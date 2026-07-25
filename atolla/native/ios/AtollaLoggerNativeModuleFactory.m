@@ -27,18 +27,6 @@ static void rotateLogIfNeeded(NSString *path) {
     [[NSFileManager defaultManager] moveItemAtPath:path toPath:backup error:nil];
 }
 
-static NSString *safeFileName(NSString *fileName) {
-    NSString *name = fileName.lastPathComponent;
-    return name.length > 0 ? name : @"atolla-export.txt";
-}
-
-static NSString *writeTempArtifact(NSString *fileName, NSString *contents) {
-    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:safeFileName(fileName)];
-    NSError *error = nil;
-    [contents writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:&error];
-    return error ? nil : path;
-}
-
 static void appendCrashLine(NSString *entry) {
     NSString *path = resolveLogFilePath();
     rotateLogIfNeeded(path);
@@ -116,10 +104,6 @@ static void presentShareForPath(NSString *path) {
 
 @implementation AtollaLoggerNativeModuleImpl
 
-- (NSString * _Nonnull)getAtollaLogFilePath {
-    return resolveLogFilePath();
-}
-
 - (void)writeAtollaLogWithEntry:(NSString * _Nonnull)entry {
     NSString *path = resolveLogFilePath();
     rotateLogIfNeeded(path);
@@ -142,37 +126,12 @@ static void presentShareForPath(NSString *path) {
     [@"" writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil];
 }
 
-- (NSString * _Nonnull)exportAtollaLog {
-    NSString *src = resolveLogFilePath();
-    if (![[NSFileManager defaultManager] fileExistsAtPath:src]) return @"";
-    NSArray *docDirs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *docDir = [docDirs firstObject];
-    if (!docDir) return @"";
-    NSString *dest = [docDir stringByAppendingPathComponent:kLogFileName];
-    NSError *error = nil;
-    [[NSFileManager defaultManager] removeItemAtPath:dest error:nil];
-    [[NSFileManager defaultManager] copyItemAtPath:src toPath:dest error:&error];
-    return error ? @"" : dest;
-}
-
 - (void)shareAtollaLog {
-    presentShareForPath(resolveLogFilePath());
-}
-
-- (NSString * _Nonnull)exportAtollaTextFileWithFileName:(NSString * _Nonnull)fileName
-                                              contents:(NSString * _Nonnull)contents {
-    NSArray *docDirs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *docDir = [docDirs firstObject];
-    if (!docDir) return @"";
-    NSString *dest = [docDir stringByAppendingPathComponent:safeFileName(fileName)];
-    NSError *error = nil;
-    [contents writeToFile:dest atomically:YES encoding:NSUTF8StringEncoding error:&error];
-    return error ? @"" : dest;
-}
-
-- (void)shareAtollaTextFileWithFileName:(NSString * _Nonnull)fileName
-                               contents:(NSString * _Nonnull)contents {
-    presentShareForPath(writeTempArtifact(fileName, contents));
+    NSString *path = resolveLogFilePath();
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+        [[NSFileManager defaultManager] createFileAtPath:path contents:[NSData data] attributes:nil];
+    }
+    presentShareForPath(path);
 }
 
 @end

@@ -13,11 +13,7 @@ export interface Log {
 
 export interface LoggerNativeFns {
 	clearLog(): void;
-	exportLog(): string;
-	exportTextFile(fileName: string, contents: string): string;
-	getLogFilePath(): string;
 	shareLog(): void;
-	shareTextFile(fileName: string, contents: string): void;
 	writeLog(entry: string): void;
 }
 
@@ -26,14 +22,10 @@ export interface LoggerNativeFns {
 // SettingsView.
 export interface LoggerControl {
 	clearLog(): void;
-	exportLog(): string;
-	exportTextFile(fileName: string, contents: string): string;
-	getLogFilePath(): string;
 	isEnabled(): boolean;
 	register(fns: LoggerNativeFns): void;
 	setEnabled(enabled: boolean): void;
 	shareLog(): void;
-	shareTextFile(fileName: string, contents: string): void;
 }
 
 class LoggerService {
@@ -52,14 +44,6 @@ class LoggerService {
 		return this.enabled;
 	}
 
-	getLogFilePath(): string {
-		try {
-			return this.fns?.getLogFilePath() ?? '';
-		} catch {
-			return '';
-		}
-	}
-
 	clearLog(): void {
 		try {
 			this.fns?.clearLog();
@@ -68,33 +52,9 @@ class LoggerService {
 		}
 	}
 
-	exportLog(): string {
-		try {
-			return this.fns?.exportLog() ?? '';
-		} catch {
-			return '';
-		}
-	}
-
 	shareLog(): void {
 		try {
 			this.fns?.shareLog();
-		} catch {
-			// best effort
-		}
-	}
-
-	exportTextFile(fileName: string, contents: string): string {
-		try {
-			return this.fns?.exportTextFile(fileName, contents) ?? '';
-		} catch {
-			return '';
-		}
-	}
-
-	shareTextFile(fileName: string, contents: string): void {
-		try {
-			this.fns?.shareTextFile(fileName, contents);
 		} catch {
 			// best effort
 		}

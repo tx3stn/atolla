@@ -65,7 +65,6 @@ export interface SettingsViewModel {
 }
 
 interface SettingsViewState {
-	debugExportPath: string | null;
 	imageCacheDiskBytes: number | null;
 	imageCacheDiskCount: number;
 	imageCategoryCounts: Record<string, number>;
@@ -77,7 +76,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 	private statsInterval?: ReturnType<typeof setInterval>;
 
 	state: SettingsViewState = {
-		debugExportPath: null,
 		imageCacheDiskBytes: null,
 		imageCacheDiskCount: 0,
 		imageCategoryCounts: {},
@@ -228,18 +226,9 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 						</view>
 						{debugLoggingEnabled && (
 							<Button
-								accessibilityId='settings-debug-log-export'
-								label={Strings.settingsDebugLogExportButton()}
-								onTap={this.handleExportDebugLogPress}
-							/>
-						)}
-						{this.state.debugExportPath != null && (
-							<label
-								accessibilityId='settings-debug-export-path'
-								accessibilityLabel='settings-debug-export-path'
-								numberOfLines={2}
-								style={styles.debugLogPathLabel}
-								value={Strings.settingsDebugLogExportedPath(this.state.debugExportPath)}
+								accessibilityId='settings-debug-log-share'
+								label={Strings.settingsDebugLogShareButton()}
+								onTap={this.handleShareDebugLogPress}
 							/>
 						)}
 						{debugLoggingEnabled && (
@@ -446,11 +435,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		void this.viewModel.preferences.setDownloadOnWifiOnly(enabled);
 	};
 
-	private handleExportDebugLogPress = (): void => {
-		const dest = Logger.exportLog();
-		this.setState({ debugExportPath: dest || null });
-	};
-
 	private handleGridColumnsSelect = (count: number): void => {
 		void this.viewModel.preferences.setGridColumns(count);
 	};
@@ -507,6 +491,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 				title={Strings.settingsLogoutButton()}
 			/>;
 		});
+	};
+
+	private handleShareDebugLogPress = (): void => {
+		Logger.shareLog();
 	};
 
 	private handleTrackCacheLimitSelect = (count: number): void => {
@@ -657,12 +645,6 @@ const styles = {
 		...theme.text.main,
 		marginLeft: 10,
 		width: '100%',
-	}),
-	debugLogPathLabel: new Style<Label>({
-		...theme.text.sub,
-		color: theme.colors.muted,
-		marginLeft: 4,
-		marginTop: 8,
 	}),
 	httpWarningCallout: new Style<View>({
 		backgroundColor: withAlpha(theme.colors.warning, 0.12),

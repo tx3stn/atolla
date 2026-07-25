@@ -25,11 +25,7 @@ describe('fireAndForget', () => {
 		const writes: Array<string> = [];
 		Logger.register({
 			clearLog: () => {},
-			exportLog: () => '',
-			exportTextFile: () => '',
-			getLogFilePath: () => '',
 			shareLog: () => {},
-			shareTextFile: () => {},
 			writeLog: (entry: string) => writes.push(entry),
 		});
 		Logger.setEnabled(true);

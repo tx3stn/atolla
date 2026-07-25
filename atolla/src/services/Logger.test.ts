@@ -5,11 +5,7 @@ function captureEntries(): Array<string> {
 	const entries: Array<string> = [];
 	Logger.register({
 		clearLog: () => {},
-		exportLog: () => '',
-		exportTextFile: () => '',
-		getLogFilePath: () => '',
 		shareLog: () => {},
-		shareTextFile: () => {},
 		writeLog: (entry) => entries.push(entry),
 	});
 	return entries;

@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import type { ArtworkPaletteService } from 'atolla/src/services/ArtworkPaletteService';
 import type { DownloadService } from 'atolla/src/services/DownloadService';
+import { Logger } from 'atolla/src/services/Logger';
 import type { PlaybackOrchestrator } from 'atolla/src/services/PlaybackOrchestrator';
 import { SessionController } from 'atolla/src/services/SessionController';
 import { ToastService } from 'atolla/src/services/ToastService';
@@ -265,5 +266,26 @@ describe('SettingsView', () => {
 
 		expect(resetForTrackCacheCleared).toBe(1);
 		expect(toastService.getMessage()).toBeTruthy();
+	});
+
+	valdiIt('sharing the debug log opens the native share sheet', async (driver) => {
+		let shareCount = 0;
+		Logger.register({
+			clearLog: () => {},
+			shareLog: () => {
+				shareCount += 1;
+			},
+			writeLog: () => {},
+		});
+		const preferences = mockPreferences();
+		void preferences.setDebugLoggingEnabled(true);
+		const viewModel = makeViewModel({ preferences });
+		const component = driver.renderComponent(SettingsView, viewModel, undefined);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-debug-log-share-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(shareCount).toBe(1);
 	});
 });

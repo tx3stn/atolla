@@ -43,6 +43,18 @@
             android:stopWithTask="false"
             android:exported="false"
         />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.tx3stn.atolla.dev.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true"
+        >
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"
+            />
+        </provider>
     </application>
 
     <uses-permission android:name="android.permission.WAKE_LOCK" />

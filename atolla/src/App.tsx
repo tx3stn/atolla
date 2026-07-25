@@ -15,15 +15,7 @@ import {
 	setAtollaImageLoaderAuthToken,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
-import {
-	clearAtollaLog,
-	exportAtollaLog,
-	exportAtollaTextFile,
-	getAtollaLogFilePath,
-	shareAtollaLog,
-	shareAtollaTextFile,
-	writeAtollaLog,
-} from './LoggerNative';
+import { clearAtollaLog, shareAtollaLog, writeAtollaLog } from './LoggerNative';
 import {
 	clearAtollaNetworkStatusObserver,
 	getAtollaNetworkStatus,
@@ -258,11 +250,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		try {
 			Logger.register({
 				clearLog: clearAtollaLog,
-				exportLog: exportAtollaLog,
-				exportTextFile: exportAtollaTextFile,
-				getLogFilePath: getAtollaLogFilePath,
 				shareLog: shareAtollaLog,
-				shareTextFile: shareAtollaTextFile,
 				writeLog: writeAtollaLog,
 			});
 		} catch {
