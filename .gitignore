@@ -54,3 +54,6 @@ tools/palettes-preview/samples/*.jpg
 neotest*-xml.txt
 .code-review-graph/
 .mcp.json
+
+atolla_dev/tsconfig.json
+tools/palette-preview/tsconfig.json

@@ -1,11 +1,14 @@
 import res from 'atolla/res';
-import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
+import { AnimationCurve, type AnimationOptions } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
+import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
+import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ToastType, ToastTypes } from '../../services/ToastService';
 import { theme } from '../../theme';
 import { LoopingArrowSpinner } from './LoopingArrowSpinner';
+import { TouchEventState } from './TouchEventState';
 
 const restTop = theme.padding.scrollHeader(null);
 const hiddenTop = restTop - 12;
@@ -55,8 +58,16 @@ function variantIcon(variant: ToastType): VariantIcon | null {
 // the single themed toast pill: a translucent bar below the header (matching the library filter
 // panel) that springs in and out. the progress variant shows a spinner; success/error show a tinted
 // icon. auto-dismiss timing lives in ToastService, never here.
+const swipeBase = 16;
+// past either threshold a horizontal swipe dismisses; below it the pill springs back to rest
+const swipeDismissDistance = 100;
+const swipeDismissVelocity = 600;
+const swipeOffScreen = 500;
+
 export class Toast extends StatefulComponent<ToastViewModel, ToastState> {
 	state: ToastState = { expanded: false, shown: false };
+
+	private containerRef = new ElementRef();
 
 	onCreate(): void {
 		this.animateIn();
@@ -71,7 +82,9 @@ export class Toast extends StatefulComponent<ToastViewModel, ToastState> {
 		<view
 			accessibilityId='toast'
 			accessibilityLabel='toast'
+			onDrag={this.handleDrag}
 			onTap={this.handleTap()}
+			ref={this.containerRef}
 			style={atRest ? styles.containerShown : styles.containerHidden}
 		>
 			{isProgress && (
@@ -137,6 +150,42 @@ export class Toast extends StatefulComponent<ToastViewModel, ToastState> {
 		});
 	}
 
+	// a horizontal swipe in either direction dismisses the toast (matching the compact now-playing bar):
+	// follow the finger, then either fling it off-screen and dismiss or spring it back to rest.
+	private handleDrag = (event: DragEvent): void => {
+		if (event.state === TouchEventState.Changed) {
+			this.containerRef.setAttribute('left', swipeBase + event.deltaX);
+			this.containerRef.setAttribute('right', swipeBase - event.deltaX);
+			return;
+		}
+
+		if (event.state !== TouchEventState.Ended) {
+			return;
+		}
+
+		const isHorizontal = Math.abs(event.deltaX) >= Math.abs(event.deltaY);
+		const hasEnoughDistance = Math.abs(event.deltaX) >= swipeDismissDistance;
+		const hasEnoughVelocity = Math.abs(event.velocityX) >= swipeDismissVelocity;
+
+		if (isHorizontal && (hasEnoughDistance || hasEnoughVelocity)) {
+			const offset = event.deltaX > 0 ? swipeOffScreen : -swipeOffScreen;
+			void this.runAnimatePromise({ damping: 30, stiffness: 300 }, () => {
+				this.containerRef.setAttribute('left', swipeBase + offset);
+				this.containerRef.setAttribute('right', swipeBase - offset);
+			}).then(() => {
+				if (!this.isDestroyed()) {
+					this.viewModel.onDismissed();
+				}
+			});
+			return;
+		}
+
+		this.runAnimate({ damping: 18, stiffness: 280 }, () => {
+			this.containerRef.setAttribute('left', swipeBase);
+			this.containerRef.setAttribute('right', swipeBase);
+		});
+	};
+
 	// an explicit onTap action wins; otherwise a toast with detail or an over-long message taps to
 	// expand in place. plain short toasts stay non-interactive.
 	private handleTap(): (() => void) | undefined {
@@ -151,6 +200,22 @@ export class Toast extends StatefulComponent<ToastViewModel, ToastState> {
 
 	private isExpandable(): boolean {
 		return this.viewModel.detail !== undefined || this.viewModel.message.length > longMessageLength;
+	}
+
+	private runAnimate(options: AnimationOptions, callback: () => void): void {
+		if (this.viewModel.animationsEnabled) {
+			this.animate(options, callback);
+		} else {
+			callback();
+		}
+	}
+
+	private runAnimatePromise(options: AnimationOptions, callback: () => void): Promise<void> {
+		if (this.viewModel.animationsEnabled) {
+			return this.animatePromise(options, callback);
+		}
+		callback();
+		return Promise.resolve();
 	}
 
 	private toggleExpanded = (): void => {

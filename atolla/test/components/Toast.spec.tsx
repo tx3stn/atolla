@@ -2,11 +2,12 @@ import 'jasmine/src/jasmine';
 import { ToastTypes } from 'atolla/src/services/ToastService';
 import { theme } from 'atolla/src/theme';
 import { Toast } from 'atolla/src/ui/components/Toast';
+import { TouchEventState } from 'atolla/src/ui/components/TouchEventState';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { touchEvent } from '../util/testEvents';
+import { dragEvent, touchEvent } from '../util/testEvents';
 
 const baseViewModel = {
 	animationsEnabled: false,
@@ -100,6 +101,60 @@ describe('Toast', () => {
 		pill?.getAttribute('onTap')?.(touchEvent);
 
 		expect(labelValues(component)).toContain('the playlist was removed on the server');
+	});
+
+	valdiIt('dismisses when swiped horizontally past the threshold', async (driver) => {
+		let dismissed = false;
+		const component = driver.renderComponent(
+			Toast,
+			{
+				...baseViewModel,
+				message: 'added to queue',
+				onDismissed: () => {
+					dismissed = true;
+				},
+				variant: ToastTypes.success,
+			},
+			undefined,
+		);
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const pill = views.find((view) => view.getAttribute('accessibilityLabel') === 'toast');
+		pill?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: 200, deltaY: 0, state: TouchEventState.Ended, velocityX: 0 }),
+		);
+
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(dismissed).toBe(true);
+	});
+
+	valdiIt('stays put when a swipe falls short of the threshold', async (driver) => {
+		let dismissed = false;
+		const component = driver.renderComponent(
+			Toast,
+			{
+				...baseViewModel,
+				message: 'added to queue',
+				onDismissed: () => {
+					dismissed = true;
+				},
+				variant: ToastTypes.success,
+			},
+			undefined,
+		);
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const pill = views.find((view) => view.getAttribute('accessibilityLabel') === 'toast');
+		pill?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: 20, deltaY: 0, state: TouchEventState.Ended, velocityX: 0 }),
+		);
+
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(dismissed).toBe(false);
 	});
 
 	valdiIt('invokes onTap when the pill is tapped', async (driver) => {
