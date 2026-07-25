@@ -408,4 +408,67 @@ describe('NativeAudioPlayer', () => {
 			).not.toHaveBeenCalled();
 		});
 	});
+
+	describe('applyInitialSeekForSource()', () => {
+		// a gapless auto-advance snaps the store to the engine's own tiny start position via
+		// reconcileToNativeTrack (allowBackwardRebuild=false, progressSeconds>0). seeking then
+		// re-buffers an already-correctly-playing track — the audible restart. it must not fire.
+		valdiIt('does not re-seek when following the engine (gapless advance)', async (driver) => {
+			const store = mockPlaybackStore({ allowBackwardRebuild: false, progressSeconds: 0.05 });
+			const component = mountPlayer(driver, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(component);
+			const seekSpy = jasmine.createSpy('safeSeekTo');
+			player.safeSeekTo = seekSpy;
+
+			(player.applyInitialSeekForSource as () => void)();
+
+			expect(seekSpy).not.toHaveBeenCalled();
+		});
+
+		valdiIt('seeks to the restored offset for a deliberate (non-engine) bind', async (driver) => {
+			const store = mockPlaybackStore({ allowBackwardRebuild: true, progressSeconds: 45 });
+			const component = mountPlayer(driver, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(component);
+			const seekSpy = jasmine.createSpy('safeSeekTo');
+			player.safeSeekTo = seekSpy;
+
+			(player.applyInitialSeekForSource as () => void)();
+
+			expect(seekSpy).toHaveBeenCalledWith(45000);
+		});
+
+		// the explicit user-seek path is independent of applyInitialSeekForSource: it fires from the
+		// onCreate store subscriber off seekTarget and must keep working after the gate above.
+		valdiIt('an explicit user seek still fires through the seekTarget path', async (driver) => {
+			let listener: (() => void) | undefined;
+			const store = mockPlaybackStore({
+				seekTarget: null,
+				subscribe: (fn: () => void) => {
+					listener = fn;
+					return () => {};
+				},
+			});
+			const component = mountPlayer(driver, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+			});
+
+			const player = getInternal(component);
+			const seekSpy = jasmine.createSpy('safeSeekTo');
+			player.safeSeekTo = seekSpy;
+
+			(store as unknown as PlayerInternal).seekTarget = 30;
+			listener?.();
+
+			expect(seekSpy).toHaveBeenCalledWith(30000);
+		});
+	});
 });

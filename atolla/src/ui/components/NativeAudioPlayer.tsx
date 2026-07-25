@@ -288,6 +288,12 @@ export class NativeAudioPlayer extends StatefulComponent<
 	}
 
 	private applyInitialSeekForSource(): void {
+		// following the engine (gapless auto-advance or wake reconcile): progressSeconds mirrors the
+		// engine's own position, so a seek here re-buffers an already-correctly-positioned track — the
+		// audible gapless stutter. explicit user seeks go through seekTarget, not this path.
+		if (!this.viewModel.playbackStore.allowBackwardRebuild) {
+			return;
+		}
 		const restoredProgressSeconds = this.viewModel.playbackStore.progressSeconds;
 		if (!Number.isFinite(restoredProgressSeconds) || restoredProgressSeconds <= 0) {
 			return;
