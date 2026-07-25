@@ -1,7 +1,7 @@
+import { type ConnectionMode, ConnectionModes } from '../models/App';
 import type { Preferences } from '../stores/Preferences';
 import { LiveTransport } from '../transports/Live';
 import { MockTransport } from '../transports/Mock';
-import { type ConnectionMode, ConnectionModes } from '../transports/Model';
 import { OfflineTransport } from '../transports/Offline';
 import type { Transport } from '../transports/Transport';
 import type { DownloadService } from './DownloadService';

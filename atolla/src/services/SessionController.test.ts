@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { ConnectionModes } from '../transports/Model';
+import { ConnectionModes } from '../models/App';
 import { SessionController, type SessionHandle } from './SessionController';
 
 function makeHandle(overrides: Partial<SessionHandle> = {}): SessionHandle {

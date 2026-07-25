@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { ConnectionModes } from '../transports/Model';
+import { ConnectionModes } from '../models/App';
 import { AppServices, type AppServicesBag } from './AppServices';
 
 const stub = {} as unknown;

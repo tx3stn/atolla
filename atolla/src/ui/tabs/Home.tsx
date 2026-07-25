@@ -6,6 +6,7 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
+import type { ConnectionMode } from '../../models/App';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import type { DownloadService } from '../../services/DownloadService';
@@ -18,7 +19,6 @@ import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
-import type { ConnectionMode } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { type DetailPushDeps, pushAlbum, pushArtist, pushPlaylist } from '../flows/PushDetail';
 import { HomeView } from '../views/HomeView';

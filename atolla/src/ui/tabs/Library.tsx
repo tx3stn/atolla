@@ -6,7 +6,13 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
-import { FooterTabs, type HeaderTab, HeaderTabs } from '../../models/App';
+import {
+	type ConnectionMode,
+	ConnectionModes,
+	FooterTabs,
+	type HeaderTab,
+	HeaderTabs,
+} from '../../models/App';
 import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import type { NetworkStatus } from '../../services/NetworkStatus';
@@ -17,7 +23,6 @@ import type { ViewCache } from '../../services/ViewCache';
 import { headerStore } from '../../stores/Header';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
-import { type ConnectionMode, ConnectionModes } from '../../transports/Model';
 import type { Transport } from '../../transports/Transport';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { type DetailPushDeps, pushArtist } from '../flows/PushDetail';

@@ -1,4 +1,4 @@
-import { type ConnectionMode, ConnectionModes } from '../transports/Model';
+import { type ConnectionMode, ConnectionModes } from '../models/App';
 
 export interface SessionHandle {
 	applyDeviceIdOverride(value: string): void;

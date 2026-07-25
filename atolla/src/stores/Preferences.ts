@@ -1,5 +1,5 @@
 import { PersistentStore } from 'persistence/src/PersistentStore';
-import { type ConnectionMode, ConnectionModes } from '../transports/Model';
+import { type ConnectionMode, ConnectionModes } from '../models/App';
 
 export const GB = 1024 * 1024 * 1024;
 export const IMAGE_CACHE_SIZE_OPTIONS = [1 * GB, 2 * GB, 3 * GB, 5 * GB, 0];

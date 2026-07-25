@@ -17,6 +17,7 @@ import {
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
 import { clearAtollaLog, shareAtollaLog, writeAtollaLog } from './LoggerNative';
+import { type ConnectionMode, ConnectionModes } from './models/App';
 import {
 	clearAtollaNetworkStatusObserver,
 	getAtollaNetworkStatus,
@@ -61,7 +62,6 @@ import {
 	setAtollaTrackPlaybackAuthToken,
 } from './TrackPlaybackNative';
 import { theme } from './theme';
-import { type ConnectionMode, ConnectionModes } from './transports/Model';
 import { BootSplash } from './ui/components/BootSplash';
 import { Modal } from './ui/components/Modal';
 import { Toast } from './ui/components/Toast';

@@ -1,9 +1,9 @@
 import 'jasmine/src/jasmine';
+import { ConnectionModes } from 'atolla/src/models/App';
 import Strings from 'atolla/src/Strings';
 import { BarColorStore } from 'atolla/src/stores/BarColor';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
 import type { LanguageCode } from 'atolla/src/stores/Preferences';
-import { ConnectionModes } from 'atolla/src/transports/Model';
 import type { Transport } from 'atolla/src/transports/Transport';
 import { MixesSection } from 'atolla/src/ui/components/MixesSection';
 import { NowPlayingSurface } from 'atolla/src/ui/components/NowPlayingSurface';

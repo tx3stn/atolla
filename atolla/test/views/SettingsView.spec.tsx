@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import { type ConnectionMode, ConnectionModes } from 'atolla/src/models/App';
 import type { ArtworkPaletteService } from 'atolla/src/services/ArtworkPaletteService';
 import type { DownloadService } from 'atolla/src/services/DownloadService';
 import { Logger } from 'atolla/src/services/Logger';
@@ -6,7 +7,6 @@ import type { PlaybackOrchestrator } from 'atolla/src/services/PlaybackOrchestra
 import { SessionController } from 'atolla/src/services/SessionController';
 import { ToastService } from 'atolla/src/services/ToastService';
 import { Preferences } from 'atolla/src/stores/Preferences';
-import { type ConnectionMode, ConnectionModes } from 'atolla/src/transports/Model';
 import { SettingsView, type SettingsViewModel } from 'atolla/src/ui/views/SettingsView';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';

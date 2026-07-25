@@ -7,6 +7,14 @@ export interface CardDetailItem {
 	lineTwo: string;
 }
 
+export const ConnectionModes = {
+	mock: 'mock',
+	offline: 'offline',
+	online: 'online',
+} as const;
+
+export type ConnectionMode = (typeof ConnectionModes)[keyof typeof ConnectionModes];
+
 export const FooterTabs = {
 	home: 'home',
 	library: 'library',

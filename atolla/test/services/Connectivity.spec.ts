@@ -1,10 +1,10 @@
 import 'jasmine/src/jasmine';
+import { type ConnectionMode, ConnectionModes } from 'atolla/src/models/App';
 import { Connectivity, type ConnectivityDeps } from 'atolla/src/services/Connectivity';
 import type { AuthSession } from 'atolla/src/services/JellyfinAuthService';
 import type { SessionManager } from 'atolla/src/services/SessionManager';
 import type { Preferences } from 'atolla/src/stores/Preferences';
 import { LiveTransport } from 'atolla/src/transports/Live';
-import { type ConnectionMode, ConnectionModes } from 'atolla/src/transports/Model';
 import { OfflineTransport } from 'atolla/src/transports/Offline';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 

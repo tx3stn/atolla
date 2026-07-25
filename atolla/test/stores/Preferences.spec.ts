@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import { ConnectionModes } from 'atolla/src/models/App';
 import { InMemoryKeyValueStore } from 'atolla/src/stores/KeyValueStore';
 import {
 	DEFAULT_GRID_COLUMNS,
@@ -8,7 +9,6 @@ import {
 	Preferences,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from 'atolla/src/stores/Preferences';
-import { ConnectionModes } from 'atolla/src/transports/Model';
 
 describe('Preferences', () => {
 	describe('getGridColumns()', () => {

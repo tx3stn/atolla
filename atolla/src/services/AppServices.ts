@@ -1,8 +1,8 @@
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import type { ConnectionMode } from '../models/App';
 import type { BarColorStore } from '../stores/BarColor';
 import type { PlaybackStore } from '../stores/Playback';
 import type { Preferences } from '../stores/Preferences';
-import type { ConnectionMode } from '../transports/Model';
 import type { Transport } from '../transports/Transport';
 import type { ArtworkPaletteService } from './ArtworkPaletteService';
 import type { DownloadService } from './DownloadService';

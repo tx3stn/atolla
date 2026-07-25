@@ -1,7 +1,7 @@
 import 'jasmine/src/jasmine';
+import { ConnectionModes } from 'atolla/src/models/App';
 import type { Track } from 'atolla/src/models/Track';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
-import { ConnectionModes } from 'atolla/src/transports/Model';
 import type { Transport } from 'atolla/src/transports/Transport';
 import { MixesSection } from 'atolla/src/ui/components/MixesSection';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';

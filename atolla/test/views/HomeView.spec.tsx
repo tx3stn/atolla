@@ -1,5 +1,6 @@
 import 'jasmine/src/jasmine';
 import type { Album } from 'atolla/src/models/Album';
+import { ConnectionModes } from 'atolla/src/models/App';
 import type { Track } from 'atolla/src/models/Track';
 import type { ImageCache } from 'atolla/src/services/ImageCache';
 import type { OnThisDayService } from 'atolla/src/services/OnThisDayService';
@@ -7,7 +8,6 @@ import type { RecentlyAddedService } from 'atolla/src/services/RecentlyAddedServ
 import type { ToastService } from 'atolla/src/services/ToastService';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
 import { Preferences } from 'atolla/src/stores/Preferences';
-import { ConnectionModes } from 'atolla/src/transports/Model';
 import type { Transport } from 'atolla/src/transports/Transport';
 import { HomeView, type HomeViewModel } from 'atolla/src/ui/views/HomeView';
 import { InstrumentedComponentJSX } from 'valdi_test/test/JSXTestUtils';

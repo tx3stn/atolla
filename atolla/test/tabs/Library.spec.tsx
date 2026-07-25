@@ -1,8 +1,7 @@
 import 'jasmine/src/jasmine';
-import { HeaderTabs } from 'atolla/src/models/App';
+import { ConnectionModes, HeaderTabs } from 'atolla/src/models/App';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { Preferences } from 'atolla/src/stores/Preferences';
-import { ConnectionModes } from 'atolla/src/transports/Model';
 import { ErrorBoundary } from 'atolla/src/ui/components/ErrorBoundary';
 import { LibraryView } from 'atolla/src/ui/tabs/Library';
 import { makeTestViewCache } from 'atolla/test/util/viewCache';
