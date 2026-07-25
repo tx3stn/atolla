@@ -10,6 +10,7 @@ import type {
 	TextField,
 	View,
 } from 'valdi_tsx/src/NativeTemplateElements';
+import type { DevTools } from '../../dev/DevTools';
 import {
 	clearAtollaNativeCacheCategories,
 	requestAtollaImageLoaderDiskCacheStats,
@@ -54,6 +55,7 @@ import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 const NATIVE_CACHE_STATS_INTERVAL_MS = 1000;
 
 export interface SettingsViewModel {
+	devTools?: DevTools;
 	downloadService: DownloadService;
 	modalSlot: DetachedSlot;
 	paletteService: ArtworkPaletteService;
@@ -284,6 +286,19 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 							value={version}
 						/>
 					</view>
+
+					{this.viewModel.devTools && (
+						<view>
+							<label style={styles.sectionTitle} value={Strings.devToolsSection()} />
+							<view style={styles.section}>
+								<Button
+									accessibilityId='settings-dev-gallery'
+									label={Strings.devToolsGalleryButton()}
+									onTap={this.handleOpenDevGallery}
+								/>
+							</view>
+						</view>
+					)}
 				</view>
 			</scroll>
 		</layout>;
@@ -426,6 +441,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		});
 	};
 
+	private handleCloseDevGallery = (): void => {
+		closeSlot(this.viewModel.modalSlot);
+	};
+
 	private handleDebugLoggingToggle = (enabled: boolean): void => {
 		void this.viewModel.preferences.setDebugLoggingEnabled(enabled);
 		Logger.setEnabled(enabled);
@@ -497,6 +516,14 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 				title={Strings.settingsLogoutButton()}
 			/>;
 		});
+	};
+
+	private handleOpenDevGallery = (): void => {
+		const devTools = this.viewModel.devTools;
+		if (!devTools) {
+			return;
+		}
+		openSlot(this.viewModel.modalSlot, devTools.galleryRenderer(this.handleCloseDevGallery));
 	};
 
 	private handleShareDebugLogPress = (): void => {

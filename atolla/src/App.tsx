@@ -9,6 +9,7 @@ import { HTTPClient } from 'valdi_http/src/HTTPClient';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
 import { AuthedApp } from './AuthedApp';
+import type { DevTools } from './dev/DevTools';
 import { ensureAtollaHapticsBootstrap } from './HapticsBootstrap';
 import {
 	ensureAtollaImageLoaderBootstrap,
@@ -88,7 +89,12 @@ interface AppState {
 	version: number;
 }
 
-export class App extends StatefulComponent<Record<string, never>, AppState> {
+export interface AppViewModel {
+	// only ever supplied by the dev app root (//atolla_dev); undefined in the released build
+	devTools?: DevTools;
+}
+
+export class App extends StatefulComponent<AppViewModel, AppState> {
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
 	private readonly defaultJellyfinClientDeviceId = `atolla-${this.deviceUserScopeKey}`;
 	private authService = this.createAuthService();
@@ -376,6 +382,7 @@ export class App extends StatefulComponent<Record<string, never>, AppState> {
 		<view style={theme.app.root}>
 			<AuthedApp
 				connectionMode={this.state.connectionMode}
+				devTools={this.viewModel.devTools}
 				downloadService={this.downloadService}
 				homeViewModel={this.buildHomeViewModel()}
 				libraryViewModel={this.buildLibraryViewModel()}

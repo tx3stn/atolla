@@ -4,6 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { DevTools } from './dev/DevTools';
 import { type FooterTab, FooterTabs } from './models/App';
 import Strings from './Strings';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
@@ -30,6 +31,7 @@ import type { SearchViewModel } from './ui/views/SearchView';
 
 export interface AuthedAppViewModel {
 	connectionMode: ConnectionMode;
+	devTools?: DevTools;
 	downloadService: DownloadService;
 	homeViewModel: Omit<HomeTabViewModel, 'onNavigationControllerReady'>;
 	libraryViewModel: Omit<LibraryViewModel, 'onNavigationControllerReady'>;
@@ -153,6 +155,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 				<view style={this.tabStyle(FooterTabs.settings)}>
 					<ErrorBoundary resetKey='settings'>
 						<SettingsTab
+							devTools={this.viewModel.devTools}
 							downloadService={this.viewModel.downloadService}
 							modalSlot={this.viewModel.modalSlot}
 							paletteService={this.viewModel.paletteService}

@@ -29,6 +29,8 @@ declare const Strings: {
 	createPlaylistIncludePlayed: () => string;
 	createPlaylistIncludeUpNext: () => string;
 	createPlaylistModalTitle: () => string;
+	devToolsGalleryButton: () => string;
+	devToolsSection: () => string;
 	done: () => string;
 	enterServerUrl: () => string;
 	errorBoundaryTitle: () => string;

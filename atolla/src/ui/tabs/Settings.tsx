@@ -6,6 +6,7 @@ export interface SettingsTabViewModel extends SettingsViewModel {}
 export class SettingsTab extends Component<SettingsTabViewModel> {
 	onRender(): void {
 		<SettingsView
+			devTools={this.viewModel.devTools}
 			downloadService={this.viewModel.downloadService}
 			modalSlot={this.viewModel.modalSlot}
 			paletteService={this.viewModel.paletteService}

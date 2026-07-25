@@ -1,6 +1,21 @@
 load("@valdi//bzl/valdi:valdi_application.bzl", "valdi_application")
+load("@valdi//bzl/valdi:valdi_module.bzl", "valdi_module")
 
 package(default_visibility = ["//visibility:public"])
+
+# Dev-only app sources: the AppDev root, the DevTools implementation, and the toast
+# gallery. This module depends on //atolla (one-way: dev -> shared) so none of it is
+# pulled into the released //:atolla closure — the single-file codegen only bakes in
+# modules reachable from the release root_component_path (App@atolla/src/App).
+valdi_module(
+    name = "atolla_dev",
+    srcs = glob([
+        "src/**/*.ts",
+        "src/**/*.tsx",
+    ]),
+    visibility = ["//visibility:public"],
+    deps = ["//atolla"],
+)
 
 # The dev launcher icon lives in this package's own resource root (res/) rather than the
 # shared atolla/native/android/res tree, because the resource packaging compiles a whole
@@ -33,8 +48,8 @@ valdi_application(
     ios_bundle_id = "com.tx3stn.atolla.dev",
     ios_families = ["iphone"],
     ios_info_plist = "//atolla/native:ios_info_plist",
-    root_component_path = "App@atolla/src/App",
+    root_component_path = "AppDev@atolla_dev/src/AppDev",
     title = "atolla dev",
     version = "0.0.0",
-    deps = ["//atolla"],
+    deps = [":atolla_dev"],
 )
