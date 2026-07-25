@@ -1,0 +1,27 @@
+# https://lefthook.dev/configuration/
+assert_lefthook_installed: true
+pre-push:
+  parallel: true
+  fail_on_changes: always
+  fail_on_changes_diff: true
+  commands:
+    check:static:
+      run: bun run check:static
+
+    check:zig:
+      run: bun run check:zig
+
+    compile:
+      run: bun run compile
+
+    lint:
+      run: bun run lint
+
+    test:
+      run: bun run test
+
+    test:components:
+      run: bun run test:components
+
+    test:zig:
+      run: bun run test:zig
