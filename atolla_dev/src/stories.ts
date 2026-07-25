@@ -52,8 +52,8 @@ export const toastStories: Array<ToastStory> = [
 		run: (services) =>
 			services.toastService.show(
 				{
+					detail: "couldn't sync “late night mix” — the playlist was removed on the server",
 					message: '2 of 3 synced — tap for details',
-					onTap: () => services.toastService.show({ message: 'tapped!', variant: ToastTypes.info }),
 					variant: ToastTypes.error,
 				},
 				6000,

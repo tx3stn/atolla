@@ -10,6 +10,9 @@ import { LoopingArrowSpinner } from './LoopingArrowSpinner';
 const restTop = theme.padding.scrollHeader(null);
 const hiddenTop = restTop - 12;
 const iconSize = 18;
+// beyond this the message spills past the two-line clamp, so the toast becomes tappable to unclamp it.
+// an approximation of two lines at the pill's width — exact truncation isn't measurable here.
+const longMessageLength = 56;
 
 const enterAnimation = { damping: 22, stiffness: 260 };
 const exitAnimation = { curve: AnimationCurve.EaseIn, duration: 0.18 };
@@ -17,6 +20,7 @@ const exitAnimation = { curve: AnimationCurve.EaseIn, duration: 0.18 };
 export interface ToastViewModel {
 	animationsEnabled: boolean;
 	closing: boolean;
+	detail?: string;
 	message: string;
 	// invoked once the exit animation completes (or immediately when animations are disabled) so the
 	// host can clear the slot
@@ -26,6 +30,7 @@ export interface ToastViewModel {
 }
 
 interface ToastState {
+	expanded: boolean;
 	shown: boolean;
 }
 
@@ -41,6 +46,9 @@ function variantIcon(variant: ToastType): VariantIcon | null {
 	if (variant === ToastTypes.error) {
 		return { src: res.alert, tint: theme.colors.destructive };
 	}
+	if (variant === ToastTypes.info) {
+		return { src: res.info, tint: theme.colors.active };
+	}
 	return null;
 }
 
@@ -48,7 +56,7 @@ function variantIcon(variant: ToastType): VariantIcon | null {
 // panel) that springs in and out. the progress variant shows a spinner; success/error show a tinted
 // icon. auto-dismiss timing lives in ToastService, never here.
 export class Toast extends StatefulComponent<ToastViewModel, ToastState> {
-	state: ToastState = { shown: false };
+	state: ToastState = { expanded: false, shown: false };
 
 	onCreate(): void {
 		this.animateIn();
@@ -58,11 +66,12 @@ export class Toast extends StatefulComponent<ToastViewModel, ToastState> {
 		const atRest = this.state.shown || !this.viewModel.animationsEnabled;
 		const isProgress = this.viewModel.variant === ToastTypes.progress;
 		const icon = variantIcon(this.viewModel.variant);
+		const expanded = this.state.expanded;
 
 		<view
 			accessibilityId='toast'
 			accessibilityLabel='toast'
-			onTap={this.viewModel.onTap}
+			onTap={this.handleTap()}
 			style={atRest ? styles.containerShown : styles.containerHidden}
 		>
 			{isProgress && (
@@ -75,7 +84,16 @@ export class Toast extends StatefulComponent<ToastViewModel, ToastState> {
 				</view>
 			)}
 			{!isProgress && icon && <image src={icon.src} style={styles.icon} tint={icon.tint} />}
-			<label numberOfLines={2} style={styles.message} value={this.viewModel.message} />
+			<view style={styles.textColumn}>
+				<label
+					numberOfLines={expanded ? 0 : 2}
+					style={styles.message}
+					value={this.viewModel.message}
+				/>
+				{expanded && this.viewModel.detail && (
+					<label numberOfLines={0} style={styles.detail} value={this.viewModel.detail} />
+				)}
+			</view>
 		</view>;
 	}
 
@@ -118,11 +136,31 @@ export class Toast extends StatefulComponent<ToastViewModel, ToastState> {
 			});
 		});
 	}
+
+	// an explicit onTap action wins; otherwise a toast with detail or an over-long message taps to
+	// expand in place. plain short toasts stay non-interactive.
+	private handleTap(): (() => void) | undefined {
+		if (this.viewModel.onTap) {
+			return this.viewModel.onTap;
+		}
+		if (this.isExpandable()) {
+			return this.toggleExpanded;
+		}
+		return undefined;
+	}
+
+	private isExpandable(): boolean {
+		return this.viewModel.detail !== undefined || this.viewModel.message.length > longMessageLength;
+	}
+
+	private toggleExpanded = (): void => {
+		this.setState({ expanded: !this.state.expanded });
+	};
 }
 
 const containerBase = {
-	alignItems: 'center' as const,
-	backgroundColor: theme.colors.bgFrosted,
+	alignItems: 'flex-start' as const,
+	backgroundColor: theme.colors.bgRaisedFrosted,
 	borderRadius: theme.radius.default,
 	boxShadow: theme.shadow.raised,
 	flexDirection: 'row' as const,
@@ -147,16 +185,25 @@ const styles = {
 		opacity: 1,
 		top: restTop,
 	}),
+	detail: new Style<Label>({
+		...theme.text.sub,
+		marginTop: 4,
+	}),
 	icon: new Style<ImageView>({
 		height: iconSize,
 		marginRight: 10,
+		marginTop: 2,
 		width: iconSize,
 	}),
 	leading: new Style<View>({
 		marginRight: 10,
+		marginTop: 2,
 	}),
 	message: new Style<Label>({
 		...theme.text.mainBold,
+	}),
+	textColumn: new Style<View>({
+		flexDirection: 'column' as const,
 		flexShrink: 1,
 	}),
 };

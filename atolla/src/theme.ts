@@ -13,6 +13,7 @@ const colors = {
 	bgDim: '#0b1320',
 	bgFrosted: 'rgba(0,0,0,0.8)',
 	bgRaised: '#151515',
+	bgRaisedFrosted: 'rgba(11,11,11,0.8)',
 	destructive: '#ef4444',
 	grey: '#98a2b3',
 	muted: '#667085',

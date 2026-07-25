@@ -8,8 +8,11 @@ export const ToastTypes = {
 export type ToastType = (typeof ToastTypes)[keyof typeof ToastTypes];
 
 export interface ToastModel {
+	// secondary line revealed in-place when the toast is tapped (e.g. a partial sync's failure summary).
+	// its presence makes the toast tappable-to-expand; a long message is also tappable to unclamp.
+	detail?: string;
 	message: string;
-	// when set the toast is tappable (e.g. a partial sync surfaces its failure detail)
+	// when set the tap runs this action instead of expanding (e.g. a partial sync opens the error modal)
 	onTap?: () => void;
 	variant: ToastType;
 }

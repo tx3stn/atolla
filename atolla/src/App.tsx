@@ -245,6 +245,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 							<Toast
 								animationsEnabled={this.preferences.animationsEnabled}
 								closing={active.closing}
+								detail={active.model.detail}
 								message={active.model.message}
 								onDismissed={() => this.toastService.dismissed()}
 								onTap={active.model.onTap}

@@ -67,6 +67,41 @@ describe('Toast', () => {
 		expect(spinner).toBeTruthy();
 	});
 
+	valdiIt('tints the icon with the active colour for info', async (driver) => {
+		const component = driver.renderComponent(
+			Toast,
+			{ ...baseViewModel, message: 'nothing to sync', variant: ToastTypes.info },
+			undefined,
+		);
+
+		const images = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Image,
+		);
+		expect(images[0].getAttribute('tint')).toBe(theme.colors.active);
+	});
+
+	valdiIt('reveals the detail line in place when a detail toast is tapped', async (driver) => {
+		const component = driver.renderComponent(
+			Toast,
+			{
+				...baseViewModel,
+				detail: 'the playlist was removed on the server',
+				message: '2 of 3 synced',
+				variant: ToastTypes.error,
+			},
+			undefined,
+		);
+
+		expect(labelValues(component)).not.toContain('the playlist was removed on the server');
+
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const pill = views.find((view) => view.getAttribute('accessibilityLabel') === 'toast');
+		pill?.getAttribute('onTap')?.(touchEvent);
+
+		expect(labelValues(component)).toContain('the playlist was removed on the server');
+	});
+
 	valdiIt('invokes onTap when the pill is tapped', async (driver) => {
 		let tapped = false;
 		const component = driver.renderComponent(
