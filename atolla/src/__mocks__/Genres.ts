@@ -1,74 +1,38 @@
 import type { JellyfinGenreItem } from '../models/jellyfin/Types';
+import { mockJellyfinAlbums, mockJellyfinTracks } from './Albums';
 
-export const mockJellyfinGenres: Array<JellyfinGenreItem> = [
-	{
-		Id: 'genre-1',
-		ImageTags: { Primary: 'mock' },
-		Name: 'Post-Hardcore',
-		RecursiveItemCount: 14,
-		Type: 'MusicGenre',
-	},
-	{
-		Id: 'genre-2',
-		ImageTags: { Primary: 'mock' },
-		Name: 'Noise Rock',
-		RecursiveItemCount: 10,
-		Type: 'MusicGenre',
-	},
-	{
-		Id: 'genre-3',
-		ImageTags: { Primary: 'mock' },
-		Name: 'Industrial',
-		RecursiveItemCount: 8,
-		Type: 'MusicGenre',
-	},
-	{
-		Id: 'genre-4',
-		ImageTags: { Primary: 'mock' },
-		Name: 'Shoegaze',
-		RecursiveItemCount: 7,
-		Type: 'MusicGenre',
-	},
-	{
-		Id: 'genre-5',
-		ImageTags: { Primary: 'mock' },
-		Name: 'Hyperpop',
-		RecursiveItemCount: 11,
-		Type: 'MusicGenre',
-	},
-	{
-		Id: 'genre-6',
-		ImageTags: { Primary: 'mock' },
-		Name: 'Black Metal',
-		RecursiveItemCount: 9,
-		Type: 'MusicGenre',
-	},
-	{
-		Id: 'genre-7',
-		ImageTags: { Primary: 'mock' },
-		Name: 'Hardcore Punk',
-		RecursiveItemCount: 16,
-		Type: 'MusicGenre',
-	},
-	{
-		Id: 'genre-8',
-		ImageTags: { Primary: 'mock' },
-		Name: 'Alternative',
-		RecursiveItemCount: 12,
-		Type: 'MusicGenre',
-	},
+const albumGenreMap = new Map(mockJellyfinAlbums.map((a) => [a.Id, a.GenreItems ?? []]));
+
+export const mockGenreTrackIds: Record<string, Array<string>> = {};
+for (const track of mockJellyfinTracks) {
+	for (const genre of albumGenreMap.get(track.AlbumId ?? '') ?? []) {
+		if (!mockGenreTrackIds[genre.Id]) mockGenreTrackIds[genre.Id] = [];
+		mockGenreTrackIds[genre.Id].push(track.Id);
+	}
+}
+
+const GENRE_METADATA = [
+	{ Id: 'genre-1', Name: 'Metalcore' },
+	{ Id: 'genre-2', Name: 'Post-Hardcore' },
+	{ Id: 'genre-3', Name: 'Screamo' },
+	{ Id: 'genre-4', Name: 'Hardcore' },
+	{ Id: 'genre-5', Name: 'Noise Rock' },
+	{ Id: 'genre-6', Name: 'Black Metal' },
+	{ Id: 'genre-7', Name: 'Doom Metal' },
+	{ Id: 'genre-8', Name: 'Industrial' },
+	{ Id: 'genre-9', Name: 'Hyperpop' },
+	{ Id: 'genre-10', Name: 'Synth-pop' },
+	{ Id: 'genre-11', Name: 'Indie Pop' },
+	{ Id: 'genre-12', Name: 'Shoegaze' },
 ];
 
-export const mockGenreTrackIds: Record<string, Array<string>> = {
-	'genre-1': ['track-1', 'track-2', 'track-8', 'track-10', 'track-13', 'track-21'],
-	'genre-2': ['track-3', 'track-4', 'track-5', 'track-7', 'track-11'],
-	'genre-3': ['track-49', 'track-51', 'track-54', 'track-57'],
-	'genre-4': ['track-37', 'track-39', 'track-45', 'track-47'],
-	'genre-5': ['track-61', 'track-62', 'track-67'],
-	'genre-6': ['track-25', 'track-27', 'track-33', 'track-35'],
-	'genre-7': ['track-9', 'track-14', 'track-15', 'track-16', 'track-17', 'track-18'],
-	'genre-8': ['track-41', 'track-42', 'track-43', 'track-44', 'track-46'],
-};
+export const mockJellyfinGenres: Array<JellyfinGenreItem> = GENRE_METADATA.map((g) => ({
+	Id: g.Id,
+	ImageTags: { Primary: 'mock' },
+	Name: g.Name,
+	RecursiveItemCount: mockGenreTrackIds[g.Id]?.length ?? 0,
+	Type: 'MusicGenre',
+}));
 
 export const mockGenrePrimaryImageUrls: Record<string, string> = {
 	'genre-1':
@@ -87,4 +51,12 @@ export const mockGenrePrimaryImageUrls: Record<string, string> = {
 		'https://images.unsplash.com/photo-1501612780327-45045538702b?auto=format&fit=crop&w=1000&q=80',
 	'genre-8':
 		'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=1000&q=80',
+	'genre-9':
+		'https://images.unsplash.com/photo-1571330735066-03aaa9429d89?auto=format&fit=crop&w=1000&q=80',
+	'genre-10':
+		'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1000&q=80',
+	'genre-11':
+		'https://images.unsplash.com/photo-1487180144351-b8472da7d491?auto=format&fit=crop&w=1000&q=80',
+	'genre-12':
+		'https://images.unsplash.com/photo-1519412957820-df091cc20081?auto=format&fit=crop&w=1000&q=80',
 };

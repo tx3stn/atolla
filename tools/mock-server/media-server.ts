@@ -5,12 +5,49 @@
 //
 // add real files to ./media/audio/<trackId>.mp3 and ./media/images/<id>.jpg
 // `default.*` in each folder is used as a fallback for any id.
+//
+// dynamic endpoints handled here (wiretap proxies unmatched /Items requests):
+//   GET /Items?searchTerm=...  — client-side search over mock data
 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { mockJellyfinAlbums, mockJellyfinTracks } from '../../atolla/src/__mocks__/Albums';
+import { mockJellyfinArtists } from '../../atolla/src/__mocks__/Artists';
+import { mockJellyfinPlaylists } from '../../atolla/src/__mocks__/Playlists';
 
 const MEDIA_DIR = join(import.meta.dir, 'media');
 const PORT = Number(process.env.MOCK_MEDIA_PORT ?? 8788);
+
+function searchItems(term: string): Array<unknown> {
+	const q = term.toLowerCase();
+	const results: Array<unknown> = [];
+	for (const artist of mockJellyfinArtists) {
+		if (artist.Name.toLowerCase().includes(q)) results.push(artist);
+	}
+	for (const album of mockJellyfinAlbums) {
+		if (album.Name.toLowerCase().includes(q) || album.AlbumArtist?.toLowerCase().includes(q)) {
+			results.push(album);
+		}
+	}
+	for (const playlist of mockJellyfinPlaylists) {
+		if (playlist.Name.toLowerCase().includes(q)) results.push(playlist);
+	}
+	for (const track of mockJellyfinTracks) {
+		if (
+			track.Name.toLowerCase().includes(q) ||
+			track.Album?.toLowerCase().includes(q) ||
+			track.AlbumArtist?.toLowerCase().includes(q)
+		) {
+			results.push(track);
+		}
+	}
+	return results;
+}
+
+function jsonResponse(items: Array<unknown>): Response {
+	const body = JSON.stringify({ Items: items, StartIndex: 0, TotalRecordCount: items.length });
+	return new Response(body, { headers: { 'content-type': 'application/json' } });
+}
 
 function firstExisting(candidates: Array<string>): string | null {
 	for (const rel of candidates) {
@@ -26,9 +63,13 @@ function resolveMediaPath(pathname: string): string | null {
 		const id = decodeURIComponent(audio[1]);
 		return firstExisting([`audio/${id}.mp3`, `audio/${id}.m4a`, 'audio/default.mp3']);
 	}
-	const image = pathname.match(/^\/Items\/([^/]+)\/Images\//);
+	const image = pathname.match(/^\/Items\/([^/]+)\/Images\/([^/?]+)/);
 	if (image) {
 		const id = decodeURIComponent(image[1]);
+		const type = image[2].toLowerCase();
+		if (type === 'logo') {
+			return firstExisting([`images/${id}-logo.png`]);
+		}
 		return firstExisting([`images/${id}.jpg`, `images/${id}.png`, 'images/default.jpg']);
 	}
 	return null;
@@ -48,6 +89,12 @@ Bun.serve({
 		// scrobble / playstate are fire-and-forget POSTs; answer 200 so they don't error
 		if (req.method === 'POST' && url.pathname.startsWith('/UserPlayedItems')) {
 			return new Response('{}', { headers: { 'content-type': 'application/json' } });
+		}
+
+		// search: wiretap proxies /Items?searchTerm=... here when no fixture matches
+		const searchTerm = url.pathname === '/Items' ? url.searchParams.get('searchTerm') : null;
+		if (searchTerm) {
+			return jsonResponse(searchItems(searchTerm));
 		}
 
 		const path = resolveMediaPath(url.pathname);

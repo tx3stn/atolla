@@ -1,12 +1,13 @@
 // generates a wiretap static-mock tree from the app's typed Jellyfin fixtures.
 
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { mockJellyfinAlbums, mockJellyfinTracks } from '../../atolla/src/__mocks__/Albums';
 import { mockJellyfinArtists } from '../../atolla/src/__mocks__/Artists';
 import { mockGenreTrackIds, mockJellyfinGenres } from '../../atolla/src/__mocks__/Genres';
 import { mockJellyfinPlaylists } from '../../atolla/src/__mocks__/Playlists';
 import type {
+	JellyfinAlbumItem,
 	JellyfinBaseItemDto,
 	JellyfinMediaSource,
 	JellyfinTrackItem,
@@ -116,6 +117,23 @@ function reset(): void {
 	mkdirSync(BODIES_DIR, { recursive: true });
 }
 
+// IDs of the two albums whose PremiereDate is overridden to match today so
+// the "on this day" discovery sweep always finds exactly two results.
+const ON_THIS_DAY_IDS = new Set(['album-1', 'album-2']);
+
+function todayMMDD(): string {
+	const now = new Date();
+	return `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function withTodayDate(album: JellyfinAlbumItem, mmdd: string): JellyfinAlbumItem {
+	if (!ON_THIS_DAY_IDS.has(album.Id)) return album;
+	const year = album.PremiereDate?.slice(0, 4) ?? '2000';
+	return { ...album, PremiereDate: `${year}-${mmdd}` };
+}
+
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('');
+
 function generate(): void {
 	reset();
 
@@ -150,7 +168,12 @@ function generate(): void {
 	);
 
 	// ---- album collections (all share /Items, disambiguated by sortBy) ----
+	const mmdd = todayMMDD();
 	const albumsSorted = albumsDefaultOrder(mockJellyfinAlbums);
+	// albums with today's month/day patched onto the two "on this day" albums
+	const albumsWithTodayDate = albumsDefaultOrder(
+		mockJellyfinAlbums.map((a) => withTodayDate(a, mmdd)),
+	);
 	fixture(
 		'albums-list',
 		get('/Items', { includeItemTypes: 'MusicAlbum', sortBy: 'PremiereDate,SortName' }),
@@ -159,7 +182,7 @@ function generate(): void {
 	fixture(
 		'albums-recent',
 		get('/Items', { includeItemTypes: 'MusicAlbum', sortBy: 'DateCreated' }),
-		envelope(albumsSorted),
+		envelope(albumsSorted.slice(0, 6)),
 	);
 	fixture(
 		'albums-random',
@@ -169,8 +192,45 @@ function generate(): void {
 	fixture(
 		'albums-releasedates',
 		get('/Items', { includeItemTypes: 'MusicAlbum', sortBy: 'PremiereDate' }),
-		envelope(albumsSorted),
+		envelope(albumsWithTodayDate),
 	);
+
+	// ---- getAlbumsByIds: on-this-day hydration (the only known caller) ----
+	// IDs must appear in the order the discovery sweep collects them (PremiereDate desc).
+	const onThisDayIdOrder = albumsWithTodayDate
+		.filter((a) => ON_THIS_DAY_IDS.has(a.Id))
+		.map((a) => a.Id);
+	fixture(
+		'albums-by-ids-on-this-day',
+		get('/Items', { ids: onThisDayIdOrder.join(','), includeItemTypes: 'MusicAlbum' }),
+		envelope(
+			onThisDayIdOrder.flatMap((id) => {
+				const album = albumsWithTodayDate.find((a) => a.Id === id);
+				return album ? [album] : [];
+			}),
+		),
+	);
+
+	// ---- per-artist item fetch (getArtistLogoUrl calls getItem which hits /Items/<id>) ----
+	// Logo tag only set when a logo file exists — without it the app shows the text fallback.
+	const IMAGES_DIR = join(import.meta.dir, 'media', 'images');
+	for (const artist of mockJellyfinArtists) {
+		const hasLogo = existsSync(join(IMAGES_DIR, `${artist.Id}-logo.png`));
+		fixture(
+			`artist-by-id-${slug(artist.Id)}`,
+			get(`/Items/${artist.Id}`, { fields: 'Overview', userId: USER_ID }),
+			hasLogo ? { ...artist, ImageTags: { ...artist.ImageTags, Logo: 'mock' } } : artist,
+		);
+	}
+
+	// ---- per-album item fetch (AlbumView calls getAlbumsByIds([id]) when genres are missing) ----
+	for (const album of mockJellyfinAlbums) {
+		fixture(
+			`album-by-id-${slug(album.Id)}`,
+			get('/Items', { fields: 'Overview,Genres', ids: album.Id, includeItemTypes: 'MusicAlbum' }),
+			envelope([album]),
+		);
+	}
 
 	// ---- artists / playlists / genres lists ----
 	fixture(
@@ -250,13 +310,19 @@ function generate(): void {
 			const track = tracksById.get(id);
 			return track ? [trackDto(track)] : [];
 		});
-		for (const sortBy of ['Random', 'SortName']) {
-			fixture(
-				`tracks-by-genre-${slug(genre.Id)}-${sortBy.toLowerCase()}`,
-				get('/Items', { genreIds: genre.Id, includeItemTypes: 'Audio', sortBy }),
-				envelope(genreTracks),
-			);
-		}
+		const genreTracksSortName = [...genreTracks].sort((a, b) =>
+			(a.Name ?? '').localeCompare(b.Name ?? ''),
+		);
+		fixture(
+			`tracks-by-genre-${slug(genre.Id)}-sortname`,
+			get('/Items', { genreIds: genre.Id, includeItemTypes: 'Audio', sortBy: 'SortName' }),
+			envelope(genreTracksSortName),
+		);
+		fixture(
+			`tracks-by-genre-${slug(genre.Id)}-random`,
+			get('/Items', { genreIds: genre.Id, includeItemTypes: 'Audio', sortBy: 'Random' }),
+			envelope(genreTracks),
+		);
 	}
 
 	// ---- tracks by year ----
@@ -319,10 +385,58 @@ function generate(): void {
 		);
 	}
 
+	// ---- A-Z letter filters (albums / artists / playlists, all 26 letters + digit bucket) ----
+	// nameStartsWith and nameLessThan are more specific than the base list fixtures so
+	// wiretap's most-specific-wins rule picks the right one for filtered requests.
+	for (const letter of LETTERS) {
+		const upper = letter.toUpperCase();
+		fixture(
+			`albums-letter-${letter}`,
+			get('/Items', {
+				includeItemTypes: 'MusicAlbum',
+				nameStartsWith: upper,
+				sortBy: 'PremiereDate,SortName',
+			}),
+			envelope(
+				albumsDefaultOrder(
+					mockJellyfinAlbums.filter((a) => a.Name.toUpperCase().startsWith(upper)),
+				),
+			),
+		);
+		fixture(
+			`artists-letter-${letter}`,
+			get('/Items', { includeItemTypes: 'MusicArtist', nameStartsWith: upper, sortBy: 'SortName' }),
+			envelope(byName(mockJellyfinArtists.filter((a) => a.Name.toUpperCase().startsWith(upper)))),
+		);
+		fixture(
+			`playlists-letter-${letter}`,
+			get('/Items', { includeItemTypes: 'Playlist', nameStartsWith: upper, sortBy: 'SortName' }),
+			envelope(byName(mockJellyfinPlaylists.filter((p) => p.Name.toUpperCase().startsWith(upper)))),
+		);
+	}
+	// '0' bucket: nameLessThan='A' covers digits and symbols; the app narrows client-side
+	fixture(
+		'albums-letter-0',
+		get('/Items', {
+			includeItemTypes: 'MusicAlbum',
+			nameLessThan: 'A',
+			sortBy: 'PremiereDate,SortName',
+		}),
+		envelope(albumsDefaultOrder(mockJellyfinAlbums.filter((a) => /^\d/.test(a.Name)))),
+	);
+	fixture(
+		'artists-letter-0',
+		get('/Items', { includeItemTypes: 'MusicArtist', nameLessThan: 'A', sortBy: 'SortName' }),
+		envelope(byName(mockJellyfinArtists.filter((a) => /^\d/.test(a.Name)))),
+	);
+	fixture(
+		'playlists-letter-0',
+		get('/Items', { includeItemTypes: 'Playlist', nameLessThan: 'A', sortBy: 'SortName' }),
+		envelope(byName(mockJellyfinPlaylists.filter((p) => /^\d/.test(p.Name)))),
+	);
+
 	// NOT YET COVERED (tracked, not silently dropped):
-	//   - getAlbumsByIds (ids= is a combinatorial set; needs known callers or a resolver)
-	//   - search (searchTerm= is free text; needs per-query fixtures or a smarter responder)
-	//   - A-Z letter filter (nameStartsWith / nameLessThan) — needs the UI's letter casing
+	//   - search (searchTerm= is free text; handled dynamically by media-server.ts)
 	//   - scrobble POST /UserPlayedItems/{id}
 	console.log(`generated ${fixtureCount} fixtures into ${OUT}`);
 }

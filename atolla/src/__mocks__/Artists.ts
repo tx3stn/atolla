@@ -117,9 +117,9 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		ImageTags: {
 			Primary: 'mock',
 		},
-		Name: 'Petey USA',
+		Name: 'Petey',
 		Overview:
-			'Peter Martin, professionally known as Petey USA, is an American musician born November 17, 1991, in Royal Oak, Michigan. He gained prominence on TikTok during the COVID-19 pandemic and is known for his confessional, witty indie pop songwriting. His albums Lean Into Life (2021) and USA (2023) established him as a distinct voice in the DIY singer-songwriter scene.',
+			'Peter Martin, professionally known as Petey, is an American musician born November 17, 1991, in Royal Oak, Michigan. He gained prominence on TikTok during the COVID-19 pandemic and is known for his confessional, witty indie pop songwriting. His albums Lean Into Life (2021) and USA (2023) established him as a distinct voice in the DIY singer-songwriter scene.',
 		Type: 'MusicArtist',
 	},
 	{

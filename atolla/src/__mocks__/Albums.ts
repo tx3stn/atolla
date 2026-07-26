@@ -15,6 +15,11 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Converge',
 			},
 		],
+		GenreItems: [
+			{ Id: 'genre-1', Name: 'Metalcore' },
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
+			{ Id: 'genre-4', Name: 'Hardcore' },
+		],
 		Id: 'album-1',
 		ImageTags: {
 			Primary: 'mock',
@@ -38,6 +43,11 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Id: 'artist-1',
 				Name: 'Converge',
 			},
+		],
+		GenreItems: [
+			{ Id: 'genre-1', Name: 'Metalcore' },
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
+			{ Id: 'genre-4', Name: 'Hardcore' },
 		],
 		Id: 'album-2',
 		ImageTags: {
@@ -63,6 +73,7 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Agriculture',
 			},
 		],
+		GenreItems: [{ Id: 'genre-6', Name: 'Black Metal' }],
 		Id: 'album-3',
 		ImageTags: {
 			Primary: 'mock',
@@ -87,6 +98,7 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Chat Pile',
 			},
 		],
+		GenreItems: [{ Id: 'genre-5', Name: 'Noise Rock' }],
 		Id: 'album-4',
 		ImageTags: {
 			Primary: 'mock',
@@ -110,6 +122,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Id: 'artist-4',
 				Name: 'HEALTH',
 			},
+		],
+		GenreItems: [
+			{ Id: 'genre-8', Name: 'Industrial' },
+			{ Id: 'genre-5', Name: 'Noise Rock' },
 		],
 		Id: 'album-5',
 		ImageTags: {
@@ -135,6 +151,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Single Mothers',
 			},
 		],
+		GenreItems: [
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
+			{ Id: 'genre-4', Name: 'Hardcore' },
+		],
 		Id: 'album-6',
 		ImageTags: {
 			Primary: 'mock',
@@ -158,6 +178,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Id: 'artist-1',
 				Name: 'Converge',
 			},
+		],
+		GenreItems: [
+			{ Id: 'genre-1', Name: 'Metalcore' },
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
 		],
 		Id: 'album-7',
 		ImageTags: {
@@ -183,6 +207,11 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Converge',
 			},
 		],
+		GenreItems: [
+			{ Id: 'genre-1', Name: 'Metalcore' },
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
+			{ Id: 'genre-4', Name: 'Hardcore' },
+		],
 		Id: 'album-8',
 		ImageTags: {
 			Primary: 'mock',
@@ -206,6 +235,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Id: 'artist-1',
 				Name: 'Converge',
 			},
+		],
+		GenreItems: [
+			{ Id: 'genre-4', Name: 'Hardcore' },
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
 		],
 		Id: 'album-9',
 		ImageTags: {
@@ -231,6 +264,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Converge',
 			},
 		],
+		GenreItems: [
+			{ Id: 'genre-1', Name: 'Metalcore' },
+			{ Id: 'genre-4', Name: 'Hardcore' },
+		],
 		Id: 'album-10',
 		ImageTags: {
 			Primary: 'mock',
@@ -254,6 +291,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Id: 'artist-1',
 				Name: 'Converge',
 			},
+		],
+		GenreItems: [
+			{ Id: 'genre-1', Name: 'Metalcore' },
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
 		],
 		Id: 'album-11',
 		ImageTags: {
@@ -279,6 +320,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Converge',
 			},
 		],
+		GenreItems: [
+			{ Id: 'genre-7', Name: 'Doom Metal' },
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
+		],
 		Id: 'album-12',
 		ImageTags: {
 			Primary: 'mock',
@@ -302,6 +347,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Id: 'artist-6',
 				Name: 'Touche Amore',
 			},
+		],
+		GenreItems: [
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
+			{ Id: 'genre-3', Name: 'Screamo' },
 		],
 		Id: 'album-13',
 		ImageTags: {
@@ -327,6 +376,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Touche Amore',
 			},
 		],
+		GenreItems: [
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
+			{ Id: 'genre-3', Name: 'Screamo' },
+		],
 		Id: 'album-14',
 		ImageTags: {
 			Primary: 'mock',
@@ -350,6 +403,11 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Id: 'artist-7',
 				Name: 'The Armed',
 			},
+		],
+		GenreItems: [
+			{ Id: 'genre-1', Name: 'Metalcore' },
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
+			{ Id: 'genre-5', Name: 'Noise Rock' },
 		],
 		Id: 'album-15',
 		ImageTags: {
@@ -375,6 +433,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'The Armed',
 			},
 		],
+		GenreItems: [
+			{ Id: 'genre-1', Name: 'Metalcore' },
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
+		],
 		Id: 'album-16',
 		ImageTags: {
 			Primary: 'mock',
@@ -398,6 +460,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Id: 'artist-8',
 				Name: 'Birds In Row',
 			},
+		],
+		GenreItems: [
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
+			{ Id: 'genre-3', Name: 'Screamo' },
 		],
 		Id: 'album-17',
 		ImageTags: {
@@ -423,6 +489,11 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Birds In Row',
 			},
 		],
+		GenreItems: [
+			{ Id: 'genre-2', Name: 'Post-Hardcore' },
+			{ Id: 'genre-3', Name: 'Screamo' },
+			{ Id: 'genre-4', Name: 'Hardcore' },
+		],
 		Id: 'album-18',
 		ImageTags: {
 			Primary: 'mock',
@@ -447,6 +518,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Carly Rae Jepsen',
 			},
 		],
+		GenreItems: [
+			{ Id: 'genre-10', Name: 'Synth-pop' },
+			{ Id: 'genre-11', Name: 'Indie Pop' },
+		],
 		Id: 'album-19',
 		ImageTags: {
 			Primary: 'mock',
@@ -455,30 +530,6 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 		Overview:
 			"Emotion is Carly Rae Jepsen's third studio album, released in 2015, representing a stylistic shift toward synth-pop drawing inspiration from 1980s music and alternative styles. Features collaborations with prominent producers and artists including Sia, Dev Hynes, and members of The Cardigans, moving away from the bubblegum pop sound of her previous work. Despite modest initial sales, the album developed one of pop music's most devoted cult followings and is now widely considered a modern classic of the genre.",
 		PremiereDate: '2015-08-21',
-		Type: 'MusicAlbum',
-	},
-	{
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'album-20',
-		ImageTags: {
-			Primary: 'mock',
-		},
-		Name: 'The Loneliest Time',
-		Overview:
-			"The Loneliest Time is Carly Rae Jepsen's sixth studio album, released October 21, 2022. Recorded during pandemic lockdown over Zoom collaborations with Tavish Crowe, the album draws inspiration from 80s pop, 70s folk, funk, and disco with a more introspective focus on self-reflection. It was praised for broadening her emotional range while retaining the irresistible melodic instincts that made Emotion a cult touchstone.",
-		PremiereDate: '2022-10-21',
 		Type: 'MusicAlbum',
 	},
 	{
@@ -495,6 +546,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Venturing',
 			},
 		],
+		GenreItems: [
+			{ Id: 'genre-12', Name: 'Shoegaze' },
+			{ Id: 'genre-11', Name: 'Indie Pop' },
+		],
 		Id: 'album-21',
 		ImageTags: {
 			Primary: 'mock',
@@ -506,50 +561,52 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 		Type: 'MusicAlbum',
 	},
 	{
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
+		GenreItems: [{ Id: 'genre-11', Name: 'Indie Pop' }],
 		Id: 'album-23',
 		ImageTags: {
 			Primary: 'mock',
 		},
 		Name: 'Lean Into Life',
 		Overview:
-			'Lean Into Life is Petey USA\'s debut full-length album, released in 2021. Blending confessional indie pop with dry humor and a bedroom production aesthetic, the record established his voice as one of the most distinctive in DIY singer-songwriter circles. Songs like "Apple TV Remote" and the title track balance self-deprecation with genuine emotional sincerity.',
+			'Lean Into Life is Petey\'s debut full-length album, released in 2021. Blending confessional indie pop with dry humor and a bedroom production aesthetic, the record established his voice as one of the most distinctive in DIY singer-songwriter circles. Songs like "Apple TV Remote" and the title track balance self-deprecation with genuine emotional sincerity.',
 		PremiereDate: '2021-09-03',
 		Type: 'MusicAlbum',
 	},
 	{
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
+		GenreItems: [{ Id: 'genre-11', Name: 'Indie Pop' }],
 		Id: 'album-24',
 		ImageTags: {
 			Primary: 'mock',
 		},
 		Name: 'USA',
 		Overview:
-			'USA is Petey USA\'s second studio album, released in 2023. More expansive than his debut, the record explores the bittersweet texture of American life — family, distance, and growing up — with a warmth and detail that elevated him from TikTok curiosity to genuinely acclaimed songwriter. "Family of Six" is among the album\'s most affecting moments.',
+			'USA is Petey\'s second studio album, released in 2023. More expansive than his debut, the record explores the bittersweet texture of American life — family, distance, and growing up — with a warmth and detail that elevated him from TikTok curiosity to genuinely acclaimed songwriter. "Family of Six" is among the album\'s most affecting moments.',
 		PremiereDate: '2023-09-22',
 		Type: 'MusicAlbum',
 	},
@@ -567,6 +624,7 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Jane Remover',
 			},
 		],
+		GenreItems: [{ Id: 'genre-9', Name: 'Hyperpop' }],
 		Id: 'album-25',
 		ImageTags: {
 			Primary: 'mock',
@@ -590,6 +648,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Id: 'artist-12',
 				Name: 'Jane Remover',
 			},
+		],
+		GenreItems: [
+			{ Id: 'genre-12', Name: 'Shoegaze' },
+			{ Id: 'genre-11', Name: 'Indie Pop' },
 		],
 		Id: 'album-26',
 		ImageTags: {
@@ -615,6 +677,7 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Liturgy',
 			},
 		],
+		GenreItems: [{ Id: 'genre-6', Name: 'Black Metal' }],
 		Id: 'album-27',
 		ImageTags: {
 			Primary: 'mock',
@@ -639,6 +702,7 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Liturgy',
 			},
 		],
+		GenreItems: [{ Id: 'genre-6', Name: 'Black Metal' }],
 		Id: 'album-28',
 		ImageTags: {
 			Primary: 'mock',
@@ -662,6 +726,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Id: 'artist-14',
 				Name: 'Beecher',
 			},
+		],
+		GenreItems: [
+			{ Id: 'genre-1', Name: 'Metalcore' },
+			{ Id: 'genre-4', Name: 'Hardcore' },
 		],
 		Id: 'album-29',
 		ImageTags: {
@@ -687,6 +755,10 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Beecher',
 			},
 		],
+		GenreItems: [
+			{ Id: 'genre-1', Name: 'Metalcore' },
+			{ Id: 'genre-4', Name: 'Hardcore' },
+		],
 		Id: 'album-30',
 		ImageTags: {
 			Primary: 'mock',
@@ -711,6 +783,7 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Charli XCX',
 			},
 		],
+		GenreItems: [{ Id: 'genre-9', Name: 'Hyperpop' }],
 		Id: 'album-31',
 		ImageTags: {
 			Primary: 'mock',
@@ -735,6 +808,7 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Charli XCX',
 			},
 		],
+		GenreItems: [{ Id: 'genre-10', Name: 'Synth-pop' }],
 		Id: 'album-32',
 		ImageTags: {
 			Primary: 'mock',
@@ -759,6 +833,7 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 				Name: 'Chelsea Wolfe',
 			},
 		],
+		GenreItems: [{ Id: 'genre-7', Name: 'Doom Metal' }],
 		Id: 'album-33',
 		ImageTags: {
 			Primary: 'mock',
@@ -767,30 +842,6 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 		Overview:
 			"Hiss Spun is Chelsea Wolfe's sixth album, recorded in Salem, Massachusetts during winter 2017, exploring themes of personal upheaval and global chaos. The record combines groaning bass, pounding drums, and distorted textures with sound collages sourced from construction sites, wildlife, and industrial spaces. Wolfe describes the album as both escapist and deeply personal, examining cycles of mood, obsession, and self-examination.",
 		PremiereDate: '2017-09-22',
-		Type: 'MusicAlbum',
-	},
-	{
-		AlbumArtist: 'Chelsea Wolfe',
-		AlbumArtists: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		ArtistItems: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		Id: 'album-34',
-		ImageTags: {
-			Primary: 'mock',
-		},
-		Name: 'She Reaches Out to She Reaches Out to She',
-		Overview:
-			"She Reaches Out to She Reaches Out to She is Chelsea Wolfe's seventh studio album, released February 23, 2024. Written during her sobriety journey that began in 2021, the record explores themes of severing unhealthy connections, personal rebirth, and the non-linear nature of healing. It marks a shift toward trip-hop and industrial textures, with the circular title itself reflecting the cyclical process of transformation it documents.",
-		PremiereDate: '2024-02-23',
 		Type: 'MusicAlbum',
 	},
 ];
@@ -5622,356 +5673,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		Type: 'Audio',
 	},
 	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-39',
-		IndexNumber: 1,
-		Name: 'Surrender My Heart',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 1680000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-141',
-		IndexNumber: 2,
-		Name: 'Joshua Tree',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 1490000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-142',
-		IndexNumber: 3,
-		Name: 'Talking to Yourself',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 1730000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-143',
-		IndexNumber: 4,
-		Name: 'Far Away',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 1790000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-144',
-		IndexNumber: 5,
-		Name: 'Sideways',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 1360000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-145',
-		IndexNumber: 6,
-		Name: 'Beach House',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 1490000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-146',
-		IndexNumber: 7,
-		Name: 'Bends',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 1950000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-147',
-		IndexNumber: 8,
-		Name: 'Western Wind',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 2250000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-211',
-		IndexNumber: 9,
-		Name: 'So Nice',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 2190000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-212',
-		IndexNumber: 10,
-		Name: 'Bad Thing Twice',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 1930000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-213',
-		IndexNumber: 11,
-		Name: 'Shooting Star',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 1990000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-148',
-		IndexNumber: 12,
-		Name: 'Go Find Yourself or Whatever',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 2840000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'The Loneliest Time',
-		AlbumArtist: 'Carly Rae Jepsen',
-		AlbumArtists: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		AlbumId: 'album-20',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-9',
-				Name: 'Carly Rae Jepsen',
-			},
-		],
-		Id: 'track-40',
-		IndexNumber: 13,
-		Name: 'The Loneliest Time',
-		PremiereDate: '2022-10-21',
-		ProductionYear: 2022,
-		RunTimeTicks: 2740000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'Ghostholding',
-		AlbumArtist: 'Venturing',
-		AlbumArtists: [
-			{
-				Id: 'artist-10',
-				Name: 'Venturing',
-			},
-		],
-		AlbumId: 'album-21',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-10',
-				Name: 'Venturing',
-			},
-		],
-		Id: 'track-41',
-		IndexNumber: 1,
-		Name: 'Recoil',
-		PremiereDate: '2025-02-14',
-		ProductionYear: 2025,
-		RunTimeTicks: 2170000000,
-		Type: 'Audio',
-	},
-	{
 		Album: 'Ghostholding',
 		AlbumArtist: 'Venturing',
 		AlbumArtists: [
@@ -6073,11 +5774,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6085,7 +5786,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-214',
@@ -6098,11 +5799,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6110,7 +5811,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-46',
@@ -6123,11 +5824,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6135,7 +5836,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-215',
@@ -6148,11 +5849,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6160,7 +5861,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-216',
@@ -6173,11 +5874,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6185,7 +5886,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-217',
@@ -6198,11 +5899,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6210,7 +5911,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-218',
@@ -6223,11 +5924,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6235,7 +5936,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-219',
@@ -6248,11 +5949,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6260,7 +5961,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-220',
@@ -6273,11 +5974,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6285,7 +5986,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-221',
@@ -6298,11 +5999,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6310,7 +6011,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-222',
@@ -6323,11 +6024,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6335,7 +6036,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-45',
@@ -6348,11 +6049,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6360,7 +6061,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-223',
@@ -6373,11 +6074,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lean Into Life',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-23',
@@ -6385,7 +6086,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-224',
@@ -6398,11 +6099,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6410,7 +6111,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-155',
@@ -6423,11 +6124,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6435,7 +6136,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-333',
@@ -6448,11 +6149,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6460,7 +6161,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-156',
@@ -6473,11 +6174,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6485,7 +6186,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-48',
@@ -6498,11 +6199,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6510,7 +6211,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-334',
@@ -6523,11 +6224,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6535,7 +6236,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-157',
@@ -6548,11 +6249,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6560,7 +6261,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-335',
@@ -6573,11 +6274,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6585,7 +6286,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-336',
@@ -6598,11 +6299,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6610,7 +6311,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-47',
@@ -6623,11 +6324,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6635,7 +6336,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-337',
@@ -6648,11 +6349,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6660,7 +6361,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-338',
@@ -6673,11 +6374,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'USA',
-		AlbumArtist: 'Petey USA',
+		AlbumArtist: 'Petey',
 		AlbumArtists: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		AlbumId: 'album-24',
@@ -6685,7 +6386,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-11',
-				Name: 'Petey USA',
+				Name: 'Petey',
 			},
 		],
 		Id: 'track-339',
@@ -8769,256 +8470,6 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		PremiereDate: '2017-09-22',
 		ProductionYear: 2017,
 		RunTimeTicks: 1840000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'She Reaches Out to She Reaches Out to She',
-		AlbumArtist: 'Chelsea Wolfe',
-		AlbumArtists: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		AlbumId: 'album-34',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		Id: 'track-67',
-		IndexNumber: 1,
-		Name: 'Whispers in the Echo Chamber',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
-		RunTimeTicks: 2410000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'She Reaches Out to She Reaches Out to She',
-		AlbumArtist: 'Chelsea Wolfe',
-		AlbumArtists: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		AlbumId: 'album-34',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		Id: 'track-186',
-		IndexNumber: 2,
-		Name: 'House of Self-Undoing',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
-		RunTimeTicks: 2630000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'She Reaches Out to She Reaches Out to She',
-		AlbumArtist: 'Chelsea Wolfe',
-		AlbumArtists: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		AlbumId: 'album-34',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		Id: 'track-187',
-		IndexNumber: 3,
-		Name: 'Everything Turns Blue',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
-		RunTimeTicks: 2660000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'She Reaches Out to She Reaches Out to She',
-		AlbumArtist: 'Chelsea Wolfe',
-		AlbumArtists: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		AlbumId: 'album-34',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		Id: 'track-68',
-		IndexNumber: 4,
-		Name: 'Tunnel Lights',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
-		RunTimeTicks: 2480000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'She Reaches Out to She Reaches Out to She',
-		AlbumArtist: 'Chelsea Wolfe',
-		AlbumArtists: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		AlbumId: 'album-34',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		Id: 'track-323',
-		IndexNumber: 5,
-		Name: 'The Liminal',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
-		RunTimeTicks: 2920000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'She Reaches Out to She Reaches Out to She',
-		AlbumArtist: 'Chelsea Wolfe',
-		AlbumArtists: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		AlbumId: 'album-34',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		Id: 'track-324',
-		IndexNumber: 6,
-		Name: 'Eyes Like Nightshade',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
-		RunTimeTicks: 2740000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'She Reaches Out to She Reaches Out to She',
-		AlbumArtist: 'Chelsea Wolfe',
-		AlbumArtists: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		AlbumId: 'album-34',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		Id: 'track-325',
-		IndexNumber: 7,
-		Name: 'Salt',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
-		RunTimeTicks: 2640000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'She Reaches Out to She Reaches Out to She',
-		AlbumArtist: 'Chelsea Wolfe',
-		AlbumArtists: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		AlbumId: 'album-34',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		Id: 'track-189',
-		IndexNumber: 8,
-		Name: 'Unseen World',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
-		RunTimeTicks: 2070000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'She Reaches Out to She Reaches Out to She',
-		AlbumArtist: 'Chelsea Wolfe',
-		AlbumArtists: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		AlbumId: 'album-34',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		Id: 'track-326',
-		IndexNumber: 9,
-		Name: 'Place in the Sun',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
-		RunTimeTicks: 2500000000,
-		Type: 'Audio',
-	},
-	{
-		Album: 'She Reaches Out to She Reaches Out to She',
-		AlbumArtist: 'Chelsea Wolfe',
-		AlbumArtists: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		AlbumId: 'album-34',
-		AlbumPrimaryImageTag: 'mock',
-		ArtistItems: [
-			{
-				Id: 'artist-16',
-				Name: 'Chelsea Wolfe',
-			},
-		],
-		Id: 'track-188',
-		IndexNumber: 10,
-		Name: 'Dusk',
-		PremiereDate: '2024-02-23',
-		ProductionYear: 2024,
-		RunTimeTicks: 2740000000,
 		Type: 'Audio',
 	},
 ];
