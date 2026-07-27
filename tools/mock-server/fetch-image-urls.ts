@@ -54,13 +54,21 @@ async function searchOne(
 	return match ?? body.Items[0] ?? null;
 }
 
+const sizingParams: Record<'album' | 'artist' | 'logo', string> = {
+	album: 'maxWidth=1280&maxHeight=1280&quality=90',
+	artist: 'maxWidth=768&maxHeight=768&quality=85',
+	logo: '',
+};
+
 async function downloadImage(
 	realId: string,
 	tag: string,
 	destPath: string,
+	sizing: 'album' | 'artist' | 'logo',
 	type: 'Logo' | 'Primary' = 'Primary',
 ): Promise<boolean> {
-	const url = `${BASE}/Items/${realId}/Images/${type}?tag=${tag}&fillWidth=512&quality=90`;
+	const params = sizingParams[sizing];
+	const url = `${BASE}/Items/${realId}/Images/${type}?tag=${tag}${params ? `&${params}` : ''}`;
 	const res = await fetch(url, { headers });
 	if (!res.ok) return false;
 	await Bun.write(destPath, res);
@@ -95,7 +103,12 @@ for (const { artistName, mockId, name, type } of tasks) {
 		continue;
 	}
 	const dest = join(IMAGES_DIR, `${mockId}.jpg`);
-	const saved = await downloadImage(item.Id, item.ImageTags.Primary, dest);
+	const saved = await downloadImage(
+		item.Id,
+		item.ImageTags.Primary,
+		dest,
+		type === 'MusicAlbum' ? 'album' : 'artist',
+	);
 	if (saved) {
 		console.log(`  saved ${mockId}.jpg  (${name})`);
 		ok++;
@@ -106,7 +119,7 @@ for (const { artistName, mockId, name, type } of tasks) {
 
 	if (type === 'MusicArtist' && item.ImageTags.Logo) {
 		const logoDest = join(IMAGES_DIR, `${mockId}-logo.png`);
-		const logoSaved = await downloadImage(item.Id, item.ImageTags.Logo, logoDest, 'Logo');
+		const logoSaved = await downloadImage(item.Id, item.ImageTags.Logo, logoDest, 'logo', 'Logo');
 		if (logoSaved) {
 			console.log(`  saved ${mockId}-logo.png  (${name})`);
 		} else {
