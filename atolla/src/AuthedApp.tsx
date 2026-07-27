@@ -5,7 +5,7 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { DevTools } from './dev/DevTools';
-import { type ConnectionMode, ConnectionModes, type FooterTab, FooterTabs } from './models/App';
+import { type ConnectionMode, type FooterTab, FooterTabs } from './models/App';
 import Strings from './Strings';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { backNavRouter } from './services/BackNavRouter';
@@ -20,7 +20,6 @@ import type { Preferences } from './stores/Preferences';
 import { theme } from './theme';
 import { ErrorBoundary } from './ui/components/ErrorBoundary';
 import { GaplessPlayer } from './ui/components/GaplessPlayer';
-import { MockPlayer } from './ui/components/MockPlayer';
 import { HomeTab, type HomeTabViewModel } from './ui/tabs/Home';
 import { LibraryView, type LibraryViewModel } from './ui/tabs/Library';
 import { SearchTab } from './ui/tabs/Search';
@@ -86,18 +85,14 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 
 		<view style={theme.app.root}>
 			<view style={theme.app.content}>
-				{this.viewModel.connectionMode === ConnectionModes.mock ? (
-					<MockPlayer playbackStore={this.viewModel.playbackStore} />
-				) : (
-					<GaplessPlayer
-						activeSourceUrl={this.viewModel.playbackOrchestrator.getTrackPlaybackSourceUrl()}
-						nextSourceUrl={this.viewModel.playbackOrchestrator.getNextTrackSourceUrl()}
-						onPlaybackError={this.handlePlaybackError}
-						onPlaybackEvent={this.handlePlaybackEvent}
-						onTrackCompleted={this.handleTrackCompleted}
-						playbackStore={this.viewModel.playbackStore}
-					/>
-				)}
+				<GaplessPlayer
+					activeSourceUrl={this.viewModel.playbackOrchestrator.getTrackPlaybackSourceUrl()}
+					nextSourceUrl={this.viewModel.playbackOrchestrator.getNextTrackSourceUrl()}
+					onPlaybackError={this.handlePlaybackError}
+					onPlaybackEvent={this.handlePlaybackEvent}
+					onTrackCompleted={this.handleTrackCompleted}
+					playbackStore={this.viewModel.playbackStore}
+				/>
 
 				<view style={this.tabStyle(FooterTabs.home)}>
 					<ErrorBoundary resetKey='home'>

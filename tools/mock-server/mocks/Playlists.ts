@@ -1,4 +1,4 @@
-import type { JellyfinPlaylistItem } from '../models/jellyfin/Types';
+import type { JellyfinPlaylistItem } from '../../../atolla/src/models/jellyfin/Types';
 
 export const mockJellyfinPlaylists: Array<JellyfinPlaylistItem> = [
 	{

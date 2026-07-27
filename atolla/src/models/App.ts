@@ -8,7 +8,6 @@ export interface CardDetailItem {
 }
 
 export const ConnectionModes = {
-	mock: 'mock',
 	offline: 'offline',
 	online: 'online',
 } as const;

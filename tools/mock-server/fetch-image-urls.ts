@@ -7,8 +7,8 @@
 
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { mockJellyfinAlbums } from '../../atolla/src/__mocks__/Albums';
-import { mockJellyfinArtists } from '../../atolla/src/__mocks__/Artists';
+import { mockJellyfinAlbums } from './mocks/Albums';
+import { mockJellyfinArtists } from './mocks/Artists';
 
 const BASE = process.env.JELLYFIN_URL?.replace(/\/$/, '');
 const TOKEN = process.env.JELLYFIN_TOKEN;

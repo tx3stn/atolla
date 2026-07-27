@@ -12,9 +12,9 @@
 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { mockJellyfinAlbums, mockJellyfinTracks } from '../../atolla/src/__mocks__/Albums';
-import { mockJellyfinArtists } from '../../atolla/src/__mocks__/Artists';
-import { mockJellyfinPlaylists } from '../../atolla/src/__mocks__/Playlists';
+import { mockJellyfinAlbums, mockJellyfinTracks } from './mocks/Albums';
+import { mockJellyfinArtists } from './mocks/Artists';
+import { mockJellyfinPlaylists } from './mocks/Playlists';
 import { handlePlaylistRequest } from './playlists';
 
 const MEDIA_DIR = join(import.meta.dir, 'media');

@@ -1,7 +1,6 @@
 import { type ConnectionMode, ConnectionModes } from '../models/App';
 import type { Preferences } from '../stores/Preferences';
 import { LiveTransport } from '../transports/Live';
-import { MockTransport } from '../transports/Mock';
 import { OfflineTransport } from '../transports/Offline';
 import type { Transport } from '../transports/Transport';
 import type { DownloadService } from './DownloadService';
@@ -46,7 +45,6 @@ export class Connectivity {
 	// cold-start: adopt the persisted mode and stand up the transport for the restored session
 	bootstrap(session: AuthSession | null): void {
 		this.mode = this.deps.preferences.mode;
-		this.deps.sessionManager.setMockMode(this.mode === ConnectionModes.mock);
 		this.rebuildTransport(session);
 
 		const neverConnected = !this.deps.preferences.hasStoredMode;
@@ -66,17 +64,15 @@ export class Connectivity {
 	}
 
 	connect(serverUrl: string): void {
-		if (serverUrl.trim().toLowerCase() === 'mock') {
-			void this.setMode(ConnectionModes.mock);
-			return;
-		}
 		const attempt = ++this.connectAttempt;
+
 		void (async () => {
 			this.mode = ConnectionModes.online;
 			await this.deps.preferences.setMode(ConnectionModes.online);
 			if (attempt !== this.connectAttempt) {
 				return;
 			}
+
 			try {
 				// login emits onSessionChanged → handleSessionChanged rebuilds the live transport
 				const session = await this.deps.sessionManager.login(serverUrl);
@@ -123,7 +119,6 @@ export class Connectivity {
 	async setMode(mode: ConnectionMode): Promise<boolean> {
 		try {
 			await this.deps.preferences.setMode(mode);
-			this.deps.sessionManager.setMockMode(mode === ConnectionModes.mock);
 			this.mode = mode;
 			const session = this.deps.sessionManager.getSession();
 			this.rebuildTransport(session);
@@ -152,8 +147,6 @@ export class Connectivity {
 				this.deps.sessionManager.getHttpClient(),
 				{ clientDeviceId: this.deps.sessionManager.getEffectiveDeviceId() },
 			);
-		} else if (this.mode === ConnectionModes.mock) {
-			this.transport = new MockTransport();
 		} else {
 			this.transport = new OfflineTransport(
 				this.deps.downloadService,

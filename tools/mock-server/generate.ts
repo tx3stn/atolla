@@ -2,16 +2,16 @@
 
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { mockJellyfinAlbums, mockJellyfinTracks } from '../../atolla/src/__mocks__/Albums';
-import { mockJellyfinArtists } from '../../atolla/src/__mocks__/Artists';
-import { mockGenreTrackIds, mockJellyfinGenres } from '../../atolla/src/__mocks__/Genres';
-import { mockJellyfinPlaylists } from '../../atolla/src/__mocks__/Playlists';
 import type {
 	JellyfinAlbumItem,
 	JellyfinBaseItemDto,
 	JellyfinMediaSource,
 	JellyfinTrackItem,
 } from '../../atolla/src/models/jellyfin/Types';
+import { mockJellyfinAlbums, mockJellyfinTracks } from './mocks/Albums';
+import { mockJellyfinArtists } from './mocks/Artists';
+import { mockGenreTrackIds, mockJellyfinGenres } from './mocks/Genres';
+import { mockJellyfinPlaylists } from './mocks/Playlists';
 
 // the userId every /Users/... path and userId= param resolves to, because we control
 // the auth response that hands it out
