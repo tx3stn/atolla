@@ -626,6 +626,50 @@ describe('LiveTransport core collections', () => {
 		expect(page.items.map((track) => track.id)).toEqual(['track-1', 'track-2']);
 	});
 
+	const trackReads: Array<{
+		name: string;
+		read: (transport: LiveTransport) => PromiseLike<unknown>;
+	}> = [
+		{ name: 'getArtistTopTracks', read: (transport) => transport.getArtistTopTracks('artist-1') },
+		{
+			name: 'getShuffledLibraryTracks',
+			read: (transport) => transport.getShuffledLibraryTracks(1, 50),
+		},
+		{ name: 'getTracksByAlbum', read: (transport) => transport.getTracksByAlbum('album-1') },
+		{ name: 'getTracksByArtist', read: (transport) => transport.getTracksByArtist('artist-1') },
+		{ name: 'getTracksByGenre', read: (transport) => transport.getTracksByGenre('genre-1', 1, 50) },
+		{
+			name: 'getTracksByGenre (random)',
+			read: (transport) => transport.getTracksByGenre('genre-1', 1, 50, { sort: 'random' }),
+		},
+		{
+			name: 'getTracksByPlaylist',
+			read: (transport) => transport.getTracksByPlaylist('playlist-1', 1, 50),
+		},
+		{
+			name: 'getTracksByPlaylist (random)',
+			read: (transport) => transport.getTracksByPlaylist('playlist-1', 1, 50, { sort: 'random' }),
+		},
+		{ name: 'getTracksByYear', read: (transport) => transport.getTracksByYear(1994, 1, 50) },
+		{ name: 'search', read: (transport) => transport.search('noise') },
+	];
+
+	for (const { name, read } of trackReads) {
+		it(`projects genres onto the track read for ${name}`, async () => {
+			const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([], 0, 0))]);
+			const transport = new LiveTransport(
+				'https://demo.jellyfin.local',
+				'token-1',
+				'user-1',
+				client,
+			);
+
+			await read(transport);
+
+			expect(queryParam(calls[0].pathOrUrl, 'fields')?.split(',')).toContain('Genres');
+		});
+	}
+
 	it('picks several random populated years from the years endpoint in one request', async () => {
 		const { calls, client } = createHTTPClient([
 			jsonResponse(
@@ -716,6 +760,22 @@ describe('LiveTransport core collections', () => {
 
 		expect(result.hasMore).toBe(false);
 		expect(result.items.map((track) => track.id)).toEqual(['track-9']);
+	});
+
+	it('projects genres onto a single item read so a hydrated artist carries them', async () => {
+		const artist: JellyfinArtistItem = {
+			GenreItems: [{ Id: 'genre-1', Name: 'Noise Rock' }],
+			Id: 'artist-1',
+			Name: 'Artist A',
+			Type: 'MusicArtist',
+		};
+		const { calls, client } = createHTTPClient([jsonResponse(200, artist)]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		const hydrated = await transport.getArtist('artist-1');
+
+		expect(queryParam(calls[0].pathOrUrl, 'fields')?.split(',')).toContain('Genres');
+		expect(hydrated?.genres).toEqual([{ id: 'genre-1', name: 'Noise Rock' }]);
 	});
 
 	it('returns null artist logo url when no logo metadata exists', async () => {

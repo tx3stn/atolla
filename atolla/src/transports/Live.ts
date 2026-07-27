@@ -59,8 +59,8 @@ interface AlbumsPageResult {
 }
 
 const defaultSearchLimit = 100;
-
 const log = getLogger('transport');
+const trackFields = 'Overview,Genres,MediaSources';
 
 export class LiveTransport implements Transport {
 	private readonly baseUrl: string;
@@ -273,7 +273,7 @@ export class LiveTransport implements Transport {
 				canceler,
 				this.fetchItemsPage<JellyfinTrackItem>({
 					artistIds: artistId,
-					fields: 'Overview,MediaSources',
+					fields: trackFields,
 					includeItemTypes: JellyfinMusicItemTypes.Audio,
 					limit: 5,
 					recursive: true,
@@ -436,7 +436,7 @@ export class LiveTransport implements Transport {
 			const list = await tracked(
 				canceler,
 				this.fetchItemsPage<JellyfinTrackItem>({
-					fields: 'MediaSources',
+					fields: trackFields,
 					includeItemTypes: JellyfinMusicItemTypes.Audio,
 					limit: Math.max(1, pageSize),
 					recursive: true,
@@ -470,7 +470,7 @@ export class LiveTransport implements Transport {
 			const list = await tracked(
 				canceler,
 				this.fetchItemsPage<JellyfinTrackItem>({
-					fields: 'Overview,MediaSources',
+					fields: trackFields,
 					includeItemTypes: JellyfinMusicItemTypes.Audio,
 					limit: 500,
 					parentId: albumId,
@@ -491,7 +491,7 @@ export class LiveTransport implements Transport {
 				canceler,
 				this.fetchItemsPage<JellyfinTrackItem>({
 					artistIds: artistId,
-					fields: 'Overview,MediaSources',
+					fields: trackFields,
 					includeItemTypes: JellyfinMusicItemTypes.Audio,
 					limit: 500,
 					recursive: true,
@@ -516,7 +516,7 @@ export class LiveTransport implements Transport {
 			const list = await tracked(
 				canceler,
 				this.fetchItemsPage<JellyfinTrackItem>({
-					fields: 'Overview,MediaSources',
+					fields: trackFields,
 					genreIds: genreId,
 					includeItemTypes: JellyfinMusicItemTypes.Audio,
 					limit: Math.max(1, pageSize),
@@ -548,7 +548,7 @@ export class LiveTransport implements Transport {
 			const read =
 				options?.sort === 'random'
 					? this.fetchItemsPage<JellyfinTrackItem>({
-							fields: 'Overview,Genres,MediaSources',
+							fields: trackFields,
 							includeItemTypes: JellyfinMusicItemTypes.Audio,
 							limit: Math.max(1, pageSize),
 							parentId: playlistId,
@@ -561,7 +561,7 @@ export class LiveTransport implements Transport {
 							`/Playlists/${encodeURIComponent(playlistId)}/Items`,
 							{
 								query: {
-									fields: 'Overview,Genres,MediaSources',
+									fields: trackFields,
 									limit: Math.max(1, pageSize),
 									startIndex,
 									userId: this.userId,
@@ -588,7 +588,7 @@ export class LiveTransport implements Transport {
 			const list = await tracked(
 				canceler,
 				this.fetchItemsPage<JellyfinTrackItem>({
-					fields: 'MediaSources',
+					fields: trackFields,
 					includeItemTypes: JellyfinMusicItemTypes.Audio,
 					limit: Math.max(1, pageSize),
 					recursive: true,
@@ -650,7 +650,7 @@ export class LiveTransport implements Transport {
 				this.fetchItemsPage<
 					JellyfinAlbumItem | JellyfinArtistItem | JellyfinPlaylistItem | JellyfinTrackItem
 				>({
-					fields: 'Overview,MediaSources',
+					fields: trackFields,
 					includeItemTypes: [
 						JellyfinMusicItemTypes.MusicArtist,
 						JellyfinMusicItemTypes.MusicAlbum,
@@ -753,7 +753,7 @@ export class LiveTransport implements Transport {
 					canceler,
 					this.requestJson<TItem>('GET', `/Items/${encodeURIComponent(itemId)}`, {
 						query: {
-							fields: 'Overview',
+							fields: 'Overview,Genres',
 							userId: this.userId,
 						},
 					}),
