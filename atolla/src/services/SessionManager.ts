@@ -188,10 +188,6 @@ export class SessionManager {
 		}
 	}
 
-	setMockMode(isMock: boolean): void {
-		this.deps.authService.setMockMode(isMock);
-	}
-
 	private bindHttpClient(serverUrl: string): void {
 		this.currentClient = this.deps.createHttpClient(normalizeServerUrl(serverUrl));
 		this.deps.authService.setClient(this.currentClient);
