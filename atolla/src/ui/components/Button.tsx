@@ -92,7 +92,7 @@ const baseButton = new Style<View>({
 const styles = {
 	button: baseButton,
 	buttonConfirm: baseButton.extend({ backgroundColor: theme.colors.active }),
-	buttonDisabled: baseButton.extend({ backgroundColor: theme.colors.bgDim }),
+	buttonDisabled: baseButton.extend({ backgroundColor: theme.colors.bgRaised }),
 	buttonError: baseButton.extend({ backgroundColor: theme.colors.destructive }),
 	buttonSecondary: baseButton.extend({ backgroundColor: theme.colors.bgRaised }),
 	buttonWarn: baseButton.extend({ backgroundColor: theme.colors.warning }),

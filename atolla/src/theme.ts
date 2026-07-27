@@ -6,18 +6,15 @@ import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 const isAndroid = Device.isAndroid();
 
 const colors = {
-	active: '#2D78CE',
+	active: '#2184ED',
 	bg: '#000000',
 	bgAccent: '#111a2b',
-	bgDeep: '#101828',
-	bgDim: '#0b1320',
 	bgFrosted: 'rgba(0,0,0,0.8)',
-	bgRaised: '#151515',
+	bgRaised: '#0b0b0bcc',
 	bgRaisedFrosted: 'rgba(11,11,11,0.8)',
 	destructive: '#ef4444',
 	grey: '#98a2b3',
 	muted: '#667085',
-	pureWhite: '#ffffff',
 	separator: 'rgba(255,255,255,0.08)',
 	success: '#22c55e',
 	transparent: 'rgba(0,0,0,0)',

@@ -82,7 +82,7 @@ interface TrackListResolvedStyles {
 const defaultColors: TrackListColors = {
 	meta: theme.text.sub.color,
 	rowBackground: theme.colors.bg,
-	tileBackground: theme.colors.bgDeep,
+	tileBackground: theme.colors.bgRaised,
 	title: theme.text.main.color,
 };
 

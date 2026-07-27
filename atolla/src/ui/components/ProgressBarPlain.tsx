@@ -182,7 +182,7 @@ function createPlayheadStyle(accentColor: string, thickness: number): Style<View
 	const size = Math.max(10, thickness + 6);
 	const style = new Style<View>({
 		backgroundColor: accentColor,
-		borderColor: theme.colors.pureWhite,
+		borderColor: theme.colors.white,
 		borderRadius: size / 2,
 		borderWidth: 1,
 		boxShadow: theme.shadow.playhead,
