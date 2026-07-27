@@ -15,6 +15,14 @@ export class BasePage {
 		return this.driver.$(`~${id}`);
 	}
 
+	// android builds content-desc by joining label, hint and value, so a field holding text stops
+	// matching its accessibility id exactly. iOS exposes the identifier as name, untouched by value
+	public elementByIDWithValue(id: string): ChainablePromiseElement {
+		return this.isAndroid()
+			? this.driver.$(`android=new UiSelector().descriptionStartsWith("${id}")`)
+			: this.driver.$(`~${id}`);
+	}
+
 	public async allByAccessibilityPrefix(prefix: string): Promise<Array<WebdriverIO.Element>> {
 		const selector = this.isAndroid()
 			? `android=new UiSelector().descriptionStartsWith("${prefix}")`

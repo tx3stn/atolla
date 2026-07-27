@@ -7,6 +7,7 @@ import {
 	beforeTestHook,
 	onCompleteHook,
 } from './utils/hooks';
+import { startMockServer, stopMockServer } from './utils/mockServer';
 
 const platform = process.env.E2E_PLATFORM === 'iOS' ? Platforms.iOS : Platforms.Android;
 
@@ -28,7 +29,11 @@ export const config = {
 		bail: 1,
 		timeout: 120_000,
 	},
-	onComplete: onCompleteHook,
+	onComplete() {
+		onCompleteHook();
+		stopMockServer();
+	},
+	onPrepare: startMockServer,
 	reporters: ['spec'],
 	runner: 'local',
 	services: ['appium'],

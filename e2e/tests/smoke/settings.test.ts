@@ -2,6 +2,7 @@ import { ConnectionPage } from '../../pages/ConnectionPage';
 import { FooterPage } from '../../pages/Footer';
 import { SettingsPage } from '../../pages/SettingsPage';
 import { Toast } from '../../pages/Toast';
+import { connectToServer, mockServerUrl } from '../../utils/hooks';
 
 describe('settings', () => {
 	let footer: FooterPage;
@@ -13,6 +14,16 @@ describe('settings', () => {
 
 		await footer.tapSettings();
 		await settingsPage.waitForLoad();
+	});
+
+	afterEach(async () => {
+		// the logout test leaves the app on the connection view; reconnect here (not inline) so a
+		// slow post-logout render can't strand the next test's session. the full connect flow
+		// handles the http warning + quick connect a bare page-level connect would skip
+		const connectionPage = new ConnectionPage(browser);
+		if (await connectionPage.isVisible()) {
+			await connectToServer(mockServerUrl());
+		}
 	});
 
 	it('shows settings view when tapping the settings tab', async () => {
@@ -34,10 +45,6 @@ describe('settings', () => {
 		await connectionPage.waitForLoad();
 
 		expect(await connectionPage.isVisible()).toBe(true);
-
-		// reconnect to mock so subsequent tests have data
-		await connectionPage.connectToServer('mock');
-		await footer.waitForLoad();
 	});
 
 	it('shows settings view after navigating away and back', async () => {

@@ -15,6 +15,7 @@ export class NowPlayingBar extends BasePage {
 	private readonly createPlaylistFromQueue = 'now-playing-create-playlist-from-queue';
 	private readonly queuePageUpNext = 'now-playing-queue-page-up-next';
 	private readonly queuePageBackTo = 'now-playing-queue-page-back-to';
+	private readonly footerHome = 'footer-home';
 
 	private readonly trackTitleUpNextPrefix = 'track-title-up-next-';
 	private readonly trackTitleBackToPrefix = 'track-title-back-to-';
@@ -142,24 +143,75 @@ export class NowPlayingBar extends BasePage {
 
 	async tapUpNextTab(): Promise<void> {
 		this.activeTab = 'upNext';
-		await this.swipeUpSurface('expand-for-up-next-tab');
-		const el = this.elementByID(this.queueTabUpNext);
-		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for up next tab' });
-		await el.click();
-		await this.elementByID(this.queuePageUpNext).waitForExist({
-			timeoutMsg: 'Timed out waiting for up next queue page to appear',
-		});
+		await this.selectQueueTab(
+			'expand-for-up-next-tab',
+			this.queueTabUpNext,
+			this.queuePageUpNext,
+			'up next',
+		);
 	}
 
 	async tapBackToTab(): Promise<void> {
 		this.activeTab = 'backTo';
-		await this.swipeUpSurface('expand-for-back-to-tab');
-		const el = this.elementByID(this.queueTabBackTo);
-		await el.waitForDisplayed({ timeoutMsg: 'Timed out waiting for back to tab' });
-		await el.click();
-		await this.elementByID(this.queuePageBackTo).waitForExist({
-			timeoutMsg: 'Timed out waiting for back to queue page to appear',
-		});
+		await this.selectQueueTab(
+			'expand-for-back-to-tab',
+			this.queueTabBackTo,
+			this.queuePageBackTo,
+			'back to',
+		);
+	}
+
+	// re-resolve the tab each attempt: playback/palette/artwork settling at play-start recreates the
+	// surface's native views, so a cached handle can stale between the scroll and the tap
+	private async selectQueueTab(
+		swipeHint: string,
+		tabId: string,
+		pageId: string,
+		label: string,
+	): Promise<void> {
+		for (let attempt = 0; attempt < 3; attempt += 1) {
+			try {
+				await this.revealQueueTab(tabId, `${swipeHint}-${attempt}`);
+				await this.elementByID(tabId).click();
+				await this.elementByID(pageId).waitForExist({ timeout: 4000, timeoutMsg: '' });
+				return;
+			} catch {
+				// tab staled mid-settle or the tap was dropped, scroll back to it and retry
+			}
+		}
+
+		throw new Error(`Timed out waiting for ${label} tab`);
+	}
+
+	private async revealQueueTab(tabId: string, hint: string): Promise<void> {
+		for (let step = 0; step < 6; step += 1) {
+			if (await this.queueTabIsTappable(tabId)) return;
+			await this.swipeVertical(`${hint}-forward-${step}`, 0.8, 0.52, 40, 500, 220);
+		}
+
+		for (let step = 0; step < 6; step += 1) {
+			if (await this.queueTabIsTappable(tabId)) return;
+			await this.swipeVertical(`${hint}-back-${step}`, 0.52, 0.8, 40, 500, 220);
+		}
+
+		throw new Error('Timed out scrolling the queue tabs row clear of the footer nav');
+	}
+
+	private async queueTabIsTappable(tabId: string): Promise<boolean> {
+		const tab = this.elementByID(tabId);
+		if (!(await tab.isDisplayed().catch(() => false))) return false;
+
+		const location = await tab.getLocation();
+		const size = await tab.getSize();
+		return location.y >= 0 && location.y + size.height <= (await this.footerNavTop());
+	}
+
+	private async footerNavTop(): Promise<number> {
+		const footerHome = this.elementByID(this.footerHome);
+		if (await footerHome.isDisplayed().catch(() => false)) {
+			return (await footerHome.getLocation()).y;
+		}
+		return (await this.driver.getWindowRect()).height;
 	}
 
 	// isExisting not isDisplayed: the page views sit in a translated sliding strip that UIAutomator2
@@ -203,11 +255,9 @@ export class NowPlayingBar extends BasePage {
 
 	async lastUpNextTrackName(): Promise<string> {
 		await this.waitForQueueRowsVisible();
-		const els = await this.allByAccessibilityPrefix(this.trackTitleUpNextPrefix);
-		for (let i = els.length - 1; i >= 0; i--) {
-			const text = await els[i].getText();
-			if (text) return text;
-		}
+		await this.scrollQueueToEnd();
+		const text = await this.lastRenderedUpNextTitle();
+		if (text) return text;
 		throw new Error('No up next track titles found');
 	}
 
@@ -339,6 +389,27 @@ export class NowPlayingBar extends BasePage {
 		await this.swipeVertical(id, 0.78, 0.28);
 	}
 
+	private async scrollQueueToEnd(maxSwipes = 12): Promise<void> {
+		let previous = '';
+		for (let attempt = 0; attempt < maxSwipes; attempt += 1) {
+			const current = await this.lastRenderedUpNextTitle();
+			if (current !== '' && current === previous) return;
+			previous = current;
+			await this.swipeUpSurface(`queue-to-end-${attempt}`);
+		}
+	}
+
+	private async lastRenderedUpNextTitle(): Promise<string> {
+		const labels = await this.sortedByY(
+			await this.allByAccessibilityPrefix(this.trackTitleUpNextPrefix),
+		);
+		for (let i = labels.length - 1; i >= 0; i -= 1) {
+			const text = await labels[i].getText();
+			if (text) return text;
+		}
+		return '';
+	}
+
 	private async scrollToQueueList(maxSwipes = 6): Promise<void> {
 		if (await this.isQueueListVisible()) return;
 		for (let attempt = 0; attempt < maxSwipes; attempt += 1) {
@@ -368,6 +439,7 @@ export class NowPlayingBar extends BasePage {
 		toRatio: number,
 		pauseMs = 40,
 		durationMs = 260,
+		holdMs = 0,
 	): Promise<void> {
 		const rect = await this.driver.getWindowRect();
 		const x = Math.floor(rect.width * 0.5);
@@ -378,6 +450,7 @@ export class NowPlayingBar extends BasePage {
 					{ button: 0, type: 'pointerDown' },
 					{ duration: pauseMs, type: 'pause' },
 					{ duration: durationMs, type: 'pointerMove', x, y: Math.floor(rect.height * toRatio) },
+					...(holdMs > 0 ? [{ duration: holdMs, type: 'pause' as const }] : []),
 					{ button: 0, type: 'pointerUp' },
 				],
 				id,

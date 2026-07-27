@@ -6,14 +6,16 @@
 // add real files to ./media/audio/<trackId>.mp3 and ./media/images/<id>.jpg
 // `default.*` in each folder is used as a fallback for any id.
 //
-// dynamic endpoints handled here (wiretap proxies unmatched /Items requests):
+// dynamic endpoints handled here (wiretap proxies unmatched requests):
 //   GET /Items?searchTerm=...  — client-side search over mock data
+//   /Playlists...              — stateful create / add / move / remove (see ./playlists)
 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { mockJellyfinAlbums, mockJellyfinTracks } from '../../atolla/src/__mocks__/Albums';
 import { mockJellyfinArtists } from '../../atolla/src/__mocks__/Artists';
 import { mockJellyfinPlaylists } from '../../atolla/src/__mocks__/Playlists';
+import { handlePlaylistRequest } from './playlists';
 
 const MEDIA_DIR = join(import.meta.dir, 'media');
 const PORT = Number(process.env.MOCK_MEDIA_PORT ?? 8788);
@@ -83,8 +85,13 @@ function contentTypeFor(path: string): string {
 }
 
 Bun.serve({
-	fetch(req) {
+	async fetch(req) {
 		const url = new URL(req.url);
+
+		// create / add / move / remove for playlists (wiretap serves the static ones, proxies
+		// mutations and any freshly-created playlist here)
+		const playlistResponse = await handlePlaylistRequest(req, url);
+		if (playlistResponse) return playlistResponse;
 
 		// scrobble / playstate are fire-and-forget POSTs; answer 200 so they don't error
 		if (req.method === 'POST' && url.pathname.startsWith('/UserPlayedItems')) {

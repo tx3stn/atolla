@@ -72,6 +72,7 @@ const wiretap = Bun.spawn(
 		'/spec/jellyfin.json',
 		'--url',
 		`http://host.docker.internal:${MEDIA_PORT}`,
+		'--stream-report',
 	],
 	{ stderr: 'inherit', stdout: 'inherit' },
 );

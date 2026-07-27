@@ -11,19 +11,19 @@ export class ConnectionPage extends BasePage {
 	}
 
 	async isVisible(): Promise<boolean> {
-		const el = this.elementByID(this.serverUrlInput);
+		const el = this.elementByIDWithValue(this.serverUrlInput);
 		if (!(await el.isExisting())) return false;
 		return el.isDisplayed();
 	}
 
 	async waitForLoad(): Promise<void> {
-		await this.elementByID(this.serverUrlInput).waitForDisplayed({
+		await this.elementByIDWithValue(this.serverUrlInput).waitForDisplayed({
 			timeoutMsg: 'Timed out waiting for connection view',
 		});
 	}
 
 	async connectToServer(serverURL: string): Promise<void> {
-		const input = this.elementByID(this.serverUrlInput);
+		const input = this.elementByIDWithValue(this.serverUrlInput);
 		await input.waitForDisplayed();
 		await input.setValue(serverURL);
 		const connectBtn = this.elementByID(this.connectButton);

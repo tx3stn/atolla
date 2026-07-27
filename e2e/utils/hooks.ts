@@ -8,6 +8,13 @@ import { HomePage } from '../pages/HomePage';
 
 const SCREENSHOT_DIR = 'e2e/screenshots';
 
+// the android emulator reaches the host via 10.0.2.2; the iOS simulator shares the host network,
+// so localhost works. full http:// is required — a bare host is forced to https by the app.
+export function mockServerUrl(): string {
+	const isIOS = (browser.capabilities.platformName as string).toLowerCase() === 'ios';
+	return isIOS ? 'http://localhost:9090' : 'http://10.0.2.2:9090';
+}
+
 export async function connectToServer(serverURL: string): Promise<void> {
 	const connectionPage = new ConnectionPage(browser);
 	const footer = new FooterPage(browser);
@@ -104,7 +111,7 @@ export async function beforeHook(): Promise<void> {
 		);
 	}
 
-	await connectToServer('mock');
+	await connectToServer(mockServerUrl());
 }
 
 async function saveFailureScreenshot(subject: unknown): Promise<void> {

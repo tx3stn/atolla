@@ -7,6 +7,7 @@ import {
 	beforeTestHook,
 	onCompleteHook,
 } from './utils/hooks';
+import { startMockServer, stopMockServer } from './utils/mockServer';
 
 type Capabilities = Record<string, unknown>;
 
@@ -59,7 +60,11 @@ export const config = {
 		bail: 0,
 		timeout: 120_000,
 	},
-	onComplete: onCompleteHook,
+	onComplete() {
+		onCompleteHook();
+		stopMockServer();
+	},
+	onPrepare: startMockServer,
 	onWorkerEnd(cid: string) {
 		for (const pool of Object.values(pools)) pool.release(cid);
 	},
