@@ -10,7 +10,7 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group | upper_first }}
 {% for commit in commits %}
-- {% if commit.scope %}**{{ commit.scope }}**: {% endif %}{{ commit.message | upper_first }}
+- {% if commit.scope %}**{{ commit.scope }}**: {% endif %}{{ commit.message }}
 {%- endfor %}
 {% endfor %}"""
 trim = true
@@ -22,8 +22,8 @@ filter_commits = false
 tag_pattern = '^[0-9]+\.[0-9]+\.[0-9]+$'
 sort_commits = "newest"
 commit_parsers = [
-  { message = "^[Mm]erge", skip = true },
-  { message = "^feat", group = "Features" },
-  { message = "^fix", group = "Fixes" },
-  { message = ".*", group = "Other" },
+	{ message = "^[Mm]erge", skip = true },
+	{ message = "^feat", group = "features" },
+	{ message = "^fix", group = "fixes" },
+	{ message = ".*", group = "other" },
 ]
