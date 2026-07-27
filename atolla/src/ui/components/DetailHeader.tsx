@@ -285,6 +285,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 							accessibilityId='detail-header-artist-logo'
 							containerStyle={styles.artistLogoContainer}
 							fallbackText={fallbackText}
+							fallbackTextContainerStyle={styles.artistFallbackContainer}
 							logoSource={logoSource}
 							logoStyle={styles.artistLogoImage}
 							onTap={onArtistTap}
@@ -400,16 +401,21 @@ const styles = {
 		position: 'relative',
 		width: 40,
 	}),
+	artistFallbackContainer: new Style<Layout>({
+		padding: 0,
+		width: '100%',
+	}),
 	artistLogoContainer: new Style<View>({
 		alignItems: 'flex-start',
 		justifyContent: 'flex-start',
-		paddingLeft: 2,
+		paddingLeft: 10,
+		paddingRight: 10,
 		width: '100%',
 	}),
 	artistLogoImage: new Style<ImageView>({
 		height: 64,
 		objectFit: 'contain',
-		width: '88%',
+		width: '100%',
 	}),
 	artworkImage: new Style<ImageView>({
 		borderRadius: theme.radius.default,

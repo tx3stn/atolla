@@ -10,7 +10,7 @@ const colors = {
 	bg: '#000000',
 	bgAccent: '#111a2b',
 	bgFrosted: 'rgba(0,0,0,0.8)',
-	bgRaised: '#0b0b0bcc',
+	bgRaised: '#0c0c0c',
 	bgRaisedFrosted: 'rgba(11,11,11,0.8)',
 	destructive: '#ef4444',
 	grey: '#98a2b3',
