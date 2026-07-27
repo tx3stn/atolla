@@ -47,6 +47,7 @@
 		"rebuild:ios": "bun run check && bun run test:components && bun run ios",
 		"reload": "./.scripts/android-hotreload.sh",
 		"screenshots": "E2E_PLATFORM=iOS E2E_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./e2e/screenshots/wdio.conf.ts",
+		"setup": "bun install && bunx valdi projectsync",
 		"start:e2e-devices": "./.scripts/start-e2e-devices.sh",
 		"test": "bun test ./atolla/src",
 		"test:android": "bazel test //atolla/native/android/test/... //:valdi_editor_anchor --legacy_external_runfiles --test_output=streamed --test_summary=short --noshow_loading_progress --show_result=0 --test_verbose_timeout_warnings",

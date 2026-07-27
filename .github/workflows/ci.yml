@@ -95,8 +95,10 @@ jobs:
       # toolchain pinned in MODULE.bazel (VALDI_TAG), NOT the npm @snap/valdi CLI
       # — which only orchestrates bazel and rewrites atolla/tsconfig.json. So the
       # key covers the bazel dep-set (MODULE.bazel etc.) + BUILD.bazel + the res
-      # file list, and stays hit across CLI-only bumps — on a hit this job runs no
-      # bazel at all (the 22-minute projectsync build disappears).
+      # file list + the strings, and stays hit across CLI-only bumps — on a hit
+      # this job runs no bazel at all (the 22-minute projectsync build disappears).
+      # Unlike res, the strings hash IS content-based: Strings.d.ts is generated
+      # from the keys inside the JSON, so an edit that adds a key must miss.
       - name: restore projectsync outputs
         id: projectsync-cache
         uses: actions/cache/restore@v6
@@ -107,7 +109,7 @@ jobs:
             bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
             atolla/tsconfig.json
-          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel') }}-res${{ steps.reslist.outputs.hash }}
+          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/strings/**') }}-res${{ steps.reslist.outputs.hash }}
       # only the cold path runs bazel (projectsync builds Skia/Hermes/etc), so only
       # it needs the extra room; a cache hit does no heavy build
       - name: free disk space
@@ -159,7 +161,7 @@ jobs:
           key: bazel-repo-checkstatic-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
       - run: bun run check:static
       - name: fail on formatting or lint drift
-        run: git diff --exit-code -- . ':!atolla/tsconfig.json'
+        run: git diff --exit-code
       # bank what valdi_editor_anchor fetched on the fast path (the small Valdi
       # archive/registry set) so later cache-hit runs skip the GitHub download entirely
       - name: save check:static repo cache
@@ -181,7 +183,7 @@ jobs:
             bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
             atolla/tsconfig.json
-          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel') }}-res${{ steps.reslist.outputs.hash }}
+          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/strings/**') }}-res${{ steps.reslist.outputs.hash }}
 
   zig-tests:
     needs: changes

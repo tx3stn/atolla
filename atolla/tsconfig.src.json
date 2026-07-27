@@ -2,13 +2,9 @@
 	"compilerOptions": {
 		"forceConsistentCasingInFileNames": true,
 		"skipLibCheck": true,
-		"strict": true,
-		"types": [
-			"../bazel-atolla/external/valdi~/modules/types/Long",
-			"../bazel-atolla/external/valdi~/modules/types/globals"
-		]
+		"strict": true
 	},
-	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/Strings.d.ts"],
+	"exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"],
 	"extends": "./tsconfig.json",
 	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"]
 }

@@ -17,7 +17,6 @@ valdi_module(
         exclude = [
             "src/**/*.test.ts",
             "src/**/*.test.tsx",
-            "src/Strings.d.ts",
         ],
     ),
     android_deps = ["//atolla/native:atolla_cache_image_loader_android"],
@@ -49,6 +48,7 @@ valdi_module(
         "res/**/*.svg",
         "res/**/*.webp",
     ]),
+    strings_dir = "strings",
     test_target_name = "test",
     visibility = ["//visibility:public"],
     deps = [

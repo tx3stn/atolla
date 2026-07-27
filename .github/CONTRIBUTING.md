@@ -7,6 +7,19 @@ Humans and AI agents should follow the guidelines outlined in [AGENTS.md](../AGE
 AI contributions will be considered as long as they follow the guidelines and
 you can explain how they work and why they have been implemented the way they have.
 
+## Getting set up
+
+```bash
+bun run setup
+```
+
+That installs dependencies and then runs `valdi projectsync`, which builds the
+Valdi module graph and writes a `tsconfig.json` into each module directory
+(`atolla/`, `atolla_dev/`, `tools/palette-preview/`). Those files are generated
+and gitignored — the paths inside them point at your local Bazel output tree, so
+they can't be shared between machines. Re-run `bunx valdi projectsync` after
+changing a module's Bazel deps, resources or strings.
+
 ## What to contribute
 
 Make sure you read the [Why? section in the README](/README.md#why). If you're
