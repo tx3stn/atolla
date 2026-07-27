@@ -22,7 +22,6 @@ interface Calls {
 	applyState: Array<{ connectionMode?: ConnectionMode; isAuthRequired?: boolean }>;
 	onOnline: number;
 	onUserChanged: Array<string>;
-	setMockMode: Array<boolean>;
 	setNativeAuthToken: Array<string>;
 }
 
@@ -34,7 +33,6 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 		applyState: [],
 		onOnline: 0,
 		onUserChanged: [],
-		setMockMode: [],
 		setNativeAuthToken: [],
 	};
 	let session = opts?.session ?? null;
@@ -47,7 +45,6 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 		getEffectiveDeviceId: () => 'dev-1',
 		getHttpClient: () => ({}) as unknown as IHTTPClient,
 		getSession: () => session,
-		setMockMode: (isMock: boolean) => calls.setMockMode.push(isMock),
 	} as unknown as SessionManager;
 
 	const preferences = {
@@ -70,10 +67,6 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 	};
 
 	return { calls, connectivity: new Connectivity(deps) };
-}
-
-function flush(): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 describe('Connectivity', () => {
@@ -140,14 +133,5 @@ describe('Connectivity', () => {
 		expect(calls.applyState.some((s) => s.isAuthRequired === true)).toBe(true);
 		// online bootstrap pushed 'tok'; the session drop pushes '' so native stops using it
 		expect(calls.setNativeAuthToken).toEqual(['tok', '']);
-	});
-
-	it('connect("mock") switches to the mock mode', async () => {
-		const { connectivity } = makeConnectivity();
-
-		connectivity.connect('mock');
-		await flush();
-
-		expect(connectivity.getMode()).toBe(ConnectionModes.mock);
 	});
 });

@@ -1,5 +1,5 @@
 import 'jasmine/src/jasmine';
-import { theme } from 'atolla/src/theme';
+import { theme, withAlpha } from 'atolla/src/theme';
 import type { TrackListEntry } from 'atolla/src/ui/components/TrackList';
 import { TrackList } from 'atolla/src/ui/components/TrackList';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -473,7 +473,7 @@ describe('TrackList', () => {
 		expect(dragContainer?.getAttribute('top')).toBe(42);
 		expect(dragContainer?.getAttribute('bottom')).toBe(-42);
 		expect(row?.getAttribute('zIndex')).toBe(20);
-		expect(row?.getAttribute('backgroundColor')).toBe('rgba(45,120,206,0.28)');
+		expect(row?.getAttribute('backgroundColor')).toBe(withAlpha(theme.colors.active, 0.28));
 
 		dragContainer?.getAttribute('onDrag')?.(
 			dragEvent({ deltaX: 0, deltaY: 42, state: 2, velocityY: 90 }),
@@ -735,7 +735,7 @@ describe('TrackList', () => {
 	});
 
 	describe('single selection and release', () => {
-		const dragHighlight = 'rgba(45,120,206,0.28)';
+		const dragHighlight = withAlpha(theme.colors.active, 0.28);
 		const tracks = [
 			{ id: 'track-1', meta: '1:00', title: 'One' },
 			{ id: 'track-2', meta: '1:10', title: 'Two' },
@@ -978,7 +978,7 @@ describe('TrackList', () => {
 			);
 
 			handle?.getAttribute('onLongPress')?.(touchEventWith({ absoluteY: 10, state: 0 }));
-			expect(row?.getAttribute('backgroundColor')).toBe('rgba(45,120,206,0.28)');
+			expect(row?.getAttribute('backgroundColor')).toBe(withAlpha(theme.colors.active, 0.28));
 			// zIndex must stay untouched mid-gesture: Valdi applies it by re-inserting the
 			// native view, which cancels the in-flight touch on iOS
 			expect(row?.getAttribute('zIndex')).toBeUndefined();
@@ -1095,7 +1095,7 @@ describe('TrackList', () => {
 		});
 
 		valdiIt('recovers when a previous drag never received its end signal', async (driver) => {
-			const dragHighlight = 'rgba(45,120,206,0.28)';
+			const dragHighlight = withAlpha(theme.colors.active, 0.28);
 			const reordered: Array<number> = [];
 			const component = driver.renderComponent(
 				TrackList,
