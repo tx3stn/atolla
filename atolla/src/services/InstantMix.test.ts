@@ -417,3 +417,74 @@ describe('buildInstantMix fallbacks', () => {
 		expect(mix).toEqual([]);
 	});
 });
+
+describe('buildInstantMix lead track', () => {
+	function albumLibrary(): InstantMixLibrary {
+		return makeLibrary({
+			albums: [{ genreIds: ['genre-1'], id: 'album-1', trackIds: ['track-5'] }],
+			genres: [{ id: 'genre-1', trackIds: ['track-1', 'track-2', 'track-3', 'track-5'] }],
+			tracks: [
+				makeTrack('track-1'),
+				makeTrack('track-2'),
+				makeTrack('track-3'),
+				makeTrack('track-5', { albumId: 'album-1' }),
+			],
+		});
+	}
+
+	it('leads an album seed with a track from that album', () => {
+		const mix = buildInstantMix({ id: 'album-1', kind: 'album' }, albumLibrary(), {
+			random: zeroRandom(),
+		});
+
+		expect(mix[0]?.id).toBe('track-5');
+	});
+
+	it('does not repeat the album lead track in the remainder', () => {
+		const mix = buildInstantMix({ id: 'album-1', kind: 'album' }, albumLibrary(), {
+			random: zeroRandom(),
+		});
+
+		expect(ids(mix).filter((id) => id === 'track-5')).toEqual(['track-5']);
+	});
+
+	it('counts the album lead track towards the limit', () => {
+		const mix = buildInstantMix({ id: 'album-1', kind: 'album' }, albumLibrary(), {
+			limit: 2,
+			random: zeroRandom(),
+		});
+
+		expect(ids(mix)).toEqual(['track-5', 'track-1']);
+	});
+
+	it('leads an artist seed with a track by that artist', () => {
+		const library = makeLibrary({
+			genres: [{ id: 'genre-1', trackIds: ['track-1', 'track-2', 'track-3'] }],
+			tracks: [
+				makeTrack('track-1'),
+				makeTrack('track-2'),
+				makeTrack('track-3', { artistId: 'artist-1' }),
+			],
+		});
+
+		const mix = buildInstantMix({ id: 'artist-1', kind: 'artist' }, library, {
+			random: zeroRandom(),
+		});
+
+		expect(mix[0]?.id).toBe('track-3');
+	});
+
+	it('leaves the mix unled when none of the seed album is downloaded', () => {
+		const library = makeLibrary({
+			albums: [{ genreIds: ['genre-1'], id: 'album-1', trackIds: ['track-missing'] }],
+			genres: [{ id: 'genre-1', trackIds: ['track-1', 'track-2'] }],
+			tracks: [makeTrack('track-1'), makeTrack('track-2')],
+		});
+
+		const mix = buildInstantMix({ id: 'album-1', kind: 'album' }, library, {
+			random: zeroRandom(),
+		});
+
+		expect(ids(mix)).toEqual(['track-1', 'track-2']);
+	});
+});

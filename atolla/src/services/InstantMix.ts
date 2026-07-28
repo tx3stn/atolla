@@ -75,10 +75,10 @@ export function buildInstantMix(
 	};
 
 	const limit = Math.max(1, options.limit ?? INSTANT_MIX_LIMIT);
-	const seedTrack = seed.kind === 'track' ? (context.tracksById.get(seed.id) ?? null) : null;
-	const related = relatedTracks(seed, context, seedTrack?.id ?? null, limit - (seedTrack ? 1 : 0));
+	const lead = leadTrack(seed, context);
+	const related = relatedTracks(seed, context, lead?.id ?? null, limit - (lead ? 1 : 0));
 
-	return seedTrack ? [seedTrack, ...related] : related;
+	return lead ? [lead, ...related] : related;
 }
 
 function albumSeedGenreIds(albumId: string, context: MixContext): Set<string> {
@@ -125,6 +125,19 @@ function genreIdsOfTracks(trackIds: Array<string>, context: MixContext): Set<str
 		}
 	}
 	return genreIds;
+}
+
+function leadTrack(seed: InstantMixSeed, context: MixContext): Track | null {
+	switch (seed.kind) {
+		case 'album':
+			return sampleTrack(albumTrackIds(seed.id, context), context);
+		case 'artist':
+			return sampleTrack(artistTrackIds(seed.id, context), context);
+		case 'track':
+			return context.tracksById.get(seed.id) ?? null;
+		default:
+			return null;
+	}
 }
 
 function playlistTrackIds(playlistId: string, context: MixContext): Array<string> {
@@ -225,6 +238,18 @@ function sample<T>(items: Array<T>, count: number, random: () => number): Array<
 		[copy[i], copy[swapIndex]] = [copy[swapIndex], copy[i]];
 	}
 	return copy.slice(0, wanted);
+}
+
+function sampleTrack(trackIds: Array<string>, context: MixContext): Track | null {
+	const candidates: Array<Track> = [];
+	for (const trackId of trackIds) {
+		const track = context.tracksById.get(trackId);
+		if (track) {
+			candidates.push(track);
+		}
+	}
+
+	return sample(candidates, 1, context.random)[0] ?? null;
 }
 
 function trackSeedGenreIds(trackId: string, context: MixContext): Set<string> {
