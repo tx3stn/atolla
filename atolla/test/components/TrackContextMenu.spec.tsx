@@ -24,8 +24,12 @@ function createViewModel(overrides = {}) {
 		playNext: (tracks: Array<typeof track>) => {
 			callOrder.push(`playNext:${tracks[0]?.id ?? 'unknown'}`);
 		},
+		playTracks: (tracks: Array<typeof track>, startIndex: number) => {
+			callOrder.push(`playTracks:${tracks.map((t) => t.id).join(',')}:${startIndex}`);
+		},
 	};
 
+	const toasts: Array<string> = [];
 	const dismissMessages: Array<string | undefined> = [];
 	const viewModel = {
 		animationsEnabled: false,
@@ -34,6 +38,11 @@ function createViewModel(overrides = {}) {
 			dismissMessages.push(message);
 		},
 		playbackStore,
+		toastService: {
+			show: (toast: { message: string; variant: string }) => {
+				toasts.push(`${toast.variant}:${toast.message}`);
+			},
+		},
 		track,
 		transport: {
 			getArtistLogoUrl: () => Promise.resolve(null),
@@ -41,7 +50,14 @@ function createViewModel(overrides = {}) {
 		...overrides,
 	};
 
-	return { callOrder, dismissMessages, viewModel };
+	return { callOrder, dismissMessages, toasts, viewModel };
+}
+
+// drains the microtask queue so the fire-and-forget mix fetch settles
+async function flush(): Promise<void> {
+	for (let i = 0; i < 5; i++) {
+		await Promise.resolve();
+	}
 }
 
 describe('TrackContextMenu', () => {
@@ -128,6 +144,86 @@ describe('TrackContextMenu', () => {
 
 		expect(albumTaps).toEqual(['album']);
 		expect(dismissMessages).toEqual([undefined]);
+	});
+
+	valdiIt('plays an instant mix seeded from the track and dismisses', async (driver) => {
+		const mix = [
+			{ ...track, id: 'mix-1' },
+			{ ...track, id: 'mix-2' },
+		];
+		const seeds: Array<unknown> = [];
+		const { callOrder, toasts, viewModel } = createViewModel({
+			transport: {
+				getArtistLogoUrl: () => Promise.resolve(null),
+				getInstantMix: (seed: unknown) => {
+					seeds.push(seed);
+					return Promise.resolve(mix);
+				},
+			},
+		});
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
+
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
+		const instantMixAction = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-context-instant-mix',
+		);
+
+		instantMixAction?.getAttribute('onTap')?.(touchEvent);
+		await flush();
+
+		expect(seeds).toEqual([{ id: 'track-1', kind: 'track' }]);
+		expect(callOrder).toEqual(['dismiss:none', 'playTracks:mix-1,mix-2:0']);
+		expect(toasts).toEqual([]);
+	});
+
+	valdiIt('toasts an error when the instant mix comes back empty', async (driver) => {
+		const { callOrder, toasts, viewModel } = createViewModel({
+			transport: {
+				getArtistLogoUrl: () => Promise.resolve(null),
+				getInstantMix: () => Promise.resolve([]),
+			},
+		});
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
+
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
+		const instantMixAction = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-context-instant-mix',
+		);
+
+		instantMixAction?.getAttribute('onTap')?.(touchEvent);
+		await flush();
+
+		expect(callOrder).toEqual(['dismiss:none']);
+		expect(toasts).toEqual(['error:instant mix failed']);
+	});
+
+	valdiIt('toasts an error when the instant mix fetch rejects', async (driver) => {
+		const { toasts, viewModel } = createViewModel({
+			transport: {
+				getArtistLogoUrl: () => Promise.resolve(null),
+				getInstantMix: () => Promise.reject(new Error('boom')),
+			},
+		});
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
+
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
+		const instantMixAction = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-context-instant-mix',
+		);
+
+		instantMixAction?.getAttribute('onTap')?.(touchEvent);
+		await flush();
+
+		expect(toasts).toEqual(['error:instant mix failed']);
 	});
 
 	valdiIt('dismisses without toast when backdrop is tapped', async (driver) => {

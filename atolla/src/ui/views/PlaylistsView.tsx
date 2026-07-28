@@ -143,6 +143,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
 			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		});
 	};

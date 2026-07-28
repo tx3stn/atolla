@@ -5,9 +5,10 @@ import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
+import { type ToastService, ToastTypes } from '../../services/ToastService';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
-import type { Transport } from '../../transports/Transport';
+import { INSTANT_MIX_LIMIT, type Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
 import { ContextMenuActionRow } from './ContextMenuActionRow';
 import { ModalBase } from './ModalBase';
@@ -22,6 +23,7 @@ export interface TrackContextMenuViewModel {
 	onCreatePlaylist?: () => void;
 	onDismiss: (toastMessage?: string) => void;
 	playbackStore: PlaybackStore;
+	toastService: ToastService;
 	track: Track;
 	transport: Transport;
 }
@@ -72,6 +74,28 @@ export class TrackContextMenu extends StatefulComponent<
 		const { playbackStore, track } = this.viewModel;
 		playbackStore.playNext([track]);
 		this.viewModel.onDismiss(Strings.playingNextToast());
+	};
+
+	handleInstantMix = (): void => {
+		const reportFailure = (): void => {
+			this.viewModel.toastService.show({
+				message: Strings.instantMixFailedToast(),
+				variant: ToastTypes.error,
+			});
+		};
+
+		this.viewModel.transport
+			.getInstantMix({ id: this.viewModel.track.id, kind: 'track' }, INSTANT_MIX_LIMIT)
+			.then((mix) => {
+				if (mix.length === 0) {
+					reportFailure();
+					return;
+				}
+
+				this.viewModel.playbackStore.playTracks(mix, 0);
+			}, reportFailure);
+
+		this.viewModel.onDismiss();
 	};
 
 	handleAddToQueue = (): void => {
@@ -146,6 +170,13 @@ export class TrackContextMenu extends StatefulComponent<
 				icon={res.addtoqueue}
 				label={Strings.addToQueue()}
 				onPress={this.handleAddToQueue}
+			/>
+			<ContextMenuActionRow
+				accessibilityId='track-context-instant-mix'
+				animationsEnabled={animationsEnabled}
+				icon={res.instantmix}
+				label={Strings.instantMix()}
+				onPress={this.handleInstantMix}
 			/>
 			<ContextMenuActionRow
 				accessibilityId='track-context-add-to-playlist'

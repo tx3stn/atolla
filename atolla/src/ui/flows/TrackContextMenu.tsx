@@ -78,6 +78,7 @@ export function openTrackContextMenu(
 			onCreatePlaylist={onCreatePlaylist}
 			onDismiss={dismiss}
 			playbackStore={options.playbackStore}
+			toastService={options.toastService}
 			track={track}
 			transport={options.transport}
 		/>;

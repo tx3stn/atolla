@@ -5,7 +5,10 @@ import type { Playlist } from 'atolla/src/models/Playlist';
 import type { Track } from 'atolla/src/models/Track';
 import type { PlaybackStore } from 'atolla/src/stores/Playback';
 import type { Transport } from 'atolla/src/transports/Transport';
-import { CardContextMenu } from 'atolla/src/ui/components/CardContextMenu';
+import {
+	CardContextMenu,
+	type CardContextMenuCard,
+} from 'atolla/src/ui/components/CardContextMenu';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 function mockTrack(id = 'track-1'): Track {
@@ -326,6 +329,132 @@ describe('CardContextMenu', () => {
 				s: number,
 			) => Promise<{ items: Array<Track> }>;
 			expect((await tracks(1, 200)).items).toEqual(page);
+		});
+	});
+
+	describe('handleInstantMix()', () => {
+		function instantMixViewModel(
+			card: CardContextMenuCard,
+			getInstantMix: jasmine.Spy,
+		): {
+			playTracks: jasmine.Spy;
+			toastShow: jasmine.Spy;
+			viewModel: Record<string, unknown>;
+		} {
+			const playTracks = jasmine.createSpy('playTracks');
+			const toastShow = jasmine.createSpy('show');
+
+			return {
+				playTracks,
+				toastShow,
+				viewModel: {
+					animationsEnabled: false,
+					card,
+					onDismiss: jasmine.createSpy('onDismiss'),
+					playbackStore: { playTracks } as unknown as PlaybackStore,
+					toastService: { show: toastShow },
+					transport: mockTransport({ getInstantMix }),
+				},
+			};
+		}
+
+		valdiIt('plays the fetched mix as a fresh queue', async (driver) => {
+			const mix = [mockTrack('mix-1'), mockTrack('mix-2')];
+			const getInstantMix = jasmine
+				.createSpy('getInstantMix')
+				.and.returnValue(Promise.resolve(mix));
+			const { playTracks, toastShow, viewModel } = instantMixViewModel(
+				{ album: mockAlbum(), kind: 'album' },
+				getInstantMix,
+			);
+			const component = driver.renderComponent(CardContextMenu, viewModel, undefined);
+
+			(getInternal(component).handleInstantMix as () => void)();
+			await flush();
+
+			expect(playTracks).toHaveBeenCalledWith(mix, 0);
+			expect(toastShow).not.toHaveBeenCalled();
+		});
+
+		valdiIt('dismisses immediately rather than waiting for the mix', async (driver) => {
+			const getInstantMix = jasmine
+				.createSpy('getInstantMix')
+				.and.returnValue(new Promise(() => {}));
+			const { viewModel } = instantMixViewModel(
+				{ album: mockAlbum(), kind: 'album' },
+				getInstantMix,
+			);
+			const component = driver.renderComponent(CardContextMenu, viewModel, undefined);
+
+			(getInternal(component).handleInstantMix as () => void)();
+
+			expect(viewModel.onDismiss as jasmine.Spy).toHaveBeenCalled();
+		});
+
+		valdiIt('seeds the mix from the card kind and entity id', async (driver) => {
+			const cards: Array<{ card: CardContextMenuCard; seed: { id: string; kind: string } }> = [
+				{ card: { album: mockAlbum(), kind: 'album' }, seed: { id: 'album-1', kind: 'album' } },
+				{
+					card: { artist: { id: 'artist-1', name: 'Artist One' }, kind: 'artist' },
+					seed: { id: 'artist-1', kind: 'artist' },
+				},
+				{ card: { genre: mockGenre(), kind: 'genre' }, seed: { id: 'genre-1', kind: 'genre' } },
+				{
+					card: { kind: 'playlist', playlist: mockPlaylist() },
+					seed: { id: 'playlist-1', kind: 'playlist' },
+				},
+			];
+
+			for (const { card, seed } of cards) {
+				const getInstantMix = jasmine
+					.createSpy('getInstantMix')
+					.and.returnValue(Promise.resolve([mockTrack()]));
+				const { viewModel } = instantMixViewModel(card, getInstantMix);
+				const component = driver.renderComponent(CardContextMenu, viewModel, undefined);
+
+				(getInternal(component).handleInstantMix as () => void)();
+				await flush();
+
+				expect(getInstantMix).toHaveBeenCalledWith(seed, jasmine.any(Number));
+			}
+		});
+
+		valdiIt('toasts an error and plays nothing when the mix is empty', async (driver) => {
+			const getInstantMix = jasmine.createSpy('getInstantMix').and.returnValue(Promise.resolve([]));
+			const { playTracks, toastShow, viewModel } = instantMixViewModel(
+				{ genre: mockGenre(), kind: 'genre' },
+				getInstantMix,
+			);
+			const component = driver.renderComponent(CardContextMenu, viewModel, undefined);
+
+			(getInternal(component).handleInstantMix as () => void)();
+			await flush();
+
+			expect(playTracks).not.toHaveBeenCalled();
+			expect(toastShow).toHaveBeenCalledWith({
+				message: 'instant mix failed',
+				variant: 'error',
+			});
+		});
+
+		valdiIt('toasts an error when the mix fetch rejects', async (driver) => {
+			const getInstantMix = jasmine
+				.createSpy('getInstantMix')
+				.and.returnValue(Promise.reject(new Error('boom')));
+			const { playTracks, toastShow, viewModel } = instantMixViewModel(
+				{ album: mockAlbum(), kind: 'album' },
+				getInstantMix,
+			);
+			const component = driver.renderComponent(CardContextMenu, viewModel, undefined);
+
+			(getInternal(component).handleInstantMix as () => void)();
+			await flush();
+
+			expect(playTracks).not.toHaveBeenCalled();
+			expect(toastShow).toHaveBeenCalledWith({
+				message: 'instant mix failed',
+				variant: 'error',
+			});
 		});
 	});
 });

@@ -184,6 +184,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
 			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		});
 	};

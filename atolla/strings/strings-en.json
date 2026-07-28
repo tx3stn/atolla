@@ -184,6 +184,12 @@
 		"defaultMessage": "{count%d} images on disk      [ {size%s} ]",
 		"example": "42 images on disk      [ 1.5 MB ]"
 	},
+	"instant_mix": {
+		"defaultMessage": "instant mix"
+	},
+	"instant_mix_failed_toast": {
+		"defaultMessage": "instant mix failed"
+	},
 	"loading": {
 		"defaultMessage": "loading..."
 	},

@@ -198,6 +198,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
 			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		});
 	};

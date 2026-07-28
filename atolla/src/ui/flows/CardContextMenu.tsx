@@ -1,4 +1,5 @@
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Transport } from '../../transports/Transport';
@@ -14,6 +15,7 @@ export interface OpenCardContextMenuOptions {
 	onDismiss: (toastMessage?: string) => void;
 	onEntityTap?: () => void;
 	playbackStore: PlaybackStore;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -36,6 +38,7 @@ export function openCardContextMenu(
 			onDismiss={dismiss}
 			onEntityTap={options.onEntityTap}
 			playbackStore={options.playbackStore}
+			toastService={options.toastService}
 			transport={options.transport}
 		/>;
 	});

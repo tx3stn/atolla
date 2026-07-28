@@ -587,6 +587,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleCardContextMenuEntityTap,
 			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		});
 	}

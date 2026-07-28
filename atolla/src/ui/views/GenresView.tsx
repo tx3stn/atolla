@@ -244,6 +244,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
 			playbackStore: this.viewModel.playbackStore,
+			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,
 		});
 	};

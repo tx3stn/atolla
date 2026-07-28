@@ -503,7 +503,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	};
 
 	private openAlbumCardContextMenu(album: Album): void {
-		const { modalSlot, playbackStore, transport } = this.viewModel;
+		const { modalSlot, playbackStore, toastService, transport } = this.viewModel;
 		const { animationsEnabled } = this.viewModel.preferences;
 		openCardContextMenu(modalSlot, {
 			animationsEnabled,
@@ -514,6 +514,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleAlbumContextMenuEntityTap,
 			playbackStore,
+			toastService,
 			transport,
 		});
 	}

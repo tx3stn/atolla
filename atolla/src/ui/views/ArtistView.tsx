@@ -363,7 +363,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 		this.setState({ contextMenuCard: { album, kind: 'album' } });
 		this.contextMenuAlbumCard = card;
-		const { modalSlot, playbackStore, transport } = this.viewModel;
+		const { modalSlot, playbackStore, toastService, transport } = this.viewModel;
 		const { animationsEnabled } = this.viewModel.preferences;
 		modalSlot.slotted(() => {
 			<CardContextMenu
@@ -374,6 +374,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				onDismiss={this.handleContextMenuDismiss}
 				onEntityTap={this.handleAlbumContextMenuEntityTap}
 				playbackStore={playbackStore}
+				toastService={toastService}
 				transport={transport}
 			/>;
 		});

@@ -9,10 +9,11 @@ import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import { startPagedPlayback } from '../../services/PagedPlayback';
+import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { singlePage, type TrackSource } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
-import type { Transport } from '../../transports/Transport';
+import { INSTANT_MIX_LIMIT, type InstantMixSeed, type Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
 import { ContextMenuActionRow } from './ContextMenuActionRow';
@@ -33,6 +34,7 @@ export interface CardContextMenuViewModel {
 	onDismiss: (toastMessage?: string) => void;
 	onEntityTap?: () => void;
 	playbackStore: PlaybackStore;
+	toastService: ToastService;
 	transport: Transport;
 }
 
@@ -66,6 +68,20 @@ export class CardContextMenu extends StatefulComponent<
 			);
 		} else if (card.kind === 'artist' && card.artist.logoUrl) {
 			this.setState({ artistLogoUrl: card.artist.logoUrl });
+		}
+	}
+
+	private instantMixSeed(): InstantMixSeed {
+		const { card } = this.viewModel;
+		switch (card.kind) {
+			case 'album':
+				return { id: card.album.id, kind: 'album' };
+			case 'artist':
+				return { id: card.artist.id, kind: 'artist' };
+			case 'genre':
+				return { id: card.genre.id, kind: 'genre' };
+			case 'playlist':
+				return { id: card.playlist.id, kind: 'playlist' };
 		}
 	}
 
@@ -121,6 +137,26 @@ export class CardContextMenu extends StatefulComponent<
 		const { playbackStore } = this.viewModel;
 		this.withPagedPage(this.trackSource(), (tracks) => playbackStore.playNext(tracks));
 		this.viewModel.onDismiss(Strings.playingNextToast());
+	};
+
+	handleInstantMix = (): void => {
+		const reportFailure = (): void => {
+			this.viewModel.toastService.show({
+				message: Strings.instantMixFailedToast(),
+				variant: ToastTypes.error,
+			});
+		};
+
+		this.viewModel.transport.getInstantMix(this.instantMixSeed(), INSTANT_MIX_LIMIT).then((mix) => {
+			if (mix.length === 0) {
+				reportFailure();
+				return;
+			}
+
+			this.viewModel.playbackStore.playTracks(mix, 0);
+		}, reportFailure);
+
+		this.viewModel.onDismiss();
 	};
 
 	handleAddToQueue = (): void => {
@@ -243,6 +279,13 @@ export class CardContextMenu extends StatefulComponent<
 				icon={res.addtoqueue}
 				label={Strings.addToQueue()}
 				onPress={this.handleAddToQueue}
+			/>
+			<ContextMenuActionRow
+				accessibilityId='card-context-instant-mix'
+				animationsEnabled={animationsEnabled}
+				icon={res.instantmix}
+				label={Strings.instantMix()}
+				onPress={this.handleInstantMix}
 			/>
 			<ContextMenuActionRow
 				accessibilityId='card-context-add-to-playlist'
