@@ -6,6 +6,8 @@ import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 
+export const INSTANT_MIX_LIMIT = 200;
+
 export type InstantMixSeed =
 	| { kind: 'album'; id: string }
 	| { kind: 'artist'; id: string }
