@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { Genre } from '../models/Genre';
 import type {
 	DownloadedAlbumEntry,
 	DownloadedArtistEntry,
@@ -48,10 +49,17 @@ function createDownloadsMock(params: {
 
 function downloadedTrack(
 	id: string,
-	options: { complete: boolean; productionYear?: number; releaseDate?: string },
+	options: {
+		albumId?: string;
+		artistId?: string;
+		complete: boolean;
+		genres?: Array<Genre>;
+		productionYear?: number;
+		releaseDate?: string;
+	},
 ): DownloadedTrackEntry {
 	return {
-		albumIds: [],
+		albumIds: options.albumId ? [options.albumId] : [],
 		attempts: 0,
 		complete: options.complete,
 		failed: false,
@@ -60,12 +68,23 @@ function downloadedTrack(
 		requiredImageKeys: [],
 		streamUrl: `file:///${id}.mp3`,
 		track: {
+			albumId: options.albumId,
+			artistId: options.artistId,
 			duration: 180,
+			genres: options.genres,
 			id,
 			name: id,
 			productionYear: options.productionYear,
 			releaseDate: options.releaseDate,
 		},
+	};
+}
+
+function downloadedGenre(id: string, trackIds: Array<string>): DownloadedGenreEntry {
+	return {
+		genre: { id, name: id },
+		trackArtistLogoUrls: {},
+		trackIds,
 	};
 }
 
@@ -1101,6 +1120,153 @@ describe('OfflineTransport', () => {
 			const tracks = (await transport.getTracksByPlaylist(pending.id, 1, 500)).items;
 
 			expect(tracks).toHaveLength(0);
+		});
+	});
+
+	describe('instant mixes', () => {
+		it('builds a mix from the downloaded genre index', async () => {
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					genres: [downloadedGenre('genre-1', ['track-1', 'track-2'])],
+					tracks: [
+						downloadedTrack('track-1', { complete: true }),
+						downloadedTrack('track-2', { complete: true }),
+						downloadedTrack('track-3', { complete: true }),
+					],
+				}) as never,
+				playlistCreateService,
+			);
+
+			const mix = await transport.getInstantMix({ id: 'genre-1', kind: 'genre' }, 200);
+
+			expect(mix.map((track) => track.id).sort()).toEqual(['track-1', 'track-2']);
+		});
+
+		it('mixes from the index even when the stored tracks carry no genres', async () => {
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					genres: [downloadedGenre('genre-1', ['track-1', 'track-2'])],
+					tracks: [
+						downloadedTrack('track-1', { complete: true }),
+						downloadedTrack('track-2', { complete: true }),
+					],
+				}) as never,
+				playlistCreateService,
+			);
+
+			const mix = await transport.getInstantMix({ id: 'track-1', kind: 'track' }, 200);
+
+			expect(mix.every((track) => track.genres == null)).toBe(true);
+			expect(mix.map((track) => track.id).sort()).toEqual(['track-1', 'track-2']);
+		});
+
+		it('leaves incomplete downloads out of the mix', async () => {
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					genres: [downloadedGenre('genre-1', ['track-1', 'track-2'])],
+					tracks: [
+						downloadedTrack('track-1', { complete: true }),
+						downloadedTrack('track-2', { complete: false }),
+					],
+				}) as never,
+				playlistCreateService,
+			);
+
+			const mix = await transport.getInstantMix({ id: 'genre-1', kind: 'genre' }, 200);
+
+			expect(mix.map((track) => track.id)).toEqual(['track-1']);
+		});
+
+		it('puts the seed track first for a track seed', async () => {
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					genres: [downloadedGenre('genre-1', ['track-1', 'track-2', 'track-3'])],
+					tracks: [
+						downloadedTrack('track-1', { complete: true }),
+						downloadedTrack('track-2', { complete: true }),
+						downloadedTrack('track-3', { complete: true }),
+					],
+				}) as never,
+				playlistCreateService,
+			);
+
+			const mix = await transport.getInstantMix({ id: 'track-2', kind: 'track' }, 200);
+
+			expect(mix[0].id).toBe('track-2');
+			expect(mix).toHaveLength(3);
+		});
+
+		it("seeds an album mix from the downloaded album's genres", async () => {
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					albums: [
+						{
+							album: {
+								artistId: 'artist-1',
+								artistName: 'Artist One',
+								genres: [{ id: 'genre-1', name: 'genre-1' }],
+								id: 'album-1',
+								name: 'Album One',
+							},
+							artistLogoUrl: null,
+							trackIds: ['track-1'],
+						},
+					],
+					genres: [downloadedGenre('genre-1', ['track-1', 'track-2'])],
+					tracks: [
+						downloadedTrack('track-1', { albumId: 'album-1', complete: true }),
+						downloadedTrack('track-2', { complete: true }),
+					],
+				}) as never,
+				playlistCreateService,
+			);
+
+			const mix = await transport.getInstantMix({ id: 'album-1', kind: 'album' }, 200);
+
+			expect(mix.map((track) => track.id).sort()).toEqual(['track-1', 'track-2']);
+		});
+
+		it('honours the requested limit', async () => {
+			const trackIds = ['track-1', 'track-2', 'track-3', 'track-4', 'track-5'];
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					genres: [downloadedGenre('genre-1', trackIds)],
+					tracks: trackIds.map((id) => downloadedTrack(id, { complete: true })),
+				}) as never,
+				playlistCreateService,
+			);
+
+			const mix = await transport.getInstantMix({ id: 'genre-1', kind: 'genre' }, 2);
+
+			expect(mix).toHaveLength(2);
+		});
+
+		it("falls back to the seed artist's other tracks when no genres are downloaded", async () => {
+			const transport = new OfflineTransport(
+				createDownloadsMock({
+					tracks: [
+						downloadedTrack('track-1', { artistId: 'artist-1', complete: true }),
+						downloadedTrack('track-2', { artistId: 'artist-1', complete: true }),
+						downloadedTrack('track-3', { artistId: 'artist-2', complete: true }),
+					],
+				}) as never,
+				playlistCreateService,
+			);
+
+			const mix = await transport.getInstantMix({ id: 'track-1', kind: 'track' }, 200);
+
+			expect(mix.map((track) => track.id).sort()).toEqual(['track-1', 'track-2']);
+		});
+
+		it('returns an empty mix when nothing is downloaded', async () => {
+			const transport = new OfflineTransport(
+				createDownloadsMock({}) as never,
+				playlistCreateService,
+			);
+
+			const mix = await transport.getInstantMix({ id: 'track-1', kind: 'track' }, 200);
+
+			expect(mix).toEqual([]);
 		});
 	});
 });

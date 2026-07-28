@@ -8,6 +8,7 @@ import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 import { trackReleaseYear } from '../models/Track';
 import type { DownloadService } from '../services/DownloadService';
+import { buildInstantMix, type InstantMixLibrary } from '../services/InstantMix';
 import type { PlaylistCreateService } from '../services/PlaylistCreateService';
 import type { PlaylistEditService } from '../services/PlaylistEditService';
 import { TransportErrors } from './Errors';
@@ -193,8 +194,8 @@ export class OfflineTransport implements Transport {
 		};
 	}
 
-	async getInstantMix(_seed: InstantMixSeed, _limit: number): Promise<Array<Track>> {
-		return [];
+	async getInstantMix(seed: InstantMixSeed, limit: number): Promise<Array<Track>> {
+		return buildInstantMix(seed, this.instantMixLibrary(), { limit });
 	}
 
 	async getPlaylist(playlistId: string): Promise<Playlist | null> {
@@ -520,6 +521,32 @@ export class OfflineTransport implements Transport {
 			}
 		}
 		return tracks;
+	}
+
+	private instantMixLibrary(): InstantMixLibrary {
+		return {
+			albums: this.downloads.getAllAlbums().map((entry) => ({
+				genreIds: entry.album.genres?.map((genre) => genre.id) ?? [],
+				id: entry.album.id,
+				trackIds: entry.trackIds,
+			})),
+			artists: this.downloads.getAllArtists().map((entry) => ({
+				albumIds: entry.albumIds,
+				id: entry.artist.id,
+			})),
+			genres: this.downloads.getAllGenres().map((entry) => ({
+				id: entry.genre.id,
+				trackIds: entry.trackIds,
+			})),
+			playlists: this.downloads.getAllPlaylists().map((entry) => ({
+				id: entry.playlist.id,
+				trackIds: entry.trackIds,
+			})),
+			tracks: this.downloads
+				.getAllTracks()
+				.filter((entry) => entry.complete)
+				.map((entry) => entry.track),
+		};
 	}
 
 	private resolvePlaylistName(playlistId: string): string {
