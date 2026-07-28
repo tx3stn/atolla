@@ -349,6 +349,34 @@ describe('LiveTransport core collections', () => {
 		expect(albums.map((album) => album.id)).toEqual(['a', 'b']);
 	});
 
+	it('splits a large id list into batched ids= requests', async () => {
+		const ids = Array.from({ length: 250 }, (_, index) => `album-${index}`);
+		const batchFor = (start: number, end: number) =>
+			ids.slice(start, end).map(
+				(id): JellyfinAlbumItem => ({
+					Id: id,
+					Name: id.toUpperCase(),
+					Type: 'MusicAlbum',
+				}),
+			);
+		const { calls, client } = createHTTPClient([
+			jsonResponse(200, listResponse(batchFor(0, 100))),
+			jsonResponse(200, listResponse(batchFor(100, 200))),
+			jsonResponse(200, listResponse(batchFor(200, 250))),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		const albums = await transport.getAlbumsByIds(ids);
+
+		expect(calls).toHaveLength(3);
+		expect(queryParam(calls[0].pathOrUrl, 'ids')).toBe(ids.slice(0, 100).join(','));
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('100');
+		expect(queryParam(calls[1].pathOrUrl, 'ids')).toBe(ids.slice(100, 200).join(','));
+		expect(queryParam(calls[2].pathOrUrl, 'ids')).toBe(ids.slice(200, 250).join(','));
+		expect(queryParam(calls[2].pathOrUrl, 'limit')).toBe('50');
+		expect(albums.map((album) => album.id)).toEqual(ids);
+	});
+
 	it('returns no albums and makes no request for an empty id list', async () => {
 		const { calls, client } = createHTTPClient([]);
 		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);

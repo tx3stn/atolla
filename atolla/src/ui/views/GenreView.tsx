@@ -249,11 +249,11 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			'genre-download',
 			resolveDownloadTracks(transport, this.state.tracks, {
 				resolveMissingLogos: true,
-			}).then(({ artists, resolvedGenres, tracks }) => {
+			}).then(({ albums, artists, resolvedGenres, tracks }) => {
 				if (tracks.length === 0) {
 					return;
 				}
-				downloadService.downloadGenre({ artists, genre, resolvedGenres, tracks });
+				downloadService.downloadGenre({ albums, artists, genre, resolvedGenres, tracks });
 			}),
 		);
 	};

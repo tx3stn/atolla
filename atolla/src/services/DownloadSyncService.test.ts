@@ -47,6 +47,7 @@ function createTarget(config: {
 
 function baseTransport(overrides: Partial<DownloadSyncTransport> = {}): DownloadSyncTransport {
 	return {
+		getAlbumsByIds: () => Promise.resolve([]),
 		getArtist: () => Promise.resolve(null),
 		getArtistLogoUrl: () => Promise.resolve(null),
 		getGenres: () => Promise.resolve({ hasMore: false, items: [] }),

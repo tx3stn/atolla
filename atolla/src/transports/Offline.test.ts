@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { Album } from '../models/Album';
 import type { Genre } from '../models/Genre';
 import type {
 	DownloadedAlbumEntry,
@@ -12,6 +13,7 @@ import { TransportErrors } from './Errors';
 import { OfflineTransport } from './Offline';
 
 function createDownloadsMock(params: {
+	albumMetadata?: Array<Album>;
 	albums?: Array<DownloadedAlbumEntry>;
 	artists?: Array<DownloadedArtistEntry>;
 	genres?: Array<DownloadedGenreEntry>;
@@ -19,6 +21,7 @@ function createDownloadsMock(params: {
 	tracks?: Array<DownloadedTrackEntry>;
 }) {
 	const albums = params.albums ?? [];
+	const albumMetadata = new Map((params.albumMetadata ?? []).map((album) => [album.id, album]));
 	const genres = params.genres ?? [];
 	const playlists = params.playlists ?? [];
 	const tracks = params.tracks ?? [];
@@ -33,6 +36,7 @@ function createDownloadsMock(params: {
 
 	return {
 		getAlbum: (albumId: string) => albumById.get(albumId),
+		getAlbumMetadata: (albumId: string) => albumMetadata.get(albumId),
 		getAllAlbums: () => albums,
 		getAllArtists: () => Object.values(artistById),
 		getAllGenres: () => genres,
@@ -808,6 +812,199 @@ describe('OfflineTransport', () => {
 		expect(albums[0].releaseDate).toBe('2023-06-15');
 	});
 
+	it('uses the recorded album record for playlist-originated albums', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albumMetadata: [
+					{
+						addedDate: '2024-02-02',
+						artistId: 'artist-1',
+						artistName: 'Artist One',
+						bio: 'about the album',
+						genres: [{ id: 'genre-1', name: 'Post Rock' }],
+						id: 'album-1',
+						imageUrl: 'https://img/album-1.jpg',
+						name: 'Album One',
+						releaseDate: '2021-03-04',
+					},
+				],
+				tracks: [
+					downloadedTrack('track-1', {
+						albumId: 'album-1',
+						complete: true,
+						genres: [{ id: 'genre-2', name: 'Ambient' }],
+					}),
+				],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const albums = (await transport.getAlbums(1, 1000)).items;
+
+		expect(albums).toEqual([
+			{
+				addedDate: '2024-02-02',
+				artistId: 'artist-1',
+				artistName: 'Artist One',
+				bio: 'about the album',
+				genres: [{ id: 'genre-1', name: 'Post Rock' }],
+				id: 'album-1',
+				imageUrl: 'https://img/album-1.jpg',
+				name: 'Album One',
+				releaseDate: '2021-03-04',
+			},
+		]);
+	});
+
+	it('keeps the recorded album details when the downloaded album record is a track-derived stub', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albumMetadata: [
+					{
+						artistId: 'artist-1',
+						artistName: 'Artist One',
+						bio: 'about the album',
+						genres: [{ id: 'genre-1', name: 'Post Rock' }],
+						id: 'album-1',
+						imageUrl: 'https://img/album-1.jpg',
+						name: 'Album One',
+						releaseDate: '2021-03-04',
+					},
+				],
+				albums: [
+					{
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-1',
+							imageUrl: 'https://img/album-1.jpg',
+							name: 'Album One',
+						},
+						artistLogoUrl: null,
+						trackIds: ['track-1'],
+					},
+				],
+				tracks: [downloadedTrack('track-1', { albumId: 'album-1', complete: true })],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const albums = await transport.getAlbumsByIds(['album-1']);
+
+		expect(albums[0].genres).toEqual([{ id: 'genre-1', name: 'Post Rock' }]);
+		expect(albums[0].releaseDate).toBe('2021-03-04');
+		expect(albums[0].bio).toBe('about the album');
+	});
+
+	it('finds playlist-originated albums and artists when searching offline', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albumMetadata: [
+					{
+						artistId: 'artist-1',
+						artistName: 'Artist One',
+						id: 'album-1',
+						name: 'Album One',
+					},
+				],
+				tracks: [
+					{
+						...downloadedTrack('track-1', {
+							albumId: 'album-1',
+							artistId: 'artist-1',
+							complete: true,
+						}),
+						track: {
+							albumId: 'album-1',
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							duration: 180,
+							id: 'track-1',
+							name: 'Track One',
+						},
+					},
+				],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const results = await transport.search('one');
+
+		expect(results.albums.map((album) => album.id)).toEqual(['album-1']);
+		expect(results.artists.map((artist) => artist.id)).toEqual(['artist-1']);
+		expect(results.tracks.map((track) => track.id)).toEqual(['track-1']);
+	});
+
+	it('omits playlist-originated albums and artists whose tracks have not downloaded yet', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albumMetadata: [
+					{
+						artistId: 'artist-1',
+						artistName: 'Artist One',
+						id: 'album-1',
+						name: 'Album One',
+					},
+				],
+				tracks: [
+					{
+						...downloadedTrack('track-1', {
+							albumId: 'album-1',
+							artistId: 'artist-1',
+							complete: false,
+						}),
+						track: {
+							albumId: 'album-1',
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							duration: 180,
+							id: 'track-1',
+							name: 'Track One',
+						},
+					},
+				],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const results = await transport.search('one');
+
+		expect(results.albums).toEqual([]);
+		expect(results.artists).toEqual([]);
+		expect(results.tracks).toEqual([]);
+		expect((await transport.getAlbums(1, 100)).items).toEqual([]);
+	});
+
+	it('derives genres for album stubs built from playlist-originated tracks', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				tracks: [
+					downloadedTrack('track-1', {
+						albumId: 'album-1',
+						complete: true,
+						genres: [{ id: 'genre-1', name: 'Post Rock' }],
+					}),
+					downloadedTrack('track-2', {
+						albumId: 'album-1',
+						complete: true,
+						genres: [
+							{ id: 'genre-1', name: 'Post Rock' },
+							{ id: 'genre-2', name: 'Ambient' },
+						],
+					}),
+				],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const albums = (await transport.getAlbums(1, 1000)).items;
+
+		expect(albums[0]?.genres).toEqual([
+			{ id: 'genre-2', name: 'Ambient' },
+			{ id: 'genre-1', name: 'Post Rock' },
+		]);
+	});
+
 	it('orders all albums by releaseDate descending with missing dates last', async () => {
 		const transport = new OfflineTransport(
 			createDownloadsMock({
@@ -891,6 +1088,86 @@ describe('OfflineTransport', () => {
 		const albums = await transport.getAlbumsByArtist('artist-1');
 
 		expect(albums.map((album) => album.id)).toEqual(['album-new', 'album-old']);
+	});
+
+	it("includes playlist-originated albums alongside the artist's downloaded albums", async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albums: [
+					{
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-downloaded',
+							name: 'Downloaded Album',
+							releaseDate: '2025-01-01',
+						},
+						artistLogoUrl: null,
+						trackIds: ['track-1'],
+					},
+				],
+				artists: [
+					{ albumIds: ['album-downloaded'], artist: { id: 'artist-1', name: 'Artist One' } },
+				],
+				tracks: [
+					downloadedTrack('track-1', {
+						albumId: 'album-downloaded',
+						artistId: 'artist-1',
+						complete: true,
+					}),
+					downloadedTrack('track-2', {
+						albumId: 'album-from-playlist',
+						artistId: 'artist-1',
+						complete: true,
+						releaseDate: '2020-01-01',
+					}),
+				],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const albums = await transport.getAlbumsByArtist('artist-1');
+
+		expect(albums.map((album) => album.id)).toEqual(['album-downloaded', 'album-from-playlist']);
+	});
+
+	it("includes playlist-originated tracks alongside the artist's downloaded album tracks", async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albums: [
+					{
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-downloaded',
+							name: 'Downloaded Album',
+						},
+						artistLogoUrl: null,
+						trackIds: ['track-1'],
+					},
+				],
+				artists: [
+					{ albumIds: ['album-downloaded'], artist: { id: 'artist-1', name: 'Artist One' } },
+				],
+				tracks: [
+					downloadedTrack('track-1', {
+						albumId: 'album-downloaded',
+						artistId: 'artist-1',
+						complete: true,
+					}),
+					downloadedTrack('track-2', {
+						albumId: 'album-from-playlist',
+						artistId: 'artist-1',
+						complete: true,
+					}),
+				],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const tracks = await transport.getTracksByArtist('artist-1');
+
+		expect(tracks.map((track) => track.id)).toEqual(['track-1', 'track-2']);
 	});
 
 	it('picks distinct years present in the completed downloads', async () => {

@@ -64,6 +64,7 @@ export interface CollectionTrackDownload {
 }
 
 export interface AddTracksToPlaylistParams {
+	albums?: Array<Album>;
 	artists?: Array<Artist>;
 	playlist: Playlist;
 	resolvedGenres?: Array<Genre>;
@@ -88,6 +89,7 @@ export interface DownloadServiceOptions {
 }
 
 const KEY_ALBUMS = 'dl_albums';
+const KEY_ALBUM_METADATA = 'dl_album_metadata';
 const KEY_GENRES = 'dl_genres';
 const KEY_PLAYLISTS = 'dl_playlists';
 const KEY_ARTISTS = 'dl_artists';
@@ -102,6 +104,9 @@ const TRACK_MAX_ATTEMPTS = 3;
 
 export class DownloadService {
 	private albums: Record<string, DownloadedAlbumEntry> = {};
+	// every album we hold tracks from, whether or not the album itself was downloaded, so
+	// offline browsing has the same album data the server would give us
+	private albumMetadata: Record<string, Album> = {};
 	private genres: Record<string, DownloadedGenreEntry> = {};
 	private playlists: Record<string, DownloadedPlaylistEntry> = {};
 	private artists: Record<string, DownloadedArtistEntry> = {};
@@ -158,6 +163,8 @@ export class DownloadService {
 				if (!(await remove())) {
 					return;
 				}
+				this.pruneOrphanImages();
+				this.pruneOrphanAlbumMetadata();
 				this.pruneOrphanArtists();
 				await this.persistAll();
 				this.notify();
@@ -326,6 +333,10 @@ export class DownloadService {
 		return this.albums[albumId];
 	}
 
+	getAlbumMetadata(albumId: string): Album | undefined {
+		return this.albumMetadata[albumId];
+	}
+
 	getPlaylist(playlistId: string): DownloadedPlaylistEntry | undefined {
 		return this.playlists[playlistId];
 	}
@@ -353,6 +364,7 @@ export class DownloadService {
 		this.enqueueOperation(async () => {
 			await this.ensureLoaded();
 
+			this.upsertAlbumMetadata(album);
 			this.upsertArtistEntry({
 				albumIds: [album.id],
 				artist: {
@@ -395,15 +407,19 @@ export class DownloadService {
 	}
 
 	downloadPlaylist(params: {
+		albums?: Array<Album>;
 		playlist: Playlist;
 		artists?: Array<Artist>;
 		tracks: Array<{ track: Track; streamUrl: string; artistLogoUrl: string | null }>;
 		resolvedGenres?: Array<Genre>;
 	}): void {
-		const { artists = [], playlist, tracks, resolvedGenres = [] } = params;
+		const { albums = [], artists = [], playlist, tracks, resolvedGenres = [] } = params;
 		this.enqueueOperation(async () => {
 			await this.ensureLoaded();
 
+			for (const album of albums) {
+				this.upsertAlbumMetadata(album);
+			}
 			for (const artist of artists) {
 				this.upsertArtistEntry({
 					albumIds: [],
@@ -435,6 +451,7 @@ export class DownloadService {
 				this.addTrackRef(track, streamUrl, null, null, playlist.id, trackGenres, artistLogoUrl);
 				this.addTrackImageRequirements(track.id, [
 					...this.albumArtReqs(track.albumImageUrl),
+					...this.albumArtReqs(this.albumMetadata[track.albumId ?? '']?.imageUrl),
 					...this.artistReqs(null, artistLogoUrl),
 					...this.genreArtReqs(trackGenres),
 					...sharedReqs,
@@ -452,15 +469,19 @@ export class DownloadService {
 	}
 
 	downloadGenre(params: {
+		albums?: Array<Album>;
 		genre: Genre;
 		artists?: Array<Artist>;
 		tracks: Array<{ track: Track; streamUrl: string; artistLogoUrl: string | null }>;
 		resolvedGenres?: Array<Genre>;
 	}): void {
-		const { artists = [], genre, tracks, resolvedGenres = [] } = params;
+		const { albums = [], artists = [], genre, tracks, resolvedGenres = [] } = params;
 		this.enqueueOperation(async () => {
 			await this.ensureLoaded();
 
+			for (const album of albums) {
+				this.upsertAlbumMetadata(album);
+			}
 			for (const artist of artists) {
 				this.upsertArtistEntry({
 					albumIds: [],
@@ -492,6 +513,7 @@ export class DownloadService {
 				this.addTrackRef(track, streamUrl, null, genre.id, null, trackGenres, artistLogoUrl);
 				this.addTrackImageRequirements(track.id, [
 					...this.albumArtReqs(track.albumImageUrl),
+					...this.albumArtReqs(this.albumMetadata[track.albumId ?? '']?.imageUrl),
 					...this.artistReqs(null, artistLogoUrl),
 					...this.genreArtReqs(trackGenres),
 					...sharedReqs,
@@ -526,6 +548,7 @@ export class DownloadService {
 				artist,
 			});
 			for (const { album, tracks } of albumEntries) {
+				this.upsertAlbumMetadata(album);
 				this.albums[album.id] = {
 					album,
 					artistLogoUrl,
@@ -560,12 +583,15 @@ export class DownloadService {
 	// removes tracks that dropped off the server (downloads stay a superset). no-op if
 	// the playlist isn't downloaded, so it only ever tops up an existing download.
 	addTracksToPlaylist(params: AddTracksToPlaylistParams): void {
-		const { artists = [], playlist, tracks, resolvedGenres = [] } = params;
+		const { albums = [], artists = [], playlist, tracks, resolvedGenres = [] } = params;
 		this.enqueueOperation(async () => {
 			await this.ensureLoaded();
 			const entry = this.playlists[playlist.id];
 			if (!entry) return;
 
+			for (const album of albums) {
+				this.upsertAlbumMetadata(album);
+			}
 			for (const artist of artists) {
 				this.upsertArtistEntry({ albumIds: [], artist });
 			}
@@ -594,6 +620,7 @@ export class DownloadService {
 				this.addTrackRef(track, streamUrl, null, null, playlist.id, trackGenres, artistLogoUrl);
 				this.addTrackImageRequirements(track.id, [
 					...this.albumArtReqs(track.albumImageUrl),
+					...this.albumArtReqs(this.albumMetadata[track.albumId ?? '']?.imageUrl),
 					...this.artistReqs(null, artistLogoUrl),
 					...this.genreArtReqs(trackGenres),
 					...sharedReqs,
@@ -677,6 +704,7 @@ export class DownloadService {
 			}
 
 			this.albums = {};
+			this.albumMetadata = {};
 			this.genres = {};
 			this.playlists = {};
 			this.artists = {};
@@ -790,7 +818,6 @@ export class DownloadService {
 			this.removeTrackFromAllGenres(trackId);
 			delete this.tracks[trackId];
 			this.queue = this.queue.filter((q) => q.trackId !== trackId);
-			this.pruneOrphanImages();
 			await this.removeTrackFn(trackId);
 		}
 	}
@@ -959,6 +986,26 @@ export class DownloadService {
 		}
 	}
 
+	private upsertAlbumMetadata(album: Album): void {
+		if (!album.id) {
+			return;
+		}
+
+		const existing = this.albumMetadata[album.id];
+		if (!existing) {
+			this.albumMetadata[album.id] = { ...album };
+			return;
+		}
+
+		this.albumMetadata[album.id] = {
+			...existing,
+			...album,
+			genres: album.genres?.length ? album.genres : existing.genres,
+			imageUrl: album.imageUrl ?? existing.imageUrl,
+			name: album.name || existing.name,
+		};
+	}
+
 	private upsertArtistEntry(entry: DownloadedArtistEntry): void {
 		const existing = this.artists[entry.artist.id];
 		if (!existing) {
@@ -985,6 +1032,24 @@ export class DownloadService {
 	private removeAlbumReferenceFromArtists(albumId: string): void {
 		for (const artistEntry of Object.values(this.artists)) {
 			artistEntry.albumIds = artistEntry.albumIds.filter((id) => id !== albumId);
+		}
+	}
+
+	private pruneOrphanAlbumMetadata(): void {
+		const referenced = new Set<string>();
+		for (const trackEntry of Object.values(this.tracks)) {
+			if (trackEntry.track.albumId) {
+				referenced.add(trackEntry.track.albumId);
+			}
+			for (const albumId of trackEntry.albumIds) {
+				referenced.add(albumId);
+			}
+		}
+
+		for (const albumId of Object.keys(this.albumMetadata)) {
+			if (!referenced.has(albumId)) {
+				delete this.albumMetadata[albumId];
+			}
 		}
 	}
 
@@ -1179,6 +1244,7 @@ export class DownloadService {
 		this.loadChain = this.loadChain.then(async () => {
 			if (this.isLoaded) return;
 			this.albums = await this.loadKey<Record<string, DownloadedAlbumEntry>>(KEY_ALBUMS, {});
+			this.albumMetadata = await this.loadKey<Record<string, Album>>(KEY_ALBUM_METADATA, {});
 			this.genres = await this.loadKey<Record<string, DownloadedGenreEntry>>(KEY_GENRES, {});
 			this.playlists = await this.loadKey<Record<string, DownloadedPlaylistEntry>>(
 				KEY_PLAYLISTS,
@@ -1248,6 +1314,7 @@ export class DownloadService {
 	private persistTargets(): Array<[string, unknown]> {
 		return [
 			[KEY_ALBUMS, this.albums],
+			[KEY_ALBUM_METADATA, this.albumMetadata],
 			[KEY_GENRES, this.genres],
 			[KEY_PLAYLISTS, this.playlists],
 			[KEY_ARTISTS, this.artists],

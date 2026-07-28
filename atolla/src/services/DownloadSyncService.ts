@@ -105,10 +105,18 @@ export class DownloadSyncService {
 		const newTracks = selectNewTracks(serverTracks, snapshotIds);
 		if (newTracks.length === 0) return;
 
-		const { artists, resolvedGenres, tracks } = await resolveDownloadTracks(transport, newTracks, {
-			resolveMissingLogos: true,
-		});
+		const { albums, artists, resolvedGenres, tracks } = await resolveDownloadTracks(
+			transport,
+			newTracks,
+			{ resolveMissingLogos: true },
+		);
 		if (tracks.length === 0) return;
-		this.deps.downloadService.addTracksToPlaylist({ artists, playlist, resolvedGenres, tracks });
+		this.deps.downloadService.addTracksToPlaylist({
+			albums,
+			artists,
+			playlist,
+			resolvedGenres,
+			tracks,
+		});
 	}
 }

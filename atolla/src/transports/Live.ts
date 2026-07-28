@@ -58,6 +58,7 @@ interface AlbumsPageResult {
 	items: Array<Album>;
 }
 
+const albumIdBatchSize = 100;
 const defaultSearchLimit = 100;
 const log = getLogger('transport');
 const trackFields = 'Overview,Genres,MediaSources';
@@ -164,23 +165,28 @@ export class LiveTransport implements Transport {
 	getAlbumsByIds(ids: Array<string>): CancelablePromise<Array<Album>> {
 		return cancelable(async (canceler) => {
 			const cleaned = ids.filter((id) => id.length > 0);
-			if (cleaned.length === 0) {
-				return [];
+			const albums: Array<Album> = [];
+
+			for (let start = 0; start < cleaned.length; start += albumIdBatchSize) {
+				const batch = cleaned.slice(start, start + albumIdBatchSize);
+				const list = await tracked(
+					canceler,
+					this.fetchItemsPage<JellyfinAlbumItem>({
+						fields: 'Overview,Genres',
+						ids: batch.join(','),
+						includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
+						limit: batch.length,
+						recursive: true,
+						startIndex: 0,
+					}),
+				);
+
+				albums.push(
+					...list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers)),
+				);
 			}
 
-			const list = await tracked(
-				canceler,
-				this.fetchItemsPage<JellyfinAlbumItem>({
-					fields: 'Overview,Genres',
-					ids: cleaned.join(','),
-					includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
-					limit: cleaned.length,
-					recursive: true,
-					startIndex: 0,
-				}),
-			);
-
-			return list.Items.map((item) => mapJellyfinAlbumToAlbum(item, this.imageResolvers));
+			return albums;
 		});
 	}
 

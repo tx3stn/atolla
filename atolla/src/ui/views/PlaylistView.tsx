@@ -451,11 +451,11 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			'playlist-download',
 			resolveDownloadTracks(transport, this.state.tracks, {
 				resolveMissingLogos: true,
-			}).then(({ artists, resolvedGenres, tracks }) => {
+			}).then(({ albums, artists, resolvedGenres, tracks }) => {
 				if (tracks.length === 0) {
 					return;
 				}
-				downloadService.downloadPlaylist({ artists, playlist, resolvedGenres, tracks });
+				downloadService.downloadPlaylist({ albums, artists, playlist, resolvedGenres, tracks });
 			}),
 		);
 	};

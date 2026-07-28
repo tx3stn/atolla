@@ -11,6 +11,7 @@ import type { DownloadService } from '../services/DownloadService';
 import { buildInstantMix, type InstantMixLibrary } from '../services/InstantMix';
 import type { PlaylistCreateService } from '../services/PlaylistCreateService';
 import type { PlaylistEditService } from '../services/PlaylistEditService';
+import { mergeGenreCollections } from '../ui/components/GenrePillsData';
 import { TransportErrors } from './Errors';
 import type { InstantMixSeed, TrackPageSort, Transport } from './Transport';
 
@@ -54,18 +55,22 @@ export class OfflineTransport implements Transport {
 	}
 
 	async getAlbumsByArtist(artistId: string): Promise<Array<Album>> {
-		const artistEntry = this.downloads.getArtist(artistId);
-		if (artistEntry) {
-			const albums = artistEntry.albumIds
-				.map((id) => this.downloads.getAlbum(id)?.album)
-				.filter((a): a is Album => a != null);
-			if (albums.length > 0) {
-				return sortAlbumsByDefaultOrder(albums);
+		const albumsById = new Map<string, Album>();
+
+		for (const album of this.collectAllAlbums()) {
+			if (album.artistId === artistId) {
+				albumsById.set(album.id, album);
 			}
 		}
 
-		const allAlbums = this.collectAllAlbums();
-		return allAlbums.filter((album) => album.artistId === artistId);
+		for (const albumId of this.downloads.getArtist(artistId)?.albumIds ?? []) {
+			const album = this.downloads.getAlbum(albumId)?.album;
+			if (album && !albumsById.has(albumId)) {
+				albumsById.set(albumId, normalizeAlbum(album));
+			}
+		}
+
+		return sortAlbumsByDefaultOrder([...albumsById.values()]);
 	}
 
 	async getAlbumsByIds(ids: Array<string>): Promise<Array<Album>> {
@@ -281,21 +286,19 @@ export class OfflineTransport implements Transport {
 	}
 
 	async getTracksByArtist(artistId: string): Promise<Array<Track>> {
-		const artistEntry = this.downloads.getArtist(artistId);
-		if (artistEntry) {
-			const trackIds = artistEntry.albumIds.flatMap(
+		const trackIds = new Set(
+			(this.downloads.getArtist(artistId)?.albumIds ?? []).flatMap(
 				(albumId) => this.downloads.getAlbum(albumId)?.trackIds ?? [],
-			);
-			const tracks = this.completedTracks(trackIds);
-			if (tracks.length > 0) {
-				return tracks;
+			),
+		);
+
+		for (const entry of this.downloads.getAllTracks()) {
+			if (entry.track.artistId === artistId) {
+				trackIds.add(entry.track.id);
 			}
 		}
 
-		return this.downloads
-			.getAllTracks()
-			.filter((entry) => entry.track.artistId === artistId && entry.complete)
-			.map((entry) => entry.track);
+		return this.completedTracks([...trackIds]);
 	}
 
 	async getTracksByGenre(
@@ -362,14 +365,8 @@ export class OfflineTransport implements Transport {
 		const match = (name: string) => name.toLowerCase().includes(q);
 
 		return {
-			albums: this.downloads
-				.getAllAlbums()
-				.filter((e) => match(e.album.name))
-				.map((e) => e.album),
-			artists: this.downloads
-				.getAllArtists()
-				.filter((e) => match(e.artist.name))
-				.map((e) => e.artist),
+			albums: this.collectAllAlbums().filter((album) => match(album.name)),
+			artists: this.collectAllArtists().filter((artist) => match(artist.name)),
 			playlists: this.downloads
 				.getAllPlaylists()
 				.filter((e) => match(e.playlist.name))
@@ -385,18 +382,41 @@ export class OfflineTransport implements Transport {
 		const albumsById = new Map<string, Album>();
 
 		for (const entry of this.downloads.getAllAlbums()) {
-			albumsById.set(entry.album.id, normalizeAlbum(entry.album));
+			const metadata = this.downloads.getAlbumMetadata(entry.album.id);
+			albumsById.set(
+				entry.album.id,
+				normalizeAlbum(metadata ? { ...metadata, ...entry.album } : entry.album),
+			);
+		}
+
+		// downloads made before album metadata was recorded have no album record to read
+		// genres from, so they come from the tracks themselves
+		const genresByAlbumId = new Map<string, Array<Genre>>();
+		for (const trackEntry of this.downloads.getAllTracks()) {
+			const { albumId, genres } = trackEntry.track;
+			if (!trackEntry.complete || !albumId || albumsById.has(albumId) || !genres?.length) {
+				continue;
+			}
+
+			genresByAlbumId.set(albumId, mergeGenreCollections([genresByAlbumId.get(albumId), genres]));
 		}
 
 		for (const trackEntry of this.downloads.getAllTracks()) {
 			const { albumId } = trackEntry.track;
-			if (!albumId || albumsById.has(albumId)) {
+			if (!trackEntry.complete || !albumId || albumsById.has(albumId)) {
+				continue;
+			}
+
+			const metadata = this.downloads.getAlbumMetadata(albumId);
+			if (metadata) {
+				albumsById.set(albumId, normalizeAlbum(metadata));
 				continue;
 			}
 
 			albumsById.set(albumId, {
 				artistId: trackEntry.track.artistId ?? '',
 				artistName: trackEntry.track.artistName ?? '',
+				genres: genresByAlbumId.get(albumId),
 				id: albumId,
 				imageUrl: trackEntry.track.albumImageUrl,
 				name: trackEntry.track.albumName ?? 'Unknown Album',
@@ -437,7 +457,7 @@ export class OfflineTransport implements Transport {
 
 		for (const trackEntry of this.downloads.getAllTracks()) {
 			const artistId = trackEntry.track.artistId;
-			if (!artistId) {
+			if (!trackEntry.complete || !artistId) {
 				continue;
 			}
 

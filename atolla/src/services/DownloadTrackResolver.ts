@@ -1,9 +1,17 @@
+import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
 import type { Genre } from '../models/Genre';
 import type { Track } from '../models/Track';
 import type { Transport } from '../transports/Transport';
 import { resolveGenreImageUrls } from '../ui/flows/GenreNavigationResolver';
 import { retryResolve } from '../utils/Async';
+import { getLogger } from './Logger';
+
+const log = getLogger('DownloadTrackResolver');
+
+function messageOf(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
 
 export interface ResolvedDownloadTrack {
 	artistLogoUrl: string | null;
@@ -12,12 +20,14 @@ export interface ResolvedDownloadTrack {
 }
 
 export interface ResolvedDownloadInputs {
+	albums: Array<Album>;
 	artists: Array<Artist>;
 	resolvedGenres: Array<Genre>;
 	tracks: Array<ResolvedDownloadTrack>;
 }
 
 export interface DownloadTrackResolverTransport {
+	getAlbumsByIds: Transport['getAlbumsByIds'];
 	getArtist: Transport['getArtist'];
 	getArtistLogoUrl: Transport['getArtistLogoUrl'];
 	getGenres: Transport['getGenres'];
@@ -57,7 +67,11 @@ export async function resolveDownloadTracks(
 						transport.getArtistLogoUrl(track.artistId as string),
 					);
 					return { artistLogoUrl, streamUrl, track };
-				} catch {
+				} catch (error) {
+					log.warn('artist logo resolve failed', {
+						artistId: track.artistId,
+						message: messageOf(error),
+					});
 					return { artistLogoUrl: null, streamUrl, track };
 				}
 			}),
@@ -71,18 +85,40 @@ export async function resolveDownloadTracks(
 				.filter((artistId): artistId is string => artistId != null && artistId.length > 0),
 		),
 	);
+	const uniqueAlbumIds = Array.from(
+		new Set(
+			resolvedTracks
+				.map(({ track }) => track.albumId)
+				.filter((albumId): albumId is string => albumId != null && albumId.length > 0),
+		),
+	);
 	const allGenres = resolvedTracks.flatMap(({ track }) => track.genres ?? []);
 
-	const [artistResults, resolvedGenres] = await Promise.all([
+	const [albums, artistResults, resolvedGenres] = await Promise.all([
+		uniqueAlbumIds.length > 0
+			? retryResolve(() => transport.getAlbumsByIds(uniqueAlbumIds)).catch(
+					(error: unknown): Array<Album> => {
+						log.warn('album metadata resolve failed', {
+							count: uniqueAlbumIds.length,
+							message: messageOf(error),
+						});
+						return [];
+					},
+				)
+			: Promise.resolve<Array<Album>>([]),
 		Promise.all(
 			uniqueArtistIds.map((artistId) =>
-				retryResolve(() => transport.getArtist(artistId)).catch(() => null),
+				retryResolve(() => transport.getArtist(artistId)).catch((error: unknown) => {
+					log.warn('artist resolve failed', { artistId, message: messageOf(error) });
+					return null;
+				}),
 			),
 		),
 		resolveGenreImageUrls(transport, allGenres),
 	]);
 
 	return {
+		albums,
 		artists: artistResults.filter((artist): artist is Artist => artist != null),
 		resolvedGenres,
 		tracks: resolvedTracks,

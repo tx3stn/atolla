@@ -37,8 +37,8 @@ function makeTrack(id: string, albumId = 'album-1'): Track {
 	return { albumId, duration: 180, id, name: `Track ${id}` };
 }
 
-function makeAlbum(id: string): Album {
-	return { artistId: 'artist-1', artistName: 'Artist', id, name: `Album ${id}` };
+function makeAlbum(id: string, overrides: Partial<Album> = {}): Album {
+	return { artistId: 'artist-1', artistName: 'Artist', id, name: `Album ${id}`, ...overrides };
 }
 
 function makeArtist(id: string): Artist {
@@ -398,6 +398,146 @@ describe('DownloadService', () => {
 
 			const genre = service.getAllGenres().find((e) => e.genre.id === 'genre-1');
 			expect(genre?.genre.imageUrl).toBe('https://img/genre-1.jpg');
+		});
+
+		it('records the album metadata its tracks belong to', async () => {
+			const { service } = createService();
+			const album = makeAlbum('album-1', {
+				genres: [{ id: 'genre-1', name: 'Noise Rock' }],
+				imageUrl: 'https://img/album-1.jpg',
+				releaseDate: '2021-03-04',
+			});
+
+			service.downloadPlaylist({
+				albums: [album],
+				playlist: makePlaylist('playlist-1'),
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+
+			await flush();
+
+			expect(service.getAlbumMetadata('album-1')).toEqual(album);
+		});
+
+		it('caches the album artwork of the albums its tracks belong to', async () => {
+			const { imageCalls, service } = createService();
+
+			service.downloadPlaylist({
+				albums: [makeAlbum('album-1', { imageUrl: 'https://img/album-1.jpg' })],
+				playlist: makePlaylist('playlist-1'),
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+
+			await flush();
+
+			expect(imageCalls).toContainEqual({ category: 'album_art', url: 'https://img/album-1.jpg' });
+			expect(imageCalls).toContainEqual({
+				category: 'album_art_thumb',
+				url: 'https://img/album-1.jpg',
+			});
+		});
+
+		it('persists album metadata so it survives a reload', async () => {
+			const store = new InMemoryStore();
+			const album = makeAlbum('album-1', { genres: [{ id: 'genre-1', name: 'Noise Rock' }] });
+
+			const first = createService({ store }).service;
+			first.downloadPlaylist({
+				albums: [album],
+				playlist: makePlaylist('playlist-1'),
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+			await flush();
+
+			const reloaded = createService({ store }).service;
+			reloaded.onAppReady();
+			await flush();
+
+			expect(reloaded.getAlbumMetadata('album-1')).toEqual(album);
+		});
+
+		it('drops album metadata once no downloaded track belongs to the album', async () => {
+			const { service } = createService();
+
+			service.downloadPlaylist({
+				albums: [makeAlbum('album-1')],
+				playlist: makePlaylist('playlist-1'),
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+			await flush();
+
+			service.removePlaylistDownload('playlist-1');
+			await flush();
+
+			expect(service.getAlbumMetadata('album-1')).toBeUndefined();
+		});
+
+		it('drops the metadata of every album a removed collection held tracks from', async () => {
+			const { service } = createService();
+
+			service.downloadPlaylist({
+				albums: [makeAlbum('album-1'), makeAlbum('album-2'), makeAlbum('album-3')],
+				playlist: makePlaylist('playlist-1'),
+				tracks: [
+					{
+						artistLogoUrl: null,
+						streamUrl: 'http://s/track-1',
+						track: makeTrack('track-1', 'album-1'),
+					},
+					{
+						artistLogoUrl: null,
+						streamUrl: 'http://s/track-2',
+						track: makeTrack('track-2', 'album-2'),
+					},
+					{
+						artistLogoUrl: null,
+						streamUrl: 'http://s/track-3',
+						track: makeTrack('track-3', 'album-3'),
+					},
+				],
+			});
+			await flush();
+
+			service.removePlaylistDownload('playlist-1');
+			await flush();
+
+			expect(service.getAlbumMetadata('album-1')).toBeUndefined();
+			expect(service.getAlbumMetadata('album-2')).toBeUndefined();
+			expect(service.getAlbumMetadata('album-3')).toBeUndefined();
+		});
+
+		it('keeps album metadata while another playlist still holds one of its tracks', async () => {
+			const { service } = createService();
+			const album = makeAlbum('album-1');
+
+			service.downloadPlaylist({
+				albums: [album],
+				playlist: makePlaylist('playlist-1'),
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+			service.downloadPlaylist({
+				albums: [album],
+				playlist: makePlaylist('playlist-2'),
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-2', track: makeTrack('track-2') },
+				],
+			});
+			await flush();
+
+			service.removePlaylistDownload('playlist-1');
+			await flush();
+
+			expect(service.getAlbumMetadata('album-1')).toEqual(album);
 		});
 	});
 
