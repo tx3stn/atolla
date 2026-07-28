@@ -76,7 +76,7 @@ export function buildInstantMix(
 
 	const limit = Math.max(1, options.limit ?? INSTANT_MIX_LIMIT);
 	const lead = leadTrack(seed, context);
-	const related = relatedTracks(seed, context, lead?.id ?? null, limit - (lead ? 1 : 0));
+	const related = relatedTracks(seed, context, lead, limit - (lead ? 1 : 0));
 
 	return lead ? [lead, ...related] : related;
 }
@@ -127,6 +127,10 @@ function genreIdsOfTracks(trackIds: Array<string>, context: MixContext): Set<str
 	return genreIds;
 }
 
+function groupKey(track: Track): string {
+	return track.albumId || track.artistId || track.id;
+}
+
 function leadTrack(seed: InstantMixSeed, context: MixContext): Track | null {
 	switch (seed.kind) {
 		case 'album':
@@ -144,17 +148,12 @@ function playlistTrackIds(playlistId: string, context: MixContext): Array<string
 	return context.library.playlists.find((playlist) => playlist.id === playlistId)?.trackIds ?? [];
 }
 
-function relatedTracks(
+function relatedCandidates(
 	seed: InstantMixSeed,
 	context: MixContext,
 	excludeTrackId: string | null,
-	needed: number,
 ): Array<Track> {
-	if (needed <= 0) {
-		return [];
-	}
-
-	const byGenre = tracksByGenreOverlap(seed, context, excludeTrackId, needed);
+	const byGenre = tracksByGenreOverlap(seed, context, excludeTrackId);
 	if (byGenre.length > 0) {
 		return byGenre;
 	}
@@ -165,7 +164,7 @@ function relatedTracks(
 			(track) => track.artistId === artistId && track.id !== excludeTrackId,
 		);
 		if (byArtist.length > 0) {
-			return sample(byArtist, needed, context.random);
+			return shuffle(byArtist, context.random);
 		}
 	}
 
@@ -175,14 +174,30 @@ function relatedTracks(
 			(track) => track.albumId === albumId && track.id !== excludeTrackId,
 		);
 		if (byAlbum.length > 0) {
-			return sample(byAlbum, needed, context.random);
+			return shuffle(byAlbum, context.random);
 		}
 	}
 
-	return sample(
+	return shuffle(
 		context.library.tracks.filter((track) => track.id !== excludeTrackId),
-		needed,
 		context.random,
+	);
+}
+
+function relatedTracks(
+	seed: InstantMixSeed,
+	context: MixContext,
+	lead: Track | null,
+	needed: number,
+): Array<Track> {
+	if (needed <= 0) {
+		return [];
+	}
+
+	return spreadAcrossAlbums(
+		relatedCandidates(seed, context, lead?.id ?? null),
+		needed,
+		lead ? groupKey(lead) : null,
 	);
 }
 
@@ -240,6 +255,10 @@ function sample<T>(items: Array<T>, count: number, random: () => number): Array<
 	return copy.slice(0, wanted);
 }
 
+function shuffle<T>(items: Array<T>, random: () => number): Array<T> {
+	return sample(items, items.length, random);
+}
+
 function sampleTrack(trackIds: Array<string>, context: MixContext): Track | null {
 	const candidates: Array<Track> = [];
 	for (const trackId of trackIds) {
@@ -250,6 +269,56 @@ function sampleTrack(trackIds: Array<string>, context: MixContext): Track | null
 	}
 
 	return sample(candidates, 1, context.random)[0] ?? null;
+}
+
+function spreadAcrossAlbums(
+	candidates: Array<Track>,
+	needed: number,
+	leadKey: string | null,
+): Array<Track> {
+	const queuesByKey = new Map<string, Array<Track>>();
+	for (const track of candidates) {
+		const key = groupKey(track);
+		const queue = queuesByKey.get(key);
+		if (queue) {
+			queue.push(track);
+		} else {
+			queuesByKey.set(key, [track]);
+		}
+	}
+
+	const rotation: Array<Array<Track>> = [];
+	for (const [key, queue] of queuesByKey) {
+		if (key !== leadKey) {
+			rotation.push(queue);
+		}
+	}
+
+	const leadQueue = leadKey === null ? undefined : queuesByKey.get(leadKey);
+	if (leadQueue) {
+		rotation.push(leadQueue);
+	}
+
+	const picked: Array<Track> = [];
+	for (let position = 0; picked.length < needed; position++) {
+		const pickedBefore = picked.length;
+
+		for (const queue of rotation) {
+			const track = queue[position];
+			if (track) {
+				picked.push(track);
+			}
+			if (picked.length >= needed) {
+				break;
+			}
+		}
+
+		if (picked.length === pickedBefore) {
+			break;
+		}
+	}
+
+	return picked;
 }
 
 function trackSeedGenreIds(trackId: string, context: MixContext): Set<string> {
@@ -277,7 +346,6 @@ function tracksByGenreOverlap(
 	seed: InstantMixSeed,
 	context: MixContext,
 	excludeTrackId: string | null,
-	needed: number,
 ): Array<Track> {
 	const genreIds = seedGenreIds(seed, context);
 	if (genreIds.size === 0) {
@@ -311,10 +379,7 @@ function tracksByGenreOverlap(
 
 	const ranked: Array<Track> = [];
 	for (const overlap of [...bands.keys()].sort((left, right) => right - left)) {
-		if (ranked.length >= needed) {
-			break;
-		}
-		ranked.push(...sample(bands.get(overlap) ?? [], needed - ranked.length, context.random));
+		ranked.push(...shuffle(bands.get(overlap) ?? [], context.random));
 	}
 
 	return ranked;

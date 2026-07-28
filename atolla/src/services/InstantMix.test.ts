@@ -337,6 +337,81 @@ describe('buildInstantMix ranking', () => {
 	});
 });
 
+describe('buildInstantMix spread', () => {
+	function multiAlbumLibrary(): InstantMixLibrary {
+		return makeLibrary({
+			albums: [
+				{ genreIds: ['genre-1'], id: 'album-1', trackIds: ['a1', 'a2', 'a3', 'a4'] },
+				{ genreIds: ['genre-1'], id: 'album-2', trackIds: ['b1', 'b2'] },
+				{ genreIds: ['genre-1'], id: 'album-3', trackIds: ['c1', 'c2'] },
+			],
+			genres: [{ id: 'genre-1', trackIds: ['a1', 'a2', 'a3', 'a4', 'b1', 'b2', 'c1', 'c2'] }],
+			tracks: [
+				makeTrack('a1', { albumId: 'album-1' }),
+				makeTrack('a2', { albumId: 'album-1' }),
+				makeTrack('a3', { albumId: 'album-1' }),
+				makeTrack('a4', { albumId: 'album-1' }),
+				makeTrack('b1', { albumId: 'album-2' }),
+				makeTrack('b2', { albumId: 'album-2' }),
+				makeTrack('c1', { albumId: 'album-3' }),
+				makeTrack('c2', { albumId: 'album-3' }),
+			],
+		});
+	}
+
+	it("spreads the seed album's remaining tracks through the mix", () => {
+		const mix = buildInstantMix({ id: 'album-1', kind: 'album' }, multiAlbumLibrary(), {
+			random: zeroRandom(),
+		});
+
+		expect(ids(mix)).toEqual(['a1', 'b1', 'c1', 'a2', 'b2', 'c2', 'a3', 'a4']);
+	});
+
+	it('takes at most one track per album before revisiting an album', () => {
+		const mix = buildInstantMix({ id: 'genre-1', kind: 'genre' }, multiAlbumLibrary(), {
+			limit: 3,
+			random: zeroRandom(),
+		});
+
+		expect(ids(mix).map((id) => id[0])).toEqual(['a', 'b', 'c']);
+	});
+
+	it('keeps filling from one album when it is the only one downloaded', () => {
+		const library = makeLibrary({
+			albums: [{ genreIds: ['genre-1'], id: 'album-1', trackIds: ['a1', 'a2', 'a3'] }],
+			genres: [{ id: 'genre-1', trackIds: ['a1', 'a2', 'a3'] }],
+			tracks: [
+				makeTrack('a1', { albumId: 'album-1' }),
+				makeTrack('a2', { albumId: 'album-1' }),
+				makeTrack('a3', { albumId: 'album-1' }),
+			],
+		});
+
+		const mix = buildInstantMix({ id: 'album-1', kind: 'album' }, library, {
+			random: zeroRandom(),
+		});
+
+		expect(ids(mix)).toEqual(['a1', 'a2', 'a3']);
+	});
+
+	it('groups by artist when the candidates carry no album', () => {
+		const library = makeLibrary({
+			genres: [{ id: 'genre-1', trackIds: ['x1', 'x2', 'y1'] }],
+			tracks: [
+				makeTrack('x1', { artistId: 'artist-x' }),
+				makeTrack('x2', { artistId: 'artist-x' }),
+				makeTrack('y1', { artistId: 'artist-y' }),
+			],
+		});
+
+		const mix = buildInstantMix({ id: 'genre-1', kind: 'genre' }, library, {
+			random: zeroRandom(),
+		});
+
+		expect(ids(mix)).toEqual(['x1', 'y1', 'x2']);
+	});
+});
+
 describe('buildInstantMix fallbacks', () => {
 	it("falls back to the seed artist's other tracks when no genre overlaps", () => {
 		const library = makeLibrary({
