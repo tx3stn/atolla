@@ -15,8 +15,9 @@
   * [player](#player)
   * [home tab](#home-tab)
   * [artist view](#artist-view)
-  * [library & album view](#library-&-album-view)
-  * [seach & genre list](#search-&-genre-list)
+  * [library](#library)
+  * [album](#album)
+  * [search & settings](#search--settings)
 * [Installing](#installing)
   * [Android](#android)
   * [iOS](#ios)
@@ -41,8 +42,8 @@
 ### player
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/cad3ea3e-97d8-4261-88ad-b8bb5a101702" alt="player" width="49%" />
- <img src="https://github.com/user-attachments/assets/71a88b15-31f9-401e-b1f0-d482d6ce0674" alt="player-play-queue" width="49%" />
+ <img src="https://github.com/user-attachments/assets/cad3ea3e-97d8-4261-88ad-b8bb5a101702" alt="player" width="360" />
+ <img src="https://github.com/user-attachments/assets/71a88b15-31f9-401e-b1f0-d482d6ce0674" alt="player-play-queue" width="360" />
 </p>
 
 * color palettes generated from album art.
@@ -52,8 +53,8 @@
 ### home tab
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/2f8b7a01-ef09-46f9-b8b5-4fdc92743164" alt="artist-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/e59b6072-0e94-45e7-8b84-125b293b7d9a" alt="artist-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/2f8b7a01-ef09-46f9-b8b5-4fdc92743164" alt="artist-1" width="360" />
+ <img src="https://github.com/user-attachments/assets/e59b6072-0e94-45e7-8b84-125b293b7d9a" alt="artist-2" width="360" />
 </p>
 
 * albums released on this day
@@ -64,8 +65,8 @@
 ### artist view
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/e918674b-76ce-4061-9a01-aed180ed6783" alt="artist-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/42d9f96e-a0f5-4cc3-8a21-d5f5ac5a0aef" alt="artist-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/e918674b-76ce-4061-9a01-aed180ed6783" alt="artist-1" width="360" />
+ <img src="https://github.com/user-attachments/assets/42d9f96e-a0f5-4cc3-8a21-d5f5ac5a0aef" alt="artist-2" width="360" />
 </p>
 
 * artist most played tracks
@@ -75,15 +76,15 @@
 ### library
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/426790e9-b969-43f1-8ab1-87d6147e1862" alt="artist-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/5fe69b87-4236-413b-bce6-a55079105a73" alt="artist-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/426790e9-b969-43f1-8ab1-87d6147e1862" alt="artist-1" width="360" />
+ <img src="https://github.com/user-attachments/assets/5fe69b87-4236-413b-bce6-a55079105a73" alt="artist-2" width="360" />
 </p>
 
 ### album
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/75b4ebd8-2bdd-48d3-8253-b6909dc4d5dc" alt="album-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/d5eec9da-1864-4f6b-bdaf-101662fef309" alt="album-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/75b4ebd8-2bdd-48d3-8253-b6909dc4d5dc" alt="album-1" width="360" />
+ <img src="https://github.com/user-attachments/assets/d5eec9da-1864-4f6b-bdaf-101662fef309" alt="album-2" width="360" />
 </p>
 
 * audio file quality badges on albums
@@ -93,8 +94,8 @@
 ### search & settings
 
 <p align="center">
- <img src="https://github.com/user-attachments/assets/5f909219-bb0e-4299-b617-74eb8b77add0" alt="artist-1" width="49%" />
- <img src="https://github.com/user-attachments/assets/32ccc4f9-ad68-4214-8abe-1dfa994f163e" alt="artist-2" width="49%" />
+ <img src="https://github.com/user-attachments/assets/5f909219-bb0e-4299-b617-74eb8b77add0" alt="artist-1" width="360" />
+ <img src="https://github.com/user-attachments/assets/32ccc4f9-ad68-4214-8abe-1dfa994f163e" alt="artist-2" width="360" />
 </p>
 
 * search that works online and offline
