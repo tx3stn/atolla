@@ -30,7 +30,7 @@ import {
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
 } from './JellyfinMappers';
-import type { TrackPageSort, Transport } from './Transport';
+import type { InstantMixSeed, TrackPageSort, Transport } from './Transport';
 
 export {
 	type JellyfinImageResolvers,
@@ -322,6 +322,27 @@ export class LiveTransport implements Transport {
 				hasMore: startIndex + list.Items.length < list.TotalRecordCount,
 				items: list.Items.map((item) => mapJellyfinGenreToGenre(item, this.imageResolvers)),
 			};
+		});
+	}
+
+	getInstantMix(seed: InstantMixSeed, limit: number): CancelablePromise<Array<Track>> {
+		return cancelable(async (canceler) => {
+			const list = await tracked(
+				canceler,
+				this.requestJson<JellyfinListEnvelope<JellyfinTrackItem>>(
+					'GET',
+					`/Items/${encodeURIComponent(seed.id)}/InstantMix`,
+					{
+						query: {
+							fields: trackFields,
+							limit: Math.max(1, limit),
+							userId: this.userId,
+						},
+					},
+				),
+			);
+
+			return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
 		});
 	}
 

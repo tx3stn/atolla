@@ -11,7 +11,7 @@ import type { DownloadService } from '../services/DownloadService';
 import type { PlaylistCreateService } from '../services/PlaylistCreateService';
 import type { PlaylistEditService } from '../services/PlaylistEditService';
 import { TransportErrors } from './Errors';
-import type { TrackPageSort, Transport } from './Transport';
+import type { InstantMixSeed, TrackPageSort, Transport } from './Transport';
 
 export class OfflineTransport implements Transport {
 	private readonly downloads: DownloadService;
@@ -191,6 +191,10 @@ export class OfflineTransport implements Transport {
 			hasMore: end < allGenres.length,
 			items: allGenres.slice(start, end),
 		};
+	}
+
+	async getInstantMix(_seed: InstantMixSeed, _limit: number): Promise<Array<Track>> {
+		return [];
 	}
 
 	async getPlaylist(playlistId: string): Promise<Playlist | null> {

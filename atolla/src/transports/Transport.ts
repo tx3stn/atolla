@@ -6,6 +6,13 @@ import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
 
+export type InstantMixSeed =
+	| { kind: 'album'; id: string }
+	| { kind: 'artist'; id: string }
+	| { kind: 'genre'; id: string }
+	| { kind: 'playlist'; id: string }
+	| { kind: 'track'; id: string };
+
 // how a paged track collection should be ordered. 'random' reshuffles per request, so
 // consecutive pages can overlap — consumers that stitch pages together must de-dupe
 export type TrackPageSort = 'default' | 'random';
@@ -37,6 +44,7 @@ export interface Transport {
 		page: number,
 		pageSize: number,
 	): CancelablePromise<{ hasMore: boolean; items: Array<Genre> }>;
+	getInstantMix(seed: InstantMixSeed, limit: number): CancelablePromise<Array<Track>>;
 	getPlaylist(playlistId: string): CancelablePromise<Playlist | null>;
 	getPlaylists(
 		page: number,

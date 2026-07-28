@@ -18,6 +18,7 @@ import {
 	resolveAlbumArtist,
 	resolvePrimaryArtist,
 } from './Live';
+import type { InstantMixSeed } from './Transport';
 
 interface MockHTTPResponse {
 	body?: Uint8Array;
@@ -1069,5 +1070,101 @@ describe('LiveTransport core collections', () => {
 		request.cancel?.();
 
 		expect(canceled).toBe(true);
+	});
+});
+
+describe('LiveTransport instant mixes', () => {
+	function instantMixTrack(id: string, name: string): JellyfinTrackItem {
+		return {
+			Album: 'The Album',
+			AlbumId: 'album-1',
+			GenreItems: [{ Id: 'genre-1', Name: 'Shoegaze' }],
+			Id: id,
+			Name: name,
+			RunTimeTicks: 180_000_0000,
+			Type: 'Audio',
+		};
+	}
+
+	it('requests the generic instant mix endpoint with limit, genre fields and userId', async () => {
+		const { calls, client } = createHTTPClient([
+			jsonResponse(200, listResponse([instantMixTrack('track-2', 'Related')], 201)),
+		]);
+		const transport = new LiveTransport(
+			'https://demo.jellyfin.local/',
+			'token-1',
+			'user-1',
+			client,
+		);
+
+		await transport.getInstantMix({ id: 'track-1', kind: 'track' }, 200);
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0].pathOrUrl).toContain('/Items/track-1/InstantMix');
+		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('200');
+		expect(queryParam(calls[0].pathOrUrl, 'userId')).toBe('user-1');
+		expect(queryParam(calls[0].pathOrUrl, 'fields')).toContain('Genres');
+		expect(calls[0].headers?.['X-Emby-Token']).toBe('token-1');
+	});
+
+	it('maps the envelope to tracks, carrying genres so a mix track can seed the next mix', async () => {
+		const { client } = createHTTPClient([
+			jsonResponse(
+				200,
+				listResponse([instantMixTrack('track-2', 'Related'), instantMixTrack('track-3', 'Also')]),
+			),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		const mix = await transport.getInstantMix({ id: 'track-1', kind: 'track' }, 200);
+
+		expect(mix).toHaveLength(2);
+		expect(mix[0].id).toBe('track-2');
+		expect(mix[0].name).toBe('Related');
+		expect(mix[0].genres).toEqual([{ id: 'genre-1', name: 'Shoegaze' }]);
+	});
+
+	it('uses the same endpoint for every seed kind', async () => {
+		const seeds: Array<InstantMixSeed> = [
+			{ id: 'album-1', kind: 'album' },
+			{ id: 'artist-1', kind: 'artist' },
+			{ id: 'genre-1', kind: 'genre' },
+			{ id: 'playlist-1', kind: 'playlist' },
+			{ id: 'track-1', kind: 'track' },
+		];
+		const { calls, client } = createHTTPClient(
+			seeds.map(() => jsonResponse(200, listResponse([instantMixTrack('track-9', 'Mixed')]))),
+		);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		for (const seed of seeds) {
+			await transport.getInstantMix(seed, 200);
+		}
+
+		expect(calls.map((call) => call.pathOrUrl.split('?')[0])).toEqual([
+			'/Items/album-1/InstantMix',
+			'/Items/artist-1/InstantMix',
+			'/Items/genre-1/InstantMix',
+			'/Items/playlist-1/InstantMix',
+			'/Items/track-1/InstantMix',
+		]);
+	});
+
+	it('encodes seed ids into the path', async () => {
+		const { calls, client } = createHTTPClient([jsonResponse(200, listResponse([]))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		await transport.getInstantMix({ id: 'track/1 2', kind: 'track' }, 200);
+
+		expect(calls[0].pathOrUrl).toContain('/Items/track%2F1%202/InstantMix');
+	});
+
+	it('returns an empty mix when the server has nothing related', async () => {
+		const { client } = createHTTPClient([jsonResponse(200, listResponse([]))]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		const mix = await transport.getInstantMix({ id: 'genre-1', kind: 'genre' }, 200);
+
+		expect(mix).toEqual([]);
 	});
 });
