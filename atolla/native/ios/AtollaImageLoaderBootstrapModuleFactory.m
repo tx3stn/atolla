@@ -5,7 +5,7 @@
 #import <valdi_core/SCValdiConfiguration.h>
 #import <valdi_core/SCValdiRuntimeManagerProtocol.h>
 #import <Foundation/Foundation.h>
-#import <CommonCrypto/CommonDigest.h>
+#import <CommonCrypto/CommonDigest.h> // mobsf-ignore: ios_weak_hash
 #import <UIKit/UIKit.h>
 #import "atolla/native/ios/palette_ios_bridge.h"
 #import "atolla/native/ios/blur_ios_bridge.h"

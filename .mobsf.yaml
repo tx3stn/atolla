@@ -1,0 +1,19 @@
+ignore-paths:
+  - bazel-out
+  - bazel-atolla
+  - bazel-bin
+  - generated
+  - node_modules
+  - ".git"
+  - ".github"
+  - ".claude"
+  - ".planning"
+  - ".tmp"
+  - ".vscode"
+ignore-rules:
+  # we need cleartext for the local network behaviour
+  - android_manifest_base_config_cleartext
+  - ios_piracy_check
+  - ios_jailbreak_detect
+  - ios_detect_jailbreak_check
+  - ios_mach_ports
