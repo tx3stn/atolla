@@ -5,9 +5,6 @@ pre-push:
   fail_on_changes: always
   fail_on_changes_diff: true
   commands:
-    check:static:
-      run: bun run check:static
-
     check:zig:
       run: bun run check:zig
 
@@ -15,13 +12,22 @@ pre-push:
       run: bun run compile
 
     lint:
-      run: bun run lint
+      run: bun run format && bun run lint
+
+    format:zig:
+      run: bun run format:zig
 
     test:
       run: bun run test
 
+    test:android:
+      run: bun run test:android
+
     test:components:
       run: bun run test:components
+
+    test:ios:
+      run: bun run test:ios
 
     test:zig:
       run: bun run test:zig

@@ -28,7 +28,7 @@
 		"appium:inspect": "./.scripts/start-appium-inspector.sh",
 		"build:apk": "./.scripts/build-android-apk.sh",
 		"build:ipa": "./.scripts/build-ios-ipa.sh",
-		"check": "bun run check:static && bun run check:bazel",
+		"check": "bunx lefthook run pre-push --all-files",
 		"check:bazel": "bun run check:zig && bun run test:zig && bun run test:android && bun run test:ios",
 		"check:full": "./.scripts/check-full.sh",
 		"check:static": "bun run format && bun run lint && bun run compile && bun run test && bun run format:zig",
