@@ -1,0 +1,7 @@
+name: "atolla CodeQL config"
+
+# Development-only tooling that talks to a local mock/self-hosted Jellyfin
+# server. Its "user input" is the developer's own config, so taint-tracking
+# results (e.g. js/request-forgery) are noise here.
+paths-ignore:
+  - tools/mock-server
