@@ -2,10 +2,7 @@ import res from 'atolla/res';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
-import { type SortOrder, SortOrders } from '../../models/App';
 import { theme } from '../../theme';
-
-export { type SortOrder, SortOrders };
 
 const ALPHA_TOP = '0ABCDEFGHIJKLM'.split('');
 const ALPHA_BOTTOM = 'NOPQRSTUVWXYZ'.split('');

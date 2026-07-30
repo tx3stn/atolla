@@ -26,7 +26,6 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { EmptyState } from '../components/EmptyState';
 import { RefreshableScroll } from '../components/RefreshableScroll';
-import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { type DetailPushDeps, pushPlaylist } from '../flows/PushDetail';
@@ -49,7 +48,6 @@ export interface PlaylistsViewModel {
 	playbackStore: PlaybackStore;
 	playlistEditService: PlaylistEditService;
 	preferences: Preferences;
-	sortOrder?: SortOrder;
 	toastService: ToastService;
 	transport: Transport;
 	viewCache: ViewCache;
@@ -77,7 +75,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	private cachedDisplayLetterFilter: string | null | undefined = undefined;
 	private cachedDisplayPlaylists: Array<Playlist> = [];
 	private cachedDisplayPlaylistsRef: Array<Playlist> | null = null;
-	private cachedDisplaySortOrder: SortOrder | undefined = undefined;
 	private cachedPlaylistCards: Array<Card> = [];
 	private cachedPlaylistCardsSource: Array<Playlist> | null = null;
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
@@ -190,22 +187,19 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	private getDisplayPlaylists(): Array<Playlist> {
-		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
 		const letterFilter = this.viewModel.letterFilter;
 
 		if (
 			this.state.playlists === this.cachedDisplayPlaylistsRef &&
-			sort === this.cachedDisplaySortOrder &&
 			letterFilter === this.cachedDisplayLetterFilter
 		) {
 			return this.cachedDisplayPlaylists;
 		}
 
 		this.cachedDisplayPlaylistsRef = this.state.playlists;
-		this.cachedDisplaySortOrder = sort;
 		this.cachedDisplayLetterFilter = letterFilter;
 
-		let playlists = sortPlaylists(this.state.playlists, sort);
+		let playlists = sortPlaylists(this.state.playlists);
 		if (letterFilter) {
 			playlists = playlists.filter((p) => matchesLetterFilter(p.name, letterFilter));
 		}

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
 import type { Album } from '../../../models/Album';
-import { SortOrders } from '../../../models/App';
 import { sortAlbums, sortArtistAlbums } from './Albums';
 
 const albums: Array<Album> = [
@@ -12,15 +11,15 @@ const albums: Array<Album> = [
 
 describe('sortAlbums', () => {
 	it('sorts new-old by releaseDate and keeps missing releaseDate last', () => {
-		const sorted = sortAlbums(albums, SortOrders.newToOld);
+		const sorted = sortAlbums(albums);
 
 		expect(sorted.map((album) => album.name)).toEqual(['Album B', 'Album D', 'Album A', 'Album C']);
 	});
 
-	it('sorts old-new by releaseDate and keeps missing releaseDate last', () => {
-		const sorted = sortAlbums(albums, SortOrders.oldToNew);
+	it('leaves the source array untouched', () => {
+		sortAlbums(albums);
 
-		expect(sorted.map((album) => album.name)).toEqual(['Album A', 'Album D', 'Album B', 'Album C']);
+		expect(albums.map((album) => album.name)).toEqual(['Album A', 'Album B', 'Album C', 'Album D']);
 	});
 });
 

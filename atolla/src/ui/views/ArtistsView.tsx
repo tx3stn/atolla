@@ -25,7 +25,6 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { EmptyState } from '../components/EmptyState';
 import { RefreshableScroll } from '../components/RefreshableScroll';
-import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { type DetailPushDeps, pushArtist } from '../flows/PushDetail';
@@ -46,7 +45,6 @@ export interface ArtistsViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
-	sortOrder?: SortOrder;
 	toastService: ToastService;
 	transport: Transport;
 	viewCache: ViewCache;
@@ -197,7 +195,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private cachedArtistCardsSource: Array<Artist> | null = null;
 	private cachedDisplayArtists: Array<Artist> = [];
 	private cachedDisplayArtistsRef: Array<Artist> | null = null;
-	private cachedDisplaySortOrder: SortOrder | undefined = undefined;
 	private cachedDisplayLetterFilter: string | null | undefined = undefined;
 	private cachedDisplayIsOffline = false;
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
@@ -225,13 +222,11 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	}
 
 	private getDisplayArtists(): Array<Artist> {
-		const sort = this.viewModel.sortOrder ?? SortOrders.aToZ;
 		const letterFilter = this.viewModel.letterFilter;
 		const isOffline = this.viewModel.isOfflineMode;
 
 		if (
 			this.state.artists === this.cachedDisplayArtistsRef &&
-			sort === this.cachedDisplaySortOrder &&
 			letterFilter === this.cachedDisplayLetterFilter &&
 			isOffline === this.cachedDisplayIsOffline
 		) {
@@ -239,11 +234,10 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		}
 
 		this.cachedDisplayArtistsRef = this.state.artists;
-		this.cachedDisplaySortOrder = sort;
 		this.cachedDisplayLetterFilter = letterFilter;
 		this.cachedDisplayIsOffline = isOffline;
 
-		let artists = sortArtistsForView(this.state.artists, sort, this.viewModel.isOfflineMode);
+		let artists = sortArtistsForView(this.state.artists, this.viewModel.isOfflineMode);
 		if (letterFilter) {
 			artists = artists.filter((a) => matchesArtistLetterFilter(a.name, letterFilter));
 		}
@@ -421,16 +415,12 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	};
 }
 
-function sortArtistsForView(
-	artists: Array<Artist>,
-	sort: SortOrder,
-	shouldSortLocally: boolean,
-): Array<Artist> {
-	if (!shouldSortLocally && sort === SortOrders.aToZ) {
+function sortArtistsForView(artists: Array<Artist>, shouldSortLocally: boolean): Array<Artist> {
+	if (!shouldSortLocally) {
 		return artists;
 	}
 
-	return sortArtists(artists, sort);
+	return sortArtists(artists);
 }
 
 function matchesArtistLetterFilter(name: string, letter: string): boolean {

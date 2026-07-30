@@ -1,20 +1,7 @@
-import { type SortOrder, SortOrders } from '../../../models/App';
 import type { Artist } from '../../../models/Artist';
-import { compareDatesAscending, compareDatesDescending } from '../../../utils/Date';
 
-export function sortArtists(artists: Array<Artist>, sort: SortOrder): Array<Artist> {
-	const sorted = [...artists];
-
-	switch (sort) {
-		case SortOrders.zToA:
-			return sortAlphabetically(sorted).reverse();
-		case SortOrders.newToOld:
-			return sorted.sort((a, b) => compareDatesDescending(a.dateAdded, b.dateAdded));
-		case SortOrders.oldToNew:
-			return sorted.sort((a, b) => compareDatesAscending(a.dateAdded, b.dateAdded));
-		default:
-			return sortAlphabetically(sorted);
-	}
+export function sortArtists(artists: Array<Artist>): Array<Artist> {
+	return sortAlphabetically([...artists]);
 }
 
 function sortAlphabetically(artists: Array<Artist>): Array<Artist> {

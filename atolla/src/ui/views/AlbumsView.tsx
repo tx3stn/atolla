@@ -25,7 +25,6 @@ import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { EmptyState } from '../components/EmptyState';
 import { RefreshableScroll } from '../components/RefreshableScroll';
-import { type SortOrder, SortOrders } from '../components/SortNavPanel';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { type DetailPushDeps, pushAlbum, pushArtist } from '../flows/PushDetail';
@@ -46,7 +45,6 @@ export interface AlbumsViewModel {
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
-	sortOrder?: SortOrder;
 	toastService: ToastService;
 	transport: Transport;
 	viewCache: ViewCache;
@@ -219,7 +217,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	private cachedAlbumCardsSource: Array<Album> | null = null;
 	private cachedDisplayAlbums: Array<Album> = [];
 	private cachedDisplayAlbumsRef: Array<Album> | null = null;
-	private cachedDisplaySortOrder: SortOrder | undefined = undefined;
 	private cachedDisplayLetterFilter: string | null | undefined = undefined;
 	private cachedDisplayIsOffline = false;
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
@@ -402,13 +399,11 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	private getDisplayAlbums(): Array<Album> {
-		const sort = this.viewModel.sortOrder ?? SortOrders.newToOld;
 		const letterFilter = this.viewModel.letterFilter;
 		const isOffline = this.viewModel.isOfflineMode;
 
 		if (
 			this.state.albums === this.cachedDisplayAlbumsRef &&
-			sort === this.cachedDisplaySortOrder &&
 			letterFilter === this.cachedDisplayLetterFilter &&
 			isOffline === this.cachedDisplayIsOffline
 		) {
@@ -416,11 +411,10 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 		}
 
 		this.cachedDisplayAlbumsRef = this.state.albums;
-		this.cachedDisplaySortOrder = sort;
 		this.cachedDisplayLetterFilter = letterFilter;
 		this.cachedDisplayIsOffline = isOffline;
 
-		let albums = sortAlbumsForView(this.state.albums, sort, this.viewModel.isOfflineMode);
+		let albums = sortAlbums(this.state.albums);
 		if (letterFilter) {
 			albums = albums.filter((a) => matchesLetterFilter(a.name, letterFilter));
 		}
@@ -431,17 +425,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	private loadMore = (): void => {
 		void this.pagedGridController.loadNextPage();
 	};
-}
-
-function sortAlbumsForView(
-	albums: Array<Album>,
-	sort: SortOrder,
-	shouldSortLocally: boolean,
-): Array<Album> {
-	if (!shouldSortLocally && sort === SortOrders.aToZ) {
-		return albums;
-	}
-	return sortAlbums(albums, sort);
 }
 
 function matchesLetterFilter(name: string, letter: string): boolean {

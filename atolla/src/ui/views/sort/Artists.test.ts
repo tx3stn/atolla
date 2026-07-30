@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'bun:test';
-import { SortOrders } from '../../../models/App';
 import type { Artist } from '../../../models/Artist';
 import { sortArtists } from './Artists';
 
@@ -12,24 +11,13 @@ const artists: Array<Artist> = [
 
 describe('sortArtists', () => {
 	it('sorts artists a-z with leading The normalized', () => {
-		const sorted = sortArtists(artists, SortOrders.aToZ);
+		const sorted = sortArtists(artists);
 
 		expect(sorted.map((artist) => artist.name)).toEqual([
 			'Agriculture',
 			'The Armed',
 			'Birds In Row',
 			'Converge',
-		]);
-	});
-
-	it('sorts artists z-a with leading The normalized', () => {
-		const sorted = sortArtists(artists, SortOrders.zToA);
-
-		expect(sorted.map((artist) => artist.name)).toEqual([
-			'Converge',
-			'Birds In Row',
-			'The Armed',
-			'Agriculture',
 		]);
 	});
 
@@ -42,7 +30,7 @@ describe('sortArtists', () => {
 			{ id: '5', name: 'beta' },
 		];
 
-		const sorted = sortArtists(mixedCase, SortOrders.aToZ);
+		const sorted = sortArtists(mixedCase);
 
 		expect(sorted.map((artist) => artist.name)).toEqual([
 			'aardvark',
@@ -53,25 +41,14 @@ describe('sortArtists', () => {
 		]);
 	});
 
-	it('sorts artists new-old by dateAdded and puts missing dates last', () => {
-		const sorted = sortArtists(artists, SortOrders.newToOld);
+	it('leaves the source array untouched', () => {
+		const source: Array<Artist> = [
+			{ id: '1', name: 'Zao' },
+			{ id: '2', name: 'Amenra' },
+		];
 
-		expect(sorted.map((artist) => artist.name)).toEqual([
-			'Birds In Row',
-			'Converge',
-			'The Armed',
-			'Agriculture',
-		]);
-	});
+		sortArtists(source);
 
-	it('sorts artists old-new by dateAdded and puts missing dates last', () => {
-		const sorted = sortArtists(artists, SortOrders.oldToNew);
-
-		expect(sorted.map((artist) => artist.name)).toEqual([
-			'The Armed',
-			'Converge',
-			'Birds In Row',
-			'Agriculture',
-		]);
+		expect(source.map((artist) => artist.name)).toEqual(['Zao', 'Amenra']);
 	});
 });
