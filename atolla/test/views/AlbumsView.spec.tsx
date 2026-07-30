@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import { ConnectionModes } from 'atolla/src/models/App';
 import { PlaybackStore } from 'atolla/src/stores/Playback';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import { AlbumsView } from 'atolla/src/ui/views/AlbumsView';
@@ -96,7 +97,7 @@ describe('AlbumsView', () => {
 	valdiIt('paints albums from the view cache before the network resolves', async (driver) => {
 		const cached = makeAlbums(5);
 		const viewCache = makeTestViewCache();
-		viewCache.store('list:albums:all:online', cached);
+		viewCache.store('list:albums:all', cached);
 
 		type Page = { hasMore: boolean; items: ReturnType<typeof makeAlbums> };
 		let resolveNetwork: ((value: Page) => void) | undefined;
@@ -177,7 +178,7 @@ describe('AlbumsView', () => {
 		const allAlbums = makeAlbums(80);
 		const viewCache = makeTestViewCache();
 		// the online page-1 the app cached before going offline; paints on the toggle back
-		viewCache.store('list:albums:all:online', allAlbums.slice(0, pageSize));
+		viewCache.store('list:albums:all', allAlbums.slice(0, pageSize));
 
 		type Page = { hasMore: boolean; items: ReturnType<typeof makeAlbums> };
 		let resolvePageOne: ((value: Page) => void) | undefined;
@@ -228,6 +229,71 @@ describe('AlbumsView', () => {
 		scrollPrefetchTriggerIntoView(component);
 		await flushAsyncWork();
 		expect(component.state.albums.length).toBe(pageSize * 2);
+	});
+
+	valdiIt('drops downloaded albums once offline data is invalidated', async () => {
+		let downloadedAlbums = makeAlbums(3);
+		const transport = {
+			getAlbums: () => Promise.resolve({ hasMore: false, items: downloadedAlbums }),
+		};
+
+		const viewCache = makeTestViewCache(ConnectionModes.offline);
+		const viewModel = (offlineDataInvalidations: number) => ({
+			imageCache: stubImageCache,
+			isOfflineMode: true,
+			navigationController: makeNavigationController(),
+			offlineDataInvalidations,
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			transport,
+			viewCache,
+		});
+
+		const instrumented = InstrumentedComponentJSX.create(AlbumsView, viewModel(0), undefined);
+		const component = instrumented.getComponent();
+		await flushAsyncWork();
+		expect(component.state.albums.length).toBe(3);
+
+		// clearing downloads empties what the offline transport can serve
+		downloadedAlbums = [];
+		instrumented.setViewModel(viewModel(1));
+		await flushAsyncWork();
+
+		expect(component.state.albums.length).toBe(0);
+	});
+
+	valdiIt('keeps its albums when downloads are removed while online', async () => {
+		const albums = makeAlbums(3);
+		let requestCount = 0;
+		const transport = {
+			getAlbums: () => {
+				requestCount += 1;
+				return Promise.resolve({ hasMore: false, items: albums });
+			},
+		};
+		const viewCache = makeTestViewCache();
+
+		const viewModel = (offlineDataInvalidations: number) => ({
+			imageCache: stubImageCache,
+			isOfflineMode: false,
+			navigationController: makeNavigationController(),
+			offlineDataInvalidations,
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			transport,
+			viewCache,
+		});
+
+		const instrumented = InstrumentedComponentJSX.create(AlbumsView, viewModel(0), undefined);
+		const component = instrumented.getComponent();
+		await flushAsyncWork();
+		expect(requestCount).toBe(1);
+
+		instrumented.setViewModel(viewModel(1));
+		await flushAsyncWork();
+
+		expect(component.state.albums.length).toBe(3);
+		expect(requestCount).toBe(1);
 	});
 
 	valdiIt('shows retry state when next page fails and recovers on retry', async (driver) => {

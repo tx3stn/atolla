@@ -33,6 +33,18 @@ class InMemoryStore implements DownloadServiceStore {
 	}
 }
 
+class FlakyWriteStore extends InMemoryStore {
+	failWrites = false;
+
+	override storeString(key: string, value: string): Promise<void> {
+		if (this.failWrites) {
+			this.failWrites = false;
+			return Promise.reject(new Error('disk full'));
+		}
+		return super.storeString(key, value);
+	}
+}
+
 function makeTrack(id: string, albumId = 'album-1'): Track {
 	return { albumId, duration: 180, id, name: `Track ${id}` };
 }
@@ -1050,6 +1062,96 @@ describe('DownloadService', () => {
 			expect(service.isTrackDownloaded('track-1')).toBe(false);
 			expect(service.isTrackDownloaded('track-2')).toBe(false);
 			expect(removeCalls.sort()).toEqual(['track-1', 'track-2']);
+		});
+	});
+
+	describe('stale offline data signal', () => {
+		it('marks offline views stale when an album download is removed', async () => {
+			const { service } = createService();
+			service.downloadAlbum({
+				album: makeAlbum('album-1'),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/t1', track: makeTrack('track-1') }],
+			});
+			await flush();
+
+			const before = service.getOfflineDataInvalidations();
+
+			service.removeAlbumDownload('album-1');
+			await flush();
+
+			expect(service.getOfflineDataInvalidations()).toBe(before + 1);
+		});
+
+		it('leaves offline views alone when the removal matched nothing', async () => {
+			const { service } = createService();
+			await flush();
+
+			const before = service.getOfflineDataInvalidations();
+
+			service.removeAlbumDownload('album-unknown');
+			await flush();
+
+			expect(service.getOfflineDataInvalidations()).toBe(before);
+		});
+
+		it('marks offline views stale when a playlist is removed but its tracks stay downloaded', async () => {
+			const { service } = createService();
+			const track = makeTrack('track-1');
+			service.downloadAlbum({
+				album: makeAlbum('album-1'),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/t1', track }],
+			});
+			service.downloadPlaylist({
+				playlist: makePlaylist('playlist-1'),
+				tracks: [{ artistLogoUrl: null, streamUrl: 'http://s/t1', track }],
+			});
+			await flush();
+
+			const before = service.getOfflineDataInvalidations();
+
+			service.removePlaylistDownload('playlist-1');
+			await flush();
+
+			expect(service.getOfflineDataInvalidations()).toBe(before + 1);
+			expect(service.isTrackDownloaded('track-1')).toBe(true);
+		});
+
+		it('leaves offline views alone when clearing an empty download set', async () => {
+			const { service } = createService();
+			await flush();
+
+			const before = service.getOfflineDataInvalidations();
+
+			service.removeAllDownloads();
+			await flush();
+
+			expect(service.getOfflineDataInvalidations()).toBe(before);
+		});
+
+		it('notifies subscribers of the removal even when persisting it fails', async () => {
+			const store = new FlakyWriteStore();
+			const { service } = createService({ store });
+			service.downloadAlbum({
+				album: makeAlbum('album-1'),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/t1', track: makeTrack('track-1') }],
+			});
+			await flush();
+
+			const before = service.getOfflineDataInvalidations();
+			let seenInvalidations = before;
+			service.subscribe(() => {
+				seenInvalidations = service.getOfflineDataInvalidations();
+			});
+			store.failWrites = true;
+
+			service.removeAlbumDownload('album-1');
+			await flush();
+
+			expect(service.getOfflineDataInvalidations()).toBe(before + 1);
+			expect(seenInvalidations).toBe(before + 1);
 		});
 	});
 

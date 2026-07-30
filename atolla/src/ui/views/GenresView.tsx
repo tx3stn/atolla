@@ -37,6 +37,7 @@ interface GenresViewModel {
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
+	offlineDataInvalidations: number;
 	onNavigateToArtist?: (artistId: string) => void;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	playbackStore: PlaybackStore;
@@ -146,7 +147,13 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		if (!prevViewModel) {
 			return;
 		}
-		if (this.viewModel.isOfflineMode === prevViewModel.isOfflineMode) {
+
+		const offlineChanged = this.viewModel.isOfflineMode !== prevViewModel.isOfflineMode;
+		const offlineDataInvalidated =
+			this.viewModel.isOfflineMode &&
+			this.viewModel.offlineDataInvalidations !== prevViewModel.offlineDataInvalidations;
+
+		if (!offlineChanged && !offlineDataInvalidated) {
 			return;
 		}
 
@@ -287,7 +294,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 	}
 
 	private cacheKey(): string {
-		return `list:genres:${this.viewModel.isOfflineMode ? 'offline' : 'online'}`;
+		return 'list:genres';
 	}
 
 	private handleRefresh = (): void => {

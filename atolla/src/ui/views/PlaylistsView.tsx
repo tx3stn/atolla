@@ -42,6 +42,7 @@ export interface PlaylistsViewModel {
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
+	offlineDataInvalidations: number;
 	onNavigateToArtist?: (artistId: string) => void;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
@@ -110,8 +111,11 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 		const offlineChanged = this.viewModel.isOfflineMode !== prevViewModel.isOfflineMode;
 		const filterChanged = this.viewModel.letterFilter !== prevViewModel.letterFilter;
+		const offlineDataInvalidated =
+			this.viewModel.isOfflineMode &&
+			this.viewModel.offlineDataInvalidations !== prevViewModel.offlineDataInvalidations;
 
-		if (!offlineChanged && !filterChanged) {
+		if (!offlineChanged && !filterChanged && !offlineDataInvalidated) {
 			return;
 		}
 
@@ -210,9 +214,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	}
 
 	private cacheKey(): string {
-		const filter = this.viewModel.letterFilter ?? 'all';
-		const mode = this.viewModel.isOfflineMode ? 'offline' : 'online';
-		return `list:playlists:${filter}:${mode}`;
+		return `list:playlists:${this.viewModel.letterFilter ?? 'all'}`;
 	}
 
 	private handleRefresh = (): void => {

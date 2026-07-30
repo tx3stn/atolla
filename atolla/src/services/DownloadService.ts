@@ -129,6 +129,7 @@ export class DownloadService {
 	private persistNotifyPending = false;
 	private persistFlushChain: Promise<void> = Promise.resolve();
 
+	private offlineDataInvalidations = 0;
 	private readonly subscribers = new Set<() => void>();
 	private readonly store: DownloadServiceStore;
 	private readonly cacheTrackFn: DownloadServiceOptions['cacheTrack'];
@@ -158,18 +159,22 @@ export class DownloadService {
 
 	private enqueueRemoval(label: string, remove: () => Promise<boolean>): void {
 		this.enqueueOperation(async () => {
+			let removed = false;
 			try {
 				await this.ensureLoaded();
-				if (!(await remove())) {
+				removed = await remove();
+				if (!removed) {
 					return;
 				}
+				this.offlineDataInvalidations += 1;
 				this.pruneOrphanImages();
 				this.pruneOrphanAlbumMetadata();
 				this.pruneOrphanArtists();
 				await this.persistAll();
-				this.notify();
 			} catch (err) {
 				console.warn(`[downloads] failed to remove ${label}`, err);
+			} finally {
+				if (removed) this.notify();
 			}
 		});
 	}
@@ -295,6 +300,10 @@ export class DownloadService {
 
 	getDownloadedTrackCount(): number {
 		return Object.values(this.tracks).filter((t) => t.complete).length;
+	}
+
+	getOfflineDataInvalidations(): number {
+		return this.offlineDataInvalidations;
 	}
 
 	getTotalDownloadedSizeBytes(): number | null {
@@ -693,6 +702,14 @@ export class DownloadService {
 	removeAllDownloads(): void {
 		this.enqueueRemoval('all downloads', async () => {
 			const trackIds = Object.keys(this.tracks);
+			const hadDownloads =
+				trackIds.length > 0 ||
+				Object.keys(this.albums).length > 0 ||
+				Object.keys(this.genres).length > 0 ||
+				Object.keys(this.playlists).length > 0 ||
+				Object.keys(this.artists).length > 0 ||
+				Object.keys(this.images).length > 0;
+
 			if (trackIds.length > 0) {
 				if (this.removeTracksFn) {
 					await this.removeTracksFn(trackIds);
@@ -713,7 +730,7 @@ export class DownloadService {
 			this.queue = [];
 			this.imageQueue = [];
 
-			return true;
+			return hadDownloads;
 		});
 	}
 

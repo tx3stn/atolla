@@ -1,3 +1,4 @@
+import { type ConnectionMode, ConnectionModes } from 'atolla/src/models/App';
 import { ViewCache, type ViewCacheDiskStore } from 'atolla/src/services/ViewCache';
 
 class InMemoryDisk implements ViewCacheDiskStore {
@@ -20,6 +21,12 @@ class InMemoryDisk implements ViewCacheDiskStore {
 }
 
 // a real ViewCache backed by an in-memory disk, for specs that render cache-aware views
-export function makeTestViewCache(): ViewCache {
-	return new ViewCache({ disk: new InMemoryDisk(), maxEntries: 32 });
+export function makeTestViewCache(
+	connectionMode: ConnectionMode = ConnectionModes.online,
+): ViewCache {
+	return new ViewCache({
+		connectionMode: () => connectionMode,
+		disk: new InMemoryDisk(),
+		maxEntries: 32,
+	});
 }

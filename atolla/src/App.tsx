@@ -83,6 +83,7 @@ interface AppState {
 	isAuthenticating: boolean;
 	isAuthRequired: boolean;
 	isBootstrapped: boolean;
+	offlineDataInvalidations: number;
 	quickConnectCode: string | null;
 	serverName: string;
 	serverUrlPrefill: string;
@@ -206,6 +207,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private userScope: UserScope = new UserScope({
 		assetCache: this.assetCache,
 		downloadService: this.downloadService,
+		getConnectionMode: () => this.state.connectionMode,
 		getTransport: () => this.connectivity.getTransport(),
 		playbackOrchestrator: this.playbackOrchestrator,
 		playbackStore: this.playbackStore,
@@ -230,6 +232,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		isAuthenticating: false,
 		isAuthRequired: false,
 		isBootstrapped: false,
+		offlineDataInvalidations: 0,
 		quickConnectCode: null,
 		serverName: '',
 		serverUrlPrefill: '',
@@ -299,6 +302,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 					downloadedSizeBytes: this.downloadService.getTotalDownloadedSizeBytes(),
 					downloadedTrackCount: this.downloadService.getDownloadedTrackCount(),
 					downloadingCount: this.downloadService.getDownloadingCount(),
+					offlineDataInvalidations: this.downloadService.getOfflineDataInvalidations(),
 				});
 			}),
 		);
@@ -452,6 +456,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			imageCache: this.imageCache,
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,
+			offlineDataInvalidations: this.state.offlineDataInvalidations,
 			paletteQueue: this.userScope.getPaletteQueue(),
 			playbackStore: this.playbackStore,
 			playlistEditService: this.playlistEditService,

@@ -1,5 +1,6 @@
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { setAtollaImageCachedObserver } from '../ImageLoaderBootstrap';
+import type { ConnectionMode } from '../models/App';
 import type { KeyValueStore } from '../stores/KeyValueStore';
 import { PaletteStore } from '../stores/PaletteStore';
 import type { PlaybackStore } from '../stores/Playback';
@@ -34,6 +35,7 @@ import { WaveformService } from './WaveformService';
 export interface UserScopeDeps {
 	assetCache: AssetCache;
 	downloadService: DownloadService;
+	getConnectionMode(): ConnectionMode;
 	getTransport(): Transport;
 	playbackOrchestrator: PlaybackOrchestrator;
 	playbackStore: PlaybackStore;
@@ -99,6 +101,7 @@ export class UserScope {
 		this.recentlyAddedService = new RecentlyAddedService(homeAlbumsStore);
 		void this.onThisDayService.ensureLoaded();
 		this.viewCache = new ViewCache({
+			connectionMode: () => this.deps.getConnectionMode(),
 			disk: new PersistentStore(`atolla/user/${userId}/view`, {
 				deviceGlobal: true,
 				maxWeight: VIEW_CACHE_MAX_BYTES,

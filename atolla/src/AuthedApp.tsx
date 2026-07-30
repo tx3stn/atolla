@@ -124,6 +124,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							imageCache={library.imageCache}
 							modalSlot={library.modalSlot}
 							networkStatus={library.networkStatus}
+							offlineDataInvalidations={library.offlineDataInvalidations}
 							onNavigationControllerReady={this.captureLibraryController}
 							paletteQueue={library.paletteQueue}
 							playbackStore={library.playbackStore}

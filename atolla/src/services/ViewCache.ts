@@ -1,4 +1,5 @@
 import { LRUCache } from 'coreutils/src/LRUCache';
+import { type ConnectionMode, ConnectionModes } from '../models/App';
 
 // cache for view data with two tiers:
 //   * memory: coreutils LRUCache, bounded by entry count, for instant same-session navigation
@@ -11,6 +12,7 @@ export interface ViewCacheDiskStore {
 }
 
 export interface ViewCacheDeps {
+	connectionMode(): ConnectionMode;
 	disk: ViewCacheDiskStore;
 	maxEntries: number;
 }
@@ -19,7 +21,7 @@ export const VIEW_CACHE_MAX_ENTRIES = 64;
 export const VIEW_CACHE_MAX_BYTES = 8 * 1024 * 1024;
 
 // bump when a cached payload's shape changes incompatibly
-const VIEW_CACHE_VERSION = 1;
+const VIEW_CACHE_VERSION = 2;
 
 export class ViewCache {
 	private readonly memory: LRUCache<unknown>;
@@ -31,12 +33,20 @@ export class ViewCache {
 	// synchronous in-memory read: lets a view paint from cache during onCreate, before its first
 	// render. Returns undefined when the entry isn't resident in memory (use load for disk).
 	get<T>(key: string): T | undefined {
+		if (this.deps.connectionMode() === ConnectionModes.offline) {
+			return undefined;
+		}
+
 		return this.memory.get(this.versionedKey(key)) as T | undefined;
 	}
 
 	// async read: returns the in-memory entry, else reads through to disk and hydrates memory.
 	// Undefined on a miss or a corrupt blob.
 	async load<T>(key: string): Promise<T | undefined> {
+		if (this.deps.connectionMode() === ConnectionModes.offline) {
+			return undefined;
+		}
+
 		const versioned = this.versionedKey(key);
 		const cached = this.memory.get(versioned);
 		if (cached !== undefined) {
@@ -63,6 +73,10 @@ export class ViewCache {
 
 	// write memory synchronously (so a following get hits) and persist to disk fire-and-forget
 	store<T>(key: string, value: T): void {
+		if (this.deps.connectionMode() === ConnectionModes.offline) {
+			return;
+		}
+
 		const versioned = this.versionedKey(key);
 		this.memory.insert(versioned, value);
 		const serialized = JSON.stringify(value);
@@ -72,6 +86,10 @@ export class ViewCache {
 	}
 
 	invalidate(key: string): void {
+		if (this.deps.connectionMode() === ConnectionModes.offline) {
+			return;
+		}
+
 		const versioned = this.versionedKey(key);
 		this.memory.remove(versioned);
 		void this.deps.disk.remove(versioned).catch(() => {});

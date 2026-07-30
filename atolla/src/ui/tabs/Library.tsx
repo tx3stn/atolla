@@ -37,6 +37,7 @@ export interface LibraryViewModel {
 	imageCache: ImageCache;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;
+	offlineDataInvalidations: number;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	paletteQueue: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -85,6 +86,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
 									networkStatus={this.viewModel.networkStatus}
+									offlineDataInvalidations={this.viewModel.offlineDataInvalidations}
 									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
 									playbackStore={this.viewModel.playbackStore}
@@ -102,6 +104,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
 									networkStatus={this.viewModel.networkStatus}
+									offlineDataInvalidations={this.viewModel.offlineDataInvalidations}
 									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
 									playbackStore={this.viewModel.playbackStore}
@@ -119,6 +122,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
 									networkStatus={this.viewModel.networkStatus}
+									offlineDataInvalidations={this.viewModel.offlineDataInvalidations}
 									onNavigateToArtist={this.handlePlaylistArtistTap}
 									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
@@ -138,6 +142,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
 									networkStatus={this.viewModel.networkStatus}
+									offlineDataInvalidations={this.viewModel.offlineDataInvalidations}
 									onNavigateToArtist={this.handlePlaylistArtistTap}
 									onRootDetailControllerReady={this.setRootDetailController}
 									playbackStore={this.viewModel.playbackStore}

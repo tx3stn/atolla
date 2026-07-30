@@ -41,6 +41,7 @@ export interface ArtistsViewModel {
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
+	offlineDataInvalidations: number;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	playbackStore: PlaybackStore;
@@ -151,8 +152,11 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 		const offlineChanged = this.viewModel.isOfflineMode !== prevViewModel.isOfflineMode;
 		const filterChanged = this.viewModel.letterFilter !== prevViewModel.letterFilter;
+		const offlineDataInvalidated =
+			this.viewModel.isOfflineMode &&
+			this.viewModel.offlineDataInvalidations !== prevViewModel.offlineDataInvalidations;
 
-		if (!offlineChanged && !filterChanged) {
+		if (!offlineChanged && !filterChanged && !offlineDataInvalidated) {
 			return;
 		}
 
@@ -313,9 +317,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	};
 
 	private cacheKey(): string {
-		const filter = this.viewModel.letterFilter ?? 'all';
-		const mode = this.viewModel.isOfflineMode ? 'offline' : 'online';
-		return `list:artists:${filter}:${mode}`;
+		return `list:artists:${this.viewModel.letterFilter ?? 'all'}`;
 	}
 
 	private handleRefresh = (): void => {
