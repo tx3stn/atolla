@@ -8,10 +8,23 @@ import type {
 	JellyfinMediaSource,
 	JellyfinTrackItem,
 } from '../../atolla/src/models/jellyfin/Types';
-import { mockJellyfinAlbums, mockJellyfinTracks } from './mocks/Albums';
-import { mockJellyfinArtists } from './mocks/Artists';
-import { mockGenreTrackIds, mockJellyfinGenres } from './mocks/Genres';
-import { mockJellyfinPlaylists } from './mocks/Playlists';
+import { mockJellyfinAlbums as rawAlbums, mockJellyfinTracks as rawTracks } from './mocks/Albums';
+import { mockJellyfinArtists as rawArtists } from './mocks/Artists';
+import { mockGenreTrackIds, mockJellyfinGenres as rawGenres } from './mocks/Genres';
+import { mockJellyfinPlaylists as rawPlaylists } from './mocks/Playlists';
+
+// jellyfin computes SortName per item — lowercased with leading articles stripped — and
+// every name-ordered query and A-Z filter it serves runs off that column, not Name.
+function withSortName<T extends JellyfinBaseItemDto>(item: T): T {
+	const trimmed = item.Name.trim();
+	return { ...item, SortName: trimmed.replace(/^(a|an|the)\s+/i, '').toLowerCase() };
+}
+
+const mockJellyfinAlbums = rawAlbums.map(withSortName);
+const mockJellyfinArtists = rawArtists.map(withSortName);
+const mockJellyfinGenres = rawGenres.map(withSortName);
+const mockJellyfinPlaylists = rawPlaylists.map(withSortName);
+const mockJellyfinTracks = rawTracks.map(withSortName);
 
 // the userId every /Users/... path and userId= param resolves to, because we control
 // the auth response that hands it out
@@ -55,12 +68,24 @@ function albumsDefaultOrder<T extends JellyfinBaseItemDto>(albums: Array<T>): Ar
 		else if (rightTime == null) byDate = -1;
 		else byDate = rightTime - leftTime;
 		if (byDate !== 0) return byDate;
-		return left.Name.localeCompare(right.Name);
+		return compareSortNames(left, right);
 	});
 }
 
-function byName<T extends JellyfinBaseItemDto>(items: Array<T>): Array<T> {
-	return [...items].sort((a, b) => a.Name.localeCompare(b.Name));
+function bySortName<T extends JellyfinBaseItemDto>(items: Array<T>): Array<T> {
+	return [...items].sort(compareSortNames);
+}
+
+function compareSortNames(left: JellyfinBaseItemDto, right: JellyfinBaseItemDto): number {
+	return (left.SortName ?? '').localeCompare(right.SortName ?? '');
+}
+
+function sortsBeforeA(item: JellyfinBaseItemDto): boolean {
+	return (item.SortName ?? '') < 'a';
+}
+
+function startsWithLetter(item: JellyfinBaseItemDto, letter: string): boolean {
+	return (item.SortName ?? '').startsWith(letter.toLowerCase());
 }
 
 function yearOf(track: JellyfinTrackItem): number | undefined {
@@ -236,14 +261,14 @@ function generate(): void {
 	fixture(
 		'artists-list',
 		get('/Items', { includeItemTypes: 'MusicArtist', sortBy: 'SortName' }),
-		envelope(byName(mockJellyfinArtists)),
+		envelope(bySortName(mockJellyfinArtists)),
 	);
 	fixture(
 		'playlists-list',
 		get('/Items', { includeItemTypes: 'Playlist', sortBy: 'SortName' }),
-		envelope(byName(mockJellyfinPlaylists)),
+		envelope(bySortName(mockJellyfinPlaylists)),
 	);
-	fixture('genres-list', get('/MusicGenres'), envelope(byName(mockJellyfinGenres)));
+	fixture('genres-list', get('/MusicGenres'), envelope(bySortName(mockJellyfinGenres)));
 
 	// ---- albums by artist ----
 	for (const artist of mockJellyfinArtists) {
@@ -397,21 +422,17 @@ function generate(): void {
 				nameStartsWith: upper,
 				sortBy: 'PremiereDate,SortName',
 			}),
-			envelope(
-				albumsDefaultOrder(
-					mockJellyfinAlbums.filter((a) => a.Name.toUpperCase().startsWith(upper)),
-				),
-			),
+			envelope(albumsDefaultOrder(mockJellyfinAlbums.filter((a) => startsWithLetter(a, letter)))),
 		);
 		fixture(
 			`artists-letter-${letter}`,
 			get('/Items', { includeItemTypes: 'MusicArtist', nameStartsWith: upper, sortBy: 'SortName' }),
-			envelope(byName(mockJellyfinArtists.filter((a) => a.Name.toUpperCase().startsWith(upper)))),
+			envelope(bySortName(mockJellyfinArtists.filter((a) => startsWithLetter(a, letter)))),
 		);
 		fixture(
 			`playlists-letter-${letter}`,
 			get('/Items', { includeItemTypes: 'Playlist', nameStartsWith: upper, sortBy: 'SortName' }),
-			envelope(byName(mockJellyfinPlaylists.filter((p) => p.Name.toUpperCase().startsWith(upper)))),
+			envelope(bySortName(mockJellyfinPlaylists.filter((p) => startsWithLetter(p, letter)))),
 		);
 	}
 	// '0' bucket: nameLessThan='A' covers digits and symbols; the app narrows client-side
@@ -422,17 +443,17 @@ function generate(): void {
 			nameLessThan: 'A',
 			sortBy: 'PremiereDate,SortName',
 		}),
-		envelope(albumsDefaultOrder(mockJellyfinAlbums.filter((a) => /^\d/.test(a.Name)))),
+		envelope(albumsDefaultOrder(mockJellyfinAlbums.filter(sortsBeforeA))),
 	);
 	fixture(
 		'artists-letter-0',
 		get('/Items', { includeItemTypes: 'MusicArtist', nameLessThan: 'A', sortBy: 'SortName' }),
-		envelope(byName(mockJellyfinArtists.filter((a) => /^\d/.test(a.Name)))),
+		envelope(bySortName(mockJellyfinArtists.filter(sortsBeforeA))),
 	);
 	fixture(
 		'playlists-letter-0',
 		get('/Items', { includeItemTypes: 'Playlist', nameLessThan: 'A', sortBy: 'SortName' }),
-		envelope(byName(mockJellyfinPlaylists.filter((p) => /^\d/.test(p.Name)))),
+		envelope(bySortName(mockJellyfinPlaylists.filter(sortsBeforeA))),
 	);
 
 	// NOT YET COVERED (tracked, not silently dropped):

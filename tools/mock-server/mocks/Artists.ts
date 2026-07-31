@@ -62,7 +62,7 @@ export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 		ImageTags: {
 			Primary: 'mock',
 		},
-		Name: 'Touche Amore',
+		Name: 'Touché Amoré',
 		Overview:
 			'Touché Amoré is a post-hardcore band from Burbank, California, formed in 2007, consisting of Jeremy Bolm on vocals, guitarists Clayton Stevens and Nick Steinhardt, Tyler Kirby on bass, and drummer Elliot Babin. They have released five studio albums, including Stage Four (2016) and Lament (2020) through Epitaph Records. The band is recognized for their confessional lyrics and fusion of influences from bands like Converge and Pg.99, and are considered part of the screamo revival and post-hardcore movement.',
 		Type: 'MusicArtist',

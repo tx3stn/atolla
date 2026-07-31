@@ -338,17 +338,17 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 		Type: 'MusicAlbum',
 	},
 	{
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		GenreItems: [
@@ -366,17 +366,17 @@ export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 		Type: 'MusicAlbum',
 	},
 	{
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		GenreItems: [
@@ -3827,11 +3827,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Stage Four',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-13',
@@ -3839,7 +3839,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-25',
@@ -3852,11 +3852,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Stage Four',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-13',
@@ -3864,7 +3864,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-115',
@@ -3877,11 +3877,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Stage Four',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-13',
@@ -3889,7 +3889,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-116',
@@ -3902,11 +3902,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Stage Four',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-13',
@@ -3914,7 +3914,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-117',
@@ -3927,11 +3927,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Stage Four',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-13',
@@ -3939,7 +3939,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-278',
@@ -3952,11 +3952,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Stage Four',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-13',
@@ -3964,7 +3964,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-279',
@@ -3977,11 +3977,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Stage Four',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-13',
@@ -3989,7 +3989,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-26',
@@ -4002,11 +4002,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Stage Four',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-13',
@@ -4014,7 +4014,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-280',
@@ -4027,11 +4027,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Stage Four',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-13',
@@ -4039,7 +4039,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-281',
@@ -4052,11 +4052,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Stage Four',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-13',
@@ -4064,7 +4064,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-282',
@@ -4077,11 +4077,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Stage Four',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-13',
@@ -4089,7 +4089,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-283',
@@ -4102,11 +4102,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lament',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-14',
@@ -4114,7 +4114,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-27',
@@ -4127,11 +4127,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lament',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-14',
@@ -4139,7 +4139,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-118',
@@ -4152,11 +4152,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lament',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-14',
@@ -4164,7 +4164,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-119',
@@ -4177,11 +4177,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lament',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-14',
@@ -4189,7 +4189,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-120',
@@ -4202,11 +4202,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lament',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-14',
@@ -4214,7 +4214,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-28',
@@ -4227,11 +4227,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lament',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-14',
@@ -4239,7 +4239,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-284',
@@ -4252,11 +4252,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lament',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-14',
@@ -4264,7 +4264,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-285',
@@ -4277,11 +4277,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lament',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-14',
@@ -4289,7 +4289,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-286',
@@ -4302,11 +4302,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lament',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-14',
@@ -4314,7 +4314,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-287',
@@ -4327,11 +4327,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lament',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-14',
@@ -4339,7 +4339,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-288',
@@ -4352,11 +4352,11 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 	},
 	{
 		Album: 'Lament',
-		AlbumArtist: 'Touche Amore',
+		AlbumArtist: 'Touché Amoré',
 		AlbumArtists: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		AlbumId: 'album-14',
@@ -4364,7 +4364,7 @@ export const mockJellyfinTracks: Array<JellyfinTrackItem> = [
 		ArtistItems: [
 			{
 				Id: 'artist-6',
-				Name: 'Touche Amore',
+				Name: 'Touché Amoré',
 			},
 		],
 		Id: 'track-289',
