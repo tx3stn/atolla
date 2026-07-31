@@ -37,6 +37,7 @@ import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
+import { TappableIcon } from '../components/TappableIcon';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
@@ -163,6 +164,17 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 							style={styles.searchInput}
 							value={query}
 						/>
+						{query.length > 0 && (
+							<TappableIcon
+								accessibilityId='search-clear'
+								animationsEnabled={this.viewModel.preferences.animationsEnabled}
+								hitSize={24}
+								icon={res.close}
+								iconSize={16}
+								onTap={this.handleClearTap}
+								tint={theme.colors.grey}
+							/>
+						)}
 					</view>
 
 					{status === 'loading' && (
@@ -425,6 +437,11 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		if (!artist) return;
 		this.setState({ contextMenuCard: { artist, kind: 'artist' } });
 		this.openCardContextMenu({ artist, kind: 'artist' });
+	};
+
+	private handleClearTap = (): void => {
+		this.setState({ query: '' });
+		this.focusSearchInput();
 	};
 
 	private handleContextMenuDismiss = (toastMessage?: string): void => {

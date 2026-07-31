@@ -5,6 +5,7 @@ export class SearchPage extends BasePage {
 	private readonly input = 'search-input';
 	private readonly searchSubmit = 'search-submit';
 	private readonly retryButton = 'search-retry';
+	private readonly clearButton = 'search-clear';
 
 	async waitForLoad(): Promise<void> {
 		await this.elementByID(this.view).waitForDisplayed({
@@ -40,6 +41,22 @@ export class SearchPage extends BasePage {
 		const submit = this.elementByID(this.searchSubmit);
 		await submit.waitForDisplayed({ timeoutMsg: 'Timed out waiting for search submit' });
 		await submit.click();
+	}
+
+	async tapClearQuery(): Promise<void> {
+		const clear = this.elementByID(this.clearButton);
+		await clear.waitForDisplayed({ timeoutMsg: 'Timed out waiting for search clear' });
+		await clear.click();
+	}
+
+	// the clear button only renders while the field holds text, so its absence is the
+	// cross-platform signal that the query was cleared; android folds a field's value into its
+	// content-desc, which makes reading the text back unreliable
+	async waitForQueryCleared(): Promise<void> {
+		await this.elementByID(this.clearButton).waitForDisplayed({
+			reverse: true,
+			timeoutMsg: 'Timed out waiting for the search query to clear',
+		});
 	}
 
 	async tapRetry(): Promise<void> {

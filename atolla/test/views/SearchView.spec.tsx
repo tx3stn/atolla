@@ -11,7 +11,7 @@ import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { editTextEvent } from '../util/testEvents';
+import { editTextEvent, touchEvent } from '../util/testEvents';
 
 const stubImageCache = {
 	get: () => null,
@@ -54,6 +54,14 @@ function makeNavigationController() {
 	};
 }
 
+// the clear button is a TappableIcon child component, so the lookup has to walk the subtree
+function clearButtonView(component: SearchView) {
+	return elementTypeFind(
+		component.renderer.getComponentRootElements(component, true),
+		IRenderedElementViewClass.View,
+	).find((view) => view.getAttribute('accessibilityId') === 'search-clear');
+}
+
 describe('SearchView', () => {
 	valdiIt('starts with an empty query', async (driver) => {
 		const viewModel = {
@@ -91,6 +99,104 @@ describe('SearchView', () => {
 		textField.getAttribute('onChange')?.(editTextEvent('dream pop'));
 
 		expect(component.state.query).toBe('dream pop');
+	});
+
+	valdiIt('hides the clear button while the query is empty', async (driver) => {
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+
+		expect(clearButtonView(component)).toBeUndefined();
+	});
+
+	valdiIt('shows the clear button once the query has text', async (driver) => {
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+		const textField = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.TextField,
+		)[0];
+
+		textField.getAttribute('onChange')?.(editTextEvent('dream pop'));
+		await flushAsyncWork();
+
+		expect(clearButtonView(component)).toBeTruthy();
+	});
+
+	valdiIt(
+		'clears the query but keeps the results when the clear button is tapped',
+		async (driver) => {
+			const viewModel = {
+				imageCache: stubImageCache,
+				navigationController: makeNavigationController(),
+				playbackStore: new PlaybackStore(),
+				preferences: makePreferences(),
+				searchStore: makeSearchStore(),
+				transport: {
+					search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+				},
+			};
+			const component = driver.renderComponent(SearchView, viewModel, undefined);
+			component.setState({
+				query: 'dream pop',
+				results: {
+					albums: [{ artistId: 'a', artistName: 'a', id: 'a', name: 'a' }],
+					artists: [],
+					playlists: [],
+					tracks: [],
+				},
+				status: 'success',
+			});
+			await flushAsyncWork();
+
+			clearButtonView(component)?.getAttribute('onTap')?.(touchEvent);
+			await flushAsyncWork();
+
+			expect(component.state.query).toBe('');
+			expect(component.state.status).toBe('success');
+			expect(component.state.results.albums.length).toBe(1);
+		},
+	);
+
+	valdiIt('refocuses the input after clearing', async (driver) => {
+		const focus = spyOn(
+			SearchView.prototype as unknown as { focusSearchInput: () => void },
+			'focusSearchInput',
+		);
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+		component.setState({ query: 'dream pop' });
+		await flushAsyncWork();
+
+		clearButtonView(component)?.getAttribute('onTap')?.(touchEvent);
+
+		expect(focus).toHaveBeenCalledTimes(1);
 	});
 
 	valdiIt('does not search when submit is empty and clears results', async (driver) => {

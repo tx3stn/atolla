@@ -30,6 +30,12 @@ describe('search', () => {
 		expect(await searchPage.waitForAnyResultCard()).toBe(true);
 	});
 
+	it('clears the query when tapping the clear button', async () => {
+		await searchPage.tapClearQuery();
+
+		await searchPage.waitForQueryCleared();
+	});
+
 	it('shows search view after navigating away and back', async () => {
 		await footer.tapLibrary();
 		await library.waitForLoad();
