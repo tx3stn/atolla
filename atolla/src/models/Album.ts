@@ -10,4 +10,5 @@ export interface Album {
 	imageUrl?: string;
 	name: string;
 	releaseDate?: string;
+	sortName?: string;
 }

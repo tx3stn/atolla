@@ -12,6 +12,7 @@ import { buildInstantMix, type InstantMixLibrary } from '../services/InstantMix'
 import type { PlaylistCreateService } from '../services/PlaylistCreateService';
 import type { PlaylistEditService } from '../services/PlaylistEditService';
 import { mergeGenreCollections } from '../ui/components/GenrePillsData';
+import { compareBySortKey } from '../utils/SortKey';
 import { TransportErrors } from './Errors';
 import type { InstantMixSeed, TrackPageSort, Transport } from './Transport';
 
@@ -189,7 +190,7 @@ export class OfflineTransport implements Transport {
 	): Promise<{ hasMore: boolean; items: Array<Genre> }> {
 		const allGenres = [...this.downloads.getAllGenres()]
 			.map((entry) => entry.genre)
-			.sort((left, right) => compareNamesCaseInsensitive(left.name, right.name));
+			.sort(compareBySortKey);
 
 		const start = Math.max(0, page - 1) * pageSize;
 		const end = start + pageSize;
@@ -616,7 +617,7 @@ function sortAlbumsByDefaultOrder(albums: Array<Album>): Array<Album> {
 			return byDate;
 		}
 
-		return compareNamesCaseInsensitive(left.name, right.name);
+		return compareBySortKey(left, right);
 	});
 }
 
@@ -645,41 +646,7 @@ function parseDateTime(value: string | undefined): number | null {
 }
 
 function sortArtistsByName(artists: Array<Artist>): Array<Artist> {
-	return [...artists].sort((left, right) =>
-		compareNamesIgnoringLeadingTheCaseInsensitive(left.name, right.name),
-	);
-}
-
-function compareNamesCaseInsensitive(left: string, right: string): number {
-	const leftLower = left.trim().toLowerCase();
-	const rightLower = right.trim().toLowerCase();
-	if (leftLower < rightLower) {
-		return -1;
-	}
-	if (leftLower > rightLower) {
-		return 1;
-	}
-	return 0;
-}
-
-function compareNamesIgnoringLeadingTheCaseInsensitive(left: string, right: string): number {
-	const normalizedLeft = normalizeLeadingThe(left);
-	const normalizedRight = normalizeLeadingThe(right);
-	const byNormalized = compareNamesCaseInsensitive(normalizedLeft, normalizedRight);
-	if (byNormalized !== 0) {
-		return byNormalized;
-	}
-
-	return compareNamesCaseInsensitive(left, right);
-}
-
-function normalizeLeadingThe(name: string): string {
-	const trimmed = name.trim();
-	if (!/^the\s+/i.test(trimmed)) {
-		return trimmed;
-	}
-
-	return trimmed.replace(/^the\s+/i, '');
+	return [...artists].sort(compareBySortKey);
 }
 
 function shuffleTracks<T>(tracks: Array<T>): Array<T> {

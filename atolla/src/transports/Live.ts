@@ -61,7 +61,7 @@ interface AlbumsPageResult {
 const albumIdBatchSize = 100;
 const defaultSearchLimit = 100;
 const log = getLogger('transport');
-const trackFields = 'Overview,Genres,MediaSources';
+const trackFields = 'Overview,Genres,MediaSources,SortName';
 
 export class LiveTransport implements Transport {
 	private readonly baseUrl: string;
@@ -148,7 +148,7 @@ export class LiveTransport implements Transport {
 				canceler,
 				this.fetchItemsPage<JellyfinAlbumItem>({
 					albumArtistIds: artistId,
-					fields: 'Overview,Genres',
+					fields: 'Overview,Genres,SortName',
 					includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 					limit: defaultSearchLimit,
 					recursive: true,
@@ -172,7 +172,7 @@ export class LiveTransport implements Transport {
 				const list = await tracked(
 					canceler,
 					this.fetchItemsPage<JellyfinAlbumItem>({
-						fields: 'Overview,Genres',
+						fields: 'Overview,Genres,SortName',
 						ids: batch.join(','),
 						includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 						limit: batch.length,
@@ -200,7 +200,7 @@ export class LiveTransport implements Transport {
 			const list = await tracked(
 				canceler,
 				this.fetchItemsPage<JellyfinAlbumItem>({
-					fields: 'Overview,Genres',
+					fields: 'Overview,Genres,SortName',
 					includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 					limit: Math.max(1, pageSize),
 					recursive: true,
@@ -314,7 +314,7 @@ export class LiveTransport implements Transport {
 				canceler,
 				this.requestJson<JellyfinListEnvelope<JellyfinGenreItem>>('GET', '/MusicGenres', {
 					query: {
-						fields: 'Overview',
+						fields: 'Overview,SortName',
 						limit: Math.max(1, pageSize),
 						sortBy: 'SortName',
 						sortOrder: 'Ascending',
@@ -395,7 +395,7 @@ export class LiveTransport implements Transport {
 			const list = await tracked(
 				canceler,
 				this.fetchItemsPage<JellyfinAlbumItem>({
-					fields: 'Overview,Genres',
+					fields: 'Overview,Genres,SortName',
 					includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 					limit: 1,
 					recursive: true,
@@ -441,7 +441,7 @@ export class LiveTransport implements Transport {
 			const list = await tracked(
 				canceler,
 				this.fetchItemsPage<JellyfinAlbumItem>({
-					fields: 'DateCreated,Genres,Overview',
+					fields: 'DateCreated,Genres,Overview,SortName',
 					includeItemTypes: JellyfinMusicItemTypes.MusicAlbum,
 					limit: Math.max(1, limit),
 					recursive: true,
@@ -762,7 +762,7 @@ export class LiveTransport implements Transport {
 	private fetchItemsPage<TItem>(
 		params: Record<string, string | number | boolean | undefined>,
 	): CancelablePromise<JellyfinListEnvelope<TItem>> {
-		const fields = typeof params.fields === 'string' ? params.fields : 'Overview';
+		const fields = typeof params.fields === 'string' ? params.fields : 'Overview,SortName';
 		return this.requestJson<JellyfinListEnvelope<TItem>>('GET', '/Items', {
 			query: {
 				...params,
@@ -780,7 +780,7 @@ export class LiveTransport implements Transport {
 					canceler,
 					this.requestJson<TItem>('GET', `/Items/${encodeURIComponent(itemId)}`, {
 						query: {
-							fields: 'Overview,Genres',
+							fields: 'Overview,Genres,SortName',
 							userId: this.userId,
 						},
 					}),

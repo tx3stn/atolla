@@ -13,6 +13,7 @@ import type {
 } from '../models/jellyfin/Types';
 import type { Playlist } from '../models/Playlist';
 import type { Track } from '../models/Track';
+import { compareBySortKey } from '../utils/SortKey';
 
 const ticksPerSecond = 10_000_000;
 
@@ -118,6 +119,7 @@ export function mapJellyfinArtistToArtist(
 		imageUrl: imageResolvers.itemPrimaryImageUrl?.(item.Id, primaryTag),
 		logoUrl: logoTag ? imageResolvers.itemLogoImageUrl?.(logoItemId, logoTag) : undefined,
 		name: item.Name,
+		sortName: item.SortName,
 	};
 }
 
@@ -140,6 +142,7 @@ export function mapJellyfinAlbumToAlbum(
 		// a null value crashes the render thread.
 		name: item.Name || 'Unknown Album',
 		releaseDate: item.PremiereDate,
+		sortName: item.SortName,
 	};
 }
 
@@ -165,7 +168,7 @@ function mapGenreReferences(
 		return undefined;
 	}
 
-	return [...byId.values()].sort((left, right) => left.name.localeCompare(right.name));
+	return [...byId.values()].sort(compareBySortKey);
 }
 
 export function mapJellyfinTrackToTrack(
@@ -193,6 +196,7 @@ export function mapJellyfinTrackToTrack(
 		playlistItemId: item.PlaylistItemId,
 		productionYear: item.ProductionYear,
 		releaseDate: item.PremiereDate,
+		sortName: item.SortName,
 		trackNumber: item.IndexNumber,
 	};
 }
@@ -208,6 +212,7 @@ export function mapJellyfinPlaylistToPlaylist(
 		id: item.Id,
 		imageUrl: imageResolvers.itemPrimaryImageUrl?.(item.Id, primaryTag),
 		name: item.Name,
+		sortName: item.SortName,
 	};
 }
 
@@ -221,6 +226,7 @@ export function mapJellyfinGenreToGenre(
 		id: item.Id,
 		imageUrl: imageResolvers.itemPrimaryImageUrl?.(item.Id, primaryTag),
 		name: item.Name,
+		sortName: item.SortName,
 		trackCount: item.RecursiveItemCount ?? item.ChildCount,
 	};
 }

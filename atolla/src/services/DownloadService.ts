@@ -365,15 +365,18 @@ export class DownloadService {
 	downloadAlbum(params: {
 		album: Album;
 		tracks: Array<{ track: Track; streamUrl: string }>;
-		artistImageUrl?: string | null;
+		artist?: Artist | null;
 		artistLogoUrl: string | null;
 		resolvedGenres?: Array<Genre>;
 	}): void {
-		const { album, artistImageUrl, tracks, artistLogoUrl, resolvedGenres = [] } = params;
+		const { album, artist, tracks, artistLogoUrl, resolvedGenres = [] } = params;
+		const artistImageUrl = artist?.imageUrl ?? null;
 		this.enqueueOperation(async () => {
 			await this.ensureLoaded();
 
 			this.upsertAlbumMetadata(album);
+			// the album dto carries only its artist's id and name, so the sort key has to
+			// come from the artist item the caller already read
 			this.upsertArtistEntry({
 				albumIds: [album.id],
 				artist: {
@@ -381,6 +384,7 @@ export class DownloadService {
 					imageUrl: artistImageUrl ?? undefined,
 					logoUrl: artistLogoUrl ?? undefined,
 					name: album.artistName,
+					sortName: artist?.sortName,
 				},
 			});
 

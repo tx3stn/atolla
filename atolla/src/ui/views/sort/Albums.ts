@@ -1,5 +1,6 @@
 import type { Album } from '../../../models/Album';
 import { compareDatesDescending } from '../../../utils/Date';
+import { compareBySortKey } from '../../../utils/SortKey';
 
 export function sortAlbums(albums: Array<Album>): Array<Album> {
 	return sortNewToOld([...albums]);
@@ -12,7 +13,7 @@ export function sortArtistAlbums(albums: Array<Album>): Array<Album> {
 			return byReleaseDate;
 		}
 
-		const byName = a.name.localeCompare(b.name);
+		const byName = compareBySortKey(a, b);
 		if (byName !== 0) {
 			return byName;
 		}

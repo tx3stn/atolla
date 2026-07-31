@@ -2,6 +2,9 @@ import { describe, expect, it } from 'bun:test';
 import {
 	formatAudioQuality,
 	mapJellyfinAlbumToAlbum,
+	mapJellyfinArtistToArtist,
+	mapJellyfinGenreToGenre,
+	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
 } from './JellyfinMappers';
 
@@ -17,6 +20,64 @@ describe('mapJellyfinAlbumToAlbum', () => {
 	it('keeps the provided name when present', () => {
 		const album = mapJellyfinAlbumToAlbum({ Id: 'a1', Name: 'Discovery' } as AlbumItem);
 		expect(album.name).toBe('Discovery');
+	});
+
+	it('reads the server sort name', () => {
+		const album = mapJellyfinAlbumToAlbum({
+			Id: 'a1',
+			Name: 'The Downward Spiral',
+			SortName: 'downward spiral',
+		} as AlbumItem);
+		expect(album.sortName).toBe('downward spiral');
+	});
+
+	it('leaves the sort name undefined when the server omits it', () => {
+		const album = mapJellyfinAlbumToAlbum({ Id: 'a1', Name: 'Discovery' } as AlbumItem);
+		expect(album.sortName).toBeUndefined();
+	});
+});
+
+describe('mapJellyfinArtistToArtist', () => {
+	type ArtistItem = Parameters<typeof mapJellyfinArtistToArtist>[0];
+
+	it('reads the server sort name', () => {
+		const artist = mapJellyfinArtistToArtist({
+			Id: 'ar1',
+			Name: 'MØL',
+			SortName: 'møl',
+		} as ArtistItem);
+		expect(artist.sortName).toBe('møl');
+	});
+
+	it('leaves the sort name undefined when the server omits it', () => {
+		const artist = mapJellyfinArtistToArtist({ Id: 'ar1', Name: 'MØL' } as ArtistItem);
+		expect(artist.sortName).toBeUndefined();
+	});
+});
+
+describe('mapJellyfinPlaylistToPlaylist', () => {
+	type PlaylistItem = Parameters<typeof mapJellyfinPlaylistToPlaylist>[0];
+
+	it('reads the server sort name', () => {
+		const playlist = mapJellyfinPlaylistToPlaylist({
+			Id: 'p1',
+			Name: 'The Commute',
+			SortName: 'commute',
+		} as PlaylistItem);
+		expect(playlist.sortName).toBe('commute');
+	});
+});
+
+describe('mapJellyfinGenreToGenre', () => {
+	type GenreItem = Parameters<typeof mapJellyfinGenreToGenre>[0];
+
+	it('reads the server sort name', () => {
+		const genre = mapJellyfinGenreToGenre({
+			Id: 'g1',
+			Name: 'Électronique',
+			SortName: 'électronique',
+		} as GenreItem);
+		expect(genre.sortName).toBe('électronique');
 	});
 });
 

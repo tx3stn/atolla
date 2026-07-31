@@ -20,6 +20,7 @@ import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { CancelableController } from '../../utils/CancelableController';
+import { matchesLetterFilter } from '../../utils/SortKey';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
@@ -416,7 +417,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 
 		let albums = sortAlbums(this.state.albums);
 		if (letterFilter) {
-			albums = albums.filter((a) => matchesLetterFilter(a.name, letterFilter));
+			albums = albums.filter((a) => matchesLetterFilter(a, letterFilter));
 		}
 		this.cachedDisplayAlbums = albums;
 		return albums;
@@ -425,13 +426,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	private loadMore = (): void => {
 		void this.pagedGridController.loadNextPage();
 	};
-}
-
-function matchesLetterFilter(name: string, letter: string): boolean {
-	if (letter === '0') {
-		return /^\d/.test(name.trim());
-	}
-	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
 }
 
 const styles = {

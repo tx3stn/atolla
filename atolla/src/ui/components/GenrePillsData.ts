@@ -1,4 +1,5 @@
 import type { Genre } from '../../models/Genre';
+import { compareBySortKey } from '../../utils/SortKey';
 
 export function normalizeGenres(genres?: Array<Genre> | null): Array<Genre> {
 	if (!genres || genres.length === 0) {
@@ -16,10 +17,11 @@ export function normalizeGenres(genres?: Array<Genre> | null): Array<Genre> {
 		byId.set(genreId, {
 			id: genreId,
 			name: genreName,
+			sortName: genre.sortName,
 		});
 	}
 
-	return [...byId.values()].sort((left, right) => left.name.localeCompare(right.name));
+	return [...byId.values()].sort(compareBySortKey);
 }
 
 export function mergeGenreCollections(

@@ -134,6 +134,38 @@ describe('ArtistsView', () => {
 		expect(component.state.contextMenuCard).toEqual({ artist: artists[0], kind: 'artist' });
 	});
 
+	valdiIt('buckets the letter filter on the sort key, not the display name', async (driver) => {
+		const artists = [
+			{ id: 'artist-1', name: 'The Cure', sortName: 'cure' },
+			{ id: 'artist-2', name: 'A Perfect Circle', sortName: 'perfect circle' },
+			{ id: 'artist-3', name: 'Chromatics', sortName: 'chromatics' },
+		];
+		const transport = {
+			getArtists: async () => ({ hasMore: false, items: artists }),
+		};
+
+		const viewModel = {
+			imageCache: stubImageCache,
+			letterFilter: 'C',
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			transport,
+			viewCache: makeTestViewCache(),
+		};
+		const component = driver.renderComponent(ArtistsView, viewModel, undefined);
+		component.setState({ artists });
+
+		const values = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.Label,
+		).map((label) => label.getAttribute('value'));
+
+		expect(values).toContain('Chromatics');
+		expect(values).toContain('The Cure');
+		expect(values).not.toContain('A Perfect Circle');
+	});
+
 	valdiIt('requests a server-side prefix filter when a letter filter is active', async (driver) => {
 		const requestedStartsWith: Array<string | undefined> = [];
 		const transport = {

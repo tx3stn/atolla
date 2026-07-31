@@ -289,7 +289,7 @@ describe('LiveTransport core collections', () => {
 		expect(calls).toHaveLength(1);
 		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('0');
 		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('1');
-		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBe('Overview,Genres');
+		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBe('Overview,Genres,SortName');
 		expect(queryParam(calls[0].pathOrUrl, 'includeItemTypes')).toBe('MusicAlbum');
 		expect(queryParam(calls[0].pathOrUrl, 'sortBy')).toBe('PremiereDate,SortName');
 		expect(queryParam(calls[0].pathOrUrl, 'sortOrder')).toBe('Descending,Ascending');
@@ -588,7 +588,7 @@ describe('LiveTransport core collections', () => {
 
 		expect(calls).toHaveLength(1);
 		expect(calls[0].pathOrUrl).toContain('/Playlists/playlist-1/Items');
-		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBe('Overview,Genres,MediaSources');
+		expect(queryParam(calls[0].pathOrUrl, 'fields')).toBe('Overview,Genres,MediaSources,SortName');
 		expect(queryParam(calls[0].pathOrUrl, 'startIndex')).toBe('1');
 		expect(queryParam(calls[0].pathOrUrl, 'limit')).toBe('1');
 		expect(page.totalCount).toBe(3);

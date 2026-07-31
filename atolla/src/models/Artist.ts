@@ -8,4 +8,5 @@ export interface Artist {
 	imageUrl?: string;
 	logoUrl?: string;
 	name: string;
+	sortName?: string;
 }

@@ -15,6 +15,7 @@ export interface Track {
 	playlistItemId?: string;
 	productionYear?: number;
 	releaseDate?: string;
+	sortName?: string;
 	trackNumber?: number;
 }
 

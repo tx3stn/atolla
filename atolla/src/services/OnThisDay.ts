@@ -1,5 +1,6 @@
 import type { Album } from '../models/Album';
 import type { CardDetailItem } from '../models/App';
+import { compareBySortKey } from '../utils/SortKey';
 
 interface OnThisDayCandidate {
 	album: Album;
@@ -64,7 +65,7 @@ export function createOnThisDayCardDetails(albums: Array<Album>, now: Date): Arr
 				return left.originalReleaseYear - right.originalReleaseYear;
 			}
 
-			const byName = left.album.name.localeCompare(right.album.name);
+			const byName = compareBySortKey(left.album, right.album);
 			if (byName !== 0) {
 				return byName;
 			}

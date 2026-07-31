@@ -312,7 +312,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				}
 				downloadService.downloadAlbum({
 					album,
-					artistImageUrl: this.state.artist?.imageUrl ?? null,
+					artist: this.state.artist,
 					artistLogoUrl,
 					resolvedGenres,
 					tracks,

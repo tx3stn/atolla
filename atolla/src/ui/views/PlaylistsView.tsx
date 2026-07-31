@@ -21,6 +21,7 @@ import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { CancelableController } from '../../utils/CancelableController';
+import { matchesLetterFilter } from '../../utils/SortKey';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
@@ -201,7 +202,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 
 		let playlists = sortPlaylists(this.state.playlists);
 		if (letterFilter) {
-			playlists = playlists.filter((p) => matchesLetterFilter(p.name, letterFilter));
+			playlists = playlists.filter((p) => matchesLetterFilter(p, letterFilter));
 		}
 		this.cachedDisplayPlaylists = playlists;
 		return playlists;
@@ -414,13 +415,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			)}
 		</view>;
 	}
-}
-
-function matchesLetterFilter(name: string, letter: string): boolean {
-	if (letter === '0') {
-		return /^\d/.test(name.trim());
-	}
-	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
 }
 
 const styles = {

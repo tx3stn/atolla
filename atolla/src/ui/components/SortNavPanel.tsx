@@ -36,6 +36,8 @@ export class SortNavPanel extends Component<SortNavPanelViewModel> {
 				<layout style={styles.alphabetRow}>
 					{ALPHA_TOP.map((letter) => (
 						<view
+							accessibilityId={`letter-filter-${letter}`}
+							accessibilityLabel={`letter-filter-${letter}`}
 							key={letter}
 							onTap={this.getLetterTapHandler(letter)}
 							style={
@@ -57,6 +59,8 @@ export class SortNavPanel extends Component<SortNavPanelViewModel> {
 				<layout style={styles.alphabetRow}>
 					{ALPHA_BOTTOM.map((letter) => (
 						<view
+							accessibilityId={`letter-filter-${letter}`}
+							accessibilityLabel={`letter-filter-${letter}`}
 							key={letter}
 							onTap={this.getLetterTapHandler(letter)}
 							style={

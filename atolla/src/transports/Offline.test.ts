@@ -517,6 +517,32 @@ describe('OfflineTransport', () => {
 		expect(artists.map((artist) => artist.name)).toEqual(['Arcade Fire', 'The Beatles']);
 	});
 
+	it('sorts downloaded artists by their stored server key, alongside artists without one', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				artists: [
+					{ albumIds: [], artist: { id: 'artist-1', name: 'NNAMDÏ', sortName: 'nnamdï' } },
+					{
+						albumIds: [],
+						artist: { id: 'artist-2', name: 'A Perfect Circle', sortName: 'perfect circle' },
+					},
+					{ albumIds: [], artist: { id: 'artist-3', name: 'MØL', sortName: 'møl' } },
+					{ albumIds: [], artist: { id: 'artist-4', name: 'Deafheaven' } },
+				],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const artists = (await transport.getArtists(1, 1000)).items;
+
+		expect(artists.map((artist) => artist.name)).toEqual([
+			'Deafheaven',
+			'MØL',
+			'NNAMDÏ',
+			'A Perfect Circle',
+		]);
+	});
+
 	it('derives artist for an album-only download when artist entry is missing', async () => {
 		const transport = new OfflineTransport(
 			createDownloadsMock({

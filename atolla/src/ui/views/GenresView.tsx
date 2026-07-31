@@ -18,6 +18,7 @@ import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { CancelableController } from '../../utils/CancelableController';
+import { matchesLetterFilter } from '../../utils/SortKey';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
@@ -284,11 +285,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		this.cachedDisplayGenresRef = this.state.genres;
 		this.cachedDisplayLetterFilter = letterFilter;
 		this.cachedDisplayGenres = letterFilter
-			? this.state.genres.filter((g) =>
-					letterFilter === '0'
-						? /^\d/.test(g.name.trim())
-						: g.name.trim().toLowerCase().startsWith(letterFilter.toLowerCase()),
-				)
+			? this.state.genres.filter((g) => matchesLetterFilter(g, letterFilter))
 			: this.state.genres;
 		return this.cachedDisplayGenres;
 	}

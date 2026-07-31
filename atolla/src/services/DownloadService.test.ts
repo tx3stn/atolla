@@ -203,7 +203,7 @@ describe('DownloadService', () => {
 
 			service.downloadAlbum({
 				album,
-				artistImageUrl: 'https://img/artist-1.jpg',
+				artist: { id: 'artist-1', imageUrl: 'https://img/artist-1.jpg', name: 'Artist' },
 				artistLogoUrl: 'https://img/logo-artist.jpg',
 				tracks: [
 					{ streamUrl: 'http://stream/track-1', track: trackA },

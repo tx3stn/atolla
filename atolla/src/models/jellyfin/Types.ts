@@ -57,6 +57,7 @@ export interface JellyfinBaseItemDto extends JellyfinBaseItemIdentity {
 	ProductionYear?: number;
 	RecursiveItemCount?: number;
 	RunTimeTicks?: number;
+	SortName?: string;
 }
 
 export interface JellyfinArtistItem extends JellyfinBaseItemDto {

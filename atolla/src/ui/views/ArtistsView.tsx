@@ -20,6 +20,7 @@ import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { CancelableController } from '../../utils/CancelableController';
+import { matchesLetterFilter } from '../../utils/SortKey';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
@@ -239,7 +240,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 
 		let artists = sortArtistsForView(this.state.artists, this.viewModel.isOfflineMode);
 		if (letterFilter) {
-			artists = artists.filter((a) => matchesArtistLetterFilter(a.name, letterFilter));
+			artists = artists.filter((a) => matchesLetterFilter(a, letterFilter));
 		}
 		this.cachedDisplayArtists = artists;
 		return artists;
@@ -421,13 +422,6 @@ function sortArtistsForView(artists: Array<Artist>, shouldSortLocally: boolean):
 	}
 
 	return sortArtists(artists);
-}
-
-function matchesArtistLetterFilter(name: string, letter: string): boolean {
-	if (letter === '0') {
-		return /^\d/.test(name.trim());
-	}
-	return name.trim().toLowerCase().startsWith(letter.toLowerCase());
 }
 
 const styles = {
