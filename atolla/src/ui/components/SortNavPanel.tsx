@@ -136,7 +136,7 @@ const styles = {
 		paddingTop: 10,
 		position: 'absolute' as const,
 		right: 16,
-		top: theme.headerHeight + 6,
+		top: theme.padding.scrollHeader(null) + 6,
 		zIndex: 11,
 	}),
 };
