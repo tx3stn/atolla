@@ -130,7 +130,9 @@ export class CardGrid extends Component<CardGridViewModel> {
 									style={entry.icon ? styles.cardTitleIcon : styles.cardTitle}
 									value={entry.primaryText}
 								/>
-								<label style={styles.cardSubtitle} value={entry.secondaryText} />
+								{entry.secondaryText !== '' && (
+									<label style={styles.cardSubtitle} value={entry.secondaryText} />
+								)}
 							</layout>
 						);
 					})}
