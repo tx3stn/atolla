@@ -42,9 +42,17 @@ export class Connectivity {
 		this.deps.sessionManager.applyDeviceIdOverride(value);
 	}
 
-	// cold-start: adopt the persisted mode and stand up the transport for the restored session
-	bootstrap(session: AuthSession | null): void {
+	// cold-start: adopt the persisted mode and stand up the transport for the restored session.
+	// waitForDownloadIndex is only opted out of by the bootstrap-timeout fallback, which would
+	// rather serve empty offline data than hold the splash on a store that is not responding
+	async bootstrap(
+		session: AuthSession | null,
+		options?: { waitForDownloadIndex?: boolean },
+	): Promise<void> {
 		this.mode = this.deps.preferences.mode;
+		if (options?.waitForDownloadIndex !== false) {
+			await this.ensureDownloadIndexLoaded(session);
+		}
 		this.rebuildTransport(session);
 
 		const neverConnected = !this.deps.preferences.hasStoredMode;
@@ -121,6 +129,7 @@ export class Connectivity {
 			await this.deps.preferences.setMode(mode);
 			this.mode = mode;
 			const session = this.deps.sessionManager.getSession();
+			await this.ensureDownloadIndexLoaded(session);
 			this.rebuildTransport(session);
 			this.deps.applyState({
 				connectionMode: mode,
@@ -133,6 +142,15 @@ export class Connectivity {
 		} catch {
 			return false;
 		}
+	}
+
+	// the offline transport reads the download index through synchronous getters, so it must not
+	// be constructed before that index is in memory
+	private ensureDownloadIndexLoaded(session: AuthSession | null): Promise<void> {
+		if (this.mode === ConnectionModes.online && session != null) {
+			return Promise.resolve();
+		}
+		return this.deps.downloadService.ensureLoaded();
 	}
 
 	private rebuildTransport(session: AuthSession | null): void {

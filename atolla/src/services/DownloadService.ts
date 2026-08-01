@@ -1291,21 +1291,24 @@ export class DownloadService {
 		return true;
 	}
 
-	private ensureLoaded(): Promise<void> {
+	ensureLoaded(): Promise<void> {
 		if (this.isLoaded) return Promise.resolve();
 		this.loadChain = this.loadChain.then(async () => {
 			if (this.isLoaded) return;
-			this.albums = await this.loadKey<Record<string, DownloadedAlbumEntry>>(KEY_ALBUMS, {});
-			this.albumMetadata = await this.loadKey<Record<string, Album>>(KEY_ALBUM_METADATA, {});
-			this.genres = await this.loadKey<Record<string, DownloadedGenreEntry>>(KEY_GENRES, {});
-			this.playlists = await this.loadKey<Record<string, DownloadedPlaylistEntry>>(
-				KEY_PLAYLISTS,
-				{},
+			// the read accessors are synchronous, so every collection is published together: a
+			// caller landing mid-load must never see one of them without the others
+			const [albums, albumMetadata, genres, playlists, artists, tracks, images] = await Promise.all(
+				[
+					this.loadKey<Record<string, DownloadedAlbumEntry>>(KEY_ALBUMS, {}),
+					this.loadKey<Record<string, Album>>(KEY_ALBUM_METADATA, {}),
+					this.loadKey<Record<string, DownloadedGenreEntry>>(KEY_GENRES, {}),
+					this.loadKey<Record<string, DownloadedPlaylistEntry>>(KEY_PLAYLISTS, {}),
+					this.loadKey<Record<string, DownloadedArtistEntry>>(KEY_ARTISTS, {}),
+					this.loadKey<Record<string, DownloadedTrackEntry>>(KEY_TRACKS, {}),
+					this.loadKey<Record<string, DownloadedImageEntry>>(KEY_IMAGES, {}),
+				],
 			);
-			this.artists = await this.loadKey<Record<string, DownloadedArtistEntry>>(KEY_ARTISTS, {});
-			this.tracks = await this.loadKey<Record<string, DownloadedTrackEntry>>(KEY_TRACKS, {});
-			this.images = await this.loadKey<Record<string, DownloadedImageEntry>>(KEY_IMAGES, {});
-			for (const trackEntry of Object.values(this.tracks)) {
+			for (const trackEntry of Object.values(tracks)) {
 				if (!Array.isArray(trackEntry.genreIds)) {
 					trackEntry.genreIds = [];
 				}
@@ -1319,6 +1322,13 @@ export class DownloadService {
 					trackEntry.failed = false;
 				}
 			}
+			this.albums = albums;
+			this.albumMetadata = albumMetadata;
+			this.genres = genres;
+			this.playlists = playlists;
+			this.artists = artists;
+			this.tracks = tracks;
+			this.images = images;
 			this.isLoaded = true;
 		});
 		return this.loadChain;

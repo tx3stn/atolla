@@ -616,7 +616,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		await this.preferences.load();
 		this.applyLoadedSettingsEffects();
 		const session = await this.sessionManager.loadSession();
-		this.connectivity.bootstrap(session);
+		await this.connectivity.bootstrap(session);
 	}
 
 	private markSessionStartAndDetectPriorCrash(): void {
@@ -678,7 +678,8 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				]);
 			} catch {
 				if (!this.isDestroyed() && !this.state.isBootstrapped) {
-					this.connectivity.bootstrap(null);
+					// the timeout already fired, so this must not wait on the download index too
+					void this.connectivity.bootstrap(null, { waitForDownloadIndex: false });
 				}
 			}
 			this.markSessionStartAndDetectPriorCrash();

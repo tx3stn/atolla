@@ -1952,4 +1952,44 @@ describe('DownloadService', () => {
 			expect(service.getAlbumDownloadState('album-2')).toBe('downloaded');
 		});
 	});
+
+	// the read accessors are synchronous, so hydration must not publish one collection before
+	// another: an offline read landing mid-load would otherwise see albums without their artists
+	// and synthesize artist records that are missing their artwork
+	describe('hydration', () => {
+		it('publishes no collection until every one of them has loaded', async () => {
+			const values = new Map<string, string>([
+				['dl_albums', JSON.stringify({ 'album-1': { album: makeAlbum('album-1'), trackIds: [] } })],
+				['dl_artists', JSON.stringify({ 'artist-1': { albumIds: [], artist: makeArtist('1') } })],
+			]);
+			let releaseArtists: () => void = () => {};
+			const artistsGate = new Promise<void>((resolve) => {
+				releaseArtists = resolve;
+			});
+
+			const store: DownloadServiceStore = {
+				fetchString: async (key) => {
+					if (key === 'dl_artists') await artistsGate;
+					const value = values.get(key);
+					if (value == null) throw new Error('missing key');
+					return value;
+				},
+				storeString: () => Promise.resolve(),
+			};
+
+			const { service } = createService({ store: store as InMemoryStore });
+			const loaded = service.ensureLoaded();
+			await flush();
+
+			// albums resolve first, but nothing may be observable while artists is still in flight
+			expect(service.getAllAlbums()).toEqual([]);
+			expect(service.getAllArtists()).toEqual([]);
+
+			releaseArtists();
+			await loaded;
+
+			expect(service.getAllAlbums()).toHaveLength(1);
+			expect(service.getAllArtists()).toHaveLength(1);
+		});
+	});
 });

@@ -54,7 +54,9 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 
 	const deps: ConnectivityDeps = {
 		applyState: (partial) => calls.applyState.push(partial),
-		downloadService: {} as ConnectivityDeps['downloadService'],
+		downloadService: {
+			ensureLoaded: () => Promise.resolve(),
+		} as unknown as ConnectivityDeps['downloadService'],
 		onOnline: () => {
 			calls.onOnline += 1;
 		},
@@ -70,11 +72,11 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 }
 
 describe('Connectivity', () => {
-	it('bootstraps online with a session into a live transport', () => {
+	it('bootstraps online with a session into a live transport', async () => {
 		const session = makeSession();
 		const { calls, connectivity } = makeConnectivity({ mode: ConnectionModes.online, session });
 
-		connectivity.bootstrap(session);
+		await connectivity.bootstrap(session);
 
 		expect(connectivity.getTransport() instanceof LiveTransport).toBe(true);
 		expect(connectivity.getMode()).toBe(ConnectionModes.online);
@@ -87,13 +89,13 @@ describe('Connectivity', () => {
 		).toBe(true);
 	});
 
-	it('bootstraps offline with no session into an offline transport for the shared user', () => {
+	it('bootstraps offline with no session into an offline transport for the shared user', async () => {
 		const { calls, connectivity } = makeConnectivity({
 			mode: ConnectionModes.offline,
 			session: null,
 		});
 
-		connectivity.bootstrap(null);
+		await connectivity.bootstrap(null);
 
 		expect(connectivity.getTransport() instanceof OfflineTransport).toBe(true);
 		expect(calls.onUserChanged).toEqual(['shared']);
@@ -122,10 +124,10 @@ describe('Connectivity', () => {
 		expect(calls.onOnline).toBe(0);
 	});
 
-	it('handleSessionChanged(null) while online marks auth-required and drops the transport', () => {
+	it('handleSessionChanged(null) while online marks auth-required and drops the transport', async () => {
 		const session = makeSession();
 		const { calls, connectivity } = makeConnectivity({ mode: ConnectionModes.online, session });
-		connectivity.bootstrap(session);
+		await connectivity.bootstrap(session);
 
 		connectivity.handleSessionChanged(null);
 
