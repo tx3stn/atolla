@@ -232,6 +232,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
       # Full history + tags so git-cliff can diff this tag against the previous
       # release. Must run before download-artifact: checkout cleans the workspace
@@ -287,14 +289,31 @@ jobs:
           args: --latest --strip all
         env:
           OUTPUT: RELEASE_NOTES.md
+      # Renaming happens before the attestation so the subject names recorded in the
+      # provenance are the published asset names, and after the signing step so the
+      # attested digest is the one users download — apksigner rewrites the APK.
+      - name: name release artifacts
+        run: |
+          mv artifacts/atolla_android.apk "atolla-$GITHUB_REF_NAME.apk"
+          mv artifacts/atolla_ios.ipa "atolla-$GITHUB_REF_NAME.ipa"
+      # The APK's own signature is embedded in the archive, which nothing outside an
+      # Android installer can check; this publishes a detached SLSA provenance bundle
+      # covering both artifacts, verifiable with `gh attestation verify --bundle`.
+      - name: attest build provenance
+        id: attest
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: |
+            atolla-${{ github.ref_name }}.apk
+            atolla-${{ github.ref_name }}.ipa
       - name: create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv artifacts/atolla_android.apk "atolla-$GITHUB_REF_NAME.apk"
-          mv artifacts/atolla_ios.ipa "atolla-$GITHUB_REF_NAME.ipa"
+          cp "${{ steps.attest.outputs.bundle-path }}" "atolla-$GITHUB_REF_NAME.intoto.jsonl"
           gh release create "$GITHUB_REF_NAME" \
             "atolla-$GITHUB_REF_NAME.apk" \
             "atolla-$GITHUB_REF_NAME.ipa" \
+            "atolla-$GITHUB_REF_NAME.intoto.jsonl" \
             --title "$GITHUB_REF_NAME" \
             --notes-file RELEASE_NOTES.md
