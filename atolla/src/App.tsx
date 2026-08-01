@@ -70,7 +70,7 @@ import { ConnectionView } from './ui/views/ConnectionView';
 import { fireAndForget } from './utils/Async';
 
 const BOOTSTRAP_TIMEOUT_MS = 5000;
-const MINIMUM_BOOT_SPLASH_MS = 250;
+const MINIMUM_BOOT_SPLASH_MS = 100;
 
 const log = getLogger('app');
 
