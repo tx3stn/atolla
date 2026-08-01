@@ -1766,4 +1766,190 @@ describe('DownloadService', () => {
 			expect(persisted['track-19']?.complete).toBe(true);
 		});
 	});
+
+	describe('pending download requests', () => {
+		it('reports downloading before any tracks are registered', () => {
+			const { service } = createService();
+
+			service.beginDownloadRequest('album', 'album-1');
+			service.beginDownloadRequest('artist', 'artist-1');
+			service.beginDownloadRequest('genre', 'genre-1');
+			service.beginDownloadRequest('playlist', 'playlist-1');
+
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloading');
+			expect(service.getArtistDownloadState('artist-1')).toBe('downloading');
+			expect(service.getGenreDownloadState('genre-1')).toBe('downloading');
+			expect(service.getPlaylistDownloadState('playlist-1')).toBe('downloading');
+		});
+
+		it('notifies subscribers so the header can show the spinner on tap', () => {
+			const { service } = createService();
+			let notifyCount = 0;
+			service.subscribe(() => {
+				notifyCount++;
+			});
+
+			service.beginDownloadRequest('playlist', 'playlist-1');
+
+			expect(notifyCount).toBe(1);
+		});
+
+		it('does not notify when the same request is already pending', () => {
+			const { service } = createService();
+			service.beginDownloadRequest('playlist', 'playlist-1');
+			let notifyCount = 0;
+			service.subscribe(() => {
+				notifyCount++;
+			});
+
+			service.beginDownloadRequest('playlist', 'playlist-1');
+
+			expect(notifyCount).toBe(0);
+		});
+
+		it('holds downloading while an unrelated download notifies mid-request', async () => {
+			let resolveCacheTrack!: () => void;
+			const { service } = createService({
+				cacheTrack: () =>
+					new Promise<void>((resolve) => {
+						resolveCacheTrack = resolve;
+					}),
+			});
+			service.downloadAlbum({
+				album: makeAlbum('album-1'),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: makeTrack('track-1') }],
+			});
+			await flush();
+
+			service.beginDownloadRequest('playlist', 'playlist-1');
+			const observed: Array<string> = [];
+			service.subscribe(() => {
+				observed.push(service.getPlaylistDownloadState('playlist-1'));
+			});
+
+			resolveCacheTrack();
+			await settle();
+
+			expect(observed.length).toBeGreaterThan(0);
+			expect(observed.every((state) => state === 'downloading')).toBe(true);
+			expect(service.getPlaylistDownloadState('playlist-1')).toBe('downloading');
+		});
+
+		it('stays downloading across the handover to downloadPlaylist', async () => {
+			let resolveCacheTrack!: () => void;
+			const { service } = createService({
+				cacheTrack: () =>
+					new Promise<void>((resolve) => {
+						resolveCacheTrack = resolve;
+					}),
+			});
+			service.beginDownloadRequest('playlist', 'playlist-1');
+			const observed: Array<string> = [];
+			service.subscribe(() => {
+				observed.push(service.getPlaylistDownloadState('playlist-1'));
+			});
+
+			service.downloadPlaylist({
+				playlist: makePlaylist('playlist-1'),
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-1', track: makeTrack('track-1') },
+				],
+			});
+			await settle();
+
+			expect(observed.every((state) => state === 'downloading')).toBe(true);
+
+			resolveCacheTrack();
+			await settle();
+
+			expect(service.getPlaylistDownloadState('playlist-1')).toBe('downloaded');
+		});
+
+		it('clears the request for every download entry point', async () => {
+			const { service } = createService();
+
+			service.beginDownloadRequest('album', 'album-1');
+			service.downloadAlbum({
+				album: makeAlbum('album-1'),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-1', track: makeTrack('track-1') }],
+			});
+
+			service.beginDownloadRequest('genre', 'genre-1');
+			service.downloadGenre({
+				genre: makeGenre('genre-1'),
+				tracks: [
+					{ artistLogoUrl: null, streamUrl: 'http://s/track-2', track: makeTrack('track-2') },
+				],
+			});
+
+			service.beginDownloadRequest('artist', 'artist-1');
+			service.downloadArtistAlbums({
+				albumEntries: [
+					{
+						album: makeAlbum('album-2'),
+						tracks: [{ streamUrl: 'http://s/track-3', track: makeTrack('track-3', 'album-2') }],
+					},
+				],
+				artist: makeArtist('artist-1'),
+				artistLogoUrl: null,
+			});
+
+			await settle();
+
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
+			expect(service.getGenreDownloadState('genre-1')).toBe('downloaded');
+			expect(service.getArtistDownloadState('artist-1')).toBe('downloaded');
+		});
+
+		it('cancelling returns the item to its real state and notifies', () => {
+			const { service } = createService();
+			service.beginDownloadRequest('playlist', 'playlist-1');
+			let notifyCount = 0;
+			service.subscribe(() => {
+				notifyCount++;
+			});
+
+			service.cancelDownloadRequest('playlist', 'playlist-1');
+
+			expect(service.getPlaylistDownloadState('playlist-1')).toBe('not_downloaded');
+			expect(notifyCount).toBe(1);
+		});
+
+		it('cancelling an unknown request does not notify', () => {
+			const { service } = createService();
+			let notifyCount = 0;
+			service.subscribe(() => {
+				notifyCount++;
+			});
+
+			service.cancelDownloadRequest('playlist', 'playlist-1');
+
+			expect(notifyCount).toBe(0);
+		});
+
+		it('does not strand the request when persisting the download fails', async () => {
+			const store = new FlakyWriteStore();
+			const { service } = createService({ store });
+			const album = makeAlbum('album-1');
+			const tracks = [{ streamUrl: 'http://s/track-1', track: makeTrack('track-1') }];
+			service.downloadAlbum({ album, artistLogoUrl: null, tracks });
+			await settle();
+
+			service.beginDownloadRequest('album', 'album-1');
+			store.failWrites = true;
+			service.downloadAlbum({ album, artistLogoUrl: null, tracks });
+			// a follow-up download keeps the rejected operation chain handled
+			service.downloadAlbum({
+				album: makeAlbum('album-2'),
+				artistLogoUrl: null,
+				tracks: [{ streamUrl: 'http://s/track-2', track: makeTrack('track-2', 'album-2') }],
+			});
+			await settle();
+
+			expect(service.getAlbumDownloadState('album-1')).toBe('downloaded');
+			expect(service.getAlbumDownloadState('album-2')).toBe('downloaded');
+		});
+	});
 });

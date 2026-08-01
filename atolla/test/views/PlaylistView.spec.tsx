@@ -25,6 +25,8 @@ const playbackStore = {
 };
 
 const downloadService = {
+	beginDownloadRequest: () => {},
+	cancelDownloadRequest: () => {},
 	downloadPlaylist: () => {},
 	getPlaylistDownloadState: () => 'not_downloaded',
 	removePlaylistDownload: () => {},
@@ -288,6 +290,48 @@ describe('PlaylistView', () => {
 		expect(logoCalls).toEqual(['artist-1']);
 		expect(downloaded.length).toBe(1);
 		expect(downloaded[0].tracks[0].artistLogoUrl).toBe('https://logo.png');
+	});
+
+	// the spinner has to be up before the tracks are resolved, or an unrelated download's
+	// notify re-reads the service and blips the control back to the download icon
+	valdiIt('marks the download as requested on tap, before resolving', async (driver) => {
+		const tracks = [{ artistId: 'artist-1', duration: 60, id: 'track-1', name: 'Song One' }];
+		let resolveLogo!: (url: string) => void;
+		const transport = {
+			getArtist: async (id: string) => ({ id, name: 'Artist One' }),
+			getArtistLogoUrl: () => new Promise<string>((resolve) => (resolveLogo = resolve)),
+			getGenres: async () => [],
+			getTrackCacheUrl: (id: string) => `https://stream/${id}`,
+			getTracksByPlaylist: async () => ({ hasMore: false, items: tracks, totalCount: 1 }),
+		};
+		const requests: Array<Array<string>> = [];
+
+		const component = driver.renderComponent(
+			PlaylistView,
+			{
+				downloadService: {
+					...downloadService,
+					beginDownloadRequest: (kind: string, id: string) => requests.push([kind, id]),
+				},
+				networkStatus,
+				onRootDetailControllerReady: () => {},
+				playbackStore,
+				playlist: { id: 'playlist-1', name: 'Roadtrip' },
+				preferences,
+				transport,
+				viewCache: makeTestViewCache(),
+			},
+			{ navigator: mockNavigator },
+		);
+		await flushAsyncWork();
+
+		findByLabel(component, 'detail-header-download-button')?.getAttribute('onTap')?.(touchEvent);
+		await flushAsyncWork();
+
+		expect(requests).toEqual([['playlist', 'playlist-1']]);
+
+		resolveLogo('https://logo.png');
+		await flushAsyncWork();
 	});
 
 	describe('demand-driven paging', () => {

@@ -8,6 +8,8 @@ import { imageCacheKey } from './ImageSource';
 
 export type DownloadState = 'not_downloaded' | 'downloading' | 'downloaded' | 'partial';
 
+export type DownloadRequestKind = 'album' | 'artist' | 'genre' | 'playlist';
+
 export interface DownloadedTrackEntry {
 	albumIds: Array<string>;
 	attempts: number;
@@ -123,6 +125,7 @@ export class DownloadService {
 	private activeImageCount = 0;
 	private readonly activeImageKeys = new Set<string>();
 	private operationChain: Promise<void> = Promise.resolve();
+	private readonly pendingRequests = new Set<string>();
 
 	private readonly dirtyPersistKeys = new Set<string>();
 	private persistFlushScheduled = false;
@@ -238,25 +241,49 @@ export class DownloadService {
 		}
 	}
 
+	beginDownloadRequest(kind: DownloadRequestKind, id: string): void {
+		const key = this.requestKey(kind, id);
+		if (this.pendingRequests.has(key)) return;
+		this.pendingRequests.add(key);
+		this.notify();
+	}
+
+	cancelDownloadRequest(kind: DownloadRequestKind, id: string): void {
+		if (!this.pendingRequests.delete(this.requestKey(kind, id))) return;
+		this.notify();
+	}
+
+	private requestKey(kind: DownloadRequestKind, id: string): string {
+		return `${kind}:${id}`;
+	}
+
+	private clearDownloadRequest(kind: DownloadRequestKind, id: string): void {
+		this.pendingRequests.delete(this.requestKey(kind, id));
+	}
+
 	getAlbumDownloadState(albumId: string): DownloadState {
+		if (this.pendingRequests.has(this.requestKey('album', albumId))) return 'downloading';
 		const entry = this.albums[albumId];
 		if (!entry) return 'not_downloaded';
 		return this.aggregateTrackStates(entry.trackIds);
 	}
 
 	getPlaylistDownloadState(playlistId: string): DownloadState {
+		if (this.pendingRequests.has(this.requestKey('playlist', playlistId))) return 'downloading';
 		const entry = this.playlists[playlistId];
 		if (!entry) return 'not_downloaded';
 		return this.aggregateTrackStates(entry.trackIds);
 	}
 
 	getGenreDownloadState(genreId: string): DownloadState {
+		if (this.pendingRequests.has(this.requestKey('genre', genreId))) return 'downloading';
 		const entry = this.genres[genreId];
 		if (!entry) return 'not_downloaded';
 		return this.aggregateTrackStates(entry.trackIds);
 	}
 
 	getArtistDownloadState(artistId: string): DownloadState {
+		if (this.pendingRequests.has(this.requestKey('artist', artistId))) return 'downloading';
 		const entry = this.artists[artistId];
 		if (!entry) return 'not_downloaded';
 		// an artist with no tracked albums (e.g. registered via a playlist/genre) isn't
@@ -408,6 +435,7 @@ export class DownloadService {
 					...this.genreArtReqs(trackGenres),
 				]);
 			}
+			this.clearDownloadRequest('album', album.id);
 			await this.persistAll();
 
 			for (const { track, streamUrl } of tracks) {
@@ -470,6 +498,7 @@ export class DownloadService {
 					...sharedReqs,
 				]);
 			}
+			this.clearDownloadRequest('playlist', playlist.id);
 
 			await this.persistAll();
 			for (const { track, streamUrl } of tracks) {
@@ -532,6 +561,7 @@ export class DownloadService {
 					...sharedReqs,
 				]);
 			}
+			this.clearDownloadRequest('genre', genre.id);
 			await this.persistAll();
 
 			for (const { track, streamUrl } of tracks) {
@@ -579,6 +609,7 @@ export class DownloadService {
 					]);
 				}
 			}
+			this.clearDownloadRequest('artist', artist.id);
 			await this.persistAll();
 
 			for (const { tracks } of albumEntries) {

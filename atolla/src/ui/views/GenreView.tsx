@@ -245,16 +245,21 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 
 	private handleDownloadTap = (): void => {
 		const { downloadService, genre, transport } = this.viewModel;
+		downloadService.beginDownloadRequest('genre', genre.id);
 		fireAndForget(
 			'genre-download',
 			resolveDownloadTracks(transport, this.state.tracks, {
 				resolveMissingLogos: true,
-			}).then(({ albums, artists, resolvedGenres, tracks }) => {
-				if (tracks.length === 0) {
-					return;
-				}
-				downloadService.downloadGenre({ albums, artists, genre, resolvedGenres, tracks });
-			}),
+			}).then(
+				({ albums, artists, resolvedGenres, tracks }) => {
+					if (tracks.length === 0) {
+						downloadService.cancelDownloadRequest('genre', genre.id);
+						return;
+					}
+					downloadService.downloadGenre({ albums, artists, genre, resolvedGenres, tracks });
+				},
+				() => downloadService.cancelDownloadRequest('genre', genre.id),
+			),
 		);
 	};
 

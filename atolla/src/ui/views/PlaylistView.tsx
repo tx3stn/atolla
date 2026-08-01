@@ -446,17 +446,21 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			return;
 		}
 
-		this.setState({ downloadState: 'downloading' });
+		downloadService.beginDownloadRequest('playlist', playlist.id);
 		fireAndForget(
 			'playlist-download',
 			resolveDownloadTracks(transport, this.state.tracks, {
 				resolveMissingLogos: true,
-			}).then(({ albums, artists, resolvedGenres, tracks }) => {
-				if (tracks.length === 0) {
-					return;
-				}
-				downloadService.downloadPlaylist({ albums, artists, playlist, resolvedGenres, tracks });
-			}),
+			}).then(
+				({ albums, artists, resolvedGenres, tracks }) => {
+					if (tracks.length === 0) {
+						downloadService.cancelDownloadRequest('playlist', playlist.id);
+						return;
+					}
+					downloadService.downloadPlaylist({ albums, artists, playlist, resolvedGenres, tracks });
+				},
+				() => downloadService.cancelDownloadRequest('playlist', playlist.id),
+			),
 		);
 	};
 

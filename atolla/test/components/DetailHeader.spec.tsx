@@ -35,6 +35,17 @@ describe('DetailHeader', () => {
 		expect(toastService.getCurrent()?.model.message).toBe(Strings.addToQueueFailedToast());
 	});
 
+	valdiIt('renders the spinner and no download control while downloading', async (driver) => {
+		const component = driver.renderComponent(
+			DetailHeaderWithSlot,
+			freshViewModel({ downloadState: 'downloading' }),
+			undefined,
+		);
+
+		expect(findByLabel(component, 'detail-header-downloading-spinner')).toBeDefined();
+		expect(findByLabel(component, 'detail-header-download-button')).toBeUndefined();
+	});
+
 	valdiIt(
 		'renders a tappable download control, not the spinner, for a partial download',
 		async (driver) => {

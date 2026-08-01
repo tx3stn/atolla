@@ -24,7 +24,7 @@ import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { retryResolve } from '../../utils/Async';
+import { fireAndForget, retryResolve } from '../../utils/Async';
 import { CancelableController } from '../../utils/CancelableController';
 import { BioSection } from '../components/BioSection';
 import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
@@ -465,21 +465,32 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			),
 		);
 
-		Promise.all([artistLogoUrlPromise, albumEntriesPromise]).then(
-			([artistLogoUrl, albumEntries]) => {
-				const allGenres = albumEntries.flatMap(({ album, tracks }) => [
-					...(album.genres ?? []),
-					...tracks.flatMap(({ track }) => track.genres ?? []),
-				]);
-				resolveGenreImageUrls(transport, allGenres).then((resolvedGenres) => {
-					downloadService.downloadArtistAlbums({
+		downloadService.beginDownloadRequest('artist', artist.id);
+		fireAndForget(
+			'artist-download',
+			Promise.all([artistLogoUrlPromise, albumEntriesPromise])
+				.then(([artistLogoUrl, albumEntries]) => {
+					const allGenres = albumEntries.flatMap(({ album, tracks }) => [
+						...(album.genres ?? []),
+						...tracks.flatMap(({ track }) => track.genres ?? []),
+					]);
+					return resolveGenreImageUrls(transport, allGenres).then((resolvedGenres) => ({
 						albumEntries,
-						artist,
 						artistLogoUrl,
 						resolvedGenres,
-					});
-				});
-			},
+					}));
+				})
+				.then(
+					({ albumEntries, artistLogoUrl, resolvedGenres }) => {
+						downloadService.downloadArtistAlbums({
+							albumEntries,
+							artist,
+							artistLogoUrl,
+							resolvedGenres,
+						});
+					},
+					() => downloadService.cancelDownloadRequest('artist', artist.id),
+				),
 		);
 	};
 

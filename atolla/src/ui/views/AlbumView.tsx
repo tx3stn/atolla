@@ -23,7 +23,7 @@ import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
-import { retryResolve } from '../../utils/Async';
+import { fireAndForget, retryResolve } from '../../utils/Async';
 import { formatReleaseDate } from '../../utils/Date';
 import { formatDuration } from '../../utils/Time';
 import { groupTracksByDisc } from '../components/AlbumDiscGrouping';
@@ -296,6 +296,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			})
 			.filter((t): t is { streamUrl: string; track: Track } => t !== null);
 
+		if (tracks.length === 0) {
+			return;
+		}
+
 		const artistLogoUrlPromise = this.state.artistLogoUrl
 			? Promise.resolve(this.state.artistLogoUrl)
 			: retryResolve(() => transport.getArtistLogoUrl(album.artistId)).catch(() => null);
@@ -305,19 +309,24 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			...tracks.flatMap(({ track }) => track.genres ?? []),
 		];
 
-		Promise.all([artistLogoUrlPromise, resolveGenreImageUrls(transport, allGenres)]).then(
-			([artistLogoUrl, resolvedGenres]) => {
-				if (artistLogoUrl && !this.state.artistLogoUrl) {
-					this.setState({ artistLogoUrl });
-				}
-				downloadService.downloadAlbum({
-					album,
-					artist: this.state.artist,
-					artistLogoUrl,
-					resolvedGenres,
-					tracks,
-				});
-			},
+		downloadService.beginDownloadRequest('album', album.id);
+		fireAndForget(
+			'album-download',
+			Promise.all([artistLogoUrlPromise, resolveGenreImageUrls(transport, allGenres)]).then(
+				([artistLogoUrl, resolvedGenres]) => {
+					if (artistLogoUrl && !this.state.artistLogoUrl) {
+						this.setState({ artistLogoUrl });
+					}
+					downloadService.downloadAlbum({
+						album,
+						artist: this.state.artist,
+						artistLogoUrl,
+						resolvedGenres,
+						tracks,
+					});
+				},
+				() => downloadService.cancelDownloadRequest('album', album.id),
+			),
 		);
 	};
 
