@@ -23,18 +23,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run mobsfscan
-        uses: MobSF/mobsfscan@0.4.5
+        uses: MobSF/mobsfscan@3d87bc570c4614d705547bddb521395663dba353 # 0.4.5
         with:
           args: . --config .mobsf.yaml --sarif --output results.sarif || true
       - name: Upload mobsfscan report
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
         with:
           sarif_file: results.sarif
 

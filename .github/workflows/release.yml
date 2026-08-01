@@ -12,12 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v7
-      - uses: tx3stn/vrsn@2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: tx3stn/vrsn@e5ff48117222d97f5f1b2624b56d71f1f827b1d6 # 2.0.3
         with:
           command: set
           args: ${{ github.ref_name }}
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: version-files
           path: |
@@ -25,7 +25,7 @@ jobs:
             BUILD.bazel
             atolla/native/android/AndroidManifest.prod.xml
           if-no-files-found: error
-      - uses: tx3stn/vrsn@2
+      - uses: tx3stn/vrsn@e5ff48117222d97f5f1b2624b56d71f1f827b1d6 # 2.0.3
         with:
           command: get
           args: --git-tag=false
@@ -35,15 +35,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: get version files
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: version-files
           path: .
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - name: cache bun dependencies
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
@@ -112,7 +112,7 @@ jobs:
       # and app-only maven deps not in the test set just partial-hit and re-fetch.
       - name: restore bazel repository cache
         id: restore-bazel-repo
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
@@ -134,7 +134,7 @@ jobs:
           exit "$code"
       - name: build apk
         run: JAVA_HOME="$JAVA_HOME_17_X64" bun run build:apk
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: android-apk
           path: build/atolla_android.apk
@@ -145,15 +145,15 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: apply version files
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: version-files
           path: .
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - name: cache bun dependencies
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
@@ -196,7 +196,7 @@ jobs:
       # deps not in the test set just partial-hit and re-fetch.
       - name: restore bazel repository cache
         id: restore-bazel-repo
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
@@ -220,7 +220,7 @@ jobs:
       # on valdi_application plus signing secrets in CI
       - name: build ipa
         run: IOS_CPUS=sim_arm64 bun run build:ipa
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ios-ipa
           path: build/atolla_ios.ipa
@@ -236,10 +236,10 @@ jobs:
       # Full history + tags so git-cliff can diff this tag against the previous
       # release. Must run before download-artifact: checkout cleans the workspace
       # by default and would otherwise wipe the downloaded artifacts.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           merge-multiple: true
           path: artifacts
@@ -281,7 +281,7 @@ jobs:
       # grouped into Features/Fixes/Other (see cliff.toml). --generate-notes only
       # lists merged PRs, so it produced empty bodies for our direct-to-main pushes.
       - name: generate release notes
-        uses: orhun/git-cliff-action@v4
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4.8.0
         with:
           config: cliff.toml
           args: --latest --strip all
