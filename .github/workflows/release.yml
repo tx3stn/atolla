@@ -5,7 +5,7 @@ on:
     tags: ['[0-9]*.[0-9]*.[0-9]*']
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   set-version:
@@ -230,6 +230,8 @@ jobs:
     needs: [build-android, build-ios]
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
       # Full history + tags so git-cliff can diff this tag against the previous
       # release. Must run before download-artifact: checkout cleans the workspace
