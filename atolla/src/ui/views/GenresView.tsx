@@ -265,7 +265,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 				id: genre.id,
 				kind: 'genre',
 				primaryText: genre.name,
-				secondaryText: genre.trackCount != null ? `${genre.trackCount} tracks` : '',
+				secondaryText: '',
 			}));
 		}
 
