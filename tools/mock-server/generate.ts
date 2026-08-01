@@ -20,8 +20,18 @@ function withSortName<T extends JellyfinBaseItemDto>(item: T): T {
 	return { ...item, SortName: trimmed.replace(/^(a|an|the)\s+/i, '').toLowerCase() };
 }
 
+const IMAGES_DIR = join(import.meta.dir, 'media', 'images');
+
+// Logo tag only set when a logo file exists — without it the app shows the text fallback.
+function withLogoTag<T extends JellyfinBaseItemDto>(artist: T): T {
+	if (!existsSync(join(IMAGES_DIR, `${artist.Id}-logo.png`))) {
+		return artist;
+	}
+	return { ...artist, ImageTags: { ...artist.ImageTags, Logo: 'mock' } };
+}
+
 const mockJellyfinAlbums = rawAlbums.map(withSortName);
-const mockJellyfinArtists = rawArtists.map(withSortName);
+const mockJellyfinArtists = rawArtists.map(withSortName).map(withLogoTag);
 const mockJellyfinGenres = rawGenres.map(withSortName);
 const mockJellyfinPlaylists = rawPlaylists.map(withSortName);
 const mockJellyfinTracks = rawTracks.map(withSortName);
@@ -236,23 +246,11 @@ function generate(): void {
 		),
 	);
 
-	// ---- per-artist item fetch (getArtistLogoUrl calls getItem which hits /Items/<id>) ----
-	// Logo tag only set when a logo file exists — without it the app shows the text fallback.
-	const IMAGES_DIR = join(import.meta.dir, 'media', 'images');
-	for (const artist of mockJellyfinArtists) {
-		const hasLogo = existsSync(join(IMAGES_DIR, `${artist.Id}-logo.png`));
-		fixture(
-			`artist-by-id-${slug(artist.Id)}`,
-			get(`/Items/${artist.Id}`, { fields: 'Overview', userId: USER_ID }),
-			hasLogo ? { ...artist, ImageTags: { ...artist.ImageTags, Logo: 'mock' } } : artist,
-		);
-	}
-
 	// ---- per-album item fetch (AlbumView calls getAlbumsByIds([id]) when genres are missing) ----
 	for (const album of mockJellyfinAlbums) {
 		fixture(
 			`album-by-id-${slug(album.Id)}`,
-			get('/Items', { fields: 'Overview,Genres', ids: album.Id, includeItemTypes: 'MusicAlbum' }),
+			get('/Items', { ids: album.Id, includeItemTypes: 'MusicAlbum' }),
 			envelope([album]),
 		);
 	}
