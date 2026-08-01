@@ -18,7 +18,7 @@ export function compareBySortKey(left: Sortable, right: Sortable): number {
 export function matchesLetterFilter(item: Sortable, letter: string): boolean {
 	const key = sortKey(item);
 	if (letter === '0') {
-		return /^\d/.test(key);
+		return !/^[a-z]/.test(key);
 	}
 
 	return key.startsWith(letter.toLowerCase());

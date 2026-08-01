@@ -1,5 +1,36 @@
 import { describe, expect, it } from 'bun:test';
+import fc from 'fast-check';
 import { PII_PARAM, redactSensitiveUrlParams, SENSITIVE_PARAM } from './RedactUrl';
+
+const REDACTABLE_KEY = fc.constantFrom(
+	'api_key',
+	'apiKey',
+	'access_token',
+	'accessToken',
+	'token',
+	'tok',
+	'X-Emby-Token',
+	'password',
+	'pwd',
+	'auth',
+	'secret',
+	'userId',
+	'user_id',
+	'deviceId',
+	'device_id',
+);
+
+const BENIGN_KEY = fc.constantFrom('tag', 'maxWidth', 'c', 'u', 'static', 'trackId', 'limit');
+
+function stringOf(alphabet: string, minLength: number, maxLength: number): fc.Arbitrary<string> {
+	return fc.string({ maxLength, minLength, unit: fc.constantFrom(...alphabet.split('')) });
+}
+
+// The longest fixed run in the scaffolding these secrets are embedded in is
+// 'X-Emby-Token' at 12, so a shorter secret could be generated equal to a key
+// or path segment and fail the no-leak assertion without the redactor being at fault.
+const secretValue = stringOf('ABCDEFabcdef0123456789-_.~', 16, 48);
+const benignValue = stringOf('0123456789', 1, 6);
 
 describe('SENSITIVE_PARAM', () => {
 	it('matches token-carrying param names', () => {
@@ -82,6 +113,89 @@ describe('redactSensitiveUrlParams', () => {
 	it('redacts the host but leaves benign params on token-free text', () => {
 		expect(redactSensitiveUrlParams('https://host/a?tag=abc&maxWidth=384')).toBe(
 			'<host>/a?tag=abc&maxWidth=384',
+		);
+	});
+});
+
+describe('redactSensitiveUrlParams properties', () => {
+	it('never leaks a secret carried by a sensitive query param', () => {
+		fc.assert(
+			fc.property(
+				REDACTABLE_KEY,
+				secretValue,
+				fc.array(fc.tuple(BENIGN_KEY, benignValue), { maxLength: 4 }),
+				(key, secret, benign) => {
+					const params = [`${key}=${secret}`, ...benign.map(([k, v]) => `${k}=${v}`)];
+					const url = `https://music.example.com/Items?${params.join('&')}`;
+
+					expect(redactSensitiveUrlParams(url)).not.toContain(secret);
+				},
+			),
+		);
+	});
+
+	it('never leaks a secret carried by a sensitive JSON field', () => {
+		fc.assert(
+			fc.property(REDACTABLE_KEY, secretValue, benignValue, (key, secret, trackId) => {
+				const blob = JSON.stringify({ [key]: secret, nested: { trackId }, trackId });
+
+				expect(redactSensitiveUrlParams(blob)).not.toContain(secret);
+			}),
+		);
+	});
+
+	it('never leaks a secret embedded in a URL inside a serialized blob', () => {
+		fc.assert(
+			fc.property(REDACTABLE_KEY, secretValue, (key, secret) => {
+				const blob = JSON.stringify({ next: `https://music.example.com/a?${key}=${secret}` });
+
+				expect(redactSensitiveUrlParams(blob)).not.toContain(secret);
+			}),
+		);
+	});
+
+	it('leaves benign param values untouched', () => {
+		fc.assert(
+			fc.property(BENIGN_KEY, benignValue, (key, value) => {
+				expect(redactSensitiveUrlParams(`https://music.example.com/a?${key}=${value}`)).toBe(
+					`<host>/a?${key}=${value}`,
+				);
+			}),
+		);
+	});
+
+	it('strips the scheme and authority of every http(s) URL, including any userinfo', () => {
+		fc.assert(
+			fc.property(fc.webAuthority({ withPort: true, withUserInfo: true }), (authority) => {
+				const redacted = redactSensitiveUrlParams(`https://${authority}/Audio/42/stream.mp3`);
+
+				expect(redacted).toBe('<host>/Audio/42/stream.mp3');
+			}),
+		);
+	});
+
+	it('is idempotent', () => {
+		fc.assert(
+			fc.property(
+				fc.array(fc.tuple(fc.oneof(REDACTABLE_KEY, BENIGN_KEY), benignValue), { maxLength: 5 }),
+				(params) => {
+					const query =
+						params.length === 0 ? '' : `?${params.map(([k, v]) => `${k}=${v}`).join('&')}`;
+					const once = redactSensitiveUrlParams(`https://music.example.com/Items${query}`);
+
+					expect(redactSensitiveUrlParams(once)).toBe(once);
+				},
+			),
+		);
+	});
+
+	it('never leaks a secret built from the sub-delimiters a query value may contain', () => {
+		fc.assert(
+			fc.property(REDACTABLE_KEY, stringOf(`ABCabc0123-_.~'!$()*+,;:@`, 16, 48), (key, secret) => {
+				const url = `https://music.example.com/a?${key}=${secret}`;
+
+				expect(redactSensitiveUrlParams(url)).not.toContain(secret);
+			}),
 		);
 	});
 });

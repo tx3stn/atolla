@@ -17,8 +17,8 @@ function isRedactableKey(key: string): boolean {
 // headers and never in URLs, but any stray secret in a logged string is redacted here too.
 export function redactSensitiveUrlParams(text: string): string {
 	return text
-		.replace(/\bhttps?:\/\/[^/?#\s"']+/gi, '<host>')
-		.replace(/([?&])([^=&"'\s]+)=([^&"'\s]*)/g, (match, separator, key) =>
+		.replace(/\bhttps?:\/\/[^/?#\s"]+/gi, '<host>')
+		.replace(/([?&])([^=&"\s]+)=([^&"\s]*)/g, (match, separator, key) =>
 			isRedactableKey(key) ? `${separator}${key}=<redacted>` : match,
 		)
 		.replace(

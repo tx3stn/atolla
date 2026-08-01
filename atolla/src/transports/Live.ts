@@ -869,8 +869,8 @@ function createClientHeader(accessToken?: string, clientDeviceId = 'atolla'): st
 
 // maps a library letter-filter token to Jellyfin `/Items` query params so prefix
 // filtering happens server-side. letters a-z become `nameStartsWith`; the '0' bucket
-// ("starts with a digit") maps to `nameLessThan: 'A'`, returning everything sorting
-// before "A" (digits and symbols), which the client-side filter narrows to leading digits
+// ("does not start with a letter") maps to `nameLessThan: 'A'`, returning everything
+// sorting before "A" — digits and symbols, both of which the client-side filter keeps
 function nameFilterParams(
 	startsWith: string | undefined,
 ): Record<string, string | number | boolean | undefined> {
