@@ -5,20 +5,24 @@ import { Device } from 'valdi_core/src/Device';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { setTimeoutInterruptible } from 'valdi_core/src/SetTimeout';
 import { Style } from 'valdi_core/src/Style';
+import { RenderedElementUtils } from 'valdi_core/src/utils/RenderedElementUtils';
 import type { DragEvent, TouchEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Palette } from '../../models/Color';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
 import type { ImageCache } from '../../services/ImageCache';
+import { getLogger } from '../../services/Logger';
 import { theme, withAlpha } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { CachedImage } from './CachedImage';
 import { TouchEventState } from './TouchEventState';
 import {
+	type AutoScrollEngagement,
 	edgeScrollDelta,
 	neighbourShifts,
 	type RowSlot,
+	resolveAutoScrollEngagement,
 	resolveReorderTarget,
 	snapDisplacement,
 } from './trackReorder';
@@ -92,16 +96,22 @@ const REMOVE_SWIPE_VELOCITY = 700;
 // fallback slot height, used only when live row geometry is unavailable (before the
 // first layout pass or in tests); real drags measure each row's frame
 const ROW_SLOT_HEIGHT = 72;
-const AUTO_SCROLL_EDGE = 72;
-// per-tick scroll at AUTO_SCROLL_INTERVAL (~60fps): keep gentle so a held-at-edge drag
-// in a long, already-scrolled list stays controllable rather than flinging past
-const AUTO_SCROLL_STEP = 6;
+const AUTO_SCROLL_EDGE = 65;
+// pixels moved per tick
+const AUTO_SCROLL_STEP = 15;
+// tick period in ms - 16 is optimal for the display refresh
 const AUTO_SCROLL_INTERVAL = 16;
+// finger travel that flips auto-scroll on or off, large enough that a slow drag's jitter
+// doesn't keep reviving a scroll the finger is pulling away from
+const AUTO_SCROLL_REVERSE_TOLERANCE = 8;
 // the ancestor scroll delays delivering touches on iOS, so the recogniser's timer
 // starts late; with the delay the effective hold is ~250ms (platform-standard). at the
 // 0.25s default the long press fired only after the finger moved and failed its
 // movement tolerance
 const HANDLE_LONG_PRESS_SECONDS = 0.1;
+
+// TEMPORARY: diagnosing why drag auto-scroll never engages upward on device
+const autoScrollLog = getLogger('dragAutoScroll');
 
 export class TrackList extends Component<TrackListViewModel> {
 	private draggingRowIdentities = new Set<string>();
@@ -130,10 +140,9 @@ export class TrackList extends Component<TrackListViewModel> {
 	private armedDragOriginY = 0;
 	private lastDragEvent: DragEvent | null = null;
 	private autoScrollTimeout: ReturnType<typeof setTimeout> | null = null;
-	// previous finger Y while dragging, so auto-scroll can refuse to scroll against the
-	// direction the finger is moving (otherwise dragging up near the bottom edge scrolls
-	// the list down and drags the row with it)
-	private autoScrollPrevFingerY: number | null = null;
+	// tracks whether the finger is still asking to be auto-scrolled, so dragging up near the
+	// bottom edge doesn't scroll the list down and drag the row back with it
+	private autoScrollEngagement: AutoScrollEngagement | null = null;
 
 	private get holdToReorder(): boolean {
 		return this.viewModel.holdToReorder ?? Device.isIOS();
@@ -971,7 +980,7 @@ export class TrackList extends Component<TrackListViewModel> {
 		this.dragScrollAccum = 0;
 		this.armedDragOriginY = 0;
 		this.lastDragEvent = null;
-		this.autoScrollPrevFingerY = null;
+		this.autoScrollEngagement = null;
 		this.viewModel.dragScroller?.setScrollEnabled(true);
 	}
 
@@ -1022,23 +1031,35 @@ export class TrackList extends Component<TrackListViewModel> {
 			return;
 		}
 		const viewport = scroller.viewport();
-		let desired = viewport
-			? edgeScrollDelta(event.absoluteY, viewport, AUTO_SCROLL_EDGE, AUTO_SCROLL_STEP)
-			: 0;
+		const rowY = this.draggedRowViewportY();
+		const desired =
+			viewport && rowY !== undefined
+				? edgeScrollDelta(rowY, viewport, AUTO_SCROLL_EDGE, AUTO_SCROLL_STEP)
+				: 0;
 
-		// never scroll against the finger's active travel: dragging up must not trigger a
-		// downward scroll just because the finger is still inside the bottom edge zone. a
-		// stationary finger held at an edge keeps scrolling via the timer tick below
-		const prevFingerY = this.autoScrollPrevFingerY;
-		this.autoScrollPrevFingerY = event.absoluteY;
-		if (desired !== 0 && prevFingerY !== null) {
-			const travel = event.absoluteY - prevFingerY;
-			if (travel !== 0 && Math.sign(travel) !== Math.sign(desired)) {
-				desired = 0;
-			}
+		autoScrollLog.debug('drag', {
+			desired,
+			rowY,
+			viewportBottom: viewport?.bottom,
+			viewportTop: viewport?.top,
+		});
+
+		if (desired === 0 || rowY === undefined) {
+			this.autoScrollEngagement = null;
+			this.stopAutoScroll();
+			return;
 		}
 
-		if (desired === 0) {
+		// never make the finger fight the scroll: dragging away from an edge cancels it and
+		// dragging back toward the edge resumes it, while a finger held at the edge keeps
+		// scrolling via the timer tick below
+		this.autoScrollEngagement = resolveAutoScrollEngagement(
+			this.autoScrollEngagement,
+			rowY,
+			Math.sign(desired),
+			AUTO_SCROLL_REVERSE_TOLERANCE,
+		);
+		if (!this.autoScrollEngagement.engaged) {
 			this.stopAutoScroll();
 			return;
 		}
@@ -1051,17 +1072,38 @@ export class TrackList extends Component<TrackListViewModel> {
 		}
 	}
 
+	// the dragged row's live centre in the same space the scroller reports its viewport in.
+	// gesture coordinates can't be used here: Android delivers them in device pixels while
+	// element frames are in points, and the two are only reconcilable via a display scale the
+	// bridge doesn't always provide
+	private draggedRowViewportY(): number | undefined {
+		const identity = this.dragRowIdentity;
+		if (!identity) {
+			return undefined;
+		}
+		const element = this.swipeContainerRefByIdentity.get(identity)?.all()?.[0];
+		if (!element?.frame?.height) {
+			return undefined;
+		}
+		return RenderedElementUtils.absolutePosition(element).y + element.frame.height / 2;
+	}
+
 	private performAutoScrollStep(event: DragEvent): void {
-		const scroller = this.viewModel.dragScroller;
-		const viewport = scroller?.viewport();
-		if (!scroller || !viewport) {
+		if (!this.autoScrollEngagement?.engaged) {
 			return;
 		}
-		const desired = edgeScrollDelta(event.absoluteY, viewport, AUTO_SCROLL_EDGE, AUTO_SCROLL_STEP);
+		const scroller = this.viewModel.dragScroller;
+		const viewport = scroller?.viewport();
+		const rowY = this.draggedRowViewportY();
+		if (!scroller || !viewport || rowY === undefined) {
+			return;
+		}
+		const desired = edgeScrollDelta(rowY, viewport, AUTO_SCROLL_EDGE, AUTO_SCROLL_STEP);
 		if (desired === 0) {
 			return;
 		}
 		const applied = scroller.scrollBy(desired);
+		autoScrollLog.debug('step', { applied, desired });
 		if (applied === 0) {
 			return;
 		}

@@ -89,3 +89,34 @@ export function edgeScrollDelta(
 
 	return 0;
 }
+
+export interface AutoScrollEngagement {
+	anchorY: number;
+	direction: number;
+	engaged: boolean;
+}
+
+// whether auto-scroll should be running, from the finger's travel since the last time it
+// changed its mind rather than since the last event: dragging away from the edge switches
+// it off and dragging back toward the edge switches it on, both only past `tolerance`, so a
+// held finger keeps scrolling and jitter neither cancels nor revives it
+export function resolveAutoScrollEngagement(
+	current: AutoScrollEngagement | null,
+	fingerY: number,
+	direction: number,
+	tolerance: number,
+): AutoScrollEngagement {
+	if (!current || current.direction !== direction) {
+		return { anchorY: fingerY, direction, engaged: true };
+	}
+
+	const travelTowardEdge = (fingerY - current.anchorY) * direction;
+	if (travelTowardEdge > tolerance) {
+		return { anchorY: fingerY, direction, engaged: true };
+	}
+	if (travelTowardEdge < -tolerance) {
+		return { anchorY: fingerY, direction, engaged: false };
+	}
+
+	return current;
+}

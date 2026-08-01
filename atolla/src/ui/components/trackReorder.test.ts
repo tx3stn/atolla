@@ -3,6 +3,7 @@ import {
 	edgeScrollDelta,
 	neighbourShifts,
 	type RowSlot,
+	resolveAutoScrollEngagement,
 	resolveReorderTarget,
 	snapDisplacement,
 } from './trackReorder';
@@ -138,5 +139,79 @@ describe('edgeScrollDelta', () => {
 		expect(edgeScrollDelta(100, viewport, 80, 12)).toBe(-12);
 		expect(edgeScrollDelta(50, viewport, 80, 12)).toBe(-12);
 		expect(edgeScrollDelta(600, viewport, 80, 12)).toBe(12);
+	});
+});
+
+describe('resolveAutoScrollEngagement', () => {
+	const TOLERANCE = 8;
+
+	it('engages when the finger first reaches an edge zone', () => {
+		expect(resolveAutoScrollEngagement(null, 580, 1, TOLERANCE)).toEqual({
+			anchorY: 580,
+			direction: 1,
+			engaged: true,
+		});
+	});
+
+	it('re-anchors and engages when the finger crosses to the opposite edge', () => {
+		const atBottom = { anchorY: 580, direction: 1, engaged: false };
+		expect(resolveAutoScrollEngagement(atBottom, 110, -1, TOLERANCE)).toEqual({
+			anchorY: 110,
+			direction: -1,
+			engaged: true,
+		});
+	});
+
+	it('keeps scrolling while the finger is held still at the edge', () => {
+		const engaged = { anchorY: 580, direction: 1, engaged: true };
+		expect(resolveAutoScrollEngagement(engaged, 580, 1, TOLERANCE)).toEqual(engaged);
+	});
+
+	it('holds state and the anchor for jitter inside the tolerance', () => {
+		const engaged = { anchorY: 580, direction: 1, engaged: true };
+		expect(resolveAutoScrollEngagement(engaged, 573, 1, TOLERANCE)).toEqual(engaged);
+		expect(resolveAutoScrollEngagement(engaged, 587, 1, TOLERANCE)).toEqual(engaged);
+	});
+
+	it('disengages once the finger drags away from the edge beyond the tolerance', () => {
+		const engaged = { anchorY: 580, direction: 1, engaged: true };
+		expect(resolveAutoScrollEngagement(engaged, 560, 1, TOLERANCE)).toEqual({
+			anchorY: 560,
+			direction: 1,
+			engaged: false,
+		});
+	});
+
+	it('stays disengaged while the finger keeps dragging away from the edge', () => {
+		let engagement = resolveAutoScrollEngagement(
+			{ anchorY: 580, direction: 1, engaged: true },
+			560,
+			1,
+			TOLERANCE,
+		);
+		for (const fingerY of [540, 520, 500]) {
+			engagement = resolveAutoScrollEngagement(engagement, fingerY, 1, TOLERANCE);
+			expect(engagement.engaged).toBe(false);
+		}
+	});
+
+	it('does not revive a disengaged scroll on jitter toward the edge', () => {
+		const disengaged = { anchorY: 560, direction: 1, engaged: false };
+		expect(resolveAutoScrollEngagement(disengaged, 566, 1, TOLERANCE)).toEqual(disengaged);
+	});
+
+	it('re-engages when the finger deliberately pushes back toward the edge', () => {
+		const disengaged = { anchorY: 560, direction: 1, engaged: false };
+		expect(resolveAutoScrollEngagement(disengaged, 580, 1, TOLERANCE)).toEqual({
+			anchorY: 580,
+			direction: 1,
+			engaged: true,
+		});
+	});
+
+	it('measures travel toward the top edge as upward movement', () => {
+		const engaged = { anchorY: 120, direction: -1, engaged: true };
+		expect(resolveAutoScrollEngagement(engaged, 140, -1, TOLERANCE).engaged).toBe(false);
+		expect(resolveAutoScrollEngagement(engaged, 100, -1, TOLERANCE).engaged).toBe(true);
 	});
 });

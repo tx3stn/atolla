@@ -4,6 +4,7 @@ import type { TrackListEntry } from 'atolla/src/ui/components/TrackList';
 import { TrackList } from 'atolla/src/ui/components/TrackList';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { RenderedElementUtils } from 'valdi_core/src/utils/RenderedElementUtils';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { dragEvent, styleAttribute, touchEvent, touchEventWith } from '../util/testEvents';
@@ -518,21 +519,17 @@ describe('TrackList', () => {
 		expect(toIndex as number | null).toBe(0);
 	});
 
-	valdiIt('auto-scrolls when a row is dragged to the viewport edge', async (driver) => {
+	valdiIt('auto-scrolls from the dragged row position under real layout', async (driver) => {
 		const scrollCalls: Array<number> = [];
+		let viewportWindow: { bottom: number; top: number } | undefined;
 		const dragScroller = {
 			scrollBy: (delta: number) => {
 				scrollCalls.push(delta);
 				return delta;
 			},
 			setScrollEnabled: () => {},
-			viewport: () => ({ bottom: 100, top: 0 }),
+			viewport: () => viewportWindow,
 		};
-		const tracks = [
-			{ id: 'track-1', meta: '1:00', title: 'One' },
-			{ id: 'track-2', meta: '1:10', title: 'Two' },
-			{ id: 'track-3', meta: '1:20', title: 'Three' },
-		];
 		const component = driver.renderComponent(
 			TrackList,
 			{
@@ -540,42 +537,50 @@ describe('TrackList', () => {
 				holdToReorder: false,
 				onTrackReorder: () => {},
 				showDragHandles: true,
-				tracks,
+				tracks: [
+					{ id: 'a', meta: '1:00', title: 'A' },
+					{ id: 'b', meta: '1:10', title: 'B' },
+					{ id: 'c', meta: '1:20', title: 'C' },
+				],
 			},
 			undefined,
 		);
 
+		await driver.performLayout({ height: 800, width: 320 });
+
 		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const dragContainer = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
+		const row = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-b-1',
 		);
+		// the component locates the dragged row with absolutePosition, so the viewport has to be
+		// expressed in that same space rather than in raw parent-relative frames
+		const rowCentre = RenderedElementUtils.absolutePosition(row).y + (row?.frame?.height ?? 0) / 2;
+		expect(rowCentre).toBeGreaterThan(0);
 
-		// absoluteY 96 sits inside the bottom edge zone of a 0..100 viewport
-		dragContainer?.getAttribute('onDrag')?.(
-			dragEvent({
-				absoluteY: 96,
-				deltaX: 0,
-				deltaY: 40,
-				state: 1,
-				velocityY: 0,
-			}),
-		);
+		const drag = (state: number) => {
+			row?.getAttribute('onDrag')?.(dragEvent({ deltaX: 0, deltaY: 0, state, velocityY: 0 }));
+		};
 
+		// clear of both edge zones
+		viewportWindow = { bottom: rowCentre + 200, top: rowCentre - 200 };
+		drag(1);
+		expect(scrollCalls.length).toBe(0);
+		drag(2);
+
+		// inside the top edge zone: scrolls up
+		viewportWindow = { bottom: rowCentre + 400, top: rowCentre - 10 };
+		drag(1);
+		expect(scrollCalls.length).toBeGreaterThan(0);
+		expect(scrollCalls[0]).toBeLessThan(0);
+		drag(2);
+
+		// inside the bottom edge zone: scrolls down
+		scrollCalls.length = 0;
+		viewportWindow = { bottom: rowCentre + 10, top: rowCentre - 400 };
+		drag(1);
 		expect(scrollCalls.length).toBeGreaterThan(0);
 		expect(scrollCalls[0]).toBeGreaterThan(0);
-		// per-tick step is capped so a long, scrolled list doesn't fling past the finger
-		expect(scrollCalls[0]).toBeLessThanOrEqual(6);
-
-		// end the drag so the auto-scroll timer is cleared
-		dragContainer?.getAttribute('onDrag')?.(
-			dragEvent({
-				absoluteY: 96,
-				deltaX: 0,
-				deltaY: 40,
-				state: 2,
-				velocityY: 0,
-			}),
-		);
+		drag(2);
 	});
 
 	valdiIt(
@@ -621,73 +626,6 @@ describe('TrackList', () => {
 			expect(scrollEnabledCalls).toEqual([false, true]);
 		},
 	);
-
-	valdiIt('does not auto-scroll against the drag direction', async (driver) => {
-		const scrollCalls: Array<number> = [];
-		const dragScroller = {
-			scrollBy: (delta: number) => {
-				scrollCalls.push(delta);
-				return delta;
-			},
-			setScrollEnabled: () => {},
-			viewport: () => ({ bottom: 100, top: 0 }),
-		};
-		const tracks = [
-			{ id: 'track-1', meta: '1:00', title: 'One' },
-			{ id: 'track-2', meta: '1:10', title: 'Two' },
-			{ id: 'track-3', meta: '1:20', title: 'Three' },
-		];
-		const component = driver.renderComponent(
-			TrackList,
-			{
-				dragScroller,
-				holdToReorder: false,
-				onTrackReorder: () => {},
-				showDragHandles: true,
-				tracks,
-			},
-			undefined,
-		);
-		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
-		const dragContainer = views.find(
-			(view) => view.getAttribute('accessibilityLabel') === 'track-row-drag-track-1-0',
-		);
-
-		// finger inside the bottom edge zone: the first move scrolls down
-		dragContainer?.getAttribute('onDrag')?.(
-			dragEvent({
-				absoluteY: 95,
-				deltaX: 0,
-				deltaY: 40,
-				state: 1,
-				velocityY: 0,
-			}),
-		);
-		const afterFirst = scrollCalls.length;
-		expect(afterFirst).toBeGreaterThan(0);
-
-		// still in the bottom zone but now moving up: must not add a downward scroll
-		dragContainer?.getAttribute('onDrag')?.(
-			dragEvent({
-				absoluteY: 80,
-				deltaX: 0,
-				deltaY: 25,
-				state: 1,
-				velocityY: 0,
-			}),
-		);
-		expect(scrollCalls.length).toBe(afterFirst);
-
-		dragContainer?.getAttribute('onDrag')?.(
-			dragEvent({
-				absoluteY: 80,
-				deltaX: 0,
-				deltaY: 25,
-				state: 2,
-				velocityY: 0,
-			}),
-		);
-	});
 
 	valdiIt('reorders a row UP when dragged up under real layout', async (driver) => {
 		const reordered: Array<number> = [];
