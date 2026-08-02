@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import res from 'atolla/res';
 import Strings from 'atolla/src/Strings';
 import { ToastService } from 'atolla/src/services/ToastService';
 import { DetailHeader, type DetailHeaderViewModel } from 'atolla/src/ui/components/DetailHeader';
@@ -8,7 +9,8 @@ import { Component } from 'valdi_core/src/Component';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import type { Asset } from 'valdi_tsx/src/Asset';
 import { touchEvent } from '../util/testEvents';
 
 describe('DetailHeader', () => {
@@ -133,6 +135,121 @@ describe('DetailHeader', () => {
 			findByLabel(component, 'detail-header-download-button')?.getAttribute('onTap'),
 		).toBeDefined();
 	});
+
+	valdiIt('draws the tick when a download finishes', async () => {
+		const instrumented = InstrumentedComponentJSX.create(
+			DetailHeader,
+			animatedViewModel({ downloadState: 'downloading' }),
+			undefined,
+		);
+		const component = instrumented.getComponent();
+
+		instrumented.setViewModel(animatedViewModel({ downloadState: 'downloaded' }));
+
+		expect(findByLabel(component, 'detail-header-downloaded-tick')).toBeDefined();
+		expect(
+			findByLabel(component, 'detail-header-download-icon')?.getAttribute('touchEnabled'),
+		).toBe(false);
+	});
+
+	// the static icon stays mounted underneath the animation so it is already painted when the
+	// tick unmounts; swapping a fresh image in at that moment flickers
+	valdiIt('keeps the downloaded icon mounted while the tick draws', async () => {
+		const instrumented = InstrumentedComponentJSX.create(
+			DetailHeader,
+			animatedViewModel({ downloadState: 'downloading' }),
+			undefined,
+		);
+		const component = instrumented.getComponent();
+
+		instrumented.setViewModel(animatedViewModel({ downloadState: 'downloaded' }));
+
+		expect(findByLabel(component, 'detail-header-downloaded-tick')).toBeDefined();
+		expect(rendersIcon(component, res.downloaded)).toBe(true);
+	});
+
+	valdiIt('restores the tappable downloaded control once the tick finishes', async () => {
+		const instrumented = InstrumentedComponentJSX.create(
+			DetailHeader,
+			animatedViewModel({ downloadState: 'downloading' }),
+			undefined,
+		);
+		const component = instrumented.getComponent();
+
+		instrumented.setViewModel(animatedViewModel({ downloadState: 'downloaded' }));
+		findAnimation(component)?.getAttribute('onProgress')?.({ duration: 0.72, time: 0.72 });
+
+		expect(findByLabel(component, 'detail-header-downloaded-tick')).toBeUndefined();
+		expect(
+			findByLabel(component, 'detail-header-download-icon')?.getAttribute('touchEnabled'),
+		).toBe(true);
+		expect(
+			findByLabel(component, 'detail-header-download-button')?.getAttribute('onTap'),
+		).toBeDefined();
+		expect(rendersIcon(component, res.downloaded)).toBe(true);
+	});
+
+	valdiIt('shows the static tick when mounted as already downloaded', async (driver) => {
+		const component = driver.renderComponent(
+			DetailHeader,
+			animatedViewModel({ downloadState: 'downloaded' }),
+			undefined,
+		);
+
+		expect(findByLabel(component, 'detail-header-downloaded-tick')).toBeUndefined();
+		expect(rendersIcon(component, res.downloaded)).toBe(true);
+	});
+
+	valdiIt('skips the tick when animations are disabled', async () => {
+		const instrumented = InstrumentedComponentJSX.create(
+			DetailHeader,
+			freshViewModel({ downloadState: 'downloading' }),
+			undefined,
+		);
+		const component = instrumented.getComponent();
+
+		instrumented.setViewModel(freshViewModel({ downloadState: 'downloaded' }));
+
+		expect(findByLabel(component, 'detail-header-downloaded-tick')).toBeUndefined();
+		expect(findByLabel(component, 'detail-header-download-button')).toBeDefined();
+	});
+
+	valdiIt('draws the tick again on a second download', async () => {
+		const instrumented = InstrumentedComponentJSX.create(
+			DetailHeader,
+			animatedViewModel({ downloadState: 'downloading' }),
+			undefined,
+		);
+		const component = instrumented.getComponent();
+
+		instrumented.setViewModel(animatedViewModel({ downloadState: 'downloaded' }));
+		findAnimation(component)?.getAttribute('onProgress')?.({ duration: 0.72, time: 0.72 });
+		instrumented.setViewModel(animatedViewModel({ downloadState: 'not_downloaded' }));
+		instrumented.setViewModel(animatedViewModel({ downloadState: 'downloading' }));
+		instrumented.setViewModel(animatedViewModel({ downloadState: 'downloaded' }));
+
+		expect(findByLabel(component, 'detail-header-downloaded-tick')).toBeDefined();
+
+		findAnimation(component)?.getAttribute('onProgress')?.({ duration: 0.72, time: 0.72 });
+
+		expect(findByLabel(component, 'detail-header-downloaded-tick')).toBeUndefined();
+		expect(rendersIcon(component, res.downloaded)).toBe(true);
+	});
+
+	valdiIt('drops the tick when the download is removed mid-draw', async () => {
+		const instrumented = InstrumentedComponentJSX.create(
+			DetailHeader,
+			animatedViewModel({ downloadState: 'downloading' }),
+			undefined,
+		);
+		const component = instrumented.getComponent();
+
+		instrumented.setViewModel(animatedViewModel({ downloadState: 'downloaded' }));
+		instrumented.setViewModel(animatedViewModel({ downloadState: 'not_downloaded' }));
+
+		expect(findByLabel(component, 'detail-header-downloaded-tick')).toBeUndefined();
+		expect(rendersIcon(component, res.download)).toBe(true);
+	});
 });
 
 type DetailHeaderProps = Omit<DetailHeaderViewModel, 'modalSlot'>;
@@ -176,7 +293,23 @@ function freshViewModel(overrides: Partial<DetailHeaderProps> = {}): DetailHeade
 	};
 }
 
+function animatedViewModel(overrides: Partial<DetailHeaderProps> = {}): DetailHeaderProps {
+	return freshViewModel({ animationsEnabled: true, ...overrides });
+}
+
+function findAnimation(component: Parameters<typeof componentGetElements>[0]) {
+	return elementTypeFind(
+		componentGetElements(component),
+		IRenderedElementViewClass.AnimatedImage,
+	)[0];
+}
+
 function findByLabel(component: Parameters<typeof componentGetElements>[0], label: string) {
 	const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
 	return views.find((view) => view.getAttribute('accessibilityLabel') === label);
+}
+
+function rendersIcon(component: Parameters<typeof componentGetElements>[0], icon: Asset): boolean {
+	const images = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Image);
+	return images.some((image) => image.getAttribute('src') === icon);
 }

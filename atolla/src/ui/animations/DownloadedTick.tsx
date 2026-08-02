@@ -1,16 +1,15 @@
 import { makeAssetFromBytes } from 'valdi_core/src/Asset';
 import { Component } from 'valdi_core/src/Component';
-import type { ElementRef } from 'valdi_core/src/ElementRef';
 import type { ValdiRuntime } from 'valdi_core/src/ValdiRuntime';
 import type { Asset } from 'valdi_tsx/src/Asset';
-import type { AnimatedImage } from 'valdi_tsx/src/NativeTemplateElements';
+import type { AnimatedImageOnProgressEvent } from 'valdi_tsx/src/NativeTemplateElements';
 import { getAnimationStyle, getRootStyle } from './Styles';
 
 declare const runtime: ValdiRuntime;
 
-const animationPath = 'src/ui/animations/spinner.json';
+const animationPath = 'src/ui/animations/tick.json';
 const defaultSize = 24;
-const defaultSpeed = 1;
+const progressEpsilon = 0.02;
 
 let animationAsset: Asset | undefined;
 
@@ -22,20 +21,18 @@ function getAnimationAsset(): Asset {
 	return animationAsset;
 }
 
-export interface LoadingSpinnerViewModel {
+export interface DownloadedTickViewModel {
 	accessibilityId?: string;
-	animationRef?: ElementRef<AnimatedImage>;
+	onComplete: () => void;
 	size?: number;
-	speed?: number;
-	spinning?: boolean;
 }
 
-export class LoadingSpinner extends Component<LoadingSpinnerViewModel> {
+export class DownloadedTick extends Component<DownloadedTickViewModel> {
+	private hasCompleted = false;
+
 	onRender(): void {
-		const accessibilityId = this.viewModel.accessibilityId ?? 'spinner';
+		const accessibilityId = this.viewModel.accessibilityId ?? 'downloaded-tick';
 		const size = this.viewModel.size ?? defaultSize;
-		const speed = this.viewModel.speed ?? defaultSpeed;
-		const spinning = this.viewModel.spinning ?? true;
 
 		<view
 			accessibilityId={accessibilityId}
@@ -43,13 +40,26 @@ export class LoadingSpinner extends Component<LoadingSpinnerViewModel> {
 			style={getRootStyle(size)}
 		>
 			<animatedimage
-				advanceRate={spinning ? speed : 0}
-				loop={true}
+				advanceRate={1}
+				loop={false}
 				objectFit='contain'
-				ref={this.viewModel.animationRef}
+				onProgress={this.handleProgress}
 				src={getAnimationAsset()}
 				style={getAnimationStyle(size)}
 			/>
 		</view>;
 	}
+
+	private handleProgress = (event: AnimatedImageOnProgressEvent): void => {
+		if (this.hasCompleted || event.duration <= 0) {
+			return;
+		}
+
+		if (event.time < event.duration - progressEpsilon) {
+			return;
+		}
+
+		this.hasCompleted = true;
+		this.viewModel.onComplete();
+	};
 }

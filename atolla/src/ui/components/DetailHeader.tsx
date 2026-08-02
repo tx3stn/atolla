@@ -12,6 +12,7 @@ import type { ImageCategory } from '../../services/ImageCache';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
+import { DownloadedTick } from '../animations/DownloadedTick';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
 import { LoadingSpinner } from '../animations/LoadingSpinner';
 import { ArtistLogo } from './ArtistLogo';
@@ -50,6 +51,7 @@ interface DetailHeaderState {
 	addToQueuePhase: 'idle' | 'confirming';
 	checkmarkAnimated: boolean;
 	removeDownloadPhase: 'idle' | 'confirming' | 'confirmed';
+	tickPhase: 'idle' | 'drawing';
 }
 
 export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, DetailHeaderState> {
@@ -67,6 +69,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		addToQueuePhase: 'idle',
 		checkmarkAnimated: false,
 		removeDownloadPhase: 'idle',
+		tickPhase: 'idle',
 	};
 
 	onDestroy(): void {
@@ -157,6 +160,19 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			this.viewModel.modalSlot?.slotted(this.emptySlot);
 			this.setState({ removeDownloadPhase: 'idle' });
 		}
+
+		if (
+			this.viewModel.animationsEnabled &&
+			prevViewModel.downloadState === 'downloading' &&
+			this.viewModel.downloadState === 'downloaded'
+		) {
+			this.setState({ tickPhase: 'drawing' });
+		} else if (
+			this.state.tickPhase === 'drawing' &&
+			this.viewModel.downloadState !== 'downloaded'
+		) {
+			this.setState({ tickPhase: 'idle' });
+		}
 	}
 
 	private handleAddToQueueTap = async (): Promise<void> => {
@@ -217,6 +233,10 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		}
 	};
 
+	private handleTickComplete = (): void => {
+		this.setState({ tickPhase: 'idle' });
+	};
+
 	private isVerticalDrag = (event: DragEvent): boolean => {
 		return Math.abs(event.deltaY) > Math.abs(event.deltaX);
 	};
@@ -239,9 +259,10 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 			subheaderLineTwoRight,
 		} = this.viewModel;
 
-		const { addToQueuePhase, checkmarkAnimated, removeDownloadPhase } = this.state;
+		const { addToQueuePhase, checkmarkAnimated, removeDownloadPhase, tickPhase } = this.state;
 		const showRemoveModal = removeDownloadPhase === 'confirming';
 		const showRemoveConfirmation = removeDownloadPhase === 'confirmed';
+		const showTick = tickPhase === 'drawing' && !showRemoveModal && !showRemoveConfirmation;
 		const downloadIcon = showRemoveConfirmation
 			? res.trash
 			: downloadState === 'downloaded'
@@ -296,13 +317,31 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 							{downloadState === 'downloading' ? (
 								<LoadingSpinner accessibilityId='detail-header-downloading-spinner' size={24} />
 							) : (
-								<TappableIcon
-									accessibilityId='detail-header-download-button'
-									animationsEnabled={this.viewModel.animationsEnabled}
-									enabled={downloadTapEnabled}
-									icon={downloadIcon}
-									onTap={onDownloadTap}
-								/>
+								<view style={styles.downloadIconStack}>
+									<view
+										accessibilityId='detail-header-download-icon'
+										accessibilityLabel='detail-header-download-icon'
+										style={showTick ? styles.downloadIconHidden : styles.downloadIconVisible}
+										touchEnabled={!showTick}
+									>
+										<TappableIcon
+											accessibilityId='detail-header-download-button'
+											animationsEnabled={this.viewModel.animationsEnabled}
+											enabled={downloadTapEnabled}
+											icon={downloadIcon}
+											onTap={onDownloadTap}
+										/>
+									</view>
+									{showTick && (
+										<view style={styles.downloadTickOverlay} touchEnabled={false}>
+											<DownloadedTick
+												accessibilityId='detail-header-downloaded-tick'
+												onComplete={this.handleTickComplete}
+												size={24}
+											/>
+										</view>
+									)}
+								</view>
 							)}
 						</layout>
 						<layout style={styles.buttonCell}>
@@ -460,6 +499,39 @@ const styles = {
 		position: 'absolute',
 		right: 0,
 		width: '100%',
+	}),
+	downloadIconHidden: new Style<View>({
+		alignItems: 'center',
+		height: 40,
+		justifyContent: 'center',
+		opacity: 0,
+		overflow: 'visible',
+		width: 40,
+	}),
+	downloadIconStack: new Style<View>({
+		alignItems: 'center',
+		height: 40,
+		justifyContent: 'center',
+		overflow: 'visible',
+		position: 'relative',
+		width: 40,
+	}),
+	downloadIconVisible: new Style<View>({
+		alignItems: 'center',
+		height: 40,
+		justifyContent: 'center',
+		opacity: 1,
+		overflow: 'visible',
+		width: 40,
+	}),
+	downloadTickOverlay: new Style<View>({
+		alignItems: 'center',
+		bottom: 0,
+		justifyContent: 'center',
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
 	}),
 	headerRow: new Style<Layout>({
 		alignItems: 'stretch',
