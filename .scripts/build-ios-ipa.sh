@@ -55,3 +55,28 @@ fi
 mkdir -p build
 cp -f "$IPA_SRC" build/atolla_ios.ipa
 echo "IPA copied to build/atolla_ios.ipa"
+
+# rules_apple stores every IPA entry uncompressed and keeps the full symbol table, which
+# together are ~4x the size that ships. Only worth undoing for the device build, since
+# that's the one people download — and stripping is safe here precisely because the
+# signature is ad hoc and gets replaced by whatever sideloader installs it.
+case "$IOS_CPUS" in
+sim_*) ;;
+*)
+	echo "Repacking IPA (strip + compress)..."
+	REPACK_DIR="$(mktemp -d)"
+	trap 'rm -rf "$REPACK_DIR"' EXIT
+	unzip -q build/atolla_ios.ipa -d "$REPACK_DIR"
+	APP_PATH="$(find "$REPACK_DIR/Payload" -maxdepth 1 -name '*.app' | head -1)"
+	if [[ ! -d "$APP_PATH" ]]; then
+		echo "Error: no .app found inside the IPA" >&2
+		exit 1
+	fi
+	APP_BIN="$APP_PATH/$(plutil -extract CFBundleExecutable raw "$APP_PATH/Info.plist")"
+	strip -x "$APP_BIN" 2>/dev/null
+	codesign -f -s - "$APP_PATH" 2>/dev/null
+	(cd "$REPACK_DIR" && zip -q -r -9 -X repacked.ipa Payload)
+	mv -f "$REPACK_DIR/repacked.ipa" build/atolla_ios.ipa
+	echo "Repacked IPA: $(du -h build/atolla_ios.ipa | cut -f1 | tr -d ' ')"
+	;;
+esac
