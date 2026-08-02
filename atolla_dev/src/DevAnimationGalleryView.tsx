@@ -6,7 +6,7 @@ import { Toggle } from 'atolla/src/ui/components/Toggle';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
-import { animationStories } from './animationStories';
+import { animationStories } from './animation.stories';
 
 const defaultSize = 24;
 const stageSizes = [24, 48, 96];

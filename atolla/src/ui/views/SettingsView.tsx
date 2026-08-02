@@ -11,6 +11,7 @@ import type {
 	View,
 } from 'valdi_tsx/src/NativeTemplateElements';
 import type { DevTools } from '../../dev/DevTools';
+import { DevToolsSection } from '../../dev/DevToolsSection';
 import {
 	clearAtollaNativeCacheCategories,
 	requestAtollaImageLoaderDiskCacheStats,
@@ -287,23 +288,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 						/>
 					</view>
 
-					{this.viewModel.devTools && (
-						<view>
-							<label style={styles.sectionTitle} value={Strings.devToolsSection()} />
-							<view style={styles.section}>
-								<Button
-									accessibilityId='settings-dev-gallery'
-									label={Strings.devToolsGalleryButton()}
-									onTap={this.handleOpenDevGallery}
-								/>
-								<Button
-									accessibilityId='settings-dev-animations'
-									label={Strings.devToolsAnimationsButton()}
-									onTap={this.handleOpenDevAnimations}
-								/>
-							</view>
-						</view>
-					)}
+					<DevToolsSection
+						devTools={this.viewModel.devTools}
+						modalSlot={this.viewModel.modalSlot}
+					/>
 				</view>
 			</scroll>
 		</layout>;
@@ -446,14 +434,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		});
 	};
 
-	private handleCloseDevAnimations = (): void => {
-		closeSlot(this.viewModel.modalSlot);
-	};
-
-	private handleCloseDevGallery = (): void => {
-		closeSlot(this.viewModel.modalSlot);
-	};
-
 	private handleDebugLoggingToggle = (enabled: boolean): void => {
 		void this.viewModel.preferences.setDebugLoggingEnabled(enabled);
 		Logger.setEnabled(enabled);
@@ -525,25 +505,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 				title={Strings.settingsLogoutButton()}
 			/>;
 		});
-	};
-
-	private handleOpenDevAnimations = (): void => {
-		const devTools = this.viewModel.devTools;
-		if (!devTools) {
-			return;
-		}
-		openSlot(
-			this.viewModel.modalSlot,
-			devTools.animationGalleryRenderer(this.handleCloseDevAnimations),
-		);
-	};
-
-	private handleOpenDevGallery = (): void => {
-		const devTools = this.viewModel.devTools;
-		if (!devTools) {
-			return;
-		}
-		openSlot(this.viewModel.modalSlot, devTools.toastGalleryRenderer(this.handleCloseDevGallery));
 	};
 
 	private handleShareDebugLogPress = (): void => {
