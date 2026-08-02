@@ -292,47 +292,55 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 						/>
 					</layout>
 					<layout style={styles.buttonsRow}>
-						{downloadState === 'downloading' ? (
-							<LoadingSpinner accessibilityId='detail-header-downloading-spinner' size={24} />
-						) : (
-							<TappableIcon
-								accessibilityId='detail-header-download-button'
-								animationsEnabled={this.viewModel.animationsEnabled}
-								enabled={downloadTapEnabled}
-								icon={downloadIcon}
-								onTap={onDownloadTap}
-							/>
-						)}
-						<TappableIcon
-							accessibilityId='detail-header-shuffle-button'
-							animationsEnabled={this.viewModel.animationsEnabled}
-							icon={res.shuffle}
-							onTap={onShuffle}
-						/>
-						<view
-							accessibilityId='detail-header-add-to-queue-button'
-							accessibilityLabel='detail-header-add-to-queue-button'
-							onTap={addToQueuePhase === 'idle' ? this.handleAddToQueueTap : undefined}
-							style={styles.addToQueueButton}
-						>
-							<view ref={this.rippleRef} style={createRippleStyle(theme.colors.white)} />
-							{addToQueuePhase === 'idle' ? (
-								<image src={res.addtoqueue} style={styles.buttonIcon} tint={theme.colors.white} />
+						<layout style={styles.buttonCell}>
+							{downloadState === 'downloading' ? (
+								<LoadingSpinner accessibilityId='detail-header-downloading-spinner' size={24} />
 							) : (
-								<image
-									ref={this.checkmarkRef}
-									src={res.checkmark}
-									style={checkmarkAnimated ? styles.buttonIconHidden : styles.buttonIcon}
-									tint={theme.colors.white}
+								<TappableIcon
+									accessibilityId='detail-header-download-button'
+									animationsEnabled={this.viewModel.animationsEnabled}
+									enabled={downloadTapEnabled}
+									icon={downloadIcon}
+									onTap={onDownloadTap}
 								/>
 							)}
-						</view>
-						<TappableIcon
-							accessibilityId='detail-header-play-button'
-							animationsEnabled={this.viewModel.animationsEnabled}
-							icon={res.play}
-							onTap={onPlay}
-						/>
+						</layout>
+						<layout style={styles.buttonCell}>
+							<TappableIcon
+								accessibilityId='detail-header-shuffle-button'
+								animationsEnabled={this.viewModel.animationsEnabled}
+								icon={res.shuffle}
+								onTap={onShuffle}
+							/>
+						</layout>
+						<layout style={styles.buttonCell}>
+							<view
+								accessibilityId='detail-header-add-to-queue-button'
+								accessibilityLabel='detail-header-add-to-queue-button'
+								onTap={addToQueuePhase === 'idle' ? this.handleAddToQueueTap : undefined}
+								style={styles.addToQueueButton}
+							>
+								<view ref={this.rippleRef} style={createRippleStyle(theme.colors.white)} />
+								{addToQueuePhase === 'idle' ? (
+									<image src={res.addtoqueue} style={styles.buttonIcon} tint={theme.colors.white} />
+								) : (
+									<image
+										ref={this.checkmarkRef}
+										src={res.checkmark}
+										style={checkmarkAnimated ? styles.buttonIconHidden : styles.buttonIcon}
+										tint={theme.colors.white}
+									/>
+								)}
+							</view>
+						</layout>
+						<layout style={styles.buttonCell}>
+							<TappableIcon
+								accessibilityId='detail-header-play-button'
+								animationsEnabled={this.viewModel.animationsEnabled}
+								icon={res.play}
+								onTap={onPlay}
+							/>
+						</layout>
 					</layout>
 				</layout>
 			</layout>
@@ -425,6 +433,12 @@ const styles = {
 		slowClipping: true,
 		width: '50%',
 	}),
+	buttonCell: new Style<Layout>({
+		alignItems: 'center',
+		height: '100%',
+		justifyContent: 'center',
+		width: '25%',
+	}),
 	buttonIcon: new Style<ImageView>({
 		height: 24,
 		width: 24,
@@ -439,7 +453,6 @@ const styles = {
 		bottom: 0,
 		flexDirection: 'row',
 		height: '25%',
-		justifyContent: 'space-between',
 		paddingBottom: 6,
 		paddingLeft: 2,
 		paddingRight: 6,
