@@ -4,6 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
 import { hapticFeedback } from '../../utils/Haptics';
+import { LogoWifiOff } from '../animations/LogoWifiOff';
 import { LogoWifiOn } from '../animations/LogoWifiOn';
 
 const TRANSITION_DISPLAY_MS = 2000;
@@ -19,7 +20,7 @@ export interface ConnectivityFabViewModel {
 interface ConnectivityFabState {
 	displayMode: ConnectionMode;
 	isTransitioning: boolean;
-	transientMark: 'none' | 'wifi';
+	transientMark: 'none' | 'wifi' | 'wifiOff';
 }
 
 export class ConnectivityFab extends StatefulComponent<
@@ -81,16 +82,14 @@ export class ConnectivityFab extends StatefulComponent<
 	private async playTransition(targetMode: ConnectionMode): Promise<void> {
 		const target = this.resolveMode(targetMode);
 
-		if (target === ConnectionModes.online) {
-			if (this.isDestroyed()) return;
-			this.setState({ displayMode: target, transientMark: 'wifi' });
-			await this.wait(TRANSITION_DISPLAY_MS);
-			if (this.isDestroyed()) return;
-			this.setState({ transientMark: 'none' });
-		} else {
-			if (this.isDestroyed()) return;
-			this.setState({ displayMode: target });
-		}
+		if (this.isDestroyed()) return;
+		this.setState({
+			displayMode: target,
+			transientMark: target === ConnectionModes.online ? 'wifi' : 'wifiOff',
+		});
+		await this.wait(TRANSITION_DISPLAY_MS);
+		if (this.isDestroyed()) return;
+		this.setState({ transientMark: 'none' });
 	}
 
 	private handleTap = (): void => {
@@ -144,7 +143,7 @@ export class ConnectivityFab extends StatefulComponent<
 
 		const logoSrc =
 			transientMark === 'wifi' ? res.logowifion : isOffline ? res.logowifioff : res.logo;
-		const showWifiAnimation = transientMark === 'wifi' && this.viewModel.animationsEnabled;
+		const animation = this.viewModel.animationsEnabled ? transientMark : 'none';
 
 		<view style={styles.root}>
 			<view
@@ -154,8 +153,9 @@ export class ConnectivityFab extends StatefulComponent<
 				style={styles.hitTarget}
 			>
 				<view style={styles.logoWrap}>
-					{showWifiAnimation && <LogoWifiOn size={logoSize} />}
-					{!showWifiAnimation && <image src={logoSrc} style={styles.logo} />}
+					{animation === 'wifi' && <LogoWifiOn size={logoSize} />}
+					{animation === 'wifiOff' && <LogoWifiOff size={logoSize} />}
+					{animation === 'none' && <image src={logoSrc} style={styles.logo} />}
 				</view>
 			</view>
 		</view>;
