@@ -1,6 +1,7 @@
 import res from 'atolla/res';
 import { DownloadedTick } from 'atolla/src/ui/animations/DownloadedTick';
 import { LoadingSpinner } from 'atolla/src/ui/animations/LoadingSpinner';
+import { LogoWifiOn } from 'atolla/src/ui/animations/LogoWifiOn';
 import { ContextMenuActionRow } from 'atolla/src/ui/components/ContextMenuActionRow';
 import { TappableIcon } from 'atolla/src/ui/components/TappableIcon';
 import { DevDownloadSequence } from './DevDownloadSequence';
@@ -32,6 +33,12 @@ export const animationStories: Array<AnimationStory> = [
 		accessibilityId: 'dev-animation-tick',
 		label: 'downloaded tick',
 		render: (_animationsEnabled, size) => <DownloadedTick onComplete={noop} size={size} />,
+		sizeable: true,
+	},
+	{
+		accessibilityId: 'dev-animation-logo-wifi',
+		label: 'logo wifi on',
+		render: (_animationsEnabled, size) => <LogoWifiOn size={size} />,
 		sizeable: true,
 	},
 	{

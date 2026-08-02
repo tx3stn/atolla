@@ -4,10 +4,13 @@ import { Style } from 'valdi_core/src/Style';
 import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
 import { hapticFeedback } from '../../utils/Haptics';
+import { LogoWifiOn } from '../animations/LogoWifiOn';
 
 const TRANSITION_DISPLAY_MS = 2000;
+const logoSize = 34;
 
 export interface ConnectivityFabViewModel {
+	animationsEnabled: boolean;
 	connectionMode: ConnectionMode;
 	hidden?: boolean;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
@@ -141,6 +144,7 @@ export class ConnectivityFab extends StatefulComponent<
 
 		const logoSrc =
 			transientMark === 'wifi' ? res.logowifion : isOffline ? res.logowifioff : res.logo;
+		const showWifiAnimation = transientMark === 'wifi' && this.viewModel.animationsEnabled;
 
 		<view style={styles.root}>
 			<view
@@ -150,7 +154,8 @@ export class ConnectivityFab extends StatefulComponent<
 				style={styles.hitTarget}
 			>
 				<view style={styles.logoWrap}>
-					<image src={logoSrc} style={styles.logo} />
+					{showWifiAnimation && <LogoWifiOn size={logoSize} />}
+					{!showWifiAnimation && <image src={logoSrc} style={styles.logo} />}
 				</view>
 			</view>
 		</view>;
@@ -167,8 +172,8 @@ const styles = {
 		width: 46,
 	}),
 	logo: new Style<ImageView>({
-		height: 34,
-		width: 34,
+		height: logoSize,
+		width: logoSize,
 	}),
 	logoWrap: new Style<View>({
 		position: 'relative',

@@ -68,6 +68,7 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 		>
 			<view style={styles.leadingFabSlot}>
 				<ConnectivityFab
+					animationsEnabled={this.viewModel.animationsEnabled}
 					connectionMode={this.viewModel.connectionMode}
 					onRequestModeChange={this.viewModel.onRequestModeChange}
 				/>
