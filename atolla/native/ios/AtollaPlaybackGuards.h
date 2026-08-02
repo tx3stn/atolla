@@ -48,4 +48,8 @@ BOOL AtollaCurrentItemMatches(NSString *loadedTrackId,
                               NSString *loadedSourceUrl,
                               NSString *requestedSourceUrl);
 
+// returns "unsupported", "network" or "unknown" for an AVPlayerItem failure, matching the
+// kinds AtollaPlaybackGuards.classifyPlaybackError produces on Android
+NSString *AtollaClassifyPlaybackError(NSString *_Nullable domain, NSInteger code);
+
 NS_ASSUME_NONNULL_END

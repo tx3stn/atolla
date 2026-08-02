@@ -2,8 +2,10 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { getLogger } from '../../services/Logger';
 import {
 	applyNativeAudioPlaybackEventAction,
+	type NativeAudioPlaybackError,
 	normalizeNativeAudioPlaybackEventAction,
 	parseNativeAudioCompletedEvent,
+	parseNativeAudioErrorEvent,
 	parseNativeAudioJumpedEvent,
 } from '../../services/NativeAudioPlaybackEventSync';
 import type { PlaybackStore } from '../../stores/Playback';
@@ -34,7 +36,7 @@ const log = getLogger('NativeAudioPlayer');
 export interface NativeAudioPlayerViewModel {
 	isActive?: boolean;
 	nextPlaybackSourceUrl?: string | null;
-	onPlaybackError?: (error: string) => void;
+	onPlaybackError?: (error: NativeAudioPlaybackError) => void;
 	onPlaybackEvent?: (event: string) => void;
 	onTrackCompleted?: () => void;
 	playbackSourceUrl: string | null;
@@ -201,9 +203,11 @@ export class NativeAudioPlayer extends StatefulComponent<
 				this.viewModel.playbackStore.allowBackwardRebuild,
 			);
 		} catch (error) {
-			this.viewModel.onPlaybackError?.(
-				`native audio configure failed: ${this.describeError(error)}`,
-			);
+			this.viewModel.onPlaybackError?.({
+				kind: 'internal',
+				message: `native audio configure failed: ${this.describeError(error)}`,
+				trackId: currentTrackId || null,
+			});
 		}
 
 		try {
@@ -222,6 +226,11 @@ export class NativeAudioPlayer extends StatefulComponent<
 		} catch {
 			// best effort
 		}
+	}
+
+	// thin seam over the native bridge so tests can feed the event queue
+	private nativeConsumeEvent(): string {
+		return consumeAtollaAudioPlaybackEvent();
 	}
 
 	// thin seam over the native bridge so tests can assert the args (notably allowBackwardRebuild)
@@ -389,7 +398,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 		while (true) {
 			let event = '';
 			try {
-				event = consumeAtollaAudioPlaybackEvent();
+				event = this.nativeConsumeEvent();
 			} catch {
 				break;
 			}
@@ -443,15 +452,26 @@ export class NativeAudioPlayer extends StatefulComponent<
 				continue;
 			}
 
-			if (event.startsWith('error:')) {
+			const errorEvent = parseNativeAudioErrorEvent(event);
+			if (errorEvent) {
 				log.error('event:error', {
-					error: event.slice('error:'.length),
-					trackId: this.viewModel.playbackStore.track?.id,
+					error: errorEvent.message,
+					kind: errorEvent.kind,
+					trackId: errorEvent.trackId ?? this.viewModel.playbackStore.track?.id,
 				});
 				this.viewModel.onPlaybackEvent?.('error');
-				this.viewModel.onPlaybackError?.(`native audio error: ${event.slice('error:'.length)}`);
+				this.viewModel.onPlaybackError?.(errorEvent);
+				// leave a paused queue where it is; a failure while stopped isn't a skip.
+				// nativeAdvanced stays false so the engine-followed resume doesn't restart playback
+				// on a track that just failed
 				if (this.viewModel.playbackStore.isPlaying) {
-					this.triggerTrackCompletion();
+					if (errorEvent.trackId) {
+						// carries the failed track, so step past it directly. advancePastTrackId is
+						// idempotent for stale/duplicate events, mirroring the completed path
+						this.viewModel.playbackStore.advancePastTrackId(errorEvent.trackId);
+					} else {
+						this.triggerTrackCompletion();
+					}
 				}
 				continue;
 			}
@@ -595,7 +615,11 @@ export class NativeAudioPlayer extends StatefulComponent<
 		try {
 			setAtollaAudioPlaybackRate(rate);
 		} catch (error) {
-			this.viewModel.onPlaybackError?.(`native audio rate failed: ${this.describeError(error)}`);
+			this.viewModel.onPlaybackError?.({
+				kind: 'internal',
+				message: `native audio rate failed: ${this.describeError(error)}`,
+				trackId: this.viewModel.playbackStore.track?.id ?? null,
+			});
 		}
 	}
 

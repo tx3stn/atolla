@@ -10,6 +10,7 @@ import Strings from './Strings';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { backNavRouter } from './services/BackNavRouter';
 import type { DownloadService } from './services/DownloadService';
+import type { NativeAudioPlaybackError } from './services/NativeAudioPlaybackEventSync';
 import type { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import type { SessionController } from './services/SessionController';
 import type { ToastService } from './services/ToastService';
@@ -52,7 +53,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 
 	private androidBackObserverInstalled = false;
 
-	private handlePlaybackError = (error: string): void => {
+	private handlePlaybackError = (error: NativeAudioPlaybackError): void => {
 		this.viewModel.playbackOrchestrator.handlePlaybackError(error);
 	};
 

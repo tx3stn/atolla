@@ -156,6 +156,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		requestRerender: () => this.requestRerender(),
 		resolveArtistLogoUrl: (artistId) =>
 			Promise.resolve(this.connectivity.getTransport().getArtistLogoUrl(artistId)),
+		showToast: (model) => this.toastService.show(model),
 		trackSourceNative: new TrackSourceNativeAdapter(),
 	});
 	private downloadWorkerClient = new Lazy<IWorkerServiceClient<IDownloadNativeWorker>>(() =>

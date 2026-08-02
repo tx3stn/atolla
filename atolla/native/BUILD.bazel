@@ -269,6 +269,7 @@ objc_library(
     srcs = ["ios/AtollaPlaybackGuards.m"],
     hdrs = ["ios/AtollaPlaybackGuards.h"],
     copts = ["-I."],
+    sdk_frameworks = ["AVFoundation"],
 )
 
 objc_library(

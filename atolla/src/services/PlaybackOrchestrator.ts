@@ -4,7 +4,10 @@ import { RECENTLY_PLAYED_LIMIT, type RecentlyPlayedStore } from '../stores/Recen
 import { fireAndForget } from '../utils/Async';
 import { DeferredPlaybackDownloadCoordinator } from './DeferredPlaybackDownloadCoordinator';
 import { getLogger } from './Logger';
+import type { NativeAudioPlaybackError } from './NativeAudioPlaybackEventSync';
+import { type PlaybackError, PlaybackErrors } from './PlaybackErrors';
 import type { ScrobbleService } from './ScrobbleService';
+import { type ToastModel, ToastTypes } from './ToastService';
 import { TrackPlaybackNativePrefetchQueue } from './TrackPlaybackNativePrefetchQueue';
 import type { TrackPlaybackNotificationNative } from './TrackPlaybackNotificationAdapter';
 import {
@@ -65,6 +68,7 @@ export interface PlaybackOrchestratorDeps {
 	// force a host re-render after async work resolves (e.g. recently-played restore)
 	requestRerender: () => void;
 	resolveArtistLogoUrl: (artistId: string) => Promise<string | null>;
+	showToast: (model: ToastModel) => void;
 	trackSourceNative: TrackSourceNative;
 }
 
@@ -98,6 +102,7 @@ export class PlaybackOrchestrator {
 	private readonly prewarmArtwork: (imageUrl: string) => void;
 	private readonly refreshTrackCachedCount: () => void;
 	private readonly resolveArtistLogoUrl: (artistId: string) => Promise<string | null>;
+	private readonly showToast: (model: ToastModel) => void;
 	private readonly trackSourceNative: TrackSourceNative;
 	private readonly requestRerender: () => void;
 	private readonly requestOverlayRerender: () => void;
@@ -162,6 +167,7 @@ export class PlaybackOrchestrator {
 		this.prewarmArtwork = deps.prewarmArtwork;
 		this.refreshTrackCachedCount = deps.refreshTrackCachedCount;
 		this.resolveArtistLogoUrl = deps.resolveArtistLogoUrl;
+		this.showToast = deps.showToast;
 		this.trackSourceNative = deps.trackSourceNative;
 		this.requestRerender = deps.requestRerender;
 		this.requestOverlayRerender = deps.requestOverlayRerender;
@@ -1011,9 +1017,28 @@ export class PlaybackOrchestrator {
 		this.trackPrefetchQueue.replaceQueue(tracks, nextTrackIndex, prefetchDepth);
 	}
 
-	handlePlaybackError(error: string): void {
-		const normalized = error?.trim() ?? '';
-		log.error('playback error', { error: normalized.length > 0 ? normalized : 'unknown' });
+	handlePlaybackError(error: NativeAudioPlaybackError): void {
+		log.error('playback error', {
+			error: error.message.length > 0 ? error.message : 'unknown',
+			kind: error.kind,
+			trackId: error.trackId ?? 'none',
+		});
+
+		// an internal kind is a bridge call that threw rather than the engine rejecting the
+		// media, so there is nothing actionable to tell the user
+		if (error.kind === 'internal') {
+			return;
+		}
+
+		const failedTrack =
+			this.playbackStore.tracks.find((track) => track.id === error.trackId) ??
+			(error.trackId === null ? this.playbackStore.track : null);
+
+		this.showToast({
+			detail: failedTrack?.name,
+			message: playbackErrorForKind(error.kind).message,
+			variant: ToastTypes.error,
+		});
 	}
 
 	handlePlaybackEvent(event: string): void {
@@ -1094,4 +1119,17 @@ export class PlaybackOrchestrator {
 		}
 		this.requestRerender();
 	}
+}
+
+function playbackErrorForKind(
+	kind: Exclude<NativeAudioPlaybackError['kind'], 'internal'>,
+): PlaybackError {
+	if (kind === 'unsupported') {
+		return PlaybackErrors.UNSUPPORTED_FORMAT;
+	}
+	if (kind === 'network') {
+		return PlaybackErrors.NETWORK;
+	}
+
+	return PlaybackErrors.UNKNOWN;
 }

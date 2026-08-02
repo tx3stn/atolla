@@ -460,7 +460,9 @@ object AtollaGaplessAudioEngine {
 		}
 
 		override fun onPlayerError(error: PlaybackException) {
-			enqueueEvent("error:${error.message ?: "ExoPlayer playback error"}")
+			val kind = AtollaPlaybackGuards.classifyPlaybackError(error.errorCode)
+			val message = error.message ?: "ExoPlayer playback error"
+			enqueueEvent("error:$kind:$sourceTrackId:$message")
 		}
 	}
 

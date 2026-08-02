@@ -1,3 +1,4 @@
+#import <AVFoundation/AVFoundation.h>
 #import <XCTest/XCTest.h>
 #import "atolla/native/ios/AtollaPlaybackGuards.h"
 
@@ -123,6 +124,38 @@
 - (void)testCurrentItemFallsBackToSourceUrlWhenTheRequestedIdIsUnknown {
     XCTAssertTrue(AtollaCurrentItemMatches(@"track-1", @"", @"file:///a.mp3", @"file:///a.mp3"));
     XCTAssertFalse(AtollaCurrentItemMatches(@"track-1", @"", @"file:///a.mp3", @"file:///b.mp3"));
+}
+
+- (void)testUnrecognizedFileFormatIsUnsupported {
+    // what a .wma reaches the decoder as: the container isn't one AVFoundation reads
+    XCTAssertEqualObjects(@"unsupported",
+                          AtollaClassifyPlaybackError(AVFoundationErrorDomain, AVErrorFileFormatNotRecognized));
+    XCTAssertEqualObjects(@"unsupported",
+                          AtollaClassifyPlaybackError(AVFoundationErrorDomain, AVErrorFileFailedToParse));
+    XCTAssertEqualObjects(@"unsupported",
+                          AtollaClassifyPlaybackError(AVFoundationErrorDomain, AVErrorDecodeFailed));
+}
+
+- (void)testOSStatusFailuresAreUnsupported {
+    // CoreMedia/CoreAudio surface format failures as raw OSStatus through AVPlayerItem.error
+    XCTAssertEqualObjects(@"unsupported", AtollaClassifyPlaybackError(NSOSStatusErrorDomain, -12847));
+}
+
+- (void)testTransportFailuresAreNetwork {
+    XCTAssertEqualObjects(@"network",
+                          AtollaClassifyPlaybackError(NSURLErrorDomain, NSURLErrorTimedOut));
+    XCTAssertEqualObjects(@"network",
+                          AtollaClassifyPlaybackError(NSURLErrorDomain, NSURLErrorNotConnectedToInternet));
+    XCTAssertEqualObjects(@"network",
+                          AtollaClassifyPlaybackError(AVFoundationErrorDomain, AVErrorFailedToLoadMediaData));
+    XCTAssertEqualObjects(@"network",
+                          AtollaClassifyPlaybackError(AVFoundationErrorDomain, AVErrorNoLongerPlayable));
+}
+
+- (void)testUnrecognizedFailuresAreUnknown {
+    XCTAssertEqualObjects(@"unknown", AtollaClassifyPlaybackError(AVFoundationErrorDomain, AVErrorUnknown));
+    XCTAssertEqualObjects(@"unknown", AtollaClassifyPlaybackError(@"SomeOtherDomain", 42));
+    XCTAssertEqualObjects(@"unknown", AtollaClassifyPlaybackError(nil, 0));
 }
 
 @end

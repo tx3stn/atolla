@@ -1,5 +1,7 @@
 #import "atolla/native/ios/AtollaPlaybackGuards.h"
 
+#import <AVFoundation/AVFoundation.h>
+
 BOOL AtollaIsItemAtEnd(double currentSeconds, double durationSeconds) {
     if (durationSeconds <= 0) return NO;
     // within ~250ms of the end counts as ended
@@ -52,4 +54,33 @@ BOOL AtollaCurrentItemMatches(NSString *loadedTrackId,
         return [loadedTrackId isEqualToString:requestedTrackId];
     }
     return [loadedSourceUrl isEqualToString:requestedSourceUrl];
+}
+
+NSString *AtollaClassifyPlaybackError(NSString *_Nullable domain, NSInteger code) {
+    if ([domain isEqualToString:NSURLErrorDomain]) {
+        return @"network";
+    }
+
+    // CoreMedia and CoreAudio report format failures as a raw OSStatus rather than an AVError,
+    // so an OSStatus reaching AVPlayerItem.error means the media itself could not be read
+    if ([domain isEqualToString:NSOSStatusErrorDomain]) {
+        return @"unsupported";
+    }
+
+    if ([domain isEqualToString:AVFoundationErrorDomain]) {
+        switch (code) {
+            case AVErrorDecodeFailed:
+            case AVErrorFileFailedToParse:
+            case AVErrorFileFormatNotRecognized:
+                return @"unsupported";
+            case AVErrorFailedToLoadMediaData:
+            case AVErrorNoLongerPlayable:
+            case AVErrorServerIncorrectlyConfigured:
+                return @"network";
+            default:
+                return @"unknown";
+        }
+    }
+
+    return @"unknown";
 }

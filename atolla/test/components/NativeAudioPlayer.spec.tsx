@@ -12,6 +12,7 @@ function mockTrack(overrides: Record<string, unknown> = {}) {
 
 function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackStore {
 	return {
+		advancePastTrackId: jasmine.createSpy('advancePastTrackId'),
 		allowBackwardRebuild: true,
 		isPlaying: true,
 		progressSeconds: 0,
@@ -469,6 +470,79 @@ describe('NativeAudioPlayer', () => {
 			listener?.();
 
 			expect(seekSpy).toHaveBeenCalledWith(30000);
+		});
+	});
+
+	describe('drainNativePlaybackEvents() error events', () => {
+		function drainEvents(
+			driver: IComponentTestDriver,
+			events: Array<string>,
+			viewModel: Partial<NativeAudioPlayerViewModel> = {},
+			store: PlaybackStore = mockPlaybackStore(),
+		): void {
+			const component = mountPlayer(driver, {
+				playbackSourceUrl: 'file://test.mp3',
+				playbackStore: store,
+				...viewModel,
+			});
+			const queue = [...events];
+			const player = getInternal(component);
+			player.nativeConsumeEvent = () => queue.shift() ?? '';
+
+			(player.drainNativePlaybackEvents as () => boolean)();
+		}
+
+		valdiIt('reports the parsed kind, track and message for an error event', async (driver) => {
+			let reported: unknown = null;
+			drainEvents(driver, ['error:unsupported:track-1:cannot decode wmav2'], {
+				onPlaybackError: (error) => {
+					reported = error;
+				},
+			});
+
+			expect(reported).toEqual({
+				kind: 'unsupported',
+				message: 'cannot decode wmav2',
+				trackId: 'track-1',
+			});
+		});
+
+		valdiIt('steps past the failed track so playback does not stall', async (driver) => {
+			const store = mockPlaybackStore();
+			drainEvents(driver, ['error:unsupported:track-1:cannot decode wmav2'], {}, store);
+
+			expect(
+				(store as unknown as PlayerInternal).advancePastTrackId as jasmine.Spy,
+			).toHaveBeenCalledWith('track-1');
+		});
+
+		valdiIt('leaves a paused queue where it is', async (driver) => {
+			const store = mockPlaybackStore({ isPlaying: false });
+			drainEvents(driver, ['error:unsupported:track-1:cannot decode wmav2'], {}, store);
+
+			expect(
+				(store as unknown as PlayerInternal).advancePastTrackId as jasmine.Spy,
+			).not.toHaveBeenCalled();
+		});
+
+		valdiIt('falls back to completing the track when no id is carried', async (driver) => {
+			const store = mockPlaybackStore();
+			let completionCount = 0;
+			drainEvents(
+				driver,
+				['error:unknown::something broke'],
+				{
+					onTrackCompleted: () => {
+						completionCount += 1;
+					},
+				},
+				store,
+			);
+
+			expect(completionCount).toBe(1);
+			expect(
+				(store as unknown as PlayerInternal).advancePastTrackId as jasmine.Spy,
+			).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -2,6 +2,7 @@ import { describe, expect, it, spyOn } from 'bun:test';
 import type { Track } from '../models/Track';
 import type { PlaybackStore } from '../stores/Playback';
 import { RecentlyPlayedStore } from '../stores/RecentlyPlayed';
+import { PlaybackErrors } from './PlaybackErrors';
 import {
 	type DownloadedTrackSource,
 	PlaybackOrchestrator,
@@ -9,6 +10,7 @@ import {
 	WAVEFORM_PREGEN_WINDOW,
 } from './PlaybackOrchestrator';
 import type { ScrobbleService } from './ScrobbleService';
+import { type ToastModel, ToastTypes } from './ToastService';
 import type { TrackPlaybackNotificationNative } from './TrackPlaybackNotificationAdapter';
 import type { TrackPlaybackNotificationPayload } from './TrackPlaybackNotificationSync';
 import type { TrackSourceNative } from './TrackSourceNativeAdapter';
@@ -1532,6 +1534,97 @@ describe('PlaybackOrchestrator downloaded track source precedence', () => {
 	});
 });
 
+describe('PlaybackOrchestrator playback errors', () => {
+	function errorStore(tracks: Array<Track>, trackIndex = 0): { track: Track | null } {
+		return {
+			album: null,
+			isPlaying: true,
+			track: tracks[trackIndex] ?? null,
+			trackIndex,
+			tracks,
+		} as unknown as { track: Track | null };
+	}
+
+	it('shows an unsupported format toast naming the failed track', () => {
+		const toasts: Array<ToastModel> = [];
+		const orchestrator = createOrchestrator(
+			errorStore([makeTrack('a'), makeTrack('b')]),
+			() => {},
+			fakeNotification(),
+			{ showToast: (model) => toasts.push(model) },
+		);
+
+		orchestrator.handlePlaybackError({
+			kind: 'unsupported',
+			message: 'cannot decode wmav2',
+			trackId: 'b',
+		});
+
+		expect(toasts).toEqual([
+			{
+				detail: 'Track b',
+				message: PlaybackErrors.UNSUPPORTED_FORMAT.message,
+				variant: ToastTypes.error,
+			},
+		]);
+		orchestrator.dispose();
+	});
+
+	it('falls back to the active track when the error carries no track id', () => {
+		const toasts: Array<ToastModel> = [];
+		const orchestrator = createOrchestrator(
+			errorStore([makeTrack('a')]),
+			() => {},
+			fakeNotification(),
+			{ showToast: (model) => toasts.push(model) },
+		);
+
+		orchestrator.handlePlaybackError({ kind: 'network', message: 'timed out', trackId: null });
+
+		expect(toasts).toEqual([
+			{
+				detail: 'Track a',
+				message: PlaybackErrors.NETWORK.message,
+				variant: ToastTypes.error,
+			},
+		]);
+		orchestrator.dispose();
+	});
+
+	it('omits the detail line when the failed track cannot be resolved', () => {
+		const toasts: Array<ToastModel> = [];
+		const orchestrator = createOrchestrator(errorStore([]), () => {}, fakeNotification(), {
+			showToast: (model) => toasts.push(model),
+		});
+
+		orchestrator.handlePlaybackError({ kind: 'unknown', message: 'boom', trackId: 'gone' });
+
+		expect(toasts).toEqual([
+			{ detail: undefined, message: PlaybackErrors.UNKNOWN.message, variant: ToastTypes.error },
+		]);
+		orchestrator.dispose();
+	});
+
+	it('stays silent for an internal bridge failure', () => {
+		const toasts: Array<ToastModel> = [];
+		const orchestrator = createOrchestrator(
+			errorStore([makeTrack('a')]),
+			() => {},
+			fakeNotification(),
+			{ showToast: (model) => toasts.push(model) },
+		);
+
+		orchestrator.handlePlaybackError({
+			kind: 'internal',
+			message: 'native audio rate failed',
+			trackId: null,
+		});
+
+		expect(toasts).toEqual([]);
+		orchestrator.dispose();
+	});
+});
+
 function makeTrack(id: string): Track {
 	return { duration: 100, id, name: `Track ${id}` } as Track;
 }
@@ -1622,6 +1715,7 @@ function createOrchestrator(
 		refreshTrackCachedCount?: () => void;
 		requestOverlayRerender?: () => void;
 		resolveArtistLogoUrl?: (artistId: string) => Promise<string | null>;
+		showToast?: (model: ToastModel) => void;
 		trackSourceNative?: TrackSourceNative;
 	} = {},
 ): PlaybackOrchestrator {
@@ -1642,6 +1736,7 @@ function createOrchestrator(
 		requestOverlayRerender: opts.requestOverlayRerender ?? (() => {}),
 		requestRerender,
 		resolveArtistLogoUrl: opts.resolveArtistLogoUrl ?? (() => Promise.resolve(null)),
+		showToast: opts.showToast ?? (() => {}),
 		trackSourceNative: opts.trackSourceNative ?? fakeTrackSourceNative(),
 	});
 }

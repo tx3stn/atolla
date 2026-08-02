@@ -25,6 +25,45 @@ export function parseNativeAudioCompletedEvent(rawEvent: string): NativeAudioCom
 
 // native emits "jumped:<trackId>" when it moves outside the normal forward advance
 // (e.g. the notification's previous button). the id is the track now current
+// 'internal' is never emitted by native: it marks a failure raised on the JS side of the
+// bridge (a module call that threw), which is a bug rather than something to tell the user about
+export type NativeAudioPlaybackErrorKind = 'internal' | 'network' | 'unknown' | 'unsupported';
+
+export interface NativeAudioPlaybackError {
+	kind: NativeAudioPlaybackErrorKind;
+	message: string;
+	trackId: string | null;
+}
+
+const NATIVE_AUDIO_PLAYBACK_ERROR_KINDS: Array<NativeAudioPlaybackErrorKind> = [
+	'network',
+	'unknown',
+	'unsupported',
+];
+
+export function parseNativeAudioErrorEvent(rawEvent: string): NativeAudioPlaybackError | null {
+	if (!rawEvent.startsWith('error:')) {
+		return null;
+	}
+
+	// error:<kind>:<trackId>:<message> — the message is the remainder, so it may contain colons
+	const body = rawEvent.slice('error:'.length);
+	const kindEnd = body.indexOf(':');
+	const trackIdEnd = kindEnd < 0 ? -1 : body.indexOf(':', kindEnd + 1);
+	if (trackIdEnd < 0) {
+		return { kind: 'unknown', message: body.trim(), trackId: null };
+	}
+
+	const kind = body.slice(0, kindEnd).trim() as NativeAudioPlaybackErrorKind;
+	const trackId = body.slice(kindEnd + 1, trackIdEnd).trim();
+
+	return {
+		kind: NATIVE_AUDIO_PLAYBACK_ERROR_KINDS.includes(kind) ? kind : 'unknown',
+		message: body.slice(trackIdEnd + 1).trim(),
+		trackId: trackId || null,
+	};
+}
+
 export function parseNativeAudioJumpedEvent(rawEvent: string): string | null {
 	if (!rawEvent.startsWith('jumped:')) {
 		return null;

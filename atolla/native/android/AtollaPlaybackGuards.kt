@@ -161,4 +161,21 @@ object AtollaPlaybackGuards {
 		}
 		return best
 	}
+
+	// mirrors the media3 PlaybackException error code ranges: 2xxx is IO, 3xxx is container
+	// parsing, 4xxx is decoding. exposed as constants so tests can reference the two the
+	// classification exists for without a media3 dependency
+	const val ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED = 3002
+	const val ERROR_CODE_DECODING_FORMAT_UNSUPPORTED = 4003
+
+	// classify a player error into the kind JS turns into a user-facing message. the whole
+	// parsing and decoding ranges count as unsupported: whether the container can't be read or
+	// the codec can't be decoded, the file is one this build can't play. mirrors
+	// AtollaClassifyPlaybackError on iOS
+	fun classifyPlaybackError(errorCode: Int): String =
+		when (errorCode) {
+			in 2000..2999 -> "network"
+			in 3000..4999 -> "unsupported"
+			else -> "unknown"
+		}
 }

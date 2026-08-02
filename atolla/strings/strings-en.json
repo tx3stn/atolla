@@ -132,6 +132,15 @@
 	"errors_auth_session_expired": {
 		"defaultMessage": "session expired"
 	},
+	"errors_playback_network": {
+		"defaultMessage": "couldn't load this track"
+	},
+	"errors_playback_unknown": {
+		"defaultMessage": "couldn't play this track"
+	},
+	"errors_playback_unsupported_format": {
+		"defaultMessage": "unsupported file type"
+	},
 	"errors_transport_live_invalid_response": {
 		"defaultMessage": "live transport returned invalid response"
 	},

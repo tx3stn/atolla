@@ -855,6 +855,13 @@ static NSLock *sScrobbleQueueLock;
                              hasNext:(BOOL)hasNext;
 + (void)setUpcomingQueue:(NSString *)queueJson;
 
++ (void)handleFailedItem:(AVPlayerItem *)item;
+
+@end
+
+// KVO requires an object observer and the engine is a class-methods-only singleton, so this
+// forwards status changes back into it
+@interface AtollaPlayerItemStatusObserver : NSObject
 @end
 
 @implementation AtollaGaplessAudioEngine
@@ -904,12 +911,28 @@ static BOOL sSuppressLookahead = NO;
 // fire for progressive (non-HLS) streams. main thread only
 static id sLookaheadClearObserver = nil;
 
+// items being watched for AVPlayerItemStatusFailed. an unplayable container (a .wma, say)
+// never posts DidPlayToEndTime or FailedToPlayToEndTime -- it only ever lands in the failed
+// status -- so KVO is the only signal. holds items strongly: removing an observer from a
+// deallocating item crashes, so an observed item must outlive its registration. main thread only
+static NSMutableSet<AVPlayerItem *> *sObservedItems = nil;
+// source URLs whose item already failed. a failed lookahead item is dropped from the queue so
+// it can't stall the transition into it, and this stops ensureWindow immediately topping the
+// same unplayable URL back up. configure clears an entry when it makes that source current,
+// which is where the failure gets surfaced to the user. main thread only
+static NSMutableSet<NSString *> *sFailedSourceUrls = nil;
+static id sItemStatusObserver = nil;
+static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
+
 + (void)initialize {
     if (self == [AtollaGaplessAudioEngine class]) {
         sEventQueue = [NSMutableArray array];
         sPlayerObserverTokens = [NSMutableArray array];
         sEngineLock = [[NSLock alloc] init];
         sQueueWindow = @[];
+        sObservedItems = [NSMutableSet set];
+        sFailedSourceUrls = [NSMutableSet set];
+        sItemStatusObserver = [[AtollaPlayerItemStatusObserver alloc] init];
     }
 }
 
@@ -994,6 +1017,7 @@ static id sLookaheadClearObserver = nil;
 // main thread only
 + (void)ensureWindow {
     if (!sPlayer) return;
+    [self pruneObservedItems];
     NSArray<NSDictionary *> *window = nil;
     NSArray<NSString *> *urls = nil;
     NSInteger anchor = 0;
@@ -1005,6 +1029,7 @@ static id sLookaheadClearObserver = nil;
         NSString *queuedUrl = [self urlStringForItem:items[index]];
         if (!expectedUrl || ![expectedUrl isEqualToString:queuedUrl]) {
             for (NSUInteger removeIndex = index; removeIndex < items.count; removeIndex++) {
+                [self stopObservingItem:items[removeIndex]];
                 [sPlayer removeItem:items[removeIndex]];
             }
             break;
@@ -1020,6 +1045,8 @@ static id sLookaheadClearObserver = nil;
         if (nextWindowIndex >= (NSInteger)window.count) return;
         NSString *nextUrl = urls[nextWindowIndex];
         if (nextUrl.length == 0) return;
+        // an item for this source already failed; re-adding it would loop create/fail/drop
+        if ([sFailedSourceUrls containsObject:nextUrl]) return;
         NSString *nextWindowTrackId = [window[nextWindowIndex][@"trackId"] isKindOfClass:[NSString class]]
             ? window[nextWindowIndex][@"trackId"] : @"";
         AVPlayerItem *item = [self playerItemForUrl:nextUrl trackId:nextWindowTrackId];
@@ -1164,7 +1191,10 @@ static id sLookaheadClearObserver = nil;
             // until the item is ready (see the readiness observers in registerPlayerObservers).
             // mirrors replaceQueue on Android
             sSuppressLookahead = AtollaShouldDeferLookaheadForSource(currentSourceUrl);
-            [sPlayer removeAllItems];
+            // the store has moved onto this source, so give it a fresh item even if a lookahead
+            // item for it failed earlier: failing as the current item is what surfaces it
+            [sFailedSourceUrls removeObject:currentSourceUrl];
+            [self removeAllPlayerItems];
             AVPlayerItem *item = [self playerItemForUrl:currentSourceUrl trackId:currentTrackId];
             [sPlayer insertItem:item afterItem:nil];
             if (!sSuppressLookahead && nextSourceUrl.length > 0 && ![nextSourceUrl isEqualToString:currentSourceUrl]) {
@@ -1193,7 +1223,148 @@ static id sLookaheadClearObserver = nil;
     AVPlayerItem *item = [AVPlayerItem playerItemWithURL:url];
     objc_setAssociatedObject(item, kAtollaPlayerItemTrackIdKey, trackId ?: @"",
                              OBJC_ASSOCIATION_COPY_NONATOMIC);
+    [self observeItem:item];
     return item;
+}
+
+// main thread only
++ (void)observeItem:(AVPlayerItem *)item {
+    if (!item || [sObservedItems containsObject:item]) return;
+    [sObservedItems addObject:item];
+    [item addObserver:sItemStatusObserver
+           forKeyPath:@"status"
+              options:NSKeyValueObservingOptionNew
+              context:kAtollaItemStatusContext];
+}
+
+// main thread only
++ (void)stopObservingItem:(AVPlayerItem *)item {
+    if (!item || ![sObservedItems containsObject:item]) return;
+    [item removeObserver:sItemStatusObserver forKeyPath:@"status" context:kAtollaItemStatusContext];
+    [sObservedItems removeObject:item];
+}
+
+// main thread only
++ (void)removeAllPlayerItems {
+    for (AVPlayerItem *item in [sObservedItems copy]) {
+        [self stopObservingItem:item];
+    }
+    [sPlayer removeAllItems];
+}
+
+// drop registrations for items the player has left behind. AVQueuePlayer discards the finished
+// item on a natural advance without going through any of the explicit removal paths, and
+// sObservedItems holds items strongly, so without this a long listening session accumulates
+// every track it has played. main thread only
++ (void)pruneObservedItems {
+    NSArray<AVPlayerItem *> *queued = sPlayer.items;
+    for (AVPlayerItem *item in [sObservedItems copy]) {
+        if (![queued containsObject:item]) {
+            [self stopObservingItem:item];
+        }
+    }
+}
+
+// an item the engine cannot play. only a failure of the item the user is actually on is
+// surfaced: it is the one that has to be reported and stepped past, and it mirrors Android,
+// where onPlayerError only ever fires for the current item. a failed lookahead item is
+// dropped instead, so the transition into it can't stall; the store still advances onto that
+// track later, configure builds a fresh current item for it, and it fails again here as the
+// current item. main thread only
++ (void)handleFailedItem:(AVPlayerItem *)item {
+    if (![sObservedItems containsObject:item]) return;
+
+    NSString *sourceUrl = [self urlStringForItem:item];
+    BOOL wasCurrent = (sPlayer.currentItem == item);
+    if (!wasCurrent) {
+        if (sourceUrl.length > 0) [sFailedSourceUrls addObject:sourceUrl];
+        [self stopObservingItem:item];
+        [sPlayer removeItem:item];
+        return;
+    }
+
+    NSError *error = item.error;
+    NSString *kind = AtollaClassifyPlaybackError(error.domain, error.code);
+    NSString *message = error.localizedDescription ?: @"Playback error";
+    [self enqueueEvent:[NSString stringWithFormat:@"error:%@:%@:%@", kind,
+                                                  [self trackIdForItem:item], message]];
+
+    // removing the current item advances the AVQueuePlayer onto the next one, so the engine
+    // skips the unplayable track under our control rather than stalling on it
+    [self stopObservingItem:item];
+    [sPlayer removeItem:item];
+    // there is no configure()-supplied next to fall back on here, so name the item the player
+    // actually moved to
+    AVPlayerItem *newCurrent = sPlayer.currentItem;
+    [self adoptCurrentItemWithFallbackSourceUrl:(newCurrent ? [self urlStringForItem:newCurrent] : @"")
+                                fallbackTrackId:(newCurrent ? [self trackIdForItem:newCurrent] : @"")
+                           fallbackNotification:nil];
+}
+
+// realign the engine's notion of "current" onto the item the AVQueuePlayer has actually moved
+// to, and top the window back up. shared by the natural end-of-track transition and the
+// failed-item skip: without it sCurrentTrackId keeps naming the track that just went away and
+// JS reconciles the store straight back onto it. main thread only
++ (void)adoptCurrentItemWithFallbackSourceUrl:(NSString *)fallbackSourceUrl
+                              fallbackTrackId:(NSString *)fallbackTrackId
+                         fallbackNotification:(NSDictionary *)fallbackNotification {
+    // prefer the window for the new current track: it survives multiple transitions, unlike
+    // the single configure()-supplied next. the player has already advanced, so currentItem is
+    // the item now playing
+    NSString *newCurrentUrl = sPlayer.currentItem ? [self urlStringForItem:sPlayer.currentItem] : @"";
+    NSDictionary *upcomingEntry = nil;
+    [sEngineLock lock];
+    NSArray<NSDictionary *> *window = sQueueWindow;
+    NSInteger anchorHint = sWindowAnchorHint;
+    [sEngineLock unlock];
+    if (newCurrentUrl.length > 0 && window.count > 0) {
+        NSMutableArray<NSString *> *urls = [NSMutableArray arrayWithCapacity:window.count];
+        for (NSDictionary *entry in window) {
+            [urls addObject:([entry[@"sourceUrl"] isKindOfClass:[NSString class]] ? entry[@"sourceUrl"] : @"")];
+        }
+        NSInteger anchor = AtollaResolveWindowAnchor(urls, anchorHint + 1, newCurrentUrl);
+        if (anchor >= 0) {
+            upcomingEntry = window[anchor];
+            [sEngineLock lock];
+            sWindowAnchorHint = anchor;
+            [sEngineLock unlock];
+        }
+    }
+
+    [sEngineLock lock];
+    if (upcomingEntry) {
+        sCurrentSourceUrl = [upcomingEntry[@"sourceUrl"] isKindOfClass:[NSString class]] ? upcomingEntry[@"sourceUrl"] : @"";
+        sCurrentTrackId = upcomingEntry[@"trackId"] ?: @"";
+    } else {
+        sCurrentSourceUrl = fallbackSourceUrl;
+        sCurrentTrackId = fallbackTrackId;
+    }
+    sPendingSeekMs = -1;
+    [sEngineLock unlock];
+
+    [self ensureWindow];
+
+    if (upcomingEntry) {
+        [AtollaMediaSession updateNowPlayingWithTrackName:(upcomingEntry[@"trackName"] ?: @"")
+                                              artistName:(upcomingEntry[@"artistName"] ?: @"")
+                                               albumName:(upcomingEntry[@"albumName"] ?: @"")
+                                              artworkUrl:(upcomingEntry[@"artworkUrl"] ?: @"")
+                                               isPlaying:YES
+                                         positionSeconds:0
+                                         durationSeconds:[upcomingEntry[@"durationSeconds"] doubleValue]
+                                             hasPrevious:[upcomingEntry[@"hasPrevious"] boolValue]
+                                                 hasNext:[upcomingEntry[@"hasNext"] boolValue]];
+    } else if ([fallbackNotification[@"trackName"] length] > 0) {
+        [AtollaMediaSession updateNowPlayingWithTrackName:(fallbackNotification[@"trackName"] ?: @"")
+                                              artistName:(fallbackNotification[@"artistName"] ?: @"")
+                                               albumName:(fallbackNotification[@"albumName"] ?: @"")
+                                              artworkUrl:(fallbackNotification[@"artworkUrl"] ?: @"")
+                                               isPlaying:YES
+                                         positionSeconds:0
+                                         durationSeconds:[fallbackNotification[@"durationSeconds"] doubleValue]
+                                             hasPrevious:[fallbackNotification[@"hasPrevious"] boolValue]
+                                                 hasNext:[fallbackNotification[@"hasNext"] boolValue]];
+    }
 }
 
 + (NSString *)trackIdForItem:(AVPlayerItem *)item {
@@ -1227,6 +1398,7 @@ static id sLookaheadClearObserver = nil;
 + (void)syncQueueWithNext:(NSString *)nextSourceUrl trackId:(NSString *)nextTrackId {
     NSArray<AVPlayerItem *> *items = sPlayer.items;
     while (items.count > 1) {
+        [self stopObservingItem:items.lastObject];
         [sPlayer removeItem:items.lastObject];
         items = sPlayer.items;
     }
@@ -1279,63 +1451,17 @@ static id sLookaheadClearObserver = nil;
                                 ? [@"completed:" stringByAppendingString:finishedTrackId]
                                 : @"completed")];
 
-        // prefer the window for the new current track: it survives multiple transitions, unlike
-        // the single configure()-supplied next. AVQueuePlayer has already advanced, so
-        // currentItem is the item now playing
-        NSString *newCurrentUrl = sPlayer.currentItem ? [self urlStringForItem:sPlayer.currentItem] : @"";
-        NSDictionary *upcomingEntry = nil;
-        [sEngineLock lock];
-        NSArray<NSDictionary *> *window = sQueueWindow;
-        NSInteger anchorHint = sWindowAnchorHint;
-        [sEngineLock unlock];
-        if (newCurrentUrl.length > 0 && window.count > 0) {
-            NSMutableArray<NSString *> *urls = [NSMutableArray arrayWithCapacity:window.count];
-            for (NSDictionary *entry in window) {
-                [urls addObject:([entry[@"sourceUrl"] isKindOfClass:[NSString class]] ? entry[@"sourceUrl"] : @"")];
-            }
-            NSInteger anchor = AtollaResolveWindowAnchor(urls, anchorHint + 1, newCurrentUrl);
-            if (anchor >= 0) {
-                upcomingEntry = window[anchor];
-                [sEngineLock lock];
-                sWindowAnchorHint = anchor;
-                [sEngineLock unlock];
-            }
-        }
-
-        [sEngineLock lock];
-        if (upcomingEntry) {
-            sCurrentSourceUrl = [upcomingEntry[@"sourceUrl"] isKindOfClass:[NSString class]] ? upcomingEntry[@"sourceUrl"] : @"";
-            sCurrentTrackId = upcomingEntry[@"trackId"] ?: @"";
-        } else {
-            sCurrentSourceUrl = nextSrc;
-            sCurrentTrackId = nextId;
-        }
-        sPendingSeekMs = -1;
-        [sEngineLock unlock];
-
-        [self ensureWindow];
-
-        if (upcomingEntry) {
-            [AtollaMediaSession updateNowPlayingWithTrackName:(upcomingEntry[@"trackName"] ?: @"")
-                                                  artistName:(upcomingEntry[@"artistName"] ?: @"")
-                                                   albumName:(upcomingEntry[@"albumName"] ?: @"")
-                                                  artworkUrl:(upcomingEntry[@"artworkUrl"] ?: @"")
-                                                   isPlaying:YES
-                                             positionSeconds:0
-                                             durationSeconds:[upcomingEntry[@"durationSeconds"] doubleValue]
-                                                 hasPrevious:[upcomingEntry[@"hasPrevious"] boolValue]
-                                                     hasNext:[upcomingEntry[@"hasNext"] boolValue]];
-        } else if (notifTrackName.length > 0) {
-            [AtollaMediaSession updateNowPlayingWithTrackName:notifTrackName
-                                                  artistName:notifArtistName
-                                                   albumName:notifAlbumName
-                                                  artworkUrl:notifArtworkUrl
-                                                   isPlaying:YES
-                                             positionSeconds:0
-                                             durationSeconds:notifDuration
-                                                 hasPrevious:notifHasPrevious
-                                                     hasNext:notifHasNext];
-        }
+        [self adoptCurrentItemWithFallbackSourceUrl:nextSrc
+                                    fallbackTrackId:nextId
+                               fallbackNotification:@{
+                                   @"albumName": notifAlbumName,
+                                   @"artistName": notifArtistName,
+                                   @"artworkUrl": notifArtworkUrl,
+                                   @"durationSeconds": @(notifDuration),
+                                   @"hasNext": @(notifHasNext),
+                                   @"hasPrevious": @(notifHasPrevious),
+                                   @"trackName": notifTrackName,
+                               }];
     }]];
 
     [sPlayerObserverTokens addObject:[[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemFailedToPlayToEndTimeNotification
@@ -1344,7 +1470,13 @@ static id sLookaheadClearObserver = nil;
                                                   usingBlock:^(NSNotification *note) {
         NSError *err = note.userInfo[AVPlayerItemFailedToPlayToEndTimeErrorKey];
         NSString *msg = err.localizedDescription ?: @"Playback error";
-        [self enqueueEvent:[@"error:" stringByAppendingString:msg]];
+        // an item that started and then died mid-stream, as opposed to one that never became
+        // playable at all (that failure arrives through the status observer)
+        NSString *kind = AtollaClassifyPlaybackError(err.domain, err.code);
+        NSString *failedTrackId = [note.object isKindOfClass:[AVPlayerItem class]]
+                                      ? [self trackIdForItem:(AVPlayerItem *)note.object]
+                                      : @"";
+        [self enqueueEvent:[NSString stringWithFormat:@"error:%@:%@:%@", kind, failedTrackId, msg]];
     }]];
 
     [sPlayerObserverTokens addObject:[[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemNewAccessLogEntryNotification
@@ -1536,8 +1668,9 @@ static id sLookaheadClearObserver = nil;
 
     dispatch_async(dispatch_get_main_queue(), ^{
         sSuppressLookahead = NO;
+        [sFailedSourceUrls removeAllObjects];
         [self removePlayerObservers];
-        [sPlayer removeAllItems];
+        [self removeAllPlayerItems];
         sPlayer = nil;
         [[AVAudioSession sharedInstance] setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
     });
@@ -1559,6 +1692,25 @@ static id sLookaheadClearObserver = nil;
     sNextNotificationHasPrevious = hasPrevious;
     sNextNotificationHasNext = hasNext;
     [sEngineLock unlock];
+}
+
+@end
+
+@implementation AtollaPlayerItemStatusObserver
+
+- (void)observeValueForKeyPath:(NSString *)keyPath
+                      ofObject:(id)object
+                        change:(NSDictionary<NSKeyValueChangeKey, id> *)change
+                       context:(void *)context {
+    if (context != kAtollaItemStatusContext) return;
+    AVPlayerItem *item = (AVPlayerItem *)object;
+    // KVO for AVPlayerItem.status is delivered on an arbitrary queue; the queue mutations the
+    // handler makes are main-thread only
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (item.status == AVPlayerItemStatusFailed) {
+            [AtollaGaplessAudioEngine handleFailedItem:item];
+        }
+    });
 }
 
 @end

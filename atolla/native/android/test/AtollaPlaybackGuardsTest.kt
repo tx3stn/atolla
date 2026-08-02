@@ -466,4 +466,42 @@ class AtollaPlaybackGuardsTest {
 			),
 		)
 	}
+
+	// --- classifyPlaybackError ---
+
+	@Test
+	fun `an unsupported container is classified as unsupported`() {
+		assertEquals(
+			"unsupported",
+			AtollaPlaybackGuards.classifyPlaybackError(AtollaPlaybackGuards.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED),
+		)
+	}
+
+	@Test
+	fun `an unsupported codec is classified as unsupported`() {
+		assertEquals(
+			"unsupported",
+			AtollaPlaybackGuards.classifyPlaybackError(AtollaPlaybackGuards.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED),
+		)
+	}
+
+	@Test
+	fun `io failures are classified as network`() {
+		assertEquals("network", AtollaPlaybackGuards.classifyPlaybackError(2001))
+		assertEquals("network", AtollaPlaybackGuards.classifyPlaybackError(2004))
+	}
+
+	@Test
+	fun `parsing and decoding ranges are unsupported end to end`() {
+		assertEquals("network", AtollaPlaybackGuards.classifyPlaybackError(2999))
+		assertEquals("unsupported", AtollaPlaybackGuards.classifyPlaybackError(3000))
+		assertEquals("unsupported", AtollaPlaybackGuards.classifyPlaybackError(4999))
+		assertEquals("unknown", AtollaPlaybackGuards.classifyPlaybackError(5000))
+	}
+
+	@Test
+	fun `codes outside the known ranges are unknown`() {
+		assertEquals("unknown", AtollaPlaybackGuards.classifyPlaybackError(1000))
+		assertEquals("unknown", AtollaPlaybackGuards.classifyPlaybackError(0))
+	}
 }
