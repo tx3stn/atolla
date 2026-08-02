@@ -1,5 +1,6 @@
 import { makeAssetFromBytes } from 'valdi_core/src/Asset';
 import { Component } from 'valdi_core/src/Component';
+import type { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { ValdiRuntime } from 'valdi_core/src/ValdiRuntime';
 import type { Asset } from 'valdi_tsx/src/Asset';
@@ -23,6 +24,7 @@ function getAnimationAsset(): Asset {
 
 export interface LoadingSpinnerViewModel {
 	accessibilityId?: string;
+	animationRef?: ElementRef<AnimatedImage>;
 	size?: number;
 	speed?: number;
 	spinning?: boolean;
@@ -44,6 +46,7 @@ export class LoadingSpinner extends Component<LoadingSpinnerViewModel> {
 				advanceRate={spinning ? speed : 0}
 				loop={true}
 				objectFit='contain'
+				ref={this.viewModel.animationRef}
 				src={getAnimationAsset()}
 				style={getAnimationStyle(size)}
 			/>

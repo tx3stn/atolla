@@ -33,10 +33,10 @@ import type { SearchStore } from '../../stores/Search';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { CancelableController } from '../../utils/CancelableController';
+import { LoadingSpinner } from '../animations/LoadingSpinner';
 import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
-import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { TappableIcon } from '../components/TappableIcon';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { openCardContextMenu } from '../flows/CardContextMenu';
@@ -178,12 +178,10 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 					</view>
 
 					{status === 'loading' && (
-						<LoopingArrowSpinner
-							accessibilityId='search-loading-spinner'
-							durationSeconds={0.9}
-							label={Strings.searchLoading()}
-							size={20}
-						/>
+						<layout style={styles.loadingRow}>
+							<LoadingSpinner accessibilityId='search-loading-spinner' size={20} />
+							<label style={styles.loadingLabel} value={Strings.searchLoading()} />
+						</layout>
 					)}
 
 					{status === 'error' && (
@@ -850,6 +848,17 @@ const styles = {
 		paddingBottom: 16,
 		paddingTop: 16,
 		width: '100%',
+	}),
+	loadingLabel: new Style<Label>({
+		...theme.text.sub,
+		marginLeft: 8,
+	}),
+	loadingRow: new Style<Layout>({
+		alignItems: 'center',
+		flexDirection: 'row',
+		justifyContent: 'center',
+		paddingBottom: 8,
+		paddingTop: 8,
 	}),
 	recentEmpty: new Style<Label>({
 		...theme.text.sub,

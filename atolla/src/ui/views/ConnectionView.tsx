@@ -12,10 +12,10 @@ import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
+import { LoadingSpinner } from '../animations/LoadingSpinner';
 import { Button, ButtonType } from '../components/Button';
 import { HttpWarningModal } from '../components/HttpWarningModal';
 import { LanguageSelectModal } from '../components/LanguageSelectModal';
-import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 
 export interface ConnectionViewModel {
@@ -206,12 +206,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 				)}
 				<view style={styles.quickConnectSpinnerSlot}>
 					{this.viewModel.isConnecting && (
-						<LoopingArrowSpinner
-							accessibilityId='waiting for quick connect'
-							durationSeconds={0.9}
-							size={45}
-							tint={theme.colors.active}
-						/>
+						<LoadingSpinner accessibilityId='waiting for quick connect' size={45} />
 					)}
 				</view>
 			</view>

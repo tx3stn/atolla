@@ -2,11 +2,10 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { ContentSizeChangeEvent, ScrollEvent } from 'valdi_tsx/src/GestureEvents';
-import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { AnimatedImage, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
-import { LoopingArrowSpinner } from './LoopingArrowSpinner';
-import { SpinnerController } from './SpinnerController';
+import { LoadingSpinner } from '../animations/LoadingSpinner';
 
 // how far past the top the user must overscroll before releasing triggers a refresh
 const PULL_TRIGGER = 35;
@@ -35,7 +34,7 @@ export class RefreshableScroll extends StatefulComponent<
 > {
 	state: RefreshableScrollState = { spinning: false };
 	private readonly overlayRef = new ElementRef<View>();
-	private readonly spinnerController = new SpinnerController();
+	private readonly spinnerRef = new ElementRef<AnimatedImage>();
 	private maxPull = 0;
 	private armed = false;
 	private spinTimer?: ReturnType<typeof setTimeout>;
@@ -72,9 +71,9 @@ export class RefreshableScroll extends StatefulComponent<
 				style={showing ? styles.overlayVisible : styles.overlayHidden}
 			>
 				<view style={styles.spinnerPill}>
-					<LoopingArrowSpinner
+					<LoadingSpinner
 						accessibilityId={this.spinnerAccessibilityId()}
-						controller={this.spinnerController}
+						animationRef={this.spinnerRef}
 						size={22}
 						spinning={showing}
 					/>
@@ -104,7 +103,7 @@ export class RefreshableScroll extends StatefulComponent<
 			if (!this.armed) {
 				this.armed = true;
 				hapticFeedback();
-				this.spinnerController.start();
+				this.setSpinnerAdvanceRate(1);
 			}
 			this.setOverlayOpacity(1);
 		} else {
@@ -163,12 +162,16 @@ export class RefreshableScroll extends StatefulComponent<
 	private resetPull(): void {
 		this.maxPull = 0;
 		this.armed = false;
-		this.spinnerController.stop();
+		this.setSpinnerAdvanceRate(0);
 		this.setOverlayOpacity(0);
 	}
 
 	private setOverlayOpacity(value: number): void {
 		this.overlayRef.setAttribute('opacity', value);
+	}
+
+	private setSpinnerAdvanceRate(value: number): void {
+		this.spinnerRef.setAttribute('advanceRate', value);
 	}
 
 	private overlayAccessibilityId(): string {

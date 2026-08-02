@@ -7,7 +7,7 @@ import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ToastType, ToastTypes } from '../../services/ToastService';
 import { theme } from '../../theme';
-import { LoopingArrowSpinner } from './LoopingArrowSpinner';
+import { LoadingSpinner } from '../animations/LoadingSpinner';
 import { TouchEventState } from './TouchEventState';
 
 const restTop = theme.padding.scrollHeader(null);
@@ -89,11 +89,7 @@ export class Toast extends StatefulComponent<ToastViewModel, ToastState> {
 		>
 			{isProgress && (
 				<view style={styles.leading}>
-					<LoopingArrowSpinner
-						accessibilityId='toast-spinner'
-						size={iconSize}
-						tint={theme.colors.white}
-					/>
+					<LoadingSpinner accessibilityId='toast-spinner' size={iconSize} />
 				</view>
 			)}
 			{!isProgress && icon && <image src={icon.src} style={styles.icon} tint={icon.tint} />}

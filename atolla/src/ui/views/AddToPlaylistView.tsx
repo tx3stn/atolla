@@ -9,8 +9,8 @@ import type { TrackSource } from '../../services/TrackSource';
 import { theme } from '../../theme';
 import type { Transport } from '../../transports/Transport';
 import { CancelableController } from '../../utils/CancelableController';
+import { LoadingSpinner } from '../animations/LoadingSpinner';
 import { type Card, CardGrid } from '../components/CardGrid';
-import { LoopingArrowSpinner } from '../components/LoopingArrowSpinner';
 import { Modal } from '../components/Modal';
 import { addTracksToPlaylist } from '../flows/CreatePlaylist';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
@@ -156,11 +156,7 @@ export class AddToPlaylistView extends StatefulComponent<
 				<label style={styles.title} value={Strings.addToPlaylist().toUpperCase()} />
 				{isAddingToPlaylist ? (
 					<view style={styles.closeButton}>
-						<LoopingArrowSpinner
-							accessibilityId='add-to-playlist-adding-spinner'
-							size={20}
-							tint={theme.colors.active}
-						/>
+						<LoadingSpinner accessibilityId='add-to-playlist-adding-spinner' size={20} />
 					</view>
 				) : (
 					<view

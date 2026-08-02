@@ -8,17 +8,10 @@ import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils'
 import { editTextEvent, touchEvent } from '../util/testEvents';
 
 function findSpinner(component: ConnectionView) {
-	const elements = componentGetElements(component);
-	const byLabel = elements.find((el) => {
-		const label = el.getAttribute('accessibilityLabel');
-		return label === 'waiting for quick connect' || label === 'spinner';
-	});
-	if (byLabel) {
-		return byLabel;
-	}
-
-	const images = elementTypeFind(elements, IRenderedElementViewClass.Image);
-	return images.length > 1 ? images[1] : undefined;
+	const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+	return views.find(
+		(view) => view.getAttribute('accessibilityLabel') === 'waiting for quick connect',
+	);
 }
 
 function makeViewModel(overrides = {}) {
