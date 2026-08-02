@@ -13,10 +13,10 @@ import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
+import { LoadingSpinner } from '../animations/LoadingSpinner';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
 import { FormatBadge } from './FormatBadge';
-import { LoopingArrowSpinner } from './LoopingArrowSpinner';
 import { Modal } from './Modal';
 import { TappableIcon } from './TappableIcon';
 import { TouchEventState } from './TouchEventState';
@@ -293,11 +293,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					</layout>
 					<layout style={styles.buttonsRow}>
 						{downloadState === 'downloading' ? (
-							<LoopingArrowSpinner
-								accessibilityId='detail-header-downloading-spinner'
-								size={24}
-								tint={theme.colors.white}
-							/>
+							<LoadingSpinner accessibilityId='detail-header-downloading-spinner' size={24} />
 						) : (
 							<TappableIcon
 								accessibilityId='detail-header-download-button'
