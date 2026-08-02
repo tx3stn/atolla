@@ -57,9 +57,12 @@ function downloadedTrack(
 		albumId?: string;
 		artistId?: string;
 		complete: boolean;
+		genreIds?: Array<string>;
 		genres?: Array<Genre>;
+		name?: string;
 		productionYear?: number;
 		releaseDate?: string;
+		sortName?: string;
 	},
 ): DownloadedTrackEntry {
 	return {
@@ -67,7 +70,7 @@ function downloadedTrack(
 		attempts: 0,
 		complete: options.complete,
 		failed: false,
-		genreIds: [],
+		genreIds: options.genreIds ?? [],
 		playlistIds: [],
 		requiredImageKeys: [],
 		streamUrl: `file:///${id}.mp3`,
@@ -77,9 +80,10 @@ function downloadedTrack(
 			duration: 180,
 			genres: options.genres,
 			id,
-			name: id,
+			name: options.name ?? id,
 			productionYear: options.productionYear,
 			releaseDate: options.releaseDate,
+			sortName: options.sortName,
 		},
 	};
 }
@@ -306,6 +310,88 @@ describe('OfflineTransport', () => {
 		expect(tracksPage.items.map((track) => track.id)).toEqual(['track-1']);
 		expect(tracksPage.totalCount).toBe(1);
 		expect(logoUrl).toBe('https://img/logo-artist-1.png');
+	});
+
+	it('sorts genre tracks by name so offline matches the online ordering', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				genres: [downloadedGenre('genre-1', ['track-3', 'track-1', 'track-2'])],
+				tracks: [
+					downloadedTrack('track-1', { complete: true, name: 'Beta' }),
+					downloadedTrack('track-2', { complete: true, name: 'alpha' }),
+					downloadedTrack('track-3', { complete: true, name: 'Gamma' }),
+				],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const tracksPage = await transport.getTracksByGenre('genre-1', 1, 10);
+
+		expect(tracksPage.items.map((track) => track.name)).toEqual(['alpha', 'Beta', 'Gamma']);
+	});
+
+	it("ignores the track's server sort name, which is disc/track-number prefixed", async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				genres: [downloadedGenre('genre-1', ['track-1', 'track-2', 'track-3'])],
+				tracks: [
+					downloadedTrack('track-1', {
+						complete: true,
+						name: 'Zenith',
+						sortName: '0001 - 0001 - zenith',
+					}),
+					downloadedTrack('track-2', {
+						complete: true,
+						name: 'Anthem',
+						sortName: '0001 - 0002 - anthem',
+					}),
+					downloadedTrack('track-3', { complete: true, name: 'Meridian' }),
+				],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const tracksPage = await transport.getTracksByGenre('genre-1', 1, 10);
+
+		expect(tracksPage.items.map((track) => track.name)).toEqual(['Anthem', 'Meridian', 'Zenith']);
+	});
+
+	it('sorts genre tracks by name when there is no downloaded genre index', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				tracks: [
+					downloadedTrack('track-1', { complete: true, genreIds: ['genre-1'], name: 'Gamma' }),
+					downloadedTrack('track-2', { complete: true, genreIds: ['genre-1'], name: 'Alpha' }),
+				],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const tracksPage = await transport.getTracksByGenre('genre-1', 1, 10);
+
+		expect(tracksPage.items.map((track) => track.name)).toEqual(['Alpha', 'Gamma']);
+	});
+
+	it('paginates genre tracks over the sorted list', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				genres: [downloadedGenre('genre-1', ['track-1', 'track-2', 'track-3'])],
+				tracks: [
+					downloadedTrack('track-1', { complete: true, name: 'Gamma' }),
+					downloadedTrack('track-2', { complete: true, name: 'Alpha' }),
+					downloadedTrack('track-3', { complete: true, name: 'Beta' }),
+				],
+			}) as never,
+			playlistCreateService,
+		);
+
+		const firstPage = await transport.getTracksByGenre('genre-1', 1, 2);
+		const secondPage = await transport.getTracksByGenre('genre-1', 2, 2);
+
+		expect(firstPage.items.map((track) => track.name)).toEqual(['Alpha', 'Beta']);
+		expect(firstPage.hasMore).toBe(true);
+		expect(secondPage.items.map((track) => track.name)).toEqual(['Gamma']);
+		expect(secondPage.hasMore).toBe(false);
 	});
 
 	it('rejects scrobble delivery while offline', async () => {

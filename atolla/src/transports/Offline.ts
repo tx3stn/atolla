@@ -483,13 +483,15 @@ export class OfflineTransport implements Transport {
 	private async collectGenreTracks(genreId: string): Promise<Array<Track>> {
 		const genreEntry = this.downloads.getGenre(genreId);
 		if (genreEntry) {
-			return this.completedTracks(genreEntry.trackIds);
+			return sortTracksByName(this.completedTracks(genreEntry.trackIds));
 		}
 
-		return this.downloads
-			.getAllTracks()
-			.filter((entry) => entry.genreIds.includes(genreId) && entry.complete)
-			.map((entry) => entry.track);
+		return sortTracksByName(
+			this.downloads
+				.getAllTracks()
+				.filter((entry) => entry.genreIds.includes(genreId) && entry.complete)
+				.map((entry) => entry.track),
+		);
 	}
 
 	private async collectPlaylistTracks(playlistId: string): Promise<Array<Track>> {
@@ -577,6 +579,33 @@ export class OfflineTransport implements Transport {
 			''
 		);
 	}
+}
+
+// jellyfin's SortName for an audio item is disc/track-number prefixed, not the title, so
+// track ordering compares names directly rather than going through compareBySortKey
+function sortTracksByName(tracks: Array<Track>): Array<Track> {
+	return [...tracks].sort((left, right) => {
+		const byName = compareTrackNames(left.name, right.name);
+		if (byName !== 0) {
+			return byName;
+		}
+
+		return left.id.localeCompare(right.id);
+	});
+}
+
+function compareTrackNames(left: string, right: string): number {
+	const leftKey = left.trim().toLowerCase();
+	const rightKey = right.trim().toLowerCase();
+
+	if (leftKey < rightKey) {
+		return -1;
+	}
+	if (leftKey > rightKey) {
+		return 1;
+	}
+
+	return 0;
 }
 
 function sortTracksByNumber(tracks: Array<Track>): Array<Track> {
