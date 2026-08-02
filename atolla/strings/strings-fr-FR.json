@@ -90,6 +90,9 @@
 	"create_playlist_modal_title": {
 		"defaultMessage": "NOUVELLE PLAYLIST"
 	},
+	"dev_tools_animations_button": {
+		"defaultMessage": "galerie d'animations"
+	},
 	"dev_tools_gallery_button": {
 		"defaultMessage": "galerie de toasts"
 	},

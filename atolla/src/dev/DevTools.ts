@@ -5,7 +5,10 @@ import type { SlotRenderer } from '../ui/flows/ModalSlotFlow';
 // the concrete implementation lives in the //atolla_dev module, which release never compiles. This
 // interface is the only dev seam that shared code carries, and it emits no runtime code.
 export interface DevTools {
-	// builds the renderer for the dev gallery, to be slotted into the settings modal slot. onClose
-	// closes that slot.
-	galleryRenderer: (onClose: () => void) => SlotRenderer;
+	// builds the renderer for the dev animation gallery, to be slotted into the settings modal slot.
+	// onClose closes that slot.
+	animationGalleryRenderer: (onClose: () => void) => SlotRenderer;
+	// builds the renderer for the dev toast gallery, to be slotted into the settings modal slot.
+	// onClose closes that slot.
+	toastGalleryRenderer: (onClose: () => void) => SlotRenderer;
 }

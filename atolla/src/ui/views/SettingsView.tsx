@@ -296,6 +296,11 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 									label={Strings.devToolsGalleryButton()}
 									onTap={this.handleOpenDevGallery}
 								/>
+								<Button
+									accessibilityId='settings-dev-animations'
+									label={Strings.devToolsAnimationsButton()}
+									onTap={this.handleOpenDevAnimations}
+								/>
 							</view>
 						</view>
 					)}
@@ -441,6 +446,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		});
 	};
 
+	private handleCloseDevAnimations = (): void => {
+		closeSlot(this.viewModel.modalSlot);
+	};
+
 	private handleCloseDevGallery = (): void => {
 		closeSlot(this.viewModel.modalSlot);
 	};
@@ -518,12 +527,23 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		});
 	};
 
+	private handleOpenDevAnimations = (): void => {
+		const devTools = this.viewModel.devTools;
+		if (!devTools) {
+			return;
+		}
+		openSlot(
+			this.viewModel.modalSlot,
+			devTools.animationGalleryRenderer(this.handleCloseDevAnimations),
+		);
+	};
+
 	private handleOpenDevGallery = (): void => {
 		const devTools = this.viewModel.devTools;
 		if (!devTools) {
 			return;
 		}
-		openSlot(this.viewModel.modalSlot, devTools.galleryRenderer(this.handleCloseDevGallery));
+		openSlot(this.viewModel.modalSlot, devTools.toastGalleryRenderer(this.handleCloseDevGallery));
 	};
 
 	private handleShareDebugLogPress = (): void => {
