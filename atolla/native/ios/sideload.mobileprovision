@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AppIDName</key>
+	<string>atolla</string>
+	<key>ApplicationIdentifierPrefix</key>
+	<array>
+		<string>0000000000</string>
+	</array>
+	<key>CreationDate</key>
+	<date>2026-01-01T00:00:00Z</date>
+	<key>Entitlements</key>
+	<dict>
+		<key>application-identifier</key>
+		<string>0000000000.com.tx3stn.atolla</string>
+		<key>com.apple.developer.team-identifier</key>
+		<string>0000000000</string>
+		<key>get-task-allow</key>
+		<false/>
+	</dict>
+	<key>ExpirationDate</key>
+	<date>2099-01-01T00:00:00Z</date>
+	<key>Name</key>
+	<string>atolla sideload placeholder</string>
+	<key>Platform</key>
+	<array>
+		<string>iOS</string>
+	</array>
+	<key>TeamIdentifier</key>
+	<array>
+		<string>0000000000</string>
+	</array>
+	<key>TeamName</key>
+	<string>atolla</string>
+	<key>TimeToLive</key>
+	<integer>365</integer>
+	<key>UUID</key>
+	<string>00000000-0000-0000-0000-000000000000</string>
+	<key>Version</key>
+	<integer>1</integer>
+</dict>
+</plist>

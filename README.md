@@ -107,7 +107,11 @@ Install via [Obtainium](https://github.com/ImranR98/Obtainium)
 
 ### iOS
 
-Install via your sideloading method of choice.
+There is currently no App store release, but you can install with your sideloader of choice:
+
+* [SideStore](https://sidestore.io)
+* [AltStore](https://altstore.io)
+* [Sideloadly](https://sideloadly.io)
 
 > [!IMPORTANT]
 > **The iOS app is considered beta.**

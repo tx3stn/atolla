@@ -19,6 +19,13 @@ filegroup(
     srcs = glob(["ios/Assets.xcassets/AppIcon.*/**"]),
 )
 
+# Satisfies rules_apple's device-build requirement without carrying a real Apple
+# identity; see the file itself. Only reached when --ios_multi_cpus=arm64.
+filegroup(
+    name = "ios_sideload_profile",
+    srcs = ["ios/sideload.mobileprovision"],
+)
+
 # Dev-variant app icon (//:atolla_dev) — its own asset catalog because the set must
 # keep the "AppIcon" name Xcode looks up by default, so it can't share Assets.xcassets.
 filegroup(

@@ -21,6 +21,17 @@ VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS:-} --ios_multi_cpus=${IOS_CPUS}"
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --macos_sdk_version=${MACOS_SDK_VERSION}"
 VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --config=ios"
 
+# Device builds sign ad hoc so no Apple certificate or keychain is needed — the app is
+# meant to be re-signed by whatever sideloader installs it. abseil also trips
+# layering_check on the device toolchain, which the simulator toolchain never hits.
+case "$IOS_CPUS" in
+sim_*) ;;
+*)
+	VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --ios_signing_cert_name=-"
+	VALDI_BAZEL_ARGS="${VALDI_BAZEL_ARGS} --features=-layering_check"
+	;;
+esac
+
 echo "Using macOS SDK version: $MACOS_SDK_VERSION"
 echo "Using iOS CPUs: $IOS_CPUS"
 

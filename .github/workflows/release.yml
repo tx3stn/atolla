@@ -216,10 +216,10 @@ jobs:
           code="$(cat /tmp/icons.exit)"
           echo "icon generation exit code: $code"
           exit "$code"
-      # Simulator build — device (arm64) builds need an ios_provisioning_profile
-      # on valdi_application plus signing secrets in CI
+      # Device build, ad hoc signed — see .scripts/build-ios-ipa.sh. No Apple account
+      # or signing secrets involved; the installing user's sideloader re-signs.
       - name: build ipa
-        run: IOS_CPUS=sim_arm64 bun run build:ipa
+        run: IOS_CPUS=arm64 bun run build:ipa
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ios-ipa

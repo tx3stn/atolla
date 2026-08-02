@@ -148,6 +148,10 @@ single_version_override(
 
 bazel_dep(name = "rules_swift", version = "3.1.2", repo_name = "build_bazel_rules_swift")
 bazel_dep(name = "rules_apple", version = "4.1.0", repo_name = "build_bazel_rules_apple")
+
+# Transitive via rules_apple; declared so //:zig_toolchain_ios_* can constrain on
+# //constraints:device vs :simulator.
+bazel_dep(name = "apple_support", version = "2.5.4", repo_name = "build_bazel_apple_support")
 bazel_dep(name = "rules_jvm_external", version = "6.6")
 bazel_dep(name = "rules_android", version = "0.6.5")
 single_version_override(
@@ -237,4 +241,5 @@ zig.toolchain(zig_version = "0.16.0")
 register_toolchains(
     "//:zig_toolchain_android_arm64",
     "//:zig_toolchain_ios_arm64",
+    "//:zig_toolchain_ios_arm64_device",
 )

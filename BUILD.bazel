@@ -12,6 +12,7 @@ valdi_application(
     ios_bundle_id = "com.tx3stn.atolla",
     ios_families = ["iphone"],
     ios_info_plist = "//atolla/native:ios_info_plist",
+    ios_provisioning_profile = "//atolla/native:ios_sideload_profile",
     root_component_path = "App@atolla/src/App",
     title = "atolla",
     version = "0.0.0",
@@ -36,6 +37,9 @@ toolchain(
     toolchain_type = "@rules_zig//zig/target:toolchain_type",
 )
 
+# Zig needs the target environment in its triple, but os:ios + cpu:aarch64 matches
+# device and simulator alike — without the target_environment constraint a device
+# build silently links simulator objects and fails at ld.
 zig_target_toolchain(
     name = "zig_target_ios_arm64",
     target = "aarch64-ios-simulator",
@@ -46,8 +50,25 @@ toolchain(
     target_compatible_with = [
         "@platforms//os:ios",
         "@platforms//cpu:aarch64",
+        "@build_bazel_apple_support//constraints:simulator",
     ],
     toolchain = ":zig_target_ios_arm64",
+    toolchain_type = "@rules_zig//zig/target:toolchain_type",
+)
+
+zig_target_toolchain(
+    name = "zig_target_ios_arm64_device",
+    target = "aarch64-ios",
+)
+
+toolchain(
+    name = "zig_toolchain_ios_arm64_device",
+    target_compatible_with = [
+        "@platforms//os:ios",
+        "@platforms//cpu:aarch64",
+        "@build_bazel_apple_support//constraints:device",
+    ],
+    toolchain = ":zig_target_ios_arm64_device",
     toolchain_type = "@rules_zig//zig/target:toolchain_type",
 )
 
