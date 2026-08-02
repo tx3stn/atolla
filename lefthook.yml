@@ -4,30 +4,29 @@ pre-push:
   parallel: true
   fail_on_changes: always
   fail_on_changes_diff: true
-  commands:
-    check:zig:
-      run: bun run check:zig
-
-    compile:
-      run: bun run compile
-
-    lint:
-      run: bun run format && bun run lint
-
-    format:zig:
-      run: bun run format:zig
-
-    test:
-      run: bun run test
-
-    test:android:
-      run: bun run test:android
-
-    test:components:
-      run: bun run test:components
-
-    test:ios:
-      run: bun run test:ios
-
-    test:zig:
-      run: bun run test:zig
+  jobs:
+    - name: static
+      group:
+        parallel: true
+        jobs:
+          - name: lint
+            run: bun run format && bun run lint
+          - name: format:zig
+            run: bun run format:zig
+          - name: test
+            run: bun run test
+          - name: test:zig
+            run: bun run test:zig
+    - name: bazel
+      group:
+        jobs:
+          - name: compile
+            run: bun run compile
+          - name: check:zig
+            run: bun run check:zig
+          - name: test:components
+            run: bun run test:components
+          - name: test:ios
+            run: bun run test:ios
+          - name: test:android
+            run: bun run test:android
