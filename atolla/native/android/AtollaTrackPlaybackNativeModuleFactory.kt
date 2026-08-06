@@ -267,6 +267,12 @@ object AtollaGaplessAudioEngine {
 	// restore believe playback was inactive while audio was audibly playing
 	@Volatile private var isPlayingNow: Boolean = false
 
+	// set when onPlayWhenReadyChanged relays a guarded pause (audio focus loss / becoming
+	// noisy) to JS, so the matching resume can be relayed too regardless of what reason
+	// ExoPlayer reports on that transition — Android doesn't give as clean a "should resume"
+	// signal as iOS's interruption-ended option
+	@Volatile private var pausedByGuardedReason: Boolean = false
+
 	// set just before an engine-initiated seekToNextMediaItem / seekToPreviousMediaItem so the
 	// resulting SEEK-reason transition is classified as an advance or step-back (event +
 	// window maintenance + notification) rather than ignored
@@ -323,14 +329,27 @@ object AtollaGaplessAudioEngine {
 
 	private val playerListener = object : Player.Listener {
 		override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-			if (playWhenReady) {
+			if (!playWhenReady) {
+				val emitPause = AtollaPlaybackGuards.shouldEmitPauseForReason(reason)
+				Log.d(tag, "onPlayWhenReadyChanged playWhenReady=$playWhenReady reason=$reason emitPause=$emitPause")
+				if (emitPause) {
+					pausedByGuardedReason = true
+					enqueueEvent("pause-requested")
+					AtollaTrackPlaybackMediaSession.setPlaybackActive(
+						isPlaying = false,
+						positionSeconds = (exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L) / 1000.0,
+					)
+				}
 				return
 			}
 
-			val emitPause = AtollaPlaybackGuards.shouldEmitPauseForReason(reason)
-			Log.d(tag, "onPlayWhenReadyChanged playWhenReady=$playWhenReady reason=$reason emitPause=$emitPause")
-			if (emitPause) {
-				enqueueEvent("pause-requested")
+			if (pausedByGuardedReason) {
+				pausedByGuardedReason = false
+				enqueueEvent("play-requested")
+				AtollaTrackPlaybackMediaSession.setPlaybackActive(
+					isPlaying = true,
+					positionSeconds = (exoPlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L) / 1000.0,
+				)
 			}
 		}
 

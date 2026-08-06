@@ -13,8 +13,8 @@ class AtollaPlaybackGuardsTest {
 	}
 
 	@Test
-	fun `audio focus loss does not emit pause-requested`() {
-		assertFalse(AtollaPlaybackGuards.shouldEmitPauseForReason(AtollaPlaybackGuards.REASON_AUDIO_FOCUS_LOSS))
+	fun `audio focus loss emits pause-requested`() {
+		assertTrue(AtollaPlaybackGuards.shouldEmitPauseForReason(AtollaPlaybackGuards.REASON_AUDIO_FOCUS_LOSS))
 	}
 
 	@Test

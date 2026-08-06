@@ -8,12 +8,14 @@ object AtollaPlaybackGuards {
 	// mirrors Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS (media3 = 2)
 	const val REASON_AUDIO_FOCUS_LOSS = 2
 
-	// returns true only for headphone unplug / audio output steal, not for audio focus ducking
-	// (maps navigation). ExoPlayer handles ducking transparently and auto-resumes; propagating
-	// a pause-requested for focus loss would convert that into a user-intent pause in the JS
-	// layer and block the resume
+	// true for headphone unplug / audio output steal (REASON_AUDIO_BECOMING_NOISY) and for
+	// another app taking audio focus (REASON_AUDIO_FOCUS_LOSS). ducking (can-duck transient
+	// loss) never reaches here: ExoPlayer just lowers volume without touching playWhenReady.
+	// the caller pairs this with its own paused-by-this-reason flag so a later resume (engine
+	// auto-regaining transient focus, or a user/native play) emits a matching play-requested,
+	// instead of suppressing the pause and risking the JS store getting stuck
 	fun shouldEmitPauseForReason(reason: Int): Boolean =
-		reason == REASON_AUDIO_BECOMING_NOISY
+		reason == REASON_AUDIO_BECOMING_NOISY || reason == REASON_AUDIO_FOCUS_LOSS
 
 	// returns true when the foreground service should be left alive despite a clear-notification
 	// call. on every app start the JS store restores asynchronously; during that window
