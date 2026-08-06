@@ -23,6 +23,7 @@
 	},
 	"name": "atolla",
 	"overrides": {
+		"fast-uri": "^3.1.5",
 		"serialize-javascript": "^7.0.7"
 	},
 	"private": true,
