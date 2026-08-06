@@ -144,6 +144,7 @@ export class ConnectivityFab extends StatefulComponent<
 		const logoSrc =
 			transientMark === 'wifi' ? res.logowifion : isOffline ? res.logowifioff : res.logo;
 		const animation = this.viewModel.animationsEnabled ? transientMark : 'none';
+		const showAnimation = animation !== 'none';
 
 		<view style={styles.root}>
 			<view
@@ -153,9 +154,13 @@ export class ConnectivityFab extends StatefulComponent<
 				style={styles.hitTarget}
 			>
 				<view style={styles.logoWrap}>
-					{animation === 'wifi' && <LogoWifiOn size={logoSize} />}
-					{animation === 'wifiOff' && <LogoWifiOff size={logoSize} />}
-					{animation === 'none' && <image src={logoSrc} style={styles.logo} />}
+					<image src={logoSrc} style={showAnimation ? styles.logoHidden : styles.logo} />
+					{showAnimation && (
+						<view style={styles.logoAnimationOverlay}>
+							{animation === 'wifi' && <LogoWifiOn size={logoSize} />}
+							{animation === 'wifiOff' && <LogoWifiOff size={logoSize} />}
+						</view>
+					)}
 				</view>
 			</view>
 		</view>;
@@ -173,6 +178,20 @@ const styles = {
 	}),
 	logo: new Style<ImageView>({
 		height: logoSize,
+		width: logoSize,
+	}),
+	logoAnimationOverlay: new Style<View>({
+		alignItems: 'center',
+		bottom: 0,
+		justifyContent: 'center',
+		left: 0,
+		position: 'absolute',
+		right: 0,
+		top: 0,
+	}),
+	logoHidden: new Style<ImageView>({
+		height: logoSize,
+		opacity: 0,
 		width: logoSize,
 	}),
 	logoWrap: new Style<View>({
