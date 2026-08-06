@@ -1,6 +1,7 @@
 import res from 'atolla/res';
 import { DownloadedTick } from 'atolla/src/ui/animations/DownloadedTick';
 import { LoadingSpinner } from 'atolla/src/ui/animations/LoadingSpinner';
+import { LogoWaveformReveal } from 'atolla/src/ui/animations/LogoWaveformReveal';
 import { LogoWifiOff } from 'atolla/src/ui/animations/LogoWifiOff';
 import { LogoWifiOn } from 'atolla/src/ui/animations/LogoWifiOn';
 import { ContextMenuActionRow } from 'atolla/src/ui/components/ContextMenuActionRow';
@@ -46,6 +47,12 @@ export const animationStories: Array<AnimationStory> = [
 		accessibilityId: 'dev-animation-logo-wifi-off',
 		label: 'logo wifi off',
 		render: (_animationsEnabled, size) => <LogoWifiOff size={size} />,
+		sizeable: true,
+	},
+	{
+		accessibilityId: 'dev-animation-logo-waveform-reveal',
+		label: 'logo waveform reveal',
+		render: (_animationsEnabled, size) => <LogoWaveformReveal onComplete={noop} size={size} />,
 		sizeable: true,
 	},
 	{

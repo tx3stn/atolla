@@ -40,6 +40,8 @@ function rendersIcon(component: Parameters<typeof componentGetElements>[0], icon
 	return images.some((image) => image.getAttribute('src') === icon);
 }
 
+const wifiTransitionMs = 2000;
+
 describe('ConnectivityFab', () => {
 	valdiIt('plays the wifi animation when switching online', async (driver) => {
 		const component = driver.renderComponent(
@@ -99,5 +101,46 @@ describe('ConnectivityFab', () => {
 		expect(
 			elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Image).length,
 		).toBe(1);
+	});
+
+	valdiIt('plays the waveform reveal after the wifi animation completes', async (driver) => {
+		jasmine.clock().install();
+		try {
+			const component = driver.renderComponent(
+				ConnectivityFab,
+				makeViewModel(true, ConnectionModes.offline),
+				undefined,
+			);
+
+			tapFab(component);
+			jasmine.clock().tick(wifiTransitionMs);
+			await Promise.resolve();
+
+			expect(animationCount(component)).toBe(1);
+			expect(hasLabel(component, 'logo-waveform-reveal')).toBe(true);
+			expect(rendersIcon(component, res.logo)).toBe(true);
+		} finally {
+			jasmine.clock().uninstall();
+		}
+	});
+
+	valdiIt('skips the waveform reveal when animations are disabled', async (driver) => {
+		jasmine.clock().install();
+		try {
+			const component = driver.renderComponent(
+				ConnectivityFab,
+				makeViewModel(false, ConnectionModes.offline),
+				undefined,
+			);
+
+			tapFab(component);
+			jasmine.clock().tick(wifiTransitionMs);
+			await Promise.resolve();
+
+			expect(animationCount(component)).toBe(0);
+			expect(rendersIcon(component, res.logo)).toBe(true);
+		} finally {
+			jasmine.clock().uninstall();
+		}
 	});
 });

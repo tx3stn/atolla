@@ -23,14 +23,14 @@ export class DevToolsSection extends Component<DevToolsSectionViewModel> {
 			<label style={styles.sectionTitle} value={Strings.devToolsSection()} />
 			<view style={styles.section}>
 				<Button
-					accessibilityId='settings-dev-gallery'
-					label={Strings.devToolsGalleryButton()}
-					onTap={this.handleOpenToastGallery}
-				/>
-				<Button
 					accessibilityId='settings-dev-animations'
 					label={Strings.devToolsAnimationsButton()}
 					onTap={this.handleOpenAnimationGallery}
+				/>
+				<Button
+					accessibilityId='settings-dev-gallery'
+					label={Strings.devToolsGalleryButton()}
+					onTap={this.handleOpenToastGallery}
 				/>
 			</view>
 		</view>;

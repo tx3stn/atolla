@@ -5,7 +5,7 @@ import { ModalBase, modalStyles } from 'atolla/src/ui/components/ModalBase';
 import { Toggle } from 'atolla/src/ui/components/Toggle';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { animationStories } from './animation.stories';
 
 const defaultSize = 24;
@@ -63,6 +63,7 @@ export class DevAnimationGalleryView extends StatefulComponent<
 		<ModalBase
 			accessibilityId='dev-animation-gallery'
 			backdropAccessibilityId='dev-animation-gallery-backdrop'
+			cardStyle={styles.card}
 			onDismiss={this.viewModel.onClose}
 		>
 			<label style={modalStyles.title} value='ANIMATION GALLERY' />
@@ -87,29 +88,32 @@ export class DevAnimationGalleryView extends StatefulComponent<
 				</view>
 			)}
 			<view style={modalStyles.divider} />
-			{animationStories.map((story) => (
-				<view style={styles.storyRow}>
-					<Button
-						accessibilityId={story.accessibilityId}
-						label={story.label}
-						onTap={this.getStoryHandler(story.accessibilityId)}
-						style={story.accessibilityId === storyId ? ButtonType.Primary : ButtonType.Secondary}
+			<scroll style={styles.storyScroll}>
+				{animationStories.map((story) => (
+					<view style={styles.storyRow}>
+						<Button
+							accessibilityId={story.accessibilityId}
+							label={story.label}
+							onTap={this.getStoryHandler(story.accessibilityId)}
+							style={story.accessibilityId === storyId ? ButtonType.Primary : ButtonType.Secondary}
+						/>
+					</view>
+				))}
+				<view style={modalStyles.divider} />
+				<view style={styles.controlRow}>
+					<label style={styles.controlLabel} value='animations' />
+					<Toggle
+						accessibilityId='dev-animation-gallery-animations'
+						enabled={animationsEnabled}
+						onToggle={this.handleAnimationsToggle}
 					/>
 				</view>
-			))}
-			<view style={styles.controlRow}>
-				<label style={styles.controlLabel} value='animations' />
-				<Toggle
-					accessibilityId='dev-animation-gallery-animations'
-					enabled={animationsEnabled}
-					onToggle={this.handleAnimationsToggle}
+				<Button
+					accessibilityId='dev-animation-gallery-close'
+					label='close'
+					onTap={this.viewModel.onClose}
 				/>
-			</view>
-			<Button
-				accessibilityId='dev-animation-gallery-close'
-				label='close'
-				onTap={this.viewModel.onClose}
-			/>
+			</scroll>
 		</ModalBase>;
 	}
 
@@ -163,6 +167,16 @@ export class DevAnimationGalleryView extends StatefulComponent<
 }
 
 const styles = {
+	card: new Style<View>({
+		backgroundColor: theme.colors.bg,
+		borderColor: theme.colors.separator,
+		borderRadius: theme.radius.default,
+		borderWidth: 1,
+		height: '80%',
+		padding: 20,
+		slowClipping: true,
+		width: '90%',
+	}),
 	controlLabel: new Style<Label>({
 		...theme.text.main,
 	}),
@@ -194,5 +208,9 @@ const styles = {
 	}),
 	storyRow: new Style<View>({
 		marginBottom: 8,
+	}),
+	storyScroll: new Style<ScrollView>({
+		flexGrow: 1,
+		paddingBottom: 260,
 	}),
 };

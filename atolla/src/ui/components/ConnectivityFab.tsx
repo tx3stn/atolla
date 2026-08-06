@@ -4,10 +4,11 @@ import { Style } from 'valdi_core/src/Style';
 import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
 import { hapticFeedback } from '../../utils/Haptics';
+import { LogoWaveformReveal } from '../animations/LogoWaveformReveal';
 import { LogoWifiOff } from '../animations/LogoWifiOff';
 import { LogoWifiOn } from '../animations/LogoWifiOn';
 
-const TRANSITION_DISPLAY_MS = 2000;
+const TRANSITION_DISPLAY_MS = 1800;
 const logoSize = 34;
 
 export interface ConnectivityFabViewModel {
@@ -20,7 +21,7 @@ export interface ConnectivityFabViewModel {
 interface ConnectivityFabState {
 	displayMode: ConnectionMode;
 	isTransitioning: boolean;
-	transientMark: 'none' | 'wifi' | 'wifiOff';
+	transientMark: 'none' | 'waveform' | 'wifi' | 'wifiOff';
 }
 
 export class ConnectivityFab extends StatefulComponent<
@@ -28,6 +29,7 @@ export class ConnectivityFab extends StatefulComponent<
 	ConnectivityFabState
 > {
 	private transitionTimerId?: ReturnType<typeof setTimeout>;
+	private waveformRevealResolve?: () => void;
 
 	state: ConnectivityFabState = {
 		displayMode: ConnectionModes.online,
@@ -59,6 +61,8 @@ export class ConnectivityFab extends StatefulComponent<
 		if (this.transitionTimerId) {
 			clearTimeout(this.transitionTimerId);
 		}
+		this.waveformRevealResolve?.();
+		this.waveformRevealResolve = undefined;
 	}
 
 	private resolveMode(mode: ConnectionMode): ConnectionMode {
@@ -79,6 +83,17 @@ export class ConnectivityFab extends StatefulComponent<
 		});
 	}
 
+	private waitForWaveformReveal(): Promise<void> {
+		return new Promise((resolve) => {
+			this.waveformRevealResolve = resolve;
+		});
+	}
+
+	private handleWaveformRevealComplete = (): void => {
+		this.waveformRevealResolve?.();
+		this.waveformRevealResolve = undefined;
+	};
+
 	private async playTransition(targetMode: ConnectionMode): Promise<void> {
 		const target = this.resolveMode(targetMode);
 
@@ -88,7 +103,15 @@ export class ConnectivityFab extends StatefulComponent<
 			transientMark: target === ConnectionModes.online ? 'wifi' : 'wifiOff',
 		});
 		await this.wait(TRANSITION_DISPLAY_MS);
+
 		if (this.isDestroyed()) return;
+
+		if (target === ConnectionModes.online && this.viewModel.animationsEnabled) {
+			this.setState({ transientMark: 'waveform' });
+			await this.waitForWaveformReveal();
+			if (this.isDestroyed()) return;
+		}
+
 		this.setState({ transientMark: 'none' });
 	}
 
@@ -159,6 +182,12 @@ export class ConnectivityFab extends StatefulComponent<
 						<view style={styles.logoAnimationOverlay}>
 							{animation === 'wifi' && <LogoWifiOn size={logoSize} />}
 							{animation === 'wifiOff' && <LogoWifiOff size={logoSize} />}
+							{animation === 'waveform' && (
+								<LogoWaveformReveal
+									onComplete={this.handleWaveformRevealComplete}
+									size={logoSize}
+								/>
+							)}
 						</view>
 					)}
 				</view>
