@@ -3,6 +3,7 @@ import { setAtollaImageCachedObserver } from '../ImageLoaderBootstrap';
 import type { ConnectionMode } from '../models/App';
 import type { KeyValueStore } from '../stores/KeyValueStore';
 import { PaletteStore } from '../stores/PaletteStore';
+import { PinnedItemsStore } from '../stores/PinnedItems';
 import type { PlaybackStore } from '../stores/Playback';
 import { RecentlyPlayedStore } from '../stores/RecentlyPlayed';
 import { SearchStore } from '../stores/Search';
@@ -51,6 +52,7 @@ export class UserScope {
 	private onThisDayService?: OnThisDayService;
 	private paletteQueue!: PaletteGenerationQueue;
 	private paletteService!: ArtworkPaletteService;
+	private pinnedItemsStore?: PinnedItemsStore;
 	private reconnectSync?: ReconnectSyncCoordinator;
 	private recentlyAddedService?: RecentlyAddedService;
 	private searchStore!: SearchStore;
@@ -100,6 +102,10 @@ export class UserScope {
 		this.onThisDayService = new OnThisDayService(homeAlbumsStore);
 		this.recentlyAddedService = new RecentlyAddedService(homeAlbumsStore);
 		void this.onThisDayService.ensureLoaded();
+		this.pinnedItemsStore = new PinnedItemsStore(
+			new PersistentStore(`atolla/user/${userId}/pinned_items`, { deviceGlobal: true }),
+		);
+		void this.pinnedItemsStore.ensureLoaded();
 		this.viewCache = new ViewCache({
 			connectionMode: () => this.deps.getConnectionMode(),
 			disk: new PersistentStore(`atolla/user/${userId}/view`, {
@@ -178,6 +184,10 @@ export class UserScope {
 
 	getPaletteService(): ArtworkPaletteService {
 		return this.paletteService;
+	}
+
+	getPinnedItemsStore(): PinnedItemsStore | undefined {
+		return this.pinnedItemsStore;
 	}
 
 	getReconnectSync(): ReconnectSyncCoordinator | undefined {
