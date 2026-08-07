@@ -7,6 +7,7 @@ import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Album } from '../../models/Album';
 import type { ConnectionMode } from '../../models/App';
+import type { Genre } from '../../models/Genre';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import type { DownloadService } from '../../services/DownloadService';
@@ -17,10 +18,17 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
+import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import type { Transport } from '../../transports/Transport';
-import { type DetailPushDeps, pushAlbum, pushArtist, pushPlaylist } from '../flows/PushDetail';
+import {
+	type DetailPushDeps,
+	pushAlbum,
+	pushArtist,
+	pushGenre,
+	pushPlaylist,
+} from '../flows/PushDetail';
 import { HomeView } from '../views/HomeView';
 
 export interface HomeTabViewModel {
@@ -32,6 +40,7 @@ export interface HomeTabViewModel {
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	onThisDayService?: OnThisDayService;
 	paletteQueue: PaletteGenerationQueue;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
 	recentlyAddedService?: RecentlyAddedService;
@@ -57,8 +66,10 @@ export class HomeTab extends Component<HomeTabViewModel> {
 						modalSlot={this.viewModel.modalSlot}
 						onNavigateToArtist={this.handleArtistTap}
 						onOpenAlbum={this.handleAlbumTap}
+						onOpenGenre={this.handleGenreTap}
 						onOpenPlaylist={this.handleOpenPlaylist}
 						onThisDayService={this.viewModel.onThisDayService}
+						pinnedItemsStore={this.viewModel.pinnedItemsStore}
 						playbackStore={this.viewModel.playbackStore}
 						preferences={this.viewModel.preferences}
 						recentlyAddedService={this.viewModel.recentlyAddedService}
@@ -101,6 +112,13 @@ export class HomeTab extends Component<HomeTabViewModel> {
 		}
 		// best-effort: navigate on the id; ArtistView self-heals the name/image
 		pushArtist(controller, this.detailDeps(), { id: artistId, name: '' });
+	};
+
+	private handleGenreTap = (genre: Genre): void => {
+		if (!this.rootController) {
+			return;
+		}
+		pushGenre(this.rootController, this.detailDeps(), genre);
 	};
 
 	private handleOpenPlaylist = (playlist: Playlist): void => {

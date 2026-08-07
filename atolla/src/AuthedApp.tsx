@@ -106,6 +106,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							onNavigationControllerReady={this.captureHomeController}
 							onThisDayService={home.onThisDayService}
 							paletteQueue={home.paletteQueue}
+							pinnedItemsStore={home.pinnedItemsStore}
 							playbackStore={home.playbackStore}
 							preferences={home.preferences}
 							recentlyAddedService={home.recentlyAddedService}
@@ -128,6 +129,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							offlineDataInvalidations={library.offlineDataInvalidations}
 							onNavigationControllerReady={this.captureLibraryController}
 							paletteQueue={library.paletteQueue}
+							pinnedItemsStore={library.pinnedItemsStore}
 							playbackStore={library.playbackStore}
 							playlistEditService={library.playlistEditService}
 							preferences={library.preferences}

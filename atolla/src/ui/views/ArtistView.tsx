@@ -369,10 +369,15 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			<CardContextMenu
 				animationsEnabled={animationsEnabled}
 				card={{ album, kind: 'album' }}
+				// TODO(phase 3): pinnedItemsStore isn't threaded through DetailPushDeps yet, so
+				// pin/unpin is a no-op here until that plumbing lands
+				isPinned={false}
 				onAddToPlaylist={this.handleAlbumContextMenuAddToPlaylist}
 				onCreatePlaylist={this.handleAlbumContextMenuCreatePlaylist}
 				onDismiss={this.handleContextMenuDismiss}
 				onEntityTap={this.handleAlbumContextMenuEntityTap}
+				onPin={noopPinHandler}
+				onUnpin={noopPinHandler}
 				playbackStore={playbackStore}
 				toastService={toastService}
 				transport={transport}
@@ -682,6 +687,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		});
 	}
 }
+
+const noopPinHandler = (): void => {};
 
 const styles = {
 	content: new Style<Layout>({

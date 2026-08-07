@@ -28,11 +28,14 @@ export type CardContextMenuCard =
 export interface CardContextMenuViewModel {
 	animationsEnabled: boolean;
 	card: CardContextMenuCard;
+	isPinned: boolean;
 	onAddToPlaylist?: (tracks: TrackSource) => void;
 	onArtistTap?: () => void;
 	onCreatePlaylist?: (tracks: TrackSource) => void;
 	onDismiss: (toastMessage?: string) => void;
 	onEntityTap?: () => void;
+	onPin: () => void;
+	onUnpin: () => void;
 	playbackStore: PlaybackStore;
 	toastService: ToastService;
 	transport: Transport;
@@ -175,6 +178,15 @@ export class CardContextMenu extends StatefulComponent<
 		this.viewModel.onDismiss();
 	};
 
+	handlePinToggle = (): void => {
+		if (this.viewModel.isPinned) {
+			this.viewModel.onUnpin();
+		} else {
+			this.viewModel.onPin();
+		}
+		this.viewModel.onDismiss();
+	};
+
 	handleBackdropTap = (): void => {
 		this.viewModel.onDismiss();
 	};
@@ -194,7 +206,7 @@ export class CardContextMenu extends StatefulComponent<
 	};
 
 	onRender(): void {
-		const { animationsEnabled, card, onCreatePlaylist } = this.viewModel;
+		const { animationsEnabled, card, isPinned, onCreatePlaylist } = this.viewModel;
 		const { artistLogoUrl } = this.state;
 
 		<ModalBase
@@ -303,6 +315,13 @@ export class CardContextMenu extends StatefulComponent<
 					onPress={this.handleCreatePlaylist}
 				/>
 			)}
+			<ContextMenuActionRow
+				accessibilityId='card-context-pin'
+				animationsEnabled={animationsEnabled}
+				icon={res.pin}
+				label={isPinned ? Strings.unpin() : Strings.pinToHome()}
+				onPress={this.handlePinToggle}
+			/>
 		</ModalBase>;
 	}
 }

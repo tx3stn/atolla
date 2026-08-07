@@ -168,6 +168,9 @@
 	"home_no_anniversaries": {
 		"defaultMessage": "no anniversaries today"
 	},
+	"home_nothing_pinned": {
+		"defaultMessage": "nothing pinned"
+	},
 	"home_nothing_played": {
 		"defaultMessage": "nothing played yet"
 	},
@@ -176,6 +179,9 @@
 	},
 	"home_section_on_this_day": {
 		"defaultMessage": "ON THIS DAY"
+	},
+	"home_section_pinned": {
+		"defaultMessage": "PINNED"
 	},
 	"home_section_recently_added": {
 		"defaultMessage": "RECENTLY ADDED"
@@ -231,6 +237,9 @@
 	},
 	"partial_download_title": {
 		"defaultMessage": "DOWNLOAD INCOMPLETE"
+	},
+	"pin_to_home": {
+		"defaultMessage": "pin to home"
 	},
 	"play": {
 		"defaultMessage": "play"
@@ -416,6 +425,9 @@
 	},
 	"unknown": {
 		"defaultMessage": "UNKNOWN"
+	},
+	"unpin": {
+		"defaultMessage": "unpin"
 	},
 	"up_next": {
 		"defaultMessage": "UP NEXT"

@@ -27,6 +27,7 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
+import { type PinnedItemsStore, pinnedItemId } from '../../stores/PinnedItems';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import type { SearchStore } from '../../stores/Search';
@@ -57,6 +58,7 @@ export interface SearchViewModel {
 	networkStatus: NetworkStatus;
 	onNavigateToLibraryResult?: (target: SearchLibraryNavigationTarget) => void;
 	paletteQueue?: PaletteGenerationQueue;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	playlistEditService: PlaylistEditService;
 	preferences: Preferences;
@@ -592,15 +594,23 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			card.kind === 'album' || card.kind === 'artist'
 				? this.handleCardContextMenuArtistTap
 				: undefined;
+		const id = pinnedItemId(card);
 
 		openCardContextMenu(this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card,
+			isPinned: this.viewModel.pinnedItemsStore?.isPinned(card.kind, id) ?? false,
 			onAddToPlaylist: this.handleCardContextMenuAddToPlaylist,
 			onArtistTap: onArtistTap,
 			onCreatePlaylist: this.handleCardContextMenuCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleCardContextMenuEntityTap,
+			onPin: () => {
+				void this.viewModel.pinnedItemsStore?.pin(card);
+			},
+			onUnpin: () => {
+				void this.viewModel.pinnedItemsStore?.unpin(card.kind, id);
+			},
 			playbackStore: this.viewModel.playbackStore,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,

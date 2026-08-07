@@ -5,6 +5,7 @@ import type { Label, Layout, ScrollView } from 'valdi_tsx/src/NativeTemplateElem
 import type { Album } from '../../models/Album';
 import type { CardDetailItem } from '../../models/App';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
+import type { Genre } from '../../models/Genre';
 import type { Playlist } from '../../models/Playlist';
 import type { Track } from '../../models/Track';
 import Strings from '../../Strings';
@@ -15,6 +16,11 @@ import type { OnThisDayService } from '../../services/OnThisDayService';
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
 import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
+import {
+	type PinnedItemEntry,
+	type PinnedItemsStore,
+	pinnedItemId,
+} from '../../stores/PinnedItems';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -42,8 +48,10 @@ export interface HomeViewModel {
 	modalSlot?: DetachedSlot;
 	onNavigateToArtist?: (artistId: string) => void;
 	onOpenAlbum: (album: Album) => void;
+	onOpenGenre?: (genre: Genre) => void;
 	onOpenPlaylist?: (playlist: Playlist) => void;
 	onThisDayService?: OnThisDayService;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
 	recentlyAddedService?: RecentlyAddedService;
@@ -56,6 +64,7 @@ interface HomeState {
 	contextMenuCard: CardContextMenuCard | null;
 	isRefreshing: boolean;
 	onThisDayAlbums: Array<Album>;
+	pinnedItems: Array<PinnedItemEntry>;
 	recentlyAddedAlbums: Array<Album>;
 	revision: number;
 }
@@ -70,6 +79,9 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private cachedRecentlyAddedCards: Array<Card> = [];
 	private cachedRecentlyAddedAlbumsRef: Array<Album> | null = null;
 	private cachedRecentlyAddedGridColumns = -1;
+	private cachedPinnedCards: Array<Card> = [];
+	private cachedPinnedItemsRef: Array<PinnedItemEntry> | null = null;
+	private pinnedItemsSubscribed = false;
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 	private contextMenuAlbum: Album | null = null;
@@ -79,6 +91,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		contextMenuCard: null,
 		isRefreshing: false,
 		onThisDayAlbums: [],
+		pinnedItems: [],
 		recentlyAddedAlbums: [],
 		revision: 0,
 	};
@@ -88,15 +101,18 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.handlePreferencesChange));
 		this.registerDisposable(this.playlistFlow.cancel);
 		this.loadAlbums();
+		this.subscribeToPinnedItemsStore();
 	}
 
 	onRender(): void {
 		const onThisDayCards = this.createOnThisDayCards();
+		const pinnedCards = this.createPinnedCards();
 		const recentlyAddedCards = this.createRecentlyAddedCards();
 		const recentlyPlayedTracks = this.createRecentlyPlayedEntries();
 
 		log.debug('render', {
 			onThisDay: onThisDayCards.length,
+			pinned: pinnedCards.length,
 			recentlyAdded: recentlyAddedCards.length,
 			recentlyPlayed: recentlyPlayedTracks.length,
 		});
@@ -120,6 +136,21 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							/>
 						) : (
 							<label style={styles.emptyState} value={Strings.homeNoAnniversaries()} />
+						)}
+					</layout>
+
+					<layout style={styles.section}>
+						<label style={styles.sectionTitle} value={Strings.homeSectionPinned()} />
+						{pinnedCards.length > 0 ? (
+							<CardGrid
+								accessibilityId='home-pinned-grid'
+								cards={pinnedCards}
+								columnCount={this.viewModel.preferences.gridColumns}
+								onCardLongPress={this.handlePinnedCardLongPress}
+								onCardTap={this.handlePinnedCardTap}
+							/>
+						) : (
+							<label style={styles.emptyState} value={Strings.homeNothingPinned()} />
 						)}
 					</layout>
 
@@ -164,6 +195,8 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		if (!prevViewModel) {
 			return;
 		}
+
+		this.subscribeToPinnedItemsStore();
 
 		// on the login path the per-user services arrive after this view first mounts, so reload once
 		// they transition from undefined to defined rather than staying on the empty initial load
@@ -328,6 +361,58 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			this.state.recentlyAddedAlbums.find((album) => album.id === id) ??
 			this.state.onThisDayAlbums.find((album) => album.id === id)
 		);
+	}
+
+	// pinned items are on-device only (no transport call), so this can hydrate straight from the
+	// store; the subscribe-once guard covers the login race where activate() creates the store
+	// after this view has already mounted with it undefined
+	private subscribeToPinnedItemsStore(): void {
+		if (this.pinnedItemsSubscribed) {
+			return;
+		}
+		const store = this.viewModel.pinnedItemsStore;
+		if (!store) {
+			return;
+		}
+		this.pinnedItemsSubscribed = true;
+		this.registerDisposable(store.subscribe(this.handlePinnedItemsChange));
+		this.loadPinnedItems();
+	}
+
+	private handlePinnedItemsChange = (): void => {
+		this.loadPinnedItems();
+	};
+
+	private loadPinnedItems(): void {
+		this.setState({ pinnedItems: this.viewModel.pinnedItemsStore?.getAll() ?? [] });
+	}
+
+	private createPinnedCards(): Array<Card> {
+		if (this.state.pinnedItems === this.cachedPinnedItemsRef) {
+			return this.cachedPinnedCards;
+		}
+
+		this.cachedPinnedItemsRef = this.state.pinnedItems;
+		this.cachedPinnedCards = this.state.pinnedItems.map(pinnedEntryToCard);
+		return this.cachedPinnedCards;
+	}
+
+	private findPinnedEntry(kind: PinnedItemEntry['kind'], id: string): PinnedItemEntry | undefined {
+		return this.state.pinnedItems.find(
+			(entry) => entry.kind === kind && pinnedItemId(entry) === id,
+		);
+	}
+
+	private navigateToCard(card: CardContextMenuCard): void {
+		if (card.kind === 'album') {
+			this.viewModel.onOpenAlbum(card.album);
+		} else if (card.kind === 'artist') {
+			this.viewModel.onNavigateToArtist?.(card.artist.id);
+		} else if (card.kind === 'genre') {
+			this.viewModel.onOpenGenre?.(card.genre);
+		} else {
+			this.viewModel.onOpenPlaylist?.(card.playlist);
+		}
 	}
 
 	private createRecentlyAddedCards(): Array<Card> {
@@ -508,11 +593,18 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		openCardContextMenu(modalSlot, {
 			animationsEnabled,
 			card: { album, kind: 'album' },
+			isPinned: this.viewModel.pinnedItemsStore?.isPinned('album', album.id) ?? false,
 			onAddToPlaylist: this.handleAlbumContextMenuAddToPlaylist,
 			onArtistTap: album.artistId ? this.handleAlbumContextMenuArtistTap : undefined,
 			onCreatePlaylist: this.handleAlbumContextMenuCreatePlaylist,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleAlbumContextMenuEntityTap,
+			onPin: () => {
+				void this.viewModel.pinnedItemsStore?.pin({ album, kind: 'album' });
+			},
+			onUnpin: () => {
+				void this.viewModel.pinnedItemsStore?.unpin('album', album.id);
+			},
 			playbackStore,
 			toastService,
 			transport,
@@ -543,6 +635,109 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.contextMenuAlbum = album;
 		this.openAlbumCardContextMenu(album);
 	};
+
+	private handlePinnedCardTap = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const entry = this.findPinnedEntry(card.kind, card.id);
+		if (!entry) return;
+		this.navigateToCard(entry);
+	};
+
+	private handlePinnedCardLongPress = (card: {
+		id: string;
+		kind: 'album' | 'artist' | 'genre' | 'playlist';
+	}): void => {
+		const entry = this.findPinnedEntry(card.kind, card.id);
+		if (!entry) return;
+		hapticFeedback();
+
+		this.setState({ contextMenuCard: entry });
+		this.openPinnedCardContextMenu(entry);
+	};
+
+	private openPinnedCardContextMenu(card: CardContextMenuCard): void {
+		const { modalSlot, playbackStore, toastService, transport } = this.viewModel;
+		const { animationsEnabled } = this.viewModel.preferences;
+		const id = pinnedItemId(card);
+		openCardContextMenu(modalSlot, {
+			animationsEnabled,
+			card,
+			isPinned: true,
+			onAddToPlaylist: this.handleAlbumContextMenuAddToPlaylist,
+			onArtistTap:
+				card.kind === 'album' || card.kind === 'artist'
+					? this.handlePinnedContextMenuArtistTap
+					: undefined,
+			onCreatePlaylist: this.handleAlbumContextMenuCreatePlaylist,
+			onDismiss: this.handleContextMenuDismiss,
+			onEntityTap: this.handlePinnedContextMenuEntityTap,
+			onPin: () => {
+				void this.viewModel.pinnedItemsStore?.pin(card);
+			},
+			onUnpin: () => {
+				void this.viewModel.pinnedItemsStore?.unpin(card.kind, id);
+			},
+			playbackStore,
+			toastService,
+			transport,
+		});
+	}
+
+	private handlePinnedContextMenuArtistTap = (): void => {
+		const card = this.state.contextMenuCard;
+		this.handleContextMenuDismiss();
+		if (card?.kind === 'artist') {
+			this.viewModel.onNavigateToArtist?.(card.artist.id);
+		} else if (card?.kind === 'album') {
+			this.viewModel.onNavigateToArtist?.(card.album.artistId);
+		}
+	};
+
+	private handlePinnedContextMenuEntityTap = (): void => {
+		const card = this.state.contextMenuCard;
+		if (!card) return;
+		this.handleContextMenuDismiss();
+		this.navigateToCard(card);
+	};
+}
+
+function pinnedEntryToCard(entry: PinnedItemEntry): Card {
+	switch (entry.kind) {
+		case 'album':
+			return {
+				artworkKey: entry.album.imageUrl ?? '',
+				id: entry.album.id,
+				kind: 'album',
+				primaryText: entry.album.name,
+				secondaryText: entry.album.artistName,
+			};
+		case 'artist':
+			return {
+				artworkKey: entry.artist.imageUrl ?? '',
+				id: entry.artist.id,
+				kind: 'artist',
+				primaryText: entry.artist.name,
+				secondaryText: '',
+			};
+		case 'genre':
+			return {
+				artworkKey: entry.genre.imageUrl ?? '',
+				id: entry.genre.id,
+				kind: 'genre',
+				primaryText: entry.genre.name,
+				secondaryText: '',
+			};
+		case 'playlist':
+			return {
+				artworkKey: entry.playlist.imageUrl ?? '',
+				id: entry.playlist.id,
+				kind: 'playlist',
+				primaryText: entry.playlist.name,
+				secondaryText: '',
+			};
+	}
 }
 
 const styles = {

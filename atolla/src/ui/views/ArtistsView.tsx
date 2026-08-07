@@ -15,6 +15,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
+import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -44,6 +45,7 @@ export interface ArtistsViewModel {
 	offlineDataInvalidations: number;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
 	toastService: ToastService;
@@ -181,11 +183,18 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		openCardContextMenu(this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card: { artist, kind: 'artist' },
+			isPinned: this.viewModel.pinnedItemsStore?.isPinned('artist', artist.id) ?? false,
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onArtistTap: this.handleContextMenuArtistTap,
 			onCreatePlaylist: this.handleCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
+			onPin: () => {
+				void this.viewModel.pinnedItemsStore?.pin({ artist, kind: 'artist' });
+			},
+			onUnpin: () => {
+				void this.viewModel.pinnedItemsStore?.unpin('artist', artist.id);
+			},
 			playbackStore: this.viewModel.playbackStore,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,

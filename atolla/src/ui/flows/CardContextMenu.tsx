@@ -9,11 +9,14 @@ import { closeSlot, openSlot } from './ModalSlotFlow';
 export interface OpenCardContextMenuOptions {
 	animationsEnabled: boolean;
 	card: CardContextMenuCard;
+	isPinned: boolean;
 	onAddToPlaylist?: (tracks: TrackSource) => void;
 	onArtistTap?: () => void;
 	onCreatePlaylist?: (tracks: TrackSource) => void;
 	onDismiss: (toastMessage?: string) => void;
 	onEntityTap?: () => void;
+	onPin: () => void;
+	onUnpin: () => void;
 	playbackStore: PlaybackStore;
 	toastService: ToastService;
 	transport: Transport;
@@ -32,11 +35,14 @@ export function openCardContextMenu(
 		<CardContextMenu
 			animationsEnabled={options.animationsEnabled}
 			card={options.card}
+			isPinned={options.isPinned}
 			onAddToPlaylist={options.onAddToPlaylist}
 			onArtistTap={options.onArtistTap}
 			onCreatePlaylist={options.onCreatePlaylist}
 			onDismiss={dismiss}
 			onEntityTap={options.onEntityTap}
+			onPin={options.onPin}
+			onUnpin={options.onUnpin}
 			playbackStore={options.playbackStore}
 			toastService={options.toastService}
 			transport={options.transport}

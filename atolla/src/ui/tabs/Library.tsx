@@ -21,6 +21,7 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
 import { headerStore } from '../../stores/Header';
+import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import type { Transport } from '../../transports/Transport';
@@ -40,6 +41,7 @@ export interface LibraryViewModel {
 	offlineDataInvalidations: number;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	paletteQueue: PaletteGenerationQueue;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	playlistEditService: PlaylistEditService;
 	preferences: Preferences;
@@ -89,6 +91,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									offlineDataInvalidations={this.viewModel.offlineDataInvalidations}
 									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
+									pinnedItemsStore={this.viewModel.pinnedItemsStore}
 									playbackStore={this.viewModel.playbackStore}
 									preferences={this.viewModel.preferences}
 									toastService={this.viewModel.toastService}
@@ -107,6 +110,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									offlineDataInvalidations={this.viewModel.offlineDataInvalidations}
 									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
+									pinnedItemsStore={this.viewModel.pinnedItemsStore}
 									playbackStore={this.viewModel.playbackStore}
 									preferences={this.viewModel.preferences}
 									toastService={this.viewModel.toastService}
@@ -126,6 +130,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									onNavigateToArtist={this.handlePlaylistArtistTap}
 									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
+									pinnedItemsStore={this.viewModel.pinnedItemsStore}
 									playbackStore={this.viewModel.playbackStore}
 									playlistEditService={this.viewModel.playlistEditService}
 									preferences={this.viewModel.preferences}
@@ -145,6 +150,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									offlineDataInvalidations={this.viewModel.offlineDataInvalidations}
 									onNavigateToArtist={this.handlePlaylistArtistTap}
 									onRootDetailControllerReady={this.setRootDetailController}
+									pinnedItemsStore={this.viewModel.pinnedItemsStore}
 									playbackStore={this.viewModel.playbackStore}
 									preferences={this.viewModel.preferences}
 									toastService={this.viewModel.toastService}

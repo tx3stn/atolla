@@ -13,6 +13,7 @@ import type { NetworkStatus } from '../../services/NetworkStatus';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
+import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -41,6 +42,7 @@ interface GenresViewModel {
 	offlineDataInvalidations: number;
 	onNavigateToArtist?: (artistId: string) => void;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
 	toastService: ToastService;
@@ -247,10 +249,17 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		openCardContextMenu(this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			card: { genre, kind: 'genre' },
+			isPinned: this.viewModel.pinnedItemsStore?.isPinned('genre', genre.id) ?? false,
 			onAddToPlaylist: this.handleContextMenuAddToPlaylist,
 			onCreatePlaylist: this.handleCreatePlaylistRequest,
 			onDismiss: this.handleContextMenuDismiss,
 			onEntityTap: this.handleContextMenuEntityTap,
+			onPin: () => {
+				void this.viewModel.pinnedItemsStore?.pin({ genre, kind: 'genre' });
+			},
+			onUnpin: () => {
+				void this.viewModel.pinnedItemsStore?.unpin('genre', genre.id);
+			},
 			playbackStore: this.viewModel.playbackStore,
 			toastService: this.viewModel.toastService,
 			transport: this.viewModel.transport,

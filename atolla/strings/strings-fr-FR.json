@@ -168,6 +168,9 @@
 	"home_no_anniversaries": {
 		"defaultMessage": "aucun anniversaire aujourd'hui"
 	},
+	"home_nothing_pinned": {
+		"defaultMessage": "rien d'épinglé"
+	},
 	"home_nothing_played": {
 		"defaultMessage": "rien de joué pour l'instant"
 	},
@@ -176,6 +179,9 @@
 	},
 	"home_section_on_this_day": {
 		"defaultMessage": "CE JOUR-LÀ"
+	},
+	"home_section_pinned": {
+		"defaultMessage": "ÉPINGLÉS"
 	},
 	"home_section_recently_added": {
 		"defaultMessage": "AJOUTÉS RÉCEMMENT"
@@ -231,6 +237,9 @@
 	},
 	"partial_download_title": {
 		"defaultMessage": "TÉLÉCHARGEMENT INCOMPLET"
+	},
+	"pin_to_home": {
+		"defaultMessage": "épingler à l'accueil"
 	},
 	"play_next": {
 		"defaultMessage": "lire ensuite"
@@ -413,6 +422,9 @@
 	},
 	"unknown": {
 		"defaultMessage": "INCONNU"
+	},
+	"unpin": {
+		"defaultMessage": "désépingler"
 	},
 	"up_next": {
 		"defaultMessage": "ENSUITE"
