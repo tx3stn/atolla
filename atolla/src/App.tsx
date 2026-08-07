@@ -377,6 +377,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			onRequestModeChange: this.handleRequestModeChange,
 			paletteQueue: this.userScope.getPaletteQueue(),
 			paletteService: this.userScope.getPaletteService(),
+			pinnedItemsStore: this.userScope.getPinnedItemsStore(),
 			playbackOrchestrator: this.playbackOrchestrator,
 			playbackStore: this.playbackStore,
 			preferences: this.preferences,

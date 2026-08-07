@@ -12,6 +12,7 @@ import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
 import { headerStore } from '../../stores/Header';
+import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import type { Transport } from '../../transports/Transport';
@@ -32,6 +33,7 @@ export interface DetailPushDeps {
 	// unwind (used by library nav).
 	onRootDetailControllerReady?: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	playlistEditService?: PlaylistEditService;
 	preferences: Preferences;
@@ -58,6 +60,7 @@ export function pushAlbum(
 			networkStatus: deps.networkStatus,
 			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
+			pinnedItemsStore: deps.pinnedItemsStore,
 			playbackStore: deps.playbackStore,
 			preferences: deps.preferences,
 			toastService: deps.toastService,
@@ -86,6 +89,7 @@ export function pushArtist(
 			networkStatus: deps.networkStatus,
 			onNavigationControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
+			pinnedItemsStore: deps.pinnedItemsStore,
 			playbackStore: deps.playbackStore,
 			preferences: deps.preferences,
 			toastService: deps.toastService,
@@ -114,6 +118,7 @@ export function pushPlaylist(
 			onNavigateToArtist: deps.onNavigateToArtist,
 			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
+			pinnedItemsStore: deps.pinnedItemsStore,
 			playbackStore: deps.playbackStore,
 			playlist,
 			playlistEditService: deps.playlistEditService,
@@ -145,6 +150,7 @@ export function pushGenre(
 			onNavigateToArtist: deps.onNavigateToArtist,
 			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
+			pinnedItemsStore: deps.pinnedItemsStore,
 			playbackStore: deps.playbackStore,
 			preferences: deps.preferences,
 			toastService: deps.toastService,

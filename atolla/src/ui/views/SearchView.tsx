@@ -571,6 +571,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: (artistId) => this.navigateToArtistId(artistId),
 			paletteQueue: this.viewModel.paletteQueue,
+			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			playlistEditService: this.viewModel.playlistEditService,
 			preferences: this.viewModel.preferences,

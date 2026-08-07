@@ -1,6 +1,7 @@
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { ConnectionMode } from '../models/App';
 import type { BarColorStore } from '../stores/BarColor';
+import type { PinnedItemsStore } from '../stores/PinnedItems';
 import type { PlaybackStore } from '../stores/Playback';
 import type { Preferences } from '../stores/Preferences';
 import type { Transport } from '../transports/Transport';
@@ -24,6 +25,7 @@ export interface AppServicesBag {
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;
 	paletteQueue: PaletteGenerationQueue;
 	paletteService: ArtworkPaletteService;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackOrchestrator: PlaybackOrchestrator;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;

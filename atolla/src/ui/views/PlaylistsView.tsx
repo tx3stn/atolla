@@ -309,6 +309,7 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
 			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			paletteQueue: this.viewModel.paletteQueue,
+			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			playlistEditService: this.viewModel.playlistEditService,
 			preferences: this.viewModel.preferences,

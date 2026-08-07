@@ -25,6 +25,7 @@ import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
+import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -54,6 +55,7 @@ export interface PlaylistViewModel {
 	onNavigateToArtist?: (artistId: string) => void;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	playlist: Playlist;
 	playlistEditService?: PlaylistEditService;
@@ -274,6 +276,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
 			paletteQueue: this.viewModel.paletteQueue,
+			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			playlistEditService: this.viewModel.playlistEditService,
 			preferences: this.viewModel.preferences,

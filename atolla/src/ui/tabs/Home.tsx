@@ -90,6 +90,7 @@ export class HomeTab extends Component<HomeTabViewModel> {
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.handleArtistTap,
 			paletteQueue: this.viewModel.paletteQueue,
+			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,

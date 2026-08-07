@@ -20,6 +20,7 @@ import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
+import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -54,6 +55,7 @@ export interface ArtistViewModel {
 	networkStatus: NetworkStatus;
 	onNavigationControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
 	toastService: ToastService;
@@ -340,6 +342,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
 			paletteQueue: this.viewModel.paletteQueue,
+			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
@@ -363,21 +366,23 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 		this.setState({ contextMenuCard: { album, kind: 'album' } });
 		this.contextMenuAlbumCard = card;
-		const { modalSlot, playbackStore, toastService, transport } = this.viewModel;
+		const { modalSlot, pinnedItemsStore, playbackStore, toastService, transport } = this.viewModel;
 		const { animationsEnabled } = this.viewModel.preferences;
 		modalSlot.slotted(() => {
 			<CardContextMenu
 				animationsEnabled={animationsEnabled}
 				card={{ album, kind: 'album' }}
-				// TODO(phase 3): pinnedItemsStore isn't threaded through DetailPushDeps yet, so
-				// pin/unpin is a no-op here until that plumbing lands
-				isPinned={false}
+				isPinned={pinnedItemsStore?.isPinned('album', album.id) ?? false}
 				onAddToPlaylist={this.handleAlbumContextMenuAddToPlaylist}
 				onCreatePlaylist={this.handleAlbumContextMenuCreatePlaylist}
 				onDismiss={this.handleContextMenuDismiss}
 				onEntityTap={this.handleAlbumContextMenuEntityTap}
-				onPin={noopPinHandler}
-				onUnpin={noopPinHandler}
+				onPin={() => {
+					void pinnedItemsStore?.pin({ album, kind: 'album' });
+				}}
+				onUnpin={() => {
+					void pinnedItemsStore?.unpin('album', album.id);
+				}}
 				playbackStore={playbackStore}
 				toastService={toastService}
 				transport={transport}
@@ -687,8 +692,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		});
 	}
 }
-
-const noopPinHandler = (): void => {};
 
 const styles = {
 	content: new Style<Layout>({

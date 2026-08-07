@@ -162,6 +162,7 @@ export class AppShellStore {
 			networkStatus: services.networkStatus,
 			onNavigateToArtist: this.handleDetailArtistTap,
 			paletteQueue: services.paletteQueue,
+			pinnedItemsStore: services.pinnedItemsStore,
 			playbackStore: services.playbackStore,
 			preferences: services.preferences,
 			toastService: services.toastService,

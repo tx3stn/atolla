@@ -19,6 +19,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
+import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -48,6 +49,7 @@ export interface AlbumViewModel {
 	networkStatus: NetworkStatus;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
 	toastService: ToastService;
@@ -402,6 +404,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
 			paletteQueue: this.viewModel.paletteQueue,
+			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,

@@ -217,6 +217,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 			onNavigateToArtist: this.handlePlaylistArtistTap,
 			onRootDetailControllerReady: recordAsFirstDetail ? this.setRootDetailController : undefined,
 			paletteQueue: this.viewModel.paletteQueue,
+			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			playlistEditService: this.viewModel.playlistEditService,
 			preferences: this.viewModel.preferences,

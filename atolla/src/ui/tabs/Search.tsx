@@ -36,6 +36,7 @@ export class SearchTab extends Component<SearchTabViewModel> {
 						networkStatus={search.networkStatus}
 						onNavigateToLibraryResult={this.handleNavigateToLibraryResult}
 						paletteQueue={search.paletteQueue}
+						pinnedItemsStore={search.pinnedItemsStore}
 						playbackStore={search.playbackStore}
 						playlistEditService={search.playlistEditService}
 						preferences={search.preferences}
@@ -58,6 +59,7 @@ export class SearchTab extends Component<SearchTabViewModel> {
 			networkStatus: search.networkStatus,
 			onNavigateToArtist: this.handleArtistById,
 			paletteQueue: search.paletteQueue,
+			pinnedItemsStore: search.pinnedItemsStore,
 			playbackStore: search.playbackStore,
 			playlistEditService: search.playlistEditService,
 			preferences: search.preferences,

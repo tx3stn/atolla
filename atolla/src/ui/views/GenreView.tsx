@@ -22,6 +22,7 @@ import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
+import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
@@ -48,6 +49,7 @@ export interface GenreViewModel {
 	onNavigateToArtist?: (artistId: string) => void;
 	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
+	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
 	toastService: ToastService;
@@ -318,6 +320,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
 			paletteQueue: this.viewModel.paletteQueue,
+			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,

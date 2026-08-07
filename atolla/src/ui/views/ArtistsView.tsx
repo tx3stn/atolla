@@ -374,6 +374,7 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			networkStatus: this.viewModel.networkStatus,
 			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			paletteQueue: this.viewModel.paletteQueue,
+			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,

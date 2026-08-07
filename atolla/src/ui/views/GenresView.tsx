@@ -379,6 +379,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
 			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
+			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,

@@ -318,6 +318,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			networkStatus: this.viewModel.networkStatus,
 			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			paletteQueue: this.viewModel.paletteQueue,
+			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
