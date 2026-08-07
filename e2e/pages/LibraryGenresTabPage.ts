@@ -22,4 +22,9 @@ export class LibraryGenresTabPage extends BasePage {
 	async longPressFirstVisibleCard(): Promise<void> {
 		await this.longPressFirstVisibleByAccessibilityPrefix(this.cardPrefix);
 	}
+
+	async longPressCardByID(genreId: string): Promise<void> {
+		const element = await this.scrollUntilDisplayed(`card-${genreId}`);
+		await this.longPressElement(element);
+	}
 }

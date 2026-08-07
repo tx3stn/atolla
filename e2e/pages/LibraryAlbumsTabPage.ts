@@ -24,4 +24,9 @@ export class LibraryAlbumsTabPage extends BasePage {
 	async longPressFirstVisibleCard(): Promise<void> {
 		await this.longPressFirstVisibleByAccessibilityPrefix(this.cardPrefix);
 	}
+
+	async longPressCardByID(albumId: string): Promise<void> {
+		const element = await this.scrollUntilDisplayed(`card-${albumId}`);
+		await this.longPressElement(element);
+	}
 }

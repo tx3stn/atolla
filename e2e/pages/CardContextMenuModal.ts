@@ -8,6 +8,7 @@ export class CardContextMenu extends BasePage {
 	private readonly addToQueue = 'card-context-add-to-queue';
 	private readonly album = 'card-context-menu-album';
 	private readonly artistLogo = 'artist-logo';
+	private readonly pin = 'card-context-pin';
 
 	async waitForVisible(): Promise<void> {
 		await this.elementByID(this.root).waitForDisplayed({
@@ -82,5 +83,11 @@ export class CardContextMenu extends BasePage {
 		await el.waitForDisplayed({ timeoutMsg: 'Add to queue button not visible' });
 		await el.click();
 		await this.dismissPermissionDialogIfPresent();
+	}
+
+	async tapPin(): Promise<void> {
+		const el = this.elementByID(this.pin);
+		await el.waitForDisplayed({ timeoutMsg: 'Pin/unpin button not visible' });
+		await el.click();
 	}
 }

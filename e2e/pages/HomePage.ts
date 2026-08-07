@@ -4,6 +4,7 @@ export class HomePage extends BasePage {
 	private readonly recentlyAddedGrid = 'home-recently-added-grid';
 	private readonly albumCardPrefix = 'card-album-';
 	private readonly shuffleLibraryMix = 'card-mix-shuffle-library';
+	private readonly pinnedGrid = 'home-pinned-grid';
 
 	isDisplayed(): Promise<boolean> {
 		return this.elementByID(this.recentlyAddedGrid).isDisplayed();
@@ -25,6 +26,40 @@ export class HomePage extends BasePage {
 
 	async longPressFirstVisibleAlbumCard(): Promise<void> {
 		await this.longPressFirstVisibleByAccessibilityPrefix(this.albumCardPrefix);
+	}
+
+	async waitForPinnedCards(): Promise<void> {
+		await this.elementByID(this.pinnedGrid).waitForExist({
+			timeoutMsg: 'Timed out waiting for home pinned grid',
+		});
+	}
+
+	// reads each known card's own screen position rather than enumerating the grid's children,
+	// since CardGrid's native layout doesn't expose cards as XPath descendants of its container id
+	async pinnedCardOrder(ids: Array<string>): Promise<Array<string>> {
+		const positioned = await Promise.all(
+			ids.map(async (id) => {
+				const location = await this.elementByID(`card-${id}`).getLocation();
+				return { id, location };
+			}),
+		);
+		return positioned
+			.sort((a, b) => a.location.y - b.location.y || a.location.x - b.location.x)
+			.map((entry) => `card-${entry.id}`);
+	}
+
+	async longPressPinnedCardByID(id: string): Promise<void> {
+		const element = await this.scrollUntilDisplayed(`card-${id}`);
+		await this.longPressElement(element);
+	}
+
+	async waitForNoPinnedCards(): Promise<void> {
+		await this.driver.waitUntil(
+			async () => !(await this.elementByID(this.pinnedGrid).isExisting()),
+			{
+				timeoutMsg: 'Pinned grid did not disappear after unpinning everything',
+			},
+		);
 	}
 
 	// the mixes grid sits at the bottom of the home view, so scroll down until the card is on screen

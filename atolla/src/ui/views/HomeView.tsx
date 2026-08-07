@@ -81,7 +81,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	private cachedRecentlyAddedGridColumns = -1;
 	private cachedPinnedCards: Array<Card> = [];
 	private cachedPinnedItemsRef: Array<PinnedItemEntry> | null = null;
-	private pinnedItemsSubscribed = false;
+	private subscribedPinnedItemsStore: PinnedItemsStore | undefined;
 	private pendingCreatePlaylistTracks: TrackSource | null = null;
 	private playlistFlow = new CancelableController(() => this.isDestroyed());
 	private contextMenuAlbum: Album | null = null;
@@ -364,17 +364,15 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 	}
 
 	// pinned items are on-device only (no transport call), so this can hydrate straight from the
-	// store; the subscribe-once guard covers the login race where activate() creates the store
-	// after this view has already mounted with it undefined
+	// store; re-subscribes whenever the store instance itself changes, which covers both the login
+	// race (activate() creates the store after this view has already mounted with it undefined) and
+	// a later reconnect/re-login replacing the store with a new instance mid-session
 	private subscribeToPinnedItemsStore(): void {
-		if (this.pinnedItemsSubscribed) {
-			return;
-		}
 		const store = this.viewModel.pinnedItemsStore;
-		if (!store) {
+		if (!store || store === this.subscribedPinnedItemsStore) {
 			return;
 		}
-		this.pinnedItemsSubscribed = true;
+		this.subscribedPinnedItemsStore = store;
 		this.registerDisposable(store.subscribe(this.handlePinnedItemsChange));
 		this.loadPinnedItems();
 	}

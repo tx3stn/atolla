@@ -39,4 +39,9 @@ export class LibraryArtistsTabPage extends BasePage {
 	async longPressFirstVisibleCard(): Promise<void> {
 		await this.longPressFirstVisibleByAccessibilityPrefix(this.cardPrefix);
 	}
+
+	async longPressCardByID(artistId: string): Promise<void> {
+		const element = await this.scrollUntilDisplayed(`card-${artistId}`);
+		await this.longPressElement(element);
+	}
 }

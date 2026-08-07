@@ -26,4 +26,9 @@ export class LibraryPlaylistsTabPage extends BasePage {
 	async longPressFirstVisibleCard(): Promise<void> {
 		await this.longPressFirstVisibleByAccessibilityPrefix(this.cardPrefix);
 	}
+
+	async longPressCardByID(playlistId: string): Promise<void> {
+		const element = await this.scrollUntilDisplayed(`card-${playlistId}`);
+		await this.longPressElement(element);
+	}
 }

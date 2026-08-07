@@ -124,6 +124,38 @@ export class BasePage {
 		await this.longPressElement(element, durationMs);
 	}
 
+	// grids paginate/scroll, so a specific card by id may sit below the fold or on a page that
+	// hasn't loaded yet; scroll down repeatedly until it's actually on screen.
+	public async scrollUntilDisplayed(id: string, maxAttempts = 8): Promise<ChainablePromiseElement> {
+		const element = this.elementByID(id);
+		for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+			if (await this.isWithinScreenBounds(element)) {
+				return element;
+			}
+			await this.scrollDown();
+			// on Android, a long-press started while the list is still settling from scroll
+			// momentum gets read as a drag and cancelled instead of opening the context menu
+			await this.driver.pause(300);
+		}
+		return element;
+	}
+
+	// Android's isDisplayed() can report true for a RecyclerView item that's attached to the
+	// hierarchy but still below the visible viewport, so cross-check its actual bounds too
+	private async isWithinScreenBounds(element: ChainablePromiseElement): Promise<boolean> {
+		try {
+			if (!(await element.isDisplayed())) {
+				return false;
+			}
+			const { height } = await this.driver.getWindowSize();
+			const location = await element.getLocation();
+			const size = await element.getSize();
+			return location.y >= 0 && location.y + size.height <= height;
+		} catch {
+			return false;
+		}
+	}
+
 	protected async dismissPermissionDialogIfPresent(): Promise<void> {
 		try {
 			if (this.isAndroid()) {
