@@ -165,6 +165,14 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						/>
 					</layout>
 
+					<MixesSection
+						connectionMode={this.viewModel.connectionMode}
+						gridColumns={this.viewModel.preferences.gridColumns}
+						language={this.viewModel.preferences.language}
+						playbackStore={this.viewModel.playbackStore}
+						transport={this.viewModel.transport}
+					/>
+
 					<layout style={styles.section}>
 						<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyPlayed()} />
 						{recentlyPlayedTracks.length > 0 ? (
@@ -178,14 +186,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							<label style={styles.emptyState} value={Strings.homeNothingPlayed()} />
 						)}
 					</layout>
-
-					<MixesSection
-						connectionMode={this.viewModel.connectionMode}
-						gridColumns={this.viewModel.preferences.gridColumns}
-						language={this.viewModel.preferences.language}
-						playbackStore={this.viewModel.playbackStore}
-						transport={this.viewModel.transport}
-					/>
 				</layout>
 			</RefreshableScroll>
 		</layout>;
