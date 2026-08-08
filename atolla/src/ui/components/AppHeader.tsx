@@ -116,12 +116,6 @@ export class AppHeader extends StatefulComponent<AppHeaderViewModel, AppHeaderSt
 				</view>
 			)}
 
-			{showLibraryTabs && (
-				<view style={styles.scrollHintWrap}>
-					<label style={styles.scrollHint} value='>' />
-				</view>
-			)}
-
 			{isPanelOpen && <view onTap={this.closeSortPanel} style={styles.dismissOverlay} />}
 
 			{library && this.state.isPanelOpen && (
