@@ -24,6 +24,7 @@
 	"name": "atolla",
 	"overrides": {
 		"fast-uri": "^3.1.5",
+		"js-yaml": "^4.3.1",
 		"serialize-javascript": "^7.0.7"
 	},
 	"private": true,
