@@ -17,6 +17,7 @@ import {
 	requestAtollaImageLoaderDiskCacheStats,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from '../../ImageLoaderBootstrap';
+import { type CardSize, CardSizes } from '../../models/App';
 import Strings from '../../Strings';
 import type { ArtworkPaletteService } from '../../services/ArtworkPaletteService';
 import type { DownloadService } from '../../services/DownloadService';
@@ -26,12 +27,12 @@ import type { PlaybackOrchestrator } from '../../services/PlaybackOrchestrator';
 import type { SessionController } from '../../services/SessionController';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import {
-	DEFAULT_GRID_COLUMNS,
+	CARD_SIZE_OPTIONS,
+	DEFAULT_CARD_SIZE,
 	DEFAULT_IMAGE_CACHE_MAX_BYTES,
 	DEFAULT_LANGUAGE,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
 	GB,
-	GRID_COLUMN_OPTIONS,
 	IMAGE_CACHE_SIZE_OPTIONS,
 	LANGUAGE_OPTIONS,
 	type LanguageCode,
@@ -105,7 +106,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		const serverName = this.viewModel.sessionController.serverName() ?? '';
 		const serverUrl = this.viewModel.sessionController.serverUrl();
 		const isHttpServer = typeof serverUrl === 'string' && /^http:\/\//i.test(serverUrl);
-		const selectedGridColumns = this.viewModel.preferences.gridColumns ?? DEFAULT_GRID_COLUMNS;
+		const selectedCardSize = this.viewModel.preferences.cardSize ?? DEFAULT_CARD_SIZE;
 		const selectedTrackCacheLimit =
 			this.viewModel.preferences.trackCacheMaxTracks ?? DEFAULT_TRACK_CACHE_MAX_TRACKS;
 		const selectedImageCacheSize =
@@ -130,11 +131,12 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 							/>
 						</view>
 						<SelectOption
-							accessibilityId='settings-grid-columns'
-							label={Strings.settingsGridColumns()}
-							onSelect={this.handleGridColumnsSelect}
-							options={GRID_COLUMN_OPTIONS}
-							selectedValue={selectedGridColumns}
+							accessibilityId='settings-card-size'
+							formatValue={formatCardSizeLabel}
+							label={Strings.settingsCardSize()}
+							onSelect={this.handleCardSizeSelect}
+							options={CARD_SIZE_OPTIONS}
+							selectedValue={selectedCardSize}
 						/>
 					</view>
 
@@ -380,6 +382,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		});
 	};
 
+	private handleCardSizeSelect = (size: CardSize): void => {
+		void this.viewModel.preferences.setCardSize(size);
+	};
+
 	private handleClearCachePress = (): void => {
 		const counts = this.state.imageCategoryCounts;
 
@@ -447,10 +453,6 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 
 	private handleDownloadOnWifiToggle = (enabled: boolean): void => {
 		void this.viewModel.preferences.setDownloadOnWifiOnly(enabled);
-	};
-
-	private handleGridColumnsSelect = (count: number): void => {
-		void this.viewModel.preferences.setGridColumns(count);
 	};
 
 	private handleImageCacheSelect = (bytes: number): void => {
@@ -606,6 +608,12 @@ function getLanguageLabel(code: LanguageCode): string {
 function formatCacheSizeLabel(bytes: number): string {
 	if (bytes <= 0) return Strings.none();
 	return `${bytes / GB} GB`;
+}
+
+function formatCardSizeLabel(size: CardSize): string {
+	return size === CardSizes.small
+		? Strings.settingsCardSizeSmall()
+		: Strings.settingsCardSizeRegular();
 }
 
 function formatBytes(bytes: number): string {

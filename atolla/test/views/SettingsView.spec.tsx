@@ -1,5 +1,5 @@
 import 'jasmine/src/jasmine';
-import { type ConnectionMode, ConnectionModes } from 'atolla/src/models/App';
+import { CardSizes, type ConnectionMode, ConnectionModes } from 'atolla/src/models/App';
 import type { ArtworkPaletteService } from 'atolla/src/services/ArtworkPaletteService';
 import type { DownloadService } from 'atolla/src/services/DownloadService';
 import { Logger } from 'atolla/src/services/Logger';
@@ -172,19 +172,19 @@ describe('SettingsView', () => {
 		expect(preferences.jellyfinClientDeviceIdOverride).toBe('bad_id___');
 	});
 
-	valdiIt('writes the selected grid columns to preferences', async (driver) => {
+	valdiIt('writes the selected card size to preferences', async (driver) => {
 		const preferences = mockPreferences();
 		const viewModel = makeViewModel({ preferences });
 		const component = driver.renderComponent(SettingsView, viewModel, undefined);
 
 		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
-			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-grid-columns-dropdown')
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-card-size-dropdown')
 			?.getAttribute('onTap')?.(touchEvent);
 		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
-			.find((v) => v.getAttribute('accessibilityId') === 'settings-grid-columns-option-4')
+			.find((v) => v.getAttribute('accessibilityId') === 'settings-card-size-option-small')
 			?.getAttribute('onTap')?.(touchEvent);
 
-		expect(preferences.gridColumns).toBe(4);
+		expect(preferences.cardSize).toBe(CardSizes.small);
 	});
 
 	valdiIt('toggling animations writes to preferences', async (driver) => {

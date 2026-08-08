@@ -1,57 +1,78 @@
 import 'jasmine/src/jasmine';
-import { ConnectionModes } from 'atolla/src/models/App';
+import { CardSizes, ConnectionModes } from 'atolla/src/models/App';
 import { InMemoryKeyValueStore } from 'atolla/src/stores/KeyValueStore';
 import {
-	DEFAULT_GRID_COLUMNS,
+	CARD_SIZE_OPTIONS,
+	DEFAULT_CARD_SIZE,
 	DEFAULT_LANGUAGE,
 	DEFAULT_TRACK_CACHE_MAX_TRACKS,
-	GRID_COLUMN_OPTIONS,
 	Preferences,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from 'atolla/src/stores/Preferences';
 
 describe('Preferences', () => {
-	describe('getGridColumns()', () => {
+	describe('getCardSize()', () => {
 		it('returns default when preference is missing', async () => {
 			const preferences = new Preferences(new InMemoryKeyValueStore());
 
-			expect(await preferences.getGridColumns()).toBe(DEFAULT_GRID_COLUMNS);
+			expect(await preferences.getCardSize()).toBe(DEFAULT_CARD_SIZE);
 		});
 
 		it('returns default when stored value is invalid', async () => {
 			const store = new InMemoryKeyValueStore();
-			await store.storeString('grid_columns', '999');
+			await store.storeString('card_size', 'enormous');
 			const preferences = new Preferences(store);
 
-			expect(await preferences.getGridColumns()).toBe(DEFAULT_GRID_COLUMNS);
+			expect(await preferences.getCardSize()).toBe(DEFAULT_CARD_SIZE);
 		});
 
 		it('returns stored value when allowed', async () => {
 			const store = new InMemoryKeyValueStore();
-			await store.storeString('grid_columns', String(GRID_COLUMN_OPTIONS[1]));
+			await store.storeString('card_size', CARD_SIZE_OPTIONS[1]);
 			const preferences = new Preferences(store);
 
-			expect(await preferences.getGridColumns()).toBe(GRID_COLUMN_OPTIONS[1]);
+			expect(await preferences.getCardSize()).toBe(CARD_SIZE_OPTIONS[1]);
 		});
 	});
 
-	describe('setGridColumns()', () => {
+	describe('setCardSize()', () => {
 		it('stores allowed value', async () => {
 			const store = new InMemoryKeyValueStore();
 			const preferences = new Preferences(store);
 
-			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[1]);
+			await preferences.setCardSize(CARD_SIZE_OPTIONS[1]);
 
-			expect(await store.fetchString('grid_columns')).toBe(String(GRID_COLUMN_OPTIONS[1]));
+			expect(await store.fetchString('card_size')).toBe(CARD_SIZE_OPTIONS[1]);
 		});
 
 		it('ignores disallowed value', async () => {
 			const store = new InMemoryKeyValueStore();
 			const preferences = new Preferences(store);
 
-			await preferences.setGridColumns(6);
+			await preferences.setCardSize('enormous' as never);
 
-			await expectAsync(store.fetchString('grid_columns')).toBeRejected();
+			await expectAsync(store.fetchString('card_size')).toBeRejected();
+		});
+	});
+
+	// the arithmetic itself is covered by GridColumns.test.ts; these cover the wiring, that the getter
+	// actually reads the selected card size and the window width it was constructed with
+	describe('gridColumns', () => {
+		it('reports more columns for the smaller card size', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore(), 393);
+
+			await preferences.setCardSize(CardSizes.regular);
+			const regularColumns = preferences.gridColumns;
+			await preferences.setCardSize(CardSizes.small);
+
+			expect(preferences.gridColumns).toBeGreaterThan(regularColumns);
+		});
+
+		it('reports more columns on a wider window at the same card size', () => {
+			const phone = new Preferences(new InMemoryKeyValueStore(), 393);
+			const tablet = new Preferences(new InMemoryKeyValueStore(), 1024);
+
+			expect(tablet.gridColumns).toBeGreaterThan(phone.gridColumns);
 		});
 	});
 
@@ -200,7 +221,7 @@ describe('Preferences', () => {
 		it('exposes defaults synchronously before load', () => {
 			const preferences = new Preferences(new InMemoryKeyValueStore());
 
-			expect(preferences.gridColumns).toBe(DEFAULT_GRID_COLUMNS);
+			expect(preferences.cardSize).toBe(DEFAULT_CARD_SIZE);
 			expect(preferences.language).toBe(DEFAULT_LANGUAGE);
 			expect(preferences.animationsEnabled).toBe(true);
 			expect(preferences.mode).toBe(ConnectionModes.offline);
@@ -208,7 +229,7 @@ describe('Preferences', () => {
 
 		it('hydrates in-memory values from the store on load()', async () => {
 			const store = new InMemoryKeyValueStore();
-			await store.storeString('grid_columns', String(GRID_COLUMN_OPTIONS[1]));
+			await store.storeString('card_size', CARD_SIZE_OPTIONS[1]);
 			await store.storeString('language', 'fr');
 			await store.storeString('navigation_animations_enabled', 'false');
 			await store.storeString('mode', ConnectionModes.online);
@@ -216,7 +237,7 @@ describe('Preferences', () => {
 
 			await preferences.load();
 
-			expect(preferences.gridColumns).toBe(GRID_COLUMN_OPTIONS[1]);
+			expect(preferences.cardSize).toBe(CARD_SIZE_OPTIONS[1]);
 			expect(preferences.language).toBe('fr');
 			expect(preferences.animationsEnabled).toBe(false);
 			expect(preferences.mode).toBe(ConnectionModes.online);
@@ -226,18 +247,18 @@ describe('Preferences', () => {
 			const store = new InMemoryKeyValueStore();
 			const preferences = new Preferences(store);
 
-			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[1]);
+			await preferences.setCardSize(CARD_SIZE_OPTIONS[1]);
 
-			expect(preferences.gridColumns).toBe(GRID_COLUMN_OPTIONS[1]);
-			expect(await store.fetchString('grid_columns')).toBe(String(GRID_COLUMN_OPTIONS[1]));
+			expect(preferences.cardSize).toBe(CARD_SIZE_OPTIONS[1]);
+			expect(await store.fetchString('card_size')).toBe(CARD_SIZE_OPTIONS[1]);
 		});
 
 		it('keeps the in-memory value unchanged when set is given a disallowed value', async () => {
 			const preferences = new Preferences(new InMemoryKeyValueStore());
 
-			await preferences.setGridColumns(999);
+			await preferences.setCardSize('enormous' as never);
 
-			expect(preferences.gridColumns).toBe(DEFAULT_GRID_COLUMNS);
+			expect(preferences.cardSize).toBe(DEFAULT_CARD_SIZE);
 		});
 
 		it('notifies subscribers when a value changes', async () => {
@@ -261,7 +282,7 @@ describe('Preferences', () => {
 			});
 
 			unsubscribe();
-			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[1]);
+			await preferences.setCardSize(CARD_SIZE_OPTIONS[1]);
 
 			expect(notifications).toBe(0);
 		});
@@ -306,24 +327,24 @@ describe('Preferences', () => {
 	// every screen view subscribes and re-reads the getters, so a notify for a value that did not
 	// change re-renders the whole settings tree for nothing
 	describe('notify deduplication', () => {
-		it('does not notify when the grid column count is unchanged', async () => {
+		it('does not notify when the card size is unchanged', async () => {
 			const preferences = new Preferences(new InMemoryKeyValueStore());
-			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[1]);
+			await preferences.setCardSize(CARD_SIZE_OPTIONS[1]);
 			let notified = 0;
 			preferences.subscribe(() => notified++);
 
-			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[1]);
+			await preferences.setCardSize(CARD_SIZE_OPTIONS[1]);
 
 			expect(notified).toBe(0);
 		});
 
-		it('notifies when the grid column count actually changes', async () => {
+		it('notifies when the card size actually changes', async () => {
 			const preferences = new Preferences(new InMemoryKeyValueStore());
-			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[1]);
+			await preferences.setCardSize(CARD_SIZE_OPTIONS[1]);
 			let notified = 0;
 			preferences.subscribe(() => notified++);
 
-			await preferences.setGridColumns(GRID_COLUMN_OPTIONS[0]);
+			await preferences.setCardSize(CARD_SIZE_OPTIONS[0]);
 
 			expect(notified).toBe(1);
 		});
@@ -381,9 +402,9 @@ describe('Preferences', () => {
 			const store = new InMemoryKeyValueStore();
 			const preferences = new Preferences(store);
 
-			await preferences.setGridColumns(DEFAULT_GRID_COLUMNS);
+			await preferences.setCardSize(DEFAULT_CARD_SIZE);
 
-			expect(await store.fetchString('grid_columns')).toBe(String(DEFAULT_GRID_COLUMNS));
+			expect(await store.fetchString('card_size')).toBe(DEFAULT_CARD_SIZE);
 		});
 	});
 });

@@ -3,29 +3,32 @@ import { Style } from 'valdi_core/src/Style';
 import type { Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
-export interface SelectOptionViewModel {
+export interface SelectOptionViewModel<Value extends string | number = number> {
 	accessibilityId: string;
-	formatValue?: (value: number) => string;
+	formatValue?: (value: Value) => string;
 	label: string;
-	onSelect: (value: number) => void;
-	options: Array<number>;
-	selectedValue: number;
+	onSelect: (value: Value) => void;
+	options: ReadonlyArray<Value>;
+	selectedValue: Value;
 }
 
 interface SelectOptionState {
 	isOpen: boolean;
 }
 
-export class SelectOption extends StatefulComponent<SelectOptionViewModel, SelectOptionState> {
+export class SelectOption<Value extends string | number = number> extends StatefulComponent<
+	SelectOptionViewModel<Value>,
+	SelectOptionState
+> {
 	state: SelectOptionState = { isOpen: false };
 
-	private optionTapHandlers = new Map<number, () => void>();
+	private optionTapHandlers = new Map<Value, () => void>();
 
 	private handleToggle = (): void => {
 		this.setState({ isOpen: !this.state.isOpen });
 	};
 
-	private getOptionTapHandler = (option: number): (() => void) => {
+	private getOptionTapHandler = (option: Value): (() => void) => {
 		const existing = this.optionTapHandlers.get(option);
 		if (existing) return existing;
 		const handler = (): void => {
@@ -38,7 +41,7 @@ export class SelectOption extends StatefulComponent<SelectOptionViewModel, Selec
 
 	onRender(): void {
 		const { accessibilityId, formatValue, label, options, selectedValue } = this.viewModel;
-		const format = formatValue ?? ((v: number) => `${v}`);
+		const format = formatValue ?? ((v: Value) => `${v}`);
 
 		<view style={styles.container}>
 			<label style={styles.label} value={label} />

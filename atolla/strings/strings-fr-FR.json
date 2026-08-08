@@ -328,6 +328,15 @@
 	"settings_cache_cleared_toast": {
 		"defaultMessage": "cache vidé"
 	},
+	"settings_card_size": {
+		"defaultMessage": "taille des cartes"
+	},
+	"settings_card_size_regular": {
+		"defaultMessage": "normale"
+	},
+	"settings_card_size_small": {
+		"defaultMessage": "petite"
+	},
 	"settings_clear_cache_button": {
 		"defaultMessage": "vider le cache"
 	},
@@ -360,9 +369,6 @@
 	},
 	"settings_download_on_wifi": {
 		"defaultMessage": "uniquement en wi-fi"
-	},
-	"settings_grid_columns": {
-		"defaultMessage": "colonnes de grille"
 	},
 	"settings_http_warning": {
 		"defaultMessage": "connecté via HTTP — les identifiants sont envoyés sans chiffrement"

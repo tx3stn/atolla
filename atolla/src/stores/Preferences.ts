@@ -1,11 +1,13 @@
 import { PersistentStore } from 'persistence/src/PersistentStore';
-import { type ConnectionMode, ConnectionModes } from '../models/App';
+import { Device } from 'valdi_core/src/Device';
+import { type CardSize, CardSizes, type ConnectionMode, ConnectionModes } from '../models/App';
+import { deriveGridColumns } from '../utils/GridColumns';
 
 export const GB = 1024 * 1024 * 1024;
 export const IMAGE_CACHE_SIZE_OPTIONS = [1 * GB, 2 * GB, 3 * GB, 5 * GB, 0];
 export const DEFAULT_IMAGE_CACHE_MAX_BYTES = 2 * GB;
-export const GRID_COLUMN_OPTIONS = [3, 4];
-export const DEFAULT_GRID_COLUMNS = 3;
+export const CARD_SIZE_OPTIONS: ReadonlyArray<CardSize> = [CardSizes.regular, CardSizes.small];
+export const DEFAULT_CARD_SIZE: CardSize = CardSizes.regular;
 export const TRACK_CACHE_LIMIT_OPTIONS = [10, 15, 20, 25, 30, 35];
 export const DEFAULT_TRACK_CACHE_MAX_TRACKS = 20;
 
@@ -17,9 +19,9 @@ export type LanguageCode = (typeof LANGUAGE_OPTIONS)[number]['code'];
 export const DEFAULT_LANGUAGE: LanguageCode = 'en';
 
 const PreferenceKeys = {
+	cardSize: 'card_size',
 	debugLoggingEnabled: 'debug_logging_enabled',
 	downloadOnWifiOnly: 'download_on_wifi_only',
-	gridColumns: 'grid_columns',
 	imageCacheMaxBytes: 'image_cache_max_bytes',
 	jellyfinClientDeviceIdOverride: 'jellyfin_client_device_id_override',
 	language: 'language',
@@ -45,9 +47,9 @@ export class Preferences {
 	private listeners = new Set<() => void>();
 
 	private _animationsEnabled = true;
+	private _cardSize: CardSize = DEFAULT_CARD_SIZE;
 	private _debugLoggingEnabled = false;
 	private _downloadOnWifiOnly = false;
-	private _gridColumns = DEFAULT_GRID_COLUMNS;
 	private _hasStoredMode = false;
 	private _imageCacheMaxBytes = DEFAULT_IMAGE_CACHE_MAX_BYTES;
 	private _jellyfinClientDeviceIdOverride = '';
@@ -55,12 +57,19 @@ export class Preferences {
 	private _mode: ConnectionMode = ConnectionModes.offline;
 	private _trackCacheMaxTracks = DEFAULT_TRACK_CACHE_MAX_TRACKS;
 
-	constructor(store?: PreferencesStore) {
+	constructor(
+		store?: PreferencesStore,
+		private windowWidth: number = Device.getWindowWidth(),
+	) {
 		this.store = store ?? new PersistentStore('preferences');
 	}
 
 	get animationsEnabled(): boolean {
 		return this._animationsEnabled;
+	}
+
+	get cardSize(): CardSize {
+		return this._cardSize;
 	}
 
 	get debugLoggingEnabled(): boolean {
@@ -71,8 +80,10 @@ export class Preferences {
 		return this._downloadOnWifiOnly;
 	}
 
+	// derived rather than stored: the card size fixes a target card width and the window decides how
+	// many of them fit, so a wider screen shows more cards rather than the same few stretched out
 	get gridColumns(): number {
-		return this._gridColumns;
+		return deriveGridColumns(this.windowWidth, this._cardSize);
 	}
 
 	// Whether a connection mode has ever been persisted. Offline mode is only reachable after the
@@ -111,6 +122,18 @@ export class Preferences {
 		}
 	}
 
+	async getCardSize(): Promise<CardSize> {
+		try {
+			const value = await this.store.fetchString(PreferenceKeys.cardSize);
+			if (CARD_SIZE_OPTIONS.includes(value as CardSize)) {
+				return value as CardSize;
+			}
+			return DEFAULT_CARD_SIZE;
+		} catch {
+			return DEFAULT_CARD_SIZE;
+		}
+	}
+
 	async getDebugLoggingEnabled(): Promise<boolean> {
 		try {
 			return (await this.store.fetchString(PreferenceKeys.debugLoggingEnabled)) === 'true';
@@ -124,18 +147,6 @@ export class Preferences {
 			return (await this.store.fetchString(PreferenceKeys.downloadOnWifiOnly)) === 'true';
 		} catch {
 			return false;
-		}
-	}
-
-	async getGridColumns(): Promise<number> {
-		try {
-			const value = Number(await this.store.fetchString(PreferenceKeys.gridColumns));
-			if (GRID_COLUMN_OPTIONS.includes(value as (typeof GRID_COLUMN_OPTIONS)[number])) {
-				return value;
-			}
-			return DEFAULT_GRID_COLUMNS;
-		} catch {
-			return DEFAULT_GRID_COLUMNS;
 		}
 	}
 
@@ -204,9 +215,9 @@ export class Preferences {
 	async load(): Promise<void> {
 		const [
 			animationsEnabled,
+			cardSize,
 			debugLoggingEnabled,
 			downloadOnWifiOnly,
-			gridColumns,
 			hasStoredMode,
 			imageCacheMaxBytes,
 			jellyfinClientDeviceIdOverride,
@@ -215,9 +226,9 @@ export class Preferences {
 			trackCacheMaxTracks,
 		] = await Promise.all([
 			this.getAnimationsEnabled(),
+			this.getCardSize(),
 			this.getDebugLoggingEnabled(),
 			this.getDownloadOnWifiOnly(),
-			this.getGridColumns(),
 			this.hasMode(),
 			this.getImageCacheMaxBytes(),
 			this.getJellyfinClientDeviceIdOverride(),
@@ -226,9 +237,9 @@ export class Preferences {
 			this.getTrackCacheMaxTracks(),
 		]);
 		this._animationsEnabled = animationsEnabled;
+		this._cardSize = cardSize;
 		this._debugLoggingEnabled = debugLoggingEnabled;
 		this._downloadOnWifiOnly = downloadOnWifiOnly;
-		this._gridColumns = gridColumns;
 		this._hasStoredMode = hasStoredMode;
 		this._imageCacheMaxBytes = imageCacheMaxBytes;
 		this._jellyfinClientDeviceIdOverride = jellyfinClientDeviceIdOverride;
@@ -246,6 +257,17 @@ export class Preferences {
 		return this.store.storeString(PreferenceKeys.navigationAnimationsEnabled, String(enabled));
 	}
 
+	setCardSize(size: CardSize): Promise<void> {
+		if (!CARD_SIZE_OPTIONS.includes(size)) {
+			return Promise.resolve();
+		}
+		if (this._cardSize !== size) {
+			this._cardSize = size;
+			this.notify();
+		}
+		return this.store.storeString(PreferenceKeys.cardSize, size);
+	}
+
 	setDebugLoggingEnabled(enabled: boolean): Promise<void> {
 		if (this._debugLoggingEnabled !== enabled) {
 			this._debugLoggingEnabled = enabled;
@@ -260,17 +282,6 @@ export class Preferences {
 			this.notify();
 		}
 		return this.store.storeString(PreferenceKeys.downloadOnWifiOnly, String(enabled));
-	}
-
-	setGridColumns(count: number): Promise<void> {
-		if (!GRID_COLUMN_OPTIONS.includes(count as (typeof GRID_COLUMN_OPTIONS)[number])) {
-			return Promise.resolve();
-		}
-		if (this._gridColumns !== count) {
-			this._gridColumns = count;
-			this.notify();
-		}
-		return this.store.storeString(PreferenceKeys.gridColumns, String(count));
 	}
 
 	setImageCacheMaxBytes(bytes: number): Promise<void> {

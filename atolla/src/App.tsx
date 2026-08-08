@@ -1,6 +1,7 @@
 import { Lazy } from 'foundation/src/Lazy';
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { StatefulComponent } from 'valdi_core/src/Component';
+import { Device } from 'valdi_core/src/Device';
 import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
 import { Locale } from 'valdi_core/src/localization/Locale';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
@@ -99,8 +100,11 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private readonly deviceUserScopeKey = this.resolveDeviceUserScopeKey();
 	private readonly defaultJellyfinClientDeviceId = `atolla-${this.deviceUserScopeKey}`;
 	private authService = this.createAuthService();
+	// the window width is fixed for the process lifetime (the app is portrait-only and opts out of
+	// iPad multitasking), so grid sizing reads it once here rather than re-measuring per render
 	private preferences = new Preferences(
 		new PersistentStore('atolla/preferences', { deviceGlobal: true }),
+		Device.getWindowWidth(),
 	);
 	private barColors = new BarColorStore();
 	private sessionController = new SessionController();

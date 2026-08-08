@@ -7,6 +7,13 @@ export interface CardDetailItem {
 	lineTwo: string;
 }
 
+export const CardSizes = {
+	regular: 'regular',
+	small: 'small',
+} as const;
+
+export type CardSize = (typeof CardSizes)[keyof typeof CardSizes];
+
 export const ConnectionModes = {
 	offline: 'offline',
 	online: 'online',
