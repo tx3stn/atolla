@@ -5,7 +5,7 @@ import { deriveGridColumns } from './GridColumns';
 // the counts the app rendered when the setting was a literal column count — every supported phone
 // width has to keep producing them or changing the setting's shape becomes a visible regression
 describe('deriveGridColumns on phone widths', () => {
-	const phoneWidths = [360, 375, 390, 393, 402, 430, 440];
+	const phoneWidths = [360, 375, 390, 393, 402, 411, 430, 440];
 
 	for (const width of phoneWidths) {
 		it(`gives 3 regular columns at ${width}pt`, () => {
@@ -21,13 +21,15 @@ describe('deriveGridColumns on phone widths', () => {
 describe('deriveGridColumns on tablet widths', () => {
 	it('adds columns as the window widens', () => {
 		expect(deriveGridColumns(744, CardSizes.regular)).toBe(5);
+		expect(deriveGridColumns(800, CardSizes.regular)).toBe(5);
 		expect(deriveGridColumns(834, CardSizes.regular)).toBe(5);
 		expect(deriveGridColumns(1024, CardSizes.regular)).toBe(6);
 	});
 
 	it('adds more columns for the small card size', () => {
-		expect(deriveGridColumns(744, CardSizes.small)).toBe(7);
-		expect(deriveGridColumns(834, CardSizes.small)).toBe(7);
+		expect(deriveGridColumns(744, CardSizes.small)).toBe(6);
+		expect(deriveGridColumns(800, CardSizes.small)).toBe(6);
+		expect(deriveGridColumns(834, CardSizes.small)).toBe(6);
 		expect(deriveGridColumns(1024, CardSizes.small)).toBe(8);
 	});
 

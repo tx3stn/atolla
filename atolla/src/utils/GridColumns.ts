@@ -2,9 +2,9 @@ import { type CardSize, CardSizes } from '../models/App';
 
 // the width the card sizes were tuned against, and the width at which cards stop growing
 const PHONE_WIDTH = 393;
-const TABLET_WIDTH = 1024;
+const TABLET_WIDTH = 834;
 // how much larger a card may get on the widest screen before another column is added instead
-const CARD_GROWTH_MAX = 1.3;
+const CARD_GROWTH_MAX = 1.33;
 
 const CARD_TARGET_WIDTH: Record<CardSize, number> = {
 	[CardSizes.regular]: 130,
