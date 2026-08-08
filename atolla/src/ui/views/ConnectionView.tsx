@@ -250,27 +250,27 @@ const styles = {
 		backgroundColor: theme.colors.bgRaised,
 		borderRadius: theme.radius.pill,
 		bottom: 32,
-		height: 48,
+		height: theme.scale(48),
 		justifyContent: 'center',
 		position: 'absolute',
 		right: 24,
-		width: 48,
+		width: theme.scale(48),
 	}),
 	languageFlag: new Style<Label>({
-		font: systemFont(16),
+		font: systemFont(theme.scale(16)),
 		textAlign: 'center',
 	}),
 	logoContainer: new Style<View>({
 		alignItems: 'center' as const,
 		backgroundColor: theme.colors.bg,
-		height: 96,
+		height: theme.scale(96),
 		justifyContent: 'center' as const,
 		marginBottom: 30,
-		width: 96,
+		width: theme.scale(96),
 	}),
 	logoImage: new Style<ImageView>({
-		height: 96,
-		width: 96,
+		height: theme.scale(96),
+		width: theme.scale(96),
 	}),
 	quickConnectCode: new Style<Label>({
 		...theme.text.mainBold,
@@ -279,7 +279,7 @@ const styles = {
 	}),
 	quickConnectCodeSlot: new Style<View>({
 		alignItems: 'center' as const,
-		height: 28,
+		height: theme.scale(28),
 		justifyContent: 'center' as const,
 	}),
 	quickConnectContainer: new Style<View>({
@@ -288,7 +288,7 @@ const styles = {
 	}),
 	quickConnectSpinnerSlot: new Style<View>({
 		alignItems: 'center' as const,
-		height: 46,
+		height: theme.scale(46),
 		justifyContent: 'center' as const,
 		marginTop: 10,
 	}),

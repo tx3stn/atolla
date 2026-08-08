@@ -2,6 +2,7 @@ import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
+import { deriveUiScale } from './utils/UiScale';
 
 const isAndroid = Device.isAndroid();
 
@@ -29,7 +30,13 @@ export const paletteDefaults = {
 	surface: colors.bgAccent,
 } as const;
 
-const headerAndFooter = 52;
+const uiScale = deriveUiScale(Device.getWindowWidth());
+
+function scaled(value: number): number {
+	return Math.round(value * uiScale);
+}
+
+const headerAndFooter = scaled(52);
 const topInset = Device.getDisplayTopInset();
 
 export const theme = {
@@ -58,7 +65,7 @@ export const theme = {
 		deviceInset: topInset,
 		headerTop: topInset + 16,
 		pill: 14,
-		scrollBottom: 180,
+		scrollBottom: scaled(180),
 		scrollHeader: (isVisible: boolean | null) => {
 			if (isVisible == null) {
 				return headerAndFooter + topInset;
@@ -76,6 +83,7 @@ export const theme = {
 		default: 18,
 		pill: 999,
 	},
+	scale: scaled,
 	shadow: {
 		// floating overlays: now playing surface
 		floating: '0 10 18 rgba(0,0,0,0.35)',
@@ -87,44 +95,44 @@ export const theme = {
 	text: {
 		display: {
 			color: colors.white,
-			font: systemBoldFont(28),
+			font: systemBoldFont(scaled(28)),
 			letterSpacing: 1,
 			paddingBottom: 2,
 		},
 		main: {
 			color: colors.white,
-			font: systemFont(16),
+			font: systemFont(scaled(16)),
 			letterSpacing: 0.7,
 			paddingBottom: 2,
 		},
 		mainBold: {
 			color: colors.white,
-			font: systemBoldFont(16),
+			font: systemBoldFont(scaled(16)),
 			letterSpacing: 0.7,
 			paddingBottom: 2,
 		},
 		mainMuted: {
 			color: colors.grey,
-			font: systemBoldFont(16),
+			font: systemBoldFont(scaled(16)),
 			letterSpacing: 0.9,
 			paddingBottom: 2,
 		},
 		mutedHeader: {
 			color: colors.grey,
-			font: systemBoldFont(18),
+			font: systemBoldFont(scaled(18)),
 			letterSpacing: 0.9,
 		},
 		sub: {
 			color: colors.muted,
-			font: systemFont(14),
+			font: systemFont(scaled(14)),
 		},
 		subLarger: {
 			color: colors.muted,
-			font: systemFont(16),
+			font: systemFont(scaled(16)),
 		},
 		title: {
 			color: colors.white,
-			font: systemBoldFont(18),
+			font: systemBoldFont(scaled(18)),
 			letterSpacing: 0.6,
 			paddingBottom: 2,
 		},

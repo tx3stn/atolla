@@ -1308,9 +1308,9 @@ const styles = {
 	artwork: new Style<ImageView>({
 		borderRadius: theme.radius.default,
 		flexShrink: 0,
-		height: 80,
+		height: theme.scale(80),
 		marginRight: 14,
-		width: 80,
+		width: theme.scale(80),
 	}),
 	compactBar: new Style<View>({
 		alignItems: 'center',
@@ -1337,28 +1337,28 @@ const styles = {
 	compactProgressContainer: new Style<View>({
 		borderRadius: theme.radius.default,
 		bottom: 0,
-		left: 50,
+		left: theme.scale(50),
 		position: 'absolute',
 		right: 0,
 		top: 0,
 	}),
 	controlsRowPlaceholder: new Style<View>({
-		height: 62,
-		width: 62,
+		height: theme.scale(62),
+		width: theme.scale(62),
 	}),
 	expandedArtistFallbackContainer: new Style<Layout>({
 		padding: 0,
 		width: '100%',
 	}),
 	expandedArtistLogo: new Style<ImageView>({
-		height: 70,
+		height: theme.scale(70),
 		marginBottom: -4,
 		objectFit: 'contain',
 		width: '100%',
 	}),
 	expandedArtistLogoArea: new Style<View>({
 		alignItems: 'center',
-		height: 70,
+		height: theme.scale(70),
 		justifyContent: 'center',
 		width: '100%',
 	}),
@@ -1461,7 +1461,7 @@ const styles = {
 	}),
 	expandedTrackMetaSection: new Style<Layout>({
 		alignItems: 'center',
-		height: 75,
+		height: theme.scale(75),
 		justifyContent: 'flex-end',
 		marginBottom: 10,
 		width: '100%',
@@ -1481,7 +1481,7 @@ const styles = {
 	overlayCard: new Style<View>({
 		borderRadius: theme.radius.default,
 		bottom: theme.footerHeight * 0.8,
-		height: 84,
+		height: theme.scale(84),
 		left: 20,
 		position: 'absolute',
 		right: 20,
@@ -1505,11 +1505,11 @@ const styles = {
 	queueTabsEdge: new Style<View>({
 		alignItems: 'center',
 		justifyContent: 'center',
-		width: 44,
+		width: theme.scale(44),
 	}),
 	rootCollapsed: new Style<View>({
 		bottom: 0,
-		height: 180,
+		height: theme.scale(180),
 		left: 0,
 		position: 'absolute',
 		right: 0,
@@ -1526,10 +1526,10 @@ const styles = {
 	}),
 	transitionArtwork: new Style<ImageView>({
 		aspectRatio: 1,
-		left: 12,
+		left: theme.scale(12),
 		position: 'absolute',
-		top: 10,
-		width: 65,
+		top: theme.scale(10),
+		width: theme.scale(65),
 		zIndex: 40,
 	}),
 };

@@ -110,7 +110,7 @@ const styles = {
 		width: '90%',
 	}),
 	logo: new Style<ImageView>({
-		height: 40,
+		height: theme.scale(40),
 		width: '100%',
 	}),
 	scroll: new Style<ScrollView>({

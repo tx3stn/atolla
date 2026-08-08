@@ -883,9 +883,9 @@ const styles = {
 		width: '100%',
 	}),
 	recentSearchIcon: new Style<ImageView>({
-		height: 18,
+		height: theme.scale(18),
 		margin: 10,
-		width: 18,
+		width: theme.scale(18),
 	}),
 	recentSearchText: new Style<Label>({
 		...theme.text.subLarger,
@@ -933,8 +933,8 @@ const styles = {
 		padding: 12,
 	}),
 	searchIcon: new Style<ImageView>({
-		height: 24,
-		width: 24,
+		height: theme.scale(24),
+		width: theme.scale(24),
 	}),
 	searchInput: new Style<TextField>({
 		...theme.text.main,

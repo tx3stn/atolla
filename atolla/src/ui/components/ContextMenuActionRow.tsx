@@ -69,8 +69,8 @@ const styles = {
 		width: '100%',
 	}),
 	icon: new Style<ImageView>({
-		height: 18,
+		height: theme.scale(18),
 		margin: 10,
-		width: 18,
+		width: theme.scale(18),
 	}),
 };

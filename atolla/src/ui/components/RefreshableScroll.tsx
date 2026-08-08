@@ -212,8 +212,8 @@ const styles = {
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgFrosted,
 		borderRadius: theme.radius.pill,
-		height: 40,
+		height: theme.scale(40),
 		justifyContent: 'center',
-		width: 40,
+		width: theme.scale(40),
 	}),
 };

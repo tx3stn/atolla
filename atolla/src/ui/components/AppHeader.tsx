@@ -239,7 +239,7 @@ const styles = {
 		justifyContent: 'flex-start',
 		paddingLeft: 6,
 		paddingRight: 6,
-		width: 60,
+		width: theme.scale(60),
 	}),
 	root: new Style<View>({
 		backgroundColor: theme.colors.transparent,
@@ -307,13 +307,13 @@ const styles = {
 		alignItems: 'flex-end',
 		bottom: 0,
 		justifyContent: 'center',
-		left: 64,
+		left: theme.scale(64),
 		paddingRight: 16,
 		position: 'absolute',
 		right: 0,
 		top: theme.padding.deviceInset,
 	}),
 	trailingSpacer: new Style<Layout>({
-		width: 65,
+		width: theme.scale(65),
 	}),
 };

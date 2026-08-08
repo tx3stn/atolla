@@ -1195,7 +1195,7 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 			backgroundColor: colors.tileBackground,
 			borderRadius: theme.radius.default / 2,
 			slowClipping: true,
-			width: 42,
+			width: theme.scale(42),
 		}),
 		emptyStateStyle: new Style<Label>({
 			...theme.text.sub,
@@ -1272,8 +1272,8 @@ const styles = {
 		paddingRight: 2,
 	}),
 	editHandleIcon: new Style<ImageView>({
-		height: 24,
-		width: 24,
+		height: theme.scale(24),
+		width: theme.scale(24),
 	}),
 	leadingLabelTile: new Style<Layout>({
 		alignItems: 'center',
@@ -1281,7 +1281,7 @@ const styles = {
 		aspectRatio: 1,
 		justifyContent: 'flex-start',
 		paddingTop: 5,
-		width: 38,
+		width: theme.scale(38),
 	}),
 	list: new Style<Layout>({
 		width: '100%',
@@ -1315,8 +1315,8 @@ const styles = {
 		top: 0,
 	}),
 	swipeRemoveActionIcon: new Style<ImageView>({
-		height: 20,
-		width: 20,
+		height: theme.scale(20),
+		width: theme.scale(20),
 	}),
 	textBlock: new Style<Layout>({
 		flexGrow: 1,

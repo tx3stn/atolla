@@ -18,14 +18,14 @@ const styles = {
 	logoContainer: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bg,
-		height: 80,
+		height: theme.scale(80),
 		justifyContent: 'center',
 		marginBottom: 16,
-		width: 80,
+		width: theme.scale(80),
 	}),
 	logoImage: new Style<View>({
-		height: 80,
-		width: 80,
+		height: theme.scale(80),
+		width: theme.scale(80),
 	}),
 	root: new Style<View>({
 		alignItems: 'center',

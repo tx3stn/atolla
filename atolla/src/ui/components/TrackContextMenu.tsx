@@ -217,7 +217,7 @@ const styles = {
 	}),
 	logoContainer: new Style<View>({
 		alignItems: 'center' as const,
-		height: 60,
+		height: theme.scale(60),
 		marginBottom: 12,
 		slowClipping: true,
 		width: '100%',

@@ -345,9 +345,9 @@ const styles = {
 	}),
 	entityArtwork: new Style<ImageView>({
 		borderRadius: theme.radius.card,
-		height: 40,
+		height: theme.scale(40),
 		marginRight: 12,
-		width: 40,
+		width: theme.scale(40),
 	}),
 	entityLabel: new Style<Label>({
 		...theme.text.main,
@@ -366,7 +366,7 @@ const styles = {
 	}),
 	logoContainer: new Style<View>({
 		alignItems: 'center' as const,
-		height: 60,
+		height: theme.scale(60),
 		marginBottom: 12,
 		slowClipping: true,
 		width: '100%',

@@ -3,6 +3,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
+import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { LogoWaveformReveal } from '../animations/LogoWaveformReveal';
 import { LogoWifiOff } from '../animations/LogoWifiOff';
@@ -199,11 +200,11 @@ export class ConnectivityFab extends StatefulComponent<
 const styles = {
 	hitTarget: new Style<View>({
 		alignItems: 'center',
-		height: 46,
+		height: theme.scale(46),
 		justifyContent: 'center',
 		overflow: 'visible',
 		position: 'relative',
-		width: 46,
+		width: theme.scale(46),
 	}),
 	logo: new Style<ImageView>({
 		height: logoSize,

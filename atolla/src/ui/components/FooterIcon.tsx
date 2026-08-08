@@ -67,7 +67,7 @@ const styles = {
 		paddingBottom: 8,
 	}),
 	footerTabIconImage: new Style<ImageView>({
-		height: 26,
-		width: 26,
+		height: theme.scale(26),
+		width: theme.scale(26),
 	}),
 };

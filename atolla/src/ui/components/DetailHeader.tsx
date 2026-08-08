@@ -438,11 +438,11 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 const styles = {
 	addToQueueButton: new Style<View>({
 		alignItems: 'center',
-		height: 40,
+		height: theme.scale(40),
 		justifyContent: 'center',
 		overflow: 'visible',
 		position: 'relative',
-		width: 40,
+		width: theme.scale(40),
 	}),
 	artistFallbackContainer: new Style<Layout>({
 		padding: 0,
@@ -456,7 +456,7 @@ const styles = {
 		width: '100%',
 	}),
 	artistLogoImage: new Style<ImageView>({
-		height: 64,
+		height: theme.scale(64),
 		objectFit: 'contain',
 		width: '100%',
 	}),
@@ -479,13 +479,13 @@ const styles = {
 		width: '25%',
 	}),
 	buttonIcon: new Style<ImageView>({
-		height: 24,
-		width: 24,
+		height: theme.scale(24),
+		width: theme.scale(24),
 	}),
 	buttonIconHidden: new Style<ImageView>({
-		height: 24,
+		height: theme.scale(24),
 		opacity: 0,
-		width: 24,
+		width: theme.scale(24),
 	}),
 	buttonsRow: new Style<Layout>({
 		alignItems: 'center',
@@ -502,27 +502,27 @@ const styles = {
 	}),
 	downloadIconHidden: new Style<View>({
 		alignItems: 'center',
-		height: 40,
+		height: theme.scale(40),
 		justifyContent: 'center',
 		opacity: 0,
 		overflow: 'visible',
-		width: 40,
+		width: theme.scale(40),
 	}),
 	downloadIconStack: new Style<View>({
 		alignItems: 'center',
-		height: 40,
+		height: theme.scale(40),
 		justifyContent: 'center',
 		overflow: 'visible',
 		position: 'relative',
-		width: 40,
+		width: theme.scale(40),
 	}),
 	downloadIconVisible: new Style<View>({
 		alignItems: 'center',
-		height: 40,
+		height: theme.scale(40),
 		justifyContent: 'center',
 		opacity: 1,
 		overflow: 'visible',
-		width: 40,
+		width: theme.scale(40),
 	}),
 	downloadTickOverlay: new Style<View>({
 		alignItems: 'center',
