@@ -4,6 +4,7 @@ import type { ElementRef } from 'valdi_core/src/ElementRef';
 import type { ValdiRuntime } from 'valdi_core/src/ValdiRuntime';
 import type { Asset } from 'valdi_tsx/src/Asset';
 import type { AnimatedImage } from 'valdi_tsx/src/NativeTemplateElements';
+import { theme } from '../../theme';
 import { getAnimationStyle, getRootStyle } from './Styles';
 
 declare const runtime: ValdiRuntime;
@@ -33,7 +34,7 @@ export interface LoadingSpinnerViewModel {
 export class LoadingSpinner extends Component<LoadingSpinnerViewModel> {
 	onRender(): void {
 		const accessibilityId = this.viewModel.accessibilityId ?? 'spinner';
-		const size = this.viewModel.size ?? defaultSize;
+		const size = theme.scale(this.viewModel.size ?? defaultSize);
 		const speed = this.viewModel.speed ?? defaultSpeed;
 		const spinning = this.viewModel.spinning ?? true;
 

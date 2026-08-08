@@ -182,7 +182,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 		hapticFeedback();
 
 		if (animationsEnabled) {
-			animateRipple(this, this.rippleRef, 40, 1.55);
+			animateRipple(this, this.rippleRef, theme.scale(40), 1.55);
 		}
 
 		try {
@@ -359,7 +359,10 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 								onTap={addToQueuePhase === 'idle' ? this.handleAddToQueueTap : undefined}
 								style={styles.addToQueueButton}
 							>
-								<view ref={this.rippleRef} style={createRippleStyle(theme.colors.white)} />
+								<view
+									ref={this.rippleRef}
+									style={createRippleStyle(theme.colors.white, theme.scale(40))}
+								/>
 								{addToQueuePhase === 'idle' ? (
 									<image src={res.addtoqueue} style={styles.buttonIcon} tint={theme.colors.white} />
 								) : (

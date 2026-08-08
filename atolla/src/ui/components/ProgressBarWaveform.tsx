@@ -4,6 +4,7 @@ import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { PlaybackStore } from '../../stores/Playback';
+import { theme } from '../../theme';
 import { ProgressBarPlain } from './ProgressBarPlain';
 
 export interface ProgressBarWaveformViewModel {
@@ -18,7 +19,7 @@ export interface ProgressBarWaveformViewModel {
 	trackDuration: number;
 }
 
-const WAVEFORM_HEIGHT = 35;
+const WAVEFORM_HEIGHT = theme.scale(35);
 
 export class ProgressBarWaveform extends Component<ProgressBarWaveformViewModel> {
 	private trackWidth: number | null = null;
@@ -182,7 +183,7 @@ function createAccentImageStyle(accentColor: string): Style<ImageView> {
 	return style;
 }
 
-const TAP_ZONE_HEIGHT = 48;
+const TAP_ZONE_HEIGHT = theme.scale(48);
 
 const styles = {
 	clip: new Style<View>({

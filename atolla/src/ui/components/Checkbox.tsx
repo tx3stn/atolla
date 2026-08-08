@@ -28,7 +28,7 @@ export class Checkbox extends Component<CheckboxViewModel> {
 	}
 }
 
-const CHECKBOX_SIZE = 20;
+const CHECKBOX_SIZE = theme.scale(20);
 
 const styles = {
 	checkboxChecked: new Style<View>({

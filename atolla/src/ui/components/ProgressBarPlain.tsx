@@ -116,7 +116,7 @@ function createTrackStyle(thickness: number): Style<View> {
 	}
 
 	const clampedThickness = Math.max(2, thickness);
-	const hitHeight = Math.max(24, clampedThickness + 10);
+	const hitHeight = theme.scale(Math.max(24, clampedThickness + 10));
 	const style = new Style<View>({
 		height: hitHeight,
 		justifyContent: 'center',
@@ -136,7 +136,7 @@ function createRailStyle(trackColor: string, thickness: number): Style<View> {
 		return cached;
 	}
 
-	const clampedThickness = Math.max(2, thickness);
+	const clampedThickness = theme.scale(Math.max(2, thickness));
 	const style = new Style<View>({
 		backgroundColor: trackColor,
 		borderRadius: clampedThickness / 2,
@@ -179,7 +179,7 @@ function createPlayheadStyle(accentColor: string, thickness: number): Style<View
 	}
 
 	// opacity is intentionally omitted: set via ref in updateProgressRefs()
-	const size = Math.max(10, thickness + 6);
+	const size = theme.scale(Math.max(10, thickness + 6));
 	const style = new Style<View>({
 		backgroundColor: accentColor,
 		borderColor: theme.colors.white,

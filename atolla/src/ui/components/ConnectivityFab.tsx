@@ -207,8 +207,8 @@ const styles = {
 		width: theme.scale(46),
 	}),
 	logo: new Style<ImageView>({
-		height: logoSize,
-		width: logoSize,
+		height: theme.scale(logoSize),
+		width: theme.scale(logoSize),
 	}),
 	logoAnimationOverlay: new Style<View>({
 		alignItems: 'center',
@@ -220,9 +220,9 @@ const styles = {
 		top: 0,
 	}),
 	logoHidden: new Style<ImageView>({
-		height: logoSize,
+		height: theme.scale(logoSize),
 		opacity: 0,
-		width: logoSize,
+		width: theme.scale(logoSize),
 	}),
 	logoWrap: new Style<View>({
 		position: 'relative',

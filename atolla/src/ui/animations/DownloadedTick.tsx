@@ -3,6 +3,7 @@ import { Component } from 'valdi_core/src/Component';
 import type { ValdiRuntime } from 'valdi_core/src/ValdiRuntime';
 import type { Asset } from 'valdi_tsx/src/Asset';
 import type { AnimatedImageOnProgressEvent } from 'valdi_tsx/src/NativeTemplateElements';
+import { theme } from '../../theme';
 import { getAnimationStyle, getRootStyle } from './Styles';
 
 declare const runtime: ValdiRuntime;
@@ -32,7 +33,7 @@ export class DownloadedTick extends Component<DownloadedTickViewModel> {
 
 	onRender(): void {
 		const accessibilityId = this.viewModel.accessibilityId ?? 'downloaded-tick';
-		const size = this.viewModel.size ?? defaultSize;
+		const size = theme.scale(this.viewModel.size ?? defaultSize);
 
 		<view
 			accessibilityId={accessibilityId}

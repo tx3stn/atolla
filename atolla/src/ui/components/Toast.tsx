@@ -251,10 +251,10 @@ const styles = {
 		marginTop: 4,
 	}),
 	icon: new Style<ImageView>({
-		height: iconSize,
+		height: theme.scale(iconSize),
 		marginRight: 10,
 		marginTop: 2,
-		width: iconSize,
+		width: theme.scale(iconSize),
 	}),
 	leading: new Style<View>({
 		marginRight: 10,

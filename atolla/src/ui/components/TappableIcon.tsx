@@ -24,6 +24,16 @@ export interface TappableIconViewModel {
 export class TappableIcon extends Component<TappableIconViewModel> {
 	private rippleRef = new ElementRef();
 
+	// callers pass phone-baseline points; the scale is applied here so every icon in the app grows
+	// on a tablet without each call site knowing about it
+	private get hitSize(): number {
+		return theme.scale(this.viewModel.hitSize ?? 40);
+	}
+
+	private get iconSize(): number {
+		return theme.scale(this.viewModel.iconSize ?? 24);
+	}
+
 	private handleTap = (): void => {
 		const isEnabled = this.viewModel.enabled !== false && !!this.viewModel.onTap;
 		if (!isEnabled) {
@@ -31,12 +41,7 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 		}
 
 		if (this.viewModel.animationsEnabled) {
-			animateRipple(
-				this,
-				this.rippleRef,
-				this.viewModel.hitSize ?? 40,
-				this.viewModel.rippleScale ?? 1.55,
-			);
+			animateRipple(this, this.rippleRef, this.hitSize, this.viewModel.rippleScale ?? 1.55);
 		}
 
 		hapticFeedback();
@@ -48,12 +53,11 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 		const {
 			accessibilityId,
 			disabledTint = theme.colors.muted,
-			hitSize = 40,
-			iconSize = 24,
 			onTap,
 			rippleTint,
 			tint = theme.colors.white,
 		} = this.viewModel;
+		const { hitSize, iconSize } = this;
 
 		const isEnabled = this.viewModel.enabled !== false && !!onTap;
 		const resolvedTint = isEnabled ? tint : disabledTint;

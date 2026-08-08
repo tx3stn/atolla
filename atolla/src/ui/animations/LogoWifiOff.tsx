@@ -2,6 +2,7 @@ import { makeAssetFromBytes } from 'valdi_core/src/Asset';
 import { Component } from 'valdi_core/src/Component';
 import type { ValdiRuntime } from 'valdi_core/src/ValdiRuntime';
 import type { Asset } from 'valdi_tsx/src/Asset';
+import { theme } from '../../theme';
 import { getAnimationStyle, getRootStyle } from './Styles';
 
 declare const runtime: ValdiRuntime;
@@ -27,7 +28,7 @@ export interface LogoWifiOffViewModel {
 export class LogoWifiOff extends Component<LogoWifiOffViewModel> {
 	onRender(): void {
 		const accessibilityId = this.viewModel.accessibilityId ?? 'logo-wifi-off';
-		const size = this.viewModel.size ?? defaultSize;
+		const size = theme.scale(this.viewModel.size ?? defaultSize);
 
 		<view
 			accessibilityId={accessibilityId}

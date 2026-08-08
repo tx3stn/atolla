@@ -4,10 +4,10 @@ import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 
-const TRACK_WIDTH = 44;
-const TRACK_HEIGHT = 26;
-const THUMB_SIZE = 20;
-const THUMB_MARGIN = 3;
+const TRACK_WIDTH = theme.scale(44);
+const TRACK_HEIGHT = theme.scale(26);
+const THUMB_SIZE = theme.scale(20);
+const THUMB_MARGIN = theme.scale(3);
 
 export interface ToggleViewModel {
 	accessibilityId?: string;
