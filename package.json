@@ -31,6 +31,7 @@
 	"scripts": {
 		"adb:reload": "adb shell am force-stop com.tx3stn.atolla && adb shell monkey -p com.tx3stn.atolla -c android.intent.category.LAUNCHER 1",
 		"android": "./.scripts/build-and-run-android.sh",
+		"android:tablet": "AVD_NAME=gsd-tablet-api34 bun run android",
 		"appium:inspect": "./.scripts/start-appium-inspector.sh",
 		"build:apk": "./.scripts/build-android-apk.sh",
 		"build:ipa": "./.scripts/build-ios-ipa.sh",
@@ -45,6 +46,7 @@
 		"icons:generate": "bun ./.scripts/generate-icons.ts",
 		"icons:palette": "bun ./.scripts/generate-palette.ts",
 		"ios": "./.scripts/build-and-run-ios.sh",
+		"ios:tablet": "SIMULATOR_NAME='iPad Pro 11-inch (M5)' bun run ios",
 		"lint": "biome check --write --assist-enabled=true --enforce-assist=true --unsafe .",
 		"mobsf": "docker run --rm -v $(pwd):/src opensecurity/mobsfscan /src --config /src/.mobsf.yaml",
 		"mobsf:ui": "docker run -it --rm -p 8000:8000 opensecurity/mobile-security-framework-mobsf:latest",
