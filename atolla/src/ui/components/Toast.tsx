@@ -62,7 +62,10 @@ const swipeBase = 16;
 // past either threshold a horizontal swipe dismisses; below it the pill springs back to rest
 const swipeDismissDistance = 100;
 const swipeDismissVelocity = 600;
-const swipeOffScreen = 500;
+// the fling re-anchors the pill rather than translating it, so the distance is measured against the
+// pill's own width. it travels well past that so the spring is still moving quickly as the trailing
+// edge leaves the screen — settling it at the edge leaves the last sliver visibly lingering
+const swipeOffScreen = Math.round((theme.windowWidth - swipeBase * 2) * 1.4);
 
 export class Toast extends StatefulComponent<ToastViewModel, ToastState> {
 	state: ToastState = { expanded: false, shown: false };

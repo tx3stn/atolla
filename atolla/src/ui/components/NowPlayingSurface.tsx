@@ -43,6 +43,9 @@ import { TappableIcon } from './TappableIcon';
 import { TouchEventState } from './TouchEventState';
 import { TrackList, type TrackListEntry } from './TrackList';
 
+const COMPACT_SWIPE_BASE = 8;
+const COMPACT_SWIPE_OFF_SCREEN = Math.round((theme.windowWidth - COMPACT_SWIPE_BASE * 2) * 1.4);
+
 // a transition still flagged in-flight after this window was abandoned mid-animation
 // by a background freeze (Valdi animations/timers stop when backgrounded, so the
 // completion callback never fired). sits above the open/close animation durations so a
@@ -484,8 +487,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		if (event.state === TouchEventState.Changed) {
-			this.compactBarRef.setAttribute('left', 8 + event.deltaX);
-			this.compactBarRef.setAttribute('right', 8 - event.deltaX);
+			this.compactBarRef.setAttribute('left', COMPACT_SWIPE_BASE + event.deltaX);
+			this.compactBarRef.setAttribute('right', COMPACT_SWIPE_BASE - event.deltaX);
 			return;
 		}
 
@@ -503,10 +506,10 @@ export class NowPlayingSurface extends StatefulComponent<
 		const hasEnoughVelocity = Math.abs(event.velocityX) >= 600;
 
 		if (isHorizontal && (hasEnoughDistance || hasEnoughVelocity)) {
-			const offset = event.deltaX > 0 ? 500 : -500;
+			const offset = event.deltaX > 0 ? COMPACT_SWIPE_OFF_SCREEN : -COMPACT_SWIPE_OFF_SCREEN;
 			this.runAnimatePromise({ damping: 30, stiffness: 300 }, () => {
-				this.compactBarRef.setAttribute('left', 8 + offset);
-				this.compactBarRef.setAttribute('right', 8 - offset);
+				this.compactBarRef.setAttribute('left', COMPACT_SWIPE_BASE + offset);
+				this.compactBarRef.setAttribute('right', COMPACT_SWIPE_BASE - offset);
 			}).then(() => {
 				if (this.isDestroyed()) return;
 				this.handleDismiss();
@@ -515,8 +518,8 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		this.runAnimate({ damping: 18, stiffness: 280 }, () => {
-			this.compactBarRef.setAttribute('left', 8);
-			this.compactBarRef.setAttribute('right', 8);
+			this.compactBarRef.setAttribute('left', COMPACT_SWIPE_BASE);
+			this.compactBarRef.setAttribute('right', COMPACT_SWIPE_BASE);
 		});
 	};
 
@@ -1318,11 +1321,11 @@ const styles = {
 		bottom: theme.footerHeight * 1.2,
 		boxShadow: theme.shadow.floating,
 		flexDirection: 'row',
-		left: 8,
+		left: COMPACT_SWIPE_BASE,
 		marginLeft: theme.scale(10),
 		marginRight: theme.scale(10),
 		position: 'absolute',
-		right: 8,
+		right: COMPACT_SWIPE_BASE,
 		slowClipping: true,
 		zIndex: 25,
 	}),

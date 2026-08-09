@@ -2,7 +2,7 @@ import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
-import { deriveUiScale } from './utils/UiScale';
+import { deriveGestureScale, deriveUiScale } from './utils/UiScale';
 
 const isAndroid = Device.isAndroid();
 
@@ -30,10 +30,16 @@ export const paletteDefaults = {
 	surface: colors.bgAccent,
 } as const;
 
-const uiScale = deriveUiScale(Device.getWindowWidth());
+const windowWidth = Device.getWindowWidth();
+const uiScale = deriveUiScale(windowWidth);
+const gestureScale = deriveGestureScale(windowWidth);
 
 function scaled(value: number): number {
 	return Math.round(value * uiScale);
+}
+
+function scaledGesture(value: number): number {
+	return Math.round(value * gestureScale);
 }
 
 const headerAndFooter = scaled(52);
@@ -84,6 +90,7 @@ export const theme = {
 		pill: 999,
 	},
 	scale: scaled,
+	scaleGesture: scaledGesture,
 	shadow: {
 		// floating overlays: now playing surface
 		floating: '0 10 18 rgba(0,0,0,0.35)',
@@ -137,6 +144,7 @@ export const theme = {
 			paddingBottom: 2,
 		},
 	},
+	windowWidth: windowWidth,
 } as const;
 
 export function withAlpha(hexColor: string, alpha: number): string {

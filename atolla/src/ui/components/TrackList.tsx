@@ -90,8 +90,8 @@ const defaultColors: TrackListColors = {
 	title: theme.text.main.color,
 };
 
-const MAX_SWIPE_DISTANCE = 88;
-const REMOVE_SWIPE_DISTANCE = 64;
+const MAX_SWIPE_DISTANCE = theme.scaleGesture(88);
+const REMOVE_SWIPE_DISTANCE = theme.scaleGesture(64);
 const REMOVE_SWIPE_VELOCITY = 700;
 // fallback slot height, used only when live row geometry is unavailable (before the
 // first layout pass or in tests); real drags measure each row's frame
