@@ -472,6 +472,7 @@ const styles = {
 		aspectRatio: 1,
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.radius.default,
+		maxWidth: theme.scale(220),
 		slowClipping: true,
 		width: '50%',
 	}),
@@ -553,10 +554,11 @@ const styles = {
 	rightColumn: new Style<Layout>({
 		alignSelf: 'stretch',
 		flexDirection: 'column',
+		flexGrow: 1,
+		flexShrink: 1,
 		height: '100%',
 		marginLeft: theme.scale(8),
 		position: 'relative',
-		width: '46%',
 	}),
 	root: new Style<View>({
 		marginBottom: theme.scale(12),
