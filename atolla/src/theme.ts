@@ -2,7 +2,12 @@ import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
-import { deriveGestureScale, deriveNavScale, deriveUiScale } from './utils/UiScale';
+import {
+	deriveGestureScale,
+	deriveHeroScale,
+	deriveNavScale,
+	deriveUiScale,
+} from './utils/UiScale';
 
 const isAndroid = Device.isAndroid();
 
@@ -34,6 +39,7 @@ const windowWidth = Device.getWindowWidth();
 const uiScale = deriveUiScale(windowWidth);
 const gestureScale = deriveGestureScale(windowWidth);
 const navScale = deriveNavScale(windowWidth);
+const heroScale = deriveHeroScale(windowWidth);
 
 function scaled(value: number): number {
 	return Math.round(value * uiScale);
@@ -41,6 +47,10 @@ function scaled(value: number): number {
 
 function scaledGesture(value: number): number {
 	return Math.round(value * gestureScale);
+}
+
+function scaledHero(value: number): number {
+	return Math.round(value * heroScale);
 }
 
 function scaledNav(value: number): number {
@@ -96,6 +106,7 @@ export const theme = {
 	},
 	scale: scaled,
 	scaleGesture: scaledGesture,
+	scaleHero: scaledHero,
 	scaleNav: scaledNav,
 	shadow: {
 		// floating overlays: now playing surface

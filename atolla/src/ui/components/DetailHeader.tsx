@@ -459,7 +459,7 @@ const styles = {
 		width: '100%',
 	}),
 	artistLogoImage: new Style<ImageView>({
-		height: theme.scale(64),
+		height: theme.scaleHero(64),
 		objectFit: 'contain',
 		width: '100%',
 	}),

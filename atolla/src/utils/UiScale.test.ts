@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { deriveGestureScale, deriveNavScale, deriveUiScale } from './UiScale';
+import { deriveGestureScale, deriveHeroScale, deriveNavScale, deriveUiScale } from './UiScale';
 
 // the scale exists to make a tablet readable, so no phone may move a single point
 describe('deriveUiScale on phone widths', () => {
@@ -106,5 +106,41 @@ describe('deriveNavScale with an unusable width', () => {
 		expect(deriveNavScale(0)).toBe(1);
 		expect(deriveNavScale(Number.NaN)).toBe(1);
 		expect(deriveNavScale(-100)).toBe(1);
+	});
+});
+
+describe('deriveHeroScale on phone widths', () => {
+	const phoneWidths = [320, 360, 375, 390, 393, 402, 411, 430, 440];
+
+	for (const width of phoneWidths) {
+		it(`stays exactly 1 at ${width}pt`, () => {
+			expect(deriveHeroScale(width)).toBe(1);
+		});
+	}
+});
+
+describe('deriveHeroScale on tablet widths', () => {
+	it('grows with the window', () => {
+		expect(deriveHeroScale(744)).toBeGreaterThan(1);
+		expect(deriveHeroScale(834)).toBeGreaterThan(deriveHeroScale(744));
+	});
+
+	// the only ramp that outpaces the interface: artwork and logos exist to use the extra canvas,
+	// where everything else exists to stay legible on it
+	it('grows faster than the interface around it', () => {
+		expect(deriveHeroScale(834)).toBeGreaterThan(deriveUiScale(834));
+	});
+
+	it('stops growing past the tablet width', () => {
+		expect(deriveHeroScale(1024)).toBe(deriveHeroScale(834));
+		expect(deriveHeroScale(2048)).toBe(deriveHeroScale(834));
+	});
+});
+
+describe('deriveHeroScale with an unusable width', () => {
+	it('falls back to unscaled rather than collapsing the artwork', () => {
+		expect(deriveHeroScale(0)).toBe(1);
+		expect(deriveHeroScale(Number.NaN)).toBe(1);
+		expect(deriveHeroScale(-100)).toBe(1);
 	});
 });
