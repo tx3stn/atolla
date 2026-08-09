@@ -9,6 +9,10 @@ const GESTURE_SCALE_MAX = 1.15;
 // the header and footer frame the content rather than being content, so they grow just enough to stay
 // comfortable targets. fully scaled they read as too tall and eat the screen
 const NAV_SCALE_MAX = 1.2;
+// the expanded player is one fixed surface rather than a list to read through: its type and controls
+// are already large and central, so they only need modest growth. kept apart from the nav ramp even
+// though the ceilings match today, so tuning the player cannot silently resize the header and footer
+const PLAYER_SCALE_MAX = 1.2;
 // artwork and logos are the reason for the extra canvas, so they ramp past the interface scale to use
 // it. safe to be generous: they are laid out with objectFit contain inside a column, so a wide one
 // stops growing when it meets the column width rather than when it meets this ceiling
@@ -24,6 +28,10 @@ export function deriveGestureScale(windowWidth: number): number {
 
 export function deriveNavScale(windowWidth: number): number {
 	return rampedScale(windowWidth, NAV_SCALE_MAX);
+}
+
+export function derivePlayerScale(windowWidth: number): number {
+	return rampedScale(windowWidth, PLAYER_SCALE_MAX);
 }
 
 export function deriveUiScale(windowWidth: number): number {

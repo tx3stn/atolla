@@ -6,6 +6,7 @@ import {
 	deriveGestureScale,
 	deriveHeroScale,
 	deriveNavScale,
+	derivePlayerScale,
 	deriveUiScale,
 } from './utils/UiScale';
 
@@ -36,10 +37,12 @@ export const paletteDefaults = {
 } as const;
 
 const windowWidth = Device.getWindowWidth();
+const windowHeight = Device.getWindowHeight();
 const uiScale = deriveUiScale(windowWidth);
 const gestureScale = deriveGestureScale(windowWidth);
 const navScale = deriveNavScale(windowWidth);
 const heroScale = deriveHeroScale(windowWidth);
+const playerScale = derivePlayerScale(windowWidth);
 
 function scaled(value: number): number {
 	return Math.round(value * uiScale);
@@ -55,6 +58,10 @@ function scaledHero(value: number): number {
 
 function scaledNav(value: number): number {
 	return Math.round(value * navScale);
+}
+
+function scaledPlayer(value: number): number {
+	return Math.round(value * playerScale);
 }
 
 const headerAndFooter = scaledNav(52);
@@ -108,6 +115,7 @@ export const theme = {
 	scaleGesture: scaledGesture,
 	scaleHero: scaledHero,
 	scaleNav: scaledNav,
+	scalePlayer: scaledPlayer,
 	shadow: {
 		// floating overlays: now playing surface
 		floating: '0 10 18 rgba(0,0,0,0.35)',
@@ -158,6 +166,26 @@ export const theme = {
 			font: systemBoldFont(scaled(18)),
 			letterSpacing: 0.9,
 		},
+		playerAlbum: {
+			color: colors.muted,
+			font: systemFont(scaledPlayer(16)),
+		},
+		playerArtist: {
+			color: colors.white,
+			font: systemBoldFont(scaledPlayer(28)),
+			letterSpacing: 1,
+			paddingBottom: 2,
+		},
+		playerTime: {
+			color: colors.muted,
+			font: systemFont(scaledPlayer(14)),
+		},
+		playerTitle: {
+			color: colors.white,
+			font: systemBoldFont(scaledPlayer(18)),
+			letterSpacing: 0.6,
+			paddingBottom: 2,
+		},
 		sub: {
 			color: colors.muted,
 			font: systemFont(scaled(14)),
@@ -173,6 +201,7 @@ export const theme = {
 			paddingBottom: 2,
 		},
 	},
+	windowHeight: windowHeight,
 	windowWidth: windowWidth,
 } as const;
 

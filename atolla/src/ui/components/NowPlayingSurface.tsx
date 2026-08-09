@@ -46,6 +46,38 @@ import { TrackList, type TrackListEntry } from './TrackList';
 const COMPACT_SWIPE_BASE = 8;
 const COMPACT_SWIPE_OFF_SCREEN = Math.round((theme.windowWidth - COMPACT_SWIPE_BASE * 2) * 1.4);
 
+// the artist logo, track meta, progress section and controls that stack below the expanded artwork,
+// with their margins. the artwork is square and as wide as the window, which only fits a phone's
+// aspect ratio — on a wider screen it pushes the controls off the bottom, so it is capped at whatever
+// height is left once this stack has its space. a phone is never capped: its window is narrower than
+// what remains, so the min below always resolves to the full width it uses today
+const EXPANDED_STACK_HEIGHT = theme.scalePlayer(384);
+// a capped artwork is inset from the sides, and butting it against the status bar makes those side
+// gaps read as a mistake rather than a margin. a phone is never capped, so it keeps its flush top
+const EXPANDED_ARTWORK_TOP_GAP = theme.scalePlayer(12);
+const EXPANDED_ARTWORK_SIZE = Math.max(
+	0,
+	Math.min(
+		theme.windowWidth,
+		theme.windowHeight -
+			theme.padding.deviceInset -
+			EXPANDED_STACK_HEIGHT -
+			EXPANDED_ARTWORK_TOP_GAP,
+	),
+);
+const EXPANDED_ARTWORK_LEFT = Math.round((theme.windowWidth - EXPANDED_ARTWORK_SIZE) / 2);
+const EXPANDED_ARTWORK_TOP = EXPANDED_ARTWORK_LEFT > 0 ? EXPANDED_ARTWORK_TOP_GAP : 0;
+
+// transport controls are sized by the thumb rather than by the layout: what is comfortable to hit on
+// a phone is comfortable on a tablet, and growing them made the surface read as oversized
+const playerControlScale = (value: number): number => value;
+
+// where the transition artwork lands when collapsed, matching styles.transitionArtwork so the handoff
+// to the compact bar does not jump
+const TRANSITION_COLLAPSED_LEFT = theme.scale(12);
+const TRANSITION_COLLAPSED_TOP = theme.scale(10);
+const TRANSITION_COLLAPSED_WIDTH = theme.scale(65);
+
 // a transition still flagged in-flight after this window was abandoned mid-animation
 // by a background freeze (Valdi animations/timers stop when backgrounded, so the
 // completion callback never fired). sits above the open/close animation durations so a
@@ -291,10 +323,13 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.expandedContentRef.setAttribute('left', 0);
 				this.expandedContentRef.setAttribute('opacity', 0.92);
 				this.expandedContentRef.setAttribute('right', 0);
-				this.transitionArtworkRef.setAttribute('left', 0);
+				this.transitionArtworkRef.setAttribute('left', EXPANDED_ARTWORK_LEFT);
 				this.transitionArtworkRef.setAttribute('marginTop', 0);
-				this.transitionArtworkRef.setAttribute('top', theme.padding.deviceInset);
-				this.transitionArtworkRef.setAttribute('width', '100%');
+				this.transitionArtworkRef.setAttribute(
+					'top',
+					theme.padding.deviceInset + EXPANDED_ARTWORK_TOP,
+				);
+				this.transitionArtworkRef.setAttribute('width', EXPANDED_ARTWORK_SIZE);
 			},
 		)
 			.then(() => {
@@ -436,10 +471,10 @@ export class NowPlayingSurface extends StatefulComponent<
 				this.expandedContentRef.setAttribute('left', 14);
 				this.expandedContentRef.setAttribute('opacity', 0);
 				this.expandedContentRef.setAttribute('right', 14);
-				this.transitionArtworkRef.setAttribute('left', 12);
+				this.transitionArtworkRef.setAttribute('left', TRANSITION_COLLAPSED_LEFT);
 				this.transitionArtworkRef.setAttribute('marginTop', 0);
-				this.transitionArtworkRef.setAttribute('top', 10);
-				this.transitionArtworkRef.setAttribute('width', 65);
+				this.transitionArtworkRef.setAttribute('top', TRANSITION_COLLAPSED_TOP);
+				this.transitionArtworkRef.setAttribute('width', TRANSITION_COLLAPSED_WIDTH);
 			},
 		).then(() => {
 			if (this.isDestroyed() || generation !== this.transitionGeneration) {
@@ -474,11 +509,11 @@ export class NowPlayingSurface extends StatefulComponent<
 		this.expandedContentRef.setAttribute('top', 0);
 		this.scrollArtworkStyle = styles.expandedScrollArtwork;
 		this.scrollArtworkRef.setAttribute('opacity', 0);
-		this.transitionArtworkRef.setAttribute('left', 12);
+		this.transitionArtworkRef.setAttribute('left', TRANSITION_COLLAPSED_LEFT);
 		this.transitionArtworkRef.setAttribute('marginTop', 0);
 		this.transitionArtworkRef.setAttribute('opacity', 1);
-		this.transitionArtworkRef.setAttribute('top', 10);
-		this.transitionArtworkRef.setAttribute('width', 65);
+		this.transitionArtworkRef.setAttribute('top', TRANSITION_COLLAPSED_TOP);
+		this.transitionArtworkRef.setAttribute('width', TRANSITION_COLLAPSED_WIDTH);
 	}
 
 	private handleCompactDrag = (event: DragEvent): void => {
@@ -1006,6 +1041,7 @@ export class NowPlayingSurface extends StatefulComponent<
 													<FormatBadge
 														backgroundColor={withAlpha(onSurfaceColor, 0.12)}
 														color={mutedOnSurfaceColor}
+														font={theme.text.playerTime.font}
 														value={track.audioFormat}
 													/>
 												</view>
@@ -1027,6 +1063,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											onTap={this.handleLoopModeToggle}
 											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
+											scale={playerControlScale}
 											tint={
 												loopMode === LoopModes.none
 													? withAlpha(mutedOnSurfaceColor, 0.58)
@@ -1042,6 +1079,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											onTap={this.handlePrevious}
 											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
+											scale={playerControlScale}
 											tint={onSurfaceColor}
 										/>
 										<TappableIcon
@@ -1053,6 +1091,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											onTap={this.handlePlayPause}
 											rippleScale={1.26}
 											rippleTint={withAlpha(onSurfaceColor, 0.48)}
+											scale={playerControlScale}
 											tint={onSurfaceColor}
 										/>
 										<TappableIcon
@@ -1064,6 +1103,7 @@ export class NowPlayingSurface extends StatefulComponent<
 											onTap={this.handleNext}
 											rippleScale={1.34}
 											rippleTint={withAlpha(onSurfaceColor, 0.42)}
+											scale={playerControlScale}
 											tint={onSurfaceColor}
 										/>
 										<view style={styles.controlsRowPlaceholder} />
@@ -1079,6 +1119,7 @@ export class NowPlayingSurface extends StatefulComponent<
 												onTap={this.handleCreatePlaylistFromQueue}
 												rippleScale={1.34}
 												rippleTint={withAlpha(onSurfaceColor, 0.42)}
+												scale={theme.scalePlayer}
 												tint={mutedOnSurfaceColor}
 											/>
 										</view>
@@ -1254,24 +1295,24 @@ function getPaletteStyles(onSurfaceColor: string, mutedOnSurfaceColor: string): 
 			marginTop: theme.scale(4),
 		}),
 		expandedAlbumLineStyle: new Style<Label>({
-			...theme.text.subLarger,
+			...theme.text.playerAlbum,
 			color: mutedOnSurfaceColor,
-			marginTop: theme.scale(12),
+			marginTop: theme.scalePlayer(12),
 			textAlign: 'center',
 			width: '100%',
 		}),
 		expandedArtistNameStyle: new Style<Label>({
-			...theme.text.display,
+			...theme.text.playerArtist,
 			color: mutedOnSurfaceColor,
 			textAlign: 'center',
 			width: '100%',
 		}),
 		expandedTimeLabelStyle: new Style<Label>({
-			...theme.text.sub,
+			...theme.text.playerTime,
 			color: mutedOnSurfaceColor,
 		}),
 		expandedTrackNameStyle: new Style<Label>({
-			...theme.text.title,
+			...theme.text.playerTitle,
 			color: onSurfaceColor,
 			textAlign: 'center',
 			width: '100%',
@@ -1346,28 +1387,30 @@ const styles = {
 		top: 0,
 	}),
 	controlsRowPlaceholder: new Style<View>({
-		height: theme.scale(62),
-		width: theme.scale(62),
+		height: playerControlScale(62),
+		width: playerControlScale(62),
 	}),
 	expandedArtistFallbackContainer: new Style<Layout>({
 		padding: 0,
 		width: '100%',
 	}),
 	expandedArtistLogo: new Style<ImageView>({
-		height: theme.scale(70),
+		height: theme.scalePlayer(70),
 		marginBottom: -4,
 		objectFit: 'contain',
 		width: '100%',
 	}),
 	expandedArtistLogoArea: new Style<View>({
 		alignItems: 'center',
-		height: theme.scale(70),
+		height: theme.scalePlayer(70),
 		justifyContent: 'center',
 		width: '100%',
 	}),
 	expandedArtworkGestureZone: new Style<View>({
+		alignSelf: 'center',
 		aspectRatio: 1,
-		width: '100%',
+		marginTop: EXPANDED_ARTWORK_TOP,
+		width: EXPANDED_ARTWORK_SIZE,
 	}),
 	expandedBgArtwork: new Style<ImageView>({
 		bottom: 0,
@@ -1379,7 +1422,7 @@ const styles = {
 	expandedBottomSection: new Style<Layout>({
 		marginBottom: theme.footerHeight - 40,
 		marginTop: 'auto',
-		paddingTop: theme.scale(8),
+		paddingTop: theme.scalePlayer(8),
 		width: '100%',
 	}),
 	expandedContent: new Style<View>({
@@ -1395,8 +1438,8 @@ const styles = {
 		alignItems: 'center',
 		flexDirection: 'row',
 		justifyContent: 'space-evenly',
-		marginBottom: theme.scale(20),
-		marginTop: theme.scale(20),
+		marginBottom: theme.scalePlayer(20),
+		marginTop: theme.scalePlayer(20),
 		width: '100%',
 	}),
 	expandedFirstPage: new Style<Layout>({
@@ -1414,9 +1457,9 @@ const styles = {
 		alignItems: 'center',
 		flexGrow: 1,
 		justifyContent: 'center',
-		paddingLeft: theme.scale(24),
-		paddingRight: theme.scale(24),
-		paddingTop: theme.scale(12),
+		paddingLeft: theme.scalePlayer(24),
+		paddingRight: theme.scalePlayer(24),
+		paddingTop: theme.scalePlayer(12),
 		width: '100%',
 	}),
 	expandedInner: new Style<ScrollView>({
@@ -1424,8 +1467,8 @@ const styles = {
 		width: '100%',
 	}),
 	expandedProgressSection: new Style<Layout>({
-		paddingLeft: theme.scale(25),
-		paddingRight: theme.scale(25),
+		paddingLeft: theme.scalePlayer(25),
+		paddingRight: theme.scalePlayer(25),
 		width: '100%',
 	}),
 	expandedQueueList: new Style<Layout>({
@@ -1459,20 +1502,20 @@ const styles = {
 	expandedTimeRow: new Style<Layout>({
 		flexDirection: 'row',
 		justifyContent: 'space-between',
-		marginTop: theme.scale(10),
+		marginTop: theme.scalePlayer(10),
 		width: '100%',
 	}),
 	expandedTrackMetaSection: new Style<Layout>({
 		alignItems: 'center',
-		height: theme.scale(75),
+		height: theme.scalePlayer(75),
 		justifyContent: 'flex-end',
-		marginBottom: theme.scale(10),
+		marginBottom: theme.scalePlayer(10),
 		width: '100%',
 	}),
 	expandedTrackMetaTextInset: new Style<Layout>({
 		alignItems: 'center',
-		paddingLeft: theme.scale(28),
-		paddingRight: theme.scale(28),
+		paddingLeft: theme.scalePlayer(28),
+		paddingRight: theme.scalePlayer(28),
 		width: '100%',
 	}),
 	info: new Style<Layout>({
@@ -1529,10 +1572,10 @@ const styles = {
 	}),
 	transitionArtwork: new Style<ImageView>({
 		aspectRatio: 1,
-		left: theme.scale(12),
+		left: TRANSITION_COLLAPSED_LEFT,
 		position: 'absolute',
-		top: theme.scale(10),
-		width: theme.scale(65),
+		top: TRANSITION_COLLAPSED_TOP,
+		width: TRANSITION_COLLAPSED_WIDTH,
 		zIndex: 40,
 	}),
 };

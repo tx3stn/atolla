@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { deriveGestureScale, deriveHeroScale, deriveNavScale, deriveUiScale } from './UiScale';
+import {
+	deriveGestureScale,
+	deriveHeroScale,
+	deriveNavScale,
+	derivePlayerScale,
+	deriveUiScale,
+} from './UiScale';
 
 // the scale exists to make a tablet readable, so no phone may move a single point
 describe('deriveUiScale on phone widths', () => {
@@ -106,6 +112,43 @@ describe('deriveNavScale with an unusable width', () => {
 		expect(deriveNavScale(0)).toBe(1);
 		expect(deriveNavScale(Number.NaN)).toBe(1);
 		expect(deriveNavScale(-100)).toBe(1);
+	});
+});
+
+describe('derivePlayerScale on phone widths', () => {
+	const phoneWidths = [320, 360, 375, 390, 393, 402, 411, 430, 440];
+
+	for (const width of phoneWidths) {
+		it(`stays exactly 1 at ${width}pt`, () => {
+			expect(derivePlayerScale(width)).toBe(1);
+		});
+	}
+});
+
+describe('derivePlayerScale on tablet widths', () => {
+	it('grows with the window', () => {
+		expect(derivePlayerScale(744)).toBeGreaterThan(1);
+		expect(derivePlayerScale(834)).toBeGreaterThan(derivePlayerScale(744));
+	});
+
+	// the expanded player has to fit artwork, meta, progress and controls in one screen, so its type
+	// and controls grow far less than list content that is only ever read a row at a time
+	it('grows far less than the interface around it', () => {
+		expect(derivePlayerScale(834)).toBeLessThan(deriveUiScale(834));
+		expect(derivePlayerScale(834)).toBeLessThan(1.25);
+	});
+
+	it('stops growing past the tablet width', () => {
+		expect(derivePlayerScale(1024)).toBe(derivePlayerScale(834));
+		expect(derivePlayerScale(2048)).toBe(derivePlayerScale(834));
+	});
+});
+
+describe('derivePlayerScale with an unusable width', () => {
+	it('falls back to unscaled rather than collapsing the controls', () => {
+		expect(derivePlayerScale(0)).toBe(1);
+		expect(derivePlayerScale(Number.NaN)).toBe(1);
+		expect(derivePlayerScale(-100)).toBe(1);
 	});
 });
 

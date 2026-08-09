@@ -18,6 +18,7 @@ export interface TappableIconViewModel {
 	onTap?: () => void;
 	rippleScale?: number;
 	rippleTint?: string;
+	scale?: (value: number) => number;
 	tint?: string;
 }
 
@@ -25,13 +26,18 @@ export class TappableIcon extends Component<TappableIconViewModel> {
 	private rippleRef = new ElementRef();
 
 	// callers pass phone-baseline points; the scale is applied here so every icon in the app grows
-	// on a tablet without each call site knowing about it
+	// on a tablet without each call site knowing about it. surfaces that grow on their own ramp pass
+	// it in — the expanded player, whose controls have to share one screen with the artwork
 	private get hitSize(): number {
-		return theme.scale(this.viewModel.hitSize ?? 40);
+		return this.scale(this.viewModel.hitSize ?? 40);
 	}
 
 	private get iconSize(): number {
-		return theme.scale(this.viewModel.iconSize ?? 24);
+		return this.scale(this.viewModel.iconSize ?? 24);
+	}
+
+	private get scale(): (value: number) => number {
+		return this.viewModel.scale ?? theme.scale;
 	}
 
 	private handleTap = (): void => {
