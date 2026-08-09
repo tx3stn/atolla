@@ -10,7 +10,7 @@ import type { DownloadService } from '../../services/DownloadService';
 import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { NetworkStatus } from '../../services/NetworkStatus';
-import { type ToastService, ToastTypes } from '../../services/ToastService';
+import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
 import type { PinnedItemsStore } from '../../stores/PinnedItems';
@@ -184,11 +184,8 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		this.setState({ addToPlaylistTracks: tracks, contextMenuCard: null });
 	};
 
-	private handleContextMenuDismiss = (toastMessage?: string): void => {
+	private handleContextMenuDismiss = (): void => {
 		this.setState({ contextMenuCard: null });
-		if (toastMessage) {
-			this.viewModel.toastService.show({ message: toastMessage, variant: ToastTypes.success });
-		}
 	};
 
 	private handleContextMenuEntityTap = (): void => {

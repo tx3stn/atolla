@@ -10,7 +10,27 @@ import type { PlaybackStore } from 'atolla/src/stores/Playback';
 import { Preferences } from 'atolla/src/stores/Preferences';
 import type { Transport } from 'atolla/src/transports/Transport';
 import { HomeView, type HomeViewModel } from 'atolla/src/ui/views/HomeView';
-import { InstrumentedComponentJSX } from 'valdi_test/test/JSXTestUtils';
+import { componentGetElements } from 'foundation/test/util/componentGetElements';
+import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import { Component } from 'valdi_core/src/Component';
+import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
+import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
+import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { touchEvent, touchEventWith } from '../util/testEvents';
+
+// wrapper that renders the home view alongside a DetachedSlotRenderer so the slot-rendered context
+// menu appears in the same component tree as the view
+class HomeViewWithSlot extends Component<HomeViewModel> {
+	private slot = new DetachedSlot();
+
+	onRender() {
+		<view>
+			<HomeView {...this.viewModel} modalSlot={this.slot} />
+			<DetachedSlotRenderer detachedSlot={this.slot} />
+		</view>;
+	}
+}
 
 async function flushAsyncWork(): Promise<void> {
 	for (let i = 0; i < 20; i += 1) {
@@ -121,5 +141,56 @@ describe('HomeView', () => {
 		await flushAsyncWork();
 
 		expect(onThisDay.calls.ensureLoaded).toBe(1);
+	});
+
+	// the context menu toasts through the service this view hands it, so a queue action taken from
+	// home surfaces the same confirmation the library grids do
+	valdiIt('surfaces the add-to-queue toast from a recently-added card', async (driver) => {
+		const toasts: Array<string> = [];
+		const base = makeBaseDeps();
+		base.toastService = {
+			show: (toast: { message: string; variant: string }) => {
+				toasts.push(`${toast.variant}:${toast.message}`);
+			},
+			subscribe: () => () => {},
+		} as unknown as ToastService;
+		base.playbackStore = {
+			addToQueue: () => {},
+			subscribe: () => () => {},
+		} as unknown as PlaybackStore;
+		base.transport = {
+			getArtistLogoUrl: () => Promise.resolve(null),
+			getTracksByAlbum: () => Promise.resolve([{ duration: 180, id: 't1', name: 'Track' }]),
+		} as unknown as Transport;
+		await base.preferences.setAnimationsEnabled(false);
+
+		const recentlyAdded = makeRecentlyAddedService();
+		const component = driver.renderComponent(
+			HomeViewWithSlot,
+			buildViewModel(base, undefined, recentlyAdded.service),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		jasmine.clock().install();
+		try {
+			const card = elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.View,
+			).find((view) => view.getAttribute('accessibilityLabel') === 'card-r1');
+			card?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
+			jasmine.clock().tick(500);
+		} finally {
+			jasmine.clock().uninstall();
+		}
+
+		const addToQueue = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		).find((view) => view.getAttribute('accessibilityLabel') === 'card-context-add-to-queue');
+		addToQueue?.getAttribute('onTap')?.(touchEvent);
+		await flushAsyncWork();
+
+		expect(toasts).toEqual(['success:added to queue']);
 	});
 });

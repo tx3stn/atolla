@@ -12,7 +12,7 @@ import type { ImageCache } from '../../services/ImageCache';
 import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
-import { type ToastService, ToastTypes } from '../../services/ToastService';
+import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
 import type { PinnedItemsStore } from '../../stores/PinnedItems';
@@ -313,11 +313,8 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 		this.setState({ contextMenuCard: null, createPlaylistTracks: tracks });
 	};
 
-	private handleContextMenuDismiss = (toastMessage?: string): void => {
+	private handleContextMenuDismiss = (): void => {
 		this.setState({ contextMenuCard: null });
-		if (toastMessage) {
-			this.viewModel.toastService.show({ message: toastMessage, variant: ToastTypes.success });
-		}
 	};
 
 	private cacheKey(): string {

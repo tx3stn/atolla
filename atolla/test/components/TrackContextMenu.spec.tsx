@@ -30,12 +30,10 @@ function createViewModel(overrides = {}) {
 	};
 
 	const toasts: Array<string> = [];
-	const dismissMessages: Array<string | undefined> = [];
 	const viewModel = {
 		animationsEnabled: false,
-		onDismiss: (message?: string) => {
-			callOrder.push(`dismiss:${message ?? 'none'}`);
-			dismissMessages.push(message);
+		onDismiss: () => {
+			callOrder.push('dismiss');
 		},
 		playbackStore,
 		toastService: {
@@ -50,7 +48,7 @@ function createViewModel(overrides = {}) {
 		...overrides,
 	};
 
-	return { callOrder, dismissMessages, toasts, viewModel };
+	return { callOrder, toasts, viewModel };
 }
 
 // drains the microtask queue so the fire-and-forget mix fetch settles
@@ -61,8 +59,8 @@ async function flush(): Promise<void> {
 }
 
 describe('TrackContextMenu', () => {
-	valdiIt('adds track to queue and dismisses with added-to-queue toast message', async (driver) => {
-		const { callOrder, dismissMessages, viewModel } = createViewModel();
+	valdiIt('adds track to queue, toasts and dismisses', async (driver) => {
+		const { callOrder, toasts, viewModel } = createViewModel();
 		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
 		const views = elementTypeFind(
@@ -75,34 +73,31 @@ describe('TrackContextMenu', () => {
 
 		addToQueueAction?.getAttribute('onTap')?.(touchEvent);
 
-		expect(callOrder).toEqual(['addToQueue:track-1', 'dismiss:added to queue']);
-		expect(dismissMessages).toEqual(['added to queue']);
+		expect(callOrder).toEqual(['addToQueue:track-1', 'dismiss']);
+		expect(toasts).toEqual(['success:added to queue']);
 	});
 
-	valdiIt(
-		'queues track to play next and dismisses with play-next toast message',
-		async (driver) => {
-			const { callOrder, dismissMessages, viewModel } = createViewModel();
-			const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
+	valdiIt('queues track to play next, toasts and dismisses', async (driver) => {
+		const { callOrder, toasts, viewModel } = createViewModel();
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
-			const views = elementTypeFind(
-				component.renderer.getComponentRootElements(component, true),
-				IRenderedElementViewClass.View,
-			);
-			const playNextAction = views.find(
-				(view) => view.getAttribute('accessibilityLabel') === 'track-context-play-next',
-			);
+		const views = elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		);
+		const playNextAction = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'track-context-play-next',
+		);
 
-			playNextAction?.getAttribute('onTap')?.(touchEvent);
+		playNextAction?.getAttribute('onTap')?.(touchEvent);
 
-			expect(callOrder).toEqual(['playNext:track-1', 'dismiss:playing next']);
-			expect(dismissMessages).toEqual(['playing next']);
-		},
-	);
+		expect(callOrder).toEqual(['playNext:track-1', 'dismiss']);
+		expect(toasts).toEqual(['success:playing next']);
+	});
 
 	valdiIt('opens the artist and dismisses when the artist logo is tapped', async (driver) => {
 		const artistTaps: Array<string> = [];
-		const { dismissMessages, viewModel } = createViewModel({
+		const { callOrder, toasts, viewModel } = createViewModel({
 			onArtistTap: () => {
 				artistTaps.push('artist');
 			},
@@ -120,12 +115,13 @@ describe('TrackContextMenu', () => {
 		artistLogo?.getAttribute('onTap')?.(touchEvent);
 
 		expect(artistTaps).toEqual(['artist']);
-		expect(dismissMessages).toEqual([undefined]);
+		expect(callOrder).toEqual(['dismiss']);
+		expect(toasts).toEqual([]);
 	});
 
 	valdiIt('opens the album and dismisses when the album row is tapped', async (driver) => {
 		const albumTaps: Array<string> = [];
-		const { dismissMessages, viewModel } = createViewModel({
+		const { callOrder, toasts, viewModel } = createViewModel({
 			onAlbumTap: () => {
 				albumTaps.push('album');
 			},
@@ -143,7 +139,8 @@ describe('TrackContextMenu', () => {
 		albumRow?.getAttribute('onTap')?.(touchEvent);
 
 		expect(albumTaps).toEqual(['album']);
-		expect(dismissMessages).toEqual([undefined]);
+		expect(callOrder).toEqual(['dismiss']);
+		expect(toasts).toEqual([]);
 	});
 
 	valdiIt('plays an instant mix seeded from the track and dismisses', async (driver) => {
@@ -175,7 +172,7 @@ describe('TrackContextMenu', () => {
 		await flush();
 
 		expect(seeds).toEqual([{ id: 'track-1', kind: 'track' }]);
-		expect(callOrder).toEqual(['dismiss:none', 'playTracks:mix-1,mix-2:0']);
+		expect(callOrder).toEqual(['dismiss', 'playTracks:mix-1,mix-2:0']);
 		expect(toasts).toEqual([]);
 	});
 
@@ -199,7 +196,7 @@ describe('TrackContextMenu', () => {
 		instantMixAction?.getAttribute('onTap')?.(touchEvent);
 		await flush();
 
-		expect(callOrder).toEqual(['dismiss:none']);
+		expect(callOrder).toEqual(['dismiss']);
 		expect(toasts).toEqual(['error:instant mix failed']);
 	});
 
@@ -227,7 +224,7 @@ describe('TrackContextMenu', () => {
 	});
 
 	valdiIt('dismisses without toast when backdrop is tapped', async (driver) => {
-		const { callOrder, dismissMessages, viewModel } = createViewModel();
+		const { callOrder, toasts, viewModel } = createViewModel();
 		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
 		const backdrop = component.renderer
@@ -236,7 +233,7 @@ describe('TrackContextMenu', () => {
 
 		backdrop?.getAttribute('onTap')?.(touchEvent);
 
-		expect(callOrder).toEqual(['dismiss:none']);
-		expect(dismissMessages).toEqual([undefined]);
+		expect(callOrder).toEqual(['dismiss']);
+		expect(toasts).toEqual([]);
 	});
 });

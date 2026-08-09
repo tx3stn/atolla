@@ -32,7 +32,7 @@ export interface CardContextMenuViewModel {
 	onAddToPlaylist?: (tracks: TrackSource) => void;
 	onArtistTap?: () => void;
 	onCreatePlaylist?: (tracks: TrackSource) => void;
-	onDismiss: (toastMessage?: string) => void;
+	onDismiss: () => void;
 	onEntityTap?: () => void;
 	onPin: () => void;
 	onUnpin: () => void;
@@ -137,9 +137,14 @@ export class CardContextMenu extends StatefulComponent<
 	};
 
 	handlePlayNext = (): void => {
-		const { playbackStore } = this.viewModel;
-		this.withPagedPage(this.trackSource(), (tracks) => playbackStore.playNext(tracks));
-		this.viewModel.onDismiss(Strings.playingNextToast());
+		this.withPagedPage(this.trackSource(), (tracks) =>
+			this.viewModel.playbackStore.playNext(tracks),
+		);
+		this.viewModel.toastService.show({
+			message: Strings.playingNextToast(),
+			variant: ToastTypes.success,
+		});
+		this.viewModel.onDismiss();
 	};
 
 	handleInstantMix = (): void => {
@@ -163,9 +168,14 @@ export class CardContextMenu extends StatefulComponent<
 	};
 
 	handleAddToQueue = (): void => {
-		const { playbackStore } = this.viewModel;
-		this.withPagedPage(this.trackSource(), (tracks) => playbackStore.addToQueue(tracks));
-		this.viewModel.onDismiss(Strings.addedToQueueToast());
+		this.withPagedPage(this.trackSource(), (tracks) =>
+			this.viewModel.playbackStore.addToQueue(tracks),
+		);
+		this.viewModel.toastService.show({
+			message: Strings.addedToQueueToast(),
+			variant: ToastTypes.success,
+		});
+		this.viewModel.onDismiss();
 	};
 
 	handleAddToPlaylist = (): void => {

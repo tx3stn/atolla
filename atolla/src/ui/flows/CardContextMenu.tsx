@@ -13,7 +13,7 @@ export interface OpenCardContextMenuOptions {
 	onAddToPlaylist?: (tracks: TrackSource) => void;
 	onArtistTap?: () => void;
 	onCreatePlaylist?: (tracks: TrackSource) => void;
-	onDismiss: (toastMessage?: string) => void;
+	onDismiss: () => void;
 	onEntityTap?: () => void;
 	onPin: () => void;
 	onUnpin: () => void;
@@ -26,9 +26,9 @@ export function openCardContextMenu(
 	modalSlot: DetachedSlot | undefined,
 	options: OpenCardContextMenuOptions,
 ): void {
-	const dismiss = (toastMessage?: string): void => {
+	const dismiss = (): void => {
 		closeSlot(modalSlot);
-		options.onDismiss(toastMessage);
+		options.onDismiss();
 	};
 
 	openSlot(modalSlot, () => {

@@ -13,7 +13,7 @@ import { normalizeImageUrlForCategory } from '../../services/ImageSource';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
-import { type ToastService, ToastTypes } from '../../services/ToastService';
+import type { ToastService } from '../../services/ToastService';
 import type { TrackSource } from '../../services/TrackSource';
 import type { ViewCache } from '../../services/ViewCache';
 import type { PinnedItemsStore } from '../../stores/PinnedItems';
@@ -281,11 +281,8 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 		void this.pagedGridController.loadNextPage();
 	};
 
-	private handleContextMenuDismiss = (toastMessage?: string): void => {
+	private handleContextMenuDismiss = (): void => {
 		this.setState({ contextMenuCard: null });
-		if (toastMessage) {
-			this.viewModel.toastService.show({ message: toastMessage, variant: ToastTypes.success });
-		}
 	};
 
 	private handlePlaylistCardTap = (card: {

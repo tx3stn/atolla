@@ -21,7 +21,7 @@ export interface TrackContextMenuViewModel {
 	onAlbumTap?: () => void;
 	onArtistTap?: () => void;
 	onCreatePlaylist?: () => void;
-	onDismiss: (toastMessage?: string) => void;
+	onDismiss: () => void;
 	playbackStore: PlaybackStore;
 	toastService: ToastService;
 	track: Track;
@@ -71,9 +71,12 @@ export class TrackContextMenu extends StatefulComponent<
 	}
 
 	handlePlayNext = (): void => {
-		const { playbackStore, track } = this.viewModel;
-		playbackStore.playNext([track]);
-		this.viewModel.onDismiss(Strings.playingNextToast());
+		this.viewModel.playbackStore.playNext([this.viewModel.track]);
+		this.viewModel.toastService.show({
+			message: Strings.playingNextToast(),
+			variant: ToastTypes.success,
+		});
+		this.viewModel.onDismiss();
 	};
 
 	handleInstantMix = (): void => {
@@ -100,7 +103,11 @@ export class TrackContextMenu extends StatefulComponent<
 
 	handleAddToQueue = (): void => {
 		this.viewModel.playbackStore.addToQueue([this.viewModel.track]);
-		this.viewModel.onDismiss(Strings.addedToQueueToast());
+		this.viewModel.toastService.show({
+			message: Strings.addedToQueueToast(),
+			variant: ToastTypes.success,
+		});
+		this.viewModel.onDismiss();
 	};
 
 	handleAddToPlaylist = (): void => {

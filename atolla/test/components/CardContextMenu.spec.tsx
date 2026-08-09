@@ -44,6 +44,10 @@ function mockTransport(overrides: Record<string, unknown> = {}): Transport {
 	} as unknown as Transport;
 }
 
+function mockToastService(): { show: jasmine.Spy } {
+	return { show: jasmine.createSpy('show') };
+}
+
 // drains the microtask queue so the fire-and-forget fetch chain settles
 async function flush(): Promise<void> {
 	for (let i = 0; i < 5; i++) {
@@ -135,6 +139,7 @@ describe('CardContextMenu', () => {
 				card: { album: mockAlbum(), kind: 'album' },
 				onDismiss,
 				playbackStore: { addToQueue } as unknown as PlaybackStore,
+				toastService: mockToastService(),
 				transport: mockTransport({ getTracksByAlbum: () => Promise.reject(new Error('boom')) }),
 			};
 			const component = driver.renderComponent(CardContextMenu, viewModel, undefined);
@@ -144,6 +149,60 @@ describe('CardContextMenu', () => {
 
 			expect(addToQueue).not.toHaveBeenCalled();
 			expect(onDismiss).toHaveBeenCalled();
+		});
+	});
+
+	// the menu toasts itself rather than handing the message to its host, so every surface that
+	// opens it reports the queue change — see the host coverage in HomeView.spec.tsx
+	describe('queue toasts', () => {
+		valdiIt('toasts when the card is queued to play next', async (driver) => {
+			const toastService = mockToastService();
+			const component = driver.renderComponent(
+				CardContextMenu,
+				{
+					animationsEnabled: false,
+					card: { album: mockAlbum(), kind: 'album' },
+					onDismiss: jasmine.createSpy('onDismiss'),
+					playbackStore: { playNext: jasmine.createSpy('playNext') } as unknown as PlaybackStore,
+					toastService,
+					transport: mockTransport(),
+				},
+				undefined,
+			);
+
+			(getInternal(component).handlePlayNext as () => void)();
+			await flush();
+
+			expect(toastService.show).toHaveBeenCalledWith({
+				message: 'playing next',
+				variant: 'success',
+			});
+		});
+
+		valdiIt('toasts when the card is added to the queue', async (driver) => {
+			const toastService = mockToastService();
+			const component = driver.renderComponent(
+				CardContextMenu,
+				{
+					animationsEnabled: false,
+					card: { album: mockAlbum(), kind: 'album' },
+					onDismiss: jasmine.createSpy('onDismiss'),
+					playbackStore: {
+						addToQueue: jasmine.createSpy('addToQueue'),
+					} as unknown as PlaybackStore,
+					toastService,
+					transport: mockTransport(),
+				},
+				undefined,
+			);
+
+			(getInternal(component).handleAddToQueue as () => void)();
+			await flush();
+
+			expect(toastService.show).toHaveBeenCalledWith({
+				message: 'added to queue',
+				variant: 'success',
+			});
 		});
 	});
 
@@ -264,6 +323,7 @@ describe('CardContextMenu', () => {
 						card: { genre: mockGenre(), kind: 'genre' },
 						onDismiss: jasmine.createSpy('onDismiss'),
 						playbackStore: store,
+						toastService: mockToastService(),
 						transport: mockTransport({ getTracksByGenre }),
 					},
 					undefined,
@@ -290,6 +350,7 @@ describe('CardContextMenu', () => {
 					card: { kind: 'playlist', playlist: mockPlaylist() },
 					onDismiss: jasmine.createSpy('onDismiss'),
 					playbackStore: store,
+					toastService: mockToastService(),
 					transport: mockTransport({ getTracksByPlaylist }),
 				},
 				undefined,
