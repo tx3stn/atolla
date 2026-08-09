@@ -124,6 +124,16 @@ const categorySizing: Record<ImageCategory, ImageSizing | null> = {
 	playlist_image_thumb: { maxHeight: 512, maxWidth: 512, quality: 85 },
 };
 
+export function configureAlbumArtMaxDimension(maxDimension: number): void {
+	for (const category of ['album_art', 'album_art_blurred'] as const) {
+		const sizing = categorySizing[category];
+		if (sizing) {
+			sizing.maxHeight = maxDimension;
+			sizing.maxWidth = maxDimension;
+		}
+	}
+}
+
 function rewriteUrlForCategory(url: string, category: ImageCategory): string {
 	const imageSizing = categorySizing[category];
 	if (!imageSizing) {

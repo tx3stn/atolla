@@ -37,6 +37,7 @@ import {
 import { DownloadService } from './services/DownloadService';
 import { DownloadSyncService } from './services/DownloadSyncService';
 import { ImageCache } from './services/ImageCache';
+import { configureAlbumArtMaxDimension } from './services/ImageSource';
 import { JellyfinAuthService } from './services/JellyfinAuthService';
 import { getLogger, Logger } from './services/Logger';
 import { NetworkStatus } from './services/NetworkStatus';
@@ -65,10 +66,12 @@ import {
 import { theme } from './theme';
 import { BootSplash } from './ui/components/BootSplash';
 import { Modal } from './ui/components/Modal';
+import { EXPANDED_ARTWORK_SIZE } from './ui/components/NowPlayingSurface';
 import { Toast } from './ui/components/Toast';
 import { closeSlot, EMPTY_SLOT_RENDERER } from './ui/flows/ModalSlotFlow';
 import { ConnectionView } from './ui/views/ConnectionView';
 import { fireAndForget } from './utils/Async';
+import { deriveAlbumArtMaxDimension } from './utils/ImageSizing';
 
 const BOOTSTRAP_TIMEOUT_MS = 5000;
 const MINIMUM_BOOT_SPLASH_MS = 100;
@@ -245,6 +248,9 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	};
 
 	onCreate(): void {
+		configureAlbumArtMaxDimension(
+			deriveAlbumArtMaxDimension(EXPANDED_ARTWORK_SIZE, Device.getDisplayScale()),
+		);
 		this.unsubscribeToast = this.toastService.subscribe(() => {
 			const active = this.toastService.getCurrent();
 			this.toastSlot.slotted(

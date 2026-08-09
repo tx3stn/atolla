@@ -55,7 +55,7 @@ const EXPANDED_STACK_HEIGHT = theme.scalePlayer(384);
 // a capped artwork is inset from the sides, and butting it against the status bar makes those side
 // gaps read as a mistake rather than a margin. a phone is never capped, so it keeps its flush top
 const EXPANDED_ARTWORK_TOP_GAP = theme.scalePlayer(12);
-const EXPANDED_ARTWORK_SIZE = Math.max(
+export const EXPANDED_ARTWORK_SIZE = Math.max(
 	0,
 	Math.min(
 		theme.windowWidth,
