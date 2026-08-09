@@ -157,6 +157,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 							accessibilityId='search-input'
 							accessibilityLabel='search-input'
 							autocapitalization='none'
+							font={theme.text.main.font}
 							keyboardAppearance='dark'
 							onChange={this.handleQueryChange}
 							onReturn={this.handleSearchKeyboardSubmit}

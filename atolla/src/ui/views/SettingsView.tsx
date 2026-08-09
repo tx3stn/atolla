@@ -158,6 +158,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 									accessibilityId='settings-jellyfin-server-name-input'
 									accessibilityLabel='settings-jellyfin-server-name-input'
 									enabled={false}
+									font={theme.text.main.font}
 									style={styles.authDeviceIdInput}
 									value={serverName}
 								/>
@@ -170,6 +171,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 									accessibilityId='settings-jellyfin-device-id-input'
 									accessibilityLabel='settings-jellyfin-device-id-input'
 									autocapitalization='none'
+									font={theme.text.main.font}
 									onChange={this.handleDeviceIdInputChange}
 									placeholder={
 										this.viewModel.sessionController.defaultDeviceId() ||

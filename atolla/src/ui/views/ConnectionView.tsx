@@ -175,6 +175,7 @@ export class ConnectionView extends StatefulComponent<ConnectionViewModel, Conne
 					accessibilityId='connection-server-url-input'
 					accessibilityLabel='connection-server-url-input'
 					autocapitalization='none'
+					font={theme.text.main.font}
 					keyboardAppearance='dark'
 					onChange={this.handleServerUrlChange}
 					placeholder={Strings.serverUrlPlaceholder()}

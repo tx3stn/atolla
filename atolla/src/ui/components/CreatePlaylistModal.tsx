@@ -64,6 +64,7 @@ export class CreatePlaylistModal extends StatefulComponent<
 					accessibilityId='create-playlist-name-input'
 					accessibilityLabel='create-playlist-name-input'
 					autocapitalization='sentences'
+					font={theme.text.main.font}
 					onChange={this.handleNameChange}
 					placeholder={Strings.playlistNamePlaceholder()}
 					style={styles.input}

@@ -85,6 +85,7 @@ export class CreatePlaylistFromQueueModal extends StatefulComponent<
 					accessibilityId='create-playlist-from-queue-name-input'
 					accessibilityLabel='create-playlist-from-queue-name-input'
 					autocapitalization='sentences'
+					font={theme.text.main.font}
 					onChange={this.handleNameChange}
 					placeholder={Strings.playlistNamePlaceholder()}
 					style={styles.input}
