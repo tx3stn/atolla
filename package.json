@@ -58,6 +58,7 @@
 		"rebuild:ios": "bun run check && bun run test:components && bun run ios",
 		"reload": "./.scripts/android-hotreload.sh",
 		"screenshots": "E2E_PLATFORM=iOS E2E_APP_PATH=$PWD/build/atolla_ios.ipa wdio run ./e2e/screenshots/wdio.conf.ts",
+		"screenshots:combine": "bun ./.scripts/combine-screenshots.ts",
 		"setup": "bun install && bun run projectsync",
 		"start:e2e-devices": "./.scripts/start-e2e-devices.sh",
 		"test": "bun test ./atolla/src",
