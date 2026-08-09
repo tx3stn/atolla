@@ -44,8 +44,9 @@ running_serials_for_avd() {
 		[[ -z "$serial" ]] && continue
 		local name
 		# `adb emu avd name` needs the emulator console auth token and returns nothing without
-		# it, so read the name the emulator boots with instead
-		name=$(adb -s "$serial" shell getprop ro.boot.qemu.avd_name 2>/dev/null | tr -d '\r\n')
+		# it, so read the name the emulator boots with instead. adb reads stdin even for a
+		# one-shot command, so without </dev/null it eats the rest of the serials being read here
+		name=$(adb -s "$serial" shell getprop ro.boot.qemu.avd_name </dev/null 2>/dev/null | tr -d '\r\n' || true)
 		if [[ "$name" == "$avd" || "$name" =~ ^${avd}-[0-9]+$ ]]; then
 			echo "$serial"
 		fi
