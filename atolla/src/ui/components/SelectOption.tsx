@@ -77,7 +77,7 @@ const styles = {
 	button: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.radius.default,
+		borderRadius: theme.radius.pill,
 		minWidth: theme.scale(84),
 		paddingBottom: theme.scale(12),
 		paddingLeft: theme.scale(18),
@@ -100,7 +100,7 @@ const styles = {
 	option: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgAccent,
-		borderRadius: theme.radius.default,
+		borderRadius: theme.radius.pill,
 		flexGrow: 1,
 		marginRight: theme.scale(8),
 		paddingBottom: theme.scale(8),
@@ -117,7 +117,7 @@ const styles = {
 	optionSelected: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.active,
-		borderRadius: theme.radius.default,
+		borderRadius: theme.radius.pill,
 		flexGrow: 1,
 		marginRight: theme.scale(8),
 		paddingBottom: theme.scale(8),

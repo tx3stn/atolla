@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { CardSizes } from '../models/App';
-import { deriveGridColumns } from './GridColumns';
+import { deriveDetailColumns, deriveGridColumns } from './GridColumns';
 
 // the counts the app rendered when the setting was a literal column count — every supported phone
 // width has to keep producing them or changing the setting's shape becomes a visible regression
@@ -45,6 +45,28 @@ describe('deriveGridColumns on tablet widths', () => {
 	// growth is capped so an unusually wide window keeps cards at a sane size rather than inflating
 	it('stops growing cards past the widest tablet', () => {
 		expect(deriveGridColumns(2048, CardSizes.regular)).toBe(12);
+	});
+});
+
+// detail rows carry an artwork tile and three lines of text, so they need far more width than a
+// browse card — a phone fits one, a tablet fits two
+describe('deriveDetailColumns', () => {
+	for (const width of [320, 360, 375, 393, 402, 411, 430, 440]) {
+		it(`stays a single column at ${width}pt`, () => {
+			expect(deriveDetailColumns(width)).toBe(1);
+		});
+	}
+
+	for (const width of [744, 800, 834, 1024]) {
+		it(`gives two columns at ${width}pt`, () => {
+			expect(deriveDetailColumns(width)).toBe(2);
+		});
+	}
+
+	it('falls back to a single column rather than zero for an unusable width', () => {
+		expect(deriveDetailColumns(0)).toBe(1);
+		expect(deriveDetailColumns(Number.NaN)).toBe(1);
+		expect(deriveDetailColumns(-100)).toBe(1);
 	});
 });
 

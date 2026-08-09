@@ -11,6 +11,18 @@ const CARD_TARGET_WIDTH: Record<CardSize, number> = {
 	[CardSizes.small]: 98,
 };
 
+// a detail row is an artwork tile plus three lines of text, so it needs a lot more width than a
+// browse card before a second column reads as anything other than cramped
+const DETAIL_COLUMN_MIN_WIDTH = 360;
+
+export function deriveDetailColumns(windowWidth: number): number {
+	if (!Number.isFinite(windowWidth) || windowWidth <= 0) {
+		return 1;
+	}
+
+	return Math.max(1, Math.floor(windowWidth / DETAIL_COLUMN_MIN_WIDTH));
+}
+
 // The card size picks a target width, that target grows with the window up to CARD_GROWTH_MAX, and
 // the column count is whatever divides the window closest to it. Every phone width lands on 3
 // (regular) and 4 (small), which is what the app rendered when the setting was a literal count.

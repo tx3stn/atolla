@@ -131,6 +131,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 							<CardDetailList
 								accessibilityId='home-on-this-day-grid'
 								cards={onThisDayCards}
+								columnCount={this.viewModel.preferences.detailColumns}
 								onCardLongPress={this.handleOnThisDayCardLongPress}
 								onCardTap={this.handleAlbumCardTap}
 							/>

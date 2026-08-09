@@ -50,6 +50,11 @@ export class CardDetail extends Component<CardDetailViewModel> {
 	}
 }
 
+// the card is its artwork plus the text beside it, so the artwork's size is the row height. it has
+// to clear the three text lines at any scale — including a title wrapped to its two-line limit —
+// or the text drives the row taller and leaves the artwork floating in it
+const ARTWORK_SIZE = 92;
+
 const styles = {
 	artworkFallbackLabel: new Style<Label>({
 		...theme.text.main,
@@ -66,10 +71,10 @@ const styles = {
 		aspectRatio: 1,
 		borderRadius: theme.radius.default,
 		flexShrink: 0,
+		height: theme.scale(ARTWORK_SIZE),
 		justifyContent: 'center',
 		marginRight: theme.scale(14),
 		slowClipping: true,
-		width: '25%',
 	}),
 	lineOne: new Style<Label>({
 		...theme.text.mainBold,
@@ -86,7 +91,7 @@ const styles = {
 		backgroundColor: theme.colors.bgRaised,
 		borderRadius: theme.radius.default,
 		flexDirection: 'row',
-		minHeight: theme.scale(75),
+		minHeight: theme.scale(ARTWORK_SIZE),
 		paddingRight: theme.scale(12),
 		width: '100%',
 	}),
@@ -95,7 +100,7 @@ const styles = {
 		flexShrink: 1,
 		height: '100%',
 		justifyContent: 'space-between',
-		paddingBottom: theme.scale(10),
+		paddingBottom: theme.scale(5),
 		paddingTop: theme.scale(5),
 	}),
 	textTop: new Style<Layout>({

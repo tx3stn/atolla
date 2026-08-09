@@ -1,7 +1,7 @@
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { Device } from 'valdi_core/src/Device';
 import { type CardSize, CardSizes, type ConnectionMode, ConnectionModes } from '../models/App';
-import { deriveGridColumns } from '../utils/GridColumns';
+import { deriveDetailColumns, deriveGridColumns } from '../utils/GridColumns';
 
 export const GB = 1024 * 1024 * 1024;
 export const IMAGE_CACHE_SIZE_OPTIONS = [1 * GB, 2 * GB, 3 * GB, 5 * GB, 0];
@@ -74,6 +74,11 @@ export class Preferences {
 
 	get debugLoggingEnabled(): boolean {
 		return this._debugLoggingEnabled;
+	}
+
+	// derived rather than stored, like gridColumns: how many detail rows fit side by side
+	get detailColumns(): number {
+		return deriveDetailColumns(this.windowWidth);
 	}
 
 	get downloadOnWifiOnly(): boolean {
