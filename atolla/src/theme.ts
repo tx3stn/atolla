@@ -2,7 +2,7 @@ import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
-import { deriveGestureScale, deriveUiScale } from './utils/UiScale';
+import { deriveGestureScale, deriveNavScale, deriveUiScale } from './utils/UiScale';
 
 const isAndroid = Device.isAndroid();
 
@@ -33,6 +33,7 @@ export const paletteDefaults = {
 const windowWidth = Device.getWindowWidth();
 const uiScale = deriveUiScale(windowWidth);
 const gestureScale = deriveGestureScale(windowWidth);
+const navScale = deriveNavScale(windowWidth);
 
 function scaled(value: number): number {
 	return Math.round(value * uiScale);
@@ -42,7 +43,11 @@ function scaledGesture(value: number): number {
 	return Math.round(value * gestureScale);
 }
 
-const headerAndFooter = scaled(52);
+function scaledNav(value: number): number {
+	return Math.round(value * navScale);
+}
+
+const headerAndFooter = scaledNav(52);
 const topInset = Device.getDisplayTopInset();
 
 export const theme = {
@@ -91,6 +96,7 @@ export const theme = {
 	},
 	scale: scaled,
 	scaleGesture: scaledGesture,
+	scaleNav: scaledNav,
 	shadow: {
 		// floating overlays: now playing surface
 		floating: '0 10 18 rgba(0,0,0,0.35)',
@@ -103,6 +109,18 @@ export const theme = {
 		display: {
 			color: colors.white,
 			font: systemBoldFont(scaled(28)),
+			letterSpacing: 1,
+			paddingBottom: 2,
+		},
+		headerTab: {
+			color: colors.white,
+			font: systemBoldFont(scaledNav(16)),
+			letterSpacing: 0.7,
+			paddingBottom: 2,
+		},
+		headerTitle: {
+			color: colors.white,
+			font: systemBoldFont(scaledNav(28)),
 			letterSpacing: 1,
 			paddingBottom: 2,
 		},

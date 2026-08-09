@@ -33,7 +33,7 @@ export class LogoWaveformReveal extends Component<LogoWaveformRevealViewModel> {
 
 	onRender(): void {
 		const accessibilityId = this.viewModel.accessibilityId ?? 'logo-waveform-reveal';
-		const size = theme.scale(this.viewModel.size ?? defaultSize);
+		const size = theme.scaleNav(this.viewModel.size ?? defaultSize);
 
 		<view
 			accessibilityId={accessibilityId}

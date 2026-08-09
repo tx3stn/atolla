@@ -200,15 +200,15 @@ export class ConnectivityFab extends StatefulComponent<
 const styles = {
 	hitTarget: new Style<View>({
 		alignItems: 'center',
-		height: theme.scale(46),
+		height: theme.scaleNav(46),
 		justifyContent: 'center',
 		overflow: 'visible',
 		position: 'relative',
-		width: theme.scale(46),
+		width: theme.scaleNav(46),
 	}),
 	logo: new Style<ImageView>({
-		height: theme.scale(logoSize),
-		width: theme.scale(logoSize),
+		height: theme.scaleNav(logoSize),
+		width: theme.scaleNav(logoSize),
 	}),
 	logoAnimationOverlay: new Style<View>({
 		alignItems: 'center',
@@ -220,9 +220,9 @@ const styles = {
 		top: 0,
 	}),
 	logoHidden: new Style<ImageView>({
-		height: theme.scale(logoSize),
+		height: theme.scaleNav(logoSize),
 		opacity: 0,
-		width: theme.scale(logoSize),
+		width: theme.scaleNav(logoSize),
 	}),
 	logoWrap: new Style<View>({
 		position: 'relative',

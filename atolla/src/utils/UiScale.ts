@@ -6,9 +6,16 @@ const UI_SCALE_MAX = 1.5;
 // gestures are made by a hand, not by the layout, so they grow far less than the rows they act on: a
 // swipe that scaled with the interface would be an unreasonably long drag on a tablet
 const GESTURE_SCALE_MAX = 1.15;
+// the header and footer frame the content rather than being content, so they grow just enough to stay
+// comfortable targets. fully scaled they read as too tall and eat the screen
+const NAV_SCALE_MAX = 1.2;
 
 export function deriveGestureScale(windowWidth: number): number {
 	return rampedScale(windowWidth, GESTURE_SCALE_MAX);
+}
+
+export function deriveNavScale(windowWidth: number): number {
+	return rampedScale(windowWidth, NAV_SCALE_MAX);
 }
 
 export function deriveUiScale(windowWidth: number): number {

@@ -89,7 +89,7 @@ const styles = {
 		height: theme.footerHeight,
 		left: 0,
 		marginTop: -2,
-		padding: theme.scale(6),
+		padding: theme.scaleNav(6),
 		position: 'absolute',
 		right: 0,
 		width: '100%',

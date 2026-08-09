@@ -63,11 +63,11 @@ const styles = {
 		alignItems: 'center',
 		flexGrow: 1,
 		justifyContent: 'center',
-		padding: theme.scale(4),
-		paddingBottom: theme.scale(8),
+		padding: theme.scaleNav(4),
+		paddingBottom: theme.scaleNav(8),
 	}),
 	footerTabIconImage: new Style<ImageView>({
-		height: theme.scale(26),
-		width: theme.scale(26),
+		height: theme.scaleNav(26),
+		width: theme.scaleNav(26),
 	}),
 };

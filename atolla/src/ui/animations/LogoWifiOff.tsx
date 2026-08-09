@@ -28,7 +28,7 @@ export interface LogoWifiOffViewModel {
 export class LogoWifiOff extends Component<LogoWifiOffViewModel> {
 	onRender(): void {
 		const accessibilityId = this.viewModel.accessibilityId ?? 'logo-wifi-off';
-		const size = theme.scale(this.viewModel.size ?? defaultSize);
+		const size = theme.scaleNav(this.viewModel.size ?? defaultSize);
 
 		<view
 			accessibilityId={accessibilityId}
