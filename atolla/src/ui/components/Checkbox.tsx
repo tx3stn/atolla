@@ -37,7 +37,7 @@ const styles = {
 		borderRadius: theme.radius.card,
 		height: CHECKBOX_SIZE,
 		justifyContent: 'center',
-		marginRight: 12,
+		marginRight: theme.scale(12),
 		width: CHECKBOX_SIZE,
 	}),
 	checkboxUnchecked: new Style<View>({
@@ -46,7 +46,7 @@ const styles = {
 		borderRadius: theme.radius.card,
 		borderWidth: 1,
 		height: CHECKBOX_SIZE,
-		marginRight: 12,
+		marginRight: theme.scale(12),
 		width: CHECKBOX_SIZE,
 	}),
 	checkmark: new Style<Label>({
@@ -57,8 +57,8 @@ const styles = {
 	row: new Style<View>({
 		alignItems: 'center',
 		flexDirection: 'row',
-		paddingBottom: 10,
-		paddingTop: 10,
+		paddingBottom: theme.scale(10),
+		paddingTop: theme.scale(10),
 	}),
 	rowLabel: new Style<Label>({
 		...theme.text.main,

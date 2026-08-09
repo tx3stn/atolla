@@ -83,8 +83,8 @@ const baseButton = new Style<View>({
 	alignItems: 'center',
 	backgroundColor: theme.colors.bgAccent,
 	borderRadius: theme.radius.pill,
-	marginBottom: 5,
-	marginTop: 5,
+	marginBottom: theme.scale(5),
+	marginTop: theme.scale(5),
 	padding: theme.padding.pill,
 	width: '100%',
 });

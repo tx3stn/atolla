@@ -31,10 +31,10 @@ function createContainerStyle(backgroundColor: string): Style<View> {
 	const style = new Style<View>({
 		backgroundColor,
 		borderRadius: theme.radius.card,
-		paddingBottom: 3,
-		paddingLeft: 7,
-		paddingRight: 7,
-		paddingTop: 3,
+		paddingBottom: theme.scale(3),
+		paddingLeft: theme.scale(7),
+		paddingRight: theme.scale(7),
+		paddingTop: theme.scale(3),
 	});
 	containerStyleByBackgroundColor[backgroundColor] = style;
 	return style;

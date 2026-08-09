@@ -565,9 +565,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 const styles = {
 	discHeader: new Style<Label>({
 		...theme.text.mutedHeader,
-		marginBottom: 4,
-		marginLeft: 8,
-		marginTop: 12,
+		marginBottom: theme.scale(4),
+		marginLeft: theme.scale(8),
+		marginTop: theme.scale(12),
 	}),
 	discSection: new Style<Layout>({
 		width: '100%',
@@ -584,7 +584,7 @@ const styles = {
 	scroll: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
-		padding: 8,
+		padding: theme.scale(8),
 		paddingBottom: theme.padding.scrollBottom,
 		paddingTop: theme.padding.scrollHeader(true),
 		width: '100%',

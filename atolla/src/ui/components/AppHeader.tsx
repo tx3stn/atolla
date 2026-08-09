@@ -231,8 +231,8 @@ const styles = {
 	leadingFabSlot: new Style<View>({
 		alignItems: 'center',
 		justifyContent: 'flex-start',
-		paddingLeft: 6,
-		paddingRight: 6,
+		paddingLeft: theme.scale(6),
+		paddingRight: theme.scale(6),
 		width: theme.scale(60),
 	}),
 	root: new Style<View>({
@@ -240,7 +240,7 @@ const styles = {
 		flexDirection: 'row',
 		left: 0,
 		minHeight: theme.headerHeight,
-		paddingBottom: 4,
+		paddingBottom: theme.scale(4),
 		paddingTop: theme.padding.deviceInset,
 		position: 'absolute',
 		right: 0,
@@ -253,7 +253,7 @@ const styles = {
 		flexDirection: 'row',
 		left: 0,
 		minHeight: theme.headerHeight,
-		paddingBottom: 4,
+		paddingBottom: theme.scale(4),
 		paddingTop: theme.padding.deviceInset,
 		position: 'absolute',
 		right: 0,
@@ -262,7 +262,7 @@ const styles = {
 	}),
 	scroll: new Style<ScrollView>({
 		flexGrow: 1,
-		paddingTop: 4,
+		paddingTop: theme.scale(4),
 	}),
 	scrollHint: new Style<Label>({
 		...theme.text.mainBold,
@@ -272,8 +272,8 @@ const styles = {
 		alignItems: 'center',
 		backgroundColor: theme.colors.bg,
 		justifyContent: 'center',
-		paddingLeft: 6,
-		paddingRight: 10,
+		paddingLeft: theme.scale(6),
+		paddingRight: theme.scale(10),
 	}),
 	scrollViewport: new Style<View>({
 		flexGrow: 1,
@@ -283,8 +283,8 @@ const styles = {
 	tabsRow: new Style<View>({
 		flexDirection: 'row',
 		flexShrink: 0,
-		paddingLeft: 8,
-		paddingRight: 6,
+		paddingLeft: theme.scale(8),
+		paddingRight: theme.scale(6),
 	}),
 	title: new Style<Label>({
 		...theme.text.display,
@@ -293,16 +293,16 @@ const styles = {
 	titleContainer: new Style<View>({
 		backgroundColor: theme.colors.bgFrosted,
 		borderRadius: theme.radius.pill,
-		padding: 6,
-		paddingLeft: 12,
-		paddingRight: 12,
+		padding: theme.scale(6),
+		paddingLeft: theme.scale(12),
+		paddingRight: theme.scale(12),
 	}),
 	titleWrap: new Style<View>({
 		alignItems: 'flex-end',
 		bottom: 0,
 		justifyContent: 'center',
 		left: theme.scale(64),
-		paddingRight: 16,
+		paddingRight: theme.scale(16),
 		position: 'absolute',
 		right: 0,
 		top: theme.padding.deviceInset,

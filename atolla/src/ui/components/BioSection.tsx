@@ -49,12 +49,12 @@ const styles = {
 		color: theme.colors.grey,
 	}),
 	section: new Style<Layout>({
-		marginBottom: 16,
-		padding: 8,
+		marginBottom: theme.scale(16),
+		padding: theme.scale(8),
 		width: '100%',
 	}),
 	sectionHeader: new Style<Label>({
 		...theme.text.mutedHeader,
-		margin: 8,
+		margin: theme.scale(8),
 	}),
 };

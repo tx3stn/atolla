@@ -740,15 +740,15 @@ function pinnedEntryToCard(entry: PinnedItemEntry): Card {
 
 const styles = {
 	content: new Style<Layout>({
-		paddingBottom: 18,
-		paddingLeft: 14,
-		paddingRight: 14,
+		paddingBottom: theme.scale(18),
+		paddingLeft: theme.scale(14),
+		paddingRight: theme.scale(14),
 		paddingTop: theme.headerHeight + theme.padding.deviceInset + 8,
 		width: '100%',
 	}),
 	emptyState: new Style<Label>({
 		...theme.text.sub,
-		marginTop: 6,
+		marginTop: theme.scale(6),
 	}),
 	root: new Style<Layout>({
 		flexGrow: 1,
@@ -761,11 +761,11 @@ const styles = {
 		width: '100%',
 	}),
 	section: new Style<Layout>({
-		marginBottom: 24,
+		marginBottom: theme.scale(24),
 		width: '100%',
 	}),
 	sectionTitle: new Style<Label>({
 		...theme.text.mainBold,
-		marginBottom: 8,
+		marginBottom: theme.scale(8),
 	}),
 };

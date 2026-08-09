@@ -20,7 +20,7 @@ const styles = {
 		backgroundColor: theme.colors.bg,
 		height: theme.scale(80),
 		justifyContent: 'center',
-		marginBottom: 16,
+		marginBottom: theme.scale(16),
 		width: theme.scale(80),
 	}),
 	logoImage: new Style<View>({

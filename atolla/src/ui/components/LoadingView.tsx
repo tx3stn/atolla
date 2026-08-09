@@ -17,7 +17,7 @@ export class LoadingView extends Component<Record<string, never>> {
 const styles = {
 	label: new Style<Label>({
 		...theme.text.sub,
-		marginBottom: 12,
+		marginBottom: theme.scale(12),
 	}),
 	root: new Style<Layout>({
 		alignItems: 'center',

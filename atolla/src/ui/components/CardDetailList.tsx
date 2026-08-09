@@ -3,6 +3,7 @@ import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import type { CardDetailItem } from '../../models/App';
+import { theme } from '../../theme';
 import { CardDetail } from './CardDetail';
 
 export interface CardDetailListViewModel {
@@ -52,7 +53,7 @@ const styles = {
 		width: '100%',
 	}),
 	rowWrap: new Style<Layout>({
-		marginBottom: 12,
+		marginBottom: theme.scale(12),
 		width: '100%',
 	}),
 	rowWrapLast: new Style<Layout>({

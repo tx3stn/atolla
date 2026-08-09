@@ -446,7 +446,7 @@ const styles = {
 	scroll: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
-		padding: 8,
+		padding: theme.scale(8),
 		paddingBottom: theme.padding.scrollBottom,
 		paddingTop: theme.padding.scrollHeader(null),
 		width: '100%',

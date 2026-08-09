@@ -55,8 +55,8 @@ const styles = {
 	callout: new Style<View>({
 		backgroundColor: withAlpha(theme.colors.warning, 0.12),
 		borderRadius: theme.radius.default,
-		marginBottom: 4,
-		padding: 12,
+		marginBottom: theme.scale(4),
+		padding: theme.scale(12),
 	}),
 	calloutText: new Style<Label>({
 		...theme.text.sub,

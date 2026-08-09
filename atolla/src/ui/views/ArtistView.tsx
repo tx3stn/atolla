@@ -709,22 +709,22 @@ const styles = {
 	scroll: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
-		padding: 8,
+		padding: theme.scale(8),
 		paddingBottom: theme.padding.scrollBottom,
 		paddingTop: theme.padding.scrollHeader(true),
 		width: '100%',
 	}),
 	section: new Style<Layout>({
-		marginBottom: 16,
+		marginBottom: theme.scale(16),
 		width: '100%',
 	}),
 	sectionCount: new Style<Label>({
 		...theme.text.mutedHeader,
-		margin: 8,
+		margin: theme.scale(8),
 	}),
 	sectionHeader: new Style<Label>({
 		...theme.text.mutedHeader,
-		margin: 8,
+		margin: theme.scale(8),
 	}),
 	sectionHeaderRow: new Style<Layout>({
 		alignItems: 'center',

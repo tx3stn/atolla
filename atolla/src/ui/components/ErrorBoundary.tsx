@@ -110,8 +110,8 @@ const styles = {
 		flexDirection: 'column',
 		justifyContent: 'center',
 		left: 0,
-		paddingLeft: 24,
-		paddingRight: 24,
+		paddingLeft: theme.scale(24),
+		paddingRight: theme.scale(24),
 		position: 'absolute',
 		right: 0,
 		top: 0,
@@ -120,7 +120,7 @@ const styles = {
 		alignItems: 'center',
 		flexDirection: 'column',
 		maxHeight: '55%',
-		paddingTop: 8,
+		paddingTop: theme.scale(8),
 		slowClipping: true,
 		width: '100%',
 	}),
@@ -133,7 +133,7 @@ const styles = {
 	}),
 	stackScroll: new Style<ScrollView>({
 		flexGrow: 1,
-		paddingTop: 12,
+		paddingTop: theme.scale(12),
 		width: '100%',
 	}),
 	title: new Style<Label>({

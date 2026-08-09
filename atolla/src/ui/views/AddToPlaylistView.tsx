@@ -182,7 +182,7 @@ export class AddToPlaylistView extends StatefulComponent<
 
 const styles = {
 	closeButton: new Style<View>({
-		padding: 8,
+		padding: theme.scale(8),
 	}),
 	closeLabel: new Style<Label>({
 		...theme.text.main,
@@ -194,9 +194,9 @@ const styles = {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		left: 0,
-		paddingBottom: 12,
-		paddingLeft: 16,
-		paddingRight: 16,
+		paddingBottom: theme.scale(12),
+		paddingLeft: theme.scale(16),
+		paddingRight: theme.scale(16),
 		paddingTop: theme.padding.headerTop,
 		position: 'absolute',
 		right: 0,
@@ -215,8 +215,8 @@ const styles = {
 	scroll: new Style<ScrollView>({
 		bottom: 0,
 		left: 0,
-		padding: 8,
-		paddingBottom: 24,
+		padding: theme.scale(8),
+		paddingBottom: theme.scale(24),
 		paddingTop: theme.headerHeight + theme.padding.deviceInset + 8,
 		position: 'absolute',
 		right: 0,

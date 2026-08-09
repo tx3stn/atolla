@@ -206,11 +206,11 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 
 const styles = {
 	section: new Style<Layout>({
-		marginBottom: 24,
+		marginBottom: theme.scale(24),
 		width: '100%',
 	}),
 	sectionTitle: new Style<Label>({
 		...theme.text.mainBold,
-		marginBottom: 8,
+		marginBottom: theme.scale(8),
 	}),
 };

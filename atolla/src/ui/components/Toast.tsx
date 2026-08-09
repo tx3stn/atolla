@@ -248,17 +248,17 @@ const styles = {
 	}),
 	detail: new Style<Label>({
 		...theme.text.sub,
-		marginTop: 4,
+		marginTop: theme.scale(4),
 	}),
 	icon: new Style<ImageView>({
 		height: theme.scale(iconSize),
-		marginRight: 10,
-		marginTop: 2,
+		marginRight: theme.scale(10),
+		marginTop: theme.scale(2),
 		width: theme.scale(iconSize),
 	}),
 	leading: new Style<View>({
-		marginRight: 10,
-		marginTop: 2,
+		marginRight: theme.scale(10),
+		marginTop: theme.scale(2),
 	}),
 	message: new Style<Label>({
 		...theme.text.mainBold,

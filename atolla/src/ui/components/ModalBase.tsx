@@ -52,7 +52,7 @@ const styles = {
 		borderColor: theme.colors.separator,
 		borderRadius: theme.radius.default,
 		borderWidth: 1,
-		padding: 20,
+		padding: theme.scale(20),
 		slowClipping: true,
 		width: '90%',
 	}),
@@ -80,8 +80,8 @@ export const modalStyles = {
 	divider: new Style<View>({
 		backgroundColor: theme.colors.separator,
 		height: 1,
-		marginBottom: 14,
-		marginTop: 12,
+		marginBottom: theme.scale(14),
+		marginTop: theme.scale(12),
 		width: '100%',
 	}),
 	title: new Style<Label>({

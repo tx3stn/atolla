@@ -101,7 +101,7 @@ const styles = {
 	errorLabel: new Style<Label>({
 		...theme.text.sub,
 		color: theme.colors.destructive,
-		marginTop: 8,
+		marginTop: theme.scale(8),
 	}),
 	input: new Style<TextField>({
 		...theme.text.main,
@@ -110,9 +110,9 @@ const styles = {
 	inputContainer: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.radius.default,
-		paddingBottom: 12,
-		paddingLeft: 12,
-		paddingRight: 12,
-		paddingTop: 12,
+		paddingBottom: theme.scale(12),
+		paddingLeft: theme.scale(12),
+		paddingRight: theme.scale(12),
+		paddingTop: theme.scale(12),
 	}),
 };

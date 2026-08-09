@@ -105,7 +105,7 @@ const styles = {
 		borderRadius: theme.radius.default,
 		borderWidth: 1,
 		maxHeight: '80%',
-		padding: 20,
+		padding: theme.scale(20),
 		slowClipping: true,
 		width: '90%',
 	}),
@@ -115,6 +115,6 @@ const styles = {
 	}),
 	scroll: new Style<ScrollView>({
 		flexGrow: 1,
-		paddingBottom: 100,
+		paddingBottom: theme.scale(100),
 	}),
 };

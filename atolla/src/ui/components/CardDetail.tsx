@@ -67,7 +67,7 @@ const styles = {
 		borderRadius: theme.radius.default,
 		flexShrink: 0,
 		justifyContent: 'center',
-		marginRight: 14,
+		marginRight: theme.scale(14),
 		slowClipping: true,
 		width: '25%',
 	}),
@@ -79,15 +79,15 @@ const styles = {
 	}),
 	lineTwo: new Style<Label>({
 		...theme.text.main,
-		marginTop: 2,
+		marginTop: theme.scale(2),
 	}),
 	row: new Style<View>({
 		alignItems: 'center',
 		backgroundColor: theme.colors.bgRaised,
 		borderRadius: theme.radius.default,
 		flexDirection: 'row',
-		minHeight: 75,
-		paddingRight: 12,
+		minHeight: theme.scale(75),
+		paddingRight: theme.scale(12),
 		width: '100%',
 	}),
 	textColumn: new Style<Layout>({
@@ -95,8 +95,8 @@ const styles = {
 		flexShrink: 1,
 		height: '100%',
 		justifyContent: 'space-between',
-		paddingBottom: 10,
-		paddingTop: 5,
+		paddingBottom: theme.scale(10),
+		paddingTop: theme.scale(5),
 	}),
 	textTop: new Style<Layout>({
 		width: '100%',

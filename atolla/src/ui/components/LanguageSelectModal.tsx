@@ -53,10 +53,10 @@ export class LanguageSelectModal extends Component<LanguageSelectModalViewModel>
 const styles = {
 	option: new Style<View>({
 		borderRadius: theme.radius.default,
-		marginBottom: 4,
-		paddingBottom: 14,
-		paddingLeft: 12,
-		paddingTop: 14,
+		marginBottom: theme.scale(4),
+		paddingBottom: theme.scale(14),
+		paddingLeft: theme.scale(12),
+		paddingTop: theme.scale(14),
 	}),
 	optionLabel: new Style<Label>({
 		...theme.text.main,
@@ -64,9 +64,9 @@ const styles = {
 	optionSelected: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.radius.default,
-		marginBottom: 4,
-		paddingBottom: 14,
-		paddingLeft: 12,
-		paddingTop: 14,
+		marginBottom: theme.scale(4),
+		paddingBottom: theme.scale(14),
+		paddingLeft: theme.scale(12),
+		paddingTop: theme.scale(14),
 	}),
 };

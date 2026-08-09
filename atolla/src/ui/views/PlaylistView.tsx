@@ -688,14 +688,14 @@ const styles = {
 	}),
 	loadMoreLabel: new Style<Label>({
 		...theme.text.sub,
-		marginTop: 12,
+		marginTop: theme.scale(12),
 		textAlign: 'center',
 	}),
 	loadMoreRetryContainer: new Style<Layout>({
 		alignItems: 'center',
-		marginTop: 12,
-		paddingBottom: 8,
-		paddingTop: 8,
+		marginTop: theme.scale(12),
+		paddingBottom: theme.scale(8),
+		paddingTop: theme.scale(8),
 	}),
 	loadMoreRetryLabel: new Style<Label>({
 		...theme.text.main,
@@ -712,7 +712,7 @@ const styles = {
 	scroll: new Style<ScrollView>({
 		backgroundColor: theme.colors.bg,
 		flexGrow: 1,
-		padding: 8,
+		padding: theme.scale(8),
 		paddingBottom: theme.padding.scrollBottom,
 		paddingTop: theme.padding.scrollHeader(true),
 		width: '100%',

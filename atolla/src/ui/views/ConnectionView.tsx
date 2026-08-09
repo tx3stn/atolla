@@ -230,18 +230,18 @@ const styles = {
 	errorMessage: new Style<Label>({
 		...theme.text.sub,
 		color: theme.colors.destructive,
-		marginTop: 10,
+		marginTop: theme.scale(10),
 		textAlign: 'center',
 	}),
 	input: new Style<TextField>({
 		...theme.text.main,
-		marginLeft: 10,
+		marginLeft: theme.scale(10),
 		width: '100%',
 	}),
 	inputContainer: new Style<View>({
 		backgroundColor: theme.colors.bgAccent,
 		borderRadius: theme.radius.pill,
-		marginTop: 16,
+		marginTop: theme.scale(16),
 		padding: theme.padding.pill,
 		width: '100%',
 	}),
@@ -265,7 +265,7 @@ const styles = {
 		backgroundColor: theme.colors.bg,
 		height: theme.scale(96),
 		justifyContent: 'center' as const,
-		marginBottom: 30,
+		marginBottom: theme.scale(30),
 		width: theme.scale(96),
 	}),
 	logoImage: new Style<ImageView>({
@@ -284,20 +284,20 @@ const styles = {
 	}),
 	quickConnectContainer: new Style<View>({
 		alignItems: 'center' as const,
-		marginTop: 10,
+		marginTop: theme.scale(10),
 	}),
 	quickConnectSpinnerSlot: new Style<View>({
 		alignItems: 'center' as const,
 		height: theme.scale(46),
 		justifyContent: 'center' as const,
-		marginTop: 10,
+		marginTop: theme.scale(10),
 	}),
 	root: new Style<View>({
 		alignItems: 'center' as const,
 		backgroundColor: theme.colors.bg,
 		height: '100%',
 		justifyContent: 'center' as const,
-		padding: 20,
+		padding: theme.scale(20),
 		position: 'relative' as const,
 		width: '100%',
 	}),
@@ -307,7 +307,7 @@ const styles = {
 	}),
 	title: new Style<Label>({
 		...theme.text.display,
-		marginBottom: 6,
+		marginBottom: theme.scale(6),
 		textAlign: 'center',
 	}),
 };

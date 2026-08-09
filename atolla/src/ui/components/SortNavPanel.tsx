@@ -87,8 +87,8 @@ export class SortNavPanel extends Component<SortNavPanelViewModel> {
 const styles = {
 	alphabetGrid: new Style<Layout>({
 		flexDirection: 'column',
-		paddingLeft: 8,
-		paddingRight: 8,
+		paddingLeft: theme.scale(8),
+		paddingRight: theme.scale(8),
 	}),
 	alphabetRow: new Style<Layout>({
 		flexDirection: 'row',
@@ -98,8 +98,8 @@ const styles = {
 		alignItems: 'center',
 		height: theme.scale(24),
 		justifyContent: 'center',
-		marginLeft: 1,
-		marginRight: 1,
+		marginLeft: theme.scale(1),
+		marginRight: theme.scale(1),
 		width: theme.scale(24),
 	}),
 	letterButtonActive: new Style<View>({
@@ -107,8 +107,8 @@ const styles = {
 		borderRadius: theme.radius.pill,
 		height: theme.scale(24),
 		justifyContent: 'center' as const,
-		marginLeft: 1,
-		marginRight: 1,
+		marginLeft: theme.scale(1),
+		marginRight: theme.scale(1),
 		position: 'relative' as const,
 		slowClipping: true,
 		width: theme.scale(24),
@@ -132,8 +132,8 @@ const styles = {
 		backgroundColor: theme.colors.bgFrosted,
 		borderRadius: theme.radius.default,
 		left: 16,
-		paddingBottom: 10,
-		paddingTop: 10,
+		paddingBottom: theme.scale(10),
+		paddingTop: theme.scale(10),
 		position: 'absolute' as const,
 		right: 16,
 		top: theme.padding.scrollHeader(null) + 6,

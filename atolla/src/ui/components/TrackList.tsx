@@ -1200,7 +1200,7 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 		emptyStateStyle: new Style<Label>({
 			...theme.text.sub,
 			color: colors.meta,
-			margin: 8,
+			margin: theme.scale(8),
 			textAlign: 'center',
 		}),
 		leadingLabelTextStyle: new Style<Label>({
@@ -1212,15 +1212,15 @@ function getResolvedTrackListStyles(colors: TrackListColors): TrackListResolvedS
 			...theme.text.sub,
 			color: colors.meta,
 			flexShrink: 1,
-			marginTop: 3,
+			marginTop: theme.scale(3),
 		}),
 		rowStyle: new Style<View>({
 			backgroundColor: colors.rowBackground,
 			borderRadius: theme.radius.default,
-			paddingBottom: 8,
-			paddingLeft: 10,
-			paddingRight: 10,
-			paddingTop: 8,
+			paddingBottom: theme.scale(8),
+			paddingLeft: theme.scale(10),
+			paddingRight: theme.scale(10),
+			paddingTop: theme.scale(8),
 		}),
 		titleStyle: new Style<Label>({
 			...theme.text.mainBold,
@@ -1268,8 +1268,8 @@ const styles = {
 	editHandleContainer: new Style<View>({
 		alignItems: 'center',
 		justifyContent: 'center',
-		paddingLeft: 8,
-		paddingRight: 2,
+		paddingLeft: theme.scale(8),
+		paddingRight: theme.scale(2),
 	}),
 	editHandleIcon: new Style<ImageView>({
 		height: theme.scale(24),
@@ -1280,7 +1280,7 @@ const styles = {
 		alignSelf: 'flex-start',
 		aspectRatio: 1,
 		justifyContent: 'flex-start',
-		paddingTop: 5,
+		paddingTop: theme.scale(5),
 		width: theme.scale(38),
 	}),
 	list: new Style<Layout>({
@@ -1321,6 +1321,6 @@ const styles = {
 	textBlock: new Style<Layout>({
 		flexGrow: 1,
 		flexShrink: 1,
-		paddingLeft: 10,
+		paddingLeft: theme.scale(10),
 	}),
 };

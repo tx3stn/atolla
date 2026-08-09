@@ -64,13 +64,13 @@ const styles = {
 	actionRow: new Style<View>({
 		...theme.text.subLarger,
 		flexDirection: 'row' as const,
-		padding: 4,
+		padding: theme.scale(4),
 		position: 'relative' as const,
 		width: '100%',
 	}),
 	icon: new Style<ImageView>({
 		height: theme.scale(18),
-		margin: 10,
+		margin: theme.scale(10),
 		width: theme.scale(18),
 	}),
 };

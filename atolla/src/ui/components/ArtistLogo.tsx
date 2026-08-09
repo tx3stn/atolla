@@ -65,7 +65,7 @@ const styles = {
 		...theme.text.display,
 	}),
 	fallbackTextPadding: new Style<Layout>({
-		padding: 8,
+		padding: theme.scale(8),
 	}),
 	logoArea: new Style<View>({
 		slowClipping: true,
