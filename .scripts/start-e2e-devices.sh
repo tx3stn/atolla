@@ -7,11 +7,23 @@ set -euo pipefail
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}"
 export PATH="$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
 
-AVD_NAME="${AVD_NAME:-gsd-api34}"
+E2E_FORM_FACTOR="${E2E_FORM_FACTOR:-phone}"
+
+if [[ "$E2E_FORM_FACTOR" == "tablet" ]]; then
+	DEFAULT_AVD_NAME="gsd-tablet-api34"
+	DEFAULT_AVD_DEVICE="pixel_tablet"
+	DEFAULT_IOS_DEVICE_NAME="iPad Pro 11-inch (M5)"
+else
+	DEFAULT_AVD_NAME="gsd-api34"
+	DEFAULT_AVD_DEVICE="pixel_7"
+	DEFAULT_IOS_DEVICE_NAME="iPhone 17"
+fi
+
+AVD_NAME="${AVD_NAME:-$DEFAULT_AVD_NAME}"
 AVD_API_LEVEL="${AVD_API_LEVEL:-34}"
 AVD_ABI="${AVD_ABI:-arm64-v8a}"
-AVD_DEVICE="${AVD_DEVICE:-pixel_7}"
-IOS_DEVICE_NAME="${IOS_DEVICE_NAME:-iPhone 17}"
+AVD_DEVICE="${AVD_DEVICE:-$DEFAULT_AVD_DEVICE}"
+IOS_DEVICE_NAME="${IOS_DEVICE_NAME:-$DEFAULT_IOS_DEVICE_NAME}"
 ANDROID_INSTANCES="${E2E_ANDROID_INSTANCES:-2}"
 IOS_INSTANCES="${E2E_IOS_INSTANCES:-2}"
 
@@ -21,6 +33,23 @@ running_android_serials() {
 	adb devices 2>/dev/null |
 		awk 'NR>1 && $2=="device" && $1~/^emulator-/ {print $1}' |
 		sort
+}
+
+# only serials booted from the requested AVD family ("$avd" or "$avd-N"). without this the
+# reuse check is form-factor blind and a tablet run silently attaches to a booted phone
+running_serials_for_avd() {
+	local avd=$1
+	local serial
+	while IFS= read -r serial; do
+		[[ -z "$serial" ]] && continue
+		local name
+		# `adb emu avd name` needs the emulator console auth token and returns nothing without
+		# it, so read the name the emulator boots with instead
+		name=$(adb -s "$serial" shell getprop ro.boot.qemu.avd_name 2>/dev/null | tr -d '\r\n')
+		if [[ "$name" == "$avd" || "$name" =~ ^${avd}-[0-9]+$ ]]; then
+			echo "$serial"
+		fi
+	done < <(running_android_serials)
 }
 
 ensure_avd() {
@@ -39,12 +68,12 @@ start_android_emulators() {
 	local avd=$2
 
 	local running
-	running=$(running_android_serials || true)
+	running=$(running_serials_for_avd "$avd" || true)
 	local current=0
 	[[ -n "$running" ]] && current=$(echo "$running" | wc -l | tr -d ' ')
 
 	if [[ $current -ge $target ]]; then
-		echo "Android: $current emulator(s) already running, reusing." >&2
+		echo "Android: $current '$avd' emulator(s) already running, reusing." >&2
 		echo "$running" | head -n "$target" | tr '\n' ',' | sed 's/,$//'
 		return
 	fi
@@ -72,7 +101,7 @@ start_android_emulators() {
 	while true; do
 		local ready=0
 		local serials
-		serials=$(running_android_serials || true)
+		serials=$(running_serials_for_avd "$avd" || true)
 		[[ -n "$serials" ]] && ready=$(echo "$serials" | wc -l | tr -d ' ')
 		[[ $ready -ge $target ]] && break
 		[[ $elapsed -ge 120 ]] && {
@@ -83,8 +112,10 @@ start_android_emulators() {
 		elapsed=$((elapsed + 3))
 	done
 
+	local matching
+	matching=$(running_serials_for_avd "$avd" || true)
 	local final_serials
-	final_serials=$(running_android_serials | head -n "$target")
+	final_serials=$(echo "$matching" | head -n "$target")
 
 	while IFS= read -r serial; do
 		[[ -z "$serial" ]] && continue

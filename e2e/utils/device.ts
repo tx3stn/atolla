@@ -7,6 +7,13 @@ export const Platforms = {
 
 export type Platform = (typeof Platforms)[keyof typeof Platforms];
 
+export type FormFactor = 'phone' | 'tablet';
+
+const DEVICE_DEFAULTS: Record<FormFactor, { android: string; ios: string }> = {
+	phone: { android: 'gsd-api34', ios: 'iPhone 17' },
+	tablet: { android: 'gsd-tablet-api34', ios: 'iPad Pro 11-inch (M5)' },
+};
+
 interface DeviceConfig {
 	appActivity?: string;
 	appPackage?: string;
@@ -42,12 +49,19 @@ function parseCount(value: string | undefined): number {
 	return parsed;
 }
 
+function getFormFactor(): FormFactor {
+	return process.env.E2E_FORM_FACTOR === 'tablet' ? 'tablet' : 'phone';
+}
+
 export function getDeviceConfig(device: Platform, index = 0): DeviceConfig {
 	switch (device) {
 		case Platforms.iOS: {
 			const iosDevices = parseList(process.env.E2E_IOS_DEVICE_NAMES);
 			const iosUdids = parseList(process.env.E2E_IOS_UDIDS);
-			const deviceName = iosDevices[index] ?? process.env.E2E_DEVICE_NAME ?? 'iPhone 17';
+			const deviceName =
+				iosDevices[index] ??
+				process.env.E2E_DEVICE_NAME ??
+				DEVICE_DEFAULTS[getFormFactor()].ios;
 			return {
 				automationName: 'XCUITest',
 				bundleId: process.env.E2E_BUNDLE_ID ?? 'com.tx3stn.atolla',
@@ -66,7 +80,10 @@ export function getDeviceConfig(device: Platform, index = 0): DeviceConfig {
 			const androidDevices = parseList(process.env.E2E_ANDROID_DEVICE_NAMES);
 			const androidSerials = parseList(process.env.E2E_ANDROID_SERIALS);
 			const serial = androidSerials[index];
-			const deviceName = androidDevices[index] ?? process.env.E2E_DEVICE_NAME ?? 'gsd-api34';
+			const deviceName =
+				androidDevices[index] ??
+				process.env.E2E_DEVICE_NAME ??
+				DEVICE_DEFAULTS[getFormFactor()].android;
 			return {
 				automationName: 'UiAutomator2',
 				// when targeting a running emulator by serial, don't set avd (avd makes Appium boot one)
