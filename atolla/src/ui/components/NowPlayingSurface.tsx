@@ -49,8 +49,9 @@ const COMPACT_SWIPE_OFF_SCREEN = Math.round((theme.windowWidth - COMPACT_SWIPE_B
 // the artist logo, track meta, progress section and controls that stack below the expanded artwork,
 // with their margins. the artwork is square and as wide as the window, which only fits a phone's
 // aspect ratio — on a wider screen it pushes the controls off the bottom, so it is capped at whatever
-// height is left once this stack has its space. a phone is never capped: its window is narrower than
-// what remains, so the min below always resolves to the full width it uses today
+// height is left once this stack has its space. that alone is not enough: a tall tablet leaves nearly
+// the full window width, so the artwork is capped as a share of the width too. a phone is never
+// capped by either, so the min below still resolves to the full width it uses today
 const EXPANDED_STACK_HEIGHT = theme.scalePlayer(384);
 // a capped artwork is inset from the sides, and butting it against the status bar makes those side
 // gaps read as a mistake rather than a margin. a phone is never capped, so it keeps its flush top
@@ -58,7 +59,7 @@ const EXPANDED_ARTWORK_TOP_GAP = theme.scalePlayer(12);
 export const EXPANDED_ARTWORK_SIZE = Math.max(
 	0,
 	Math.min(
-		theme.windowWidth,
+		theme.playerArtworkMaxWidth,
 		theme.windowHeight -
 			theme.padding.deviceInset -
 			EXPANDED_STACK_HEIGHT -

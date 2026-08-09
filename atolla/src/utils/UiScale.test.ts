@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import {
+	deriveArtworkWidthFraction,
 	deriveGestureScale,
 	deriveHeroScale,
 	deriveNavScale,
@@ -185,5 +186,50 @@ describe('deriveHeroScale with an unusable width', () => {
 		expect(deriveHeroScale(0)).toBe(1);
 		expect(deriveHeroScale(Number.NaN)).toBe(1);
 		expect(deriveHeroScale(-100)).toBe(1);
+	});
+});
+
+describe('deriveArtworkWidthFraction on phone widths', () => {
+	const phoneWidths = [320, 360, 375, 390, 393, 402, 411, 430, 440];
+
+	for (const width of phoneWidths) {
+		it(`keeps the full width at ${width}pt`, () => {
+			expect(deriveArtworkWidthFraction(width)).toBe(1);
+		});
+	}
+});
+
+describe('deriveArtworkWidthFraction on tablet widths', () => {
+	it('gives back more of the window the wider it gets', () => {
+		expect(deriveArtworkWidthFraction(744)).toBeLessThan(1);
+		expect(deriveArtworkWidthFraction(800)).toBeLessThan(deriveArtworkWidthFraction(744));
+		expect(deriveArtworkWidthFraction(834)).toBeLessThan(deriveArtworkWidthFraction(800));
+	});
+
+	// the artwork is the point of the surface, so the ramp has to stop well short of shrinking it
+	// into a thumbnail on a wide screen
+	it('stops shrinking past the tablet width', () => {
+		expect(deriveArtworkWidthFraction(1024)).toBe(deriveArtworkWidthFraction(834));
+		expect(deriveArtworkWidthFraction(2048)).toBe(deriveArtworkWidthFraction(834));
+		expect(deriveArtworkWidthFraction(2048)).toBeGreaterThan(0.5);
+	});
+
+	// a 16:10 tablet leaves enough height that the height cap lands at almost the full width, which
+	// is what sent the artwork edge to edge on Android; the width cap has to bite well before that
+	it('caps the artwork below the height a tall tablet leaves for it', () => {
+		const windowWidth = 800;
+		const heightLeftForArtwork = 788;
+
+		expect(windowWidth * deriveArtworkWidthFraction(windowWidth)).toBeLessThan(
+			heightLeftForArtwork,
+		);
+	});
+});
+
+describe('deriveArtworkWidthFraction with an unusable width', () => {
+	it('falls back to the full width rather than shrinking the artwork', () => {
+		expect(deriveArtworkWidthFraction(0)).toBe(1);
+		expect(deriveArtworkWidthFraction(Number.NaN)).toBe(1);
+		expect(deriveArtworkWidthFraction(-100)).toBe(1);
 	});
 });

@@ -59,9 +59,7 @@ export function getDeviceConfig(device: Platform, index = 0): DeviceConfig {
 			const iosDevices = parseList(process.env.E2E_IOS_DEVICE_NAMES);
 			const iosUdids = parseList(process.env.E2E_IOS_UDIDS);
 			const deviceName =
-				iosDevices[index] ??
-				process.env.E2E_DEVICE_NAME ??
-				DEVICE_DEFAULTS[getFormFactor()].ios;
+				iosDevices[index] ?? process.env.E2E_DEVICE_NAME ?? DEVICE_DEFAULTS[getFormFactor()].ios;
 			return {
 				automationName: 'XCUITest',
 				bundleId: process.env.E2E_BUNDLE_ID ?? 'com.tx3stn.atolla',

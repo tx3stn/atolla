@@ -17,6 +17,13 @@ const PLAYER_SCALE_MAX = 1.2;
 // it. safe to be generous: they are laid out with objectFit contain inside a column, so a wide one
 // stops growing when it meets the column width rather than when it meets this ceiling
 const HERO_SCALE_MAX = 2.3;
+// the expanded player's artwork is capped by the height left for the controls,
+// which on a tall tablet means the art would fill the full UI pushing the controls down.
+const ARTWORK_WIDTH_FRACTION_MIN = 0.8;
+
+export function deriveArtworkWidthFraction(windowWidth: number): number {
+	return rampedScale(windowWidth, ARTWORK_WIDTH_FRACTION_MIN);
+}
 
 export function deriveHeroScale(windowWidth: number): number {
 	return rampedScale(windowWidth, HERO_SCALE_MAX);

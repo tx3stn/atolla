@@ -3,6 +3,7 @@ import { Style } from 'valdi_core/src/Style';
 import { systemBoldFont, systemFont } from 'valdi_core/src/SystemFont';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import {
+	deriveArtworkWidthFraction,
 	deriveGestureScale,
 	deriveHeroScale,
 	deriveNavScale,
@@ -66,6 +67,7 @@ function scaledPlayer(value: number): number {
 
 const headerAndFooter = scaledNav(52);
 const topInset = Device.getDisplayTopInset();
+const playerArtworkMaxWidth = Math.round(windowWidth * deriveArtworkWidthFraction(windowWidth));
 
 export const theme = {
 	app: {
@@ -106,6 +108,7 @@ export const theme = {
 			return headerAndFooter + topInset + 16;
 		},
 	},
+	playerArtworkMaxWidth: playerArtworkMaxWidth,
 	radius: {
 		card: 6,
 		default: 18,
