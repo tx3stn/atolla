@@ -89,7 +89,6 @@ function makeDetailViewModel(transport: Record<string, unknown>) {
 		downloadService,
 		imageCache: stubImageCache,
 		networkStatus,
-		onRootDetailControllerReady: () => {},
 		playbackStore,
 		preferences: makePreferences(),
 		transport,

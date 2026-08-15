@@ -47,7 +47,6 @@ export interface GenreViewModel {
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
 	onNavigateToArtist?: (artistId: string) => void;
-	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
@@ -100,7 +99,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		this.registerDisposable(() => this.headerCollapse.reset());
 		const headerSectionId = headerStore.pushDetailSection(HeaderTabs.genres);
 		this.registerDisposable(() => headerStore.clearDetailSection(headerSectionId));
-		this.viewModel.onRootDetailControllerReady(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
 				this.navigationController.disableDismissalGesture()();

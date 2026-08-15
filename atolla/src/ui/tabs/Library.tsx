@@ -1,6 +1,5 @@
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
@@ -20,6 +19,7 @@ import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQue
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
+import { appShellStore } from '../../stores/AppShell';
 import { headerStore } from '../../stores/Header';
 import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import type { PlaybackStore } from '../../stores/Playback';
@@ -57,7 +57,6 @@ interface LibraryViewState {
 
 export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryViewState> {
 	private rootController?: NavigationController;
-	private firstDetailController?: NavigationController;
 
 	state: LibraryViewState = {
 		activeTab: HeaderTabs.artists,
@@ -89,7 +88,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									navigationController={navigationController}
 									networkStatus={this.viewModel.networkStatus}
 									offlineDataInvalidations={this.viewModel.offlineDataInvalidations}
-									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
 									pinnedItemsStore={this.viewModel.pinnedItemsStore}
 									playbackStore={this.viewModel.playbackStore}
@@ -108,7 +106,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									navigationController={navigationController}
 									networkStatus={this.viewModel.networkStatus}
 									offlineDataInvalidations={this.viewModel.offlineDataInvalidations}
-									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
 									pinnedItemsStore={this.viewModel.pinnedItemsStore}
 									playbackStore={this.viewModel.playbackStore}
@@ -128,7 +125,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									networkStatus={this.viewModel.networkStatus}
 									offlineDataInvalidations={this.viewModel.offlineDataInvalidations}
 									onNavigateToArtist={this.handlePlaylistArtistTap}
-									onRootDetailControllerReady={this.setRootDetailController}
 									paletteQueue={this.viewModel.paletteQueue}
 									pinnedItemsStore={this.viewModel.pinnedItemsStore}
 									playbackStore={this.viewModel.playbackStore}
@@ -149,7 +145,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									networkStatus={this.viewModel.networkStatus}
 									offlineDataInvalidations={this.viewModel.offlineDataInvalidations}
 									onNavigateToArtist={this.handlePlaylistArtistTap}
-									onRootDetailControllerReady={this.setRootDetailController}
 									pinnedItemsStore={this.viewModel.pinnedItemsStore}
 									playbackStore={this.viewModel.playbackStore}
 									preferences={this.viewModel.preferences}
@@ -175,7 +170,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 			return;
 		}
 
-		this.unwindToTabRoot();
+		appShellStore.unwindToRoot(FooterTabs.library);
 		this.setState({ activeTab: tab, letterFilter: null });
 		this.publishHeader(tab, null);
 	};
@@ -190,32 +185,13 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 		});
 	}
 
-	private setRootDetailController = (controller: NavigationController): void => {
-		this.firstDetailController = controller;
-	};
-
-	private unwindToTabRoot(): void {
-		// popToSelf works on iOS; on Android it throws, so pop the first pushed detail (which removes
-		// it and everything above it).
-		if (Device.isAndroid()) {
-			this.firstDetailController?.pop(false);
-		} else {
-			this.rootController?.popToSelf(false);
-		}
-		this.firstDetailController = undefined;
-	}
-
-	// `recordAsFirstDetail` lets a top-level list→detail push register its controller so section
-	// switches unwind to root; nested pushes (artist from a playlist) pass false so they don't
-	// replace the tab's first detail.
-	private detailDeps(recordAsFirstDetail = true): DetailPushDeps {
+	private detailDeps(): DetailPushDeps {
 		return {
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.handlePlaylistArtistTap,
-			onRootDetailControllerReady: recordAsFirstDetail ? this.setRootDetailController : undefined,
 			paletteQueue: this.viewModel.paletteQueue,
 			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
@@ -233,7 +209,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 			return;
 		}
 		// best-effort: navigate on the id; ArtistView self-heals the name/image
-		pushArtist(controller, this.detailDeps(false), { id: artistId, name: '' });
+		pushArtist(controller, this.detailDeps(), { id: artistId, name: '' });
 	};
 }
 

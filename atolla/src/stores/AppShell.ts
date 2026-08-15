@@ -52,9 +52,9 @@ export class AppShellStore {
 	// A Library section tab tapped from a detail's header: dismiss the detail and land on that section.
 	handleDetailSectionTap = (tab: HeaderTab): void => {
 		const origin = this.activeTab;
-		this.dismissDetail(origin);
+		this.unwindToRoot(origin);
 		if (origin !== FooterTabs.library) {
-			this.dismissDetail(FooterTabs.library);
+			this.unwindToRoot(FooterTabs.library);
 			this.setActiveTab(FooterTabs.library);
 		}
 		const descriptor = headerStore.descriptorFor(FooterTabs.library);
@@ -64,12 +64,7 @@ export class AppShellStore {
 	};
 
 	handleFooterTabTap = (tab: FooterTab): void => {
-		// iOS pushes details full-screen onto the one root nav controller, so an open detail covers
-		// the tabs; pop the current tab back to its root so the tapped tab is actually revealed.
-		// (Android keeps a separate stack per tab, so the target tab already shows on switch.)
-		if (!Device.isAndroid()) {
-			this.tabNavControllers[this.activeTab]?.popToSelf(false);
-		}
+		this.unwindToRoot(this.activeTab);
 		backNavRouter.setActiveTab(tab);
 		this.activeTab = tab;
 		// collapse expanded now-playing surface so the tapped tab is actually visible.
@@ -136,6 +131,16 @@ export class AppShellStore {
 		};
 	}
 
+	unwindToRoot(tab: FooterTab): void {
+		// iOS unwinds the tab's whole detail stack via its root controller; Android's JS navigator
+		// throws on popToSelf, so pop the tab's first detail (removing it and everything above it).
+		if (!Device.isAndroid()) {
+			this.tabNavControllers[tab]?.popToSelf(false);
+		} else {
+			backNavRouter.firstPageOf(tab)?.pop(false);
+		}
+	}
+
 	private albumFromTrack(track: Track | null | undefined): Album | null {
 		if (!track?.albumId) {
 			return null;
@@ -169,16 +174,6 @@ export class AppShellStore {
 			transport: services.transport,
 			viewCache: services.viewCache,
 		};
-	}
-
-	private dismissDetail(tab: FooterTab): void {
-		// iOS unwinds the tab's whole detail stack via its root controller; Android's JS navigator
-		// throws on popToSelf, so pop the tab's first detail (removing it and everything above it).
-		if (!Device.isAndroid()) {
-			this.tabNavControllers[tab]?.popToSelf(false);
-		} else {
-			backNavRouter.firstPageOf(tab)?.pop(false);
-		}
 	}
 
 	private notify(): void {

@@ -71,6 +71,38 @@ describe('back navigation', () => {
 		expect(await library.tabs.playlists.isVisible()).toBe(true);
 	});
 
+	it('should return to the library root when tapping the library footer tab from a nested detail', async () => {
+		const artistDetailPage = new ArtistDetailPage(browser);
+		const albumDetailPage = new AlbumDetailPage(browser);
+
+		await library.openArtistsTab();
+		await library.tabs.artists.tapFirstVisibleCard();
+		await artistDetailPage.waitForLoad();
+
+		await library.tabs.albums.tapFirstVisibleCard();
+		await albumDetailPage.waitForLoad();
+
+		await footer.tapLibrary();
+		await library.tabs.artists.waitForLoad();
+
+		expect(await library.tabs.artists.isVisible()).toBe(true);
+	});
+
+	it('should return home when tapping the home footer tab with a detail open', async () => {
+		const albumDetailPage = new AlbumDetailPage(browser);
+		const homePage = new HomePage(browser);
+
+		await footer.tapHome();
+		await homePage.waitForLoad();
+		await homePage.tapFirstVisibleAlbumCard();
+		await albumDetailPage.waitForLoad();
+
+		await footer.tapHome();
+		await homePage.waitForLoad();
+
+		expect(await homePage.isDisplayed()).toBe(true);
+	});
+
 	it('should keep playlists back navigation working after artist and album navigation', async () => {
 		const artistDetailPage = new ArtistDetailPage(browser);
 		const albumDetailPage = new AlbumDetailPage(browser);

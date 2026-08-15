@@ -77,7 +77,6 @@ describe('detail view render identity', () => {
 				downloadService,
 				imageCache: stubImageCache,
 				networkStatus,
-				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist: { id: 'playlist-1', name: 'Roadtrip' },
 				preferences: makePreferences(),
@@ -108,7 +107,6 @@ describe('detail view render identity', () => {
 				genre: { id: 'genre-1', name: 'Hardcore' },
 				imageCache: stubImageCache,
 				networkStatus,
-				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences: makePreferences(),
 				transport: {
@@ -139,7 +137,6 @@ describe('detail view render identity', () => {
 				downloadService,
 				imageCache: stubImageCache,
 				networkStatus,
-				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences: makePreferences(),
 				transport: {
@@ -175,7 +172,6 @@ describe('detail view render identity', () => {
 				downloadService,
 				imageCache: stubImageCache,
 				networkStatus,
-				onRootDetailControllerReady: () => {},
 				playbackStore,
 				preferences: makePreferences(),
 				transport: {

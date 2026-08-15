@@ -6,6 +6,7 @@ import { backNavRouter } from 'atolla/src/services/BackNavRouter';
 import { AppShellStore } from 'atolla/src/stores/AppShell';
 import { headerStore } from 'atolla/src/stores/Header';
 import { makeTestViewCache } from 'atolla/test/util/viewCache';
+import { Device } from 'valdi_core/src/Device';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 
 function fakeController(): NavigationController {
@@ -72,6 +73,32 @@ describe('AppShellStore', () => {
 		expect(store.activeFooterTab).toBe(FooterTabs.search);
 		expect(home.popToSelf).toHaveBeenCalledWith(false);
 		expect(listener).toHaveBeenCalled();
+	});
+
+	it('pops the outgoing tab detail stack on Android, where popToSelf is unavailable', () => {
+		const home = fakeController();
+		store.registerController(FooterTabs.home, home);
+		const detailPage = fakeController();
+		backNavRouter.setActiveTab(FooterTabs.home);
+		backNavRouter.registerPage(detailPage);
+		spyOn(Device, 'isAndroid').and.returnValue(true);
+
+		store.handleFooterTabTap(FooterTabs.search);
+
+		expect(detailPage.pop).toHaveBeenCalledWith(false);
+		expect(home.popToSelf).not.toHaveBeenCalled();
+
+		backNavRouter.unregisterPage(detailPage);
+	});
+
+	it('unwinds the tab back to its root when the already active tab is re-tapped', () => {
+		const home = fakeController();
+		store.registerController(FooterTabs.home, home);
+
+		store.handleFooterTabTap(FooterTabs.home);
+
+		expect(home.popToSelf).toHaveBeenCalledWith(false);
+		expect(store.activeFooterTab).toBe(FooterTabs.home);
 	});
 
 	it('collapses the now-playing surface on every footer tab tap, including the active tab', () => {

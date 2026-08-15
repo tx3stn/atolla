@@ -43,7 +43,6 @@ export interface AlbumsViewModel {
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
 	offlineDataInvalidations: number;
-	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
@@ -316,7 +315,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
-			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			paletteQueue: this.viewModel.paletteQueue,
 			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,

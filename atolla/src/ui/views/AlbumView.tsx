@@ -47,7 +47,6 @@ export interface AlbumViewModel {
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
-	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
@@ -125,7 +124,6 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.registerDisposable(() => this.headerCollapse.reset());
 		const headerSectionId = headerStore.pushDetailSection(HeaderTabs.albums);
 		this.registerDisposable(() => headerStore.clearDetailSection(headerSectionId));
-		this.viewModel.onRootDetailControllerReady(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
 				this.navigationController.disableDismissalGesture()();

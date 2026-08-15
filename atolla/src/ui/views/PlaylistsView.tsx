@@ -45,7 +45,6 @@ export interface PlaylistsViewModel {
 	networkStatus: NetworkStatus;
 	offlineDataInvalidations: number;
 	onNavigateToArtist?: (artistId: string) => void;
-	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
@@ -304,7 +303,6 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
-			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			paletteQueue: this.viewModel.paletteQueue,
 			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,

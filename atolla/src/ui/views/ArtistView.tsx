@@ -53,7 +53,6 @@ export interface ArtistViewModel {
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
-	onNavigationControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
@@ -119,7 +118,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.registerDisposable(() => this.headerCollapse.reset());
 		const headerSectionId = headerStore.pushDetailSection(HeaderTabs.artists);
 		this.registerDisposable(() => headerStore.clearDetailSection(headerSectionId));
-		this.viewModel.onNavigationControllerReady?.(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
 				this.navigationController.disableDismissalGesture()();

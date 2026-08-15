@@ -110,7 +110,6 @@ describe('PlaylistView', () => {
 			{
 				downloadService,
 				networkStatus,
-				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist,
 				preferences,
@@ -143,7 +142,6 @@ describe('PlaylistView', () => {
 			{
 				downloadService,
 				networkStatus,
-				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist,
 				preferences,
@@ -179,7 +177,6 @@ describe('PlaylistView', () => {
 			{
 				downloadService,
 				networkStatus,
-				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist,
 				preferences,
@@ -218,7 +215,6 @@ describe('PlaylistView', () => {
 			{
 				downloadService,
 				networkStatus,
-				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist,
 				preferences,
@@ -272,7 +268,6 @@ describe('PlaylistView', () => {
 					},
 				},
 				networkStatus,
-				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist: { id: 'playlist-1', name: 'Roadtrip' },
 				preferences,
@@ -314,7 +309,6 @@ describe('PlaylistView', () => {
 					beginDownloadRequest: (kind: string, id: string) => requests.push([kind, id]),
 				},
 				networkStatus,
-				onRootDetailControllerReady: () => {},
 				playbackStore,
 				playlist: { id: 'playlist-1', name: 'Roadtrip' },
 				preferences,
@@ -341,7 +335,6 @@ describe('PlaylistView', () => {
 				{
 					downloadService,
 					networkStatus,
-					onRootDetailControllerReady: () => {},
 					playbackStore,
 					playlist: { id: 'playlist-1', name: 'Roadtrip' },
 					preferences,

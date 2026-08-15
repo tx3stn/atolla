@@ -29,9 +29,6 @@ export interface DetailPushDeps {
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;
 	onNavigateToArtist?: (artistId: string) => void;
-	// onRootDetailControllerReady is how a tab records its first detail for its own
-	// unwind (used by library nav).
-	onRootDetailControllerReady?: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
@@ -41,8 +38,6 @@ export interface DetailPushDeps {
 	transport: Transport;
 	viewCache: ViewCache;
 }
-
-const noop = (): void => {};
 
 export function pushAlbum(
 	controller: NavigationController,
@@ -58,7 +53,6 @@ export function pushAlbum(
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
 			networkStatus: deps.networkStatus,
-			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
 			pinnedItemsStore: deps.pinnedItemsStore,
 			playbackStore: deps.playbackStore,
@@ -87,7 +81,6 @@ export function pushArtist(
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
 			networkStatus: deps.networkStatus,
-			onNavigationControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
 			pinnedItemsStore: deps.pinnedItemsStore,
 			playbackStore: deps.playbackStore,
@@ -116,7 +109,6 @@ export function pushPlaylist(
 			navigationController: controller,
 			networkStatus: deps.networkStatus,
 			onNavigateToArtist: deps.onNavigateToArtist,
-			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
 			pinnedItemsStore: deps.pinnedItemsStore,
 			playbackStore: deps.playbackStore,
@@ -148,7 +140,6 @@ export function pushGenre(
 			navigationController: controller,
 			networkStatus: deps.networkStatus,
 			onNavigateToArtist: deps.onNavigateToArtist,
-			onRootDetailControllerReady: deps.onRootDetailControllerReady ?? noop,
 			paletteQueue: deps.paletteQueue,
 			pinnedItemsStore: deps.pinnedItemsStore,
 			playbackStore: deps.playbackStore,

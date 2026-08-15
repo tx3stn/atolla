@@ -43,7 +43,6 @@ export interface ArtistsViewModel {
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
 	offlineDataInvalidations: number;
-	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
@@ -369,7 +368,6 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 			imageCache: this.viewModel.imageCache,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
-			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			paletteQueue: this.viewModel.paletteQueue,
 			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,

@@ -53,7 +53,6 @@ export interface PlaylistViewModel {
 	networkStatus: NetworkStatus;
 	onExitFromSearchNavigation?: () => void;
 	onNavigateToArtist?: (artistId: string) => void;
-	onRootDetailControllerReady: (controller: NavigationController) => void;
 	paletteQueue?: PaletteGenerationQueue;
 	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
@@ -110,7 +109,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.registerDisposable(() => this.headerCollapse.reset());
 		const headerSectionId = headerStore.pushDetailSection(HeaderTabs.playlists);
 		this.registerDisposable(() => headerStore.clearDetailSection(headerSectionId));
-		this.viewModel.onRootDetailControllerReady(this.navigationController);
 		this.navigationController.addPageVisibilityObserver((visibility) => {
 			if (visibility === INavigatorPageVisibility.VISIBLE) {
 				this.navigationController.disableDismissalGesture()();

@@ -41,7 +41,6 @@ interface GenresViewModel {
 	networkStatus: NetworkStatus;
 	offlineDataInvalidations: number;
 	onNavigateToArtist?: (artistId: string) => void;
-	onRootDetailControllerReady: (controller: NavigationController) => void;
 	pinnedItemsStore?: PinnedItemsStore;
 	playbackStore: PlaybackStore;
 	preferences: Preferences;
@@ -375,7 +374,6 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
-			onRootDetailControllerReady: this.viewModel.onRootDetailControllerReady,
 			pinnedItemsStore: this.viewModel.pinnedItemsStore,
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,
