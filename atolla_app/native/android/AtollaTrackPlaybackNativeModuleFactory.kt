@@ -1729,9 +1729,6 @@ object AtollaDownloadedTrackNativeCache {
 
 object AtollaTrackPlaybackMediaSession {
 	private const val tag = "AtollaTrackPlaybackMedia"
-	private const val notificationChannelId = "atolla_track_playback"
-	private const val notificationChannelName = "Track playback"
-	private const val notificationId = 4002
 	private const val actionPlay = "com.tx3stn.atolla.action.TRACK_PLAY"
 	private const val actionPause = "com.tx3stn.atolla.action.TRACK_PAUSE"
 	private const val actionPrevious = "com.tx3stn.atolla.action.TRACK_PREVIOUS"
@@ -1925,10 +1922,10 @@ object AtollaTrackPlaybackMediaSession {
 
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 				val manager = notificationManager
-				if (manager != null && manager.getNotificationChannel(notificationChannelId) == null) {
+				if (manager != null && manager.getNotificationChannel(AtollaPlaybackService.NOTIFICATION_CHANNEL_ID) == null) {
 					val channel = NotificationChannel(
-						notificationChannelId,
-						notificationChannelName,
+						AtollaPlaybackService.NOTIFICATION_CHANNEL_ID,
+						AtollaPlaybackService.NOTIFICATION_CHANNEL_NAME,
 						NotificationManager.IMPORTANCE_LOW,
 					)
 					manager.createNotificationChannel(channel)
@@ -2237,7 +2234,7 @@ object AtollaTrackPlaybackMediaSession {
 
 	private fun buildNotificationBuilder(context: Context): Notification.Builder {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			return Notification.Builder(context, notificationChannelId)
+			return Notification.Builder(context, AtollaPlaybackService.NOTIFICATION_CHANNEL_ID)
 		}
 
 		@Suppress("DEPRECATION")
@@ -2276,7 +2273,7 @@ object AtollaTrackPlaybackMediaSession {
 		}
 		try {
 			// fallback: cancel via NotificationManager in case the service never started
-			notificationManager?.cancel(notificationId)
+			notificationManager?.cancel(AtollaPlaybackService.NOTIFICATION_ID)
 		} catch (_: Throwable) {
 			// ignored
 		}

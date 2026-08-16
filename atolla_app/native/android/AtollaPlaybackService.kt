@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 
 // foreground service that anchors media playback during screen-off/background. Android kills
 // processes that post a media notification without a foreground service, so this holds the
@@ -16,8 +17,11 @@ import android.os.IBinder
 // stopIfRunning removes it cleanly when playback stops
 class AtollaPlaybackService : Service() {
     companion object {
-        private const val NOTIFICATION_ID = 4002
-        private const val NOTIFICATION_CHANNEL_ID = "atolla_track_playback"
+        private const val TAG = "AtollaPlaybackService"
+
+        const val NOTIFICATION_ID = 4002
+        const val NOTIFICATION_CHANNEL_ID = "atolla_track_playback"
+        const val NOTIFICATION_CHANNEL_NAME = "Track playback"
 
         // written before startForegroundService so onStartCommand always finds it
         @Volatile private var pendingNotification: Notification? = null
@@ -35,16 +39,30 @@ class AtollaPlaybackService : Service() {
                 return
             }
             val intent = Intent(context, AtollaPlaybackService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                @Suppress("DEPRECATION")
-                context.startService(intent)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.startService(intent)
+                }
+            } catch (error: Throwable) {
+                Log.e(TAG, "Failed starting playback service", error)
+                postNotification(context, notification)
             }
         }
 
         fun stopIfRunning() {
             instance?.shutdown()
+        }
+
+        private fun postNotification(context: Context, notification: Notification) {
+            try {
+                val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                manager?.notify(NOTIFICATION_ID, notification)
+            } catch (error: Throwable) {
+                Log.e(TAG, "Failed posting playback notification", error)
+            }
         }
     }
 
@@ -58,17 +76,35 @@ class AtollaPlaybackService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = pendingNotification
         if (notification == null) {
-            // pendingNotification is only null when the OS restarts this service via
-            // START_STICKY after the process was killed. no active playback to resume, so stop
-            // immediately. Android 8+ requires startForeground() in onStartCommand before
-            // stopSelf() even when stopping right away, else ForegroundServiceDidNotStartInTimeException
-            startForeground(NOTIFICATION_ID, buildPlaceholderNotification())
+            // pendingNotification is only null when the OS restarts this service after the
+            // process was killed. no active playback to resume, so stop immediately. Android 8+
+            // requires startForeground() in onStartCommand before stopSelf() even when stopping
+            // right away, else ForegroundServiceDidNotStartInTimeException; stopSelf clears that
+            // contract too, so it is still the right move when the start is refused
+            startForegroundSafely(buildPlaceholderNotification())
             stopSelf(startId)
             return START_NOT_STICKY
         }
-        startForeground(NOTIFICATION_ID, notification)
-        return START_STICKY
+        if (!startForegroundSafely(notification)) {
+            postNotification(this, notification)
+            stopSelf(startId)
+        }
+        // never START_STICKY: a restarted service lands in a fresh process where the player,
+        // the queue and pendingNotification are all gone, so it can only stop again
+        return START_NOT_STICKY
     }
+
+    // Android 12+ refuses a foreground start when the app is in the background without an
+    // exemption, so this throws on paths the app does not fully control (OS-initiated restarts,
+    // engine callbacks while backgrounded)
+    private fun startForegroundSafely(notification: Notification): Boolean =
+        try {
+            startForeground(NOTIFICATION_ID, notification)
+            true
+        } catch (error: Throwable) {
+            Log.e(TAG, "Foreground start refused", error)
+            false
+        }
 
     private fun buildPlaceholderNotification(): Notification {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -76,7 +112,7 @@ class AtollaPlaybackService : Service() {
             if (manager?.getNotificationChannel(NOTIFICATION_CHANNEL_ID) == null) {
                 val channel = NotificationChannel(
                     NOTIFICATION_CHANNEL_ID,
-                    "Playback",
+                    NOTIFICATION_CHANNEL_NAME,
                     NotificationManager.IMPORTANCE_LOW
                 )
                 channel.setShowBadge(false)
@@ -95,7 +131,9 @@ class AtollaPlaybackService : Service() {
     }
 
     fun updateForeground(notification: Notification) {
-        startForeground(NOTIFICATION_ID, notification)
+        if (!startForegroundSafely(notification)) {
+            postNotification(this, notification)
+        }
     }
 
     fun shutdown() {
