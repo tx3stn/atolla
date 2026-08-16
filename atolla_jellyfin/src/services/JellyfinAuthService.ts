@@ -1,4 +1,5 @@
 import type { AuthSession } from 'atolla_core/src/models/Auth';
+import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { tracked } from 'atolla_core/src/transports/Cancelable';
 import { UserError } from 'atolla_core/src/utils/Errors';
@@ -7,7 +8,7 @@ import { type CancelablePromise, PromiseCanceler } from 'valdi_core/src/Cancelab
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
-import { AuthErrors } from './AuthErrors';
+import { JellyfinAuthErrors } from './AuthErrors';
 
 const log = getLogger('auth');
 
@@ -191,16 +192,16 @@ export class JellyfinAuthService {
 		// available" — that sends the user to the jellyfin dashboard to fix the wrong thing. only a
 		// real jellyfin saying enabled:false earns that message.
 		if (!this.isSuccessStatus(enabledResponse.statusCode)) {
-			throw AuthErrors.NOT_A_JELLYFIN_SERVER;
+			throw JellyfinAuthErrors.NOT_A_JELLYFIN_SERVER;
 		}
 
 		const enabled = this.tryParseJSON<unknown>(enabledResponse);
 		if (typeof enabled !== 'boolean') {
-			throw AuthErrors.NOT_A_JELLYFIN_SERVER;
+			throw JellyfinAuthErrors.NOT_A_JELLYFIN_SERVER;
 		}
 
 		if (!enabled) {
-			throw AuthErrors.QUICK_CONNECT_NOT_AVAILABLE;
+			throw JellyfinAuthErrors.QUICK_CONNECT_NOT_AVAILABLE;
 		}
 
 		const response = await this.send(
@@ -209,7 +210,7 @@ export class JellyfinAuthService {
 		);
 
 		if (response.statusCode === 401) {
-			throw AuthErrors.QUICK_CONNECT_NOT_AVAILABLE;
+			throw JellyfinAuthErrors.QUICK_CONNECT_NOT_AVAILABLE;
 		}
 
 		if (!this.isSuccessStatus(response.statusCode)) {
@@ -247,7 +248,7 @@ export class JellyfinAuthService {
 			const delayMs = Math.max(0, this.mockApprovalDelayMs);
 			if (timeoutMs < delayMs) {
 				await this.sleep(timeoutMs);
-				throw AuthErrors.QUICK_CONNECT_TIMED_OUT;
+				throw JellyfinAuthErrors.QUICK_CONNECT_TIMED_OUT;
 			}
 
 			await this.sleep(delayMs);
@@ -291,7 +292,7 @@ export class JellyfinAuthService {
 			await this.sleep(pollIntervalMs);
 		}
 
-		throw AuthErrors.QUICK_CONNECT_TIMED_OUT;
+		throw JellyfinAuthErrors.QUICK_CONNECT_TIMED_OUT;
 	}
 
 	async authenticateWithQuickConnect(serverUrl: string, secret: string): Promise<AuthSession> {

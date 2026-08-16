@@ -1,6 +1,6 @@
 import type { AuthSession } from 'atolla_core/src/models/Auth';
+import { type AuthError, AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
-import { type AuthError, AuthErrors } from 'atolla_jellyfin/src/services/AuthErrors';
 import {
 	type JellyfinAuthService,
 	normalizeServerUrl,

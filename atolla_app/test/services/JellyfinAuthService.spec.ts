@@ -1,5 +1,6 @@
 import 'jasmine/src/jasmine';
-import { type AuthError, AuthErrors } from 'atolla_jellyfin/src/services/AuthErrors';
+import type { AuthError } from 'atolla_core/src/services/AuthErrors';
+import { JellyfinAuthErrors } from 'atolla_jellyfin/src/services/AuthErrors';
 import { JellyfinAuthService } from 'atolla_jellyfin/src/services/JellyfinAuthService';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 
@@ -117,7 +118,7 @@ describe('JellyfinAuthService', () => {
 			thrown = error;
 		}
 
-		expect(thrown).toBe(AuthErrors.QUICK_CONNECT_NOT_AVAILABLE);
+		expect(thrown).toBe(JellyfinAuthErrors.QUICK_CONNECT_NOT_AVAILABLE);
 	});
 
 	it('polls for quick-connect approval until authenticated', async () => {

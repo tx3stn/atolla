@@ -4,6 +4,7 @@ import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { SearchResults } from 'atolla_core/src/models/Search';
 import type { Track } from 'atolla_core/src/models/Track';
+import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { cancelable, tracked } from 'atolla_core/src/transports/Cancelable';
 import { TransportErrors } from 'atolla_core/src/transports/Errors';
@@ -26,7 +27,6 @@ import type {
 	JellyfinYearItem,
 } from '../models/Types';
 import { JellyfinMusicItemTypes } from '../models/Types';
-import { AuthErrors } from '../services/AuthErrors';
 import {
 	type JellyfinImageResolvers,
 	mapJellyfinAlbumToAlbum,

@@ -1,9 +1,9 @@
 import Strings from 'atolla_core/src/Strings';
+import type { AuthError } from 'atolla_core/src/services/AuthErrors';
 import { ImageCache } from 'atolla_core/src/services/ImageCache';
 import { configureAlbumArtMaxDimension } from 'atolla_core/src/services/ImageSource';
 import { getLogger, Logger } from 'atolla_core/src/services/Logger';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
-import type { AuthError } from 'atolla_jellyfin/src/services/AuthErrors';
 import { JellyfinAuthService } from 'atolla_jellyfin/src/services/JellyfinAuthService';
 import { InMemoryAuthStore, JellyfinAuthStore } from 'atolla_jellyfin/src/stores/JellyfinAuthStore';
 import { Lazy } from 'foundation/src/Lazy';

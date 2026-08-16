@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import type { AuthSession } from 'atolla_core/src/models/Auth';
+import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import { AuthErrors } from './AuthErrors';
+import { JellyfinAuthErrors } from './AuthErrors';
 import { JellyfinAuthService, normalizeServerUrl } from './JellyfinAuthService';
 
 interface MockHTTPResponse {
@@ -225,7 +226,7 @@ describe('startQuickConnect', () => {
 	it('throws QUICK_CONNECT_NOT_AVAILABLE when initiate returns 401', async () => {
 		const { client } = createHTTPClient([jsonResponse(200, true), jsonResponse(401, {})]);
 		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
-			AuthErrors.QUICK_CONNECT_NOT_AVAILABLE,
+			JellyfinAuthErrors.QUICK_CONNECT_NOT_AVAILABLE,
 		);
 	});
 
@@ -364,7 +365,7 @@ describe('startQuickConnect server classification', () => {
 	it('reports NOT_A_JELLYFIN_SERVER when the host answers with a non-success status', async () => {
 		const { client } = createHTTPClient([jsonResponse(404, {})]);
 		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
-			AuthErrors.NOT_A_JELLYFIN_SERVER,
+			JellyfinAuthErrors.NOT_A_JELLYFIN_SERVER,
 		);
 	});
 
@@ -377,14 +378,14 @@ describe('startQuickConnect server classification', () => {
 			},
 		]);
 		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
-			AuthErrors.NOT_A_JELLYFIN_SERVER,
+			JellyfinAuthErrors.NOT_A_JELLYFIN_SERVER,
 		);
 	});
 
 	it('reports NOT_A_JELLYFIN_SERVER when the body is valid json but not a boolean', async () => {
 		const { client } = createHTTPClient([jsonResponse(200, { Items: [] })]);
 		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
-			AuthErrors.NOT_A_JELLYFIN_SERVER,
+			JellyfinAuthErrors.NOT_A_JELLYFIN_SERVER,
 		);
 	});
 
@@ -392,7 +393,7 @@ describe('startQuickConnect server classification', () => {
 	it('reports QUICK_CONNECT_NOT_AVAILABLE when jellyfin returns enabled:false', async () => {
 		const { client } = createHTTPClient([jsonResponse(200, false)]);
 		await expect(makeService({ client }).startQuickConnect()).rejects.toBe(
-			AuthErrors.QUICK_CONNECT_NOT_AVAILABLE,
+			JellyfinAuthErrors.QUICK_CONNECT_NOT_AVAILABLE,
 		);
 	});
 });
@@ -409,7 +410,7 @@ describe('waitForQuickConnectApproval', () => {
 			},
 		});
 		await expect(service.waitForQuickConnectApproval('secret', 3_000)).rejects.toBe(
-			AuthErrors.QUICK_CONNECT_TIMED_OUT,
+			JellyfinAuthErrors.QUICK_CONNECT_TIMED_OUT,
 		);
 		expect(sleepCalls).toEqual([3_000]);
 	});
@@ -428,7 +429,7 @@ describe('waitForQuickConnectApproval', () => {
 			},
 		});
 		await expect(service.waitForQuickConnectApproval('secret', 2_000, 1_000)).rejects.toBe(
-			AuthErrors.QUICK_CONNECT_TIMED_OUT,
+			JellyfinAuthErrors.QUICK_CONNECT_TIMED_OUT,
 		);
 	});
 

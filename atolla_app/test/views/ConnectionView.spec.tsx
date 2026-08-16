@@ -1,6 +1,6 @@
 import 'jasmine/src/jasmine';
 import { ConnectionView } from 'atolla_app/src/ui/views/ConnectionView';
-import { AuthErrors } from 'atolla_jellyfin/src/services/AuthErrors';
+import { AuthErrors } from 'atolla_core/src/services/AuthErrors';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
