@@ -1,0 +1,23 @@
+load("@valdi//bzl/valdi:valdi_module.bzl", "valdi_module")
+
+package(default_visibility = ["//visibility:public"])
+
+# Jellyfin adapter: the concrete Transport, its DTOs and mappers, and Jellyfin auth.
+valdi_module(
+    name = "atolla_jellyfin",
+    srcs = glob(
+        [
+            "src/**/*.ts",
+            "src/**/*.d.ts",
+        ],
+        exclude = ["src/**/*.test.ts"],
+    ),
+    exclude_patterns = [".*\\.test\\.ts$"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//atolla_core",
+        "@valdi//src/valdi_modules/src/valdi/persistence",
+        "@valdi//src/valdi_modules/src/valdi/valdi_core",
+        "@valdi//src/valdi_modules/src/valdi/valdi_http",
+    ],
+)

@@ -1,7 +1,7 @@
 import type {
 	JellyfinAlbumItem,
 	JellyfinTrackItem,
-} from '../../../atolla_app/src/models/jellyfin/Types';
+} from '../../../atolla_jellyfin/src/models/Types';
 
 export const mockJellyfinAlbums: Array<JellyfinAlbumItem> = [
 	{

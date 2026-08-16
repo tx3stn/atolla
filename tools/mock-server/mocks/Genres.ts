@@ -1,4 +1,4 @@
-import type { JellyfinGenreItem } from '../../../atolla_app/src/models/jellyfin/Types';
+import type { JellyfinGenreItem } from '../../../atolla_jellyfin/src/models/Types';
 import { mockJellyfinAlbums, mockJellyfinTracks } from './Albums';
 
 const albumGenreMap = new Map(mockJellyfinAlbums.map((a) => [a.Id, a.GenreItems ?? []]));

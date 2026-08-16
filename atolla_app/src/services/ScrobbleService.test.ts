@@ -1,6 +1,6 @@
 import { describe, expect, it, spyOn } from 'bun:test';
+import { LiveTransport } from 'atolla_jellyfin/src/transports/Live';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import { LiveTransport } from '../transports/Live';
 import { type NativeScrobbleQueue, type PendingScrobble, ScrobbleService } from './ScrobbleService';
 
 const TEST_NOW = Date.UTC(2026, 0, 15, 0, 0, 0);

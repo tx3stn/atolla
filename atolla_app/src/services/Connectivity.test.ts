@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
+import type { AuthSession } from 'atolla_core/src/models/Auth';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import { type ConnectionMode, ConnectionModes } from '../models/App';
 import type { Preferences } from '../stores/Preferences';
 import { Connectivity, type ConnectivityDeps, type ConnectivityRenderState } from './Connectivity';
-import type { AuthSession } from './JellyfinAuthService';
 import type { SessionManager } from './SessionManager';
 
 function makeSession(): AuthSession {

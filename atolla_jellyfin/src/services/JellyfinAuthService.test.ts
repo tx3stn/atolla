@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test';
+import type { AuthSession } from 'atolla_core/src/models/Auth';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import { AuthErrors } from './AuthErrors';
-import { type AuthSession, JellyfinAuthService, normalizeServerUrl } from './JellyfinAuthService';
+import { JellyfinAuthService, normalizeServerUrl } from './JellyfinAuthService';
 
 interface MockHTTPResponse {
 	body?: Uint8Array;

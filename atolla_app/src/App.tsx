@@ -3,6 +3,9 @@ import { ImageCache } from 'atolla_core/src/services/ImageCache';
 import { configureAlbumArtMaxDimension } from 'atolla_core/src/services/ImageSource';
 import { getLogger, Logger } from 'atolla_core/src/services/Logger';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
+import type { AuthError } from 'atolla_jellyfin/src/services/AuthErrors';
+import { JellyfinAuthService } from 'atolla_jellyfin/src/services/JellyfinAuthService';
+import { InMemoryAuthStore, JellyfinAuthStore } from 'atolla_jellyfin/src/stores/JellyfinAuthStore';
 import { Lazy } from 'foundation/src/Lazy';
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { StatefulComponent } from 'valdi_core/src/Component';
@@ -32,7 +35,6 @@ import {
 import { ensureAtollaOverlayHostBootstrap } from './OverlayHostBootstrap';
 import { appServices } from './services/AppServices';
 import { AssetCache } from './services/AssetCache';
-import type { AuthError } from './services/AuthErrors';
 import { Connectivity } from './services/Connectivity';
 import {
 	DownloadNativeWorkerEntryPoint,
@@ -40,7 +42,6 @@ import {
 } from './services/DownloadNativeWorker';
 import { DownloadService } from './services/DownloadService';
 import { DownloadSyncService } from './services/DownloadSyncService';
-import { JellyfinAuthService } from './services/JellyfinAuthService';
 import { NetworkStatus } from './services/NetworkStatus';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import { PlaylistCreateService } from './services/PlaylistCreateService';
@@ -54,7 +55,6 @@ import { TrackSourceNativeAdapter } from './services/TrackSourceNativeAdapter';
 import { UserScope } from './services/UserScope';
 import { appShellStore } from './stores/AppShell';
 import { BarColorStore } from './stores/BarColor';
-import { InMemoryAuthStore, JellyfinAuthStore } from './stores/JellyfinAuthStore';
 import { PlaybackStore } from './stores/Playback';
 import { DEFAULT_LANGUAGE, type LanguageCode, Preferences } from './stores/Preferences';
 import {

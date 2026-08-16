@@ -1,6 +1,6 @@
 import 'jasmine/src/jasmine';
-import { type AuthError, AuthErrors } from 'atolla_app/src/services/AuthErrors';
-import { JellyfinAuthService } from 'atolla_app/src/services/JellyfinAuthService';
+import { type AuthError, AuthErrors } from 'atolla_jellyfin/src/services/AuthErrors';
+import { JellyfinAuthService } from 'atolla_jellyfin/src/services/JellyfinAuthService';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 
 interface MockHTTPResponse {

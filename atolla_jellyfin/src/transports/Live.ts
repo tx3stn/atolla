@@ -24,8 +24,8 @@ import type {
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
 	JellyfinYearItem,
-} from '../models/jellyfin/Types';
-import { JellyfinMusicItemTypes } from '../models/jellyfin/Types';
+} from '../models/Types';
+import { JellyfinMusicItemTypes } from '../models/Types';
 import { AuthErrors } from '../services/AuthErrors';
 import {
 	type JellyfinImageResolvers,

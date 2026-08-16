@@ -13,7 +13,7 @@ import type {
 	JellyfinNameIdReference,
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
-} from '../models/jellyfin/Types';
+} from '../models/Types';
 
 const ticksPerSecond = 10_000_000;
 

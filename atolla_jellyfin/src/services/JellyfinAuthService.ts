@@ -1,3 +1,4 @@
+import type { AuthSession } from 'atolla_core/src/models/Auth';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { tracked } from 'atolla_core/src/transports/Cancelable';
 import { UserError } from 'atolla_core/src/utils/Errors';
@@ -32,14 +33,6 @@ interface QuickConnectAuthenticationResult {
 
 interface SystemInfoPublicResult {
 	ServerName?: string;
-}
-
-export interface AuthSession {
-	accessToken: string;
-	serverId: string;
-	serverName: string;
-	serverUrl: string;
-	userId: string;
 }
 
 // a persisted session is usable only if the identity fields marshalled into native

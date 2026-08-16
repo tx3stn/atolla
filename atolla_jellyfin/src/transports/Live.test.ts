@@ -9,7 +9,7 @@ import type {
 	JellyfinListEnvelope,
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
-} from '../models/jellyfin/Types';
+} from '../models/Types';
 import {
 	LiveTransport,
 	mapJellyfinAlbumToAlbum,

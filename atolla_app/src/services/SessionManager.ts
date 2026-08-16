@@ -1,12 +1,12 @@
+import type { AuthSession } from 'atolla_core/src/models/Auth';
 import { isErrorConst } from 'atolla_core/src/utils/Errors';
-import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
-import type { Preferences } from '../stores/Preferences';
-import { type AuthError, AuthErrors } from './AuthErrors';
+import { type AuthError, AuthErrors } from 'atolla_jellyfin/src/services/AuthErrors';
 import {
-	type AuthSession,
 	type JellyfinAuthService,
 	normalizeServerUrl,
-} from './JellyfinAuthService';
+} from 'atolla_jellyfin/src/services/JellyfinAuthService';
+import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
+import type { Preferences } from '../stores/Preferences';
 
 export interface AuthRenderState {
 	authErrorMessage: AuthError | null;

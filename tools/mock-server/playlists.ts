@@ -6,7 +6,7 @@
 // real LiveTransport write path to create a playlist, add tracks and read its own writes back
 // (create-from-queue), and for an optimistic reorder to succeed instead of erroring.
 
-import type { JellyfinTrackItem } from '../../atolla_app/src/models/jellyfin/Types';
+import type { JellyfinTrackItem } from '../../atolla_jellyfin/src/models/Types';
 import { mockJellyfinTracks } from './mocks/Albums';
 
 interface CreatedPlaylist {

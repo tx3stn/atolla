@@ -51,6 +51,7 @@ valdi_module(
     visibility = ["//visibility:public"],
     deps = [
         "//atolla_core",
+        "//atolla_jellyfin",
         "@valdi//src/valdi_modules/src/valdi/coreutils",
         "@valdi//src/valdi_modules/src/valdi/file_system",
         "@valdi//src/valdi_modules/src/valdi/foundation",

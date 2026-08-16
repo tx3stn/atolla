@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'bun:test';
+import type { AuthSession } from 'atolla_core/src/models/Auth';
+import { AuthErrors } from 'atolla_jellyfin/src/services/AuthErrors';
+import type { JellyfinAuthService } from 'atolla_jellyfin/src/services/JellyfinAuthService';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { Preferences } from '../stores/Preferences';
-import { AuthErrors } from './AuthErrors';
-import type { AuthSession, JellyfinAuthService } from './JellyfinAuthService';
 import { type AuthRenderState, SessionManager, type SessionManagerDeps } from './SessionManager';
 
 function makeSession(): AuthSession {

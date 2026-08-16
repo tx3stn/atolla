@@ -1,6 +1,6 @@
 import res from 'atolla_app/res';
-import type { AuthError } from 'atolla_app/src/services/AuthErrors';
 import Strings from 'atolla_core/src/Strings';
+import type { AuthError } from 'atolla_jellyfin/src/services/AuthErrors';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
