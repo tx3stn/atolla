@@ -1,5 +1,6 @@
 import res from 'atolla_app/res';
 import type { AuthError } from 'atolla_app/src/services/AuthErrors';
+import Strings from 'atolla_core/src/Strings';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
@@ -7,7 +8,6 @@ import { systemFont } from 'valdi_core/src/SystemFont';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { ImageView, Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
-import Strings from '../../Strings';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, type LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';

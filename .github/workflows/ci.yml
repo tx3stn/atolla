@@ -106,10 +106,12 @@ jobs:
           path: |
             bazel-atolla/external/valdi~/modules
             bazel-atolla/external/valdi~/src/valdi_modules
+            bazel-out/k8-fastbuild/bin/atolla_core/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/atolla_app/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
+            atolla_core/tsconfig.json
             atolla_app/tsconfig.json
-          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_app/strings/**') }}-res${{ steps.reslist.outputs.hash }}
+          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_core/BUILD.bazel', 'atolla_core/strings/**') }}-res${{ steps.reslist.outputs.hash }}
       # only the cold path runs bazel (projectsync builds Skia/Hermes/etc), so only
       # it needs the extra room; a cache hit does no heavy build
       - name: free disk space
@@ -140,7 +142,7 @@ jobs:
       - name: wait for disk cleanup
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/wait-for-disk-cleanup
-      - run: bunx valdi projectsync --target //atolla_app:atolla_app_projectsync
+      - run: bunx valdi projectsync --target //atolla_core:atolla_core_projectsync --target //atolla_app:atolla_app_projectsync
         id: projectsync
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
       - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
@@ -180,10 +182,12 @@ jobs:
           path: |
             bazel-atolla/external/valdi~/modules
             bazel-atolla/external/valdi~/src/valdi_modules
+            bazel-out/k8-fastbuild/bin/atolla_core/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/atolla_app/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
+            atolla_core/tsconfig.json
             atolla_app/tsconfig.json
-          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_app/strings/**') }}-res${{ steps.reslist.outputs.hash }}
+          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_core/BUILD.bazel', 'atolla_core/strings/**') }}-res${{ steps.reslist.outputs.hash }}
 
   zig-tests:
     needs: changes

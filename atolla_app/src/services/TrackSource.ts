@@ -1,8 +1,8 @@
+import type { Track } from 'atolla_core/src/models/Track';
 import {
 	type CancelablePromise,
 	promiseToCancelablePromise,
 } from 'valdi_core/src/CancelablePromise';
-import type { Track } from '../models/Track';
 
 export interface TrackPage {
 	hasMore: boolean;

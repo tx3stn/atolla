@@ -1,9 +1,9 @@
+import Strings from 'atolla_core/src/Strings';
+import { getLogger } from 'atolla_core/src/services/Logger';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
-import Strings from '../../Strings';
-import { getLogger } from '../../services/Logger';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 

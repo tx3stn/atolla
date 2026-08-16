@@ -1,8 +1,8 @@
+import type { Transport } from 'atolla_core/src/transports/Transport';
 import { type ConnectionMode, ConnectionModes } from '../models/App';
 import type { Preferences } from '../stores/Preferences';
 import { LiveTransport } from '../transports/Live';
 import { OfflineTransport } from '../transports/Offline';
-import type { Transport } from '../transports/Transport';
 import type { DownloadService } from './DownloadService';
 import type { AuthSession } from './JellyfinAuthService';
 import type { PlaylistCreateService } from './PlaylistCreateService';

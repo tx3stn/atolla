@@ -1,11 +1,11 @@
+import type { Playlist } from 'atolla_core/src/models/Playlist';
+import type { Track } from 'atolla_core/src/models/Track';
+import type { ImageCache } from 'atolla_core/src/services/ImageCache';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
-import type { Playlist } from '../../models/Playlist';
-import type { Track } from '../../models/Track';
-import type { ImageCache } from '../../services/ImageCache';
 import type { ToastService } from '../../services/ToastService';
 import { pagedFromArray } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
-import type { Transport } from '../../transports/Transport';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { AddToPlaylistView } from '../views/AddToPlaylistView';

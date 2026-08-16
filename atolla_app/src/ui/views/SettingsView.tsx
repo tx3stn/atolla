@@ -1,3 +1,7 @@
+import Strings from 'atolla_core/src/Strings';
+import type { ClearCacheSelection } from 'atolla_core/src/services/ImageCache';
+import { Logger } from 'atolla_core/src/services/Logger';
+import { version } from 'atolla_core/src/version';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
 import { Locale } from 'valdi_core/src/localization/Locale';
@@ -18,11 +22,8 @@ import {
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from '../../ImageLoaderBootstrap';
 import { type CardSize, CardSizes } from '../../models/App';
-import Strings from '../../Strings';
 import type { ArtworkPaletteService } from '../../services/ArtworkPaletteService';
 import type { DownloadService } from '../../services/DownloadService';
-import type { ClearCacheSelection } from '../../services/ImageCache';
-import { Logger } from '../../services/Logger';
 import type { PlaybackOrchestrator } from '../../services/PlaybackOrchestrator';
 import type { SessionController } from '../../services/SessionController';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
@@ -45,7 +46,6 @@ import {
 	setAtollaTrackCacheMaxTracks,
 } from '../../TrackPlaybackNative';
 import { theme, withAlpha } from '../../theme';
-import { version } from '../../version';
 import { Button } from '../components/Button';
 import { CacheClearModal } from '../components/CacheClearModal';
 import { LanguageSelectModal } from '../components/LanguageSelectModal';

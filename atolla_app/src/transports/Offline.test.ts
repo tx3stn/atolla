@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import type { Album } from '../models/Album';
-import type { Genre } from '../models/Genre';
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Genre } from 'atolla_core/src/models/Genre';
+import { TransportErrors } from 'atolla_core/src/transports/Errors';
 import type {
 	DownloadedAlbumEntry,
 	DownloadedArtistEntry,
@@ -9,7 +10,6 @@ import type {
 	DownloadedTrackEntry,
 } from '../services/DownloadService';
 import { PlaylistCreateService } from '../services/PlaylistCreateService';
-import { TransportErrors } from './Errors';
 import { OfflineTransport } from './Offline';
 
 function createDownloadsMock(params: {

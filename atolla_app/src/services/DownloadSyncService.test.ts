@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import type { Playlist } from '../models/Playlist';
-import type { Track } from '../models/Track';
+import type { Playlist } from 'atolla_core/src/models/Playlist';
+import type { Track } from 'atolla_core/src/models/Track';
 import type { AddTracksToPlaylistParams } from './DownloadService';
 import {
 	DownloadSyncService,

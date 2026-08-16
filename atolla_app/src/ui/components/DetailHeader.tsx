@@ -1,4 +1,6 @@
 import res from 'atolla_app/res';
+import Strings from 'atolla_core/src/Strings';
+import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
 import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
@@ -6,9 +8,7 @@ import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { DragEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
-import Strings from '../../Strings';
 import type { DownloadState } from '../../services/DownloadService';
-import type { ImageCategory } from '../../services/ImageCache';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';

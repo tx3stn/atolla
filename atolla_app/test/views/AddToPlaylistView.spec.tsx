@@ -1,8 +1,8 @@
 import 'jasmine/src/jasmine';
-import type { Track } from 'atolla_app/src/models/Track';
 import { ToastService } from 'atolla_app/src/services/ToastService';
 import { pagedFromArray } from 'atolla_app/src/services/TrackSource';
 import { AddToPlaylistView } from 'atolla_app/src/ui/views/AddToPlaylistView';
+import type { Track } from 'atolla_core/src/models/Track';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 const oneTrack = pagedFromArray([

@@ -1,12 +1,12 @@
+import { getLogger } from 'atolla_core/src/services/Logger';
+import { tracked } from 'atolla_core/src/transports/Cancelable';
+import { UserError } from 'atolla_core/src/utils/Errors';
+import { version } from 'atolla_core/src/version';
 import { type CancelablePromise, PromiseCanceler } from 'valdi_core/src/CancelablePromise';
 import type { HTTPResponse } from 'valdi_http/src/HTTPTypes';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { JellyfinAuthStoreLike } from '../stores/JellyfinAuthStore';
-import { tracked } from '../transports/Cancelable';
-import { UserError } from '../utils/Errors';
-import { version } from '../version';
 import { AuthErrors } from './AuthErrors';
-import { getLogger } from './Logger';
 
 const log = getLogger('auth');
 

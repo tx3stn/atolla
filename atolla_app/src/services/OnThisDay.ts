@@ -1,6 +1,6 @@
-import type { Album } from '../models/Album';
+import type { Album } from 'atolla_core/src/models/Album';
+import { compareBySortKey } from 'atolla_core/src/utils/SortKey';
 import type { CardDetailItem } from '../models/App';
-import { compareBySortKey } from '../utils/SortKey';
 
 interface OnThisDayCandidate {
 	album: Album;

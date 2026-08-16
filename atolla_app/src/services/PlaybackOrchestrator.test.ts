@@ -1,5 +1,5 @@
 import { describe, expect, it, spyOn } from 'bun:test';
-import type { Track } from '../models/Track';
+import type { Track } from 'atolla_core/src/models/Track';
 import type { PlaybackStore } from '../stores/Playback';
 import { RecentlyPlayedStore } from '../stores/RecentlyPlayed';
 import { PlaybackErrors } from './PlaybackErrors';

@@ -1,11 +1,11 @@
 import 'jasmine/src/jasmine';
 import res from 'atolla_app/res';
-import Strings from 'atolla_app/src/Strings';
 import { ToastService } from 'atolla_app/src/services/ToastService';
 import {
 	DetailHeader,
 	type DetailHeaderViewModel,
 } from 'atolla_app/src/ui/components/DetailHeader';
+import Strings from 'atolla_core/src/Strings';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { Component } from 'valdi_core/src/Component';

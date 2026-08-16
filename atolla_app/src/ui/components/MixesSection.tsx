@@ -1,15 +1,15 @@
 import res from 'atolla_app/res';
+import type { Track } from 'atolla_core/src/models/Track';
+import Strings from 'atolla_core/src/Strings';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
-import type { Track } from '../../models/Track';
-import Strings from '../../Strings';
 import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from '../../services/ShuffleQueueLoader';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
-import type { Transport } from '../../transports/Transport';
 import { hapticFeedback } from '../../utils/Haptics';
 import { type Card, CardGrid } from './CardGrid';
 

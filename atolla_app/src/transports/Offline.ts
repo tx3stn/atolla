@@ -1,20 +1,24 @@
 // biome-ignore-all lint/suspicious/useAwait: async used for Transport interface conformance
 
-import type { Album } from '../models/Album';
-import type { Artist } from '../models/Artist';
-import type { Genre } from '../models/Genre';
-import type { Playlist } from '../models/Playlist';
-import type { SearchResults } from '../models/Search';
-import type { Track } from '../models/Track';
-import { trackReleaseYear } from '../models/Track';
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Artist } from 'atolla_core/src/models/Artist';
+import type { Genre } from 'atolla_core/src/models/Genre';
+import type { Playlist } from 'atolla_core/src/models/Playlist';
+import type { SearchResults } from 'atolla_core/src/models/Search';
+import type { Track } from 'atolla_core/src/models/Track';
+import { trackReleaseYear } from 'atolla_core/src/models/Track';
+import { TransportErrors } from 'atolla_core/src/transports/Errors';
+import type {
+	InstantMixSeed,
+	TrackPageSort,
+	Transport,
+} from 'atolla_core/src/transports/Transport';
+import { mergeGenreCollections } from 'atolla_core/src/utils/Genres';
+import { compareBySortKey } from 'atolla_core/src/utils/SortKey';
 import type { DownloadService } from '../services/DownloadService';
 import { buildInstantMix, type InstantMixLibrary } from '../services/InstantMix';
 import type { PlaylistCreateService } from '../services/PlaylistCreateService';
 import type { PlaylistEditService } from '../services/PlaylistEditService';
-import { mergeGenreCollections } from '../utils/Genres';
-import { compareBySortKey } from '../utils/SortKey';
-import { TransportErrors } from './Errors';
-import type { InstantMixSeed, TrackPageSort, Transport } from './Transport';
 
 export class OfflineTransport implements Transport {
 	private readonly downloads: DownloadService;

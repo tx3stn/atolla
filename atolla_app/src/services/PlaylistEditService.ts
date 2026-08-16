@@ -1,4 +1,4 @@
-import type { Transport } from '../transports/Transport';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 
 function extractErrorMessage(e: unknown): string {
 	if (e != null && typeof e === 'object' && 'message' in e && typeof e.message === 'string') {

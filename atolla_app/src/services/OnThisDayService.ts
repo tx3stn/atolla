@@ -1,5 +1,5 @@
-import type { Album } from '../models/Album';
-import type { Transport } from '../transports/Transport';
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 import { matchOnThisDay } from './OnThisDay';
 
 // caches albums whose anniversary is today or tomorrow, so the home view renders

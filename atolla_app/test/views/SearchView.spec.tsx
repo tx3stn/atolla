@@ -1,11 +1,11 @@
 import 'jasmine/src/jasmine';
-import type { SearchResults } from 'atolla_app/src/models/Search';
 import { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { AlbumView } from 'atolla_app/src/ui/views/AlbumView';
 import { ArtistView } from 'atolla_app/src/ui/views/ArtistView';
 import { PlaylistView } from 'atolla_app/src/ui/views/PlaylistView';
 import { SearchView } from 'atolla_app/src/ui/views/SearchView';
+import type { SearchResults } from 'atolla_core/src/models/Search';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';

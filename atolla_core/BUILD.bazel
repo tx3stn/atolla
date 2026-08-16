@@ -1,0 +1,28 @@
+load("@valdi//bzl/valdi:valdi_module.bzl", "valdi_module")
+
+package(default_visibility = ["//visibility:public"])
+
+# Platform-free domain layer: models, the Transport port, and the utilities the layers
+# above share. Nothing here may import from a provider (atolla_jellyfin), the player
+# domain (atolla_player) or the app (atolla_app) — the dependency arrow only points in.
+# strings_dir lives here rather than in atolla_app because the provider-neutral auth
+# errors need Strings and sit below the app.
+valdi_module(
+    name = "atolla_core",
+    srcs = glob(
+        [
+            "src/**/*.ts",
+            "src/**/*.d.ts",
+            "strings/**/*.json",
+        ],
+        exclude = ["src/**/*.test.ts"],
+    ),
+    exclude_patterns = [".*\\.test\\.ts$"],
+    strings_dir = "strings",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@valdi//src/valdi_modules/src/valdi/coreutils",
+        "@valdi//src/valdi_modules/src/valdi/foundation",
+        "@valdi//src/valdi_modules/src/valdi/valdi_core",
+    ],
+)

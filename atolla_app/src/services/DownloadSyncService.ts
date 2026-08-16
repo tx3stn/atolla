@@ -1,13 +1,13 @@
-import type { Playlist } from '../models/Playlist';
-import type { Track } from '../models/Track';
-import type { Transport } from '../transports/Transport';
-import { TRACK_PAGE_SIZE } from '../utils/Pagination';
+import type { Playlist } from 'atolla_core/src/models/Playlist';
+import type { Track } from 'atolla_core/src/models/Track';
+import { getLogger } from 'atolla_core/src/services/Logger';
+import type { Transport } from 'atolla_core/src/transports/Transport';
+import { TRACK_PAGE_SIZE } from 'atolla_core/src/utils/Pagination';
 import type { AddTracksToPlaylistParams } from './DownloadService';
 import {
 	type DownloadTrackResolverTransport,
 	resolveDownloadTracks,
 } from './DownloadTrackResolver';
-import { getLogger } from './Logger';
 
 // safety bound so a runaway paginating endpoint can't loop forever
 const MAX_PAGES = 100;

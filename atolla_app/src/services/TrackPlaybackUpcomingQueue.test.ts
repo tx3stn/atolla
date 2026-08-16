@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { Track } from '../models/Track';
+import type { Track } from 'atolla_core/src/models/Track';
 import { PlaybackStore } from '../stores/Playback';
 import {
 	buildPlaybackQueueWindow,

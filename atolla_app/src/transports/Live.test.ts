@@ -1,4 +1,5 @@
 import { describe, expect, it, spyOn } from 'bun:test';
+import type { InstantMixSeed } from 'atolla_core/src/transports/Transport';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type {
@@ -18,7 +19,6 @@ import {
 	resolveAlbumArtist,
 	resolvePrimaryArtist,
 } from './Live';
-import type { InstantMixSeed } from './Transport';
 
 interface MockHTTPResponse {
 	body?: Uint8Array;

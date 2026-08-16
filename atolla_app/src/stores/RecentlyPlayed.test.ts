@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import type { Track } from '../models/Track';
-import { InMemoryKeyValueStore } from './KeyValueStore';
+import type { Track } from 'atolla_core/src/models/Track';
+import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { RECENTLY_PLAYED_KEY, RECENTLY_PLAYED_LIMIT, RecentlyPlayedStore } from './RecentlyPlayed';
 
 describe('RecentlyPlayedStore', () => {

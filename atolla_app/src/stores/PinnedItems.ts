@@ -1,8 +1,8 @@
-import type { Album } from '../models/Album';
-import type { Artist } from '../models/Artist';
-import type { Genre } from '../models/Genre';
-import type { Playlist } from '../models/Playlist';
-import { InMemoryKeyValueStore, type KeyValueStore } from './KeyValueStore';
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Artist } from 'atolla_core/src/models/Artist';
+import type { Genre } from 'atolla_core/src/models/Genre';
+import type { Playlist } from 'atolla_core/src/models/Playlist';
+import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 
 export const PINNED_ITEMS_KEY = 'pinned_items';
 

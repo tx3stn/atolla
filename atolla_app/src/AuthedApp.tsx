@@ -1,3 +1,4 @@
+import Strings from 'atolla_core/src/Strings';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Device } from 'valdi_core/src/Device';
 import { Style } from 'valdi_core/src/Style';
@@ -6,7 +7,6 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { DevTools } from './dev/DevTools';
 import { type ConnectionMode, type FooterTab, FooterTabs } from './models/App';
-import Strings from './Strings';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { backNavRouter } from './services/BackNavRouter';
 import type { DownloadService } from './services/DownloadService';

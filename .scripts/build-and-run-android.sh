@@ -53,7 +53,7 @@ if command -v vrsn >/dev/null 2>&1; then
 	repo_root="$SCRIPT_DIR/.."
 	tag="$(cd "$repo_root" && git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0)"
 	version_files=(
-		atolla_app/src/version.ts
+		atolla_core/src/version.ts
 		BUILD.bazel
 		atolla_app/native/android/AndroidManifest.prod.xml
 		atolla_app_dev/BUILD.bazel

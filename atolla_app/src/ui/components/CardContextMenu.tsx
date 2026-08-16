@@ -1,19 +1,23 @@
 import res from 'atolla_app/res';
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Artist } from 'atolla_core/src/models/Artist';
+import type { Genre } from 'atolla_core/src/models/Genre';
+import type { Playlist } from 'atolla_core/src/models/Playlist';
+import type { Track } from 'atolla_core/src/models/Track';
+import Strings from 'atolla_core/src/Strings';
+import {
+	INSTANT_MIX_LIMIT,
+	type InstantMixSeed,
+	type Transport,
+} from 'atolla_core/src/transports/Transport';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { Album } from '../../models/Album';
-import type { Artist } from '../../models/Artist';
-import type { Genre } from '../../models/Genre';
-import type { Playlist } from '../../models/Playlist';
-import type { Track } from '../../models/Track';
-import Strings from '../../Strings';
 import { startPagedPlayback } from '../../services/PagedPlayback';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { singlePage, type TrackSource } from '../../services/TrackSource';
 import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
-import { INSTANT_MIX_LIMIT, type InstantMixSeed, type Transport } from '../../transports/Transport';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
 import { ContextMenuActionRow } from './ContextMenuActionRow';

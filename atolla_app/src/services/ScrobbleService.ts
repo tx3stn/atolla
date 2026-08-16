@@ -1,4 +1,4 @@
-import { getLogger } from './Logger';
+import { getLogger } from 'atolla_core/src/services/Logger';
 
 export interface PendingScrobble {
 	playedAtMs: number;

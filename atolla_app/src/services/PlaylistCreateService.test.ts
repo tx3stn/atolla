@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { Transport } from '../transports/Transport';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 import { PlaylistCreateService } from './PlaylistCreateService';
 
 function createStoreMock(initial: string | null = null): {

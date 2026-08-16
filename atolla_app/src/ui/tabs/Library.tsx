@@ -1,3 +1,5 @@
+import type { ImageCache } from 'atolla_core/src/services/ImageCache';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
@@ -13,7 +15,6 @@ import {
 	HeaderTabs,
 } from '../../models/App';
 import type { DownloadService } from '../../services/DownloadService';
-import type { ImageCache } from '../../services/ImageCache';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { PlaylistEditService } from '../../services/PlaylistEditService';
@@ -24,7 +25,6 @@ import { headerStore } from '../../stores/Header';
 import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
-import type { Transport } from '../../transports/Transport';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { type DetailPushDeps, pushArtist } from '../flows/PushDetail';
 import { AlbumsView } from '../views/AlbumsView';

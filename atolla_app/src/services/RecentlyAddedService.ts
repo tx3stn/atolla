@@ -1,6 +1,6 @@
-import type { Album } from '../models/Album';
-import type { Genre } from '../models/Genre';
-import type { Transport } from '../transports/Transport';
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Genre } from 'atolla_core/src/models/Genre';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 
 // owns the "Recently Added" home albums: a small persisted cache so the section
 // paints instantly on launch, plus a transport refresh that re-fills it

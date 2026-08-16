@@ -1,5 +1,5 @@
-import { isTrack, sanitizeTracks, type Track } from '../models/Track';
-import { InMemoryKeyValueStore, type KeyValueStore } from './KeyValueStore';
+import { isTrack, sanitizeTracks, type Track } from 'atolla_core/src/models/Track';
+import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 
 export const RECENTLY_PLAYED_KEY = 'recently_played_tracks';
 export const RECENTLY_PLAYED_LIMIT = 5;

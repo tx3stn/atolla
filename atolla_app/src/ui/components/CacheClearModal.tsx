@@ -1,6 +1,6 @@
+import Strings from 'atolla_core/src/Strings';
+import type { ClearCacheSelection } from 'atolla_core/src/services/ImageCache';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import Strings from '../../Strings';
-import type { ClearCacheSelection } from '../../services/ImageCache';
 import { Button, ButtonType } from './Button';
 import { Checkbox } from './Checkbox';
 import { ModalBase, modalStyles } from './ModalBase';

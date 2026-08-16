@@ -1,5 +1,5 @@
-import Strings from '../Strings';
-import { type ErrorType, UserError } from '../utils/Errors';
+import Strings from 'atolla_core/src/Strings';
+import { type ErrorType, UserError } from 'atolla_core/src/utils/Errors';
 
 export const PlaybackErrors = {
 	NETWORK: new UserError('playback_network', Strings.errorsPlaybackNetwork),

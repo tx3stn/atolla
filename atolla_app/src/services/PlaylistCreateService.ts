@@ -1,5 +1,5 @@
-import type { Playlist } from '../models/Playlist';
-import type { Transport } from '../transports/Transport';
+import type { Playlist } from 'atolla_core/src/models/Playlist';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 
 type PendingPlaylistCreate = {
 	localId: string;

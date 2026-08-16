@@ -1,5 +1,5 @@
 import 'jasmine/src/jasmine';
-import { ImageCache } from 'atolla_app/src/services/ImageCache';
+import { ImageCache } from 'atolla_core/src/services/ImageCache';
 
 describe('ImageCacheManager', () => {
 	it('clears only selected image categories', async () => {

@@ -1,8 +1,8 @@
 import 'jasmine/src/jasmine';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { PlaylistView } from 'atolla_app/src/ui/views/PlaylistView';
-import { TRACK_PAGE_SIZE } from 'atolla_app/src/utils/Pagination';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
+import { TRACK_PAGE_SIZE } from 'atolla_core/src/utils/Pagination';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';

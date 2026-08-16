@@ -1,7 +1,7 @@
+import Strings from 'atolla_core/src/Strings';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
-import Strings from '../../Strings';
 import { theme } from '../../theme';
 import { CachedImage } from './CachedImage';
 

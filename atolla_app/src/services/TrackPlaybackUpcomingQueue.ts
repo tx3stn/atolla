@@ -1,4 +1,4 @@
-import type { Track } from '../models/Track';
+import type { Track } from 'atolla_core/src/models/Track';
 import type { PlaybackStore } from '../stores/Playback';
 
 export interface QueueWindowEntry {

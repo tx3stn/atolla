@@ -1,6 +1,6 @@
+import { isErrorConst } from 'atolla_core/src/utils/Errors';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 import type { Preferences } from '../stores/Preferences';
-import { isErrorConst } from '../utils/Errors';
 import { type AuthError, AuthErrors } from './AuthErrors';
 import {
 	type AuthSession,

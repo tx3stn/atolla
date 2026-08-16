@@ -1,13 +1,13 @@
+import type { ImageCache } from 'atolla_core/src/services/ImageCache';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { ConnectionMode } from '../models/App';
 import type { BarColorStore } from '../stores/BarColor';
 import type { PinnedItemsStore } from '../stores/PinnedItems';
 import type { PlaybackStore } from '../stores/Playback';
 import type { Preferences } from '../stores/Preferences';
-import type { Transport } from '../transports/Transport';
 import type { ArtworkPaletteService } from './ArtworkPaletteService';
 import type { DownloadService } from './DownloadService';
-import type { ImageCache } from './ImageCache';
 import type { NetworkStatus } from './NetworkStatus';
 import type { PaletteGenerationQueue } from './PaletteGenerationQueue';
 import type { PlaybackOrchestrator } from './PlaybackOrchestrator';

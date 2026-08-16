@@ -1,5 +1,5 @@
-import type { Track } from '../models/Track';
-import { INSTANT_MIX_LIMIT, type InstantMixSeed } from '../transports/Transport';
+import type { Track } from 'atolla_core/src/models/Track';
+import { INSTANT_MIX_LIMIT, type InstantMixSeed } from 'atolla_core/src/transports/Transport';
 
 export interface GenreIndex {
 	genreIdsByTrackId: Map<string, Array<string>>;

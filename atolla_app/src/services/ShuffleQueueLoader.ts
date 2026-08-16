@@ -1,5 +1,5 @@
+import type { Track } from 'atolla_core/src/models/Track';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
-import type { Track } from '../models/Track';
 import { MAX_VISIBLE_QUEUE_TRACKS } from '../stores/Queue';
 import type { TrackPage, TrackSource } from './TrackSource';
 

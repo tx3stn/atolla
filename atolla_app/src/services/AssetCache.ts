@@ -1,3 +1,5 @@
+import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
+import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
 import { Device } from 'valdi_core/src/Device';
 import { preloadAtollaImages } from '../ImageLoaderBootstrap';
@@ -5,8 +7,6 @@ import {
 	getAtollaCachedTrackFileUrl,
 	getAtollaDownloadedTrackFileUrl,
 } from '../TrackPlaybackNative';
-import type { ImageCategory } from './ImageCache';
-import { buildImageSource } from './ImageSource';
 
 const IMAGE_CACHE_RESOLVE_TIMEOUT_MS = 6000;
 

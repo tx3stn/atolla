@@ -1,11 +1,11 @@
 import 'jasmine/src/jasmine';
-import type { Album } from 'atolla_app/src/models/Album';
 import { FooterTabs, HeaderTabs } from 'atolla_app/src/models/App';
 import { type AppServicesBag, appServices } from 'atolla_app/src/services/AppServices';
 import { backNavRouter } from 'atolla_app/src/services/BackNavRouter';
 import { AppShellStore } from 'atolla_app/src/stores/AppShell';
 import { headerStore } from 'atolla_app/src/stores/Header';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
+import type { Album } from 'atolla_core/src/models/Album';
 import { Device } from 'valdi_core/src/Device';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 

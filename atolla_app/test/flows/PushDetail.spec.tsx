@@ -1,8 +1,4 @@
 import 'jasmine/src/jasmine';
-import type { Album } from 'atolla_app/src/models/Album';
-import type { Artist } from 'atolla_app/src/models/Artist';
-import type { Genre } from 'atolla_app/src/models/Genre';
-import type { Playlist } from 'atolla_app/src/models/Playlist';
 import { headerStore } from 'atolla_app/src/stores/Header';
 import {
 	type DetailPushDeps,
@@ -11,6 +7,10 @@ import {
 	pushGenre,
 	pushPlaylist,
 } from 'atolla_app/src/ui/flows/PushDetail';
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Artist } from 'atolla_core/src/models/Artist';
+import type { Genre } from 'atolla_core/src/models/Genre';
+import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 
 describe('PushDetail', () => {

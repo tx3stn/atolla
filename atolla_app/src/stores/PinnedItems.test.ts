@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { InMemoryKeyValueStore } from './KeyValueStore';
+import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import { PINNED_ITEMS_KEY, PinnedItemsStore } from './PinnedItems';
 
 describe('PinnedItemsStore', () => {

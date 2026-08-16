@@ -1,4 +1,4 @@
-import Strings from 'atolla_app/src/Strings';
+import Strings from 'atolla_core/src/Strings';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';

@@ -1,9 +1,9 @@
 import 'jasmine/src/jasmine';
 import { ConnectionModes } from 'atolla_app/src/models/App';
-import type { Track } from 'atolla_app/src/models/Track';
 import type { PlaybackStore } from 'atolla_app/src/stores/Playback';
-import type { Transport } from 'atolla_app/src/transports/Transport';
 import { MixesSection } from 'atolla_app/src/ui/components/MixesSection';
+import type { Track } from 'atolla_core/src/models/Track';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';

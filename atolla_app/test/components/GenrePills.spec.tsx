@@ -1,6 +1,6 @@
 import 'jasmine/src/jasmine';
-import type { Genre } from 'atolla_app/src/models/Genre';
 import { GenrePills } from 'atolla_app/src/ui/components/GenrePills';
+import type { Genre } from 'atolla_core/src/models/Genre';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';

@@ -1,6 +1,6 @@
-import type { Album } from '../models/Album';
-import { isTrack, sanitizeTracks, type Track } from '../models/Track';
-import { getLogger } from '../services/Logger';
+import type { Album } from 'atolla_core/src/models/Album';
+import { isTrack, sanitizeTracks, type Track } from 'atolla_core/src/models/Track';
+import { getLogger } from 'atolla_core/src/services/Logger';
 
 const log = getLogger('PlaybackStore');
 

@@ -1,11 +1,11 @@
+import Strings from 'atolla_core/src/Strings';
+import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { Asset } from 'valdi_tsx/src/Asset';
 import type { DragEvent, TouchEvent } from 'valdi_tsx/src/GestureEvents';
 import type { ImageView, Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
-import Strings from '../../Strings';
-import type { ImageCategory } from '../../services/ImageCache';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { CachedImage } from './CachedImage';

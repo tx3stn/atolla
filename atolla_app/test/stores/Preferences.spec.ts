@@ -1,6 +1,5 @@
 import 'jasmine/src/jasmine';
 import { CardSizes, ConnectionModes } from 'atolla_app/src/models/App';
-import { InMemoryKeyValueStore } from 'atolla_app/src/stores/KeyValueStore';
 import {
 	CARD_SIZE_OPTIONS,
 	DEFAULT_CARD_SIZE,
@@ -9,6 +8,7 @@ import {
 	Preferences,
 	TRACK_CACHE_LIMIT_OPTIONS,
 } from 'atolla_app/src/stores/Preferences';
+import { InMemoryKeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 
 describe('Preferences', () => {
 	describe('getCardSize()', () => {

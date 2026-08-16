@@ -1,8 +1,8 @@
+import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
+import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView } from 'valdi_tsx/src/NativeTemplateElements';
-import type { ImageCategory } from '../../services/ImageCache';
-import { buildImageSource } from '../../services/ImageSource';
 
 export interface CachedImageViewModel {
 	cacheVersion?: number;

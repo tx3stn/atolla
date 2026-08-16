@@ -1,4 +1,11 @@
 import res from 'atolla_app/res';
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Playlist } from 'atolla_core/src/models/Playlist';
+import type { Track } from 'atolla_core/src/models/Track';
+import Strings from 'atolla_core/src/Strings';
+import type { ImageCache } from 'atolla_core/src/services/ImageCache';
+import { buildImageSource } from 'atolla_core/src/services/ImageSource';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 import { AnimationCurve, type AnimationOptions } from 'valdi_core/src/AnimationOptions';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
@@ -13,20 +20,13 @@ import type {
 	ScrollView,
 	View,
 } from 'valdi_tsx/src/NativeTemplateElements';
-import type { Album } from '../../models/Album';
 import type { Palette } from '../../models/Color';
-import type { Playlist } from '../../models/Playlist';
-import type { Track } from '../../models/Track';
-import Strings from '../../Strings';
-import type { ImageCache } from '../../services/ImageCache';
-import { buildImageSource } from '../../services/ImageSource';
 import type { ToastService } from '../../services/ToastService';
 import { pagedFromArray } from '../../services/TrackSource';
 import type { BarColorStore, FooterColors } from '../../stores/BarColor';
 import { type LoopMode, LoopModes, type PlaybackStore } from '../../stores/Playback';
 import { MAX_VISIBLE_QUEUE_TRACKS } from '../../stores/Queue';
 import { paletteDefaults, theme, withAlpha } from '../../theme';
-import type { Transport } from '../../transports/Transport';
 import { CancelableController } from '../../utils/CancelableController';
 import { createPlaylistAndAddTracks, selectQueueTracksForPlaylist } from '../flows/CreatePlaylist';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';

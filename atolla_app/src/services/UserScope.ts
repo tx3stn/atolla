@@ -1,7 +1,8 @@
+import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { setAtollaImageCachedObserver } from '../ImageLoaderBootstrap';
 import type { ConnectionMode } from '../models/App';
-import type { KeyValueStore } from '../stores/KeyValueStore';
 import { PaletteStore } from '../stores/PaletteStore';
 import { PinnedItemsStore } from '../stores/PinnedItems';
 import type { PlaybackStore } from '../stores/Playback';
@@ -14,7 +15,6 @@ import {
 	getAtollaAudioPlaybackPositionMs,
 	readAtollaPendingScrobbles,
 } from '../TrackPlaybackNative';
-import type { Transport } from '../transports/Transport';
 import { ArtworkPaletteService } from './ArtworkPaletteService';
 import type { AssetCache } from './AssetCache';
 import type { DownloadService } from './DownloadService';

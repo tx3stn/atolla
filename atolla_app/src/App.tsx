@@ -1,3 +1,8 @@
+import Strings from 'atolla_core/src/Strings';
+import { ImageCache } from 'atolla_core/src/services/ImageCache';
+import { configureAlbumArtMaxDimension } from 'atolla_core/src/services/ImageSource';
+import { getLogger, Logger } from 'atolla_core/src/services/Logger';
+import { fireAndForget } from 'atolla_core/src/utils/Async';
 import { Lazy } from 'foundation/src/Lazy';
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { StatefulComponent } from 'valdi_core/src/Component';
@@ -25,7 +30,6 @@ import {
 	setAtollaNetworkStatusObserver,
 } from './NetworkReachabilityNative';
 import { ensureAtollaOverlayHostBootstrap } from './OverlayHostBootstrap';
-import Strings from './Strings';
 import { appServices } from './services/AppServices';
 import { AssetCache } from './services/AssetCache';
 import type { AuthError } from './services/AuthErrors';
@@ -36,10 +40,7 @@ import {
 } from './services/DownloadNativeWorker';
 import { DownloadService } from './services/DownloadService';
 import { DownloadSyncService } from './services/DownloadSyncService';
-import { ImageCache } from './services/ImageCache';
-import { configureAlbumArtMaxDimension } from './services/ImageSource';
 import { JellyfinAuthService } from './services/JellyfinAuthService';
-import { getLogger, Logger } from './services/Logger';
 import { NetworkStatus } from './services/NetworkStatus';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import { PlaylistCreateService } from './services/PlaylistCreateService';
@@ -70,7 +71,6 @@ import { EXPANDED_ARTWORK_SIZE } from './ui/components/NowPlayingSurface';
 import { Toast } from './ui/components/Toast';
 import { closeSlot, EMPTY_SLOT_RENDERER } from './ui/flows/ModalSlotFlow';
 import { ConnectionView } from './ui/views/ConnectionView';
-import { fireAndForget } from './utils/Async';
 import { deriveAlbumArtMaxDimension } from './utils/ImageSizing';
 
 const BOOTSTRAP_TIMEOUT_MS = 5000;

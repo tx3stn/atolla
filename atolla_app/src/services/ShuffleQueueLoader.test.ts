@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import type { Album } from '../models/Album';
-import type { Track } from '../models/Track';
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Track } from 'atolla_core/src/models/Track';
 import { PlaybackStore } from '../stores/Playback';
 import { SHUFFLE_PAGE_SIZE, ShuffleQueueLoader } from './ShuffleQueueLoader';
 

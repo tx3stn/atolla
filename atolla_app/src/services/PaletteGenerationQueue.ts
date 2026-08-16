@@ -1,7 +1,7 @@
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Track } from 'atolla_core/src/models/Track';
 import type { IWorkerServiceClient } from 'worker/src/IWorkerService';
 import { startWorkerService } from 'worker/src/WorkerService';
-import type { Album } from '../models/Album';
-import type { Track } from '../models/Track';
 import type { ArtworkPaletteService } from './ArtworkPaletteService';
 import type { IPaletteNativeWorker } from './PaletteNativeWorker';
 import { PaletteNativeWorkerEntryPoint } from './PaletteNativeWorker';

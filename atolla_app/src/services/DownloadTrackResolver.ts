@@ -1,11 +1,11 @@
-import type { Album } from '../models/Album';
-import type { Artist } from '../models/Artist';
-import type { Genre } from '../models/Genre';
-import type { Track } from '../models/Track';
-import type { Transport } from '../transports/Transport';
-import { retryResolve } from '../utils/Async';
-import { resolveGenreImageUrls } from '../utils/Genres';
-import { getLogger } from './Logger';
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Artist } from 'atolla_core/src/models/Artist';
+import type { Genre } from 'atolla_core/src/models/Genre';
+import type { Track } from 'atolla_core/src/models/Track';
+import { getLogger } from 'atolla_core/src/services/Logger';
+import type { Transport } from 'atolla_core/src/transports/Transport';
+import { retryResolve } from 'atolla_core/src/utils/Async';
+import { resolveGenreImageUrls } from 'atolla_core/src/utils/Genres';
 
 const log = getLogger('DownloadTrackResolver');
 

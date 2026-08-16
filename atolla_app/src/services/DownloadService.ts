@@ -1,10 +1,10 @@
-import type { Album } from '../models/Album';
-import type { Artist } from '../models/Artist';
-import type { Genre } from '../models/Genre';
-import type { Playlist } from '../models/Playlist';
-import type { Track } from '../models/Track';
-import type { ImageCategory } from './ImageCache';
-import { imageCacheKey } from './ImageSource';
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Artist } from 'atolla_core/src/models/Artist';
+import type { Genre } from 'atolla_core/src/models/Genre';
+import type { Playlist } from 'atolla_core/src/models/Playlist';
+import type { Track } from 'atolla_core/src/models/Track';
+import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
+import { imageCacheKey } from 'atolla_core/src/services/ImageSource';
 
 export type DownloadState = 'not_downloaded' | 'downloading' | 'downloaded' | 'partial';
 

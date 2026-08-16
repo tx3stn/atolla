@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { Album } from '../../../models/Album';
+import type { Album } from 'atolla_core/src/models/Album';
 import { sortAlbums, sortArtistAlbums } from './Albums';
 
 const albums: Array<Album> = [

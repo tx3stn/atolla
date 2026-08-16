@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
+import type { Track } from 'atolla_core/src/models/Track';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
-import type { Track } from '../../models/Track';
 import { pagedFromArray, type TrackPage, type TrackSource } from '../../services/TrackSource';
 import {
 	addTracksToPlaylist,

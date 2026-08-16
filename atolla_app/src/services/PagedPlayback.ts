@@ -1,4 +1,4 @@
-import type { Track } from '../models/Track';
+import type { Track } from 'atolla_core/src/models/Track';
 import { ShuffleQueueLoader } from './ShuffleQueueLoader';
 import type { TrackSource } from './TrackSource';
 

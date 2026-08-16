@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import type { Track } from '../models/Track';
-import { INSTANT_MIX_LIMIT } from '../transports/Transport';
+import type { Track } from 'atolla_core/src/models/Track';
+import { INSTANT_MIX_LIMIT } from 'atolla_core/src/transports/Transport';
 import { buildGenreIndex, buildInstantMix, type InstantMixLibrary } from './InstantMix';
 
 function makeTrack(id: string, overrides: Partial<Track> = {}): Track {

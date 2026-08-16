@@ -1,5 +1,5 @@
+import { getLogger } from 'atolla_core/src/services/Logger';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { getLogger } from '../../services/Logger';
 import {
 	applyNativeAudioPlaybackEventAction,
 	type NativeAudioPlaybackError,

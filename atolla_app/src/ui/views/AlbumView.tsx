@@ -1,3 +1,16 @@
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Artist } from 'atolla_core/src/models/Artist';
+import type { Genre } from 'atolla_core/src/models/Genre';
+import type { Track } from 'atolla_core/src/models/Track';
+import Strings from 'atolla_core/src/Strings';
+import type { ImageCache } from 'atolla_core/src/services/ImageCache';
+import type { Transport } from 'atolla_core/src/transports/Transport';
+import { fireAndForget, retryResolve } from 'atolla_core/src/utils/Async';
+import {
+	normalizeGenres,
+	resolveGenreForNavigation,
+	resolveGenreImageUrls,
+} from 'atolla_core/src/utils/Genres';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
@@ -5,15 +18,9 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { Album } from '../../models/Album';
 import { HeaderTabs } from '../../models/App';
-import type { Artist } from '../../models/Artist';
-import type { Genre } from '../../models/Genre';
-import type { Track } from '../../models/Track';
-import Strings from '../../Strings';
 import { backNavRouter } from '../../services/BackNavRouter';
 import type { DownloadService, DownloadState } from '../../services/DownloadService';
-import type { ImageCache } from '../../services/ImageCache';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
@@ -23,14 +30,7 @@ import type { PinnedItemsStore } from '../../stores/PinnedItems';
 import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
-import type { Transport } from '../../transports/Transport';
-import { fireAndForget, retryResolve } from '../../utils/Async';
 import { formatReleaseDate } from '../../utils/Date';
-import {
-	normalizeGenres,
-	resolveGenreForNavigation,
-	resolveGenreImageUrls,
-} from '../../utils/Genres';
 import { formatDuration } from '../../utils/Time';
 import { groupTracksByDisc } from '../components/AlbumDiscGrouping';
 import { BioSection } from '../components/BioSection';

@@ -21,7 +21,7 @@ jobs:
         with:
           name: version-files
           path: |
-            atolla_app/src/version.ts
+            atolla_core/src/version.ts
             BUILD.bazel
             atolla_app/native/android/AndroidManifest.prod.xml
           if-no-files-found: error

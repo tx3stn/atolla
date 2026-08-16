@@ -1,8 +1,8 @@
+import type { Genre } from 'atolla_core/src/models/Genre';
+import Strings from 'atolla_core/src/Strings';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, Layout, View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { Genre } from '../../models/Genre';
-import Strings from '../../Strings';
 import { theme } from '../../theme';
 
 export interface GenrePillsViewModel {

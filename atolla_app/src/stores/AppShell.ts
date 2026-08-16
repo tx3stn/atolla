@@ -1,10 +1,10 @@
+import type { Album } from 'atolla_core/src/models/Album';
+import type { Artist } from 'atolla_core/src/models/Artist';
+import type { Playlist } from 'atolla_core/src/models/Playlist';
+import type { Track } from 'atolla_core/src/models/Track';
 import { Device } from 'valdi_core/src/Device';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
-import type { Album } from '../models/Album';
 import { type FooterTab, FooterTabs, type HeaderTab } from '../models/App';
-import type { Artist } from '../models/Artist';
-import type { Playlist } from '../models/Playlist';
-import type { Track } from '../models/Track';
 import { appServices } from '../services/AppServices';
 import { backNavRouter } from '../services/BackNavRouter';
 import { type DetailPushDeps, pushAlbum, pushArtist, pushPlaylist } from '../ui/flows/PushDetail';

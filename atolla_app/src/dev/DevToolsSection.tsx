@@ -1,8 +1,8 @@
+import Strings from 'atolla_core/src/Strings';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
-import Strings from '../Strings';
 import { theme } from '../theme';
 import { Button } from '../ui/components/Button';
 import { closeSlot, openSlot } from '../ui/flows/ModalSlotFlow';

@@ -1,6 +1,6 @@
-import type { Album } from '../../../models/Album';
+import type { Album } from 'atolla_core/src/models/Album';
+import { compareBySortKey } from 'atolla_core/src/utils/SortKey';
 import { compareDatesDescending } from '../../../utils/Date';
-import { compareBySortKey } from '../../../utils/SortKey';
 
 export function sortAlbums(albums: Array<Album>): Array<Album> {
 	return sortNewToOld([...albums]);

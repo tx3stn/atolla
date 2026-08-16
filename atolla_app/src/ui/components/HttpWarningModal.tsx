@@ -1,7 +1,7 @@
+import Strings from 'atolla_core/src/Strings';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
-import Strings from '../../Strings';
 import { theme, withAlpha } from '../../theme';
 import { Button, ButtonType } from './Button';
 import { ModalBase, modalStyles } from './ModalBase';

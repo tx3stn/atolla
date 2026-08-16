@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { Playlist } from '../../../models/Playlist';
+import type { Playlist } from 'atolla_core/src/models/Playlist';
 import { sortPlaylists } from './Playlists';
 
 const playlists: Array<Playlist> = [

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { Transport } from '../transports/Transport';
+import type { Transport } from 'atolla_core/src/transports/Transport';
 import { PlaylistEditService, type PlaylistEditStore } from './PlaylistEditService';
 
 class InMemoryStore implements PlaylistEditStore {

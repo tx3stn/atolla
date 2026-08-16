@@ -1,4 +1,4 @@
-import { InMemoryKeyValueStore, type KeyValueStore } from './KeyValueStore';
+import { InMemoryKeyValueStore, type KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 
 const RECENT_SEARCHES_KEY = 'recent_searches';
 const RECENT_SEARCHES_LIMIT = 5;
