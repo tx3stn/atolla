@@ -11,9 +11,29 @@ ignore-paths:
   - ".tmp"
   - ".vscode"
 ignore-rules:
-  # we need cleartext for the local network behaviour
+  # cleartext http: a jellyfin server on the local network usually has no certificate
   - android_manifest_base_config_cleartext
-  - ios_piracy_check
+  # same, on ios: local networking is the only ATS exception we make
+  - ios_ats_local_networking
+  # flags every Log.* call; we intentionally ensure nothing secret is logged
+  - android_kotlin_logging
+  # SafetyNet attestation: dead api, which means feeding google data. no thank you
+  - android_safetynet
+  # root detection: do what you want I'm not your mum
+  - android_root_detection
+  # jailbreak detection: do what you want I'm not your mum
   - ios_jailbreak_detect
+  # SFAntiPiracy jailbreak check: same again, via a paid third party sdk
   - ios_detect_jailbreak_check
+  # anti-debugger mach ports: nothing in the binary is worth hiding from a debugger
   - ios_mach_ports
+  # SFAntiPiracy piracy check: nothing to pirate, atolla isn't sold
+  - ios_piracy_check
+  # certificate pinning: the server is whatever the user configures, so there is no cert to pin
+  - android_ssl_pinning
+  # certificate transparency: would reject the self-signed certs self-hosters use
+  - android_certificate_transparency
+  # FLAG_SECURE: a music library isn't secret, screenshot away
+  - android_prevent_screenshot
+  # filterTouchesWhenObscured: app has no tap worth stealing. blocked at OS level on 12+ anyway
+  - android_tapjacking
