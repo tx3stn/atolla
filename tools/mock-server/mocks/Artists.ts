@@ -1,4 +1,4 @@
-import type { JellyfinArtistItem } from '../../../atolla/src/models/jellyfin/Types';
+import type { JellyfinArtistItem } from '../../../atolla_app/src/models/jellyfin/Types';
 
 export const mockJellyfinArtists: Array<JellyfinArtistItem> = [
 	{

@@ -15,11 +15,11 @@ type IconOutput = {
 	src?: string;
 };
 
-const sourceSvgPath = resolve(process.cwd(), 'atolla/res/logo.svg');
-// The local dev build (//:atolla_dev) is a separate app id so it can be installed
+const sourceSvgPath = resolve(process.cwd(), 'atolla_app/res/logo.svg');
+// The local dev build (//:atolla_app_dev) is a separate app id so it can be installed
 // alongside the released app; its icon swaps the waveform cutout for "DEV" so the
-// two are distinguishable on the home screen. See atolla/res/logo-dev.svg.
-const devSourceSvgPath = resolve(process.cwd(), 'atolla/res/logo-dev.svg');
+// two are distinguishable on the home screen. See atolla_app/res/logo-dev.svg.
+const devSourceSvgPath = resolve(process.cwd(), 'atolla_app/res/logo-dev.svg');
 const androidIconPaddingRatio = 0.28;
 const iosIconPaddingRatio = 0.12;
 const defaultIconPaddingRatio = 0.01;
@@ -33,7 +33,7 @@ const outputs: Array<IconOutput> = [
 	{
 		path: resolve(
 			process.cwd(),
-			'atolla/native/ios/Assets.xcassets/AppIcon.appiconset/icon-1024.png',
+			'atolla_app/native/ios/Assets.xcassets/AppIcon.appiconset/icon-1024.png',
 		),
 		platform: 'ios',
 		size: 1024,
@@ -75,122 +75,137 @@ const outputs: Array<IconOutput> = [
 	{ path: resolve(process.cwd(), 'generated/icons/web/icon-256.png'), platform: 'web', size: 256 },
 	{ path: resolve(process.cwd(), 'generated/icons/web/icon-512.png'), platform: 'web', size: 512 },
 	{
-		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-mdpi/ic_launcher.png'),
+		path: resolve(process.cwd(), 'atolla_app/native/android/res/mipmap-mdpi/ic_launcher.png'),
 		platform: 'android',
 		size: 48,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-hdpi/ic_launcher.png'),
+		path: resolve(process.cwd(), 'atolla_app/native/android/res/mipmap-hdpi/ic_launcher.png'),
 		platform: 'android',
 		size: 72,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xhdpi/ic_launcher.png'),
+		path: resolve(process.cwd(), 'atolla_app/native/android/res/mipmap-xhdpi/ic_launcher.png'),
 		platform: 'android',
 		size: 96,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xxhdpi/ic_launcher.png'),
+		path: resolve(process.cwd(), 'atolla_app/native/android/res/mipmap-xxhdpi/ic_launcher.png'),
 		platform: 'android',
 		size: 144,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla/native/android/res/mipmap-xxxhdpi/ic_launcher.png'),
+		path: resolve(process.cwd(), 'atolla_app/native/android/res/mipmap-xxxhdpi/ic_launcher.png'),
 		platform: 'android',
 		size: 192,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla/native/android/res/drawable/ic_launcher_foreground.png'),
+		path: resolve(
+			process.cwd(),
+			'atolla_app/native/android/res/drawable/ic_launcher_foreground.png',
+		),
 		platform: 'android',
 		size: 432,
 	},
 	{
 		monochrome: true,
-		path: resolve(process.cwd(), 'atolla/native/android/res/drawable/ic_launcher_monochrome.png'),
+		path: resolve(
+			process.cwd(),
+			'atolla_app/native/android/res/drawable/ic_launcher_monochrome.png',
+		),
 		platform: 'android',
 		size: 432,
 	},
 	{
 		monochrome: true,
 		noPadding: true,
-		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-mdpi/ic_notification.png'),
+		path: resolve(process.cwd(), 'atolla_app/native/android/res/drawable-mdpi/ic_notification.png'),
 		platform: 'android',
 		size: 24,
 	},
 	{
 		monochrome: true,
 		noPadding: true,
-		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-hdpi/ic_notification.png'),
+		path: resolve(process.cwd(), 'atolla_app/native/android/res/drawable-hdpi/ic_notification.png'),
 		platform: 'android',
 		size: 36,
 	},
 	{
 		monochrome: true,
 		noPadding: true,
-		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-xhdpi/ic_notification.png'),
+		path: resolve(
+			process.cwd(),
+			'atolla_app/native/android/res/drawable-xhdpi/ic_notification.png',
+		),
 		platform: 'android',
 		size: 48,
 	},
 	{
 		monochrome: true,
 		noPadding: true,
-		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-xxhdpi/ic_notification.png'),
+		path: resolve(
+			process.cwd(),
+			'atolla_app/native/android/res/drawable-xxhdpi/ic_notification.png',
+		),
 		platform: 'android',
 		size: 72,
 	},
 	{
 		monochrome: true,
 		noPadding: true,
-		path: resolve(process.cwd(), 'atolla/native/android/res/drawable-xxxhdpi/ic_notification.png'),
+		path: resolve(
+			process.cwd(),
+			'atolla_app/native/android/res/drawable-xxxhdpi/ic_notification.png',
+		),
 		platform: 'android',
 		size: 96,
 	},
 ];
 
-// Dev-variant launcher icons for //atolla_dev. They live in the dev app's own resource
-// root (atolla_dev/res) so the released app's build — which compiles the whole
-// atolla/native/android/res tree — never sees them; iOS gets its own asset catalog so
+// Dev-variant launcher icons for //atolla_app_dev. They live in the dev app's own resource
+// root (atolla_app_dev/res) so the released app's build — which compiles the whole
+// atolla_app/native/android/res tree — never sees them; iOS gets its own asset catalog so
 // the required "AppIcon" set name doesn't collide.
 const devOutputs: Array<IconOutput> = [
 	{
-		path: resolve(process.cwd(), 'atolla_dev/res/mipmap-mdpi/ic_launcher_dev.png'),
+		path: resolve(process.cwd(), 'atolla_app_dev/res/mipmap-mdpi/ic_launcher_dev.png'),
 		platform: 'android',
 		size: 48,
 		src: devSourceSvgPath,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla_dev/res/mipmap-hdpi/ic_launcher_dev.png'),
+		path: resolve(process.cwd(), 'atolla_app_dev/res/mipmap-hdpi/ic_launcher_dev.png'),
 		platform: 'android',
 		size: 72,
 		src: devSourceSvgPath,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla_dev/res/mipmap-xhdpi/ic_launcher_dev.png'),
+		path: resolve(process.cwd(), 'atolla_app_dev/res/mipmap-xhdpi/ic_launcher_dev.png'),
 		platform: 'android',
 		size: 96,
 		src: devSourceSvgPath,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla_dev/res/mipmap-xxhdpi/ic_launcher_dev.png'),
+		path: resolve(process.cwd(), 'atolla_app_dev/res/mipmap-xxhdpi/ic_launcher_dev.png'),
 		platform: 'android',
 		size: 144,
 		src: devSourceSvgPath,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla_dev/res/mipmap-xxxhdpi/ic_launcher_dev.png'),
+		path: resolve(process.cwd(), 'atolla_app_dev/res/mipmap-xxxhdpi/ic_launcher_dev.png'),
 		platform: 'android',
 		size: 192,
 		src: devSourceSvgPath,
 	},
 	{
-		path: resolve(process.cwd(), 'atolla_dev/res/drawable/ic_launcher_dev_foreground.png'),
+		path: resolve(process.cwd(), 'atolla_app_dev/res/drawable/ic_launcher_dev_foreground.png'),
 		platform: 'android',
 		size: 432,
 		src: devSourceSvgPath,
 	},
 	{
 		monochrome: true,
-		path: resolve(process.cwd(), 'atolla_dev/res/drawable/ic_launcher_dev_monochrome.png'),
+		path: resolve(process.cwd(), 'atolla_app_dev/res/drawable/ic_launcher_dev_monochrome.png'),
 		platform: 'android',
 		size: 432,
 		src: devSourceSvgPath,
@@ -198,7 +213,7 @@ const devOutputs: Array<IconOutput> = [
 	{
 		path: resolve(
 			process.cwd(),
-			'atolla/native/ios/Assets-dev.xcassets/AppIcon.appiconset/icon-1024.png',
+			'atolla_app/native/ios/Assets-dev.xcassets/AppIcon.appiconset/icon-1024.png',
 		),
 		platform: 'ios',
 		size: 1024,
@@ -336,9 +351,9 @@ async function main(): Promise<void> {
 
 	if (selectedPlatforms.has('ios')) {
 		console.log('Copying svg to ios liquid glass directory...');
-		const iosLiquidGlassSvg = 'atolla/native/ios/Assets.xcassets/AppIcon.icon/Assets/logo.svg';
+		const iosLiquidGlassSvg = 'atolla_app/native/ios/Assets.xcassets/AppIcon.icon/Assets/logo.svg';
 		await mkdir(dirname(iosLiquidGlassSvg), { recursive: true });
-		copyFileSync('atolla/res/logo.svg', iosLiquidGlassSvg);
+		copyFileSync('atolla_app/res/logo.svg', iosLiquidGlassSvg);
 	}
 
 	console.log(`Icon generation complete: ${tasks.length} files OK`);

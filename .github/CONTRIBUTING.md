@@ -15,7 +15,7 @@ bun run setup
 
 That installs dependencies and then runs `valdi projectsync`, which builds the
 Valdi module graph and writes a `tsconfig.json` into each module directory
-(`atolla/`, `atolla_dev/`, `tools/palette-preview/`). Those files are generated
+(`atolla_app/`, `atolla_app_dev/`, `tools/palette-preview/`). Those files are generated
 and gitignored — the paths inside them point at your local Bazel output tree, so
 they can't be shared between machines. Re-run `bunx valdi projectsync` after
 changing a module's Bazel deps, resources or strings.
@@ -46,7 +46,7 @@ everything.
 
 The player colors are dynamically generated, so if you find a cover that doesn't
 work right, or becomes illegible you can test changes to the color extraction
-logic that lives in [atolla/native/zig/palette_extractor.zig](../atolla/native/zig/palette_extractor.zig)
+logic that lives in [atolla_app/native/zig/palette_extractor.zig](../atolla_app/native/zig/palette_extractor.zig)
 with the `palette-preview` tool.
 
 1. Downlaod the album art from your Jellyfin server.
@@ -68,8 +68,8 @@ so that it can be tested along side the sample set used to tune the colors.
 
 All text visible to a user should be localised.
 
-The text can be found in [the strings directory](../atolla/strings/).
+The text can be found in [the strings directory](../atolla_app/strings/).
 
 To add a new language you need to add a new file for it in the strings directory
 with the country code in the name (see the existign files for reference).
-Then update `LANGUAGE_OPTIONS` in [the preferences store](../atolla/src/stores/Preferences.ts) to include the new language.
+Then update `LANGUAGE_OPTIONS` in [the preferences store](../atolla_app/src/stores/Preferences.ts) to include the new language.

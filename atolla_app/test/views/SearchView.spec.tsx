@@ -1,0 +1,571 @@
+import 'jasmine/src/jasmine';
+import type { SearchResults } from 'atolla_app/src/models/Search';
+import { PlaybackStore } from 'atolla_app/src/stores/Playback';
+import { Preferences } from 'atolla_app/src/stores/Preferences';
+import { AlbumView } from 'atolla_app/src/ui/views/AlbumView';
+import { ArtistView } from 'atolla_app/src/ui/views/ArtistView';
+import { PlaylistView } from 'atolla_app/src/ui/views/PlaylistView';
+import { SearchView } from 'atolla_app/src/ui/views/SearchView';
+import { componentGetElements } from 'foundation/test/util/componentGetElements';
+import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
+import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
+import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
+import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import { editTextEvent, touchEvent } from '../util/testEvents';
+
+const stubImageCache = {
+	get: () => null,
+	getOrLoad: () => null,
+	prefetch: () => Promise.resolve(),
+	subscribe: () => () => {},
+};
+
+function flushAsyncWork(): Promise<void> {
+	return Promise.resolve().then(() => Promise.resolve());
+}
+
+function makePreferences(): Preferences {
+	return new Preferences({ fetchString: async () => '', storeString: async () => {} });
+}
+
+function makeSearchStore(initialRecent: Array<string> = []) {
+	let recent: Array<string> = [...initialRecent];
+	return {
+		addRecentSearch: (term: string) => {
+			recent = [
+				term,
+				...recent.filter((value) => value.toLowerCase() !== term.toLowerCase()),
+			].slice(0, 5);
+			return Promise.resolve(recent);
+		},
+		getRecentSearches: () => Promise.resolve(recent),
+	};
+}
+
+function makeNavigationController() {
+	let pushedComponent: unknown = null;
+	let pushedViewModel: unknown = null;
+	return {
+		getPushed: () => ({ component: pushedComponent, viewModel: pushedViewModel }),
+		push: (component: unknown, viewModel: unknown) => {
+			pushedComponent = component;
+			pushedViewModel = viewModel;
+		},
+	};
+}
+
+// the clear button is a TappableIcon child component, so the lookup has to walk the subtree
+function clearButtonView(component: SearchView) {
+	return elementTypeFind(
+		component.renderer.getComponentRootElements(component, true),
+		IRenderedElementViewClass.View,
+	).find((view) => view.getAttribute('accessibilityId') === 'search-clear');
+}
+
+describe('SearchView', () => {
+	valdiIt('starts with an empty query', async (driver) => {
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+
+		expect(component.state.query).toBe('');
+	});
+
+	valdiIt('updates query state when textfield changes', async (driver) => {
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+		const textField = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.TextField,
+		)[0];
+
+		textField.getAttribute('onChange')?.(editTextEvent('dream pop'));
+
+		expect(component.state.query).toBe('dream pop');
+	});
+
+	valdiIt('hides the clear button while the query is empty', async (driver) => {
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+
+		expect(clearButtonView(component)).toBeUndefined();
+	});
+
+	valdiIt('shows the clear button once the query has text', async (driver) => {
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+		const textField = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.TextField,
+		)[0];
+
+		textField.getAttribute('onChange')?.(editTextEvent('dream pop'));
+		await flushAsyncWork();
+
+		expect(clearButtonView(component)).toBeTruthy();
+	});
+
+	valdiIt(
+		'clears the query but keeps the results when the clear button is tapped',
+		async (driver) => {
+			const viewModel = {
+				imageCache: stubImageCache,
+				navigationController: makeNavigationController(),
+				playbackStore: new PlaybackStore(),
+				preferences: makePreferences(),
+				searchStore: makeSearchStore(),
+				transport: {
+					search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+				},
+			};
+			const component = driver.renderComponent(SearchView, viewModel, undefined);
+			component.setState({
+				query: 'dream pop',
+				results: {
+					albums: [{ artistId: 'a', artistName: 'a', id: 'a', name: 'a' }],
+					artists: [],
+					playlists: [],
+					tracks: [],
+				},
+				status: 'success',
+			});
+			await flushAsyncWork();
+
+			clearButtonView(component)?.getAttribute('onTap')?.(touchEvent);
+			await flushAsyncWork();
+
+			expect(component.state.query).toBe('');
+			expect(component.state.status).toBe('success');
+			expect(component.state.results.albums.length).toBe(1);
+		},
+	);
+
+	valdiIt('refocuses the input after clearing', async (driver) => {
+		const focus = spyOn(
+			SearchView.prototype as unknown as { focusSearchInput: () => void },
+			'focusSearchInput',
+		);
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+		component.setState({ query: 'dream pop' });
+		await flushAsyncWork();
+
+		clearButtonView(component)?.getAttribute('onTap')?.(touchEvent);
+
+		expect(focus).toHaveBeenCalledTimes(1);
+	});
+
+	valdiIt('does not search when submit is empty and clears results', async (driver) => {
+		let calls = 0;
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => {
+					calls += 1;
+					return Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] });
+				},
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+		component.setState({
+			results: {
+				albums: [{ artistId: 'a', artistName: 'a', id: 'a', name: 'a' }],
+				artists: [],
+				playlists: [],
+				tracks: [],
+			},
+			status: 'success',
+		});
+
+		component.handleSubmitSearch('   ');
+		await flushAsyncWork();
+
+		expect(calls).toBe(0);
+		expect(component.state.status).toBe('idle');
+		expect(component.state.results.albums).toEqual([]);
+	});
+
+	// these submit tests resolve an async search that calls setState; on the shared driver
+	// renderer that re-enters ('Already rendering'), so they root-mount SearchView via
+	// InstrumentedComponentJSX, which renders on its own renderer like production
+	valdiIt('submits search and stores recent terms', async () => {
+		const searchCalls: Array<string> = [];
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: (query: string) => {
+					searchCalls.push(query);
+					return Promise.resolve({
+						albums: [
+							{ artistId: 'artist-1', artistName: 'Converge', id: 'album-1', name: 'Jane Doe' },
+						],
+						artists: [],
+						playlists: [],
+						tracks: [{ duration: 123, id: 'track-1', name: 'Jane Doe' }],
+					});
+				},
+			},
+		};
+		const component = InstrumentedComponentJSX.create(
+			SearchView,
+			viewModel,
+			undefined,
+		).getComponent();
+
+		component.handleSubmitSearch('jane');
+		expect(component.state.status).toBe('loading');
+		await flushAsyncWork();
+
+		expect(searchCalls).toEqual(['jane']);
+		expect(component.state.status).toBe('success');
+		expect(component.state.recentSearches[0]).toBe('jane');
+	});
+
+	valdiIt('cancels the prior in-flight search when a new query is submitted', async () => {
+		const canceledQueries: Array<string> = [];
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: (query: string) => {
+					// never resolves, so the request is still in-flight when superseded
+					const pending = new Promise<SearchResults>(() => {}) as CancelablePromise<SearchResults>;
+					pending.cancel = () => canceledQueries.push(query);
+					return pending;
+				},
+			},
+		};
+		const component = InstrumentedComponentJSX.create(
+			SearchView,
+			viewModel,
+			undefined,
+		).getComponent();
+
+		component.handleSubmitSearch('first');
+		component.handleSubmitSearch('second');
+		await flushAsyncWork();
+
+		expect(canceledQueries).toEqual(['first']);
+	});
+
+	valdiIt('submits search from keyboard return', async () => {
+		const searchCalls: Array<string> = [];
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: (query: string) => {
+					searchCalls.push(query);
+					return Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] });
+				},
+			},
+		};
+		const component = InstrumentedComponentJSX.create(
+			SearchView,
+			viewModel,
+			undefined,
+		).getComponent();
+		component.setState({ query: 'burial' });
+		const textField = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.TextField,
+		)[0];
+
+		textField.getAttribute('onReturn')?.(editTextEvent(''));
+		await flushAsyncWork();
+
+		expect(searchCalls).toEqual(['burial']);
+	});
+
+	valdiIt('accepts event-shaped submit payloads', async () => {
+		const searchCalls: Array<string> = [];
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: (query: string) => {
+					searchCalls.push(query);
+					return Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] });
+				},
+			},
+		};
+		const component = InstrumentedComponentJSX.create(
+			SearchView,
+			viewModel,
+			undefined,
+		).getComponent();
+
+		component.handleSubmitSearch({ nativeEvent: { text: 'shoegaze' } });
+		await flushAsyncWork();
+
+		expect(searchCalls).toEqual(['shoegaze']);
+		expect(component.state.lastSubmittedQuery).toBe('shoegaze');
+	});
+
+	valdiIt('opens artist/album/playlist views from tapped cards', async (driver) => {
+		const navigationController = makeNavigationController();
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController,
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+
+		component.setState({
+			results: {
+				albums: [{ artistId: 'artist-1', artistName: 'Converge', id: 'album-1', name: 'Jane Doe' }],
+				artists: [{ id: 'artist-1', name: 'Converge' }],
+				playlists: [{ id: 'playlist-1', name: 'Converge Essentials' }],
+				tracks: [],
+			},
+			status: 'success',
+		});
+
+		component.handleArtistTap('artist-1');
+		expect(navigationController.getPushed().component).toBe(ArtistView);
+
+		component.handleAlbumTap('album-1');
+		expect(navigationController.getPushed().component).toBe(AlbumView);
+
+		component.handlePlaylistTap('playlist-1');
+		expect(navigationController.getPushed().component).toBe(PlaylistView);
+	});
+
+	valdiIt(
+		'routes album/artist/playlist taps through app callback when provided',
+		async (driver) => {
+			const routed: Array<{ kind: string }> = [];
+			const viewModel = {
+				imageCache: stubImageCache,
+				navigationController: makeNavigationController(),
+				onNavigateToLibraryResult: (target: { kind: string }) => routed.push(target),
+				playbackStore: new PlaybackStore(),
+				preferences: makePreferences(),
+				searchStore: makeSearchStore(),
+				transport: {
+					search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+				},
+			};
+			const component = driver.renderComponent(SearchView, viewModel, undefined);
+
+			component.setState({
+				results: {
+					albums: [
+						{ artistId: 'artist-1', artistName: 'Converge', id: 'album-1', name: 'Jane Doe' },
+					],
+					artists: [{ id: 'artist-1', name: 'Converge' }],
+					playlists: [{ id: 'playlist-1', name: 'Converge Essentials' }],
+					tracks: [],
+				},
+				status: 'success',
+			});
+
+			component.handleAlbumTap('album-1');
+			component.handleArtistTap('artist-1');
+			component.handlePlaylistTap('playlist-1');
+
+			expect(routed.map((entry) => entry.kind)).toEqual(['album', 'artist', 'playlist']);
+		},
+	);
+
+	valdiIt('plays only the tapped track from track list results', async (driver) => {
+		const playbackStore = new PlaybackStore();
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore,
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				getArtistLogoUrl: () => Promise.resolve(null),
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+		component.setState({
+			results: {
+				albums: [],
+				artists: [],
+				playlists: [],
+				tracks: [
+					{ duration: 111, id: 'track-1', name: 'First' },
+					{ duration: 222, id: 'track-2', name: 'Second' },
+				],
+			},
+			status: 'success',
+		});
+
+		component.handleTrackTap('track-2');
+
+		expect(playbackStore.track?.id).toBe('track-2');
+		expect(playbackStore.tracks.map((track) => track.id)).toEqual(['track-2']);
+		expect(playbackStore.isPlaying).toBe(true);
+	});
+
+	// all four tabs mount at first authed paint, so onCreate must not focus the (off-screen)
+	// search field unless the search tab is the active one — otherwise launch pops the keyboard.
+	// focus instead follows tab activation, which onViewModelUpdate drives on a false->true flip.
+	valdiIt('does not focus the search input when mounted inactive', async () => {
+		const focus = spyOn(
+			SearchView.prototype as unknown as { focusSearchInput: () => void },
+			'focusSearchInput',
+		);
+		const viewModel = {
+			active: false,
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+
+		InstrumentedComponentJSX.create(SearchView, viewModel, undefined);
+		await flushAsyncWork();
+
+		expect(focus).not.toHaveBeenCalled();
+	});
+
+	valdiIt('focuses the search input when mounted active', async () => {
+		const focus = spyOn(
+			SearchView.prototype as unknown as { focusSearchInput: () => void },
+			'focusSearchInput',
+		);
+		const viewModel = {
+			active: true,
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+
+		InstrumentedComponentJSX.create(SearchView, viewModel, undefined);
+		await flushAsyncWork();
+
+		expect(focus).toHaveBeenCalledTimes(1);
+	});
+
+	valdiIt(
+		'focuses once when the tab becomes active and not again while it stays active',
+		async () => {
+			const focus = spyOn(
+				SearchView.prototype as unknown as { focusSearchInput: () => void },
+				'focusSearchInput',
+			);
+			const viewModel = {
+				active: false,
+				imageCache: stubImageCache,
+				navigationController: makeNavigationController(),
+				playbackStore: new PlaybackStore(),
+				preferences: makePreferences(),
+				searchStore: makeSearchStore(),
+				transport: {
+					search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+				},
+			};
+			const instrumented = InstrumentedComponentJSX.create(SearchView, viewModel, undefined);
+			await flushAsyncWork();
+			expect(focus).not.toHaveBeenCalled();
+
+			instrumented.setViewModel({ ...viewModel, active: true });
+			await flushAsyncWork();
+			expect(focus).toHaveBeenCalledTimes(1);
+
+			instrumented.setViewModel({ ...viewModel, active: true });
+			await flushAsyncWork();
+			expect(focus).toHaveBeenCalledTimes(1);
+		},
+	);
+
+	valdiIt('renders search bar with accessibility labels', async (driver) => {
+		const viewModel = {
+			imageCache: stubImageCache,
+			navigationController: makeNavigationController(),
+			playbackStore: new PlaybackStore(),
+			preferences: makePreferences(),
+			searchStore: makeSearchStore(),
+			transport: {
+				search: () => Promise.resolve({ albums: [], artists: [], playlists: [], tracks: [] }),
+			},
+		};
+		const component = driver.renderComponent(SearchView, viewModel, undefined);
+		const views = elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View);
+		const searchBar = views.find(
+			(view) => view.getAttribute('accessibilityLabel') === 'search-bar',
+		);
+
+		expect(searchBar).toBeTruthy();
+	});
+});

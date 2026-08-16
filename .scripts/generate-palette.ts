@@ -1,10 +1,10 @@
-// contact sheet of every icon in atolla/res, grouped by viewBox: 24x24 in a square grid,
+// contact sheet of every icon in atolla_app/res, grouped by viewBox: 24x24 in a square grid,
 // 48x24 on their own rows, everything else skipped
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import sharp from 'sharp';
 
-const RES = resolve(process.cwd(), 'atolla/res');
+const RES = resolve(process.cwd(), 'atolla_app/res');
 const OUT =
 	process.argv.find((arg) => arg.endsWith('.png')) ??
 	resolve(process.cwd(), 'generated/icon-palette.png');

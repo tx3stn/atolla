@@ -1,0 +1,189 @@
+package atolla.native.android
+
+import android.app.Activity
+import android.app.Application
+import android.graphics.Color
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.ViewTreeObserver
+import android.view.WindowInsetsController
+import com.snap.modules.atolla_app.StatusBarNativeModule
+import com.snap.modules.atolla_app.StatusBarNativeModuleFactory
+import com.snap.valdi.modules.RegisterValdiModule
+
+private const val TAG = "AtollaStatusBar"
+
+@RegisterValdiModule
+class AtollaStatusBarNativeModuleFactory : StatusBarNativeModuleFactory() {
+
+	private val mainHandler = Handler(Looper.getMainLooper())
+
+	// last colours requested from JS. a colour pushed while the activity isn't resumed (e.g. the
+	// wake after a backgrounded track advance) is dropped by the window, and the JS BarColorStore
+	// dedups so it never re-pushes — so we remember them and re-assert on foreground below
+	@Volatile private var lastStatusColorHex: String? = null
+	@Volatile private var lastNavColorHex: String? = null
+
+	// gained-focus fires after the resume transition has settled; re-asserting there also recovers a
+	// colour that a mid-resume window repaint clobbered, which onActivityResumed runs too early to catch
+	private val focusListener =
+		ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+			if (hasFocus) {
+				reassertBarColors()
+			}
+		}
+
+	override fun onLoadModule(): StatusBarNativeModule {
+		registerForegroundReassert()
+		return object : StatusBarNativeModule {
+			override fun setAtollaStatusBarColor(colorHex: String) {
+				lastStatusColorHex = colorHex
+				mainHandler.post {
+					applyStatusBarColor(colorHex)
+				}
+			}
+
+			override fun setAtollaNavigationBarColor(colorHex: String) {
+				lastNavColorHex = colorHex
+				mainHandler.post {
+					applyNavigationBarColor(colorHex)
+				}
+			}
+		}
+	}
+
+	private fun registerForegroundReassert() {
+		val application = resolveApplication() ?: return
+		application.registerActivityLifecycleCallbacks(
+			object : Application.ActivityLifecycleCallbacks {
+				override fun onActivityResumed(activity: Activity) {
+					attachFocusListener(activity)
+					mainHandler.post { reassertBarColors() }
+				}
+
+				override fun onActivityPaused(activity: Activity) {}
+
+				override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+
+				override fun onActivityStarted(activity: Activity) {}
+
+				override fun onActivityStopped(activity: Activity) {}
+
+				override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+
+				override fun onActivityDestroyed(activity: Activity) {}
+			},
+		)
+	}
+
+	private fun attachFocusListener(activity: Activity) {
+		val observer = activity.window?.decorView?.viewTreeObserver ?: return
+		if (!observer.isAlive) return
+		observer.removeOnWindowFocusChangeListener(focusListener)
+		observer.addOnWindowFocusChangeListener(focusListener)
+	}
+
+	private fun reassertBarColors() {
+		lastStatusColorHex?.let { applyStatusBarColor(it) }
+		lastNavColorHex?.let { applyNavigationBarColor(it) }
+	}
+
+	private fun resolveApplication(): Application? {
+		return try {
+			val activityThreadClass = Class.forName("android.app.ActivityThread")
+			activityThreadClass.getMethod("currentApplication").invoke(null) as? Application
+		} catch (error: Throwable) {
+			Log.e(TAG, "Unable to resolve application", error)
+			null
+		}
+	}
+
+	private fun applyStatusBarColor(colorHex: String) {
+		val activity = resolveForegroundActivity() ?: return
+		val window = activity.window ?: return
+		try {
+			val color = Color.parseColor(colorHex)
+			window.statusBarColor = color
+
+			val luminance = computeLuminance(color)
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+				val controller = window.insetsController ?: return
+				controller.setSystemBarsAppearance(
+					if (luminance < 0.5) 0 else WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+					WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+				)
+			} else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+				@Suppress("DEPRECATION")
+				val flags = window.decorView.systemUiVisibility
+				@Suppress("DEPRECATION")
+				window.decorView.systemUiVisibility =
+					if (luminance < 0.5) flags and android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+					else flags or android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+			}
+		} catch (e: Throwable) {
+			Log.e(TAG, "Failed to set status bar color: $colorHex", e)
+		}
+	}
+
+	private fun applyNavigationBarColor(colorHex: String) {
+		val activity = resolveForegroundActivity() ?: return
+		val window = activity.window ?: return
+		try {
+			val color = Color.parseColor(colorHex)
+			window.navigationBarColor = color
+
+			val luminance = computeLuminance(color)
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+				val controller = window.insetsController ?: return
+				controller.setSystemBarsAppearance(
+					if (luminance < 0.5) 0 else WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+					WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+				)
+			} else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+				@Suppress("DEPRECATION")
+				val flags = window.decorView.systemUiVisibility
+				@Suppress("DEPRECATION")
+				window.decorView.systemUiVisibility =
+					if (luminance < 0.5) flags and android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+					else flags or android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+			}
+		} catch (e: Throwable) {
+			Log.e(TAG, "Failed to set navigation bar color: $colorHex", e)
+		}
+	}
+
+	private fun resolveForegroundActivity(): Activity? {
+		return try {
+			val activityThreadClass = Class.forName("android.app.ActivityThread")
+			val activityThread = activityThreadClass.getMethod("currentActivityThread").invoke(null)
+				?: return null
+			val activitiesField = activityThreadClass.getDeclaredField("mActivities")
+			activitiesField.isAccessible = true
+			val activities = activitiesField.get(activityThread) as? Map<*, *> ?: return null
+			for (record in activities.values) {
+				record ?: continue
+				val cls = record.javaClass
+				val pausedField = cls.getDeclaredField("paused")
+				pausedField.isAccessible = true
+				if (pausedField.getBoolean(record)) continue
+				val activityField = cls.getDeclaredField("activity")
+				activityField.isAccessible = true
+				val activity = activityField.get(record) as? Activity
+				if (activity != null && !activity.isFinishing && !activity.isDestroyed) return activity
+			}
+			null
+		} catch (_: Throwable) {
+			null
+		}
+	}
+
+	private fun computeLuminance(color: Int): Double {
+		val r = Color.red(color) / 255.0
+		val g = Color.green(color) / 255.0
+		val b = Color.blue(color) / 255.0
+		return r * 0.299 + g * 0.587 + b * 0.114
+	}
+}

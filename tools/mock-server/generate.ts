@@ -7,7 +7,7 @@ import type {
 	JellyfinBaseItemDto,
 	JellyfinMediaSource,
 	JellyfinTrackItem,
-} from '../../atolla/src/models/jellyfin/Types';
+} from '../../atolla_app/src/models/jellyfin/Types';
 import { mockJellyfinAlbums as rawAlbums, mockJellyfinTracks as rawTracks } from './mocks/Albums';
 import { mockJellyfinArtists as rawArtists } from './mocks/Artists';
 import { mockGenreTrackIds, mockJellyfinGenres as rawGenres } from './mocks/Genres';

@@ -51,18 +51,18 @@ jobs:
               - '.github/actions/**'
             zig:
               - *shared
-              - 'atolla/native/zig/**'
+              - 'atolla_app/native/zig/**'
             android:
               - *shared
-              - 'atolla/native/BUILD.bazel'
-              - 'atolla/native/android/**'
+              - 'atolla_app/native/BUILD.bazel'
+              - 'atolla_app/native/android/**'
             ios:
               - *shared
-              - 'atolla/native/BUILD.bazel'
-              - 'atolla/native/ios/**'
+              - 'atolla_app/native/BUILD.bazel'
+              - 'atolla_app/native/ios/**'
             components:
               - *shared
-              - 'atolla/**'
+              - 'atolla_app/**'
               - 'package.json'
               - 'bun.lock'
               - 'tsconfig*.json'
@@ -88,12 +88,12 @@ jobs:
       # the same filenames still hits; adds/removes/renames miss (as they should).
       - name: hash res file list
         id: reslist
-        run: echo "hash=$(cd atolla && find res -type f | LC_ALL=C sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "hash=$(cd atolla_app && find res -type f | LC_ALL=C sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
       # tsc only needs projectsync's OUTPUTS: the valdi sources/types, the
       # generated res.ts, and the linux-rewritten tsconfig. The heavy outputs
       # (generated_ts + valdi module sources) are built by the bazel Valdi
       # toolchain pinned in MODULE.bazel (VALDI_TAG), NOT the npm @snap/valdi CLI
-      # — which only orchestrates bazel and rewrites atolla/tsconfig.json. So the
+      # — which only orchestrates bazel and rewrites atolla_app/tsconfig.json. So the
       # key covers the bazel dep-set (MODULE.bazel etc.) + BUILD.bazel + the res
       # file list + the strings, and stays hit across CLI-only bumps — on a hit
       # this job runs no bazel at all (the 22-minute projectsync build disappears).
@@ -106,10 +106,10 @@ jobs:
           path: |
             bazel-atolla/external/valdi~/modules
             bazel-atolla/external/valdi~/src/valdi_modules
-            bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
+            bazel-out/k8-fastbuild/bin/atolla_app/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
-            atolla/tsconfig.json
-          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/strings/**') }}-res${{ steps.reslist.outputs.hash }}
+            atolla_app/tsconfig.json
+          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_app/strings/**') }}-res${{ steps.reslist.outputs.hash }}
       # only the cold path runs bazel (projectsync builds Skia/Hermes/etc), so only
       # it needs the extra room; a cache hit does no heavy build
       - name: free disk space
@@ -140,7 +140,7 @@ jobs:
       - name: wait for disk cleanup
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/wait-for-disk-cleanup
-      - run: bunx valdi projectsync --target //atolla:atolla_projectsync
+      - run: bunx valdi projectsync --target //atolla_app:atolla_app_projectsync
         id: projectsync
         if: steps.projectsync-cache.outputs.cache-hit != 'true'
       - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
@@ -180,10 +180,10 @@ jobs:
           path: |
             bazel-atolla/external/valdi~/modules
             bazel-atolla/external/valdi~/src/valdi_modules
-            bazel-out/k8-fastbuild/bin/atolla/.valdi_build/projectsync/generated_ts
+            bazel-out/k8-fastbuild/bin/atolla_app/.valdi_build/projectsync/generated_ts
             bazel-out/k8-fastbuild/bin/external/valdi~/src/valdi_modules/src/valdi/valdi_test/.valdi_build/projectsync/generated_ts
-            atolla/tsconfig.json
-          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla/BUILD.bazel', 'atolla/strings/**') }}-res${{ steps.reslist.outputs.hash }}
+            atolla_app/tsconfig.json
+          key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_app/strings/**') }}-res${{ steps.reslist.outputs.hash }}
 
   zig-tests:
     needs: changes

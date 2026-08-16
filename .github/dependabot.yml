@@ -3,7 +3,7 @@ updates:
   # - package-ecosystem: "bazel"
   #   directories:
   #     - /
-  #     - atolla/**/*
+  #     - atolla_app/**/*
   #   schedule:
   #     interval: monthly
   - package-ecosystem: "bun"

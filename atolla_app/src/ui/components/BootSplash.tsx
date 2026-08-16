@@ -1,0 +1,37 @@
+import res from 'atolla_app/res';
+import { Component } from 'valdi_core/src/Component';
+import { Style } from 'valdi_core/src/Style';
+import type { View } from 'valdi_tsx/src/NativeTemplateElements';
+import { theme } from '../../theme';
+
+export class BootSplash extends Component {
+	onRender(): void {
+		<view style={styles.root}>
+			<view style={styles.logoContainer}>
+				<image src={res.logo} style={styles.logoImage} />
+			</view>
+		</view>;
+	}
+}
+
+const styles = {
+	logoContainer: new Style<View>({
+		alignItems: 'center',
+		backgroundColor: theme.colors.bg,
+		height: theme.scale(80),
+		justifyContent: 'center',
+		marginBottom: theme.scale(16),
+		width: theme.scale(80),
+	}),
+	logoImage: new Style<View>({
+		height: theme.scale(80),
+		width: theme.scale(80),
+	}),
+	root: new Style<View>({
+		alignItems: 'center',
+		backgroundColor: theme.colors.bg,
+		height: '100%',
+		justifyContent: 'center',
+		width: '100%',
+	}),
+};

@@ -1,0 +1,115 @@
+load("@rules_zig//zig:defs.bzl", "zig_static_library")
+load(":zig_ios_align.bzl", "zig_ios_align")
+
+package(default_visibility = ["//visibility:public"])
+
+# -fPIC: this archive is linked into the shared libvaldi.so. Zig 0.16's std runtime
+# references thread-locals (panic recursion guard, std.Io.Threaded, std.Thread) that,
+# without PIC, use the local-exec TLS model — which ld.lld rejects in a -shared link
+# (R_AARCH64_TLSLE_* "cannot be used with -shared"). 0.15.2 emitted no such TLS refs.
+zig_static_library(
+    name = "atolla_algorithms_zig",
+    srcs = [
+        "image_blur.zig",
+        "palette_extractor.zig",
+        "scrobble_tracker.zig",
+        "waveform_generator.zig",
+    ],
+    main = "atolla_algorithms.zig",
+    zigopts = ["-fPIC"],
+)
+
+# rules_zig uses llvm-ar which writes 2-byte-aligned Mach-O archives.
+# Apple's 64-bit linker requires 8-byte alignment. This rule repacks the
+# archive with xcrun libtool -static. A Starlark rule (not genrule) is used
+# so that the Apple platform transition propagates to atolla_algorithms_zig,
+# ensuring the archive is built for the correct target (iOS/macOS not host).
+zig_ios_align(
+    name = "atolla_algorithms_zig_apple",
+    zig_lib = ":atolla_algorithms_zig",
+)
+
+cc_library(
+    name = "palette_algorithm",
+    hdrs = ["palette_extractor.h"],
+    includes = ["."],
+    deps = select({
+        "@platforms//os:ios": [":atolla_algorithms_zig_apple"],
+        "@platforms//os:macos": [":atolla_algorithms_zig_apple"],
+        "//conditions:default": [":atolla_algorithms_zig"],
+    }),
+)
+
+cc_library(
+    name = "blur_algorithm",
+    hdrs = ["image_blur.h"],
+    includes = ["."],
+    deps = select({
+        "@platforms//os:ios": [":atolla_algorithms_zig_apple"],
+        "@platforms//os:macos": [":atolla_algorithms_zig_apple"],
+        "//conditions:default": [":atolla_algorithms_zig"],
+    }),
+)
+
+cc_library(
+    name = "waveform_algorithm",
+    hdrs = ["waveform_generator.h"],
+    includes = ["."],
+    deps = select({
+        "@platforms//os:ios": [":atolla_algorithms_zig_apple"],
+        "@platforms//os:macos": [":atolla_algorithms_zig_apple"],
+        "//conditions:default": [":atolla_algorithms_zig"],
+    }),
+)
+
+cc_library(
+    name = "scrobble_algorithm",
+    hdrs = ["scrobble_tracker.h"],
+    includes = ["."],
+    deps = select({
+        "@platforms//os:ios": [":atolla_algorithms_zig_apple"],
+        "@platforms//os:macos": [":atolla_algorithms_zig_apple"],
+        "//conditions:default": [":atolla_algorithms_zig"],
+    }),
+)
+
+# Android JNI wrappers — included in libvaldi.so via native_deps in atolla_app/BUILD.bazel.
+cc_library(
+    name = "palette_android_jni",
+    srcs = select({
+        "@platforms//os:android": ["palette_jni.cpp"],
+        "//conditions:default": [],
+    }),
+    deps = [":palette_algorithm"],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "blur_android_jni",
+    srcs = select({
+        "@platforms//os:android": ["blur_jni.cpp"],
+        "//conditions:default": [],
+    }),
+    deps = [":blur_algorithm"],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "waveform_android_jni",
+    srcs = select({
+        "@platforms//os:android": ["waveform_jni.cpp"],
+        "//conditions:default": [],
+    }),
+    deps = [":waveform_algorithm"],
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "scrobble_android_jni",
+    srcs = select({
+        "@platforms//os:android": ["scrobble_jni.cpp"],
+        "//conditions:default": [],
+    }),
+    deps = [":scrobble_algorithm"],
+    alwayslink = 1,
+)

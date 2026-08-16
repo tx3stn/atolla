@@ -5,7 +5,7 @@ import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
 
-const OUT = resolve(process.cwd(), 'atolla/native/zig/testdata');
+const OUT = resolve(process.cwd(), 'atolla_app/native/zig/testdata');
 mkdirSync(OUT, { recursive: true });
 
 const W = 16;

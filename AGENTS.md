@@ -6,7 +6,7 @@ This project uses Valdi, Typescript, biome.js (for linting/formatting) and webdr
 
 * test driven development using red green refactor approach
 * create unit tests for all new functionality
-* errors should use the error constants defined in `atolla/src/errors`, so packages can define consistent errors, and tests can verify the correct error is thrown
+* errors should use the error constants defined in `atolla_app/src/errors`, so packages can define consistent errors, and tests can verify the correct error is thrown
 * components should be kept simple
 * use dependency injection to pass stores/services to components so they are easy to test and logic is kept simple
 * styling should ALWAYS use the theme so things can be easily tweaked
@@ -20,7 +20,7 @@ Unit tests should live next to the files they are testing and are written with b
 
 ### component
 
-Component tests are required when the thing being tested imports valdi as these need to be run with bazel. They are written with jasmine & valid and live in `atolla/test`. Run with `bun run test:components`
+Component tests are required when the thing being tested imports valdi as these need to be run with bazel. They are written with jasmine & valid and live in `atolla_app/test`. Run with `bun run test:components`
 
 ### end to end tests
 

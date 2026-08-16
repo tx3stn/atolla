@@ -180,7 +180,7 @@ async function main(): Promise<void> {
 	console.info('building palette dylib...');
 	run('zig', [
 		'build-lib',
-		'atolla/native/zig/palette_extractor.zig',
+		'atolla_app/native/zig/palette_extractor.zig',
 		'-dynamic',
 		'-lc',
 		'-O',

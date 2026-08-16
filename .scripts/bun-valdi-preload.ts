@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 // bun unit tests can't resolve Valdi's path-mapped modules. Read the mapping out of
 // the projectsync-generated tsconfig rather than hardcoding it: the bazel-<workspace>
 // symlink name and the bzlmod canonical repo name (valdi~ / valdi+) differ per machine.
-const tsconfigDir = join(import.meta.dir, '..', 'atolla');
+const tsconfigDir = join(import.meta.dir, '..', 'atolla_app');
 const tsconfigPath = join(tsconfigDir, 'tsconfig.json');
 
 let tsconfig: { compilerOptions: { paths: Record<string, Array<string>> } };
@@ -24,6 +24,6 @@ mock.module('valdi_core/src/CancelablePromise', () =>
 	require(join(valdiCoreRoot, 'src/CancelablePromise.ts')),
 );
 
-mock.module(new URL('../atolla/src/Strings', import.meta.url).href, () => ({
+mock.module(new URL('../atolla_app/src/Strings', import.meta.url).href, () => ({
 	default: new Proxy({}, { get: (_, key) => () => String(key) }),
 }));

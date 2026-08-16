@@ -68,7 +68,7 @@ read -r -a BAZEL_ARGS_ARRAY <<<"$VALDI_BAZEL_ARGS"
 bazel build "$VALDI_APPLICATION_TARGET" "${BAZEL_ARGS_ARRAY[@]}"
 
 # Locate the built .apk via cquery so it resolves regardless of the target's package
-# (//:atolla_android vs //atolla_dev:atolla_android); copy it to the stable build/ path
+# (//:atolla_android vs //atolla_app_dev:atolla_android); copy it to the stable build/ path
 # the install and release steps expect. Match <name>.apk exactly to skip the _unsigned one.
 APK_NAME="${VALDI_APPLICATION_TARGET##*:}"
 APK_SRC="$(bazel cquery --output=files "$VALDI_APPLICATION_TARGET" "${BAZEL_ARGS_ARRAY[@]}" 2>/dev/null |

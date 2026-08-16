@@ -5,24 +5,24 @@ package(default_visibility = ["//visibility:public"])
 
 valdi_application(
     name = "atolla",
-    android_app_manifest = "//atolla/native:android_manifest",
+    android_app_manifest = "//atolla_app/native:android_manifest",
     android_package = "com.tx3stn.atolla",
-    android_resource_files = ["//atolla/native:android_launcher_icons"],
-    ios_app_icons = ["//atolla/native:ios_launcher_icons"],
+    android_resource_files = ["//atolla_app/native:android_launcher_icons"],
+    ios_app_icons = ["//atolla_app/native:ios_launcher_icons"],
     ios_bundle_id = "com.tx3stn.atolla",
     ios_families = [
         "iphone",
         "ipad",
     ],
-    ios_info_plist = "//atolla/native:ios_info_plist",
-    ios_provisioning_profile = "//atolla/native:ios_sideload_profile",
-    root_component_path = "App@atolla/src/App",
+    ios_info_plist = "//atolla_app/native:ios_info_plist",
+    ios_provisioning_profile = "//atolla_app/native:ios_sideload_profile",
+    root_component_path = "App@atolla_app/src/App",
     title = "atolla",
     version = "0.0.0",
-    deps = ["//atolla"],
+    deps = ["//atolla_app"],
 )
 
-# The local dev variant lives in its own package (//atolla_dev) because valdi_application
+# The local dev variant lives in its own package (//atolla_app_dev) because valdi_application
 # emits a fixed-name libvaldi.so cc_binary that would collide with this one's.
 
 zig_target_toolchain(
@@ -78,8 +78,8 @@ toolchain(
 filegroup(
     name = "app_sources",
     srcs = glob([
-        "atolla/src/**/*.ts",
-        "atolla/src/**/*.tsx",
+        "atolla_app/src/**/*.ts",
+        "atolla_app/src/**/*.tsx",
     ]),
 )
 

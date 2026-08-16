@@ -2,18 +2,18 @@
 // entries and renders the real NowPlayingSurface (expanded) to a PNG through SnapDrawing/Skia, so a
 // palette tweak can be eyeballed on the actual UI. run via the
 // //tools/palette-preview:palette_preview_cli bazel binary with --manifest <path> (driven by ../run.ts).
-import type { Album } from 'atolla/src/models/Album';
-import type { Palette } from 'atolla/src/models/Color';
-import type { Track } from 'atolla/src/models/Track';
-import type { ImageCache } from 'atolla/src/services/ImageCache';
-import { ToastService } from 'atolla/src/services/ToastService';
-import { BarColorStore } from 'atolla/src/stores/BarColor';
-import type { PlaybackStore } from 'atolla/src/stores/Playback';
-import type { Transport } from 'atolla/src/transports/Transport';
+import type { Album } from 'atolla_app/src/models/Album';
+import type { Palette } from 'atolla_app/src/models/Color';
+import type { Track } from 'atolla_app/src/models/Track';
+import type { ImageCache } from 'atolla_app/src/services/ImageCache';
+import { ToastService } from 'atolla_app/src/services/ToastService';
+import { BarColorStore } from 'atolla_app/src/stores/BarColor';
+import type { PlaybackStore } from 'atolla_app/src/stores/Playback';
+import type { Transport } from 'atolla_app/src/transports/Transport';
 import {
 	NowPlayingSurface,
 	type NowPlayingSurfaceViewModel,
-} from 'atolla/src/ui/components/NowPlayingSurface';
+} from 'atolla_app/src/ui/components/NowPlayingSurface';
 import { createBitmap } from 'drawing/src/BitmapFactory';
 import { BitmapAlphaType, BitmapColorType, ImageEncoding } from 'drawing/src/IBitmap';
 import { createManagedContext } from 'drawing/src/ManagedContextFactory';

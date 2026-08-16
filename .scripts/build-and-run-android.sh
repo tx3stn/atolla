@@ -41,7 +41,7 @@ echo "Using Android device: $ANDROID_DEVICE_ID"
 
 # Install the dev variant (com.tx3stn.atolla.dev) so it sits alongside a released
 # build; override VALDI_APPLICATION_TARGET=//:atolla_android to run the release id.
-export VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//atolla_dev:atolla_android}"
+export VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//atolla_app_dev:atolla_android}"
 
 # Stamp a dev version onto this local build without disturbing the committed
 # 0.0.0 placeholders. Defaults to the latest release tag plus a -dev suffix
@@ -53,10 +53,10 @@ if command -v vrsn >/dev/null 2>&1; then
 	repo_root="$SCRIPT_DIR/.."
 	tag="$(cd "$repo_root" && git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0)"
 	version_files=(
-		atolla/src/version.ts
+		atolla_app/src/version.ts
 		BUILD.bazel
-		atolla/native/android/AndroidManifest.prod.xml
-		atolla_dev/BUILD.bazel
+		atolla_app/native/android/AndroidManifest.prod.xml
+		atolla_app_dev/BUILD.bazel
 	)
 	commit=$(git rev-parse --short HEAD)
 	version="${tag}-dev-${commit}"

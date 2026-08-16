@@ -1,0 +1,78 @@
+load("@valdi//bzl/valdi:valdi_module.bzl", "valdi_module")
+
+package(default_visibility = ["//visibility:public"])
+
+valdi_module(
+    name = "atolla_app",
+    srcs = glob(
+        [
+            "src/**/*.ts",
+            "src/**/*.d.ts",
+            "src/**/*.tsx",
+            "src/**/*.json",
+            "strings/**/*.json",
+            "test/**/*.ts",
+            "test/**/*.tsx",
+        ],
+        exclude = [
+            "src/**/*.test.ts",
+            "src/**/*.test.tsx",
+        ],
+    ),
+    android_deps = ["//atolla_app/native:atolla_cache_image_loader_android"],
+    exclude_patterns = [
+        ".*\\.test\\.ts$",
+        ".*\\.test\\.tsx$",
+    ],
+    ios_deps = [
+        "//atolla_app/native:atolla_logger_module_factory_ios",
+        "//atolla_app/native:atolla_network_reachability_module_factory_ios",
+        "//atolla_app/native:atolla_haptics_bootstrap_module_factory_ios",
+        "//atolla_app/native:atolla_overlay_host_bootstrap_module_factory_ios",
+        "//atolla_app/native:atolla_track_playback_module_factory_ios",
+        "//atolla_app/native:atolla_waveform_module_factory_ios",
+        "//atolla_app/native:atolla_image_loader_bootstrap_module_factory_ios",
+        "//atolla_app/native:atolla_swipe_back_fix_ios",
+        "//atolla_app/native:atolla_floating_view_ios",
+    ],
+    native_deps = [
+        "//atolla_app/native/zig:blur_android_jni",
+        "//atolla_app/native/zig:palette_android_jni",
+        "//atolla_app/native/zig:scrobble_android_jni",
+        "//atolla_app/native/zig:waveform_android_jni",
+    ],
+    res = glob([
+        "res/**/*.jpeg",
+        "res/**/*.jpg",
+        "res/**/*.png",
+        "res/**/*.svg",
+        "res/**/*.webp",
+    ]),
+    strings_dir = "strings",
+    test_target_name = "test",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@valdi//src/valdi_modules/src/valdi/coreutils",
+        "@valdi//src/valdi_modules/src/valdi/file_system",
+        "@valdi//src/valdi_modules/src/valdi/foundation",
+        "@valdi//src/valdi_modules/src/valdi/persistence",
+        "@valdi//src/valdi_modules/src/valdi/valdi_core",
+        "@valdi//src/valdi_modules/src/valdi/valdi_http",
+        "@valdi//src/valdi_modules/src/valdi/valdi_navigation",
+        "@valdi//src/valdi_modules/src/valdi/valdi_test",
+        "@valdi//src/valdi_modules/src/valdi/valdi_tsx",
+        "@valdi//src/valdi_modules/src/valdi/worker",
+    ],
+)
+
+alias(
+    name = "app_kt",
+    actual = ":atolla_app_kt",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "app_native",
+    actual = ":atolla_app_native",
+    visibility = ["//visibility:public"],
+)

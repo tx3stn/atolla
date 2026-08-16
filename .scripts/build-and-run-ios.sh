@@ -63,7 +63,7 @@ echo "Using simulator: $SIMULATOR_NAME ($SIMULATOR_ID)"
 
 # Install the dev variant (com.tx3stn.atolla.dev) so it sits alongside a released
 # build; override VALDI_APPLICATION_TARGET=//:atolla_ios to run the release id.
-export VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//atolla_dev:atolla_ios}"
+export VALDI_APPLICATION_TARGET="${VALDI_APPLICATION_TARGET:-//atolla_app_dev:atolla_ios}"
 
 # Stamp a dev version onto this local build without disturbing the committed
 # 0.0.0 placeholders. version.ts keeps the -dev suffix so the app shows it, but
@@ -78,10 +78,10 @@ if command -v vrsn >/dev/null 2>&1; then
 	repo_root="$SCRIPT_DIR/.."
 	tag="$(cd "$repo_root" && git describe --tags --abbrev=0 2>/dev/null || echo 0.0.0)"
 	version_files=(
-		atolla/src/version.ts
+		atolla_app/src/version.ts
 		BUILD.bazel
-		atolla/native/android/AndroidManifest.prod.xml
-		atolla_dev/BUILD.bazel
+		atolla_app/native/android/AndroidManifest.prod.xml
+		atolla_app_dev/BUILD.bazel
 	)
 	commit=$(git rev-parse --short HEAD)
 	version="${tag}-dev-${commit}"
@@ -89,7 +89,7 @@ if command -v vrsn >/dev/null 2>&1; then
 	(cd "$repo_root" && vrsn set "${DEV_VERSION:-${version}}")
 	# Keep CFBundleVersion numeric: revert the bazel version fields, leaving
 	# version.ts (the app-visible version) on the -dev version.
-	(cd "$repo_root" && git checkout -- BUILD.bazel atolla_dev/BUILD.bazel)
+	(cd "$repo_root" && git checkout -- BUILD.bazel atolla_app_dev/BUILD.bazel)
 	echo "Stamped dev version ${DEV_VERSION:-${version}} (version files revert on exit)."
 else
 	echo "vrsn not installed — building the committed placeholder version."

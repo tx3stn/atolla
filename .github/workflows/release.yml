@@ -21,9 +21,9 @@ jobs:
         with:
           name: version-files
           path: |
-            atolla/src/version.ts
+            atolla_app/src/version.ts
             BUILD.bazel
-            atolla/native/android/AndroidManifest.prod.xml
+            atolla_app/native/android/AndroidManifest.prod.xml
           if-no-files-found: error
       - uses: tx3stn/vrsn@e5ff48117222d97f5f1b2624b56d71f1f827b1d6 # 2.0.3
         with:
@@ -50,7 +50,7 @@ jobs:
           restore-keys: |
             bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      # Regenerate the Android icons from atolla/res/logo.svg in the background so it
+      # Regenerate the Android icons from atolla_app/res/logo.svg in the background so it
       # overlaps the bazel cache restores below; "Wait for icon generation" joins on
       # it before Build APK. Output is byte-identical to the committed res/ files
       # unless the logo changed, and must land before bazel reads res/.
@@ -160,7 +160,7 @@ jobs:
           restore-keys: |
             bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      # Regenerate the iOS icons from atolla/res/logo.svg in the background so it
+      # Regenerate the iOS icons from atolla_app/res/logo.svg in the background so it
       # overlaps the bazel cache restores below; "wait for icon generation" joins on
       # it before Build simulator IPA. Output is byte-identical to the committed res/
       # files unless the logo changed, and must land before bazel reads assets.
