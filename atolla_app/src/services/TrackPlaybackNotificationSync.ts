@@ -1,4 +1,4 @@
-import type { PlaybackStore } from '../stores/Playback';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 
 export interface TrackPlaybackNotificationPayload {
 	albumName: string;

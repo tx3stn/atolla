@@ -3,10 +3,10 @@ import { type AppServicesBag, appServices } from 'atolla_app/src/services/AppSer
 import type { PaletteListener } from 'atolla_app/src/services/ArtworkPaletteService';
 import { appShellStore } from 'atolla_app/src/stores/AppShell';
 import { BarColorStore } from 'atolla_app/src/stores/BarColor';
-import type { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import { OverlayHost } from 'atolla_app/src/ui/views/OverlayHost';
 import { attachRenderStats } from 'atolla_app/test/util/renderStats';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { Component } from 'valdi_core/src/Component';

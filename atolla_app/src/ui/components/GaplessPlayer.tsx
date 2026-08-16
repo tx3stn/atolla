@@ -1,6 +1,6 @@
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { Component } from 'valdi_core/src/Component';
 import type { NativeAudioPlaybackError } from '../../services/NativeAudioPlaybackEventSync';
-import type { PlaybackStore } from '../../stores/Playback';
 import { NativeAudioPlayer } from './NativeAudioPlayer';
 
 export interface GaplessPlayerViewModel {

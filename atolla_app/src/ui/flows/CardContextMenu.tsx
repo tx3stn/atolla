@@ -1,8 +1,8 @@
 import type { Transport } from 'atolla_core/src/transports/Transport';
+import type { TrackSource } from 'atolla_player/src/services/TrackSource';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { ToastService } from '../../services/ToastService';
-import type { TrackSource } from '../../services/TrackSource';
-import type { PlaybackStore } from '../../stores/Playback';
 import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
 import { closeSlot, openSlot } from './ModalSlotFlow';
 

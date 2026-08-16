@@ -1,12 +1,16 @@
 import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import type { Transport } from 'atolla_core/src/transports/Transport';
+import type { DownloadService } from 'atolla_player/src/services/DownloadService';
+import type { PlaylistCreateService } from 'atolla_player/src/services/PlaylistCreateService';
+import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEditService';
+import { ScrobbleService } from 'atolla_player/src/services/ScrobbleService';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { RecentlyPlayedStore } from 'atolla_player/src/stores/RecentlyPlayed';
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { setAtollaImageCachedObserver } from '../ImageLoaderBootstrap';
 import type { ConnectionMode } from '../models/App';
 import { PaletteStore } from '../stores/PaletteStore';
 import { PinnedItemsStore } from '../stores/PinnedItems';
-import type { PlaybackStore } from '../stores/Playback';
-import { RecentlyPlayedStore } from '../stores/RecentlyPlayed';
 import { SearchStore } from '../stores/Search';
 import {
 	ackAtollaScrobble,
@@ -17,17 +21,13 @@ import {
 } from '../TrackPlaybackNative';
 import { ArtworkPaletteService } from './ArtworkPaletteService';
 import type { AssetCache } from './AssetCache';
-import type { DownloadService } from './DownloadService';
 import { parseNativePendingScrobbles } from './NativeAudioPlaybackEventSync';
 import { OnThisDayService } from './OnThisDayService';
 import { PaletteGenerationQueue } from './PaletteGenerationQueue';
 import { PersistentWaveformStore } from './PersistentWaveformStore';
 import type { PlaybackOrchestrator } from './PlaybackOrchestrator';
-import type { PlaylistCreateService } from './PlaylistCreateService';
-import type { PlaylistEditService } from './PlaylistEditService';
 import { RecentlyAddedService } from './RecentlyAddedService';
 import { ReconnectSyncCoordinator } from './ReconnectSyncCoordinator';
-import { ScrobbleService } from './ScrobbleService';
 import { VIEW_CACHE_MAX_BYTES, VIEW_CACHE_MAX_ENTRIES, ViewCache } from './ViewCache';
 import { WaveformGenerationQueue } from './WaveformGenerationQueue';
 import { WaveformRenderCache } from './WaveformRenderCache';

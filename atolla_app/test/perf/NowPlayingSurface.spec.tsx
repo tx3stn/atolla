@@ -1,7 +1,7 @@
 import 'jasmine/src/jasmine';
 import { BarColorStore } from 'atolla_app/src/stores/BarColor';
-import type { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import { NowPlayingSurface } from 'atolla_app/src/ui/components/NowPlayingSurface';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { attachRenderStats } from '../util/renderStats';

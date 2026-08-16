@@ -1,13 +1,13 @@
 import 'jasmine/src/jasmine';
 import { CardSizes, type ConnectionMode, ConnectionModes } from 'atolla_app/src/models/App';
 import type { ArtworkPaletteService } from 'atolla_app/src/services/ArtworkPaletteService';
-import type { DownloadService } from 'atolla_app/src/services/DownloadService';
 import type { PlaybackOrchestrator } from 'atolla_app/src/services/PlaybackOrchestrator';
 import { SessionController } from 'atolla_app/src/services/SessionController';
 import { ToastService } from 'atolla_app/src/services/ToastService';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { SettingsView, type SettingsViewModel } from 'atolla_app/src/ui/views/SettingsView';
 import { Logger } from 'atolla_core/src/services/Logger';
+import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { Component } from 'valdi_core/src/Component';

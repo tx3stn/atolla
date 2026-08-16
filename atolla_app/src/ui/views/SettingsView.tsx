@@ -2,6 +2,7 @@ import Strings from 'atolla_core/src/Strings';
 import type { ClearCacheSelection } from 'atolla_core/src/services/ImageCache';
 import { Logger } from 'atolla_core/src/services/Logger';
 import { version } from 'atolla_core/src/version';
+import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { overrideLocales } from 'valdi_core/src/LocalizableStrings';
 import { Locale } from 'valdi_core/src/localization/Locale';
@@ -23,7 +24,6 @@ import {
 } from '../../ImageLoaderBootstrap';
 import { type CardSize, CardSizes } from '../../models/App';
 import type { ArtworkPaletteService } from '../../services/ArtworkPaletteService';
-import type { DownloadService } from '../../services/DownloadService';
 import type { PlaybackOrchestrator } from '../../services/PlaybackOrchestrator';
 import type { SessionController } from '../../services/SessionController';
 import { type ToastService, ToastTypes } from '../../services/ToastService';

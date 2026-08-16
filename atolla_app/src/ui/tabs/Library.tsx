@@ -1,5 +1,8 @@
 import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
+import type { DownloadService } from 'atolla_player/src/services/DownloadService';
+import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEditService';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
@@ -14,16 +17,13 @@ import {
 	type HeaderTab,
 	HeaderTabs,
 } from '../../models/App';
-import type { DownloadService } from '../../services/DownloadService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
-import type { PlaylistEditService } from '../../services/PlaylistEditService';
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
 import { appShellStore } from '../../stores/AppShell';
 import { headerStore } from '../../stores/Header';
 import type { PinnedItemsStore } from '../../stores/PinnedItems';
-import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { type DetailPushDeps, pushArtist } from '../flows/PushDetail';

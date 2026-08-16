@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { PlaybackStore } from '../stores/Playback';
+import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import {
 	applyNativeAudioPlaybackEventAction,
 	normalizeNativeAudioPlaybackEventAction,

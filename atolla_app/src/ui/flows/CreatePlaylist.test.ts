@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import type { Track } from 'atolla_core/src/models/Track';
+import {
+	pagedFromArray,
+	type TrackPage,
+	type TrackSource,
+} from 'atolla_player/src/services/TrackSource';
 import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
-import { pagedFromArray, type TrackPage, type TrackSource } from '../../services/TrackSource';
 import {
 	addTracksToPlaylist,
 	createPlaylistAndAddTracks,

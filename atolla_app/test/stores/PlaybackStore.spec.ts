@@ -1,6 +1,6 @@
 import 'jasmine/src/jasmine';
-import { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import type { Track } from 'atolla_core/src/models/Track';
+import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 
 function makeTrack(id: string, duration: number): Track {
 	return { duration, id, name: `Track ${id}` };

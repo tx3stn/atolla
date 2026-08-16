@@ -4,6 +4,8 @@ import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
 import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
+import type { DownloadService } from 'atolla_player/src/services/DownloadService';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { $slot } from 'valdi_core/src/CompilerIntrinsics';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
@@ -12,7 +14,6 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { ConnectionMode } from '../../models/App';
-import type { DownloadService } from '../../services/DownloadService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { OnThisDayService } from '../../services/OnThisDayService';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -20,7 +21,6 @@ import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
 import type { PinnedItemsStore } from '../../stores/PinnedItems';
-import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import {
 	type DetailPushDeps,

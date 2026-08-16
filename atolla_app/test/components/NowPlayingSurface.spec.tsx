@@ -2,12 +2,12 @@ import 'jasmine/src/jasmine';
 import type { Palette } from 'atolla_app/src/models/Color';
 import { ToastService } from 'atolla_app/src/services/ToastService';
 import { BarColorStore, defaultFooterColors } from 'atolla_app/src/stores/BarColor';
-import type { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import { paletteDefaults, theme, withAlpha } from 'atolla_app/src/theme';
 import {
 	NowPlayingSurface,
 	type NowPlayingSurfaceViewModel,
 } from 'atolla_app/src/ui/components/NowPlayingSurface';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { Component } from 'valdi_core/src/Component';

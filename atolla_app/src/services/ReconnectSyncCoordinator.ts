@@ -1,6 +1,6 @@
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Transport } from 'atolla_core/src/transports/Transport';
-import type { PlaylistEditError } from './PlaylistEditService';
+import type { PlaylistEditError } from 'atolla_player/src/services/PlaylistEditService';
 
 export type SyncStatus = 'syncing' | 'done' | 'partial';
 

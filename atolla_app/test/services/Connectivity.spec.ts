@@ -3,9 +3,9 @@ import { type ConnectionMode, ConnectionModes } from 'atolla_app/src/models/App'
 import { Connectivity, type ConnectivityDeps } from 'atolla_app/src/services/Connectivity';
 import type { SessionManager } from 'atolla_app/src/services/SessionManager';
 import type { Preferences } from 'atolla_app/src/stores/Preferences';
-import { OfflineTransport } from 'atolla_app/src/transports/Offline';
 import type { AuthSession } from 'atolla_core/src/models/Auth';
 import { LiveTransport } from 'atolla_jellyfin/src/transports/Live';
+import { OfflineTransport } from 'atolla_player/src/transports/Offline';
 import type { IHTTPClient } from 'valdi_http/src/IHTTPClient';
 
 function makeSession(): AuthSession {

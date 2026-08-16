@@ -11,6 +11,8 @@ import {
 	resolveGenreForNavigation,
 	resolveGenreImageUrls,
 } from 'atolla_core/src/utils/Genres';
+import type { DownloadService, DownloadState } from 'atolla_player/src/services/DownloadService';
+import { type PlaybackStore, shuffleArray } from 'atolla_player/src/stores/Playback';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { INavigatorPageVisibility } from 'valdi_navigation/src/INavigator';
@@ -20,14 +22,12 @@ import { NavigationPageStatefulComponent } from 'valdi_navigation/src/Navigation
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { HeaderTabs } from '../../models/App';
 import { backNavRouter } from '../../services/BackNavRouter';
-import type { DownloadService, DownloadState } from '../../services/DownloadService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
 import { HeaderCollapse, headerStore } from '../../stores/Header';
 import type { PinnedItemsStore } from '../../stores/PinnedItems';
-import { type PlaybackStore, shuffleArray } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { formatReleaseDate } from '../../utils/Date';

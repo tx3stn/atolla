@@ -1,8 +1,8 @@
+import type { TrackPage, TrackSource } from 'atolla_player/src/services/TrackSource';
 import {
 	type CancelablePromise,
 	promiseToCancelablePromise,
 } from 'valdi_core/src/CancelablePromise';
-import type { TrackPage, TrackSource } from '../../services/TrackSource';
 
 interface PlaylistLike {
 	id: string;

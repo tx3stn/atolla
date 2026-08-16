@@ -6,7 +6,6 @@
 import type { Palette } from 'atolla_app/src/models/Color';
 import { ToastService } from 'atolla_app/src/services/ToastService';
 import { BarColorStore } from 'atolla_app/src/stores/BarColor';
-import type { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import {
 	NowPlayingSurface,
 	type NowPlayingSurfaceViewModel,
@@ -15,6 +14,7 @@ import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
 import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { createBitmap } from 'drawing/src/BitmapFactory';
 import { BitmapAlphaType, BitmapColorType, ImageEncoding } from 'drawing/src/IBitmap';
 import { createManagedContext } from 'drawing/src/ManagedContextFactory';

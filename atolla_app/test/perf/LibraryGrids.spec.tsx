@@ -1,11 +1,11 @@
 import 'jasmine/src/jasmine';
-import { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { AlbumsView } from 'atolla_app/src/ui/views/AlbumsView';
 import { ArtistsView } from 'atolla_app/src/ui/views/ArtistsView';
 import { GenresView } from 'atolla_app/src/ui/views/GenresView';
 import { PlaylistsView } from 'atolla_app/src/ui/views/PlaylistsView';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
+import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { attachRenderStats } from '../util/renderStats';
 

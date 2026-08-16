@@ -1,9 +1,9 @@
 import 'jasmine/src/jasmine';
-import type { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import {
 	NativeAudioPlayer,
 	type NativeAudioPlayerViewModel,
 } from 'atolla_app/src/ui/components/NativeAudioPlayer';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { type IComponentTestDriver, valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 function mockTrack(overrides: Record<string, unknown> = {}) {

@@ -1,12 +1,12 @@
 import type { AuthSession } from 'atolla_core/src/models/Auth';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { LiveTransport } from 'atolla_jellyfin/src/transports/Live';
+import type { DownloadService } from 'atolla_player/src/services/DownloadService';
+import type { PlaylistCreateService } from 'atolla_player/src/services/PlaylistCreateService';
+import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEditService';
+import { OfflineTransport } from 'atolla_player/src/transports/Offline';
 import { type ConnectionMode, ConnectionModes } from '../models/App';
 import type { Preferences } from '../stores/Preferences';
-import { OfflineTransport } from '../transports/Offline';
-import type { DownloadService } from './DownloadService';
-import type { PlaylistCreateService } from './PlaylistCreateService';
-import type { PlaylistEditService } from './PlaylistEditService';
 import type { SessionManager } from './SessionManager';
 
 export interface ConnectivityRenderState {

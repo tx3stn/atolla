@@ -1,10 +1,10 @@
 import 'jasmine/src/jasmine';
 import { ConnectionModes } from 'atolla_app/src/models/App';
-import { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { AlbumsView } from 'atolla_app/src/ui/views/AlbumsView';
 import { AlbumView } from 'atolla_app/src/ui/views/AlbumView';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
+import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';

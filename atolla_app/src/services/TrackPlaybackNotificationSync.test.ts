@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { Track } from 'atolla_core/src/models/Track';
-import { PlaybackStore } from '../stores/Playback';
+import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import {
 	applyTrackPlaybackNotificationAction,
 	buildTrackPlaybackNotificationPayload,

@@ -1,4 +1,5 @@
 import { getLogger } from 'atolla_core/src/services/Logger';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import {
 	applyNativeAudioPlaybackEventAction,
@@ -8,7 +9,6 @@ import {
 	parseNativeAudioErrorEvent,
 	parseNativeAudioJumpedEvent,
 } from '../../services/NativeAudioPlaybackEventSync';
-import type { PlaybackStore } from '../../stores/Playback';
 import {
 	clearAtollaAudioPlayback,
 	configureAtollaAudioPlayback,

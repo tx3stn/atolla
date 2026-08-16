@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { Transport } from 'atolla_core/src/transports/Transport';
-import type { PlaylistEditError } from './PlaylistEditService';
+import type { PlaylistEditError } from 'atolla_player/src/services/PlaylistEditService';
 import {
 	ReconnectSyncCoordinator,
 	type ReconnectSyncDeps,

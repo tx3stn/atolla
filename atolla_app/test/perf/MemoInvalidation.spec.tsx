@@ -1,12 +1,12 @@
 import 'jasmine/src/jasmine';
 import { ConnectionModes } from 'atolla_app/src/models/App';
 import { BarColorStore } from 'atolla_app/src/stores/BarColor';
-import type { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import type { LanguageCode } from 'atolla_app/src/stores/Preferences';
 import { MixesSection } from 'atolla_app/src/ui/components/MixesSection';
 import { NowPlayingSurface } from 'atolla_app/src/ui/components/NowPlayingSurface';
 import Strings from 'atolla_core/src/Strings';
 import type { Transport } from 'atolla_core/src/transports/Transport';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { overrideLocales } from 'valdi_core/src/LocalizableStrings';

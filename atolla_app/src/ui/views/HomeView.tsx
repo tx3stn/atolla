@@ -6,6 +6,8 @@ import Strings from 'atolla_core/src/Strings';
 import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import type { Transport } from 'atolla_core/src/transports/Transport';
+import type { TrackSource } from 'atolla_player/src/services/TrackSource';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
@@ -16,13 +18,11 @@ import { createOnThisDayCardDetails } from '../../services/OnThisDay';
 import type { OnThisDayService } from '../../services/OnThisDayService';
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
 import type { ToastService } from '../../services/ToastService';
-import type { TrackSource } from '../../services/TrackSource';
 import {
 	type PinnedItemEntry,
 	type PinnedItemsStore,
 	pinnedItemId,
 } from '../../stores/PinnedItems';
-import type { PlaybackStore } from '../../stores/Playback';
 import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { CancelableController } from '../../utils/CancelableController';

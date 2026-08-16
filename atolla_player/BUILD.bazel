@@ -1,0 +1,23 @@
+load("@valdi//bzl/valdi:valdi_module.bzl", "valdi_module")
+
+package(default_visibility = ["//visibility:public"])
+
+# Playback domain: queue/playback/recently-played state, downloads, and the offline transport.
+# Deliberately free of any provider dependency — it talks to the Transport port in atolla_core,
+# never to atolla_jellyfin — and free of native and UI imports, so a headless player can reuse it.
+valdi_module(
+    name = "atolla_player",
+    srcs = glob(
+        [
+            "src/**/*.ts",
+            "src/**/*.d.ts",
+        ],
+        exclude = ["src/**/*.test.ts"],
+    ),
+    exclude_patterns = [".*\\.test\\.ts$"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//atolla_core",
+        "@valdi//src/valdi_modules/src/valdi/valdi_core",
+    ],
+)

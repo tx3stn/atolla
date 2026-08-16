@@ -1,5 +1,4 @@
 import 'jasmine/src/jasmine';
-import type { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import {
 	CardContextMenu,
 	type CardContextMenuCard,
@@ -9,6 +8,7 @@ import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
 import type { Transport } from 'atolla_core/src/transports/Transport';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
 function mockTrack(id = 'track-1'): Track {

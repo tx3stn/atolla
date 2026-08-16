@@ -10,13 +10,13 @@ import {
 	type InstantMixSeed,
 	type Transport,
 } from 'atolla_core/src/transports/Transport';
+import { startPagedPlayback } from 'atolla_player/src/services/PagedPlayback';
+import { singlePage, type TrackSource } from 'atolla_player/src/services/TrackSource';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
-import { startPagedPlayback } from '../../services/PagedPlayback';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
-import { singlePage, type TrackSource } from '../../services/TrackSource';
-import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';

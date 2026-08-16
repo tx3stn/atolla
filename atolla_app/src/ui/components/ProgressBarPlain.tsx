@@ -1,9 +1,9 @@
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { Component } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import { createReusableCallback } from 'valdi_core/src/utils/Callback';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
-import type { PlaybackStore } from '../../stores/Playback';
 import { theme } from '../../theme';
 
 export interface ProgressBarPlainViewModel {

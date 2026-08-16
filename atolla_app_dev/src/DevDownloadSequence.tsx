@@ -1,6 +1,6 @@
-import type { DownloadState } from 'atolla_app/src/services/DownloadService';
 import { ToastService } from 'atolla_app/src/services/ToastService';
 import { DetailHeader } from 'atolla_app/src/ui/components/DetailHeader';
+import type { DownloadState } from 'atolla_player/src/services/DownloadService';
 import { StatefulComponent } from 'valdi_core/src/Component';
 
 const downloadingDuration = 1200;

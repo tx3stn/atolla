@@ -1,10 +1,10 @@
 import 'jasmine/src/jasmine';
 import { ConnectionModes, HeaderTabs } from 'atolla_app/src/models/App';
-import { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { ErrorBoundary } from 'atolla_app/src/ui/components/ErrorBoundary';
 import { LibraryView } from 'atolla_app/src/ui/tabs/Library';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
+import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { componentTypeFind } from 'foundation/test/util/componentTypeFind';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 

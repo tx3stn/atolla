@@ -1,9 +1,9 @@
 import 'jasmine/src/jasmine';
-import { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { ArtistsView } from 'atolla_app/src/ui/views/ArtistsView';
 import { ArtistView } from 'atolla_app/src/ui/views/ArtistView';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
+import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';

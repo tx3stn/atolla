@@ -1,7 +1,8 @@
 import { describe, expect, it, spyOn } from 'bun:test';
 import type { Track } from 'atolla_core/src/models/Track';
-import type { PlaybackStore } from '../stores/Playback';
-import { RecentlyPlayedStore } from '../stores/RecentlyPlayed';
+import type { ScrobbleService } from 'atolla_player/src/services/ScrobbleService';
+import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { RecentlyPlayedStore } from 'atolla_player/src/stores/RecentlyPlayed';
 import { PlaybackErrors } from './PlaybackErrors';
 import {
 	type DownloadedTrackSource,
@@ -9,7 +10,6 @@ import {
 	type PlaybackUserServices,
 	WAVEFORM_PREGEN_WINDOW,
 } from './PlaybackOrchestrator';
-import type { ScrobbleService } from './ScrobbleService';
 import { type ToastModel, ToastTypes } from './ToastService';
 import type { TrackPlaybackNotificationNative } from './TrackPlaybackNotificationAdapter';
 import type { TrackPlaybackNotificationPayload } from './TrackPlaybackNotificationSync';

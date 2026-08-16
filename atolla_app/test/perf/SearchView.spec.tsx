@@ -1,7 +1,7 @@
 import 'jasmine/src/jasmine';
-import { PlaybackStore } from 'atolla_app/src/stores/Playback';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { SearchView } from 'atolla_app/src/ui/views/SearchView';
+import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { attachRenderStats } from '../util/renderStats';
 

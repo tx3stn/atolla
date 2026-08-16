@@ -6,6 +6,14 @@ import { getLogger, Logger } from 'atolla_core/src/services/Logger';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
 import { JellyfinAuthService } from 'atolla_jellyfin/src/services/JellyfinAuthService';
 import { InMemoryAuthStore, JellyfinAuthStore } from 'atolla_jellyfin/src/stores/JellyfinAuthStore';
+import { DownloadService } from 'atolla_player/src/services/DownloadService';
+import { DownloadSyncService } from 'atolla_player/src/services/DownloadSyncService';
+import { PlaylistCreateService } from 'atolla_player/src/services/PlaylistCreateService';
+import {
+	type PlaylistEditError,
+	PlaylistEditService,
+} from 'atolla_player/src/services/PlaylistEditService';
+import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { Lazy } from 'foundation/src/Lazy';
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { StatefulComponent } from 'valdi_core/src/Component';
@@ -40,12 +48,8 @@ import {
 	DownloadNativeWorkerEntryPoint,
 	type IDownloadNativeWorker,
 } from './services/DownloadNativeWorker';
-import { DownloadService } from './services/DownloadService';
-import { DownloadSyncService } from './services/DownloadSyncService';
 import { NetworkStatus } from './services/NetworkStatus';
 import { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
-import { PlaylistCreateService } from './services/PlaylistCreateService';
-import { type PlaylistEditError, PlaylistEditService } from './services/PlaylistEditService';
 import { syncToastText } from './services/ReconnectSyncCoordinator';
 import { SessionController } from './services/SessionController';
 import { SessionManager } from './services/SessionManager';
@@ -55,7 +59,6 @@ import { TrackSourceNativeAdapter } from './services/TrackSourceNativeAdapter';
 import { UserScope } from './services/UserScope';
 import { appShellStore } from './stores/AppShell';
 import { BarColorStore } from './stores/BarColor';
-import { PlaybackStore } from './stores/Playback';
 import { DEFAULT_LANGUAGE, type LanguageCode, Preferences } from './stores/Preferences';
 import {
 	getAtollaDeviceUserScopeKey,
