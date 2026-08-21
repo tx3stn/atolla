@@ -11,6 +11,7 @@ function makeBag(overrides: Partial<AppServicesBag> = {}): AppServicesBag {
 		downloadingCount: 0,
 		downloadService: stub as AppServicesBag['downloadService'],
 		imageCache: stub as AppServicesBag['imageCache'],
+		lyricsService: stub as AppServicesBag['lyricsService'],
 		modalSlot: stub as AppServicesBag['modalSlot'],
 		networkStatus: stub as AppServicesBag['networkStatus'],
 		onRequestModeChange: async () => true,

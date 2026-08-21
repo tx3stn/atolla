@@ -49,6 +49,7 @@ function setServices(store: PlaybackStore): { notifyPalette: PaletteListener } {
 		downloadingCount: 0,
 		downloadService: stub as AppServicesBag['downloadService'],
 		imageCache: stub as AppServicesBag['imageCache'],
+		lyricsService: stub as AppServicesBag['lyricsService'],
 		modalSlot: new DetachedSlot(),
 		networkStatus: stub as AppServicesBag['networkStatus'],
 		onRequestModeChange: async () => true,

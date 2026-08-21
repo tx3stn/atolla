@@ -9,6 +9,7 @@ import { RecentlyPlayedStore } from 'atolla_player/src/stores/RecentlyPlayed';
 import { PersistentStore } from 'persistence/src/PersistentStore';
 import { setAtollaImageCachedObserver } from '../ImageLoaderBootstrap';
 import type { ConnectionMode } from '../models/App';
+import { LyricsStore } from '../stores/LyricsStore';
 import { PaletteStore } from '../stores/PaletteStore';
 import { PinnedItemsStore } from '../stores/PinnedItems';
 import { SearchStore } from '../stores/Search';
@@ -21,6 +22,7 @@ import {
 } from '../TrackPlaybackNative';
 import { ArtworkPaletteService } from './ArtworkPaletteService';
 import type { AssetCache } from './AssetCache';
+import { LyricsService } from './LyricsService';
 import { parseNativePendingScrobbles } from './NativeAudioPlaybackEventSync';
 import { OnThisDayService } from './OnThisDayService';
 import { PaletteGenerationQueue } from './PaletteGenerationQueue';
@@ -49,6 +51,7 @@ export interface UserScopeDeps {
 // waveforms, scrobbles, recently-played, home caches, now-playing queue) plus the reconnect
 // coordinator. activate(userId) rebuilds them and wires them into the app-global playback services.
 export class UserScope {
+	private lyricsService!: LyricsService;
 	private onThisDayService?: OnThisDayService;
 	private paletteQueue!: PaletteGenerationQueue;
 	private paletteService!: ArtworkPaletteService;
@@ -120,6 +123,12 @@ export class UserScope {
 			),
 		);
 		this.paletteQueue = new PaletteGenerationQueue(this.paletteService);
+		this.lyricsService = new LyricsService({
+			getTransport: () => this.deps.getTransport(),
+			store: new LyricsStore(
+				new PersistentStore(`atolla/user/${userId}/lyrics`, { deviceGlobal: true }),
+			),
+		});
 		// the pending-scrobble queue is owned and persisted by the native engine (device-global,
 		// kill-safe), so it is not per-user here; JS only delivers under whoever is online
 		const scrobble = new ScrobbleService({
@@ -172,6 +181,10 @@ export class UserScope {
 
 	dispose(): void {
 		this.paletteQueue?.dispose();
+	}
+
+	getLyricsService(): LyricsService {
+		return this.lyricsService;
 	}
 
 	getOnThisDayService(): OnThisDayService | undefined {

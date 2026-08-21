@@ -8,6 +8,7 @@ import type { BarColorStore } from '../stores/BarColor';
 import type { PinnedItemsStore } from '../stores/PinnedItems';
 import type { Preferences } from '../stores/Preferences';
 import type { ArtworkPaletteService } from './ArtworkPaletteService';
+import type { LyricsService } from './LyricsService';
 import type { NetworkStatus } from './NetworkStatus';
 import type { PaletteGenerationQueue } from './PaletteGenerationQueue';
 import type { PlaybackOrchestrator } from './PlaybackOrchestrator';
@@ -20,6 +21,7 @@ export interface AppServicesBag {
 	downloadingCount: number;
 	downloadService: DownloadService;
 	imageCache: ImageCache;
+	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;
 	onRequestModeChange: (mode: ConnectionMode) => Promise<boolean>;

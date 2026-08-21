@@ -385,6 +385,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			downloadingCount: this.state.downloadingCount,
 			downloadService: this.downloadService,
 			imageCache: this.imageCache,
+			lyricsService: this.userScope.getLyricsService(),
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,
 			onRequestModeChange: this.handleRequestModeChange,
