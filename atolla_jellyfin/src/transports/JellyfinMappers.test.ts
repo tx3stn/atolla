@@ -4,6 +4,7 @@ import {
 	mapJellyfinAlbumToAlbum,
 	mapJellyfinArtistToArtist,
 	mapJellyfinGenreToGenre,
+	mapJellyfinLyricsToLyrics,
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
 } from './JellyfinMappers';
@@ -120,6 +121,98 @@ describe('mapJellyfinTrackToTrack', () => {
 		expect(calls).toEqual([]); // resolver not invoked for an empty id
 		expect(track.albumId).toBeUndefined();
 		expect(track.albumImageUrl).toBeUndefined();
+	});
+
+	it('carries HasLyrics through so the context menu can gate before fetching', () => {
+		expect(mapJellyfinTrackToTrack({ HasLyrics: true, Id: 't1' } as TrackItem).hasLyrics).toBe(
+			true,
+		);
+		expect(mapJellyfinTrackToTrack({ HasLyrics: false, Id: 't1' } as TrackItem).hasLyrics).toBe(
+			false,
+		);
+	});
+
+	it('leaves hasLyrics undefined when the server omits it, so callers treat it as unknown', () => {
+		expect(mapJellyfinTrackToTrack({ Id: 't1' } as TrackItem).hasLyrics).toBeUndefined();
+	});
+});
+
+describe('mapJellyfinLyricsToLyrics', () => {
+	it('converts start ticks to seconds without flooring', () => {
+		const lyrics = mapJellyfinLyricsToLyrics({
+			Lyrics: [
+				{ Start: 0, Text: 'first' },
+				{ Start: 15_500_000, Text: 'second' },
+			],
+			Metadata: { IsSynced: true },
+		});
+
+		expect(lyrics?.synced).toBe(true);
+		expect(lyrics?.lines).toEqual([
+			{ startSeconds: 0, text: 'first' },
+			{ startSeconds: 1.55, text: 'second' },
+		]);
+	});
+
+	it('clamps a negative start time to zero', () => {
+		const lyrics = mapJellyfinLyricsToLyrics({
+			Lyrics: [{ Start: -10_000_000, Text: 'line' }],
+			Metadata: { IsSynced: true },
+		});
+
+		expect(lyrics?.lines[0].startSeconds).toBe(0);
+	});
+
+	it('treats lyrics without timestamps as unsynced and drops the start times', () => {
+		const lyrics = mapJellyfinLyricsToLyrics({
+			Lyrics: [{ Text: 'first' }, { Text: 'second' }],
+		});
+
+		expect(lyrics?.synced).toBe(false);
+		expect(lyrics?.lines).toEqual([{ text: 'first' }, { text: 'second' }]);
+	});
+
+	it('trusts an explicit IsSynced false even when the lines carry timestamps', () => {
+		const lyrics = mapJellyfinLyricsToLyrics({
+			Lyrics: [{ Start: 10_000_000, Text: 'line' }],
+			Metadata: { IsSynced: false },
+		});
+
+		expect(lyrics?.synced).toBe(false);
+		expect(lyrics?.lines).toEqual([{ text: 'line' }]);
+	});
+
+	it('infers synced when every line has a timestamp and the server omits IsSynced', () => {
+		const lyrics = mapJellyfinLyricsToLyrics({
+			Lyrics: [
+				{ Start: 0, Text: 'first' },
+				{ Start: 10_000_000, Text: 'second' },
+			],
+		});
+
+		expect(lyrics?.synced).toBe(true);
+	});
+
+	it('falls back to unsynced when only some lines carry a timestamp', () => {
+		const lyrics = mapJellyfinLyricsToLyrics({
+			Lyrics: [{ Start: 0, Text: 'first' }, { Text: 'second' }],
+		});
+
+		expect(lyrics?.synced).toBe(false);
+	});
+
+	it('keeps blank lines between verses but drops leading and trailing padding', () => {
+		const lyrics = mapJellyfinLyricsToLyrics({
+			Lyrics: [{ Text: '  ' }, { Text: 'first' }, { Text: '' }, { Text: 'second' }, { Text: ' ' }],
+		});
+
+		expect(lyrics?.lines).toEqual([{ text: 'first' }, { text: '' }, { text: 'second' }]);
+	});
+
+	it('returns null when the payload has no usable lines', () => {
+		expect(mapJellyfinLyricsToLyrics({})).toBeNull();
+		expect(mapJellyfinLyricsToLyrics({ Lyrics: [] })).toBeNull();
+		expect(mapJellyfinLyricsToLyrics({ Lyrics: [{ Text: '   ' }] })).toBeNull();
 	});
 });
 

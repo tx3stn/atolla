@@ -1080,6 +1080,23 @@ describe('LiveTransport core collections', () => {
 		});
 	});
 
+	it('resolves an item the server does not have to null', async () => {
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const { client } = createHTTPClient([jsonResponse(404, { title: 'Not Found' })]);
+			const transport = new LiveTransport(
+				'https://demo.jellyfin.local',
+				'token-1',
+				'user-1',
+				client,
+			);
+
+			expect(await transport.getArtist('artist-1')).toBeNull();
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
 	it('cancels the in-flight HTTP request when a read is canceled', () => {
 		let canceled = false;
 		// never resolves, so the request is still in-flight when we cancel it
@@ -1194,5 +1211,85 @@ describe('LiveTransport instant mixes', () => {
 		const mix = await transport.getInstantMix({ id: 'genre-1', kind: 'genre' }, 200);
 
 		expect(mix).toEqual([]);
+	});
+});
+
+describe('lyrics', () => {
+	it('reads the lyrics endpoint for the encoded track id', async () => {
+		const { calls, client } = createHTTPClient([
+			jsonResponse(200, {
+				Lyrics: [{ Start: 12_000_000, Text: 'a line' }],
+				Metadata: { IsSynced: true },
+			}),
+		]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		const lyrics = await transport.getLyrics('track/1 2');
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0].pathOrUrl).toContain('/Audio/track%2F1%202/Lyrics');
+		expect(lyrics).toEqual({ lines: [{ startSeconds: 1.2, text: 'a line' }], synced: true });
+	});
+
+	it('returns null when the server has no lyrics for the track', async () => {
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const { client } = createHTTPClient([jsonResponse(404, { title: 'Not Found' })]);
+			const transport = new LiveTransport(
+				'https://demo.jellyfin.local',
+				'token-1',
+				'user-1',
+				client,
+			);
+
+			expect(await transport.getLyrics('track-1')).toBeNull();
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
+	it('returns null when the payload carries no usable lines', async () => {
+		const { client } = createHTTPClient([jsonResponse(200, { Lyrics: [] })]);
+		const transport = new LiveTransport('https://demo.jellyfin.local', 'token-1', 'user-1', client);
+
+		expect(await transport.getLyrics('track-1')).toBeNull();
+	});
+
+	it('rejects rather than reporting "no lyrics" when the server errors', async () => {
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const { client } = createHTTPClient([jsonResponse(500, { title: 'Server Error' })]);
+			const transport = new LiveTransport(
+				'https://demo.jellyfin.local',
+				'token-1',
+				'user-1',
+				client,
+			);
+
+			await expect(transport.getLyrics('track-1')).rejects.toMatchObject({
+				err: 'transport_live_request_failed',
+			});
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
+	it('throws SESSION_EXPIRED when the lyrics endpoint returns 401', async () => {
+		const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+		try {
+			const { client } = createHTTPClient([jsonResponse(401, {})]);
+			const transport = new LiveTransport(
+				'https://demo.jellyfin.local',
+				'token-1',
+				'user-1',
+				client,
+			);
+
+			await expect(transport.getLyrics('track-1')).rejects.toMatchObject({
+				err: 'auth_session_expired',
+			});
+		} finally {
+			warnSpy.mockRestore();
+		}
 	});
 });

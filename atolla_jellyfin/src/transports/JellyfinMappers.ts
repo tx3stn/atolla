@@ -1,6 +1,7 @@
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Artist } from 'atolla_core/src/models/Artist';
 import type { Genre } from 'atolla_core/src/models/Genre';
+import type { Lyrics } from 'atolla_core/src/models/Lyrics';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
 import { compareBySortKey } from 'atolla_core/src/utils/SortKey';
@@ -9,6 +10,8 @@ import type {
 	JellyfinArtistItem,
 	JellyfinBaseItemDto,
 	JellyfinGenreItem,
+	JellyfinLyricDto,
+	JellyfinLyricLine,
 	JellyfinMediaSource,
 	JellyfinNameIdReference,
 	JellyfinPlaylistItem,
@@ -191,6 +194,7 @@ export function mapJellyfinTrackToTrack(
 		discNumber: item.ParentIndexNumber,
 		duration: runTimeTicksToSeconds(item.RunTimeTicks),
 		genres: mapGenreReferences(item),
+		hasLyrics: item.HasLyrics,
 		id: item.Id,
 		name: item.Name,
 		playlistItemId: item.PlaylistItemId,
@@ -199,6 +203,40 @@ export function mapJellyfinTrackToTrack(
 		sortName: item.SortName,
 		trackNumber: item.IndexNumber,
 	};
+}
+
+export function mapJellyfinLyricsToLyrics(dto: JellyfinLyricDto): Lyrics | null {
+	const lines = trimBlankEdges(dto.Lyrics ?? []);
+	if (lines.length === 0) {
+		return null;
+	}
+
+	const synced = dto.Metadata?.IsSynced ?? lines.every((line) => line.Start != null);
+
+	return {
+		lines: lines.map((line) => {
+			const text = (line.Text ?? '').trim();
+			if (!synced || line.Start == null) {
+				return { text };
+			}
+
+			return { startSeconds: Math.max(0, line.Start / ticksPerSecond), text };
+		}),
+		synced,
+	};
+}
+
+function trimBlankEdges(lines: Array<JellyfinLyricLine>): Array<JellyfinLyricLine> {
+	let start = 0;
+	let end = lines.length;
+	while (start < end && (lines[start].Text ?? '').trim() === '') {
+		start += 1;
+	}
+	while (end > start && (lines[end - 1].Text ?? '').trim() === '') {
+		end -= 1;
+	}
+
+	return lines.slice(start, end);
 }
 
 export function mapJellyfinPlaylistToPlaylist(

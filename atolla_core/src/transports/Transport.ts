@@ -2,6 +2,7 @@ import type { CancelablePromise } from 'valdi_core/src/CancelablePromise';
 import type { Album } from '../models/Album';
 import type { Artist } from '../models/Artist';
 import type { Genre } from '../models/Genre';
+import type { Lyrics } from '../models/Lyrics';
 import type { Playlist } from '../models/Playlist';
 import type { SearchResults } from '../models/Search';
 import type { Track } from '../models/Track';
@@ -47,6 +48,7 @@ export interface Transport {
 		pageSize: number,
 	): CancelablePromise<{ hasMore: boolean; items: Array<Genre> }>;
 	getInstantMix(seed: InstantMixSeed, limit: number): CancelablePromise<Array<Track>>;
+	getLyrics(trackId: string): CancelablePromise<Lyrics | null>;
 	getPlaylist(playlistId: string): CancelablePromise<Playlist | null>;
 	getPlaylists(
 		page: number,

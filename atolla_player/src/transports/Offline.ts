@@ -3,6 +3,7 @@
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Artist } from 'atolla_core/src/models/Artist';
 import type { Genre } from 'atolla_core/src/models/Genre';
+import type { Lyrics } from 'atolla_core/src/models/Lyrics';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { SearchResults } from 'atolla_core/src/models/Search';
 import type { Track } from 'atolla_core/src/models/Track';
@@ -206,6 +207,10 @@ export class OfflineTransport implements Transport {
 
 	async getInstantMix(seed: InstantMixSeed, limit: number): Promise<Array<Track>> {
 		return buildInstantMix(seed, this.instantMixLibrary(), { limit });
+	}
+
+	async getLyrics(_trackId: string): Promise<Lyrics | null> {
+		return null;
 	}
 
 	async getPlaylist(playlistId: string): Promise<Playlist | null> {

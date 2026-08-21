@@ -10,6 +10,7 @@ export interface Track {
 	discNumber?: number;
 	duration: number; // seconds
 	genres?: Array<Genre>;
+	hasLyrics?: boolean;
 	id: string;
 	name: string;
 	playlistItemId?: string;

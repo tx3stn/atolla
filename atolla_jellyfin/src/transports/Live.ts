@@ -1,6 +1,7 @@
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Artist } from 'atolla_core/src/models/Artist';
 import type { Genre } from 'atolla_core/src/models/Genre';
+import type { Lyrics } from 'atolla_core/src/models/Lyrics';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { SearchResults } from 'atolla_core/src/models/Search';
 import type { Track } from 'atolla_core/src/models/Track';
@@ -22,6 +23,7 @@ import type {
 	JellyfinArtistItem,
 	JellyfinGenreItem,
 	JellyfinListEnvelope,
+	JellyfinLyricDto,
 	JellyfinPlaylistItem,
 	JellyfinTrackItem,
 	JellyfinYearItem,
@@ -32,6 +34,7 @@ import {
 	mapJellyfinAlbumToAlbum,
 	mapJellyfinArtistToArtist,
 	mapJellyfinGenreToGenre,
+	mapJellyfinLyricsToLyrics,
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
 } from './JellyfinMappers';
@@ -41,6 +44,7 @@ export {
 	mapJellyfinAlbumToAlbum,
 	mapJellyfinArtistToArtist,
 	mapJellyfinGenreToGenre,
+	mapJellyfinLyricsToLyrics,
 	mapJellyfinPlaylistToPlaylist,
 	mapJellyfinTrackToTrack,
 	resolveAlbumArtist,
@@ -353,6 +357,24 @@ export class LiveTransport implements Transport {
 			);
 
 			return list.Items.map((item) => mapJellyfinTrackToTrack(item, this.imageResolvers));
+		});
+	}
+
+	getLyrics(trackId: string): CancelablePromise<Lyrics | null> {
+		return cancelable(async (canceler) => {
+			try {
+				const dto = await tracked(
+					canceler,
+					this.requestJson<JellyfinLyricDto>('GET', `/Audio/${encodeURIComponent(trackId)}/Lyrics`),
+				);
+
+				return mapJellyfinLyricsToLyrics(dto);
+			} catch (error) {
+				if (error === TransportErrors.LIVE_NOT_FOUND) {
+					return null;
+				}
+				throw error;
+			}
 		});
 	}
 
@@ -790,7 +812,10 @@ export class LiveTransport implements Transport {
 					}),
 				);
 			} catch (error) {
-				if (error === TransportErrors.LIVE_REQUEST_FAILED) {
+				if (
+					error === TransportErrors.LIVE_NOT_FOUND ||
+					error === TransportErrors.LIVE_REQUEST_FAILED
+				) {
 					return null;
 				}
 				throw error;
@@ -828,6 +853,10 @@ export class LiveTransport implements Transport {
 			if (response.statusCode === 401) {
 				log.warn('request rejected', { method, path: requestPath, status: 401 });
 				throw AuthErrors.SESSION_EXPIRED;
+			}
+			if (response.statusCode === 404) {
+				log.warn('request not found', { method, path: requestPath, status: 404 });
+				throw TransportErrors.LIVE_NOT_FOUND;
 			}
 			if (response.statusCode < 200 || response.statusCode >= 300) {
 				log.warn('request failed', {

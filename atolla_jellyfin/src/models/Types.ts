@@ -69,7 +69,22 @@ export interface JellyfinAlbumItem extends JellyfinBaseItemDto {
 }
 
 export interface JellyfinTrackItem extends JellyfinBaseItemDto {
+	HasLyrics?: boolean;
 	Type: 'Audio';
+}
+
+export interface JellyfinLyricLine {
+	Start?: number;
+	Text?: string;
+}
+
+export interface JellyfinLyricMetadata {
+	IsSynced?: boolean;
+}
+
+export interface JellyfinLyricDto {
+	Lyrics?: Array<JellyfinLyricLine>;
+	Metadata?: JellyfinLyricMetadata;
 }
 
 export interface JellyfinPlaylistItem extends JellyfinBaseItemDto {
