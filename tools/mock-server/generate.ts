@@ -11,6 +11,7 @@ import type {
 import { mockJellyfinAlbums as rawAlbums, mockJellyfinTracks as rawTracks } from './mocks/Albums';
 import { mockJellyfinArtists as rawArtists } from './mocks/Artists';
 import { mockGenreTrackIds, mockJellyfinGenres as rawGenres } from './mocks/Genres';
+import { mockJellyfinLyrics, mockTracksWithMissingLyrics } from './mocks/Lyrics';
 import { mockJellyfinPlaylists as rawPlaylists } from './mocks/Playlists';
 
 // jellyfin computes SortName per item — lowercased with leading articles stripped — and
@@ -59,7 +60,11 @@ function mediaSourcesForAlbum(albumId: string | undefined): Array<JellyfinMediaS
 }
 
 function trackDto(track: JellyfinTrackItem): JellyfinTrackItem {
-	return { ...track, MediaSources: mediaSourcesForAlbum(track.AlbumId) };
+	return {
+		...track,
+		HasLyrics: mockJellyfinLyrics[track.Id] != null || mockTracksWithMissingLyrics.has(track.Id),
+		MediaSources: mediaSourcesForAlbum(track.AlbumId),
+	};
 }
 
 function parseTime(value: string | undefined): number | null {
@@ -392,6 +397,11 @@ function generate(): void {
 		...mockJellyfinAlbums,
 	]) {
 		fixture(`item-${slug(item.Id)}`, get(`/Items/${item.Id}`), item);
+	}
+
+	// ---- lyrics: tracks outside this map 404, which is the server's "no lyrics" answer ----
+	for (const [trackId, lyrics] of Object.entries(mockJellyfinLyrics)) {
+		fixture(`lyrics-${slug(trackId)}`, get(`/Audio/${trackId}/Lyrics`), lyrics);
 	}
 
 	// ---- playlist tracks (running order from ItemIds) ----
