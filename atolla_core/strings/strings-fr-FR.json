@@ -48,6 +48,9 @@
 	"cache_category_genre_images": {
 		"defaultMessage": "images de genre"
 	},
+	"cache_category_lyrics": {
+		"defaultMessage": "paroles"
+	},
 	"cache_category_playlist_images": {
 		"defaultMessage": "images de playlist"
 	},
@@ -375,6 +378,9 @@
 	},
 	"settings_image_cache_size": {
 		"defaultMessage": "taille du cache d'images"
+	},
+	"settings_include_lyrics": {
+		"defaultMessage": "inclure les paroles"
 	},
 	"settings_language": {
 		"defaultMessage": "langue"

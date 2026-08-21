@@ -11,6 +11,7 @@ import type { DevTools } from './dev/DevTools';
 import { type ConnectionMode, type FooterTab, FooterTabs } from './models/App';
 import type { ArtworkPaletteService } from './services/ArtworkPaletteService';
 import { backNavRouter } from './services/BackNavRouter';
+import type { LyricsService } from './services/LyricsService';
 import type { NativeAudioPlaybackError } from './services/NativeAudioPlaybackEventSync';
 import type { PlaybackOrchestrator } from './services/PlaybackOrchestrator';
 import type { SessionController } from './services/SessionController';
@@ -34,6 +35,7 @@ export interface AuthedAppViewModel {
 	downloadService: DownloadService;
 	homeViewModel: Omit<HomeTabViewModel, 'onNavigationControllerReady'>;
 	libraryViewModel: Omit<LibraryViewModel, 'onNavigationControllerReady'>;
+	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	paletteService: ArtworkPaletteService;
 	playbackOrchestrator: PlaybackOrchestrator;
@@ -155,6 +157,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 						<SettingsTab
 							devTools={this.viewModel.devTools}
 							downloadService={this.viewModel.downloadService}
+							lyricsService={this.viewModel.lyricsService}
 							modalSlot={this.viewModel.modalSlot}
 							paletteService={this.viewModel.paletteService}
 							playbackOrchestrator={this.viewModel.playbackOrchestrator}

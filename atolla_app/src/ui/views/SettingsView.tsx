@@ -1,5 +1,5 @@
 import Strings from 'atolla_core/src/Strings';
-import type { ClearCacheSelection } from 'atolla_core/src/services/ImageCache';
+import type { ClearCacheSelection } from 'atolla_core/src/services/CacheClear';
 import { Logger } from 'atolla_core/src/services/Logger';
 import { version } from 'atolla_core/src/version';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
@@ -24,6 +24,7 @@ import {
 } from '../../ImageLoaderBootstrap';
 import { type CardSize, CardSizes } from '../../models/App';
 import type { ArtworkPaletteService } from '../../services/ArtworkPaletteService';
+import type { LyricsService } from '../../services/LyricsService';
 import type { PlaybackOrchestrator } from '../../services/PlaybackOrchestrator';
 import type { SessionController } from '../../services/SessionController';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
@@ -59,6 +60,7 @@ const NATIVE_CACHE_STATS_INTERVAL_MS = 1000;
 export interface SettingsViewModel {
 	devTools?: DevTools;
 	downloadService: DownloadService;
+	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	paletteService: ArtworkPaletteService;
 	playbackOrchestrator: PlaybackOrchestrator;
@@ -72,6 +74,7 @@ interface SettingsViewState {
 	imageCacheDiskBytes: number | null;
 	imageCacheDiskCount: number;
 	imageCategoryCounts: Record<string, number>;
+	lyricsCachedCount: number;
 	revision: number;
 	trackCacheCachedCount: number;
 }
@@ -83,6 +86,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		imageCacheDiskBytes: null,
 		imageCacheDiskCount: 0,
 		imageCategoryCounts: {},
+		lyricsCachedCount: 0,
 		revision: 0,
 		trackCacheCachedCount: 0,
 	};
@@ -257,6 +261,14 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 								onToggle={this.handleDownloadOnWifiToggle}
 							/>
 						</view>
+						<view style={styles.settingRow}>
+							<label style={styles.settingLabel} value={Strings.settingsIncludeLyrics()} />
+							<Toggle
+								accessibilityId='settings-include-lyrics-toggle'
+								enabled={this.viewModel.preferences.includeLyricsInDownloads}
+								onToggle={this.handleIncludeLyricsToggle}
+							/>
+						</view>
 						<label
 							accessibilityId='settings-downloaded-track-count'
 							accessibilityLabel='settings-downloaded-track-count'
@@ -375,6 +387,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 			this.viewModel.playbackOrchestrator.clearWaveformData();
 		}
 
+		if (selection.lyrics) {
+			void this.viewModel.lyricsService.clearAll().then(() => this.refreshLyricsCachedCount());
+		}
+
 		this.refreshNativeCacheStats();
 		this.refreshTrackCachedCount();
 		closeSlot(this.viewModel.modalSlot);
@@ -400,6 +416,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 					artistImage: (counts.artist_image ?? 0) + (counts.artist_image_thumb ?? 0),
 					artistLogo: counts.artist_logo ?? 0,
 					genreImage: counts.genre_art ?? 0,
+					lyrics: this.state.lyricsCachedCount,
 					playlistImage: (counts.playlist_image ?? 0) + (counts.playlist_image_thumb ?? 0),
 					tracks: this.state.trackCacheCachedCount,
 					waveformData: this.viewModel.playbackOrchestrator.getWaveformReadyCount(),
@@ -464,6 +481,10 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		} catch {
 			// native disk cache unavailable on non-Android targets
 		}
+	};
+
+	private handleIncludeLyricsToggle = (enabled: boolean): void => {
+		void this.viewModel.preferences.setIncludeLyricsInDownloads(enabled);
 	};
 
 	private handleLanguageCancel = (): void => {
@@ -559,6 +580,15 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 		}
 	}
 
+	private refreshLyricsCachedCount(): void {
+		void this.viewModel.lyricsService.cachedCount().then((count) => {
+			if (this.isDestroyed() || count === this.state.lyricsCachedCount) {
+				return;
+			}
+			this.setState({ lyricsCachedCount: count });
+		});
+	}
+
 	private refreshTrackCachedCount(): void {
 		let count = 0;
 		try {
@@ -575,6 +605,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 	private startStatsPolling(): void {
 		this.refreshNativeCacheStats();
 		this.refreshTrackCachedCount();
+		this.refreshLyricsCachedCount();
 		if (this.statsInterval != null) {
 			return;
 		}

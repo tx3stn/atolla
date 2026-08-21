@@ -139,7 +139,10 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		getTotalDownloadedSizeBytes: () => getAtollaDownloadedCacheTotalSizeBytes(),
 		getTrackPlaybackUrl: (trackId) => getAtollaDownloadedTrackFileUrl(trackId),
 		isOnline: () => this.networkStatus.isReachable(),
-		onTrackDownloaded: (trackId) => this.playbackOrchestrator.handleTrackCached(trackId),
+		onTrackDownloaded: (trackId) => {
+			this.playbackOrchestrator.handleTrackCached(trackId);
+			this.prefetchDownloadedTrackLyrics(trackId);
+		},
 		removeTrack: (trackId) => this.downloadWorkerClient.target.api.removeDownloadedTrack(trackId),
 		removeTracks: (trackIds) =>
 			this.downloadWorkerClient.target.api.removeDownloadedTracks(trackIds),
@@ -407,6 +410,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				downloadService={this.downloadService}
 				homeViewModel={this.buildHomeViewModel()}
 				libraryViewModel={this.buildLibraryViewModel()}
+				lyricsService={this.userScope.getLyricsService()}
 				modalSlot={this.modalSlot}
 				paletteService={this.userScope.getPaletteService()}
 				playbackOrchestrator={this.playbackOrchestrator}
@@ -648,6 +652,17 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 				return this.diagnosticsStore.target.storeString('session_active', '1');
 			})
 			.catch(() => {});
+	}
+
+	private prefetchDownloadedTrackLyrics(trackId: string): void {
+		if (!this.preferences.includeLyricsInDownloads) {
+			return;
+		}
+
+		const track = this.downloadService.getTrack(trackId)?.track;
+		if (track) {
+			appServices.get()?.lyricsService.prefetch(track);
+		}
 	}
 
 	private pushNativeAuthToken(token: string): void {

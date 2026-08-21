@@ -1,6 +1,7 @@
 import 'jasmine/src/jasmine';
 import { CardSizes, type ConnectionMode, ConnectionModes } from 'atolla_app/src/models/App';
 import type { ArtworkPaletteService } from 'atolla_app/src/services/ArtworkPaletteService';
+import type { LyricsService } from 'atolla_app/src/services/LyricsService';
 import type { PlaybackOrchestrator } from 'atolla_app/src/services/PlaybackOrchestrator';
 import { SessionController } from 'atolla_app/src/services/SessionController';
 import { ToastService } from 'atolla_app/src/services/ToastService';
@@ -91,9 +92,15 @@ const paletteServiceStub = {
 	clearAll: () => Promise.resolve(),
 } as unknown as ArtworkPaletteService;
 
+const lyricsServiceStub = {
+	cachedCount: () => Promise.resolve(0),
+	clearAll: () => Promise.resolve(),
+} as unknown as LyricsService;
+
 function makeViewModel(overrides?: Partial<SettingsViewModel>): SettingsViewModel {
 	return {
 		downloadService: makeDownloadService(),
+		lyricsService: lyricsServiceStub,
 		modalSlot: new DetachedSlot(),
 		paletteService: paletteServiceStub,
 		playbackOrchestrator: makePlaybackOrchestrator(),
@@ -211,6 +218,18 @@ describe('SettingsView', () => {
 		expect(preferences.downloadOnWifiOnly).toBe(true);
 	});
 
+	valdiIt('toggling include lyrics writes to preferences', async (driver) => {
+		const preferences = mockPreferences();
+		const viewModel = makeViewModel({ preferences });
+		const component = driver.renderComponent(SettingsView, viewModel, undefined);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-include-lyrics-toggle')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(preferences.includeLyricsInDownloads).toBe(true);
+	});
+
 	valdiIt('logout confirm routes to the session controller', async (driver) => {
 		const { calls, controller } = makeSessionController();
 		const viewModel = makeViewModel({ sessionController: controller });
@@ -266,6 +285,28 @@ describe('SettingsView', () => {
 
 		expect(resetForTrackCacheCleared).toBe(1);
 		expect(toastService.getCurrent()?.model.message).toBeTruthy();
+	});
+
+	valdiIt('cache clear confirm clears the lyrics cache', async (driver) => {
+		let cleared = 0;
+		const lyricsService = {
+			cachedCount: () => Promise.resolve(0),
+			clearAll: () => {
+				cleared += 1;
+				return Promise.resolve();
+			},
+		} as unknown as LyricsService;
+		const viewModel = makeViewModel({ lyricsService });
+		const component = driver.renderComponent(SettingsViewWithSlot, viewModel, undefined);
+
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'settings-cache-clear-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-confirm-btn')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(cleared).toBe(1);
 	});
 
 	valdiIt('sharing the debug log opens the native share sheet', async (driver) => {

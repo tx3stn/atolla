@@ -1,3 +1,5 @@
+import type { ClearCacheSelection } from './CacheClear';
+
 export const ImageCategories = {
 	album: 'album_art',
 	albumBlurred: 'album_art_blurred',
@@ -11,17 +13,6 @@ export const ImageCategories = {
 } as const;
 
 export type ImageCategory = (typeof ImageCategories)[keyof typeof ImageCategories];
-
-export interface ClearCacheSelection {
-	albumArt: boolean;
-	albumArtBlurred: boolean;
-	artistImage: boolean;
-	artistLogo: boolean;
-	genreImage: boolean;
-	playlistImage: boolean;
-	tracks: boolean;
-	waveformData: boolean;
-}
 
 interface ImageCacheStore {
 	fetchAll?(): Promise<Record<string, unknown>>;

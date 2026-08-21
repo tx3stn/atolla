@@ -23,6 +23,7 @@ const PreferenceKeys = {
 	debugLoggingEnabled: 'debug_logging_enabled',
 	downloadOnWifiOnly: 'download_on_wifi_only',
 	imageCacheMaxBytes: 'image_cache_max_bytes',
+	includeLyricsInDownloads: 'include_lyrics_in_downloads',
 	jellyfinClientDeviceIdOverride: 'jellyfin_client_device_id_override',
 	language: 'language',
 	mode: 'mode',
@@ -52,6 +53,7 @@ export class Preferences {
 	private _downloadOnWifiOnly = false;
 	private _hasStoredMode = false;
 	private _imageCacheMaxBytes = DEFAULT_IMAGE_CACHE_MAX_BYTES;
+	private _includeLyricsInDownloads = false;
 	private _jellyfinClientDeviceIdOverride = '';
 	private _language: LanguageCode = DEFAULT_LANGUAGE;
 	private _mode: ConnectionMode = ConnectionModes.offline;
@@ -101,6 +103,10 @@ export class Preferences {
 
 	get imageCacheMaxBytes(): number {
 		return this._imageCacheMaxBytes;
+	}
+
+	get includeLyricsInDownloads(): boolean {
+		return this._includeLyricsInDownloads;
 	}
 
 	get jellyfinClientDeviceIdOverride(): string {
@@ -167,6 +173,14 @@ export class Preferences {
 		}
 	}
 
+	async getIncludeLyricsInDownloads(): Promise<boolean> {
+		try {
+			return (await this.store.fetchString(PreferenceKeys.includeLyricsInDownloads)) === 'true';
+		} catch {
+			return false;
+		}
+	}
+
 	async getJellyfinClientDeviceIdOverride(): Promise<string> {
 		try {
 			return (await this.store.fetchString(PreferenceKeys.jellyfinClientDeviceIdOverride)).trim();
@@ -225,6 +239,7 @@ export class Preferences {
 			downloadOnWifiOnly,
 			hasStoredMode,
 			imageCacheMaxBytes,
+			includeLyricsInDownloads,
 			jellyfinClientDeviceIdOverride,
 			language,
 			mode,
@@ -236,6 +251,7 @@ export class Preferences {
 			this.getDownloadOnWifiOnly(),
 			this.hasMode(),
 			this.getImageCacheMaxBytes(),
+			this.getIncludeLyricsInDownloads(),
 			this.getJellyfinClientDeviceIdOverride(),
 			this.getLanguage(),
 			this.getMode(),
@@ -247,6 +263,7 @@ export class Preferences {
 		this._downloadOnWifiOnly = downloadOnWifiOnly;
 		this._hasStoredMode = hasStoredMode;
 		this._imageCacheMaxBytes = imageCacheMaxBytes;
+		this._includeLyricsInDownloads = includeLyricsInDownloads;
 		this._jellyfinClientDeviceIdOverride = jellyfinClientDeviceIdOverride;
 		this._language = language;
 		this._mode = mode;
@@ -298,6 +315,14 @@ export class Preferences {
 			this.notify();
 		}
 		return this.store.storeString(PreferenceKeys.imageCacheMaxBytes, String(bytes));
+	}
+
+	setIncludeLyricsInDownloads(enabled: boolean): Promise<void> {
+		if (this._includeLyricsInDownloads !== enabled) {
+			this._includeLyricsInDownloads = enabled;
+			this.notify();
+		}
+		return this.store.storeString(PreferenceKeys.includeLyricsInDownloads, String(enabled));
 	}
 
 	setJellyfinClientDeviceIdOverride(value: string): Promise<void> {

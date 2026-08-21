@@ -1,5 +1,5 @@
 import Strings from 'atolla_core/src/Strings';
-import type { ClearCacheSelection } from 'atolla_core/src/services/ImageCache';
+import type { ClearCacheSelection } from 'atolla_core/src/services/CacheClear';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Button, ButtonType } from './Button';
 import { Checkbox } from './Checkbox';
@@ -11,6 +11,7 @@ export interface CacheClearModalCounts {
 	artistImage: number;
 	artistLogo: number;
 	genreImage: number;
+	lyrics: number;
 	playlistImage: number;
 	tracks: number;
 	waveformData: number;
@@ -29,6 +30,7 @@ interface CacheClearModalState {
 	artistImage: boolean;
 	artistLogo: boolean;
 	genreImage: boolean;
+	lyrics: boolean;
 	playlistImage: boolean;
 	tracks: boolean;
 	waveformData: boolean;
@@ -44,6 +46,7 @@ export class CacheClearModal extends StatefulComponent<
 		artistImage: true,
 		artistLogo: true,
 		genreImage: true,
+		lyrics: true,
 		playlistImage: true,
 		tracks: true,
 		waveformData: true,
@@ -55,6 +58,7 @@ export class CacheClearModal extends StatefulComponent<
 	private toggleAlbumArtBlurred = () =>
 		this.setState({ albumArtBlurred: !this.state.albumArtBlurred });
 	private toggleGenreImage = () => this.setState({ genreImage: !this.state.genreImage });
+	private toggleLyrics = () => this.setState({ lyrics: !this.state.lyrics });
 	private togglePlaylistImage = () => this.setState({ playlistImage: !this.state.playlistImage });
 	private toggleTracks = () => this.setState({ tracks: !this.state.tracks });
 	private toggleWaveformData = () => this.setState({ waveformData: !this.state.waveformData });
@@ -66,6 +70,7 @@ export class CacheClearModal extends StatefulComponent<
 			artistImage: this.state.artistImage,
 			artistLogo: this.state.artistLogo,
 			genreImage: this.state.genreImage,
+			lyrics: this.state.lyrics,
 			playlistImage: this.state.playlistImage,
 			tracks: this.state.tracks,
 			waveformData: this.state.waveformData,
@@ -83,6 +88,7 @@ export class CacheClearModal extends StatefulComponent<
 			artistImage,
 			artistLogo,
 			genreImage,
+			lyrics,
 			playlistImage,
 			tracks,
 			waveformData,
@@ -94,6 +100,7 @@ export class CacheClearModal extends StatefulComponent<
 			artistImage ||
 			artistLogo ||
 			genreImage ||
+			lyrics ||
 			playlistImage ||
 			tracks ||
 			waveformData;
@@ -143,6 +150,12 @@ export class CacheClearModal extends StatefulComponent<
 				checked={tracks}
 				label={this.labelWithCount(Strings.cacheCategoryTracks(), counts.tracks)}
 				onToggle={this.toggleTracks}
+			/>
+			<Checkbox
+				accessibilityId='cache-clear-lyrics-row'
+				checked={lyrics}
+				label={this.labelWithCount(Strings.cacheCategoryLyrics(), counts.lyrics)}
+				onToggle={this.toggleLyrics}
 			/>
 			<Checkbox
 				accessibilityId='cache-clear-waveform-data-row'

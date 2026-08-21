@@ -1,6 +1,6 @@
 import 'jasmine/src/jasmine';
 import { CacheClearModal } from 'atolla_app/src/ui/components/CacheClearModal';
-import type { ClearCacheSelection } from 'atolla_core/src/services/ImageCache';
+import type { ClearCacheSelection } from 'atolla_core/src/services/CacheClear';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
@@ -15,6 +15,7 @@ describe('CacheClearModal', () => {
 				artistImage: 0,
 				artistLogo: 0,
 				genreImage: 0,
+				lyrics: 0,
 				playlistImage: 0,
 				tracks: 0,
 				waveformData: 0,
@@ -80,6 +81,7 @@ describe('CacheClearModal', () => {
 				artistImage: 0,
 				artistLogo: 0,
 				genreImage: 0,
+				lyrics: 0,
 				playlistImage: 0,
 				tracks: 0,
 				waveformData: 0,
@@ -112,6 +114,9 @@ describe('CacheClearModal', () => {
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-genre-image-row')
 			?.getAttribute('onTap')?.(touchEvent);
 		views
+			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-lyrics-row')
+			?.getAttribute('onTap')?.(touchEvent);
+		views
 			.find((v) => v.getAttribute('accessibilityLabel') === 'cache-clear-track-row')
 			?.getAttribute('onTap')?.(touchEvent);
 		views
@@ -138,6 +143,7 @@ describe('CacheClearModal', () => {
 				artistImage: 0,
 				artistLogo: 0,
 				genreImage: 0,
+				lyrics: 0,
 				playlistImage: 0,
 				tracks: 0,
 				waveformData: 0,
@@ -163,6 +169,7 @@ describe('CacheClearModal', () => {
 			artistImage: true,
 			artistLogo: true,
 			genreImage: true,
+			lyrics: true,
 			playlistImage: true,
 			tracks: true,
 			waveformData: true,
@@ -178,6 +185,7 @@ describe('CacheClearModal', () => {
 				artistImage: 0,
 				artistLogo: 0,
 				genreImage: 0,
+				lyrics: 0,
 				playlistImage: 0,
 				tracks: 0,
 				waveformData: 0,
@@ -211,6 +219,7 @@ describe('CacheClearModal', () => {
 			artistImage: true,
 			artistLogo: true,
 			genreImage: true,
+			lyrics: true,
 			playlistImage: true,
 			tracks: true,
 			waveformData: true,
@@ -226,6 +235,7 @@ describe('CacheClearModal', () => {
 				artistImage: 0,
 				artistLogo: 0,
 				genreImage: 0,
+				lyrics: 0,
 				playlistImage: 0,
 				tracks: 0,
 				waveformData: 0,

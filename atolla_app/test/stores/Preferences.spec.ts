@@ -217,6 +217,55 @@ describe('Preferences', () => {
 		});
 	});
 
+	describe('setIncludeLyricsInDownloads()', () => {
+		it('defaults to off so downloads do not fetch lyrics unasked', () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+
+			expect(preferences.includeLyricsInDownloads).toBe(false);
+		});
+
+		it('persists and exposes the value synchronously', async () => {
+			const store = new InMemoryKeyValueStore();
+			const preferences = new Preferences(store);
+
+			await preferences.setIncludeLyricsInDownloads(true);
+
+			expect(preferences.includeLyricsInDownloads).toBe(true);
+			expect(await store.fetchString('include_lyrics_in_downloads')).toBe('true');
+		});
+
+		it('notifies subscribers when the value changes', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+			let notified = 0;
+			preferences.subscribe(() => notified++);
+
+			await preferences.setIncludeLyricsInDownloads(true);
+
+			expect(notified).toBe(1);
+		});
+
+		it('does not notify when the value is unchanged', async () => {
+			const preferences = new Preferences(new InMemoryKeyValueStore());
+			await preferences.setIncludeLyricsInDownloads(true);
+			let notified = 0;
+			preferences.subscribe(() => notified++);
+
+			await preferences.setIncludeLyricsInDownloads(true);
+
+			expect(notified).toBe(0);
+		});
+
+		it('hydrates from the store on load()', async () => {
+			const store = new InMemoryKeyValueStore();
+			await store.storeString('include_lyrics_in_downloads', 'true');
+			const preferences = new Preferences(store);
+
+			await preferences.load();
+
+			expect(preferences.includeLyricsInDownloads).toBe(true);
+		});
+	});
+
 	describe('observable layer', () => {
 		it('exposes defaults synchronously before load', () => {
 			const preferences = new Preferences(new InMemoryKeyValueStore());
