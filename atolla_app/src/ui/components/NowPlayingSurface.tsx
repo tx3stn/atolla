@@ -1125,6 +1125,7 @@ export class NowPlayingSurface extends StatefulComponent<
 														horizontalPadding={LYRICS_PAGE_HORIZONTAL_PADDING}
 														lyrics={this.state.lyrics}
 														palette={palette}
+														playbackStore={playbackStore}
 														status={this.state.lyricsStatus}
 														topPadding={LYRICS_PAGE_TOP_PADDING}
 													/>

@@ -159,6 +159,12 @@ export const theme = {
 			letterSpacing: 0.7,
 			paddingBottom: 2,
 		},
+		mainLarge: {
+			color: colors.white,
+			font: systemFont(scaled(18)),
+			letterSpacing: 0.7,
+			paddingBottom: 2,
+		},
 		mainMuted: {
 			color: colors.grey,
 			font: systemBoldFont(scaled(16)),
