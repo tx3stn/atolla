@@ -30,7 +30,11 @@ describe('matchOnThisDay', () => {
 			expect(result).not.toBeNull();
 			expect(result?.year).toBe(1991);
 		} finally {
-			process.env.TZ = originalTz;
+			if (originalTz === undefined) {
+				delete process.env.TZ;
+			} else {
+				process.env.TZ = originalTz;
+			}
 		}
 	});
 
