@@ -24,6 +24,18 @@ export class HomePage extends BasePage {
 		await this.tapFirstVisibleByAccessibilityPrefix(this.albumCardPrefix);
 	}
 
+	// the on this day rows are anniversary albums, rendered by CardDetailList rather than the
+	// CardGrid the rest of the tab uses, so they carry a card-detail- id. there is no waiting on
+	// the list itself: CardDetailList gives its container an accessibilityLabel but no
+	// accessibilityId, so it isn't addressable by id at all
+	async tapOnThisDayAlbumByID(albumId: string): Promise<void> {
+		const row = this.elementByID(`card-detail-${albumId}`);
+		await row.waitForDisplayed({
+			timeoutMsg: `Timed out waiting for on this day album: card-detail-${albumId}`,
+		});
+		await row.click();
+	}
+
 	async longPressFirstVisibleAlbumCard(): Promise<void> {
 		await this.longPressFirstVisibleByAccessibilityPrefix(this.albumCardPrefix);
 	}

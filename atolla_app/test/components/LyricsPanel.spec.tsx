@@ -50,12 +50,11 @@ function fakePlayback(progressSeconds = 0) {
 
 type Elements = Parameters<typeof elementTypeFind>[0];
 
-// the accent colour is what marks the current line, so the label carrying it identifies the
-// active index without the test having to reach into component internals
-function activeLineId(all: Elements): string | undefined {
+// the current line is the one drawn in the accent colour; its text says which line that is
+function activeLineText(all: Elements): string | undefined {
 	return elementTypeFind(all, IRenderedElementViewClass.Label)
 		.find((label) => styleAttribute(label, 'color') === paletteDefaults.accent)
-		?.getAttribute('accessibilityLabel') as string | undefined;
+		?.getAttribute('value') as string | undefined;
 }
 
 function scrollElement(all: Elements) {
@@ -218,13 +217,13 @@ describe('LyricsPanel', () => {
 		);
 
 		expect(
-			activeLineId(component.renderer.getComponentRootElements(component, true)),
+			activeLineText(component.renderer.getComponentRootElements(component, true)),
 		).toBeUndefined();
 
 		playback.advanceTo(6);
 
-		expect(activeLineId(component.renderer.getComponentRootElements(component, true))).toBe(
-			'lyrics-line-1',
+		expect(activeLineText(component.renderer.getComponentRootElements(component, true))).toBe(
+			'line at 5s',
 		);
 	});
 
@@ -247,8 +246,8 @@ describe('LyricsPanel', () => {
 		playback.advanceTo(6);
 		playback.advanceTo(9);
 
-		expect(activeLineId(component.renderer.getComponentRootElements(component, true))).toBe(
-			'lyrics-line-3',
+		expect(activeLineText(component.renderer.getComponentRootElements(component, true))).toBe(
+			'line at 9s',
 		);
 	});
 
@@ -271,7 +270,7 @@ describe('LyricsPanel', () => {
 		playback.advanceTo(30);
 
 		expect(
-			activeLineId(component.renderer.getComponentRootElements(component, true)),
+			activeLineText(component.renderer.getComponentRootElements(component, true)),
 		).toBeUndefined();
 	});
 
@@ -292,7 +291,7 @@ describe('LyricsPanel', () => {
 			);
 
 			expect(
-				activeLineId(component.renderer.getComponentRootElements(component, true)),
+				activeLineText(component.renderer.getComponentRootElements(component, true)),
 			).toBeUndefined();
 		},
 	);
@@ -387,8 +386,8 @@ describe('LyricsPanel', () => {
 				offsetBeforeDrag,
 			);
 			// the highlight keeps up even while the scroll is left alone
-			expect(activeLineId(component.renderer.getComponentRootElements(component, true))).toBe(
-				'lyrics-line-2',
+			expect(activeLineText(component.renderer.getComponentRootElements(component, true))).toBe(
+				'line at 7s',
 			);
 
 			// suspended until 5 + 5s of playback, so this tick is past the resume point

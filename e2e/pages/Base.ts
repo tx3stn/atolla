@@ -169,6 +169,32 @@ export class BasePage {
 		} catch {}
 	}
 
+	// which attribute carries an element's text differs by platform, and asking for the other
+	// platform's attribute is an error rather than an empty answer: iOS surfaces a label's content
+	// as `value` (its `label` holds the accessibility label, which for our labels is the
+	// accessibility id), Android exposes it as text. anything starting with ignorePrefix is an
+	// accessibility id leaking through rather than real content
+	public async readElementText(
+		element: WebdriverIO.Element,
+		ignorePrefix?: string,
+	): Promise<string> {
+		const reads = this.isAndroid()
+			? [() => element.getText()]
+			: [() => element.getAttribute('value'), () => element.getText()];
+
+		for (const read of reads) {
+			try {
+				const text = await read();
+				if (text && !(ignorePrefix && text.startsWith(ignorePrefix))) {
+					return text;
+				}
+			} catch {
+				// element type doesn't carry this attribute
+			}
+		}
+		return '';
+	}
+
 	public async sortedByY(
 		elements: Array<WebdriverIO.Element>,
 	): Promise<Array<WebdriverIO.Element>> {

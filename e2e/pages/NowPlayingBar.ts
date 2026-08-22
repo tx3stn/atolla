@@ -16,6 +16,10 @@ export class NowPlayingBar extends BasePage {
 	private readonly queuePageUpNext = 'now-playing-queue-page-up-next';
 	private readonly queuePageBackTo = 'now-playing-queue-page-back-to';
 	private readonly footerHome = 'footer-home';
+	private readonly artworkPager = 'now-playing-artwork-pager';
+	// deliberately the line prefix and not 'now-playing-lyrics-', which would also match the page
+	// container and let the wait pass while the pager is still mid-slide
+	private readonly lyricLinePrefix = 'now-playing-lyrics-line-';
 
 	private readonly trackTitleUpNextPrefix = 'track-title-up-next-';
 	private readonly trackTitleBackToPrefix = 'track-title-back-to-';
@@ -117,6 +121,155 @@ export class NowPlayingBar extends BasePage {
 		}
 
 		throw new Error('Timed out expanding now playing surface');
+	}
+
+	// the artwork and the lyrics sit side by side in a pager; a horizontal drag across the artwork
+	// pages between them
+	async swipeToLyricsPage(): Promise<void> {
+		await this.swipeArtworkPager('swipe-to-lyrics-finger', 0.85, 0.1);
+		await this.waitForVisibleAccessibilityPrefix(this.lyricLinePrefix);
+	}
+
+	// a downward swipe over the lyrics page scrolls the lyrics rather than collapsing the surface,
+	// so anything that needs the collapse gesture has to page back to the artwork first
+	async returnToArtworkPage(): Promise<void> {
+		if (!(await this.isShowingLyricsPage())) return;
+
+		await this.swipeArtworkPager('swipe-to-artwork-finger', 0.15, 0.9);
+		await this.driver
+			.waitUntil(async () => !(await this.isShowingLyricsPage()), {
+				timeout: 4_000,
+				timeoutMsg: '',
+			})
+			.catch(() => {
+				// best effort: the caller retries its own gesture anyway
+			});
+	}
+
+	private async isShowingLyricsPage(): Promise<boolean> {
+		for (const line of await this.allByAccessibilityPrefix(this.lyricLinePrefix)) {
+			if (await line.isDisplayed().catch(() => false)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// the drag has to clearly beat its own vertical component, or the surface reads it as the
+	// pull-down-to-collapse gesture instead
+	private async swipeArtworkPager(id: string, from: number, to: number): Promise<void> {
+		const pager = this.elementByID(this.artworkPager);
+		await pager.waitForDisplayed({ timeoutMsg: 'Timed out waiting for the artwork pager' });
+		const location = await pager.getLocation();
+		const size = await pager.getSize();
+		const y = Math.floor(location.y + size.height * 0.5);
+		const fromX = Math.floor(location.x + size.width * from);
+		const toX = Math.floor(location.x + size.width * to);
+
+		await this.driver.performActions([
+			{
+				actions: [
+					{ duration: 0, type: 'pointerMove', x: fromX, y },
+					{ button: 0, type: 'pointerDown' },
+					{ duration: 80, type: 'pause' },
+					{ duration: 200, type: 'pointerMove', x: Math.floor((fromX + toX) / 2), y },
+					{ duration: 200, type: 'pointerMove', x: toX, y },
+					{ duration: 80, type: 'pause' },
+					{ button: 0, type: 'pointerUp' },
+				],
+				id,
+				parameters: { pointerType: 'touch' },
+				type: 'pointer',
+			},
+		]);
+		await this.driver.releaseActions();
+	}
+
+	// resolves once a line is highlighted; pass the previous line's text to wait for the highlight
+	// to move on instead. a blank verse-break line carries no highlight, so consecutive calls can
+	// skip an index
+	async waitForActiveLyricLine(previousText?: string, timeout = 25_000): Promise<string> {
+		let text = '';
+		try {
+			await this.driver.waitUntil(
+				async () => {
+					const current = await this.activeLyricLine();
+					if (current === undefined || current === previousText) {
+						return false;
+					}
+					text = current;
+					return true;
+				},
+				// lines turn over every few seconds, so there is nothing to gain from polling faster
+				// than that, and each poll measures every line on screen
+				{ interval: 1_000, timeout, timeoutMsg: 'no active lyric line' },
+			);
+		} catch {
+			const reason = previousText
+				? `Highlighted lyric line never moved on from "${previousText}"`
+				: 'No lyric line was ever highlighted';
+			throw new Error(`${reason}. Lyric elements on screen: ${await this.describeLyricElements()}`);
+		}
+		return text;
+	}
+
+	// the highlighted line is drawn a size larger than the rest, and that height difference is the
+	// only signal that reaches the accessibility tree: Valdi sets accessibilityId when a native view
+	// is created and never updates it, so a state-dependent id never lands.
+	//
+	// every attribute read is a round trip, and on Android they go through UiAutomator and are
+	// serialised by the driver, so the command count is what this costs. measure heights only, then
+	// read the text of the single line that turns out to be the tall one — one read per line plus
+	// one, rather than measuring and reading every line. visibility isn't checked either: the
+	// tallest line is the active one whether or not it is on screen, and the panel scrolls it into
+	// view anyway
+	private async activeLyricLine(): Promise<string | undefined> {
+		const elements = await this.allByAccessibilityPrefix(this.lyricLinePrefix);
+		if (elements.length < 3) {
+			return undefined;
+		}
+
+		const heights = await Promise.all(
+			elements.map((element) =>
+				element.getSize().then(
+					(size) => size.height,
+					// the panel scrolls itself as playback advances, so a handle can stale mid-read
+					() => 0,
+				),
+			),
+		);
+
+		const ranked = [...heights].sort((a, b) => a - b);
+		const baseline = ranked[Math.floor(ranked.length / 2)];
+		// the fixture's one deliberately long line wraps to several rows, so cap how much taller counts
+		const active = heights.findIndex((height) => height > baseline && height < baseline * 1.8);
+		if (active === -1) {
+			return undefined;
+		}
+
+		return (await this.readElementText(elements[active], 'now-playing-lyrics')) || undefined;
+	}
+
+	// dumped into the failure message: without it a missing highlight is indistinguishable from a
+	// highlight the locator simply can't see
+	private async describeLyricElements(): Promise<string> {
+		const elements = await this.allByAccessibilityPrefix('now-playing-lyrics');
+		const described: Array<string> = [];
+		for (const element of elements) {
+			// each platform errors rather than answering empty for the other's attributes
+			const identity = this.isAndroid()
+				? await element.getAttribute('content-desc').catch(() => undefined)
+				: await element.getAttribute('name').catch(() => undefined);
+			const text = await this.readElementText(element);
+			const height = await element.getSize().then(
+				(size) => size.height,
+				() => undefined,
+			);
+			described.push(`{id=${identity}, text=${text}, h=${height}}`);
+		}
+		return described.length > 0
+			? described.join(' ')
+			: '(none matched the now-playing-lyrics prefix)';
 	}
 
 	async tapTogglePlayback(): Promise<void> {
@@ -339,6 +492,8 @@ export class NowPlayingBar extends BasePage {
 
 	async collapseExpandedIfVisible(): Promise<void> {
 		if (!(await this.isExpanded())) return;
+
+		await this.returnToArtworkPage();
 
 		// scroll back to top so the artwork drag zone is under the collapse swipe
 		await this.swipeVertical('scroll-to-top', 0.28, 0.78);

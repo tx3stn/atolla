@@ -4,6 +4,7 @@ export class TrackContextMenu extends BasePage {
 	private readonly root = 'track-context-menu';
 	private readonly addToQueue = 'track-context-add-to-queue';
 	private readonly playNext = 'track-context-play-next';
+	private readonly lyrics = 'track-context-lyrics';
 	private readonly artistLogo = 'track-context-artist-logo';
 	private readonly artistLogoText = 'track-context-artist-logo-text';
 	private readonly trackPreview = 'track-context-track';
@@ -45,6 +46,12 @@ export class TrackContextMenu extends BasePage {
 		await button.waitForDisplayed({ timeoutMsg: 'Play next button not visible' });
 		await button.click();
 		await this.dismissPermissionDialogIfPresent();
+	}
+
+	async tapLyrics(): Promise<void> {
+		const button = this.elementByID(this.lyrics);
+		await button.waitForDisplayed({ timeoutMsg: 'Lyrics button not visible' });
+		await button.click();
 	}
 
 	async getTrackTitle(): Promise<string> {
