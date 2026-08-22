@@ -68,7 +68,14 @@ export class LyricsModal extends StatefulComponent<LyricsModalViewModel, LyricsM
 				<TrackList imageCache={imageCache} tracks={this.getPreviewEntry(track)} />
 			</view>
 			<view style={modalStyles.divider} />
-			<LyricsPanel accessibilityId='lyrics-modal-panel' lyrics={lyrics} status={status} />
+			<LyricsPanel
+				accessibilityId='lyrics-modal-panel'
+				bottomPadding={theme.scale(100)}
+				horizontalPadding={theme.scale(14)}
+				lyrics={lyrics}
+				status={status}
+				topPadding={0}
+			/>
 		</ModalBase>;
 	}
 

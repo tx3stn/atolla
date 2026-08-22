@@ -17,9 +17,12 @@ export type LyricsStatus = (typeof LyricsStatuses)[keyof typeof LyricsStatuses];
 
 export interface LyricsPanelViewModel {
 	accessibilityId: string;
+	bottomPadding: number;
+	horizontalPadding: number;
 	lyrics: Lyrics | null;
 	palette?: Palette;
 	status: LyricsStatus;
+	topPadding: number;
 }
 
 export class LyricsPanel extends Component<LyricsPanelViewModel> {
@@ -47,7 +50,15 @@ export class LyricsPanel extends Component<LyricsPanelViewModel> {
 			marginBottom: theme.scale(10),
 		});
 
-		<scroll accessibilityId={accessibilityId} style={styles.scroll}>
+		const scrollStyle = new Style<ScrollView>({
+			...scrollBase,
+			paddingBottom: this.viewModel.bottomPadding,
+			paddingLeft: this.viewModel.horizontalPadding,
+			paddingRight: this.viewModel.horizontalPadding,
+			paddingTop: this.viewModel.topPadding,
+		});
+
+		<scroll accessibilityId={accessibilityId} style={scrollStyle}>
 			{lyrics.lines.map((line, index) =>
 				line.text === '' ? (
 					<view key={`blank-${index}`} style={styles.blankLine} />
@@ -72,35 +83,41 @@ export class LyricsPanel extends Component<LyricsPanelViewModel> {
 			textAlign: 'center',
 		});
 
+		const containerStyle = new Style<View>({
+			...messageContainerBase,
+			paddingBottom: messageContainerBase.paddingBottom + this.viewModel.bottomPadding,
+			paddingLeft: this.viewModel.horizontalPadding,
+			paddingRight: this.viewModel.horizontalPadding,
+			paddingTop: messageContainerBase.paddingTop + this.viewModel.topPadding,
+		});
+
 		<view
 			accessibilityId={accessibilityId}
 			accessibilityLabel={accessibilityId}
-			style={styles.messageContainer}
+			style={containerStyle}
 		>
 			<label numberOfLines={0} style={messageStyle} value={message} />
 		</view>;
 	}
 }
 
+const scrollBase = {
+	flexGrow: 1,
+	width: '100%' as const,
+};
+
+const messageContainerBase = {
+	alignItems: 'center' as const,
+	flexGrow: 1,
+	justifyContent: 'center' as const,
+	paddingBottom: theme.scale(24),
+	paddingTop: theme.scale(24),
+	width: '100%' as const,
+};
+
 const styles = {
 	blankLine: new Style<View>({
 		height: theme.scale(12),
-		width: '100%',
-	}),
-	messageContainer: new Style<View>({
-		alignItems: 'center',
-		flexGrow: 1,
-		justifyContent: 'center',
-		paddingBottom: theme.scale(24),
-		paddingLeft: theme.scale(14),
-		paddingRight: theme.scale(14),
-		paddingTop: theme.scale(24),
-		width: '100%',
-	}),
-	scroll: new Style<ScrollView>({
-		flexGrow: 1,
-		paddingLeft: theme.scale(14),
-		paddingRight: theme.scale(14),
 		width: '100%',
 	}),
 };

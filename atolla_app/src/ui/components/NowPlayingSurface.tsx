@@ -72,6 +72,12 @@ export const EXPANDED_ARTWORK_SIZE = Math.max(
 const EXPANDED_ARTWORK_LEFT = Math.round((theme.windowWidth - EXPANDED_ARTWORK_SIZE) / 2);
 const EXPANDED_ARTWORK_TOP = EXPANDED_ARTWORK_LEFT > 0 ? EXPANDED_ARTWORK_TOP_GAP : 0;
 
+// the lyrics page fills the artwork square, which runs to the screen edge on a phone, so it carries
+// its own inset rather than the tighter one the modal uses to line up with the context menu
+const LYRICS_PAGE_HORIZONTAL_PADDING = theme.scalePlayer(24);
+const LYRICS_PAGE_TOP_PADDING = theme.scalePlayer(20);
+const LYRICS_PAGE_BOTTOM_PADDING = theme.scalePlayer(24);
+
 // transport controls are sized by the thumb rather than by the layout: what is comfortable to hit on
 // a phone is comfortable on a tablet, and growing them made the surface read as oversized
 const playerControlScale = (value: number): number => value;
@@ -1115,9 +1121,12 @@ export class NowPlayingSurface extends StatefulComponent<
 												>
 													<LyricsPanel
 														accessibilityId='now-playing-lyrics'
+														bottomPadding={LYRICS_PAGE_BOTTOM_PADDING}
+														horizontalPadding={LYRICS_PAGE_HORIZONTAL_PADDING}
 														lyrics={this.state.lyrics}
 														palette={palette}
 														status={this.state.lyricsStatus}
+														topPadding={LYRICS_PAGE_TOP_PADDING}
 													/>
 												</view>
 											)}

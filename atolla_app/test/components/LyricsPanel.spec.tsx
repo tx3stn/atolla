@@ -14,7 +14,14 @@ describe('LyricsPanel', () => {
 	valdiIt('renders a line per lyric and keeps verse breaks as spacing', async (driver) => {
 		const component = driver.renderComponent(
 			LyricsPanel,
-			{ accessibilityId: 'lyrics', lyrics, status: LyricsStatuses.loaded },
+			{
+				accessibilityId: 'lyrics',
+				bottomPadding: 0,
+				horizontalPadding: 14,
+				lyrics,
+				status: LyricsStatuses.loaded,
+				topPadding: 0,
+			},
 			undefined,
 		);
 
@@ -36,7 +43,14 @@ describe('LyricsPanel', () => {
 	valdiIt('reports a track the server has no lyrics for', async (driver) => {
 		const component = driver.renderComponent(
 			LyricsPanel,
-			{ accessibilityId: 'lyrics', lyrics: null, status: LyricsStatuses.loaded },
+			{
+				accessibilityId: 'lyrics',
+				bottomPadding: 0,
+				horizontalPadding: 14,
+				lyrics: null,
+				status: LyricsStatuses.loaded,
+				topPadding: 0,
+			},
 			undefined,
 		);
 
@@ -62,8 +76,11 @@ describe('LyricsPanel', () => {
 			LyricsPanel,
 			{
 				accessibilityId: 'lyrics',
+				bottomPadding: 0,
+				horizontalPadding: 14,
 				lyrics: { lines: [], synced: false },
 				status: LyricsStatuses.loaded,
+				topPadding: 0,
 			},
 			undefined,
 		);
@@ -81,7 +98,14 @@ describe('LyricsPanel', () => {
 	valdiIt('distinguishes a failed fetch from an absent one', async (driver) => {
 		const component = driver.renderComponent(
 			LyricsPanel,
-			{ accessibilityId: 'lyrics', lyrics: null, status: LyricsStatuses.failed },
+			{
+				accessibilityId: 'lyrics',
+				bottomPadding: 0,
+				horizontalPadding: 14,
+				lyrics: null,
+				status: LyricsStatuses.failed,
+				topPadding: 0,
+			},
 			undefined,
 		);
 
@@ -103,7 +127,14 @@ describe('LyricsPanel', () => {
 	valdiIt('shows neither lyrics nor an empty state while loading', async (driver) => {
 		const component = driver.renderComponent(
 			LyricsPanel,
-			{ accessibilityId: 'lyrics', lyrics: null, status: LyricsStatuses.loading },
+			{
+				accessibilityId: 'lyrics',
+				bottomPadding: 0,
+				horizontalPadding: 14,
+				lyrics: null,
+				status: LyricsStatuses.loading,
+				topPadding: 0,
+			},
 			undefined,
 		);
 
