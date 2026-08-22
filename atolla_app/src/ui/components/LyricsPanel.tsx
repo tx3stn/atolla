@@ -92,11 +92,15 @@ const styles = {
 		flexGrow: 1,
 		justifyContent: 'center',
 		paddingBottom: theme.scale(24),
+		paddingLeft: theme.scale(14),
+		paddingRight: theme.scale(14),
 		paddingTop: theme.scale(24),
 		width: '100%',
 	}),
 	scroll: new Style<ScrollView>({
 		flexGrow: 1,
+		paddingLeft: theme.scale(14),
+		paddingRight: theme.scale(14),
 		width: '100%',
 	}),
 };

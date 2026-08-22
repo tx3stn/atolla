@@ -12,6 +12,7 @@ export interface ContextMenuActionRowViewModel {
 	disabled?: boolean;
 	icon: string | Asset;
 	label: string;
+	onDisabledPress?: () => void;
 	onPress: () => void;
 }
 
@@ -42,13 +43,13 @@ export class ContextMenuActionRow extends Component<ContextMenuActionRowViewMode
 	};
 
 	onRender(): void {
-		const { accessibilityId, disabled, icon, label } = this.viewModel;
+		const { accessibilityId, disabled, icon, label, onDisabledPress } = this.viewModel;
 
 		<view
 			accessibilityId={accessibilityId}
 			accessibilityLabel={accessibilityId}
 			onLayout={this.handleLayout}
-			onTap={disabled ? undefined : this.handleTap}
+			onTap={disabled ? onDisabledPress : this.handleTap}
 			style={styles.actionRow}
 		>
 			<view ref={this.rippleRef} style={rowRippleStyle} />

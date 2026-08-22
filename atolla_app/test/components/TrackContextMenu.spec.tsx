@@ -255,20 +255,21 @@ describe('TrackContextMenu', () => {
 	});
 
 	valdiIt(
-		'leaves the lyrics row inert for a track the server has no lyrics for',
+		'toasts instead of opening lyrics for a track the server has no lyrics for',
 		async (driver) => {
-			const { callOrder, viewModel } = createViewModel({
+			const { callOrder, toasts, viewModel } = createViewModel({
 				track: { ...track, hasLyrics: false },
 			});
 			const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
 
-			const lyricsRow = elementTypeFind(
+			elementTypeFind(
 				component.renderer.getComponentRootElements(component, true),
 				IRenderedElementViewClass.View,
-			).find((view) => view.getAttribute('accessibilityLabel') === 'track-context-lyrics');
+			)
+				.find((view) => view.getAttribute('accessibilityLabel') === 'track-context-lyrics')
+				?.getAttribute('onTap')?.(touchEvent);
 
-			expect(lyricsRow).toBeDefined();
-			expect(lyricsRow?.getAttribute('onTap')).toBeUndefined();
+			expect(toasts).toEqual(['error:no lyrics for this track']);
 			expect(callOrder).toEqual([]);
 		},
 	);

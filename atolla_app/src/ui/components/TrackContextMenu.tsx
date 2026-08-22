@@ -127,6 +127,13 @@ export class TrackContextMenu extends StatefulComponent<
 		this.viewModel.onLyrics();
 	};
 
+	handleLyricsUnavailable = (): void => {
+		this.viewModel.toastService.show({
+			message: Strings.lyricsEmpty(),
+			variant: ToastTypes.error,
+		});
+	};
+
 	handleAlbumTap = (_trackId: string): void => {
 		if (this.viewModel.onAlbumTap) {
 			this.viewModel.onAlbumTap();
@@ -212,6 +219,7 @@ export class TrackContextMenu extends StatefulComponent<
 				disabled={track.hasLyrics === false}
 				icon={res.lyrics}
 				label={Strings.lyrics()}
+				onDisabledPress={this.handleLyricsUnavailable}
 				onPress={this.handleLyrics}
 			/>
 		</ModalBase>;
