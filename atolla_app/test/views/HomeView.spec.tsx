@@ -1,5 +1,6 @@
 import 'jasmine/src/jasmine';
 import { ConnectionModes } from 'atolla_app/src/models/App';
+import type { LyricsService } from 'atolla_app/src/services/LyricsService';
 import type { OnThisDayService } from 'atolla_app/src/services/OnThisDayService';
 import type { RecentlyAddedService } from 'atolla_app/src/services/RecentlyAddedService';
 import type { ToastService } from 'atolla_app/src/services/ToastService';
@@ -81,6 +82,7 @@ function makeBaseDeps() {
 	return {
 		connectionMode: ConnectionModes.online,
 		imageCache: {} as ImageCache,
+		lyricsService: {} as LyricsService,
 		onOpenAlbum: () => {},
 		playbackStore: { subscribe: () => () => {} } as unknown as PlaybackStore,
 		preferences: new Preferences({ fetchString: async () => '', storeString: async () => {} }),

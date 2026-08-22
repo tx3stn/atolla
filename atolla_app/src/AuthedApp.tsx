@@ -103,6 +103,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							connectionMode={home.connectionMode}
 							downloadService={home.downloadService}
 							imageCache={home.imageCache}
+							lyricsService={home.lyricsService}
 							modalSlot={home.modalSlot}
 							networkStatus={home.networkStatus}
 							onNavigationControllerReady={this.captureHomeController}
@@ -126,6 +127,7 @@ export class AuthedApp extends StatefulComponent<AuthedAppViewModel, AuthedAppSt
 							connectionMode={library.connectionMode}
 							downloadService={library.downloadService}
 							imageCache={library.imageCache}
+							lyricsService={library.lyricsService}
 							modalSlot={library.modalSlot}
 							networkStatus={library.networkStatus}
 							offlineDataInvalidations={library.offlineDataInvalidations}

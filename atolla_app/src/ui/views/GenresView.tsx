@@ -13,6 +13,7 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
 import type { ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { preloadAtollaImages } from '../../ImageLoaderBootstrap';
+import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { ToastService } from '../../services/ToastService';
 import type { ViewCache } from '../../services/ViewCache';
@@ -36,6 +37,7 @@ interface GenresViewModel {
 	imageCache: ImageCache;
 	isOfflineMode: boolean;
 	letterFilter?: string | null;
+	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
@@ -371,6 +373,7 @@ export class GenresView extends StatefulComponent<GenresViewModel, GenresState> 
 		return {
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
+			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,

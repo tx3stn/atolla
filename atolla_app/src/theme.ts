@@ -21,6 +21,7 @@ const colors = {
 	bgRaised: '#0c0c0c',
 	bgRaisedFrosted: 'rgba(11,11,11,0.8)',
 	destructive: '#ef4444',
+	disabled: 'rgba(102,112,133,0.4)',
 	grey: '#98a2b3',
 	muted: '#667085',
 	separator: 'rgba(255,255,255,0.08)',

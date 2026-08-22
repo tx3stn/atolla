@@ -35,6 +35,9 @@ function createViewModel(overrides = {}) {
 		onDismiss: () => {
 			callOrder.push('dismiss');
 		},
+		onLyrics: () => {
+			callOrder.push('lyrics');
+		},
 		playbackStore,
 		toastService: {
 			show: (toast: { message: string; variant: string }) => {
@@ -235,5 +238,54 @@ describe('TrackContextMenu', () => {
 
 		expect(callOrder).toEqual(['dismiss']);
 		expect(toasts).toEqual([]);
+	});
+
+	valdiIt('opens lyrics from the lyrics row', async (driver) => {
+		const { callOrder, viewModel } = createViewModel();
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
+
+		elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		)
+			.find((view) => view.getAttribute('accessibilityLabel') === 'track-context-lyrics')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(callOrder).toEqual(['lyrics']);
+	});
+
+	valdiIt(
+		'leaves the lyrics row inert for a track the server has no lyrics for',
+		async (driver) => {
+			const { callOrder, viewModel } = createViewModel({
+				track: { ...track, hasLyrics: false },
+			});
+			const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
+
+			const lyricsRow = elementTypeFind(
+				component.renderer.getComponentRootElements(component, true),
+				IRenderedElementViewClass.View,
+			).find((view) => view.getAttribute('accessibilityLabel') === 'track-context-lyrics');
+
+			expect(lyricsRow).toBeDefined();
+			expect(lyricsRow?.getAttribute('onTap')).toBeUndefined();
+			expect(callOrder).toEqual([]);
+		},
+	);
+
+	valdiIt('keeps the lyrics row tappable when availability is unknown', async (driver) => {
+		const { callOrder, viewModel } = createViewModel({
+			track: { ...track, hasLyrics: undefined },
+		});
+		const component = driver.renderComponent(TrackContextMenu, viewModel, undefined);
+
+		elementTypeFind(
+			component.renderer.getComponentRootElements(component, true),
+			IRenderedElementViewClass.View,
+		)
+			.find((view) => view.getAttribute('accessibilityLabel') === 'track-context-lyrics')
+			?.getAttribute('onTap')?.(touchEvent);
+
+		expect(callOrder).toEqual(['lyrics']);
 	});
 });

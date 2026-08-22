@@ -25,6 +25,7 @@ import type {
 	TextField,
 	View,
 } from 'valdi_tsx/src/NativeTemplateElements';
+import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
@@ -53,6 +54,7 @@ export interface SearchViewModel {
 	active: boolean;
 	downloadService: DownloadService;
 	imageCache: ImageCache;
+	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
@@ -549,6 +551,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			gridColumns: this.viewModel.preferences.gridColumns,
 			imageCache: this.viewModel.imageCache,
+			lyricsService: this.viewModel.lyricsService,
 			onAlbumTap: undefined,
 			onArtistTap: track.artistId ? () => this.handleContextMenuArtistTap(track) : undefined,
 			onDismiss: () => {},
@@ -565,6 +568,7 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		return {
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
+			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: (artistId) => this.navigateToArtistId(artistId),

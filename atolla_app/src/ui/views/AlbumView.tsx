@@ -22,6 +22,7 @@ import { NavigationPageStatefulComponent } from 'valdi_navigation/src/Navigation
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { HeaderTabs } from '../../models/App';
 import { backNavRouter } from '../../services/BackNavRouter';
+import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
@@ -47,6 +48,7 @@ export interface AlbumViewModel {
 	album: Album;
 	downloadService: DownloadService;
 	imageCache: ImageCache;
+	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
@@ -402,6 +404,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		return {
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
+			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
 			paletteQueue: this.viewModel.paletteQueue,
@@ -426,6 +429,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			animationsEnabled,
 			gridColumns,
 			imageCache,
+			lyricsService: this.viewModel.lyricsService,
 			// tracks belong to the album we're already viewing, so tapping the row preview just closes the menu rather than re-navigating
 			onAlbumTap: () => {},
 			onArtistTap: this.handleArtistLogoTap,

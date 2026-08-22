@@ -14,6 +14,7 @@ import type { NavigationController } from 'valdi_navigation/src/NavigationContro
 import { NavigationRoot } from 'valdi_navigation/src/NavigationRoot';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { ConnectionMode } from '../../models/App';
+import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { OnThisDayService } from '../../services/OnThisDayService';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
@@ -35,6 +36,7 @@ export interface HomeTabViewModel {
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
 	imageCache: ImageCache;
+	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;
 	onNavigationControllerReady: (controller: NavigationController) => void;
@@ -63,6 +65,7 @@ export class HomeTab extends Component<HomeTabViewModel> {
 					<HomeView
 						connectionMode={this.viewModel.connectionMode}
 						imageCache={this.viewModel.imageCache}
+						lyricsService={this.viewModel.lyricsService}
 						modalSlot={this.viewModel.modalSlot}
 						onNavigateToArtist={this.handleArtistTap}
 						onOpenAlbum={this.handleAlbumTap}
@@ -86,6 +89,7 @@ export class HomeTab extends Component<HomeTabViewModel> {
 		return {
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
+			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.handleArtistTap,

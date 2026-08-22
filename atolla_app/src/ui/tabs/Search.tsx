@@ -31,6 +31,7 @@ export class SearchTab extends Component<SearchTabViewModel> {
 						active={this.viewModel.active}
 						downloadService={search.downloadService}
 						imageCache={search.imageCache}
+						lyricsService={search.lyricsService}
 						modalSlot={search.modalSlot}
 						navigationController={navigationController}
 						networkStatus={search.networkStatus}
@@ -55,6 +56,7 @@ export class SearchTab extends Component<SearchTabViewModel> {
 		return {
 			downloadService: search.downloadService,
 			imageCache: search.imageCache,
+			lyricsService: search.lyricsService,
 			modalSlot: search.modalSlot,
 			networkStatus: search.networkStatus,
 			onNavigateToArtist: this.handleArtistById,

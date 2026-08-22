@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import type { LyricsService } from 'atolla_app/src/services/LyricsService';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { AlbumView } from 'atolla_app/src/ui/views/AlbumView';
 import { ArtistView } from 'atolla_app/src/ui/views/ArtistView';
@@ -66,6 +67,7 @@ describe('SearchView', () => {
 	valdiIt('starts with an empty query', async (driver) => {
 		const viewModel = {
 			imageCache: stubImageCache,
+			lyricsService: {} as LyricsService,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),

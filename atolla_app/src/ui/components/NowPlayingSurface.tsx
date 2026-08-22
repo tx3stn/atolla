@@ -24,6 +24,7 @@ import type {
 	View,
 } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Palette } from '../../models/Color';
+import type { LyricsService } from '../../services/LyricsService';
 import type { ToastService } from '../../services/ToastService';
 import type { BarColorStore, FooterColors } from '../../stores/BarColor';
 import { paletteDefaults, theme, withAlpha } from '../../theme';
@@ -98,6 +99,7 @@ export interface NowPlayingSurfaceViewModel {
 	isPlaying: boolean;
 	language?: string;
 	loopMode?: LoopMode;
+	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	onAlbumTap?: (track?: Track) => void;
 	onArtistTap?: (track?: Track) => void;
@@ -692,6 +694,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			animationsEnabled: this.viewModel.animationsEnabled,
 			gridColumns: this.viewModel.gridColumns,
 			imageCache: this.viewModel.imageCache,
+			lyricsService: this.viewModel.lyricsService,
 			onAlbumTap:
 				track.albumId && onAlbumTap
 					? () => void this.closeSurface().then(() => onAlbumTap(track))

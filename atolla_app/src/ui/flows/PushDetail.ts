@@ -9,6 +9,7 @@ import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEdi
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { NavigationController } from 'valdi_navigation/src/NavigationController';
+import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
@@ -26,6 +27,7 @@ import { PlaylistView } from '../views/PlaylistView';
 export interface DetailPushDeps {
 	downloadService: DownloadService;
 	imageCache: ImageCache;
+	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -50,6 +52,7 @@ export function pushAlbum(
 			album,
 			downloadService: deps.downloadService,
 			imageCache: deps.imageCache,
+			lyricsService: deps.lyricsService,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
 			networkStatus: deps.networkStatus,
@@ -78,6 +81,7 @@ export function pushArtist(
 			artist,
 			downloadService: deps.downloadService,
 			imageCache: deps.imageCache,
+			lyricsService: deps.lyricsService,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
 			networkStatus: deps.networkStatus,
@@ -105,6 +109,7 @@ export function pushPlaylist(
 		{
 			downloadService: deps.downloadService,
 			imageCache: deps.imageCache,
+			lyricsService: deps.lyricsService,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
 			networkStatus: deps.networkStatus,
@@ -136,6 +141,7 @@ export function pushGenre(
 			downloadService: deps.downloadService,
 			genre,
 			imageCache: deps.imageCache,
+			lyricsService: deps.lyricsService,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
 			networkStatus: deps.networkStatus,

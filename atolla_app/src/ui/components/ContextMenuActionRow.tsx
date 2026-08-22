@@ -9,6 +9,7 @@ import { animateRowRipple, rowRippleStyle } from '../animations/Row';
 export interface ContextMenuActionRowViewModel {
 	accessibilityId: string;
 	animationsEnabled: boolean;
+	disabled?: boolean;
 	icon: string | Asset;
 	label: string;
 	onPress: () => void;
@@ -41,18 +42,22 @@ export class ContextMenuActionRow extends Component<ContextMenuActionRowViewMode
 	};
 
 	onRender(): void {
-		const { accessibilityId, icon, label } = this.viewModel;
+		const { accessibilityId, disabled, icon, label } = this.viewModel;
 
 		<view
 			accessibilityId={accessibilityId}
 			accessibilityLabel={accessibilityId}
 			onLayout={this.handleLayout}
-			onTap={this.handleTap}
+			onTap={disabled ? undefined : this.handleTap}
 			style={styles.actionRow}
 		>
 			<view ref={this.rippleRef} style={rowRippleStyle} />
-			<image src={icon} style={styles.icon} tint={theme.colors.muted} />
-			<label style={styles.actionLabel} value={label} />
+			<image
+				src={icon}
+				style={styles.icon}
+				tint={disabled ? theme.colors.disabled : theme.colors.muted}
+			/>
+			<label style={disabled ? styles.actionLabelDisabled : styles.actionLabel} value={label} />
 		</view>;
 	}
 }
@@ -60,6 +65,10 @@ export class ContextMenuActionRow extends Component<ContextMenuActionRowViewMode
 const styles = {
 	actionLabel: new Style<Label>({
 		...theme.text.subLarger,
+	}),
+	actionLabelDisabled: new Style<Label>({
+		...theme.text.subLarger,
+		color: theme.colors.disabled,
 	}),
 	actionRow: new Style<View>({
 		...theme.text.subLarger,

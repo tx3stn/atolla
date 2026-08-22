@@ -151,6 +151,7 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 					isPlaying={isPlaying}
 					language={services.preferences.language}
 					loopMode={loopMode}
+					lyricsService={services.lyricsService}
 					modalSlot={services.modalSlot}
 					onAlbumTap={appShellStore.handleNowPlayingAlbumTap}
 					onArtistTap={appShellStore.handleNowPlayingArtistTap}

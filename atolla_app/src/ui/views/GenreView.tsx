@@ -21,6 +21,7 @@ import { NavigationPageStatefulComponent } from 'valdi_navigation/src/Navigation
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { HeaderTabs } from '../../models/App';
 import { backNavRouter } from '../../services/BackNavRouter';
+import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
@@ -43,6 +44,7 @@ export interface GenreViewModel {
 	downloadService: DownloadService;
 	genre: Genre;
 	imageCache: ImageCache;
+	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
 	networkStatus: NetworkStatus;
@@ -314,6 +316,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		return {
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
+			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.viewModel.onNavigateToArtist,
@@ -336,6 +339,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			animationsEnabled,
 			gridColumns,
 			imageCache,
+			lyricsService: this.viewModel.lyricsService,
 			onAlbumTap: albumId
 				? () => {
 						const album: Album = {

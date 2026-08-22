@@ -217,6 +217,15 @@
 	"loading_home": {
 		"defaultMessage": "loading home"
 	},
+	"lyrics": {
+		"defaultMessage": "lyrics"
+	},
+	"lyrics_empty": {
+		"defaultMessage": "no lyrics for this track"
+	},
+	"lyrics_failed": {
+		"defaultMessage": "failed to load lyrics"
+	},
 	"no": {
 		"defaultMessage": "no"
 	},

@@ -455,6 +455,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			connectionMode: this.state.connectionMode,
 			downloadService: this.downloadService,
 			imageCache: this.imageCache,
+			lyricsService: this.userScope.getLyricsService(),
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,
 			onThisDayService: this.userScope.getOnThisDayService(),
@@ -475,6 +476,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			connectionMode: this.state.connectionMode,
 			downloadService: this.downloadService,
 			imageCache: this.imageCache,
+			lyricsService: this.userScope.getLyricsService(),
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,
 			offlineDataInvalidations: this.state.offlineDataInvalidations,
@@ -493,6 +495,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		return {
 			downloadService: this.downloadService,
 			imageCache: this.imageCache,
+			lyricsService: this.userScope.getLyricsService(),
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,
 			paletteQueue: this.userScope.getPaletteQueue(),

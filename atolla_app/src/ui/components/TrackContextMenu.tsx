@@ -22,6 +22,7 @@ export interface TrackContextMenuViewModel {
 	onArtistTap?: () => void;
 	onCreatePlaylist?: () => void;
 	onDismiss: () => void;
+	onLyrics: () => void;
 	playbackStore: PlaybackStore;
 	toastService: ToastService;
 	track: Track;
@@ -122,6 +123,10 @@ export class TrackContextMenu extends StatefulComponent<
 		this.viewModel.onDismiss();
 	};
 
+	handleLyrics = (): void => {
+		this.viewModel.onLyrics();
+	};
+
 	handleAlbumTap = (_trackId: string): void => {
 		if (this.viewModel.onAlbumTap) {
 			this.viewModel.onAlbumTap();
@@ -201,6 +206,14 @@ export class TrackContextMenu extends StatefulComponent<
 					onPress={this.handleCreatePlaylist}
 				/>
 			)}
+			<ContextMenuActionRow
+				accessibilityId='track-context-lyrics'
+				animationsEnabled={animationsEnabled}
+				disabled={track.hasLyrics === false}
+				icon={res.lyrics}
+				label={Strings.lyrics()}
+				onPress={this.handleLyrics}
+			/>
 		</ModalBase>;
 	}
 }

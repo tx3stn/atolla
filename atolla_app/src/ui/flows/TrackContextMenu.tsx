@@ -5,8 +5,10 @@ import type { Transport } from 'atolla_core/src/transports/Transport';
 import { pagedFromArray } from 'atolla_player/src/services/TrackSource';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
+import type { LyricsService } from '../../services/LyricsService';
 import type { ToastService } from '../../services/ToastService';
 import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
+import { LyricsModal } from '../components/LyricsModal';
 import { TrackContextMenu } from '../components/TrackContextMenu';
 import { AddToPlaylistView } from '../views/AddToPlaylistView';
 import { closeSlot, openSlot } from './ModalSlotFlow';
@@ -15,6 +17,7 @@ export interface OpenTrackContextMenuOptions {
 	animationsEnabled: boolean;
 	gridColumns: number;
 	imageCache: ImageCache;
+	lyricsService: LyricsService;
 	onAlbumTap?: () => void;
 	onArtistTap?: () => void;
 	onDismiss: () => void;
@@ -58,6 +61,17 @@ export function openTrackContextMenu(
 		});
 	};
 
+	const onLyrics = (): void => {
+		openSlot(modalSlot, () => {
+			<LyricsModal
+				imageCache={options.imageCache}
+				lyricsService={options.lyricsService}
+				onDismiss={closeModal}
+				track={track}
+			/>;
+		});
+	};
+
 	const onCreatePlaylist = (): void => {
 		openSlot(modalSlot, () => {
 			<CreatePlaylistModal
@@ -77,6 +91,7 @@ export function openTrackContextMenu(
 			onArtistTap={options.onArtistTap}
 			onCreatePlaylist={onCreatePlaylist}
 			onDismiss={dismiss}
+			onLyrics={onLyrics}
 			playbackStore={options.playbackStore}
 			toastService={options.toastService}
 			track={track}

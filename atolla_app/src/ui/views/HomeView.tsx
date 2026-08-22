@@ -14,6 +14,7 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, Layout, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { CardDetailItem } from '../../models/App';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
+import type { LyricsService } from '../../services/LyricsService';
 import { createOnThisDayCardDetails } from '../../services/OnThisDay';
 import type { OnThisDayService } from '../../services/OnThisDayService';
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
@@ -45,6 +46,7 @@ const log = getLogger('home');
 export interface HomeViewModel {
 	connectionMode: ConnectionMode;
 	imageCache: ImageCache;
+	lyricsService: LyricsService;
 	modalSlot?: DetachedSlot;
 	onNavigateToArtist?: (artistId: string) => void;
 	onOpenAlbum: (album: Album) => void;
@@ -483,6 +485,7 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			gridColumns: this.viewModel.preferences.gridColumns,
 			imageCache: this.viewModel.imageCache,
+			lyricsService: this.viewModel.lyricsService,
 			onAlbumTap: track.albumId
 				? () =>
 						this.viewModel.onOpenAlbum({

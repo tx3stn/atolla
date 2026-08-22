@@ -1,4 +1,5 @@
 import 'jasmine/src/jasmine';
+import type { LyricsService } from 'atolla_app/src/services/LyricsService';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { PlaylistsView } from 'atolla_app/src/ui/views/PlaylistsView';
 import { PlaylistView } from 'atolla_app/src/ui/views/PlaylistView';
@@ -63,6 +64,7 @@ describe('PlaylistsView', () => {
 
 		const viewModel = {
 			imageCache: stubImageCache,
+			lyricsService: {} as LyricsService,
 			navigationController: makeNavigationController(),
 			playbackStore,
 			preferences: makePreferences(),

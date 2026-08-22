@@ -217,6 +217,15 @@
 	"loading_home": {
 		"defaultMessage": "chargement de l'accueil"
 	},
+	"lyrics": {
+		"defaultMessage": "paroles"
+	},
+	"lyrics_empty": {
+		"defaultMessage": "pas de paroles pour ce morceau"
+	},
+	"lyrics_failed": {
+		"defaultMessage": "échec du chargement des paroles"
+	},
 	"no": {
 		"defaultMessage": "non"
 	},

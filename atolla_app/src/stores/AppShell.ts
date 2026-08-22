@@ -163,6 +163,7 @@ export class AppShellStore {
 		return {
 			downloadService: services.downloadService,
 			imageCache: services.imageCache,
+			lyricsService: services.lyricsService,
 			modalSlot: services.modalSlot,
 			networkStatus: services.networkStatus,
 			onNavigateToArtist: this.handleDetailArtistTap,

@@ -17,6 +17,7 @@ import {
 	type HeaderTab,
 	HeaderTabs,
 } from '../../models/App';
+import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
 import type { PaletteGenerationQueue } from '../../services/PaletteGenerationQueue';
 import type { ToastService } from '../../services/ToastService';
@@ -36,6 +37,7 @@ export interface LibraryViewModel {
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
 	imageCache: ImageCache;
+	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;
 	offlineDataInvalidations: number;
@@ -84,6 +86,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									imageCache={this.viewModel.imageCache}
 									isOfflineMode={isOfflineMode}
 									letterFilter={this.state.letterFilter}
+									lyricsService={this.viewModel.lyricsService}
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
 									networkStatus={this.viewModel.networkStatus}
@@ -102,6 +105,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									imageCache={this.viewModel.imageCache}
 									isOfflineMode={isOfflineMode}
 									letterFilter={this.state.letterFilter}
+									lyricsService={this.viewModel.lyricsService}
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
 									networkStatus={this.viewModel.networkStatus}
@@ -120,6 +124,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									imageCache={this.viewModel.imageCache}
 									isOfflineMode={isOfflineMode}
 									letterFilter={this.state.letterFilter}
+									lyricsService={this.viewModel.lyricsService}
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
 									networkStatus={this.viewModel.networkStatus}
@@ -140,6 +145,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 									imageCache={this.viewModel.imageCache}
 									isOfflineMode={isOfflineMode}
 									letterFilter={this.state.letterFilter}
+									lyricsService={this.viewModel.lyricsService}
 									modalSlot={this.viewModel.modalSlot}
 									navigationController={navigationController}
 									networkStatus={this.viewModel.networkStatus}
@@ -189,6 +195,7 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 		return {
 			downloadService: this.viewModel.downloadService,
 			imageCache: this.viewModel.imageCache,
+			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
 			onNavigateToArtist: this.handlePlaylistArtistTap,
