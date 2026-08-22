@@ -21,6 +21,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { HeaderTabs } from '../../models/App';
+import { appServices } from '../../services/AppServices';
 import { backNavRouter } from '../../services/BackNavRouter';
 import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
@@ -96,6 +97,7 @@ interface AlbumCachePayload {
 
 @NavigationPage(module)
 export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, AlbumState> {
+	private activeTransport!: Transport;
 	private cachedAlbumGenres: Array<Genre> = [];
 	private cachedAlbumGenresSource: Album['genres'] | undefined = undefined;
 	private cachedDerivedTracks: AlbumDerivedTracks = {
@@ -124,6 +126,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	private headerCollapse = new HeaderCollapse(headerStore);
 
 	onCreate(): void {
+		this.activeTransport = this.viewModel.transport;
 		backNavRouter.registerPage(this.navigationController);
 		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
 		this.registerDisposable(() => this.headerCollapse.reset());
@@ -141,6 +144,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(this.viewModel.networkStatus.subscribe(this.bump));
+		this.registerDisposable(appServices.subscribe(this.handleServicesChange));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
 		this.seedFromCache();
@@ -252,10 +256,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			return;
 		}
 
-		if (
-			this.viewModel.transport !== prevViewModel.transport ||
-			this.viewModel.album.id !== prevViewModel.album.id
-		) {
+		if (this.viewModel.album.id !== prevViewModel.album.id) {
 			this.loadAlbumData();
 		}
 	}
@@ -293,7 +294,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	private handleDownloadTap = (): void => {
-		const { album, downloadService, transport } = this.viewModel;
+		const { album, downloadService } = this.viewModel;
+		const transport = this.activeTransport;
 		const tracks = this.state.tracks
 			.map((track) => {
 				const streamUrl = transport.getTrackCacheUrl(track.id);
@@ -412,7 +414,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
-			transport: this.viewModel.transport,
+			transport: this.activeTransport,
 			viewCache: this.viewModel.viewCache,
 		};
 	}
@@ -422,7 +424,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { imageCache, playbackStore, transport } = this.viewModel;
+		const { imageCache, playbackStore } = this.viewModel;
+		const transport = this.activeTransport;
 		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 
 		openTrackContextMenu(track, this.viewModel.modalSlot, {
@@ -460,7 +463,8 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.loadGeneration = generation;
 		this.cancelInFlightReads();
 
-		const { album, paletteQueue, transport } = this.viewModel;
+		const { album, paletteQueue } = this.viewModel;
+		const transport = this.activeTransport;
 		paletteQueue?.prioritize(album.imageUrl);
 		// keep any seeded/previous content visible during a revalidate; only show the spinner cold
 		const hasContent = this.state.tracks.length > 0;
@@ -537,6 +541,15 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 		this.headerCollapse.handleScroll(y);
 	};
 
+	private handleServicesChange = (): void => {
+		const transport = appServices.get()?.transport;
+		if (transport === undefined || transport === this.activeTransport) {
+			return;
+		}
+		this.activeTransport = transport;
+		this.loadAlbumData();
+	};
+
 	private seedFromCache(): void {
 		const cached = this.viewModel.viewCache.get<AlbumCachePayload>(this.cacheKey());
 		if (cached) {
@@ -551,7 +564,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	}
 
 	private async navigateToGenre(genre: Genre): Promise<void> {
-		const resolvedGenre = await resolveGenreForNavigation(this.viewModel.transport, genre);
+		const resolvedGenre = await resolveGenreForNavigation(this.activeTransport, genre);
 
 		if (this.isDestroyed()) {
 			return;

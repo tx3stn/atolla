@@ -1,6 +1,8 @@
 import 'jasmine/src/jasmine';
+import { type AppServicesBag, appServices } from 'atolla_app/src/services/AppServices';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { PlaylistView } from 'atolla_app/src/ui/views/PlaylistView';
+import { setTestAppServices } from 'atolla_app/test/util/appServices';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
 import { TRACK_PAGE_SIZE } from 'atolla_core/src/utils/Pagination';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -407,6 +409,109 @@ describe('PlaylistView', () => {
 
 			expect(component.state.nextPageFailed).toBe(false);
 			expect(component.state.tracks.length).toBe(TRACK_PAGE_SIZE * 2);
+		});
+	});
+
+	describe('connection mode changes', () => {
+		const playlist = { id: 'playlist-1', imageUrl: 'https://p.png', name: 'Roadtrip' };
+
+		afterEach(() => {
+			appServices.clear();
+		});
+
+		valdiIt('reloads against the new transport when going online', async (driver) => {
+			const component = driver.renderComponent(
+				PlaylistView,
+				{
+					downloadService,
+					networkStatus,
+					playbackStore,
+					playlist,
+					preferences,
+					transport: { getPlaylist: async () => null, getTracksByPlaylist: emptyTracksPage },
+					viewCache: makeTestViewCache(),
+				},
+				{ navigator: mockNavigator },
+			);
+			await flushAsyncWork();
+			expect(component.state.tracks.length).toBe(0);
+
+			const items = [{ duration: 120, id: 'track-1', name: 'Song One', trackNumber: 1 }];
+			setTestAppServices({
+				transport: {
+					getPlaylist: async () => null,
+					getTracksByPlaylist: async () => ({ hasMore: false, items, totalCount: 1 }),
+				} as unknown as AppServicesBag['transport'],
+			});
+			await flushAsyncWork();
+
+			expect(component.state.tracks.length).toBe(1);
+			expect(component.state.tracks[0].name).toBe('Song One');
+		});
+
+		valdiIt('resets paging so the new transport is read from the first page', async (driver) => {
+			const requestedPages: Array<number> = [];
+			driver.renderComponent(
+				PlaylistView,
+				{
+					downloadService,
+					networkStatus,
+					playbackStore,
+					playlist,
+					preferences,
+					transport: { getPlaylist: async () => null, getTracksByPlaylist: emptyTracksPage },
+					viewCache: makeTestViewCache(),
+				},
+				{ navigator: mockNavigator },
+			);
+			await flushAsyncWork();
+
+			setTestAppServices({
+				transport: {
+					getPlaylist: async () => null,
+					getTracksByPlaylist: async (_id: string, page: number) => {
+						requestedPages.push(page);
+						return { hasMore: false, items: [], totalCount: 0 };
+					},
+				} as unknown as AppServicesBag['transport'],
+			});
+			await flushAsyncWork();
+
+			// paging is 1-based, so a reset cursor re-reads page 1 rather than appending page 2
+			expect(requestedPages).toEqual([1]);
+		});
+
+		valdiIt('does not reload when the transport is unchanged', async (driver) => {
+			let getTracksByPlaylistCalls = 0;
+			const transport = {
+				getPlaylist: async () => null,
+				getTracksByPlaylist: async () => {
+					getTracksByPlaylistCalls += 1;
+					return { hasMore: false, items: [], totalCount: 0 };
+				},
+			};
+
+			driver.renderComponent(
+				PlaylistView,
+				{
+					downloadService,
+					networkStatus,
+					playbackStore,
+					playlist,
+					preferences,
+					transport,
+					viewCache: makeTestViewCache(),
+				},
+				{ navigator: mockNavigator },
+			);
+			await flushAsyncWork();
+			expect(getTracksByPlaylistCalls).toBe(1);
+
+			// a download-progress notification carries the same transport, so it must not re-fetch
+			setTestAppServices({ transport: transport as unknown as AppServicesBag['transport'] });
+			await flushAsyncWork();
+
+			expect(getTracksByPlaylistCalls).toBe(1);
 		});
 	});
 });

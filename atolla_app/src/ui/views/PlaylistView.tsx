@@ -23,6 +23,7 @@ import { NavigationPageStatefulComponent } from 'valdi_navigation/src/Navigation
 import type { ContentSizeChangeEvent } from 'valdi_tsx/src/GestureEvents';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { HeaderTabs } from '../../models/App';
+import { appServices } from '../../services/AppServices';
 import { backNavRouter } from '../../services/BackNavRouter';
 import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
@@ -106,6 +107,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	onCreate(): void {
+		this.activeTransport = this.viewModel.transport;
 		backNavRouter.registerPage(this.navigationController);
 		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
 		this.registerDisposable(() => this.headerCollapse.reset());
@@ -124,6 +126,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(this.viewModel.networkStatus.subscribe(this.bump));
+		this.registerDisposable(appServices.subscribe(this.handleServicesChange));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
 		this.seedFromCache();
@@ -227,14 +230,12 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			return;
 		}
 
-		if (
-			this.viewModel.transport !== prevViewModel.transport ||
-			this.viewModel.playlist.id !== prevViewModel.playlist.id
-		) {
+		if (this.viewModel.playlist.id !== prevViewModel.playlist.id) {
 			this.resetAndLoadPlaylistData();
 		}
 	}
 
+	private activeTransport!: Transport;
 	private cachedDerivedTracks: DerivedTracks = { entries: [], totalDuration: 0 };
 	private cachedDerivedTracksSource: Array<Track> | null = null;
 	private currentPage = 0;
@@ -282,13 +283,14 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 			playlistEditService: this.viewModel.playlistEditService,
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
-			transport: this.viewModel.transport,
+			transport: this.activeTransport,
 			viewCache: this.viewModel.viewCache,
 		};
 	}
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { imageCache, playbackStore, transport } = this.viewModel;
+		const { imageCache, playbackStore } = this.viewModel;
+		const transport = this.activeTransport;
 		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const modalSlot = this.viewModel.modalSlot;
 		const { albumId, artistId } = track;
@@ -330,7 +332,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	handleTrackReorder = (fromEntryIndex: number, toEntryIndex: number): void => {
-		const { playlist, playlistEditService, transport } = this.viewModel;
+		const { playlist, playlistEditService } = this.viewModel;
+		const transport = this.activeTransport;
 		if (!playlistEditService) return;
 		const prevTracks = this.state.tracks;
 
@@ -406,7 +409,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		void playlistEditService
 			.execute(
 				{ playlistId: playlist.id, playlistName: playlist.name, trackId, type: 'remove' },
-				this.viewModel.transport,
+				this.activeTransport,
 			)
 			.then((result) => {
 				if (result) {
@@ -443,7 +446,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	private handleDownloadTap = (): void => {
-		const { downloadService, playlist, transport } = this.viewModel;
+		const { downloadService, playlist } = this.viewModel;
+		const transport = this.activeTransport;
 		const hasCacheableTrack = this.state.tracks.some((track) =>
 			transport.getTrackCacheUrl(track.id),
 		);
@@ -570,6 +574,15 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		this.headerCollapse.handleScroll(y);
 	};
 
+	private handleServicesChange = (): void => {
+		const transport = appServices.get()?.transport;
+		if (transport === undefined || transport === this.activeTransport) {
+			return;
+		}
+		this.activeTransport = transport;
+		this.resetAndLoadPlaylistData();
+	};
+
 	private seedFromCache(): void {
 		const cached = this.viewModel.viewCache.get<PlaylistCachePayload>(this.cacheKey());
 		if (cached) {
@@ -584,7 +597,8 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	}
 
 	private async hydratePlaylistIfNeeded(generation: number): Promise<void> {
-		const { playlist, transport } = this.viewModel;
+		const { playlist } = this.viewModel;
+		const transport = this.activeTransport;
 		if (playlist.imageUrl) {
 			return;
 		}
@@ -662,7 +676,12 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		} catch {
 			if (this.isDestroyed() || generation !== this.loadGeneration) return;
 			this.isLoadingPage = false;
-			this.setState({ isLoading: false, isLoadingNextPage: false, nextPageFailed: true });
+			this.setState({
+				isLoading: false,
+				isLoadingNextPage: false,
+				isRefreshing: false,
+				nextPageFailed: true,
+			});
 		}
 	}
 
@@ -672,12 +691,14 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	};
 
 	private fetchPage(page: number): CancelablePromise<PlaylistTracksPage> {
-		const { playlist, transport } = this.viewModel;
+		const { playlist } = this.viewModel;
+		const transport = this.activeTransport;
 		return transport.getTracksByPlaylist(playlist.id, page, TRACK_PAGE_SIZE);
 	}
 
 	private trackSource(options?: { sort?: TrackPageSort }): TrackSource {
-		const { playlist, transport } = this.viewModel;
+		const { playlist } = this.viewModel;
+		const transport = this.activeTransport;
 		return (page, pageSize) => transport.getTracksByPlaylist(playlist.id, page, pageSize, options);
 	}
 }

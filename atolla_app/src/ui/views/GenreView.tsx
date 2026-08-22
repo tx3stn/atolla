@@ -20,6 +20,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { HeaderTabs } from '../../models/App';
+import { appServices } from '../../services/AppServices';
 import { backNavRouter } from '../../services/BackNavRouter';
 import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
@@ -92,10 +93,12 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		tracks: [],
 	};
 
+	private activeTransport!: Transport;
 	private headerCollapse = new HeaderCollapse(headerStore);
 	private hydrateGeneration = 0;
 
 	onCreate(): void {
+		this.activeTransport = this.viewModel.transport;
 		backNavRouter.registerPage(this.navigationController);
 		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
 		this.registerDisposable(() => this.headerCollapse.reset());
@@ -113,6 +116,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(this.viewModel.networkStatus.subscribe(this.bump));
+		this.registerDisposable(appServices.subscribe(this.handleServicesChange));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.syncDownloadState();
 		this.seedFromCache();
@@ -236,17 +240,20 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	}
 
 	private fetchPage(page: number): CancelablePromise<GenreTracksPage> {
-		const { genre, transport } = this.viewModel;
+		const { genre } = this.viewModel;
+		const transport = this.activeTransport;
 		return transport.getTracksByGenre(genre.id, page, TRACK_PAGE_SIZE);
 	}
 
 	private trackSource(options?: { sort?: TrackPageSort }): TrackSource {
-		const { genre, transport } = this.viewModel;
+		const { genre } = this.viewModel;
+		const transport = this.activeTransport;
 		return (page, pageSize) => transport.getTracksByGenre(genre.id, page, pageSize, options);
 	}
 
 	private handleDownloadTap = (): void => {
-		const { downloadService, genre, transport } = this.viewModel;
+		const { downloadService, genre } = this.viewModel;
+		const transport = this.activeTransport;
 		downloadService.beginDownloadRequest('genre', genre.id);
 		fireAndForget(
 			'genre-download',
@@ -325,13 +332,14 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
-			transport: this.viewModel.transport,
+			transport: this.activeTransport,
 			viewCache: this.viewModel.viewCache,
 		};
 	}
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { imageCache, modalSlot, playbackStore, transport } = this.viewModel;
+		const { imageCache, modalSlot, playbackStore } = this.viewModel;
+		const transport = this.activeTransport;
 		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const { albumId, artistId } = track;
 
@@ -378,7 +386,8 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	};
 
 	private async hydrateGenreIfNeeded(): Promise<void> {
-		const { genre, transport } = this.viewModel;
+		const { genre } = this.viewModel;
+		const transport = this.activeTransport;
 		if (genre.imageUrl) {
 			return;
 		}
@@ -445,7 +454,12 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		} catch {
 			if (this.isDestroyed()) return;
 			this.isLoadingPage = false;
-			this.setState({ isLoading: false, isLoadingNextPage: false, nextPageFailed: true });
+			this.setState({
+				isLoading: false,
+				isLoadingNextPage: false,
+				isRefreshing: false,
+				nextPageFailed: true,
+			});
 		}
 	}
 
@@ -463,11 +477,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 			return;
 		}
 		this.viewModel.viewCache.invalidate(this.cacheKey());
-		this.cancelInFlightReads();
-		this.currentPage = 0;
-		this.hasMoreTracks = true;
-		this.isLoadingPage = false;
-		this.triggeredAutoLoadForTrackCount = null;
+		this.resetTrackPaging();
 		this.setState({ isRefreshing: true, nextPageFailed: false });
 		void this.loadNextPage();
 	};
@@ -475,6 +485,26 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	private handleScroll = (y: number): void => {
 		this.headerCollapse.handleScroll(y);
 	};
+
+	private handleServicesChange = (): void => {
+		const transport = appServices.get()?.transport;
+		if (transport === undefined || transport === this.activeTransport) {
+			return;
+		}
+		this.activeTransport = transport;
+		this.resetTrackPaging();
+		this.setState({ nextPageFailed: false });
+		void this.loadNextPage();
+		void this.hydrateGenreIfNeeded();
+	};
+
+	private resetTrackPaging(): void {
+		this.cancelInFlightReads();
+		this.currentPage = 0;
+		this.hasMoreTracks = true;
+		this.isLoadingPage = false;
+		this.triggeredAutoLoadForTrackCount = null;
+	}
 
 	private seedFromCache(): void {
 		const cached = this.viewModel.viewCache.get<GenreCachePayload>(this.cacheKey());

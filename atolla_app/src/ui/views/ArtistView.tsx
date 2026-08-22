@@ -22,6 +22,7 @@ import { NavigationPage } from 'valdi_navigation/src/NavigationPage';
 import { NavigationPageStatefulComponent } from 'valdi_navigation/src/NavigationPageComponent';
 import type { Label, Layout, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { HeaderTabs } from '../../models/App';
+import { appServices } from '../../services/AppServices';
 import { backNavRouter } from '../../services/BackNavRouter';
 import type { LyricsService } from '../../services/LyricsService';
 import type { NetworkStatus } from '../../services/NetworkStatus';
@@ -89,6 +90,7 @@ interface ArtistCachePayload {
 
 @NavigationPage(module)
 export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel, ArtistState> {
+	private activeTransport!: Transport;
 	private cachedAlbumCards: Array<Card> = [];
 	private cachedAlbumCardsSource: Array<Album> | null = null;
 	private cachedArtistGenres: Array<Genre> = [];
@@ -118,6 +120,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	private headerCollapse = new HeaderCollapse(headerStore);
 
 	onCreate(): void {
+		this.activeTransport = this.viewModel.transport;
 		backNavRouter.registerPage(this.navigationController);
 		this.registerDisposable(() => backNavRouter.unregisterPage(this.navigationController));
 		this.registerDisposable(() => this.headerCollapse.reset());
@@ -135,6 +138,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		);
 		this.registerDisposable(this.viewModel.preferences.subscribe(this.bump));
 		this.registerDisposable(this.viewModel.networkStatus.subscribe(this.bump));
+		this.registerDisposable(appServices.subscribe(this.handleServicesChange));
 		this.registerDisposable(() => this.cancelInFlightReads());
 		this.registerDisposable(this.playlistFlow.cancel);
 		this.syncDownloadState();
@@ -268,10 +272,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			return;
 		}
 
-		if (
-			this.viewModel.transport !== prevViewModel.transport ||
-			this.viewModel.artist.id !== prevViewModel.artist.id
-		) {
+		if (this.viewModel.artist.id !== prevViewModel.artist.id) {
 			this.loadArtistData();
 		}
 	}
@@ -350,7 +351,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			playbackStore: this.viewModel.playbackStore,
 			preferences: this.viewModel.preferences,
 			toastService: this.viewModel.toastService,
-			transport: this.viewModel.transport,
+			transport: this.activeTransport,
 			viewCache: this.viewModel.viewCache,
 		};
 	}
@@ -370,7 +371,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 
 		this.setState({ contextMenuCard: { album, kind: 'album' } });
 		this.contextMenuAlbumCard = card;
-		const { modalSlot, pinnedItemsStore, playbackStore, toastService, transport } = this.viewModel;
+		const { modalSlot, pinnedItemsStore, playbackStore, toastService } = this.viewModel;
+		const transport = this.activeTransport;
 		const { animationsEnabled } = this.viewModel.preferences;
 		modalSlot.slotted(() => {
 			<CardContextMenu
@@ -404,7 +406,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 				onDismiss={this.closeModalSlot}
 				toastService={this.viewModel.toastService}
 				tracks={tracks}
-				transport={this.viewModel.transport}
+				transport={this.activeTransport}
 			/>;
 		});
 	};
@@ -428,9 +430,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			const { alive, value: playlist } = await this.playlistFlow.run(
 				createPlaylistAndAddTracks(
 					name,
-					(playlistName) => this.viewModel.transport.createPlaylist(playlistName),
-					(playlistId, trackIds) =>
-						this.viewModel.transport.addItemsToPlaylist(playlistId, trackIds),
+					(playlistName) => this.activeTransport.createPlaylist(playlistName),
+					(playlistId, trackIds) => this.activeTransport.addItemsToPlaylist(playlistId, trackIds),
 					tracks,
 					{ isCancelled: () => this.isDestroyed() },
 				),
@@ -460,7 +461,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	};
 
 	private handleDownloadTap = (): void => {
-		const { artist, downloadService, transport } = this.viewModel;
+		const { artist, downloadService } = this.viewModel;
+		const transport = this.activeTransport;
 		const artistLogoUrlPromise = artist.logoUrl
 			? Promise.resolve(artist.logoUrl)
 			: retryResolve(() => transport.getArtistLogoUrl(artist.id)).catch(() => null);
@@ -530,7 +532,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	};
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { imageCache, modalSlot, playbackStore, transport } = this.viewModel;
+		const { imageCache, modalSlot, playbackStore } = this.viewModel;
+		const transport = this.activeTransport;
 		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const { albumId } = track;
 		openTrackContextMenu(track, modalSlot, {
@@ -580,7 +583,8 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.loadGeneration = generation;
 		this.cancelInFlightReads();
 
-		const { artist, transport } = this.viewModel;
+		const { artist } = this.viewModel;
+		const transport = this.activeTransport;
 		// self-heal: callers may push a partial artist (id + name only, e.g. from a context menu);
 		// fetch the full artist to fill the header artwork/logo when either is missing
 		const needsArtist = !artist.imageUrl || !artist.logoUrl;
@@ -666,6 +670,15 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 		this.headerCollapse.handleScroll(y);
 	};
 
+	private handleServicesChange = (): void => {
+		const transport = appServices.get()?.transport;
+		if (transport === undefined || transport === this.activeTransport) {
+			return;
+		}
+		this.activeTransport = transport;
+		this.loadArtistData();
+	};
+
 	private seedFromCache(): void {
 		const cached = this.viewModel.viewCache.get<ArtistCachePayload>(this.cacheKey());
 		if (cached) {
@@ -680,7 +693,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	}
 
 	private async navigateToGenre(genre: Genre): Promise<void> {
-		const resolvedGenre = await resolveGenreForNavigation(this.viewModel.transport, genre);
+		const resolvedGenre = await resolveGenreForNavigation(this.activeTransport, genre);
 
 		if (this.isDestroyed()) {
 			return;

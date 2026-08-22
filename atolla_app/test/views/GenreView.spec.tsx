@@ -1,6 +1,8 @@
 import 'jasmine/src/jasmine';
+import { type AppServicesBag, appServices } from 'atolla_app/src/services/AppServices';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { GenreView } from 'atolla_app/src/ui/views/GenreView';
+import { setTestAppServices } from 'atolla_app/test/util/appServices';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
 import { TRACK_PAGE_SIZE } from 'atolla_core/src/utils/Pagination';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -253,6 +255,110 @@ describe('GenreView', () => {
 			expect(sorts).toContain('random');
 			expect(store.played.length).toBe(1);
 			expect(store.queueFiller).not.toBeNull();
+		});
+	});
+
+	describe('connection mode changes', () => {
+		const genre = { id: 'genre-1', imageUrl: 'https://g.png', name: 'Rock' };
+
+		afterEach(() => {
+			appServices.clear();
+		});
+
+		valdiIt('reloads against the new transport when going online', async (driver) => {
+			const component = driver.renderComponent(
+				GenreView,
+				{
+					downloadService,
+					genre,
+					networkStatus,
+					playbackStore,
+					preferences,
+					transport: { getGenre: async () => null, getTracksByGenre: emptyTracksPage },
+					viewCache: makeTestViewCache(),
+				},
+				{ navigator: mockNavigator },
+			);
+			await flushAsyncWork();
+			expect(component.state.tracks.length).toBe(0);
+
+			const items = [{ duration: 120, id: 'track-1', name: 'Song One', trackNumber: 1 }];
+			setTestAppServices({
+				transport: {
+					getGenre: async () => null,
+					getTracksByGenre: async () => ({ hasMore: false, items, totalCount: 1 }),
+				} as unknown as AppServicesBag['transport'],
+			});
+			await flushAsyncWork();
+
+			expect(component.state.tracks.length).toBe(1);
+			expect(component.state.tracks[0].name).toBe('Song One');
+		});
+
+		valdiIt('resets paging so the new transport is read from the first page', async (driver) => {
+			const requestedPages: Array<number> = [];
+			const component = driver.renderComponent(
+				GenreView,
+				{
+					downloadService,
+					genre,
+					networkStatus,
+					playbackStore,
+					preferences,
+					transport: { getGenre: async () => null, getTracksByGenre: emptyTracksPage },
+					viewCache: makeTestViewCache(),
+				},
+				{ navigator: mockNavigator },
+			);
+			await flushAsyncWork();
+
+			setTestAppServices({
+				transport: {
+					getGenre: async () => null,
+					getTracksByGenre: async (_id: string, page: number) => {
+						requestedPages.push(page);
+						return { hasMore: false, items: [], totalCount: 0 };
+					},
+				} as unknown as AppServicesBag['transport'],
+			});
+			await flushAsyncWork();
+
+			// paging is 1-based, so a reset cursor re-reads page 1 rather than appending page 2
+			expect(requestedPages).toEqual([1]);
+			expect(component.state.nextPageFailed).toBe(false);
+		});
+
+		valdiIt('does not reload when the transport is unchanged', async (driver) => {
+			let getTracksByGenreCalls = 0;
+			const transport = {
+				getGenre: async () => null,
+				getTracksByGenre: async () => {
+					getTracksByGenreCalls += 1;
+					return { hasMore: false, items: [], totalCount: 0 };
+				},
+			};
+
+			driver.renderComponent(
+				GenreView,
+				{
+					downloadService,
+					genre,
+					networkStatus,
+					playbackStore,
+					preferences,
+					transport,
+					viewCache: makeTestViewCache(),
+				},
+				{ navigator: mockNavigator },
+			);
+			await flushAsyncWork();
+			expect(getTracksByGenreCalls).toBe(1);
+
+			// a download-progress notification carries the same transport, so it must not re-fetch
+			setTestAppServices({ transport: transport as unknown as AppServicesBag['transport'] });
+			await flushAsyncWork();
+
+			expect(getTracksByGenreCalls).toBe(1);
 		});
 	});
 });

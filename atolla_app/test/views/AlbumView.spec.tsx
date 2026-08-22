@@ -1,7 +1,9 @@
 import 'jasmine/src/jasmine';
+import { type AppServicesBag, appServices } from 'atolla_app/src/services/AppServices';
 import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { AlbumView } from 'atolla_app/src/ui/views/AlbumView';
 import { ArtistView } from 'atolla_app/src/ui/views/ArtistView';
+import { setTestAppServices } from 'atolla_app/test/util/appServices';
 import { makeTestViewCache } from 'atolla_app/test/util/viewCache';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
@@ -495,4 +497,96 @@ describe('AlbumView', () => {
 			expect(values).toContain('2:15');
 		},
 	);
+
+	describe('connection mode changes', () => {
+		const album = {
+			artistId: 'artist-1',
+			artistName: 'Artist One',
+			id: 'album-1',
+			name: 'First Album',
+		};
+		const playbackStore = {
+			play: () => {},
+			setArtistLogoUrl: () => {},
+			subscribe: () => () => {},
+			track: null,
+		};
+
+		function offlineTransport() {
+			return {
+				getAlbumsByIds: async () => [],
+				getArtist: async () => null,
+				getTracksByAlbum: async () => [],
+			};
+		}
+
+		afterEach(() => {
+			appServices.clear();
+		});
+
+		valdiIt('reloads against the new transport when going online', async (driver) => {
+			const component = driver.renderComponent(
+				AlbumView,
+				{
+					album,
+					downloadService,
+					networkStatus,
+					playbackStore,
+					preferences,
+					transport: offlineTransport(),
+					viewCache: makeTestViewCache(),
+				},
+				{ navigator: mockNavigator },
+			);
+			await flushAsyncWork();
+			expect(component.state.tracks.length).toBe(0);
+
+			const tracks = [{ duration: 120, id: 'track-1', name: 'Song One', trackNumber: 1 }];
+			setTestAppServices({
+				transport: {
+					getAlbumsByIds: async () => [],
+					getArtist: async () => null,
+					getTracksByAlbum: async () => tracks,
+				} as unknown as AppServicesBag['transport'],
+			});
+			await flushAsyncWork();
+
+			expect(component.state.tracks.length).toBe(1);
+			expect(component.state.tracks[0].name).toBe('Song One');
+		});
+
+		valdiIt('does not reload when the transport is unchanged', async (driver) => {
+			let getTracksByAlbumCalls = 0;
+			const transport = {
+				getAlbumsByIds: async () => [],
+				getArtist: async () => null,
+				getTracksByAlbum: async () => {
+					getTracksByAlbumCalls += 1;
+					return [];
+				},
+			};
+
+			driver.renderComponent(
+				AlbumView,
+				{
+					album,
+					downloadService,
+					networkStatus,
+					playbackStore,
+					preferences,
+					transport,
+					viewCache: makeTestViewCache(),
+				},
+				{ navigator: mockNavigator },
+			);
+			await flushAsyncWork();
+			expect(getTracksByAlbumCalls).toBe(1);
+
+			// a download-progress notification carries the same transport, so it must not re-fetch
+			setTestAppServices({ transport: transport as unknown as AppServicesBag['transport'] });
+			await flushAsyncWork();
+
+			expect(getTracksByAlbumCalls).toBe(1);
+		});
+	});
 });
