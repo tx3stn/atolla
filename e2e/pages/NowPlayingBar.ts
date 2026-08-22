@@ -186,31 +186,28 @@ export class NowPlayingBar extends BasePage {
 	}
 
 	// resolves once a line is highlighted; pass the previous line's text to wait for the highlight
-	// to move on instead. a blank verse-break line carries no highlight, so consecutive calls can
-	// skip an index
-	async waitForActiveLyricLine(previousText?: string, timeout = 25_000): Promise<string> {
-		let text = '';
-		try {
-			await this.driver.waitUntil(
-				async () => {
-					const current = await this.activeLyricLine();
-					if (current === undefined || current === previousText) {
-						return false;
-					}
-					text = current;
-					return true;
-				},
-				// lines turn over every few seconds, so there is nothing to gain from polling faster
-				// than that, and each poll measures every line on screen
-				{ interval: 1_000, timeout, timeoutMsg: 'no active lyric line' },
-			);
-		} catch {
-			const reason = previousText
-				? `Highlighted lyric line never moved on from "${previousText}"`
-				: 'No lyric line was ever highlighted';
-			throw new Error(`${reason}. Lyric elements on screen: ${await this.describeLyricElements()}`);
+	// to move on instead. a blank verse-break line carries no highlight and the one long wrapping
+	// line is ambiguous by height, so a pass can legitimately find nothing and need retrying.
+	//
+	// bounded by attempts rather than a wall clock: a measurement pass costs a round trip per line,
+	// and on Android under parallel load a single pass can outlast any sensible timeout — waitUntil
+	// races the condition against the timeout, so it would abandon a pass that was about to answer
+	// correctly. sleeping between attempts is free (no round trips) and gives playback time to move
+	// the highlight, which is what we are waiting for anyway
+	async waitForActiveLyricLine(previousText?: string, attempts = 6): Promise<string> {
+		for (let attempt = 0; attempt < attempts; attempt += 1) {
+			const current = await this.activeLyricLine();
+			if (current !== undefined && current !== previousText) {
+				return current;
+			}
+			// the fixture's lines are 2-3s apart, so give the highlight room to actually move on
+			await this.driver.pause(previousText ? 2_500 : 1_000);
 		}
-		return text;
+
+		const reason = previousText
+			? `Highlighted lyric line never moved on from "${previousText}"`
+			: 'No lyric line was ever highlighted';
+		throw new Error(`${reason}. Lyric elements on screen: ${await this.describeLyricElements()}`);
 	}
 
 	// the highlighted line is drawn a size larger than the rest, and that height difference is the
@@ -242,11 +239,16 @@ export class NowPlayingBar extends BasePage {
 		const ranked = [...heights].sort((a, b) => a - b);
 		const baseline = ranked[Math.floor(ranked.length / 2)];
 		// the fixture's one deliberately long line wraps to several rows, so cap how much taller counts
-		const active = heights.findIndex((height) => height > baseline && height < baseline * 1.8);
-		if (active === -1) {
+		const candidates = heights
+			.map((height, index) => ({ height, index }))
+			.filter(({ height }) => height > baseline && height < baseline * 1.8);
+		if (candidates.length === 0) {
 			return undefined;
 		}
 
+		// a pass is a round trip per line, so playback can move the highlight part-way through one and
+		// leave two lines looking tall. the later one is the newer, so prefer it over the stale read
+		const active = candidates[candidates.length - 1].index;
 		return (await this.readElementText(elements[active], 'now-playing-lyrics')) || undefined;
 	}
 
@@ -256,19 +258,15 @@ export class NowPlayingBar extends BasePage {
 		const elements = await this.allByAccessibilityPrefix('now-playing-lyrics');
 		const described: Array<string> = [];
 		for (const element of elements) {
-			// each platform errors rather than answering empty for the other's attributes
-			const identity = this.isAndroid()
-				? await element.getAttribute('content-desc').catch(() => undefined)
-				: await element.getAttribute('name').catch(() => undefined);
-			const text = await this.readElementText(element);
 			const height = await element.getSize().then(
 				(size) => size.height,
 				() => undefined,
 			);
-			described.push(`{id=${identity}, text=${text}, h=${height}}`);
+			const text = await this.readElementText(element, 'now-playing-lyrics');
+			described.push(`${height}:${text.slice(0, 30)}`);
 		}
 		return described.length > 0
-			? described.join(' ')
+			? `${described.length} lines, height:text = ${described.join(' | ')}`
 			: '(none matched the now-playing-lyrics prefix)';
 	}
 
