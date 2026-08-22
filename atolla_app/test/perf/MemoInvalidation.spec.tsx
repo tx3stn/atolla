@@ -75,6 +75,7 @@ function nowPlayingViewModel(trackIndex: number) {
 		isPlaying: false,
 		language: 'en',
 		loopMode: 'off',
+		lyricsService: { get: () => undefined, load: () => Promise.resolve(null) },
 		modalSlot: new DetachedSlot(),
 		onAlbumTap: () => {},
 		onArtistTap: () => {},

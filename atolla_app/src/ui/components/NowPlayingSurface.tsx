@@ -1,5 +1,6 @@
 import res from 'atolla_app/res';
 import type { Album } from 'atolla_core/src/models/Album';
+import type { Lyrics } from 'atolla_core/src/models/Lyrics';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
 import Strings from 'atolla_core/src/Strings';
@@ -38,6 +39,7 @@ import {
 	type QueueTrackSelectionOptions,
 } from './CreatePlaylistFromQueueModal';
 import { FormatBadge } from './FormatBadge';
+import { LyricsPanel, type LyricsStatus, LyricsStatuses } from './LyricsPanel';
 import { ProgressBarWaveform } from './ProgressBarWaveform';
 import { ScrollDragAutoScroller } from './ScrollDragAutoScroller';
 import { TappableIcon } from './TappableIcon';
@@ -114,6 +116,8 @@ export interface NowPlayingSurfaceViewModel {
 	waveformMaskUrl?: string | null;
 }
 
+type ArtworkPage = 'artwork' | 'lyrics';
+
 type QueueTab = 'backTo' | 'upNext';
 
 interface QueueEntries {
@@ -125,7 +129,10 @@ const emptyQueueEntries: QueueEntries = { backToEntries: [], upNextEntries: [] }
 
 interface NowPlayingSurfaceState {
 	activeQueueTab: QueueTab;
+	artworkPage: ArtworkPage;
 	isExpanded: boolean;
+	lyrics: Lyrics | null;
+	lyricsStatus: LyricsStatus;
 }
 
 export class NowPlayingSurface extends StatefulComponent<
@@ -147,6 +154,10 @@ export class NowPlayingSurface extends StatefulComponent<
 	private expandedRemainingRef = new ElementRef();
 	private queueSlideRef = new ElementRef();
 	private queueListWidth: number | null = null;
+	private artworkSlideRef = new ElementRef();
+	private artworkPageWidth: number | null = null;
+	private isArtworkSliding = false;
+	private lyricsRequestTrackId: string | null = null;
 	private isTransitioning = false;
 	private transitionStartedAt = 0;
 	private transitionGeneration = 0;
@@ -180,13 +191,18 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	private readonly closeDragDistance = 36;
 	private readonly closeDragVelocity = 550;
+	private readonly pageDragDistance = 120;
+	private readonly pageDragVelocity = 600;
 	private readonly collapsedInset = 20;
 	private readonly collapsedBottom = theme.footerHeight * 0.8;
 	private readonly collapsedHeight = 84;
 
 	state: NowPlayingSurfaceState = {
 		activeQueueTab: 'upNext',
+		artworkPage: 'artwork',
 		isExpanded: false,
+		lyrics: null,
+		lyricsStatus: LyricsStatuses.loading,
 	};
 
 	private runAnimate(options: AnimationOptions, callback: () => void): void {
@@ -287,11 +303,13 @@ export class NowPlayingSurface extends StatefulComponent<
 	}
 
 	// final collapsed end-state, shared by the close animation's completion and stale recovery
+	// the pager resets with the surface so the transition artwork lines up on the next open
 	private settleCollapsed(): void {
 		this.overlayRef.setAttribute('top', 2000);
+		this.artworkSlideRef.setAttribute('left', 0);
 		this.isTransitioning = false;
 		this.transitionTarget = null;
-		this.setState({ isExpanded: false });
+		this.setState({ artworkPage: 'artwork', isExpanded: false });
 	}
 
 	private openSurface = (): void => {
@@ -364,7 +382,12 @@ export class NowPlayingSurface extends StatefulComponent<
 
 		if (!prevViewModel) {
 			this.rebuildPaletteStyles(this.resolvePalette(), this.state.activeQueueTab);
+			this.loadLyrics(this.viewModel.track);
 			return;
+		}
+
+		if (this.viewModel.track.id !== prevViewModel.track.id) {
+			this.loadLyrics(this.viewModel.track);
 		}
 
 		// only restyle once the new track's palette is available. while it's still extracting the
@@ -571,7 +594,11 @@ export class NowPlayingSurface extends StatefulComponent<
 		}
 
 		if (event.state === TouchEventState.Changed) {
-			if (event.deltaY > 0 && Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+			if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+				this.dragArtworkPage(event.deltaX);
+				return;
+			}
+			if (event.deltaY > 0) {
 				this.overlayRef.setAttribute('top', event.deltaY);
 			}
 			return;
@@ -581,8 +608,8 @@ export class NowPlayingSurface extends StatefulComponent<
 			return;
 		}
 
-		if (Math.abs(event.deltaY) < Math.abs(event.deltaX)) {
-			this.handleExpandedDragCancel();
+		if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
+			this.settleArtworkPage(event.deltaX, event.velocityX);
 			return;
 		}
 
@@ -609,6 +636,88 @@ export class NowPlayingSurface extends StatefulComponent<
 	private handleExpandedScroll = (event: ScrollEvent): void => {
 		this.dragAutoScroller.setOffset(event.y);
 	};
+
+	// follows the finger between the artwork and lyrics pages, clamped so neither end rubber-bands
+	private dragArtworkPage(deltaX: number): void {
+		if (this.artworkPageWidth == null || this.isArtworkSliding) {
+			return;
+		}
+		const base = this.state.artworkPage === 'lyrics' ? -this.artworkPageWidth : 0;
+		this.artworkSlideRef.setAttribute(
+			'left',
+			Math.max(-this.artworkPageWidth, Math.min(0, base + deltaX)),
+		);
+	}
+
+	private settleArtworkPage(deltaX: number, velocityX: number): void {
+		// a drag that starts vertical and turns horizontal leaves the overlay pulled down
+		this.handleExpandedDragCancel();
+
+		const isPaging =
+			Math.abs(deltaX) >= this.pageDragDistance || Math.abs(velocityX) >= this.pageDragVelocity;
+		if (!isPaging) {
+			this.slideArtworkTo(this.state.artworkPage);
+			return;
+		}
+
+		this.slideArtworkTo(deltaX < 0 ? 'lyrics' : 'artwork');
+	}
+
+	private slideArtworkTo(page: ArtworkPage): void {
+		if (page !== this.state.artworkPage) {
+			this.setState({ artworkPage: page });
+		}
+
+		const targetLeft = page === 'lyrics' ? -(this.artworkPageWidth ?? 0) : 0;
+		if (!this.viewModel.animationsEnabled || this.artworkPageWidth == null) {
+			this.artworkSlideRef.setAttribute('left', targetLeft);
+			return;
+		}
+
+		this.isArtworkSliding = true;
+		this.runAnimatePromise({ curve: AnimationCurve.EaseInOut, duration: 0.28 }, () => {
+			this.artworkSlideRef.setAttribute('left', targetLeft);
+		}).then(() => {
+			this.isArtworkSliding = false;
+		});
+	}
+
+	private handleArtworkPageLayout = (frame: { width: number }): void => {
+		this.artworkPageWidth = frame.width;
+		if (!this.isArtworkSliding) {
+			const targetLeft = this.state.artworkPage === 'lyrics' ? -frame.width : 0;
+			this.artworkSlideRef.setAttribute('left', targetLeft);
+		}
+	};
+
+	// a load in flight belongs to the track that started it; a later track's response wins and the
+	// earlier one is dropped rather than painted over it
+	private loadLyrics(track: Track): void {
+		const { lyricsService } = this.viewModel;
+		this.lyricsRequestTrackId = track.id;
+
+		const resident = lyricsService.get(track.id);
+		if (resident !== undefined) {
+			this.setState({ lyrics: resident, lyricsStatus: LyricsStatuses.loaded });
+			return;
+		}
+
+		this.setState({ lyrics: null, lyricsStatus: LyricsStatuses.loading });
+		lyricsService.load(track).then(
+			(lyrics) => {
+				if (this.isDestroyed() || this.lyricsRequestTrackId !== track.id) {
+					return;
+				}
+				this.setState({ lyrics, lyricsStatus: LyricsStatuses.loaded });
+			},
+			() => {
+				if (this.isDestroyed() || this.lyricsRequestTrackId !== track.id) {
+					return;
+				}
+				this.setState({ lyrics: null, lyricsStatus: LyricsStatuses.failed });
+			},
+		);
+	}
 
 	private getQueueEntries(
 		tracks: Array<Track>,
@@ -972,16 +1081,47 @@ export class NowPlayingSurface extends StatefulComponent<
 								)}
 								{albumArtworkSource && (
 									<view
+										accessibilityId='now-playing-artwork-pager'
+										accessibilityLabel='now-playing-artwork-pager'
 										onDrag={this.handleExpandedDrag}
 										onDragDisabled={!this.state.isExpanded}
 										style={styles.expandedArtworkGestureZone}
 									>
-										<image
-											objectFit='cover'
-											ref={this.scrollArtworkRef}
-											src={albumArtworkSource}
-											style={this.scrollArtworkStyle}
-										/>
+										{/* Strip holds artwork and lyrics side-by-side; sliding it reveals one at a time */}
+										<view
+											accessibilityId='now-playing-artwork-strip'
+											accessibilityLabel='now-playing-artwork-strip'
+											ref={this.artworkSlideRef}
+											style={styles.artworkStrip}
+										>
+											<view
+												accessibilityId='now-playing-artwork-page'
+												accessibilityLabel='now-playing-artwork-page'
+												onLayout={this.handleArtworkPageLayout}
+												style={styles.artworkPage}
+											>
+												<image
+													objectFit='cover'
+													ref={this.scrollArtworkRef}
+													src={albumArtworkSource}
+													style={this.scrollArtworkStyle}
+												/>
+											</view>
+											{isExpanded && (
+												<view
+													accessibilityId='now-playing-lyrics-page'
+													accessibilityLabel='now-playing-lyrics-page'
+													style={styles.artworkPage}
+												>
+													<LyricsPanel
+														accessibilityId='now-playing-lyrics'
+														lyrics={this.state.lyrics}
+														palette={palette}
+														status={this.state.lyricsStatus}
+													/>
+												</view>
+											)}
+										</view>
 									</view>
 								)}
 								<layout style={styles.expandedInfoSection}>
@@ -1353,6 +1493,15 @@ const styles = {
 		marginRight: theme.scale(14),
 		width: theme.scale(80),
 	}),
+	artworkPage: new Style<View>({
+		height: '100%',
+		width: '50%',
+	}),
+	artworkStrip: new Style<View>({
+		flexDirection: 'row',
+		height: '100%',
+		width: '200%',
+	}),
 	compactBar: new Style<View>({
 		alignItems: 'center',
 		borderRadius: theme.radius.default,
@@ -1403,10 +1552,13 @@ const styles = {
 		justifyContent: 'center',
 		width: '100%',
 	}),
+	// clips the off-screen page: on a capped (tablet) artwork the strip would otherwise spill into
+	// the side margin rather than off the edge of the screen
 	expandedArtworkGestureZone: new Style<View>({
 		alignSelf: 'center',
 		aspectRatio: 1,
 		marginTop: EXPANDED_ARTWORK_TOP,
+		slowClipping: true,
 		width: EXPANDED_ARTWORK_SIZE,
 	}),
 	expandedBgArtwork: new Style<ImageView>({

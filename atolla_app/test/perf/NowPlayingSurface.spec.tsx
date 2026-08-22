@@ -56,6 +56,7 @@ function makeViewModel(isPlaying: boolean) {
 		isPlaying,
 		language: 'en',
 		loopMode: 'off',
+		lyricsService: { get: () => undefined, load: () => Promise.resolve(null) },
 		modalSlot: new DetachedSlot(),
 		onAlbumTap: () => {},
 		onArtistTap: () => {},

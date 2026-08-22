@@ -33,6 +33,22 @@ const track = {
 	name: 'The Track',
 };
 
+const lyrics = { lines: [{ text: 'line one' }, { text: 'line two' }], synced: false };
+
+function stubLyricsService(overrides: Record<string, unknown> = {}) {
+	return {
+		get: () => undefined,
+		load: () => Promise.resolve(null),
+		...overrides,
+	};
+}
+
+// lyricsService is required in production, and setViewModel replaces the whole view model rather
+// than merging, so the default has to be reapplied on every update and not just at mount
+function withLyricsService(viewModel: object): object {
+	return { lyricsService: stubLyricsService(), ...viewModel };
+}
+
 function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackStore {
 	return {
 		cycleLoopMode: () => {},
@@ -55,7 +71,16 @@ function mockPlaybackStore(overrides: Record<string, unknown> = {}): PlaybackSto
 // InstrumentedComponentJSX (the non-deprecated primitive createComponent wrapped) to match
 // production semantics
 function mountNowPlaying(viewModel: object) {
-	return InstrumentedComponentJSX.create(NowPlayingSurface, viewModel, undefined);
+	const instrumented = InstrumentedComponentJSX.create(
+		NowPlayingSurface,
+		withLyricsService(viewModel),
+		undefined,
+	);
+	return {
+		destroy: (): void => instrumented.destroy(),
+		getComponent: () => instrumented.getComponent(),
+		setViewModel: (next: object): void => instrumented.setViewModel(withLyricsService(next)),
+	};
 }
 
 let surfaceUnderTest: NowPlayingSurface | undefined;
@@ -82,11 +107,19 @@ class NowPlayingSurfaceWithSlot extends Component<Omit<NowPlayingSurfaceViewMode
 
 function mountNowPlayingWithSlot(viewModel: object) {
 	surfaceUnderTest = undefined;
-	const instrumented = InstrumentedComponentJSX.create(
+	const created = InstrumentedComponentJSX.create(
 		NowPlayingSurfaceWithSlot,
-		viewModel as Omit<NowPlayingSurfaceViewModel, 'modalSlot'>,
+		withLyricsService(viewModel) as Omit<NowPlayingSurfaceViewModel, 'modalSlot'>,
 		undefined,
 	);
+	const instrumented = {
+		destroy: (): void => created.destroy(),
+		getComponent: () => created.getComponent(),
+		setViewModel: (next: object): void =>
+			created.setViewModel(
+				withLyricsService(next) as Omit<NowPlayingSurfaceViewModel, 'modalSlot'>,
+			),
+	};
 	return { instrumented, surface: (): NowPlayingSurface => surfaceUnderTest as NowPlayingSurface };
 }
 
@@ -97,6 +130,7 @@ function openContextMenu(surface: NowPlayingSurface, track: object): void {
 function createNowPlayingComponent(
 	trackOverrides = {},
 	albumOverride: typeof album | null = album,
+	viewModelOverrides: object = {},
 ) {
 	const mergedTrack = {
 		...track,
@@ -119,6 +153,7 @@ function createNowPlayingComponent(
 		track: mergedTrack,
 		trackIndex: 0,
 		tracks: [mergedTrack],
+		...viewModelOverrides,
 	});
 }
 
@@ -1579,4 +1614,236 @@ describe('NowPlayingSurface', () => {
 			expect(surface().state.isExpanded).toBe(false);
 		},
 	);
+
+	function findByLabel(component: Parameters<typeof componentGetElements>[0], label: string) {
+		return elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View).find(
+			(view) => view.getAttribute('accessibilityLabel') === label,
+		);
+	}
+
+	function expandSurface(component: Parameters<typeof componentGetElements>[0]): void {
+		elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+			.find((view) => view.getAttribute('id') === 'now-playing-surface-bar')
+			?.getAttribute('onTap')?.(touchEvent);
+	}
+
+	// the pager measures itself from the first page's onLayout, the same way the queue strip does
+	function layoutArtworkPager(
+		component: Parameters<typeof componentGetElements>[0],
+		width: number,
+	): void {
+		findByLabel(component, 'now-playing-artwork-page')?.getAttribute('onLayout')?.({
+			height: width,
+			width,
+			x: 0,
+			y: 0,
+		});
+	}
+
+	function dragPager(
+		component: Parameters<typeof componentGetElements>[0],
+		deltaX: number,
+		velocityX: number,
+	): void {
+		const pager = findByLabel(component, 'now-playing-artwork-pager');
+		pager?.getAttribute('onDrag')?.(dragEvent({ deltaX, deltaY: 2, state: 1, velocityX }));
+		pager?.getAttribute('onDrag')?.(dragEvent({ deltaX, deltaY: 2, state: 2, velocityX }));
+	}
+
+	function stripLeft(component: Parameters<typeof componentGetElements>[0]): unknown {
+		return findByLabel(component, 'now-playing-artwork-strip')?.getAttribute('left');
+	}
+
+	valdiIt('renders a lyrics page beside the artwork when expanded', async () => {
+		const component = createNowPlayingComponent().getComponent();
+
+		expandSurface(component);
+
+		expect(findByLabel(component, 'now-playing-artwork-page')).toBeDefined();
+		expect(findByLabel(component, 'now-playing-lyrics-page')).toBeDefined();
+	});
+
+	valdiIt('does not build the lyrics page while collapsed', async () => {
+		const component = createNowPlayingComponent().getComponent();
+
+		expect(findByLabel(component, 'now-playing-lyrics-page')).toBeUndefined();
+	});
+
+	valdiIt('paints already-cached lyrics without a fetch', async () => {
+		const component = createNowPlayingComponent({}, album, {
+			lyricsService: stubLyricsService({
+				get: () => lyrics,
+				load: () => Promise.reject(new Error('cached lyrics should not be re-fetched')),
+			}),
+		}).getComponent();
+
+		expandSurface(component);
+
+		expect(getLabelValues(component)).toContain('line one');
+	});
+
+	valdiIt('loads the new track lyrics when the track changes', async () => {
+		const requested: Array<string> = [];
+		const viewModel = {
+			album,
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			lyricsService: stubLyricsService({
+				load: (requestedTrack: { id: string }) => {
+					requested.push(requestedTrack.id);
+					return Promise.resolve(lyrics);
+				},
+			}),
+			playbackStore: mockPlaybackStore(),
+			track,
+			trackIndex: 0,
+			tracks: [track],
+		};
+		const instrumented = mountNowPlaying(viewModel);
+		const component = instrumented.getComponent();
+		expandSurface(component);
+
+		const nextTrack = { ...track, id: 'track-2', name: 'Second Track' };
+		instrumented.setViewModel({ ...viewModel, track: nextTrack, tracks: [nextTrack] });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(requested).toEqual(['track-1', 'track-2']);
+		expect(getLabelValues(component)).toContain('line one');
+	});
+
+	valdiIt('ignores a lyrics response that lands after the track changed', async () => {
+		let resolveFirstTrack: (value: unknown) => void = () => {};
+		const viewModel = {
+			album,
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			lyricsService: stubLyricsService({
+				load: (requestedTrack: { id: string }) =>
+					requestedTrack.id === 'track-1'
+						? new Promise((resolve) => {
+								resolveFirstTrack = resolve;
+							})
+						: Promise.resolve({ lines: [{ text: 'second track line' }], synced: false }),
+			}),
+			playbackStore: mockPlaybackStore(),
+			track,
+			trackIndex: 0,
+			tracks: [track],
+		};
+		const instrumented = mountNowPlaying(viewModel);
+		const component = instrumented.getComponent();
+		expandSurface(component);
+
+		const nextTrack = { ...track, id: 'track-2', name: 'Second Track' };
+		instrumented.setViewModel({ ...viewModel, track: nextTrack, tracks: [nextTrack] });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		resolveFirstTrack({ lines: [{ text: 'first track line' }], synced: false });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(getLabelValues(component)).toContain('second track line');
+		expect(getLabelValues(component)).not.toContain('first track line');
+	});
+
+	valdiIt('swiping the artwork left reveals the lyrics page', async () => {
+		const component = createNowPlayingComponent().getComponent();
+		expandSurface(component);
+		layoutArtworkPager(component, 300);
+
+		dragPager(component, -140, -50);
+
+		expect(component.state.artworkPage).toBe('lyrics');
+		expect(stripLeft(component)).toBe(-300);
+	});
+
+	valdiIt('swiping right from the lyrics page returns to the artwork', async () => {
+		const component = createNowPlayingComponent().getComponent();
+		expandSurface(component);
+		layoutArtworkPager(component, 300);
+		dragPager(component, -140, -50);
+
+		dragPager(component, 140, 50);
+
+		expect(component.state.artworkPage).toBe('artwork');
+		expect(stripLeft(component)).toBe(0);
+	});
+
+	valdiIt('springs back to the current page when the swipe is too small', async () => {
+		const component = createNowPlayingComponent().getComponent();
+		expandSurface(component);
+		layoutArtworkPager(component, 300);
+
+		dragPager(component, -30, -20);
+
+		expect(component.state.artworkPage).toBe('artwork');
+		expect(stripLeft(component)).toBe(0);
+	});
+
+	valdiIt('a flick past the velocity threshold pages even when short', async () => {
+		const component = createNowPlayingComponent().getComponent();
+		expandSurface(component);
+		layoutArtworkPager(component, 300);
+
+		dragPager(component, -30, -700);
+
+		expect(component.state.artworkPage).toBe('lyrics');
+	});
+
+	valdiIt('does not page past the last page', async () => {
+		const component = createNowPlayingComponent().getComponent();
+		expandSurface(component);
+		layoutArtworkPager(component, 300);
+		dragPager(component, -140, -50);
+
+		dragPager(component, -140, -50);
+
+		expect(component.state.artworkPage).toBe('lyrics');
+		expect(stripLeft(component)).toBe(-300);
+	});
+
+	valdiIt('collapsing resets the pager back to the artwork', async () => {
+		const viewModel = {
+			album,
+			artistLogoUrl: null,
+			barColors: new BarColorStore(),
+			collapseSignal: 0,
+			isPlaying: true,
+			loopMode: 'none',
+			playbackStore: mockPlaybackStore(),
+			track,
+			trackIndex: 0,
+			tracks: [track],
+		};
+		const instrumented = mountNowPlaying(viewModel);
+		const component = instrumented.getComponent();
+		expandSurface(component);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		layoutArtworkPager(component, 300);
+		dragPager(component, -140, -50);
+		expect(component.state.artworkPage).toBe('lyrics');
+
+		instrumented.setViewModel({ ...viewModel, collapseSignal: 1 });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(component.state.artworkPage).toBe('artwork');
+	});
+
+	valdiIt('a downward drag still closes the surface from the artwork page', async () => {
+		const component = createNowPlayingComponent().getComponent();
+		expandSurface(component);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const pager = findByLabel(component, 'now-playing-artwork-pager');
+		pager?.getAttribute('onDrag')?.(
+			dragEvent({ deltaX: 2, deltaY: 80, state: 2, velocityX: 0, velocityY: 900 }),
+		);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(component.state.isExpanded).toBe(false);
+	});
 });
