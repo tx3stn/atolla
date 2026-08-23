@@ -160,6 +160,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 						<DetailHeader
 							animationsEnabled={this.viewModel.preferences.animationsEnabled}
 							artworkCategory='playlist_image'
+							artworkId={playlist.id}
 							artworkSource={playlist.imageUrl ?? null}
 							downloadEnabled={downloadEnabled}
 							downloadState={downloadState}

@@ -178,7 +178,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 					>
 						<DetailHeader
 							animationsEnabled={animationsEnabled}
+							artistId={album.artistId}
 							artworkCategory='album_art'
+							artworkId={album.id}
 							artworkSource={album.imageUrl ?? null}
 							downloadEnabled={downloadEnabled}
 							downloadState={downloadState}
@@ -465,7 +467,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 		const { album, paletteQueue } = this.viewModel;
 		const transport = this.activeTransport;
-		paletteQueue?.prioritize(album.imageUrl);
+		paletteQueue?.prioritize(album.id, album.imageUrl);
 		// keep any seeded/previous content visible during a revalidate; only show the spinner cold
 		const hasContent = this.state.tracks.length > 0;
 		this.setState({
@@ -512,9 +514,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				fullAlbumResult.status === 'fulfilled' ? (fullAlbumResult.value[0] ?? null) : null;
 
 			const payload: AlbumCachePayload = {
-				artist: artist ?? null,
-				artistLogoUrl: logoUrl,
-				fullAlbum,
+				artist: artist ?? this.state.artist,
+				artistLogoUrl: logoUrl ?? this.state.artistLogoUrl,
+				fullAlbum: fullAlbum ?? this.state.fullAlbum,
 				tracks,
 			};
 			if (tracks.length > 0) {

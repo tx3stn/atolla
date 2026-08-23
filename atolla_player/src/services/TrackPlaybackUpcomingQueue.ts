@@ -4,6 +4,7 @@ import type { PlaybackStore } from '../stores/Playback';
 export interface QueueWindowEntry {
 	albumName: string;
 	artistName: string;
+	artworkId: string;
 	artworkUrl: string;
 	durationMs: number;
 	durationSeconds: number;
@@ -70,6 +71,7 @@ export function buildPlaybackQueueWindow(
 		return {
 			albumName: track.albumName ?? '',
 			artistName: track.artistName ?? '',
+			artworkId: track.albumId ?? '',
 			artworkUrl: track.albumImageUrl ?? '',
 			durationMs: Math.max(0, Math.floor(durationSeconds * 1000)),
 			durationSeconds,

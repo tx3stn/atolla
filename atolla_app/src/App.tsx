@@ -129,7 +129,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	);
 	private playbackStore = new PlaybackStore();
 	private downloadService = new DownloadService({
-		cacheImage: (url, category) => this.assetCache.cacheImageAsset(url, category),
+		cacheImage: (id, url, category) => this.assetCache.cacheImageAsset(id, url, category),
 		cacheTrack: (trackId, url) =>
 			this.downloadWorkerClient.target.api.cacheDownloadedTrack(
 				trackId,
@@ -149,7 +149,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		store: new PersistentStore('atolla/downloads', { deviceGlobal: true }),
 	});
 	private playbackOrchestrator: PlaybackOrchestrator = new PlaybackOrchestrator({
-		cacheAlbumArt: (imageUrl) => this.assetCache.cacheImageAsset(imageUrl, 'album_art'),
+		cacheAlbumArt: (id, imageUrl) => this.assetCache.cacheImageAsset(id, imageUrl, 'album_art'),
 		downloads: this.downloadService,
 		getAccessToken: () => this.sessionManager.getAccessToken(),
 		getAudioFileUrl: (trackId) => this.assetCache.getAudioPathForWaveform(trackId),
@@ -163,7 +163,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			this.requestRerender();
 		},
 		playbackStore: this.playbackStore,
-		prewarmArtwork: (imageUrl) => this.assetCache.prewarmNowPlayingArtwork(imageUrl),
+		prewarmArtwork: (id, imageUrl) => this.assetCache.prewarmNowPlayingArtwork(id, imageUrl),
 		refreshTrackCachedCount: () => {},
 		requestOverlayRerender: () => this.requestRerender(),
 		requestRerender: () => this.requestRerender(),

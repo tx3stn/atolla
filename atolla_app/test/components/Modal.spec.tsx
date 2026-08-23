@@ -9,6 +9,7 @@ import { touchEvent } from '../util/testEvents';
 describe('Modal', () => {
 	valdiIt('renders artist logo through cache image source', async (driver) => {
 		const viewModel = {
+			artistId: 'artist-1',
 			body: 'Long artist bio',
 			logoUrl: 'https://example.com/artist-logo.png',
 			onClose: () => {},
@@ -22,7 +23,7 @@ describe('Modal', () => {
 		);
 
 		expect(images.length).toBe(1);
-		expect(images[0].getAttribute('src')).toContain('atolla-cache://image?c=artist_logo&u=');
+		expect(images[0].getAttribute('src')).toContain('c=artist_logo&id=artist-1');
 	});
 
 	// every <view> is a native view; a container with no paint or touch props only needs a layout

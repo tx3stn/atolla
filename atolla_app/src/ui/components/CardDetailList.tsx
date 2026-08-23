@@ -34,6 +34,7 @@ export class CardDetailList extends Component<CardDetailListViewModel> {
 						<layout key={entry.id} style={createColumnStyle(columnCount)}>
 							<CardDetail
 								accessibilityId={`card-detail-${entry.id}`}
+								artworkId={entry.id}
 								artworkKey={entry.artworkKey}
 								lineOne={entry.lineOne}
 								lineThree={entry.lineThree}

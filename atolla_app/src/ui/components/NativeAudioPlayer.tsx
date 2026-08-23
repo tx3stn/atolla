@@ -217,6 +217,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 					nextNotification.trackName,
 					nextNotification.artistName,
 					nextNotification.albumName,
+					nextNotification.artworkId,
 					nextNotification.artworkUrl,
 					nextNotification.durationSeconds,
 					nextNotification.hasPrevious,
@@ -258,6 +259,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 		trackName: string;
 		artistName: string;
 		albumName: string;
+		artworkId: string;
 		artworkUrl: string;
 		durationSeconds: number;
 		hasPrevious: boolean;
@@ -288,6 +290,7 @@ export class NativeAudioPlayer extends StatefulComponent<
 		return {
 			albumName: nextTrack.albumName ?? '',
 			artistName: nextTrack.artistName ?? '',
+			artworkId: nextTrack.albumId ?? '',
 			artworkUrl: nextTrack.albumImageUrl ?? '',
 			durationSeconds: Number.isFinite(nextTrack.duration) ? nextTrack.duration : 0,
 			hasNext: nextIndex < tracks.length - 1,

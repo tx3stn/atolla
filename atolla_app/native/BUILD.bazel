@@ -205,6 +205,7 @@ objc_library(
     ],
     deps = [
         ":atolla_auth_redirect_guard_ios",
+        ":atolla_image_cache_access_ios",
         ":atolla_playback_guards_ios",
         ":atolla_track_cache_retention_ios",
         ":scrobble_ios_bridge",
@@ -229,6 +230,7 @@ objc_library(
     deps = [
         ":atolla_auth_redirect_guard_ios",
         ":atolla_disk_cache_stats_ios",
+        ":atolla_image_cache_access_ios",
         ":atolla_image_fallback_ios",
         ":blur_ios_bridge",
         ":palette_ios_bridge",
@@ -254,6 +256,15 @@ objc_library(
     # The class is only ever referenced by name (NSClassFromString, via <custom-view
     # iosClass=...>), so force-link it to keep the linker from dead-stripping it.
     alwayslink = True,
+)
+
+# Lets the playback module ask the image loader whether artwork is already cached, without
+# exposing the cache store itself.
+objc_library(
+    name = "atolla_image_cache_access_ios",
+    srcs = ["ios/AtollaImageCacheAccess.m"],
+    hdrs = ["ios/AtollaImageCacheAccess.h"],
+    copts = ["-I."],
 )
 
 # Pure, framework-free logic extracted from the iOS module factories so it can be unit tested.

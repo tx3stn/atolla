@@ -39,6 +39,7 @@ export interface DragAutoScroller {
 }
 
 export interface TrackListEntry {
+	artworkId?: string | null;
 	artworkSource?: string | null;
 	id: string;
 	leadingLabel?: string | null;
@@ -378,6 +379,7 @@ export class TrackList extends Component<TrackListViewModel> {
 											<view style={resolvedStyles.artworkTileStyle}>
 												<CachedImage
 													category='album_art_thumb'
+													id={entry.artworkId}
 													objectFit='cover'
 													style={styles.artwork}
 													url={entry.artworkSource}

@@ -9,6 +9,7 @@ import { ModalBase, modalStyles } from './ModalBase';
 
 export interface ModalViewModel {
 	animationsEnabled?: boolean;
+	artistId?: string | null;
 	body: string;
 	cancelAccessibilityId?: string;
 	cancelLabel?: string;
@@ -35,6 +36,7 @@ export class Modal extends Component<ModalViewModel> {
 			cancelLabel,
 			confirmAccessibilityId,
 			confirmLabel,
+			artistId,
 			logoUrl,
 			modalAccessibilityId,
 			onClose,
@@ -56,7 +58,13 @@ export class Modal extends Component<ModalViewModel> {
 			onDismiss={onClose}
 		>
 			{logoUrl && (
-				<CachedImage category='artist_logo' objectFit='contain' style={styles.logo} url={logoUrl} />
+				<CachedImage
+					category='artist_logo'
+					id={artistId}
+					objectFit='contain'
+					style={styles.logo}
+					url={logoUrl}
+				/>
 			)}
 			{!logoUrl && (
 				<label numberOfLines={0} style={modalStyles.title} value={title.toUpperCase()} />

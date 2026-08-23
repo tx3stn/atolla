@@ -7,6 +7,7 @@ import { CachedImage } from './CachedImage';
 
 export interface CardDetailViewModel {
 	accessibilityId: string;
+	artworkId?: string | null;
 	artworkKey: string;
 	lineOne: string;
 	lineThree: string;
@@ -17,8 +18,16 @@ export interface CardDetailViewModel {
 
 export class CardDetail extends Component<CardDetailViewModel> {
 	onRender() {
-		const { accessibilityId, artworkKey, lineOne, lineThree, lineTwo, onLongPress, onTap } =
-			this.viewModel;
+		const {
+			accessibilityId,
+			artworkId,
+			artworkKey,
+			lineOne,
+			lineThree,
+			lineTwo,
+			onLongPress,
+			onTap,
+		} = this.viewModel;
 
 		<view
 			accessibilityId={accessibilityId}
@@ -30,7 +39,8 @@ export class CardDetail extends Component<CardDetailViewModel> {
 			<view style={styles.artworkTile}>
 				{artworkKey ? (
 					<CachedImage
-						category='album_art'
+						category='album_art_thumb'
+						id={artworkId}
 						objectFit='cover'
 						style={styles.artworkImage}
 						url={artworkKey}

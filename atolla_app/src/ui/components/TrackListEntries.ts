@@ -10,6 +10,7 @@ export interface DerivedTracks {
 export function deriveTracks(tracks: Array<Track>): DerivedTracks {
 	return {
 		entries: tracks.map((track) => ({
+			artworkId: track.albumId ?? null,
 			artworkSource: track.albumImageUrl ?? null,
 			id: track.id,
 			meta: track.artistName ?? '',

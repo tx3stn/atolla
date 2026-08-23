@@ -24,7 +24,9 @@ import { TouchEventState } from './TouchEventState';
 
 export interface DetailHeaderViewModel {
 	animationsEnabled: boolean;
+	artistId?: string | null;
 	artworkCategory: ImageCategory;
+	artworkId?: string | null;
 	artworkSource: string | null;
 	downloadEnabled?: boolean;
 	downloadState?: DownloadState;
@@ -294,6 +296,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					{artworkSource && (
 						<CachedImage
 							category={this.viewModel.artworkCategory}
+							id={this.viewModel.artworkId}
 							objectFit='cover'
 							style={styles.artworkImage}
 							url={artworkSource}
@@ -304,6 +307,7 @@ export class DetailHeader extends StatefulComponent<DetailHeaderViewModel, Detai
 					<layout style={styles.logoArea}>
 						<ArtistLogo
 							accessibilityId='detail-header-artist-logo'
+							artistId={this.viewModel.artistId}
 							containerStyle={styles.artistLogoContainer}
 							fallbackText={fallbackText}
 							fallbackTextContainerStyle={styles.artistFallbackContainer}

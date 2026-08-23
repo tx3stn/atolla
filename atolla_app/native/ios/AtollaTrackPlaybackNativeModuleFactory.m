@@ -7,6 +7,7 @@
 #import "atolla_app/native/ios/AtollaPlaybackGuards.h"
 #import "atolla_app/native/ios/AtollaTrackCacheRetention.h"
 #import "atolla_app/native/ios/AtollaAuthRedirectGuard.h"
+#import "atolla_app/native/ios/AtollaImageCacheAccess.h"
 #import "scrobble_ios_bridge.h"
 
 // associates the source track id with each AVPlayerItem so the loaded current item can be
@@ -541,6 +542,7 @@ static NSMutableSet<NSString *> *sInProgressDownloadedKeys;
 + (void)updateNowPlayingWithTrackName:(NSString *)trackName
                            artistName:(NSString *)artistName
                             albumName:(NSString *)albumName
+                           artworkId:(NSString *)artworkId
                            artworkUrl:(NSString *)artworkUrl
                             isPlaying:(BOOL)isPlaying
                       positionSeconds:(double)positionSeconds
@@ -633,9 +635,22 @@ static BOOL sCommandsRegistered = NO;
     }];
 }
 
++ (void)applyNowPlayingArtwork:(UIImage *)image {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        MPMediaItemArtwork *artwork = [[MPMediaItemArtwork alloc] initWithBoundsSize:image.size
+                                                                      requestHandler:^UIImage *(CGSize size) {
+            return image;
+        }];
+        NSMutableDictionary *updated = [[[MPNowPlayingInfoCenter defaultCenter] nowPlayingInfo] mutableCopy] ?: [NSMutableDictionary dictionary];
+        updated[MPMediaItemPropertyArtwork] = artwork;
+        [[MPNowPlayingInfoCenter defaultCenter] setNowPlayingInfo:updated];
+    });
+}
+
 + (void)updateNowPlayingWithTrackName:(NSString *)trackName
                            artistName:(NSString *)artistName
                             albumName:(NSString *)albumName
+                           artworkId:(NSString *)artworkId
                            artworkUrl:(NSString *)artworkUrl
                             isPlaying:(BOOL)isPlaying
                       positionSeconds:(double)positionSeconds
@@ -659,8 +674,22 @@ static BOOL sCommandsRegistered = NO;
 
         [[MPNowPlayingInfoCenter defaultCenter] setNowPlayingInfo:info];
 
-        if (artworkUrl.length) {
+        if (artworkId.length || artworkUrl.length) {
             dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
+                // cached bytes first so the lock screen renders offline, and so a warm cache does
+                // not pay the 20s network wait below
+                NSString *identity = artworkId.length ? artworkId : artworkUrl;
+                NSString *cached = AtollaResolveCachedImageFileUrl(@"album_art", identity)
+                    ?: AtollaResolveCachedImageFileUrl(@"album_art_thumb", identity);
+                if (cached) {
+                    NSData *cachedData = [NSData dataWithContentsOfURL:[NSURL URLWithString:cached]];
+                    UIImage *cachedImage = cachedData ? [UIImage imageWithData:cachedData] : nil;
+                    if (cachedImage) {
+                        [self applyNowPlayingArtwork:cachedImage];
+                        return;
+                    }
+                }
+                if (!artworkUrl.length) return;
                 NSURL *url = [NSURL URLWithString:artworkUrl];
                 if (!url) return;
                 NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
@@ -682,15 +711,7 @@ static BOOL sCommandsRegistered = NO;
                 if (!data) return;
                 UIImage *image = [UIImage imageWithData:data];
                 if (!image) return;
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    MPMediaItemArtwork *artwork = [[MPMediaItemArtwork alloc] initWithBoundsSize:image.size
-                                                                                  requestHandler:^UIImage *(CGSize size) {
-                        return image;
-                    }];
-                    NSMutableDictionary *updated = [[[MPNowPlayingInfoCenter defaultCenter] nowPlayingInfo] mutableCopy] ?: [NSMutableDictionary dictionary];
-                    updated[MPMediaItemPropertyArtwork] = artwork;
-                    [[MPNowPlayingInfoCenter defaultCenter] setNowPlayingInfo:updated];
-                });
+                [self applyNowPlayingArtwork:image];
             });
         }
     });
@@ -849,6 +870,7 @@ static NSLock *sScrobbleQueueLock;
 + (void)setNextNotificationTrackName:(NSString *)trackName
                           artistName:(NSString *)artistName
                            albumName:(NSString *)albumName
+                           artworkId:(NSString *)artworkId
                           artworkUrl:(NSString *)artworkUrl
                      durationSeconds:(double)durationSeconds
                          hasPrevious:(BOOL)hasPrevious
@@ -884,6 +906,7 @@ static NSLock *sEngineLock;
 static NSString *sNextNotificationTrackName = @"";
 static NSString *sNextNotificationArtistName = @"";
 static NSString *sNextNotificationAlbumName = @"";
+static NSString *sNextNotificationArtworkId = @"";
 static NSString *sNextNotificationArtworkUrl = @"";
 static double sNextNotificationDurationSeconds = 0;
 static BOOL sNextNotificationHasPrevious = NO;
@@ -1348,6 +1371,7 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
         [AtollaMediaSession updateNowPlayingWithTrackName:(upcomingEntry[@"trackName"] ?: @"")
                                               artistName:(upcomingEntry[@"artistName"] ?: @"")
                                                albumName:(upcomingEntry[@"albumName"] ?: @"")
+                                               artworkId:(upcomingEntry[@"artworkId"] ?: @"")
                                               artworkUrl:(upcomingEntry[@"artworkUrl"] ?: @"")
                                                isPlaying:YES
                                          positionSeconds:0
@@ -1358,6 +1382,7 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
         [AtollaMediaSession updateNowPlayingWithTrackName:(fallbackNotification[@"trackName"] ?: @"")
                                               artistName:(fallbackNotification[@"artistName"] ?: @"")
                                                albumName:(fallbackNotification[@"albumName"] ?: @"")
+                                               artworkId:(fallbackNotification[@"artworkId"] ?: @"")
                                               artworkUrl:(fallbackNotification[@"artworkUrl"] ?: @"")
                                                isPlaying:YES
                                          positionSeconds:0
@@ -1426,6 +1451,7 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
         NSString *notifTrackName = sNextNotificationTrackName;
         NSString *notifArtistName = sNextNotificationArtistName;
         NSString *notifAlbumName = sNextNotificationAlbumName;
+        NSString *notifArtworkId = sNextNotificationArtworkId;
         NSString *notifArtworkUrl = sNextNotificationArtworkUrl;
         double notifDuration = sNextNotificationDurationSeconds;
         BOOL notifHasPrevious = sNextNotificationHasPrevious;
@@ -1435,6 +1461,7 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
         sNextNotificationTrackName = @"";
         sNextNotificationArtistName = @"";
         sNextNotificationAlbumName = @"";
+        sNextNotificationArtworkId = @"";
         sNextNotificationArtworkUrl = @"";
         sNextNotificationDurationSeconds = 0;
         sNextNotificationHasPrevious = NO;
@@ -1456,6 +1483,7 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
                                fallbackNotification:@{
                                    @"albumName": notifAlbumName,
                                    @"artistName": notifArtistName,
+                                   @"artworkId": notifArtworkId,
                                    @"artworkUrl": notifArtworkUrl,
                                    @"durationSeconds": @(notifDuration),
                                    @"hasNext": @(notifHasNext),
@@ -1679,6 +1707,7 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
 + (void)setNextNotificationTrackName:(NSString *)trackName
                           artistName:(NSString *)artistName
                            albumName:(NSString *)albumName
+                           artworkId:(NSString *)artworkId
                           artworkUrl:(NSString *)artworkUrl
                      durationSeconds:(double)durationSeconds
                          hasPrevious:(BOOL)hasPrevious
@@ -1687,6 +1716,7 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
     sNextNotificationTrackName = trackName ?: @"";
     sNextNotificationArtistName = artistName ?: @"";
     sNextNotificationAlbumName = albumName ?: @"";
+    sNextNotificationArtworkId = artworkId ?: @"";
     sNextNotificationArtworkUrl = artworkUrl ?: @"";
     sNextNotificationDurationSeconds = durationSeconds;
     sNextNotificationHasPrevious = hasPrevious;
@@ -1782,6 +1812,7 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
 - (void)updateAtollaTrackPlaybackNotificationWithTrackName:(NSString * _Nonnull)trackName
                                                 artistName:(NSString * _Nonnull)artistName
                                                  albumName:(NSString * _Nonnull)albumName
+                                                 artworkId:(NSString * _Nonnull)artworkId
                                                 artworkUrl:(NSString * _Nonnull)artworkUrl
                                                  isPlaying:(BOOL)isPlaying
                                            positionSeconds:(double)positionSeconds
@@ -1791,6 +1822,7 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
     [AtollaMediaSession updateNowPlayingWithTrackName:trackName
                                           artistName:artistName
                                            albumName:albumName
+                                          artworkId:artworkId
                                           artworkUrl:artworkUrl
                                            isPlaying:isPlaying
                                      positionSeconds:positionSeconds
@@ -1878,6 +1910,7 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
 - (void)setAtollaAudioPlaybackNextNotificationWithTrackName:(NSString * _Nonnull)trackName
                                                  artistName:(NSString * _Nonnull)artistName
                                                   albumName:(NSString * _Nonnull)albumName
+                                                  artworkId:(NSString * _Nonnull)artworkId
                                                  artworkUrl:(NSString * _Nonnull)artworkUrl
                                             durationSeconds:(double)durationSeconds
                                                 hasPrevious:(BOOL)hasPrevious
@@ -1885,6 +1918,7 @@ static void *kAtollaItemStatusContext = &kAtollaItemStatusContext;
     [AtollaGaplessAudioEngine setNextNotificationTrackName:trackName
                                                artistName:artistName
                                                 albumName:albumName
+                                                artworkId:artworkId
                                                artworkUrl:artworkUrl
                                           durationSeconds:durationSeconds
                                               hasPrevious:hasPrevious

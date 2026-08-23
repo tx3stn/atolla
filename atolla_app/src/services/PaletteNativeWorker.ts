@@ -4,13 +4,13 @@ import { extractAtollaPaletteFromCache } from '../ImageLoaderBootstrap';
 import type { Palette } from '../models/Color';
 
 export interface IPaletteNativeWorker {
-	extractPalette(url: string, category: string): Promise<Palette | null>;
+	extractPalette(id: string, category: string): Promise<Palette | null>;
 }
 
 class PaletteNativeWorkerImpl implements IPaletteNativeWorker {
-	extractPalette(url: string, category: string): Promise<Palette | null> {
+	extractPalette(id: string, category: string): Promise<Palette | null> {
 		try {
-			const raw = extractAtollaPaletteFromCache(url, category);
+			const raw = extractAtollaPaletteFromCache(id, category);
 			if (!raw) return Promise.resolve(null);
 			const parsed = JSON.parse(raw) as Partial<Palette>;
 			if (!parsed.accent?.hex) return Promise.resolve(null);

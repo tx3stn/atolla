@@ -6,6 +6,7 @@ import { CachedImage } from './CachedImage';
 
 export interface ArtistLogoViewModel {
 	accessibilityId?: string;
+	artistId?: string | null;
 	containerStyle?: Style<View>;
 	fallbackText?: string | null;
 	fallbackTextContainerStyle?: Style<Layout>;
@@ -20,6 +21,7 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 	onRender() {
 		const {
 			accessibilityId,
+			artistId,
 			containerStyle,
 			fallbackText,
 			fallbackTextContainerStyle,
@@ -41,6 +43,7 @@ export class ArtistLogo extends Component<ArtistLogoViewModel> {
 			{logoSource ? (
 				<CachedImage
 					category='artist_logo'
+					id={artistId}
 					objectFit='contain'
 					style={logoStyle ?? styles.logoImage}
 					url={logoSource}

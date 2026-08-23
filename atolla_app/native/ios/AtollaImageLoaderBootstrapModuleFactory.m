@@ -12,13 +12,19 @@
 #import "atolla_app/native/ios/AtollaImageFallback.h"
 #import "atolla_app/native/ios/AtollaDiskCacheStats.h"
 #import "atolla_app/native/ios/AtollaAuthRedirectGuard.h"
+#import "atolla_app/native/ios/AtollaImageCacheAccess.h"
 
 // MARK: - Request Payload
 
 @interface AtollaIOSImageRequestPayload : NSObject
 @property (nonatomic, copy) NSString *cacheKey;
 @property (nonatomic, copy) NSString *category;
-@property (nonatomic, strong) NSURL *sourceURL;
+// only consulted when writing: a changed tag means the artwork was replaced on the server. it is
+// deliberately not part of cacheKey, so a caller holding only an id still resolves
+@property (nonatomic, copy, nullable) NSString *tag;
+// nil when the caller has an id but no URL, which is the offline case: a cache hit needs no URL
+// and a miss has nowhere to fetch from
+@property (nonatomic, strong, nullable) NSURL *sourceURL;
 @end
 
 @implementation AtollaIOSImageRequestPayload
@@ -54,6 +60,8 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
 @interface AtollaIOSImageCacheStore : NSObject
 - (nullable NSData *)readForKey:(NSString *)key;
 - (void)writeData:(NSData *)data forKey:(NSString *)key;
+- (void)removeForKey:(NSString *)key;
+- (nullable NSString *)fileUrlForKey:(NSString *)key;
 - (void)clearCategories:(NSArray<NSString *> *)categories;
 - (void)setDiskCacheMaxBytes:(NSInteger)bytes;
 - (NSInteger)entryCount;
@@ -99,6 +107,21 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
     [file setResourceValue:NSDate.date forKey:NSURLContentModificationDateKey error:nil];
     [_mem setObject:data forKey:key cost:data.length];
     return data;
+}
+
+- (void)removeForKey:(NSString *)key {
+    [_mem removeObjectForKey:key];
+    NSURL *file = [self diskFileForKey:key];
+    if (file) [NSFileManager.defaultManager removeItemAtURL:file error:nil];
+}
+
+// path to the cached bytes without loading them, for callers that hand a file to the system
+// (lock-screen artwork) rather than decoding it themselves
+- (nullable NSString *)fileUrlForKey:(NSString *)key {
+    NSURL *file = [self diskFileForKey:key];
+    if (!file || ![NSFileManager.defaultManager fileExistsAtPath:file.path]) return nil;
+    [file setResourceValue:NSDate.date forKey:NSURLContentModificationDateKey error:nil];
+    return file.absoluteString;
 }
 
 - (void)writeData:(NSData *)data forKey:(NSString *)key {
@@ -247,8 +270,9 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
 // cross-thread set (session change) vs read (background fetch)
 @property (atomic, copy, nullable) NSString *authToken;
 + (instancetype)sharedInstance;
-- (nullable NSString *)extractPaletteForCategory:(NSString *)category sourceURL:(NSString *)url;
-- (void)preloadURL:(NSString *)url category:(NSString *)category;
+- (nullable NSString *)extractPaletteForCategory:(NSString *)category identity:(NSString *)identity;
+- (nullable NSString *)resolveCachedFileUrlForCategory:(NSString *)category identity:(NSString *)identity;
+- (void)preloadSource:(NSString *)source;
 - (void)clearCategories:(NSArray<NSString *> *)categories;
 - (void)setDiskCacheMaxBytes:(NSInteger)bytes;
 - (void)setImageCachedObserver:(void (^)(NSString *url, NSString *category))observer;
@@ -274,7 +298,13 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
 
 - (instancetype)init {
     self = [super init];
-    if (self) { _cache = [[AtollaIOSImageCacheStore alloc] init]; }
+    if (self) {
+        _cache = [[AtollaIOSImageCacheStore alloc] init];
+        __weak typeof(self) weakSelf = self;
+        AtollaSetCachedImageResolver(^NSString *_Nullable(NSString *category, NSString *identity) {
+            return [weakSelf resolveCachedFileUrlForCategory:category identity:identity];
+        });
+    }
     return self;
 }
 
@@ -287,21 +317,25 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
         return nil;
     }
     NSURLComponents *c = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
-    NSString *category = nil, *sourceURLString = nil;
+    NSString *category = nil, *sourceURLString = nil, *identity = nil, *tag = nil;
     for (NSURLQueryItem *item in c.queryItems) {
         if ([item.name isEqualToString:@"c"]) category = item.value;
         else if ([item.name isEqualToString:@"u"]) sourceURLString = item.value;
+        else if ([item.name isEqualToString:@"id"]) identity = item.value;
+        else if ([item.name isEqualToString:@"t"]) tag = item.value;
     }
-    NSURL *sourceURL = sourceURLString ? [NSURL URLWithString:sourceURLString] : nil;
-    if (!category || !sourceURL) {
+    NSURL *sourceURL = sourceURLString.length ? [NSURL URLWithString:sourceURLString] : nil;
+    NSString *cacheKey = identity.length ? identity : sourceURLString;
+    if (!category.length || !cacheKey.length) {
         if (error) *error = [NSError errorWithDomain:@"AtollaIOSImageLoader" code:2
-                                            userInfo:@{NSLocalizedDescriptionKey: @"Missing c or u params"}];
+                                            userInfo:@{NSLocalizedDescriptionKey: @"Missing c or id params"}];
         return nil;
     }
     AtollaIOSImageRequestPayload *payload = [[AtollaIOSImageRequestPayload alloc] init];
     payload.category = category;
     payload.sourceURL = sourceURL;
-    payload.cacheKey = AtollaImageCacheIdentity(sourceURL.absoluteString);
+    payload.tag = tag;
+    payload.cacheKey = cacheKey;
     return payload;
 }
 
@@ -319,9 +353,18 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
 - (id<SCValdiCancelable>)loadBytesWithRequestPayload:(AtollaIOSImageRequestPayload *)payload
                                           completion:(SCValdiImageLoaderBytesCompletion)completion {
     NSString *key = [NSString stringWithFormat:@"%@:%@", payload.category, payload.cacheKey];
+    [self reconcileTagForPayload:payload key:key];
     NSData *cached = [_cache readForKey:key];
     if (cached) {
         completion(cached, nil);
+        return [[AtollaNoopCancelable alloc] init];
+    }
+
+    // a caller holding only an id has nowhere to fetch from, which is the offline case
+    if (!payload.sourceURL) {
+        completion(nil, [NSError errorWithDomain:@"AtollaIOSImageLoader" code:3
+                                        userInfo:@{NSLocalizedDescriptionKey:
+                                                       @"Cache miss with no fetch source"}]);
         return [[AtollaNoopCancelable alloc] init];
     }
 
@@ -422,8 +465,35 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
     [_cache writeData:paletteData forKey:paletteKey];
 }
 
-- (nullable NSString *)extractPaletteForCategory:(NSString *)category sourceURL:(NSString *)url {
-    NSString *identity = AtollaImageCacheIdentity(url);
+- (NSString *)tagKeyForPayload:(AtollaIOSImageRequestPayload *)payload {
+    return [NSString stringWithFormat:@"%@_tag:%@", payload.category, payload.cacheKey];
+}
+
+// the tag is the server's "this artwork changed" signal. it never enters the cache key, so
+// reconcile it here: a changed tag drops the cached bytes and lets the normal path refetch,
+// while a caller that supplied no tag keeps whatever is cached
+- (void)reconcileTagForPayload:(AtollaIOSImageRequestPayload *)payload key:(NSString *)key {
+    NSString *tag = payload.tag;
+    if (!tag.length) return;
+
+    NSString *tagKey = [self tagKeyForPayload:payload];
+    NSData *storedData = [_cache readForKey:tagKey];
+    NSString *stored = storedData
+        ? [[NSString alloc] initWithData:storedData encoding:NSUTF8StringEncoding]
+        : nil;
+    if ([stored isEqualToString:tag]) return;
+
+    if (stored) [_cache removeForKey:key];
+    [_cache writeData:[tag dataUsingEncoding:NSUTF8StringEncoding] forKey:tagKey];
+}
+
+- (nullable NSString *)resolveCachedFileUrlForCategory:(NSString *)category identity:(NSString *)identity {
+    if (!category.length || !identity.length) return nil;
+    NSString *key = [NSString stringWithFormat:@"%@:%@", category, identity];
+    return [_cache fileUrlForKey:key];
+}
+
+- (nullable NSString *)extractPaletteForCategory:(NSString *)category identity:(NSString *)identity {
     if ([category isEqualToString:@"album_art"]) {
         NSString *paletteKey = [NSString stringWithFormat:@"album_art_palette:%@", identity];
         NSData *paletteData = [_cache readForKey:paletteKey];
@@ -437,28 +507,28 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
     return [AtollaPaletteExtractor extractPaletteFromData:data];
 }
 
-- (void)preloadURL:(NSString *)rawUrl category:(NSString *)category {
-    NSURLComponents *components = [NSURLComponents componentsWithString:rawUrl];
-    if (!components) return;
-    // defensive: strip any stray api_key so a token can never reach a cache key; auth is applied
-    // as a header from the out-of-band stored token in imageRequestForURL:
-    NSMutableArray<NSURLQueryItem *> *filteredItems = [NSMutableArray array];
-    for (NSURLQueryItem *item in components.queryItems) {
-        if (![item.name isEqualToString:@"api_key"]) {
-            [filteredItems addObject:item];
-        }
-    }
-    components.queryItems = filteredItems.count > 0 ? filteredItems : nil;
-    NSString *cleanUrl = components.URL.absoluteString ?: rawUrl;
-    NSURL *sourceURL = components.URL;
-    if (!sourceURL) return;
-    NSString *identity = AtollaImageCacheIdentity(cleanUrl);
+// takes the same atolla-cache:// source strings rendering uses, so a preload can never warm a
+// different cache entry than the one a later render reads
+- (void)preloadSource:(NSString *)source {
+    NSURL *sourceUri = [NSURL URLWithString:source];
+    if (!sourceUri) return;
+    AtollaIOSImageRequestPayload *payload = [self requestPayloadWithURL:sourceUri error:nil];
+    if (!payload) return;
+
+    NSString *category = payload.category;
+    NSString *identity = payload.cacheKey;
     NSString *key = [NSString stringWithFormat:@"%@:%@", category, identity];
+    [self reconcileTagForPayload:payload key:key];
+
+    NSURL *sourceURL = payload.sourceURL;
+    NSString *cleanUrl = sourceURL.absoluteString ?: identity;
     if ([_cache readForKey:key]) {
         // already cached, still report it so offline-availability waiters resolve
         if (_imageCachedObserver) _imageCachedObserver(cleanUrl, category);
         return;
     }
+    // nothing cached and nowhere to fetch from: offline, so there is nothing to warm
+    if (!sourceURL) return;
     NSMutableURLRequest *request = [self imageRequestForURL:sourceURL];
     NSURLSessionDataTask *task = [[AtollaAuthRedirectGuard sharedDefaultSession]
         dataTaskWithRequest:request
@@ -536,13 +606,13 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
     [AtollaIOSImageLoader.sharedInstance clearCategories:categories];
 }
 
-- (NSString *)extractAtollaPaletteFromCacheWithUrl:(NSString *)url category:(NSString *)category {
-    return [AtollaIOSImageLoader.sharedInstance extractPaletteForCategory:category sourceURL:url] ?: @"";
+- (NSString *)extractAtollaPaletteFromCacheWithIdentity:(NSString *)identity category:(NSString *)category {
+    return [AtollaIOSImageLoader.sharedInstance extractPaletteForCategory:category identity:identity] ?: @"";
 }
 
-- (void)preloadAtollaImagesWithUrls:(NSArray<NSString *> *)urls category:(NSString *)category {
-    for (NSString *url in urls) {
-        [AtollaIOSImageLoader.sharedInstance preloadURL:url category:category];
+- (void)preloadAtollaImagesWithSources:(NSArray<NSString *> *)sources {
+    for (NSString *source in sources) {
+        [AtollaIOSImageLoader.sharedInstance preloadSource:source];
     }
 }
 

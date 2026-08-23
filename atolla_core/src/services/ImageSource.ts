@@ -3,33 +3,37 @@ import type { ImageCategory } from './ImageCache';
 export const atollaCacheScheme = 'atolla-cache';
 export const atollaCacheHost = 'image';
 
-export interface AtollaCacheSource {
-	cacheOnly?: boolean;
+// `id` addresses the cache entry and is the only thing the native loader keys on. `url` is a
+// fetch source used on a miss, and is absent whenever the caller holds an id but no URL —
+// offline, or an artist logo reached from an album. `tag` is derived from the url and only
+// consulted when writing, so a caller with an id alone still resolves cached bytes.
+export interface ImageSourceRef {
 	category: ImageCategory;
-	url: string;
+	id: string;
+	url?: string | null;
 }
 
-interface BuildImageSourceOptions {
-	cacheOnly?: boolean;
+export function buildImageSource({ category, id, url }: ImageSourceRef): string {
+	const params = [`c=${encodeURIComponent(category)}`, `id=${encodeURIComponent(id)}`];
+
+	if (url) {
+		const normalized = stripApiKeyFromUrl(normalizeImageUrlForCategory(url, category));
+		const tag = extractImageTag(normalized);
+		if (tag) {
+			params.push(`t=${encodeURIComponent(tag)}`);
+		}
+		params.push(`u=${encodeURIComponent(normalized)}`);
+	}
+
+	return `${atollaCacheScheme}://${atollaCacheHost}?${params.join('&')}`;
 }
 
-export function buildSafeImageSource(
-	url: string | null | undefined,
-	category: ImageCategory,
-	options?: BuildImageSourceOptions,
-): string | null {
-	if (!url) return null;
-	return buildImageSource(url, category, options);
-}
-
-export function buildImageSource(
-	url: string,
-	category: ImageCategory,
-	options?: BuildImageSourceOptions,
-): string {
-	const strippedUrl = stripApiKeyFromUrl(normalizeImageUrlForCategory(url, category));
-	const cacheOnlyParam = options?.cacheOnly ? '&co=1' : '';
-	return `${atollaCacheScheme}://${atollaCacheHost}?c=${encodeURIComponent(category)}&u=${encodeURIComponent(strippedUrl)}${cacheOnlyParam}`;
+export function extractImageTag(url: string): string | null {
+	try {
+		return new URL(url).searchParams.get('tag');
+	} catch {
+		return null;
+	}
 }
 
 // defensive: the token is delivered to native fetchers out-of-band as a header, never in the
@@ -52,58 +56,8 @@ export function normalizeImageUrlForCategory(url: string, category: ImageCategor
 	return rewriteUrlForCategory(url, category);
 }
 
-export function parseImageSource(src: string): AtollaCacheSource | null {
-	if (!src.startsWith(`${atollaCacheScheme}://`)) {
-		return null;
-	}
-
-	try {
-		const parsed = new URL(src);
-		if (parsed.protocol !== `${atollaCacheScheme}:` || parsed.hostname !== atollaCacheHost) {
-			return null;
-		}
-
-		const category = parsed.searchParams.get('c');
-		const url = parsed.searchParams.get('u');
-		const cacheOnly = parsed.searchParams.get('co') === '1';
-		if (!category || !url) {
-			return null;
-		}
-
-		if (!url.startsWith('http://') && !url.startsWith('https://')) {
-			return null;
-		}
-
-		if (!isImageCategory(category)) {
-			return null;
-		}
-
-		return {
-			cacheOnly,
-			category,
-			url,
-		};
-	} catch {
-		return null;
-	}
-}
-
-export function imageCacheKey(url: string, category: ImageCategory): string {
-	return `${category}:${url}`;
-}
-
-function isImageCategory(value: string): value is ImageCategory {
-	return (
-		value === 'album_art' ||
-		value === 'album_art_thumb' ||
-		value === 'album_art_blurred' ||
-		value === 'artist_image' ||
-		value === 'artist_image_thumb' ||
-		value === 'artist_logo' ||
-		value === 'genre_art' ||
-		value === 'playlist_image' ||
-		value === 'playlist_image_thumb'
-	);
+export function imageCacheKey(id: string, category: ImageCategory): string {
+	return `${category}:${id}`;
 }
 
 interface ImageSizing {

@@ -111,6 +111,7 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				trackName: String,
 				artistName: String,
 				albumName: String,
+				artworkId: String,
 				artworkUrl: String,
 				isPlaying: Boolean,
 				positionSeconds: Double,
@@ -122,6 +123,7 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 					trackName = trackName,
 					artistName = artistName,
 					albumName = albumName,
+					artworkId = artworkId,
 					artworkUrl = artworkUrl,
 					isPlaying = isPlaying,
 					positionSeconds = positionSeconds,
@@ -220,6 +222,7 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 				trackName: String,
 				artistName: String,
 				albumName: String,
+				artworkId: String,
 				artworkUrl: String,
 				durationSeconds: Double,
 				hasPrevious: Boolean,
@@ -229,6 +232,7 @@ class AtollaTrackPlaybackNativeModuleFactory : TrackPlaybackNativeModuleFactory(
 					trackName = trackName,
 					artistName = artistName,
 					albumName = albumName,
+					artworkId = artworkId,
 					artworkUrl = artworkUrl,
 					durationSeconds = durationSeconds,
 					hasPrevious = hasPrevious,
@@ -288,6 +292,7 @@ object AtollaGaplessAudioEngine {
 	@Volatile private var nextNotificationTrackName: String = ""
 	@Volatile private var nextNotificationArtistName: String = ""
 	@Volatile private var nextNotificationAlbumName: String = ""
+	@Volatile private var nextNotificationArtworkId: String = ""
 	@Volatile private var nextNotificationArtworkUrl: String = ""
 	@Volatile private var nextNotificationDurationSeconds: Double = 0.0
 	@Volatile private var nextNotificationHasPrevious: Boolean = false
@@ -300,6 +305,7 @@ object AtollaGaplessAudioEngine {
 		val trackName: String,
 		val artistName: String,
 		val albumName: String,
+		val artworkId: String,
 		val artworkUrl: String,
 		val durationSeconds: Double,
 		val hasPrevious: Boolean,
@@ -411,6 +417,7 @@ object AtollaGaplessAudioEngine {
 			val trackName = nextNotificationTrackName
 			val artistName = nextNotificationArtistName
 			val albumName = nextNotificationAlbumName
+			val artworkId = nextNotificationArtworkId
 			val artworkUrl = nextNotificationArtworkUrl
 			val durationSeconds = nextNotificationDurationSeconds
 			val hasPrevious = nextNotificationHasPrevious
@@ -418,6 +425,7 @@ object AtollaGaplessAudioEngine {
 			nextNotificationTrackName = ""
 			nextNotificationArtistName = ""
 			nextNotificationAlbumName = ""
+			nextNotificationArtworkId = ""
 			nextNotificationArtworkUrl = ""
 			nextNotificationDurationSeconds = 0.0
 			nextNotificationHasPrevious = false
@@ -431,6 +439,7 @@ object AtollaGaplessAudioEngine {
 					trackName = windowEntry.trackName,
 					artistName = windowEntry.artistName,
 					albumName = windowEntry.albumName,
+					artworkId = windowEntry.artworkId,
 					artworkUrl = windowEntry.artworkUrl,
 					isPlaying = isPlayingState,
 					positionSeconds = 0.0,
@@ -443,6 +452,7 @@ object AtollaGaplessAudioEngine {
 					trackName = trackName,
 					artistName = artistName,
 					albumName = albumName,
+					artworkId = artworkId,
 					artworkUrl = artworkUrl,
 					isPlaying = isPlayingState,
 					positionSeconds = 0.0,
@@ -625,6 +635,7 @@ object AtollaGaplessAudioEngine {
 		trackName: String,
 		artistName: String,
 		albumName: String,
+		artworkId: String,
 		artworkUrl: String,
 		durationSeconds: Double,
 		hasPrevious: Boolean,
@@ -633,6 +644,7 @@ object AtollaGaplessAudioEngine {
 		nextNotificationTrackName = trackName
 		nextNotificationArtistName = artistName
 		nextNotificationAlbumName = albumName
+		nextNotificationArtworkId = artworkId
 		nextNotificationArtworkUrl = artworkUrl
 		nextNotificationDurationSeconds = durationSeconds
 		nextNotificationHasPrevious = hasPrevious
@@ -742,6 +754,7 @@ object AtollaGaplessAudioEngine {
 						trackName = entry.optString("trackName", ""),
 						artistName = entry.optString("artistName", ""),
 						albumName = entry.optString("albumName", ""),
+						artworkId = entry.optString("artworkId", ""),
 						artworkUrl = entry.optString("artworkUrl", ""),
 						durationSeconds = entry.optDouble("durationSeconds", 0.0),
 						hasPrevious = entry.optBoolean("hasPrevious", false),
@@ -1762,6 +1775,7 @@ object AtollaTrackPlaybackMediaSession {
 		trackName: String,
 		artistName: String,
 		albumName: String,
+		artworkId: String,
 		artworkUrl: String,
 		isPlaying: Boolean,
 		positionSeconds: Double,
@@ -1781,7 +1795,7 @@ object AtollaTrackPlaybackMediaSession {
 		activeHasPrevious = hasPrevious
 		activeHasNext = hasNext
 
-		val normalizedArtworkUrl = resolveNotificationArtworkUrl(artworkUrl.trim())
+		val normalizedArtworkUrl = resolveNotificationArtworkUrl(artworkId.trim(), artworkUrl.trim())
 		val artworkChanged = normalizedArtworkUrl != activeArtworkUrl
 		if (artworkChanged) {
 			activeArtworkUrl = normalizedArtworkUrl
@@ -2373,15 +2387,19 @@ object AtollaTrackPlaybackMediaSession {
 		}
 	}
 
-	private fun resolveNotificationArtworkUrl(artworkUrl: String): String {
-		if (artworkUrl.isBlank()) {
+	// prefer cached bytes so the notification renders offline. the full variant is not always
+	// cached even when the thumb is, so fall back to it rather than going to the network
+	private fun resolveNotificationArtworkUrl(artworkId: String, artworkUrl: String): String {
+		if (artworkId.isBlank() && artworkUrl.isBlank()) {
 			return ""
 		}
 
 		return try {
 			AtollaImageLoaderAutoBootstrap.registerForAllRuntimes()
-			AtollaCacheImageLoader.sharedInstance
-				?.resolveCachedFileUrl("album_art", artworkUrl)
+			val loader = AtollaCacheImageLoader.sharedInstance
+			val identity = if (artworkId.isNotBlank()) artworkId else artworkUrl
+			loader?.resolveCachedFileUrl("album_art", identity)
+				?: loader?.resolveCachedFileUrl("album_art_thumb", identity)
 				?: artworkUrl
 		} catch (_: Throwable) {
 			artworkUrl

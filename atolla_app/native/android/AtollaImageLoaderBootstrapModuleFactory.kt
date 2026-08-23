@@ -44,14 +44,14 @@ class AtollaImageLoaderBootstrapModuleFactory : ImageLoaderBootstrapModuleFactor
 				AtollaImageLoaderAutoBootstrap.clearNativeCacheCategories(categories)
 			}
 
-			override fun extractAtollaPaletteFromCache(url: String, category: String): String {
-				return AtollaImageLoaderAutoBootstrap.extractPaletteFromCache(url, category) ?: ""
+			override fun extractAtollaPaletteFromCache(identity: String, category: String): String {
+				return AtollaImageLoaderAutoBootstrap.extractPaletteFromCache(identity, category) ?: ""
 			}
 
-			override fun preloadAtollaImages(urls: List<String>, category: String) {
+			override fun preloadAtollaImages(sources: List<String>) {
 				val loader = AtollaCacheImageLoader.sharedInstance ?: return
-				for (url in urls) {
-					loader.preload(url, category)
+				for (source in sources) {
+					loader.preload(source)
 				}
 			}
 

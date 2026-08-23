@@ -32,10 +32,10 @@ export function setAtollaImageLoaderDiskCacheMaxBytes(bytes: number): void;
 export function clearAtollaNativeCacheCategories(categories: Array<string>): void;
 
 // @ExportFunction
-export function extractAtollaPaletteFromCache(url: string, category: string): string;
+export function extractAtollaPaletteFromCache(identity: string, category: string): string;
 
 // @ExportFunction
-export function preloadAtollaImages(urls: Array<string>, category: string): void;
+export function preloadAtollaImages(sources: Array<string>): void;
 
 // @ExportFunction
 export function setAtollaImageCachedObserver(

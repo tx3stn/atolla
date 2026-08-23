@@ -117,6 +117,7 @@ export class CardGrid extends Component<CardGridViewModel> {
 										<CachedImage
 											cacheVersion={cacheVersion}
 											category={category}
+											id={entry.id}
 											objectFit='cover'
 											style={styles.artworkImage}
 											url={artworkKey}

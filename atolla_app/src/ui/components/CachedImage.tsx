@@ -7,32 +7,39 @@ import type { ImageView } from 'valdi_tsx/src/NativeTemplateElements';
 export interface CachedImageViewModel {
 	cacheVersion?: number;
 	category: ImageCategory;
+	id?: string | null;
 	objectFit?: 'cover' | 'contain';
 	style?: Style<ImageView>;
 	url?: string | null;
 }
 
 export class CachedImage extends Component<CachedImageViewModel> {
+	private lastId?: string | null;
 	private lastUrl?: string | null;
 	private lastCategory?: ImageCategory;
 	private lastCacheVersion?: number;
 	private cachedSource = '';
 
 	onRender(): void {
-		const { category, cacheVersion, objectFit = 'cover', style, url } = this.viewModel;
-		if (!url) {
+		const { category, cacheVersion, id, objectFit = 'cover', style, url } = this.viewModel;
+		// a caller with neither an address nor a fetch source has nothing to render; a caller with
+		// only a url addresses by that url, which is how non-Jellyfin images stay expressible
+		const address = id || url;
+		if (!address) {
 			return;
 		}
 
 		if (
+			id !== this.lastId ||
 			url !== this.lastUrl ||
 			category !== this.lastCategory ||
 			cacheVersion !== this.lastCacheVersion
 		) {
+			this.lastId = id;
 			this.lastUrl = url;
 			this.lastCategory = category;
 			this.lastCacheVersion = cacheVersion;
-			this.cachedSource = buildImageSource(url, category);
+			this.cachedSource = buildImageSource({ category, id: address, url });
 		}
 
 		const imageStyle = style ?? styles.defaultImage;

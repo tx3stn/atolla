@@ -8,8 +8,15 @@ import { PaletteNativeWorkerEntryPoint } from './PaletteNativeWorker';
 
 const CONCURRENCY = 2;
 
+// the palette store is keyed by image url, but extraction reads the cached bytes, which are
+// addressed by entity id — so queue entries carry both
+interface PaletteRequest {
+	id: string;
+	url: string;
+}
+
 export class PaletteGenerationQueue {
-	private queue: Array<string> = [];
+	private queue: Array<PaletteRequest> = [];
 	private queueSet = new Set<string>();
 	private activeUrls = new Set<string>();
 	private allWorkers: Array<IWorkerServiceClient<IPaletteNativeWorker>>;
@@ -22,21 +29,22 @@ export class PaletteGenerationQueue {
 		this.idleWorkers = [...this.allWorkers];
 	}
 
-	prioritize(imageUrl: string | null | undefined): void {
+	prioritize(id: string | null | undefined, imageUrl: string | null | undefined): void {
 		if (!imageUrl || this.paletteService.hasPalette(imageUrl)) return;
+		const request = { id: id || imageUrl, url: imageUrl };
 		if (this.queueSet.has(imageUrl)) {
-			this.queue = [imageUrl, ...this.queue.filter((u) => u !== imageUrl)];
+			this.queue = [request, ...this.queue.filter((entry) => entry.url !== imageUrl)];
 		} else if (!this.activeUrls.has(imageUrl)) {
-			this.queue = [imageUrl, ...this.queue];
+			this.queue = [request, ...this.queue];
 			this.queueSet.add(imageUrl);
 		}
 		this.processNext();
 	}
 
-	enqueue(imageUrl: string | null | undefined): void {
+	enqueue(id: string | null | undefined, imageUrl: string | null | undefined): void {
 		if (!imageUrl || this.paletteService.hasPalette(imageUrl)) return;
 		if (!this.queueSet.has(imageUrl) && !this.activeUrls.has(imageUrl)) {
-			this.queue.push(imageUrl);
+			this.queue.push({ id: id || imageUrl, url: imageUrl });
 			this.queueSet.add(imageUrl);
 		}
 		this.processNext();
@@ -50,7 +58,7 @@ export class PaletteGenerationQueue {
 				!this.queueSet.has(album.imageUrl) &&
 				!this.activeUrls.has(album.imageUrl)
 			) {
-				this.queue.push(album.imageUrl);
+				this.queue.push({ id: album.id, url: album.imageUrl });
 				this.queueSet.add(album.imageUrl);
 			}
 		}
@@ -69,7 +77,7 @@ export class PaletteGenerationQueue {
 				!seen.has(url)
 			) {
 				seen.add(url);
-				this.queue.push(url);
+				this.queue.push({ id: track.albumId ?? url, url });
 				this.queueSet.add(url);
 			}
 		}
@@ -87,10 +95,11 @@ export class PaletteGenerationQueue {
 			// biome-ignore lint/style/noNonNullAssertion: both lengths checked above
 			const worker = this.idleWorkers.pop()!;
 			// biome-ignore lint/style/noNonNullAssertion: both lengths checked above
-			const url = this.queue.shift()!;
+			const request = this.queue.shift()!;
+			const url = request.url;
 			this.queueSet.delete(url);
 			this.activeUrls.add(url);
-			void this.process(worker, url).finally(() => {
+			void this.process(worker, request).finally(() => {
 				this.activeUrls.delete(url);
 				this.idleWorkers.push(worker);
 				this.processNext();
@@ -100,11 +109,12 @@ export class PaletteGenerationQueue {
 
 	private async process(
 		worker: IWorkerServiceClient<IPaletteNativeWorker>,
-		url: string,
+		request: PaletteRequest,
 	): Promise<void> {
+		const { id, url } = request;
 		if (this.paletteService.hasPalette(url)) return;
 		try {
-			const palette = await worker.api.extractPalette(url, 'album_art');
+			const palette = await worker.api.extractPalette(id, 'album_art');
 			if (palette) {
 				this.paletteService.persistPalette(url, palette);
 			}

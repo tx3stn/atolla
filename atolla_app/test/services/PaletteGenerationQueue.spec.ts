@@ -82,7 +82,7 @@ describe('PaletteGenerationQueue', () => {
 			service._palettes.set('https://example.com/art.jpg', MOCK_PALETTE);
 			const { queue, workers: w } = makeQueue(service);
 
-			queue.enqueue('https://example.com/art.jpg');
+			queue.enqueue('album-art', 'https://example.com/art.jpg');
 			await tick();
 
 			const allCalls = w.flatMap((worker) => worker.api.extractPalette.calls.allArgs());
@@ -93,8 +93,8 @@ describe('PaletteGenerationQueue', () => {
 		it('skips a null or undefined URL', async () => {
 			const { queue, workers: w } = makeQueue();
 
-			queue.enqueue(null);
-			queue.enqueue(undefined);
+			queue.enqueue(null, null);
+			queue.enqueue(undefined, undefined);
 			await tick();
 
 			const allCalls = w.flatMap((worker) => worker.api.extractPalette.calls.allArgs());
@@ -105,12 +105,12 @@ describe('PaletteGenerationQueue', () => {
 		it('dispatches work to a worker immediately when a slot is free', async () => {
 			const { queue, workers: w } = makeQueue();
 
-			queue.enqueue('https://example.com/art.jpg');
+			queue.enqueue('album-art', 'https://example.com/art.jpg');
 			await tick();
 
 			const allCalls = w.flatMap((worker) => worker.api.extractPalette.calls.allArgs());
 			expect(allCalls.length).toBe(1);
-			expect(allCalls[0][0]).toBe('https://example.com/art.jpg');
+			expect(allCalls[0][0]).toBe('album-art');
 			expect(allCalls[0][1]).toBe('album_art');
 			queue.dispose();
 		});
@@ -122,19 +122,19 @@ describe('PaletteGenerationQueue', () => {
 				worker.api.extractPalette.and.callFake(() => d.promise);
 			}
 			// fill both worker slots
-			queue.enqueue('https://example.com/a.jpg');
-			queue.enqueue('https://example.com/b.jpg');
+			queue.enqueue('album-a', 'https://example.com/a.jpg');
+			queue.enqueue('album-b', 'https://example.com/b.jpg');
 			// c goes to the pending queue
-			queue.enqueue('https://example.com/c.jpg');
+			queue.enqueue('album-c', 'https://example.com/c.jpg');
 			// enqueue c again, should be ignored
-			queue.enqueue('https://example.com/c.jpg');
+			queue.enqueue('album-c', 'https://example.com/c.jpg');
 
 			d.resolve(null);
 			await tick();
 
 			const cCalls = w
 				.flatMap((worker) => worker.api.extractPalette.calls.allArgs())
-				.filter(([url]) => url === 'https://example.com/c.jpg');
+				.filter(([id]) => id === 'album-c');
 			expect(cCalls.length).toBe(1);
 			queue.dispose();
 		});
@@ -145,7 +145,7 @@ describe('PaletteGenerationQueue', () => {
 				worker.api.extractPalette.and.returnValue(Promise.resolve(MOCK_PALETTE));
 			}
 
-			queue.enqueue('https://example.com/art.jpg');
+			queue.enqueue('album-art', 'https://example.com/art.jpg');
 			await tick();
 
 			expect(service.persistPalette).toHaveBeenCalledWith(
@@ -158,7 +158,7 @@ describe('PaletteGenerationQueue', () => {
 		it('skips persistPalette when the worker returns null', async () => {
 			const { queue, service } = makeQueue();
 
-			queue.enqueue('https://example.com/art.jpg');
+			queue.enqueue('album-art', 'https://example.com/art.jpg');
 			await tick();
 
 			expect(service.persistPalette).not.toHaveBeenCalled();
@@ -172,16 +172,16 @@ describe('PaletteGenerationQueue', () => {
 				worker.api.extractPalette.and.callFake(() => d.promise);
 			}
 
-			queue.enqueue('https://example.com/a.jpg');
-			queue.enqueue('https://example.com/b.jpg');
-			queue.enqueue('https://example.com/c.jpg');
+			queue.enqueue('album-a', 'https://example.com/a.jpg');
+			queue.enqueue('album-b', 'https://example.com/b.jpg');
+			queue.enqueue('album-c', 'https://example.com/c.jpg');
 			await tick();
 
 			const beforeCalls = w
 				.flatMap((worker) => worker.api.extractPalette.calls.allArgs())
 				.map(([url]) => url);
 			expect(beforeCalls.length).toBe(2);
-			expect(beforeCalls).not.toContain('https://example.com/c.jpg');
+			expect(beforeCalls).not.toContain('album-c');
 
 			d.resolve(null);
 			await tick();
@@ -189,7 +189,7 @@ describe('PaletteGenerationQueue', () => {
 			const afterCalls = w
 				.flatMap((worker) => worker.api.extractPalette.calls.allArgs())
 				.map(([url]) => url);
-			expect(afterCalls).toContain('https://example.com/c.jpg');
+			expect(afterCalls).toContain('album-c');
 			queue.dispose();
 		});
 	});
@@ -207,18 +207,18 @@ describe('PaletteGenerationQueue', () => {
 			}
 
 			// fill both worker slots; c and d sit pending
-			queue.enqueue('https://example.com/a.jpg');
-			queue.enqueue('https://example.com/b.jpg');
-			queue.enqueue('https://example.com/c.jpg');
-			queue.enqueue('https://example.com/d.jpg');
+			queue.enqueue('album-a', 'https://example.com/a.jpg');
+			queue.enqueue('album-b', 'https://example.com/b.jpg');
+			queue.enqueue('album-c', 'https://example.com/c.jpg');
+			queue.enqueue('album-d', 'https://example.com/d.jpg');
 
-			queue.prioritize('https://example.com/d.jpg');
+			queue.prioritize('album-d', 'https://example.com/d.jpg');
 
 			d.resolve(null);
 			await tick();
 
-			const cPos = callOrder.indexOf('https://example.com/c.jpg');
-			const dPos = callOrder.indexOf('https://example.com/d.jpg');
+			const cPos = callOrder.indexOf('album-c');
+			const dPos = callOrder.indexOf('album-d');
 			expect(dPos).toBeGreaterThanOrEqual(0);
 			if (cPos >= 0) expect(dPos).toBeLessThan(cPos);
 
@@ -244,8 +244,8 @@ describe('PaletteGenerationQueue', () => {
 			const calls = w
 				.flatMap((worker) => worker.api.extractPalette.calls.allArgs())
 				.map(([url]) => url as string);
-			expect(calls).toContain('https://example.com/new.jpg');
-			expect(calls).not.toContain('https://example.com/existing.jpg');
+			expect(calls).toContain('a1');
+			expect(calls).not.toContain('a2');
 			queue.dispose();
 		});
 	});

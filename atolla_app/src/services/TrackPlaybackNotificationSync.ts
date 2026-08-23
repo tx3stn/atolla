@@ -3,6 +3,7 @@ import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 export interface TrackPlaybackNotificationPayload {
 	albumName: string;
 	artistName: string;
+	artworkId: string;
 	artworkUrl: string;
 	durationSeconds: number;
 	hasNext: boolean;
@@ -98,6 +99,7 @@ export function buildTrackPlaybackNotificationPayload(
 	const artistName = track.artistName ?? playbackStore.album?.artistName ?? '';
 	const albumName = track.albumName ?? playbackStore.album?.name ?? '';
 	const artworkUrl = track.albumImageUrl ?? playbackStore.album?.imageUrl ?? '';
+	const artworkId = track.albumId ?? playbackStore.album?.id ?? '';
 	const durationSeconds = Number.isFinite(track.duration) ? track.duration : 0;
 	const positionSeconds = Number.isFinite(playbackStore.progressSeconds)
 		? playbackStore.progressSeconds
@@ -108,6 +110,7 @@ export function buildTrackPlaybackNotificationPayload(
 		trackName,
 		artistName,
 		albumName,
+		artworkId,
 		artworkUrl,
 		playbackStore.isPlaying,
 		durationSeconds,
@@ -118,6 +121,7 @@ export function buildTrackPlaybackNotificationPayload(
 	return {
 		albumName,
 		artistName,
+		artworkId,
 		artworkUrl,
 		durationSeconds,
 		hasNext,

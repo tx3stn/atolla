@@ -16,7 +16,7 @@ export class AssetCache {
 
 	// ask the native loader to cache an image, resolving once it reports cached (a hit reports too, so
 	// this resolves promptly either way).
-	cacheImageAsset(url: string, category: ImageCategory): Promise<void> {
+	cacheImageAsset(id: string, url: string, category: ImageCategory): Promise<void> {
 		return new Promise<void>((resolve) => {
 			const key = this.fingerprint(url, category);
 			let settled = false;
@@ -40,7 +40,7 @@ export class AssetCache {
 			this.pendingResolvers.set(key, list);
 
 			try {
-				preloadAtollaImages([url], category);
+				preloadAtollaImages([buildImageSource({ category, id, url })]);
 			} catch {
 				// no native preload bridge here: treat as done.
 				done();
@@ -63,13 +63,13 @@ export class AssetCache {
 		return null;
 	}
 
-	prewarmNowPlayingArtwork(imageUrl: string): void {
+	prewarmNowPlayingArtwork(id: string, imageUrl: string): void {
 		const outputType = Device.isAndroid()
 			? AssetOutputType.IMAGE_ANDROID
 			: AssetOutputType.IMAGE_IOS;
 		const sources = [
-			buildImageSource(imageUrl, 'album_art'),
-			buildImageSource(imageUrl, 'album_art_blurred'),
+			buildImageSource({ category: 'album_art', id, url: imageUrl }),
+			buildImageSource({ category: 'album_art_blurred', id, url: imageUrl }),
 		];
 		for (const source of sources) {
 			let subscription: { unsubscribe(): void } | undefined;

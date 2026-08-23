@@ -166,10 +166,6 @@ export class UserScope {
 		try {
 			setAtollaImageCachedObserver((url, category) => {
 				this.deps.assetCache.resolveCachedImageWaiters(url, category);
-				if (category !== 'album_art' || this.paletteService.hasPalette(url)) {
-					return;
-				}
-				this.paletteQueue.enqueue(url);
 			});
 		} catch {
 			// observer bridge unavailable on non-Android targets

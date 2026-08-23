@@ -193,7 +193,9 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 					>
 						<DetailHeader
 							animationsEnabled={animationsEnabled}
+							artistId={artist.id}
 							artworkCategory='artist_image'
+							artworkId={artist.id}
 							artworkSource={artist.imageUrl ?? null}
 							downloadEnabled={downloadEnabled}
 							downloadState={downloadState}
@@ -639,7 +641,12 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			const topTracks = topTracksResult.status === 'fulfilled' ? topTracksResult.value : [];
 			const hydratedArtist = artistResult.status === 'fulfilled' ? artistResult.value : null;
 
-			const payload: ArtistCachePayload = { albums, allTracks, hydratedArtist, topTracks };
+			const payload: ArtistCachePayload = {
+				albums,
+				allTracks,
+				hydratedArtist: hydratedArtist ?? this.state.hydratedArtist,
+				topTracks,
+			};
 			if (albums.length > 0 || topTracks.length > 0 || allTracks.length > 0) {
 				this.viewModel.viewCache.store(this.cacheKey(), payload);
 			}

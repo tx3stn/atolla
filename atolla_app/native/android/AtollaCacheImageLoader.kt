@@ -44,7 +44,12 @@ data class AtollaCacheRequestPayload(
 	val cacheKey: String,
 	val cacheOnly: Boolean,
 	val category: String,
-	val sourceUrl: String,
+	// only consulted when writing: a changed tag means the artwork was replaced on the server.
+	// it is deliberately not part of cacheKey, so a caller holding only an id still resolves
+	val tag: String?,
+	// absent when the caller has an id but no URL, which is the offline case: a cache hit needs
+	// no URL and a miss has nowhere to fetch from
+	val sourceUrl: String?,
 )
 
 class AtollaCacheImageLoader : ValdiImageLoader {
@@ -248,8 +253,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		Log.d(tag, "clearCategories: removed ${memKeys.size} memory entries, deleted $deleted disk files for $expanded")
 	}
 
-	fun extractPalette(category: String, sourceUrl: String): String? {
-		val identity = AtollaImageFallback.imageCacheIdentity(sourceUrl)
+	fun extractPalette(category: String, identity: String): String? {
 		// try the side-car key written at cache time, no decode needed
 		if (category == "album_art") {
 			val paletteKey = "album_art_palette:$identity"
@@ -259,6 +263,38 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		val key = "$category:$identity"
 		val bytes = memory.get(key) ?: readFromDisk(key) ?: return null
 		return extractPaletteFromBytes(bytes, key)
+	}
+
+	private fun tagKeyFor(payload: AtollaCacheRequestPayload): String =
+		"${payload.category}_tag:${payload.cacheKey}"
+
+	// the tag is the server's "this artwork changed" signal. it never enters the cache key, so
+	// reconcile it here: a changed tag drops the cached bytes and lets the normal path refetch,
+	// while a caller that supplied no tag keeps whatever is cached
+	private fun reconcileTag(payload: AtollaCacheRequestPayload, key: String) {
+		val tag = payload.tag
+		if (tag.isNullOrBlank()) {
+			return
+		}
+
+		val tagKey = tagKeyFor(payload)
+		val storedBytes = memory.get(tagKey) ?: readFromDisk(tagKey)
+		val stored = storedBytes?.let { String(it, Charsets.UTF_8) }
+		if (stored == tag) {
+			return
+		}
+
+		if (stored != null) {
+			memory.remove(key)
+			for (k in bitmapMemory.snapshot().keys.filter { it.startsWith("$key#") }) {
+				bitmapMemory.remove(k)
+			}
+			cacheFileForKey(key)?.let { file -> try { file.delete() } catch (_: Throwable) {} }
+		}
+
+		val tagBytes = tag.toByteArray(Charsets.UTF_8)
+		memory.put(tagKey, tagBytes)
+		writeToDisk(tagKey, tagBytes)
 	}
 
 	private fun writePaletteSidecarIfNeeded(identity: String, category: String, bytes: ByteArray) {
@@ -291,12 +327,12 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	private external fun nativeExtractPaletteFromPixels(pixels: IntArray, width: Int, height: Int): String?
 	private external fun nativeBlurPixels(pixels: IntArray, width: Int, height: Int, outWidth: Int, outHeight: Int): IntArray?
 
-	fun resolveCachedFileUrl(category: String, sourceUrl: String): String? {
-		if (category.isBlank() || sourceUrl.isBlank()) {
+	fun resolveCachedFileUrl(category: String, identity: String): String? {
+		if (category.isBlank() || identity.isBlank()) {
 			return null
 		}
 
-		val key = "$category:${AtollaImageFallback.imageCacheIdentity(sourceUrl)}"
+		val key = "$category:$identity"
 		val file = cacheFileForKey(key) ?: return null
 		if (!file.exists() || !file.isFile) {
 			return null
@@ -324,13 +360,16 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		val category = url.getQueryParameter("c")
 		val cacheOnly = url.getQueryParameter("co") == "1"
 		val source = url.getQueryParameter("u")
-		if (url.scheme != "atolla-cache" || url.host != "image" || category.isNullOrBlank() || source.isNullOrBlank()) {
+		val id = url.getQueryParameter("id")
+		val identity = if (id.isNullOrBlank()) source else id
+		if (url.scheme != "atolla-cache" || url.host != "image" || category.isNullOrBlank() || identity.isNullOrBlank()) {
 			throw ValdiException("Invalid atolla-cache image URL")
 		}
 		return AtollaCacheRequestPayload(
-			cacheKey = AtollaImageFallback.imageCacheIdentity(source),
+			cacheKey = identity,
 			cacheOnly = cacheOnly,
 			category = category,
+			tag = url.getQueryParameter("t"),
 			sourceUrl = source,
 		)
 	}
@@ -342,6 +381,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 	): Disposable? {
 		val payload = requetPayload as AtollaCacheRequestPayload
 		val key = "${payload.category}:${payload.cacheKey}"
+		reconcileTag(payload, key)
 		val bitmapPlan = resolveBitmapDecodePlan(key, payload.category, options)
 		Log.d(tag, "loadImage key=$key outputType=${options.outputType}")
 
@@ -514,7 +554,15 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 					}
 					return
 				}
-				val originalBytes = fetchBytes(payload.sourceUrl)
+				val blurSource = payload.sourceUrl
+				if (blurSource.isNullOrBlank()) {
+					inFlight.remove(key)
+					val ex = ValdiException("No cached album art to blur and no fetch source for $key")
+					future.completeExceptionally(ex)
+					deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, ex) }
+					return
+				}
+				val originalBytes = fetchBytes(blurSource)
 				memory.put(originalKey, originalBytes)
 				writeToDisk(originalKey, originalBytes)
 				writePaletteSidecarIfNeeded(payload.cacheKey, "album_art", originalBytes)
@@ -526,7 +574,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 					Log.d(tag, "blur generated after fetch key=$key bytes=${blurredBytes.size}")
 					future.complete(blurredBytes)
 					completeFromBytes(key, blurredBytes, options, completion, cancelled)
-					notifyImageCached(payload.sourceUrl, payload.category)
+					notifyImageCached(blurSource, payload.category)
 				} else {
 					future.completeExceptionally(ValdiException("Blur generation failed after fetch"))
 					deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed after fetch")) }
@@ -548,19 +596,22 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				}
 			}
 
-			if (payload.cacheOnly) {
+			// a caller holding only an id has nowhere to fetch from, which is the offline case and
+			// behaves exactly like a cache-only miss
+			val source = payload.sourceUrl
+			if (payload.cacheOnly || source.isNullOrBlank()) {
 				inFlight.remove(key)
 				if (deliveredFallback) {
 					future.complete(fallbackBytes!!)
 					return
 				}
-				val ex = ValdiException("Cache miss for cache-only request")
+				val ex = ValdiException("Cache miss with no fetch source for $key")
 				future.completeExceptionally(ex)
 				deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, ex) }
 				return
 			}
 
-			val bytes = fetchBytes(payload.sourceUrl)
+			val bytes = fetchBytes(source)
 			Log.d(tag, "network fetch success key=$key bytes=${bytes.size}")
 			memory.put(key, bytes)
 			writeToDisk(key, bytes)
@@ -572,7 +623,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			if (!deliveredFallback) {
 				completeFromBytes(key, bytes, options, completion, cancelled)
 			}
-			notifyImageCached(payload.sourceUrl, payload.category)
+			notifyImageCached(source, payload.category)
 		} catch (error: Throwable) {
 			Log.e(tag, "load failed key=$key", error)
 			inFlight.remove(key)
@@ -587,20 +638,26 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 	}
 
-	fun preload(rawSourceUrl: String, category: String) {
-		if (rawSourceUrl.isBlank() || category.isBlank()) {
+	// takes the same atolla-cache:// source strings rendering uses, so a preload can never warm a
+	// different cache entry than the one a later render reads
+	fun preload(source: String) {
+		val payload = try {
+			getRequestPayload(Uri.parse(source)) as AtollaCacheRequestPayload
+		} catch (_: Throwable) {
 			return
 		}
 
-		val sourceUrl = stripApiKeyFromUrl(rawSourceUrl)
-		val identity = AtollaImageFallback.imageCacheIdentity(sourceUrl)
+		val category = payload.category
+		val identity = payload.cacheKey
 		val key = "$category:$identity"
+		reconcileTag(payload, key)
+		val sourceUrl = payload.sourceUrl
 		val bitmapPlan = resolveBitmapDecodePlan(key, category, null)
 
 		// bitmap already decoded and cached: nothing to do, but still report it as cached so
 		// callers waiting on offline availability (e.g. downloads) resolve
 		if (bitmapMemory.get(bitmapPlan.bitmapKey) != null) {
-			notifyImageCached(sourceUrl, category)
+			notifyImageCached(sourceUrl ?: identity, category)
 			return
 		}
 
@@ -612,11 +669,12 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 					warmBitmapCache(key, bytes, category)
 				})
 			}
-			notifyImageCached(sourceUrl, category)
+			notifyImageCached(sourceUrl ?: identity, category)
 			return
 		}
 
-		if (inFlight.containsKey(key)) {
+		// nothing cached and nowhere to fetch from: offline, so there is nothing to warm
+		if (sourceUrl.isNullOrBlank() || inFlight.containsKey(key)) {
 			return
 		}
 

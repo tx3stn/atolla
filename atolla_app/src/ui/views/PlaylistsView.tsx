@@ -1,7 +1,7 @@
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import Strings from 'atolla_core/src/Strings';
 import type { ImageCache } from 'atolla_core/src/services/ImageCache';
-import { normalizeImageUrlForCategory } from 'atolla_core/src/services/ImageSource';
+import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { matchesLetterFilter } from 'atolla_core/src/utils/SortKey';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
@@ -257,11 +257,9 @@ export class PlaylistsView extends StatefulComponent<PlaylistsViewModel, Playlis
 	private preloadPlaylistImages(items: Array<Playlist>): void {
 		try {
 			preloadAtollaImages(
-				items
-					.map((p) => p.imageUrl)
-					.filter((url): url is string => url != null)
-					.map((url) => normalizeImageUrlForCategory(url, 'playlist_image_thumb')),
-				'playlist_image_thumb',
+				items.map((item) =>
+					buildImageSource({ category: 'playlist_image_thumb', id: item.id, url: item.imageUrl }),
+				),
 			);
 		} catch {
 			// non-Android targets have no native preload bridge

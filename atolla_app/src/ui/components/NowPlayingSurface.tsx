@@ -960,14 +960,27 @@ export class NowPlayingSurface extends StatefulComponent<
 			: emptyQueueEntries;
 		const canEditQueue = Boolean(this.viewModel.playbackStore);
 		const albumImageUrl = track.albumImageUrl ?? album?.imageUrl ?? null;
+		const albumArtworkAddress = track.albumId ?? album?.id ?? albumImageUrl;
 		const albumArtworkSource =
 			this.viewModel.albumArtworkSource ??
-			(albumImageUrl == null ? null : buildImageSource(albumImageUrl, 'album_art'));
+			(albumArtworkAddress == null
+				? null
+				: buildImageSource({
+						category: 'album_art',
+						id: albumArtworkAddress,
+						url: albumImageUrl,
+					}));
 		// the native loader generates this on demand by downscaling the cached album_art to
 		// 24×24; GPU upscale to full-screen produces heavy blur
 		const blurredBgSource =
 			this.viewModel.blurredArtworkSource ??
-			(albumImageUrl != null ? buildImageSource(albumImageUrl, 'album_art_blurred') : null);
+			(albumArtworkAddress == null
+				? null
+				: buildImageSource({
+						category: 'album_art_blurred',
+						id: albumArtworkAddress,
+						url: albumImageUrl,
+					}));
 		const artistLogoSource = artistLogoUrl ?? null;
 
 		// ── Palette-derived colours ──────────────────────────────────────────────

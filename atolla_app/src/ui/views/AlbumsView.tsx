@@ -1,7 +1,7 @@
 import type { Album } from 'atolla_core/src/models/Album';
 import Strings from 'atolla_core/src/Strings';
 import type { ImageCache } from 'atolla_core/src/services/ImageCache';
-import { normalizeImageUrlForCategory } from 'atolla_core/src/services/ImageSource';
+import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { matchesLetterFilter } from 'atolla_core/src/utils/SortKey';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
@@ -290,11 +290,9 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	private preloadAlbumImages(items: Array<Album>): void {
 		try {
 			preloadAtollaImages(
-				items
-					.map((a) => a.imageUrl)
-					.filter((url): url is string => url != null)
-					.map((url) => normalizeImageUrlForCategory(url, 'album_art_thumb')),
-				'album_art_thumb',
+				items.map((item) =>
+					buildImageSource({ category: 'album_art_thumb', id: item.id, url: item.imageUrl }),
+				),
 			);
 		} catch {
 			// non-Android targets have no native preload bridge

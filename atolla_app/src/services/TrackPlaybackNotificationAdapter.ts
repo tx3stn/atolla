@@ -31,6 +31,7 @@ export class TrackPlaybackNotificationAdapter implements TrackPlaybackNotificati
 			payload.trackName,
 			payload.artistName,
 			payload.albumName,
+			payload.artworkId,
 			payload.artworkUrl,
 			payload.isPlaying,
 			payload.positionSeconds,

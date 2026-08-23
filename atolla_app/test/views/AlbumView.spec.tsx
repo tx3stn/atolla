@@ -555,6 +555,37 @@ describe('AlbumView', () => {
 			expect(component.state.tracks[0].name).toBe('Song One');
 		});
 
+		valdiIt('keeps the artist logo when going offline empties the album', async (driver) => {
+			const tracks = [{ duration: 120, id: 'track-1', name: 'Song One', trackNumber: 1 }];
+			const component = driver.renderComponent(
+				AlbumView,
+				{
+					album,
+					downloadService,
+					networkStatus,
+					playbackStore,
+					preferences,
+					transport: {
+						getAlbumsByIds: async () => [],
+						getArtist: async () => ({ id: 'artist-1', logoUrl: 'https://logo.png', name: 'A' }),
+						getTracksByAlbum: async () => tracks,
+					},
+					viewCache: makeTestViewCache(),
+				},
+				{ navigator: mockNavigator },
+			);
+			await flushAsyncWork();
+			expect(component.state.artistLogoUrl).toBe('https://logo.png');
+
+			setTestAppServices({
+				transport: offlineTransport() as unknown as AppServicesBag['transport'],
+			});
+			await flushAsyncWork();
+
+			expect(component.state.tracks.length).toBe(0);
+			expect(component.state.artistLogoUrl).toBe('https://logo.png');
+		});
+
 		valdiIt('does not reload when the transport is unchanged', async (driver) => {
 			let getTracksByAlbumCalls = 0;
 			const transport = {

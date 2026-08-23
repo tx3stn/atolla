@@ -1,7 +1,7 @@
 import type { Artist } from 'atolla_core/src/models/Artist';
 import Strings from 'atolla_core/src/Strings';
 import type { ImageCache } from 'atolla_core/src/services/ImageCache';
-import { normalizeImageUrlForCategory } from 'atolla_core/src/services/ImageSource';
+import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { matchesLetterFilter } from 'atolla_core/src/utils/SortKey';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
@@ -406,11 +406,9 @@ export class ArtistsView extends StatefulComponent<ArtistsViewModel, ArtistsStat
 	private preloadArtistImages(items: Array<Artist>): void {
 		try {
 			preloadAtollaImages(
-				items
-					.map((a) => a.imageUrl)
-					.filter((url): url is string => url != null)
-					.map((url) => normalizeImageUrlForCategory(url, 'artist_image_thumb')),
-				'artist_image_thumb',
+				items.map((item) =>
+					buildImageSource({ category: 'artist_image_thumb', id: item.id, url: item.imageUrl }),
+				),
 			);
 		} catch {
 			// non-Android targets have no native preload bridge

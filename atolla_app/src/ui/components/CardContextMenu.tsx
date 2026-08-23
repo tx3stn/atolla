@@ -232,6 +232,7 @@ export class CardContextMenu extends StatefulComponent<
 			{card.kind === 'album' && (
 				<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
 					<ArtistLogo
+						artistId={card.album.artistId}
 						containerStyle={styles.logoContainer}
 						fallbackText={card.album.artistName}
 						logoSource={artistLogoUrl}
@@ -248,6 +249,7 @@ export class CardContextMenu extends StatefulComponent<
 				>
 					<CachedImage
 						category='album_art_thumb'
+						id={card.album.id}
 						style={styles.entityArtwork}
 						url={card.album.imageUrl}
 					/>
@@ -257,6 +259,7 @@ export class CardContextMenu extends StatefulComponent<
 			{card.kind === 'artist' && (
 				<view onTap={this.handleArtistTap} style={styles.logoTapArea}>
 					<ArtistLogo
+						artistId={card.artist.id}
 						containerStyle={styles.logoContainer}
 						fallbackText={card.artist.name}
 						logoSource={artistLogoUrl}
@@ -268,6 +271,7 @@ export class CardContextMenu extends StatefulComponent<
 				<view onTap={this.handleEntityTap} style={styles.entityRow}>
 					<CachedImage
 						category='playlist_image_thumb'
+						id={card.playlist.id}
 						style={styles.entityArtwork}
 						url={card.playlist.imageUrl}
 					/>
@@ -278,6 +282,7 @@ export class CardContextMenu extends StatefulComponent<
 				<view onTap={this.handleEntityTap} style={styles.entityRow}>
 					<CachedImage
 						category='genre_art'
+						id={card.genre.id}
 						style={styles.entityArtwork}
 						url={card.genre.imageUrl}
 					/>

@@ -163,6 +163,47 @@ describe('ArtistView', () => {
 			expect(component.state.topTracks[0].name).toBe('Song One');
 		});
 
+		valdiIt('keeps the hydrated artist when going offline finds nothing', async (driver) => {
+			const partialArtist = { id: 'artist-1', name: 'Artist One' };
+			const component = driver.renderComponent(
+				ArtistView,
+				{
+					artist: partialArtist,
+					downloadService,
+					networkStatus,
+					playbackStore,
+					preferences,
+					transport: {
+						...baseTransport(),
+						getArtist: async () => ({
+							id: 'artist-1',
+							imageUrl: 'https://a.png',
+							logoUrl: 'https://l.png',
+							name: 'Artist One',
+						}),
+						getArtistTopTracks: async () => [
+							{ duration: 120, id: 'track-1', name: 'Song One', trackNumber: 1 },
+						],
+					},
+					viewCache: makeTestViewCache(),
+				},
+				{ navigator: mockNavigator },
+			);
+			await flushAsyncWork();
+			expect(component.state.hydratedArtist?.logoUrl).toBe('https://l.png');
+
+			setTestAppServices({
+				transport: {
+					...baseTransport(),
+					getArtist: async () => null,
+				} as unknown as AppServicesBag['transport'],
+			});
+			await flushAsyncWork();
+
+			expect(component.state.topTracks.length).toBe(0);
+			expect(component.state.hydratedArtist?.logoUrl).toBe('https://l.png');
+		});
+
 		valdiIt('does not reload when the transport is unchanged', async (driver) => {
 			let getArtistTopTracksCalls = 0;
 			const transport = {

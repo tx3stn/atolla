@@ -24,6 +24,8 @@ export interface DownloadedTrackEntry {
 
 interface ImageReq {
 	category: ImageCategory;
+	// addresses the cache entry; the url is only the fetch source
+	id: string | null | undefined;
 	url: string | null | undefined;
 }
 
@@ -33,6 +35,9 @@ export interface DownloadedImageEntry {
 	complete: boolean;
 	// exhausted retries count as done so the item can still complete
 	exhausted: boolean;
+	// addresses the cache entry. the ledger itself stays keyed by url so existing downloads keep
+	// their persisted requiredImageKeys
+	id: string;
 	url: string;
 }
 
@@ -79,7 +84,7 @@ export interface DownloadServiceStore {
 }
 
 export interface DownloadServiceOptions {
-	cacheImage?: (url: string, category: ImageCategory) => Promise<void>;
+	cacheImage?: (id: string, url: string, category: ImageCategory) => Promise<void>;
 	cacheTrack: (trackId: string, url: string) => Promise<void>;
 	getTotalDownloadedSizeBytes?: () => number;
 	getTrackPlaybackUrl: (trackId: string) => string;
@@ -429,9 +434,9 @@ export class DownloadService {
 				const trackGenres = [...albumGenres, ...enrichGenres(track.genres ?? [])];
 				this.addTrackRef(normalized, streamUrl, album.id, null, null, trackGenres, artistLogoUrl);
 				this.addTrackImageRequirements(normalized.id, [
-					...this.albumArtReqs(track.albumImageUrl),
-					...this.albumArtReqs(album.imageUrl),
-					...this.artistReqs(artistImageUrl, artistLogoUrl),
+					...this.albumArtReqs(track.albumId, track.albumImageUrl),
+					...this.albumArtReqs(album.id, album.imageUrl),
+					...this.artistReqs(album.artistId, artistImageUrl, artistLogoUrl),
 					...this.genreArtReqs(trackGenres),
 				]);
 			}
@@ -480,8 +485,8 @@ export class DownloadService {
 			// every track in the playlist needs the playlist cover and all of the
 			// playlist's artist images for offline browsing, so attach them to each
 			const sharedReqs = [
-				...this.playlistImageReqs(playlist.imageUrl),
-				...artists.flatMap((artist) => this.artistReqs(artist.imageUrl, null)),
+				...this.playlistImageReqs(playlist.id, playlist.imageUrl),
+				...artists.flatMap((artist) => this.artistReqs(artist.id, artist.imageUrl, null)),
 			];
 			// resolvedGenres is the union of every track's genres (with image urls
 			// resolved); use it only to enrich each track's own genres, never to assign
@@ -491,9 +496,9 @@ export class DownloadService {
 				const trackGenres = enrichGenres(track.genres ?? []);
 				this.addTrackRef(track, streamUrl, null, null, playlist.id, trackGenres, artistLogoUrl);
 				this.addTrackImageRequirements(track.id, [
-					...this.albumArtReqs(track.albumImageUrl),
-					...this.albumArtReqs(this.albumMetadata[track.albumId ?? '']?.imageUrl),
-					...this.artistReqs(null, artistLogoUrl),
+					...this.albumArtReqs(track.albumId, track.albumImageUrl),
+					...this.albumArtReqs(track.albumId, this.albumMetadata[track.albumId ?? '']?.imageUrl),
+					...this.artistReqs(track.artistId, null, artistLogoUrl),
 					...this.genreArtReqs(trackGenres),
 					...sharedReqs,
 				]);
@@ -545,7 +550,7 @@ export class DownloadService {
 			// every track so the genre page renders offline
 			const sharedReqs = [
 				...this.genreArtReqs([genre]),
-				...artists.flatMap((artist) => this.artistReqs(artist.imageUrl, null)),
+				...artists.flatMap((artist) => this.artistReqs(artist.id, artist.imageUrl, null)),
 			];
 			// each track belongs to the genre being downloaded plus its own genres; the
 			// resolvedGenres union only enriches a track's own genres with image urls
@@ -554,9 +559,9 @@ export class DownloadService {
 				const trackGenres = [genre, ...enrichGenres(track.genres ?? [])];
 				this.addTrackRef(track, streamUrl, null, genre.id, null, trackGenres, artistLogoUrl);
 				this.addTrackImageRequirements(track.id, [
-					...this.albumArtReqs(track.albumImageUrl),
-					...this.albumArtReqs(this.albumMetadata[track.albumId ?? '']?.imageUrl),
-					...this.artistReqs(null, artistLogoUrl),
+					...this.albumArtReqs(track.albumId, track.albumImageUrl),
+					...this.albumArtReqs(track.albumId, this.albumMetadata[track.albumId ?? '']?.imageUrl),
+					...this.artistReqs(track.artistId, null, artistLogoUrl),
 					...this.genreArtReqs(trackGenres),
 					...sharedReqs,
 				]);
@@ -602,9 +607,9 @@ export class DownloadService {
 					const normalized = this.normalizeTrackArtist(track, album);
 					this.addTrackRef(normalized, streamUrl, album.id, null, null, albumGenres, artistLogoUrl);
 					this.addTrackImageRequirements(normalized.id, [
-						...this.albumArtReqs(track.albumImageUrl),
-						...this.albumArtReqs(album.imageUrl),
-						...this.artistReqs(artist.imageUrl, artistLogoUrl),
+						...this.albumArtReqs(track.albumId, track.albumImageUrl),
+						...this.albumArtReqs(album.id, album.imageUrl),
+						...this.artistReqs(artist.id, artist.imageUrl, artistLogoUrl),
 						...this.genreArtReqs([...albumGenres, ...(track.genres ?? [])]),
 					]);
 				}
@@ -655,17 +660,17 @@ export class DownloadService {
 			}
 
 			const sharedReqs = [
-				...this.playlistImageReqs(playlist.imageUrl),
-				...artists.flatMap((artist) => this.artistReqs(artist.imageUrl, null)),
+				...this.playlistImageReqs(playlist.id, playlist.imageUrl),
+				...artists.flatMap((artist) => this.artistReqs(artist.id, artist.imageUrl, null)),
 			];
 			const enrichGenres = this.genreEnricher(resolvedGenres);
 			for (const { artistLogoUrl, streamUrl, track } of newTracks) {
 				const trackGenres = enrichGenres(track.genres ?? []);
 				this.addTrackRef(track, streamUrl, null, null, playlist.id, trackGenres, artistLogoUrl);
 				this.addTrackImageRequirements(track.id, [
-					...this.albumArtReqs(track.albumImageUrl),
-					...this.albumArtReqs(this.albumMetadata[track.albumId ?? '']?.imageUrl),
-					...this.artistReqs(null, artistLogoUrl),
+					...this.albumArtReqs(track.albumId, track.albumImageUrl),
+					...this.albumArtReqs(track.albumId, this.albumMetadata[track.albumId ?? '']?.imageUrl),
+					...this.artistReqs(track.artistId, null, artistLogoUrl),
 					...this.genreArtReqs(trackGenres),
 					...sharedReqs,
 				]);
@@ -701,7 +706,7 @@ export class DownloadService {
 				trackArtistLogoUrls: {},
 				trackIds: knownTrackIds,
 			};
-			const imageReqs = this.playlistImageReqs(playlist.imageUrl);
+			const imageReqs = this.playlistImageReqs(playlist.id, playlist.imageUrl);
 			for (const trackId of knownTrackIds) {
 				this.addTrackImageRequirements(trackId, imageReqs);
 			}
@@ -973,35 +978,46 @@ export class DownloadService {
 		this.drainQueue();
 	}
 
-	private albumArtReqs(url: string | null | undefined): Array<ImageReq> {
+	private albumArtReqs(
+		id: string | null | undefined,
+		url: string | null | undefined,
+	): Array<ImageReq> {
 		// full `album_art` is required: the on-device blurred backdrop is generated
 		// from the cached original, so it must never be missing offline
 		return [
-			{ category: 'album_art', url },
-			{ category: 'album_art_thumb', url },
+			{ category: 'album_art', id, url },
+			{ category: 'album_art_thumb', id, url },
 		];
 	}
 
 	private artistReqs(
+		artistId: string | null | undefined,
 		imageUrl: string | null | undefined,
 		logoUrl: string | null | undefined,
 	): Array<ImageReq> {
 		return [
-			{ category: 'artist_image', url: imageUrl },
-			{ category: 'artist_image_thumb', url: imageUrl },
-			{ category: 'artist_logo', url: logoUrl },
+			{ category: 'artist_image', id: artistId, url: imageUrl },
+			{ category: 'artist_image_thumb', id: artistId, url: imageUrl },
+			{ category: 'artist_logo', id: artistId, url: logoUrl },
 		];
 	}
 
-	private playlistImageReqs(url: string | null | undefined): Array<ImageReq> {
+	private playlistImageReqs(
+		id: string | null | undefined,
+		url: string | null | undefined,
+	): Array<ImageReq> {
 		return [
-			{ category: 'playlist_image', url },
-			{ category: 'playlist_image_thumb', url },
+			{ category: 'playlist_image', id, url },
+			{ category: 'playlist_image_thumb', id, url },
 		];
 	}
 
 	private genreArtReqs(genres: Array<Genre>): Array<ImageReq> {
-		return genres.map((genre) => ({ category: 'genre_art', url: genre.imageUrl }));
+		return genres.map((genre) => ({
+			category: 'genre_art' as const,
+			id: genre.id,
+			url: genre.imageUrl,
+		}));
 	}
 
 	// register the images a track needs to display fully offline, dedup them
@@ -1014,7 +1030,7 @@ export class DownloadService {
 		const entry = this.tracks[trackId];
 		if (!entry) return;
 
-		for (const { category, url } of reqs) {
+		for (const { category, id, url } of reqs) {
 			const trimmed = typeof url === 'string' ? url.trim() : '';
 			if (trimmed.length === 0) continue;
 
@@ -1025,6 +1041,7 @@ export class DownloadService {
 					category,
 					complete: false,
 					exhausted: false,
+					id: typeof id === 'string' && id.length > 0 ? id : trimmed,
 					url: trimmed,
 				};
 			}
@@ -1162,7 +1179,7 @@ export class DownloadService {
 			}
 			// the native cache only fetches when missing and reports cached either way,
 			// so this resolves promptly for already-cached assets too
-			await this.cacheImageFn(image.url, image.category);
+			await this.cacheImageFn(image.id, image.url, image.category);
 			this.markImageDone(key);
 		} catch {
 			const current = this.images[key];

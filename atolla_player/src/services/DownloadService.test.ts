@@ -86,7 +86,7 @@ function createService(
 	const imageCalls: Array<ImageCall> = [];
 
 	const service = new DownloadService({
-		cacheImage: (url, category) => {
+		cacheImage: (_id, url, category) => {
 			imageCalls.push({ category, url });
 			return Promise.resolve();
 		},
@@ -1599,7 +1599,7 @@ describe('DownloadService', () => {
 
 		it('retries a failing image up to the cap, then completes best-effort', async () => {
 			const { imageCalls, service } = createService({
-				cacheImage: (url, category) => {
+				cacheImage: (_id, url, category) => {
 					imageCalls.push({ category, url });
 					return Promise.reject(new Error('boom'));
 				},
@@ -1663,7 +1663,7 @@ describe('DownloadService', () => {
 
 			const imageCalls: Array<ImageCall> = [];
 			const service = new DownloadService({
-				cacheImage: (url, category) => {
+				cacheImage: (_id, url, category) => {
 					imageCalls.push({ category, url });
 					return Promise.resolve();
 				},

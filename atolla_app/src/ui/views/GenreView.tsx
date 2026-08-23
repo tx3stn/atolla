@@ -149,7 +149,8 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 					>
 						<DetailHeader
 							animationsEnabled={this.viewModel.preferences.animationsEnabled}
-							artworkCategory='album_art'
+							artworkCategory='genre_art'
+							artworkId={genre.id}
 							artworkSource={genre.imageUrl ?? null}
 							downloadEnabled={downloadEnabled}
 							downloadState={downloadState}

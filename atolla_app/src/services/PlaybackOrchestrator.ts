@@ -38,6 +38,11 @@ const UPCOMING_PALETTE_CACHE_CONCURRENCY = 2;
 // tracks advance, and the generation queue abandons superseded jobs when the user skips
 export const WAVEFORM_PREGEN_WINDOW = 2;
 
+interface UpcomingArtwork {
+	id: string;
+	url: string;
+}
+
 export interface DownloadedTrackSource {
 	getTrackPlaybackUrl(trackId: string): string;
 	isTrackDownloaded(trackId: string): boolean;
@@ -49,12 +54,12 @@ export interface NowPlayingPaletteService {
 }
 
 export interface NowPlayingPaletteQueue {
-	enqueue(imageUrl: string | null | undefined): void;
-	prioritize(imageUrl: string | null | undefined): void;
+	enqueue(id: string | null | undefined, imageUrl: string | null | undefined): void;
+	prioritize(id: string | null | undefined, imageUrl: string | null | undefined): void;
 }
 
 export interface PlaybackOrchestratorDeps {
-	cacheAlbumArt: (imageUrl: string) => Promise<void>;
+	cacheAlbumArt: (id: string, imageUrl: string) => Promise<void>;
 	downloads: DownloadedTrackSource;
 	getAccessToken: () => string;
 	getAudioFileUrl: (trackId: string) => string | null;
@@ -65,7 +70,7 @@ export interface PlaybackOrchestratorDeps {
 	notification: TrackPlaybackNotificationNative;
 	onPlaybackTick: () => void;
 	playbackStore: PlaybackStore;
-	prewarmArtwork: (imageUrl: string) => void;
+	prewarmArtwork: (id: string, imageUrl: string) => void;
 	refreshTrackCachedCount: () => void;
 	requestOverlayRerender: () => void;
 	// force a host re-render after async work resolves (e.g. recently-played restore)
@@ -101,8 +106,8 @@ export class PlaybackOrchestrator {
 	private readonly getTransportToken: () => unknown;
 	private readonly isOfflinePlaybackMode: () => boolean;
 	private readonly onPlaybackTick: () => void;
-	private readonly cacheAlbumArt: (imageUrl: string) => Promise<void>;
-	private readonly prewarmArtwork: (imageUrl: string) => void;
+	private readonly cacheAlbumArt: (id: string, imageUrl: string) => Promise<void>;
+	private readonly prewarmArtwork: (id: string, imageUrl: string) => void;
 	private readonly refreshTrackCachedCount: () => void;
 	private readonly resolveArtistLogoUrl: (artistId: string) => Promise<string | null>;
 	private readonly showToast: (model: ToastModel) => void;
@@ -412,12 +417,13 @@ export class PlaybackOrchestrator {
 			return;
 		}
 		this.lastArtworkUrl = imageUrl;
-		this.prewarmArtwork(imageUrl);
+		const artworkId = this.playbackStore.track?.albumId ?? this.playbackStore.album?.id ?? imageUrl;
+		this.prewarmArtwork(artworkId, imageUrl);
 		fireAndForget(
 			'paletteWarmUp',
 			paletteService.warmUp([imageUrl]).then(() => {
 				if (!paletteService.hasPalette(imageUrl)) {
-					paletteQueue.prioritize(imageUrl);
+					paletteQueue.prioritize(artworkId, imageUrl);
 				}
 			}),
 		);
@@ -443,7 +449,7 @@ export class PlaybackOrchestrator {
 		this.lastUpcomingPaletteTrackIndex = trackIndex;
 
 		const seen = new Set<string>();
-		const urls: Array<string> = [];
+		const artworks: Array<UpcomingArtwork> = [];
 		for (const track of tracks.slice(
 			trackIndex + 1,
 			trackIndex + 1 + UPCOMING_PALETTE_PREWARM_COUNT,
@@ -453,13 +459,13 @@ export class PlaybackOrchestrator {
 				continue;
 			}
 			seen.add(url);
-			urls.push(url);
+			artworks.push({ id: track.albumId ?? url, url });
 		}
-		if (urls.length === 0) {
+		if (artworks.length === 0) {
 			return;
 		}
 
-		const run = (): void => this.warmUpcomingPalettes(urls, paletteService, paletteQueue);
+		const run = (): void => this.warmUpcomingPalettes(artworks, paletteService, paletteQueue);
 		const deferralSource = this.upcomingPaletteDeferralSource();
 		if (deferralSource) {
 			this.deferredDownloadCoordinator.defer('palette', {
@@ -488,36 +494,36 @@ export class PlaybackOrchestrator {
 	}
 
 	private warmUpcomingPalettes(
-		urls: Array<string>,
+		artworks: Array<UpcomingArtwork>,
 		paletteService: NowPlayingPaletteService,
 		paletteQueue: NowPlayingPaletteQueue,
 	): void {
 		fireAndForget(
 			'upcomingPaletteWarmUp',
 			paletteService
-				.warmUp(urls)
-				.then(() => this.cacheUpcomingPaletteArt(urls, paletteService, paletteQueue)),
+				.warmUp(artworks.map((artwork) => artwork.url))
+				.then(() => this.cacheUpcomingPaletteArt(artworks, paletteService, paletteQueue)),
 		);
 	}
 
 	private async cacheUpcomingPaletteArt(
-		urls: Array<string>,
+		artworks: Array<UpcomingArtwork>,
 		paletteService: NowPlayingPaletteService,
 		paletteQueue: NowPlayingPaletteQueue,
 	): Promise<void> {
-		const pending = urls.filter((url) => !paletteService.hasPalette(url));
+		const pending = artworks.filter((artwork) => !paletteService.hasPalette(artwork.url));
 		let cursor = 0;
 		const worker = async (): Promise<void> => {
 			while (cursor < pending.length) {
-				const url = pending[cursor];
+				const { id, url } = pending[cursor];
 				cursor += 1;
 				try {
-					await this.cacheAlbumArt(url);
+					await this.cacheAlbumArt(id, url);
 				} catch {
 					continue;
 				}
 				if (!paletteService.hasPalette(url)) {
-					paletteQueue.enqueue(url);
+					paletteQueue.enqueue(id, url);
 				}
 			}
 		};

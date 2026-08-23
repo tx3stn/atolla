@@ -8,6 +8,7 @@ import { theme } from '../../theme';
 import { Modal } from './Modal';
 
 export interface BioSectionViewModel {
+	artistId?: string | null;
 	bio: string;
 	language: LanguageCode;
 	logoUrl?: string;
@@ -25,8 +26,14 @@ export class BioSection extends Component<BioSectionViewModel> {
 	};
 
 	private renderBioModal = (): void => {
-		const { bio, logoUrl, title } = this.viewModel;
-		<Modal body={bio} logoUrl={logoUrl} onClose={this.closeModal} title={title} />;
+		const { artistId, bio, logoUrl, title } = this.viewModel;
+		<Modal
+			artistId={artistId}
+			body={bio}
+			logoUrl={logoUrl}
+			onClose={this.closeModal}
+			title={title}
+		/>;
 	};
 
 	private renderEmptyModalSlot = (): void => {};
