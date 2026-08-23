@@ -34,6 +34,11 @@ export function clearAtollaNativeCacheCategories(categories: Array<string>): voi
 // @ExportFunction
 export function extractAtollaPaletteFromCache(identity: string, category: string): string;
 
+// file:// url for already-cached bytes at this address, or "" when nothing is cached. lets callers
+// that only hold an entity id discover what is available without a fetch
+// @ExportFunction
+export function resolveAtollaCachedImage(category: string, identity: string): string;
+
 // @ExportFunction
 export function preloadAtollaImages(sources: Array<string>): void;
 

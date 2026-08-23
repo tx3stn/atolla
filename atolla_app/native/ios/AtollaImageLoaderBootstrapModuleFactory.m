@@ -610,6 +610,11 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
     return [AtollaIOSImageLoader.sharedInstance extractPaletteForCategory:category identity:identity] ?: @"";
 }
 
+- (NSString *)resolveAtollaCachedImageWithCategory:(NSString *)category identity:(NSString *)identity {
+    return [AtollaIOSImageLoader.sharedInstance resolveCachedFileUrlForCategory:category
+                                                                       identity:identity] ?: @"";
+}
+
 - (void)preloadAtollaImagesWithSources:(NSArray<NSString *> *)sources {
     for (NSString *source in sources) {
         [AtollaIOSImageLoader.sharedInstance preloadSource:source];

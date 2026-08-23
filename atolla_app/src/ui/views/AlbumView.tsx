@@ -508,7 +508,10 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 			const fetchedTracks = tracksResult.status === 'fulfilled' ? tracksResult.value : [];
 			// keep stored order disc-grouped so playback (indexing into state.tracks) matches the per-disc sections we render
 			const tracks = groupTracksByDisc(fetchedTracks).groups.flatMap((group) => group.tracks);
-			const artist = artistResult.status === 'fulfilled' ? artistResult.value : null;
+			const fetchedArtist = artistResult.status === 'fulfilled' ? artistResult.value : null;
+			const artist = fetchedArtist
+				? { ...fetchedArtist, name: fetchedArtist.name || album.artistName }
+				: null;
 			const logoUrl = artist?.logoUrl || null;
 			const fullAlbum =
 				fullAlbumResult.status === 'fulfilled' ? (fullAlbumResult.value[0] ?? null) : null;

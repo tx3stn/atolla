@@ -21,19 +21,24 @@ import { buildInstantMix, type InstantMixLibrary } from '../services/InstantMix'
 import type { PlaylistCreateService } from '../services/PlaylistCreateService';
 import type { PlaylistEditService } from '../services/PlaylistEditService';
 
+export type ResolveCachedImage = (category: string, identity: string) => string | null;
+
 export class OfflineTransport implements Transport {
 	private readonly downloads: DownloadService;
 	private readonly playlistCreateService: PlaylistCreateService;
 	private readonly playlistEditService: PlaylistEditService | null;
+	private readonly resolveCachedImage: ResolveCachedImage | null;
 
 	constructor(
 		downloads: DownloadService,
 		playlistCreateService: PlaylistCreateService,
 		playlistEditService?: PlaylistEditService,
+		resolveCachedImage?: ResolveCachedImage,
 	) {
 		this.downloads = downloads;
 		this.playlistCreateService = playlistCreateService;
 		this.playlistEditService = playlistEditService ?? null;
+		this.resolveCachedImage = resolveCachedImage ?? null;
 	}
 
 	async addItemsToPlaylist(playlistId: string, trackIds: Array<string>): Promise<void> {
@@ -98,6 +103,9 @@ export class OfflineTransport implements Transport {
 			return downloadedArtist;
 		}
 
+		const cachedLogoUrl = this.resolveCachedImage?.('artist_logo', artistId) ?? undefined;
+		const cachedImageUrl = this.resolveCachedImage?.('artist_image', artistId) ?? undefined;
+
 		const downloadedAlbum = this.downloads
 			.getAllAlbums()
 			.find((entry) => entry.album.artistId === artistId);
@@ -106,18 +114,25 @@ export class OfflineTransport implements Transport {
 				.getAllTracks()
 				.find((entry) => entry.track.artistId === artistId);
 			if (!downloadedTrack) {
-				return null;
+				if (!cachedLogoUrl && !cachedImageUrl) {
+					return null;
+				}
+
+				return { id: artistId, imageUrl: cachedImageUrl, logoUrl: cachedLogoUrl, name: '' };
 			}
 
 			return {
 				id: artistId,
+				imageUrl: cachedImageUrl,
+				logoUrl: cachedLogoUrl,
 				name: downloadedTrack.track.artistName ?? 'Unknown Artist',
 			};
 		}
 
 		return {
 			id: artistId,
-			logoUrl: downloadedAlbum.artistLogoUrl ?? undefined,
+			imageUrl: cachedImageUrl,
+			logoUrl: downloadedAlbum.artistLogoUrl ?? cachedLogoUrl,
 			name: downloadedAlbum.album.artistName,
 		};
 	}
@@ -165,7 +180,7 @@ export class OfflineTransport implements Transport {
 			}
 		}
 
-		return null;
+		return this.resolveCachedImage?.('artist_logo', artistId) ?? null;
 	}
 
 	async getArtists(

@@ -83,6 +83,7 @@ function makeConnectivity(over?: {
 		playlistCreateService: {} as ConnectivityDeps['playlistCreateService'],
 		playlistEditService: {} as ConnectivityDeps['playlistEditService'],
 		preferences,
+		resolveCachedImage: () => null,
 		sessionManager,
 		setNativeAuthToken: () => {},
 	};

@@ -30,6 +30,7 @@ import type { DevTools } from './dev/DevTools';
 import { ensureAtollaHapticsBootstrap } from './HapticsBootstrap';
 import {
 	ensureAtollaImageLoaderBootstrap,
+	resolveAtollaCachedImage,
 	setAtollaImageLoaderAuthToken,
 	setAtollaImageLoaderDiskCacheMaxBytes,
 } from './ImageLoaderBootstrap';
@@ -215,6 +216,7 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		playlistCreateService: this.playlistCreateService,
 		playlistEditService: this.playlistEditService,
 		preferences: this.preferences,
+		resolveCachedImage: (category, identity) => this.resolveCachedImage(category, identity),
 		sessionManager: this.sessionManager,
 		setNativeAuthToken: (token) => this.pushNativeAuthToken(token),
 	});
@@ -686,6 +688,14 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			return;
 		}
 		this.setState({ version: this.state.version + 1 });
+	}
+
+	private resolveCachedImage(category: string, identity: string): string | null {
+		try {
+			return resolveAtollaCachedImage(category, identity) || null;
+		} catch {
+			return null;
+		}
 	}
 
 	private resolveDeviceUserScopeKey(): string {

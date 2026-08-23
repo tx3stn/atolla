@@ -138,11 +138,21 @@ object AtollaImageLoaderAutoBootstrap {
 	}
 
 	@JvmStatic
-	fun extractPaletteFromCache(sourceUrl: String, category: String): String? {
+	fun extractPaletteFromCache(identity: String, category: String): String? {
 		registerForAllRuntimes()
 		return synchronized(registeredLoaders) {
 			registeredLoaders.values.firstNotNullOfOrNull { loader ->
-				loader.extractPalette(category, sourceUrl)
+				loader.extractPalette(category, identity)
+			}
+		}
+	}
+
+	@JvmStatic
+	fun resolveCachedImage(category: String, identity: String): String? {
+		registerForAllRuntimes()
+		return synchronized(registeredLoaders) {
+			registeredLoaders.values.firstNotNullOfOrNull { loader ->
+				loader.resolveCachedFileUrl(category, identity)
 			}
 		}
 	}

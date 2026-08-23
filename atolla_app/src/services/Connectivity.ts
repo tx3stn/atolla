@@ -4,7 +4,7 @@ import { LiveTransport } from 'atolla_jellyfin/src/transports/Live';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import type { PlaylistCreateService } from 'atolla_player/src/services/PlaylistCreateService';
 import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEditService';
-import { OfflineTransport } from 'atolla_player/src/transports/Offline';
+import { OfflineTransport, type ResolveCachedImage } from 'atolla_player/src/transports/Offline';
 import { type ConnectionMode, ConnectionModes } from '../models/App';
 import type { Preferences } from '../stores/Preferences';
 import type { SessionManager } from './SessionManager';
@@ -22,6 +22,7 @@ export interface ConnectivityDeps {
 	playlistCreateService: PlaylistCreateService;
 	playlistEditService: PlaylistEditService;
 	preferences: Preferences;
+	resolveCachedImage: ResolveCachedImage;
 	sessionManager: SessionManager;
 	setNativeAuthToken(token: string): void;
 }
@@ -170,6 +171,7 @@ export class Connectivity {
 				this.deps.downloadService,
 				this.deps.playlistCreateService,
 				this.deps.playlistEditService,
+				this.deps.resolveCachedImage,
 			);
 		}
 	}

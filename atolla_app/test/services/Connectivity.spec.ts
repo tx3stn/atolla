@@ -64,6 +64,7 @@ function makeConnectivity(opts?: { mode?: ConnectionMode; session?: AuthSession 
 		playlistCreateService: {} as ConnectivityDeps['playlistCreateService'],
 		playlistEditService: {} as ConnectivityDeps['playlistEditService'],
 		preferences,
+		resolveCachedImage: () => null,
 		sessionManager,
 		setNativeAuthToken: (token) => calls.setNativeAuthToken.push(token),
 	};

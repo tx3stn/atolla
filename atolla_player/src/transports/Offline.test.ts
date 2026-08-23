@@ -151,6 +151,98 @@ describe('OfflineTransport', () => {
 		expect(logoUrl).toBe('https://img/logo-artist-1.png');
 	});
 
+	it('resolves an artist logo from the image cache when nothing is downloaded', async () => {
+		const resolved: Array<[string, string]> = [];
+		const transport = new OfflineTransport(
+			createDownloadsMock({}) as never,
+			playlistCreateService,
+			undefined,
+			(category, identity) => {
+				resolved.push([category, identity]);
+				return category === 'artist_logo' ? 'file:///cache/artist_logo_abc' : null;
+			},
+		);
+
+		const logoUrl = await transport.getArtistLogoUrl('artist-1');
+
+		expect(logoUrl).toBe('file:///cache/artist_logo_abc');
+		expect(resolved).toContainEqual(['artist_logo', 'artist-1']);
+	});
+
+	it('prefers a downloaded artist logo over the image cache', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albums: [
+					{
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-1',
+							name: 'Album One',
+						},
+						artistLogoUrl: 'https://img/logo-artist-1.png',
+						trackIds: [],
+					},
+				],
+			}) as never,
+			playlistCreateService,
+			undefined,
+			() => 'file:///cache/artist_logo_abc',
+		);
+
+		expect(await transport.getArtistLogoUrl('artist-1')).toBe('https://img/logo-artist-1.png');
+	});
+
+	it('returns an artist carrying the cached logo when nothing is downloaded', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({}) as never,
+			playlistCreateService,
+			undefined,
+			(category) => (category === 'artist_logo' ? 'file:///cache/artist_logo_abc' : null),
+		);
+
+		const artist = await transport.getArtist('artist-1');
+
+		expect(artist?.logoUrl).toBe('file:///cache/artist_logo_abc');
+	});
+
+	it('returns null for an artist with nothing downloaded and nothing cached', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({}) as never,
+			playlistCreateService,
+			undefined,
+			() => null,
+		);
+
+		expect(await transport.getArtist('artist-1')).toBeNull();
+	});
+
+	it('carries a cached logo onto an artist derived from a downloaded album', async () => {
+		const transport = new OfflineTransport(
+			createDownloadsMock({
+				albums: [
+					{
+						album: {
+							artistId: 'artist-1',
+							artistName: 'Artist One',
+							id: 'album-1',
+							name: 'Album One',
+						},
+						artistLogoUrl: null,
+						trackIds: [],
+					},
+				],
+			}) as never,
+			playlistCreateService,
+			undefined,
+			(category) => (category === 'artist_logo' ? 'file:///cache/artist_logo_abc' : null),
+		);
+
+		const artist = await transport.getArtist('artist-1');
+
+		expect(artist?.logoUrl).toBe('file:///cache/artist_logo_abc');
+	});
+
 	it('returns a downloaded genre by id', async () => {
 		const transport = new OfflineTransport(
 			createDownloadsMock({
