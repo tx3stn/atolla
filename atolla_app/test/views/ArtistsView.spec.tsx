@@ -13,13 +13,6 @@ import { touchEvent } from '../util/testEvents';
 
 const pageSize = 24;
 
-const stubImageCache = {
-	get: () => null,
-	getOrLoad: () => null,
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 function makeNavigationController() {
 	let pushedComponent: unknown = null;
 	let pushedViewModel: Record<string, { id?: string }> | null = null;
@@ -61,7 +54,6 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			lyricsService: {} as LyricsService,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -90,7 +82,6 @@ describe('ArtistsView', () => {
 
 		const navigationController = makeNavigationController();
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController,
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -121,7 +112,6 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -147,7 +137,6 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			letterFilter: 'C',
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -178,7 +167,6 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			letterFilter: 'a',
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -208,7 +196,6 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -239,7 +226,6 @@ describe('ArtistsView', () => {
 			};
 
 			const viewModel = {
-				imageCache: stubImageCache,
 				isOfflineMode: true,
 				navigationController: makeNavigationController(),
 				playbackStore: new PlaybackStore(),
@@ -277,7 +263,6 @@ describe('ArtistsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			isOfflineMode: true,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),

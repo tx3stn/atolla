@@ -1,6 +1,5 @@
 import type { Lyrics } from 'atolla_core/src/models/Lyrics';
 import type { Track } from 'atolla_core/src/models/Track';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
@@ -11,7 +10,6 @@ import { ModalBase, modalStyles } from './ModalBase';
 import { TrackList, type TrackListEntry } from './TrackList';
 
 export interface LyricsModalViewModel {
-	imageCache?: ImageCache;
 	lyricsService: LyricsService;
 	onDismiss: () => void;
 	track: Track;
@@ -55,7 +53,7 @@ export class LyricsModal extends StatefulComponent<LyricsModalViewModel, LyricsM
 	}
 
 	onRender(): void {
-		const { imageCache, onDismiss, track } = this.viewModel;
+		const { onDismiss, track } = this.viewModel;
 		const { lyrics, status } = this.state;
 
 		<ModalBase
@@ -65,7 +63,7 @@ export class LyricsModal extends StatefulComponent<LyricsModalViewModel, LyricsM
 			onDismiss={onDismiss}
 		>
 			<view accessibilityId='lyrics-modal-track' accessibilityLabel='lyrics-modal-track'>
-				<TrackList imageCache={imageCache} tracks={this.getPreviewEntry(track)} />
+				<TrackList tracks={this.getPreviewEntry(track)} />
 			</view>
 			<view style={modalStyles.divider} />
 			<LyricsPanel

@@ -17,11 +17,6 @@ const playbackStore = {
 	track: null,
 };
 
-const stubImageCache = {
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 function makeNavigationController() {
 	let pushedComponent: unknown = null;
 	let pushedViewModel: Record<string, { id?: string }> | null = null;
@@ -63,7 +58,6 @@ describe('PlaylistsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			lyricsService: {} as LyricsService,
 			navigationController: makeNavigationController(),
 			playbackStore,
@@ -92,7 +86,6 @@ describe('PlaylistsView', () => {
 
 		const navigationController = makeNavigationController();
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController,
 			playbackStore,
 			preferences: makePreferences(),
@@ -121,7 +114,6 @@ describe('PlaylistsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
 			preferences: makePreferences(),
@@ -146,7 +138,6 @@ describe('PlaylistsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			letterFilter: 'a',
 			navigationController: makeNavigationController(),
 			playbackStore,
@@ -176,7 +167,6 @@ describe('PlaylistsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
 			preferences: makePreferences(),
@@ -207,7 +197,6 @@ describe('PlaylistsView', () => {
 			};
 
 			const viewModel = {
-				imageCache: stubImageCache,
 				isOfflineMode: true,
 				navigationController: makeNavigationController(),
 				playbackStore,
@@ -240,7 +229,6 @@ describe('PlaylistsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			isOfflineMode: true,
 			navigationController: makeNavigationController(),
 			playbackStore,

@@ -3,7 +3,6 @@ import type { Artist } from 'atolla_core/src/models/Artist';
 import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Track } from 'atolla_core/src/models/Track';
 import Strings from 'atolla_core/src/Strings';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { fireAndForget, retryResolve } from 'atolla_core/src/utils/Async';
 import {
@@ -48,7 +47,6 @@ import { openTrackContextMenu } from '../flows/TrackContextMenu';
 export interface AlbumViewModel {
 	album: Album;
 	downloadService: DownloadService;
-	imageCache: ImageCache;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
@@ -153,7 +151,7 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 
 	onRender(): void {
 		const { artistLogoUrl, downloadState, fullAlbum, isLoading, tracks } = this.state;
-		const { album: partialAlbum, imageCache, modalSlot } = this.viewModel;
+		const { album: partialAlbum, modalSlot } = this.viewModel;
 		const { animationsEnabled, downloadOnWifiOnly, language } = this.viewModel.preferences;
 		const downloadEnabled = !(
 			downloadOnWifiOnly && this.viewModel.networkStatus.getTransport() === 'cellular'
@@ -214,7 +212,6 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 									)}
 									<TrackList
 										animationsEnabled={animationsEnabled}
-										imageCache={imageCache}
 										onTrackLongPress={this.handleTrackLongPress}
 										onTrackTap={this.handleTrackTap}
 										rowIdentityPrefix={`album-disc-${section.disc ?? 'none'}-track-`}
@@ -225,7 +222,6 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 						) : (
 							<TrackList
 								animationsEnabled={animationsEnabled}
-								imageCache={imageCache}
 								onTrackLongPress={this.handleTrackLongPress}
 								onTrackTap={this.handleTrackTap}
 								rowIdentityPrefix='album-track-'
@@ -407,7 +403,6 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	private detailDeps(): DetailPushDeps {
 		return {
 			downloadService: this.viewModel.downloadService,
-			imageCache: this.viewModel.imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
@@ -426,14 +421,13 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 	};
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { imageCache, playbackStore } = this.viewModel;
+		const { playbackStore } = this.viewModel;
 		const transport = this.activeTransport;
 		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 
 		openTrackContextMenu(track, this.viewModel.modalSlot, {
 			animationsEnabled,
 			gridColumns,
-			imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			// tracks belong to the album we're already viewing, so tapping the row preview just closes the menu rather than re-navigating
 			onAlbumTap: () => {},

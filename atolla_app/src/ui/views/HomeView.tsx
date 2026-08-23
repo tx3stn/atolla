@@ -3,7 +3,6 @@ import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
 import Strings from 'atolla_core/src/Strings';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { TrackSource } from 'atolla_player/src/services/TrackSource';
@@ -45,7 +44,6 @@ const log = getLogger('home');
 
 export interface HomeViewModel {
 	connectionMode: ConnectionMode;
-	imageCache: ImageCache;
 	lyricsService: LyricsService;
 	modalSlot?: DetachedSlot;
 	onNavigateToArtist?: (artistId: string) => void;
@@ -180,7 +178,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 						<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyPlayed()} />
 						{recentlyPlayedTracks.length > 0 ? (
 							<TrackList
-								imageCache={this.viewModel.imageCache}
 								onTrackLongPress={this.handleRecentlyPlayedTrackLongPress}
 								onTrackTap={this.handleRecentlyPlayedTrackTap}
 								tracks={recentlyPlayedTracks}
@@ -484,7 +481,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		openTrackContextMenu(track, this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			gridColumns: this.viewModel.preferences.gridColumns,
-			imageCache: this.viewModel.imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			onAlbumTap: track.albumId
 				? () =>
@@ -529,7 +525,6 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			<AddToPlaylistView
 				animationsEnabled={this.viewModel.preferences.animationsEnabled}
 				gridColumns={this.viewModel.preferences.gridColumns}
-				imageCache={this.viewModel.imageCache}
 				onDismiss={this.closeModalSlot}
 				toastService={this.viewModel.toastService}
 				tracks={tracks}

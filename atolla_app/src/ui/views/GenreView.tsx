@@ -2,7 +2,6 @@ import type { Album } from 'atolla_core/src/models/Album';
 import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Track } from 'atolla_core/src/models/Track';
 import Strings from 'atolla_core/src/Strings';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { TrackPageSort, Transport } from 'atolla_core/src/transports/Transport';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
 import { TRACK_PAGE_SIZE } from 'atolla_core/src/utils/Pagination';
@@ -44,7 +43,6 @@ import { openTrackContextMenu } from '../flows/TrackContextMenu';
 export interface GenreViewModel {
 	downloadService: DownloadService;
 	genre: Genre;
-	imageCache: ImageCache;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
@@ -127,7 +125,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	onRender(): void {
 		const { downloadState, isLoading, isLoadingNextPage, nextPageFailed, totalTrackCount, tracks } =
 			this.state;
-		const { imageCache, modalSlot } = this.viewModel;
+		const { modalSlot } = this.viewModel;
 		const downloadEnabled = !(
 			this.viewModel.preferences.downloadOnWifiOnly &&
 			this.viewModel.networkStatus.getTransport() === 'cellular'
@@ -175,7 +173,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 							<LoadingView />
 						) : (
 							<TrackList
-								imageCache={imageCache}
 								onTrackLongPress={this.handleTrackLongPress}
 								onTrackTap={this.handleTrackTap}
 								rowIdentityPrefix='genre-track-'
@@ -323,7 +320,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	private detailDeps(): DetailPushDeps {
 		return {
 			downloadService: this.viewModel.downloadService,
-			imageCache: this.viewModel.imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
@@ -339,7 +335,7 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 	}
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { imageCache, modalSlot, playbackStore } = this.viewModel;
+		const { modalSlot, playbackStore } = this.viewModel;
 		const transport = this.activeTransport;
 		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const { albumId, artistId } = track;
@@ -347,7 +343,6 @@ export class GenreView extends NavigationPageStatefulComponent<GenreViewModel, G
 		openTrackContextMenu(track, modalSlot, {
 			animationsEnabled,
 			gridColumns,
-			imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			onAlbumTap: albumId
 				? () => {

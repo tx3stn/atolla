@@ -48,7 +48,6 @@ function setServices(store: PlaybackStore): { notifyPalette: PaletteListener } {
 		connectionMode: 'online',
 		downloadingCount: 0,
 		downloadService: stub as AppServicesBag['downloadService'],
-		imageCache: stub as AppServicesBag['imageCache'],
 		lyricsService: {
 			get: () => undefined,
 			load: () => Promise.resolve(null),

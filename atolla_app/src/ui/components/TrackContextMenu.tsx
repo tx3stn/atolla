@@ -1,7 +1,6 @@
 import res from 'atolla_app/res';
 import type { Track } from 'atolla_core/src/models/Track';
 import Strings from 'atolla_core/src/Strings';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import { INSTANT_MIX_LIMIT, type Transport } from 'atolla_core/src/transports/Transport';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { StatefulComponent } from 'valdi_core/src/Component';
@@ -16,7 +15,6 @@ import { TrackList, type TrackListEntry } from './TrackList';
 
 export interface TrackContextMenuViewModel {
 	animationsEnabled: boolean;
-	imageCache?: ImageCache;
 	onAddToPlaylist?: () => void;
 	onAlbumTap?: () => void;
 	onArtistTap?: () => void;
@@ -149,7 +147,7 @@ export class TrackContextMenu extends StatefulComponent<
 	};
 
 	onRender(): void {
-		const { animationsEnabled, imageCache, onCreatePlaylist, track } = this.viewModel;
+		const { animationsEnabled, onCreatePlaylist, track } = this.viewModel;
 		const { artistLogoUrl } = this.state;
 
 		const previewEntry = this.getPreviewEntry(track);
@@ -170,7 +168,6 @@ export class TrackContextMenu extends StatefulComponent<
 			/>
 			<view accessibilityId='track-context-track' accessibilityLabel='track-context-track'>
 				<TrackList
-					imageCache={imageCache}
 					onTrackTap={this.viewModel.onAlbumTap ? this.handleAlbumTap : undefined}
 					tracks={previewEntry}
 				/>

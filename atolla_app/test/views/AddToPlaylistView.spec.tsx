@@ -11,13 +11,6 @@ const oneTrack = pagedFromArray([
 
 const pageSize = 24;
 
-const stubImageCache = {
-	get: () => null,
-	getOrLoad: () => null,
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 function makePlaylists(count: number, offset = 0) {
 	return Array.from({ length: count }, (_, index) => ({
 		id: `playlist-${offset + index}`,
@@ -48,7 +41,6 @@ describe('AddToPlaylistView', () => {
 		const viewModel = {
 			animationsEnabled: false,
 			gridColumns: 2,
-			imageCache: stubImageCache,
 			onDismiss: () => {},
 			toastService: new ToastService(),
 			tracks: [{ duration: 120, id: 'track-1', name: 'Track One' }],
@@ -79,7 +71,6 @@ describe('AddToPlaylistView', () => {
 		const viewModel = {
 			animationsEnabled: false,
 			gridColumns: 2,
-			imageCache: stubImageCache,
 			onDismiss: () => {},
 			toastService: new ToastService(),
 			tracks: [],
@@ -113,7 +104,6 @@ describe('AddToPlaylistView', () => {
 		const viewModel = {
 			animationsEnabled: false,
 			gridColumns: 2,
-			imageCache: stubImageCache,
 			onDismiss: () => {
 				dismissed = true;
 			},
@@ -145,7 +135,6 @@ describe('AddToPlaylistView', () => {
 		const viewModel = {
 			animationsEnabled: false,
 			gridColumns: 2,
-			imageCache: stubImageCache,
 			onDismiss: () => {
 				dismissed = true;
 			},

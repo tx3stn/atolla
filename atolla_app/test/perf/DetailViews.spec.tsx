@@ -33,13 +33,6 @@ const playbackStore = {
 
 const networkStatus = { getTransport: () => 'wifi', subscribe: () => () => {} };
 
-const stubImageCache = {
-	get: () => null,
-	getOrLoad: () => null,
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 const tracks = [
 	{
 		albumName: 'Jane Doe',
@@ -75,7 +68,6 @@ describe('detail view render identity', () => {
 			PlaylistView,
 			{
 				downloadService,
-				imageCache: stubImageCache,
 				networkStatus,
 				playbackStore,
 				playlist: { id: 'playlist-1', name: 'Roadtrip' },
@@ -105,7 +97,6 @@ describe('detail view render identity', () => {
 			{
 				downloadService,
 				genre: { id: 'genre-1', name: 'Hardcore' },
-				imageCache: stubImageCache,
 				networkStatus,
 				playbackStore,
 				preferences: makePreferences(),
@@ -135,7 +126,6 @@ describe('detail view render identity', () => {
 			{
 				album,
 				downloadService,
-				imageCache: stubImageCache,
 				networkStatus,
 				playbackStore,
 				preferences: makePreferences(),
@@ -170,7 +160,6 @@ describe('detail view render identity', () => {
 			{
 				artist,
 				downloadService,
-				imageCache: stubImageCache,
 				networkStatus,
 				playbackStore,
 				preferences: makePreferences(),

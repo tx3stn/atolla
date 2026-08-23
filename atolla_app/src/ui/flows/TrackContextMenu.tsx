@@ -1,6 +1,5 @@
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { pagedFromArray } from 'atolla_player/src/services/TrackSource';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
@@ -16,7 +15,6 @@ import { closeSlot, openSlot } from './ModalSlotFlow';
 export interface OpenTrackContextMenuOptions {
 	animationsEnabled: boolean;
 	gridColumns: number;
-	imageCache: ImageCache;
 	lyricsService: LyricsService;
 	onAlbumTap?: () => void;
 	onArtistTap?: () => void;
@@ -52,7 +50,6 @@ export function openTrackContextMenu(
 			<AddToPlaylistView
 				animationsEnabled={options.animationsEnabled}
 				gridColumns={options.gridColumns}
-				imageCache={options.imageCache}
 				onDismiss={closeModal}
 				toastService={options.toastService}
 				tracks={pagedFromArray([track])}
@@ -63,12 +60,7 @@ export function openTrackContextMenu(
 
 	const onLyrics = (): void => {
 		openSlot(modalSlot, () => {
-			<LyricsModal
-				imageCache={options.imageCache}
-				lyricsService={options.lyricsService}
-				onDismiss={closeModal}
-				track={track}
-			/>;
+			<LyricsModal lyricsService={options.lyricsService} onDismiss={closeModal} track={track} />;
 		});
 	};
 
@@ -85,7 +77,6 @@ export function openTrackContextMenu(
 	openSlot(modalSlot, () => {
 		<TrackContextMenu
 			animationsEnabled={options.animationsEnabled}
-			imageCache={options.imageCache}
 			onAddToPlaylist={onAddToPlaylist}
 			onAlbumTap={options.onAlbumTap}
 			onArtistTap={options.onArtistTap}

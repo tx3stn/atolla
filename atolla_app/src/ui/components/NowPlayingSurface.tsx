@@ -4,7 +4,6 @@ import type { Lyrics } from 'atolla_core/src/models/Lyrics';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
 import Strings from 'atolla_core/src/Strings';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { pagedFromArray } from 'atolla_player/src/services/TrackSource';
@@ -103,7 +102,6 @@ export interface NowPlayingSurfaceViewModel {
 	blurredArtworkSource?: string | Asset;
 	collapseSignal: number;
 	gridColumns: number;
-	imageCache: ImageCache;
 	isPlaying: boolean;
 	language?: string;
 	loopMode?: LoopMode;
@@ -808,7 +806,6 @@ export class NowPlayingSurface extends StatefulComponent<
 		openTrackContextMenu(track, this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.animationsEnabled,
 			gridColumns: this.viewModel.gridColumns,
-			imageCache: this.viewModel.imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			onAlbumTap:
 				track.albumId && onAlbumTap

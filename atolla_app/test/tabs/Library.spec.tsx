@@ -8,13 +8,6 @@ import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { componentTypeFind } from 'foundation/test/util/componentTypeFind';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';
 
-const stubImageCache = {
-	get: () => null,
-	getOrLoad: () => null,
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 const stubTransport = {
 	getAlbums: async () => ({ hasMore: false, items: [] }),
 	getArtists: async () => ({ hasMore: false, items: [] }),
@@ -39,7 +32,6 @@ function makeViewModel() {
 	return {
 		connectionMode: ConnectionModes.online,
 		downloadService: stubDownloadService,
-		imageCache: stubImageCache,
 		onNavigationControllerReady: () => {},
 		playbackStore: new PlaybackStore(),
 		preferences: makePreferences(),

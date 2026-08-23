@@ -14,13 +14,6 @@ import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewC
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { editTextEvent, touchEvent } from '../util/testEvents';
 
-const stubImageCache = {
-	get: () => null,
-	getOrLoad: () => null,
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 function flushAsyncWork(): Promise<void> {
 	return Promise.resolve().then(() => Promise.resolve());
 }
@@ -66,7 +59,6 @@ function clearButtonView(component: SearchView) {
 describe('SearchView', () => {
 	valdiIt('starts with an empty query', async (driver) => {
 		const viewModel = {
-			imageCache: stubImageCache,
 			lyricsService: {} as LyricsService,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -83,7 +75,6 @@ describe('SearchView', () => {
 
 	valdiIt('updates query state when textfield changes', async (driver) => {
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -105,7 +96,6 @@ describe('SearchView', () => {
 
 	valdiIt('hides the clear button while the query is empty', async (driver) => {
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -121,7 +111,6 @@ describe('SearchView', () => {
 
 	valdiIt('shows the clear button once the query has text', async (driver) => {
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -146,7 +135,6 @@ describe('SearchView', () => {
 		'clears the query but keeps the results when the clear button is tapped',
 		async (driver) => {
 			const viewModel = {
-				imageCache: stubImageCache,
 				navigationController: makeNavigationController(),
 				playbackStore: new PlaybackStore(),
 				preferences: makePreferences(),
@@ -183,7 +171,6 @@ describe('SearchView', () => {
 			'focusSearchInput',
 		);
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -204,7 +191,6 @@ describe('SearchView', () => {
 	valdiIt('does not search when submit is empty and clears results', async (driver) => {
 		let calls = 0;
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -241,7 +227,6 @@ describe('SearchView', () => {
 	valdiIt('submits search and stores recent terms', async () => {
 		const searchCalls: Array<string> = [];
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -278,7 +263,6 @@ describe('SearchView', () => {
 	valdiIt('cancels the prior in-flight search when a new query is submitted', async () => {
 		const canceledQueries: Array<string> = [];
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -308,7 +292,6 @@ describe('SearchView', () => {
 	valdiIt('submits search from keyboard return', async () => {
 		const searchCalls: Array<string> = [];
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -340,7 +323,6 @@ describe('SearchView', () => {
 	valdiIt('accepts event-shaped submit payloads', async () => {
 		const searchCalls: Array<string> = [];
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -368,7 +350,6 @@ describe('SearchView', () => {
 	valdiIt('opens artist/album/playlist views from tapped cards', async (driver) => {
 		const navigationController = makeNavigationController();
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController,
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -404,7 +385,6 @@ describe('SearchView', () => {
 		async (driver) => {
 			const routed: Array<{ kind: string }> = [];
 			const viewModel = {
-				imageCache: stubImageCache,
 				navigationController: makeNavigationController(),
 				onNavigateToLibraryResult: (target: { kind: string }) => routed.push(target),
 				playbackStore: new PlaybackStore(),
@@ -439,7 +419,6 @@ describe('SearchView', () => {
 	valdiIt('plays only the tapped track from track list results', async (driver) => {
 		const playbackStore = new PlaybackStore();
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore,
 			preferences: makePreferences(),
@@ -480,7 +459,6 @@ describe('SearchView', () => {
 		);
 		const viewModel = {
 			active: false,
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -503,7 +481,6 @@ describe('SearchView', () => {
 		);
 		const viewModel = {
 			active: true,
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -528,7 +505,6 @@ describe('SearchView', () => {
 			);
 			const viewModel = {
 				active: false,
-				imageCache: stubImageCache,
 				navigationController: makeNavigationController(),
 				playbackStore: new PlaybackStore(),
 				preferences: makePreferences(),
@@ -553,7 +529,6 @@ describe('SearchView', () => {
 
 	valdiIt('renders search bar with accessibility labels', async (driver) => {
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),

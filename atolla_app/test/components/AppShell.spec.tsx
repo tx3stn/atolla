@@ -24,7 +24,6 @@ function setServices(overrides: Partial<AppServicesBag> = {}): void {
 		connectionMode: 'online',
 		downloadingCount: 0,
 		downloadService: stub as AppServicesBag['downloadService'],
-		imageCache: stub as AppServicesBag['imageCache'],
 		lyricsService: stub as AppServicesBag['lyricsService'],
 		modalSlot: stub as AppServicesBag['modalSlot'],
 		networkStatus: stub as AppServicesBag['networkStatus'],

@@ -5,7 +5,6 @@ import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { SearchResults } from 'atolla_core/src/models/Search';
 import type { Track } from 'atolla_core/src/models/Track';
 import Strings from 'atolla_core/src/Strings';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEditService';
@@ -53,7 +52,6 @@ type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
 export interface SearchViewModel {
 	active: boolean;
 	downloadService: DownloadService;
-	imageCache: ImageCache;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
@@ -138,7 +136,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 
 	onRender(): void {
 		const { query, recentSearches, results, status } = this.state;
-		const { imageCache } = this.viewModel;
 
 		<layout accessibilityLabel='search-view' style={styles.searchRoot}>
 			<scroll style={styles.scroll}>
@@ -258,7 +255,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 								<layout style={styles.section}>
 									{this.renderSectionTitle(Strings.searchSectionTracks())}
 									<TrackList
-										imageCache={imageCache}
 										onTrackLongPress={this.handleTrackLongPress}
 										onTrackTap={this.handleTrackTap}
 										tracks={this.createTrackEntries(results.tracks)}
@@ -550,7 +546,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 		openTrackContextMenu(track, this.viewModel.modalSlot, {
 			animationsEnabled: this.viewModel.preferences.animationsEnabled,
 			gridColumns: this.viewModel.preferences.gridColumns,
-			imageCache: this.viewModel.imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			onAlbumTap: undefined,
 			onArtistTap: track.artistId ? () => this.handleContextMenuArtistTap(track) : undefined,
@@ -567,7 +562,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 	private detailDeps(): DetailPushDeps {
 		return {
 			downloadService: this.viewModel.downloadService,
-			imageCache: this.viewModel.imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
@@ -626,7 +620,6 @@ export class SearchView extends StatefulComponent<SearchViewModel, SearchState> 
 			<AddToPlaylistView
 				animationsEnabled={this.viewModel.preferences.animationsEnabled}
 				gridColumns={this.viewModel.preferences.gridColumns}
-				imageCache={this.viewModel.imageCache}
 				onDismiss={this.closeModalSlot}
 				toastService={this.viewModel.toastService}
 				tracks={tracks}

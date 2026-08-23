@@ -22,13 +22,6 @@ const tracks = Array.from({ length: 8 }, (_, index) => ({
 	name: `Track ${index}`,
 }));
 
-const stubImageCache = {
-	get: () => null,
-	getOrLoad: () => null,
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 function mockPlaybackStore(): PlaybackStore {
 	return {
 		cycleLoopMode: () => {},
@@ -52,7 +45,6 @@ function makeViewModel(isPlaying: boolean) {
 		barColors: new BarColorStore(),
 		collapseSignal: 0,
 		gridColumns: 3,
-		imageCache: stubImageCache,
 		isPlaying,
 		language: 'en',
 		loopMode: 'off',

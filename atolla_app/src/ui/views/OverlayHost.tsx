@@ -147,7 +147,6 @@ export class OverlayHost extends StatefulComponent<Record<string, never>, Overla
 					barColors={services.barColors}
 					collapseSignal={appShellStore.nowPlayingCollapseSignal}
 					gridColumns={services.preferences.gridColumns}
-					imageCache={services.imageCache}
 					isPlaying={isPlaying}
 					language={services.preferences.language}
 					loopMode={loopMode}

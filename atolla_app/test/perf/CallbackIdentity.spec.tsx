@@ -38,13 +38,6 @@ const playbackStore = {
 
 const networkStatus = { getTransport: () => 'wifi', subscribe: () => () => {} };
 
-const stubImageCache = {
-	get: () => null,
-	getOrLoad: () => null,
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 const tracks = [
 	{
 		albumName: 'Jane Doe',
@@ -74,7 +67,6 @@ function makePreferences(): Preferences {
 
 function makeLibraryViewModel(transport: Record<string, unknown>) {
 	return {
-		imageCache: stubImageCache,
 		isOfflineMode: false,
 		navigationController: { push: () => {} },
 		playbackStore: new PlaybackStore(),
@@ -87,7 +79,6 @@ function makeLibraryViewModel(transport: Record<string, unknown>) {
 function makeDetailViewModel(transport: Record<string, unknown>) {
 	return {
 		downloadService,
-		imageCache: stubImageCache,
 		networkStatus,
 		playbackStore,
 		preferences: makePreferences(),

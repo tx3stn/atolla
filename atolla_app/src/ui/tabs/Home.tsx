@@ -2,7 +2,6 @@ import type { Album } from 'atolla_core/src/models/Album';
 import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
@@ -35,7 +34,6 @@ import { HomeView } from '../views/HomeView';
 export interface HomeTabViewModel {
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
-	imageCache: ImageCache;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;
@@ -64,7 +62,6 @@ export class HomeTab extends Component<HomeTabViewModel> {
 
 					<HomeView
 						connectionMode={this.viewModel.connectionMode}
-						imageCache={this.viewModel.imageCache}
 						lyricsService={this.viewModel.lyricsService}
 						modalSlot={this.viewModel.modalSlot}
 						onNavigateToArtist={this.handleArtistTap}
@@ -88,7 +85,6 @@ export class HomeTab extends Component<HomeTabViewModel> {
 	private detailDeps(): DetailPushDeps {
 		return {
 			downloadService: this.viewModel.downloadService,
-			imageCache: this.viewModel.imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,

@@ -14,13 +14,6 @@ import { touchEvent } from '../util/testEvents';
 
 const pageSize = 24;
 
-const stubImageCache = {
-	get: () => null,
-	getOrLoad: () => null,
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 function makeAlbums(count: number) {
 	return Array.from({ length: count }, (_, index) => ({
 		artistId: `artist-${index}`,
@@ -80,7 +73,6 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			lyricsService: {} as LyricsService,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -111,7 +103,6 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -144,7 +135,6 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -201,7 +191,6 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = (isOfflineMode: boolean) => ({
-			imageCache: stubImageCache,
 			isOfflineMode,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -241,7 +230,6 @@ describe('AlbumsView', () => {
 
 		const viewCache = makeTestViewCache(ConnectionModes.offline);
 		const viewModel = (offlineDataInvalidations: number) => ({
-			imageCache: stubImageCache,
 			isOfflineMode: true,
 			navigationController: makeNavigationController(),
 			offlineDataInvalidations,
@@ -276,7 +264,6 @@ describe('AlbumsView', () => {
 		const viewCache = makeTestViewCache();
 
 		const viewModel = (offlineDataInvalidations: number) => ({
-			imageCache: stubImageCache,
 			isOfflineMode: false,
 			navigationController: makeNavigationController(),
 			offlineDataInvalidations,
@@ -316,7 +303,6 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -362,7 +348,6 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			letterFilter: 'a',
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
@@ -388,7 +373,6 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -418,7 +402,6 @@ describe('AlbumsView', () => {
 
 		const navigationController = makeNavigationController();
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController,
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -450,7 +433,6 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),
 			preferences: makePreferences(),
@@ -473,7 +455,6 @@ describe('AlbumsView', () => {
 			};
 
 			const viewModel = {
-				imageCache: stubImageCache,
 				isOfflineMode: true,
 				navigationController: makeNavigationController(),
 				playbackStore: new PlaybackStore(),
@@ -508,7 +489,6 @@ describe('AlbumsView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			isOfflineMode: true,
 			navigationController: makeNavigationController(),
 			playbackStore: new PlaybackStore(),

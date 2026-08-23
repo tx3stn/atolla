@@ -2,7 +2,6 @@ import type { Album } from 'atolla_core/src/models/Album';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
 import Strings from 'atolla_core/src/Strings';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { TrackPageSort, Transport } from 'atolla_core/src/transports/Transport';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
 import { TRACK_PAGE_SIZE } from 'atolla_core/src/utils/Pagination';
@@ -49,7 +48,6 @@ import { openTrackContextMenu } from '../flows/TrackContextMenu';
 
 export interface PlaylistViewModel {
 	downloadService: DownloadService;
-	imageCache: ImageCache;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
@@ -187,7 +185,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 							<TrackList
 								animationsEnabled={this.viewModel.preferences.animationsEnabled}
 								dragScroller={this.dragAutoScroller}
-								imageCache={this.viewModel.imageCache}
 								onTrackLongPress={this.handleTrackLongPress}
 								onTrackReorder={this.handleTrackReorder}
 								onTrackSwipeRemove={this.handleTrackSwipeRemove}
@@ -273,7 +270,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	private detailDeps(): DetailPushDeps {
 		return {
 			downloadService: this.viewModel.downloadService,
-			imageCache: this.viewModel.imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
@@ -290,7 +286,7 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 	}
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { imageCache, playbackStore } = this.viewModel;
+		const { playbackStore } = this.viewModel;
 		const transport = this.activeTransport;
 		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const modalSlot = this.viewModel.modalSlot;
@@ -299,7 +295,6 @@ export class PlaylistView extends NavigationPageStatefulComponent<
 		openTrackContextMenu(track, modalSlot, {
 			animationsEnabled,
 			gridColumns,
-			imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			onAlbumTap: albumId
 				? () => {

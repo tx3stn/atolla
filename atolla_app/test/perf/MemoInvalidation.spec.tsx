@@ -31,13 +31,6 @@ const tracks = Array.from({ length: 8 }, (_, index) => ({
 	name: `Track ${index}`,
 }));
 
-const stubImageCache = {
-	get: () => null,
-	getOrLoad: () => null,
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 function labelValues(component: Parameters<typeof componentGetElements>[0]): Array<string> {
 	return elementTypeFind(componentGetElements(component), IRenderedElementViewClass.Label)
 		.map((label) => label.getAttribute('value'))
@@ -71,7 +64,6 @@ function nowPlayingViewModel(trackIndex: number) {
 		barColors: new BarColorStore(),
 		collapseSignal: 0,
 		gridColumns: 3,
-		imageCache: stubImageCache,
 		isPlaying: false,
 		language: 'en',
 		loopMode: 'off',

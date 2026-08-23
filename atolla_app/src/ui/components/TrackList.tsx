@@ -1,7 +1,6 @@
 import res from 'atolla_app/res';
 import type { Track } from 'atolla_core/src/models/Track';
 import Strings from 'atolla_core/src/Strings';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import { getLogger } from 'atolla_core/src/services/Logger';
 import { AnimationCurve } from 'valdi_core/src/AnimationOptions';
 import { Component } from 'valdi_core/src/Component';
@@ -55,7 +54,6 @@ export interface TrackListViewModel {
 	// instead of an onDrag on the row. defaults true on iOS, where the ancestor scroll's
 	// pan otherwise races (and cancels) the row's drag recogniser
 	holdToReorder?: boolean;
-	imageCache?: ImageCache;
 	noRowBackground?: boolean;
 	onTrackLongPress?: (track: Track) => void;
 	onTrackReorder?: (fromEntryIndex: number, toEntryIndex: number) => void;

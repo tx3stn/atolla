@@ -5,13 +5,6 @@ import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { attachRenderStats } from '../util/renderStats';
 
-const stubImageCache = {
-	get: () => null,
-	getOrLoad: () => null,
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 const searchResults = {
 	albums: [{ artistId: 'artist-1', artistName: 'Converge', id: 'album-1', name: 'Jane Doe' }],
 	artists: [{ id: 'artist-1', name: 'Converge' }],
@@ -25,7 +18,6 @@ function flushAsyncWork(): Promise<void> {
 
 function makeViewModel() {
 	return {
-		imageCache: stubImageCache,
 		navigationController: { push: () => {} },
 		playbackStore: new PlaybackStore(),
 		preferences: new Preferences({ fetchString: async () => '', storeString: async () => {} }),

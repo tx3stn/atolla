@@ -1,4 +1,3 @@
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEditService';
@@ -36,7 +35,6 @@ import { PlaylistsView } from '../views/PlaylistsView';
 export interface LibraryViewModel {
 	connectionMode: ConnectionMode;
 	downloadService: DownloadService;
-	imageCache: ImageCache;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;
@@ -83,7 +81,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 							if (tab === HeaderTabs.artists) {
 								<ArtistsView
 									downloadService={this.viewModel.downloadService}
-									imageCache={this.viewModel.imageCache}
 									isOfflineMode={isOfflineMode}
 									letterFilter={this.state.letterFilter}
 									lyricsService={this.viewModel.lyricsService}
@@ -102,7 +99,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 							} else if (tab === HeaderTabs.albums) {
 								<AlbumsView
 									downloadService={this.viewModel.downloadService}
-									imageCache={this.viewModel.imageCache}
 									isOfflineMode={isOfflineMode}
 									letterFilter={this.state.letterFilter}
 									lyricsService={this.viewModel.lyricsService}
@@ -121,7 +117,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 							} else if (tab === HeaderTabs.playlists) {
 								<PlaylistsView
 									downloadService={this.viewModel.downloadService}
-									imageCache={this.viewModel.imageCache}
 									isOfflineMode={isOfflineMode}
 									letterFilter={this.state.letterFilter}
 									lyricsService={this.viewModel.lyricsService}
@@ -142,7 +137,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 							} else {
 								<GenresView
 									downloadService={this.viewModel.downloadService}
-									imageCache={this.viewModel.imageCache}
 									isOfflineMode={isOfflineMode}
 									letterFilter={this.state.letterFilter}
 									lyricsService={this.viewModel.lyricsService}
@@ -194,7 +188,6 @@ export class LibraryView extends StatefulComponent<LibraryViewModel, LibraryView
 	private detailDeps(): DetailPushDeps {
 		return {
 			downloadService: this.viewModel.downloadService,
-			imageCache: this.viewModel.imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,

@@ -1,4 +1,3 @@
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
@@ -20,7 +19,6 @@ export interface AppServicesBag {
 	connectionMode: ConnectionMode;
 	downloadingCount: number;
 	downloadService: DownloadService;
-	imageCache: ImageCache;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;

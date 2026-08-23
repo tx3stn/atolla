@@ -1,6 +1,5 @@
 import type { Album } from 'atolla_core/src/models/Album';
 import Strings from 'atolla_core/src/Strings';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import { buildImageSource } from 'atolla_core/src/services/ImageSource';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { matchesLetterFilter } from 'atolla_core/src/utils/SortKey';
@@ -37,7 +36,6 @@ import { sortAlbums } from './sort/Albums';
 
 export interface AlbumsViewModel {
 	downloadService: DownloadService;
-	imageCache: ImageCache;
 	isOfflineMode: boolean;
 	letterFilter?: string | null;
 	lyricsService: LyricsService;
@@ -122,7 +120,7 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	}
 
 	onRender(): void {
-		const { imageCache, toastService, transport } = this.viewModel;
+		const { toastService, transport } = this.viewModel;
 		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const { addToPlaylistTracks, createPlaylistTracks } = this.state;
 
@@ -157,7 +155,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 				<AddToPlaylistView
 					animationsEnabled={animationsEnabled}
 					gridColumns={this.viewModel.preferences.gridColumns}
-					imageCache={imageCache}
 					onDismiss={this.handleAddToPlaylistDismiss}
 					toastService={toastService}
 					tracks={addToPlaylistTracks}
@@ -312,7 +309,6 @@ export class AlbumsView extends StatefulComponent<AlbumsViewModel, AlbumsState> 
 	private detailDeps(): DetailPushDeps {
 		return {
 			downloadService: this.viewModel.downloadService,
-			imageCache: this.viewModel.imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,

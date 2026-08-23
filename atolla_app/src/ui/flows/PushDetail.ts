@@ -2,7 +2,6 @@ import type { Album } from 'atolla_core/src/models/Album';
 import type { Artist } from 'atolla_core/src/models/Artist';
 import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Playlist } from 'atolla_core/src/models/Playlist';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
 import type { PlaylistEditService } from 'atolla_player/src/services/PlaylistEditService';
@@ -26,7 +25,6 @@ import { PlaylistView } from '../views/PlaylistView';
 // callers assemble this from their own view model so the push blocks live once.
 export interface DetailPushDeps {
 	downloadService: DownloadService;
-	imageCache: ImageCache;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	networkStatus: NetworkStatus;
@@ -51,7 +49,6 @@ export function pushAlbum(
 		{
 			album,
 			downloadService: deps.downloadService,
-			imageCache: deps.imageCache,
 			lyricsService: deps.lyricsService,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
@@ -80,7 +77,6 @@ export function pushArtist(
 		{
 			artist,
 			downloadService: deps.downloadService,
-			imageCache: deps.imageCache,
 			lyricsService: deps.lyricsService,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
@@ -108,7 +104,6 @@ export function pushPlaylist(
 		PlaylistView,
 		{
 			downloadService: deps.downloadService,
-			imageCache: deps.imageCache,
 			lyricsService: deps.lyricsService,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,
@@ -140,7 +135,6 @@ export function pushGenre(
 		{
 			downloadService: deps.downloadService,
 			genre,
-			imageCache: deps.imageCache,
 			lyricsService: deps.lyricsService,
 			modalSlot: deps.modalSlot,
 			navigationController: controller,

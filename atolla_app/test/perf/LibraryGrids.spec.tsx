@@ -9,13 +9,6 @@ import { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
 import { attachRenderStats } from '../util/renderStats';
 
-const stubImageCache = {
-	get: () => null,
-	getOrLoad: () => null,
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 async function flushAsyncWork() {
 	await Promise.resolve();
 	await Promise.resolve();
@@ -27,7 +20,6 @@ function makePreferences(): Preferences {
 
 function makeViewModel(transport: Record<string, unknown>) {
 	return {
-		imageCache: stubImageCache,
 		isOfflineMode: false,
 		navigationController: { push: () => {} },
 		playbackStore: new PlaybackStore(),

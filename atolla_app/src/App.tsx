@@ -1,6 +1,5 @@
 import Strings from 'atolla_core/src/Strings';
 import type { AuthError } from 'atolla_core/src/services/AuthErrors';
-import { ImageCache } from 'atolla_core/src/services/ImageCache';
 import { configureAlbumArtMaxDimension } from 'atolla_core/src/services/ImageSource';
 import { getLogger, Logger } from 'atolla_core/src/services/Logger';
 import { fireAndForget } from 'atolla_core/src/utils/Async';
@@ -116,7 +115,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private barColors = new BarColorStore();
 	private sessionController = new SessionController();
 	private toastService = new ToastService();
-	private readonly imageCache = new ImageCache({});
 	private modalSlot = new DetachedSlot();
 	private toastSlot = new DetachedSlot();
 	private readonly diagnosticsStore = new Lazy(
@@ -389,7 +387,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 			connectionMode: this.state.connectionMode,
 			downloadingCount: this.state.downloadingCount,
 			downloadService: this.downloadService,
-			imageCache: this.imageCache,
 			lyricsService: this.userScope.getLyricsService(),
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,
@@ -456,7 +453,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		return {
 			connectionMode: this.state.connectionMode,
 			downloadService: this.downloadService,
-			imageCache: this.imageCache,
 			lyricsService: this.userScope.getLyricsService(),
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,
@@ -477,7 +473,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 		return {
 			connectionMode: this.state.connectionMode,
 			downloadService: this.downloadService,
-			imageCache: this.imageCache,
 			lyricsService: this.userScope.getLyricsService(),
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,
@@ -496,7 +491,6 @@ export class App extends StatefulComponent<AppViewModel, AppState> {
 	private buildSearchViewModel() {
 		return {
 			downloadService: this.downloadService,
-			imageCache: this.imageCache,
 			lyricsService: this.userScope.getLyricsService(),
 			modalSlot: this.modalSlot,
 			networkStatus: this.networkStatus,

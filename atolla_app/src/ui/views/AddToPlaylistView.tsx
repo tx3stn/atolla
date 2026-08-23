@@ -1,6 +1,5 @@
 import type { Playlist } from 'atolla_core/src/models/Playlist';
 import Strings from 'atolla_core/src/Strings';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { TrackSource } from 'atolla_player/src/services/TrackSource';
 import { StatefulComponent } from 'valdi_core/src/Component';
@@ -18,7 +17,6 @@ import { createPagedGridController, gridPaginationConfig } from '../pagination/G
 export interface AddToPlaylistViewModel {
 	animationsEnabled: boolean;
 	gridColumns?: number;
-	imageCache?: ImageCache;
 	onDismiss: () => void;
 	toastService: ToastService;
 	tracks: TrackSource;

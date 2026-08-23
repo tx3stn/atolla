@@ -13,11 +13,6 @@ const playbackStore = {
 	track: null,
 };
 
-const stubImageCache = {
-	prefetch: () => Promise.resolve(),
-	subscribe: () => () => {},
-};
-
 function makeNavigationController() {
 	let pushedComponent: unknown = null;
 	let pushedViewModel: Record<string, { id?: string }> | null = null;
@@ -51,7 +46,6 @@ describe('GenresView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			isOfflineMode: false,
 			lyricsService: {} as LyricsService,
 			navigationController: makeNavigationController(),
@@ -80,7 +74,6 @@ describe('GenresView', () => {
 			};
 
 			const viewModel = {
-				imageCache: stubImageCache,
 				isOfflineMode: true,
 				navigationController: makeNavigationController(),
 				playbackStore,
@@ -110,7 +103,6 @@ describe('GenresView', () => {
 		};
 
 		const viewModel = {
-			imageCache: stubImageCache,
 			isOfflineMode: true,
 			navigationController: makeNavigationController(),
 			playbackStore,

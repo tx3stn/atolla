@@ -8,7 +8,6 @@ import { Preferences } from 'atolla_app/src/stores/Preferences';
 import { HomeView, type HomeViewModel } from 'atolla_app/src/ui/views/HomeView';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Track } from 'atolla_core/src/models/Track';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { componentGetElements } from 'foundation/test/util/componentGetElements';
@@ -81,7 +80,6 @@ function makeRecentlyAddedService() {
 function makeBaseDeps() {
 	return {
 		connectionMode: ConnectionModes.online,
-		imageCache: {} as ImageCache,
 		lyricsService: {} as LyricsService,
 		onOpenAlbum: () => {},
 		playbackStore: { subscribe: () => () => {} } as unknown as PlaybackStore,

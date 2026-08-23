@@ -3,7 +3,6 @@ import type { Artist } from 'atolla_core/src/models/Artist';
 import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Track } from 'atolla_core/src/models/Track';
 import Strings from 'atolla_core/src/Strings';
-import type { ImageCache } from 'atolla_core/src/services/ImageCache';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import { fireAndForget, retryResolve } from 'atolla_core/src/utils/Async';
 import {
@@ -54,7 +53,6 @@ import { sortArtistAlbums } from './sort/Albums';
 export interface ArtistViewModel {
 	artist: Artist;
 	downloadService: DownloadService;
-	imageCache: ImageCache;
 	lyricsService: LyricsService;
 	modalSlot: DetachedSlot;
 	navigationController: NavigationController;
@@ -147,7 +145,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	}
 
 	onRender(): void {
-		const { imageCache, modalSlot } = this.viewModel;
+		const { modalSlot } = this.viewModel;
 		// merge the self-healed artist over the caller-supplied partial, but never let a fetched
 		// `undefined` clobber an imageUrl/logoUrl the caller did supply (the mapper always emits
 		// a logoUrl key)
@@ -235,7 +233,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 										<label style={styles.sectionHeader} value={Strings.artistSectionTopTracks()} />
 										<TrackList
 											animationsEnabled={this.viewModel.preferences.animationsEnabled}
-											imageCache={imageCache}
 											onTrackLongPress={this.handleTrackLongPress}
 											onTrackTap={this.handleTopTrackTap}
 											rowIdentityPrefix='artist-top-track-'
@@ -344,7 +341,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	private detailDeps(): DetailPushDeps {
 		return {
 			downloadService: this.viewModel.downloadService,
-			imageCache: this.viewModel.imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			modalSlot: this.viewModel.modalSlot,
 			networkStatus: this.viewModel.networkStatus,
@@ -404,7 +400,6 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			<AddToPlaylistView
 				animationsEnabled={this.viewModel.preferences.animationsEnabled}
 				gridColumns={this.viewModel.preferences.gridColumns}
-				imageCache={this.viewModel.imageCache}
 				onDismiss={this.closeModalSlot}
 				toastService={this.viewModel.toastService}
 				tracks={tracks}
@@ -534,14 +529,13 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 	};
 
 	private handleTrackLongPress = (track: Track): void => {
-		const { imageCache, modalSlot, playbackStore } = this.viewModel;
+		const { modalSlot, playbackStore } = this.viewModel;
 		const transport = this.activeTransport;
 		const { animationsEnabled, gridColumns } = this.viewModel.preferences;
 		const { albumId } = track;
 		openTrackContextMenu(track, modalSlot, {
 			animationsEnabled,
 			gridColumns,
-			imageCache,
 			lyricsService: this.viewModel.lyricsService,
 			onAlbumTap: albumId
 				? () => {
