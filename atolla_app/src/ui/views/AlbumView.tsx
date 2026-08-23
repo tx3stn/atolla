@@ -517,9 +517,9 @@ export class AlbumView extends NavigationPageStatefulComponent<AlbumViewModel, A
 				fullAlbumResult.status === 'fulfilled' ? (fullAlbumResult.value[0] ?? null) : null;
 
 			const payload: AlbumCachePayload = {
-				artist: artist ?? this.state.artist,
-				artistLogoUrl: logoUrl ?? this.state.artistLogoUrl,
-				fullAlbum: fullAlbum ?? this.state.fullAlbum,
+				artist,
+				artistLogoUrl: logoUrl,
+				fullAlbum,
 				tracks,
 			};
 			if (tracks.length > 0) {

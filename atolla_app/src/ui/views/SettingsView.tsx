@@ -352,7 +352,7 @@ export class SettingsView extends StatefulComponent<SettingsViewModel, SettingsV
 
 	private handleCacheClearConfirm = (selection: ClearCacheSelection): void => {
 		const categories: Array<string> = [];
-		if (selection.albumArt) categories.push('album_art', 'album_art_thumb');
+		if (selection.albumArt) categories.push('album_art', 'album_art_thumb', 'album_art_palette');
 		if (selection.albumArtBlurred) categories.push('album_art_blurred');
 		if (selection.artistImage) categories.push('artist_image', 'artist_image_thumb');
 		if (selection.artistLogo) categories.push('artist_logo');

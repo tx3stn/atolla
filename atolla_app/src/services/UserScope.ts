@@ -1,3 +1,4 @@
+import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
 import type { KeyValueStore } from 'atolla_core/src/stores/KeyValueStore';
 import type { Transport } from 'atolla_core/src/transports/Transport';
 import type { DownloadService } from 'atolla_player/src/services/DownloadService';
@@ -164,8 +165,8 @@ export class UserScope {
 			scrobbleService: scrobble,
 		});
 		try {
-			setAtollaImageCachedObserver((url, category) => {
-				this.deps.assetCache.resolveCachedImageWaiters(url, category);
+			setAtollaImageCachedObserver((identity, category) => {
+				this.deps.assetCache.resolveCachedImageWaiters(identity, category as ImageCategory);
 			});
 		} catch {
 			// observer bridge unavailable on non-Android targets

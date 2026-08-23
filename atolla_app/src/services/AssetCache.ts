@@ -1,5 +1,5 @@
 import type { ImageCategory } from 'atolla_core/src/services/ImageCache';
-import { buildImageSource } from 'atolla_core/src/services/ImageSource';
+import { buildImageSource, imageCacheKey } from 'atolla_core/src/services/ImageSource';
 import { AssetOutputType, addAssetLoadObserver } from 'valdi_core/src/Asset';
 import { Device } from 'valdi_core/src/Device';
 import { preloadAtollaImages } from '../ImageLoaderBootstrap';
@@ -11,18 +11,18 @@ import {
 const IMAGE_CACHE_RESOLVE_TIMEOUT_MS = 6000;
 
 export class AssetCache {
-	// resolvers waiting on the native "image cached" observer, keyed by category + stripped url
+	// resolvers waiting on the native "image cached" observer, keyed the same way the cache is
 	private readonly pendingResolvers = new Map<string, Array<() => void>>();
 
 	// ask the native loader to cache an image, resolving once it reports cached (a hit reports too, so
 	// this resolves promptly either way).
 	cacheImageAsset(id: string, url: string, category: ImageCategory): Promise<void> {
-		return new Promise<void>((resolve) => {
-			const key = this.fingerprint(url, category);
+		return new Promise<void>((resolve, reject) => {
+			const key = imageCacheKey(id, category);
 			let settled = false;
 			let timer: ReturnType<typeof setTimeout> | undefined;
 
-			const done = (): void => {
+			const settle = (cached: boolean): void => {
 				if (settled) return;
 				settled = true;
 				if (timer) clearTimeout(timer);
@@ -32,8 +32,15 @@ export class AssetCache {
 					if (index >= 0) list.splice(index, 1);
 					if (list.length === 0) this.pendingResolvers.delete(key);
 				}
-				resolve();
+				if (cached) {
+					resolve();
+					return;
+				}
+				// the loader never reported this cached, so the caller must not record it as such
+				reject(new Error(`Timed out caching ${key}`));
 			};
+
+			const done = (): void => settle(true);
 
 			const list = this.pendingResolvers.get(key) ?? [];
 			list.push(done);
@@ -47,7 +54,7 @@ export class AssetCache {
 				return;
 			}
 
-			timer = setTimeout(done, IMAGE_CACHE_RESOLVE_TIMEOUT_MS);
+			timer = setTimeout(() => settle(false), IMAGE_CACHE_RESOLVE_TIMEOUT_MS);
 		});
 	}
 
@@ -84,24 +91,11 @@ export class AssetCache {
 	}
 
 	// resolve any cacheImageAsset waiters for an image the native loader just cached
-	resolveCachedImageWaiters(url: string, category: string): void {
-		const key = this.fingerprint(url, category);
-		const resolvers = this.pendingResolvers.get(key);
+	resolveCachedImageWaiters(identity: string, category: ImageCategory): void {
+		const resolvers = this.pendingResolvers.get(imageCacheKey(identity, category));
 		if (!resolvers || resolvers.length === 0) return;
 		for (const resolve of [...resolvers]) {
 			resolve();
-		}
-	}
-
-	// match a cache request against the native observer: the requested url carries api_key while the
-	// observer reports a stripped url and query encoding can differ, so key on the stable parts only
-	private fingerprint(url: string, category: string): string {
-		try {
-			const parsed = new URL(url);
-			const tag = parsed.searchParams.get('tag') ?? '';
-			return `${category}\n${parsed.origin}${parsed.pathname}\n${tag}`;
-		} catch {
-			return `${category}\n${url}`;
 		}
 	}
 }

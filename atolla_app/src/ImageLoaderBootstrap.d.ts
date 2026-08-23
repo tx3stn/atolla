@@ -44,7 +44,7 @@ export function preloadAtollaImages(sources: Array<string>): void;
 
 // @ExportFunction
 export function setAtollaImageCachedObserver(
-	callback: (url: string, category: string) => void,
+	callback: (identity: string, category: string) => void,
 ): void;
 
 // @ExportFunction

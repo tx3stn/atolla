@@ -577,8 +577,13 @@ describe('AlbumView', () => {
 			await flushAsyncWork();
 			expect(component.state.artistLogoUrl).toBe('https://logo.png');
 
+			// the real OfflineTransport resolves the logo from the image cache even when the album
+			// itself is not downloaded, so the header keeps it while the track list empties
 			setTestAppServices({
-				transport: offlineTransport() as unknown as AppServicesBag['transport'],
+				transport: {
+					...offlineTransport(),
+					getArtist: async () => ({ id: 'artist-1', logoUrl: 'https://logo.png', name: 'A' }),
+				} as unknown as AppServicesBag['transport'],
 			});
 			await flushAsyncWork();
 

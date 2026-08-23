@@ -134,10 +134,10 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
     });
 }
 
+// clears exactly what it is given: the caller owns which categories belong together, so that
+// unticking one in Settings actually protects it
 - (void)clearCategories:(NSArray<NSString *> *)categories {
-    NSMutableSet<NSString *> *expanded = [NSMutableSet setWithArray:categories];
-    if ([expanded containsObject:@"album_art"])
-        [expanded addObjectsFromArray:@[@"album_art_blurred", @"album_art_thumb", @"album_art_palette"]];
+    NSSet<NSString *> *expanded = [NSSet setWithArray:categories];
     [_mem removeAllObjects];
     dispatch_sync(_diskQ, ^{
         if (!self->_diskDir) return;
@@ -428,7 +428,7 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
                         [self writePaletteSidecarForData:data identity:payload.cacheKey];
                     }
                     if (self->_imageCachedObserver) {
-                        self->_imageCachedObserver(payload.sourceURL.absoluteString, payload.category);
+                        self->_imageCachedObserver(payload.cacheKey, payload.category);
                     }
                 }];
             [bgTask resume];
@@ -445,7 +445,7 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
                 [self writePaletteSidecarForData:data identity:payload.cacheKey];
             }
             if (self->_imageCachedObserver) {
-                self->_imageCachedObserver(payload.sourceURL.absoluteString, payload.category);
+                self->_imageCachedObserver(payload.cacheKey, payload.category);
             }
             completion(data, nil);
         }];
@@ -521,10 +521,9 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
     [self reconcileTagForPayload:payload key:key];
 
     NSURL *sourceURL = payload.sourceURL;
-    NSString *cleanUrl = sourceURL.absoluteString ?: identity;
     if ([_cache readForKey:key]) {
         // already cached, still report it so offline-availability waiters resolve
-        if (_imageCachedObserver) _imageCachedObserver(cleanUrl, category);
+        if (_imageCachedObserver) _imageCachedObserver(identity, category);
         return;
     }
     // nothing cached and nowhere to fetch from: offline, so there is nothing to warm
@@ -538,7 +537,7 @@ static NSInteger sImageDiskCacheMaxBytes = 200 * 1024 * 1024;
             if ([category isEqualToString:@"album_art"]) {
                 [self writePaletteSidecarForData:data identity:identity];
             }
-            if (self->_imageCachedObserver) self->_imageCachedObserver(cleanUrl, category);
+            if (self->_imageCachedObserver) self->_imageCachedObserver(identity, category);
         }];
     [task resume];
 }

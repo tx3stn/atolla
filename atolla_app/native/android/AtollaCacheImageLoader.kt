@@ -145,7 +145,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		// disk/network paths run on background threads and must post back here
 		private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
 		var sharedInstance: AtollaCacheImageLoader? = null
-		var imageCachedObserver: ((url: String, category: String) -> Unit)? = null
+		var imageCachedObserver: ((identity: String, category: String) -> Unit)? = null
 		// current Jellyfin access token, pushed out-of-band on session change; applied as an
 		// auth header on network fetches so the token never travels in an image URL
 		@Volatile
@@ -224,15 +224,10 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		diskCacheMaxBytes = bytes
 	}
 
+	// clears exactly what it is given: the caller owns which categories belong together, so that
+	// unticking one in Settings actually protects it
 	fun clearCategories(categories: List<String>) {
-		// Keep full-size and thumb variants in sync when clearing categories.
-		val expanded = categories.toMutableSet()
-		if (expanded.contains("album_art")) expanded.addAll(listOf("album_art_blurred", "album_art_thumb", "album_art_palette"))
-		if (expanded.contains("album_art_thumb")) expanded.add("album_art")
-		if (expanded.contains("artist_image")) expanded.add("artist_image_thumb")
-		if (expanded.contains("artist_image_thumb")) expanded.add("artist_image")
-		if (expanded.contains("playlist_image")) expanded.add("playlist_image_thumb")
-		if (expanded.contains("playlist_image_thumb")) expanded.add("playlist_image")
+		val expanded = categories.toSet()
 		val prefixes = expanded.map { "$it:" }
 
 		// Clear matching entries from memory.
@@ -574,7 +569,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 					Log.d(tag, "blur generated after fetch key=$key bytes=${blurredBytes.size}")
 					future.complete(blurredBytes)
 					completeFromBytes(key, blurredBytes, options, completion, cancelled)
-					notifyImageCached(blurSource, payload.category)
+					notifyImageCached(payload.cacheKey, payload.category)
 				} else {
 					future.completeExceptionally(ValdiException("Blur generation failed after fetch"))
 					deliverOnMain(cancelled) { completion.onImageLoadComplete(0, 0, null, ValdiException("Blur generation failed after fetch")) }
@@ -623,7 +618,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			if (!deliveredFallback) {
 				completeFromBytes(key, bytes, options, completion, cancelled)
 			}
-			notifyImageCached(source, payload.category)
+			notifyImageCached(payload.cacheKey, payload.category)
 		} catch (error: Throwable) {
 			Log.e(tag, "load failed key=$key", error)
 			inFlight.remove(key)
@@ -657,7 +652,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		// bitmap already decoded and cached: nothing to do, but still report it as cached so
 		// callers waiting on offline availability (e.g. downloads) resolve
 		if (bitmapMemory.get(bitmapPlan.bitmapKey) != null) {
-			notifyImageCached(sourceUrl ?: identity, category)
+			notifyImageCached(identity, category)
 			return
 		}
 
@@ -669,7 +664,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 					warmBitmapCache(key, bytes, category)
 				})
 			}
-			notifyImageCached(sourceUrl ?: identity, category)
+			notifyImageCached(identity, category)
 			return
 		}
 
@@ -711,7 +706,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 				future.complete(bytes)
 				warmBitmapCache(key, bytes, category)
 				// already on disk; report cached so offline-availability waiters resolve
-				notifyImageCached(sourceUrl, category)
+				notifyImageCached(identity, category)
 				return
 			}
 
@@ -742,7 +737,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 					memory.put(key, blurredBytes)
 					writeToDisk(key, blurredBytes)
 					future.complete(blurredBytes)
-					notifyImageCached(sourceUrl, category)
+					notifyImageCached(identity, category)
 				} else {
 					future.completeExceptionally(ValdiException("Blur generation failed after fetch"))
 				}
@@ -756,7 +751,7 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 			inFlight.remove(key)
 			future.complete(bytes)
 			warmBitmapCache(key, bytes, category)
-			notifyImageCached(sourceUrl, category)
+			notifyImageCached(identity, category)
 		} catch (error: Throwable) {
 			inFlight.remove(key)
 			future.completeExceptionally(error)
@@ -764,9 +759,9 @@ class AtollaCacheImageLoader : ValdiImageLoader {
 		}
 	}
 
-	private fun notifyImageCached(url: String, category: String) {
+	private fun notifyImageCached(identity: String, category: String) {
 		try {
-			imageCachedObserver?.invoke(url, category)
+			imageCachedObserver?.invoke(identity, category)
 		} catch (error: Throwable) {
 			Log.e(tag, "Failed to notify image cached observer", error)
 		}

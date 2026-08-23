@@ -88,6 +88,7 @@ export function normalizeGenres(genres?: Array<Genre> | null): Array<Genre> {
 
 		byId.set(genreId, {
 			id: genreId,
+			imageUrl: genre.imageUrl,
 			name: genreName,
 			sortName: genre.sortName,
 		});

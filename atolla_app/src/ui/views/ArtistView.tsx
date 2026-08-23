@@ -644,7 +644,7 @@ export class ArtistView extends NavigationPageStatefulComponent<ArtistViewModel,
 			const payload: ArtistCachePayload = {
 				albums,
 				allTracks,
-				hydratedArtist: hydratedArtist ?? this.state.hydratedArtist,
+				hydratedArtist,
 				topTracks,
 			};
 			if (albums.length > 0 || topTracks.length > 0 || allTracks.length > 0) {
