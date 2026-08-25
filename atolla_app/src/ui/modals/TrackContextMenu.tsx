@@ -8,10 +8,10 @@ import { Style } from 'valdi_core/src/Style';
 import type { ImageView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { theme } from '../../theme';
-import { ArtistLogo } from './ArtistLogo';
+import { ArtistLogo } from '../components/ArtistLogo';
+import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ContextMenuActionRow } from './ContextMenuActionRow';
 import { ModalBase } from './ModalBase';
-import { TrackList, type TrackListEntry } from './TrackList';
 
 export interface TrackContextMenuViewModel {
 	animationsEnabled: boolean;

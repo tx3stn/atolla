@@ -6,9 +6,9 @@ import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { LyricsService } from '../../services/LyricsService';
 import type { ToastService } from '../../services/ToastService';
-import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
-import { LyricsModal } from '../components/LyricsModal';
-import { TrackContextMenu } from '../components/TrackContextMenu';
+import { CreatePlaylistModal } from '../modals/CreatePlaylistModal';
+import { LyricsModal } from '../modals/LyricsModal';
+import { TrackContextMenu } from '../modals/TrackContextMenu';
 import { AddToPlaylistView } from '../views/AddToPlaylistView';
 import { closeSlot, openSlot } from './ModalSlotFlow';
 

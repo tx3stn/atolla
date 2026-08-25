@@ -1,6 +1,6 @@
 import 'jasmine/src/jasmine';
 import type { LyricsService } from 'atolla_app/src/services/LyricsService';
-import { LyricsModal } from 'atolla_app/src/ui/components/LyricsModal';
+import { LyricsModal } from 'atolla_app/src/ui/modals/LyricsModal';
 import type { Lyrics } from 'atolla_core/src/models/Lyrics';
 import type { Track } from 'atolla_core/src/models/Track';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';

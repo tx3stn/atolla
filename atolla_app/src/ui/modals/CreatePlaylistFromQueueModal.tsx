@@ -3,30 +3,48 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, TextField, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
-import { Button, ButtonType } from './Button';
+import { Button, ButtonType } from '../components/Button';
+import { Checkbox } from '../components/Checkbox';
 import { ModalBase, modalStyles } from './ModalBase';
 import { extractErrorMessage, normalizeInputValue } from './modalInput';
 
-export interface CreatePlaylistModalViewModel {
-	animationsEnabled?: boolean;
-	onCancel: () => void;
-	onCreate: (name: string) => Promise<void>;
+export interface QueueTrackSelectionOptions {
+	includePlayed: boolean;
+	includeUpNext: boolean;
 }
 
-interface CreatePlaylistModalState {
+export interface CreatePlaylistFromQueueModalViewModel {
+	animationsEnabled?: boolean;
+	onCancel: () => void;
+	onCreate: (name: string, options: QueueTrackSelectionOptions) => Promise<void>;
+}
+
+interface CreatePlaylistFromQueueModalState {
 	errorMessage: string | null;
+	includePlayed: boolean;
+	includeUpNext: boolean;
 	isCreating: boolean;
 	playlistName: string;
 }
 
-export class CreatePlaylistModal extends StatefulComponent<
-	CreatePlaylistModalViewModel,
-	CreatePlaylistModalState
+export class CreatePlaylistFromQueueModal extends StatefulComponent<
+	CreatePlaylistFromQueueModalViewModel,
+	CreatePlaylistFromQueueModalState
 > {
-	state: CreatePlaylistModalState = {
+	state: CreatePlaylistFromQueueModalState = {
 		errorMessage: null,
+		includePlayed: true,
+		includeUpNext: true,
 		isCreating: false,
 		playlistName: '',
+	};
+
+	private toggleIncludePlayed = (): void => {
+		this.setState({ includePlayed: !this.state.includePlayed });
+	};
+
+	private toggleIncludeUpNext = (): void => {
+		this.setState({ includeUpNext: !this.state.includeUpNext });
 	};
 
 	handleCreate = (): void => {
@@ -34,7 +52,10 @@ export class CreatePlaylistModal extends StatefulComponent<
 		const name = this.state.playlistName.trim();
 		if (!name || this.state.isCreating) return;
 		this.setState({ errorMessage: null, isCreating: true });
-		onCreate(name)
+		onCreate(name, {
+			includePlayed: this.state.includePlayed,
+			includeUpNext: this.state.includeUpNext,
+		})
 			.then(() => {
 				onCancel();
 			})
@@ -49,20 +70,20 @@ export class CreatePlaylistModal extends StatefulComponent<
 
 	onRender(): void {
 		const { onCancel } = this.viewModel;
-		const { errorMessage, isCreating, playlistName } = this.state;
+		const { errorMessage, includePlayed, includeUpNext, isCreating, playlistName } = this.state;
 		const canCreate = playlistName.trim().length > 0 && !isCreating;
 
-		<ModalBase onDismiss={onCancel}>
+		<ModalBase accessibilityId='create-playlist-from-queue-modal' onDismiss={onCancel}>
 			<label
 				numberOfLines={0}
 				style={modalStyles.title}
-				value={Strings.createPlaylistModalTitle()}
+				value={Strings.createPlaylistFromQueueModalTitle()}
 			/>
 			<view style={modalStyles.divider} />
 			<view style={styles.inputContainer}>
 				<textfield
-					accessibilityId='create-playlist-name-input'
-					accessibilityLabel='create-playlist-name-input'
+					accessibilityId='create-playlist-from-queue-name-input'
+					accessibilityLabel='create-playlist-from-queue-name-input'
 					autocapitalization='sentences'
 					font={theme.text.main.font}
 					onChange={this.handleNameChange}
@@ -71,11 +92,25 @@ export class CreatePlaylistModal extends StatefulComponent<
 					value={playlistName}
 				/>
 			</view>
+			<view style={styles.checkboxes}>
+				<Checkbox
+					accessibilityId='create-playlist-from-queue-include-played'
+					checked={includePlayed}
+					label={Strings.createPlaylistIncludePlayed()}
+					onToggle={this.toggleIncludePlayed}
+				/>
+				<Checkbox
+					accessibilityId='create-playlist-from-queue-include-up-next'
+					checked={includeUpNext}
+					label={Strings.createPlaylistIncludeUpNext()}
+					onToggle={this.toggleIncludeUpNext}
+				/>
+			</view>
 			{errorMessage && <label style={styles.errorLabel} value={errorMessage} />}
 			<layout style={modalStyles.actions}>
 				<layout style={modalStyles.actionButton}>
 					<Button
-						accessibilityId='create-playlist-cancel'
+						accessibilityId='create-playlist-from-queue-cancel'
 						animationsEnabled={this.viewModel.animationsEnabled}
 						label={Strings.cancel()}
 						onTap={onCancel}
@@ -85,7 +120,7 @@ export class CreatePlaylistModal extends StatefulComponent<
 				<layout style={modalStyles.actionSeparator} />
 				<layout style={modalStyles.actionButton}>
 					<Button
-						accessibilityId='create-playlist-create'
+						accessibilityId='create-playlist-from-queue-create'
 						animationsEnabled={this.viewModel.animationsEnabled}
 						enabled={canCreate}
 						label={Strings.create()}
@@ -99,6 +134,9 @@ export class CreatePlaylistModal extends StatefulComponent<
 }
 
 const styles = {
+	checkboxes: new Style<View>({
+		marginTop: theme.scale(14),
+	}),
 	errorLabel: new Style<Label>({
 		...theme.text.sub,
 		color: theme.colors.destructive,

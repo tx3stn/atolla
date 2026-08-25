@@ -69,10 +69,10 @@ import {
 } from './TrackPlaybackNative';
 import { theme } from './theme';
 import { BootSplash } from './ui/components/BootSplash';
-import { Modal } from './ui/components/Modal';
 import { EXPANDED_ARTWORK_SIZE } from './ui/components/NowPlayingSurface';
 import { Toast } from './ui/components/Toast';
 import { closeSlot, EMPTY_SLOT_RENDERER } from './ui/flows/ModalSlotFlow';
+import { Modal } from './ui/modals/Modal';
 import { ConnectionView } from './ui/views/ConnectionView';
 import { deriveAlbumArtMaxDimension } from './utils/ImageSizing';
 

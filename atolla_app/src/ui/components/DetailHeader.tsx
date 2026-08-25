@@ -15,10 +15,10 @@ import { hapticFeedback } from '../../utils/Haptics';
 import { DownloadedTick } from '../animations/DownloadedTick';
 import { animateRipple, createRippleStyle } from '../animations/Icons';
 import { LoadingSpinner } from '../animations/LoadingSpinner';
+import { Modal } from '../modals/Modal';
 import { ArtistLogo } from './ArtistLogo';
 import { CachedImage } from './CachedImage';
 import { FormatBadge } from './FormatBadge';
-import { Modal } from './Modal';
 import { TappableIcon } from './TappableIcon';
 import { TouchEventState } from './TouchEventState';
 

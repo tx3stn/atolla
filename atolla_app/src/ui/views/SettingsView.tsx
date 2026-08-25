@@ -48,12 +48,12 @@ import {
 } from '../../TrackPlaybackNative';
 import { theme, withAlpha } from '../../theme';
 import { Button } from '../components/Button';
-import { CacheClearModal } from '../components/CacheClearModal';
-import { LanguageSelectModal } from '../components/LanguageSelectModal';
-import { Modal } from '../components/Modal';
 import { SelectOption } from '../components/SelectOption';
 import { Toggle } from '../components/Toggle';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
+import { CacheClearModal } from '../modals/CacheClearModal';
+import { LanguageSelectModal } from '../modals/LanguageSelectModal';
+import { Modal } from '../modals/Modal';
 
 const NATIVE_CACHE_STATS_INTERVAL_MS = 1000;
 

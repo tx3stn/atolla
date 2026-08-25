@@ -3,8 +3,8 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
-import { Button, ButtonType } from './Button';
-import { CachedImage } from './CachedImage';
+import { Button, ButtonType } from '../components/Button';
+import { CachedImage } from '../components/CachedImage';
 import { ModalBase, modalStyles } from './ModalBase';
 
 export interface ModalViewModel {

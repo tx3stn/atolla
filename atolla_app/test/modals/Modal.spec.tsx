@@ -1,6 +1,6 @@
 import 'jasmine/src/jasmine';
-import { Modal } from 'atolla_app/src/ui/components/Modal';
-import { modalStyles } from 'atolla_app/src/ui/components/ModalBase';
+import { Modal } from 'atolla_app/src/ui/modals/Modal';
+import { modalStyles } from 'atolla_app/src/ui/modals/ModalBase';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { valdiIt } from 'valdi_test/test/JSXTestUtils';

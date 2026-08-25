@@ -1,8 +1,8 @@
 import Strings from 'atolla_core/src/Strings';
 import type { ClearCacheSelection } from 'atolla_core/src/services/CacheClear';
 import { StatefulComponent } from 'valdi_core/src/Component';
-import { Button, ButtonType } from './Button';
-import { Checkbox } from './Checkbox';
+import { Button, ButtonType } from '../components/Button';
+import { Checkbox } from '../components/Checkbox';
 import { ModalBase, modalStyles } from './ModalBase';
 
 export interface CacheClearModalCounts {

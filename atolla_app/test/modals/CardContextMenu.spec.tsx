@@ -2,7 +2,7 @@ import 'jasmine/src/jasmine';
 import {
 	CardContextMenu,
 	type CardContextMenuCard,
-} from 'atolla_app/src/ui/components/CardContextMenu';
+} from 'atolla_app/src/ui/modals/CardContextMenu';
 import type { Album } from 'atolla_core/src/models/Album';
 import type { Genre } from 'atolla_core/src/models/Genre';
 import type { Playlist } from 'atolla_core/src/models/Playlist';

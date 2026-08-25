@@ -34,9 +34,7 @@ import type { Preferences } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { CancelableController } from '../../utils/CancelableController';
 import { BioSection } from '../components/BioSection';
-import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
-import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { DetailHeader } from '../components/DetailHeader';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { GenrePills } from '../components/GenrePills';
@@ -47,6 +45,8 @@ import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { type DetailPushDeps, pushAlbum, pushGenre, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
+import { CardContextMenu, type CardContextMenuCard } from '../modals/CardContextMenu';
+import { CreatePlaylistModal } from '../modals/CreatePlaylistModal';
 import { AddToPlaylistView } from './AddToPlaylistView';
 import { sortArtistAlbums } from './sort/Albums';
 

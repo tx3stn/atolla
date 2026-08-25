@@ -2,7 +2,7 @@ import 'jasmine/src/jasmine';
 import {
 	CreatePlaylistFromQueueModal,
 	type QueueTrackSelectionOptions,
-} from 'atolla_app/src/ui/components/CreatePlaylistFromQueueModal';
+} from 'atolla_app/src/ui/modals/CreatePlaylistFromQueueModal';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import type { IComponent } from 'valdi_core/src/IComponent';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';

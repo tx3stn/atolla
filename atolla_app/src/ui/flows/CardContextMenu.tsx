@@ -3,7 +3,7 @@ import type { TrackSource } from 'atolla_player/src/services/TrackSource';
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { ToastService } from '../../services/ToastService';
-import { CardContextMenu, type CardContextMenuCard } from '../components/CardContextMenu';
+import { CardContextMenu, type CardContextMenuCard } from '../modals/CardContextMenu';
 import { closeSlot, openSlot } from './ModalSlotFlow';
 
 export interface OpenCardContextMenuOptions {

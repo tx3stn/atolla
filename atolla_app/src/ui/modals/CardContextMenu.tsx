@@ -18,8 +18,8 @@ import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { theme } from '../../theme';
-import { ArtistLogo } from './ArtistLogo';
-import { CachedImage } from './CachedImage';
+import { ArtistLogo } from '../components/ArtistLogo';
+import { CachedImage } from '../components/CachedImage';
 import { ContextMenuActionRow } from './ContextMenuActionRow';
 import { ModalBase } from './ModalBase';
 

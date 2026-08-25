@@ -3,7 +3,7 @@ import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme, withAlpha } from '../../theme';
-import { Button, ButtonType } from './Button';
+import { Button, ButtonType } from '../components/Button';
 import { ModalBase, modalStyles } from './ModalBase';
 
 interface HttpWarningModalViewModel {

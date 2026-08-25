@@ -14,9 +14,9 @@ import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { LoadingSpinner } from '../animations/LoadingSpinner';
 import { Button, ButtonType } from '../components/Button';
-import { HttpWarningModal } from '../components/HttpWarningModal';
-import { LanguageSelectModal } from '../components/LanguageSelectModal';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
+import { HttpWarningModal } from '../modals/HttpWarningModal';
+import { LanguageSelectModal } from '../modals/LanguageSelectModal';
 
 export interface ConnectionViewModel {
 	animationsEnabled?: boolean;

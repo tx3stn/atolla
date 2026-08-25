@@ -1,5 +1,5 @@
 import 'jasmine/src/jasmine';
-import { CacheClearModal } from 'atolla_app/src/ui/components/CacheClearModal';
+import { CacheClearModal } from 'atolla_app/src/ui/modals/CacheClearModal';
 import type { ClearCacheSelection } from 'atolla_core/src/services/CacheClear';
 import { elementTypeFind } from 'foundation/test/util/elementTypeFind';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';

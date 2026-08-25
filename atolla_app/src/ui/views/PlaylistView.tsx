@@ -37,7 +37,6 @@ import { formatDuration } from '../../utils/Time';
 import { DetailHeader } from '../components/DetailHeader';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { LoadingView } from '../components/LoadingView';
-import { Modal } from '../components/Modal';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { ScrollDragAutoScroller } from '../components/ScrollDragAutoScroller';
 import { TrackList } from '../components/TrackList';
@@ -45,6 +44,7 @@ import { type DerivedTracks, deriveTracks } from '../components/TrackListEntries
 import { closeSlot } from '../flows/ModalSlotFlow';
 import { type DetailPushDeps, pushAlbum, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
+import { Modal } from '../modals/Modal';
 
 export interface PlaylistViewModel {
 	downloadService: DownloadService;

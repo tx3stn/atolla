@@ -32,11 +32,11 @@ import { CancelableController } from '../../utils/CancelableController';
 import { createPlaylistAndAddTracks, selectQueueTracksForPlaylist } from '../flows/CreatePlaylist';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
-import { ArtistLogo } from './ArtistLogo';
 import {
 	CreatePlaylistFromQueueModal,
 	type QueueTrackSelectionOptions,
-} from './CreatePlaylistFromQueueModal';
+} from '../modals/CreatePlaylistFromQueueModal';
+import { ArtistLogo } from './ArtistLogo';
 import { FormatBadge } from './FormatBadge';
 import { LyricsPanel, type LyricsStatus, LyricsStatuses } from './LyricsPanel';
 import { ProgressBarWaveform } from './ProgressBarWaveform';

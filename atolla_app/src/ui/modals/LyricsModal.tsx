@@ -5,9 +5,9 @@ import { Style } from 'valdi_core/src/Style';
 import type { View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { LyricsService } from '../../services/LyricsService';
 import { theme } from '../../theme';
-import { LyricsPanel, type LyricsStatus, LyricsStatuses } from './LyricsPanel';
+import { LyricsPanel, type LyricsStatus, LyricsStatuses } from '../components/LyricsPanel';
+import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { ModalBase, modalStyles } from './ModalBase';
-import { TrackList, type TrackListEntry } from './TrackList';
 
 export interface LyricsModalViewModel {
 	lyricsService: LyricsService;

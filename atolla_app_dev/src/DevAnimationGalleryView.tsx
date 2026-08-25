@@ -1,8 +1,8 @@
 import { appServices } from 'atolla_app/src/services/AppServices';
 import { theme } from 'atolla_app/src/theme';
 import { Button, ButtonType } from 'atolla_app/src/ui/components/Button';
-import { ModalBase, modalStyles } from 'atolla_app/src/ui/components/ModalBase';
 import { Toggle } from 'atolla_app/src/ui/components/Toggle';
+import { ModalBase, modalStyles } from 'atolla_app/src/ui/modals/ModalBase';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';

@@ -35,9 +35,7 @@ import type { SearchStore } from '../../stores/Search';
 import { theme } from '../../theme';
 import { CancelableController } from '../../utils/CancelableController';
 import { LoadingSpinner } from '../animations/LoadingSpinner';
-import type { CardContextMenuCard } from '../components/CardContextMenu';
 import { type Card, CardGrid } from '../components/CardGrid';
-import { CreatePlaylistModal } from '../components/CreatePlaylistModal';
 import { TappableIcon } from '../components/TappableIcon';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { openCardContextMenu } from '../flows/CardContextMenu';
@@ -45,6 +43,8 @@ import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { type DetailPushDeps, pushAlbum, pushArtist, pushPlaylist } from '../flows/PushDetail';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
+import type { CardContextMenuCard } from '../modals/CardContextMenu';
+import { CreatePlaylistModal } from '../modals/CreatePlaylistModal';
 import { AddToPlaylistView } from './AddToPlaylistView';
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';

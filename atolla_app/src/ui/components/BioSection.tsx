@@ -5,7 +5,7 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import type { LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
-import { Modal } from './Modal';
+import { Modal } from '../modals/Modal';
 
 export interface BioSectionViewModel {
 	artistId?: string | null;

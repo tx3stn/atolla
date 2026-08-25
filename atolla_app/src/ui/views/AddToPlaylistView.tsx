@@ -10,8 +10,8 @@ import { theme } from '../../theme';
 import { CancelableController } from '../../utils/CancelableController';
 import { LoadingSpinner } from '../animations/LoadingSpinner';
 import { type Card, CardGrid } from '../components/CardGrid';
-import { Modal } from '../components/Modal';
 import { addTracksToPlaylist } from '../flows/CreatePlaylist';
+import { Modal } from '../modals/Modal';
 import { createPagedGridController, gridPaginationConfig } from '../pagination/Grid';
 
 export interface AddToPlaylistViewModel {

@@ -4,8 +4,8 @@ import { LoadingSpinner } from 'atolla_app/src/ui/animations/LoadingSpinner';
 import { LogoWaveformReveal } from 'atolla_app/src/ui/animations/LogoWaveformReveal';
 import { LogoWifiOff } from 'atolla_app/src/ui/animations/LogoWifiOff';
 import { LogoWifiOn } from 'atolla_app/src/ui/animations/LogoWifiOn';
-import { ContextMenuActionRow } from 'atolla_app/src/ui/components/ContextMenuActionRow';
 import { TappableIcon } from 'atolla_app/src/ui/components/TappableIcon';
+import { ContextMenuActionRow } from 'atolla_app/src/ui/modals/ContextMenuActionRow';
 import { DevDownloadSequence } from './DevDownloadSequence';
 
 // The dev animation gallery's stories. Every one mounts the production component rather than a
