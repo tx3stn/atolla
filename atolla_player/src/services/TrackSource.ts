@@ -34,3 +34,29 @@ export function singlePage(fetch: () => CancelablePromise<Array<Track>>): TrackS
 export function pagedFromArray(tracks: Array<Track>): TrackSource {
 	return singlePage(() => Promise.resolve(tracks));
 }
+
+export function chainSources(sources: Array<TrackSource>): TrackSource {
+	let index = 0;
+	let sourcePage = 1;
+
+	return (_page, pageSize) => {
+		const source = sources[index];
+		if (!source) {
+			return Promise.resolve({ hasMore: false, items: [] });
+		}
+
+		const read = source(sourcePage, pageSize);
+		return promiseToCancelablePromise(
+			Promise.resolve(read).then(({ hasMore, items }) => {
+				if (hasMore) {
+					sourcePage += 1;
+				} else {
+					index += 1;
+					sourcePage = 1;
+				}
+				return { hasMore: hasMore || index < sources.length, items };
+			}),
+			() => read.cancel?.(),
+		);
+	};
+}

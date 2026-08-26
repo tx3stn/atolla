@@ -9,12 +9,13 @@ import {
 import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
 import { Component } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
-import type { Label, Layout } from 'valdi_tsx/src/NativeTemplateElements';
+import type { Layout } from 'valdi_tsx/src/NativeTemplateElements';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
 import type { LanguageCode } from '../../stores/Preferences';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
 import { type Card, CardGrid } from './CardGrid';
+import { HomeSectionHeader } from './HomeSectionHeader';
 
 export interface MixesSectionViewModel {
 	connectionMode: ConnectionMode;
@@ -196,7 +197,7 @@ export class MixesSection extends Component<MixesSectionViewModel> {
 
 	onRender(): void {
 		<layout style={styles.section}>
-			<label style={styles.sectionTitle} value={Strings.homeSectionMixes()} />
+			<HomeSectionHeader accessibilityId='home-section-mixes' title={Strings.homeSectionMixes()} />
 			<CardGrid
 				accessibilityId='home-mixes-grid'
 				cards={this.getMixCards()}
@@ -211,9 +212,5 @@ const styles = {
 	section: new Style<Layout>({
 		marginBottom: theme.scale(24),
 		width: '100%',
-	}),
-	sectionTitle: new Style<Label>({
-		...theme.text.mutedHeader,
-		marginBottom: theme.scale(8),
 	}),
 };

@@ -193,4 +193,138 @@ describe('HomeView', () => {
 
 		expect(toasts).toEqual(['success:added to queue']);
 	});
+
+	valdiIt('queues every recently-added item from the section header', async (driver) => {
+		const queued: Array<Array<string>> = [];
+		const base = makeBaseDeps();
+		base.playbackStore = {
+			addToQueue: (tracks: Array<Track>) => {
+				queued.push(tracks.map((track) => track.id));
+			},
+			subscribe: () => () => {},
+		} as unknown as PlaybackStore;
+		base.transport = {
+			getArtistLogoUrl: () => Promise.resolve(null),
+			getTracksByAlbum: (albumId: string) =>
+				Promise.resolve([{ duration: 180, id: `${albumId}-t1`, name: 'Track' }]),
+		} as unknown as Transport;
+		await base.preferences.setAnimationsEnabled(false);
+
+		const recentlyAdded = makeRecentlyAddedService();
+		const component = driver.renderComponent(
+			HomeViewWithSlot,
+			buildViewModel(base, undefined, recentlyAdded.service),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		const header = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		).find((view) => view.getAttribute('accessibilityLabel') === 'home-section-recently-added');
+		header?.getAttribute('onLongPress')?.(touchEvent);
+		await flushAsyncWork();
+
+		const addToQueue = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		).find((view) => view.getAttribute('accessibilityLabel') === 'home-context-add-to-queue');
+		addToQueue?.getAttribute('onTap')?.(touchEvent);
+		await flushAsyncWork();
+
+		expect(queued).toEqual([['r1-t1']]);
+	});
+
+	valdiIt('plays the on-this-day section oldest release first', async (driver) => {
+		const now = new Date();
+		const anniversary = (year: number): string =>
+			`${year}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T00:00:00.000Z`;
+		const albums: Array<Album> = [
+			{
+				artistId: 'ar1',
+				artistName: 'Artist',
+				id: 'newer',
+				name: 'Newer',
+				releaseDate: anniversary(2010),
+			},
+			{
+				artistId: 'ar1',
+				artistName: 'Artist',
+				id: 'older',
+				name: 'Older',
+				releaseDate: anniversary(1990),
+			},
+		];
+
+		const played: Array<Array<string>> = [];
+		const base = makeBaseDeps();
+		base.playbackStore = {
+			playTracks: (tracks: Array<Track>) => {
+				played.push(tracks.map((track) => track.id));
+			},
+			setQueueFiller: () => {},
+			subscribe: () => () => {},
+			trackIndex: 0,
+			tracks: [],
+		} as unknown as PlaybackStore;
+		base.transport = {
+			getArtistLogoUrl: () => Promise.resolve(null),
+			getTracksByAlbum: (albumId: string) =>
+				Promise.resolve([{ duration: 180, id: `${albumId}-t1`, name: 'Track' }]),
+		} as unknown as Transport;
+		await base.preferences.setAnimationsEnabled(false);
+
+		const onThisDay = makeOnThisDayService();
+		(onThisDay.service as unknown as { getAlbumsForDate: () => Array<Album> }).getAlbumsForDate =
+			() => albums;
+
+		const component = driver.renderComponent(
+			HomeViewWithSlot,
+			buildViewModel(base, onThisDay.service, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		const header = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		).find((view) => view.getAttribute('accessibilityLabel') === 'home-section-on-this-day');
+		header?.getAttribute('onLongPress')?.(touchEvent);
+		await flushAsyncWork();
+
+		const play = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		).find((view) => view.getAttribute('accessibilityLabel') === 'home-context-play');
+		play?.getAttribute('onTap')?.(touchEvent);
+		await flushAsyncWork();
+
+		expect(played).toEqual([['older-t1']]);
+	});
+
+	valdiIt('opens no section menu when the section is empty', async (driver) => {
+		const base = makeBaseDeps();
+		await base.preferences.setAnimationsEnabled(false);
+
+		const component = driver.renderComponent(
+			HomeViewWithSlot,
+			buildViewModel(base, undefined, undefined),
+			undefined,
+		);
+		await flushAsyncWork();
+
+		const header = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		).find((view) => view.getAttribute('accessibilityLabel') === 'home-section-pinned');
+		header?.getAttribute('onLongPress')?.(touchEvent);
+		await flushAsyncWork();
+
+		const menu = elementTypeFind(
+			componentGetElements(component),
+			IRenderedElementViewClass.View,
+		).find((view) => view.getAttribute('accessibilityLabel') === 'home-context-menu');
+
+		expect(menu).toBeUndefined();
+	});
 });

@@ -13,8 +13,9 @@ import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Label, Layout, ScrollView } from 'valdi_tsx/src/NativeTemplateElements';
 import type { CardDetailItem } from '../../models/App';
 import { type ConnectionMode, ConnectionModes } from '../../models/App';
+import type { EntityRef } from '../../services/EntityTracks';
 import type { LyricsService } from '../../services/LyricsService';
-import { createOnThisDayCardDetails } from '../../services/OnThisDay';
+import { createOnThisDayCardDetails, selectOnThisDayCandidates } from '../../services/OnThisDay';
 import type { OnThisDayService } from '../../services/OnThisDayService';
 import type { RecentlyAddedService } from '../../services/RecentlyAddedService';
 import type { ToastService } from '../../services/ToastService';
@@ -29,11 +30,13 @@ import { CancelableController } from '../../utils/CancelableController';
 import { hapticFeedback } from '../../utils/Haptics';
 import { CardDetailList } from '../components/CardDetailList';
 import { type Card, CardGrid } from '../components/CardGrid';
+import { HomeSectionHeader } from '../components/HomeSectionHeader';
 import { MixesSection } from '../components/MixesSection';
 import { RefreshableScroll } from '../components/RefreshableScroll';
 import { TrackList, type TrackListEntry } from '../components/TrackList';
 import { openCardContextMenu } from '../flows/CardContextMenu';
 import { createPlaylistAndAddTracks } from '../flows/CreatePlaylist';
+import { openHomeContextMenu } from '../flows/HomeContextMenu';
 import { closeSlot, openSlot } from '../flows/ModalSlotFlow';
 import { openTrackContextMenu } from '../flows/TrackContextMenu';
 import type { CardContextMenuCard } from '../modals/CardContextMenu';
@@ -126,7 +129,11 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 			>
 				<layout style={styles.content}>
 					<layout style={styles.section}>
-						<label style={styles.sectionTitle} value={Strings.homeSectionOnThisDay()} />
+						<HomeSectionHeader
+							accessibilityId='home-section-on-this-day'
+							onLongPress={this.handleOnThisDaySectionLongPress}
+							title={Strings.homeSectionOnThisDay()}
+						/>
 						{onThisDayCards.length > 0 ? (
 							<CardDetailList
 								accessibilityId='home-on-this-day-grid'
@@ -141,7 +148,11 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					</layout>
 
 					<layout style={styles.section}>
-						<label style={styles.sectionTitle} value={Strings.homeSectionPinned()} />
+						<HomeSectionHeader
+							accessibilityId='home-section-pinned'
+							onLongPress={this.handlePinnedSectionLongPress}
+							title={Strings.homeSectionPinned()}
+						/>
 						{pinnedCards.length > 0 ? (
 							<CardGrid
 								accessibilityId='home-pinned-grid'
@@ -156,7 +167,11 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					</layout>
 
 					<layout style={styles.section}>
-						<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyAdded()} />
+						<HomeSectionHeader
+							accessibilityId='home-section-recently-added'
+							onLongPress={this.handleRecentlyAddedSectionLongPress}
+							title={Strings.homeSectionRecentlyAdded()}
+						/>
 						<CardGrid
 							accessibilityId='home-recently-added-grid'
 							cards={recentlyAddedCards}
@@ -175,7 +190,10 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 					/>
 
 					<layout style={styles.section}>
-						<label style={styles.sectionTitle} value={Strings.homeSectionRecentlyPlayed()} />
+						<HomeSectionHeader
+							accessibilityId='home-section-recently-played'
+							title={Strings.homeSectionRecentlyPlayed()}
+						/>
 						{recentlyPlayedTracks.length > 0 ? (
 							<TrackList
 								onTrackLongPress={this.handleRecentlyPlayedTrackLongPress}
@@ -620,6 +638,47 @@ export class HomeView extends StatefulComponent<HomeViewModel, HomeState> {
 		this.openAlbumCardContextMenu(album);
 	};
 
+	private handleOnThisDaySectionLongPress = (): void => {
+		this.openSectionContextMenu(
+			selectOnThisDayCandidates(this.state.onThisDayAlbums, new Date()).map(({ album }) => ({
+				album,
+				kind: 'album' as const,
+			})),
+			Strings.homeSectionOnThisDay(),
+		);
+	};
+
+	private handlePinnedSectionLongPress = (): void => {
+		this.openSectionContextMenu(this.state.pinnedItems, Strings.homeSectionPinned());
+	};
+
+	private handleRecentlyAddedSectionLongPress = (): void => {
+		this.openSectionContextMenu(
+			this.state.recentlyAddedAlbums.map((album) => ({ album, kind: 'album' as const })),
+			Strings.homeSectionRecentlyAdded(),
+		);
+	};
+
+	private openSectionContextMenu(items: Array<EntityRef>, title: string): void {
+		if (items.length === 0) {
+			return;
+		}
+		hapticFeedback();
+
+		const { modalSlot, playbackStore, toastService, transport } = this.viewModel;
+		openHomeContextMenu(modalSlot, {
+			animationsEnabled: this.viewModel.preferences.animationsEnabled,
+			items,
+			onAddToPlaylist: this.handleAlbumContextMenuAddToPlaylist,
+			onCreatePlaylist: this.handleAlbumContextMenuCreatePlaylist,
+			onDismiss: this.handleContextMenuDismiss,
+			playbackStore,
+			title,
+			toastService,
+			transport,
+		});
+	}
+
 	private handleOnThisDayCardLongPress = (card: {
 		id: string;
 		kind: 'album' | 'artist' | 'genre' | 'playlist';
@@ -762,9 +821,5 @@ const styles = {
 	section: new Style<Layout>({
 		marginBottom: theme.scale(24),
 		width: '100%',
-	}),
-	sectionTitle: new Style<Label>({
-		...theme.text.mutedHeader,
-		marginBottom: theme.scale(8),
 	}),
 };

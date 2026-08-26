@@ -1,22 +1,22 @@
 import res from 'atolla_app/res';
-import type { Album } from 'atolla_core/src/models/Album';
-import type { Artist } from 'atolla_core/src/models/Artist';
-import type { Genre } from 'atolla_core/src/models/Genre';
-import type { Playlist } from 'atolla_core/src/models/Playlist';
 import type { Track } from 'atolla_core/src/models/Track';
 import Strings from 'atolla_core/src/Strings';
 import {
 	INSTANT_MIX_LIMIT,
 	type InstantMixSeed,
-	type TrackPageSort,
 	type Transport,
 } from 'atolla_core/src/transports/Transport';
 import { startPagedPlayback } from 'atolla_player/src/services/PagedPlayback';
-import { singlePage, type TrackSource } from 'atolla_player/src/services/TrackSource';
+import type { TrackSource } from 'atolla_player/src/services/TrackSource';
 import { type PlaybackStore, shuffleArray } from 'atolla_player/src/stores/Playback';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
+import {
+	type EntityRef,
+	type EntityTrackOptions,
+	entityTrackSource,
+} from '../../services/EntityTracks';
 import { type ToastService, ToastTypes } from '../../services/ToastService';
 import { theme } from '../../theme';
 import { ArtistLogo } from '../components/ArtistLogo';
@@ -24,11 +24,7 @@ import { CachedImage } from '../components/CachedImage';
 import { ContextMenuActionRow } from './ContextMenuActionRow';
 import { ModalBase } from './ModalBase';
 
-export type CardContextMenuCard =
-	| { kind: 'album'; album: Album }
-	| { kind: 'artist'; artist: Artist }
-	| { kind: 'genre'; genre: Genre }
-	| { kind: 'playlist'; playlist: Playlist };
+export type CardContextMenuCard = EntityRef;
 
 export interface CardContextMenuViewModel {
 	animationsEnabled: boolean;
@@ -93,24 +89,8 @@ export class CardContextMenu extends StatefulComponent<
 		}
 	}
 
-	private trackSource(options?: { sort?: TrackPageSort }): TrackSource {
-		const { card } = this.viewModel;
-		switch (card.kind) {
-			case 'album': {
-				return singlePage(() => this.viewModel.transport.getTracksByAlbum(card.album.id));
-			}
-			case 'artist': {
-				return singlePage(() => this.viewModel.transport.getTracksByArtist(card.artist.id));
-			}
-			case 'genre': {
-				return (page, pageSize) =>
-					this.viewModel.transport.getTracksByGenre(card.genre.id, page, pageSize, options);
-			}
-			case 'playlist': {
-				return (page, pageSize) =>
-					this.viewModel.transport.getTracksByPlaylist(card.playlist.id, page, pageSize, options);
-			}
-		}
+	private trackSource(options?: EntityTrackOptions): TrackSource {
+		return entityTrackSource(this.viewModel.card, this.viewModel.transport, options);
 	}
 
 	private applyArtistLogo(): void {

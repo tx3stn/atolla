@@ -2,7 +2,7 @@ import type { Album } from 'atolla_core/src/models/Album';
 import { compareBySortKey } from 'atolla_core/src/utils/SortKey';
 import type { CardDetailItem } from '../models/App';
 
-interface OnThisDayCandidate {
+export interface OnThisDayCandidate {
 	album: Album;
 	originalReleaseDate: Date;
 	originalReleaseYear: number;
@@ -39,9 +39,10 @@ export function matchOnThisDay(
 	return { date, year };
 }
 
-export function createOnThisDayCardDetails(albums: Array<Album>, now: Date): Array<CardDetailItem> {
-	const currentYear = now.getFullYear();
-
+export function selectOnThisDayCandidates(
+	albums: Array<Album>,
+	now: Date,
+): Array<OnThisDayCandidate> {
 	return albums
 		.map((album): OnThisDayCandidate | null => {
 			if (!album.name?.trim() || !album.artistName?.trim()) {
@@ -71,17 +72,22 @@ export function createOnThisDayCardDetails(albums: Array<Album>, now: Date): Arr
 			}
 
 			return left.originalReleaseDate.getTime() - right.originalReleaseDate.getTime();
-		})
-		.map(({ album, originalReleaseYear }) => {
-			const yearsAgo = currentYear - originalReleaseYear;
-
-			return {
-				artworkKey: album.imageUrl ?? '',
-				id: album.id,
-				kind: 'album',
-				lineOne: yearsAgo === 1 ? '1 YEAR AGO' : `${yearsAgo} YEARS AGO`,
-				lineThree: album.artistName,
-				lineTwo: album.name,
-			};
 		});
+}
+
+export function createOnThisDayCardDetails(albums: Array<Album>, now: Date): Array<CardDetailItem> {
+	const currentYear = now.getFullYear();
+
+	return selectOnThisDayCandidates(albums, now).map(({ album, originalReleaseYear }) => {
+		const yearsAgo = currentYear - originalReleaseYear;
+
+		return {
+			artworkKey: album.imageUrl ?? '',
+			id: album.id,
+			kind: 'album',
+			lineOne: yearsAgo === 1 ? '1 YEAR AGO' : `${yearsAgo} YEARS AGO`,
+			lineThree: album.artistName,
+			lineTwo: album.name,
+		};
+	});
 }
