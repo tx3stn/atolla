@@ -8,11 +8,12 @@ import Strings from 'atolla_core/src/Strings';
 import {
 	INSTANT_MIX_LIMIT,
 	type InstantMixSeed,
+	type TrackPageSort,
 	type Transport,
 } from 'atolla_core/src/transports/Transport';
 import { startPagedPlayback } from 'atolla_player/src/services/PagedPlayback';
 import { singlePage, type TrackSource } from 'atolla_player/src/services/TrackSource';
-import type { PlaybackStore } from 'atolla_player/src/stores/Playback';
+import { type PlaybackStore, shuffleArray } from 'atolla_player/src/stores/Playback';
 import { StatefulComponent } from 'valdi_core/src/Component';
 import { Style } from 'valdi_core/src/Style';
 import type { ImageView, Label, View } from 'valdi_tsx/src/NativeTemplateElements';
@@ -92,7 +93,7 @@ export class CardContextMenu extends StatefulComponent<
 		}
 	}
 
-	private trackSource(): TrackSource {
+	private trackSource(options?: { sort?: TrackPageSort }): TrackSource {
 		const { card } = this.viewModel;
 		switch (card.kind) {
 			case 'album': {
@@ -103,12 +104,19 @@ export class CardContextMenu extends StatefulComponent<
 			}
 			case 'genre': {
 				return (page, pageSize) =>
-					this.viewModel.transport.getTracksByGenre(card.genre.id, page, pageSize);
+					this.viewModel.transport.getTracksByGenre(card.genre.id, page, pageSize, options);
 			}
 			case 'playlist': {
 				return (page, pageSize) =>
-					this.viewModel.transport.getTracksByPlaylist(card.playlist.id, page, pageSize);
+					this.viewModel.transport.getTracksByPlaylist(card.playlist.id, page, pageSize, options);
 			}
+		}
+	}
+
+	private applyArtistLogo(): void {
+		const { card, playbackStore } = this.viewModel;
+		if (card.kind === 'album' || card.kind === 'artist') {
+			playbackStore.setArtistLogoUrl(this.state.artistLogoUrl);
 		}
 	}
 
@@ -137,6 +145,7 @@ export class CardContextMenu extends StatefulComponent<
 			startPagedPlayback(this.viewModel.playbackStore, tracks, TRACK_PAGE_SIZE);
 		}
 
+		this.applyArtistLogo();
 		this.viewModel.onDismiss();
 	};
 
@@ -179,6 +188,29 @@ export class CardContextMenu extends StatefulComponent<
 			message: Strings.addedToQueueToast(),
 			variant: ToastTypes.success,
 		});
+		this.viewModel.onDismiss();
+	};
+
+	handleShuffle = (): void => {
+		const { card, playbackStore } = this.viewModel;
+		if (card.kind === 'album' || card.kind === 'artist') {
+			this.trackSource()(1, TRACK_PAGE_SIZE).then(
+				({ items }) => {
+					if (items.length === 0) return;
+					const shuffled = shuffleArray(items);
+					if (card.kind === 'album') {
+						playbackStore.play(shuffled, card.album);
+					} else {
+						playbackStore.playTracks(shuffled);
+					}
+				},
+				() => {},
+			);
+		} else {
+			startPagedPlayback(playbackStore, this.trackSource({ sort: 'random' }), TRACK_PAGE_SIZE);
+		}
+
+		this.applyArtistLogo();
 		this.viewModel.onDismiss();
 	};
 
@@ -310,6 +342,13 @@ export class CardContextMenu extends StatefulComponent<
 				icon={res.addtoqueue}
 				label={Strings.addToQueue()}
 				onPress={this.handleAddToQueue}
+			/>
+			<ContextMenuActionRow
+				accessibilityId='card-context-shuffle'
+				animationsEnabled={animationsEnabled}
+				icon={res.shuffle}
+				label={Strings.shuffle()}
+				onPress={this.handleShuffle}
 			/>
 			<ContextMenuActionRow
 				accessibilityId='card-context-instant-mix'

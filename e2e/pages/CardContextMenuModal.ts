@@ -6,6 +6,7 @@ export class CardContextMenu extends BasePage {
 	private readonly play = 'card-context-play';
 	private readonly playNext = 'card-context-play-next';
 	private readonly addToQueue = 'card-context-add-to-queue';
+	private readonly shuffle = 'card-context-shuffle';
 	private readonly album = 'card-context-menu-album';
 	private readonly artistLogo = 'artist-logo';
 	private readonly pin = 'card-context-pin';
@@ -81,6 +82,13 @@ export class CardContextMenu extends BasePage {
 	async tapAddToQueue(): Promise<void> {
 		const el = this.elementByID(this.addToQueue);
 		await el.waitForDisplayed({ timeoutMsg: 'Add to queue button not visible' });
+		await el.click();
+		await this.dismissPermissionDialogIfPresent();
+	}
+
+	async tapShuffle(): Promise<void> {
+		const el = this.elementByID(this.shuffle);
+		await el.waitForDisplayed({ timeoutMsg: 'Shuffle button not visible' });
 		await el.click();
 		await this.dismissPermissionDialogIfPresent();
 	}

@@ -430,6 +430,9 @@
 	"settings_title": {
 		"defaultMessage": "PARAMÈTRES"
 	},
+	"shuffle": {
+		"defaultMessage": "aléatoire"
+	},
 	"shuffle_library": {
 		"defaultMessage": "BIBLIOTHÈQUE ALÉATOIRE"
 	},

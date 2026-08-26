@@ -433,6 +433,9 @@
 	"settings_title": {
 		"defaultMessage": "SETTINGS"
 	},
+	"shuffle": {
+		"defaultMessage": "shuffle"
+	},
 	"shuffle_library": {
 		"defaultMessage": "SHUFFLE LIBRARY"
 	},

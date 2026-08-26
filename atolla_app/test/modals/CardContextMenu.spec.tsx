@@ -73,6 +73,7 @@ describe('CardContextMenu', () => {
 				playbackStore: {
 					play,
 					playTracks: jasmine.createSpy('playTracks'),
+					setArtistLogoUrl: jasmine.createSpy('setArtistLogoUrl'),
 				} as unknown as PlaybackStore,
 				transport: mockTransport(),
 			};
@@ -85,6 +86,30 @@ describe('CardContextMenu', () => {
 			expect(onDismiss).toHaveBeenCalled();
 		});
 
+		valdiIt('applies the resolved artist logo to the now playing surface', async (driver) => {
+			const setArtistLogoUrl = jasmine.createSpy('setArtistLogoUrl');
+			const component = driver.renderComponent(
+				CardContextMenu,
+				{
+					animationsEnabled: false,
+					card: { album: mockAlbum(), kind: 'album' },
+					onDismiss: jasmine.createSpy('onDismiss'),
+					playbackStore: {
+						play: jasmine.createSpy('play'),
+						setArtistLogoUrl,
+					} as unknown as PlaybackStore,
+					transport: mockTransport({ getArtistLogoUrl: () => Promise.resolve('logo.png') }),
+				},
+				undefined,
+			);
+			await flush();
+
+			(getInternal(component).handlePlay as () => void)();
+			await flush();
+
+			expect(setArtistLogoUrl).toHaveBeenCalledWith('logo.png');
+		});
+
 		valdiIt('swallows a rejected fetch: still dismisses and does not play', async (driver) => {
 			const play = jasmine.createSpy('play');
 			const onDismiss = jasmine.createSpy('onDismiss');
@@ -95,6 +120,7 @@ describe('CardContextMenu', () => {
 				playbackStore: {
 					play,
 					playTracks: jasmine.createSpy('playTracks'),
+					setArtistLogoUrl: jasmine.createSpy('setArtistLogoUrl'),
 				} as unknown as PlaybackStore,
 				transport: mockTransport({ getTracksByAlbum: () => Promise.reject(new Error('boom')) }),
 			};
@@ -118,6 +144,7 @@ describe('CardContextMenu', () => {
 				playbackStore: {
 					play,
 					playTracks: jasmine.createSpy('playTracks'),
+					setArtistLogoUrl: jasmine.createSpy('setArtistLogoUrl'),
 				} as unknown as PlaybackStore,
 				transport: mockTransport({ getTracksByAlbum: () => Promise.resolve([]) }),
 			};
@@ -127,6 +154,112 @@ describe('CardContextMenu', () => {
 			await flush();
 
 			expect(play).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('handleShuffle()', () => {
+		valdiIt('plays the album tracks in a shuffled order', async (driver) => {
+			const play = jasmine.createSpy('play');
+			const album = mockAlbum();
+			const tracks = ['a', 'b', 'c', 'd', 'e'].map(mockTrack);
+			const component = driver.renderComponent(
+				CardContextMenu,
+				{
+					animationsEnabled: false,
+					card: { album, kind: 'album' },
+					onDismiss: jasmine.createSpy('onDismiss'),
+					playbackStore: {
+						play,
+						setArtistLogoUrl: jasmine.createSpy('setArtistLogoUrl'),
+					} as unknown as PlaybackStore,
+					transport: mockTransport({ getTracksByAlbum: () => Promise.resolve(tracks) }),
+				},
+				undefined,
+			);
+
+			(getInternal(component).handleShuffle as () => void)();
+			await flush();
+
+			const played = play.calls.mostRecent().args[0] as Array<Track>;
+			expect(played.length).toBe(tracks.length);
+			expect(played.map((track) => track.id).sort()).toEqual(['a', 'b', 'c', 'd', 'e']);
+			expect(play.calls.mostRecent().args[1]).toBe(album);
+		});
+
+		valdiIt('plays every artist track rather than just the first page', async (driver) => {
+			const playTracks = jasmine.createSpy('playTracks');
+			const tracks = ['a', 'b', 'c'].map(mockTrack);
+			const component = driver.renderComponent(
+				CardContextMenu,
+				{
+					animationsEnabled: false,
+					card: { artist: { id: 'artist-1', name: 'Artist One' }, kind: 'artist' },
+					onDismiss: jasmine.createSpy('onDismiss'),
+					playbackStore: {
+						playTracks,
+						setArtistLogoUrl: jasmine.createSpy('setArtistLogoUrl'),
+					} as unknown as PlaybackStore,
+					transport: mockTransport({ getTracksByArtist: () => Promise.resolve(tracks) }),
+				},
+				undefined,
+			);
+
+			(getInternal(component).handleShuffle as () => void)();
+			await flush();
+
+			const played = playTracks.calls.mostRecent().args[0] as Array<Track>;
+			expect(played.map((track) => track.id).sort()).toEqual(['a', 'b', 'c']);
+		});
+
+		valdiIt('applies the resolved artist logo to the now playing surface', async (driver) => {
+			const setArtistLogoUrl = jasmine.createSpy('setArtistLogoUrl');
+			const component = driver.renderComponent(
+				CardContextMenu,
+				{
+					animationsEnabled: false,
+					card: {
+						artist: { id: 'artist-1', logoUrl: 'logo.png', name: 'Artist One' },
+						kind: 'artist',
+					},
+					onDismiss: jasmine.createSpy('onDismiss'),
+					playbackStore: {
+						playTracks: jasmine.createSpy('playTracks'),
+						setArtistLogoUrl,
+					} as unknown as PlaybackStore,
+					transport: mockTransport(),
+				},
+				undefined,
+			);
+
+			(getInternal(component).handleShuffle as () => void)();
+			await flush();
+
+			expect(setArtistLogoUrl).toHaveBeenCalledWith('logo.png');
+		});
+
+		valdiIt('swallows a rejected fetch and still dismisses', async (driver) => {
+			const play = jasmine.createSpy('play');
+			const onDismiss = jasmine.createSpy('onDismiss');
+			const component = driver.renderComponent(
+				CardContextMenu,
+				{
+					animationsEnabled: false,
+					card: { album: mockAlbum(), kind: 'album' },
+					onDismiss,
+					playbackStore: {
+						play,
+						setArtistLogoUrl: jasmine.createSpy('setArtistLogoUrl'),
+					} as unknown as PlaybackStore,
+					transport: mockTransport({ getTracksByAlbum: () => Promise.reject(new Error('boom')) }),
+				},
+				undefined,
+			);
+
+			(getInternal(component).handleShuffle as () => void)();
+			await flush();
+
+			expect(play).not.toHaveBeenCalled();
+			expect(onDismiss).toHaveBeenCalled();
 		});
 	});
 
@@ -309,6 +442,93 @@ describe('CardContextMenu', () => {
 		);
 
 		valdiIt(
+			'genre Shuffle asks the server to randomise rather than shuffling a page',
+			async (driver) => {
+				const { playTracks, setQueueFiller, store } = mockPagedStore();
+				const page = [mockTrack('g1'), mockTrack('g2')];
+				const getTracksByGenre = jasmine
+					.createSpy('getTracksByGenre')
+					.and.returnValue(Promise.resolve({ hasMore: true, items: page, totalCount: 99 }));
+				const component = driver.renderComponent(
+					CardContextMenu,
+					{
+						animationsEnabled: false,
+						card: { genre: mockGenre(), kind: 'genre' },
+						onDismiss: jasmine.createSpy('onDismiss'),
+						playbackStore: store,
+						transport: mockTransport({ getTracksByGenre }),
+					},
+					undefined,
+				);
+
+				(getInternal(component).handleShuffle as () => void)();
+				await flush();
+
+				expect(getTracksByGenre).toHaveBeenCalledWith('genre-1', 1, jasmine.any(Number), {
+					sort: 'random',
+				});
+				expect(playTracks).toHaveBeenCalledWith(page, 0);
+				expect(setQueueFiller.calls.mostRecent().args[0]).not.toBeNull();
+			},
+		);
+
+		valdiIt('playlist Shuffle randomises server side and registers a loader', async (driver) => {
+			const { playTracks, setQueueFiller, store } = mockPagedStore();
+			const page = [mockTrack('p1')];
+			const getTracksByPlaylist = jasmine
+				.createSpy('getTracksByPlaylist')
+				.and.returnValue(Promise.resolve({ hasMore: true, items: page, totalCount: 600 }));
+			const component = driver.renderComponent(
+				CardContextMenu,
+				{
+					animationsEnabled: false,
+					card: { kind: 'playlist', playlist: mockPlaylist() },
+					onDismiss: jasmine.createSpy('onDismiss'),
+					playbackStore: store,
+					transport: mockTransport({ getTracksByPlaylist }),
+				},
+				undefined,
+			);
+
+			(getInternal(component).handleShuffle as () => void)();
+			await flush();
+
+			expect(getTracksByPlaylist).toHaveBeenCalledWith('playlist-1', 1, jasmine.any(Number), {
+				sort: 'random',
+			});
+			expect(playTracks).toHaveBeenCalledWith(page, 0);
+			expect(setQueueFiller.calls.mostRecent().args[0]).not.toBeNull();
+		});
+
+		valdiIt(
+			'paged Shuffle does not register a loader when the first page is the last',
+			async (driver) => {
+				const { playTracks, setQueueFiller, store } = mockPagedStore();
+				const page = [mockTrack('g1')];
+				const component = driver.renderComponent(
+					CardContextMenu,
+					{
+						animationsEnabled: false,
+						card: { genre: mockGenre(), kind: 'genre' },
+						onDismiss: jasmine.createSpy('onDismiss'),
+						playbackStore: store,
+						transport: mockTransport({
+							getTracksByGenre: () =>
+								Promise.resolve({ hasMore: false, items: page, totalCount: 1 }),
+						}),
+					},
+					undefined,
+				);
+
+				(getInternal(component).handleShuffle as () => void)();
+				await flush();
+
+				expect(playTracks).toHaveBeenCalledWith(page, 0);
+				expect(setQueueFiller).not.toHaveBeenCalled();
+			},
+		);
+
+		valdiIt(
 			'genre Play Next queues a single bounded page after the current track',
 			async (driver) => {
 				const { playNext, store } = mockPagedStore();
@@ -332,7 +552,7 @@ describe('CardContextMenu', () => {
 				(getInternal(component).handlePlayNext as () => void)();
 				await flush();
 
-				expect(getTracksByGenre).toHaveBeenCalledWith('genre-1', 1, jasmine.any(Number));
+				expect(getTracksByGenre).toHaveBeenCalledWith('genre-1', 1, jasmine.any(Number), undefined);
 				expect(playNext).toHaveBeenCalledWith(page);
 			},
 		);
@@ -359,7 +579,12 @@ describe('CardContextMenu', () => {
 			(getInternal(component).handleAddToQueue as () => void)();
 			await flush();
 
-			expect(getTracksByPlaylist).toHaveBeenCalledWith('playlist-1', 1, jasmine.any(Number));
+			expect(getTracksByPlaylist).toHaveBeenCalledWith(
+				'playlist-1',
+				1,
+				jasmine.any(Number),
+				undefined,
+			);
 			expect(addToQueue).toHaveBeenCalledWith(page);
 		});
 
