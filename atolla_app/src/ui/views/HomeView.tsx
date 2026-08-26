@@ -764,7 +764,7 @@ const styles = {
 		width: '100%',
 	}),
 	sectionTitle: new Style<Label>({
-		...theme.text.mainBold,
+		...theme.text.mutedHeader,
 		marginBottom: theme.scale(8),
 	}),
 };
