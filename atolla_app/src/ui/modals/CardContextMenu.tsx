@@ -195,13 +195,15 @@ export class CardContextMenu extends StatefulComponent<
 	};
 
 	handleAddToPlaylist = (): void => {
-		this.viewModel.onAddToPlaylist?.(this.trackSource());
+		const tracks = this.trackSource();
 		this.viewModel.onDismiss();
+		this.viewModel.onAddToPlaylist?.(tracks);
 	};
 
 	handleCreatePlaylist = (): void => {
-		this.viewModel.onCreatePlaylist?.(this.trackSource());
+		const tracks = this.trackSource();
 		this.viewModel.onDismiss();
+		this.viewModel.onCreatePlaylist?.(tracks);
 	};
 
 	handlePinToggle = (): void => {

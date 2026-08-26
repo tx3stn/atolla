@@ -16,7 +16,11 @@ import { Component } from 'valdi_core/src/Component';
 import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
-import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
+import {
+	type IComponentTestDriver,
+	InstrumentedComponentJSX,
+	valdiIt,
+} from 'valdi_test/test/JSXTestUtils';
 import { touchEvent, touchEventWith } from '../util/testEvents';
 
 // wrapper that renders the home view alongside a DetachedSlotRenderer so the slot-rendered context
@@ -87,6 +91,43 @@ function makeBaseDeps() {
 		toastService: { show: () => {}, subscribe: () => () => {} } as unknown as ToastService,
 		transport: {} as Transport,
 	};
+}
+
+function findByLabel(component: unknown, label: string) {
+	return elementTypeFind(
+		componentGetElements(component as never),
+		IRenderedElementViewClass.View,
+	).find((view) => view.getAttribute('accessibilityLabel') === label);
+}
+
+async function renderHomeForPlaylistFlow(driver: IComponentTestDriver) {
+	const base = makeBaseDeps();
+	base.playbackStore = { subscribe: () => () => {} } as unknown as PlaybackStore;
+	base.transport = {
+		getArtistLogoUrl: () => Promise.resolve(null),
+		getPlaylists: () => Promise.resolve({ hasMore: false, items: [] }),
+		getTracksByAlbum: () => Promise.resolve([{ duration: 180, id: 't1', name: 'Track' }]),
+	} as unknown as Transport;
+	await base.preferences.setAnimationsEnabled(false);
+
+	const component = driver.renderComponent(
+		HomeViewWithSlot,
+		buildViewModel(base, undefined, makeRecentlyAddedService().service),
+		undefined,
+	);
+	await flushAsyncWork();
+	return component;
+}
+
+async function longPressAndTap(
+	component: unknown,
+	headerLabel: string,
+	actionLabel: string,
+): Promise<void> {
+	findByLabel(component, headerLabel)?.getAttribute('onLongPress')?.(touchEvent);
+	await flushAsyncWork();
+	findByLabel(component, actionLabel)?.getAttribute('onTap')?.(touchEvent);
+	await flushAsyncWork();
 }
 
 function buildViewModel(
@@ -300,6 +341,38 @@ describe('HomeView', () => {
 		await flushAsyncWork();
 
 		expect(played).toEqual([['older-t1']]);
+	});
+
+	valdiIt('opens add-to-playlist from the section header', async (driver) => {
+		const component = await renderHomeForPlaylistFlow(driver);
+
+		await longPressAndTap(component, 'home-section-recently-added', 'home-context-add-to-playlist');
+
+		expect(findByLabel(component, 'add-to-playlist-view')).not.toBeUndefined();
+	});
+
+	valdiIt('opens create-playlist from the section header', async (driver) => {
+		const component = await renderHomeForPlaylistFlow(driver);
+
+		await longPressAndTap(component, 'home-section-recently-added', 'home-context-create-playlist');
+
+		expect(findByLabel(component, 'create-playlist-create-btn')).not.toBeUndefined();
+	});
+
+	valdiIt('opens add-to-playlist from a card', async (driver) => {
+		const component = await renderHomeForPlaylistFlow(driver);
+
+		jasmine.clock().install();
+		try {
+			findByLabel(component, 'card-r1')?.getAttribute('onTouch')?.(touchEventWith({ state: 0 }));
+			jasmine.clock().tick(500);
+		} finally {
+			jasmine.clock().uninstall();
+		}
+		findByLabel(component, 'card-context-add-to-playlist')?.getAttribute('onTap')?.(touchEvent);
+		await flushAsyncWork();
+
+		expect(findByLabel(component, 'add-to-playlist-view')).not.toBeUndefined();
 	});
 
 	valdiIt('opens no section menu when the section is empty', async (driver) => {

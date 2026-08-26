@@ -30,8 +30,9 @@ export interface HomeContextMenuViewModel {
 
 export class HomeContextMenu extends Component<HomeContextMenuViewModel> {
 	handleAddToPlaylist = (): void => {
-		this.viewModel.onAddToPlaylist(chainSources(this.sources()));
+		const tracks = chainSources(this.sources());
 		this.viewModel.onDismiss();
+		this.viewModel.onAddToPlaylist(tracks);
 	};
 
 	handleAddToQueue = (): void => {
@@ -52,8 +53,9 @@ export class HomeContextMenu extends Component<HomeContextMenuViewModel> {
 	};
 
 	handleCreatePlaylist = (): void => {
-		this.viewModel.onCreatePlaylist(chainSources(this.sources()));
+		const tracks = chainSources(this.sources());
 		this.viewModel.onDismiss();
+		this.viewModel.onCreatePlaylist(tracks);
 	};
 
 	handlePlay = (): void => {
