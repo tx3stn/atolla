@@ -252,66 +252,84 @@ const selectedPlatforms = resolveSelectedPlatforms();
 const selectedOutputs = outputs.filter((output) => selectedPlatforms.has(output.platform));
 
 async function generateIcons(targets: Array<IconOutput>): Promise<void> {
-	for (const output of targets) {
-		console.log(`generating: ${output.path}`);
-		await mkdir(dirname(output.path), { recursive: true });
+	const masterSize = Math.max(...targets.map((target) => target.size)) * 2;
+	const sources = [...new Set(targets.map((target) => target.src ?? sourceSvgPath))];
 
-		const isAndroidOutput = output.platform === 'android';
-		const isIosOutput = output.path.includes('/AppIcon.appiconset/');
-		const paddingRatio = isAndroidOutput
-			? androidIconPaddingRatio
-			: isIosOutput
-				? iosIconPaddingRatio
-				: defaultIconPaddingRatio;
-		const padding = output.noPadding ? 0 : Math.round(output.size * paddingRatio);
-		const contentSize = output.size - padding * 2;
-		const fitMode = 'contain';
+	for (const source of sources) {
+		const master = await renderMaster(source, masterSize);
 
-		const rendered = sharp(output.src ?? sourceSvgPath, { density: 512, limitInputPixels: false })
-			.trim({ threshold: 0 })
-			.resize(contentSize, contentSize, {
-				background: { alpha: 0, b: 0, g: 0, r: 0 },
-				fit: fitMode,
-			})
-			.extend({
-				background: { alpha: 0, b: 0, g: 0, r: 0 },
-				bottom: padding,
-				left: padding,
-				right: padding,
-				top: padding,
-			})
-			.png({ compressionLevel: 9 });
+		for (const output of targets.filter((target) => (target.src ?? sourceSvgPath) === source)) {
+			console.log(`generating: ${output.path}`);
+			await mkdir(dirname(output.path), { recursive: true });
 
-		if (!output.monochrome) {
-			await rendered.toFile(output.path);
-			continue;
-		}
+			const isAndroidOutput = output.platform === 'android';
+			const isIosOutput = output.path.includes('/AppIcon.appiconset/');
+			const paddingRatio = isAndroidOutput
+				? androidIconPaddingRatio
+				: isIosOutput
+					? iosIconPaddingRatio
+					: defaultIconPaddingRatio;
+			const padding = output.noPadding ? 0 : Math.round(output.size * paddingRatio);
+			const contentSize = output.size - padding * 2;
+			const fitMode = 'contain';
 
-		const renderedBuffer = await rendered.toBuffer();
-		const alphaChannel = await sharp(renderedBuffer)
-			.ensureAlpha()
-			.extractChannel('alpha')
-			.raw()
-			.toBuffer({ resolveWithObject: true });
+			const rendered = sharp(master)
+				.resize(contentSize, contentSize, {
+					background: { alpha: 0, b: 0, g: 0, r: 0 },
+					fit: fitMode,
+				})
+				.extend({
+					background: { alpha: 0, b: 0, g: 0, r: 0 },
+					bottom: padding,
+					left: padding,
+					right: padding,
+					top: padding,
+				})
+				.png({ compressionLevel: 9 });
 
-		await sharp({
-			create: {
-				background: { b: 255, g: 255, r: 255 },
-				channels: 3,
-				height: alphaChannel.info.height,
-				width: alphaChannel.info.width,
-			},
-		})
-			.joinChannel(alphaChannel.data, {
-				raw: {
-					channels: 1,
+			if (!output.monochrome) {
+				await rendered.toFile(output.path);
+				continue;
+			}
+
+			const renderedBuffer = await rendered.toBuffer();
+			const alphaChannel = await sharp(renderedBuffer)
+				.ensureAlpha()
+				.extractChannel('alpha')
+				.raw()
+				.toBuffer({ resolveWithObject: true });
+
+			await sharp({
+				create: {
+					background: { b: 255, g: 255, r: 255 },
+					channels: 3,
 					height: alphaChannel.info.height,
 					width: alphaChannel.info.width,
 				},
 			})
-			.png({ compressionLevel: 9 })
-			.toFile(output.path);
+				.joinChannel(alphaChannel.data, {
+					raw: {
+						channels: 1,
+						height: alphaChannel.info.height,
+						width: alphaChannel.info.width,
+					},
+				})
+				.png({ compressionLevel: 9 })
+				.toFile(output.path);
+		}
 	}
+}
+
+async function renderMaster(source: string, size: number): Promise<Buffer> {
+	const { width } = await sharp(source).metadata();
+	if (!width) {
+		throw new Error(`Could not read the intrinsic width of ${source}`);
+	}
+
+	return sharp(source, { density: Math.ceil((size / width) * 72), limitInputPixels: false })
+		.trim({ threshold: 0 })
+		.png()
+		.toBuffer();
 }
 
 async function _validateIcons(targets: Array<IconOutput>): Promise<void> {
