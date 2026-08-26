@@ -658,6 +658,54 @@ describe('PlaybackOrchestrator artwork palette', () => {
 		expect(palette.state.prioritized).toEqual(['art://a']);
 	});
 
+	it('caches the album art before queueing extraction, which reads the cached bytes', async () => {
+		const palette = fakePalette();
+		const order: Array<string> = [];
+		let resolveCache: (() => void) | undefined;
+		const orchestrator = createOrchestrator(artworkStore('art://a'), () => {}, fakeNotification(), {
+			cacheAlbumArt: (url) => {
+				order.push(`cache:${url}`);
+				return new Promise<void>((resolve) => {
+					resolveCache = resolve;
+				});
+			},
+		});
+		orchestrator.setUserServices(
+			userServices({
+				paletteQueue: {
+					enqueue: () => {},
+					prioritize: (_id, url) => order.push(`prioritize:${url}`),
+				},
+				paletteService: palette.service,
+			}),
+		);
+
+		orchestrator.handleAlbumChange();
+		await flush();
+
+		expect(order).toEqual(['cache:art://a']);
+
+		resolveCache?.();
+		await flush();
+
+		expect(order).toEqual(['cache:art://a', 'prioritize:art://a']);
+	});
+
+	it('does not queue extraction when the album art never caches', async () => {
+		const palette = fakePalette();
+		const orchestrator = createOrchestrator(artworkStore('art://a'), () => {}, fakeNotification(), {
+			cacheAlbumArt: () => Promise.reject(new Error('timed out')),
+		});
+		orchestrator.setUserServices(
+			userServices({ paletteQueue: palette.queue, paletteService: palette.service }),
+		);
+
+		orchestrator.handleAlbumChange();
+		await flush();
+
+		expect(palette.state.prioritized).toEqual([]);
+	});
+
 	it('skips prioritizing when the artwork already has a palette', async () => {
 		const palette = fakePalette();
 		palette.state.hasPaletteFor.add('art://a');

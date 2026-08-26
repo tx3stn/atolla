@@ -421,10 +421,12 @@ export class PlaybackOrchestrator {
 		this.prewarmArtwork(artworkId, imageUrl);
 		fireAndForget(
 			'paletteWarmUp',
-			paletteService.warmUp([imageUrl]).then(() => {
-				if (!paletteService.hasPalette(imageUrl)) {
-					paletteQueue.prioritize(artworkId, imageUrl);
+			paletteService.warmUp([imageUrl]).then(async () => {
+				if (paletteService.hasPalette(imageUrl)) {
+					return;
 				}
+				await this.cacheAlbumArt(artworkId, imageUrl);
+				paletteQueue.prioritize(artworkId, imageUrl);
 			}),
 		);
 	}
