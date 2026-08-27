@@ -1,0 +1,223 @@
+name: Build apps
+
+# The release build definition, shared so main pushes and tag builds produce
+# byte-identical bazel action keys. Without that the main-push builds warm a
+# different cache than the release consumes and the release stays cold.
+on:
+  workflow_call:
+    inputs:
+      upload-artifacts:
+        description: Upload the built apk/ipa as workflow artifacts.
+        type: boolean
+        default: false
+      version-artifact:
+        description: >-
+          Name of an artifact holding the stamped version files to unpack before
+          building. Empty (the default) builds the version already in the tree.
+        type: string
+        default: ""
+    secrets:
+      BUILDBUDDY_API_KEY:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: get version files
+        if: inputs.version-artifact != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.version-artifact }}
+          path: .
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: cache bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+      - run: bun install --frozen-lockfile
+      # Regenerate the Android icons from atolla_app/res/logo.svg in the background so it
+      # overlaps the bazel cache restores below; "Wait for icon generation" joins on
+      # it before Build APK. Output is byte-identical to the committed res/ files
+      # unless the logo changed, and must land before bazel reads res/.
+      - name: start icon generation (background)
+        run: |
+          nohup bash -c '
+            bun run icons:generate --android > /tmp/icons.log 2>&1
+            echo $? > /tmp/icons.exit
+          ' >/dev/null 2>&1 &
+          echo $! > /tmp/icons.pid
+          echo "icon generation started (pid $(cat /tmp/icons.pid))"
+      - uses: ./.github/actions/install-libtinfo5
+      - name: Make room for the bazel build
+        run: |
+          # The full APK build (Skia/ICU/harfbuzz/abseil/Valdi + host tools) overflows the
+          # ~20 GB free on /. Move bazel's output base — the extracted external repos and
+          # bazel-out, the dominant consumer — to the larger /mnt ephemeral disk, and reclaim
+          # space from preinstalled toolchains we don't use so the repo-cache tar has room on /.
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/share/swift /usr/local/share/powershell
+          sudo docker image prune --all --force || true
+          sudo mkdir -p /mnt/bazel-ob
+          sudo chown "$USER:$USER" /mnt/bazel-ob
+          echo "startup --output_base=/mnt/bazel-ob" >> ~/.bazelrc
+          df -h / /mnt
+      # the remote cache is CI's only cache: version bumps touch a few files, so
+      # most compile actions hit artifacts uploaded by the previous release
+      - name: configure bazel caching
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          {
+            # build:apk passes --config=android, whose .bazelrc lines re-point
+            # --disk_cache to ~/.cache/bazel-disk-android; override at the same config
+            # scope (home rc wins) so writing every output twice doesn't fill the disk.
+            echo "build:android --disk_cache="
+            # MergeAndroidAssets fails in CI but not locally because the remote cache serves
+            # ValdiCompile's per-module asset tree artifacts with their nested
+            # _configs/*.tsconfig.json files DROPPED (a tree-artifact cache round-trip bug). The
+            # module symbols (assets.bin) still list those assets, so the merge sees a duplicate-
+            # asset conflict across modules, tries to content-compare the now-absent files, and
+            # dies with a NoSuchFileException that the rules_android busybox masks as the opaque
+            # "Error during merging". A local build emits the complete dirs — proven in an amd64
+            # container: forcing local execution restored the missing _configs files and the merge
+            # returned 0. So force ValdiCompile to run locally and never be served from the remote
+            # cache. Every other action still hits the cache; only the ~dozen valdi module compiles
+            # re-run per release. (This replaces an earlier --remote_download_all attempt that
+            # couldn't help: the artifacts are cached incomplete regardless of download mode.)
+            echo "build:android --modify_execution_info=ValdiCompile=+no-remote-cache"
+            # remote-cache-hit downloads are gated by --jobs, not cores
+            echo "build --jobs=32"
+            if [ -n "$BUILDBUDDY_API_KEY" ]; then
+              echo "build --config=remote-cache"
+              echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
+            fi
+          } >> ~/.bazelrc
+      # Restore-only: read the shared repository cache that CI's android-tests job
+      # banks on main (default-branch caches are readable from tag runs). This tag
+      # build can't usefully SAVE — a tag-scoped cache isn't visible to main runs —
+      # and app-only maven deps not in the test set just partial-hit and re-fetch.
+      - name: restore bazel repository cache
+        id: restore-bazel-repo
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
+          restore-keys: |
+            bazel-repo-${{ runner.os }}-
+      # Join on the background icon generation started after bun install. The process
+      # was launched in a different step's shell, so we poll its pid and read the
+      # exit status it wrote, rather than `wait` (which only works for child procs).
+      - name: wait for icon generation
+        run: |
+          pid="$(cat /tmp/icons.pid)"
+          while kill -0 "$pid" 2>/dev/null; do sleep 1; done
+          cat /tmp/icons.log || true
+          if [ ! -f /tmp/icons.exit ]; then
+            echo "icon generation exited without writing a status file"; exit 1
+          fi
+          code="$(cat /tmp/icons.exit)"
+          echo "icon generation exit code: $code"
+          exit "$code"
+      - name: build apk
+        run: JAVA_HOME="$JAVA_HOME_17_X64" bun run build:apk
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: inputs.upload-artifacts
+        with:
+          name: android-apk
+          path: build/atolla_android.apk
+          if-no-files-found: error
+
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: apply version files
+        if: inputs.version-artifact != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.version-artifact }}
+          path: .
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: cache bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+      - run: bun install --frozen-lockfile
+      # Regenerate the iOS icons from atolla_app/res/logo.svg in the background so it
+      # overlaps the bazel cache restores below; "wait for icon generation" joins on
+      # it before Build simulator IPA. Output is byte-identical to the committed res/
+      # files unless the logo changed, and must land before bazel reads assets.
+      - name: start icon generation (background)
+        run: |
+          nohup bash -c '
+            bun run icons:generate --ios > /tmp/icons.log 2>&1
+            echo $? > /tmp/icons.exit
+          ' >/dev/null 2>&1 &
+          echo $! > /tmp/icons.pid
+          echo "icon generation started (pid $(cat /tmp/icons.pid))"
+      # the remote cache is CI's only cross-run cache: version bumps touch a few files,
+      # so most compile actions hit artifacts uploaded by the previous release
+      - name: configure bazel caching
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          {
+            # build:ipa passes --config=ios, whose .bazelrc lines re-point --disk_cache
+            # to ~/.cache/bazel-disk-ios; override at the same config scope (home rc wins)
+            # so writing every output twice doesn't fill the disk.
+            echo "build:ios --disk_cache="
+            # remote-cache-hit downloads are gated by --jobs, not cores
+            echo "build --jobs=32"
+            if [ -n "$BUILDBUDDY_API_KEY" ]; then
+              echo "build --config=remote-cache"
+              echo "build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY"
+            fi
+          } >> ~/.bazelrc
+      # Restore-only: read the shared repository cache that CI's ios-tests job banks on
+      # main (default-branch caches are readable from tag runs). This tag build can't
+      # usefully SAVE — a tag-scoped cache isn't visible to main runs — and app-only
+      # deps not in the test set just partial-hit and re-fetch.
+      - name: restore bazel repository cache
+        id: restore-bazel-repo
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/bazel-repo
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
+          restore-keys: |
+            bazel-repo-${{ runner.os }}-
+      # Join on the background icon generation started after bun install. The process
+      # was launched in a different step's shell, so we poll its pid and read the
+      # exit status it wrote, rather than `wait` (which only works for child procs).
+      - name: wait for icon generation
+        run: |
+          pid="$(cat /tmp/icons.pid)"
+          while kill -0 "$pid" 2>/dev/null; do sleep 1; done
+          cat /tmp/icons.log || true
+          if [ ! -f /tmp/icons.exit ]; then
+            echo "icon generation exited without writing a status file"; exit 1
+          fi
+          code="$(cat /tmp/icons.exit)"
+          echo "icon generation exit code: $code"
+          exit "$code"
+      # Device build, ad hoc signed — see .scripts/build-ios-ipa.sh. No Apple account
+      # or signing secrets involved; the installing user's sideloader re-signs.
+      - name: build ipa
+        run: IOS_CPUS=arm64 bun run build:ipa
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: inputs.upload-artifacts
+        with:
+          name: ios-ipa
+          path: build/atolla_ios.ipa
+          if-no-files-found: error

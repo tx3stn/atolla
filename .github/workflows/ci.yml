@@ -15,6 +15,7 @@ on:
       - ".github/dependabot.yml"
       - "vrsn.toml"
   workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -24,51 +25,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Detect which areas a PR touches so the heavy native jobs can skip when they're
-  # irrelevant. On push/main (and workflow_call) the gates below force every job to run
-  # regardless — main is always fully tested; path-skipping only trims PR runs.
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      zig: ${{ steps.filter.outputs.zig }}
-      android: ${{ steps.filter.outputs.android }}
-      ios: ${{ steps.filter.outputs.ios }}
-      components: ${{ steps.filter.outputs.components }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
-        id: filter
-        with:
-          filters: |
-            shared: &shared
-              - 'MODULE.bazel'
-              - 'MODULE.bazel.lock'
-              - '.bazelversion'
-              - '.bazelrc'
-              - 'patches/**'
-              - 'BUILD.bazel'
-              - '.github/workflows/ci.yml'
-              - '.github/actions/**'
-            zig:
-              - *shared
-              - 'atolla_app/native/zig/**'
-            android:
-              - *shared
-              - 'atolla_app/native/BUILD.bazel'
-              - 'atolla_app/native/android/**'
-            ios:
-              - *shared
-              - 'atolla_app/native/BUILD.bazel'
-              - 'atolla_app/native/ios/**'
-            components:
-              - *shared
-              - 'atolla_app/**'
-              - 'atolla_core/**'
-              - 'atolla_jellyfin/**'
-              - 'atolla_player/**'
-              - 'package.json'
-              - 'bun.lock'
-              - 'tsconfig*.json'
   static-checks:
     runs-on: ubuntu-latest
     # cold path (projectsync cache miss + cold remote cache) measured ~25 min,
@@ -201,8 +157,6 @@ jobs:
           key: projectsync-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**', 'atolla_app/BUILD.bazel', 'atolla_core/BUILD.bazel', 'atolla_jellyfin/BUILD.bazel', 'atolla_player/BUILD.bazel', 'atolla_core/strings/**') }}-res${{ steps.reslist.outputs.hash }}
 
   zig-tests:
-    needs: changes
-    if: ${{ needs.changes.outputs.zig == 'true' || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -233,8 +187,6 @@ jobs:
       - run: bun run check:zig
 
   component-tests:
-    needs: changes
-    if: ${{ needs.changes.outputs.components == 'true' || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -301,8 +253,6 @@ jobs:
           key: bazel-ob-${{ github.job }}-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
 
   android-tests:
-    needs: changes
-    if: ${{ needs.changes.outputs.android == 'true' || github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -353,8 +303,6 @@ jobs:
   # install-libtinfo5, wait-for-disk-cleanup) don't apply here; macOS has the space
   # and no hermetic-clang libtinfo dependency.
   ios-tests:
-    needs: changes
-    if: ${{ needs.changes.outputs.ios == 'true' || github.event_name != 'pull_request' }}
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
@@ -385,3 +333,12 @@ jobs:
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
+
+  build-apps:
+    if: github.event_name != 'pull_request'
+    concurrency:
+      group: build-apps-${{ github.ref }}
+      cancel-in-progress: true
+    uses: ./.github/workflows/build-apps.yml
+    secrets:
+      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
