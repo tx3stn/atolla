@@ -5,6 +5,7 @@ import type { ContentSizeChangeEvent, ScrollEvent } from 'valdi_tsx/src/GestureE
 import type { AnimatedImage, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import { theme } from '../../theme';
 import { hapticFeedback } from '../../utils/Haptics';
+import { pullDistance } from '../../utils/Scroll';
 import { LoadingSpinner } from '../animations/LoadingSpinner';
 
 // how far past the top the user must overscroll before releasing triggers a refresh
@@ -181,11 +182,6 @@ export class RefreshableScroll extends StatefulComponent<
 	private spinnerAccessibilityId(): string {
 		return `${this.viewModel.accessibilityId ?? 'refreshable-scroll'}-refresh-spinner`;
 	}
-}
-
-// iOS reports the pull as a negative content offset (bounce); Android reports overscroll tension
-function pullDistance(y: number, overscrollTensionY: number | undefined): number {
-	return Math.max(0, -y) + Math.max(0, -(overscrollTensionY ?? 0));
 }
 
 const overlayLayout = {

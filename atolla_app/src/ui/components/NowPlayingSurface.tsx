@@ -15,7 +15,12 @@ import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import type { Asset } from 'valdi_tsx/src/Asset';
-import type { ContentSizeChangeEvent, DragEvent, ScrollEvent } from 'valdi_tsx/src/GestureEvents';
+import type {
+	ContentSizeChangeEvent,
+	DragEvent,
+	ScrollEvent,
+	TouchEvent,
+} from 'valdi_tsx/src/GestureEvents';
 import type {
 	ImageView,
 	Label,
@@ -195,6 +200,9 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	private readonly closeDragDistance = 36;
 	private readonly closeDragVelocity = 550;
+	private lyricsScrollOffset = 0;
+	private lyricsCloseDragOriginY: number | null = null;
+
 	private readonly pageDragDistance = 120;
 	private readonly pageDragVelocity = 600;
 	private readonly collapsedInset = 20;
@@ -603,7 +611,7 @@ export class NowPlayingSurface extends StatefulComponent<
 				return;
 			}
 			if (event.deltaY > 0) {
-				this.overlayRef.setAttribute('top', event.deltaY);
+				this.followCloseDrag(event.deltaY);
 			}
 			return;
 		}
@@ -617,15 +625,7 @@ export class NowPlayingSurface extends StatefulComponent<
 			return;
 		}
 
-		const isDownwardDistance = event.deltaY >= this.closeDragDistance;
-		const isDownwardFlick = event.deltaY > 8 && event.velocityY >= this.closeDragVelocity;
-
-		if (!isDownwardDistance && !isDownwardFlick) {
-			this.handleExpandedDragCancel();
-			return;
-		}
-
-		this.closeSurface();
+		this.settleCloseDrag(event.deltaY, event.velocityY);
 	};
 
 	private handleExpandedDragCancel = (): void => {
@@ -639,6 +639,57 @@ export class NowPlayingSurface extends StatefulComponent<
 
 	private handleExpandedScroll = (event: ScrollEvent): void => {
 		this.dragAutoScroller.setOffset(event.y);
+	};
+
+	private followCloseDrag(deltaY: number): void {
+		this.overlayRef.setAttribute('top', deltaY);
+	}
+
+	private settleCloseDrag(deltaY: number, velocityY: number): void {
+		const isDownwardDistance = deltaY >= this.closeDragDistance;
+		const isDownwardFlick = deltaY > 8 && velocityY >= this.closeDragVelocity;
+
+		if (!isDownwardDistance && !isDownwardFlick) {
+			this.handleExpandedDragCancel();
+			return;
+		}
+
+		this.closeSurface().then(() => {
+			if (!this.isDestroyed() && this.state.isExpanded) {
+				this.handleExpandedDragCancel();
+			}
+		});
+	}
+
+	private handleLyricsScrollOffset = (y: number): void => {
+		this.lyricsScrollOffset = y;
+	};
+
+	private handleLyricsTouch = (event: TouchEvent): void => {
+		if (event.state === TouchEventState.Started) {
+			this.lyricsCloseDragOriginY = this.lyricsScrollOffset <= 0 ? event.absoluteY : null;
+			return;
+		}
+
+		if (this.lyricsCloseDragOriginY == null || !this.state.isExpanded) {
+			return;
+		}
+
+		const deltaY = event.absoluteY - this.lyricsCloseDragOriginY;
+
+		if (event.state === TouchEventState.Changed) {
+			if (!this.isTransitioning) {
+				this.followCloseDrag(Math.max(0, deltaY));
+			}
+			return;
+		}
+
+		if (event.state !== TouchEventState.Ended) {
+			return;
+		}
+
+		this.lyricsCloseDragOriginY = null;
+		this.settleCloseDrag(deltaY, 0);
 	};
 
 	// follows the finger between the artwork and lyrics pages, clamped so neither end rubber-bands
@@ -1127,6 +1178,7 @@ export class NowPlayingSurface extends StatefulComponent<
 												<view
 													accessibilityId='now-playing-lyrics-page'
 													accessibilityLabel='now-playing-lyrics-page'
+													onTouch={this.handleLyricsTouch}
 													style={styles.artworkPage}
 												>
 													<LyricsPanel
@@ -1134,6 +1186,7 @@ export class NowPlayingSurface extends StatefulComponent<
 														bottomPadding={LYRICS_PAGE_BOTTOM_PADDING}
 														horizontalPadding={LYRICS_PAGE_HORIZONTAL_PADDING}
 														lyrics={this.state.lyrics}
+														onScrollOffset={this.handleLyricsScrollOffset}
 														palette={palette}
 														playbackStore={playbackStore}
 														status={this.state.lyricsStatus}

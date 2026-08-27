@@ -5,6 +5,7 @@ import { StatefulComponent } from 'valdi_core/src/Component';
 import { ElementRef } from 'valdi_core/src/ElementRef';
 import { Style } from 'valdi_core/src/Style';
 import type { ElementFrame } from 'valdi_tsx/src/Geometry';
+import type { ScrollEvent } from 'valdi_tsx/src/GestureEvents';
 import type { Label, ScrollView, View } from 'valdi_tsx/src/NativeTemplateElements';
 import type { Palette } from '../../models/Color';
 import { paletteDefaults, theme } from '../../theme';
@@ -30,6 +31,7 @@ export interface LyricsPanelViewModel {
 	bottomPadding: number;
 	horizontalPadding: number;
 	lyrics: Lyrics | null;
+	onScrollOffset?: (y: number) => void;
 	palette?: Palette;
 	// when set and the lyrics are synced, the current line is highlighted and followed. the modal
 	// omits it: it can be opened on any track, so a "current line" there would track unrelated audio
@@ -110,8 +112,10 @@ export class LyricsPanel extends StatefulComponent<LyricsPanelViewModel, LyricsP
 
 		<scroll
 			accessibilityId={accessibilityId}
+			bouncesFromDragAtStart={false}
 			onDragStart={this.handleDragStart}
 			onLayout={this.handleScrollLayout}
+			onScroll={this.handleScroll}
 			ref={this.scrollRef}
 			style={scrollStyle}
 		>
@@ -140,6 +144,10 @@ export class LyricsPanel extends StatefulComponent<LyricsPanelViewModel, LyricsP
 	private handleDragStart = (): void => {
 		const progressSeconds = this.viewModel.playbackStore?.progressSeconds ?? 0;
 		this.followSuspendedUntilSeconds = progressSeconds + FOLLOW_RESUME_SECONDS;
+	};
+
+	private handleScroll = (event: ScrollEvent): void => {
+		this.viewModel.onScrollOffset?.(event.y);
 	};
 
 	private handleScrollLayout = (frame: ElementFrame): void => {

@@ -15,7 +15,13 @@ import { DetachedSlot } from 'valdi_core/src/slot/DetachedSlot';
 import { DetachedSlotRenderer } from 'valdi_core/src/slot/DetachedSlotRenderer';
 import { IRenderedElementViewClass } from 'valdi_test/test/IRenderedElementViewClass';
 import { InstrumentedComponentJSX, valdiIt } from 'valdi_test/test/JSXTestUtils';
-import { dragEvent, editTextEvent, touchEvent, touchEventWith } from '../util/testEvents';
+import {
+	dragEvent,
+	editTextEvent,
+	scrollEvent,
+	touchEvent,
+	touchEventWith,
+} from '../util/testEvents';
 
 const album = {
 	artistId: 'artist-1',
@@ -1848,5 +1854,96 @@ describe('NowPlayingSurface', () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(component.state.isExpanded).toBe(false);
+	});
+
+	describe('pulling down on the lyrics page', () => {
+		async function expandWithLyrics() {
+			const component = createNowPlayingComponent({}, album, {
+				lyricsService: stubLyricsService({ get: () => lyrics }),
+			}).getComponent();
+			expandSurface(component);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			return component;
+		}
+
+		function lyricsScroll(component: Parameters<typeof componentGetElements>[0]) {
+			return elementTypeFind(
+				componentGetElements(component),
+				IRenderedElementViewClass.ScrollView,
+			).find((scroll) => scroll.getAttribute('accessibilityId') === 'now-playing-lyrics');
+		}
+
+		function overlayTop(component: Parameters<typeof componentGetElements>[0]): unknown {
+			return elementTypeFind(componentGetElements(component), IRenderedElementViewClass.View)
+				.find((view) => view.getAttribute('id') === 'now-playing-surface-overlay')
+				?.getAttribute('top');
+		}
+
+		function scrollLyricsTo(
+			component: Parameters<typeof componentGetElements>[0],
+			offsetY: number,
+		): void {
+			lyricsScroll(component)?.getAttribute('onScroll')?.(scrollEvent({ y: offsetY }));
+		}
+
+		function dragLyrics(
+			component: Parameters<typeof componentGetElements>[0],
+			deltaY: number,
+		): void {
+			const page = findByLabel(component, 'now-playing-lyrics-page');
+			page?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 100, state: 0 }));
+			page?.getAttribute('onTouch')?.(touchEventWith({ absoluteY: 100 + deltaY, state: 1 }));
+		}
+
+		function releaseLyrics(
+			component: Parameters<typeof componentGetElements>[0],
+			deltaY: number,
+		): void {
+			findByLabel(component, 'now-playing-lyrics-page')?.getAttribute('onTouch')?.(
+				touchEventWith({ absoluteY: 100 + deltaY, state: 2 }),
+			);
+		}
+
+		valdiIt('the surface follows the finger one to one', async () => {
+			const component = await expandWithLyrics();
+
+			dragLyrics(component, 80);
+
+			expect(overlayTop(component)).toBe(80);
+		});
+
+		valdiIt('a drag past the close distance closes the surface', async () => {
+			const component = await expandWithLyrics();
+
+			dragLyrics(component, 80);
+			releaseLyrics(component, 80);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(component.state.isExpanded).toBe(false);
+		});
+
+		valdiIt('leaves the surface alone when the lyrics are scrolled into', async () => {
+			const component = await expandWithLyrics();
+			scrollLyricsTo(component, 140);
+
+			dragLyrics(component, 80);
+			releaseLyrics(component, 80);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(component.state.isExpanded).toBe(true);
+			expect(overlayTop(component)).toBe(0);
+		});
+
+		valdiIt('a short drag springs back and stays open', async () => {
+			const component = await expandWithLyrics();
+			dragLyrics(component, 20);
+
+			releaseLyrics(component, 20);
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(component.state.isExpanded).toBe(true);
+			expect(overlayTop(component)).toBe(0);
+		});
 	});
 });

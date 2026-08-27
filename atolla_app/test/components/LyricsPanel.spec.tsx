@@ -423,4 +423,29 @@ describe('LyricsPanel', () => {
 			views.find((view) => view.getAttribute('accessibilityLabel') === 'lyrics-line-0'),
 		).toBeUndefined();
 	});
+
+	valdiIt('forwards its scroll offset so a host can tell it is at the top', async (driver) => {
+		const offsets: Array<number> = [];
+		const component = driver.renderComponent(
+			LyricsPanel,
+			{
+				accessibilityId: 'lyrics',
+				bottomPadding: 0,
+				horizontalPadding: 14,
+				lyrics,
+				onScrollOffset: (y: number) => {
+					offsets.push(y);
+				},
+				status: LyricsStatuses.loaded,
+				topPadding: 0,
+			},
+			undefined,
+		);
+
+		const scroll = scrollElement(component.renderer.getComponentRootElements(component, true));
+		scroll?.getAttribute('onScroll')?.(scrollEvent({ y: 140 }));
+		scroll?.getAttribute('onScroll')?.(scrollEvent({ y: 0 }));
+
+		expect(offsets).toEqual([140, 0]);
+	});
 });
