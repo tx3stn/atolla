@@ -1,4 +1,4 @@
-name: Build apps
+name: Build
 
 # The release build definition, shared so main pushes and tag builds produce
 # byte-identical bazel action keys. Without that the main-push builds warm a

@@ -334,11 +334,11 @@ jobs:
           path: ~/.cache/bazel-repo
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
 
-  build-apps:
+  build:
     if: github.event_name != 'pull_request'
     concurrency:
-      group: build-apps-${{ github.ref }}
+      group: build-${{ github.ref }}
       cancel-in-progress: true
-    uses: ./.github/workflows/build-apps.yml
+    uses: ./.github/workflows/build.yml
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}

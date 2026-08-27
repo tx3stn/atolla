@@ -32,7 +32,7 @@ jobs:
 
   build:
     needs: set-version
-    uses: ./.github/workflows/build-apps.yml
+    uses: ./.github/workflows/build.yml
     with:
       upload-artifacts: true
       version-artifact: version-files
