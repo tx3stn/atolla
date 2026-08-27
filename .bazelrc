@@ -103,6 +103,10 @@ build:remote-cache --bes_results_url=https://app.buildbuddy.io/invocation/
 # Remote Asset API isn't served, so this degrades to today's behaviour rather than failing.
 build:remote-cache --experimental_remote_downloader=grpcs://remote.buildbuddy.io
 build:remote-cache --experimental_remote_downloader_local_fallback
+# The default of 0 fails the build outright when a blob it expected has been evicted
+# since the action-cache lookup succeeded. Retrying costs nothing unless that happens,
+# and a cold release build is ~90 minutes to throw away if it does.
+build:remote-cache --experimental_remote_cache_eviction_retries=2
 
 # Android-specific — applied via --config=android in start-android-emulator.sh
 build:android --disk_cache=~/.cache/bazel-disk-android
