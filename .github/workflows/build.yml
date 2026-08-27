@@ -44,18 +44,9 @@ jobs:
           restore-keys: |
             bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      # Regenerate the Android icons from atolla_app/res/logo.svg in the background so it
-      # overlaps the bazel cache restores below; "Wait for icon generation" joins on
-      # it before Build APK. Output is byte-identical to the committed res/ files
-      # unless the logo changed, and must land before bazel reads res/.
-      - name: start icon generation (background)
-        run: |
-          nohup bash -c '
-            bun run icons:generate --android > /tmp/icons.log 2>&1
-            echo $? > /tmp/icons.exit
-          ' >/dev/null 2>&1 &
-          echo $! > /tmp/icons.pid
-          echo "icon generation started (pid $(cat /tmp/icons.pid))"
+      # res/*.png is gitignored, so the icons don't exist in a fresh checkout and
+      # this has to run before bazel reads res/.
+      - run: bun run icons:generate --android
       - uses: ./.github/actions/install-libtinfo5
       - name: Make room for the bazel build
         run: |
@@ -112,20 +103,6 @@ jobs:
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
             bazel-repo-${{ runner.os }}-
-      # Join on the background icon generation started after bun install. The process
-      # was launched in a different step's shell, so we poll its pid and read the
-      # exit status it wrote, rather than `wait` (which only works for child procs).
-      - name: wait for icon generation
-        run: |
-          pid="$(cat /tmp/icons.pid)"
-          while kill -0 "$pid" 2>/dev/null; do sleep 1; done
-          cat /tmp/icons.log || true
-          if [ ! -f /tmp/icons.exit ]; then
-            echo "icon generation exited without writing a status file"; exit 1
-          fi
-          code="$(cat /tmp/icons.exit)"
-          echo "icon generation exit code: $code"
-          exit "$code"
       - name: build apk
         run: JAVA_HOME="$JAVA_HOME_17_X64" bun run build:apk
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -155,18 +132,9 @@ jobs:
           restore-keys: |
             bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
-      # Regenerate the iOS icons from atolla_app/res/logo.svg in the background so it
-      # overlaps the bazel cache restores below; "wait for icon generation" joins on
-      # it before Build simulator IPA. Output is byte-identical to the committed res/
-      # files unless the logo changed, and must land before bazel reads assets.
-      - name: start icon generation (background)
-        run: |
-          nohup bash -c '
-            bun run icons:generate --ios > /tmp/icons.log 2>&1
-            echo $? > /tmp/icons.exit
-          ' >/dev/null 2>&1 &
-          echo $! > /tmp/icons.pid
-          echo "icon generation started (pid $(cat /tmp/icons.pid))"
+      # The generated icons and the liquid-glass svg copy are gitignored, so they
+      # don't exist in a fresh checkout and this has to run before bazel reads assets.
+      - run: bun run icons:generate --ios
       # the remote cache is CI's only cross-run cache: version bumps touch a few files,
       # so most compile actions hit artifacts uploaded by the previous release
       - name: configure bazel caching
@@ -197,20 +165,6 @@ jobs:
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', '.bazelversion', 'patches/**') }}
           restore-keys: |
             bazel-repo-${{ runner.os }}-
-      # Join on the background icon generation started after bun install. The process
-      # was launched in a different step's shell, so we poll its pid and read the
-      # exit status it wrote, rather than `wait` (which only works for child procs).
-      - name: wait for icon generation
-        run: |
-          pid="$(cat /tmp/icons.pid)"
-          while kill -0 "$pid" 2>/dev/null; do sleep 1; done
-          cat /tmp/icons.log || true
-          if [ ! -f /tmp/icons.exit ]; then
-            echo "icon generation exited without writing a status file"; exit 1
-          fi
-          code="$(cat /tmp/icons.exit)"
-          echo "icon generation exit code: $code"
-          exit "$code"
       # Device build, ad hoc signed — see .scripts/build-ios-ipa.sh. No Apple account
       # or signing secrets involved; the installing user's sideloader re-signs.
       - name: build ipa
