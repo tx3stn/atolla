@@ -2,7 +2,6 @@ common --registry=https://raw.githubusercontent.com/Snapchat/Valdi/beta-0.1.1/re
 common --registry=https://bcr.bazel.build
 
 common --enable_platform_specific_config
-common --experimental_worker_for_repo_fetching=off
 common --experimental_google_legacy_api=true
 common --experimental_enable_android_migration_apis=true
 common --incompatible_java_common_parameters=false
@@ -98,6 +97,12 @@ build:remote-cache --nolegacy_important_outputs
 build:remote-cache --bes_upload_mode=nowait_for_upload_complete
 build:remote-cache --bes_backend=grpcs://remote.buildbuddy.io
 build:remote-cache --bes_results_url=https://app.buildbuddy.io/invocation/
+# Repository downloads (312 archives a build, 269 of them npm) go through the remote
+# cache instead of straight to npmjs/github, so they stop depending on the GitHub
+# Actions repository-cache. local_fallback keeps direct HTTP as the backstop if the
+# Remote Asset API isn't served, so this degrades to today's behaviour rather than failing.
+build:remote-cache --experimental_remote_downloader=grpcs://remote.buildbuddy.io
+build:remote-cache --experimental_remote_downloader_local_fallback
 
 # Android-specific — applied via --config=android in start-android-emulator.sh
 build:android --disk_cache=~/.cache/bazel-disk-android
